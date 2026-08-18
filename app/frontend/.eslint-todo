@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-18T21:11:51.863Z
+# Generated: 2026-08-18T21:14:45.314Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -534,7 +534,7 @@ app/controllers/user/index.js|ember/no-runloop|256|9|2|5addc2170315
 app/controllers/user/index.js|ember/require-computed-property-dependencies|1309|31|1|81b4dc430a0b
 app/controllers/user/index.js|ember/require-computed-property-dependencies|603|15|1|5a894b92728e
 app/controllers/user/index.js|ember/require-return-from-computed|1067|5|1|8c8d53fa71e0
-app/controllers/user/log.js|ember/no-runloop|292|9|2|5addc2170315
+app/controllers/user/log.js|ember/no-runloop|304|9|2|5addc2170315
 app/controllers/user/logs.js|ember/no-runloop|181|13|2|5addc2170315
 app/controllers/user/logs.js|ember/require-computed-property-dependencies|65|17|1|fbb602ec71be
 app/controllers/user/logs.js|ember/require-return-from-computed|65|46|1|8c8d53fa71e0

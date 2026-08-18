@@ -110,6 +110,23 @@ describe AiWordPredictor do
       expect(with_pii).to eq(already_scrubbed)
     end
 
+    it 'keys on scrubbed topic, so redacted PII in context.topic cannot reach the key' do
+      described_class.predict(
+        sentence: 'i want to',
+        context: { topic: 'email jane@example.com' }
+      )
+      with_pii = described_class::CACHE.keys.first
+
+      described_class::CACHE.clear
+      described_class.predict(
+        sentence: 'i want to',
+        context: { topic: 'email [REDACTED_EMAIL]' }
+      )
+      already_scrubbed = described_class::CACHE.keys.first
+
+      expect(with_pii).to eq(already_scrubbed)
+    end
+
     context 'tenant isolation' do
       # managing_organization_id is a plain integer column; cache_scope reads it
       # rather than calling User#managing_organization, which would query.
@@ -280,6 +297,36 @@ describe AiWordPredictor do
       expect(received_sentence).to include('[REDACTED_EMAIL]')
       expect(received_sentence).not_to include('jane@example.com')
       expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(pii_detected: true))
+    end
+
+    it "scrubs PII from context.topic before sending it to the provider" do
+      received_context = nil
+      allow(described_class).to receive(:call_anthropic) do |_config, _sentence, _locale, _count, context|
+        received_context = context
+        anthropic_response('today, and, but, because')
+      end
+
+      described_class.predict(
+        sentence: 'I want to',
+        context: { topic: 'email jane@example.com about the zoo' }
+      )
+
+      expect(received_context[:topic]).to include('[REDACTED_EMAIL]')
+      expect(received_context[:topic]).not_to include('jane@example.com')
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(pii_detected: true))
+    end
+
+    it "leaves a non-PII topic unchanged" do
+      received_context = nil
+      allow(described_class).to receive(:call_anthropic) do |_config, _sentence, _locale, _count, context|
+        received_context = context
+        anthropic_response('play, go, eat, help')
+      end
+
+      described_class.predict(sentence: 'I want to', context: { topic: 'school' })
+
+      expect(received_context[:topic]).to eq('school')
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(pii_detected: false))
     end
 
     context "feature flag and consent gates" do

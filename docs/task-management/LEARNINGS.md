@@ -20,7 +20,12 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
+- [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
+- [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
+- [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
+- [Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`](#gotcha-redact_for_ai-on-the-sentence-does-not-automatically-cover-interpolated-contexttopic)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
@@ -11614,12 +11619,9 @@ same_author: computed('model.author.id', 'app_state.sessionUser.id', function() 
 }),
 ```
 
-The body is correct — `app_state` resolves via module scope. The KEY is not: Ember
-resolves `'app_state.sessionUser.id'` against the controller, which has no
-`app_state` property, so there is nothing to observe and the computed never
-invalidates. It caches on first read and keeps answering for whoever was signed in
-then. Here that gated the "Resume Evaluation" button, so after switching
-communicators without a full reload it could show for a non-author.
+The KEY was the bug that day — Ember cannot observe a module import. The BODY
+was not fully correct: it compared `sessionUser.id`, which is often the `'self'`
+sentinel. That second bug is the 2026-08-18 gotcha below.
 
 This fails silently in both directions — no error, no warning, and the value is
 CORRECT on first read, which is what makes it survive review. Grep for it:
@@ -11638,6 +11640,33 @@ Fix by injecting (`appState: service('app-state')`) and reading through
 the broken version too. The only test that catches it reads once, changes
 `sessionUser`, and reads again — of 3 specs written here, that is the single one the
 negative control failed.
+
+## Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates (2026-08-18)
+
+Fixing the `same_author` *watch* path (injected `appState`, key
+`'appState.sessionUser.id'`) left the *comparison* broken.
+`serializers/application.js` pins the session-user record id to the literal
+`'self'` so Ember Data never re-keys the identifier. `models/user.js#global_id`
+is the real backend id. `model.author.id` is a real global id like `'1_24'`.
+`'1_24' == 'self'` is always false, so "Resume Evaluation" stayed hidden from
+the eval's own author.
+
+It is a window, not a constant: a later local-storage read can close it and put
+the real id on `.id`. While the window is open, `.id` comparisons fail. Mirror
+`eval-workbook.js#isAuthor`: prefer `sessionUser.global_id`, fall back to `.id`,
+drop the `'self'` sentinel, fail closed.
+
+A test that stubs `{ id: '1_24' }` will not catch this. Stub `{ id: 'self',
+global_id: '1_24' }` — that is the network load path.
+
+## Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if` (2026-08-18)
+
+`supervisor_relationships_controller.rb` had `channel` / `actor_id` at 4 spaces
+inside a 6-space `if` body. That looks like they escaped the guard. They did
+not: Ruby uses `if`/`end`, not indent. `AuditEvent.log_command` stayed inside
+the same `end`, so unresolvable tokens still wrote no audit row (the spec
+already asserted this). Re-indent for humans; do not "fix" control flow that
+is already correct.
 
 ## Gotcha: a test that leaks state into a SHARED service hangs the run, it does not fail it (2026-08-15)
 
@@ -11926,6 +11955,27 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 `version + full sha256 + commit` (and a distinct label per attested byte set — e.g.
 `v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
 [`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
+
+## Gotcha: staging → audit-register merge is a union, then regenerate
+
+When `staging` lands on a findings-register branch, do not pick one side of
+`FINDINGS.json` / `DOCUMENT-REGISTER.json`. Rebuild from `git show HEAD` +
+`MERGE_HEAD`: keep this branch's unique findings and docs, add staging-only
+rows, and for a shared id keep the longer staging notes/remediation trail
+without changing status, severity, or disposition. Then run
+`scripts/regenerate-register.sh` so the `.md` mirrors and publication status
+are derived, not hand-merged. If citation-check says `file not found at sha`,
+`git fetch` that evidence commit before re-anchoring the pin. Attested
+`attestedContentHash` pins stay untouched. Task log:
+[`2026-08-17-code-hygiene-auditor-staging-merge.md`](./2026-08-17-code-hygiene-auditor-staging-merge.md).
+
+## Gotcha: a dated successor must not inherit the predecessor's attestation dates
+
+Copying `**Attestation history:** re-attested 2026-08-08` onto a `draft` successor makes the new bytes look reviewed. Label it **Predecessor attestation history** and state that this record has none. Same defect for Related links: point at the operative dated register (`2026-08-16_subprocessor-register.md`), not the frozen `SUBPROCESSORS.md`. Ref: `docs/legal/2026-08-17_ai-data-flow-classification.md`.
+
+## Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`
+
+`AiWordPredictor.predict` used to scrub `sentence` then interpolate `context.topic` into `system_prompt` unsanitized (`lib/ai_word_predictor.rb`; forwarded by `Api::WordSuggestionsController`). Closed 2026-08-18: `scrub_context` runs `redact_for_ai` on topic before the cache key and before `call_anthropic`. Durable rule: every user-derived field that reaches the vendor prompt is an egress surface and must be scrubbed at the same choke point as the primary input, not only inventoried.
 
 ## Gotcha: BREACH_RUNBOOK vendor contacts live in §7, not §11
 

@@ -236,8 +236,20 @@ export default Controller.extend({
   //
   // Injecting the service makes the watched path and the read path the same
   // object. Matches controllers/user/lessons.js:16-18.
-  same_author: computed('model.author.id', 'appState.sessionUser.id', function() {
-    return this.get('model.author.id') == this.get('appState.sessionUser.id');
+  //
+  // Compare `sessionUser.global_id`, not `.id`. serializers/application.js pins
+  // the session-user record id to the literal 'self' so Ember Data never re-keys
+  // the identifier; `global_id` (models/user.js) is the real backend id on both
+  // the network and local-storage load paths. Matching `.id` against
+  // `model.author.id` reads as `'self' == '1_24'` and hides Resume from the
+  // eval's own author — the same gate eval-workbook.js already uses.
+  same_author: computed('model.author.id', 'appState.sessionUser.global_id', 'appState.sessionUser.id', function() {
+    var author = this.get('model.author.id');
+    var myGlobal = this.get('appState.sessionUser.global_id') ||
+                   this.get('appState.sessionUser.id');
+    if (myGlobal === 'self') { myGlobal = null; }
+    if (!author || !myGlobal) { return false; }
+    return String(author) === String(myGlobal);
   }),
   init() {
     this._super(...arguments);

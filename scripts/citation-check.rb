@@ -101,7 +101,9 @@ def check_finding(finding)
   end
 
   unless CHECKABLE_EVIDENCE_TYPES.include?(type)
-    return result.merge(verdict: 'SKIP', reason: "evidence type #{type.inspect} has no code anchor (closed by attestation)")
+    attested = !finding.dig('closureEvidence', 'attestation').to_s.empty?
+    basis = attested ? 'closed by attestation' : 'unattested -- relies on manual/human review, not mechanically verified'
+    return result.merge(verdict: 'SKIP', reason: "evidence type #{type.inspect} has no code anchor (#{basis})")
   end
 
   file = ev['file']
