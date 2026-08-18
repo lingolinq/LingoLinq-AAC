@@ -22,6 +22,8 @@ file (see [README.md](README.md)).
 
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
 - [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
+- [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
+- [Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`](#gotcha-redact_for_ai-on-the-sentence-does-not-automatically-cover-interpolated-contexttopic)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
@@ -11936,6 +11938,14 @@ are derived, not hand-merged. If citation-check says `file not found at sha`,
 `git fetch` that evidence commit before re-anchoring the pin. Attested
 `attestedContentHash` pins stay untouched. Task log:
 [`2026-08-17-code-hygiene-auditor-staging-merge.md`](./2026-08-17-code-hygiene-auditor-staging-merge.md).
+
+## Gotcha: a dated successor must not inherit the predecessor's attestation dates
+
+Copying `**Attestation history:** re-attested 2026-08-08` onto a `draft` successor makes the new bytes look reviewed. Label it **Predecessor attestation history** and state that this record has none. Same defect for Related links: point at the operative dated register (`2026-08-16_subprocessor-register.md`), not the frozen `SUBPROCESSORS.md`. Ref: `docs/legal/2026-08-17_ai-data-flow-classification.md`.
+
+## Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`
+
+`AiWordPredictor.predict` used to scrub `sentence` then interpolate `context.topic` into `system_prompt` unsanitized (`lib/ai_word_predictor.rb`; forwarded by `Api::WordSuggestionsController`). Closed 2026-08-18: `scrub_context` runs `redact_for_ai` on topic before the cache key and before `call_anthropic`. Durable rule: every user-derived field that reaches the vendor prompt is an egress surface and must be scrubbed at the same choke point as the primary input, not only inventoried.
 
 ## Gotcha: BREACH_RUNBOOK vendor contacts live in §7, not §11
 

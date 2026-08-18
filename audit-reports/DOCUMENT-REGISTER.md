@@ -20,7 +20,7 @@
 |---|---|---|---|---|---|---|---|---|---|---|
 | Access Control Policy | Drive | [open](https://docs.google.com/document/d/1yyibyEBfMiaS8NoHVVW629SkK61C0jo5P5OjUGojOck/edit) | published | SOC2, HIPAA, FERPA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, security-review, baa |
 | AI Data-Flow Classification | git | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | superseded | FERPA, COPPA, HIPAA, GDPR | Scot Wahlquist | 2026-08-08 | 2027-07-22 | 2026-08-08 | `8c1479578f6b` |  |
-| AI Data-Flow Classification (2026-08-17 successor) | git | `docs/legal/2026-08-17_ai-data-flow-classification.md` | draft | FERPA, COPPA, HIPAA, GDPR | Scot Wahlquist | 2026-08-17 | 2027-07-22 | no | `d26ba10e4546` | school-dpa-package, security-review, dsar |
+| AI Data-Flow Classification (2026-08-17 successor) | git | `docs/legal/2026-08-17_ai-data-flow-classification.md` | draft | FERPA, COPPA, HIPAA, GDPR | Scot Wahlquist | 2026-08-17 | 2027-07-22 | no | `3e29771ac11c` | school-dpa-package, security-review, dsar |
 | AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | approved | FERPA, COPPA, GDPR | Scot Wahlquist | 2026-08-04 | 2027-07-09 | 2026-08-04 | `2e5f09a3a6c2` |  |
 | Business Continuity and Disaster Recovery Plan | Drive | [open](https://docs.google.com/document/d/1WIr3aBuFjworFtv9EOisOCSdfLvMSMFWQrFMzkhda00/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-04 | 2027-07-10 | 2026-08-04 | `72af832942c4` | soc2-evidence |
@@ -89,7 +89,7 @@
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `cf7182ce8d76` |  |
-| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `647b8cacc41f` |  |
+| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `89eea139ee57` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
 | Notion - Compliance Documents board (LL) | Notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (supplied) |  |
 | Notion - Compliance Findings board (LL) | Notion | [open](https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805) | published |  | Scot Wahlquist | 2026-06-20 | 2026-09-20 | no | (supplied) |  |

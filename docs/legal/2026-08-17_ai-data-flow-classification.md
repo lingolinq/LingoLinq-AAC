@@ -6,8 +6,10 @@
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-01.1)
 **Status:** Maintained in `audit-reports/DOCUMENT-REGISTER.json` for this record's row, which is authoritative. The predecessor's status line, which read "Re-attested 2026-08-08 (provisional)", described the predecessor's bytes and is retained there rather than restated here. Formal outside counsel review remains deferred until the full 5-phase VPC is built. See `AI_DATA_SHARING_CONSENT.md` section 9.
 
-**Attestation history:** first attested (provisional) 2026-07-09; re-attested 2026-07-22;
-re-attested 2026-08-04; re-attested 2026-08-06; **re-attested 2026-08-08**. The 2026-08-08
+**Attestation of this record:** none. This dated successor is a draft. Attestation state lives only in `audit-reports/DOCUMENT-REGISTER.json` (row `DOC-6d37a68cf4`). The dates below are the predecessor's history; they are not a review of these bytes.
+
+**Predecessor attestation history** (frozen on `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md`, `DOC-90b5d33227`): first attested (provisional) 2026-07-09; re-attested 2026-07-22;
+re-attested 2026-08-04; re-attested 2026-08-06; **re-attested 2026-08-08**. The predecessor's 2026-08-08
 revision covers two corrections. First, the runtime operational-status note in section 3,
 which asserted the Bedrock path had been not operational since `00014-5rw` (2026-08-04T06:31:46Z);
 credentials were in fact re-mounted 53 minutes later and have been continuously present since, so
@@ -16,7 +18,7 @@ that claim was false from 2026-08-04T07:25:08Z and was corrected against live in
 `AI_GOVERNANCE_MEMO.md` as "attested 2026-06-19" when that memo had been re-attested on 2026-07-22,
 2026-07-24, 2026-07-27 and 2026-08-04 since. The **2026-08-06** re-attestation covers the
 section 8 correction: the board-generation bullet stated the superseded "stays gated" position as
-the outcome, contradicting this document's own section 3 table and section 4.2,
+the outcome, contradicting the predecessor's own section 3 table and section 4.2,
 `AI_DATA_SHARING_CONSENT.md` section 7, and the shipped implementation in
 `lib/lingo_linq/ai_consent_disclosures.rb`. That revision corrected the description only; no
 classification, gate, or data flow changed. Those bytes were corrected before merge and never
@@ -27,7 +29,7 @@ revision `00012-x8z`; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on `000
 one internal verification call with no user or student data; not operational since `00014-5rw`).
 That last clause was superseded within the hour it was written and is corrected in the 2026-08-07
 revision; see the status note in section 3.
-This document entered the 2026-08-04 re-attestation set during the third review round of PR #725.
+The predecessor entered the 2026-08-04 re-attestation set during the third review round of PR #725.
 The 2026-07-09 attestation covered an
 earlier revision: PR #656 (2026-07-22) rewrote the AI-log retention tiers, moving the children and
 general tiers from "Decided, rolling out" to "Decided, not yet enforced" with the blocker named, and
@@ -39,8 +41,8 @@ claims were re-verified against live code: `AiApiLog.purge_old_eu_logs!(years: 5
 **Related:** `docs/legal/AI_DATA_SHARING_CONSENT.md`, `docs/legal/AI_GOVERNANCE_MEMO.md` (the
 authoritative live model inventory; first attested 2026-06-19, most recently re-attested
 2026-08-04, so check its own attestation block rather than relying on a date quoted here),
-`docs/legal/SUBPROCESSORS.md`,
-`docs/legal/DATA_RETENTION.md`, `.planning/phases/02-disclosures-content/PLAN.md`
+`docs/legal/2026-08-16_subprocessor-register.md` (operative subprocessor register; `docs/legal/SUBPROCESSORS.md` is the frozen 2026-08-08 predecessor),
+`docs/legal/2026-08-09_data-retention_draft.md` (operative retention schedule; `docs/legal/DATA_RETENTION.md` is the frozen 2026-07-23 predecessor), `.planning/phases/02-disclosures-content/PLAN.md`
 
 ## 1. Purpose
 
@@ -122,31 +124,34 @@ section 2), so it is out of scope for this disclosure and is not in the table be
 > `ip_address` is null on all 64. **`jurisdiction` is null on all 64 rows**, so no row is
 > stamped for the EU retention purge and that purge currently matches nothing -- a pre-existing
 > gap, recorded here because this is the document that classifies the flow.
-> **This is the fourth attested document to carry a runtime-status claim that a later deploy
+> **This is the fourth document in this lineage to carry a runtime-status claim that a later deploy
 > invalidated** (the others: the subprocessor register, the Anthropic BAA record, and the breach
 > runbook). Nothing in CI compares a compliance document's runtime claims against the running
 > service, so any runtime sentence in this file is true only as of its stated verification date.
 > **Evidentiary limit:** `AiApiLog` is not a durable egress ledger. `log_ai_call` rescues
 > `ActiveRecord::ActiveRecordError` and returns an unsaved record (`app/models/ai_api_log.rb`), and
 > `Flusher.flush_user_logs` destroys rows by `user_global_id` on user erasure (`lib/flusher.rb`), so
-> the table can under-record. Durable vendor-side confirmation (CloudWatch `AWS/Bedrock`
+> the table can under-record **active** egress. The 63 user-attributed rows counted above are a
+> lower bound, not a complete ledger. Durable vendor-side confirmation (CloudWatch `AWS/Bedrock`
 > `Invocations` / CloudTrail `bedrock:InvokeModel`) has not been obtained; the available IAM
-> principal is denied `cloudwatch:GetMetricStatistics`. Treat the no-egress statement as
-> best-available evidence, not a guarantee. **Correction 2026-08-07:** this note previously ended "not operational
+> principal is denied `cloudwatch:GetMetricStatistics`. Treat the 2026-08-17 production count as
+> best-available evidence of egress, not a guarantee that every call was logged. **Correction 2026-08-07:** this note previously ended "not operational
 > since `00014-5rw` (2026-08-04T06:31:46Z), so `AiClient.configured?` is false again today." That
-> was true for 54 minutes and false from 2026-08-04T07:25:08Z onward. No classification in the table
-> below changes: the rows describe what each feature WOULD send, and the no-egress conclusion still
-> holds, but it now rests on the absence of calls rather than the absence of credentials. The
-> Gemini fallback referenced in these rows was removed 2026-07-09 (PR #570). Read the table as the
-> designated classification when live, not as current traffic. `docs/legal/AWS_BAA_ACCEPTED.md`
-> carries the same superseded claim and is corrected separately.
+> was true for 54 minutes and false from 2026-08-04T07:25:08Z onward. **The 2026-08-07 clause that
+> "the no-egress conclusion still holds, but it now rests on the absence of calls rather than the
+> absence of credentials" is itself superseded by the 2026-08-17 live re-verification above:
+> user-attributed prompts now reach Bedrock.** No classification bucket in the table below changes:
+> the rows describe what each feature sends. The Gemini fallback referenced in these rows was
+> removed 2026-07-09 (PR #570). Read the table as the designated classification of live traffic.
+> `docs/legal/AWS_BAA_ACCEPTED.md` carries the same superseded "no traffic" claim and is corrected
+> separately.
 
 | Feature | Code location | Vendor / model / tier | Data sent (post-scrubber) | Account identifier in payload? | Bucket | 2nd-tier VPC gate? | What the disclosure must say |
 |---|---|---|---|---|---|---|---|
 | AI board suggestion + "focus" refinement | `lib/ai_board_generator.rb` (`generate_words`, `generate_focus_words`) | Primary: Claude Haiku 4.5, wire-resolved to inference profile `us.anthropic.claude-haiku-4-5-20251001-v1:0`. Model provider **Anthropic, PBC**; **processing plane AWS**. Served by **Amazon Bedrock** (`bedrock-runtime.<region>.amazonaws.com`, SigV4), so the payload is delivered to **AWS**, not to Anthropic. The direct `api.anthropic.com` commercial-API route was removed by PR #681 and is CI-enforced. Gemini fallback disabled 2026-07-09 (PR #570). | The topic/prompt text a parent, SLP, or communicator types to request a board (e.g. "make a board about the zoo"), plus cell count and locale. Scrubbed via `PiiScrubber.redact_for_ai` before egress -- as of 2026-07-09 this includes a common first-name gazetteer pass (`PiiScrubber::COMMON_FIRST_NAMES`, ~1,656 US SSA names), not just the account holder's own name. | No. `user:` is threaded into the call for the COPPA gate, org opt-out check, and `AiApiLog` audit attribution ONLY; it is not placed in the vendor-bound prompt payload. | **Non-personal -- reclassified 2026-07-09 (Scot).** Was Scrubbed-personal (conservative default); see section 4.2 for the reclassification rationale and residual-risk acceptance. | **No -- reclassified 2026-07-09.** See section 4.2. | Board generation may be omitted from the second-tier AI-data-sharing disclosure entirely, or listed as a non-gated feature, depending on Phase 2/3 copy conventions -- Anthropic (Haiku 4.5) is still named in the general privacy policy as an AI sub-processor regardless of gating status. |
-| AI word / next-word prediction | `lib/ai_word_predictor.rb` | Same vendor/model/tier and same conditional fallback as above. | The communicator's in-progress sentence or utterance text, i.e. the words the AAC user is actively composing, scrubbed via `PiiScrubber.redact_for_ai` before egress. | No, same pattern as above (`user:` threaded for gating/audit only). | Regulated PII. This is the highest-sensitivity runtime AI feature: it is literally the child or patient's own expressive communication content, sent per keystroke-class interaction, not a one-off prompt. Even scrubbed, small-cohort or context-specific phrasing can be re-identifying. | Yes, highest priority. | Must explicitly say that word prediction sends the words/phrases the user is actively typing or selecting, not just a topic. |
-| Comprehensive / targeted / quick-screen AI evaluation narrative drafting | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`). Model provider **Anthropic, PBC**; **processing plane AWS**. Served by **Amazon Bedrock** (`bedrock-runtime.<region>.amazonaws.com`, SigV4), so the payload is delivered to **AWS**, not to Anthropic. The direct `api.anthropic.com` commercial-API route was removed by PR #681 and is CI-enforced. No Gemini fallback in this path. **No call on this path is recorded in production:** `AiApiLog` contains only `word_prediction` (57) and `board_generation` (7) as of 2026-08-17, so this row describes a code path, not observed egress. | SETT framework fields, intake (age band, etiology, communication profile, suspected access channel), recommendation data (access method, grid size, symbol library, communicator stage, vocabulary band), SLP free-text notes, and dynamic-assessment scores. The free-text student name is structurally dropped from the egress payload before scrubbing (`payload_for_prompt`), and a blocklist seeded with the student's account name(s) plus the SETT free-text name is applied via `PiiScrubber.redact_for_ai`. | No (same client-name-dropped + blocklist pattern; the "name" defense here is stronger than the other two features). | Regulated PII, highest sensitivity. This is clinical evaluation / IEP-adjacent data. Small-cohort re-identification risk is real: a rare etiology or diagnosis combined with an age band and school context can be re-identifying even with the name removed. | Yes, highest priority, plus explicit small-cohort risk flag. | Must name it as clinical evaluation data; note it is opt-in per session (the SLP clicks "Generate AI Narrative," `use_anthropic == true`) and gated on COPPA + org AI opt-out for the STUDENT, not the requesting clinician. |
-| `AiApiLog` (internal audit storage) | `app/models/ai_api_log.rb` | Not a vendor; LingoLinq's own database. | Stores `request_summary` / `response_summary` derived from the payloads above, itself re-scrubbed a second time at write (`before_validation :scrub_summary_columns`), defense in depth against a vendor response echoing an identifier from the prompt. | Yes: `user_global_id` / `organization_global_id` columns, by design (audit trail requirement). | N/A (internal retention artifact, not an external send). | N/A | This is LingoLinq's OWN retention window, distinct from vendor-side retention. See section 5 and `docs/legal/DATA_RETENTION.md`. |
+| AI word / next-word prediction | `lib/ai_word_predictor.rb`, `app/controllers/api/word_suggestions_controller.rb` | Same vendor/model/tier and same conditional fallback as above. | Two user-derived fields reach Bedrock. (1) The communicator's in-progress sentence or utterance text -- the words the AAC user is actively composing. (2) The optional client-supplied `context.topic` string, forwarded by `Api::WordSuggestionsController` and interpolated into `AiWordPredictor.system_prompt` as `Topic context:`. Both are passed through `PiiScrubber.redact_for_ai` in `predict` before the cache key is built and before egress. The scrubber is regex + first-name gazetteer + account-name blocklist, not de-identification. Optional `context.time_of_day` is also interpolated when not `unspecified`; it is an enumerated client string, not scrubbed. The current Ember Speak Mode path (`POST /api/v1/words/predict`) does not send a topic; `POST /api/v1/word_suggestions` does. | No, same pattern as above (`user:` threaded for gating/audit only). | Regulated PII. This is the highest-sensitivity runtime AI feature: it is literally the child or patient's own expressive communication content, sent per keystroke-class interaction, not a one-off prompt. Even scrubbed, small-cohort or context-specific phrasing can be re-identifying. | Yes, highest priority. | Must explicitly say that word prediction sends the words/phrases the user is actively typing or selecting, and that an optional topic-context string may also be sent, post-scrubber. |
+| Comprehensive / targeted / quick-screen AI evaluation narrative drafting | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Claude Opus 4.7 (`claude-opus-4-7`, overridable via `EVAL_NARRATOR_MODEL`). Model provider **Anthropic, PBC**; **processing plane AWS**. Served by **Amazon Bedrock** (`bedrock-runtime.<region>.amazonaws.com`, SigV4), so the payload is delivered to **AWS**, not to Anthropic. The direct `api.anthropic.com` commercial-API route was removed by PR #681 and is CI-enforced. No Gemini fallback in this path. **No call on this path is recorded in production:** `AiApiLog` contains only `word_prediction` (57) and `board_generation` (7) as of 2026-08-17, so this row describes a code path, not observed egress. | `payload_for_prompt` (`lib/eval_narrator.rb`) builds the vendor JSON. **Excluded before egress:** SETT `student` (any key casing) and intake `etiology` (any key casing; local deterministic template still uses etiology; it is not sent to Bedrock). **Sent:** remaining SETT fields; remaining intake (age band, communication profile, suspected access channel); eval mode; SLP free-text notes; session duration; and the **full** `payload['recommendation']` object, not a field subset. That object includes access method, grid size, symbol library, communicator stage, vocabulary band, starter-board spec, confidence, and next action, and -- when present for targeted/comprehensive modes -- nested `targeted_report` (adaptive grid, library 3-way tallies, access co-trial summaries, syntax-probe scores, motor-map hit locations) and `comprehensive_report` (dynamic-assessment scores, literacy-probe results, SETT companion, nested targeted report). After the structural drops, a blocklist seeded with the student's account name(s) plus the SETT free-text name is applied via `PiiScrubber.redact_for_ai`. | No (same client-name-dropped + blocklist pattern; the "name" defense here is stronger than the other two features). | Regulated PII, highest sensitivity. This is clinical evaluation / IEP-adjacent data. Etiology is not in the vendor payload, but small-cohort re-identification risk remains: age band, communication profile, SETT environment/task, literacy and syntax scores, and school context can be re-identifying even with the name and etiology removed. | Yes, highest priority, plus explicit small-cohort risk flag. | Must name it as clinical evaluation data; note it is opt-in per session (the SLP clicks "Generate AI Narrative," `use_anthropic == true`) and gated on COPPA + org AI opt-out for the STUDENT, not the requesting clinician. |
+| `AiApiLog` (internal audit storage) | `app/models/ai_api_log.rb` | Not a vendor; LingoLinq's own database. | Stores `request_summary` / `response_summary` derived from the payloads above, itself re-scrubbed a second time at write (`before_validation :scrub_summary_columns`), defense in depth against a vendor response echoing an identifier from the prompt. | Yes: `user_global_id` / `organization_global_id` columns, by design (audit trail requirement). | N/A (internal retention artifact, not an external send). | N/A | This is LingoLinq's OWN retention window, distinct from vendor-side retention. See section 5 and `docs/legal/2026-08-09_data-retention_draft.md`. |
 
 ## 4. Vendor-truthfulness finding: the Gemini fallback (resolved 2026-07-09)
 
@@ -286,8 +291,7 @@ The disclosure and the privacy policy state the account-lifecycle rule (already 
 and the enforced 90-day IP redaction as **currently enforced**, and state the EU/children/general
 windows as the current **retention policy the company is rolling out**, being explicit about which
 of those three is already live in code (EU only) versus decided-but-not-yet-enforced (children,
-general). See `docs/legal/DATA_RETENTION.md`, which is corrected in this same commit set to carry
-the same breakdown instead of the stale flat "2 years" figure.
+general). See `docs/legal/2026-08-09_data-retention_draft.md` (operative; predecessor `docs/legal/DATA_RETENTION.md` remains frozen), which carries the same breakdown instead of the stale flat "2 years" figure.
 
 ## 7. i18n strategy for the disclosure content (Task 02-01.5)
 
@@ -313,7 +317,7 @@ follow-up.
 
 - Wiring any of this into an actual consent gate at the AI call sites (VPC Phase 4).
 - Building the general non-EU / children's-data purge jobs described in section 6 (separate ticket,
-  tracked in `docs/legal/DATA_RETENTION.md` and this project's `PROJECT.md`).
+  tracked in `docs/legal/2026-08-09_data-retention_draft.md` and this project's `PROJECT.md`).
 - ~~Resolving the Gemini/Vertex AI open item in section 4~~ -- resolved 2026-07-09 (disabled, PR #570).
 - ~~Deciding whether scrubbed neutral board-gen can ever move to the Non-personal bucket~~ --
   resolved 2026-07-09 (Scot's provisional attestation). **Final position: reclassified
