@@ -20,6 +20,8 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
+- [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
 - [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
 - [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
@@ -11613,12 +11615,9 @@ same_author: computed('model.author.id', 'app_state.sessionUser.id', function() 
 }),
 ```
 
-The body is correct — `app_state` resolves via module scope. The KEY is not: Ember
-resolves `'app_state.sessionUser.id'` against the controller, which has no
-`app_state` property, so there is nothing to observe and the computed never
-invalidates. It caches on first read and keeps answering for whoever was signed in
-then. Here that gated the "Resume Evaluation" button, so after switching
-communicators without a full reload it could show for a non-author.
+The KEY was the bug that day — Ember cannot observe a module import. The BODY
+was not fully correct: it compared `sessionUser.id`, which is often the `'self'`
+sentinel. That second bug is the 2026-08-18 gotcha below.
 
 This fails silently in both directions — no error, no warning, and the value is
 CORRECT on first read, which is what makes it survive review. Grep for it:
@@ -11637,6 +11636,33 @@ Fix by injecting (`appState: service('app-state')`) and reading through
 the broken version too. The only test that catches it reads once, changes
 `sessionUser`, and reads again — of 3 specs written here, that is the single one the
 negative control failed.
+
+## Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates (2026-08-18)
+
+Fixing the `same_author` *watch* path (injected `appState`, key
+`'appState.sessionUser.id'`) left the *comparison* broken.
+`serializers/application.js` pins the session-user record id to the literal
+`'self'` so Ember Data never re-keys the identifier. `models/user.js#global_id`
+is the real backend id. `model.author.id` is a real global id like `'1_24'`.
+`'1_24' == 'self'` is always false, so "Resume Evaluation" stayed hidden from
+the eval's own author.
+
+It is a window, not a constant: a later local-storage read can close it and put
+the real id on `.id`. While the window is open, `.id` comparisons fail. Mirror
+`eval-workbook.js#isAuthor`: prefer `sessionUser.global_id`, fall back to `.id`,
+drop the `'self'` sentinel, fail closed.
+
+A test that stubs `{ id: '1_24' }` will not catch this. Stub `{ id: 'self',
+global_id: '1_24' }` — that is the network load path.
+
+## Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if` (2026-08-18)
+
+`supervisor_relationships_controller.rb` had `channel` / `actor_id` at 4 spaces
+inside a 6-space `if` body. That looks like they escaped the guard. They did
+not: Ruby uses `if`/`end`, not indent. `AuditEvent.log_command` stayed inside
+the same `end`, so unresolvable tokens still wrote no audit row (the spec
+already asserted this). Re-indent for humans; do not "fix" control flow that
+is already correct.
 
 ## Gotcha: a test that leaks state into a SHARED service hangs the run, it does not fail it (2026-08-15)
 
