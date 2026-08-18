@@ -11,6 +11,11 @@ export default Route.extend({
 
   activate: function() {
     this._super(...arguments);
+    boardsPageListCache.setBoardsPageActive(true);
+  },
+  deactivate: function() {
+    boardsPageListCache.setBoardsPageActive(false);
+    this._super(...arguments);
   },
 
   model: function() {
@@ -37,22 +42,20 @@ export default Route.extend({
 
     /* Hard-refresh hydrate: if Mine list is not already usable in memory,
        restore a short-lived localStorage snapshot so the overlay gate
-       (`my_boards.done`) can pass immediately while update_selected
+       (`mineListPaintReady`) can pass immediately while update_selected
        background-refreshes. */
     if(model && !boardsPageListCache.isUsableList(model.get('my_boards'))) {
       var snapshot = boardsPageListCache.read(model.get('id'));
       if(snapshot && Array.isArray(snapshot.boards)) {
         var records = boardsPageListCache.hydrate(this.store, snapshot.boards);
         records.done = true;
+        records.paint_ready = true;
         records.user_id = model.get('id');
         model.set('my_boards', records);
       }
     }
 
     controller.update_selected();
-    controller.reload_logs();
-    controller.load_badges();
-    controller.load_goals();
   },
   actions: {
     recordNote: function(type) {
