@@ -539,6 +539,8 @@ export default Controller.extend({
     'boardsPageSearchRows.[]',
     'parent_object',
     'mineTagFolderDrillIn',
+    'boards_page_raw_list',
+    'boards_page_raw_list.done',
     'model.my_boards.done',
     'model.public_boards.done',
     function() {

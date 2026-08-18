@@ -113,7 +113,7 @@ module('Unit | Utility | board-prefetch-planner', function() {
 
   test('lookupsToSyncSeeds produces sync queue entries', function(assert) {
     var seeds = boardPrefetchPlanner.lookupsToSyncSeeds(['user/a', '1_99'], 'owned root', 0);
-    assert.equal(seeds.length, 2);
+    assert.strictEqual(seeds.length, 2);
     assert.deepEqual(seeds[0], { key: 'user/a', depth: 0, visit_source: 'owned root' });
     assert.deepEqual(seeds[1], { id: '1_99', depth: 0, visit_source: 'owned root' });
   });

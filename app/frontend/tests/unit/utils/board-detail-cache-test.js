@@ -182,6 +182,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('warm_full_tree_if_root_only fetches full /tree on a root_only hit and no-ops after', function(assert) {
+    assert.expect(8);
     var origStore = LingoLinq.store;
     var treeUrls = [];
     LingoLinq.store = {
@@ -1044,6 +1045,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('prefetch /tree requests use root_only=1', function(assert) {
+    assert.expect(3);
     var treeUrls = [];
     var origAppState = LingoLinq.appState;
 
