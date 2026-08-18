@@ -149,6 +149,105 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
     LingoLinq.store = origStore;
   });
 
+  test('root_only ingest marks the entry; full-tree ingest clears it and caches descendants', function(assert) {
+    var origStore = LingoLinq.store;
+    LingoLinq.store = {
+      normalize: function(type, data) { return { type: type, data: data }; },
+      push: function(payload) { return payload; }
+    };
+
+    var lite = {
+      root: { board: { key: 'user/home', id: '1_1', buttons: [{ id: 1 }] } },
+      descendants: []
+    };
+    boardDetailCache.ingest_tree(lite, null, { root_only: true });
+    assert.ok(boardDetailCache.is_root_only('user/home'), 'prefetch lite tree is marked root_only');
+    assert.notOk(boardDetailCache.get('user/folder'), 'descendants are not cached yet');
+
+    var skipped = boardDetailCache.set({ key: 'user/home', id: '1_1', buttons: [{ id: 9 }] });
+    assert.ok(boardDetailCache.is_root_only('user/home'), 'bare set() does not clear the root_only mark');
+    assert.strictEqual(skipped.raw.buttons[0].id, 1, 'bare set() does not replace lite payload');
+
+    var full = {
+      root: { board: { key: 'user/home', id: '1_1', buttons: [{ id: 1 }] } },
+      descendants: [
+        { board: { key: 'user/folder', id: '1_2', buttons: [] } }
+      ]
+    };
+    boardDetailCache.ingest_tree(full, null, { force: false, warm_root_images: false, root_only: false });
+    assert.notOk(boardDetailCache.is_root_only('user/home'), 'full tree clears root_only');
+    assert.ok(boardDetailCache.get('user/folder'), 'full tree caches descendants');
+
+    LingoLinq.store = origStore;
+  });
+
+  test('warm_full_tree_if_root_only fetches full /tree on a root_only hit and no-ops after', function(assert) {
+    var origStore = LingoLinq.store;
+    var treeUrls = [];
+    LingoLinq.store = {
+      normalize: function(type, data) { return { type: type, data: data }; },
+      push: function(payload) { return payload; }
+    };
+
+    stubBoardDetailCacheAjax(function(url) {
+      treeUrls.push(url);
+      if (url.indexOf('/tree') !== -1 && url.indexOf('root_only') === -1) {
+        return RSVP.resolve({
+          root: { board: { key: 'user/home', id: '1_1', buttons: [{ id: 1 }] } },
+          descendants: [
+            { board: { key: 'user/folder', id: '1_2', buttons: [] } }
+          ]
+        });
+      }
+      return RSVP.reject({ error: 'unexpected ' + url });
+    });
+
+    boardDetailCache.ingest_tree({
+      root: { board: { key: 'user/home', id: '1_1', buttons: [{ id: 1 }] } },
+      descendants: []
+    }, null, { root_only: true });
+
+    return boardDetailCache.warm_full_tree_if_root_only('user/home').then(function(result) {
+      assert.ok(result.warmed, 'warms from a root_only cache hit');
+      assert.strictEqual(result.descendant_count, 1);
+      assert.strictEqual(treeUrls.length, 1, 'issues one full /tree');
+      assert.strictEqual(treeUrls[0].indexOf('root_only'), -1, 'full /tree has no root_only param');
+      assert.ok(boardDetailCache.get('user/folder'), 'folder tap target is cached');
+      assert.notOk(boardDetailCache.is_root_only('user/home'), 'mark cleared after ingest');
+      return boardDetailCache.warm_full_tree_if_root_only('user/home');
+    }).then(function(second) {
+      assert.notOk(second.warmed, 'second call no-ops once the tree is full');
+      assert.strictEqual(treeUrls.length, 1, 'does not refetch full /tree');
+      LingoLinq.store = origStore;
+    }, function(err) {
+      LingoLinq.store = origStore;
+      throw err;
+    });
+  });
+
+  test('root_only ingest does not downgrade a fresh full-tree cache', function(assert) {
+    var origStore = LingoLinq.store;
+    LingoLinq.store = {
+      normalize: function(type, data) { return { type: type, data: data }; },
+      push: function(payload) { return payload; }
+    };
+
+    boardDetailCache.ingest_tree({
+      root: { board: { key: 'user/home', id: '1_1', buttons: [] } },
+      descendants: [{ board: { key: 'user/folder', id: '1_2', buttons: [] } }]
+    }, null, { root_only: false });
+    assert.notOk(boardDetailCache.is_root_only('user/home'));
+
+    boardDetailCache.ingest_tree({
+      root: { board: { key: 'user/home', id: '1_1', buttons: [] } },
+      descendants: []
+    }, null, { root_only: true });
+    assert.notOk(boardDetailCache.is_root_only('user/home'), 'does not mark an already-full entry root_only');
+    assert.ok(boardDetailCache.get('user/folder'), 'keeps descendants from the full tree');
+
+    LingoLinq.store = origStore;
+  });
+
   test('warm_linked_images warms cached child boards without refetching', function(assert) {
     var url = 'https://example.com/child-symbol.png';
     var parent = {
@@ -863,10 +962,11 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
   });
 
   test('prefetch pipeline defers phase-3 owned list and phase-4 while boards page is active', function(assert) {
-    assert.expect(4);
+    assert.expect(5);
     var done = assert.async();
     var ownedListStarted = false;
     var catalogListStarted = false;
+    var homeTreeStarted = false;
     var treeOrder = [];
     var origAppState = LingoLinq.appState;
 
@@ -884,6 +984,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       if (url.indexOf('/tree') !== -1) {
         var key = url.split('/boards/')[1].split('/tree')[0];
         treeOrder.push(key);
+        if (key === 'user/home') { homeTreeStarted = true; }
         return RSVP.resolve({
           root: { board: { key: key, id: '1_x', buttons: [] } },
           descendants: []
@@ -924,6 +1025,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
     var pipeline = runPrefetchPipeline(user, { skin: 'default', preferred_symbols: 'original' });
 
     setTimeout(function() {
+      assert.notOk(homeTreeStarted, 'phase-1 home /tree has not started while boards page is active');
       assert.notOk(ownedListStarted, 'phase-3 owned list has not started while boards page is active');
       assert.notOk(catalogListStarted, 'phase-4 catalog list has not started while boards page is active');
       boardsPageListCache.setBoardsPageActive(false);
@@ -975,6 +1077,7 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
       treeUrls.forEach(function(url) {
         assert.notStrictEqual(url.indexOf('root_only=1'), -1, url + ' includes root_only=1');
       });
+      assert.ok(boardDetailCache.is_root_only('user/home'), 'prefetch ingest marks the home root as root_only');
     }, function(err) {
       LingoLinq.appState = origAppState;
       throw err;

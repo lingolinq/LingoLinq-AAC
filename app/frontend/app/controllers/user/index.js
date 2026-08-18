@@ -148,7 +148,8 @@ export default Controller.extend({
   // the whole boards page below.
   /* Overlay / hero gate: first Mine page or a completed list (including
      empty). Distinct from my_boards.done, which still waits for the last
-     pagination page so search/copy-cluster get the full library. */
+     pagination page so copy-cluster and the library-complete hint can
+     use the full list. Search itself runs on pages loaded so far. */
   mineListPaintReady: computed(
     'model.my_boards.done',
     'model.my_boards.paint_ready',
@@ -186,6 +187,7 @@ export default Controller.extend({
     return (now - lastSync) > (7 * 24 * 60 * 60 * 1000);
   }),
   check_daily_use: observer('model.user_name', 'model.id', 'model.permissions', 'appState.sessionUser.id', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     var current_user_name = this.get('daily_use.user_name');
     var user_name = this.get('model.user_name');
     // Don't make request if user_name is undefined or empty
@@ -537,20 +539,24 @@ export default Controller.extend({
     'boardsPageSearchRows.[]',
     'parent_object',
     'mineTagFolderDrillIn',
+    'model.my_boards.done',
+    'model.public_boards.done',
     function() {
       /* Folder drill-in hides the Boards Filter UI but keeps any
          prior filterStringDebounced — show the folder grid only. */
       if (this.get('mineTagFolderDrillIn')) {
-        return { results: this.get('filtered_results') || [], truncated: false };
+        return { results: this.get('filtered_results') || [], truncated: false, incomplete: false };
       }
       var filter = (this.get('filterStringDebounced') || '').trim();
       if (!filter) {
-        return { results: this.get('filtered_results') || [], truncated: false };
+        return { results: this.get('filtered_results') || [], truncated: false, incomplete: false };
       }
       var q = filter.toLowerCase();
       var rows = this.get('boardsPageSearchRows') || [];
       var matches = [];
       var truncated = false;
+      var sourceList = this.get('boards_page_raw_list') || [];
+      var incomplete = !sourceList.done;
       if (rows.length) {
         for (var i = 0; i < rows.length; i++) {
           if (rows[i].haystack.indexOf(q) === -1) { continue; }
@@ -560,7 +566,7 @@ export default Controller.extend({
           }
           matches.push({ board: rows[i].board, children: [] });
         }
-        return { results: matches, truncated: truncated };
+        return { results: matches, truncated: truncated, incomplete: incomplete };
       }
       var fallbackRows = this.get('filtered_results') || [];
       for (var j = 0; j < fallbackRows.length; j++) {
@@ -574,7 +580,7 @@ export default Controller.extend({
         }
         matches.push({ board: row.board, children: row.children || [] });
       }
-      return { results: matches, truncated: truncated };
+      return { results: matches, truncated: truncated, incomplete: incomplete };
     }
   ),
   boards_page_visible_results: computed('boardsPageSearchState', function() {
@@ -584,6 +590,10 @@ export default Controller.extend({
   boards_page_search_truncated: computed('boardsPageSearchState', function() {
     var state = this.get('boardsPageSearchState');
     return !!(state && state.truncated);
+  }),
+  boards_page_search_incomplete: computed('boardsPageSearchState', function() {
+    var state = this.get('boardsPageSearchState');
+    return !!(state && state.incomplete);
   }),
   boards_page_search_limit: computed(function() {
     return BOARDS_PAGE_SEARCH_LIMIT;
@@ -984,6 +994,7 @@ export default Controller.extend({
   },
   reload_logs: observer('persistence.online', 'model.permissions', function() {
     if(!this || typeof this.get !== 'function') { return; }
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     var _this = this;
     var persistenceService = this.get('persistence') || this.persistence;
     if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
@@ -1017,6 +1028,7 @@ export default Controller.extend({
     });
   }),
   load_badges: observer('model.permissions', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     if(this.get('model.permissions')) {
       var _this = this;
       if(!(_this.get('model.badges') || {}).length) {
@@ -1032,6 +1044,7 @@ export default Controller.extend({
     }
   }),
   load_goals: observer('model.permissions', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     if(this.get('model.permissions')) {
       var _this = this;
       if(!(_this.get('model.goals') || {}).length) {

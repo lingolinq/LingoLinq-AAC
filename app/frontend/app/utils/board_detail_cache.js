@@ -242,17 +242,17 @@ function _wait_while_mine_list_busy(maxWaitMs) {
   return check();
 }
 
-/* Wait while the boards page is the visible route so phase 3/4 do not
-   compete with Mine pagination and tile images. 30-minute cap so a
-   leaked active flag cannot block prefetch forever. */
+/* Wait while the boards page is the visible route so prefetch does not
+   compete with Mine pagination and tile images. No wall-clock resume:
+   resolving while the page is still open restarts the catalog flood.
+   deactivate / clearAll clear the flag. Tests may pass maxWaitMs. */
 function _wait_while_boards_page_active(maxWaitMs) {
-  maxWaitMs = maxWaitMs === undefined ? 1800000 : maxWaitMs;
   var started = _now();
   var check = function() {
     if (!boardsPageListCache.isBoardsPageActive()) {
       return RSVP.resolve();
     }
-    if ((_now() - started) >= maxWaitMs) {
+    if (maxWaitMs !== undefined && (_now() - started) >= maxWaitMs) {
       return RSVP.resolve();
     }
     return _later_promise(200).then(check);
@@ -377,7 +377,8 @@ function _process_roots_sequentially(cache, rootKeys, warm_opts, gapMs, seq_opts
     }
     return tree_req.then(function(data) {
       _ingest_tree_response(cache, data, warm_opts, {
-        warm_root_images: !boardsPageListCache.isBoardsPageActive()
+        warm_root_images: !boardsPageListCache.isBoardsPageActive(),
+        root_only: true
       });
     }, function() {
       /* swallow per-board errors */
@@ -399,7 +400,10 @@ function _ingest_tree_response(cache, data, warm_opts, options) {
   // when a staler entry is still within TTL — so the route's cache-first read
   // and the store record agree on the newest server response. Prefetch callers
   // pass no options, so their non-forcing behavior is unchanged.
-  cache.set(root_raw, { force: !!options.force });
+  cache.set(root_raw, {
+    force: !!options.force,
+    root_only: !!options.root_only
+  });
   if (options.warm_root_images !== false) {
     cache.warm_images(root_raw, warm_opts);
   }
@@ -434,11 +438,64 @@ export default {
   // the prefetch pipeline do. Callers that fetch a tree ahead of navigation
   // (e.g. the guided-tour speak handoff waiting for a freshly-copied board)
   // use this to prime the cache so the subsequent board-detail transition is
-  // a pure cache HIT — no second network load, descendants already warm.
+  // a cache HIT. Prefetch uses options.root_only so speak still background-
+  // loads the full tree on that hit; a full-tree ingest clears the mark.
   // Returns true when the root was ingested, false when the payload has no
   // usable root (board not materialized yet), so the caller can keep polling.
   ingest_tree: function(data, warm_opts, options) {
     return _ingest_tree_response(this, data, warm_opts, options);
+  },
+
+  // True when the cached entry came from /tree?root_only=1 and descendants
+  // have not been ingested yet. Speak cache-hits must still warm the full
+  // tree in the background or folder taps stay cold.
+  is_root_only: function(key_or_id) {
+    var entry = _lookup(key_or_id);
+    if (!entry || !_is_fresh(entry)) { return false; }
+    return !!entry.root_only;
+  },
+
+  // If the entry is a root-only prefetch/lite load, fetch the full /tree
+  // (no root_only) and ingest descendants. No-ops when the cache is already
+  // a full tree. Shares in-flight full-tree requests. Resolves
+  // { warmed, descendant_count } and never rejects.
+  warm_full_tree_if_root_only: function(key_or_id) {
+    var _this = this;
+    if (!this.is_root_only(key_or_id)) {
+      return RSVP.resolve({ warmed: false });
+    }
+    var entry = _lookup(key_or_id);
+    var key = (entry && entry.key) || key_or_id;
+    if (!key) {
+      return RSVP.resolve({ warmed: false });
+    }
+    /* Distinct from prefetch 'tree:' inflight, which is the root_only GET. */
+    var inflight_key = 'full-tree:' + key;
+    var req = _inflight[inflight_key];
+    if (!req) {
+      req = persistence.ajax('/api/v1/boards/' + key + '/tree', { type: 'GET' });
+      _inflight[inflight_key] = req;
+      var _clear = function() {
+        if (_inflight[inflight_key] === req) { delete _inflight[inflight_key]; }
+      };
+      req.then(_clear, _clear);
+    }
+    return req.then(function(data) {
+      if (!data || !data.root || !data.root.board) {
+        return { warmed: false };
+      }
+      _this.ingest_tree(data, null, {
+        force: false,
+        warm_root_images: false,
+        root_only: false
+      });
+      return {
+        warmed: true,
+        descendant_count: (data.descendants && data.descendants.length) || 0
+      };
+    }, function() {
+      return { warmed: false };
+    });
   },
 
   // Returns the cached raw board JSON, or null if missing/stale.
@@ -464,6 +521,12 @@ export default {
     if (!opts.force) {
       var existing = _lookup(raw.key) || _lookup(raw.id);
       if (existing && _is_fresh(existing)) {
+        /* Full-tree ingest must clear the root_only mark even when it
+           keeps the painted root payload. A bare set() (no root_only
+           key) must not clear it — that would hide the need to warm. */
+        if (opts.root_only === false) {
+          existing.root_only = false;
+        }
         return existing;
       }
     }
@@ -473,7 +536,8 @@ export default {
       raw: raw,
       fetched_at: _now(),
       ordered_buttons: null,
-      ordered_for: null
+      ordered_for: null,
+      root_only: !!opts.root_only
     };
     _index(entry);
     return entry;
@@ -680,15 +744,18 @@ export default {
     if (!phaseDone.phase1) {
       chain = chain.then(function() {
         if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
-        var lookups = boardPrefetchPlanner.collectHomeLookups(user);
-        if (!lookups.length) {
-          phaseDone.phase1 = true;
-          return RSVP.resolve();
-        }
-        return _process_roots_sequentially(_this, lookups, warm_opts, gapMs).then(function(completed) {
-          _complete_phase_if_done(phaseDone, 'phase1', completed);
-        }, function() {
-          delete phaseDone.phase1;
+        return _wait_while_boards_page_active().then(function() {
+          if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
+          var lookups = boardPrefetchPlanner.collectHomeLookups(user);
+          if (!lookups.length) {
+            phaseDone.phase1 = true;
+            return RSVP.resolve();
+          }
+          return _process_roots_sequentially(_this, lookups, warm_opts, gapMs, { respectBoardsPage: true }).then(function(completed) {
+            _complete_phase_if_done(phaseDone, 'phase1', completed);
+          }, function() {
+            delete phaseDone.phase1;
+          });
         });
       });
     }
@@ -697,17 +764,20 @@ export default {
       if (!phaseDone.phase2) {
         chain = chain.then(function() {
           if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
-          var seen = {};
-          boardPrefetchPlanner.collectHomeLookups(user).forEach(function(l) { seen[l] = true; });
-          var lookups = boardPrefetchPlanner.collectLikedLookups(user, seen);
-          if (!lookups.length) {
-            phaseDone.phase2 = true;
-            return RSVP.resolve();
-          }
-          return _process_roots_sequentially(_this, lookups, warm_opts, gapMs).then(function(completed) {
-            _complete_phase_if_done(phaseDone, 'phase2', completed);
-          }, function() {
-            delete phaseDone.phase2;
+          return _wait_while_boards_page_active().then(function() {
+            if (_document_hidden() || !_is_online()) { return RSVP.resolve(); }
+            var seen = {};
+            boardPrefetchPlanner.collectHomeLookups(user).forEach(function(l) { seen[l] = true; });
+            var lookups = boardPrefetchPlanner.collectLikedLookups(user, seen);
+            if (!lookups.length) {
+              phaseDone.phase2 = true;
+              return RSVP.resolve();
+            }
+            return _process_roots_sequentially(_this, lookups, warm_opts, gapMs, { respectBoardsPage: true }).then(function(completed) {
+              _complete_phase_if_done(phaseDone, 'phase2', completed);
+            }, function() {
+              delete phaseDone.phase2;
+            });
           });
         });
       }
