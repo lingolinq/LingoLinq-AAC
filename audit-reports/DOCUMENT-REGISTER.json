@@ -858,7 +858,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "2027-04-20",
       "attestation": {},
-      "contentHash": "d56e02afee97769fbce39eb2dc94243dec21e96459e56230aaac593fe101e95f",
+      "contentHash": "032d6a3e9b7e784295d252b3dafb603935d02482d558c257d7cc2ddcc3f916dd",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -1527,7 +1527,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "92f616fa373b82df0a4d4861e6a7a187c79567b34e0ecbe03300a7aa8292e630",
+      "contentHash": "cf7182ce8d764b495ec0d4cc333f9e2a20cec9c6da38c3a2299669aeb2e3e570",
       "bundles": [],
       "mirrors": [
         {
@@ -2975,7 +2975,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "a0946221bc99c288c16a8cfc8258431527ed83547e3118e7b23e20e68d5c5bf7",
+      "contentHash": "385f549127d14dcb810f48e6df4c677b1793c2b11aa804522934dffb72d7b333",
       "bundles": [
         "security-review"
       ],
@@ -3195,6 +3195,33 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "id": "DOC-9e70bd81e4"
+    },
+    {
+      "title": "code-hygiene-auditor agent definition",
+      "description": "Read-only dead-code and AI-slop finder for LingoLinq-AAC, added 2026-08-12 to the /audit-run fan-out.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/code-hygiene-auditor.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-08-12",
+      "nextReviewDue": "2027-02-12",
+      "attestation": {},
+      "contentHash": "c9f43e41bf85f31a59051726705ef38b5f8b34407589b212d12547ac84eb8c2e",
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-9208eb99d2"
     },
     {
       "title": "Compliance Posture Report (branded, 2026-07-16 re-attest)",

@@ -99,9 +99,12 @@ module BetaSeed
       puts "  Ensured #{SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)} social pages set"
     else
       puts "  NOTE: #{SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)} not found."
-      puts "        Upload the Senner-Baud OBZ to the static S3 bucket (#{SystemBoardSources::SENNER_BAUD_OBZ_KEY}) to seed it."
+      puts "        Upload: bundle exec rake lingolinq:upload_curated_boards ONLY=senner-baud"
+      puts "        Then:   bundle exec rake lingolinq:ensure_senner_baud"
+      puts "        Or place SennerBaudSocialPages60ll.obz in tmp/seed-boards/ (SENNER_BAUD_OBZ_PATH override OK)."
     end
 
+    ensure_curated_vocabularies_if_requested!(user)
     ensure_openaac_vocabularies_if_requested!(user)
   end
 
@@ -258,12 +261,31 @@ module BetaSeed
     board
   end
 
+  def self.ensure_curated_vocabularies_if_requested!(user)
+    return unless user
+
+    if ENV['SEED_IMPORT_CURATED_VOCABULARIES'].to_s =~ TRUTHY_PATTERN
+      puts "  Importing curated S3 vocabulary boards for #{SYSTEM_USER_NAME} (prefer over OpenAAC overlaps)..."
+      Rake::Task['lingolinq:import_curated_vocabularies'].reenable
+      Rake::Task['lingolinq:import_curated_vocabularies'].invoke
+    else
+      sample = CuratedVocabularySources.importable_entries.first
+      return unless sample
+      return if Board.find_by_path(SystemBoardSources.board_key(sample[:root_slug]))
+
+      puts "  NOTE: curated gallery vocabularies not imported."
+      puts "        Run: bundle exec rake lingolinq:import_curated_vocabularies"
+      puts "        Or set SEED_IMPORT_CURATED_VOCABULARIES=1 before db:seed (upload assets first)."
+    end
+  end
+
   def self.ensure_openaac_vocabularies_if_requested!(user)
     return unless user
     return if Board.find_by_path(SystemBoardSources.board_key('quick-core-60'))
 
     if ENV['SEED_IMPORT_OPENAAC_VOCABULARIES'].to_s =~ TRUTHY_PATTERN
       puts "  Importing OpenAAC vocabulary boards for #{SYSTEM_USER_NAME} (this may take a while)..."
+      puts "  (Overlaps with curated catalog are skipped — see CuratedVocabularySources.openaac_skip_files)"
       Rake::Task['openaac:import_vocabularies'].reenable
       ENV['VOCABULARY_USER_NAME'] = SYSTEM_USER_NAME
       Rake::Task['openaac:import_vocabularies'].invoke
@@ -315,11 +337,11 @@ module BetaSeed
 
   # Full clean rebuild of the content user's premade library: delete all their
   # boards, then re-run the baseline seed (starter + sidebar + crisis +
-  # Senner-Baud) and, when import_vocabularies is true, the OpenAAC gallery sets
-  # + Project Core. Returns the number of boards deleted. Raises BEFORE deleting
-  # if required seed env is missing or other users reference these boards, so it
-  # can never leave the library empty. Delete + re-seed run in one transaction
-  # so a seed failure rolls back the deletes.
+  # Senner-Baud) and, when import_vocabularies is true, curated gallery sets
+  # then OpenAAC (with curated overlaps skipped). Returns the number of boards
+  # deleted. Raises BEFORE deleting if required seed env is missing or other
+  # users reference these boards, so it can never leave the library empty.
+  # Delete + re-seed run in one transaction so a seed failure rolls back the deletes.
   def self.rebuild_content_boards!(user, import_vocabularies: true)
     missing = missing_required_seed_env
     raise "Cannot rebuild: required seed env missing (#{missing.join(', ')})" if missing.any?
@@ -333,7 +355,10 @@ module BetaSeed
     expected_count = Board.where(user_id: user.id).count
     deleted = nil
     env_overrides = {}
-    env_overrides['SEED_IMPORT_OPENAAC_VOCABULARIES'] = '1' if import_vocabularies
+    if import_vocabularies
+      env_overrides['SEED_IMPORT_CURATED_VOCABULARIES'] = '1'
+      env_overrides['SEED_IMPORT_OPENAAC_VOCABULARIES'] = '1'
+    end
 
     with_temporary_env(env_overrides) do
       ActiveRecord::Base.transaction do

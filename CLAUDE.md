@@ -522,7 +522,7 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 | `scripts/audit-merge.rb` | Deterministic register reconciler (never auto-closes) |
 
 ### Running a Full Audit
-1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the five
+1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the six
    read-only finders in parallel, reconciles results into `audit-reports/FINDINGS.json` via
    `scripts/audit-merge.rb`, runs the `adversary` agent as verifier, and validates with
    `scripts/citation-check.rb`.
@@ -537,6 +537,7 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 | `api-auditor` | Ember<->Rails API contract | `api-contract-audit` |
 | `dependency-auditor` | Dependency freshness + CVEs | `dependency-audit` |
 | `accessibility-auditor` | WCAG 2.1 AA / EN 301 549 (static markup/SCSS) | `accessibility-audit` |
+| `code-hygiene-auditor` | Dead code + AI-slop patterns (static Rails/Ember) | `code-hygiene-audit` |
 
 Retired from the fan-out: `ember-stabilization` and `rails-upgrade` (migration-era, shipped)
 and the `mvp-readiness` 0-100 score (replaced by open Critical/High counts).

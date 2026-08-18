@@ -3,10 +3,10 @@
     "schemaVersion": "1.1",
     "register": "LingoLinq-AAC audit findings register",
     "description": "Single source of truth for finding status. Statuses are verified against live code at auditedSha, NOT copied from the dated report prose. See audit-reports/README.md.",
-    "auditedSha": "20953ab3d5a80c3a9cbb249f37a79357b7f1baf1",
-    "auditedRef": "scot/compliance/audit-refresh-2026-07-07",
-    "auditedDate": "2026-07-08",
-    "auditedShaPriorNote": "Restamped 2026-06-18 to staging tip 59e20439e from prior auditedSha d72463c75 (Scot sign-off 2026-06-18). The only commit between the two is #416, a GCP provisioning fix touching solely scripts/gcp/phase3-data-layer.sh (Memorystore --enable-auth flag + comment); no finding's evidence anchor points at that file, so no finding status could have changed and no new findings surface. Per-finding evidence.sha anchors are unchanged, so citation-check still validates each snippet at its own pinned commit. Prior restamp 2026-06-17 moved 7ed643e92 (scot/test/audit-run-e2e, 2026-06-16) -> d72463c75 after #410/#411/#412/#413 merged.",
+    "auditedSha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b",
+    "auditedRef": "scot/feat/code-hygiene-auditor",
+    "auditedDate": "2026-08-12",
+    "auditedShaPriorNote": "Restamped 2026-08-12 to d67ed76e0a1 (branch scot/feat/code-hygiene-auditor, 1 commit ahead of origin/staging at branch time) from prior auditedSha 20953ab3d5a (2026-07-08 run). This restamp is NOT a clean single-commit reconciliation like the ones below it: the 6-finder full run that produced d67ed76e0a1 verified its own 40 new findings' evidence at that exact SHA (citation-check green), but the ~110 pre-existing findings from before this run keep their OWN original evidence.sha values, unchanged by this restamp -- consistent with this register's standing per-finding-pin design, not a regression. Flagged during dual-review (2026-08-14): as of review time origin/staging had moved 16 commits past d67ed76e0a1, and two of THIS RUN's own new findings' cited files were among the ones touched (app/frontend/app/utils/persistence.js: LL-30236919f6's debugger; line will drift once this branch merges and a future run re-anchors against staging tip; .github/workflows/ci.yml: LL-33d756b764's GITLEAKS_DOWNLOAD_URL= line likewise). Both still resolve correctly at their pinned evidence.sha (d67ed76e0a1) today; this note exists so a future restamp knows to re-verify those two lines specifically rather than assume the register's overall auditedSha jump means everything was re-verified. Restamped 2026-06-18 to staging tip 59e20439e from prior auditedSha d72463c75 (Scot sign-off 2026-06-18). The only commit between the two is #416, a GCP provisioning fix touching solely scripts/gcp/phase3-data-layer.sh (Memorystore --enable-auth flag + comment); no finding's evidence anchor points at that file, so no finding status could have changed and no new findings surface. Per-finding evidence.sha anchors are unchanged, so citation-check still validates each snippet at its own pinned commit. Prior restamp 2026-06-17 moved 7ed643e92 (scot/test/audit-run-e2e, 2026-06-16) -> d72463c75 after #410/#411/#412/#413 merged.",
     "seedSource": "audit-reports/unified-audit-2026-04-09.md",
     "idAlgorithm": "id = 'LL-' + sha256(ruleKey + '|' + path) first 10 hex chars; stable across runs so recurrence is a diff",
     "statusEnum": [
@@ -3881,7 +3881,7 @@
         "reviewer": "claude-compliance-review",
         "promotedDate": "2026-07-09"
       },
-      "notes": "Promoted from PR #561 review (claude-compliance-review) on 2026-07-09. Surfaced 2026-07-09 during the PR #561 program-overview review (Codex senior-dev pass), code-verified by parallel trace. Not wording-only: a user-requested hard delete does not remove the user's own recorded voice (off-board ButtonSound) or any UserVideo, an incomplete GDPR Art. 17 erasure. Filed on branch scot/compliance/offboarding-coppa-reconsent-finding."
+      "notes": "Promoted from PR #561 review (claude-compliance-review) on 2026-07-09. Surfaced 2026-07-09 during the PR #561 program-overview review (Codex senior-dev pass), code-verified by parallel trace. Not wording-only: a user-requested hard delete does not remove the user's own recorded voice (off-board ButtonSound) or any UserVideo, an incomplete GDPR Art. 17 erasure. Filed on branch scot/compliance/offboarding-coppa-reconsent-finding.\n\nUPDATE 2026-08-16 (PR #806 round-6 dual review, factual correction only -- remediation.options above is preserved unedited as historical record, accurate as filed on 2026-07-09): the original remediation.options text's claim that Flusher does not sweep ButtonSound/UserVideo records by user_id was accurate when filed. That portion was subsequently superseded by PR #721, which added those sweeps (lib/flusher.rb:400-405, ButtonSound.where(user_id:) / UserVideo.where(user_id:), both citing this finding inline). The remaining remediation/verification work concerns associated remote S3 media objects (secondary_output, prior-transcode originals, thumbnails, abandoned uploads -- addressed by PR #806, pending the closure gates in that PR's disclosure) and the linked async-transcode path. Severity, status, and disposition are unchanged; this finding remains open. This note corrects a stale factual claim only -- it does not redefine scope or bear on closure.\n\nRelationship (2026-08-16, Scot-confirmed): sibling, not parent/child, to LL-c4566fa37f and LL-779490b63e. This finding covers hard-delete coverage for persisted/discoverable ButtonSound/UserVideo records and their associated S3 media objects. LL-c4566fa37f covers a different failure mechanism (an async transcode-job/webhook race that can produce S3 output with no persisted application metadata for any record-driven sweep to discover) and LL-779490b63e covers a third (the thumbnail erasure fallback's own bounded/best-effort limitations when S3 listing is unavailable). Any future closure evidence for this finding must be explicit that it covers persisted/discoverable media objects only, and must not claim that every possible asynchronous S3 output is guaranteed discoverable or erased -- that distinction is exactly why LL-c4566fa37f and LL-779490b63e exist as separate, independently open findings."
     },
     {
       "id": "LL-a167848115",
@@ -4497,6 +4497,1341 @@
         "promotedDate": "2026-08-10"
       },
       "notes": "Surfaced 2026-08-10 while verifying the PR #721 Path A successor drafts against code, per the /re-attest-record 'verify the doc is true now' gate. Distinct from LL-854b1d3853, which covers UserVideo and off-board ButtonSound only. Severity and disposition approved by Scot on 2026-08-10 after a recommendation from the Codex reviewer; the agent proposed the row and did not decide it."
+    },
+    {
+      "id": "LL-8908c7ac6f",
+      "ruleKey": "ai-word-predictor-context-topic-bypasses-pii-scrubber",
+      "title": "Client-supplied context.topic reaches Bedrock unscrubbed and is absent from the AiApiLog egress record",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "FERPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_word_predictor.rb",
+        "line": 340,
+        "snippet": "      context_lines << \"Topic context: #{ctx[:topic]}\" if ctx[:topic].present?",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Run PiiScrubber.redact_for_ai over ctx[:topic] in AiWordPredictor.predict (alongside the sentence scrub at lib/ai_word_predictor.rb:92) and pass only the scrubbed value into normalize_context/system_prompt. Merge the topic's scrub_result[:findings] into the pii_findings and pii_detected passed to log_ai_call (lib/ai_word_predictor.rb:155-168), and include the scrubbed topic in request_summary so the AiApiLog row reflects the full egress payload. Alternatively constrain topic to a server-side enum/board-id reference rather than free text.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-08-12. Tier 1 runtime AI path. Only `sentence` is scrubbed (lib/ai_word_predictor.rb:92); `topic` is interpolated verbatim into the Bedrock system prompt. Reachable via POST /api/v1/word_suggestions (config/routes.rb:196), which affirmatively permits the field (app/controllers/api/word_suggestions_controller.rb:61, ctx.permit(:time_of_day, :topic)). Blast radius is bounded because the destination is the BAA'd Bedrock route and no first-party client currently populates context.topic (app/frontend/app/utils/ai_word_predictor.js:131 posts only sentence/locale/count), but the frontend's analogous topic_context is board name (app/frontend/app/controllers/board/index.js:181), a free-text field AAC users routinely personalize with caregiver/clinician names. Distinct from LL-16ef84ad9a, which concerns the cache key, not prompt egress. Independent secondary defect: AiApiLog pii_detected/pii_findings/request_summary understate what actually left the system. | adversary: confirmed -- Traced full path: only sentence hits PiiScrubber.redact_for_ai (lib/ai_word_predictor.rb:92); ctx flows raw through normalize_context into system_prompt's topic interpolation at line 340 with no scrub. word_suggestions_controller.rb:61 permits :topic. AiApiLog request_summary only records the scrubbed sentence, so pii_detected understates actual egress."
+    },
+    {
+      "id": "LL-e8614c103f",
+      "ruleKey": "hard-delete-omits-prediction-entry-vocabulary",
+      "title": "PredictionEntry rows survive account deletion, retaining per-user AAC vocabulary sequences indefinitely",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/prediction_entry.rb",
+        "line": 4,
+        "snippet": "  belongs_to :user",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add PredictionEntry.where(user_id: user.id).each { |e| Flusher.flush_record(e) } to Flusher.flush_user_content (lib/flusher.rb:363-416), following the LogSnapshot precedent added for LL-1e2ab28aab. Optionally also declare has_many :prediction_entries, dependent: :destroy on User, but note db/schema.rb defines no add_foreign_key entries at all, so Flusher is the only reliable erasure path.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-08-12. prediction_entries (db/schema.rb:519-530) is keyed by user_id (null: false) and stores prefix/next_word pairs, i.e. the user's actual communication vocabulary and word-sequence patterns. Neither User (app/models/user.rb:16-23) nor Flusher.flush_user_content references it, and the schema has zero foreign keys, so there is no cascade. Same erasure-gap class as LL-854b1d3853 and LL-1e2ab28aab, different table; no existing (ruleKey, file) match in the register. Rows are written by PredictionEntry.sync_for_user via POST /api/v1/prediction_entries/sync. | adversary: confirmed -- Repo-wide grep for PredictionEntry/prediction_entr finds no lib/flusher.rb hit; flush_user_content enumerates many models but not this one. Schema has no FK/cascade and User has no has_many :prediction_entries."
+    },
+    {
+      "id": "LL-f171af92ff",
+      "ruleKey": "prediction-entry-vocabulary-unencrypted-at-rest",
+      "title": "PredictionEntry stores AAC vocabulary content in plaintext columns without secure_serialize",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/prediction_entry.rb",
+        "line": 3,
+        "snippet": "class PredictionEntry < ApplicationRecord",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Move prefix/next_word/score/source into a single serialized column protected by secure_serialize (per app/models/concerns/secure_serialize.rb), matching Utterance, LogSession, and UserExtra. If the per-column btree indexes (idx_prediction_entries_unique, idx_prediction_entries_prefix) make that impractical for lookup performance, record an explicit accepted-risk rationale in the register rather than leaving the divergence undocumented.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-08-12. Every peer model holding user-generated AAC content encrypts it: Utterance (app/models/utterance.rb:18), LogSession (app/models/log_session.rb:29), UserExtra (app/models/user_extra.rb:8). PredictionEntry does not, despite prefix/next_word being derived directly from a communicator's button selections. Confidence is medium because this is a divergence from codebase convention and CLAUDE.md's secure_serialize guidance rather than a breach of an explicit written control; the indexing requirement is a legitimate competing constraint that Scot may accept. | adversary: confirmed -- No secure_serialize or encrypts in the 63-line model; schema shows plain indexed string columns. Noted tension: prefix/next_word carry lookup indexes used by for_prefix, so column encryption is not a drop-in fix."
+    },
+    {
+      "id": "LL-6cea3b4787",
+      "ruleKey": "ai-focus-word-set-usage-write-unscoped-cross-tenant",
+      "title": "focus_generated_words_usage writes caller-supplied words into any AiFocusWordSet with no ownership or tenant check",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/integrations_controller.rb",
+        "line": 178,
+        "snippet": "    focus_set = AiFocusWordSet.find_by_global_id(processed_params['library_id'].to_s) rescue nil",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Scope the lookup to the caller's tenant before mutating: compare focus_set.seed_organization_global_id against @api_user.managing_organization&.global_id (or seed_user_global_id against @api_user.global_id) and return 404 on mismatch. Alternatively stop accumulating applied_words on the shared row and record usage in a per-user/per-org join record, keeping the shared row limited to the AI-generated output it already caches.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-08-12. AiFocusWordSet rows are global, keyed only by prompt_hash (db/schema.rb:115, unique index), and record_usage! (app/models/ai_focus_word_set.rb:111-122) appends caller-supplied final_words into applied_words and flips status. Any holder of a valid API token can therefore write their own applied vocabulary into a row attributed via seed_user_global_id / seed_organization_global_id to a different district. Breaks the mandatory district data-isolation requirement in CLAUDE.md. Disclosure risk is limited because focus_words_response (app/controllers/api/integrations_controller.rb:214-225) serves only words/title/library_id/ai_generated and never applied_words; this is primarily a cross-tenant write/co-mingling defect. | adversary: confirmed -- focus_generated_words_usage checks only the ai_board_generation flag, then find_by_global_id + record_usage! with no org/seed_user comparison. spec/controllers/api/integrations_controller_spec.rb:596-614 itself demonstrates an arbitrary token_user writing into a set it never created."
+    },
+    {
+      "id": "LL-8990c53bad",
+      "ruleKey": "ai-focus-word-set-omitted-from-erasure",
+      "title": "AiFocusWordSet retains seed_user_global_id and prompt text after the seeding user's account is erased",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/ai_focus_word_set.rb",
+        "line": 75,
+        "snippet": "    self.seed_user_global_id ||= user.global_id if user && user.respond_to?(:global_id)",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "In Flusher.flush_user_content (lib/flusher.rb:363-416), null out seed_user_global_id (and seed_organization_global_id where the org link is the deleted user's only tie) on AiFocusWordSet rows matching the erased user's global_id, mirroring the License nulling already done at lib/flusher.rb:412-415. The generated word list itself may be retained as a de-identified cache entry once the identifiers are severed.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-08-12. ai_focus_word_sets (db/schema.rb:88-118) carries seed_user_global_id, seed_organization_global_id, and free-text scrubbed_prompt/normalized_prompt/title. Flusher's erasure path handles AiApiLog by user_global_id (lib/flusher.rb:29) but has no equivalent for this table, and there is no scheduled cleanup for it anywhere in lib/tasks or render.yaml. The prompt is post-PiiScrubber, which lowers content sensitivity, but the direct user identifier survives erasure. Related to but distinct from the PredictionEntry gap (different table, different identifier column, identifier-nulling rather than row deletion is the appropriate remedy). | adversary: confirmed -- seed_user_global_id set at line 75, stored plain; no lib/flusher.rb reference to the table. Bonus: the low_value prune scope (lines 24-26) also has zero callers anywhere, so there's no automated aging-out path either."
+    },
+    {
+      "id": "LL-92ae18cc4e",
+      "ruleKey": "anonymous-logs-export-writes-usernames-to-stdout",
+      "title": "anonymous_logs export job writes each publishing user's username to stdout, bypassing the PII-scrubbing log formatter",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/log_session.rb",
+        "line": 2111,
+        "snippet": "        puts \"exporting #{user.user_name} - #{user.global_id} #{cnt}/#{user_ids.length}...\"",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Drop user.user_name from the progress line and log the global_id only, or replace the puts with Rails.logger.info so the line at minimum passes through PiiScrubbingFormatter. Apply the same treatment to the surrounding progress puts at app/models/log_session.rb:2077, 2086, 2123, 2133 if this method is to keep emitting progress from a worker context.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-08-12. LogSession.anonymous_logs runs in a Resque worker via Progress.schedule (app/controllers/api/logs_controller.rb:409 and app/models/log_session.rb:2125), not only from an interactive console, and its triggering endpoint is in the require_api_token except-list (app/controllers/api/logs_controller.rb:2), so an unauthenticated caller can initiate it. Raw puts bypasses config.log_formatter entirely (config/environments/production.rb:98-114), and that formatter's own header notes it would not scrub usernames anyway. Under Cloud Run the line lands in Cloud Logging, which associates an identifying username with the fact that the account publishes its AAC logs. Severity held at medium because the sink is HIPAA-scoped and access-controlled, making this a defense-in-depth failure rather than external exposure. The export content itself is separately fine: it is double opt-in (allow_log_reports + allow_log_publishing, app/models/log_session.rb:2112) and pseudonymized via per-record HMAC (app/models/user.rb:1409-1417), and UPLOADS_S3_NO_ACL=1 is set in prod (.github/workflows/deploy-cloudrun.yml:273) so the public-read ACL branch in lib/uploader.rb:341 does not apply. | adversary: confirmed -- Line 2111 is a literal puts with user.user_name; PiiScrubbingFormatter only governs Rails.logger. logs_controller.rb:2 excepts :anonymous_logs from require_api_token. Bonus: the puts fires BEFORE the consent check on the next line, so even non-consenting users' usernames are emitted."
+    },
+    {
+      "id": "LL-6723438462",
+      "ruleKey": "article50-server-backstop-missing-on-three-ai-ingresses",
+      "title": "Article 50 disclosure server-side backstop is present on only 2 of 5 AI ingresses",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/word_suggestions_controller.rb",
+        "line": 19,
+        "snippet": "    if FeatureFlags.eu_under16_blocks_ai_for?(@api_user)",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Extract the disclosure guard used at app/controllers/api/boards_controller.rb:590-594 and app/controllers/api/integrations_controller.rb:107-111 into a shared ApplicationController helper (e.g. require_article_50_disclosure!) and apply it to word_suggestions#create, words#predict, and eval_sessions#narrate, so enabling the article_50_disclosure flag covers all five ingresses atomically. Add a spec asserting every controller that calls AiWordPredictor/AiBoardGenerator/EvalNarrator invokes the guard, so a sixth ingress cannot ship without it.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-08-12. Five AI ingresses exist: boards_controller#generate_labels, integrations_controller#focus_generate_words, words_controller#predict, word_suggestions_controller#create, eval_sessions_controller#narrate. Only the first two carry the EuJurisdiction.disclosure_required? / article_50_disclosure_shown? backstop. The COPPA and EU-under-16 consent gates are correctly enforced on all five (they live inside the libs as well as the controllers), so this is a transparency-disclosure gap, not a consent gap. Currently latent because article_50_disclosure is AVAILABLE-only and not in ENABLED_FRONTEND_FEATURES, making all instances of the guard inert today; the defect is that enabling the flag would produce silent partial enforcement. Tagged GDPR because the schema's frameworks enum has no EU AI Act value; the governing instrument is EU AI Act Art. 50(1). | adversary: confirmed -- EuJurisdiction/article_50 guard exists only in boards_controller.rb:590-593 and integrations_controller.rb:107-110. Read word_suggestions_controller, words_controller#predict, and eval_sessions_controller#narrate in full; none carries the backstop."
+    },
+    {
+      "id": "LL-1e7b568ef3",
+      "ruleKey": "wif-provisioning-script-omits-ref-lock",
+      "title": "Committed WIF provisioning script omits the assertion.ref branch lock the deploy pipeline names as a control, and reconciles (overwrites) the live provider on every re-run",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/gcp/phase1-setup.sh",
+        "line": 329,
+        "snippet": "WIF_CONDITION=\"assertion.repository_owner_id == '${GH_OWNER_ID}' && assertion.repository_id == '${GH_REPO_ID}' && assertion.repository == '${GH_REPO}'\"",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add the ref lock to WIF_CONDITION in phase1-setup.sh so the committed script matches the hardened live provider: append `&& assertion.ref == 'refs/heads/main' && assertion.ref_type == 'branch'`. This matters specifically because the script does NOT skip an existing provider -- it deliberately reconciles it via `gcloud iam workload-identity-pools providers update-oidc` (phase1-setup.sh:333-337), so any re-run of Phase 1 silently REMOVES the branch lock from production. Also close the gap the script itself defers at phase1-setup.sh:492-495: map attribute.environment and bind the deploy SA principalSet to .../attribute.environment/production rather than repo-wide, so the GitHub environment approval becomes a token-minting condition rather than a workflow-file convention.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. deploy-cloudrun.yml states this as gate #3 of four: 'The ref guard + the WIF provider's assertion.ref condition, so no other ref can deploy or even mint a deploy token' (deploy-cloudrun.yml:33-34, repeated at :170-171). Live read-only check (gcloud iam workload-identity-pools providers describe github-provider, pool github-pool, location global) confirms the LIVE provider condition DOES include a ref and ref_type clause pinning the main branch -- so the control exists in production but does not exist in the committed provisioning source, and the source actively reverts it. Note also that the workflow-file if: github.ref == 'refs/heads/main' guard is not itself a boundary: workflow_dispatch executes the workflow definition from the SELECTED ref, so anyone who can push a branch and dispatch Actions can run a copy with the guard and the environment: production key removed. Live pool name is github-pool / provider github-provider, which does not match a naive read of the script's defaults -- confirm live before acting. | adversary: confirmed -- Live provider's attributeCondition includes the ref/ref_type lock; committed WIF_CONDITION at line 329 does not. Script unconditionally reconciles an existing provider via update-oidc, so a re-run would strip the live lock."
+    },
+    {
+      "id": "LL-b7ccc522b9",
+      "ruleKey": "gcp-data-access-audit-logs-disabled",
+      "title": "GCP production project has no Data Access audit log configuration, so Secret Manager value reads and Cloud SQL data access produce no audit record",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/gcp/phase1-setup.sh",
+        "line": 496,
+        "snippet": "  - Enable Data Access audit logs on Secret Manager + Cloud SQL for HIPAA evidence.",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Set an IAM audit config on the production project enabling DATA_READ (and DATA_WRITE where cheap) for secretmanager.googleapis.com and cloudsql.googleapis.com, at minimum. Without it, secretmanager.versions.access -- the operation that returns a plaintext production secret -- is not logged at all, because Data Access logs are off by default and only Admin Activity logs are always-on. Pair with a log sink to a retention-controlled bucket so the evidence outlives the default Cloud Logging retention, and add the audit config to phase1-setup.sh so it is reproducible rather than a console click.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only: `gcloud projects get-iam-policy lingolinq-prod --format='value(auditConfigs)'` returns empty, i.e. no audit configs are set on the project. The committed Phase 1 script already lists this as deferred hardening at the cited line, so this is an acknowledged-but-unclosed item rather than an oversight. Materiality is amplified by the companion finding on human project-level secretmanager.admin: a human principal can read every production secret value with no audit trail, which is the specific combination HIPAA 164.312(b) audit controls exist to prevent. | adversary: confirmed -- gcloud projects get-iam-policy lingolinq-prod returns no auditConfigs key at all. Verified live 2026-08-13."
+    },
+    {
+      "id": "LL-c0b3d59f58",
+      "ruleKey": "gcp-human-principal-holds-project-admin-over-secrets-and-prod-db",
+      "title": "Production GCP project grants a non-owner human principal project-wide secretmanager.admin, cloudsql.admin and iam.serviceAccountAdmin, contradicting the documented least-privilege design",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/gcp/phase1-setup.sh",
+        "line": 251,
+        "snippet": "    # (connect only) - NOT cloudsql.admin, which could delete the prod patient/student DB.",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Reconcile live project IAM against the design the committed script documents (phase1-setup.sh:243-258: run.developer, artifactregistry.writer, logging/monitoring/secretmanager VIEWER, cloudsql.client -- explicitly no secretAccessor and explicitly not cloudsql.admin). Replace standing secretmanager.admin with secretmanager.viewer plus per-secret secretAccessor only where a human genuinely needs a value, and replace cloudsql.admin with cloudsql.client. If broader access is genuinely required, make it break-glass: time-bound IAM conditions or a documented JIT elevation with an approval record, plus the Data Access audit logs from the companion finding so elevated use is observable. Confirm the workforce authorization and BAA/HIPAA paperwork for any human with standing access to PHI-bearing systems.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only: `gcloud projects get-iam-policy lingolinq-prod` shows one non-owner human principal bound at project scope to roles/secretmanager.admin, roles/cloudsql.admin, roles/iam.serviceAccountAdmin, roles/compute.networkAdmin, roles/redis.admin, roles/artifactregistry.admin and roles/run.admin. Identity deliberately not recorded here (workforce personal data). secretmanager.admin includes secretmanager.versions.access, i.e. read of every production secret value; cloudsql.admin includes instance deletion, which -- combined with deletionProtection being off -- is a single-principal path to destroying the production student/patient database and its backups. Context for triage, not a closure: an operations decision to grant a curated admin (non-owner) role set to a specific engineer is recorded outside the repo, with HIPAA workforce paperwork noted as owed. This finding records the control gap and the drift from the committed design; whether to accept the risk is Scot's call. The only roles/editor binding on the project is on the Google-managed cloudservices service agent, which is expected; the default compute service account carries no editor grant. | adversary: confirmed -- Live project IAM grants the roles cited to a non-owner human principal, directly contradicting the script's own documented least-privilege design (comments at lines 250-258). secretmanager.admin subsumes secretAccessor, so this is an inversion of the documented control, not mere drift."
+    },
+    {
+      "id": "LL-0b5443f43b",
+      "ruleKey": "cloudrun-ingress-all-bypasses-cloud-armor",
+      "title": "Production Cloud Run service is deployed with public ingress, so the direct run.app URL bypasses the load balancer and its attached Cloud Armor policy",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/gcp/phase5-frontend-lb.sh",
+        "line": 490,
+        "snippet": "    --ingress=internal-and-cloud-load-balancing",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Run the ingress lockdown that already exists in the repo (phase5-frontend-lb.sh step 3, gated behind CONFIRM_INGRESS_LOCKDOWN=1) so the web service only accepts traffic from the load balancer. The coupling documented at phase5-frontend-lb.sh:465-474 and deploy-cloudrun.yml:498-507 must be resolved in the SAME change or every subsequent deploy goes red fail-closed: the candidate health probe runs from a public GitHub runner against the candidate---* tag URL, and Cloud Run ingress restrictions apply to tag URLs too. Move that probe behind the LB (tag-targeted serverless NEG) or into the VPC first. Decide explicitly which flips first.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only. `gcloud run services describe lingolinq-web --region=us-central1` reports the ingress annotation as unrestricted, and the service is deployed --allow-unauthenticated (deploy-cloudrun.yml:496). `gcloud compute backend-services list --global` shows the LB backend has a Cloud Armor security policy attached, and `gcloud compute security-policies describe` shows that policy carries four deny(403) rules plus a throttle rule ahead of the default allow. Net effect: the edge WAF deny rules and the edge rate limit are all reachable-around by requesting the service's own run.app hostname. The deploy workflow never passes --ingress, so the service takes the permissive default on every deploy. Application-layer controls (auth, Rack::Attack) still apply on the bypass path; the edge controls do not. | adversary: confirmed -- Live service shows ingress=all and allUsers bound to run.invoker; confirmed the run.app URL returns HTTP 200 directly, bypassing the Cloud Armor policy attached only to the LB backend."
+    },
+    {
+      "id": "LL-d3f41e7a67",
+      "ruleKey": "cloudsql-prod-no-deletion-protection",
+      "title": "Production Cloud SQL instance has deletion protection disabled and is provisioned without it, while automated deploys apply migrations with no pre-migration backup step",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/gcp/phase3-data-layer.sh",
+        "line": 255,
+        "snippet": "      --enable-point-in-time-recovery",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add --deletion-protection to the gcloud sql instances create call in phase3-data-layer.sh (the flag list at :241-255 ends without it) and enable it on the live instance. Consider also raising retained-backups above the 7-day default given FERPA/HIPAA restoration expectations, and adding an on-demand backup step to deploy-cloudrun.yml immediately before the migration Job -- the pipeline currently runs rake db:migrate against production with no snapshot taken in the same run (deploy-cloudrun.yml:417-457), so PITR is the only recovery path for a bad migration. The cutover runbook already carries this as an unchecked box (scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md:45).",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only: `gcloud sql instances describe lingolinq-prod-pg` reports deletion protection disabled, automated backups enabled, PITR enabled, 7 retained backups and 7 days of transaction-log retention, no public IPv4, zonal availability. Deleting the instance also discards its automated backups, so deletion protection is the single control standing between one mis-scoped admin command and total loss of the student/patient dataset. Compounds the companion finding that a human principal holds cloudsql.admin. Zonal (non-HA) availability is a deliberate launch-stage cost choice noted in the script and is not raised separately. | adversary: confirmed -- Live instance reports deletionProtectionEnabled=False; create-flag list has no --deletion-protection. PITR + 7 retained backups exist, so this is recoverability-degrading rather than data-destroying."
+    },
+    {
+      "id": "LL-0d54bcb32c",
+      "ruleKey": "cloudsql-server-side-ssl-not-required",
+      "title": "Production Cloud SQL instance accepts unencrypted connections (ssl mode allows unencrypted) and is provisioned with no SSL enforcement flag",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/gcp/phase3-data-layer.sh",
+        "line": 252,
+        "snippet": "      --no-assign-ip \\",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Set the instance SSL mode to encrypted-only (gcloud sql instances patch --ssl-mode=ENCRYPTED_ONLY) and add the equivalent flag to the create call in phase3-data-layer.sh so the posture is reproducible. The app path is unaffected: Cloud Run reaches the instance over the Cloud SQL connector socket, which is encrypted independently of the client sslmode value. What the change closes is every OTHER path -- any client reaching the private IP from inside the VPC (a bastion, a future workload, a hand-run psql) can currently negotiate a plaintext session carrying PHI.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only: `gcloud sql instances describe lingolinq-prod-pg` reports the SSL mode as the permissive setting that allows both unencrypted and encrypted connections, and the provisioning script's create flag list (phase3-data-layer.sh:241-255) contains no SSL flag at all. Distinct from open finding LL-ba0585ab93, which is about client-side sslmode/cert verification in config/database.yml; this one is about server-side enforcement on the instance. Related context: config/database.yml:39 defaults DB_SSLMODE to 'disable' on the GCP socket path, so nothing in the stack requests TLS on that connection either -- the encryption there comes from the connector, not from either endpoint's configuration. | adversary: confirmed -- Live sslMode=ALLOW_UNENCRYPTED_AND_ENCRYPTED, requireSsl=False; no SSL flag in the provisioning script. Partial mitigation: instance is private-IP-only with no authorizedNetworks, so exposure requires an in-VPC foothold."
+    },
+    {
+      "id": "LL-7296ada5da",
+      "ruleKey": "admin-console-cookie-not-httponly",
+      "title": "The admin_token cookie that gates the Resque admin console is set without HttpOnly, so any XSS can steal an admin console session",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/session_controller.rb",
+        "line": 250,
+        "snippet": "      cookies[:admin_token] = admin_token",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Set the cookie with explicit security attributes, matching what config/initializers/session_store.rb:6-10 already does for the app session cookie: cookies[:admin_token] = { value: admin_token, httponly: true, secure: Rails.env.production?, same_site: :lax, expires: 2.hours.from_now }. Consider also scoping path: '/jobby' so the token is not attached to every request to the app, and shortening the 2-hour Redis TTL for an admin console session.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. This cookie is the sole credential checked by lib/admin_constraint.rb:3-9, which gates the mounted Resque web UI at /jobby (config/routes.rb:35). That UI exposes queued job arguments and allows retry/kill of background jobs. Secure is effectively applied in production because config.force_ssl (config/environments/production.rb:62) makes ActionDispatch::SSL rewrite Set-Cookie, and SameSite=Lax comes from load_defaults 7.2 -- but neither of those adds HttpOnly, so the token remains readable from JavaScript. Exposure is meaningfully increased by the Content-Security-Policy being report-only with unsafe-inline/unsafe-eval (existing open finding LL-c226391436), which means an injected script would not be blocked. | adversary: confirmed -- Line 250 sets a bare cookie value with no options hash, unlike session_store.rb's app cookie. force_ssl already adds `secure` in production, so the residual gap is specifically httponly and same_site."
+    },
+    {
+      "id": "LL-5617f4e17d",
+      "ruleKey": "password-policy-enforced-client-side-only",
+      "title": "No server-side password strength policy exists; the only minimum-length check is a 6-character Ember computed property, bypassable by a direct API call",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/controllers/register.js",
+        "line": 217,
+        "snippet": "    return (this.get('triedToSave') || password == password2) && password.length < 6;",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Enforce the password policy at the Rails layer, where the boundary actually is. Add validation in app/models/concerns/passwords.rb#generate_password (or a User validation) rejecting passwords below a documented minimum -- NIST SP 800-63B calls for at least 8 characters -- and apply it on every write path: registration (api/v1/users create), password change (app/models/user.rb:2542), password reset (users_controller#password_reset:949), valet password generation, and the org/subscription-driven set at app/models/concerns/subscription.rb:645. Consider a breached-password check against a k-anonymity list rather than composition rules, per the same NIST guidance. Then raise the client-side hint to match, so the UX and the boundary agree.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. The User model carries no validates declaration for password (grep of app/models/user.rb returns none), and app/models/concerns/passwords.rb#generate_password (:269-274) pre-hashes and stores whatever it is given with no length or complexity check. app/controllers/api/users_controller.rb:5 exempts :create from require_api_token, so account creation is an unauthenticated POST -- a client that skips the Ember form can set a one-character password on a new account, including accounts that later become supervisors with access to child records. This is exactly the failure mode CLAUDE.md's own P2 preflight rule describes: 'Enforcement lives at the server/API (Rails) layer. Client-side Ember flags are UX polish, never the security boundary.' The 6-character client hint is itself below the current NIST minimum. | adversary: confirmed -- register.js:217 is the only length check anywhere; User model has zero validates declarations; api/v1/users#create is exempt from require_api_token. Rack::Attack throttles the endpoint but that is not a strength policy."
+    },
+    {
+      "id": "LL-1e8abb7d59",
+      "ruleKey": "failed-authentication-attempts-not-logged",
+      "title": "Failed authentication attempts produce no AuditEvent and no security log line, so credential-stuffing and password-guessing are undetectable after the fact",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/session_controller.rb",
+        "line": 568,
+        "snippet": "          api_error 400, { error: \"Invalid authentication attempt\" }",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Emit a structured record on every authentication outcome, not just the success path. Successful logins already log one line (session_controller.rb:552) but no AuditEvent; failures log nothing at all. Write an AuditEvent (event_type 'login_failed' / 'login_succeeded') or at minimum a tagged Rails.logger line carrying only non-identifying fields -- global_id when the account resolved, a truncated/hashed source-IP bucket, device_key, and the failure reason -- never the submitted username or password. Cover the sibling credential-checking endpoints too: users_controller#resend_parental_consent:831, #submit_parental_consent_email:876, :1150, and the oauth/SAML paths. Then alert on rate and on distribution across accounts.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. SOC2 CC7.2 and HIPAA 164.308(a)(5)(ii)(C) (log-in monitoring) both expect failed access attempts to be recorded. AuditEvent is used extensively for consent, deletion, admin record reads and password change (existing closed finding LL-747bb0e02d), so the mechanism exists and is simply not wired to the authentication outcome. Note the successful-login log line at session_controller.rb:552 is correctly PII-safe (global_id and JSON key names only) and should be the model for the failure path. Also worth noting for the remediation design: config/environments/production.rb:98-108 documents that the PII-scrubbing log formatter does NOT catch names or usernames, so a failure log must not include the submitted identifier. | adversary: confirmed -- Lines 566/568/572 emit no logger call and no AuditEvent; repo-wide AuditEvent grep has no session_controller.rb hit at all, so even the success path lacks an AuditEvent (only a log line)."
+    },
+    {
+      "id": "LL-69a7f62551",
+      "ruleKey": "no-per-account-lockout-or-velocity-control",
+      "title": "Brute-force protection on login is per-source-IP only at roughly 400 attempts/minute, with no per-account lockout, backoff, or velocity control",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "config/initializers/throttling.rb",
+        "line": 6,
+        "snippet": "  TOKEN_CUTOFF = Rails.env.development? ? 200 : 20",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add an account-keyed control alongside the existing IP-keyed one: a Rack::Attack throttle discriminated on the normalized username for /token, oauth2/token/login and the SAML/consent credential endpoints, plus exponential backoff or a temporary lock after N consecutive failures on one account (a pattern the codebase already uses elsewhere -- see the per-user Redis throttle at users_controller.rb:840-850). Pair it with the failed-auth logging finding so the lock is observable. Separately, verify empirically what Rack::Attack's req.ip resolves to behind the Cloud Run load balancer before tuning any IP-keyed limit.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. config/initializers/throttling.rb:62-74 keys every throttle on req.ip with a 3-second period, so /token permits 20 attempts per 3 seconds (~400/min) from one address and unlimited attempts from a distributed source, and there is no counter attached to the targeted account at all -- grep for failed_login / lockout / locked_out / login_attempt across app/, lib/ and config/ returns nothing. Two secondary effects worth checking during remediation, both marked medium confidence because neither was verified live: (1) with the customer base being US school districts, hundreds of students behind one NAT egress IP share a single bucket, so an IP-keyed limit is simultaneously too loose for an attacker and too tight for a legitimate 8am login surge; (2) Rack::Attack uses Rack::Request#ip, not Rails' RemoteIp middleware, so behind the GCLB the key may resolve to the proxy rather than the client -- which would collapse all traffic into one bucket. Both are testable with a request-header trace against a candidate revision. | adversary: confirmed -- Single throttle keyed on req.ip only; no lockout/failed_attempts counters anywhere in app/lib/config. Bonus: period_proc is a dead ternary (both branches return 3.seconds), so protected paths get no tighter window than general traffic."
+    },
+    {
+      "id": "LL-6af580a23a",
+      "ruleKey": "redis-rdb-snapshot-committed-to-repository",
+      "title": "A Redis RDB persistence snapshot was tracked in git and shipped in every production container image for ~6 months; removed from HEAD (2026-08-14) but the blob remains fully retrievable from public git history at ced829ba1 on both staging and main",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "remediated-unverified",
+      "evidence": {
+        "type": "runtime",
+        "source": "bash:git ls-files / git log / redis-server (isolated scratch instance, localhost-only) -- TTL-indifferent re-inspection 2026-08-16, correcting the 2026-08-14 pass",
+        "snippet": "CORRECTED 2026-08-16 (see notes for why the 2026-08-14 result was invalid). The 2026-08-14 inspection loaded the file into a standalone redis-server and read DBSIZE=3 -- but a standalone (non-replica) Redis server silently discards already-expired keys while loading an RDB, and the file's own header (git cat-file -p origin/staging:dump.rdb, bytes 80-86: FE 00 FB 5A 31 5A 2E, RDB length-encoding decodes to SELECTDB 0 / RESIZEDB hash-size=6705 expires-size=6702) proves it held 6705 top-level keys, 6702 with an expiry. All 6702 were already past their TTL by August 2026 (file dated 2026-01-29/30) and were invisibly dropped before DBSIZE was ever read, so the 2026-08-14 conclusion never actually saw 99.96% of the file's keys -- including the exact TTL-bearing classes (/admin/auth/<token> at session_controller.rb:251, token_popout_*/token_tmp_*/oauth_*/saml_* at session_controller.rb:305-1230, all namespaced 'lingolinq-permissions:'/'lingolinq-stash:' via config/initializers/resque.rb:115-116, which shares one Redis connection with Resque) the original finding was actually worried about. Corrected method, TTL-indifferent: (1) loaded the blob into an isolated scratch redis-server (localhost-only, --replicaof pointed at an unreachable host so it never syncs, no persistence, torn down after) started WITH replica config, which does not evict expired keys on load -- DBSIZE=6705, matching the header exactly. (2) Independently and more importantly, ran `strings -n 6` across the full 774,639-byte raw blob (git cat-file -p, not a live load) -- this reads every byte regardless of TTL or Redis's read-time expiry filtering, and Redis key names are always stored as plain uncompressed strings (LZF compression only ever applies to individual string VALUES above ~20 bytes, never to key names), so this is a definitive, decompression-independent test for whether ANY key with a given name/prefix exists anywhere in the file, live or expired. Zero occurrences of 'lingolinq-permissions' or 'lingolinq-stash' (the two namespace prefixes EVERY admin-token/oauth/saml/token_popout/token_tmp key would carry) anywhere in the file. Zero occurrences of 'admin/auth', 'token_popout', 'token_tmp', 'oauth_', 'saml_' as literal substrings. Zero email-shaped strings, zero password/bearer-token/api_key/AWS-key(AKIA)/JWT-shaped strings anywhere in the byte stream. (3) Full key-name-pattern breakdown of the 6705 keys (via strings, normalized): 6615 'scheduled/WordData/<md5>' + 24 Board + 21 WeeklyStatsSummary + 21 ClusterLocation + 13 LogSession + 4 BoardDownstreamButtonSet + 2 Webhook + 1 User + 1 ButtonImage (6702 total, all under the 'lingolinq-development:scheduled/' prefix -- these are job-scheduling debounce/dedup markers, set with a TTL immediately before enqueueing a background job and checked before scheduling a duplicate, not session or credential material) plus the 3 non-expired keys already characterized on 2026-08-14 (2 Resque queue lists + the queue-name set, all domain::localhost:5000, dev-seed ids 1-19, job args numeric/global_id/boolean only). Conclusion holds, now on defensible evidence: no admin console token map, no token_popout/oauth/saml material, no session material, no PII, no secrets -- a stale local-dev Resque job-scheduling backlog only. This does NOT resolve the separate, still-open concern below: the blob remains retrievable from public git history regardless of file contents."
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "(1) DONE 2026-08-16 (corrected; see evidence): inspected the file's actual contents with a TTL-indifferent method -- confirmed clean, a stale local-dev Resque job-scheduling backlog, no rotation needed. (2) DONE 2026-08-14: git rm --cached dump.rdb; added *.rdb / dump.rdb to .gitignore and .dockerignore so it can no longer be committed or shipped in a container image going forward. (3) A .gitleaks.toml entry was considered and skipped: gitleaks does content-based secret scanning and can't meaningfully scan a binary RDB anyway; the .gitignore/.dockerignore change is the effective forward control. (4) DECIDED 2026-08-17 (Scot, risk accepted -- see notes): no git history rewrite. The blob remains fully retrievable from public git history at ced829ba1 (2026-01-30, ancestor of both origin/staging and origin/main; repo visibility is PUBLIC) via any clone, fork, or `git log -p`, and will stay there indefinitely -- this is a deliberate, informed decision, not an oversight. A history rewrite (filter-repo + coordinated force-push, breaking every existing clone/fork, and not even guaranteed complete given the repo's existing fork and GitHub's fork-network blob caching) was assessed as disruptive with no real security benefit given the confirmed-clean contents, and rejected on that basis.",
+        "timeframe": "content inspection and forward-fix complete 2026-08-16; history-rewrite decision closed 2026-08-17 (risk accepted, not remediated)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "Residual, accepted 2026-08-17 (Scot), not remediated: dump.rdb (blob 4c38846c751ebed1ef1c8095aaa9682af47783d3) remains fully retrievable from public git history at commit ced829ba1 (2026-01-30), which is an ancestor of both origin/staging and origin/main in a PUBLIC GitHub repo (verified 2026-08-16 via `git merge-base --is-ancestor` and `gh repo view --json visibility`). git rm --cached only stops future commits from tracking it; it does not remove it from history. This will not change going forward -- a history rewrite was considered and explicitly declined. 'remediated-unverified' describes the forward-fix (ignored going forward) and the content inspection (confirmed clean); it does NOT describe the historical exposure, which is now a permanently accepted risk rather than a pending item. Kept at status 'remediated-unverified' / severity 'high' rather than moved to 'accepted-risk' or closed, so the residual stays visible in the register rather than disappearing -- that was the specific recommendation Scot ratified, not a status change.",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. Severity is set on exposure potential, not on confirmed content: the file's contents were not opened, per the no-customer-data rule. What is certain is that a Redis persistence artifact from a developer machine is committed to a public repository and has been for roughly six months, and that CI's secret-detection gate cannot catch it because gitleaks scans only the commit delta of each push (ci.yml:272-283) and the introducing commit predates the gate. Also note the file ships inside every production container image, since .dockerignore excludes .env* and build artifacts but not .rdb. | adversary: confirmed -- git ls-files confirms the 774KB blob is tracked at this SHA with no .gitignore/.dockerignore exclusion. Inspected format only (not content secrets): a REDIS0010 snapshot with ~6,705 keys from a development environment (LogSession/Board/ButtonImage/Resque queue key patterns). | dual-review adversary (2026-08-14): flagged this finding's PUBLICATION (once merged/pushed) as a Critical in its own right -- a precise, indexed pointer to a still-present secret-bearing file in a public repo, independent of what the file actually contains. | remediation (2026-08-14, Scot-authorized), SUPERSEDED 2026-08-16 -- see below: content inspection was attempted via a standalone redis-server load (DBSIZE=3) and concluded 'no session material of any kind was present.' | CORRECTION (2026-08-16, independent second dual-review pass, adversary-caught + self-verified): the 2026-08-14 method was invalid. A standalone (non-replica) Redis server silently drops already-expired keys while loading an RDB; this file's header declares 6705 keys with 6702 already-expired by load time, so DBSIZE=3 only ever saw 0.04% of the file and could not have ruled out the TTL-bearing admin-token/session classes it claimed to rule out. Re-inspected with a TTL-indifferent method (replica-mode load confirming DBSIZE=6705, plus a full raw-byte `strings` sweep that is immune to both TTL filtering and value compression since key names are never LZF-compressed) -- see evidence field for the corrected, defensible result: still clean, zero admin/token/oauth/saml/session material, zero secrets, zero PII, all 6702 expired keys are ordinary job-scheduling debounce markers. Severity remains 'high' and status remains 'remediated-unverified,' now with a populated closureEvidence.verifierNote naming the one residual this finding does NOT resolve -- the blob's continued retrievability from public git history -- since only Scot closes a finding, downgrades severity, or decides on the history-rewrite tradeoff. | DECISION (2026-08-17, Scot): ratified the recommendation not to rewrite git history, given the confirmed-clean contents and the real cost of a rewrite (force-push breaking every clone/fork, plus an existing fork and GitHub's fork-network caching mean it might not even fully remove the blob). This is Scot explicitly accepting the residual historical-exposure risk, not a reopened question -- the blob will remain in public git history at ced829ba1 indefinitely. Status/severity deliberately left unchanged (remediated-unverified / high) rather than moved to accepted-risk or closed: the ask was specifically to keep this visible in the register as a standing fact, not to formally close the record."
+    },
+    {
+      "id": "LL-33d756b764",
+      "ruleKey": "unpinned-unverified-gitleaks-binary-in-blocking-gate",
+      "title": "The blocking secret-detection gate downloads and executes an unpinned, unverified gitleaks binary resolved at runtime from the GitHub releases API",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".github/workflows/ci.yml",
+        "line": 266,
+        "snippet": "            GITLEAKS_DOWNLOAD_URL=\"$LATEST_GITLEAKS_DOWNLOAD_URL\"",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Use the pinned version as the primary path rather than the fallback, and verify integrity before execution: keep GITLEAKS_VERSION as the source of truth, download only that asset, and check the archive against a committed SHA-256 (or verify the release signature) before extracting and running it. If tracking the latest release is a deliberate goal, do it with a scheduled bump PR that updates the pin and the checksum together, so the change is reviewed rather than silently applied on the next CI run. Pair with the top-level permissions block already tracked as LL-5ae3d7ca2c so the executed binary does not inherit a repo-default read-write GITHUB_TOKEN.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. ci.yml:255-270 sets GITLEAKS_VERSION=8.30.1 and builds a pinned URL, then queries the releases API and OVERWRITES that URL with whatever the latest release resolves to, falling back to the pin only if the API call fails. The pin is therefore decorative on the normal path: the version actually executed is whatever upstream published most recently, with no checksum or signature verification, inside a required status check, in a job that also holds the workflow GITHUB_TOKEN. A compromised upstream release, or a compromised asset name match, executes in CI. Overlaps in surface (not in control) with LL-5ae3d7ca2c, which covers the token scope of the same job; this finding is about the integrity of the artifact being executed. Positive note for the register: at this SHA the secret-detection job itself IS blocking (no continue-on-error, gitleaks runs --exit-code 1 with no || true), which appears to make part of LL-52ff2a9a79's description stale. | adversary: confirmed -- ci.yml:253-270 overwrites the pinned URL with the GitHub releases API result, no checksum verification. Confirmed secret-detection is a required branch-protection context on staging, so this runs inside a blocking gate."
+    },
+    {
+      "id": "LL-7181a16033",
+      "ruleKey": "cloudrun-runtime-config-drift-no-reconciler",
+      "title": "No scheduled reconciler detects Cloud Run configuration drift introduced outside the deploy workflow, the exact path that once silently disabled the Bedrock BAA account assertion",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".github/workflows/deploy-cloudrun.yml",
+        "line": 270,
+        "snippet": "      # Cloud Run console edit). That needs a scheduled reconciler, which is deliberately not in",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Run scripts/gcp/assert-runtime-secrets.sh on a schedule (a cron workflow, or Cloud Scheduler invoking a job) against the currently-serving revision, not only as the last step of a deploy. It already takes --required and --required-literal and already reads back the live revision, so the reconciler is mostly a trigger away. Alert on failure to a channel someone watches, and consider adding an org policy or IAM condition that discourages hand-run gcloud run deploy against the production service so the CI path is the only one that materially changes it.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. The workflow's own header documents the mechanism and the precedent: gcloud run deploy --set-env-vars replaces the whole env set independently of --set-secrets, which is how revision lingolinq-web-00014 (2026-08-04) dropped exactly BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET while every Secret Manager container stayed healthy, failing the Tier 1 runtime AI path closed for about 54 minutes with nothing reporting it (deploy-cloudrun.yml:693-707). The same class of drift can silently remove BEDROCK_EXPECTED_AWS_ACCOUNT, and when that variable is absent AiClient SKIPS the sts:GetCallerIdentity account assertion entirely -- i.e. the HIPAA BAA-boundary control from LL-1b0d78dbe6 fails open rather than closed. The existing post-deploy readback only proves the state of a revision the workflow itself deployed, which is by construction the one case where drift did not occur. | adversary: confirmed -- assert-runtime-secrets.sh is referenced exactly once repo-wide (the deploy workflow itself); none of the repo's four scheduled workflows invoke it. Line 270 is the workflow's own comment admitting the gap."
+    },
+    {
+      "id": "LL-40f3571b19",
+      "ruleKey": "sentry-release-tag-render-only-after-gcp-cutover",
+      "title": "Sentry release tagging reads a Render-only environment variable, so production error events on Cloud Run carry no release attribution",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "config/initializers/sentry.rb",
+        "line": 367,
+        "snippet": "    config.release = ENV['RENDER_GIT_COMMIT'] if ENV['RENDER_GIT_COMMIT'].to_s.strip != ''",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Fall back to a Cloud Run identifier the way config/initializers/resque.rb:130-135 already does for the cache token: prefer an explicit release/commit variable, then ENV['K_REVISION'] (Cloud Run injects it), then RENDER_GIT_COMMIT for the frozen fallback environment. Better still, pass the deployed image's git SHA as an env var from deploy-cloudrun.yml (github.sha is already the image tag) so the Sentry release maps directly to a commit rather than to a revision name.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. Production cut over to Cloud Run on 2026-07-22; RENDER_GIT_COMMIT is not set there, so config.release is never assigned and every production Sentry event is unattributed to a build. That removes regression detection, release health, and the ability to answer 'which deploy introduced this' during an incident -- a CC7.3/CC7.4 evaluation-and-response gap rather than a confidentiality one, hence low. The adjacent resque.rb resolver in the same config directory already implements the correct three-tier fallback including K_REVISION, so the pattern to copy is one file away. | adversary: confirmed -- Checked the live serving revision's env vars directly: neither RENDER_GIT_COMMIT nor SENTRY_RELEASE is present. .dockerignore excludes .git so the SDK's own git fallback can't fire either."
+    },
+    {
+      "id": "LL-dbdcfb466c",
+      "ruleKey": "ci-workflow-no-permissions-block",
+      "title": "The Notion sync workflows declare no permissions block, so jobs holding a third-party Notion API token inherit the repository-default GITHUB_TOKEN scope",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".github/workflows/sync-findings-to-notion.yml",
+        "line": 31,
+        "snippet": "          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add permissions: contents: read at the top of both sync-findings-to-notion.yml and sync-document-register-to-notion.yml (neither needs any write scope -- each only checks out the repo and POSTs to Notion), and set the repository/organization default workflow token permission to read-only so an omitted block fails safe. deploy-cloudrun.yml:144 and sync-render-secrets.yml already model the correct pattern.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. Same rule as existing open finding LL-5ae3d7ca2c (which covers .github/workflows/ci.yml); raised separately because it is a different file and a different token-handling job. Both Notion sync workflows run on push to staging and via workflow_dispatch, check out the repo, and run a Ruby script with a third-party integration token in the environment. Neither declares permissions, so GITHUB_TOKEN takes the repository default, which may be read-write for contents, packages, actions and more. Closed sibling LL-b0bc6880e6 fixed exactly this on sync-render-secrets.yml, so the fix pattern is already established in-repo. | adversary: confirmed -- Confirmed no permissions: block in either Notion sync workflow while 6 other workflows in the repo do declare one. Impact is capped by the repo's default_workflow_permissions already being read-only, so this is defense-in-depth, not a live gap today."
+    },
+    {
+      "id": "LL-e14ca0ff04",
+      "ruleKey": "finder-agent-memory-policy-unimplementable",
+      "title": "Finder agents are given a project-memory write policy they cannot execute, because the read-only toolset and the PreToolUse guard both block the write",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".claude/agents/infra-auditor.md",
+        "line": 4,
+        "snippet": "tools: Read, Grep, Glob, Bash, mcp__deepwiki__ask_question, mcp__deepwiki__read_wiki_contents, mcp__deepwiki__read_wiki_structure, mcp__render__list_services, mcp__render__get_service, mcp__render__list_deploys, mcp__render__get_deploy, mcp__render__list_logs, mcp__render__get_metrics, mcp__render__list_postgres_instances, mcp__render__get_postgres, mcp__render__list_workspaces, mcp__render__get_selected_workspace",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Pick one and make the config say it. Either (a) drop memory: project and the memory-policy section from the read-only finder agents, since a finder that cannot write cannot maintain a map -- and the map is better maintained as a committed doc reviewed like any other file; or (b) if the process map is genuinely wanted, have the orchestrator (which is not read-only) write it after the fan-out, from the finder's returned output, so exactly one trusted writer owns it. Option (b) also removes the trust question of a finder writing state that a later finder reads.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-12. Observed during this run: attempting to save the memory file the agent instructions direct was denied twice over -- the agent has no Write tool in its tools: allowlist (cited line), and .claude/hooks/audit-readonly-guard.sh:43-46 hard-denies Write/Edit/MultiEdit regardless. The read-only constraint is the correct behaviour and should not change; the defect is that the surrounding memory policy describes a control (date-stamped 'remediated in commit X' notes, a maintained scan map) that can never come into existence, and the empty .claude/agent-memory/*/ directories are committed as if it does. Adjacent to open finding LL-a2b45c2bcb, which covers the trust problem with cross-run finder memory; this one covers the simpler fact that the mechanism does not function at all. Note the same unimplementable policy now applies to the code-hygiene-auditor agent added in this commit. | adversary: confirmed -- Verified the guard denies Edit/Write/NotebookEdit/MultiEdit unconditionally and also blocks Bash write-escape patterns. Same dead memory declaration exists in all six finder agents (accessibility, api, code-hygiene, dependency, ember-upgrade, privacy), not just infra."
+    },
+    {
+      "id": "LL-7d50b089c9",
+      "ruleKey": "version-history-raw-db-id-not-global-id",
+      "title": "BoardVersion/UserVersion history payloads use raw PaperTrail `version.id` instead of the repo's `global_id` string convention",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/json_api/board_version.rb",
+        "line": 10,
+        "snippet": "    json['id'] = version.id",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Emit a stable, sharding-safe identifier for history entries (e.g. a global_id-style composite of shard + PaperTrail version id, or a synthetic board.global_id + ':' + version.id) instead of the bare integer primary key from the shared versions table. Apply the same change to lib/json_api/user_version.rb:10.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-08-12. Every other lib/json_api/*.rb builder in this repo uses obj.global_id for json['id'] (verified across board.rb, goal.rb, snapshot.rb, tag.rb, word.rb, webhook.rb, lesson.rb, profile.rb, image.rb, organization.rb, etc). lib/json_api/board_version.rb:10 and lib/json_api/user_version.rb:10 are the only two builders that emit a raw ActiveRecord primary key (PaperTrail Version#id) as id. This breaks the sharding-readiness guarantee CLAUDE.md documents for global_id ('used instead of raw database IDs for future sharding support') and exposes sequential internal DB row numbers to the client for these two endpoints. Consumers: app/frontend/app/models/boardversion.js and app/frontend/app/models/userversion.js (default BaseModel, no id-format handling), fetched via app/frontend/app/controllers/board/history.js and app/frontend/app/controllers/user/history.js using store.query('boardversion'|'userversion', {board_id|user_id: ...}) against the flat routes get \"boardversions\" => \"boards#history\" / get \"userversions\" => \"users#history\" in config/routes.rb (~line 261-262). No functional break observed today (these records are list-only, never re-fetched by id), but it is a real, unremediated drift from the stated ID contract that should be flagged before any future sharding work or any feature that starts treating these ids as globally addressable. | adversary: confirmed -- Confirmed the raw PaperTrail PK with no global_id shim anywhere. Correction to the finder's universal claim: not literally every other builder uses global_id (alert.rb, gift.rb, board.rb/button_set.rb use other id schemes) -- but this pair is still the outlier using a bare sequential PK. Severity flagged as possibly inflated: routes are index-only, nothing looks up by version id today, so exposure is a monotonic write-volume leak rather than an IDOR."
+    },
+    {
+      "id": "LL-5d2436fce2",
+      "ruleKey": "board-images-hasmany-relationship-orphaned",
+      "title": "Board model declares an Ember Data `images` hasMany relationship that the serializer always strips before it can populate",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/models/board.js",
+        "line": 899,
+        "snippet": "  images: hasMany('image', { async: true, inverse: null }),",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Either remove the dead images: hasMany(...) declaration from the Board model (since images are consumed via the raw payload / image_urls hash, not the Ember Data store relationship), or if the relationship is intentionally reserved for future use, add a code comment explaining that payload.images is deliberately deleted server-response-side today so the relationship is currently non-functional.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by api finder on 2026-08-12. lib/json_api/board.rb (extra_includes, ~lines 179-184) does sideload a top-level images array alongside board in the wrapped response. But app/frontend/app/serializers/application.js:112-117 explicitly deletes payload.images/payload.sounds/payload.image/payload.sound before normalizeResponse hands off to Ember Data, with the comment 'board tracks image URLs via image_urls hash'; app/frontend/app/models/board.js:1959 (mimic_server_processing) also deletes hash.board.images for the local/offline write path. So the declared hasMany('image', ...) relationship on the Board model can never be populated through normal store loading -- board.get('images') will always resolve empty even though the API does send image data (consumed instead via image_urls in board.js, and via raw raw_board.images / data.images non-Ember-Data paths in app/frontend/app/controllers/user/board-detail.js:3887 and app/frontend/app/utils/board_detail_cache.js:144). This is a repo-specific shape (buttons/images live outside standard Ember Data relationships per the button-storage convention already called out in scan guidance) but the leftover relationship declaration is misleading to future maintainers and should be reconciled or documented. | adversary: confirmed -- Confirmed genuinely dead (no read site anywhere, no serializers/board.js override). Mechanism correction: lib/json_api/board.rb:204 sideloads images as a SIBLING of the board resource (RESTSerializer top-level array), not as a relationship payload on the board hash, so the board resource never contains an images/image_ids key regardless of the serializer strip."
+    },
+    {
+      "id": "LL-63377adbd2",
+      "ruleKey": "abandoned-jquery-minicolors",
+      "title": "jquery-minicolors ^2.1.10 (devDependency) appears unmaintained (no upstream release in years, jQuery-plugin era)",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/package.json",
+        "line": 85,
+        "snippet": "\"jquery-minicolors\": \"^2.1.10\",",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No CVE is known against jquery-minicolors, so this is not urgent. When touching the color-picker UI it depends on, evaluate a maintained, framework-agnostic (non-jQuery) color-picker replacement rather than re-pinning the same abandoned plugin; independent of the app's own jQuery-removal effort (already underway per config/optional-features.json disabling jquery-integration) and independent of the Ember 5.12 / Node 22 pins.",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dependency finder on 2026-08-12. claviska/jquery-minicolors has had no release since ~2018 by my training-data knowledge (no live web lookup was available in this read-only session to reconfirm a release date -- treat the 'abandoned' claim as medium-confidence and re-verify with a real registry/GitHub check before acting on it). Same abandonment pattern as already-tracked LL-553fdc242b (davidshimjs-qrcodejs) and LL-65700d9bd8 (moment-js); jquery-minicolors was not previously in the register. | adversary: confirmed -- Live npm registry check: jquery-minicolors has exactly one published version (2.1.10, 2015-09-01); the author's maintained fork @claviska/jquery-minicolors stopped at 2.3.6 in 2021-11. No OSV advisories. Bonus: this ships into the production browser bundle via ember-cli-build.js app.import, used in board-editing UI -- not merely a devDependency in effect."
+    },
+    {
+      "id": "LL-8bc8f025a7",
+      "ruleKey": "aria-labelledby-dangling-idref",
+      "title": "Dropdown menus reference a nonexistent id via aria-labelledby (dLabel) in the app shell",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/application.hbs",
+        "line": 386,
+        "snippet": "<ul class=\"dropdown-menu\" role=\"menu\" aria-labelledby=\"dLabel\">",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Point aria-labelledby at the id of the actual dropdown trigger that precedes each menu (e.g. the sibling anchor's id, such as the level dropdown trigger id used one line above), or drop aria-labelledby and give the menu an i18n aria-label. Do not leave a reference to an id that no element defines.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 4.1.2 (EN 301 549 clause 9.4.1). The literal id 'dLabel' is a Bootstrap 3 documentation placeholder; a repo-wide grep for that id at the audited SHA finds ZERO defining elements, only consumers, so every one of these references dangles and the role=menu container ends up with no accessible name. Recurs 10 times in this file (lines 386, 448, 503, 799, 851, 885, 1041, 1374, 1460 and one more), and the surrounding markup shows the real trigger DOES carry an id (e.g. id='level_dropdown' at line 381), which is what the reference was meant to target. Live surface: application.hbs is the app shell that hosts the speak bar and the sentence box. Same defect exists in two other live files (emitted separately); templates/brief.hbs and templates/footer.hbs also contain it but neither is reachable at this SHA (no 'brief' route in router.js, no invocation of footer.hbs), so they are deliberately not emitted. | adversary: confirmed -- Confirmed zero elements define id=dLabel anywhere in the repo; the real trigger carries id='level_dropdown' instead."
+    },
+    {
+      "id": "LL-4574005612",
+      "ruleKey": "aria-labelledby-dangling-idref",
+      "title": "Preferences dropdown menu references a nonexistent id via aria-labelledby (dLabel)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/user/preferences.hbs",
+        "line": 163,
+        "snippet": "<ul class=\"dropdown-menu\" role=\"menu\" aria-labelledby=\"dLabel\" style='max-height: 225px; overflow: auto;'>",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Point aria-labelledby at the id of the menu's own trigger element, or remove it and supply an i18n aria-label on the role=menu container.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 4.1.2 (EN 301 549 clause 9.4.1). Same dangling-IDREF defect as the application.hbs finding of this ruleKey: no element anywhere in the frontend defines id='dLabel' at the audited SHA, so the reference resolves to nothing and the menu container is left unnamed. Per the one-finding-per-(ruleKey,file) schema this is a separate finding from the application.hbs one; there is no parent/child relationship. | adversary: confirmed -- Same dangling-id fact base; route confirmed reachable via router.js:134."
+    },
+    {
+      "id": "LL-f6be45aec6",
+      "ruleKey": "aria-labelledby-dangling-idref",
+      "title": "Authenticated navbar dropdown menu references a nonexistent id via aria-labelledby (dLabel)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/app-navbar-authenticated-inner.hbs",
+        "line": 126,
+        "snippet": "<ul class=\"dropdown-menu\" role=\"menu\" aria-labelledby=\"dLabel\" style=\"right: 0; left: auto; text-align: left;\">",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Point aria-labelledby at the id of the navbar dropdown trigger, or remove it and supply an i18n aria-label on the role=menu container.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 4.1.2 (EN 301 549 clause 9.4.1). Third live occurrence of the dangling id='dLabel' reference; no element defines that id anywhere in the frontend at the audited SHA. Liveness confirmed: this component is invoked from components/app-navbar.hbs (<AppNavbarAuthenticatedInner ...>), so it renders on authenticated surfaces. | adversary: confirmed -- Same dangling-id fact base; liveness chain verified end to end through application.js's useAppNavbarInHeader computed, true on every authenticated route."
+    },
+    {
+      "id": "LL-fba16b6fd7",
+      "ruleKey": "hardcoded-aria-label-non-i18n",
+      "title": "Saved Phrases icon-only action buttons carry hard-coded English aria-labels",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/phrases.hbs",
+        "line": 47,
+        "snippet": "<button class=\"la-phrases-action-btn\" {{on \"click\" (this.ctrlAction \"shift\" phrase \"up\")}} aria-label=\"Move up\">",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Replace the literal strings with the i18n helper, matching the pattern already used elsewhere in this same file (e.g. aria-label={{t \"Close\" key=\"close\"}} at line 8 and aria-label={{t \"New phrase\" key=\"new_phrase\"}} at line 77): aria-label={{t \"Move up\" key='move_up'}}, {{t \"Move down\" key='move_down'}}, {{t \"Remove\" key='remove'}}.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 4.1.2 (EN 301 549 clause 9.4.1) plus the repo i18n convention. Three icon-only SVG buttons in the Saved Phrases modal expose their ONLY accessible name as a raw English literal: line 47 aria-label=\"Move up\", line 50 aria-label=\"Move down\", line 55 aria-label=\"Remove\". Each button's child is an inline <svg> with no text, so for a non-English locale the control's name is untranslated. This is both an a11y-naming and an i18n defect; per repo convention user-facing strings go through the i18n helper. Live surface confirmed: rendered as <Phrases /> from components/modal-container.hbs:230 and opened from user/preferences.hbs:1145. Distinct from the registered ruleKey icon-only-control-named-by-title-attr (share-board.hbs), which is about title= rather than a hard-coded aria-label. | adversary: confirmed -- Confirmed exact lines 47/50/55 are raw English literals while lines 8 and 77 in the same file correctly use {{t}} -- an intra-file inconsistency, not a codebase-wide gap."
+    },
+    {
+      "id": "LL-959d76ecfc",
+      "ruleKey": "heading-level-skip",
+      "title": "Authenticated Home landing jumps from h1 straight to h3 with no h2",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/dashboard/authenticated-view.hbs",
+        "line": 187,
+        "snippet": "            <h3 class=\"md-card__title\">{{t \"My Caseload\" key=\"my_caseload\"}} <span aria-hidden=\"true\">&rarr;</span></h3>",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Either promote the dashboard card titles from h3 to h2 (they are the first level of sections under the hero h1), or introduce an h2 section heading for the card grid. Keep the existing md-card__title class so styling is unchanged; only the element level needs to change.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 1.3.1, supporting 2.4.6 (EN 301 549 clause 9.1.3). This is the LIVE authenticated Home landing (components/dashboard/authenticated-view.hbs; index/authenticated.hbs is dead). The hero renders h1 at lines 78/90/95 and every subsequent section/card title is h3 (lines 151, 187, 199, 218, 253, 289, 380, 417, 473, 565, 614, 631, 653). A grep for '<h2' in this file at the audited SHA returns 0 matches, so the h2 level is skipped outright rather than being supplied by a sibling branch. Screen-reader users navigating by heading level get no intermediate structure between the page title and 13 card titles. Static markup check only; no rendered-DOM or AT behavior was evaluated. | adversary: uncertain -- Original citation (line 151) sits inside a disabled HBS comment block ({{!-- ... --}} spanning 142-169), so that specific anchor is inert even though it passes citation-check textually. The underlying defect is real: h1 exists, zero live <h2 anywhere in the file, first live h3 is at line 187. EVIDENCE RE-ANCHORED by the orchestrator to line 187 (a live, uncommented h3) before merge; severity/title unchanged since the page-level defect the finding describes still holds."
+    },
+    {
+      "id": "LL-59bfd6f482",
+      "ruleKey": "empty-grid-cell-focusable-no-accessible-name",
+      "title": "Empty and hidden board-grid cells stay keyboard-focusable with no accessible name when the grid-placeholder preference is on",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/models/board.js",
+        "line": 1747,
+        "snippet": "      res = res + \"<a href='#' style='\" + btnStyle + \"' class='\" + anchor_class + \"' data-id='\" + button.id + \"' tabindex='0'>\";",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "In the render_fast_html button_html builder (and the parallel builder in utils/button.js), omit tabindex and/or emit aria-hidden=\"true\" for slots the user cannot activate (button.empty, and hidden_button outside show-all/edit), so a placeholder cell is not a nameless tab stop. Alternatively give the placeholder anchor an i18n accessible name such as an empty-cell label.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 4.1.2, with 2.4.3 relevance (EN 301 549 clause 9.4.1). render_fast_html synthesizes empty grid slots as {empty:true, label:'', id:-1} and still passes them through button_html, so every empty cell becomes <a href='#' tabindex='0'> with an empty label span and no symbol <img>. By default this is harmless because app/frontend/app/styles/app.scss makes .button.empty / .button.hidden_button visibility:hidden (removing them from both the tab order and the accessibility tree). The defect is gated on the grid-placeholder preference: app.scss:9154 (.board.grid_hidden_buttons:not(.edit):not(.show_all_buttons) .button.empty) and the matching rule at 9142 for .button.hidden_button set the anchor back to visibility:visible while forcing '* { visibility: hidden }' on its children, which leaves a focusable link whose entire accessible-name content has been removed from the accessibility tree. Scope limits, verified: switch scanning is NOT affected (utils/scanner.js selects grid targets by grid.order id with an explicit :not(.hidden_button):not(.clone) filter), and pointer/dwell hit-testing has a carve-out at utils/raw_events.js:2651-2657; plain Tab navigation has neither. The same tabindex='0' concatenation exists on the second string render path at app/frontend/app/utils/button.js:441 -- dual-render-path note, though the empty-slot synthesis itself lives only in board.js. Confidence is medium because the impact requires the grid-placeholder preference to be enabled. | adversary: confirmed -- Traced the full path: synthetic empty-cell push, unconditional button_html call, tabindex='0' with no aria attributes, and the app.scss grid_hidden_buttons rule that re-reveals the anchor while hiding children. Bonus: app-state.js:3765-3769 makes activation a no-op in that exact mode, so it's a silent nameless tab stop, not merely an unlabeled one."
+    },
+    {
+      "id": "LL-171938b2b9",
+      "ruleKey": "div-click-target-no-keyboard-semantics",
+      "title": "Shared-message speak target is a div with a click handler and no keyboard semantics",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/utterance.hbs",
+        "line": 31,
+        "snippet": "        <div id=\"utterance\" class=\"button_list\" {{on \"click\" (this.ctrlAction \"vocalize\")}}>",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Give the vocalize target real control semantics: make it a <button type=\"button\"> (or add role=\"button\" plus tabindex=\"0\") with an i18n accessible name such as {{t \"Speak this sentence\" key='speak_this_sentence'}}. Adding role=\"button\" or tabindex alone is enough for the app-wide instance-initializers/keyboard-activation.js handler to supply Enter/Space activation, but a native <button> is preferable since it also supplies the role.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by accessibility finder on 2026-08-12. Surfaced by accessibility finder 2026-08-12. WCAG 2.1.1, with 4.1.2 (EN 301 549 clause 9.2.1). templates/utterance.hbs backs the live 'utterance' route (router.js:80, path /utterances/:id) -- the shared-message page a recipient opens from an AAC user's shared sentence. The click-to-speak target is a bare <div> with no role, no tabindex and no href, so the global keyboard-activation initializer explicitly does NOT treat it as actionable (instance-initializers/keyboard-activation.js:30-33 requires <a href>, role=button, role=link, or tabindex). Its only child is <ButtonList>, whose markup is entirely non-interactive div/span/img (components/button-list.hbs), so no descendant supplies a focusable alternative. A keyboard-only alternative does exist, but only in the other branch: the 'Speak This Sentence' <button> at line 91 renders under {{else}} of {{#if this.model.permissions.reply}}, so when the viewer has reply permission the nameless div is the sole vocalize affordance. Confidence is medium because of that conditional alternative. No runtime/AT behavior was evaluated. | adversary: confirmed -- Confirmed the div has no role/tabindex/href and the global keyboard-activation shim's isActionable() check excludes it. Correction: the fallback button at line 91 is for viewers WITHOUT reply permission, not with -- so the population actually stranded is reply-permitted viewers, making the finding stronger than written, not weaker."
+    },
+    {
+      "id": "LL-ebb4be7b73",
+      "ruleKey": "dead-code-unreachable-branch",
+      "title": "create-board route always redirects in beforeModel, making its own template permanently unreachable",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/routes/create-board.js",
+        "line": 13,
+        "snippet": "    this.router.transitionTo('create-board-new');",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "delete app/frontend/app/templates/create-board.hbs (and drop the /create-board route entry in router.js if the redirect-only behavior is no longer needed for old bookmarked links)",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by code-hygiene finder on 2026-08-12. create-board.js's beforeModel() unconditionally calls this.router.transitionTo('create-board-new') before any model/template resolution runs, with an explicit comment confirming this is deliberate ('Board creation is consolidated on the create-board-new page; the legacy /create-board route now redirects there'). Because create-board is a top-level, non-nested route (router.js:46-47), its paired templates/create-board.hbs (3 lines, renders <NewBoard @standalone={{true}}/>) can never render through this route. Full-tree grep for the literal string 'create-board' (excluding create-board-new) shows only the router.js route declaration -- no {{render}}, no other route/component embeds the template. Kept as low severity rather than medium since the route itself is intentional (a working redirect for old bookmarks); only the now-dead template underneath it is the finding. | adversary: confirmed -- Confirmed unconditional redirect with no loop-back. Checked every templateName override in the repo; none renders create-board, so the template has no second entry point."
+    },
+    {
+      "id": "LL-30236919f6",
+      "ruleKey": "slop-dead-debug-artifact",
+      "title": "Bare `debugger;` statement left in a live persistence-sync promise-rejection handler",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/utils/persistence.js",
+        "line": 2402,
+        "snippet": "            debugger;",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "remove the debugger statement (replace with a real error handler or a console.warn, or leave the rejection silently swallowed only if that's intentional)",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by code-hygiene finder on 2026-08-12. This is the rejection handler for persistence.store('settings', ...) inside the main sync() flow -- a genuinely reachable path (a failed local settings write during sync), not inside a dead branch. debugger; is a no-op in production unless devtools are attached, so it isn't user-facing, but it's a leftover debug artifact with no other effect (the rejection is otherwise silently swallowed). git blame attributes it to the original 2016 CoughDrop codebase, not a recent AI-assisted edit -- flagged under the dead-debug-artifact class regardless of origin per the skill's class 10. | adversary: confirmed -- Confirmed the debugger; at line 2402 is real. Additional context: utils/persistence.js is proxied to a services/persistence.js twin with the identical swallow pattern at its own line 2390 (not a duplicate finding -- different file, out of this run's scope). Undercounted: each of the two files actually carries five debugger statements total, not one; .eslintrc.js:34 sets 'no-debugger':'off' so none are lint-gated."
+    },
+    {
+      "id": "LL-208e8f1317",
+      "ruleKey": "slop-dead-debug-artifact",
+      "title": "dbman.js swallows three different IndexedDB errors with a bare `debugger;` and no other handling",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/utils/dbman.js",
+        "line": 390,
+        "snippet": "      } catch(e) { debugger; }",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "replace each catch(e) { debugger; } with real error handling/logging appropriate to store/remove/lastSync failure",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by code-hygiene finder on 2026-08-12. Three occurrences of the identical pattern in the same file: dbman.js:390 (store error), :445 (remove error), :714 (lastSync delete error). Each catch block's only content is debugger; -- the exception is otherwise fully swallowed with no logging or recovery, so a real IndexedDB failure in these paths currently fails silently in production. git blame dates these to 2016/2019 (pre-fork CoughDrop code), not a recent AI-assisted edit. Grouped as one finding since all three are the same copy-pasted no-op catch pattern in one file; only the first occurrence is cited as evidence per the schema's single-location field. | adversary: confirmed -- Confirmed all three catch(e){debugger;} sites in the live (non-sqlite) IndexedDB path. A fourth bare debugger (no semicolon) at line 663 in the sqlite open_error handler was not counted by the finder. 'no-debugger' is disabled repo-wide in .eslintrc.js."
+    },
+    {
+      "id": "LL-47935e1a5b",
+      "ruleKey": "dead-code-orphaned-file",
+      "title": "lib/purchasing2.rb is a 206-line orphaned, apparently unfinished Stripe module with zero live call sites",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/purchasing2.rb",
+        "line": 1,
+        "snippet": "module Purchasing2",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "delete, or finish and wire in if a Stripe Checkout Session migration is still intended",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by code-hygiene finder on 2026-08-12. Verification: grep -rn \"Purchasing2\" --include='*.rb' . repo-wide returns exactly two hits: the module's own module Purchasing2 declaration and one commented-out call in lib/purchasing.rb:194 (# call Purchasing2.confirm_purchase). No controller, job, rake task, or initializer references it. The live purchasing path is Purchasing (lib/purchasing.rb, 1462 lines), referenced from app/controllers/api/purchasing_controller.rb, app/controllers/api/users_controller.rb, app/controllers/session_controller.rb, app/models/gift_purchase.rb, and app/models/concerns/subscription.rb. Purchasing2 also looks unfinished/buggy on inspection -- purchase_prep references a bare user and active_sale? that are never defined in its own scope, and confirm_purchase has several branches that are pure comments with no code (# finalize subscription, # finalize purchase, # enable gift) -- consistent with an abandoned WIP Checkout-Session rewrite rather than a reflectively-invoked helper. No route/action wiring, send, or DI lookup by string was found. | adversary: confirmed -- Independent grep across *.rb/*.rake/*.yml/*.erb/*.js confirms zero live references. Swept every constantize/const_get/safe_constantize call site in the repo; none can resolve to Purchasing2. purchase_prep would NameError if ever invoked (references undefined user/active_sale?)."
+    },
+    {
+      "id": "LL-e0ea356243",
+      "ruleKey": "dead-code-orphaned-file",
+      "title": "Four Ember stats components (stats/num-rows1..4.js) have no template and zero references anywhere",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/stats/num-rows1.js",
+        "line": 7,
+        "snippet": "export default Component.extend({",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "delete all four files",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by code-hygiene finder on 2026-08-12. Verification: case-insensitive full-tree grep num-rows|NumRows across app/frontend/app/**/*.{js,hbs} returns zero hits outside the four files themselves (num-rows1.js..num-rows4.js). None of the four have a co-located .hbs template (confirmed via find app/frontend/app -iname 'num-rows*'), which is a red flag on its own for a classic (non-glimmer) Ember Component. Sibling stats/* components ARE genuinely live, invoked via <Stats::PascalCase> from templates/user/stats.hbs, templates/organization/index.hbs, templates/organization/room.hbs, templates/user/goal.hbs and templates/user/log.hbs (spot-verified individually to avoid the dasherized-vs-PascalCase false-positive noted in the audit protocol) -- the num-rows files are the only ones in that directory with no such wiring. The four files are also structurally identical apart from two renamed computed-property pairs (near-duplicate class), consistent with copy-paste-modify that was never finished or wired up. No dynamic {{component}} construction of a 'num-rows'-prefixed string was found anywhere. | adversary: confirmed -- Confirmed zero references. Specifically checked the dynamic-invocation escape hatch: the only {{component ...}} call in the whole template tree is namespace-scoped to setup/, so no string-built path can reach stats/num-rows*."
+    },
+    {
+      "id": "LL-71f2ba5536",
+      "ruleKey": "dead-code-orphaned-file",
+      "title": "stats/parts-of-speech-flow.js + .hbs (Google Charts Sankey component) is orphaned, apparently superseded by stats/parts-of-speech-pie",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/stats/parts-of-speech-flow.js",
+        "line": 1,
+        "snippet": "import Component from '@ember/component';",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "delete both files (78-line .js + .hbs), or confirm intent to re-adopt the Sankey view and wire it into stats.hbs",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by code-hygiene finder on 2026-08-12. Verification: case-insensitive full-tree grep for parts-of-speech-flow and PartsOfSpeechFlow across app/frontend/app/**/*.{js,hbs} returns zero references outside the component's own two files. The only coincidental hit was an unrelated i18n heading string ('Parts of Speech Flow') in a sibling sankey component. templates/user/stats.hbs instead wires <Stats::PartsOfSpeechPie> (confirmed live). git log shows this file predates the LingoLinq fork (touched only by the SweetSuite->LingoLinq rename and an Ember htmlSafe-import codemod), consistent with a pre-fork chart variant left behind when the pie-chart replacement shipped. No dynamic component-name construction referencing it was found. | adversary: confirmed -- Confirmed zero references; stats.hbs wires PartsOfSpeechPie and a separate SankeyPartsOfSpeech instead. Same dynamic-invocation check as num-rows applies (namespace-scoped elsewhere)."
+    },
+    {
+      "id": "LL-c95c637f00",
+      "ruleKey": "dead-code-orphaned-file",
+      "title": "setup/extra-supervisors.js + .hbs component has zero references anywhere",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/setup/extra-supervisors.js",
+        "line": 3,
+        "snippet": "export default Component.extend({",
+        "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
+      },
+      "firstSeen": "2026-08-12",
+      "lastSeen": "2026-08-12",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "delete both files, or wire into the onboarding/setup flow if the supervisor-explainer copy in the .hbs was meant to ship",
+        "timeframe": "advisory"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by code-hygiene finder on 2026-08-12. Full-tree case-insensitive grep for 'extra-supervisors' and 'ExtraSupervisors' across app/frontend/app/**/*.{js,hbs} returns zero hits outside the component's own two files, and there is no Setup:: namespaced invocation anywhere in the template tree at all. Component body is an empty Component.extend({}); the .hbs holds static onboarding copy about adding supervisors. Low severity given the trivial size (4-line JS, 10-line HBS) and no evidence of a misleading/actively-dangerous state. | adversary: confirmed -- This IS the one component with a real reflective path (setup.hbs's dynamic {{component this.setupComponent}}), and it still doesn't reach: setup.js's order/extra_order allowlists never include 'extra-supervisors'. Confirmed dead, but for a different reason than the finder stated (it checked template references, not the dynamic-dispatch allowlist -- got the right answer without checking the actual risk path). Bonus: setup/extra-reports.js and setup/done.js are dead by the identical mechanism and were not flagged this run."
+    },
+    {
+      "id": "LL-c4566fa37f",
+      "ruleKey": "transcode-webhook-race-orphans-derivative-s3-output",
+      "title": "A ButtonSound/UserVideo record erased mid-transcode, or before/after a lost SNS completion webhook, can leave transcoded output and thumbnails in S3 with no surviving application metadata for the erasure sweep to discover (GDPR Art. 17 / FERPA)",
+      "severity": "medium",
+      "confidence": "medium",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/transcoder.rb",
+        "line": 36,
+        "snippet": "record.update_media_object(new_record) if record",
+        "sha": "9830a1622e8269b21cd19880997588708cc8a96b"
+      },
+      "firstSeen": "2026-08-15",
+      "lastSeen": "2026-08-15",
+      "owner": "",
+      "remediation": {
+        "options": "Transcoder.handle_event (lib/transcoder.rb) only persists a completed job's output keys by calling record.update_media_object(new_record) if record (line 36) -- ButtonSound#update_media_object / MediaObject#update_media_object (app/models/concerns/media_object.rb) is the sole place transcoded-output and thumbnail keys are written to settings, which is in turn the sole source MediaObject#remove_derivative_remote_data reads from to schedule S3 cleanup on destroy. Two related race windows follow from that: (1) if the owning record is destroyed while Elastic Transcoder is still processing the job (or with the SNS completion notification never delivered/lost/erroring on receipt in app/controllers/api/callbacks_controller.rb), the ETS-produced output/thumbnail objects exist in S3 but are never persisted to any record's settings, so no erasure sweep can ever discover or delete them; (2) even for a job that does complete and call update_media_object, everything between the S3 PUT of transcoded output and that synchronous settings write is a window where the record could be destroyed first, same outcome. This is structurally different from LL-854b1d3853 (persisted-but-unswept metadata, fixed on this branch by MediaObject#remove_derivative_remote_data reading settings that DO exist) -- here the metadata needed to find the object never gets written at all. Remediation is intentionally not prescribed here; likely design directions include a durable external-job/output manifest written before the transcode job is submitted (not after it completes), deletion tombstones keyed by transcoding_key so a late webhook can self-clean after the owning record is gone, explicit cancellation/reconciliation of in-flight ETS jobs on record destroy, and/or a periodic post-delete orphan reconciliation sweep against the bucket. Link: related to LL-854b1d3853 (same ButtonSound/UserVideo S3 erasure surface); whether this keeps LL-854b1d3853 open as a blocker or is a distinct sibling that permits LL-854b1d3853 to close narrowly (persisted/discoverable media erasure only) is Scot's call, not decided here.",
+        "timeframe": "medium -- narrow race window in normal operation, but structurally unfixed by the persisted-metadata sweep landing on this branch; no known production incident, not yet independently verified against a real transcode job"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "reviewer": "claude-adversary-review",
+        "promotedDate": "2026-08-15"
+      },
+      "notes": "Surfaced 2026-08-15 by the round-5 adversary review pass on the buttonsound-secondary-url-cleanup branch (LL-854b1d3853 remediation work), which fixed persisted-metadata media-erasure gaps (secondary_output, prior_full_filenames, thumbnail families) but explicitly could not reach this async transcode/webhook race without redesigning the transcode job lifecycle -- out of scope for that PR per Scot's direction. Filed as its own finding rather than folded into LL-854b1d3853 so the two remediation efforts (persisted-metadata sweep vs. async-job lifecycle hardening) stay separately trackable. Proposed by the agent; severity, confidence, and the LL-854b1d3853 linkage/blocking relationship are pending Scot's review per repo governance (only Scot sets disposition or closes/downgrades a finding).\n\nRelationship (2026-08-16, Scot-confirmed): sibling, not a blocking child, of LL-854b1d3853. LL-854b1d3853 may be proposed verified-closed on persisted/discoverable ButtonSound/UserVideo media-object erasure alone (PR #806) without this finding closing first; this finding exists precisely so that narrower closure is never mistaken for a claim that every possible async S3 output is guaranteed discoverable or erased. Also related to LL-779490b63e (thumbnail erasure fallback's own bounded/best-effort limitations): distinct failure mechanism -- this finding is about output that never gets persisted application metadata at all; LL-779490b63e is about persisted, metadata-driven cleanup that can silently stop short during its own degraded (listing-unavailable) path. Severity, confidence, and disposition remain untriaged and unchanged by this note."
+    },
+    {
+      "id": "LL-779490b63e",
+      "ruleKey": "thumbnail-fallback-bounded-best-effort-ambiguous-gap",
+      "title": "Thumbnail erasure fallback is bounded/best-effort and cannot reliably distinguish absence, sequence gaps, or transient deletion failure",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/uploader.rb",
+        "line": 309,
+        "snippet": "def self.remote_remove_thumbnail_family(stem, owner_class_name=nil, owner_global_id=nil)",
+        "sha": "328a54299af402cc55011355075e94fcfba5fded"
+      },
+      "firstSeen": "2026-08-16",
+      "lastSeen": "2026-08-16",
+      "owner": "",
+      "remediation": {
+        "options": "Uploader.remote_remove_thumbnail_family (lib/uploader.rb:309) falls back to a bounded guessed-sequence delete (FALLBACK_MAX_GUESS = 5, lib/uploader.rb:307) only when live S3 prefix listing fails (e.g. s3:ListBucket denied on the uploads-bucket credential, unverified in production per LL-854b1d3853's PR #806 disclosure) or errors for any other reason. Two related limitations in that degraded path, both round-6 adversary review findings on PR #806: (1) the fallback loop never raises on total failure -- every delete attempt is rescued and logged (lib/uploader.rb:326-336), so a transient S3 error (permission blip, network timeout, throttling) is contained rather than surfaced, meaning the failure never reaches Resque's durable retry/failure queue and there is no persisted record of which stem needs a retry once the owning ButtonSound/UserVideo row is already destroyed; (2) the fallback assumes a contiguous index sequence starting at 00001 and stops at the first index confirmed absent in both jpg/png (lib/uploader.rb:344, `break if !found_this_index && !errored_this_index`, fixed in PR #806 round 6 to at least not stop on an *errored* index rather than a *confirmed-absent* one) -- but if index 00001's object was already removed by an earlier partial sweep or an S3 lifecycle rule while 00002+ survive, the walk still stops at the first gap and logs deleted=0, which is indistinguishable in the logs from 'no thumbnails ever existed for this stem'. Both are real hardening opportunities on a path that is already disclosed in docs/legal/2026-08-09_data-retention_draft.md and docs/legal/2026-08-09_compliance-program-overview_draft.md as bounded and dependent on an unverified production permission -- not merge blockers for PR #806, and not remediated there. Likely remediation directions: (a) have the fallback path enqueue a durable RemoteAction/Resque retry (or otherwise surface failure) instead of only logging, so a transient error is recoverable rather than silently final; (b) either walk the full FALLBACK_MAX_GUESS range unconditionally (accepting some wasted head_object calls) rather than stopping at the first gap, or make the deleted=0 log line explicitly distinguish 'no gap encountered, nothing found' from 'stopped early at a gap' so an operator can tell the two apart.",
+        "timeframe": "medium -- only exercised on the already-degraded path (s3:ListBucket denied or listing otherwise unavailable), which is itself unverified in production; no known production incident"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "reviewer": "claude-adversary-review",
+        "promotedDate": "2026-08-16"
+      },
+      "notes": "Surfaced 2026-08-16 by the round-6 adversary review pass on PR #806 (buttonsound-secondary-url-cleanup branch). Filed as its own finding rather than folded into LL-c4566fa37f: that finding is about transcode output that never gets persisted application metadata at all, while this finding is about the erasure sweep's own fallback behavior when persisted metadata DOES exist but live S3 listing is unavailable -- a different failure mechanism with a different remediation shape (retry/enumeration hardening vs. job-lifecycle/manifest redesign). Related to LL-854b1d3853 as residual hardening of its degraded cleanup path; does not block LL-854b1d3853's closure. Proposed by the agent; severity, confidence, and disposition are pending Scot's review per repo governance (only Scot sets disposition or closes/downgrades a finding). Confidence set to high (not medium) because both code paths cited (the un-raised fallback failure and the break-on-first-gap logic) were directly read and verified against lib/uploader.rb at HEAD, not inferred."
     }
   ]
 }

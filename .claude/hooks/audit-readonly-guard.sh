@@ -2,9 +2,10 @@
 # audit-readonly-guard.sh
 #
 # PreToolUse write-blocker for the LingoLinq read-only audit finder agents
-# (privacy-auditor, infra-auditor, api-auditor, dependency-auditor). Wired into
-# each finder via its `hooks:` frontmatter so it is scoped to those agents only
-# and never affects normal editing in the main session.
+# (privacy-auditor, infra-auditor, api-auditor, dependency-auditor,
+#  accessibility-auditor, code-hygiene-auditor). Wired into each finder via its
+# `hooks:` frontmatter so it is scoped to those agents only and never affects
+# normal editing in the main session.
 #
 # Why it exists: the finders use a `tools: Read, Grep, Glob, Bash` allowlist, which
 # already removes Edit/Write/NotebookEdit. But Bash can STILL mutate the repo or
