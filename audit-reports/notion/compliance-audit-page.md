@@ -11,7 +11,7 @@
 **Audited commit:** `d67ed76e0a161b594fbffa519ab428d0f9b7780b`  
 **Audited ref:** `scot/feat/code-hygiene-auditor`  
 **Run date:** 2026-08-12  
-**Page generated:** 2026-08-17T22:06:36Z
+**Page generated:** 2026-08-18T17:58:56Z
 
 ## Headline - open findings
 
