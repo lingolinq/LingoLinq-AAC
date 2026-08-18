@@ -2894,6 +2894,42 @@ describe Api::UsersController, :type => :controller do
       expect(json['user'].length).to eq(1)
       expect(json['user'][0]['id']).to eq(u.global_id)
     end
+
+    # The gate above authorizes the caller against the LIST OWNER. Every account
+    # inside that list is a third party the caller may have no standing with, and
+    # `limited_identity` is not a redaction -- json_api/user.rb:327 emits the
+    # child's real name, avatar, unread message/alert counts, external device and
+    # org_status. Same defect class as badges#index and logs#index.
+    it "should not return supervisees the caller has no relationship with" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to_not include(outside.global_id)
+      expect(json['user']).to eq([])
+    end
+
+    # Positive control, so the example above cannot pass by hiding everything: the
+    # same list, same caller, same list owner -- the only difference is that the
+    # caller now independently supervises the communicator.
+    it "should return supervisees the caller independently supervises" do
+      token_user
+      supporter = User.create
+      shared = User.create
+      User.link_supervisor_to_user(supporter, shared)
+      User.link_supervisor_to_user(@user, shared)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to eq([shared.global_id])
+    end
   end
   
   describe "GET 'sync_stamp'" do

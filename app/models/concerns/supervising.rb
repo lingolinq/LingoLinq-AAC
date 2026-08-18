@@ -177,13 +177,44 @@ module Supervising
           supervisor.settings['preferences']['role'] = 'communicator'
           supervisor.save_with_sync('un-supervisor')
         end
-        supervisor.schedule_once(:update_available_boards)
+        schedule_board_cache_refresh(supervisor)
         supervisor.update_setting({
           'supervisees' => supervisor.settings['supervisees']
         })
       end
     end
     
+
+    # update_available_boards recomputes settings['available_private_board_ids'],
+    # which board.rb:76 reads to grant view/edit/delete/share -- it writes
+    # AUTHORIZATION state, not display state, and its result sits behind a
+    # 30-minute permission cache.
+    #
+    # schedule_once pushes to Redis the moment it is called, and Redis is not
+    # enrolled in the Postgres transaction. SupervisorConsentService runs both
+    # link_supervisor_to_user and unlink_supervisor_from_user inside `with_lock`,
+    # so a worker could dequeue and recompute from the PRE-COMMIT snapshot: a
+    # revoke undone by its own job, re-granting a removed supervisor real access
+    # to a child's private boards.
+    #
+    # The consent service already re-enqueues after commit, but that only made the
+    # race CONVERGE -- it cannot order the two workers' writes, and schedule_once
+    # dedupes against a job still sitting in the queue, so the corrective enqueue
+    # could itself be a silent no-op. Deferring at the source is the ordering fix,
+    # and it belongs here rather than in the service because both call sites are
+    # here and every other caller wants the same guarantee.
+    #
+    # after_all_transactions_commit, not a bare call: with no open transaction it
+    # runs the block IMMEDIATELY, so the many non-transactional callers of these
+    # two methods are byte-for-byte unchanged. Only callers already inside a
+    # transaction see the deferral -- which is exactly the set that was broken.
+    def schedule_board_cache_refresh(supervisor)
+      return unless supervisor
+      ActiveRecord.after_all_transactions_commit do
+        supervisor.schedule_once(:update_available_boards)
+      end
+    end
+
     def link_supervisor_to_user(supervisor, user, code=nil, type=true, organization_unit_id=nil)
       type = 'edit' if type == true
       type ||= 'read_only'
@@ -222,7 +253,7 @@ module Supervising
         supervisor.schedule(:remove_supervisors!)
         supervisor.settings['preferences']['role'] = 'supporter'
       end
-      supervisor.schedule_once(:update_available_boards)
+      schedule_board_cache_refresh(supervisor)
       user.save_with_sync('supervisee')
       supervisor.save_with_sync('supervisor')
     end

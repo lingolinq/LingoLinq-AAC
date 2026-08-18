@@ -965,4 +965,79 @@ describe Supervising, :type => :model do
       expect(res[0]['sponsored']).to eq(true)
     end
   end
+
+  # The supervisor board-cache recompute is an AUTHORIZATION write, not a display
+  # write: update_available_boards persists settings['available_private_board_ids'],
+  # which board.rb:76 reads to grant view/edit/delete/share.
+  #
+  # Both link_supervisor_to_user and unlink_supervisor_from_user enqueue it through
+  # Worker.schedule_for, which pushes to Redis the instant it is called. Redis is
+  # not enrolled in the Postgres transaction, so when these run inside one -- which
+  # SupervisorConsentService does, under `with_lock` -- a worker can dequeue and
+  # recompute from the PRE-COMMIT snapshot. A revoke then gets undone by its own
+  # job, re-granting a removed supervisor real access to a child's private boards,
+  # behind a 30-minute permission cache.
+  #
+  # The consent service's post-commit re-enqueue only made the race CONVERGE; it
+  # could not order the two writes, and schedule_once dedupes against a job still
+  # sitting in the queue, so the corrective enqueue could also be a silent no-op.
+  # Deferring at the source is the actual ordering fix, which is what these two
+  # examples pin. They need real commits, so the surrounding transactional fixture
+  # is disabled -- with it on, nothing ever commits and both assertions would pass
+  # vacuously.
+  describe "board-cache enqueue ordering" do
+    self.use_transactional_tests = false
+
+    after(:each) do
+      UserLink.delete_all
+      User.delete_all
+      Worker.flush_queues
+    end
+
+    def queued_board_updates_for(user)
+      found = []
+      Resque.queues.each do |queue|
+        Resque.size(queue).times do |idx|
+          item = Resque.peek(queue, idx)
+          next unless item
+          (item['args'] || []).each do |arg|
+            next unless arg.is_a?(Hash)
+            found << arg if arg['method'] == 'update_available_boards' && arg['id'] == user.id
+          end
+        end
+      end
+      found
+    end
+
+    it "should defer the supervisor board-cache recompute past commit when linking" do
+      sup = User.create
+      com = User.create
+      Worker.flush_queues
+
+      during = nil
+      ActiveRecord::Base.transaction do
+        User.link_supervisor_to_user(sup, com)
+        during = queued_board_updates_for(sup)
+      end
+
+      expect(during).to eq([]), "board-cache recompute was queued while the transaction was still open"
+      expect(queued_board_updates_for(sup).length).to be > 0
+    end
+
+    it "should defer the supervisor board-cache recompute past commit when unlinking" do
+      sup = User.create
+      com = User.create
+      User.link_supervisor_to_user(sup, com)
+      Worker.flush_queues
+
+      during = nil
+      ActiveRecord::Base.transaction do
+        User.unlink_supervisor_from_user(sup, com)
+        during = queued_board_updates_for(sup)
+      end
+
+      expect(during).to eq([]), "board-cache recompute was queued while the transaction was still open"
+      expect(queued_board_updates_for(sup).length).to be > 0
+    end
+  end
 end
