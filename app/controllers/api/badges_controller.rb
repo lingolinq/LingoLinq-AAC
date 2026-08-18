@@ -23,8 +23,8 @@ class Api::BadgesController < ApplicationController
       # showcase), but the wrong shape here: these are THIRD parties reached
       # through someone else's supervisee list, and supervising.rb:121 returns
       # false for a caller with no relationship at all, so the negation admitted
-      # every stranger. See supervisee_progress_readable?.
-      supervisees = user.supervisees.select{|s| supervisee_progress_readable?(s) }
+      # every stranger. See ApplicationController#supervisee_readable?.
+      supervisees = user.supervisees.select{|s| supervisee_readable?(s, 'set_goals') }
       # TODO: sharding
       user_ids = [user.id] + supervisees.map(&:id)
       # `disabled: false` matches the else-branch at the same gate. Without it a
@@ -39,7 +39,7 @@ class Api::BadgesController < ApplicationController
       # It applies to `user`'s OWN badges only, because that is the relationship
       # it was computed from: `user.allows?(@api_user,'supervise')`. Each
       # supervisee in this list has already passed its own affirmative
-      # `supervisee_progress_readable?` check, so downgrading them on the strength
+      # `supervisee_readable?` check, so downgrading them on the strength
       # of the caller's relationship to a DIFFERENT account would hide records the
       # caller is independently entitled to read — an org manager holding
       # `set_goals` on a supervisee, but no `supervise` on the account whose list
@@ -115,32 +115,11 @@ class Api::BadgesController < ApplicationController
   # no relationship at all should still be served: #index falls through to the
   # public highlighted showcase (UserBadge#view, user_badge.rb:19) and #show is
   # already gated by that same permission. Do NOT reuse it to authorize a read of
-  # a third party's record — use supervisee_progress_readable? for that.
+  # a third party's record — use the shared supervisee_readable? for that.
   def progress_visible_to_api_user?(communicator)
     return false unless communicator && @api_user
     return true if communicator.id == @api_user.id
     !@api_user.modeling_only_for?(communicator)
-  end
-
-  # Affirmative counterpart, for communicators the caller reaches indirectly
-  # through another account's supervisee list. Here "no relationship" must mean
-  # DENIED, so the caller has to actually hold a permission on the supervisee.
-  #
-  # `set_goals` is the codebase's own predicate for "may see this communicator's
-  # goal data": user_goal.rb:25 grants UserGoal#view through exactly
-  # `self.user.allows?(user, 'set_goals')`. It resolves to self, non-modeling
-  # supervisors, and org managers. It is declared under
-  # ['full', 'basic_supervision', 'read_profile'], and permissable ADDS a rule's
-  # scope list to 'full' rather than restricting to it, so basic_supervision
-  # supporters still pass.
-  #
-  # The `modeling_only_for?` conjunct is still required: user.rb:66 deliberately
-  # preserves `set_goals` for a BILLING-lapsed (globally modeling-only) supporter
-  # who holds a real edit-level link, and that supporter must not read progress.
-  def supervisee_progress_readable?(supervisee)
-    return false unless supervisee && @api_user
-    return true if supervisee.id == @api_user.id
-    supervisee.allows?(@api_user, 'set_goals') && !@api_user.modeling_only_for?(supervisee)
   end
 
   def require_progress_visible!(communicator)

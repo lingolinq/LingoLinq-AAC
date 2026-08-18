@@ -69,8 +69,12 @@ class Api::LogsController < ApplicationController
       #
       # `supervise` is the same bar this controller already applies to `user` at
       # the gate above, so this makes the per-supervisee standard identical to
-      # the per-user one rather than inventing a new one.
-      sups = user.supervisees.select{|u| !u.private_logging? && u.allows?(@api_user, 'supervise', scopes) }
+      # the per-user one rather than inventing a new one. The check itself is the
+      # shared ApplicationController#supervisee_readable?, which is where the
+      # identical defect in badges#index and users#supervisees also resolves;
+      # `private_logging?` stays alongside it because that is a communicator
+      # PREFERENCE, not an authorization, and the two are not interchangeable.
+      sups = user.supervisees.select{|u| !u.private_logging? && supervisee_readable?(u, 'supervise') }
       sups.each do |sup|
         user_ids << sup.id
         cutoff = sup.effective_logging_cutoff_for(@api_user, logging_code_for(sup))

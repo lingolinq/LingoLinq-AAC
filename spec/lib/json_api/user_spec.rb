@@ -602,6 +602,33 @@ describe JsonApi::User do
         expect(hash['permissions']).not_to eq(nil)
         expect(hash['supervisees']).to eq(nil)
       end
+
+      # Same fan-out as GET /users/:id/supervisees: the `model` gate is the
+      # list owner, and limited_identity is not a redaction.
+      it "should not nest supervisees the caller has no relationship with" do
+        viewer = User.create
+        supporter = User.create
+        outside = User.create
+        User.link_supervisor_to_user(supporter, outside)
+        User.link_supervisor_to_user(viewer, supporter)
+
+        hash = JsonApi::User.build_json(supporter, permissions: viewer)
+        expect(hash['permissions']['model']).to eq(true)
+        expect((hash['supervisees'] || []).map { |s| s['id'] }).to_not include(outside.global_id)
+      end
+
+      it "should nest supervisees the caller independently supervises" do
+        viewer = User.create
+        supporter = User.create
+        shared = User.create
+        User.link_supervisor_to_user(supporter, shared)
+        User.link_supervisor_to_user(viewer, shared)
+        User.link_supervisor_to_user(viewer, supporter)
+
+        hash = JsonApi::User.build_json(supporter, permissions: viewer)
+        expect((hash['supervisees'] || []).map { |s| s['id'] }).to eq([shared.global_id])
+        expect(hash['supervisees'][0]['name']).to eq(shared.settings['name'])
+      end
       
       it "should include org-added supervisees in paginated list if for an organization" do
         u = User.create

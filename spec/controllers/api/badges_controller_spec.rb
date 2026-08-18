@@ -129,7 +129,13 @@ describe Api::BadgesController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['badge'].length).to eq(2)
-      expect(json['badge'].map{|b| b['id']}.sort).to eq([b.global_id, b2.global_id])
+      # Sort BOTH sides. global_ids are strings, so once the UserBadge sequence
+      # crosses a digit boundary the lexicographic order of two consecutively
+      # created badges inverts ("1_1000" < "1_999") and the sorted actual stops
+      # matching a literal written in creation order. Latent since this example was
+      # written; it only fires on a test database whose sequence happens to straddle
+      # the boundary.
+      expect(json['badge'].map{|b| b['id']}.sort).to eq([b.global_id, b2.global_id].sort)
     end
 
     it "should not include badges for supervisees the caller cannot view in detail" do

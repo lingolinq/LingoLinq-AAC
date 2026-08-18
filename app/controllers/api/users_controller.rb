@@ -137,7 +137,10 @@ class Api::UsersController < ApplicationController
     code = GoSecure.sha512("#{res[:ws_user_id]}:#{res[:my_device_id]}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30]
     res[:verifier] = "#{code}:#{ts}"
     if user.supporter_role?
-      sups = user.supervisees
+      # Same fan-out as users#supervisees: the gate above authorizes the list
+      # owner, not the children inside. Filter before emitting ids (and, on
+      # self, room-join verifiers).
+      sups = user.supervisees.select { |s| supervisee_readable?(s, 'supervise') }
       if sups.length < 20
         res[:supervisees] = sups.map do |sup|
           ws_user_id = sup.global_id
@@ -597,7 +600,27 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'supervise')
-    supervisees = user.supervisees
+    # Third instance of the fan-out defect fixed in badges#index and logs#index:
+    # the gate above authorizes the caller against `user`, and then every account
+    # in `user.supervisees` was serialized regardless of the caller's standing
+    # with THOSE accounts. Reachable when an org manager holds `supervise` over a
+    # supporter (user.rb:87) who also supervises communicators outside that org --
+    # a contracting SLP with a private caseload -- and equally when a supporter
+    # asks about themselves, where the gate passes unconditionally.
+    #
+    # `limited_identity` is not a redaction: json_api/user.rb:327 emits the child's
+    # real name, avatar, unread message and alert counts, external device,
+    # preferred symbols, and (with :supervisor set) org_status. Name plus org
+    # affiliation across a district boundary is the FERPA disclosure, and the
+    # unread counts are activity metadata about a child the caller has no
+    # relationship with.
+    #
+    # 'supervise' is the same permission the gate above demands, so this holds each
+    # row to the standard already applied to the list's owner. It resolves through
+    # self, non-modeling supervisor, and org manager (user.rb:71,87), so a manager
+    # reviewing a therapist's in-org caseload is unaffected; only the out-of-org
+    # rows drop out.
+    supervisees = user.supervisees.select{|s| supervisee_readable?(s, 'supervise') }
     render json: JsonApi::User.paginate(params, supervisees, limited_identity: true, supervisor: user, prefix: "/users/#{user.global_id}/supervisees")
   end
   

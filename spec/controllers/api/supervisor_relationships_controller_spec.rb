@@ -103,6 +103,26 @@ describe Api::SupervisorRelationshipsController, type: :controller do
       assert_missing_token
     end
 
+    # The flag was advertised to the client and checked on the supervisor-key
+    # ingress, but never here, so a direct POST created a pending relationship and
+    # mailed a consent request to a child's guardian with the flow disabled.
+    it "should refuse to create when the consent flow is disabled for the user" do
+      token_user
+      u2 = User.create
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('supervisor_consent_flow', anything).and_return(false)
+      expect(SupervisorMailer).to_not receive(:schedule_delivery)
+
+      post :create, params: {
+        supervisor_relationship: {
+          lookup_key: u2.global_id,
+          permission_level: 'view_only'
+        }
+      }
+      assert_unauthorized
+      expect(SupervisorRelationship.where(communicator_user_id: u2.id).count).to eq(0)
+    end
+
     it "should create a request and return generic message" do
       token_user
       u2 = User.create
