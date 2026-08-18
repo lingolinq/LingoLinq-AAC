@@ -26,3 +26,8 @@ config/credentials/*.key
 # Package-manager auth files sometimes present locally
 .npmrc
 .yarnrc.yml
+
+# Redis persistence dumps: local-dev-only, never belong in a container image
+# (finding LL-6af580a23a).
+*.rdb
+dump.rdb

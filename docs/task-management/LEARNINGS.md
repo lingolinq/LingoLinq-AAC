@@ -21,6 +21,7 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
+- [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
@@ -41,6 +42,7 @@ file (see [README.md](README.md)).
 - [Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation](#gotcha-ember-input-checkboxes-need-type-and-bound-select-must-stoppropagation)
 - [Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props](#gotcha-ember-strict-mode-templates-treat-bare-names-as-helpers--use-this-for-controller-props)
 - [Gotcha: AI feature flags are rollout; prefs turn AI on — Ember UI must AND both](#gotcha-ai-feature-flags-are-rollout-prefs-turn-ai-on--ember-ui-must-and-both)
+- [Gotcha: Generate-with-AI UI opt-in is explicit; server grandfather is not](#gotcha-generate-with-ai-ui-opt-in-is-explicit-server-grandfather-is-not)
 - [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
 - [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
@@ -3605,6 +3607,24 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 ---
 
+## Pattern: curated system boards live on static S3 — prefer over OpenAAC
+
+**Surface:** large gallery / signup OBZs that must not live in git, and must not land as CoughDrop-branded OpenAAC copies on `lingolinq`.
+
+**Fix recipe:**
+1. Keep sources in `tmp/seed-boards/` (gitignored). Never commit multi‑MB OBZs.
+2. Catalog local → `system-boards/<key>` in `CuratedVocabularySources::CATALOG`.
+3. Upload: `rake lingolinq:upload_curated_boards`. Use `UPLOAD_STATIC_S3_BUCKET=lingolinq-staging-static` (or prod) — **not** a leading `STATIC_S3_BUCKET=` before `op run`, because `--env-file` wins over the shell and will reset it to the local/dev bucket. Pattern: `op run --env-file=.env.op.local -- env UPLOAD_STATIC_S3_BUCKET=… bundle exec rake …`.
+4. Senner signup set: `SystemBoardSources.ensure_senner_baud!` (S3 primary, `SENNER_BAUD_OBZ_PATH` / `tmp/seed-boards/SennerBaudSocialPages60ll.obz` local fallback). After `from_obz`, call `sync_load_board_keys!` so `load_board.key` matches the board resolved by id (avoids `_N` dead links after key collisions).
+5. Gallery curated sets: `rake lingolinq:import_curated_vocabularies` or `SEED_IMPORT_CURATED_VOCABULARIES=1`.
+6. OpenAAC import skips filenames in `CuratedVocabularySources.openaac_skip_files`; keep OpenAAC for non-overlapping sets (quick-core-*, vocal-flair-60, etc.).
+
+**Evidence:** `lib/curated_vocabulary_sources.rb`, `lib/system_board_sources.rb`, `lib/tasks/system_boards.rake`, `lib/tasks/openaac.rake`; task log `2026-08-13-curated-s3-system-board-seeds.md`.
+
+**Collision note (2026-08-14):** Senner OBZ boards can occupy bare keys like `lingolinq/core-60`. OpenAAC Quick Core roots also import as `core-N`, while signup expects `lingolinq/quick-core-N`. Seed order is Senner then OpenAAC. After Senner import, `relinquish_bare_core_roots!` moves bare `core-N` → `senner-baud-core-N` (child keys like `core-60-when` stay shared). After each `quick-core-N.obz` import, `rekey_quick_core_root!` sets the root to `quick-core-N` and `sync_load_board_keys!` runs.
+
+---
+
 ## Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in
 
 **Surface:** fresh beta/local DB setup through `db/seeds.rb`.
@@ -6349,6 +6369,32 @@ turned prefs off. Do not bake prefs into the flags payload. Mirror pref semantic
 word-prediction UI through it. Master `nil` = grandfather allow; master false = block; master true
 = per-feature must be true for `USER_PREF_AI_FEATURES`. See
 `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-15)
+
+## Gotcha: Generate-with-AI UI opt-in is explicit; server grandfather is not
+
+`prefAllowsAi` still grandfathers a nil master (the generate_labels API can succeed). The
+create-board chooser uses `prefExplicitlyEnabled` / `boardGenerationEntry` so unset prefs open
+`enable-ai-features` instead of letting the user fill the form and then see "Feature not
+available". Do not fold that stricter check into `aiFeatureEnabled` — other AI UI still relies on
+grandfather. Register the modal in `modal-container.hbs` **and** `convertedModals` (same trap as
+`eu-ai-parental-consent`). Cancel is `modal.close(false)`, which **rejects**; callers must
+`.then(stay, stay)` or cancel looks like an unhandled error. EU under-16 without consent opens
+`eu-ai-parental-consent` instead of self-enable.
+
+The create-board chooser (`.nb-create-chooser`) is an in-page `position:fixed` overlay at
+z-index 6000, above Bootstrap `.modal` (1050). Opening `enable-ai-features` (or EU consent)
+while the chooser is visible paints the system modal behind the chooser, and the chooser's
+`backdrop-filter` blurs it. Hide the chooser before `modal.open`, restore it if the user
+does not proceed — same pattern as `choose_paste_html` / `choose_json_bundle`. Do not raise
+global `.modal` z-index to beat the chooser.
+
+`applyAiFeaturePrefs` must only write `true` for requested keys (master + the triggered feature).
+Writing `false` for the other `USER_PREF_AI_FEATURES` overwrites siblings that were already on
+(e.g. word prediction). Clone the whole `preferences` object before `user.set('preferences', …)`
+so Ember Data `attr('raw')` dirties. Apply runs before `user.save()`, so Cancel and a rejected
+save must `rollbackAttributes()` or the next Generate with AI skips the popup with in-memory prefs
+on and the API can still 403. See
+`docs/task-management/2026-08-17-ai-enable-popup.md`. (2026-08-17)
 
 ## Gotcha: `EvalNarrator` shipped against the OLD `ruby-anthropic` API; the gem is official `anthropic ~> 1.23`
 
@@ -11877,6 +11923,19 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 `version + full sha256 + commit` (and a distinct label per attested byte set — e.g.
 `v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
 [`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
+
+## Gotcha: staging → audit-register merge is a union, then regenerate
+
+When `staging` lands on a findings-register branch, do not pick one side of
+`FINDINGS.json` / `DOCUMENT-REGISTER.json`. Rebuild from `git show HEAD` +
+`MERGE_HEAD`: keep this branch's unique findings and docs, add staging-only
+rows, and for a shared id keep the longer staging notes/remediation trail
+without changing status, severity, or disposition. Then run
+`scripts/regenerate-register.sh` so the `.md` mirrors and publication status
+are derived, not hand-merged. If citation-check says `file not found at sha`,
+`git fetch` that evidence commit before re-anchoring the pin. Attested
+`attestedContentHash` pins stay untouched. Task log:
+[`2026-08-17-code-hygiene-auditor-staging-merge.md`](./2026-08-17-code-hygiene-auditor-staging-merge.md).
 
 ## Gotcha: BREACH_RUNBOOK vendor contacts live in §7, not §11
 
