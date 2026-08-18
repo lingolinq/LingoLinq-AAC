@@ -224,9 +224,17 @@ jobs:
       # us-west-2 in APP_ENV_VARS_STATIC. If Bedrock moves region, add BEDROCK_AWS_REGION there
       # (a region string is not a secret and does not belong in this list).
       #
-      # ANTHROPIC_API_KEY remains listed but is now INERT: no code under app/ lib/ config/ reads it
-      # since the Bedrock cutover. Removing it is deliberately out of scope here (see PR body).
-      NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,BEDROCK_AWS_KEY=BEDROCK_AWS_KEY:latest,BEDROCK_AWS_SECRET=BEDROCK_AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_PLACES_TOKEN=GOOGLE_PLACES_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,CACHE_TOKEN=CACHE_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
+      # ANTHROPIC_API_KEY was REMOVED from this list on 2026-08-15. It had been inert since the
+      # Bedrock cutover -- no code under app/ lib/ config/ reads it, and lib/ai_client.rb never
+      # constructs a direct api.anthropic.com client -- so it was mounting a live credential into
+      # every web and worker container with no consumer. scripts/ai-endpoint-guard.sh already
+      # fails CI if any runtime seam starts reading it, so the guarantee does not depend on this
+      # list. Do not re-add it: the direct Anthropic route is not a BAA path for runtime AI.
+      #
+      # GEMINI_API_KEY below is the SAME class of dormant mount (the Gemini fallback was disabled
+      # 2026-07-09, PR #570, and every remaining reference is a comment). It is left in place here
+      # only because this PR was scoped to the Anthropic key; it wants its own removal.
+      NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,BEDROCK_AWS_KEY=BEDROCK_AWS_KEY:latest,BEDROCK_AWS_SECRET=BEDROCK_AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_PLACES_TOKEN=GOOGLE_PLACES_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,CACHE_TOKEN=CACHE_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
       # Non-secret runtime config (Group B) + perf tuning (Group C), web + worker only. S3 bucket
       # names + AWS/SES regions are not secret. Stripe PUBLISHABLE key, registration email, and the
       # Redis namespace come from repo Variables (assembled below) so no env-specific value is

@@ -72,6 +72,43 @@ describe Supervising, :type => :model do
       expect(u2.edit_permission_for?(u)).to eq(true)
     end
 
+    describe "readable_as_supervisee_by?" do
+      it "is true for a direct supervisor and for self" do
+        child = User.create
+        sup = User.create
+        User.link_supervisor_to_user(sup, child)
+        expect(child.readable_as_supervisee_by?(sup, 'supervise')).to eq(true)
+        expect(child.readable_as_supervisee_by?(child, 'supervise')).to eq(true)
+      end
+
+      it "is false for a stranger and for a supervisor-of-supervisor" do
+        child = User.create
+        therapist = User.create
+        viewer = User.create
+        User.link_supervisor_to_user(therapist, child)
+        User.link_supervisor_to_user(viewer, therapist)
+        expect(child.readable_as_supervisee_by?(nil, 'supervise')).to eq(false)
+        expect(child.readable_as_supervisee_by?(User.create, 'supervise')).to eq(false)
+        expect(child.readable_as_supervisee_by?(viewer, 'supervise')).to eq(false)
+      end
+
+      it "is true for an in-org manager and false for an out-of-org child" do
+        manager = User.create
+        therapist = User.create
+        inside = User.create
+        outside = User.create
+        o = Organization.create(:settings => {'total_licenses' => 4})
+        o.add_manager(manager.user_name, true)
+        o.add_supervisor(therapist.user_name, false)
+        o.add_user(inside.user_name, false)
+        User.link_supervisor_to_user(therapist, inside)
+        User.link_supervisor_to_user(therapist, outside)
+        manager.reload
+        expect(inside.readable_as_supervisee_by?(manager, 'supervise')).to eq(true)
+        expect(outside.readable_as_supervisee_by?(manager, 'supervise')).to eq(false)
+      end
+    end
+
     it "treats an approved SupervisorRelationship as supervision for set_goals when UserLink is absent" do
       sup = User.create
       comm = User.create
@@ -963,6 +1000,136 @@ describe Supervising, :type => :model do
       expect(added).to be < (Time.now + 10)
       expect(res[0]['pending']).to eq(false)
       expect(res[0]['sponsored']).to eq(true)
+    end
+  end
+
+  # The supervisor board-cache recompute is an AUTHORIZATION write, not a display
+  # write: update_available_boards persists settings['available_private_board_ids'],
+  # which board.rb:76 reads to grant view/edit/delete/share.
+  #
+  # Both link_supervisor_to_user and unlink_supervisor_from_user enqueue it through
+  # Worker.schedule_for, which pushes to Redis the instant it is called. Redis is
+  # not enrolled in the Postgres transaction, so when these run inside one -- which
+  # SupervisorConsentService does, under `with_lock` -- a worker can dequeue and
+  # recompute from the PRE-COMMIT snapshot. A revoke then gets undone by its own
+  # job, re-granting a removed supervisor real access to a child's private boards,
+  # behind a 30-minute permission cache.
+  #
+  # The consent service's post-commit re-enqueue only made the race CONVERGE; it
+  # could not order the two writes, and schedule_once dedupes against a job still
+  # sitting in the queue, so the corrective enqueue could also be a silent no-op.
+  # Deferring at the source is the actual ordering fix. A RemoteAction in the same
+  # transaction is the durability fix: if the process dies or Redis is down after
+  # commit, the hourly outbox drain still schedules the refresh. These examples
+  # need real commits, so the surrounding transactional fixture is disabled --
+  # with it on, nothing ever commits and the ordering assertions would pass
+  # vacuously.
+  describe "board-cache enqueue ordering" do
+    self.use_transactional_tests = false
+
+    after(:each) do
+      UserLink.delete_all
+      User.delete_all
+      RemoteAction.delete_all
+      Worker.flush_queues
+    end
+
+    def queued_board_updates_for(user)
+      found = []
+      Resque.queues.each do |queue|
+        Resque.size(queue).times do |idx|
+          item = Resque.peek(queue, idx)
+          next unless item
+          (item['args'] || []).each do |arg|
+            next unless arg.is_a?(Hash)
+            found << arg if arg['method'] == 'update_available_boards' && arg['id'] == user.id
+          end
+        end
+      end
+      found
+    end
+
+    def board_cache_remote_actions_for(user)
+      RemoteAction.where(path: user.global_id, action: 'update_available_boards')
+    end
+
+    it "should defer the supervisor board-cache recompute past commit when linking" do
+      sup = User.create
+      com = User.create
+      Worker.flush_queues
+
+      during_jobs = nil
+      during_ra = nil
+      ActiveRecord::Base.transaction do
+        User.link_supervisor_to_user(sup, com)
+        during_jobs = queued_board_updates_for(sup)
+        during_ra = board_cache_remote_actions_for(sup).count
+      end
+
+      expect(during_jobs).to eq([]), "board-cache recompute was queued while the transaction was still open"
+      expect(during_ra).to eq(1), "durable outbox row must be written inside the same transaction as the link"
+      expect(queued_board_updates_for(sup).length).to be > 0
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+    end
+
+    it "should defer the supervisor board-cache recompute past commit when unlinking" do
+      sup = User.create
+      com = User.create
+      User.link_supervisor_to_user(sup, com)
+      Worker.flush_queues
+      RemoteAction.delete_all
+
+      during_jobs = nil
+      during_ra = nil
+      ActiveRecord::Base.transaction do
+        User.unlink_supervisor_from_user(sup, com)
+        during_jobs = queued_board_updates_for(sup)
+        during_ra = board_cache_remote_actions_for(sup).count
+      end
+
+      expect(during_jobs).to eq([]), "board-cache recompute was queued while the transaction was still open"
+      expect(during_ra).to eq(1), "durable outbox row must be written inside the same transaction as the unlink"
+      expect(queued_board_updates_for(sup).length).to be > 0
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+    end
+
+    it "should roll the board-cache outbox back with the supervision change" do
+      sup = User.create
+      com = User.create
+      Worker.flush_queues
+
+      ActiveRecord::Base.transaction do
+        User.link_supervisor_to_user(sup, com)
+        expect(board_cache_remote_actions_for(sup).count).to eq(1)
+        raise ActiveRecord::Rollback
+      end
+
+      expect(board_cache_remote_actions_for(sup).count).to eq(0)
+      expect(queued_board_updates_for(sup)).to eq([])
+    end
+
+    it "should keep the board-cache outbox when the post-commit enqueue fails" do
+      sup = User.create
+      com = User.create
+      Worker.flush_queues
+      allow(sup).to receive(:schedule_once).and_raise(RuntimeError, "redis down")
+
+      expect { User.link_supervisor_to_user(sup, com) }.not_to raise_error
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+    end
+
+    it "should pull a delayed board-cache RemoteAction forward on revoke" do
+      sup = User.create
+      com = User.create
+      User.link_supervisor_to_user(sup, com)
+      Worker.flush_queues
+      RemoteAction.delete_all
+      ra = RemoteAction.create(path: sup.global_id, action: 'update_available_boards', act_at: 30.minutes.from_now)
+
+      User.unlink_supervisor_from_user(sup, com)
+
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+      expect(ra.reload.act_at).to be <= Time.now + 1
     end
   end
 end

@@ -263,6 +263,55 @@ describe Api::UsersController, :type => :controller do
       expect(json['user']['id']).to eq(u.global_id)
       expect(json['user']['preferences']).to_not eq(nil)
     end
+
+    it "should not nest supervisees the caller has no relationship with" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect((json['user']['supervisees'] || []).map { |s| s['id'] }).to_not include(outside.global_id)
+    end
+
+    it "should nest supervisees the caller independently supervises" do
+      token_user
+      supporter = User.create
+      shared = User.create
+      User.link_supervisor_to_user(supporter, shared)
+      User.link_supervisor_to_user(@user, shared)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect((json['user']['supervisees'] || []).map { |s| s['id'] }).to eq([shared.global_id])
+    end
+
+    it "should not nest a district manager's therapist's out-of-org caseload" do
+      token_user
+      supporter = User.create
+      inside = User.create
+      outside = User.create
+      o = Organization.create(:settings => {'total_licenses' => 4})
+      o.add_manager(@user.user_name, true)
+      o.add_supervisor(supporter.user_name, false)
+      o.add_user(inside.user_name, false)
+      User.link_supervisor_to_user(supporter, inside)
+      User.link_supervisor_to_user(supporter, outside)
+      @user.reload
+      supporter.reload
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      ids = (json['user']['supervisees'] || []).map { |s| s['id'] }
+      expect(ids).to include(inside.global_id)
+      expect(ids).to_not include(outside.global_id)
+    end
   end
   
   describe "index" do
@@ -717,6 +766,56 @@ describe Api::UsersController, :type => :controller do
         prefs = @user.reload.settings['preferences']
         expect(prefs['vocalize_buttons']).to eq(true)
         expect(prefs['scanning_interval']).to eq(750)
+      end
+
+      # `settings['public']` is a VISIBILITY control, and user.rb:2549 sets it
+      # with `!!params['public']`, not `process_boolean`. That distinction is the
+      # whole point: process_boolean maps the strings 'true'/'1' to true and
+      # everything else to false, so it is safe under either encoding, whereas
+      # `!!` treats ANY non-empty string as true — including "false". The three
+      # specs below pin the flag in the direction that actually matters, which is
+      # a user NOT becoming publicly visible when the client said not to.
+      it "should keep public false rather than coercing the string \"false\" to true" do
+        token_user
+        @user.settings['public'] = false
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:public => false}
+        }.to_json
+        expect(response).to be_successful
+        expect(@user.reload.settings['public']).to eq(false)
+        expect(@user.settings['public']).to be_a(FalseClass)
+      end
+
+      it "should set public true when sent as a real boolean" do
+        token_user
+        @user.settings['public'] = false
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:public => true}
+        }.to_json
+        expect(response).to be_successful
+        expect(@user.reload.settings['public']).to eq(true)
+      end
+
+      it "should not change public when the client omits it" do
+        # The `!= nil` guard is what protects an omitted flag. Under the
+        # form-encoded shape an unset `public` arrived as "", which passed that
+        # guard and then `!!""` is false — so a public profile was silently made
+        # private on an unrelated save. Under JSON it arrives as null and is
+        # skipped.
+        token_user
+        @user.settings['public'] = true
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:public => nil, :preferences => {:vocalize_buttons => true}}
+        }.to_json
+        expect(response).to be_successful
+        expect(@user.reload.settings['public']).to eq(true)
+        expect(@user.settings['preferences']['vocalize_buttons']).to eq(true)
       end
     end
   end
@@ -2844,6 +2943,42 @@ describe Api::UsersController, :type => :controller do
       expect(json['user'].length).to eq(1)
       expect(json['user'][0]['id']).to eq(u.global_id)
     end
+
+    # The gate above authorizes the caller against the LIST OWNER. Every account
+    # inside that list is a third party the caller may have no standing with, and
+    # `limited_identity` is not a redaction -- json_api/user.rb:327 emits the
+    # child's real name, avatar, unread message/alert counts, external device and
+    # org_status. Same defect class as badges#index and logs#index.
+    it "should not return supervisees the caller has no relationship with" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to_not include(outside.global_id)
+      expect(json['user']).to eq([])
+    end
+
+    # Positive control, so the example above cannot pass by hiding everything: the
+    # same list, same caller, same list owner -- the only difference is that the
+    # caller now independently supervises the communicator.
+    it "should return supervisees the caller independently supervises" do
+      token_user
+      supporter = User.create
+      shared = User.create
+      User.link_supervisor_to_user(supporter, shared)
+      User.link_supervisor_to_user(@user, shared)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to eq([shared.global_id])
+    end
   end
   
   describe "GET 'sync_stamp'" do
@@ -3654,6 +3789,30 @@ describe Api::UsersController, :type => :controller do
       expect(json['supervisees'][0]['ws_user_id']).to_not eq(nil)
       expect(json['supervisees'][0]['my_device_id']).to eq(nil)
       expect(json['supervisees'][0]['verifier']).to eq(nil)
+    end
+
+    it "should not list a district manager's therapist's out-of-org caseload" do
+      token_user
+      supporter = User.create
+      inside = User.create
+      outside = User.create
+      o = Organization.create(:settings => {'total_licenses' => 4})
+      o.add_manager(@user.user_name, true)
+      o.add_supervisor(supporter.user_name, false)
+      o.add_user(inside.user_name, false)
+      User.link_supervisor_to_user(supporter, inside)
+      User.link_supervisor_to_user(supporter, outside)
+      @user.reload
+      supporter.reload
+
+      get 'ws_settings', params: {user_id: supporter.global_id}
+      json = assert_success_json
+      ids = (json['supervisees'] || []).map { |s| s['user_id'] }
+      expect(ids).to include(inside.global_id)
+      expect(ids).to_not include(outside.global_id)
+      (json['supervisees'] || []).each do |row|
+        expect(row['verifier']).to eq(nil)
+      end
     end
 
     it 'should have a consistent iv for multiple requests in the same session' do

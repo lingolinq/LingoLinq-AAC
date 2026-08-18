@@ -231,7 +231,7 @@
           {{#if this.ai_board_generation_enabled}}
             {{!-- Same-row, page-centered Generate with AI button. See
                  .nb-generate-ai-btn positioning rules in app.scss. --}}
-            <button type="button" class="la-btn la-btn--ghost nb-generate-ai-btn" {{on "click" (this.ctrlAction "set_create_mode" "ai")}}>
+            <button type="button" class="la-btn la-btn--ghost nb-generate-ai-btn" {{on "click" (this.ctrlAction "request_ai_mode")}}>
               <span class="nb-ai-sparkle-badge nb-generate-ai-btn__sparkle-badge" aria-hidden="true">
                 <span class="nb-ai-sparkle nb-generate-ai-btn__sparkle"></span>
               </span>

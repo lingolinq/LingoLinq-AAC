@@ -132,8 +132,15 @@ export default Route.extend({
       } catch (e) { /* best-effort; serializer edge cases shouldn't block nav */ }
       boardCacheDiag.span('model:start', 'model:cache_hit', {
         board_key: board_key,
-        button_count: (cached_raw.buttons && cached_raw.buttons.length) || 0
+        button_count: (cached_raw.buttons && cached_raw.buttons.length) || 0,
+        root_only: boardDetailCache.is_root_only(board_key)
       });
+      /* Prefetch stores /tree?root_only=1. Paint from that hit, then
+         ingest the full tree so folder taps are not left cold. */
+      if (boardDetailCache.is_root_only(board_key)) {
+        boardCacheDiag.mark('model:cache_hit_root_only_warm', { board_key: board_key });
+        boardDetailCache.warm_full_tree_if_root_only(board_key);
+      }
       return RSVP.resolve(cached_record);
     }
 
@@ -149,7 +156,8 @@ export default Route.extend({
         var raw_copy = JSON.parse(JSON.stringify(boardData));
         _this.set('_raw_board_data', raw_copy);
         // force: network response is authoritative for this navigation.
-        boardDetailCache.set(raw_copy, { force: true });
+        // root_only: lite /tree and show fallback have no descendants yet.
+        boardDetailCache.set(raw_copy, { force: true, root_only: true });
         var store = _this.store;
         var normalized = store.normalize('board', boardData);
         var record = store.push(normalized);
@@ -169,25 +177,21 @@ export default Route.extend({
       var warmFullTreeInBackground = function() {
         var tree_started = Date.now();
         boardCacheDiag.mark('model:background_tree_start', { board_key: board_key });
-        persistence.ajax('/api/v1/boards/' + board_key + '/tree', { type: 'GET' }).then(function(data) {
-          boardCacheDiag.mark('model:background_tree_response', {
-            board_key: board_key,
-            ms: Date.now() - tree_started,
-            descendant_count: (data && data.descendants && data.descendants.length) || 0
-          });
-          if (!data || !data.root || !data.root.board) { return; }
-          // Root is already painted/cached; do not force-replace it or
-          // re-warm its images. Descendants still get cached + pushed.
-          boardDetailCache.ingest_tree(data, null, {
-            force: false,
-            warm_root_images: false
-          });
-          boardCacheDiag.mark('model:descendants_cached', {
-            board_key: board_key,
-            descendant_count: (data.descendants && data.descendants.length) || 0
-          });
-        }, function() {
-          boardCacheDiag.mark('model:background_tree_fail', { board_key: board_key });
+        boardDetailCache.warm_full_tree_if_root_only(board_key).then(function(result) {
+          result = result || {};
+          if (result.warmed) {
+            boardCacheDiag.mark('model:background_tree_response', {
+              board_key: board_key,
+              ms: Date.now() - tree_started,
+              descendant_count: result.descendant_count || 0
+            });
+            boardCacheDiag.mark('model:descendants_cached', {
+              board_key: board_key,
+              descendant_count: result.descendant_count || 0
+            });
+          } else {
+            boardCacheDiag.mark('model:background_tree_fail', { board_key: board_key });
+          }
         });
       };
 

@@ -581,6 +581,9 @@
             </button>
           {{/if}}
         </form>
+        {{#if this.boardsCtrl.boards_page_search_incomplete}}
+          <p class="ub-boards-page__filter-truncated-hint" role="status">{{t "Still loading your library. Some boards may not appear in results yet." key="boards_filter_library_loading"}}</p>
+        {{/if}}
         </div>
         {{!-- Tabs row — tabs on the left, "+ New Board" button
              pinned right on the same baseline. The wrapper hosts the

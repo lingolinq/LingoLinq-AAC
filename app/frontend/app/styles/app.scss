@@ -55942,7 +55942,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    Full-screen scrim + centered card with three stylized options that rise in
    successively (staggered inline animation-delay + nb-chooser-rise). z-index
    sits above the form but below the ≤768px landscape overlay (100000), so on a
-   phone the rotate prompt still gates first. */
+   phone the rotate prompt still gates first. It is also above Bootstrap .modal
+   (1050), so a system modal opened while this overlay is visible paints behind
+   it — hide the chooser first (see _requestEnterAiMode / choose_paste_html). */
 .nb-create-chooser {
   position: fixed;
   inset: 0;

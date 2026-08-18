@@ -2,7 +2,8 @@
 // (board_detail_cache) and offline sync (persistence.sync_boards).
 
 import RSVP from 'rsvp';
-import filterRootBoards from './board-roots';
+import { get as emberGet } from '@ember/object';
+import filterRootBoards, { filterBrandSetRootBoards } from './board-roots';
 import LingoLinq from '../app';
 
 export var OWNED_ROOT_CAP = 200;
@@ -70,23 +71,43 @@ export function collectOwnedRootLookups(user, boardsFromApi, seen) {
   return result;
 }
 
+/* Brand-family test() reads board.get('key'). Prefetch list rows are
+   plain API objects, so wrap them before filterBrandSetRootBoards. */
+function _wrapBoardForBrand(board) {
+  if (!board) { return null; }
+  if (typeof board.get === 'function') { return board; }
+  return {
+    get: function(path) { return emberGet(board, path); },
+    key: board.key,
+    id: board.id,
+    name: board.name,
+    parent_board_key: board.parent_board_key
+  };
+}
+
+function _publicRootBoards(boards) {
+  return filterBrandSetRootBoards((boards || []).map(_wrapBoardForBrand).filter(Boolean));
+}
+
 export function collectPublicLookups(user, catalogBoards, globalBoards, seen) {
   seen = seen || {};
   var result = [];
   var catalogCount = 0;
-  (catalogBoards || []).forEach(function(b) {
-    if (b && b.key) {
+  _publicRootBoards(catalogBoards).forEach(function(b) {
+    var key = (b && (b.key || (b.get && b.get('key')))) || null;
+    if (key) {
       var before = result.length;
-      _addUnique(result, seen, b.key);
+      _addUnique(result, seen, key);
       if (result.length > before) { catalogCount++; }
       if (catalogCount >= CATALOG_ROOT_CAP) { return; }
     }
   });
   var globalCount = 0;
-  (globalBoards || []).forEach(function(b) {
-    if (b && b.key) {
+  _publicRootBoards(globalBoards).forEach(function(b) {
+    var key = (b && (b.key || (b.get && b.get('key')))) || null;
+    if (key) {
       var before = result.length;
-      _addUnique(result, seen, b.key);
+      _addUnique(result, seen, key);
       if (result.length > before) { globalCount++; }
       if (globalCount >= GLOBAL_PUBLIC_ROOT_CAP) { return; }
     }
@@ -180,7 +201,9 @@ export function fetchCatalogBoards(ajax, locale) {
   if (locale) {
     url += '&locale=' + encodeURIComponent(locale);
   }
-  return paginateBoardList(ajax, url, CATALOG_ROOT_CAP);
+  /* Fetch extra pages so brand-set children can be filtered out and
+     we still reach CATALOG_ROOT_CAP real roots. */
+  return paginateBoardList(ajax, url, CATALOG_ROOT_CAP * 3);
 }
 
 export function fetchGlobalPublicBoards(ajax, locale) {
@@ -188,7 +211,7 @@ export function fetchGlobalPublicBoards(ajax, locale) {
   if (locale) {
     url += '&locale=' + encodeURIComponent(locale);
   }
-  return paginateBoardList(ajax, url, GLOBAL_PUBLIC_ROOT_CAP);
+  return paginateBoardList(ajax, url, GLOBAL_PUBLIC_ROOT_CAP * 3);
 }
 
 export function fetchBoardListsForPrefetch(ajax, user, opts) {

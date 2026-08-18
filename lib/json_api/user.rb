@@ -207,7 +207,16 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
       end
       
       supervisors = user.supervisors
-      supervisees = user.supervisees
+      # Nested supervisees are the same fan-out as GET /users/:id/supervisees.
+      # The `model` gate on this block is the LIST OWNER; each child still
+      # needs an affirmative check against the caller. `limited_identity` is
+      # not a redaction -- it emits name, avatar, unread counts, org_status
+      # and goals. See User#readable_as_supervisee_by?.
+      caller = args[:permissions]
+      scopes = PermissionScopesNormalize.for_api(caller && caller.permission_scopes)
+      supervisees = user.supervisees.select { |s|
+        s.readable_as_supervisee_by?(caller, 'supervise', scopes)
+      }
       if supervisors.length > 0
         json['supervisors'] = supervisors[0, 10].map{|u| JsonApi::User.as_json(u, limited_identity: true, supervisee: user) }
       end

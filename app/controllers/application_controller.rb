@@ -334,6 +334,43 @@ class ApplicationController < ActionController::Base
   end
 
   # Normalized token scopes for Permissable (same rules as +allowed?+).
+  # Authorization for a communicator reached INDIRECTLY, through some OTHER
+  # account's supervisee list.
+  #
+  # Endpoints that fan out over `user.supervisees` and serve something about each
+  # one -- badges#index (`recent`), logs#index (`supervisees=true`),
+  # users#supervisees, users#ws_settings, and the nested list in JsonApi::User.
+  # In each the only gate was `allowed?(user, ...)` on the
+  # account whose list it is, which says nothing about the third parties inside it,
+  # and which passes unconditionally when a supporter asks about THEMSELVES.
+  #
+  # Each site had independently grown a per-supervisee filter that read like
+  # authorization but was not one: an exclusion filter (`!modeling_only_for?`) or a
+  # preference flag (`private_logging?`). Both return TRUE for a caller with no
+  # relationship at all -- supervising.rb:121 finds no link and returns false, and
+  # the negation then admits the stranger. Multiple instances of one mistake is why
+  # this is a shared helper (User#readable_as_supervisee_by?) and not another
+  # hand-rolled predicate.
+  #
+  # The check must be AFFIRMATIVE: here "no relationship" has to mean DENIED.
+  #
+  # `permission` is per-endpoint because the endpoints disclose different things --
+  # 'set_goals' for goal/progress data, 'supervise' for usage data and for roster
+  # identity. Both resolve through self, non-modeling supervisor, and org manager
+  # (user.rb:71,87), so a legitimate cross-org manager keeps working.
+  #
+  # The `modeling_only_for?` conjunct is NOT redundant with those rules: user.rb:66
+  # deliberately preserves `set_goals` for a BILLING-lapsed (globally modeling-only)
+  # supporter who holds a real edit-level link, and the org-manager rule at
+  # user.rb:87 carries no modeling check at all.
+  #
+  # Scopes are passed so a restricted API token is held to its own limits here, the
+  # same way `allowed?` does at every direct gate.
+  def supervisee_readable?(supervisee, permission)
+    return false unless supervisee && @api_user
+    supervisee.readable_as_supervisee_by?(@api_user, permission, api_permission_scopes)
+  end
+
   def api_permission_scopes
     scopes = ['full']
     if @api_user && @api_device_id

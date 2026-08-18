@@ -125,6 +125,26 @@ module Supervising
     supervisee.supervisor_links.any?{|l| l['record_code'] == Webhook.get_record_code(self) && l['user_id'] == supervisee.global_id && l['state']['modeling_only'] }
   end
 
+  # Affirmative authorization for a communicator reached through someone
+  # else's supervisee list. "No relationship" must mean DENIED.
+  #
+  # Exclusion filters (`!modeling_only_for?`, `!private_logging?`) admit
+  # strangers: supervising.rb finds no link, returns false, and the
+  # negation lets them through. That was the badges / logs /
+  # users#supervisees leak class.
+  #
+  # `permission` is per-disclosure: 'set_goals' for progress, 'supervise'
+  # for usage data and roster identity. Both resolve through self,
+  # non-modeling supervisor, and org manager (user.rb:71,87).
+  #
+  # ApplicationController#supervisee_readable? wraps this for HTTP
+  # fan-out; JsonApi::User calls it directly for nested supervisees.
+  def readable_as_supervisee_by?(caller, permission, scopes=['full'])
+    return false unless caller
+    return true if id == caller.id
+    allows?(caller, permission, scopes) && !caller.modeling_only_for?(self)
+  end
+
   def org_units_for_supervising(supervisee)
     unit_ids = supervisee_links.map{|l| l['state']['organization_unit_ids'] }.compact.flatten.uniq
     OrganizationUnit.find_all_by_global_id(unit_ids)
@@ -177,13 +197,60 @@ module Supervising
           supervisor.settings['preferences']['role'] = 'communicator'
           supervisor.save_with_sync('un-supervisor')
         end
-        supervisor.schedule_once(:update_available_boards)
+        schedule_board_cache_refresh(supervisor)
         supervisor.update_setting({
           'supervisees' => supervisor.settings['supervisees']
         })
       end
     end
     
+
+    # update_available_boards recomputes settings['available_private_board_ids'],
+    # which board.rb:76 reads to grant view/edit/delete/share -- it writes
+    # AUTHORIZATION state, not display state, and its result sits behind a
+    # 30-minute permission cache. The persisted list has no TTL of its own, so a
+    # missed refresh stays stale until some other event retriggers it.
+    #
+    # Ordering: schedule_once pushes to Redis the moment it is called, and Redis
+    # is not enrolled in the Postgres transaction. SupervisorConsentService runs
+    # both link_supervisor_to_user and unlink_supervisor_from_user inside
+    # `with_lock`, so a worker could dequeue and recompute from the PRE-COMMIT
+    # snapshot: a revoke undone by its own job, re-granting a removed supervisor
+    # real access to a child's private boards. The consent service's post-commit
+    # re-enqueue only made that race CONVERGE -- it cannot order the two workers'
+    # writes, and schedule_once dedupes against a job still sitting in the queue,
+    # so the corrective enqueue could itself be a silent no-op. Deferring at the
+    # source is the ordering fix.
+    #
+    # after_all_transactions_commit, not a bare call: with no open transaction it
+    # runs the block IMMEDIATELY, so the many non-transactional callers of these
+    # two methods are unchanged. Only callers already inside a transaction see
+    # the deferral -- which is exactly the set that was broken.
+    #
+    # Durability: the post-commit callback cannot roll the relationship change
+    # back. If the process exits or Redis is down between commit and enqueue, the
+    # supervisor link is gone and no refresh job exists. RemoteAction is this
+    # app's outbox for the same job (board_caching.rb, organization.rb);
+    # writing it in the same transaction as the link change means
+    # Uploader.remote_remove_batch (hourly) will still schedule the refresh.
+    # Pull existing rows forward so a prior delayed RA cannot outlive a revoke.
+    def schedule_board_cache_refresh(supervisor)
+      return unless supervisor
+      persist_board_cache_refresh(supervisor)
+      ActiveRecord.after_all_transactions_commit do
+        supervisor.schedule_once(:update_available_boards)
+      rescue StandardError => e
+        Rails.logger.warn("supervising: board-cache enqueue failed: #{e.class}")
+      end
+    end
+
+    def persist_board_cache_refresh(supervisor)
+      path = supervisor.global_id
+      return unless path
+      updated = RemoteAction.where(path: path, action: 'update_available_boards').update_all(act_at: Time.now)
+      RemoteAction.create(path: path, action: 'update_available_boards', act_at: Time.now) if updated == 0
+    end
+
     def link_supervisor_to_user(supervisor, user, code=nil, type=true, organization_unit_id=nil)
       type = 'edit' if type == true
       type ||= 'read_only'
@@ -222,7 +289,7 @@ module Supervising
         supervisor.schedule(:remove_supervisors!)
         supervisor.settings['preferences']['role'] = 'supporter'
       end
-      supervisor.schedule_once(:update_available_boards)
+      schedule_board_cache_refresh(supervisor)
       user.save_with_sync('supervisee')
       supervisor.save_with_sync('supervisor')
     end

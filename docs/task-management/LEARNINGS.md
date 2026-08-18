@@ -20,7 +20,14 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
+- [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
+- [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
+- [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
+- [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
+- [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
+- [Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`](#gotcha-redact_for_ai-on-the-sentence-does-not-automatically-cover-interpolated-contexttopic)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
@@ -41,6 +48,7 @@ file (see [README.md](README.md)).
 - [Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation](#gotcha-ember-input-checkboxes-need-type-and-bound-select-must-stoppropagation)
 - [Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props](#gotcha-ember-strict-mode-templates-treat-bare-names-as-helpers--use-this-for-controller-props)
 - [Gotcha: AI feature flags are rollout; prefs turn AI on — Ember UI must AND both](#gotcha-ai-feature-flags-are-rollout-prefs-turn-ai-on--ember-ui-must-and-both)
+- [Gotcha: Generate-with-AI UI opt-in is explicit; server grandfather is not](#gotcha-generate-with-ai-ui-opt-in-is-explicit-server-grandfather-is-not)
 - [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
 - [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
@@ -403,6 +411,8 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 **Fix recipe:** Two-phase load — `GET …/tree?root_only=1` first (lite root), paint, then ingest full `/tree` in the background via `ingest_tree(..., { force: false, warm_root_images: false })`. Server skips descendant load when `root_only` is set. Do not “fix” slow opens by only extending TTL or prefetch coverage.
 
+**Gotcha (prefetch root_only vs cache hit):** Session prefetch stores `/tree?root_only=1`. A board-detail cache hit used to return without warming the full tree, so folder taps that used to be warm after prefetch were cold. Mark those entries `root_only`; on cache hit (modern `board-detail` and classic `board-alt`) call `warm_full_tree_if_root_only` so the full `/tree` still lands in the background. A full-tree ingest clears the mark. Do not treat empty `descendants` as the signal — a board with no children is a valid full tree. Do not let a later root_only ingest downgrade a fresh full-tree entry.
+
 **Diag:** `localStorage.ll_board_cache_diag=1` → [`board_cache_diag.js`](../../app/frontend/app/utils/board_cache_diag.js) marks on board-detail.
 
 **First seen in:** [2026-07-23-speak-mode-board-cache-latency.md](./2026-07-23-speak-mode-board-cache-latency.md)
@@ -413,11 +423,11 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 **Gotcha:** Re-entering the boards page always re-queried `store.query('board', { user_id })`. Streaming partial pages onto `model.my_boards` cleared `.done` until the last page, so a background refetch re-showed “Preparing your workspace.” Server Redis on boards index only caches public search, not Mine `user_id` lists. Even after cache-first paint, a within-TTL revisit still re-downloaded the full owned library (buttons+grid per row) while session `catalog_board_prefetch` flooded `/tree` and starved Mine pagination.
 
-**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. (5) **Within TTL, skip `store.query` entirely** when usable list + `hasFreshSnapshot`; clear snapshot on create/delete/copy so the next visit refreshes. (6) Paginated index JSON omits `buttons`/`grid`/`intro`/`background` (`args[:paginated]` in [`lib/json_api/board.rb`](../../lib/json_api/board.rb)). (7) Set `setMineListBusy` during Mine fetch; defer `board_detail_cache` phase-4 catalog `/tree` until clear. Distinct from `board_detail_cache` (speak `/tree`).
+**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. (5) **Within TTL, skip `store.query` entirely** when usable list + `hasFreshSnapshot`; clear snapshot on create/delete/copy so the next visit refreshes. (6) Paginated index JSON omits `buttons`/`grid`/`intro`/`background` (`args[:paginated]` in [`lib/json_api/board.rb`](../../lib/json_api/board.rb)). (7) Set `setMineListBusy` during Mine fetch; defer `board_detail_cache` phase-4 catalog `/tree` until clear. Distinct from `board_detail_cache` (speak `/tree`). (8) **Pass-2:** `setBoardsPageActive` on `user.boards` activate/deactivate; pause phase-1 home, phase-2 liked, phase-3 owned-list + phase-3/4 `/tree` and image warm while the route is active (TTL skip clears Mine busy, so Mine-busy-only deferral is not enough). Wait until deactivate — do not resume prefetch on a wall-clock cap while Boards is still open. (9) Prefetch `/tree?root_only=1` and mark the cache entry `root_only`; speak cache-hits call `warm_full_tree_if_root_only` so folder taps are not left cold. `collectPublicLookups` runs `filterBrandSetRootBoards` after wrapping plain API rows with `.get` (brand `test()` only reads `board.get('key')`). (10) Overlay/hero gate on `mineListPaintReady` (first page or `.done`), not last-page `.done`. (11) Gate `reload_logs` / `load_badges` / `load_goals` / `check_daily_use` on `isBoardsPageActive()` so boards visits do not fetch profile widgets; profile and account `setupController` still call them (including `check_daily_use`). Search may run on a partial library — show `boards_filter_library_loading` until `my_boards.done`.
 
 **Gotcha (list summary + locale):** Omitting button/content blobs must not skip `localized_name` / `localized_locale`. Index already eager-loads `board_content`; when `args[:locale]` is present, still load translations for `board_name` matching, but do not rewrite per-button labels (list payloads have no `buttons`). Gating the whole locale block behind `!list_summary` broke `Api::BoardsController index should return a localized board name`.
 
-**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md)
+**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md); pass 2 [2026-08-17-boards-page-load-pass2.md](./2026-08-17-boards-page-load-pass2.md)
 
 ## Gotcha: Android “classic board” error may be stale packaged board-detail
 
@@ -6424,6 +6434,32 @@ word-prediction UI through it. Master `nil` = grandfather allow; master false = 
 = per-feature must be true for `USER_PREF_AI_FEATURES`. See
 `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-15)
 
+## Gotcha: Generate-with-AI UI opt-in is explicit; server grandfather is not
+
+`prefAllowsAi` still grandfathers a nil master (the generate_labels API can succeed). The
+create-board chooser uses `prefExplicitlyEnabled` / `boardGenerationEntry` so unset prefs open
+`enable-ai-features` instead of letting the user fill the form and then see "Feature not
+available". Do not fold that stricter check into `aiFeatureEnabled` — other AI UI still relies on
+grandfather. Register the modal in `modal-container.hbs` **and** `convertedModals` (same trap as
+`eu-ai-parental-consent`). Cancel is `modal.close(false)`, which **rejects**; callers must
+`.then(stay, stay)` or cancel looks like an unhandled error. EU under-16 without consent opens
+`eu-ai-parental-consent` instead of self-enable.
+
+The create-board chooser (`.nb-create-chooser`) is an in-page `position:fixed` overlay at
+z-index 6000, above Bootstrap `.modal` (1050). Opening `enable-ai-features` (or EU consent)
+while the chooser is visible paints the system modal behind the chooser, and the chooser's
+`backdrop-filter` blurs it. Hide the chooser before `modal.open`, restore it if the user
+does not proceed — same pattern as `choose_paste_html` / `choose_json_bundle`. Do not raise
+global `.modal` z-index to beat the chooser.
+
+`applyAiFeaturePrefs` must only write `true` for requested keys (master + the triggered feature).
+Writing `false` for the other `USER_PREF_AI_FEATURES` overwrites siblings that were already on
+(e.g. word prediction). Clone the whole `preferences` object before `user.set('preferences', …)`
+so Ember Data `attr('raw')` dirties. Apply runs before `user.save()`, so Cancel and a rejected
+save must `rollbackAttributes()` or the next Generate with AI skips the popup with in-memory prefs
+on and the API can still 403. See
+`docs/task-management/2026-08-17-ai-enable-popup.md`. (2026-08-17)
+
 ## Gotcha: `EvalNarrator` shipped against the OLD `ruby-anthropic` API; the gem is official `anthropic ~> 1.23`
 
 `lib/eval_narrator.rb#draft_via_anthropic` originally used `Anthropic::Client.new(access_token:)` +
@@ -7654,7 +7690,9 @@ guards, or tests in a file that already has grandfathered findings (especially l
 new runloop call sites were added. Diagnose before migrating: compare counts of
 `file|ruleId|messageHash` (ignore line/column). Line-only churn → fix any truly new violations,
 then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
-in the same PR. See [`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md).
+in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new). See
+[`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md)
+and [`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md).
 
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
@@ -11647,12 +11685,9 @@ same_author: computed('model.author.id', 'app_state.sessionUser.id', function() 
 }),
 ```
 
-The body is correct — `app_state` resolves via module scope. The KEY is not: Ember
-resolves `'app_state.sessionUser.id'` against the controller, which has no
-`app_state` property, so there is nothing to observe and the computed never
-invalidates. It caches on first read and keeps answering for whoever was signed in
-then. Here that gated the "Resume Evaluation" button, so after switching
-communicators without a full reload it could show for a non-author.
+The KEY was the bug that day — Ember cannot observe a module import. The BODY
+was not fully correct: it compared `sessionUser.id`, which is often the `'self'`
+sentinel. That second bug is the 2026-08-18 gotcha below.
 
 This fails silently in both directions — no error, no warning, and the value is
 CORRECT on first read, which is what makes it survive review. Grep for it:
@@ -11671,6 +11706,33 @@ Fix by injecting (`appState: service('app-state')`) and reading through
 the broken version too. The only test that catches it reads once, changes
 `sessionUser`, and reads again — of 3 specs written here, that is the single one the
 negative control failed.
+
+## Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates (2026-08-18)
+
+Fixing the `same_author` *watch* path (injected `appState`, key
+`'appState.sessionUser.id'`) left the *comparison* broken.
+`serializers/application.js` pins the session-user record id to the literal
+`'self'` so Ember Data never re-keys the identifier. `models/user.js#global_id`
+is the real backend id. `model.author.id` is a real global id like `'1_24'`.
+`'1_24' == 'self'` is always false, so "Resume Evaluation" stayed hidden from
+the eval's own author.
+
+It is a window, not a constant: a later local-storage read can close it and put
+the real id on `.id`. While the window is open, `.id` comparisons fail. Mirror
+`eval-workbook.js#isAuthor`: prefer `sessionUser.global_id`, fall back to `.id`,
+drop the `'self'` sentinel, fail closed.
+
+A test that stubs `{ id: '1_24' }` will not catch this. Stub `{ id: 'self',
+global_id: '1_24' }` — that is the network load path.
+
+## Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if` (2026-08-18)
+
+`supervisor_relationships_controller.rb` had `channel` / `actor_id` at 4 spaces
+inside a 6-space `if` body. That looks like they escaped the guard. They did
+not: Ruby uses `if`/`end`, not indent. `AuditEvent.log_command` stayed inside
+the same `end`, so unresolvable tokens still wrote no audit row (the spec
+already asserted this). Re-indent for humans; do not "fix" control flow that
+is already correct.
 
 ## Gotcha: a test that leaks state into a SHARED service hangs the run, it does not fail it (2026-08-15)
 
@@ -11959,6 +12021,27 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 `version + full sha256 + commit` (and a distinct label per attested byte set — e.g.
 `v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
 [`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
+
+## Gotcha: staging → audit-register merge is a union, then regenerate
+
+When `staging` lands on a findings-register branch, do not pick one side of
+`FINDINGS.json` / `DOCUMENT-REGISTER.json`. Rebuild from `git show HEAD` +
+`MERGE_HEAD`: keep this branch's unique findings and docs, add staging-only
+rows, and for a shared id keep the longer staging notes/remediation trail
+without changing status, severity, or disposition. Then run
+`scripts/regenerate-register.sh` so the `.md` mirrors and publication status
+are derived, not hand-merged. If citation-check says `file not found at sha`,
+`git fetch` that evidence commit before re-anchoring the pin. Attested
+`attestedContentHash` pins stay untouched. Task log:
+[`2026-08-17-code-hygiene-auditor-staging-merge.md`](./2026-08-17-code-hygiene-auditor-staging-merge.md).
+
+## Gotcha: a dated successor must not inherit the predecessor's attestation dates
+
+Copying `**Attestation history:** re-attested 2026-08-08` onto a `draft` successor makes the new bytes look reviewed. Label it **Predecessor attestation history** and state that this record has none. Same defect for Related links: point at the operative dated register (`2026-08-16_subprocessor-register.md`), not the frozen `SUBPROCESSORS.md`. Ref: `docs/legal/2026-08-17_ai-data-flow-classification.md`.
+
+## Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`
+
+`AiWordPredictor.predict` used to scrub `sentence` then interpolate `context.topic` into `system_prompt` unsanitized (`lib/ai_word_predictor.rb`; forwarded by `Api::WordSuggestionsController`). Closed 2026-08-18: `scrub_context` runs `redact_for_ai` on topic before the cache key and before `call_anthropic`. Durable rule: every user-derived field that reaches the vendor prompt is an egress surface and must be scrubbed at the same choke point as the primary input, not only inventoried.
 
 ## Gotcha: BREACH_RUNBOOK vendor contacts live in §7, not §11
 
@@ -13307,3 +13390,115 @@ this file — the code LOOKS like it handles the case, so verify the behaviour r
 than the presence of the code.
 
 **First seen in:** Reports not reloading on communicator switch, 2026-08-17.
+## Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction
+
+Deferring `schedule_once` until after commit closes the Redis-vs-Postgres ordering race (a worker must not recompute `available_private_board_ids` from the pre-commit snapshot). It does not close the crash/Redis-down window after commit: the relationship change is already durable, the callback cannot roll it back, and a missed enqueue leaves a revoked supervisor's persisted board-id list stale until some unrelated refresh. `RemoteAction` with `action: 'update_available_boards'` is this app's outbox (`board_caching.rb`, `organization.rb`); write it in the same transaction as the link change, keep post-commit `schedule_once` as the fast path, and let hourly `Uploader.remote_remove_batch` drain the fallback. Pull an existing delayed row's `act_at` forward on revoke so a prior 30-minute RA cannot outlive the unlink. Ref: `app/models/concerns/supervising.rb` `schedule_board_cache_refresh`, [`2026-08-18-board-cache-refresh-outbox.md`](./2026-08-18-board-cache-refresh-outbox.md).
+
+## Gotcha: authorizing the supervisee-list owner does not authorize the children inside it
+
+`allowed?(user, 'supervise')` on a therapist says nothing about the communicators inside `user.supervisees`. A district manager holds that permission on in-org therapists (`user.rb:87`), and a supporter asking about themselves always passes, so the gate admits the whole caseload — including a contracting SLP's private out-of-org children. Exclusion filters (`!modeling_only_for?`, `!private_logging?`) make it worse: no relationship returns false and the negation lets the stranger through. The check must be affirmative per child: `User#readable_as_supervisee_by?` / `supervisee_readable?`. HTTP list endpoints are not the only copy — `JsonApi::User` nests the first 10 with `limited_identity` (name, avatar, unread counts, org_status, goals) on user show, which is the caseload source for <10 communicators, and `users#ws_settings` emits ids. `limited_identity` is not a redaction. Grep `user.supervisees` in `app/controllers` and `lib/json_api` before calling the class closed. Ref: [`2026-08-18-supervisee-fan-out-serializer.md`](./2026-08-18-supervisee-fan-out-serializer.md).
+
+
+## A silently-null accessor turns a negative control into a false bug report (2026-08-17)
+
+From click-testing the copy-board minimize-to-drawer feature. The first run of the
+probe reported **3 of 4 checks failing**, and every one of them was the probe's fault.
+Had it been believed, it would have filed three defects against working code.
+
+One root cause: the probe read app state through
+`window.LingoLinq.__container__.lookup('service:copy-progress')`, wrapped in
+`try/catch` returning `null`. **`window.LingoLinq` exposes no usable owner in this
+app** — `utils/modal.js#_getService` gets one via `getOwner(this.route)`, which is
+not reachable from page context. So the lookup silently yielded `null`, and:
+
+* the status assertion failed against a drawer that was *visibly on screen*, i.e. the
+  probe contradicted itself and still reported the app as broken;
+* `clearDrawer()` used the SAME accessor, so it never cleared anything — the drawer
+  from phase A survived into phases B and C, and both then "failed" by observing it.
+
+**Rules that fall out of this:**
+
+1. **A `try/catch` that returns `null` is not an accessor, it is a lie generator.**
+   If a probe's read path can silently yield nothing, a failure means "could not
+   observe", never "the app is wrong". Make it throw, or assert reachability once up
+   front and abort.
+2. **When the probe contradicts itself, suspect the probe.** "Drawer visible, status
+   null" is impossible — `copy-progress-drawer.hbs` is gated `{{#if
+   this.copy_progress.status}}`. That contradiction WAS the diagnosis, and reading it
+   as an app defect was one step away.
+3. **Read state from the DOM the app actually rendered.** The template writes
+   `ll-copy-drawer--{{status}}`, so the service's status is legible off the element's
+   own class list — no container access, no owner, nothing to go stale.
+4. **Teardown between phases must be verified, not fired and forgotten.** `clearDrawer`
+   now returns a boolean and the run aborts if it is false, and every phase asserts
+   "no drawer on screen" BEFORE acting. A leftover artifact from phase N is otherwise
+   indistinguishable from phase N+1's own result.
+5. **Prefer a real app state as the negative control over neutering a binding.** The
+   first attempt stripped `@backdropAction` off the live `ModalDialog` with
+   `component.set(...)`; a named arg is re-supplied on the next re-render, so the
+   control silently did nothing. Clicking the *same backdrop* in a state where the
+   feature is not armed (the hierarchy step) is a genuine control that cannot be
+   undone by a re-render — and it doubled as the answer to the user's report.
+
+**Evidence:** [`2026-08-17-copy-minimize-drawer-click-test.md`](./2026-08-17-copy-minimize-drawer-click-test.md).
+
+## Two adjacent modal states that look identical to the user, and one that moves them (2026-08-17)
+
+`copying-board` arms its minimize-to-drawer only while `copying && !error`
+(`copying-board.js:351`), and `copying` is set exclusively inside `start_copying()`.
+For a board with linked boards the modal OPENS on the board-picker step, where the
+flag is still false. So "click outside the copy modal" does two different things
+depending on a state the UI does not distinguish — plain dismiss before the copy
+starts, minimize-to-drawer after — and a user testing the feature at the first screen
+concludes it is broken. Verified both ways in a browser.
+
+Worth generalising: **when a behaviour is gated on an internal flag, check what the
+user can see of that flag.** If two states render nearly the same chrome and respond
+differently to the same gesture, the bug report you get will be "it doesn't work",
+not "it works only in state B".
+
+Same feature, related: the modal's **X button is not the backdrop path**. It calls the
+modal SERVICE close, which leaves `utils/modal._component_based_template` set, so
+`modal.is_open('copying-board')` still reports true and the settled copy takes the
+FOREGROUND branch — measured live, it navigated `/caseload ->
+/marcus_williams_slp/board-detail/one_4`. A user who dismisses an in-flight copy
+expecting to keep working gets moved to the new board instead.
+
+**Evidence:** [`2026-08-17-copy-minimize-drawer-click-test.md`](./2026-08-17-copy-minimize-drawer-click-test.md).
+
+## One bug can MASK another, so fixing it alone ships a regression (2026-08-17)
+
+Fixing the copy-board modal turned up a pair that had to land together, and the
+order of reasoning is the reusable part.
+
+`components/copying-board.js` had two independent defects:
+
+1. `actions.close()` called the modal **service** close, which leaves
+   `utils/modal._component_based_template` set. `modal.is_open('copying-board')`
+   therefore kept reporting true, and a copy still running when the user dismissed
+   took the FOREGROUND branch of the settle handler — measured live, dismissing an
+   in-flight copy with the X navigated the user `/caseload -> /<user>/board-detail/one_4`.
+2. `onClose` / `onOpening` / `onClosing` were assigned in `didInsertElement`, i.e.
+   AFTER `<ModalDialog>`'s first render, so `@action` was `undefined` — the same
+   bind-before-assign class fixed for three other modals in `650d30685`.
+
+The trap: **defect 2 was hiding defect 1 on the Escape path.** With `@action`
+undefined, modal-dialog falls back to `utils/modal.close()` — which is precisely the
+call that clears the flag — so Escape behaved correctly *by accident*. Fixing the
+binding alone would have made `@action` resolve, routed Escape into the broken
+`close()`, and given Escape a navigation bug it never had. A tidy-looking
+"bind the handlers properly" commit would have been a regression.
+
+**Generalisation.** When a fix makes a previously-dead code path live, that path's
+correctness has never been exercised — treat it as new code, not as existing
+behaviour. Ask "what was running *instead* of this, and was it doing something the
+new path does not?" before landing the binding fix. Here the answer was a fallback
+that was strictly more correct than the handler it was standing in for.
+
+**Also worth keeping:** the X and the backdrop are deliberately different gestures
+here (backdrop minimizes to the drawer, X dismisses). The fix preserved that split
+rather than collapsing them — the defect was that dismissal did not *stick*, not that
+the X failed to minimize. Check the original design intent before "unifying" two
+paths that look redundant; `539a3d9b3`'s message states the split explicitly.
+
+**Evidence:** [`2026-08-17-copy-minimize-drawer-click-test.md`](./2026-08-17-copy-minimize-drawer-click-test.md).
