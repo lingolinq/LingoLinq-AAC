@@ -89,10 +89,16 @@ module AiWordPredictor
       # frozen Set, so name detection is a hash lookup per word, not a scan), and
       # the digest another 5. That is imperceptible against the instant-feel budget
       # the cache exists to protect.
+      # context.topic is interpolated into the Bedrock system prompt, so it is
+      # the same egress surface as the sentence and must be scrubbed here too
+      # (before the cache key is built), not only in system_prompt.
       scrub_result = PiiScrubber.redact_for_ai(sentence.strip)
       scrubbed_sentence = scrub_result[:payload]
       pii_detected = scrub_result[:pii_found]
-      pii_findings = scrub_result[:findings]
+      pii_findings = Array(scrub_result[:findings])
+      ctx, topic_pii, topic_findings = scrub_context(ctx)
+      pii_detected ||= topic_pii
+      pii_findings.concat(topic_findings)
 
       cache_key = cache_key_for(scrubbed_sentence, locale, ctx, user)
       cached_words = cache_fetch(cache_key)
@@ -196,13 +202,25 @@ module AiWordPredictor
       }
     end
 
+    # Same redaction boundary as the sentence. Leaving topic raw reopened the
+    # LL-16ef84ad9a class of leak on a second user-derived field.
+    def scrub_context(ctx)
+      result = PiiScrubber.redact_for_ai(ctx[:topic].to_s)
+      [
+        ctx.merge(topic: result[:payload].to_s),
+        result[:pii_found],
+        Array(result[:findings])
+      ]
+    end
+
     def monotonic_now
       Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
-    # An opaque digest, never a readable sentence. `scrubbed` must be the
-    # POST-PiiScrubber text; passing the raw sentence here would reintroduce
-    # LL-16ef84ad9a, so the only caller derives it from redact_for_ai.
+    # An opaque digest, never a readable sentence. `scrubbed` and `ctx[:topic]`
+    # must both be POST-PiiScrubber text; passing the raw sentence or topic here
+    # would reintroduce LL-16ef84ad9a, so the only caller derives them from
+    # redact_for_ai.
     #
     # Downcasing matches the previous behaviour: two casings of the same sentence
     # share an entry. The prompt still sends the original casing.
