@@ -70,11 +70,21 @@ Verified directly against the runtime source at the commit this phase branched f
 (`c595f6304a545a6a10de80924edd99951eb41aa5`, `origin/staging`), cross-checked against the CEO-attested
 `docs/legal/AI_GOVERNANCE_MEMO.md` (2026-06-19). Where the two agree, this document cites both.
 
-Also verified: every `OpenAI::Client.new` call site in the codebase (`lib/ai_board_generator.rb`,
-`lib/ai_word_predictor.rb`, and `lib/ai_prediction_generator.rb`) is configured with
-`uri_base: 'https://generativelanguage.googleapis.com/v1beta/openai/'`, i.e. all three point at
-Google's Gemini endpoint through the OpenAI-compatible client library. None call OpenAI's actual
-API. `lib/ai_prediction_generator.rb` is an offline batch job that builds the static prediction
+Also verified **at that commit**: every `OpenAI::Client.new` call site then in the codebase
+(`lib/ai_board_generator.rb`, `lib/ai_word_predictor.rb`, and `lib/ai_prediction_generator.rb`) was
+configured with `uri_base: 'https://generativelanguage.googleapis.com/v1beta/openai/'`, i.e. all
+three pointed at Google's Gemini endpoint through the OpenAI-compatible client library. None called
+OpenAI's actual API.
+
+> **Superseded as a statement of current code, re-verified 2026-08-19.** That paragraph describes
+> the audit basis at `c595f6304`, which predates PR #570 (the same-day removal of the Gemini
+> fallback noted in section 3). **There are now no `OpenAI::Client.new` call sites in the
+> repository at all**, and `lib/ai_board_generator.rb`, `lib/ai_word_predictor.rb` and
+> `lib/eval_narrator.rb` each `require_relative 'ai_client'` and route through `lib/ai_client.rb`
+> to AWS Bedrock. The `ruby-openai` gem is still declared in the Gemfile, commented as a Gemini
+> fallback, with no caller; its removal is tracked in PR #826. The paragraph is retained because
+> it is this classification's dated audit basis, not because it describes the code today — read in
+> the present tense it would wrongly suggest this product ships an OpenAI SDK aimed at Gemini. `lib/ai_prediction_generator.rb` is an offline batch job that builds the static prediction
 dictionary from built-in word lists only (no user or tenant content, per `AI_GOVERNANCE_MEMO.md`
 section 2), so it is out of scope for this disclosure and is not in the table below.
 

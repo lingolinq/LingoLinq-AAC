@@ -55,7 +55,6 @@
 | Subprocessor Register (branded) | drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | 2026-06-19 | published | Review date is older than 2026-08-18. |
 | Vendor and Subprocessor Management Policy | drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | 2026-06-19 | published | Review date is older than 2026-08-18. |
 | Written Information Security Program (WISP) | drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | 2026-06-19 | published | Review date is older than 2026-08-18. |
-| AI Data-Flow Classification (2026-08-17 successor) | git | `docs/legal/2026-08-17_ai-data-flow-classification.md` | 2026-08-17 | draft | Review date is older than 2026-08-18. |
 | AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-08-04 | approved | Review date is older than 2026-08-18. |
 | AI Governance Memo | git | `docs/legal/AI_GOVERNANCE_MEMO.md` | 2026-08-04 | published | Review date is older than 2026-08-18. |
 | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | git | `docs/legal/2026-08-12_aws-baa-acceptance-record.md` | 2026-08-12 | approved | Review date is older than 2026-08-18. |
@@ -84,7 +83,6 @@
 | LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | 2026-07-12 | published | Review date is older than 2026-08-18. |
 | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | 2026-08-09 | draft | Review date is older than 2026-08-18. |
 | Parental Consent Email (COPPA / under-13) | git | `docs/legal/PARENTAL_CONSENT_EMAIL.md` | 2026-07-23 | approved | Review date is older than 2026-08-18. |
-| Subprocessor Register (2026-08-16 successor) | git | `docs/legal/2026-08-16_subprocessor-register.md` | 2026-08-16 | draft | Review date is older than 2026-08-18. |
 | accessibility-auditor agent definition | git | `.claude/agents/accessibility-auditor.md` | 2026-06-21 | published | Review date is older than 2026-08-18. |
 | api-auditor agent definition | git | `.claude/agents/api-auditor.md` | 2026-06-21 | published | Review date is older than 2026-08-18. |
 | code-hygiene-auditor agent definition | git | `.claude/agents/code-hygiene-auditor.md` | 2026-08-12 | published | Review date is older than 2026-08-18. |
@@ -223,7 +221,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 ## Attestation Integrity
 
-21 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
+23 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
 **No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
 
@@ -298,4 +296,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_82 documents tracked. 69 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 11 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_82 documents tracked. 67 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 11 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

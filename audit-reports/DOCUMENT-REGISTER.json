@@ -933,13 +933,13 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-16_subprocessor-register.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "GDPR",
         "FERPA",
         "HIPAA"
       ],
-      "lastReviewed": "2026-08-16",
+      "lastReviewed": "2026-08-19",
       "nextReviewDue": "2026-11-08",
       "bundles": [
         "school-dpa-package",
@@ -962,7 +962,13 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-0387973005",
       "id": "DOC-f850df36ad",
-      "contentHash": "1c4307aaa6f67fb475c6a5459a81c0b8245b709174d4b8268eef9a719cfcf0a8"
+      "contentHash": "fd8224cdfd7efdc87113de028273317aa765d3d43c56520c1a3a7fe47f894e1c",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-19",
+        "attestedContentHash": "fd8224cdfd7efdc87113de028273317aa765d3d43c56520c1a3a7fe47f894e1c",
+        "note": "First attestation of this dated successor (Path A successor to DOC-0387973005). Row 3's OpenAI note was corrected before signing: no OpenAI::Client.new call sites remain in the repository, so the prior 'in-repo OpenAI SDK clients target Gemini' wording no longer described the code. Runtime AI egress is received by AWS via Bedrock under the AWS BAA, with Anthropic, PBC as model provider."
+      }
     },
     {
       "title": "COPPA Final-Rule Verification",
@@ -2877,14 +2883,14 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-17_ai-data-flow-classification.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-08-17",
+      "lastReviewed": "2026-08-19",
       "nextReviewDue": "2027-07-22",
       "bundles": [
         "school-dpa-package",
@@ -2902,7 +2908,13 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-90b5d33227",
       "id": "DOC-6d37a68cf4",
-      "contentHash": "3e29771ac11ce312bdae7c6eb4ed5c54141753dff4f76856448b90a282d36f00"
+      "contentHash": "473e7ebb4ef8e103a784b013d96a0957e2c6bad595b1153497f8716150df8362",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-19",
+        "attestedContentHash": "473e7ebb4ef8e103a784b013d96a0957e2c6bad595b1153497f8716150df8362",
+        "note": "First attestation of this dated successor (Path A successor to DOC-90b5d33227). Section 2's audit-basis paragraph was annotated before signing: it describes the code at c595f6304, which predates PR #570, and read in the present tense would have wrongly implied this product ships an OpenAI SDK aimed at Gemini."
+      }
     },
     {
       "title": "AI Data-Sharing Consent: Rationale and Policy",
