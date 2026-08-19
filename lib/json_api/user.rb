@@ -376,30 +376,39 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         # to keep the payload light — the caseload is a quick overview,
         # not the full goals page. Existing index
         # `index_user_goals_on_user_id_and_active` keeps both queries cheap.
-        json['goals_count'] = UserGoal.where(:user_id => user.id, :active => true).count
-        json['active_goals'] = UserGoal.where(:user_id => user.id, :active => true)
-          .order('"primary" DESC NULLS LAST, updated_at DESC').limit(10).map do |g|
-            # Derived status — surfaces a high-level state the
-            # caseload card can color-code without the supporter
-            # having to open the goal detail page.
-            #   'achieved'    → goal is no longer active but ended
-            #   'in_progress' → started + updated within 14 days
-            #   'paused'      → active but no recent updates
-            #   'active'      → default (started, currently active)
-            status =
-              if !g.active && g.settings && g.settings['ended_at']
-                'achieved'
-              elsif g.updated_at && g.updated_at > 14.days.ago
-                'in_progress'
-              elsif g.settings && g.settings['started_at'].nil?
-                'paused'
-              else
-                'active'
-              end
-            { 'id' => g.global_id, 'summary' => g.summary, 'primary' => !!g.primary, 'status' => status }
-          end
-        json['target_words'] = user.settings['target_words'].slice('generated', 'list') if user.settings['target_words']
-        json['home_board_key'] = user.settings['preferences'] && user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['key']
+        # Goal summaries are free-text therapy/IEP content -- FERPA education
+        # records, and clinical content under HIPAA for the hospital deployments.
+        # They are NOT needed to pick a communicator to model for, which is all
+        # the roster row exists to support, so they hang off can_set_goals rather
+        # than off the row. Without this a per-link modeling-only supporter --
+        # a caller user.rb:77 explicitly bars from goals -- received up to ten
+        # goal summaries immediately next to `can_set_goals: false`.
+        if json['can_set_goals']
+          json['goals_count'] = UserGoal.where(:user_id => user.id, :active => true).count
+          json['active_goals'] = UserGoal.where(:user_id => user.id, :active => true)
+            .order('"primary" DESC NULLS LAST, updated_at DESC').limit(10).map do |g|
+              # Derived status — surfaces a high-level state the
+              # caseload card can color-code without the supporter
+              # having to open the goal detail page.
+              #   'achieved'    → goal is no longer active but ended
+              #   'in_progress' → started + updated within 14 days
+              #   'paused'      → active but no recent updates
+              #   'active'      → default (started, currently active)
+              status =
+                if !g.active && g.settings && g.settings['ended_at']
+                  'achieved'
+                elsif g.updated_at && g.updated_at > 14.days.ago
+                  'in_progress'
+                elsif g.settings && g.settings['started_at'].nil?
+                  'paused'
+                else
+                  'active'
+                end
+              { 'id' => g.global_id, 'summary' => g.summary, 'primary' => !!g.primary, 'status' => status }
+            end
+          json['target_words'] = user.settings['target_words'].slice('generated', 'list') if user.settings['target_words']
+          json['home_board_key'] = user.settings['preferences'] && user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['key']
+        end
       elsif args[:supervisee]
         json['edit_permission'] = user.edit_permission_for?(args[:supervisee])
         json['modeling_only'] = user.modeling_only_for?(args[:supervisee])

@@ -354,14 +354,17 @@ class ApplicationController < ActionController::Base
   # The check must be AFFIRMATIVE: here "no relationship" has to mean DENIED.
   #
   # `permission` is per-endpoint because the endpoints disclose different things --
-  # 'set_goals' for goal/progress data, 'supervise' for usage data and for roster
-  # identity. Both resolve through self, non-modeling supervisor, and org manager
-  # (user.rb:71,87), so a legitimate cross-org manager keeps working.
+  # 'set_goals' for goal/progress data, 'supervise' for usage data. ROSTER identity
+  # is NOT one of these; it goes through supervisee_listable? below. Both resolve
+  # through self, non-modeling supervisor, and org manager (user.rb:72,88), so a
+  # legitimate cross-org manager keeps working.
   #
-  # The `modeling_only_for?` conjunct is NOT redundant with those rules: user.rb:66
-  # deliberately preserves `set_goals` for a BILLING-lapsed (globally modeling-only)
-  # supporter who holds a real edit-level link, and the org-manager rule at
-  # user.rb:87 carries no modeling check at all.
+  # An earlier version added `&& !@api_user.modeling_only_for?(supervisee)` here and
+  # claimed it preserved the user.rb:77 `set_goals` carve-out for a BILLING-lapsed
+  # supporter. It did the reverse: modeling_only_for? short-circuits on the global
+  # billing flag, so the conjunct overrode the very carve-out it cited and emptied
+  # a lapsed supporter's badge feed. The rules own that policy now; see
+  # User#readable_as_supervisee_by?.
   #
   # Scopes are passed so a restricted API token is held to its own limits here, the
   # same way `allowed?` does at every direct gate.

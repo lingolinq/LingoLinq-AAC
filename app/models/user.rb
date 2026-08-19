@@ -1938,7 +1938,16 @@ class User < ApplicationRecord
       # The <5 bound stays on the UNfiltered count: it is a cost guard on this
       # method, not an authorization decision, and keying it to the filtered
       # count would let a large caseload back in whenever most rows are hidden.
-      visible_supervisees = opts['supervisees'] || opts[:supervisees] || self.supervisees
+      # key? rather than `||`: an authorization-carrying parameter must not treat a
+      # nil or missing value as "no filter". Falling back to the full walk on a
+      # typo or a nil would silently reopen the leak this option exists to close,
+      # with green CI.
+      visible_supervisees =
+        if opts.key?('supervisees') || opts.key?(:supervisees)
+          opts['supervisees'] || opts[:supervisees] || []
+        else
+          self.supervisees
+        end
       if self.supervised_user_ids.length < 5
         visible_supervisees.each do |u|
           if u.settings && u.settings['preferences'] && u.settings['preferences']['home_board']

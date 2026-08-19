@@ -2992,8 +2992,15 @@ describe Api::UsersController, :type => :controller do
       token_user
       communicator = User.create
       User.link_supervisor_to_user(@user, communicator)
-      expect(@user.billing_state).to_not eq(:modeling_only)
-      allow_any_instance_of(User).to receive(:modeling_only?).and_return(true)
+      # Drive the REAL billing fall-through rather than stubbing modeling_only?:
+      # a supporter with no subscription and a past expiry lands on
+      # :modeling_only (subscription.rb:832). Stubbing would also mark the
+      # communicator modeling-only, which is a different relationship and would
+      # let this pass for the wrong reason.
+      @user.settings['preferences']['role'] = 'supporter'
+      @user.expires_at = 2.days.ago
+      @user.save
+      expect(@user.reload.billing_state).to eq(:modeling_only)
 
       get 'supervisees', params: {'user_id' => @user.global_id}
       expect(response).to be_successful
@@ -3015,7 +3022,10 @@ describe Api::UsersController, :type => :controller do
       outside = User.create
       User.link_supervisor_to_user(supporter, outside)
       User.link_supervisor_to_user(@user, supporter)
-      allow_any_instance_of(User).to receive(:modeling_only?).and_return(true)
+      @user.settings['preferences']['role'] = 'supporter'
+      @user.expires_at = 2.days.ago
+      @user.save
+      expect(@user.reload.billing_state).to eq(:modeling_only)
 
       get 'supervisees', params: {'user_id' => supporter.global_id}
       expect(response).to_not be_successful

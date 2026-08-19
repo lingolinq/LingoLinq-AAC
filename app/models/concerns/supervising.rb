@@ -139,10 +139,25 @@ module Supervising
   #
   # ApplicationController#supervisee_readable? wraps this for HTTP
   # fan-out; JsonApi::User calls it directly for nested supervisees.
+  # No modeling_only conjunct here. Each permission rule already encodes its own
+  # modeling-only policy, at the granularity that rule needs:
+  #
+  #   'supervise'  (user.rb:72) excludes modeling-only outright -- usage data.
+  #   'set_goals'  (user.rb:77) excludes a PER-LINK modeling-only supporter but
+  #                deliberately KEEPS a globally billing-lapsed one, because
+  #                lapsing is about money and says nothing about the caller's
+  #                standing with that child.
+  #
+  # Adding `&& !caller.modeling_only_for?(self)` on top applied the coarse test to
+  # both, and modeling_only_for? opens `return true if self.modeling_only?`
+  # (:122) -- the GLOBAL billing flag. That silently defeated the set_goals
+  # carve-out and dropped a lapsed supporter's whole caseload from badges#index.
+  # Two granularities of "modeling only" exist; only the rules know which one
+  # applies, so let them decide.
   def readable_as_supervisee_by?(caller, permission, scopes=['full'])
     return false unless caller
     return true if id == caller.id
-    allows?(caller, permission, scopes) && !caller.modeling_only_for?(self)
+    allows?(caller, permission, scopes)
   end
 
   # ROSTER IDENTITY, as distinct from the DATA check above.
@@ -153,7 +168,7 @@ module Supervising
   # a supporter whose billing has lapsed:
   #
   #   modeling_only_for? opens with `return true if self.modeling_only?`
-  #   (:121) -- a property of the CALLER, not of the relationship -- and
+  #   (:122) -- a property of the CALLER, not of the relationship -- and
   #   billing_state returns :modeling_only as the final fall-through for any
   #   supporter who is not premium, trialing, org-sponsored, an org supporter,
   #   or a manager (subscription.rb:832). The 'supervise' rule at user.rb:71
@@ -164,11 +179,11 @@ module Supervising
   # sync.js:196 only connects when `!supporter_role || supervisees.length`.
   # Remote modeling is the one thing that tier exists to do.
   #
-  # 'model' is the permission that survives a lapse: user.rb:68 grants it to any
+  # 'model' is the permission that survives a lapse: user.rb:69 grants it to any
   # supervisor_for? without the modeling_only conjunct, user.rb:87 grants it to
   # an org manager, and the self rules grant it to the caller themselves. No
-  # rule grants 'model' to a stranger -- the public-account rule (user.rb:59)
-  # deliberately stops at view_existence/view_detailed -- so the fan-out leak
+  # rule grants 'model' to a stranger -- the public-account rule
+  # (:58) deliberately stops at view_existence/view_detailed -- so the fan-out leak
   # this whole class of fix exists to close stays closed.
   #
   # Going through allows? rather than a bare supervisor_for? keeps restricted
