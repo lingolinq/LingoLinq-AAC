@@ -2979,6 +2979,48 @@ describe Api::UsersController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['user'].map{|u| u['id']}).to eq([shared.global_id])
     end
+
+    # Regression guard for the fix above over-reaching. `supervise` (the
+    # permission the first version of this filter used) carries a
+    # modeling_only conjunct, and modeling_only_for? returns true for ANY
+    # supervisee once the caller's own billing_state is :modeling_only -- the
+    # fall-through state for a lapsed free supporter. That emptied a whole
+    # tier's caseload on their OWN request. CI could not see it because a
+    # freshly-created account is :trialing_supporter for 60 days, so the
+    # billing state has to be forced.
+    it "should return a billing-lapsed supporter's own supervisees" do
+      token_user
+      communicator = User.create
+      User.link_supervisor_to_user(@user, communicator)
+      expect(@user.billing_state).to_not eq(:modeling_only)
+      allow_any_instance_of(User).to receive(:modeling_only?).and_return(true)
+
+      get 'supervisees', params: {'user_id' => @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to eq([communicator.global_id])
+    end
+
+    # ...and the leak stays closed for that same caller: modeling-only does not
+    # become a way back into someone else's roster. Here the refusal lands one
+    # step earlier than the row filter -- 'supervise' on the LIST OWNER is what
+    # the endpoint gate demands (:621), and that permission does carry the
+    # modeling_only conjunct -- so the request never reaches the fan-out at all.
+    # Asserted as a denial rather than an empty list, because that is what the
+    # code actually does; an empty-list assertion here would be describing a
+    # response shape that is never produced.
+    it "should refuse another supporter's roster to a billing-lapsed caller" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+      allow_any_instance_of(User).to receive(:modeling_only?).and_return(true)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to_not be_successful
+      expect(response.body).to_not include(outside.global_id)
+    end
   end
   
   describe "GET 'sync_stamp'" do

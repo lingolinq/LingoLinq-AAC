@@ -333,7 +333,6 @@ class ApplicationController < ActionController::Base
     response.headers['BROWSER_TOKEN'] = GoSecure.browser_token
   end
 
-  # Normalized token scopes for Permissable (same rules as +allowed?+).
   # Authorization for a communicator reached INDIRECTLY, through some OTHER
   # account's supervisee list.
   #
@@ -371,6 +370,20 @@ class ApplicationController < ActionController::Base
     supervisee.readable_as_supervisee_by?(@api_user, permission, api_permission_scopes)
   end
 
+  # ROSTER identity rather than a disclosure about the communicator: "may the
+  # caller see that this account is on this roster at all". Used by the
+  # endpoints that return the caller's own caseload -- users#supervisees,
+  # users#ws_settings, and the nested list in JsonApi::User.
+  #
+  # Split out from supervisee_readable? because 'supervise' denies a
+  # billing-lapsed supporter their OWN caseload; see
+  # User#listable_as_supervisee_by? for the full trace.
+  def supervisee_listable?(supervisee)
+    return false unless supervisee && @api_user
+    supervisee.listable_as_supervisee_by?(@api_user, api_permission_scopes)
+  end
+
+  # Normalized token scopes for Permissable (same rules as +allowed?+).
   def api_permission_scopes
     scopes = ['full']
     if @api_user && @api_device_id

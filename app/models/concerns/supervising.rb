@@ -145,6 +145,41 @@ module Supervising
     allows?(caller, permission, scopes) && !caller.modeling_only_for?(self)
   end
 
+  # ROSTER IDENTITY, as distinct from the DATA check above.
+  #
+  # readable_as_supervisee_by? is right for a disclosure ABOUT a communicator
+  # (progress, usage logs). It is wrong for the question "is this communicator
+  # on the caller's own roster at all", because both of its conjuncts fail for
+  # a supporter whose billing has lapsed:
+  #
+  #   modeling_only_for? opens with `return true if self.modeling_only?`
+  #   (:121) -- a property of the CALLER, not of the relationship -- and
+  #   billing_state returns :modeling_only as the final fall-through for any
+  #   supporter who is not premium, trialing, org-sponsored, an org supporter,
+  #   or a manager (subscription.rb:832). The 'supervise' rule at user.rb:71
+  #   carries the same conjunct, so `allows?` fails too.
+  #
+  # The result was that a lapsed free supporter got an EMPTY supervisee list on
+  # their own /users/self -- which also closes their websocket, because
+  # sync.js:196 only connects when `!supporter_role || supervisees.length`.
+  # Remote modeling is the one thing that tier exists to do.
+  #
+  # 'model' is the permission that survives a lapse: user.rb:68 grants it to any
+  # supervisor_for? without the modeling_only conjunct, user.rb:87 grants it to
+  # an org manager, and the self rules grant it to the caller themselves. No
+  # rule grants 'model' to a stranger -- the public-account rule (user.rb:59)
+  # deliberately stops at view_existence/view_detailed -- so the fan-out leak
+  # this whole class of fix exists to close stays closed.
+  #
+  # Going through allows? rather than a bare supervisor_for? keeps restricted
+  # OAuth tokens held to their scopes, and picks up the permissable Redis cache
+  # (permissions.rb:29) that supervisor_for? does not have.
+  def listable_as_supervisee_by?(caller, scopes=['full'])
+    return false unless caller
+    return true if id == caller.id
+    allows?(caller, 'model', scopes)
+  end
+
   def org_units_for_supervising(supervisee)
     unit_ids = supervisee_links.map{|l| l['state']['organization_unit_ids'] }.compact.flatten.uniq
     OrganizationUnit.find_all_by_global_id(unit_ids)
