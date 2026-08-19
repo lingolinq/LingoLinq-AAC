@@ -1184,14 +1184,36 @@ ctx = {
 }
 rendered = render_dashboard(ctx)
 
+# --- staleness guard (--check only; the render itself stays a pure function of
+# reference_date and never reads the clock, per the DETERMINISM contract above).
+# reference_date freezes at the latest snapshot's date (or generatedDate with no
+# snapshot yet) BY DESIGN, so every per-source freshness light in the render is
+# relative to that frozen point, not to today - a dashboard nobody re-snapshots
+# renders permanently green with no signal that it has gone stale. This check is
+# the signal: it compares the real wall clock to reference_date and hard-fails
+# --check past STALENESS_LIMIT_DAYS, forcing a fresh `--snapshot` (the one
+# sanctioned clock-reading action) before a stale dashboard can pass CI.
+STALENESS_LIMIT_DAYS = 7
+def reference_date_stale?(reference_date, today, limit_days)
+  (today - reference_date).to_i > limit_days
+end
+
 case mode
 when :check
+  age_days = (Date.today - reference_date).to_i
+  if reference_date_stale?(reference_date, Date.today, STALENESS_LIMIT_DAYS)
+    warn "readiness-check: reference date #{reference_date} is #{age_days} day(s) old (limit #{STALENESS_LIMIT_DAYS}). " \
+         "Every per-source freshness light in #{RENDER_MD} is computed relative to this date, not to today, so a stale " \
+         "reference date silently freezes them all green/yellow regardless of real staleness. Run " \
+         "`ruby scripts/readiness-check.rb --snapshot` to record a fresh point-in-time snapshot, then re-check."
+    exit 1
+  end
   on_disk = File.file?(RENDER_MD) ? File.read(RENDER_MD) : nil
   if on_disk != rendered
     warn "readiness-check: #{RENDER_MD} is out of sync with the strategy JSONs. Run `ruby scripts/readiness-check.rb` to regenerate."
     exit 1
   end
-  puts "readiness-check: OK (#{requirements.size} requirements, #{work.size} work records, #{snapshots.size} snapshot(s); render in sync; #{warnings.size} warning(s))"
+  puts "readiness-check: OK (#{requirements.size} requirements, #{work.size} work records, #{snapshots.size} snapshot(s); reference date #{age_days}d old, render in sync; #{warnings.size} warning(s))"
 when :snapshot
   File.write(SNAPSHOTS_JSON, JSON.pretty_generate(snapshots_doc) + "\n")
   File.write(RENDER_MD, rendered)

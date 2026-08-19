@@ -4,7 +4,7 @@
 > Generated from `audit-reports/strategy/*.json` + `audit-reports/FINDINGS.json` by `scripts/readiness-check.rb`.
 > Edit the JSON sources and re-render; `--check` enforces sync in CI (audit-artifacts-integrity).
 >
-> Findings baseline: live from `FINDINGS.json` at render | Risk movement since snapshot: 2026-08-11T23:53:23Z | Strategy generated: 2026-08-11
+> Findings baseline: live from `FINDINGS.json` at render | Risk movement since snapshot: 2026-08-19T05:09:07Z | Strategy generated: 2026-08-11
 
 > ✅ **RATIFIED - all 40 of 40 requirements ratified by Scot** on
 > 2026-08-15 (per-row `ratification` objects, completed milestone-by-milestone). This records
@@ -126,8 +126,15 @@ None - all launch-profile decisions are made.
 
 ## Risk movement
 
-First snapshot recorded; no prior snapshot to diff against.
-Run `ruby scripts/readiness-check.rb --snapshot` after register changes to build the movement series.
+| Signal | Since prior snapshot |
+|---|---|
+| New known risks | 41 (LL-0b5443f43b, LL-0d54bcb32c, LL-171938b2b9, LL-1e7b568ef3, LL-1e8abb7d59, LL-208e8f1317, LL-30236919f6, LL-33d756b764, LL-40f3571b19, LL-4574005612, LL-47935e1a5b, LL-5617f4e17d, LL-59bfd6f482, LL-5d2436fce2, LL-63377adbd2, LL-6723438462, LL-69a7f62551, LL-6cea3b4787, LL-7181a16033, LL-71f2ba5536, LL-7296ada5da, LL-779490b63e, LL-7d50b089c9, LL-8908c7ac6f, LL-8990c53bad, LL-8bc8f025a7, LL-92ae18cc4e, LL-959d76ecfc, LL-b7ccc522b9, LL-c0b3d59f58, LL-c4566fa37f, LL-c95c637f00, LL-d3f41e7a67, LL-dbdcfb466c, LL-e0ea356243, LL-e14ca0ff04, LL-e8614c103f, LL-ebb4be7b73, LL-f171af92ff, LL-f6be45aec6, LL-fba16b6fd7) |
+| Findings moved out of open | 1 (LL-522c1a6d13) |
+| Reopened | 0 |
+| Severity changes | 0 |
+| Net open movement (supporting metric only) | 62 -> 102 |
+
+A rising known-risk count is not automatically negative; it may reflect improved discovery coverage.
 
 ## Work delivered (seeded ledger - representative, not exhaustive)
 
@@ -136,7 +143,7 @@ Run `ruby scripts/readiness-check.rb --snapshot` after register changes to build
 | Ledger records | 16 |
 | Distinct control/capability clusters | 13 |
 | Preventive controls added | 5 |
-| Findings moved out of open (latest snapshot) | 0 |
+| Findings moved out of open (latest snapshot) | 1 |
 | Superseded-evidence records (claim later disproved; correction linked) | 1 |
 
 Release duplicates and smoke PRs never inflate distinct-cluster counts; records sharing a cluster count once.
@@ -195,7 +202,7 @@ AI tools are implementation/review tools, never accountable owners.
 
 ## Source freshness
 
-Ages are relative to the data-as-of reference date (2026-08-11); external sources are
+Ages are relative to the data-as-of reference date (2026-08-19); external sources are
 last-observed historical fixtures in v0.2 (no live Notion/Drive connectors; live checks are never faked).
 
 | Source | State | Detail |
@@ -206,7 +213,7 @@ last-observed historical fixtures in v0.2 (no live Notion/Drive connectors; live
 | Notion Compliance Home | 🔴 | numeric contradiction with canonical state (overrides age). Still shows 118 total / 54 open / 7 awaiting QA / 50 verified closed - a numeric contradiction with the canonical register; contradiction overrides freshness age. |
 | Drive internal Compliance & Security Program | 🔴 | canonical copy marked SUPERSEDED; successor still draft (overrides age). The 2026-08-04 attested copy is now renamed SUPERSEDED; a 2026-08-11 cleanup draft exists (DRAFT - DO NOT SHARE). No current attested copy. |
 | Drive external Security, Privacy & Compliance Overview | 🔴 | canonical copy marked SUPERSEDED; successor still draft (overrides age). The 2026-08-04 attested / 2026-08-06 published copy is now renamed SUPERSEDED / DO NOT SHARE; a 2026-08-11 cleanup draft exists. No current attested copy. |
-| Drive Compliance Publication Status index | 🔴 | last observed 2026-07-23 (19d before reference date). Last known generated 2026-07-23; stale relative to subsequent attestations. |
+| Drive Compliance Publication Status index | 🔴 | last observed 2026-07-23 (27d before reference date). Last known generated 2026-07-23; stale relative to subsequent attestations. |
 | Production revision/config evidence | 🟡 | no explicit observation recorded; never inferred. Must be explicitly captured per observation; never inferred. No observation recorded yet. |
 
 ---

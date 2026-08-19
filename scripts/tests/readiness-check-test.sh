@@ -382,11 +382,16 @@ else
   fail "local mode did not warn on an unresolvable base ref"
 fi
 
-# --snapshot must refuse to append behind a future-dated prior record.
+# --snapshot must refuse to append behind a future-dated prior record. Must
+# future-date the LAST snapshot specifically (not index 0) - the monotonicity
+# check in readiness-check.rb compares against snapshots.last, and hardcoding
+# index 0 silently stopped exercising this test the moment a second live
+# snapshot existed (same live-data-count-assumption bug class as the baseline
+# fragility fixed above).
 reset_work
 ruby -rjson -e "
   doc=JSON.parse(File.read('$WORK_DIR/SNAPSHOTS.json'))
-  doc['snapshots'][0]['generatedAt']='2100-01-01T00:00:00Z'
+  doc['snapshots'].last['generatedAt']='2100-01-01T00:00:00Z'
   File.write('$WORK_DIR/SNAPSHOTS.json', JSON.pretty_generate(doc)+\"\n\")
 "
 if ruby scripts/readiness-check.rb --snapshot 2>&1 | grep -qF "does not advance past the latest snapshot"; then
@@ -418,11 +423,14 @@ else
   fail "an unlinked open High is not in the dedicated exception section"
 fi
 
-# LL-16ef84ad9a (high) is currently linked via adult-beta-ai-cache, and (as of
-# 2026-08-16) is the only currently-linked open High/Critical in the live data,
-# so unlinking it alone takes the live baseline (0, verified above) to exactly
-# 1 - not any other number - proving the header count is actually recomputed
-# from this specific edit rather than a stale/hardcoded figure.
+# LL-16ef84ad9a (high) is currently linked via adult-beta-ai-cache. Read the
+# live baseline BEFORE mutating (rather than hardcoding what it was on
+# 2026-08-16, which is exactly what broke this assertion once already when
+# the live baseline later shifted) so unlinking it is asserted against
+# whatever the live baseline actually is today, not a fixed number.
+reset_work
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+baseline=$(grep -oP '\*\*Unmapped Critical/High:\*\* \K[0-9]+' "$WORK_DIR/READINESS-DASHBOARD.md")
 reset_work
 ruby -rjson -e "
   doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
@@ -432,11 +440,64 @@ ruby -rjson -e "
 ruby scripts/readiness-check.rb >/dev/null 2>&1
 dashboard="$WORK_DIR/READINESS-DASHBOARD.md"
 exception_section=$(sed -n '/## ⚠️ Unmapped Critical\/High/,/## Current finding baseline/p' "$dashboard")
+expected=$((baseline + 1))
 if echo "$exception_section" | grep -qF 'LL-16ef84ad9a' \
-   && grep -qF '**Unmapped Critical/High:** 1' "$dashboard"; then
-  pass "unlinking a currently-linked High moves it into the exception section and the header count updates"
+   && grep -qF "**Unmapped Critical/High:** ${expected}" "$dashboard"; then
+  pass "unlinking a currently-linked High moves it into the exception section and the header count updates (baseline ${baseline} -> ${expected})"
 else
-  fail "unlinking a High did not move it into the exception section / update the header count"
+  fail "unlinking a High did not move the header count from baseline ${baseline} to ${expected}"
+fi
+
+# Regression coverage for the fragility above: the live-data assertion just
+# fixed can still only ever prove baseline -> baseline+1, which is a weaker
+# property than "the count is genuinely computed, not memorized" - and a
+# live baseline can drift to a value that accidentally validates a subtly
+# wrong implementation. Prove the real property with a FINDINGS.json variant
+# holding an EXACTLY KNOWN number of open Critical/High findings (built by
+# closing every other one, so the fixture stays a real, schema-valid document
+# rather than a hand-built one that could rot - see the file-header rationale),
+# fully independent of whatever the live register contains on any given day.
+cp audit-reports/FINDINGS.json "$FINDINGS_SCRATCH"
+synth_id=$(ruby -rjson -e "
+  doc=JSON.parse(File.read('$FINDINGS_SCRATCH'))
+  target=doc['findings'].find{|f| f['severity']=='high'}
+  doc['findings'].each do |f|
+    next if f['id']==target['id']
+    f['status']='verified-closed' if f['status']=='open' && %w[critical high].include?(f['severity'])
+  end
+  target['status']='open'
+  target['severity']='high'
+  File.write('$FINDINGS_SCRATCH', JSON.pretty_generate(doc)+\"\n\")
+  puts target['id']
+")
+reset_work
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
+  doc['requirements'].each{|r| (r['findingIds']||=[]).delete('$synth_id')}
+  File.write('$WORK_DIR/READINESS-MILESTONES.json', JSON.pretty_generate(doc)+\"\n\")
+"
+READINESS_FINDINGS_JSON="$FINDINGS_SCRATCH" ruby scripts/readiness-check.rb >/dev/null 2>&1
+if grep -qF '**Unmapped Critical/High:** 1' "$dashboard" \
+   && sed -n '/## ⚠️ Unmapped Critical\/High/,/## Current finding baseline/p' "$dashboard" | grep -qF "$synth_id"; then
+  pass "synthetic single unlinked open High yields exactly Unmapped Critical/High: 1, independent of live data"
+else
+  fail "synthetic single unlinked open High did not yield exactly 1 in the header count"
+fi
+
+# Link it and confirm the count returns to exactly 0 - proving the count
+# tracks link-state bidirectionally and deterministically, not just upward.
+first_req=$(ruby -rjson -e "puts JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))['requirements'].first['id']")
+ruby -rjson -e "
+  doc=JSON.parse(File.read('$WORK_DIR/READINESS-MILESTONES.json'))
+  r=doc['requirements'].find{|r| r['id']=='$first_req'}
+  r['findingIds']=(r['findingIds']+['$synth_id']).uniq
+  File.write('$WORK_DIR/READINESS-MILESTONES.json', JSON.pretty_generate(doc)+\"\n\")
+"
+READINESS_FINDINGS_JSON="$FINDINGS_SCRATCH" ruby scripts/readiness-check.rb >/dev/null 2>&1
+if grep -qF '**Unmapped Critical/High:** 0 - none' "$dashboard"; then
+  pass "linking the synthetic open High drops Unmapped Critical/High back to exactly 0"
+else
+  fail "linking the synthetic open High did not drop the header count to 0"
 fi
 
 # When every open Critical/High is linked, the exception section must state
@@ -657,6 +718,86 @@ else
   fail "--check modified files"
 fi
 rm -rf "$before"
+
+echo "readiness-check-test: staleness guard (--check only; render itself never reads the clock)"
+# Every per-source freshness light renders relative to reference_date, which
+# freezes at the latest snapshot's date - so a dashboard nobody re-snapshots
+# stays permanently green regardless of real staleness. These tests inject a
+# controlled OFFSET from the real current date (computed here, in the test,
+# which is free to read the clock - not in readiness-check.rb, which must
+# stay a pure function per its DETERMINISM contract) so the assertions hold
+# regardless of what day this suite happens to run on.
+today_iso=$(date -u +%Y-%m-%dT00:00:00Z)
+stale_iso=$(date -u -d '30 days ago' +%Y-%m-%dT00:00:00Z 2>/dev/null || date -u -v-30d +%Y-%m-%dT00:00:00Z)
+boundary_ok_iso=$(date -u -d '7 days ago' +%Y-%m-%dT00:00:00Z 2>/dev/null || date -u -v-7d +%Y-%m-%dT00:00:00Z)
+boundary_fail_iso=$(date -u -d '8 days ago' +%Y-%m-%dT00:00:00Z 2>/dev/null || date -u -v-8d +%Y-%m-%dT00:00:00Z)
+
+set_latest_snapshot_date() {
+  # Truncate to a single snapshot before dating it: with 2+ live snapshots,
+  # rewriting only the last one's date can land it before an earlier real
+  # snapshot and trip the unrelated monotonic-order invariant instead of
+  # exercising the staleness guard these tests target. A lone snapshot has
+  # no predecessor to violate, so this stays correct regardless of how many
+  # snapshots the live SNAPSHOTS.json accumulates over time.
+  ruby -rjson -e "
+    doc=JSON.parse(File.read('$WORK_DIR/SNAPSHOTS.json'))
+    last=doc['snapshots'].last
+    last['generatedAt']='$1'
+    last['priorSnapshotSha']=nil
+    last['findingFlowSincePrior']={'new'=>[],'movedOutOfOpen'=>[],'reopened'=>[],'severityChanged'=>[]}
+    doc['snapshots']=[last]
+    File.write('$WORK_DIR/SNAPSHOTS.json', JSON.pretty_generate(doc)+\"\n\")
+  "
+}
+
+reset_work
+set_latest_snapshot_date "$today_iso"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if READINESS_BASE_SNAPSHOTS_FILE=/definitely/does/not/exist.json ruby scripts/readiness-check.rb --check >/dev/null 2>&1; then
+  pass "a fresh (0-day-old) reference date passes --check"
+else
+  fail "a fresh reference date was wrongly rejected by the staleness guard"
+fi
+
+reset_work
+set_latest_snapshot_date "$boundary_ok_iso"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if READINESS_BASE_SNAPSHOTS_FILE=/definitely/does/not/exist.json ruby scripts/readiness-check.rb --check >/dev/null 2>&1; then
+  pass "exactly 7 days old passes --check (limit is exceeds-7, not at-least-7)"
+else
+  fail "exactly 7 days old was wrongly rejected by the staleness guard"
+fi
+
+reset_work
+set_latest_snapshot_date "$boundary_fail_iso"
+if ! READINESS_BASE_SNAPSHOTS_FILE=/definitely/does/not/exist.json ruby scripts/readiness-check.rb --check >/dev/null 2>&1; then
+  pass "exactly 8 days old fails --check (first day past the limit)"
+else
+  fail "8 days old was wrongly accepted by the staleness guard"
+fi
+
+reset_work
+set_latest_snapshot_date "$stale_iso"
+stale_check_out=$(READINESS_BASE_SNAPSHOTS_FILE=/definitely/does/not/exist.json ruby scripts/readiness-check.rb --check 2>&1)
+stale_check_status=$?
+if [ "$stale_check_status" -ne 0 ] \
+   && echo "$stale_check_out" | grep -qF "reference date" \
+   && echo "$stale_check_out" | grep -qF -- "--snapshot"; then
+  pass "a 30-day-stale reference date hard-fails --check with a clear --snapshot remediation hint"
+else
+  fail "a 30-day-stale reference date did not fail --check with the expected diagnostic"
+fi
+
+# The render itself must stay untouched by this guard - it is a --check-only
+# gate, never a property of the write path, per the DETERMINISM contract.
+reset_work
+set_latest_snapshot_date "$stale_iso"
+ruby scripts/readiness-check.rb >/dev/null 2>&1
+if [ -f "$WORK_DIR/READINESS-DASHBOARD.md" ]; then
+  pass "write mode still renders normally even with a stale reference date (guard is --check-only)"
+else
+  fail "write mode was blocked by the staleness guard, which should be --check-only"
+fi
 
 echo "readiness-check-test: snapshot mode behavior"
 reset_work
