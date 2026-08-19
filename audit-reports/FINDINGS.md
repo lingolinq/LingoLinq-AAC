@@ -3,13 +3,13 @@
 > Generated from `audit-reports/FINDINGS.json` by `scripts/citation-check.rb --render`.
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 
-**Audited:** `scot/feat/code-hygiene-auditor` @ `d67ed76e0a161b594fbffa519ab428d0f9b7780b` on 2026-08-12  
+**Audited:** `staging` @ `59f502aa4a967c8c704637cc66a18ff05118c7d8` on 2026-08-18  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
 **Headline (open + remediated-unverified):** 0 Critical / 20 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (103)
+## Open (106)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -75,6 +75,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-71f2ba5536 |  | medium |  | untriaged | audit-run | stats/parts-of-speech-flow.js + .hbs (Google Charts Sankey component) is orphaned, apparently superseded by stats/parts-of-speech-pie | `app/frontend/app/components/stats/parts-of-speech-flow.js`:1 |
 | LL-c4566fa37f |  | medium | GDPR, FERPA | untriaged | manual | A ButtonSound/UserVideo record erased mid-transcode, or before/after a lost SNS completion webhook, can leave transcoded output and thumbnails in S3 with no surviving application metadata for the erasure sweep to discover (GDPR Art. 17 / FERPA) | `lib/transcoder.rb`:36 |
 | LL-779490b63e |  | medium | GDPR, FERPA | untriaged | manual | Thumbnail erasure fallback is bounded/best-effort and cannot reliably distinguish absence, sequence gaps, or transient deletion failure | `lib/uploader.rb`:309 |
+| LL-1189af1b3c |  | medium | HIPAA, SOC2 | untriaged | audit-run | ai-endpoint-guard.sh only checks a 4-file hardcoded SEAMS allowlist, not a repo-wide scan, so a new AI-integration file would bypass CI enforcement of the no-direct-Anthropic-client control that three attested BAA/Bedrock compliance documents cite as covering "any runtime seam" | `scripts/ai-endpoint-guard.sh`:28 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | **accepted** | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | **accepted** | audit-run | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
 | LL-310b464be4 | P2-8 | medium | FERPA | **accepted** | audit-run | protected_image accepts user_token via URL parameter | `app/controllers/api/users_controller.rb`:945 |
@@ -113,6 +114,8 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-30236919f6 |  | low |  | untriaged | audit-run | Bare `debugger;` statement left in a live persistence-sync promise-rejection handler | `app/frontend/app/utils/persistence.js`:2402 |
 | LL-208e8f1317 |  | low |  | untriaged | audit-run | dbman.js swallows three different IndexedDB errors with a bare `debugger;` and no other handling | `app/frontend/app/utils/dbman.js`:390 |
 | LL-c95c637f00 |  | low |  | untriaged | audit-run | setup/extra-supervisors.js + .hbs component has zero references anywhere | `app/frontend/app/components/setup/extra-supervisors.js`:3 |
+| LL-bdc3344942 |  | low | SOC2, HIPAA, GDPR, FERPA | untriaged | audit-run | GEMINI_API_KEY is still mounted into every prod web and worker container with no runtime consumer and, unlike ANTHROPIC_API_KEY, no CI guard against a seam starting to read it | `.github/workflows/deploy-cloudrun.yml`:237 |
+| LL-94e57af291 |  | low | SOC2 | untriaged | audit-run | ANTHROPIC_API_KEY was de-scoped from the runtime mount but is still an actively-provisioned app secret in the GCP setup scripts, and nothing in the change revokes or disables it | `scripts/gcp/phase4-seed-app-secrets.sh`:66 |
 | LL-941001ca58 | Dep-eslint-8-eol | low | SOC2 | **accepted** | audit-run | eslint 8.57.1 is EOL (v8 end-of-life); dev toolchain on an unsupported linter | `app/frontend/package.json`:64 |
 | LL-a97357136e | P2-2 | low | SOC2 | **wontfix** | audit-run | params.permit! bypasses Strong Parameters | `app/controllers/api/organizations_controller.rb`:866 |
 | LL-ce00c8d3ad | P2-3 | low |  | **wontfix** | audit-run | License model lacks Processable concern | `app/models/license.rb`:1 |
@@ -203,4 +206,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_167 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_170 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
