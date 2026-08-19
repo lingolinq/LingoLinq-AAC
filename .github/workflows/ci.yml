@@ -174,6 +174,21 @@ jobs:
       - name: Verify capability ledger (currentEvidence resolves at HEAD; negativeEvidence scoping)
         run: ruby scripts/capability-check.rb --check
 
+      - name: Verify readiness strategy layer + dashboard render
+        # READINESS_BASE_SHA is the exact base commit (not a moving branch
+        # name), so the append-only comparison in readiness-check.rb pins to
+        # what this specific PR is based on. Pushes use github.event.before
+        # (the pre-push SHA), matching the legal-naming-check step below --
+        # NOT github.sha, which would compare the pushed commit against
+        # itself: a trivial self-match that a direct push to a protected
+        # branch could exploit to bypass append-only enforcement.
+        env:
+          READINESS_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: ruby scripts/readiness-check.rb --check
+
+      - name: Verify readiness-check guards (stored-derived-status, provenance, append-only snapshots)
+        run: scripts/tests/readiness-check-test.sh
+
       # legal-naming-check verifies meta.legalNamingGrandfathered against the BASE revision,
       # so unlike the render checks above it does need a little git history.
       #
@@ -212,19 +227,6 @@ jobs:
       # the check works.
       - name: Verify the docs/legal naming guards actually fire
         run: scripts/tests/legal-naming-check-test.sh
-
-      - name: Verify readiness strategy layer + dashboard render
-        # READINESS_BASE_SHA is the exact base commit (not a moving branch
-        # name), so the append-only comparison in readiness-check.rb pins to
-        # what this specific PR is based on. Non-PR pushes compare a commit
-        # against itself (a trivial self-match, since there is no "shrinking
-        # from base" scenario on a direct push already merged to staging).
-        env:
-          READINESS_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.sha }}
-        run: ruby scripts/readiness-check.rb --check
-
-      - name: Verify readiness-check guards (stored-derived-status, provenance, append-only snapshots)
-        run: scripts/tests/readiness-check-test.sh
 
   codex-review-tests:
     runs-on: ubuntu-latest
