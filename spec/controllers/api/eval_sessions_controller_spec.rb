@@ -221,5 +221,42 @@ describe Api::EvalSessionsController, type: :controller do
     ensure
       ENV['ANTHROPIC_API_KEY'] = old_key
     end
+
+    describe "article_50_disclosure backstop (LL-6723438462)" do
+      it "proceeds normally with the flag NOT enabled, regardless of jurisdiction or acknowledgement" do
+        token_user
+        allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
+        allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
+        allow(EvalNarrator).to receive(:draft_narrative).and_return({'narrative' => 'drafted', 'ai_generated' => nil})
+
+        post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id, use_anthropic: true}
+        expect(response).to be_successful
+        expect(EvalNarrator).to have_received(:draft_narrative)
+      end
+
+      it "returns 403 and never calls the narrator when the flag is enabled, in scope, unacknowledged, and use_anthropic is true" do
+        token_user
+        allow(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).and_return(true)
+        allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
+        allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
+        expect(EvalNarrator).not_to receive(:draft_narrative)
+
+        post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id, use_anthropic: true}
+        expect(response.status).to eq(403)
+        expect(JSON.parse(response.body)['error']).to eq('article_50_disclosure_required')
+      end
+
+      it "does not gate the deterministic-template path (use_anthropic omitted) even when the flag is enabled and unacknowledged" do
+        token_user
+        allow(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).and_return(true)
+        allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
+        allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
+        allow(EvalNarrator).to receive(:draft_narrative).and_return({'narrative' => 'template draft', 'ai_generated' => nil})
+
+        post :narrate, params: {eval_session: eval_payload, user_id: @user.global_id}
+        expect(response).to be_successful
+        expect(EvalNarrator).to have_received(:draft_narrative)
+      end
+    end
   end
 end

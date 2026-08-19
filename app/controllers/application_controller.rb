@@ -386,6 +386,42 @@ class ApplicationController < ActionController::Base
     supervisee.listable_as_supervisee_by?(@api_user, api_permission_scopes)
   end
 
+  # EU AI Act Article 50(1) server-side backstop, shared across every AI-generation
+  # entry point (LL-6723438462). Previously duplicated verbatim at
+  # boards_controller#generate_labels and integrations_controller#focus_generate_words;
+  # word_suggestions#create, words#predict, and eval_sessions#narrate had no backstop at
+  # all, so enabling the 'article_50_disclosure' flag would have produced silent partial
+  # enforcement across the five AI ingresses.
+  #
+  # 'article_50_disclosure' is AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES) as of
+  # this writing, so feature_enabled_for? returns false and this guard is inert until the
+  # flag is enabled. Do not enable it here. Gates on EuJurisdiction.disclosure_required?
+  # (true for :eu AND :unknown, fail-safe), never the retention-column jurisdiction
+  # stamp (EuJurisdiction.retention_stamp, a different fail-safe direction -- see that
+  # method's own comment). Reads server-side state only
+  # (@api_user.article_50_disclosure_shown?), never a request field. Returns true (call
+  # site should proceed) or false after rendering the 403 itself (via +api_error+,
+  # `{error: 'article_50_disclosure_required'}`), mirroring the exists?/allowed?
+  # early-return convention already used throughout this controller. Callers whose
+  # own error-response shape differs from api_error's (e.g. word_suggestions#create
+  # renders `words: []` on every 403) should use +article_50_disclosure_missing?+
+  # directly instead, to preserve their tested response contract.
+  def require_article_50_disclosure!
+    if article_50_disclosure_missing?
+      api_error(403, { error: 'article_50_disclosure_required' })
+      return false
+    end
+    true
+  end
+
+  # The pure check behind require_article_50_disclosure!, with no rendering
+  # side effect, for callers that need to render their own response shape.
+  def article_50_disclosure_missing?
+    FeatureFlags.feature_enabled_for?('article_50_disclosure', @api_user) &&
+      EuJurisdiction.disclosure_required?(@api_user) &&
+      !@api_user.article_50_disclosure_shown?
+  end
+
   # Normalized token scopes for Permissable (same rules as +allowed?+).
   def api_permission_scopes
     scopes = ['full']
