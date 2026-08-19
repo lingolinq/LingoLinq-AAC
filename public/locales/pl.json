@@ -9081,5 +9081,12 @@
   "enable_ai_features_save_error": "*** Could not save AI feature settings. Please try again.",
   "enable_ai_features_submit": "*** Enable AI board generation",
   "folder_context_back": "*** Back to Folders",
-  "caseload_qa_assess_tracker": "*** Assess Tracker"
+  "caseload_qa_assess_tracker": "*** Assess Tracker",
+  "board_categorize": "*** Categorize",
+  "board_categorize_panel": "*** Categorize board",
+  "board_categorize_hint": "*** Group this board's buttons by category. Use the arrows to change the order the categories appear in.",
+  "board_categorize_reset": "*** Reset order",
+  "board_category_order": "*** Category order",
+  "board_move_button_category": "*** Move button to a category",
+  "board_move_button_recolors": "*** This changes the button's color on the board."
 }
