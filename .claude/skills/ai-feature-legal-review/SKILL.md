@@ -152,12 +152,15 @@ Return:
 - `app/models/ai_api_log.rb` -- audit log; scrubs request+response summaries; 90-day IP redaction.
 - Outbound AI egress paths and runtime configuration -- do NOT trust this list as static; re-derive
   on every review with
-  `git grep -nE 'AiClient|BedrockMantleClient|bedrock-mantle|BEDROCK_(PLANE|AWS_KEY|AWS_SECRET|AWS_REGION|EXPECTED_AWS_ACCOUNT)|ANTHROPIC_API_KEY|GEMINI_API_KEY|api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|api\.openai\.com|draft_via_anthropic|call_anthropic|call_openai' -- 'lib/**' 'app/**' 'config/**' '.github/workflows/**'`
-  so new AI modules or deployment seams cannot silently escape the gate. The pathspec recurses into
-  subdirs and `.rake` files (a top-level `lib/*.rb` glob would miss
-  `lib/tasks/generate_predictions.rake`); the pattern covers both the sanctioned Bedrock clients
-  and direct vendor endpoints, so widen it whenever a new vendor or naming convention lands. At
-  the current staging head, the designated runtime surface is:
+  `git grep -nE 'AiClient|BedrockMantleClient|bedrock-mantle|BEDROCK_(PLANE|AWS_KEY|AWS_SECRET|AWS_REGION|EXPECTED_AWS_ACCOUNT)|ANTHROPIC_API_KEY|GEMINI_API_KEY|api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|api\.openai\.com|draft_via_anthropic|call_anthropic|call_openai' -- 'lib/**' 'app/**' 'config/**' '.github/workflows/**' 'scripts/ai-endpoint-guard.sh' 'scripts/sync-render-env.js' 'scripts/gcp/**' '.env.op.template'`
+  so new AI modules, provisioning paths, or deployment seams cannot silently escape the gate.
+  The pathspec recurses into subdirs and `.rake` files (a top-level `lib/*.rb` glob would miss
+  `lib/tasks/generate_predictions.rake`) and explicitly includes the runtime provisioning sources:
+  `scripts/sync-render-env.js`, `scripts/gcp/**`, `.env.op.template`, the Cloud Run and Render
+  workflows, and the endpoint guard. Reviewer-only credential scripts are intentionally outside
+  this runtime scan. The pattern covers both the sanctioned Bedrock clients and direct vendor
+  endpoints, so widen it whenever a new vendor or naming convention lands. At the current staging
+  head, the designated runtime surface is:
   - `lib/ai_client.rb` -- the sanctioned construction point. `BEDROCK_PLANE` selects the classic
   `Anthropic::BedrockClient` or `Anthropic::BedrockMantleClient` (`bedrock-mantle`) path.
   - `lib/ai_board_generator.rb` -- board generation; thread `user:`.

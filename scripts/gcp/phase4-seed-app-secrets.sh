@@ -10,7 +10,7 @@
 #   YOUTUBE_API_KEY                                            <- 13 Render-prod-sourced
 #   AWS_KEY AWS_SECRET                                         <- 2 NEW-IAM-user, 1Password-sourced
 #
-# SOURCE OF TRUTH (decided 2026-06-29): **live Render prod** for the 16, because 6 of the keys
+# SOURCE OF TRUTH (decided 2026-06-29): **live Render prod** for the 13, because 6 of the keys
 # (MAPS_KEY, GOOGLE_OAUTH_*, SENTRY_DSN, INTERNAL_API_TOKEN, CACHE_TOKEN) are NOT in the 1Password
 # sync manifest (scripts/sync-render-env.js) - only Render prod holds all of them, and seeding the
 # exact bytes prod runs today guarantees functional parity for the cutover. This is the INVERSE of
