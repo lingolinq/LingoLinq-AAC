@@ -335,7 +335,7 @@
             "location": "docs/legal/2026-08-17_ai-data-flow-classification.md"
           },
           {
-            "title": "AI Governance Memo (2026-08-19 successor)",
+            "title": "AI Governance Memo (2026-08-19 successor) [DO NOT ATTEST: section 5.2 unverified]",
             "location": "docs/legal/2026-08-19_ai-governance-memo.md"
           },
           {
@@ -860,7 +860,7 @@
       "supersededBy": "DOC-8b5fbf5d0b"
     },
     {
-      "title": "AI Governance Memo (2026-08-19 successor)",
+      "title": "AI Governance Memo (2026-08-19 successor) [DO NOT ATTEST: section 5.2 unverified]",
       "description": "AI governance memo: model inventory, PiiScrubber backstop, ZDR-is-not-a-BAA stance, EU AI Act Annex III classification + Article 50 plan. Supersedes docs/legal/AI_GOVERNANCE_MEMO.md; withdraws the \"not operational since 00014-5rw\" Bedrock runtime-status claim in all four places the predecessor carried it, and corrects the section 2 inventory table's ANTHROPIC_API_KEY requirement claim.",
       "type": "legal",
       "owner": "Scot Wahlquist",
@@ -888,7 +888,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-39f37f8200",
       "id": "DOC-8b5fbf5d0b",
-      "contentHash": "6bdc22b0cad4a11059f395f00c4afbbd8651e809ef553e84577f6ce9fa840429"
+      "contentHash": "abd9580541a98392a44e7a51d2718740605ab4735f83c43f49116f97d60fdee6"
     },
     {
       "title": "Accessibility Conformance Report (ACR / VPAT)",
@@ -3148,7 +3148,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "385f549127d14dcb810f48e6df4c677b1793c2b11aa804522934dffb72d7b333",
+      "contentHash": "e209f713d0801ef37e69db3e2227ac41e0041b4e9eef42920273e0926df71e32",
       "bundles": [
         "security-review"
       ],

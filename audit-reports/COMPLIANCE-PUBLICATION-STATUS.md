@@ -230,7 +230,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | Superseded | Location | Replaced by | Still bundled in |
 |---|---|---|---|
 | AI Data-Flow Classification | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | AI Data-Flow Classification (2026-08-17 successor) | (none) |
-| AI Governance Memo | `docs/legal/AI_GOVERNANCE_MEMO.md` | AI Governance Memo (2026-08-19 successor) | compliance-records-set-2026-06 |
+| AI Governance Memo | `docs/legal/AI_GOVERNANCE_MEMO.md` | AI Governance Memo (2026-08-19 successor) [DO NOT ATTEST: section 5.2 unverified] | compliance-records-set-2026-06 |
 | AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | AWS BAA Acceptance and Runtime Status Record | (none) |
 | AWS BAA Acceptance and Runtime Status Record | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | (none) |
 | Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | (none) |

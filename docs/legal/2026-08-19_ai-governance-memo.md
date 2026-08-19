@@ -3,33 +3,37 @@
 **Owner:** Scot Wahlquist, CEO
 **Supersedes:** `docs/legal/AI_GOVERNANCE_MEMO.md` (`DOC-39f37f8200`), which remains frozen at the
 bytes attested 2026-08-04 with its own attestation block unaltered. This dated record is the
-operative AI governance memo from 2026-08-19 forward. Attestation state for this record is
-maintained in the document register (`audit-reports/DOCUMENT-REGISTER.json`), which is
-authoritative; this file deliberately asserts no attestation state of its own, so these bytes cannot
-go stale the moment that state changes.
+operative AI governance memo from 2026-08-19 forward. **The document register
+(`audit-reports/DOCUMENT-REGISTER.json`) is the authoritative record of this file's attestation
+state.** Where this file describes its own attestation state below, read it as the state at the time
+these bytes were written, not as a live status; rule 3 of `docs/legal/README.md` freezes these bytes
+on attestation, so a live status written into them could not later be corrected.
 **Reason for supersession:** the predecessor's Bedrock runtime-status claims are stale. In four
 places it states or implies that the runtime AI path has been **not operational since revision
 `00014-5rw`** (2026-08-04T06:31:46Z) and that `AiClient.configured?` is false: the section 2
 operational-status note, the section 3 BAA coverage-boundaries bullet, the "Runtime routing update"
 correction paragraph, and the closing 2026-08-04 attestation trailer. Credentials were re-mounted 53
 minutes after that withdrawal, on `00015-9l9` at 2026-08-04T07:25:08Z, and the runtime path has
-since carried user-attributed traffic. The predecessor's section 2 inventory table also still
-describes `ANTHROPIC_API_KEY` as required, which its own "Runtime routing update" section
-contradicts. All of these are corrected below. This is the fifth record in this lineage to carry a
-runtime-status claim that a later deploy invalidated; the four already superseded are the
-subprocessor register, the Anthropic BAA acceptance record, the incident-response and breach
+since carried user-attributed traffic (63 of 64 `AiApiLog` rows carry a `user_global_id`;
+`docs/legal/2026-08-16_subprocessor-register.md:99`). The predecessor's section 2 inventory table
+also still describes `ANTHROPIC_API_KEY` as required, which its own "Runtime routing update" section
+contradicts. All of these are corrected below. This is **at least the seventh** record in this
+lineage to carry a runtime-status claim that a later deploy invalidated. Already superseded for that
+defect class: `docs/legal/AWS_BAA_ACCEPTED.md`, `docs/legal/2026-08-11_aws-baa-acceptance-record.md`,
+the subprocessor register, the Anthropic BAA acceptance record, the incident-response and breach
 runbook, and the AI data-flow classification.
 **Created:** 2026-06-13 (predecessor lineage); this successor 2026-08-19.
 
-**Attestation of this record: none.** This dated successor is a draft. Attestation state lives only
-in `audit-reports/DOCUMENT-REGISTER.json`. Every attestation date in the banner and in section 8
-below is the **predecessor's** history; none of it is a review of these bytes. Only Scot attests.
+**Attestation history in this file is the predecessor's.** Every attestation date in the banner and
+in section 8 below describes `docs/legal/AI_GOVERNANCE_MEMO.md`, not these bytes. Only Scot attests,
+and the register row is where that is recorded.
 
-**Attestation of this successor is BLOCKED, deliberately.** This revision was scoped to the stale
-Bedrock and runtime-credential statements only. **Section 5.2 (EU AI Act Article 50) was not
-re-verified in this revision** and is the subject of a separate production-status truth-up; it is
-carried forward from the predecessor unchanged and must not be read as re-verified. Do not attest
-this record until that work lands.
+**Scope of this revision, which any attestation of it is bounded by.** This revision corrected the
+stale Bedrock and runtime-credential statements **only**. **Section 5.2 (EU AI Act Article 50) was
+carried forward from the predecessor unchanged and was NOT re-verified**; it is the subject of a
+separate production-status truth-up. An attestation recorded against these bytes does not extend to
+section 5.2, and section 5.2 should not be read as re-verified as of this record's date. As written,
+this record was a draft and attestation was deliberately withheld pending that truth-up.
 
 **Citation repair (claim-neutral), and its stated limit.** The predecessor's four
 operational-status cross-references pointed at `docs/legal/AWS_BAA_ACCEPTED.md`, which is now
@@ -101,13 +105,25 @@ practice rather than a capability claim.
 
 Verified against code at draft time. Re-verify before publishing.
 
-> **Operational status, corrected 2026-08-19. The runtime AI path is OPERATIONAL.** This
+> **Operational status, corrected 2026-08-19. The runtime AI path is OPERATIONAL for word
+> prediction and board generation.** Those are the only two request types observed in the evidence
+> (57 `word_prediction`, 7 `board_generation`). **Eval narration is NOT operational** and no call on
+> that path is recorded: on the classic Bedrock plane only `anthropic.claude-haiku-4-5` has an
+> inference-profile mapping, so Claude Opus 4.7 is not invokable and the seam falls back to its
+> deterministic local template (see the plane correction in the "Runtime routing update" section).
+> Do not read the headline as PHI-bearing assessment content egressing today. This
 > supersedes the predecessor's "Operational status, corrected 2026-08-04" note, which closed with
 > "credentials were withdrawn on 2026-08-04T06:31:46Z (revision `00014-5rw`) and
 > `AiClient.configured?` is false again as of that timestamp." That sentence was true for 53
-> minutes. Credentials were re-mounted on `00015-9l9` at 2026-08-04T07:25:08Z and have been present
-> on every revision created since (`docs/legal/2026-08-12_aws-baa-acceptance-record.md` section 2.1
-> carries the per-revision mount table).
+> minutes. Credentials were re-mounted on `00015-9l9` at 2026-08-04T07:25:08Z and were present on
+> **every revision through `lingolinq-web-00020-per`, swept 2026-08-16**
+> (`docs/legal/2026-08-16_anthropic-baa-acceptance-record.md` section 2.2 carries that per-revision
+> mount table and records that **no revision numbered `00019` exists**, the numbering gap following
+> from an aborted deploy). **No revision created after `00020-per` has been checked**, by that sweep
+> or by this revision. An earlier draft of this sentence cited
+> `docs/legal/2026-08-12_aws-baa-acceptance-record.md` section 2.1, whose sweep ends at `00018-cup`
+> and which states that no newer revision existed at its evidence time; that citation could not
+> support a claim about `00020-per` and was corrected on review.
 >
 > **History, retained because the mount history is not monotonic.** The runtime rows were not
 > operational from 2026-07-30T16:37Z until 2026-08-03T08:23:02Z. Revision `00013-76w` mounted
@@ -126,6 +142,12 @@ Verified against code at draft time. Re-verify before publishing.
 > itself a correction: an earlier reading of this evidence was reported as traffic from "two orgs",
 > which conflated the count of organizations then present in production with organization
 > attribution on the log rows. No row carried an organization attribution.
+> **User attribution, recorded here because the header asserts it:** 63 of the 64 rows carry a
+> `user_global_id`, 63 were written since the 2026-08-12 production deploy of PR #734, and by type
+> the rows are 57 `word_prediction` and 7 `board_generation`
+> (`docs/legal/2026-08-16_subprocessor-register.md:99`). That sibling record states all 64 calls
+> succeeded; this record does not repeat that, because success per call is a vendor-side fact and
+> the limits below apply.
 >
 > **What the evidence does NOT establish, stated rather than glossed.**
 > - **No AWS-side or vendor-side confirmation was obtained.** No CloudWatch `AWS/Bedrock`
@@ -161,7 +183,7 @@ Verified against code at draft time. Re-verify before publishing.
 |---|---|---|---|---|
 | Word/phrase prediction (runtime) | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) only -- Gemini fallback disabled 2026-07-09 | `lib/ai_word_predictor.rb` | Yes, but **scrubbed first** | Every sentence passes `PiiScrubber.redact_for_ai` before the call (line 55); each call logged to `AiApiLog`. Feature-flag gated, COPPA hard block for under-13. **Corrected 2026-08-19:** this cell read "`ANTHROPIC_API_KEY` is now required", which the "Runtime routing update" section below has contradicted since 2026-07-24. Runtime credentials are `BEDROCK_AWS_KEY` / `BEDROCK_AWS_SECRET`, read by `lib/ai_client.rb`; no runtime seam reads `ANTHROPIC_API_KEY`, and `scripts/ai-endpoint-guard.sh` fails CI if one starts to. There is no automatic fallback provider. |
 | Offline prediction dictionary generation | Claude Haiku 4.5 only -- Gemini fallback disabled 2026-07-09 | `lib/ai_prediction_generator.rb` | No | Offline batch job; sends only static word lists, never user sentences or identifiers. |
-| Comprehensive eval narration (runtime, product) | Claude Opus 4.7 (`claude-opus-4-7` default; `EVAL_NARRATOR_MODEL` override **pinned to an exact-ID allowlist**), Anthropic under the HIPAA-Ready BAA (2026-07-18) | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Yes, but **scrubbed first** | `PiiScrubber.redact_for_ai` on the payload before egress, plus a structural student-name drop and **`etiology` (medical-cause) minimization**; model pinned to an exact-ID allowlist (`ALLOWED_MODELS`, refuses Covered/unknown models); every call logged to `AiApiLog`; COPPA hard block (`FeatureFlags.coppa_blocks_ai_for?`) for under-13; external narration is opt-in and the egress payload is bound to the server-resolved user; org opt-out via the `comprehensive_eval_ai` feature flag. **Classified NOT a HIPAA Healthcare Activity** (assistive-technology access assessment; Scot 2026-07-19; register LL-3a1c317a88), so no licensed-clinician gate applies. Residual consent-binding gap tracked as LL-11db0dc848. Brought under governance by #411/#412 (#413), BAA + gates by #631/#632. |
+| Comprehensive eval narration (runtime, product) | Claude Opus 4.7 (`claude-opus-4-7` default; `EVAL_NARRATOR_MODEL` override **pinned to an exact-ID allowlist**), Anthropic under the HIPAA-Ready BAA (2026-07-18) | `lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb` | Yes, but **scrubbed first** | `PiiScrubber.redact_for_ai` on the payload before egress, plus a structural student-name drop and **`etiology` (medical-cause) minimization**; model pinned to an exact-ID allowlist (`ALLOWED_MODELS`, refuses Covered/unknown models); every call logged to `AiApiLog`; COPPA hard block (`FeatureFlags.coppa_blocks_ai_for?`) for under-13; external narration is opt-in and the egress payload is bound to the server-resolved user; org opt-out via the `comprehensive_eval_ai` feature flag. **Classified NOT a HIPAA Healthcare Activity** (assistive-technology access assessment; Scot 2026-07-19; register LL-3a1c317a88), so no licensed-clinician gate applies. Consent-binding was tracked as LL-11db0dc848, **verified-closed** (disposition `fixed`, decided by Scot 2026-06-18); corrected 2026-08-19, the predecessor still described it as an open residual gap. Brought under governance by #411/#412 (#413), BAA + gates by #631/#632. |
 | Developer code review (internal tooling, not product) | Opus 4.8 (Claude); DeepSeek-V3.2 via OpenRouter (secondary) | dev workflow (`/review-pr`, codex) | No | Sanitized diffs only; no student or patient data. OpenRouter has no BAA and runs ZDR; the PiiScrubber-equivalent here is the no-PHI-in-diffs rule. PII-free compliance *documents* (the audit register: status/severity/IDs, code/path evidence) are **Tier 2** and may be reviewed; the boundary is data-bearing content (fixtures/seeds/cassettes/etc.), enforced by `codex-review-guard.sh`, not the compliance-surface label. See section 4.1 (resolved 2026-07-12). |
 
 Notes:
@@ -313,6 +335,16 @@ is a documented analysis, not an assumption.
 
 ### 5.2 Article 50 transparency (decided position)
 
+> **CARRIED FORWARD UNVERIFIED (marker added 2026-08-19).** This entire section is byte-identical to
+> the predecessor and was **not** re-verified in the 2026-08-19 revision, which was scoped to
+> Bedrock runtime status. Two specific cautions. **(1)** The **2026-08-02 release gate** stated below
+> has elapsed; whether it was met was not checked here. **(2)** The claim that the
+> `article_50_disclosure` flag is off for everyone rests on its registration as AVAILABLE-only in
+> `lib/feature_flags.rb`; production feature flags can be served from a database override that
+> enables a flag the code registers AVAILABLE-only, and **the production flag state was not read**.
+> Nothing here asserts the claim is false. It asserts it is unchecked. A dedicated Article 50
+> production-status truth-up owns this section; read it before relying on any statement in it.
+
 Article 50 transparency obligations apply from **2026-08-02** and are not limited to high-risk
 systems. They cover disclosing AI interaction to users (50(1)) and marking synthetic or
 AI-generated content (50(2)). This section states LingoLinq's **decided** applicability
@@ -385,8 +417,11 @@ shared contract -- any Article 50 thread reads it first and updates it last; **(
 re-written by the Phase 5 shipping thread on modal delivery and, as written at that time, awaited
 Scot's re-attestation per section 6. **[Discharged 2026-07-22: Scot Wahlquist, CEO, re-attested the
 Phase 5 section 5.2 rewrite on that date; see the 2026-07-22 amendment in section 8. The clause is
-retained as the historical record of the Phase 5 handoff. No re-attestation of this section is
-outstanding, and the document's current attestation is 2026-08-04.]**
+retained as the historical record of the Phase 5 handoff. No re-attestation of this section was
+outstanding as of 2026-08-04, when the PREDECESSOR (`docs/legal/AI_GOVERNANCE_MEMO.md`) was last
+attested. **Corrected 2026-08-19:** that final clause read "the document's current attestation is
+2026-08-04", which described the predecessor and does not describe this successor; see the scope
+statement in the header for what an attestation of this record covers.]**
 Compliance-posture documentation (this memo, the calendar) remains a separate, non-code workstream
 and never edits the call sites.
 
@@ -439,7 +474,9 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
       constructs a direct `api.anthropic.com` client. **PR #805 is MERGED (2026-08-17T22:43:36Z)**
       and removed `ANTHROPIC_API_KEY` from `NON_BOOT_SECRETS` in
       `.github/workflows/deploy-cloudrun.yml`, so new revisions do not mount it; the removal is
-      recorded in the comment at `.github/workflows/deploy-cloudrun.yml:227-232`. Two honest limits.
+      recorded in the comment at `.github/workflows/deploy-cloudrun.yml:227-232`. That comment reads
+      "REMOVED from this list on 2026-08-15", which is the date the change was authored; it merged
+      2026-08-17T22:43:36Z. Two honest limits.
       (1) The revision named in the section 2 evidence, `lingolinq-web-00020-per`, still carried the
       dormant mount; whether a post-#805 revision is now serving without it was **not re-queried in
       this revision**. (2) Removing the mount is not a decommission: the credential is still an
@@ -601,7 +638,8 @@ that evidence does not establish, and
   The condition is now asserted in code rather than left to manual re-verification: `AiClient` reads
   `BEDROCK_EXPECTED_AWS_ACCOUNT` (`lib/ai_client.rb:90`), calls `sts:GetCallerIdentity` under the
   exact Bedrock credential in `account_verified?` (`lib/ai_client.rb:508`), and refuses to return a
-  client when the account does not match (`lib/ai_client.rb:321`, `:371`). The deploy workflow sets
+  client when the account does not match (`lib/ai_client.rb:321`, inside `build`). The seam-facing
+  predicate `available?` (`lib/ai_client.rb:371`) is gated on the same check. The deploy workflow sets
   that variable as a literal and refuses to deploy without it
   (`.github/workflows/deploy-cloudrun.yml:281`, `:406-419`, `:726-732`). That control closed
   register finding `LL-1b0d78dbe6`. **Two limits on that control, stated because the point of this
