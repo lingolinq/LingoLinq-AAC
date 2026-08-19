@@ -1079,10 +1079,29 @@ describe Supervising, :type => :model do
   describe "board-cache enqueue ordering" do
     self.use_transactional_tests = false
 
+    # Nothing rolls back in this group, so cleanup is manual -- but it must be
+    # SCOPED. `User.delete_all` here also removed rows any other file had
+    # committed, and db/schema.rb declares no foreign keys, so it left orphaned
+    # boards/devices/log_sessions pointing at dead ids. Snapshot first, delete only
+    # what the example added. (Worker.flush_queues stays global: the queue is what
+    # these examples assert on, and the suite does not run examples in parallel.)
+    before(:each) do
+      @pre_user_ids = User.pluck(:id)
+      @pre_link_ids = UserLink.pluck(:id)
+      # Always [] today: spec_helper.rb's global before(:each) already runs an
+      # unscoped RemoteAction.delete_all and outer hooks run first. Kept as a
+      # defence against that hook going away, not as an active protection.
+      @pre_ra_ids = RemoteAction.pluck(:id)
+    end
+
     after(:each) do
-      UserLink.delete_all
-      User.delete_all
-      RemoteAction.delete_all
+      # Guarded: if the before hook raised, these are nil, and `where.not(id: nil)`
+      # compiles to `id IS NOT NULL` -- a full-table delete, which is the exact
+      # cross-file destruction this scoping exists to prevent.
+      return unless @pre_user_ids && @pre_link_ids && @pre_ra_ids
+      UserLink.where.not(id: @pre_link_ids).delete_all
+      RemoteAction.where.not(id: @pre_ra_ids).delete_all
+      User.where.not(id: @pre_user_ids).delete_all
       Worker.flush_queues
     end
 
@@ -1105,6 +1124,100 @@ describe Supervising, :type => :model do
       RemoteAction.where(path: user.global_id, action: 'update_available_boards')
     end
 
+    it "should keep the outbox row after the enqueue is merely accepted" do
+      supervisor = User.create
+      user = User.create
+      User.link_supervisor_to_user(supervisor, user)
+
+      # Resque.enqueue returning means Redis took an LPUSH, not that the refresh
+      # ran. Releasing here would drop the only durable guarantee behind a revoke.
+      expect(queued_board_updates_for(supervisor)).to_not eq([])
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(1)
+    end
+
+    it "should release the outbox row when the refresh actually completes" do
+      supervisor = User.create
+      user = User.create
+      User.link_supervisor_to_user(supervisor, user)
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(1)
+
+      # This is what stops hourly remote_remove_batch running a second full
+      # recompute for every supervision change.
+      supervisor.reload.update_available_boards
+
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(0)
+    end
+
+    it "should not release a row written while the refresh was in flight" do
+      supervisor = User.create
+      user = User.create
+      User.link_supervisor_to_user(supervisor, user)
+      RemoteAction.where(path: supervisor.global_id, action: 'update_available_boards').delete_all
+      # A change the in-flight pass cannot have seen, so its row must survive it.
+      RemoteAction.create(path: supervisor.global_id, action: 'update_available_boards', act_at: 1.minute.from_now)
+
+      supervisor.reload.update_available_boards
+
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(1)
+    end
+
+    it "should not drag a debounced outbox row forward when linking" do
+      supervisor = User.create
+      user = User.create
+      # board_caching.rb:22-25 parks this row deliberately for >500-board accounts.
+      later = 30.minutes.from_now
+      RemoteAction.create(path: supervisor.global_id, action: 'update_available_boards', act_at: later)
+      allow_any_instance_of(User).to receive(:schedule_once).with(:update_available_boards).and_return(false)
+
+      User.link_supervisor_to_user(supervisor, user)
+
+      rows = board_cache_remote_actions_for(supervisor)
+      expect(rows.count).to eq(1)
+      expect(rows.first.act_at).to be > 20.minutes.from_now
+    end
+
+    it "should drag a debounced outbox row forward when revoking" do
+      supervisor = User.create
+      user = User.create
+      User.link_supervisor_to_user(supervisor, user)
+      RemoteAction.where(path: supervisor.global_id, action: 'update_available_boards').delete_all
+      RemoteAction.create(path: supervisor.global_id, action: 'update_available_boards', act_at: 30.minutes.from_now)
+      allow_any_instance_of(User).to receive(:schedule_once).with(:update_available_boards).and_return(false)
+
+      # A revoked supervisor keeps real access to private boards until this runs,
+      # so it must not wait behind the debounce the link path respects.
+      User.unlink_supervisor_from_user(supervisor.reload, user.reload)
+
+      rows = board_cache_remote_actions_for(supervisor)
+      expect(rows.count).to eq(1)
+      expect(rows.first.act_at).to be <= Time.now
+    end
+
+    it "should defer remove_supervisors! past commit for a grace-period supervisor" do
+      supervisor = User.create
+      user = User.create
+      allow_any_instance_of(User).to receive(:grace_period?).and_return(true)
+      during = nil
+
+      # remove_supervisors! (:157) unlinks EVERY supervisor of this user. Enqueued
+      # inside the transaction, a rollback left the link undone but the job live.
+      User.transaction do
+        User.link_supervisor_to_user(supervisor, user)
+        during = Resque.queues.flat_map { |q|
+          Resque.size(q).times.map { |i| Resque.peek(q, i) }
+        }.compact.flat_map { |item| item['args'] || [] }
+          .select { |a| a.is_a?(Hash) && a['method'] == 'remove_supervisors!' }
+      end
+
+      after_commit = Resque.queues.flat_map { |q|
+        Resque.size(q).times.map { |i| Resque.peek(q, i) }
+      }.compact.flat_map { |item| item['args'] || [] }
+        .select { |a| a.is_a?(Hash) && a['method'] == 'remove_supervisors!' }
+
+      expect(during).to eq([])
+      expect(after_commit).to_not eq([])
+    end
+
     it "should defer the supervisor board-cache recompute past commit when linking" do
       sup = User.create
       com = User.create
@@ -1121,6 +1234,8 @@ describe Supervising, :type => :model do
       expect(during_jobs).to eq([]), "board-cache recompute was queued while the transaction was still open"
       expect(during_ra).to eq(1), "durable outbox row must be written inside the same transaction as the link"
       expect(queued_board_updates_for(sup).length).to be > 0
+      # Still 1: the row outlives the ENQUEUE on purpose and is released by the
+      # worker on completion. Enqueue acceptance is not proof the refresh happened.
       expect(board_cache_remote_actions_for(sup).count).to eq(1)
     end
 
@@ -1142,6 +1257,8 @@ describe Supervising, :type => :model do
       expect(during_jobs).to eq([]), "board-cache recompute was queued while the transaction was still open"
       expect(during_ra).to eq(1), "durable outbox row must be written inside the same transaction as the unlink"
       expect(queued_board_updates_for(sup).length).to be > 0
+      # Still 1: the row outlives the ENQUEUE on purpose and is released by the
+      # worker on completion. Enqueue acceptance is not proof the refresh happened.
       expect(board_cache_remote_actions_for(sup).count).to eq(1)
     end
 
