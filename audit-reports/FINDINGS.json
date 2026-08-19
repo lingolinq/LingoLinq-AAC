@@ -4492,7 +4492,7 @@
         "rationale": "Confirmed real Article 17 / FERPA erasure defect by manual trace. Set at medium rather than the high carried by LL-854b1d3853: that finding retained a child's actual voice and video content, whereas a LogSnapshot retains only a saved report window (label, date range, device_id, location_id) and its location_id already dangles because ClusterLocation is erased. Accepted; fix by adding the Flusher sweep. Production exposure is NOT established: api/snapshots_controller.rb is a live API path, and static inspection cannot determine whether production rows exist. No claim is made either way."
       },
       "source": {
-        "kind": "manual-trace",
+        "kind": "manual",
         "reviewer": "claude-compliance-verification",
         "promotedDate": "2026-08-10"
       },
