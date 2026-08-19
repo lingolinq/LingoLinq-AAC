@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-19T04:42:19.902Z
+# Generated: 2026-08-19T05:02:59.400Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -498,29 +498,29 @@ app/controllers/user/board-detail.js|ember/no-runloop|4157|7|2|513c0395fe72
 app/controllers/user/board-detail.js|ember/no-runloop|4170|33|2|5addc2170315
 app/controllers/user/board-detail.js|ember/no-runloop|4661|9|2|5addc2170315
 app/controllers/user/board-detail.js|ember/no-runloop|496|5|2|5addc2170315
-app/controllers/user/board-detail.js|ember/no-runloop|5392|7|2|5addc2170315
-app/controllers/user/board-detail.js|ember/no-runloop|5603|17|2|513c0395fe72
-app/controllers/user/board-detail.js|ember/no-runloop|5631|17|2|513c0395fe72
-app/controllers/user/board-detail.js|ember/no-runloop|5968|7|2|5addc2170315
-app/controllers/user/board-detail.js|ember/no-runloop|5993|9|2|00fc6802e68e
-app/controllers/user/board-detail.js|ember/no-runloop|6061|9|2|00fc6802e68e
+app/controllers/user/board-detail.js|ember/no-runloop|5402|7|2|5addc2170315
+app/controllers/user/board-detail.js|ember/no-runloop|5613|17|2|513c0395fe72
+app/controllers/user/board-detail.js|ember/no-runloop|5641|17|2|513c0395fe72
+app/controllers/user/board-detail.js|ember/no-runloop|5978|7|2|5addc2170315
+app/controllers/user/board-detail.js|ember/no-runloop|6003|9|2|00fc6802e68e
+app/controllers/user/board-detail.js|ember/no-runloop|6071|9|2|00fc6802e68e
 app/controllers/user/board-detail.js|ember/no-runloop|673|7|2|5addc2170315
 app/controllers/user/board-detail.js|ember/no-runloop|688|48|2|513c0395fe72
 app/controllers/user/board-detail.js|ember/no-runloop|689|44|2|5addc2170315
 app/controllers/user/board-detail.js|ember/no-runloop|697|7|2|5addc2170315
-app/controllers/user/board-detail.js|ember/no-runloop|7026|7|2|5addc2170315
-app/controllers/user/board-detail.js|ember/no-runloop|7046|42|2|5addc2170315
+app/controllers/user/board-detail.js|ember/no-runloop|7036|7|2|5addc2170315
+app/controllers/user/board-detail.js|ember/no-runloop|7056|42|2|5addc2170315
 app/controllers/user/board-detail.js|ember/no-runloop|711|50|2|513c0395fe72
 app/controllers/user/board-detail.js|ember/no-runloop|712|46|2|5addc2170315
 app/controllers/user/board-detail.js|ember/no-runloop|718|9|2|5addc2170315
-app/controllers/user/board-detail.js|ember/no-runloop|7283|7|2|5addc2170315
-app/controllers/user/board-detail.js|ember/no-runloop|7327|9|2|5addc2170315
-app/controllers/user/board-detail.js|ember/no-runloop|7717|7|2|5addc2170315
-app/controllers/user/board-detail.js|ember/no-runloop|7928|11|2|5addc2170315
+app/controllers/user/board-detail.js|ember/no-runloop|7293|7|2|5addc2170315
+app/controllers/user/board-detail.js|ember/no-runloop|7337|9|2|5addc2170315
+app/controllers/user/board-detail.js|ember/no-runloop|7727|7|2|5addc2170315
+app/controllers/user/board-detail.js|ember/no-runloop|7938|11|2|5addc2170315
 app/controllers/user/board-detail.js|ember/no-runloop|796|45|2|513c0395fe72
-app/controllers/user/board-detail.js|ember/no-runloop|7994|13|2|5addc2170315
+app/controllers/user/board-detail.js|ember/no-runloop|8004|13|2|5addc2170315
 app/controllers/user/board-detail.js|ember/no-runloop|806|7|2|513c0395fe72
-app/controllers/user/board-detail.js|ember/no-runloop|8112|7|2|5addc2170315
+app/controllers/user/board-detail.js|ember/no-runloop|8122|7|2|5addc2170315
 app/controllers/user/board-detail.js|ember/no-runloop|898|5|2|00fc6802e68e
 app/controllers/user/board-detail.js|ember/no-string-prototype-extensions|2165|53|1|a79d5531a031
 app/controllers/user/board-detail.js|ember/require-computed-property-dependencies|2485|35|1|a0fc68806b88

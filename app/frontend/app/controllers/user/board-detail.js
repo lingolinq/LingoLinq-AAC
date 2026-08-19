@@ -5267,7 +5267,12 @@ export default Controller.extend(prefClasses, {
        deferring it to the board's Save button would attach it to the wrong
        lifecycle and silently discard it if the edit is cancelled. */
     toggle_categorize: function() {
-      this._save_category_grouping({ enabled: !this.get('categorize_enabled') });
+      var next_enabled = !this.get('categorize_enabled');
+      /* Switching OFF while the move-to-category picker is open would leave a
+         dialog about categories floating over a preview that no longer has any.
+         Close it here rather than only blocking new opens. */
+      if(!next_enabled) { this.set('category_move_button', null); }
+      this._save_category_grouping({ enabled: next_enabled });
     },
 
     /* Move one category earlier/later in the sequence.
@@ -5296,6 +5301,11 @@ export default Controller.extend(prefClasses, {
        touch-operable, which a drag gesture is not (WCAG 2.1 SC 2.1.1). */
     begin_category_move: function(btn) {
       if(!btn) { return; }
+      /* Second half of the gate the template already applies to `@selectButton`.
+         Kept as its own check so the picker cannot be opened by any future caller
+         that reaches the action directly — the template gate is the UX, this is the
+         invariant (see LEARNINGS: gated actions need both a template and a JS gate). */
+      if(!this.get('categorize_enabled')) { return; }
       this.set('category_move_button', btn);
     },
 

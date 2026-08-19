@@ -22,6 +22,7 @@ file (see [README.md](README.md)).
 
 - [Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep](#gotcha-the-boot-skeleton-is-ll-skel-progress-not-ll-premium-progress--and-a-shared-component-fix-has-no-siblings-left-to-sweep)
 - [Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`](#pattern-the-board-tile-board_action-is-a-contextual-remove-not-a-delete-button--gate-on-remove_type)
+- [Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing](#gotcha-a-hard-coded-forcegroupingtrue-makes-a-preview-lie-about-the-preference-it-is-previewing)
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
@@ -13582,3 +13583,39 @@ not just the JS for the action (CLAUDE.md 0.11).
 
 **Evidence:** [`2026-08-18-remove-board-tile-hover-trash.md`](./2026-08-18-remove-board-tile-hover-trash.md),
 probe `app/frontend/scripts/boards-tile-delete-removed-qa.mjs`.
+
+
+## Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing
+
+The Categorize panel renders its live preview with the SAME `BoardDetailGrid` the real
+board uses — good, because what is previewed cannot drift from what ships — but it
+passed `@forceGrouping={{true}}`. `BoardDetailGrid#groupingEnabled` short-circuits on
+that flag *before* it consults `preferences.board_category_grouping.enabled`, so
+unchecking the panel's own Categorize box persisted the preference, changed the real
+board, and left the preview grouped. The control read as broken while the thing it
+controlled was working perfectly.
+
+**The general shape:** when a preview reuses the production component, any `force*` /
+`override*` argument you pass to make the preview render is a BYPASS of the exact state
+the preview is supposed to be showing. Bind it to that state
+(`@forceGrouping={{this.categorize_enabled}}`) instead of pinning it true, and check
+what the computed falls through to when it is false — here `editMode` is already false
+for the preview, so it lands on the preference, which is the answer you want.
+
+**Two smaller things from the same change:**
+
+- A control that gates other controls has to hide them. With grouping off, the category
+  ORDER list and "Reset order" have nothing to act on — gate them in the template, not
+  in CSS, so they leave the tab order instead of becoming invisible tab stops. And check
+  the hint copy: the ON text said "use the arrows", which described a control that was
+  no longer rendered.
+- To make a checkbox prominent, repaint it — never replace it. Keep the
+  `<input type="checkbox">` inside its `<label>` and hide it with `opacity: 0` (never
+  `display: none`, which drops it from the tab order), draw a track/knob beside it, and
+  move the focus ring onto the track with `input:focus-visible + .track`. Drive the
+  off-state paint from an Ember-set class rather than `:not(:checked)`: `checked={{…}}`
+  sets the DOM property, and one source of truth keeps paint and state together across
+  re-render as well as user input.
+
+**Evidence:** [`2026-08-18-categorize-switch-prominence-and-off-state.md`](./2026-08-18-categorize-switch-prominence-and-off-state.md),
+probe `app/frontend/scripts/board-categorize-toggle-qa.mjs` (6/6).

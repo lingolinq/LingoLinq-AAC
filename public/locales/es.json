@@ -9093,5 +9093,8 @@
   "board_categorize_reset": "*** Reset order",
   "board_category_order": "*** Category order",
   "board_move_button_category": "*** Move button to a category",
-  "board_move_button_recolors": "*** This changes the button's color on the board."
+  "board_move_button_recolors": "*** This changes the button's color on the board.",
+  "board_categorize_on": "*** On",
+  "board_categorize_off": "*** Off",
+  "board_categorize_hint_off": "*** Categorizing is off. This board's buttons are shown in their original order."
 }

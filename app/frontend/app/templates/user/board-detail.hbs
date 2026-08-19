@@ -3490,19 +3490,48 @@
         behaviour is untouched. --}}
   {{#if this.category_order_open}}
     <div class="md-board-category-order" id="board-category-order-panel" role="region" aria-label={{t "Categorize board" key="board_categorize_panel"}}>
+      {{!-- The Categorize switch is this panel's PRIMARY control — the order list,
+           Reset and the grouped preview below all only mean something while it is
+           on, so everything else here is gated on it. Presented as a switch with an
+           explicit On/Off word because as a bare checkbox in this bar it was
+           reported as easy to miss entirely. It is still a real
+           <input type="checkbox"> inside its <label>, so keyboard operation, the
+           screen-reader role and the click-the-label target are unchanged; only the
+           painting differs (see `.md-board-category-order__toggle` in app.scss). --}}
       <div class="md-board-category-order__bar">
-        <label class="md-board-category-order__toggle">
-          <input type="checkbox" checked={{this.categorize_enabled}} {{on "change" (this.ctrlAction "toggle_categorize")}}>
-          <span>{{t "Categorize" key="board_categorize"}}</span>
+        <label class="md-board-category-order__toggle {{unless this.categorize_enabled "md-board-category-order__toggle--off"}}">
+          <input type="checkbox" checked={{this.categorize_enabled}} {{on "change" (this.ctrlAction "toggle_categorize")}} aria-describedby="board-category-order-hint">
+          <span class="md-board-category-order__toggle-track" aria-hidden="true"><span class="md-board-category-order__toggle-knob"></span></span>
+          <span class="md-board-category-order__toggle-label">{{t "Categorize" key="board_categorize"}}</span>
+          {{!-- aria-hidden: the checkbox already announces its own checked state,
+               so voicing "On"/"Off" again would double it. This is for sighted
+               users reading the switch at a glance. --}}
+          <span class="md-board-category-order__toggle-state" aria-hidden="true">{{#if this.categorize_enabled}}{{t "On" key="board_categorize_on"}}{{else}}{{t "Off" key="board_categorize_off"}}{{/if}}</span>
         </label>
-        <p class="md-board-category-order__hint">{{t "Group this board's buttons by category. Use the arrows to change the order the categories appear in." key="board_categorize_hint"}}</p>
+        <p class="md-board-category-order__hint" id="board-category-order-hint">
+          {{#if this.categorize_enabled}}
+            {{t "Group this board's buttons by category. Use the arrows to change the order the categories appear in." key="board_categorize_hint"}}
+          {{else}}
+            {{!-- The ON copy tells the user to "use the arrows", and the arrows are
+                 not rendered while this is off — so it needs its own sentence
+                 rather than being left to describe a control that isn't there. --}}
+            {{t "Categorizing is off. This board's buttons are shown in their original order." key="board_categorize_hint_off"}}
+          {{/if}}
+        </p>
         <div class="md-board-category-order__bar-actions">
-          <button type="button" class="md-board-category-order__reset" data-bd-action="reset_category_order" {{on "click" (this.ctrlAction "reset_category_order")}}>{{t "Reset order" key="board_categorize_reset"}}</button>
+          {{#if this.categorize_enabled}}
+            <button type="button" class="md-board-category-order__reset" data-bd-action="reset_category_order" {{on "click" (this.ctrlAction "reset_category_order")}}>{{t "Reset order" key="board_categorize_reset"}}</button>
+          {{/if}}
           <button type="button" class="md-board-category-order__close" data-bd-action="toggle_category_order" {{on "click" (this.ctrlAction "toggle_category_order")}}>{{t "Done" key="done"}}</button>
         </div>
       </div>
 
       <div class="md-board-category-order__body">
+        {{!-- Order list only while categorizing is on: with it off the board is not
+             grouped, so a category SEQUENCE has nothing to sequence. Gated in the
+             template rather than hidden in CSS so it leaves the accessibility tree
+             and the tab order too, instead of being invisible tab stops. --}}
+        {{#if this.categorize_enabled}}
         <ol class="md-board-category-order__list" aria-label={{t "Category order" key="board_category_order"}}>
           {{#each this.category_order_list as |cat|}}
             <li class="md-board-category-order__item" style={{safe-style (concat "--bd-group-fill:var(" cat.fillVar ");--bd-group-text:var(" cat.textVar ")")}}>
@@ -3523,16 +3552,29 @@
             </li>
           {{/each}}
         </ol>
+        {{/if}}
 
         <div class="md-board-category-order__preview">
           {{!-- selectButton is wired to the move picker rather than to activation:
                 inside this panel, tapping a button means "move this one", not
-                "speak this one". --}}
+                "speak this one".
+                GATED ON THE SWITCH: with categorizing off the preview is the plain,
+                ungrouped board and there are no categories on screen, so offering to
+                "move this button to a category" has nothing to point at. Passing no
+                handler is enough — BoardDetailGrid#invokeAttr no-ops when the action
+                is falsy (board-detail-grid.js:169-177) — and the action itself also
+                guards, so neither path can open the picker on its own. --}}
           <BoardDetailGrid
             @board={{this.model}}
             @orderedButtons={{this.ordered_buttons}}
-            @forceGrouping={{true}}
-            @selectButton={{this.ctrlAction "begin_category_move"}}
+            {{!-- Follows the switch. Hard-coding this to `true` made the preview
+                  lie: unchecking Categorize saved the preference but the preview
+                  stayed grouped, because `forceGrouping` short-circuits
+                  BoardDetailGrid#groupingEnabled before it consults the
+                  preference. Bound, the off state falls through to the preference
+                  (editMode is false here) and renders the original board. --}}
+            @forceGrouping={{this.categorize_enabled}}
+            @selectButton={{if this.categorize_enabled (this.ctrlAction "begin_category_move")}}
             @editMode={{false}}
             @softBorders={{this.soft_borders}}
             @buttonTextSizeClass={{this.button_text_size_class}}

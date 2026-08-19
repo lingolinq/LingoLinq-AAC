@@ -101232,22 +101232,114 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
 }
 
+/* The Categorize switch. This is the panel's primary control — the order list,
+   Reset and the grouped preview are all gated on it — but as an 18px system
+   checkbox sitting in a dark bar next to a paragraph of hint text it read as
+   incidental. Painted as a switch inside its own raised pill so it is the first
+   thing in the bar the eye lands on, with the state spelled out in words rather
+   than left to a 2px tick.
+   The <input> stays in the DOM and stays focusable (opacity only, never
+   `display: none`), so the label association, keyboard toggle and announced
+   checked state are exactly as before. */
 .md-board-category-order__toggle {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 0 0 auto;
   margin: 0;
-  font-size: 16px;
+  padding: 8px 14px 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.10);
+  font-size: 17px;
   font-weight: 700;
   color: #fff;
   cursor: pointer;
 }
 
+.md-board-category-order__toggle:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+/* Visually replaced by the track/knob below, NOT removed: it still receives
+   focus and still carries the checked state for assistive tech. */
 .md-board-category-order__toggle input {
-  width: 18px;
-  height: 18px;
+  position: absolute;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  left: 10px;
+  opacity: 0;
   cursor: pointer;
+}
+
+.md-board-category-order__toggle-track {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: $brand-verdigris;
+  transition: background 140ms ease;
+}
+
+.md-board-category-order__toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transform: translateX(18px);
+  transition: transform 140ms ease;
+}
+
+/* Focus ring lands on the track, since the real input is transparent. */
+.md-board-category-order__toggle input:focus-visible + .md-board-category-order__toggle-track {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+.md-board-category-order__toggle-state {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: $brand-charcoal-dark;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* OFF state. Driven by a class on the label rather than `input:not(:checked)`
+   because `checked={{...}}` sets the DOM PROPERTY, and the `:checked` selector
+   tracks it correctly on user input but the class keeps the paint in step with
+   the Ember state on re-render too — one source of truth for both. */
+.md-board-category-order__toggle--off {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.md-board-category-order__toggle--off .md-board-category-order__toggle-track {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.md-board-category-order__toggle--off .md-board-category-order__toggle-knob {
+  transform: translateX(0);
+}
+
+.md-board-category-order__toggle--off .md-board-category-order__toggle-state {
+  background: rgba(255, 255, 255, 0.20);
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .md-board-category-order__toggle-track,
+  .md-board-category-order__toggle-knob {
+    transition: none;
+  }
 }
 
 .md-board-category-order__hint {
