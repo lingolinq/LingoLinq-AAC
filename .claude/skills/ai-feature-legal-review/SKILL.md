@@ -172,11 +172,13 @@ Return:
   The designated runtime provider is **Anthropic Claude on AWS Bedrock** via `AiClient`, using
   `BEDROCK_AWS_KEY` and `BEDROCK_AWS_SECRET`; `BEDROCK_EXPECTED_AWS_ACCOUNT` pins the allowed AWS
   account. `ANTHROPIC_API_KEY` and `GEMINI_API_KEY` are not runtime credentials or fallback paths.
-  Designated does not mean active: call the path active only after verifying the serving revision's
-  Bedrock secret linkage, a controlled successful request, and its corresponding `AiApiLog` row.
-  If those checks are absent, describe the path as designated or configured only. The evaluation
-  narration surface remains "Never send externally" unless an explicit approved legal and vendor
-  basis exists, regardless of the designated code path.
+  Designated does not mean active: verify the serving revision's Bedrock secret linkage, a
+  controlled successful request, and its corresponding `AiApiLog` row as internal corroboration.
+  `AiApiLog` can under-record, so it is not a durable egress ledger; when making a production
+  egress claim, also seek vendor-side CloudTrail, CloudWatch, or equivalent evidence and state any
+  evidence gap. If these checks are absent, describe the path as designated or configured only.
+  The evaluation narration surface remains "Never send externally" unless an explicit approved
+  legal and vendor basis exists, regardless of the designated code path.
 - `lib/feature_flags.rb` -- `ai_feature_enabled_for?`, `coppa_blocks_ai_for?` (signup-COPPA gate).
 - `User#ai_consent_granted?(disclosures_version:)/grant_ai_consent!(disclosures_version:, granted_by:, source:)/revoke_ai_consent!`
   -- second-tier consent (Phase 1). Consent is scoped to a disclosure version: `ai_consent_granted?`

@@ -2,7 +2,7 @@
 # ai-endpoint-guard.sh
 #
 # CI guard: every runtime AI (Tier 1) seam must egress to Claude via AWS Bedrock
-# (the AiClient path), never the direct api.anthropic.com endpoint. Bedrock keeps
+# (the AiClient path), never a direct Anthropic or Gemini endpoint. Bedrock keeps
 # inference inside AWS's HIPAA-eligible service boundary, covered by the AWS
 # account BAA (docs/legal/AWS_BAA_ACCEPTED.md); the direct endpoint is a separate
 # third-party egress with its own BAA and is intentionally not constructed at
@@ -15,8 +15,10 @@
 #
 # Fails (exit 1) if a runtime seam:
 #   1. constructs a direct Anthropic client (Anthropic::Client.new), or
-#   2. reads the direct-endpoint credential ENV['ANTHROPIC_API_KEY'], or
-#   3. AiClient stops building either Bedrock client.
+#   2. re-adds either direct-provider key to the Cloud Run runtime mount, or
+#   3. reads either direct-provider credential ENV['ANTHROPIC_API_KEY'] or
+#      ENV['GEMINI_API_KEY'], or
+#   4. AiClient stops building either Bedrock client.
 #
 # Runs read-only greps; no network, no mutation.
 set -euo pipefail
@@ -48,18 +50,28 @@ for f in "${SEAMS[@]}"; do
   fi
 done
 
-# 2. No runtime seam reads the direct-endpoint credential ANTHROPIC_API_KEY.
-#    (A comment mentioning the name is fine; an actual ENV read is not.)
+# 2. Deprecated direct-provider credentials must not return to the Cloud Run mount.
+#    The exact NON_BOOT_SECRETS assignment is checked rather than comments, which may
+#    continue to name the removed keys for historical context.
+if [[ -f .github/workflows/deploy-cloudrun.yml ]] && \
+   grep -nE 'NON_BOOT_SECRETS:.*(ANTHROPIC|GEMINI)_API_KEY' .github/workflows/deploy-cloudrun.yml >/dev/null 2>&1; then
+  echo "FAIL: deploy-cloudrun.yml mounts a deprecated direct-provider API key"
+  grep -nE 'NON_BOOT_SECRETS:.*(ANTHROPIC|GEMINI)_API_KEY' .github/workflows/deploy-cloudrun.yml
+  status=1
+fi
+
+# 3. No runtime seam reads either direct-provider credential.
+#    (A comment mentioning a name is fine; an actual ENV read is not.)
 for f in "${SEAMS[@]}"; do
   [[ -f "$f" ]] || continue
-  if grep -nE "ENV\[['\"]ANTHROPIC_API_KEY['\"]\]|ENV\.fetch\(['\"]ANTHROPIC_API_KEY['\"]" "$f" >/dev/null 2>&1; then
-    echo "FAIL: $f reads ENV['ANTHROPIC_API_KEY'] -- runtime AI must route via Bedrock (AiClient)"
-    grep -nE "ENV\[['\"]ANTHROPIC_API_KEY['\"]\]" "$f"
+  if grep -nE "ENV\[['\"](ANTHROPIC|GEMINI)_API_KEY['\"]\]|ENV\.fetch\(['\"](ANTHROPIC|GEMINI)_API_KEY['\"]" "$f" >/dev/null 2>&1; then
+    echo "FAIL: $f reads a direct-provider API key -- runtime AI must route via Bedrock (AiClient)"
+    grep -nE "ENV\[['\"](ANTHROPIC|GEMINI)_API_KEY['\"]\]|ENV\.fetch\(['\"](ANTHROPIC|GEMINI)_API_KEY['\"]" "$f"
     status=1
   fi
 done
 
-# 3. AiClient must build a Bedrock client -- and never a direct client.
+# 4. AiClient must build a Bedrock client -- and never a direct client.
 #    Both Bedrock planes are in scope and both stay inside the AWS account BAA
 #    boundary; which one is active is an operational choice (BEDROCK_PLANE), so
 #    this asserts BOTH construction paths are still present rather than pinning
@@ -87,6 +99,6 @@ else
 fi
 
 if [[ $status -eq 0 ]]; then
-  echo "OK: all runtime AI seams route via AWS Bedrock (AiClient); no direct api.anthropic.com construction."
+  echo "OK: runtime AI routes via AWS Bedrock (AiClient); deprecated direct-provider keys are not mounted or read."
 fi
 exit $status
