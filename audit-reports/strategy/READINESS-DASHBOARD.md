@@ -16,7 +16,7 @@
 **Launch profile:** `adult-beta-initial`  
 **Open Critical:** 0  
 **Verified Critical closures:** 7  
-**Unmapped Critical/High:** 0 - none<br>
+**Unmapped Critical/High:** 8 🔴 (see governance exception section below)<br>
 **Overall posture:** 🟡 Moving toward controlled beta  
 **Pending launch decisions:** none
 
@@ -40,19 +40,34 @@ Decided by Scot Wahlquist on 2026-08-16 (PR #792 draft-review instruction (Codex
 
 ## ⚠️ Unmapped Critical/High findings (governance exception)
 
-None - every open Critical/High finding is linked to at least one requirement row.
+8 open Critical/High finding(s) are linked to **no** requirement and therefore drive
+**no** milestone card, blocker list, or inherited-blocker count above or below. Each remains open in
+the canonical register with reconciliation owed, regardless of any engineering work already merged
+against it, until it is either linked to an applicable requirement or Scot explicitly assesses it as
+not launch-relevant (a governance decision this layer never makes on its own).
+
+| Finding | Severity | Disposition | Title |
+|---|---|---|---|
+| `LL-0b5443f43b` | high | untriaged | Production Cloud Run service is deployed with public ingress, so the direct run.app URL bypasses the |
+| `LL-1e7b568ef3` | high | untriaged | Committed WIF provisioning script omits the assertion.ref branch lock the deploy pipeline names as a |
+| `LL-5617f4e17d` | high | untriaged | No server-side password strength policy exists; the only minimum-length check is a 6-character Ember |
+| `LL-7d50b089c9` | high | untriaged | BoardVersion/UserVersion history payloads use raw PaperTrail `version.id` instead of the repo's `glo |
+| `LL-8908c7ac6f` | high | untriaged | Client-supplied context.topic reaches Bedrock unscrubbed and is absent from the AiApiLog egress reco |
+| `LL-b7ccc522b9` | high | untriaged | GCP production project has no Data Access audit log configuration, so Secret Manager value reads and |
+| `LL-c0b3d59f58` | high | untriaged | Production GCP project grants a non-owner human principal project-wide secretmanager.admin, cloudsql |
+| `LL-e8614c103f` | high | untriaged | PredictionEntry rows survive account deletion, retaining per-user AAC vocabulary sequences indefinit |
 
 ## Current finding baseline
 
 | Metric | Count |
 |---|---:|
-| Total findings | 125 |
-| Open | 61 |
+| Total findings | 170 |
+| Open | 105 |
 | Open Critical | 0 |
-| Open High | 7 |
-| Open Medium | 29 |
-| Open Low | 25 |
-| Remediated, unverified | 5 |
+| Open High | 15 |
+| Open Medium | 50 |
+| Open Low | 40 |
+| Remediated, unverified | 6 |
 | Accepted risk | 5 |
 | Superseded | 2 |
 | Verified closed | 52 |
@@ -60,7 +75,7 @@ None - every open Critical/High finding is linked to at least one requirement ro
 
 ### Open findings not linked to any requirement (informational)
 
-48 of 61 open findings are linked to no requirement row (0 critical / 0 high / 24 medium / 24 low).
+92 of 105 open findings are linked to no requirement row (0 critical / 8 high / 45 medium / 39 low).
 The milestone cards are a readiness lens, never a complete risk inventory - `FINDINGS.md` remains the
 full register. Critical/High items in this count are the same ones called out as a governance
 exception above; Medium/Low items are informational only and **never** automatically become a
@@ -103,7 +118,7 @@ excluded, since `mvpIncludesMinors` is decided false).
 - 🔴 `public-mvp-admin-credential` (Blocked) - Seed/test/admin credentials are rotated, removed, disabled, or converted to a governed break-glass posture before customer-facing use. [LL-caaf8e20ec]
 - 🟡 `public-mvp-bedrock-account-proof` (Done, awaiting verification) - The serving Bedrock credential is demonstrably tied to the BAA-covered AWS account when Bedrock is enabled. [LL-1b0d78dbe6]
   - code-and-runtime verification required; no evidence recorded in LAUNCH-PROFILE evidence
-- 🔴 `public-mvp-high-verification` (invariant) - 3 High remediated-unverified finding(s) awaiting verification: LL-705b10bcd7, LL-90045bb29c, LL-a95e9c5f7c
+- 🔴 `public-mvp-high-verification` (invariant) - 4 High remediated-unverified finding(s) awaiting verification: LL-6af580a23a, LL-705b10bcd7, LL-90045bb29c, LL-a95e9c5f7c
 - 🟡 `public-mvp-incident-runbook` (In progress) - Incident/breach runbook matches current runtime/vendor architecture and is operationally usable.
 - 🟡 `public-mvp-privacy-truth` (In progress) - Public privacy, AI, processor, retention, and data-flow disclosures match production behavior and current architecture.
 
@@ -118,7 +133,7 @@ excluded, since `mvpIncludesMinors` is decided false).
 ## Invariants (computed this generation)
 
 - ✅ `adult-beta-no-critical` - 0 open Critical finding(s)
-- ❌ `public-mvp-high-verification` - 3 High remediated-unverified finding(s) awaiting verification: LL-705b10bcd7, LL-90045bb29c, LL-a95e9c5f7c
+- ❌ `public-mvp-high-verification` - 4 High remediated-unverified finding(s) awaiting verification: LL-6af580a23a, LL-705b10bcd7, LL-90045bb29c, LL-a95e9c5f7c
 
 ## Pending launch-profile decisions
 
