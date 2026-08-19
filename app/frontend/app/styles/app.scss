@@ -78396,6 +78396,33 @@ span.md-board-detail-modeling-btn--paused:hover {
   display: contents;
 }
 
+/* Column wrapper. Same trick as the group and body wrappers: emitted in BOTH
+   modes and `display: contents` when ungrouped, so it generates no box and the
+   existing grid is untouched. */
+.md-board-detail-grid__column {
+  display: contents;
+}
+
+.md-board-detail-grid--grouped .md-board-detail-grid__column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--bd-button-gap, 8px);
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Panels keep their NATURAL height — no stretching.
+   Stretching the last panel to flush the column bottom just moved the problem:
+   the leftover height became padding inside that category, which reads as a group
+   with a hole in it rather than a tidy board. Even bottoms come from packing the
+   columns evenly instead (assign_columns minimises the tallest column), so any
+   residual difference is a row or less rather than a stretched panel.
+   Panels are top-aligned so a shorter column ends short rather than distributing
+   gaps between its categories. */
+.md-board-detail-grid--grouped .md-board-detail-grid__column {
+  justify-content: flex-start;
+}
+
 .md-board-detail-grid--grouped .md-board-detail-grid__group-body {
   display: grid;
   /* The button grid lives HERE now (moved off __group, which is a plain block
@@ -78471,20 +78498,22 @@ span.md-board-detail-modeling-btn--paused:hover {
    first attempt. With an indefinite height the browser balances into exactly
    --bd-group-columns and cannot overflow horizontally. */
 .md-board-detail-grid--grouped {
-  display: block;
-  /* BOTH of these are load-bearing; do not add a height, max-height or overflow
-     back to this rule.
-     Multi-column only balances into `column-count` when its height is
-     INDEFINITE. Give it any definite height -- including a max-height -- and it
-     becomes a fragmentation context that keeps generating columns sideways past
-     the count, and an overflow-x then CLIPS them. That is how a 60-button board
-     rendered all 60 cells into the DOM while only ~40 were reachable on screen.
-     Scrolling is already handled one level up: .md-board-detail-main is the
-     scroll container (overflow-y: auto, min-height: 0, app.scss:69078), so a
-     grouped board taller than the viewport scrolls there instead. */
-  height: auto;
-  columns: var(--bd-group-columns, 3);
-  column-gap: var(--bd-button-gap, 8px);
+  display: grid;
+  grid-template-columns: repeat(var(--bd-group-columns, 3), minmax(0, 1fr));
+  grid-template-rows: none;
+  gap: var(--bd-button-gap, 8px);
+  align-items: stretch;
+  /* Keeps the base rule's definite height (calc(100dvh - 120px)) ON PURPOSE.
+     Column tracks need a definite height for the last panel in each to have
+     something to stretch into — with a content height there is no leftover and
+     the bottom edge stays ragged.
+     This was `height: auto` while the layout used CSS multi-column, where a
+     definite height turns the box into a fragmentation context that generates
+     columns sideways past the count (which an overflow-x then clips — that bug
+     hid 20 of 60 buttons). Grid has no such behaviour: excess content overflows
+     DOWN, so a definite height is both safe and required here. */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .md-board-detail-grid--grouped .md-board-detail-grid__group {
@@ -78498,7 +78527,7 @@ span.md-board-detail-modeling-btn--paused:hover {
   /* Vertical rhythm between stacked panels. In multi-column this is the ONLY
      spacing between panels in the same column -- column-gap handles the
      horizontal side, and there is no grid `gap` to fall back on here. */
-  margin: 0 0 var(--bd-button-gap, 8px);
+  margin: 0;
   padding: 8px;
   border-radius: 14px;
 
@@ -78580,15 +78609,6 @@ span.md-board-detail-modeling-btn--paused:hover {
   min-width: 0;
 }
 
-.md-board-detail-grid--grouped .md-board-detail-grid__group-count {
-  /* Matches the category name at 16px (requested) so header and count read as
-     one line rather than a label with a footnote. */
-  font-size: 16px;
-  font-weight: 600;
-  opacity: 0.55;
-  color: var(--bd-group-text, #{$la-navy});
-  flex: 0 0 auto;
-}
 
 /* Narrower viewports drop to fewer columns before shrinking buttons — a smaller
    button is worse for an AAC user than a taller board. */
@@ -78596,10 +78616,12 @@ span.md-board-detail-modeling-btn--paused:hover {
    multi-column context now, and a grid-template-* declaration here would be
    silently inert. */
 @media (max-width: 1100px) {
-  .md-board-detail-grid--grouped { columns: var(--bd-group-columns-md, 2); }
+  .md-board-detail-grid--grouped {
+    grid-template-columns: repeat(var(--bd-group-columns-md, 2), minmax(0, 1fr));
+  }
 }
 @media (max-width: 700px) {
-  .md-board-detail-grid--grouped { columns: 1; }
+  .md-board-detail-grid--grouped { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Dark mode: same recipe, glass veil over the tint instead of under white. */
@@ -78615,8 +78637,7 @@ span.md-board-detail-modeling-btn--paused:hover {
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
-.md-board-detail--dark .md-board-detail-grid--grouped .md-board-detail-grid__group-name,
-.md-board-detail--dark .md-board-detail-grid--grouped .md-board-detail-grid__group-count {
+.md-board-detail--dark .md-board-detail-grid--grouped .md-board-detail-grid__group-name {
   color: rgba(255, 255, 255, 0.82);
 }
 
@@ -78638,7 +78659,7 @@ span.md-board-detail-modeling-btn--paused:hover {
    scroll — narrow-width keeps the 120px offset. Speak mode only — edit mode
    hides the live sentence row (its grid keeps 120px via the edit-scoped rule). */
 @media (max-height: 500px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid:not(.md-board-detail-grid--grouped) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
     height: calc(100dvh - 93px);
   }
 }
@@ -78651,7 +78672,7 @@ span.md-board-detail-modeling-btn--paused:hover {
    a giant (large/huge) bar on a ≤400px screen is an extreme edge that can still
    scroll a few px. Speak mode only. */
 @media (max-height: 400px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid:not(.md-board-detail-grid--grouped) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
     height: calc(100dvh - 72px);
   }
 }
@@ -78665,7 +78686,7 @@ span.md-board-detail-modeling-btn--paused:hover {
    offset keep the bottom flush). Speak mode only. The prediction rail reads the
    grid's rowGap (parseFloat) so it tightens to match — 4px is a plain length. */
 @media (max-height: 700px) {
-  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid:not(.md-board-detail-grid--grouped) {
+  .md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-grid-sidebar-wrap .md-board-detail-grid {
     gap: 4px !important;
     padding-top: 0;
   }
@@ -101184,3 +101205,276 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
 }
 /* The icon inherits via `fill="currentColor"` in the markup, so the colour
    above already carries it — no separate rule needed. */
+
+/* ── Categorize panel (flag: board_category_grouping) ─────────────────────────
+   Full-width takeover launched from the edit rail, between Board Actions and
+   Search & Filter. Positioned over .md-board-detail-layout rather than reflowing
+   the edit page's three-column grid — the collection drawer reshapes that grid
+   with !important and three-class specificity (app.scss ~74721), and competing
+   with it would mean another round of specificity management for no gain. */
+.md-board-category-order {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: $brand-charcoal-dark;
+}
+
+.md-board-category-order__bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+}
+
+.md-board-category-order__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+}
+
+.md-board-category-order__toggle input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.md-board-category-order__hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 13px;
+  /* 0.75 alpha on the charcoal surface clears WCAG AA for this size; the earlier
+     board empty-state at 0.35 did not, which is why that text was unreadable. */
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.md-board-category-order__bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.md-board-category-order__reset,
+.md-board-category-order__close {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.md-board-category-order__close {
+  background: rgba(255, 255, 255, 0.92);
+  color: $la-navy;
+  border-color: transparent;
+}
+
+/* Order list beside a full-size preview. The list is the ACCESSIBLE control
+   surface: it is one-dimensional, which matches the data (categories are a
+   sequence; which column one lands in is derived by the packing, not chosen), so
+   up/down arrows are unambiguous and need no drag gesture to operate. */
+.md-board-category-order__body {
+  display: flex;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px 16px 16px;
+}
+
+.md-board-category-order__list {
+  flex: 0 0 260px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.md-board-category-order__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 9px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Swatch carries the category's OWN Fitzgerald fill, so the list reads in the
+   same colour language as the preview beside it. */
+.md-board-category-order__swatch {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  background: var(--bd-group-fill, #fff);
+  border: 1px solid rgba(0, 0, 0, 0.20);
+}
+
+.md-board-category-order__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.md-board-category-order__controls {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.md-board-category-order__move {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 30px is the floor for a comfortable target here; these sit in a dense list
+     and are used repeatedly. */
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  cursor: pointer;
+}
+
+.md-board-category-order__move:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* The preview hosts a real BoardDetailGrid, which sizes itself; this just gives
+   it the remaining width and its own scroll so the order list stays put. */
+.md-board-category-order__preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 12px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+/* Move-to-category picker (Categorize panel). Centred over the panel rather than
+   anchored to the tapped button: the preview scrolls and repacks as categories
+   are reordered, so an anchored popover would need re-measuring on every change
+   for no benefit at this size. */
+.md-board-category-order__picker-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.md-board-category-order__picker {
+  position: absolute;
+  z-index: 71;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(340px, 92vw);
+  max-height: 78%;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  padding: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f4f8 100%);
+  border: 1px solid rgba($la-navy, 0.06);
+  box-shadow:
+    0 1px 2px  rgba($la-navy, 0.04),
+    0 8px 24px rgba($la-navy, 0.07),
+    0 24px 60px rgba($la-navy, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.md-board-category-order__picker-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.md-board-category-order__picker-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: $la-navy;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.md-board-category-order__picker-close {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba($la-navy, 0.06);
+  color: $la-navy;
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Stated plainly rather than buried: the move repaints the button for the
+   communicator, which is not obvious from a list of category names. */
+.md-board-category-order__picker-note {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: rgba($la-navy, 0.75);
+}
+
+.md-board-category-order__picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.md-board-category-order__picker-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba($la-navy, 0.08);
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.md-board-category-order__picker-item:hover {
+  background: rgba($la-navy, 0.04);
+}
+
+/* Scope the shared swatch/name colours for the light picker surface — the list
+   in the dark panel above sets its own. */
+.md-board-category-order__picker-item .md-board-category-order__name {
+  color: $la-navy;
+}

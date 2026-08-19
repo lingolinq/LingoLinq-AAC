@@ -22,7 +22,9 @@
        grid carries --grouped, so today's layout is untouched. Grouped yields the
        category panels, each an inner surface matching the outer board surface so
        the AAC user gets a contrast edge between group and board. --}}
-  {{#each this.renderGroups as |group|}}
+  {{#each this.renderColumns as |column|}}
+    <div class="md-board-detail-grid__column">
+    {{#each column as |group|}}
     <div class="md-board-detail-grid__group {{if group.key (concat 'md-board-detail-grid__group--' group.key)}}"
       style={{if group.key (safe-style (concat "--bd-group-fill:var(" group.fillVar ");--bd-group-text:var(" group.textVar ")"))}}
       role={{if group.key "group" "presentation"}}
@@ -30,7 +32,6 @@
       {{#if group.label}}
         <div class="md-board-detail-grid__group-header" aria-hidden="true">
           <span class="md-board-detail-grid__group-name">{{group.label}}</span>
-          <span class="md-board-detail-grid__group-count">{{group.count}}</span>
         </div>
       {{/if}}
       {{!-- Inner container holding just the buttons. Carries the board surface
@@ -249,6 +250,8 @@
     </div>
     {{/each}}
       </div>
+    </div>
+    {{/each}}
     </div>
   {{/each}}
   {{#unless this.orderedButtons.length}}

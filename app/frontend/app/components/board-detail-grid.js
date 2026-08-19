@@ -3,7 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';
 import { scheduleOnce, debounce, cancel } from '@ember/runloop';
 import labelFit from '../utils/label_fit';
-import { group_buttons, normalize_order } from '../utils/board_categories';
+import { group_buttons, normalize_order, assign_columns, GROUP_INNER_COLUMNS } from '../utils/board_categories';
 
 // Throttle window resize re-fits to ~250ms. Resizing fires many events
 // per drag; we only need the last one's measurement.
@@ -66,9 +66,16 @@ export default Component.extend({
     'app_state.feature_flags.board_category_grouping',
     'app_state.currentUser.preferences.board_category_grouping.enabled',
     'editMode',
+    'forceGrouping',
     function() {
-      if(this.get('editMode')) { return false; }
+      // `forceGrouping` is the category-order PREVIEW opting in explicitly. It
+      // bypasses the edit-mode block below because that block exists to protect
+      // drag/swap/paint on the REAL board, and the preview is a separate,
+      // non-editable rendering — there is nothing there to drag out of position.
+      // It does not bypass the feature flag.
       if(!this.get('app_state.feature_flags.board_category_grouping')) { return false; }
+      if(this.get('forceGrouping')) { return true; }
+      if(this.get('editMode')) { return false; }
       return this.get('app_state.currentUser.preferences.board_category_grouping.enabled') !== false;
     }
   ),
@@ -103,6 +110,46 @@ export default Component.extend({
     });
   }),
 
+  /*
+   * Bumped by the resize handler ONLY.
+   *
+   * window.innerWidth is not observable, so something has to invalidate the
+   * derived column count. It must never be set during render: columnCount ->
+   * renderColumns is READ while rendering, and writing it from the afterRender
+   * queue is a backtracking re-render, which Ember treats as unrecoverable and
+   * which previously took the whole application down with a blank board.
+   */
+  viewportTick: 0,
+
+  columnCount: computed('groupingEnabled', 'viewportTick', function() {
+    if(!this.get('groupingEnabled')) { return 1; }
+    // Thresholds mirror the @media rules for the grouped grid; both are driven
+    // off the same numbers so the JS split and the CSS track count agree.
+    var w = (typeof window !== 'undefined' && window.innerWidth) || 1400;
+    if(w <= 700) { return 1; }
+    if(w <= 1100) { return 2; }
+    return 3;
+  }),
+
+  /*
+   * Panels split into explicit stacking columns.
+   *
+   * Explicit rather than CSS multi-column because multi-column never exposes
+   * which panels landed in which column, so no panel can be told to stretch and
+   * the bottom edge stays ragged. With real columns the last panel in each can
+   * fill the remainder (CSS below), giving an even bottom WITHOUT padding
+   * categories out with empty cells -- a blank slot inside a bordered group reads
+   * as a broken button to an AAC user.
+   *
+   * Ungrouped returns a single column holding every row-pseudo-group; that
+   * wrapper is `display: contents` in CSS, so the existing grid is untouched.
+   */
+  renderColumns: computed('renderGroups', 'groupingEnabled', 'columnCount', function() {
+    var groups = this.get('renderGroups') || [];
+    if(!this.get('groupingEnabled')) { return [groups]; }
+    return assign_columns(groups, this.get('columnCount'), GROUP_INNER_COLUMNS);
+  }),
+
   init: function() {
     this._super(...arguments);
     var _this = this;
@@ -135,6 +182,11 @@ export default Component.extend({
       };
     };
     this._on_resize = function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      // Safe HERE and only here: a resize is an external event outside the render
+      // pass, so re-deriving columnCount cannot backtrack a value render already
+      // consumed. Crossing 1100px/700px changes the column split.
+      _this.set('viewportTick', (_this.get('viewportTick') || 0) + 1);
       _this._schedule_fit('resize');
     };
     window.addEventListener('resize', this._on_resize);

@@ -16,6 +16,13 @@ import paint_view_switch_overlay from '../../utils/view_switch_overlay';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
 import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
+import {
+  DEFAULT_CATEGORY_ORDER,
+  normalize_order as normalizeCategoryOrder,
+  category_for_key as categoryForKey,
+  label_for as categoryLabel,
+  swatch_for_category as swatchForCategory
+} from '../../utils/board_categories';
 import speecher from '../../utils/speecher';
 import utterance from '../../utils/utterance';
 import editManager from '../../utils/edit_manager';
@@ -310,6 +317,17 @@ export default Controller.extend(prefClasses, {
      opens. Rendered in the drawer's "Original Selected Board" section so the user can jump
      back to where they started while previewing other boards. Cleared when the drawer closes. */
   edit_collection_original_board: null,
+  /* Edit-mode "Categorize" panel. Opened from the edit rail between Board Actions
+     and Search & Filter. Like the Board Collections drawer it takes the rail's
+     place (CSS via md-shell--category-order), but expands to the FULL page width
+     rather than a fixed drawer, because its whole purpose is to preview the
+     board's buttons grouped into their categories at real size while the order is
+     rearranged. */
+  category_order_open: false,
+  /* The button whose "move to category" picker is open in the Categorize panel,
+     or null. Holding the button (not just its id) keeps its label available for
+     the picker heading without a second lookup. */
+  category_move_button: null,
   sidebar_editor_open: false,
   show_paint_dropdown: false,
   show_options_menu: false,
@@ -5189,7 +5207,143 @@ export default Controller.extend(prefClasses, {
     return true;
   },
 
+  /* The category sequence shown in the Categorize panel, in the user's order.
+     Reads through the shared registry so the panel and the rendered board can
+     never disagree about which categories exist or what they are called
+     (utils/board_categories.js). `first`/`last` drive the disabled state of the
+     move controls — a disabled control is clearer than one that silently no-ops
+     at the ends of the list. */
+  category_order_list: computed(
+    'app_state.currentUser.preferences.board_category_grouping.order',
+    function() {
+      var order = normalizeCategoryOrder(this.get('app_state.currentUser.preferences.board_category_grouping.order'));
+      return order.map(function(key, idx) {
+        var cat = categoryForKey(key);
+        return {
+          key: key,
+          label: categoryLabel(key),
+          fillVar: cat && cat.fillVar,
+          textVar: cat && cat.textVar,
+          position: idx + 1,
+          first: idx === 0,
+          last: idx === order.length - 1
+        };
+      });
+    }
+  ),
+
+  categorize_enabled: computed(
+    'app_state.currentUser.preferences.board_category_grouping.enabled',
+    function() {
+      return this.get('app_state.currentUser.preferences.board_category_grouping.enabled') !== false;
+    }
+  ),
+
+  /* Persist the grouping preference. Follows the documented 3-touch idiom: the
+     nested set alone does not reliably mark the raw `preferences` attr dirty, so
+     `preferences.device.updated` is poked before save or ember-data may never
+     ship the change (see LEARNINGS "a new user preference is a 3-touch change").
+     Writes the WHOLE sub-hash so enabled and order always move together. */
+  _save_category_grouping: function(changes) {
+    var user = this.get('app_state.currentUser');
+    if(!user || !user.set) { return; }
+    var current = user.get('preferences.board_category_grouping') || {};
+    var next = {
+      enabled: changes.enabled === undefined ? (current.enabled !== false) : !!changes.enabled,
+      order: changes.order || normalizeCategoryOrder(current.order)
+    };
+    user.set('preferences.board_category_grouping', next);
+    user.set('preferences.device.updated', true);
+    if(user.save) { user.save().then(null, function() {}); }
+  },
+
   actions: {
+    toggle_category_order: function() {
+      this.set('category_order_open', !this.get('category_order_open'));
+    },
+
+    /* The "Categorize" checkbox. Saves immediately rather than on board save —
+       it is a preference on the USER, not part of the board being edited, so
+       deferring it to the board's Save button would attach it to the wrong
+       lifecycle and silently discard it if the edit is cancelled. */
+    toggle_categorize: function() {
+      this._save_category_grouping({ enabled: !this.get('categorize_enabled') });
+    },
+
+    /* Move one category earlier/later in the sequence.
+       The order is ONE-DIMENSIONAL: categories flow into columns, and which
+       column one lands in is derived by the packing at the current width, not
+       chosen. So up/down is the whole model — there is no honest meaning for
+       left/right, and it would behave differently at each breakpoint. */
+    move_category: function(key, direction) {
+      var order = normalizeCategoryOrder(this.get('app_state.currentUser.preferences.board_category_grouping.order'));
+      var idx = order.indexOf(key);
+      if(idx === -1) { return; }
+      var target = direction === 'up' ? idx - 1 : idx + 1;
+      if(target < 0 || target >= order.length) { return; }
+      var next = order.slice();
+      next[idx] = order[target];
+      next[target] = key;
+      this._save_category_grouping({ order: next });
+    },
+
+    reset_category_order: function() {
+      this._save_category_grouping({ order: DEFAULT_CATEGORY_ORDER.slice() });
+    },
+
+    /* Open the "move to category" picker for one previewed button. Clicking a
+       button is the ACCESSIBLE path to moving it: it is keyboard- and
+       touch-operable, which a drag gesture is not (WCAG 2.1 SC 2.1.1). */
+    begin_category_move: function(btn) {
+      if(!btn) { return; }
+      this.set('category_move_button', btn);
+    },
+
+    cancel_category_move: function() {
+      this.set('category_move_button', null);
+    },
+
+    /* Move the picked button into a category.
+       A category IS a colour here -- the categoriser reads the button's colour
+       back -- so the move is performed by PAINTING the button with that
+       category's fill/border/part_of_speech. Routed through editManager's paint
+       pathway rather than setting the attributes directly, so it inherits the
+       existing undo entry (paint_button calls save_state({mode:'paint'})) and the
+       level-modification handling that Button.set_attribute does.
+       This is a BOARD edit, so it follows the board's Save/Cancel like every
+       other edit — unlike the category ORDER beside it, which is a user
+       preference and saves immediately. */
+    move_button_to_category: function(key) {
+      var btn = this.get('category_move_button');
+      var swatch = swatchForCategory(key);
+      if(!btn || !swatch) { this.set('category_move_button', null); return; }
+
+      // Use the CONTROLLER's paint_button action, not editManager.paint_button.
+      // They are not interchangeable:
+      //   • editManager.paint_button(id) resolves the button through find_button,
+      //     which REPLACES the entry in `ordered_buttons` with a wrapped Button
+      //     (edit_manager.js:1349). That array is a plain nested JS array, so the
+      //     swap notifies nothing and the already-rendered template keeps the old
+      //     object — the paint lands on a copy and nothing visibly moves.
+      //   • the controller action mutates the button object it is HANDED (the one
+      //     the template is rendering), mirrors the change into `model.buttons` so
+      //     it persists on save, and forces the re-render by rebuilding
+      //     ordered_buttons with fresh row references.
+      // It is also the path the main board's paint mode already uses.
+      var previous_paint = this.get('paint_mode');
+      var previous_em_paint = editManager.paint_mode;
+
+      this.send('set_paint_mode', swatch.fill, swatch.border, swatch.part_of_speech);
+      this.send('paint_button', btn);
+
+      // Restore whatever paint state was armed before — this borrows the paint
+      // machinery for one button and must not leave the toolbar painting.
+      this.set('paint_mode', previous_paint || false);
+      editManager.paint_mode = previous_em_paint;
+
+      this.set('category_move_button', null);
+    },
+
     re_transition: function() {
       this.set('retrying', true);
       this.router.refresh();

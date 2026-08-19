@@ -38,14 +38,6 @@ export const BOARD_CATEGORIES = [
     textVar: '--fitzgerald-verb-green-text'
   },
   {
-    key: 'things',
-    labelKey: 'board_category_things',
-    defaultLabel: "Things",
-    types: ['noun'],
-    fillVar: '--fitzgerald-noun-orange',
-    textVar: '--fitzgerald-noun-orange-text'
-  },
-  {
     key: 'describe',
     labelKey: 'board_category_describe',
     defaultLabel: "Describe",
@@ -130,6 +122,20 @@ export const BOARD_CATEGORIES = [
     types: [],
     fillVar: '--fitzgerald-conjunction-white',
     textVar: '--fitzgerald-conjunction-white-text'
+  },
+  {
+    // Deliberately LAST in the default sequence, not third.
+    // Columns are filled with consecutive runs of this order, so the final entry
+    // lands at the bottom of the final column. Things is a large category on a
+    // core board, and sitting third pushed it into column one where it forced
+    // the other columns short and left the bottom edge uneven. Users who have
+    // already saved a custom order keep theirs — "Reset order" adopts this one.
+    key: 'things',
+    labelKey: 'board_category_things',
+    defaultLabel: "Things",
+    types: ['noun'],
+    fillVar: '--fitzgerald-noun-orange',
+    textVar: '--fitzgerald-noun-orange-text'
   }
 ];
 
@@ -332,6 +338,34 @@ function nearest_category_for_color(hex) {
 }
 
 /*
+ * The paintable swatch for a category: the actual fill/border/part-of-speech to
+ * stamp on a button being MOVED into it.
+ *
+ * Moving a button between categories is a recolour, not a relocation -- the
+ * category is derived from the colour, so the only way to move a button is to
+ * give it that category's colour. Values come from the app's own palette (which
+ * reads the live --fitzgerald-* properties, so it honours the "Colored Soft"
+ * preference) rather than being restated here, so a painted button lands exactly
+ * on the colour the categoriser will read back.
+ */
+export function swatch_for_category(key) {
+  const cat = BY_KEY[key];
+  if(!cat || !cat.types.length) { return null; }
+  const LL = (typeof window !== 'undefined' && window.LingoLinq) || null;
+  const palettes = LL ? [LL.board_detail_keyed_colors, LL.keyed_colors] : [];
+  for(let i = 0; i < palettes.length; i++) {
+    const palette = palettes[i] || [];
+    for(let j = 0; j < palette.length; j++) {
+      const entry = palette[j];
+      if(entry && entry.fill && entry.types && entry.types.indexOf(cat.types[0]) >= 0) {
+        return { fill: entry.fill, border: entry.border, part_of_speech: cat.types[0] };
+      }
+    }
+  }
+  return null;
+}
+
+/*
  * Which category a single button belongs to.
  *
  * COLOUR IS CHECKED BEFORE part_of_speech, and that ordering is the whole fix.
@@ -392,6 +426,106 @@ export function normalize_order(stored) {
  * placeholder cells are dropped for the same reason; they exist to hold grid
  * shape, and a grouped layout no longer has that shape to hold.
  */
+// Buttons across inside one category panel. Exported so the CSS custom property
+// and the column-weighting below cannot disagree about how many rows a category
+// occupies.
+export const GROUP_INNER_COLUMNS = 4;
+
+/*
+ * Split panels into explicit stacking columns.
+ *
+ * Pure on purpose: this is the part that decides how the board looks, so it is
+ * verifiable in tests rather than by eye. CSS multi-column balances too, but it
+ * never exposes WHICH panels landed in which column, so nothing can be told to
+ * stretch and the bottom edge stays ragged. Explicit columns make the last panel
+ * in each stretchable.
+ *
+ * Filled SEQUENTIALLY, not best-fit: the user chooses the category order, so
+ * reading order down column 1 then column 2 has to survive. A column closes once
+ * it has its share of the total, never leaving a later column empty.
+ *
+ * Weighted by ROWS -- ceil(buttons / inner columns), plus one for the header --
+ * because rows are what drive a panel's height. Counting buttons instead would
+ * treat a 4-button and a 5-button category as very different when they occupy
+ * one and two rows.
+ */
+export function assign_columns(groups, column_count, inner_columns) {
+  const list = groups || [];
+  const cols = Math.max(1, column_count || 1);
+  const inner = Math.max(1, inner_columns || GROUP_INNER_COLUMNS);
+  if(cols === 1 || list.length <= 1) { return [list.slice()]; }
+
+  const weight = function(g) {
+    return Math.ceil((g.count || (g.buttons || []).length || 0) / inner) + 1;
+  };
+  const weights = list.map(weight);
+  const total = weights.reduce(function(a, b) { return a + b; }, 0);
+
+  /*
+   * Pack columns as evenly as possible instead of closing each one the moment it
+   * reaches an average share.
+   *
+   * The greedy version left visibly uneven bottoms: a category that pushed a
+   * column just past its share closed that column early, and the leftover height
+   * had to be absorbed by padding a panel out — which reads as a category with a
+   * hole in it rather than a tidy board.
+   *
+   * This minimises the TALLEST column (classic linear partition). Binary search
+   * the smallest ceiling for which a left-to-right fill still fits in `cols`
+   * columns; the answer is exact, and because the fill only ever moves forwards,
+   * the user's category order is preserved -- which the reorder panel depends on.
+   */
+  const fits = function(limit) {
+    let used = 0;
+    let needed = 1;
+    for(let i = 0; i < weights.length; i++) {
+      if(weights[i] > limit) { return false; }
+      if(used + weights[i] > limit) { needed++; used = weights[i]; }
+      else { used += weights[i]; }
+    }
+    return needed <= cols;
+  };
+
+  let lo = Math.max.apply(null, weights);
+  let hi = total;
+  while(lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if(fits(mid)) { hi = mid; } else { lo = mid + 1; }
+  }
+
+  const out = [];
+  let current = [];
+  let used = 0;
+  list.forEach(function(g, i) {
+    if(current.length && used + weights[i] > lo) {
+      out.push(current);
+      current = [];
+      used = 0;
+    }
+    current.push(g);
+    used += weights[i];
+  });
+  if(current.length) { out.push(current); }
+
+  /*
+   * The optimal packing can need FEWER columns than the grid has tracks, which
+   * would leave a trailing track empty and a hole down the right-hand side. Split
+   * the column holding the most categories until every track is used. Splitting
+   * by position keeps the order intact.
+   */
+  while(out.length < cols && out.some(function(c) { return c.length > 1; })) {
+    let biggest = 0;
+    for(let i = 1; i < out.length; i++) {
+      if(out[i].length > out[biggest].length) { biggest = i; }
+    }
+    const col = out[biggest];
+    const at = Math.ceil(col.length / 2);
+    out.splice(biggest, 1, col.slice(0, at), col.slice(at));
+  }
+
+  return out;
+}
+
 export function group_buttons(rows, order) {
   const keys = normalize_order(order);
   const buckets = {};
