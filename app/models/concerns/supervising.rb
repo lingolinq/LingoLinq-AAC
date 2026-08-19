@@ -247,7 +247,7 @@ module Supervising
           supervisor.settings['preferences']['role'] = 'communicator'
           supervisor.save_with_sync('un-supervisor')
         end
-        schedule_board_cache_refresh(supervisor)
+        schedule_board_cache_refresh(supervisor, true)
         supervisor.update_setting({
           'supervisees' => supervisor.settings['supervisees']
         })
@@ -283,22 +283,60 @@ module Supervising
     # app's outbox for the same job (board_caching.rb, organization.rb);
     # writing it in the same transaction as the link change means
     # Uploader.remote_remove_batch (hourly) will still schedule the refresh.
-    # Pull existing rows forward so a prior delayed RA cannot outlive a revoke.
-    def schedule_board_cache_refresh(supervisor)
+    # The outbox row is a FALLBACK, so it is cleared once the fast path has actually
+    # taken over -- otherwise every link/unlink ran update_available_boards twice:
+    # once from this enqueue, and again when hourly remote_remove_batch drained the
+    # row nothing had deleted. That is a full recompute of one of this repo's named
+    # hotspots, doubled, on every supervision change.
+    #
+    # "Actually taken over" is load-bearing, and the test for it is `== false`, NOT
+    # truthiness. schedule_once_for returns literal FALSE only in its
+    # already-queued branch (boy_band.rb:422); on a real enqueue it returns
+    # whatever schedule_for returns, and schedule_for ends on `if size > 5000 ...`,
+    # which is nil in every normal case. A successful enqueue is therefore FALSY,
+    # and `if schedule_once(...)` would never clear anything.
+    #
+    # A false means we deduplicated against a job that may have been queued BEFORE
+    # this transaction committed -- exactly the worker that can persist a
+    # pre-commit snapshot -- so the fallback must survive to correct it. That is
+    # the case worth keeping, which is why the sentinel is checked explicitly.
+    #
+    # `revoked` distinguishes the two callers. On a revoke a delayed row must be
+    # pulled forward: board_caching.rb:22-25 parks a deliberate 30-minutes-out row
+    # for accounts with >500 view ids, and a revoked supervisor must not keep real
+    # access to a child's private boards for that long. On a LINK there is no such
+    # urgency, and dragging that row forward defeated the debounce it exists to
+    # provide -- the batch would fire it immediately, update_available_boards would
+    # see a <60-minute generated stamp, and park a fresh row 30 minutes out again.
+    def schedule_board_cache_refresh(supervisor, revoked=false)
       return unless supervisor
-      persist_board_cache_refresh(supervisor)
+      own_row_id = persist_board_cache_refresh(supervisor, revoked)
       ActiveRecord.after_all_transactions_commit do
-        supervisor.schedule_once(:update_available_boards)
+        deduped = supervisor.schedule_once(:update_available_boards) == false
+        RemoteAction.where(id: own_row_id).delete_all if own_row_id && !deduped
       rescue StandardError => e
         Rails.logger.warn("supervising: board-cache enqueue failed: #{e.class}")
       end
     end
 
-    def persist_board_cache_refresh(supervisor)
+    # Returns the id of the row THIS call created, or nil when it deferred to a row
+    # that was already there. Only our own row is ever cleared later: board_caching
+    # writes rows against the same (path, action) key for its own reasons -- a
+    # 30-minute debounce for >500-board accounts (:22-25) and a 5-minute cascade to
+    # a communicator's supervisors (:105-106) -- and deleting those would silently
+    # cancel another producer's guarantee. On a revoke that means an existing row
+    # is accelerated but not adopted, so it may still fire a second recompute; that
+    # is the correct trade against dropping someone else's outbox entry.
+    def persist_board_cache_refresh(supervisor, revoked=false)
       path = supervisor.global_id
-      return unless path
-      updated = RemoteAction.where(path: path, action: 'update_available_boards').update_all(act_at: Time.now)
-      RemoteAction.create(path: path, action: 'update_available_boards', act_at: Time.now) if updated == 0
+      return nil unless path
+      scope = RemoteAction.where(path: path, action: 'update_available_boards')
+      if revoked
+        return nil if scope.update_all(act_at: Time.now) > 0
+      elsif scope.exists?
+        return nil
+      end
+      RemoteAction.create(path: path, action: 'update_available_boards', act_at: Time.now).id
     end
 
     def link_supervisor_to_user(supervisor, user, code=nil, type=true, organization_unit_id=nil)
@@ -336,7 +374,18 @@ module Supervising
       end
       # If a user is on a free trial and they're added as a supervisor, set them to a free supporter subscription
       if supervisor.grace_period?
-        supervisor.schedule(:remove_supervisors!)
+        # Deferred for the same reason as the board-cache refresh above: Resque is
+        # not enrolled in the Postgres transaction. This job is the destructive one
+        # -- remove_supervisors! (:157) unlinks EVERY one of this user's
+        # supervisors. Enqueued bare inside the transaction, a rollback meant the
+        # link that triggered it never happened while the unlink-everything job
+        # still ran. No outbox row here on purpose: losing this job is the safe
+        # failure, re-running it is not.
+        ActiveRecord.after_all_transactions_commit do
+          supervisor.schedule(:remove_supervisors!)
+        rescue StandardError => e
+          Rails.logger.warn("supervising: remove_supervisors! enqueue failed: #{e.class}")
+        end
         supervisor.settings['preferences']['role'] = 'supporter'
       end
       schedule_board_cache_refresh(supervisor)
