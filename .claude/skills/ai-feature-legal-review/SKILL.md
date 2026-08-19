@@ -150,12 +150,16 @@ Return:
 
 - `lib/pii_scrubber.rb` -- regex + blocklist; free-text/small-cohort residual risk.
 - `app/models/ai_api_log.rb` -- audit log; scrubs request+response summaries; 90-day IP redaction.
-- Outbound AI egress paths -- do NOT trust this list as static; re-derive on every review with
-  `git grep -nE 'api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|api\.openai\.com|draft_via_anthropic|call_anthropic|call_openai' -- 'lib/**' 'app/**'`
-  so new AI modules cannot silently escape the gate. The pathspec recurses into subdirs and `.rake`
-  files (a top-level `lib/*.rb` glob would miss `lib/tasks/generate_predictions.rake`); the pattern
-  is keyed to current vendor hosts and dispatch method names, so widen it whenever a new vendor or
-  naming convention lands. As of 2026-06 the surface is:
+- Outbound AI egress paths and runtime configuration -- do NOT trust this list as static; re-derive
+  on every review with
+  `git grep -nE 'AiClient|BedrockMantleClient|bedrock-mantle|BEDROCK_(PLANE|AWS_KEY|AWS_SECRET|AWS_REGION|EXPECTED_AWS_ACCOUNT)|ANTHROPIC_API_KEY|GEMINI_API_KEY|api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|api\.openai\.com|draft_via_anthropic|call_anthropic|call_openai' -- 'lib/**' 'app/**' 'config/**' '.github/workflows/**'`
+  so new AI modules or deployment seams cannot silently escape the gate. The pathspec recurses into
+  subdirs and `.rake` files (a top-level `lib/*.rb` glob would miss
+  `lib/tasks/generate_predictions.rake`); the pattern covers both the sanctioned Bedrock clients
+  and direct vendor endpoints, so widen it whenever a new vendor or naming convention lands. At
+  the current staging head, the designated runtime surface is:
+  - `lib/ai_client.rb` -- the sanctioned construction point. `BEDROCK_PLANE` selects the classic
+  `Anthropic::BedrockClient` or `Anthropic::BedrockMantleClient` (`bedrock-mantle`) path.
   - `lib/ai_board_generator.rb` -- board generation; thread `user:`.
   - `lib/ai_word_predictor.rb` -- word prediction; scrubbed sentence input.
   - `lib/ai_prediction_generator.rb` -- batch prediction generation (callers in
@@ -165,12 +169,14 @@ Return:
     internal dispatch at `lib/eval_narrator.rb:37`)
     -- HIGHEST SENSITIVITY: drafts evaluation narratives from assessment data, which Step 1
     classifies as "Never send externally." Treat any change here as never-send by default.
-  As of 2026-06: primary vendor is **Anthropic Claude Haiku** (`ANTHROPIC_API_KEY`); a **Google
-  Gemini** fallback (`GEMINI_API_KEY`) calls the `generativelanguage.googleapis.com` Gemini API
-  endpoint. Current Gemini API terms prohibit API clients directed to or likely accessed by anyone
-  under 18 regardless of paid/unpaid tier; unpaid service also permits product-improvement use.
-  Pin to Anthropic-only or migrate to Vertex AI only after contract/DPA/BAA review confirms the
-  specific child-directed and healthcare use case.
+  The designated runtime provider is **Anthropic Claude on AWS Bedrock** via `AiClient`, using
+  `BEDROCK_AWS_KEY` and `BEDROCK_AWS_SECRET`; `BEDROCK_EXPECTED_AWS_ACCOUNT` pins the allowed AWS
+  account. `ANTHROPIC_API_KEY` and `GEMINI_API_KEY` are not runtime credentials or fallback paths.
+  Designated does not mean active: call the path active only after verifying the serving revision's
+  Bedrock secret linkage, a controlled successful request, and its corresponding `AiApiLog` row.
+  If those checks are absent, describe the path as designated or configured only. The evaluation
+  narration surface remains "Never send externally" unless an explicit approved legal and vendor
+  basis exists, regardless of the designated code path.
 - `lib/feature_flags.rb` -- `ai_feature_enabled_for?`, `coppa_blocks_ai_for?` (signup-COPPA gate).
 - `User#ai_consent_granted?(disclosures_version:)/grant_ai_consent!(disclosures_version:, granted_by:, source:)/revoke_ai_consent!`
   -- second-tier consent (Phase 1). Consent is scoped to a disclosure version: `ai_consent_granted?`
