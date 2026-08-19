@@ -54,6 +54,27 @@ function allTaggedGlobalIds(map) {
 }
 
 export default Controller.extend({
+  /* Folder drill-in lives in the URL as `?folder=<tag>`.
+     WHY A QUERY PARAM rather than a popstate listener: drilling into a folder is a
+     view change the user reads as navigation, so the browser Back button has to undo
+     it. Back is handled client-side by the Ember router (verified in a browser: an
+     in-app transition followed by Back never reloads the document), so a routed
+     param gets Back, Forward, refresh-persistence and a shareable URL for free, and
+     it does not fight the router's own history handling the way a hand-rolled
+     pushState/popstate pair would — this app installs no popstate listener anywhere.
+
+     MAPPED onto the EXISTING `mineTagFolderDrillIn` property rather than adding a new
+     one, so all ~8 existing `set('mineTagFolderDrillIn', …)` call sites in
+     components/available-boards-section.js keep working untouched and there is no
+     second source of truth to keep in sync.
+
+     Default is `null` (declared at `mineTagFolderDrillIn:` below), so the param is
+     omitted from the URL entirely until the user actually opens a folder — including
+     on `/:user`, which shares this controller and also renders <BoardsBrowser>. Ember
+     pushes a history entry for a query-param change by default, which is exactly the
+     entry Back needs to pop. */
+  queryParams: [{ mineTagFolderDrillIn: 'folder' }],
+
   store: service('store'),
   router: service('router'),
   appState: service('app-state'),

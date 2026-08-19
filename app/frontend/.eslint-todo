@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-18T23:46:55.406Z
+# Generated: 2026-08-19T01:30:42.990Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -527,16 +527,16 @@ app/controllers/user/board-detail.js|ember/require-computed-property-dependencie
 app/controllers/user/board-detail.js|no-prototype-builtins|4418|21|1|796a0e9769cd
 app/controllers/user/goal.js|ember/require-computed-property-dependencies|61|33|1|c7d4107bfac0
 app/controllers/user/history.js|ember/require-computed-property-dependencies|18|15|1|4ea2213bad93
-app/controllers/user/index.js|ember/no-incorrect-calls-with-inline-anonymous-functions|253|20|1|2da67c91d637
-app/controllers/user/index.js|ember/no-runloop|1132|11|2|5addc2170315
-app/controllers/user/index.js|ember/no-runloop|1177|9|2|5addc2170315
-app/controllers/user/index.js|ember/no-runloop|1428|7|2|9ccbb762d93a
-app/controllers/user/index.js|ember/no-runloop|1722|11|2|5addc2170315
-app/controllers/user/index.js|ember/no-runloop|253|5|2|ab6701509d85
-app/controllers/user/index.js|ember/no-runloop|256|9|2|5addc2170315
-app/controllers/user/index.js|ember/require-computed-property-dependencies|1309|31|1|81b4dc430a0b
-app/controllers/user/index.js|ember/require-computed-property-dependencies|603|15|1|5a894b92728e
-app/controllers/user/index.js|ember/require-return-from-computed|1067|5|1|8c8d53fa71e0
+app/controllers/user/index.js|ember/no-incorrect-calls-with-inline-anonymous-functions|274|20|1|2da67c91d637
+app/controllers/user/index.js|ember/no-runloop|1153|11|2|5addc2170315
+app/controllers/user/index.js|ember/no-runloop|1198|9|2|5addc2170315
+app/controllers/user/index.js|ember/no-runloop|1449|7|2|9ccbb762d93a
+app/controllers/user/index.js|ember/no-runloop|1743|11|2|5addc2170315
+app/controllers/user/index.js|ember/no-runloop|274|5|2|ab6701509d85
+app/controllers/user/index.js|ember/no-runloop|277|9|2|5addc2170315
+app/controllers/user/index.js|ember/require-computed-property-dependencies|1330|31|1|81b4dc430a0b
+app/controllers/user/index.js|ember/require-computed-property-dependencies|624|15|1|5a894b92728e
+app/controllers/user/index.js|ember/require-return-from-computed|1088|5|1|8c8d53fa71e0
 app/controllers/user/log.js|ember/no-runloop|304|9|2|5addc2170315
 app/controllers/user/logs.js|ember/no-runloop|181|13|2|5addc2170315
 app/controllers/user/logs.js|ember/require-computed-property-dependencies|65|17|1|fbb602ec71be

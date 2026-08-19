@@ -614,23 +614,7 @@
      right-anchored default. Restating them here would be two rules that only happen to
      agree. See the base rule for the reasoning. */
 }
-/* 769-1024px: pull the badge row UP under the name. Grid row 1 is otherwise sized by the
-   tallest item in it — the avatar (60px, and 72px in Focused View) rather than the 24px
-   name — so the badges waited for the PORTRAIT to end and sat far below the name they
-   belong to. Spanning the avatar across both rows takes it out of row 1's height, leaving
-   the name to size its own row.
-   `span 2`, not `1 / -1`: the trigger declares only `grid-template-columns`, so its rows
-   are implicit and `-1` resolves against an explicit grid that has no row lines — it
-   silently collapses to a single row and nothing moves.
-   Bounded below at 769 because 641-768px puts the badges on the name's own LINE (one row
-   only, where a 2-row span would invent an empty second row), and <=640px carries its own
-   copy of this span. */
-@media (max-width: 1024px) and (min-width: 769px) {
-  .md-caseload__list-avatar {
-    grid-row: 1 / span 2;
-    align-self: center;
-  }
-}
+/* (The avatar row-span that used to live here is now on the base rule.) */
 /* <=768px ($aac-breakpoint-md): role badge AND status badges share the username's line,
    and the quick-action toolbar takes the next row on its own.
    The base layout keeps `.md-caseload__list-status` on its own full-width grid row
@@ -688,21 +672,7 @@
    Range-bounded against the block above rather than relying on source order — the same
    convention the gap rules in this file already follow. */
 @media (max-width: 640px) {
-  /* The AVATAR spans both rows. Without this, grid row 1 is sized by the tallest item in
-     it — the 60px portrait, not the 24px name — so the badge waited for the avatar to end
-     and sat ~48px below the name's top instead of directly beneath it (measured: avatar
-     678-738, name-row only 696-720, badge pushed to 747). Spanning takes the portrait out
-     of row 1's height calculation, leaving the name to size its own row and the badge to
-     follow one 9px row-gap later. */
-  .md-caseload__list-avatar {
-    /* `span 2`, NOT `1 / -1`. The trigger declares `grid-template-columns` only, so every
-       ROW here is implicit — and `-1` resolves against the EXPLICIT grid, which has no row
-       lines, so `1 / -1` silently collapses to a single row and the span never happens.
-       (Computed style still reports `1/-1`, which makes it look applied; the giveaway is
-       that the layout does not move.) */
-    grid-row: 1 / span 2;
-    align-self: center;
-  }
+  /* (Avatar row-span now on the base rule — it applies here too.) */
   .md-caseload__list-status {
     grid-column: 2;
     grid-row: 2;
@@ -1686,6 +1656,25 @@
 }
 .md-caseload__list-avatar {
   flex-shrink: 0;
+  /* THE AVATAR SPANS BOTH TRIGGER ROWS, so the badge row sits directly under the name.
+     Grid row 1 is otherwise sized by the tallest item in it — the 60px portrait (72px in
+     Focused View), not the ~24px name — so the badges waited for the PORTRAIT to end and
+     sat far below the name they belong to (measured at 1600px: 27px below the name
+     against a 9px row-gap). Spanning takes the portrait out of row 1's height, leaving
+     the name to size its own row and the badge to follow one row-gap later.
+
+     `span 2`, NOT `1 / -1`. The trigger declares `grid-template-columns` only, so every
+     ROW here is implicit, and `-1` resolves against the EXPLICIT grid, which has no row
+     lines — `1 / -1` silently collapses to a single row and the span never happens.
+     (Computed style still reports `1/-1`, which makes it look applied; the giveaway is
+     that the layout does not move.)
+
+     Declared ONCE here rather than per breakpoint: it was previously duplicated in the
+     <=640px and 769-1024px blocks and simply absent above 1024px, which is why wide
+     screens still showed the low badge. The single band that must NOT have it
+     (641-768px, where the badges share the name's own line) opts out below. */
+  grid-row: 1 / span 2;
+  align-self: center;
   /* 60px — doubled from 40, then pulled back 25% because 80 dominated the row.
      Applies to BOTH branches of the avatar — the photo <img> and the placeholder
      <span> share this class. */
@@ -1695,6 +1684,19 @@
   object-fit: cover;
   background: $surface-100;
   border: 1px solid rgba($la-navy, 0.08);
+}
+
+/* 641-768px opts OUT of the span above. There the badges sit on the name's OWN line (a
+   third grid column, `grid-row: 1`), so the trigger has a single row and a 2-row span
+   would create an implicit empty second track.
+   PLACED HERE, AFTER the base rule, deliberately: the 641-768px block earlier in this
+   file loses to the base rule on SOURCE ORDER (same 0,1,0 specificity), so an opt-out
+   written up there is inert — verified by computed style, which still reported
+   `1/span 2` at 700px. */
+@media (max-width: 768px) and (min-width: 641px) {
+  .md-caseload__list-avatar {
+    grid-row: auto;
+  }
 }
 .md-caseload__list-avatar--placeholder {
   display: inline-flex;

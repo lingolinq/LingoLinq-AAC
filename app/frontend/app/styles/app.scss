@@ -51134,6 +51134,16 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   }
   .ub-boards-page__folders-actions--header {
     grid-area: actions !important;
+    /* Cancel the side-by-side flex rule's `margin-left: auto` (~51422). That rule's
+       comment reasons it is "inert at <=420px" because the header hoists to
+       `display: contents` — but this mixin sets `display: grid !important` on the
+       header, so the hoist never happens at this width and these are grid items of the
+       HEADER. The comment is half right: `order` and `flex` genuinely do not apply to
+       grid items, but an AUTO MARGIN does — it is the standard way to align one — so
+       that single declaration survived and shrink-to-fit the row against the right
+       edge. Measured: 314px inside a 376px header, spanning "actions actions".
+       Zeroed here so the row fills the area it already spans. */
+    margin-left: 0 !important;
     padding: 8px 14px !important;
     gap: 8px !important;
     justify-content: $actions-justify !important;
@@ -51202,6 +51212,31 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   }
 }
 
+/* Two folder columns once the column is genuinely wide enough for them.
+   MEASURED, not assumed: at full screen in side-by-side the folders column is 378px
+   and the strip's inner width is ~308px, so two tracks come out at ~147px each —
+   comfortably wider than the 112.5px the base `repeat(auto-fill, 112.5px)` track uses.
+   Before this the strip rendered ONE 229.5px column there, because 378px still matches
+   the `max-width: 420px` block above and that block pins a single 75% track.
+
+   DELIBERATELY OVERLAPPING that block, rather than moving its 420px boundary down.
+   Between 320 and 420px both apply and that is the intent: the narrow treatment's other
+   work — wrapping the header pills and the toolbar so "Tag a board" is not clipped, and
+   the 12px strip padding — is still wanted at this width. Only the column count is
+   wrong there. Source order settles the one declaration they both set; this block is
+   after it, and carries `!important` to match.
+
+   The 320px floor keeps 769-1024px side-by-side on a single column, where the folders
+   column is only ~185-220px and two tracks would be ~80px each. The container is
+   established ONLY inside the side-by-side grid (~51540), so the stacked layout is
+   untouched at every width. */
+@container boards-folders (min-width: 320px) {
+  .ub-boards-page__folder-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+
 /* Folder COUNT chip and its divider, hidden at <=1024px in SIDE-BY-SIDE only.
    The divider is `.ub-boards-page__folders-count::before` — a pseudo-element OF the
    count — so hiding the count removes both; a second rule for the divider would be
@@ -51269,10 +51304,84 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
         "toggle chevron"
         "actions actions"
         "body body";
+      /* The heading and actions rows keep their content height; the BODY row absorbs
+         whatever extra height the stretch above hands the section. Without this the
+         three rows stay `auto` and the section simply ends early, leaving the gained
+         height as empty space under the card. */
+      grid-template-rows: auto auto 1fr;
       align-items: center;
+    }
+
+    /* `align-items: center` above is right for the heading and the action pills; the
+       body must fill its row instead of sitting centred in it. */
+    .ub-boards-page__folders-body {
+      align-self: stretch;
+    }
+
+    /* The panel the user actually sees. `__folders-body` is a flex column
+       (padding/display authored at ~68179) holding the toolbar and then either the
+       folder strip or, when drilled in, the folder context — so whichever of those is
+       present takes the slack and the card's own background reaches the bottom.
+       `min-height: 0` because a flex item's default `min-height: auto` refuses to
+       shrink below its content, which would push the card past the row it is meant to
+       fit when the folder list is long. */
+    .ub-boards-page__folder-strip,
+    .ub-boards-page__folder-context {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    /* The PANEL fills the card, but the TILES must not inflate with it.
+       The base strip (~68240) uses `grid-auto-rows: 1fr`, which divides the panel's
+       height EQUALLY among its rows — so as soon as the panel grew to match the boards
+       column, four folders stretched to 189px each. Rows now size to their content and
+       pack at the top, leaving the surplus as empty card rather than as oversized tiles.
+       Scoped to side-by-side because that is the only layout where the panel is
+       stretched; top-down keeps the base behaviour, where `1fr` rows are content-sized
+       anyway and nothing changes. */
+    .ub-boards-page__folder-strip {
+      grid-auto-rows: max-content;
+      align-content: start;
+      /* No panel treatment in side-by-side: the strip sits inside the folders CARD,
+         which already draws its own surface, so a second inset panel was a card on a
+         card. Transparent + no padding lets the tiles sit directly on the card.
+         `background` needs no `!important` (the base rule at ~68240 does not use one and
+         this selector is far more specific), but `padding` does: the narrow-column
+         container query (`@container boards-folders (max-width: 420px)`, ~51199) pins
+         `padding: 12px !important`, and the folders column is 378px even at full screen,
+         so that rule is live here. */
+      background: transparent;
+      padding: 0 !important;
+      /* ...and no frame either. With a transparent fill the base rule's 1px border and
+         layered box-shadow (~68240) were still drawing a rounded outline around the
+         tiles — an empty frame where the panel used to be. The tiles now sit directly on
+         the folders card with nothing around them.
+         `border-radius` is deliberately left alone: with no fill, no border and no
+         shadow it paints nothing, and keeping it means the corner treatment returns
+         intact if this surface is ever given a background again. */
+      border: 0;
+      box-shadow: none;
+    }
+
+    /* Hard ceiling, requested. `max-height` rather than `height` so a tile with little
+       content still sizes down naturally instead of being padded out to 120px. */
+    .ub-boards-page__tag-folder {
+      max-height: 120px;
     }
     .ub-boards-page__folders-header {
       display: contents;
+      /* Span the section when `display: contents` does NOT win.
+         `boards-folders-narrow-header` (~51117) sets `display: grid !important` from
+         `@container boards-folders (max-width: 420px)`, and the folders column is 378px
+         even at full screen — so in practice the mixin wins here and the header IS a
+         real grid item again. Auto-placed, it lands in column 1, which is sized `auto`
+         by the toggle: measured 314px inside a 376px card, capping the actions row and
+         everything else in the header at the toggle's width.
+         Spanning both tracks makes the header full-width in that state, so the actions
+         row reaches the card edges. Inert when `display: contents` does apply — a
+         `contents` box generates no grid item for `grid-column` to act on — so this is
+         safe in both states rather than tied to whichever currently wins. */
+      grid-column: 1 / -1;
     }
     .ub-boards-page__folders-toggle {
       grid-area: toggle;
@@ -51374,6 +51483,25 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
   display: none;
 }
 
+/* The board-count pills ("N in folders" - "N in this section", plus the home-board
+   info affordance) are hidden in SIDE-BY-SIDE. In this layout the folders column is
+   already on screen beside the grid, so the counts restate what the user can see
+   directly, and the boards column has markedly less horizontal room — the pills wrap
+   under the BOARDS title and cost a row of header height for information the layout
+   itself provides. Same reasoning, and the same treatment, as the redundant second
+   New Board button immediately above.
+
+   Hiding `&__boards-summary-stats` (the wrapper) rather than the individual pills is
+   deliberate: the separator, the leading `::before` divider and the `(i)` popover
+   trigger are all its children, so hiding the parent takes the whole group and cannot
+   leave an orphaned divider behind. TOP-DOWN is untouched and keeps the counts.
+
+   No `!important` needed: this is (0,4,0) against the narrow-width layout rule at the
+   bottom of this file, which sets alignment on the same element but never `display`. */
+body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__boards-summary-stats {
+  display: none;
+}
+
 /* COMPACT results centred in their container. The compact grid lays out fixed-width
    tracks (2 up from 1024px), so in the side-by-side boards column they came to ~568px
    inside a ~709px container — left-aligned, with ~141px of dead space down the right.
@@ -51407,6 +51535,47 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
   body[data-boards-layout='side-by-side'] #content.boards-page .md-workspace {
     padding-left: 14px !important;
     padding-right: 14px !important;
+  }
+}
+
+/* Side-by-side on a WIDE screen reclaims 64px of gutter on each side.
+   The lever is `max-width`, NOT `margin`. The base rule (~44236) centres the
+   workspace with `margin: 40px auto`, so the visible left/right margin is simply the
+   leftover viewport gutter — a function of how wide the box is allowed to be. Setting
+   a margin here would fight `auto` and de-centre the page. Widening by 2 x 64px gives
+   back exactly 64px per side: 1200 + 128 = 1328px.
+
+   The `min(..., calc(100% - 24px))` form is copied from the base rule rather than
+   invented, so the 24px viewport safety inset still applies and the value self-limits:
+   below roughly 1352px of viewport the `calc()` term already wins and this changes
+   NOTHING, which is why "full screen" needs no separate width test beyond the
+   breakpoint below.
+
+   `min-width: 1025px` picks up exactly where the <=1024px padding rule above leaves
+   off, with no overlapping band — the same no-overlap pattern used at 769px earlier in
+   this file. TOP-DOWN is untouched and keeps the 1200px cap.
+
+   `!important` mirrors the base rule it overrides, which is itself `!important`. */
+@media (min-width: 1025px) {
+  body[data-boards-layout='side-by-side'] #content.boards-page .md-workspace {
+    max-width: min(1328px, calc(100% - 24px)) !important;
+  }
+
+  /* ...and let the page CONTENT actually take that space. Without this the widening
+     above is invisible: `.ub-boards-page` (~66518) is capped at `max-width: 1120px`
+     with `margin: 0 auto`, so a wider workspace just centres the same 1120px column
+     inside it and adds 64px of dead space per side. Measured before this rule — the
+     whole inner chain was byte-identical between the two layouts at vw=1920:
+     .ub-boards-page 1120, __content 1120, __boards-section 1072, __boards-body 1022.
+
+     `none` rather than a hard 1248px: the page then fills whatever the workspace's
+     content box happens to be, so this does not have to be re-derived if the
+     workspace padding or cap is ever retuned. The ≤1024px variants of this selector
+     already set their own `max-width: 100%`, and are untouched — as is TOP-DOWN,
+     which keeps the 1120px column. No `!important`: the base rule does not use one
+     and this selector is far more specific. */
+  body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page {
+    max-width: none;
   }
 }
 
@@ -51446,6 +51615,19 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
 body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__boards-body:has(> .ub-boards-page__folders-section):has(> .ub-boards-page__boards-summary-section) {
   display: grid;
   grid-template-columns: 1fr 3fr;
+
+  /* FULL-SCREEN split is 1/3 folders : 2/3 boards (2026-08-17, requested). Below
+     1025px the quarter column above stays: between 769 and 1024 the folders column is
+     already only ~185-220px, and taking a third there would come straight out of the
+     board grid, which is the thing the page exists to show. Nested INSIDE this rule
+     rather than added as a separate selector so the two column values live together
+     and there is one authoritative source for the split — same idiom as the
+     `max-width: 768px` stack-fallback at the foot of this block.
+     Pairs with the wide-screen workspace widening (~51432): together they give the
+     folders column its third WITHOUT the boards grid losing width. */
+  @media (min-width: 1025px) {
+    grid-template-columns: 1fr 2fr;
+  }
   gap: 16px;
   /* Folders is far shorter than the board grid. Without this it stretches to the
      full row height and its panel floats above a tall band of dead space. */
@@ -51459,6 +51641,15 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
   }
   > .ub-boards-page__folders-section {
     grid-column: 1;
+    /* Stretch to the BOARDS column's height (2026-08-17, requested). The grid's
+       `align-items: start` above stays for everything else in this row — the
+       loading/error line and the sub-result back-bar have no business growing — so
+       this is an align-SELF override on the one child that should.
+       On its own this would only stretch the outer box and leave the card's inner
+       panel floating above dead space, which is exactly what the `align-items: start`
+       comment above warns about. The three rules below carry the height down to the
+       visible panel, so the card fills rather than the box. */
+    align-self: stretch;
     /* Establishes the query container the block above targets. Scoped HERE, inside the
        side-by-side grid, so the stacked layout never becomes a container and none of
        those rules can apply to it. `inline-size` (not `size`) — the column's height is
@@ -51490,6 +51681,44 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
    matching the modern boards-page surface: soft white-gradient
    tile, icon chip, heading, supporting copy, and a denim-palette
    pill CTA that bubbles `newBoard` to the application route. */
+/* Boards-section loading state — the ONLY loading affordance on this page.
+   It replaces the full-viewport `.ll-premium-progress` "Preparing your
+   workspace" overlay that used to cover the whole page (navbar included)
+   until the Mine list resolved. The page now paints immediately and just
+   this section reports that its contents are still arriving.
+   `min-height` roughly matches a first row of board cards so the section
+   holds its space instead of collapsing and then jumping when the grid
+   mounts. Also serves the "Failed to load" message, which carries the same
+   class and benefits from the same centring. */
+.ub-boards-page__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+/* The tall reserve is BOARDS-PAGE ONLY. `<AvailableBoardsSection>` also renders
+   in the dashboard boards card (components/dashboard-user-boards.hbs ~147) and on
+   the account page via `<BoardsBrowser>` (templates/user/index.hbs ~502), where a
+   180px hold would dominate a small card. `#content.boards-page` is the existing
+   boards-route-only hook used elsewhere in this file for exactly this reason. */
+#content.boards-page .ub-boards-page__loading {
+  min-height: 180px;
+}
+
+/* ~30% above a typical web default, per the AAC legibility floor this app
+   applies to user-facing copy. */
+.ub-boards-page__loading-label {
+  margin: 0;
+  font-size: calc(0.92rem * 1.3);
+  line-height: 1.4;
+  font-weight: 500;
+  color: $brand-slate-blue;
+}
+
 .ub-boards-page__empty {
   display: flex;
   flex-direction: column;
@@ -68548,8 +68777,32 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      the separator slips further back; the current location is the
      darkest, heaviest piece — anchors the eye on "where you are now"
      rather than competing equally with "where you came from". */
-  &__folder-context-breadcrumb {
+  /* Top row of the folder card: breadcrumb left, exit link centred, on ONE row.
+     `1fr auto 1fr` centres the middle track on the wrapper itself, so the link is
+     centred on the CARD no matter how long the folder name in the breadcrumb runs —
+     which `justify-self: center` inside the card's own `auto 1fr auto` could not
+     guarantee, since that middle column is only centred when the two auto flanks match. */
+  &__folder-context-toprow {
     grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+
+    /* Narrow cards: stack instead of letting the two collide, with both centred. */
+    @media (max-width: 640px) {
+      grid-template-columns: 1fr;
+      justify-items: center;
+      gap: 6px;
+    }
+  }
+
+  &__folder-context-breadcrumb {
+    /* Column 1 of `&__folder-context-toprow`, not the card. It used to span the card
+       (`1 / -1`) when it was the only thing in its row; the Back link now shares that
+       row, so spanning would push the link out of the wrapper's tracks. */
+    grid-column: 1;
+    justify-self: start;
     display: flex;
     align-items: center;
     gap: 6px;
@@ -68602,6 +68855,73 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     gap: 16px;
     min-width: 0;
   }
+
+  /* "Back to Folders" — a stylized LINK at the TOP of the folder-context card,
+     centred across its full width.
+     PLACEMENT: the card is a 3-column grid (`auto 1fr auto`) whose breadcrumb already
+     spans `1 / -1`. This is the card's first child and spans the same way, so it takes
+     row 1 and pushes the breadcrumb and the identity/menu/actions row down one — none
+     of which carry an explicit `grid-row`, so they reflow intact (the boards menu keeps
+     its `grid-column: 2`).
+
+     COLOUR: `$brand-verdigris-aa`, not `$brand-verdigris`. _variables.scss:66-71 is
+     explicit that the AA variants exist for "body text and links on white/light
+     backgrounds, where the brand swatches only achieve ~3.1-3.5:1". This is a text link
+     on the card's light surface — exactly that case — so the accessible tone of
+     verdigris is the correct one here (4.73:1 vs ~3.1:1), which matters more than usual
+     in an AAC product.
+
+     Link affordance, but a 44px minimum target: it reads as a link and still satisfies
+     the touch-target floor, since this is the primary way out of the view. */
+  &__folder-context-back {
+    /* Middle track of `&__folder-context-toprow` — the flanking 1fr columns do the
+       centring, so no `justify-self` is needed. */
+    grid-column: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 4px 8px;
+    color: $brand-verdigris-aa;
+    font-size: calc(0.95rem * 1.3);
+    font-weight: 650;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+
+    .ub-boards-page__folder-context-back-label {
+      /* Underline on the LABEL only, so the arrow does not get a stray rule under it.
+         Offset keeps it clear of the descender-free caps at this weight. */
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      text-decoration-thickness: 1.5px;
+    }
+
+    /* The arrow steps left on hover — a small directional cue that the control moves
+       you back, rather than a generic colour shift. */
+    .ub-boards-page__folder-context-back-icon {
+      transition: transform 0.15s ease;
+    }
+
+    &:hover,
+    &:focus-visible {
+      color: #14615F; /* one step darker than the AA token; literal because this sheet
+                         does not use darken() (2 uses in 88k lines) */
+      .ub-boards-page__folder-context-back-icon { transform: translateX(-3px); }
+    }
+
+    &:focus-visible {
+      outline: 3px solid $brand-verdigris;
+      outline-offset: 3px;
+      border-radius: 6px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ub-boards-page__folder-context-back-icon { transition: none; }
+      &:hover .ub-boards-page__folder-context-back-icon { transform: none; }
+    }
+  }
+
   /* Premium folder tile — refined depth treatment for the identity
      anchor. Three layered effects build the sophistication:
      (1) Multi-stop background gradient: cool white top-left, soft
@@ -68732,9 +69052,14 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      without disturbing the grid row height. */
   &__folder-context-boards-menu {
     position: relative;
-    grid-column: 2;
+    /* Card column 3, on the identity row — swapped with Delete (2026-08-17, requested).
+       Bottom-aligned against the identity block, matching the treatment Delete used to
+       have in this slot.
+       `position: relative` stays — the dropdown panel is absolutely positioned against
+       this box, so moving the box must never reparent that containing block. */
+    grid-column: 3;
+    justify-self: end;
     align-self: end;
-    justify-self: center;
     padding-bottom: 2px;
   }
   &__folder-context-boards-menu-trigger {
@@ -68984,8 +69309,15 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     align-items: center;
     gap: 8px;
     flex-shrink: 0;
-    align-self: end;
-    padding-bottom: 2px;
+    /* Right track of `&__folder-context-toprow` — swapped with the boards dropdown
+       (2026-08-17, requested), so Delete now ends the top row and centres vertically
+       with the breadcrumb and the exit link.
+       Placement is STATED rather than left to auto-placement: this row previously
+       relied on landing in the card's column 3 by luck, and slid silently into column 2
+       the moment the dropdown moved out of it. */
+    grid-column: 3;
+    justify-self: end;
+    align-self: center;
   }
   /* Premium glassy pill actions — same chrome family as the New
      folder / Tag a board pills in the header above. Layered effects:

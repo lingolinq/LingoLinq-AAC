@@ -19,45 +19,20 @@
       <BoardsLayoutToggle />
     {{/if}}
     <UserPillNav @active="boards" @userName={{this.model.user_name}} />
-{{!-- Full-viewport loading overlay — uses the same `.ll-premium-progress`
-     chrome as the bootstrap skeleton (boards/index.html.erb +
-     app/index.html) and index-loading.hbs so the user perceives ONE
-     continuous loading state from page refresh through my_boards
-     resolution (no separate spinner card flashes in afterward). Lives
-     OUTSIDE the page wrapper so it sits above the navbar and any
-     other in-page content (z-index 10054). Overlay drops after the
-     first Mine page (`mineListPaintReady`); full-library `.done` still
-     arrives later for search and copy-cluster. --}}
-{{#unless this.mineListPaintReady}}
-  <div class="ll-premium-progress" role="status" aria-live="polite" aria-busy="true">
-    <div class="ll-premium-progress__card">
-      <h2 class="ll-premium-progress__title">{{t "Preparing your workspace" key="preparing_your_workspace"}}</h2>
-      <p class="ll-premium-progress__sub">{{t "Loading boards and communication resources" key="loading_boards_and_resources"}}</p>
-      <div class="ll-premium-progress__bar" aria-hidden="true"></div>
-    </div>
-  </div>
-{{/unless}}
 
 <div class="ub-boards-page ub-boards-page--below-dashboard-pills">
 
   <div class="la-section-header ub-boards-page__page-header" style="display: block; text-align: center;">
     <div class="la-hero-title-wrap">
-      {{!-- "Let's Communicate" — the per-letter typewriter animation
-           on "Communicate" only starts when the letters first mount
-           in the DOM. If we render them while the loading overlay is
-           up, the animation plays unseen and the user misses it.
-           Gating on `mineListPaintReady` defers the mount until the
-           overlay drops, so the user sees the animation play fresh.
-           The {{else}} branch renders an invisible placeholder with
-           identical text + sizing so the wrap reserves the exact
-           same vertical space during the loading phase — without
-           it, the content below jumps up while loading and shifts
-           back down when the real title mounts. --}}
-      {{#if this.mineListPaintReady}}
-        <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="ub-communicate" aria-label={{t "Communicate" key="communicate_word"}}><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">C</span><span class="ub-letter" style="animation-delay:0.31s" aria-hidden="true">o</span><span class="ub-letter" style="animation-delay:0.37s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.43s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.49s" aria-hidden="true">u</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.61s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.67s" aria-hidden="true">c</span><span class="ub-letter" style="animation-delay:0.73s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.79s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.85s" aria-hidden="true">e</span></span></h1>
-      {{else}}
-        <h1 class="la-hero-title la-hero-title--placeholder" aria-hidden="true">{{t "Let's Communicate" key="lets_communicate_placeholder"}}</h1>
-      {{/if}}
+      {{!-- Rendered unconditionally. This used to be gated on
+           `mineListPaintReady` so the per-letter typewriter animation on
+           "Communicate" would not play behind the full-viewport loading
+           overlay, with an invisible placeholder <h1> holding the vertical
+           space so the layout did not jump when the real title mounted.
+           The overlay is gone and the page paints immediately, so the
+           animation is visible from the first frame and both the gate and
+           its placeholder are unnecessary. --}}
+      <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="ub-communicate" aria-label={{t "Communicate" key="communicate_word"}}><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">C</span><span class="ub-letter" style="animation-delay:0.31s" aria-hidden="true">o</span><span class="ub-letter" style="animation-delay:0.37s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.43s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.49s" aria-hidden="true">u</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.61s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.67s" aria-hidden="true">c</span><span class="ub-letter" style="animation-delay:0.73s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.79s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.85s" aria-hidden="true">e</span></span></h1>
     </div>
     <p class="la-pricing-hero-subtitle">{{t "Manage your vocabularies and page-sets," key="ub_boards_subtitle_pre"}}<br>{{t "or create" key="ub_boards_subtitle_mid"}} <em><a href="#" class="ub-boards-page__subtitle-link" {{on "click" (this.ctrlAction "newBoard")}}>{{t "something new..." key="ub_boards_subtitle_em"}}</a></em></p>
   </div>

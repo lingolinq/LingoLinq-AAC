@@ -20,6 +20,8 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep](#gotcha-the-boot-skeleton-is-ll-skel-progress-not-ll-premium-progress--and-a-shared-component-fix-has-no-siblings-left-to-sweep)
+- [Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`](#pattern-the-board-tile-board_action-is-a-contextual-remove-not-a-delete-button--gate-on-remove_type)
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
@@ -13502,3 +13504,81 @@ the X failed to minimize. Check the original design intent before "unifying" two
 paths that look redundant; `539a3d9b3`'s message states the split explicitly.
 
 **Evidence:** [`2026-08-17-copy-minimize-drawer-click-test.md`](./2026-08-17-copy-minimize-drawer-click-test.md).
+
+
+## Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep
+
+Two traps, both hit while checking whether the account page and dashboard boards card
+needed the same "Preparing your workspace" fix the boards page got.
+
+**1. There are two unrelated progress-card classes.** `.ll-premium-progress` is the
+EMBER chrome (`app-loading-overlay.hbs`, `index-loading.hbs`, `board-icon.hbs`).
+`.ll-skel-progress`, inside `#loading_box`, is the PRE-EMBER shell skeleton in
+`app/frontend/app/index.html` and `app/views/boards/index.html.erb`. They render an
+identical-looking full-screen card with identical copy. A probe that queries only
+`.ll-premium-progress` reports "no overlay in any frame" for frames where a
+full-screen "Preparing your workspace" is plainly on screen. Always detect
+`#loading_box` separately and classify those frames as pre-Ember rather than blank —
+otherwise every hard-load measurement is wrong in one direction or the other.
+
+**2. Fixing a shared component fixes every host at once.** The 2026-08-17 boards-page
+work made two changes: it deleted a route-local overlay in `templates/user/boards.hbs`,
+and it widened the loading branch in `components/available-boards-section.hbs`. Only
+the first was route-specific. The handoff then listed the account page and dashboard
+card as "the natural next two, since they share `<AvailableBoardsSection>`" — but
+sharing the component is exactly why there was nothing left to do: both were verified
+already correct, 10/10, without a line changed.
+
+**Generalisation.** Before sweeping "the other surfaces with this bug", write down the
+two sets explicitly — surfaces with the SYMPTOM, and surfaces sharing the FIXED CODE —
+and check the intersection is non-empty. "It shares the component" argues against a
+follow-up sweep, not for one.
+
+**Probe preconditions this cost.** The dashboard boards card only exists when
+`activeTab == 'boards'` (`components/dashboard/authenticated-view.hbs:91`); landing on
+`/:user/home` and recording "the section never rendered" measures the Home tab, not a
+defect. And "no loading window observed" is the IDEAL result when the grid is already
+painted from cache — a probe must tell that apart from "observed nothing at all", or
+a cache-first paint reads as a failure.
+
+**Evidence:** [`2026-08-18-account-dashboard-workspace-loading.md`](./2026-08-18-account-dashboard-workspace-loading.md),
+probe `app/frontend/scripts/workspace-overlay-qa.mjs`.
+
+
+## Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`
+
+The hover button on a board tile in `components/available-boards-section.hbs` looks like
+a delete button on the Boards page, but its icon, label and action are all supplied by
+`board_list.remove_type` (`controllers/user/index.js:650-687`), which varies by tab:
+`delete` (Mine / Public / Private / Root / Prior home), `unstar` (Liked), `unlink`
+(Shared with Me), `untag` (a board tag). Deleting the button to "remove the trash can"
+silently removes three non-destructive actions on other tabs. Gate the variant:
+
+```hbs
+{{#if (and board.board.id (not (is-equal this.boardsCtrl.board_list.remove_type "delete")))}}
+```
+
+**Three related traps in the same area:**
+
+1. **There are two byte-identical tile blocks** — the main grid and the folder drill-in
+   grid. Fixing the one you found first leaves the other live. `grep -n board_action`
+   before editing; a third site (the orphan-cluster row) is behind
+   `showOrphanClusters: false` and never renders.
+2. **`@removeCallback` is load-bearing beyond the tile.** `board-icon.js:330-340` turns it
+   into `board.preview_remove`, which is what renders the touch-reachable remove inside
+   the board-preview modal (`board-preview.hbs:97-107`). Remove the hover button but KEEP
+   the callback, or the delete path disappears from touch devices entirely.
+3. **Board tiles default to compact, and compact suppresses both preview triggers**
+   (`compactBoards: true`, `available-boards-section.js:24`; `board-icon.hbs:63,88` gate
+   on `compactRow`). Any probe that looks for `button.info` or `.board-icon__info` must
+   flip the density segmented control first, or it reports a false absence — this cost
+   two runs.
+
+**And a reporting trap:** a modal component having a `delete()` action does not mean the
+modal can delete. `components/board-details.js:107` has one; `board-details.hbs` wires
+nothing to it. Same for `routes/application.js:205 confirmDeleteBoard`, which no template
+references. Before naming an entry point in an answer, grep the TEMPLATE for the trigger,
+not just the JS for the action (CLAUDE.md 0.11).
+
+**Evidence:** [`2026-08-18-remove-board-tile-hover-trash.md`](./2026-08-18-remove-board-tile-hover-trash.md),
+probe `app/frontend/scripts/boards-tile-delete-removed-qa.mjs`.
