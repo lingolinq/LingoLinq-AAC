@@ -1088,10 +1088,17 @@ describe Supervising, :type => :model do
     before(:each) do
       @pre_user_ids = User.pluck(:id)
       @pre_link_ids = UserLink.pluck(:id)
+      # Always [] today: spec_helper.rb's global before(:each) already runs an
+      # unscoped RemoteAction.delete_all and outer hooks run first. Kept as a
+      # defence against that hook going away, not as an active protection.
       @pre_ra_ids = RemoteAction.pluck(:id)
     end
 
     after(:each) do
+      # Guarded: if the before hook raised, these are nil, and `where.not(id: nil)`
+      # compiles to `id IS NOT NULL` -- a full-table delete, which is the exact
+      # cross-file destruction this scoping exists to prevent.
+      return unless @pre_user_ids && @pre_link_ids && @pre_ra_ids
       UserLink.where.not(id: @pre_link_ids).delete_all
       RemoteAction.where.not(id: @pre_ra_ids).delete_all
       User.where.not(id: @pre_user_ids).delete_all
@@ -1117,40 +1124,41 @@ describe Supervising, :type => :model do
       RemoteAction.where(path: user.global_id, action: 'update_available_boards')
     end
 
-    it "should clear the outbox row once the post-commit enqueue takes over" do
+    it "should keep the outbox row after the enqueue is merely accepted" do
       supervisor = User.create
       user = User.create
       User.link_supervisor_to_user(supervisor, user)
 
-      # Fast path won, so the hourly fallback must not ALSO fire -- that was a
-      # second full update_available_boards recompute on every supervision change.
+      # Resque.enqueue returning means Redis took an LPUSH, not that the refresh
+      # ran. Releasing here would drop the only durable guarantee behind a revoke.
       expect(queued_board_updates_for(supervisor)).to_not eq([])
-      expect(board_cache_remote_actions_for(supervisor).count).to eq(0)
-    end
-
-    it "should keep the outbox row when the enqueue deduplicates against a queued job" do
-      supervisor = User.create
-      user = User.create
-      # schedule_once returns false when an identical job is already queued
-      # (boy_band.rb:422). That job may have been enqueued BEFORE this commit and
-      # can therefore persist a pre-commit snapshot, so the fallback has to live.
-      allow_any_instance_of(User).to receive(:schedule_once).with(:update_available_boards).and_return(false)
-      User.link_supervisor_to_user(supervisor, user)
-
       expect(board_cache_remote_actions_for(supervisor).count).to eq(1)
     end
 
-    it "should not delete an outbox row written by another producer" do
+    it "should release the outbox row when the refresh actually completes" do
       supervisor = User.create
       user = User.create
-      # board_caching.rb:105-106 writes rows against the same (path, action) key
-      # when a communicator's board list changes. Clearing by key rather than by
-      # our own row id would silently cancel that cascade.
-      theirs = RemoteAction.create(path: supervisor.global_id, action: 'update_available_boards', act_at: 5.minutes.from_now)
-
       User.link_supervisor_to_user(supervisor, user)
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(1)
 
-      expect(RemoteAction.where(id: theirs.id).count).to eq(1)
+      # This is what stops hourly remote_remove_batch running a second full
+      # recompute for every supervision change.
+      supervisor.reload.update_available_boards
+
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(0)
+    end
+
+    it "should not release a row written while the refresh was in flight" do
+      supervisor = User.create
+      user = User.create
+      User.link_supervisor_to_user(supervisor, user)
+      RemoteAction.where(path: supervisor.global_id, action: 'update_available_boards').delete_all
+      # A change the in-flight pass cannot have seen, so its row must survive it.
+      RemoteAction.create(path: supervisor.global_id, action: 'update_available_boards', act_at: 1.minute.from_now)
+
+      supervisor.reload.update_available_boards
+
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(1)
     end
 
     it "should not drag a debounced outbox row forward when linking" do
@@ -1226,12 +1234,9 @@ describe Supervising, :type => :model do
       expect(during_jobs).to eq([]), "board-cache recompute was queued while the transaction was still open"
       expect(during_ra).to eq(1), "durable outbox row must be written inside the same transaction as the link"
       expect(queued_board_updates_for(sup).length).to be > 0
-      # Was 1 when this example was written: the row was never cleared, so hourly
-      # remote_remove_batch drained it and ran a SECOND full update_available_boards
-      # for every supervision change. The row is a fallback for the case where the
-      # post-commit enqueue does not happen; once it has happened, the fallback has
-      # nothing left to cover.
-      expect(board_cache_remote_actions_for(sup).count).to eq(0), "outbox row should be released once the post-commit enqueue succeeded"
+      # Still 1: the row outlives the ENQUEUE on purpose and is released by the
+      # worker on completion. Enqueue acceptance is not proof the refresh happened.
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
     end
 
     it "should defer the supervisor board-cache recompute past commit when unlinking" do
@@ -1252,12 +1257,9 @@ describe Supervising, :type => :model do
       expect(during_jobs).to eq([]), "board-cache recompute was queued while the transaction was still open"
       expect(during_ra).to eq(1), "durable outbox row must be written inside the same transaction as the unlink"
       expect(queued_board_updates_for(sup).length).to be > 0
-      # Was 1 when this example was written: the row was never cleared, so hourly
-      # remote_remove_batch drained it and ran a SECOND full update_available_boards
-      # for every supervision change. The row is a fallback for the case where the
-      # post-commit enqueue does not happen; once it has happened, the fallback has
-      # nothing left to cover.
-      expect(board_cache_remote_actions_for(sup).count).to eq(0), "outbox row should be released once the post-commit enqueue succeeded"
+      # Still 1: the row outlives the ENQUEUE on purpose and is released by the
+      # worker on completion. Enqueue acceptance is not proof the refresh happened.
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
     end
 
     it "should roll the board-cache outbox back with the supervision change" do

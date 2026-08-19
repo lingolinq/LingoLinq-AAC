@@ -283,60 +283,45 @@ module Supervising
     # app's outbox for the same job (board_caching.rb, organization.rb);
     # writing it in the same transaction as the link change means
     # Uploader.remote_remove_batch (hourly) will still schedule the refresh.
-    # The outbox row is a FALLBACK, so it is cleared once the fast path has actually
-    # taken over -- otherwise every link/unlink ran update_available_boards twice:
-    # once from this enqueue, and again when hourly remote_remove_batch drained the
-    # row nothing had deleted. That is a full recompute of one of this repo's named
-    # hotspots, doubled, on every supervision change.
-    #
-    # "Actually taken over" is load-bearing, and the test for it is `== false`, NOT
-    # truthiness. schedule_once_for returns literal FALSE only in its
-    # already-queued branch (boy_band.rb:422); on a real enqueue it returns
-    # whatever schedule_for returns, and schedule_for ends on `if size > 5000 ...`,
-    # which is nil in every normal case. A successful enqueue is therefore FALSY,
-    # and `if schedule_once(...)` would never clear anything.
-    #
-    # A false means we deduplicated against a job that may have been queued BEFORE
-    # this transaction committed -- exactly the worker that can persist a
-    # pre-commit snapshot -- so the fallback must survive to correct it. That is
-    # the case worth keeping, which is why the sentinel is checked explicitly.
+    # The outbox row is a FALLBACK for the post-commit enqueue, and it is released
+    # by the WORKER on completion (board_caching.rb#update_available_boards), not
+    # here on enqueue. Resque.enqueue returning means Redis accepted an LPUSH, not
+    # that the refresh happened; available_private_board_ids is authorization state
+    # (board.rb:76) with no TTL, so clearing on acceptance would let a job lost to
+    # eviction, failover, or a SIGKILL past the shutdown grace leave a REVOKED
+    # supervisor holding real access to a child's private boards indefinitely.
+    # Releasing on completion still collapses the doubled recompute -- the row is
+    # gone before hourly remote_remove_batch ever sees it -- without trading a
+    # durability guarantee for it, and it needs no ownership tracking, so a
+    # concurrent operation cannot adopt or destroy another's row.
     #
     # `revoked` distinguishes the two callers. On a revoke a delayed row must be
     # pulled forward: board_caching.rb:22-25 parks a deliberate 30-minutes-out row
     # for accounts with >500 view ids, and a revoked supervisor must not keep real
-    # access to a child's private boards for that long. On a LINK there is no such
-    # urgency, and dragging that row forward defeated the debounce it exists to
-    # provide -- the batch would fire it immediately, update_available_boards would
-    # see a <60-minute generated stamp, and park a fresh row 30 minutes out again.
+    # access for that long. On a LINK there is no such urgency, and dragging that
+    # row forward defeated the debounce it exists to provide -- the batch would
+    # fire it immediately, update_available_boards would see a <60-minute generated
+    # stamp, and park a fresh row 30 minutes out again.
     def schedule_board_cache_refresh(supervisor, revoked=false)
       return unless supervisor
-      own_row_id = persist_board_cache_refresh(supervisor, revoked)
+      persist_board_cache_refresh(supervisor, revoked)
       ActiveRecord.after_all_transactions_commit do
-        deduped = supervisor.schedule_once(:update_available_boards) == false
-        RemoteAction.where(id: own_row_id).delete_all if own_row_id && !deduped
+        supervisor.schedule_once(:update_available_boards)
       rescue StandardError => e
-        Rails.logger.warn("supervising: board-cache enqueue failed: #{e.class}")
+        Rails.logger.warn("supervising: board-cache enqueue failed for #{supervisor.global_id}: #{e.class}: #{e.message}")
       end
     end
 
-    # Returns the id of the row THIS call created, or nil when it deferred to a row
-    # that was already there. Only our own row is ever cleared later: board_caching
-    # writes rows against the same (path, action) key for its own reasons -- a
-    # 30-minute debounce for >500-board accounts (:22-25) and a 5-minute cascade to
-    # a communicator's supervisors (:105-106) -- and deleting those would silently
-    # cancel another producer's guarantee. On a revoke that means an existing row
-    # is accelerated but not adopted, so it may still fire a second recompute; that
-    # is the correct trade against dropping someone else's outbox entry.
     def persist_board_cache_refresh(supervisor, revoked=false)
       path = supervisor.global_id
-      return nil unless path
+      return unless path
       scope = RemoteAction.where(path: path, action: 'update_available_boards')
       if revoked
-        return nil if scope.update_all(act_at: Time.now) > 0
+        return if scope.update_all(act_at: Time.now) > 0
       elsif scope.exists?
-        return nil
+        return
       end
-      RemoteAction.create(path: path, action: 'update_available_boards', act_at: Time.now).id
+      RemoteAction.create(path: path, action: 'update_available_boards', act_at: Time.now)
     end
 
     def link_supervisor_to_user(supervisor, user, code=nil, type=true, organization_unit_id=nil)
@@ -384,7 +369,11 @@ module Supervising
         ActiveRecord.after_all_transactions_commit do
           supervisor.schedule(:remove_supervisors!)
         rescue StandardError => e
-          Rails.logger.warn("supervising: remove_supervisors! enqueue failed: #{e.class}")
+          # Identified, because this one has no outbox: the role change is already
+          # committed and nothing retries, so this line is the only trace that a
+          # grace-period account was left marked supporter while still holding
+          # supervisors. Silent is not an acceptable form of the safe failure.
+          Rails.logger.warn("supervising: remove_supervisors! enqueue failed for #{supervisor.global_id}: #{e.class}: #{e.message}")
         end
         supervisor.settings['preferences']['role'] = 'supporter'
       end

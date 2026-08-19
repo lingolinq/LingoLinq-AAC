@@ -17,6 +17,16 @@ module BoardCaching
 
   def update_available_boards
     # TODO: sharding
+    # Outbox release point. RemoteAction rows requesting this refresh are cleared
+    # when the work is DONE, not when a job was accepted onto the queue --
+    # Resque.enqueue returning only means Redis took an LPUSH, and
+    # available_private_board_ids is authorization state (board.rb:76) with no TTL,
+    # so a job lost to eviction, failover, or a SIGKILL past the shutdown grace
+    # would otherwise leave a revoked supervisor's access in place indefinitely.
+    # Clearing here keeps hourly remote_remove_batch as the real guarantee while
+    # still collapsing the double recompute, for every producer of these rows
+    # rather than only the supervising ones.
+    started_at = Time.now
 
     if self.settings && self.settings['available_private_board_ids'] && (self.settings['available_private_board_ids']['generated'] || 0) > 60.minutes.ago.to_i
       # Schedule for later if already run recently
@@ -108,7 +118,13 @@ module BoardCaching
     else
       self.save
     end
+    # Only rows that were already pending when this run STARTED are satisfied by
+    # it. A row written while the recompute was in flight represents a change this
+    # pass did not see, so it must survive to trigger another one.
+    RemoteAction.where(path: self.global_id, action: 'update_available_boards')
+      .where('act_at <= ?', started_at).delete_all
   rescue ActiveRecord::StaleObjectError
+    # Failed run: the row stays, so the fallback still fires.
     self.schedule_once(:update_available_boards)
   end
   
