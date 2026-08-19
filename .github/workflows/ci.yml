@@ -208,6 +208,22 @@ jobs:
       - name: Verify the docs/legal naming guards actually fire
         run: scripts/tests/legal-naming-check-test.sh
 
+      # Structural gate on the registers themselves. The render checks above only compare a
+      # generated markdown to its JSON source; none of them reads the field SHAPES the register's
+      # consumers depend on, so a malformed row (observed: `source` written as a bare String
+      # instead of an object) merged green here and then hard-crashed promote-finding.rb for the
+      # entire register weeks later. This validates shapes, enum membership, and id uniqueness.
+      # Stdlib-only and git-free, like the checks above, so it is equally low-friction to gate on.
+      - name: Verify findings registers are structurally valid
+        run: ruby scripts/register-lint.rb audit-reports/FINDINGS.json audit-reports/ember-upgrade/FINDINGS-EMBER.json
+
+      # Belt and braces to the lint above: register-lint checks the shapes we PREDICTED the
+      # consumers need; this runs the real consumers (promote-finding.rb, audit-merge.rb) over each
+      # committed register with empty input and asserts they exit 0 AND leave the file
+      # byte-identical. It catches whatever the predicate list failed to anticipate.
+      - name: Verify registers are consumable by promote-finding / audit-merge (no-op run)
+        run: scripts/tests/register-consumer-smoke-test.sh
+
   codex-review-tests:
     runs-on: ubuntu-latest
 

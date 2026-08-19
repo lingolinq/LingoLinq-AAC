@@ -39,6 +39,33 @@ downgrades, or accepts risk. **Only Scot** moves a finding to `verified-closed`/
 a finder re-surfaces is flagged `regression: true` for adversary review and a Scot decision,
 never silently reopened or reclosed.
 
+### The audit pointer vs. the evidence anchor
+
+`meta.auditedSha`/`auditedRef`/`auditedDate` are the **audit pointer**: they assert that a
+whole-tree `/audit-run` audited every path at that commit. Per-finding `evidence.sha` is the
+**evidence anchor**: the commit that one snippet is proven to exist at. Only a real `/audit-run`
+moves the pointer, and moving it is a governance act requiring Scot's sign-off plus an analysis of
+the intervening commits (`meta.auditedShaPriorNote` records each restamp).
+
+So `audit-merge.rb` takes them separately:
+
+| Situation | Invocation | `meta` | `evidence.sha` |
+|---|---|---|---|
+| Whole-tree `/audit-run` | `--sha <auditedSha> --ref <auditedRef>` | restamped | `<auditedSha>` |
+| Any other addition (hand-filed finding, targeted re-anchor) | `--sha <trueCommit> --no-restamp` | untouched | `<trueCommit>` |
+| PR-time promotion | `promote-finding.rb` (no sha flag) | untouched | each finding's own `evidence.sha` |
+
+Never pass the register's existing `auditedSha` just to avoid a restamp. That silently anchors
+new evidence to a commit it was never verified against, and `citation-check.rb` passes it **green**
+whenever the snippet happens to sit on the same line in both commits. Use `--no-restamp`.
+
+### Structural validation
+
+`scripts/register-lint.rb` validates the register's SHAPE (field types, enum membership, id
+uniqueness) and is gated in CI's `audit-artifacts-integrity`. It is complementary to
+`citation-check.rb`, which validates EVIDENCE (snippet exists at the cited file:line@sha) and needs
+git history, so it is deliberately not a CI job. Run both; neither subsumes the other.
+
 ## Bridging PR-time review findings (operationalization)
 
 The periodic `/audit-run` is not the only source of findings. The per-PR reviewers (the `/review-pr`
