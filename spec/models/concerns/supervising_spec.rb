@@ -1024,6 +1024,58 @@ describe Supervising, :type => :model do
   # need real commits, so the surrounding transactional fixture is disabled --
   # with it on, nothing ever commits and the ordering assertions would pass
   # vacuously.
+  # Model-level denial cases for the roster predicate. The controller specs cover
+  # the happy paths through HTTP; these pin the negatives, which are the half a
+  # future refactor is most likely to lose quietly.
+  describe "listable_as_supervisee_by?" do
+    it "should deny a nil caller" do
+      u = User.create
+      expect(u.listable_as_supervisee_by?(nil)).to eq(false)
+    end
+
+    it "should deny a caller with no relationship" do
+      communicator = User.create
+      stranger = User.create
+      expect(communicator.listable_as_supervisee_by?(stranger)).to eq(false)
+    end
+
+    it "should deny a stranger even when the communicator is public" do
+      communicator = User.create(:settings => {'public' => true})
+      stranger = User.create
+      # The public-account rule grants view_existence/view_detailed but never
+      # 'model', which is what keeps a public profile off a private roster.
+      expect(communicator.listable_as_supervisee_by?(stranger)).to eq(false)
+    end
+
+    it "should allow the communicator themselves" do
+      u = User.create
+      expect(u.listable_as_supervisee_by?(u)).to eq(true)
+    end
+
+    it "should allow an ordinary supervisor" do
+      communicator = User.create
+      supporter = User.create
+      User.link_supervisor_to_user(supporter, communicator)
+      expect(communicator.reload.listable_as_supervisee_by?(supporter.reload)).to eq(true)
+    end
+
+    it "should allow a per-link modeling-only supervisor, who still needs to model" do
+      communicator = User.create
+      supporter = User.create
+      User.link_supervisor_to_user(supporter, communicator, nil, 'modeling_only')
+      expect(supporter.reload.modeling_only_for?(communicator.reload)).to eq(true)
+      expect(communicator.listable_as_supervisee_by?(supporter)).to eq(true)
+    end
+
+    it "should deny a valet session" do
+      communicator = User.create
+      supporter = User.create
+      User.link_supervisor_to_user(supporter, communicator)
+      allow(supporter).to receive(:valet_mode?).and_return(true)
+      expect(communicator.reload.listable_as_supervisee_by?(supporter)).to eq(false)
+    end
+  end
+
   describe "board-cache enqueue ordering" do
     self.use_transactional_tests = false
 

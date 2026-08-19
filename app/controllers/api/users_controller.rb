@@ -140,7 +140,7 @@ class Api::UsersController < ApplicationController
       # Same fan-out as users#supervisees: the gate above authorizes the list
       # owner, not the children inside. Filter before emitting ids (and, on
       # self, room-join verifiers).
-      sups = user.supervisees.select { |s| supervisee_readable?(s, 'supervise') }
+      sups = user.supervisees.select { |s| supervisee_listable?(s) }
       if sups.length < 20
         res[:supervisees] = sups.map do |sup|
           ws_user_id = sup.global_id
@@ -615,12 +615,14 @@ class Api::UsersController < ApplicationController
     # unread counts are activity metadata about a child the caller has no
     # relationship with.
     #
-    # 'supervise' is the same permission the gate above demands, so this holds each
-    # row to the standard already applied to the list's owner. It resolves through
-    # self, non-modeling supervisor, and org manager (user.rb:71,87), so a manager
-    # reviewing a therapist's in-org caseload is unaffected; only the out-of-org
-    # rows drop out.
-    supervisees = user.supervisees.select{|s| supervisee_readable?(s, 'supervise') }
+    # This is ROSTER identity, so the check is supervisee_listable? ('model'), not
+    # supervisee_readable? ('supervise'). 'supervise' carries a modeling_only
+    # conjunct that fails for a BILLING-lapsed supporter against their own
+    # caseload, which emptied the list for that whole tier; 'model' is granted to
+    # any supervisor_for? (user.rb:68) and to an org manager (user.rb:87) but to
+    # no stranger, so a manager reviewing a therapist's in-org caseload is
+    # unaffected and only the out-of-org rows drop out.
+    supervisees = user.supervisees.select{|s| supervisee_listable?(s) }
     render json: JsonApi::User.paginate(params, supervisees, limited_identity: true, supervisor: user, prefix: "/users/#{user.global_id}/supervisees")
   end
   

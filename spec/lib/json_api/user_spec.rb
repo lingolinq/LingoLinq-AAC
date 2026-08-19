@@ -629,6 +629,43 @@ describe JsonApi::User do
         expect((hash['supervisees'] || []).map { |s| s['id'] }).to eq([shared.global_id])
         expect(hash['supervisees'][0]['name']).to eq(shared.settings['name'])
       end
+
+      # Withholding the child's IDENTITY is not enough on its own: board ids are
+      # directly fetchable, and board_set_ids re-walked user.supervisees
+      # unfiltered (user.rb:1933), so the hidden child's home board and its
+      # entire downstream set still shipped in the same payload.
+      it "should not leak board ids for supervisees the caller cannot see" do
+        viewer = User.create
+        supporter = User.create
+        outside = User.create
+        b = Board.create(user: outside, public: false)
+        outside.settings['preferences']['home_board'] = {'id' => b.global_id, 'key' => b.key}
+        outside.save
+        User.link_supervisor_to_user(supporter, outside)
+        User.link_supervisor_to_user(viewer, supporter)
+
+        hash = JsonApi::User.build_json(supporter.reload, permissions: viewer)
+        expect((hash['supervisees'] || []).map { |s| s['id'] }).to_not include(outside.global_id)
+        expect(hash['stats']['board_set_ids_including_supervisees'] || []).to_not include(b.global_id)
+      end
+
+      # Positive control: the same board DOES ship when the caller is entitled
+      # to that child, so the example above cannot pass by emptying the list.
+      it "should include board ids for supervisees the caller can see" do
+        viewer = User.create
+        supporter = User.create
+        shared = User.create
+        b = Board.create(user: shared, public: false)
+        shared.settings['preferences']['home_board'] = {'id' => b.global_id, 'key' => b.key}
+        shared.save
+        User.link_supervisor_to_user(supporter, shared)
+        User.link_supervisor_to_user(viewer, shared)
+        User.link_supervisor_to_user(viewer, supporter)
+
+        hash = JsonApi::User.build_json(supporter.reload, permissions: viewer)
+        expect((hash['supervisees'] || []).map { |s| s['id'] }).to eq([shared.global_id])
+        expect(hash['stats']['board_set_ids_including_supervisees'] || []).to include(b.global_id)
+      end
       
       it "should include org-added supervisees in paginated list if for an organization" do
         u = User.create
