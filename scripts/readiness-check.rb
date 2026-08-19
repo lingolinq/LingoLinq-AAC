@@ -591,6 +591,15 @@ def load_base_snapshots
   end
   ref = ENV['READINESS_BASE_SHA'] || ENV['READINESS_BASE_REF']
   return [:unresolvable, 'no base ref supplied (READINESS_BASE_REF/READINESS_BASE_SHA/READINESS_BASE_SNAPSHOTS_FILE all unset)'] unless ref
+  # A blank or all-zeros ref must NOT fall through to git's "<ref>:<path>" syntax:
+  # an empty ref there means "the index version of <path>", which always exists
+  # and is byte-identical to the worktree, so it would silently self-compare and
+  # pass. An unset CI event field (e.g. a future workflow_dispatch/merge_group
+  # trigger, where github.event.before is absent) renders as this exact empty
+  # string, not as a missing env var, so `unless ref` above does not catch it.
+  if ref.to_s.strip.empty? || ref.to_s.strip == ('0' * 40)
+    return [:unresolvable, "base ref #{ref.inspect} is blank or all-zeros (an unset CI event field, not a real base) - refusing rather than silently self-comparing"]
+  end
 
   path_in_ref = "#{ref}:#{SNAPSHOTS_JSON}"
   file_at_ref_ok = system('git', 'cat-file', '-e', path_in_ref, err: File::NULL, out: File::NULL)

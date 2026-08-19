@@ -148,8 +148,12 @@ verify_all() {
   # If the fetch itself fails (offline), readiness-check.rb fails closed on
   # an unresolvable base rather than silently skipping the comparison.
   git fetch origin staging --quiet 2>/dev/null || true
+  # -u clears any stale READINESS_BASE_SHA/READINESS_BASE_SNAPSHOTS_FILE already
+  # exported in the caller's shell: both outrank READINESS_BASE_REF, so a leftover
+  # export (e.g. a blank READINESS_BASE_SHA= from an earlier debugging session)
+  # would otherwise silently override the base this wrapper intends to verify against.
   step "verify: readiness strategy layer + dashboard render" \
-    env READINESS_BASE_REF=origin/staging ruby scripts/readiness-check.rb --check || rc=1
+    env -u READINESS_BASE_SHA -u READINESS_BASE_SNAPSHOTS_FILE READINESS_BASE_REF=origin/staging ruby scripts/readiness-check.rb --check || rc=1
   step "verify: readiness-check guards (derived-status, provenance, snapshots)" \
     bash scripts/tests/readiness-check-test.sh || rc=1
   return $rc
