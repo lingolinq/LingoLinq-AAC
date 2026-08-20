@@ -117,6 +117,7 @@ file (see [README.md](README.md)).
 - [Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise](#gotcha-persistence-sync-jasmine-harness--wait-for-sync_boards-tail--syncsettled-not-only-the-sync-promise)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
+- [Pattern: curated system boards live on static S3 — prefer over OpenAAC](#pattern-curated-system-boards-live-on-static-s3--prefer-over-openaac)
 - [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
 - [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
 - [Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching](#pattern-shared-ai-reuse-caches-need-exact-scrubbed-keys-before-recommendation-matching)
@@ -3626,8 +3627,9 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 4. Senner signup set: `SystemBoardSources.ensure_senner_baud!` (S3 primary, `SENNER_BAUD_OBZ_PATH` / `tmp/seed-boards/SennerBaudSocialPages60ll.obz` local fallback). After `from_obz`, call `sync_load_board_keys!` so `load_board.key` matches the board resolved by id (avoids `_N` dead links after key collisions).
 5. Gallery curated sets: `rake lingolinq:import_curated_vocabularies` or `SEED_IMPORT_CURATED_VOCABULARIES=1`.
 6. OpenAAC import skips filenames in `CuratedVocabularySources.openaac_skip_files`; keep OpenAAC for non-overlapping sets (quick-core-*, vocal-flair-60, etc.).
+7. Quick Core **root descriptions** cannot be cleaned with find-and-replace: they contain `app.mycoughdrop.com/example/core-N` sibling links and a sentence that is *about* CoughDrop ("isn't unique to CoughDrop"). Stamp a hand-written overlay after `from_obz` (`lib/quick_core_descriptions.rb`). Child boards that only have `built with CoughDrop` can be rewritten to `built with LingoLinq`. Already-seeded DBs: `rake lingolinq:apply_quick_core_descriptions` (no OBZ re-download). Do not put this rewrite in `Converters::LingoLinq.from_external` — it would alter therapist CoughDrop migrations.
 
-**Evidence:** `lib/curated_vocabulary_sources.rb`, `lib/system_board_sources.rb`, `lib/tasks/system_boards.rake`, `lib/tasks/openaac.rake`; task log `2026-08-13-curated-s3-system-board-seeds.md`.
+**Evidence:** `lib/curated_vocabulary_sources.rb`, `lib/system_board_sources.rb`, `lib/quick_core_descriptions.rb`, `lib/tasks/system_boards.rake`, `lib/tasks/openaac.rake`; task logs `2026-08-13-curated-s3-system-board-seeds.md`, `2026-08-20-quick-core-import-descriptions.md`.
 
 **Collision note (2026-08-14):** Senner OBZ boards can occupy bare keys like `lingolinq/core-60`. OpenAAC Quick Core roots also import as `core-N`, while signup expects `lingolinq/quick-core-N`. Seed order is Senner then OpenAAC. After Senner import, `relinquish_bare_core_roots!` moves bare `core-N` → `senner-baud-core-N` (child keys like `core-60-when` stay shared). After each `quick-core-N.obz` import, `rekey_quick_core_root!` sets the root to `quick-core-N` and `sync_load_board_keys!` runs.
 

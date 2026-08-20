@@ -4,6 +4,8 @@
 #
 # Imported boards are public and gallery-visible under the owning user, but are
 # NOT added to the signup sidebar library (SystemBoardSources::SIGNUP_LIBRARY_SLUGS).
+# Quick Core roots get a LingoLinq description overlay (QuickCoreDescriptions) so
+# CoughDrop URLs in the OpenAAC prose are not shown in the library.
 #
 # Run: bundle exec rake openaac:import_vocabularies
 #
@@ -70,8 +72,11 @@ namespace :openaac do
       # Quick Core OBZ roots import as core-N; signup expects lingolinq/quick-core-N.
       # Skip download when that signup key already exists (idempotent re-seed).
       qc_slug = SystemBoardSources.quick_core_root_slug_for_filename(filename)
-      if qc_slug && Board.find_by_path(SystemBoardSources.board_key(qc_slug))
+      existing_qc = qc_slug && Board.find_by_path(SystemBoardSources.board_key(qc_slug))
+      if existing_qc
+        stamped = QuickCoreDescriptions.apply_to_root!(existing_qc, slug: qc_slug)
         puts "\n[#{filename}] SKIP: #{SystemBoardSources.board_key(qc_slug)} already exists"
+        puts "  Stamped LingoLinq Quick Core description" if stamped
         next
       end
 
@@ -131,6 +136,11 @@ namespace :openaac do
         end
 
         SystemBoardSources.sync_load_board_keys!(boards)
+
+        overlay = QuickCoreDescriptions.apply_to_imported_boards!(boards, filename: filename)
+        if overlay[:slug]
+          puts "  Stamped LingoLinq description on #{overlay[:slug]} (children cleaned: #{overlay[:children]})"
+        end
 
         # Build button sets for navigation
         if root_board
