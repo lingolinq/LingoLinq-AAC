@@ -1940,8 +1940,27 @@ class User < ApplicationRecord
       root_board_ids += [self.settings['preferences']['home_board']['id']] 
     end
     if include_supervisees
+      # Callers that have already authorized the caseload against a requester
+      # (JsonApi::User) pass the filtered list in; a board id here is directly
+      # fetchable, so re-deriving from self.supervisees would leak the boards of
+      # a child whose identity that caller was just denied. Callers with no
+      # requester in hand (internal/self use) get the full list as before.
+      #
+      # The <5 bound stays on the UNfiltered count: it is a cost guard on this
+      # method, not an authorization decision, and keying it to the filtered
+      # count would let a large caseload back in whenever most rows are hidden.
+      # key? rather than `||`: an authorization-carrying parameter must not treat a
+      # nil or missing value as "no filter". Falling back to the full walk on a
+      # typo or a nil would silently reopen the leak this option exists to close,
+      # with green CI.
+      visible_supervisees =
+        if opts.key?('supervisees') || opts.key?(:supervisees)
+          opts['supervisees'] || opts[:supervisees] || []
+        else
+          self.supervisees
+        end
       if self.supervised_user_ids.length < 5
-        self.supervisees.each do |u|
+        visible_supervisees.each do |u|
           if u.settings && u.settings['preferences'] && u.settings['preferences']['home_board']
             root_board_ids  += [u.settings['preferences']['home_board']['id']]
           end

@@ -70,6 +70,11 @@ ruby scripts/audit-merge.rb \
   --out audit-reports/ember-upgrade/FINDINGS-EMBER.json \
   --summary /tmp/ember-audit-summary.json
 ```
+`--sha` restamps this register's `meta.auditedSha`, which is correct for a whole-tree slice
+fan-out like this one. Adding a single finding outside a full run instead takes
+`--sha <trueCommit> --no-restamp`, which anchors `evidence.sha` at the real commit and leaves
+`meta` untouched (see `audit-reports/README.md`, "The audit pointer vs. the evidence anchor").
+
 Then inspect the summary's `skipped` array for `refused:` entries (PII/secret scrubber)
 — a refusal is a DROPPED finding, not a benign skip; have the finder re-emit with a
 different evidence line (the skill's "Register gotchas" section covers the common

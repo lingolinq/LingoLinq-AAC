@@ -3,10 +3,10 @@
     "schemaVersion": "1.1",
     "register": "LingoLinq-AAC audit findings register",
     "description": "Single source of truth for finding status. Statuses are verified against live code at auditedSha, NOT copied from the dated report prose. See audit-reports/README.md.",
-    "auditedSha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b",
-    "auditedRef": "scot/feat/code-hygiene-auditor",
-    "auditedDate": "2026-08-12",
-    "auditedShaPriorNote": "Restamped 2026-08-12 to d67ed76e0a1 (branch scot/feat/code-hygiene-auditor, 1 commit ahead of origin/staging at branch time) from prior auditedSha 20953ab3d5a (2026-07-08 run). This restamp is NOT a clean single-commit reconciliation like the ones below it: the 6-finder full run that produced d67ed76e0a1 verified its own 40 new findings' evidence at that exact SHA (citation-check green), but the ~110 pre-existing findings from before this run keep their OWN original evidence.sha values, unchanged by this restamp -- consistent with this register's standing per-finding-pin design, not a regression. Flagged during dual-review (2026-08-14): as of review time origin/staging had moved 16 commits past d67ed76e0a1, and two of THIS RUN's own new findings' cited files were among the ones touched (app/frontend/app/utils/persistence.js: LL-30236919f6's debugger; line will drift once this branch merges and a future run re-anchors against staging tip; .github/workflows/ci.yml: LL-33d756b764's GITLEAKS_DOWNLOAD_URL= line likewise). Both still resolve correctly at their pinned evidence.sha (d67ed76e0a1) today; this note exists so a future restamp knows to re-verify those two lines specifically rather than assume the register's overall auditedSha jump means everything was re-verified. Restamped 2026-06-18 to staging tip 59e20439e from prior auditedSha d72463c75 (Scot sign-off 2026-06-18). The only commit between the two is #416, a GCP provisioning fix touching solely scripts/gcp/phase3-data-layer.sh (Memorystore --enable-auth flag + comment); no finding's evidence anchor points at that file, so no finding status could have changed and no new findings surface. Per-finding evidence.sha anchors are unchanged, so citation-check still validates each snippet at its own pinned commit. Prior restamp 2026-06-17 moved 7ed643e92 (scot/test/audit-run-e2e, 2026-06-16) -> d72463c75 after #410/#411/#412/#413 merged.",
+    "auditedSha": "59f502aa4a967c8c704637cc66a18ff05118c7d8",
+    "auditedRef": "staging (audited at 59f502aa4; staging tip had advanced to d2bf421f7 -- 7 commits, 43 files, PRs #814/#816/#819/#820/#821/#822/#823 -- by the time this PR was assembled; those 7 commits are NOT scanned by this run, see auditedShaPriorNote)",
+    "auditedDate": "2026-08-18",
+    "auditedShaPriorNote": "Restamped 2026-08-18 to 59f502aa4 (a real ancestor of origin/staging, NOT the live tip -- see the auditedRef caveat above) from prior auditedSha d67ed76e0a1 (2026-08-12 run), for a monthly light run (/audit-run cadence rule). Discovered during scoping: d67ed76e0a1 is NOT an ancestor of current staging history (`git merge-base --is-ancestor` returns false) -- PR #803, which landed that full run's own commit alongside the 40 findings it produced, squash-merged into staging as f3096a4ce rather than via a traceable merge commit, so the exact feature-branch SHA the prior restamp recorded was orphaned from mainline the moment the PR merged. A naive `git diff d67ed76e0a1...HEAD` therefore returned a false, enormous result (253 files, 486 commits) by comparing across divergent history instead of a clean diff. The correct anchor for 'what changed since the last full run actually merged to staging' is f3096a4ce (found via `git log --grep`, confirmed as a real ancestor of both endpoints), against which the true light-run scope was exactly 1 commit / 1 file (.github/workflows/deploy-cloudrun.yml, PR #805). CORRECTION (dual-review, 2026-08-19): the FIRST version of this restamp incorrectly asserted '59f502aa4 (== origin/staging)'. That was true at the moment the light-run scoping was computed but had already gone stale by the time the register PR was assembled -- staging advanced 7 more commits (43 files, including PR #819 which extended an unrelated pre-existing finding's notes) before this branch was pushed. The false equality claim was caught by BOTH the Codex senior-dev pass and the Claude adversary pass on PR #824's dual review, alongside a separate and more serious defect it enabled: the register PR's first draft was assembled by copying a stale local file over the correctly-checked-out current-staging FINDINGS.json rather than re-deriving the register from current staging via audit-merge.rb, which silently reverted the 7 commits' worth of legitimate concurrent changes to the file -- including 4,197 characters of PR #819's additions to LL-854b1d3853's notes. That defect was NOT a consequence of the auditedSha choice; it was a separate assembly-process error (raw file overwrite instead of a proper merge onto current staging), fixed by rebuilding the register on top of d2bf421f7 and re-running audit-merge.rb before this PR's second push. This is a distinct, previously-undocumented failure mode from the one scripts/audit-merge.rb's --no-restamp flag (branch scot/fix/audit-merge-sha-decoupling, unmerged as of this run) was built to fix -- that work separates the VERIFICATION sha from the AUDIT POINTER for out-of-band finding additions; this issue is that the audit pointer itself can become a non-ancestor SHA purely from how a full-run PR gets merged (squash vs merge-commit), independent of --no-restamp, AND that assembling a register PR by file-copy rather than through audit-merge.rb against the CURRENT base can silently revert unrelated concurrent work no matter how the auditedSha itself is handled. Recommend Scot decide whether future full-run PRs should be merge-committed (not squashed) specifically to keep meta.auditedSha resolvable via ancestry for the next light run's diff-scoping, and standing process guidance for future register PRs: ALWAYS re-derive audit-reports/FINDINGS.json from the current base branch's tip via audit-merge.rb immediately before opening/updating a register PR -- never copy a working-tree file captured earlier in the session, even if that earlier copy is citation-check green, because green only proves the file's OWN evidence resolves, not that the file reflects the current base. Sign-off for the original restamp is Scot's own /audit-run invocation that started this run (skill is user-invoked only); the correction above was applied by the orchestrator in response to dual-review findings, before Scot's merge decision on PR #824. Restamped 2026-08-12 to d67ed76e0a1 (branch scot/feat/code-hygiene-auditor, 1 commit ahead of origin/staging at branch time) from prior auditedSha 20953ab3d5a (2026-07-08 run). This restamp is NOT a clean single-commit reconciliation like the ones below it: the 6-finder full run that produced d67ed76e0a1 verified its own 40 new findings' evidence at that exact SHA (citation-check green), but the ~110 pre-existing findings from before this run keep their OWN original evidence.sha values, unchanged by this restamp -- consistent with this register's standing per-finding-pin design, not a regression. Flagged during dual-review (2026-08-14): as of review time origin/staging had moved 16 commits past d67ed76e0a1, and two of THIS RUN's own new findings' cited files were among the ones touched (app/frontend/app/utils/persistence.js: LL-30236919f6's debugger; line will drift once this branch merges and a future run re-anchors against staging tip; .github/workflows/ci.yml: LL-33d756b764's GITLEAKS_DOWNLOAD_URL= line likewise). Both still resolve correctly at their pinned evidence.sha (d67ed76e0a1) today; this note exists so a future restamp knows to re-verify those two lines specifically rather than assume the register's overall auditedSha jump means everything was re-verified. Restamped 2026-06-18 to staging tip 59e20439e from prior auditedSha d72463c75 (Scot sign-off 2026-06-18). The only commit between the two is #416, a GCP provisioning fix touching solely scripts/gcp/phase3-data-layer.sh (Memorystore --enable-auth flag + comment); no finding's evidence anchor points at that file, so no finding status could have changed and no new findings surface. Per-finding evidence.sha anchors are unchanged, so citation-check still validates each snippet at its own pinned commit. Prior restamp 2026-06-17 moved 7ed643e92 (scot/test/audit-run-e2e, 2026-06-16) -> d72463c75 after #410/#411/#412/#413 merged.",
     "seedSource": "audit-reports/unified-audit-2026-04-09.md",
     "idAlgorithm": "id = 'LL-' + sha256(ruleKey + '|' + path) first 10 hex chars; stable across runs so recurrence is a diff",
     "statusEnum": [
@@ -2446,7 +2446,7 @@
         "rationale": "Bind the consent gate subject to the eval payload actually egressed; Phase 1B server-side eval persistence follow-up."
       },
       "source": {
-        "kind": "audit",
+        "kind": "pr-review",
         "pr": 412,
         "reviewer": "adversary",
         "promotedDate": "2026-06-17"
@@ -3172,7 +3172,7 @@
         "rationale": "Accepted, but remediation is owned by the Render-to-GCP migration thread (infra cutover work). Tracked here; not changed in the compliance thread."
       },
       "source": {
-        "kind": "audit-review",
+        "kind": "manual",
         "pr": null,
         "reviewer": "claude-compliance-officer",
         "promotedDate": "2026-06-23"
@@ -4054,7 +4054,7 @@
       "frameworks": [
         "WCAG"
       ],
-      "status": "open",
+      "status": "remediated-unverified",
       "evidence": {
         "type": "code",
         "file": "app/frontend/app/styles/app.scss",
@@ -4063,15 +4063,15 @@
         "sha": "3cafc72ccd72a4e645c5506ce719b79443c1144e"
       },
       "firstSeen": "2026-07-22",
-      "lastSeen": "2026-07-22",
+      "lastSeen": "2026-08-19",
       "owner": "unassigned",
       "remediation": {
         "options": "The .la-terms-agree-link rule (the class on the Article 50(1) disclosure modal's full-notice link, app/frontend/app/components/ai-disclosure.hbs:48) colors normal-size link text with var(--md-teal) = brand-verdigris (~3.32:1 on white per the codebase's own WCAG note at app.scss:533). The modal surface is a near-white gradient. Recolor this link text to the AA-safe brand-verdigris-aa token (>4.5:1 on white) or point a text-role variable at the AA token; do not inline a hex. The class is shared with terms-agree, so the fix benefits both. Pre-enable blocker for the 2026-08-02 Article 50 flag enable; frontend/styling owner (Traci) domain.",
         "timeframe": "30 days"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
+        "sha": "99c3da99568a7d0c7fb38a404e795f5a76070cce",
+        "verifierNote": "Verified 2026-08-19 at staging tip afdfebee7 that this was already fixed and the register had gone stale: git blame on app/frontend/app/styles/app.scss shows .la-terms-agree-link's color rule (now around line 39950, was line 38150 at the time this finding was filed) was changed from var(--md-teal) to $brand-verdigris-aa by commit 99c3da9956 (\"fix(art50): use AA token for disclosure link\", PR #694, merged 2026-07-28T19:47:17Z, swahlquist), 6 days after this finding's firstSeen. PR #694's body explicitly names LL-a9d6d5a46b as the finding it closes and documents the contrast recomputation: old var(--md-teal)=#2A9D8F on white = 3.32:1 (fails WCAG AA normal text, matching this finding's own citation); new $brand-verdigris-aa=#1A7B7A on white = 5.05:1 and on the modal's near-white #F8F9FA = 4.79:1 (both pass the >=4.5:1 AA threshold). Confirmed the token change is live on current staging via git show origin/staging. No other change was needed on the same class; the icon use of --md-teal noted as out-of-scope in this finding's notes is unaffected. This finding was never updated when #694 merged -- disposition.state was left 'untriaged' and closureEvidence was never populated -- a register-hygiene gap this entry now closes. Awaiting Scot's verified-closed attestation.",
         "attestation": ""
       },
       "disposition": {
@@ -4086,7 +4086,7 @@
         "reviewer": "accessibility-auditor",
         "promotedDate": "2026-07-22"
       },
-      "notes": "Promoted from accessibility-auditor review on 2026-07-22. WCAG 1.4.3 (EN 301 549 clause 9.1.4). Surfaced by the accessibility-auditor on 2026-07-22 during Art50 Phase 5 review of the blocking AI-disclosure modal. The modal's structural a11y contract (name/role/description, keyboard, focus trap, focus restore, no auto-speak) is otherwise sound. Icon use of --md-teal is non-text/aria-hidden and out of scope."
+      "notes": "Promoted from accessibility-auditor review on 2026-07-22. WCAG 1.4.3 (EN 301 549 clause 9.1.4). Surfaced by the accessibility-auditor on 2026-07-22 during Art50 Phase 5 review of the blocking AI-disclosure modal. The modal's structural a11y contract (name/role/description, keyboard, focus trap, focus restore, no auto-speak) is otherwise sound. Icon use of --md-teal is non-text/aria-hidden and out of scope. | REMEDIATED 2026-08-19 (register catch-up): the fix landed via PR #694 (merge 99c3da99568a7d0c7fb38a404e795f5a76070cce) on 2026-07-28, but this finding's status/closureEvidence/disposition were never updated at the time -- discovered stale during a follow-up sweep after the #829/#831 Article 50 backstop work. Status moved open -> remediated-unverified; closureEvidence populated; attestation left empty for Scot. disposition.state intentionally left 'untriaged' -- that is Scot's call, not touched here."
     },
     {
       "id": "LL-c38e7da48e",
@@ -4492,7 +4492,7 @@
         "rationale": "Confirmed real Article 17 / FERPA erasure defect by manual trace. Set at medium rather than the high carried by LL-854b1d3853: that finding retained a child's actual voice and video content, whereas a LogSnapshot retains only a saved report window (label, date range, device_id, location_id) and its location_id already dangles because ClusterLocation is erased. Accepted; fix by adding the Flusher sweep. Production exposure is NOT established: api/snapshots_controller.rb is a live API path, and static inspection cannot determine whether production rows exist. No claim is made either way."
       },
       "source": {
-        "kind": "manual-trace",
+        "kind": "manual",
         "reviewer": "claude-compliance-verification",
         "promotedDate": "2026-08-10"
       },
@@ -4704,7 +4704,7 @@
       "frameworks": [
         "GDPR"
       ],
-      "status": "open",
+      "status": "remediated-unverified",
       "evidence": {
         "type": "code",
         "file": "app/controllers/api/word_suggestions_controller.rb",
@@ -4713,18 +4713,18 @@
         "sha": "d67ed76e0a161b594fbffa519ab428d0f9b7780b"
       },
       "firstSeen": "2026-08-12",
-      "lastSeen": "2026-08-12",
+      "lastSeen": "2026-08-19",
       "owner": "unassigned",
       "remediation": {
         "options": "Extract the disclosure guard used at app/controllers/api/boards_controller.rb:590-594 and app/controllers/api/integrations_controller.rb:107-111 into a shared ApplicationController helper (e.g. require_article_50_disclosure!) and apply it to word_suggestions#create, words#predict, and eval_sessions#narrate, so enabling the article_50_disclosure flag covers all five ingresses atomically. Add a spec asserting every controller that calls AiWordPredictor/AiBoardGenerator/EvalNarrator invokes the guard, so a sixth ingress cannot ship without it.",
         "timeframe": "90 days"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
+        "sha": "afdfebee7485e8b6ca263f1defb29c2eca8f8f1e",
+        "verifierNote": "Verified 2026-08-19 at staging tip afdfebee7: all 5 AI ingresses now carry the server-side Article 50(1) backstop -- app/controllers/api/boards_controller.rb:584, app/controllers/api/integrations_controller.rb:104, app/controllers/api/word_suggestions_controller.rb:28, app/controllers/api/words_controller.rb:63, and app/controllers/api/eval_sessions_controller.rb:84 each call require_article_50_disclosure!/article_50_disclosure_missing? (app/controllers/application_controller.rb:409,419). Landed via PR #829 (merge e101628ff5ea7cdc80564edbcdb3520ef0691ddf). The regression spec recommended in remediation.options (spec/controllers/article_50_disclosure_backstop_coverage_spec.rb) also landed in #829, but chatgpt-codex-connector flagged it as file-scoped rather than method-scoped (review comment 3815352166, P2): a second unguarded AI action added to an already-covered controller file would still have passed. Fixed in PR #831 (merge afdfebee7485e8b6ca263f1defb29c2eca8f8f1e), which rewrote the scan with RubyVM::AbstractSyntaxTree to assert the guard call inside each AI-calling method's own source span, with a 3-case regression fixture proving the old failure mode is closed. bundle exec rspec on the coverage spec: 9 examples, 0 failures. article_50_disclosure remains AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES), so this is still latent-until-enabled. Awaiting Scot's verified-closed attestation.",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-08-12. Five AI ingresses exist: boards_controller#generate_labels, integrations_controller#focus_generate_words, words_controller#predict, word_suggestions_controller#create, eval_sessions_controller#narrate. Only the first two carry the EuJurisdiction.disclosure_required? / article_50_disclosure_shown? backstop. The COPPA and EU-under-16 consent gates are correctly enforced on all five (they live inside the libs as well as the controllers), so this is a transparency-disclosure gap, not a consent gap. Currently latent because article_50_disclosure is AVAILABLE-only and not in ENABLED_FRONTEND_FEATURES, making all instances of the guard inert today; the defect is that enabling the flag would produce silent partial enforcement. Tagged GDPR because the schema's frameworks enum has no EU AI Act value; the governing instrument is EU AI Act Art. 50(1). | adversary: confirmed -- EuJurisdiction/article_50 guard exists only in boards_controller.rb:590-593 and integrations_controller.rb:107-110. Read word_suggestions_controller, words_controller#predict, and eval_sessions_controller#narrate in full; none carries the backstop."
+      "notes": "Surfaced by privacy finder on 2026-08-12. Five AI ingresses exist: boards_controller#generate_labels, integrations_controller#focus_generate_words, words_controller#predict, word_suggestions_controller#create, eval_sessions_controller#narrate. Only the first two carry the EuJurisdiction.disclosure_required? / article_50_disclosure_shown? backstop. The COPPA and EU-under-16 consent gates are correctly enforced on all five (they live inside the libs as well as the controllers), so this is a transparency-disclosure gap, not a consent gap. Currently latent because article_50_disclosure is AVAILABLE-only and not in ENABLED_FRONTEND_FEATURES, making all instances of the guard inert today; the defect is that enabling the flag would produce silent partial enforcement. Tagged GDPR because the schema's frameworks enum has no EU AI Act value; the governing instrument is EU AI Act Art. 50(1). | adversary: confirmed -- EuJurisdiction/article_50 guard exists only in boards_controller.rb:590-593 and integrations_controller.rb:107-110. Read word_suggestions_controller, words_controller#predict, and eval_sessions_controller#narrate in full; none carries the backstop. | REMEDIATED 2026-08-19: all 5 ingresses guarded (#829, e101628ff) and the coverage spec's file-level scoping gap (Codex review comment 3815352166 on #829) closed with a method-scoped AST rewrite (#831, afdfebee7). Status moved open -> remediated-unverified; closureEvidence populated; attestation left empty for Scot."
     },
     {
       "id": "LL-1e7b568ef3",
@@ -5832,6 +5832,103 @@
         "promotedDate": "2026-08-16"
       },
       "notes": "Surfaced 2026-08-16 by the round-6 adversary review pass on PR #806 (buttonsound-secondary-url-cleanup branch). Filed as its own finding rather than folded into LL-c4566fa37f: that finding is about transcode output that never gets persisted application metadata at all, while this finding is about the erasure sweep's own fallback behavior when persisted metadata DOES exist but live S3 listing is unavailable -- a different failure mechanism with a different remediation shape (retry/enumeration hardening vs. job-lifecycle/manifest redesign). Related to LL-854b1d3853 as residual hardening of its degraded cleanup path; does not block LL-854b1d3853's closure. Proposed by the agent; severity, confidence, and disposition are pending Scot's review per repo governance (only Scot sets disposition or closes/downgrades a finding). Confidence set to high (not medium) because both code paths cited (the un-raised fallback failure and the break-on-first-gap logic) were directly read and verified against lib/uploader.rb at HEAD, not inferred."
+    },
+    {
+      "id": "LL-bdc3344942",
+      "ruleKey": "dormant-gemini-key-mounted-without-ci-guard",
+      "title": "GEMINI_API_KEY is still mounted into every prod web and worker container with no runtime consumer and, unlike ANTHROPIC_API_KEY, no CI guard against a seam starting to read it",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA",
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".github/workflows/deploy-cloudrun.yml",
+        "line": 237,
+        "snippet": "STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest",
+        "sha": "59f502aa4a967c8c704637cc66a18ff05118c7d8"
+      },
+      "firstSeen": "2026-08-18",
+      "lastSeen": "2026-08-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Two halves, ideally in one change. (1) Remove GEMINI_API_KEY from NON_BOOT_SECRETS at deploy-cloudrun.yml:237, exactly as PR #805 did for ANTHROPIC_API_KEY, and delete the now-stale comment at :234-236. The mount has had no consumer since the fallback was disabled 2026-07-09 (PR #570): every surviving repo reference is a comment or an operator-facing error string (lib/ai_word_predictor.rb:12, lib/ai_board_generator.rb:24,44,262,548, lib/ai_prediction_generator.rb:35,113). (2) Extend scripts/ai-endpoint-guard.sh to fail on ENV['GEMINI_API_KEY'] / ENV.fetch('GEMINI_API_KEY') across the same four seams it already scans for ANTHROPIC_API_KEY (guard block at :51-58). Without (2), the anti-regression posture for the two dormant AI credentials is asymmetric: the Anthropic route is guarded in CI while the Gemini route, which was disabled for the same BAA-boundary reason, is protected only by the prose 'it wants its own removal'. Consider also whether the guard should scan lib/ and app/ broadly rather than four hardcoded seam paths, since a NEW file is not in SEAMS -- see the related finding LL-1189af1b3c, which treats this exact gap as its own remediation target. (3) ADVERSARY CORRECTION: the credential also lives outside the Cloud Run mount -- .env.op.template:39-40 (every dev shell) and scripts/sync-render-env.js:144-145,686-687 (the Render sync manifest), which .github/workflows/sync-render-secrets.yml pushes into Render on an hourly cron (`15 * * * *`) regardless of the Cloud Run mount state. Removing only the deploy-cloudrun.yml mount does not stop this credential from being actively re-pushed into a live third-party platform every hour; the Render manifest entries need the same removal in the same change.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-18. Independently surfaced by BOTH the infra-auditor and privacy-auditor finders during the same monthly light /audit-run over PR #805 (consolidated into this single register row by the orchestrator rather than filed as two near-duplicate rows -- privacy's framing centered on PII-minimization/non-BAA-route exposure for student and patient data processed by these same containers, HIPAA/GDPR/FERPA; infra's framing centered on the CI-guard asymmetry, SOC2). The PR's own comment (deploy-cloudrun.yml:234-236) identifies this exact gap and defers it, so this finding records the deferred item rather than disputing the PR. Two clarifications the PR comment does not make, verified by the infra finder: (a) ai-endpoint-guard.sh does NOT cover GEMINI_API_KEY at all (verified at this SHA -- the only credential-read check is the ANTHROPIC_API_KEY grep at :55), so the 'same class' framing in the PR comment understates the difference -- the Anthropic key is now unmounted AND guarded, the Gemini key is mounted AND unguarded; (b) the guard checks runtime CONSUMPTION, not the MOUNT list, so 'do not re-add it' at :232 is prose, not an enforced control -- re-adding either name to NON_BOOT_SECRETS would pass CI. That residual is acceptable for Anthropic (a mount with no reader is inert) but is what makes the Gemini case the weaker of the two. Impact is bounded: the credential is unused, so this is credential-surface hardening (blast radius of any prod container compromise or env dump), plus the compliance-flavored risk that a future seam could re-enable a non-BAA Google AI Studio egress route with no CI backstop -- resident in the same runtime environment that processes student and patient data. Related but distinct: LL-7181a16033 (cloudrun-runtime-config-drift-no-reconciler) covers drift introduced OUTSIDE this workflow; this finding is about what the workflow itself deliberately still mounts. ADVERSARY VERDICT (2026-08-19): CONFIRMED -- independently verified ai-endpoint-guard.sh contains zero occurrences of 'GEMINI' and the mount/no-consumer claims hold. The adversary's own review also surfaced a related but distinct gap during verification, filed separately as LL-1189af1b3c (ai-endpoint-guard.sh's SEAMS allowlist is 4 hardcoded files, not a repo-wide scan, so a NEW AI seam file would bypass CI enforcement -- this affects the accuracy of the enforcement claim repeated in several attested/published BAA/Bedrock compliance docs)."
+    },
+    {
+      "id": "LL-94e57af291",
+      "ruleKey": "descoped-ai-credentials-still-provisioned-not-revoked",
+      "title": "ANTHROPIC_API_KEY was de-scoped from the runtime mount but is still an actively-provisioned app secret in the GCP setup scripts, and nothing in the change revokes or disables it",
+      "severity": "low",
+      "confidence": "medium",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/gcp/phase4-seed-app-secrets.sh",
+        "line": 66,
+        "snippet": "ANTHROPIC_API_KEY GEMINI_API_KEY SENTRY_DSN SMS_ENCRYPTION_KEY",
+        "sha": "59f502aa4a967c8c704637cc66a18ff05118c7d8"
+      },
+      "firstSeen": "2026-08-18",
+      "lastSeen": "2026-08-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Complete the decommission rather than stopping at the mount. (1) Revoke the key at the Anthropic console so a credential that sat in every prod web and worker container for the whole post-Bedrock period stops being valid -- un-mounting reduces future exposure but does nothing about any exposure that already occurred. (2) Disable or destroy the Secret Manager versions for ANTHROPIC_API_KEY in lingolinq-prod, and remove the name from RENDER_SECRETS (phase4-seed-app-secrets.sh:66), from the OP_XCHECK map (:77), and from the secret-creation list in phase1-setup.sh (:101), so a re-run of the provisioning scripts does not re-seed a decommissioned credential from 1Password. (3) Do the same for GEMINI_API_KEY when the mount from the sibling finding is removed (phase1-setup.sh:102, phase4-seed-app-secrets.sh:66,77). Record the decision either way: 'retained, unrevoked, unmounted' is a defensible posture for a key that may be needed for Tier 2 tooling, but it should be a written choice, not a leftover. ADVERSARY CORRECTION: the credential also lives outside the Cloud Run mount -- .env.op.template:39-40 (every dev shell) and scripts/sync-render-env.js:144-145,686-687 (the Render sync manifest), which .github/workflows/sync-render-secrets.yml pushes into Render on an hourly cron (`15 * * * *`) regardless of the Cloud Run mount state. Removing only the deploy-cloudrun.yml mount does not stop this credential from being actively re-pushed into a live third-party platform every hour; the Render manifest entries need the same removal in the same change, and revocation (step 1) is the ordering-first action since it makes every other residence harmless.",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by infra finder on 2026-08-18. Independently corroborated in prose (not filed) by the privacy finder in the same monthly light /audit-run over PR #805, who flagged that unmounting a credential does not invalidate it and recommended someone confirm provider-side revocation. PR #805 changed exactly one file, so the de-scoping is workflow-only: the committed provisioning source still treats ANTHROPIC_API_KEY as an app secret to create (scripts/gcp/phase1-setup.sh:101) and to seed from 1Password (scripts/gcp/phase4-seed-app-secrets.sh:66, with the op:// path mapped at :77). This is a related but MILDER shape than LL-e58b47da5f / the WIF ref-lock finding: unlike that finding, phase4-seed-app-secrets.sh defaults to MODE=\"plan\" and requires an explicit CONFIRM_SEED_SECRETS=1 to actually seed (verified by adversary at phase4-seed-app-secrets.sh:87,107,184), and re-seeding an unchanged value is idempotent (no new Secret Manager version is created, per the script's own \"already holds this value in GCP (no new version)\" message at :207). So this is operator-gated, not a silent revert; the residual risk is narrower: an operator re-running provisioning (or a DR rebuild via phase1-setup.sh, which recreates the empty container unconditionally) re-affirms the key as a secret the provisioning source still wants to exist, without an accompanying decision that it should not. Confidence is medium rather than high on the revocation half specifically: from the repository it is verifiable only that the provisioning source still lists the key and that PR #805 touched no other file. Whether the key has been revoked at Anthropic, and whether its Secret Manager versions are still ENABLED, are live checks that were not performed (out of the stated diff scope; also note the workflow's presence probe at deploy-cloudrun.yml:358-368 deliberately uses `versions list` rather than `versions access`, so a presence check reads no value). Additional live-state caveat: the deploy job is ref-gated to main (deploy-cloudrun.yml:172) and the audited SHA is staging, so the mount is still present on production revisions serving today and will not drop until the next staging-to-main release deploys. ADVERSARY VERDICT (2026-08-19): CONFIRMED with one correction (applied above to remove overstated 'silently reverts intent' framing) and remediation widened to cover .env.op.template + the hourly Render sync cron (same addendum as LL-bdc3344942)."
+    },
+    {
+      "id": "LL-1189af1b3c",
+      "ruleKey": "ai-endpoint-guard-seams-allowlist-not-repo-wide",
+      "title": "ai-endpoint-guard.sh only checks a 4-file hardcoded SEAMS allowlist, not a repo-wide scan, so a new AI-integration file would bypass CI enforcement of the no-direct-Anthropic-client control that ten docs/legal/ documents reference as covering \"any runtime seam\" (6 currently live/attested, 4 superseded)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/ai-endpoint-guard.sh",
+        "line": 28,
+        "snippet": "SEAMS=(",
+        "sha": "59f502aa4a967c8c704637cc66a18ff05118c7d8"
+      },
+      "firstSeen": "2026-08-18",
+      "lastSeen": "2026-08-18",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Change the guard from an allowlist to a repo-wide scan: grep app/ and lib/ broadly for `Anthropic::Client.new` / `ENV['ANTHROPIC_API_KEY']` / `ENV.fetch('ANTHROPIC_API_KEY'` rather than iterating a hardcoded SEAMS array, so a newly added AI-integration file is covered automatically instead of requiring a manual SEAMS edit that is easy to forget. Add a fixture-based test to the CI-blocking scripts/tests/ harness asserting the guard exits 1 on a seam file (in or out of the current SEAMS list) that constructs a direct Anthropic client, closing the guard's own missing-test gap. Once the scan is repo-wide, no wording change is owed on any of the ten documents below -- each already describes the guard's EFFECT ('no runtime seam constructs a direct client'), which becomes durably true instead of true-only-for-the-four-files-listed-today; this is a mechanism fix, not a documentation-correction obligation, and does not by itself trigger re-attestation on any of the six currently-attested/published documents (their prose is accurate today; the fix keeps it accurate as the codebase grows).",
+        "timeframe": "60 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by adversary finder on 2026-08-18. This finding emerged while independently red-teaming LL-bdc3344942 and LL-94e57af291 during a monthly light /audit-run over PR #805 (not something either original finder was scoped to check; not a finder-domain output, hence domain:adversary on this row rather than one of the six standard finder domains). NOT a claim that any of the ten referencing documents are currently false -- verified at SHA 59f502aa4 all four existing seams (lib/ai_word_predictor.rb:165, lib/ai_prediction_generator.rb:111, lib/ai_board_generator.rb:532, lib/eval_narrator.rb:330) do gate on AiClient.configured? with no direct-client construction, so every document's claim is accurate as of today. The defect is a silent-drift risk: the guard is an allowlist (scripts/ai-endpoint-guard.sh:28-33) rather than a repo-wide scan, so if a NEW file reading ENV['ANTHROPIC_API_KEY'] or constructing Anthropic::Client.new is added later (a plausible event -- this codebase adds AI seams regularly; eval_narrator.rb itself was presumably a past addition to this same list), CI would pass green on it because the new file is simply absent from SEAMS, and nobody would notice the 'no runtime seam constructs a direct client' claim had silently stopped being true anywhere it is repeated. FULL DOCUMENT SURVEY (verified via `git grep -n 'ai-endpoint-guard' -- docs/legal/` at this SHA, cross-checked against audit-reports/DOCUMENT-REGISTER.json for status/attestation -- corrects an earlier draft of this finding that named only 3 of these 10 and was weighted toward two superseded records): CURRENTLY LIVE (6) -- docs/legal/AI_GOVERNANCE_MEMO.md:469 (published, attested 2026-08-04); docs/legal/2026-08-15_incident-response-breach-runbook.md:344,521 (approved, CEO-attested 2026-08-16); docs/legal/2026-08-16_anthropic-baa-acceptance-record.md:139,334 (approved, attested 2026-08-16); docs/legal/2026-08-12_aws-baa-acceptance-record.md:237 (approved, attested 2026-08-12); docs/legal/CAPABILITY_LEDGER.md:35 (published, CI-anchored artifact, not a signed attestation); docs/legal/2026-08-17_ai-data-flow-classification.md:98 (draft, not yet attested). SUPERSEDED (4) -- docs/legal/ANTHROPIC_BAA_ACCEPTED.md:164; docs/legal/AWS_BAA_ACCEPTED.md:183; docs/legal/2026-08-11_aws-baa-acceptance-record.md:203; docs/legal/AI_DATA_FLOW_CLASSIFICATION.md:86. Severity held at medium (not high): today's enforcement is genuinely correct across all ten, and the underlying compensating control (the AWS Bedrock BAA route, plus the fact the Anthropic BAA also remains executed and valid per several of these docs) means a lapse would not itself be an uncovered-disclosure event -- it would be a control-completeness gap discovered later rather than an active violation today. Distinct from LL-bdc3344942/LL-94e57af291 (dormant Gemini mount + unrevoked Anthropic secret): those are about credentials that already exist and are unused; this is about the enforcement mechanism's blind spot for credentials/seams that do not exist yet. No re-attestation is owed by this finding's existence alone -- see remediation."
     }
   ]
 }

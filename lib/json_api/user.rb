@@ -211,12 +211,22 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
       # The `model` gate on this block is the LIST OWNER; each child still
       # needs an affirmative check against the caller. `limited_identity` is
       # not a redaction -- it emits name, avatar, unread counts, org_status
-      # and goals. See User#readable_as_supervisee_by?.
+      # and goals.
+      #
+      # ROSTER identity, so listable_as_supervisee_by? ('model') rather than
+      # readable_as_supervisee_by? ('supervise'), whose modeling_only conjunct
+      # emptied this list for billing-lapsed supporters looking at their own
+      # caseload. See User#listable_as_supervisee_by?.
+      #
+      # Held in its own local: `supervisees` is reassigned further down by the
+      # args[:organization] branch, and the board-set block below needs the
+      # AUTHORIZED list, not that one.
       caller = args[:permissions]
       scopes = PermissionScopesNormalize.for_api(caller && caller.permission_scopes)
-      supervisees = user.supervisees.select { |s|
-        s.readable_as_supervisee_by?(caller, 'supervise', scopes)
+      listable_supervisees = user.supervisees.select { |s|
+        s.listable_as_supervisee_by?(caller, scopes)
       }
+      supervisees = listable_supervisees
       if supervisors.length > 0
         json['supervisors'] = supervisors[0, 10].map{|u| JsonApi::User.as_json(u, limited_identity: true, supervisee: user) }
       end
@@ -366,30 +376,39 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
         # to keep the payload light — the caseload is a quick overview,
         # not the full goals page. Existing index
         # `index_user_goals_on_user_id_and_active` keeps both queries cheap.
-        json['goals_count'] = UserGoal.where(:user_id => user.id, :active => true).count
-        json['active_goals'] = UserGoal.where(:user_id => user.id, :active => true)
-          .order('"primary" DESC NULLS LAST, updated_at DESC').limit(10).map do |g|
-            # Derived status — surfaces a high-level state the
-            # caseload card can color-code without the supporter
-            # having to open the goal detail page.
-            #   'achieved'    → goal is no longer active but ended
-            #   'in_progress' → started + updated within 14 days
-            #   'paused'      → active but no recent updates
-            #   'active'      → default (started, currently active)
-            status =
-              if !g.active && g.settings && g.settings['ended_at']
-                'achieved'
-              elsif g.updated_at && g.updated_at > 14.days.ago
-                'in_progress'
-              elsif g.settings && g.settings['started_at'].nil?
-                'paused'
-              else
-                'active'
-              end
-            { 'id' => g.global_id, 'summary' => g.summary, 'primary' => !!g.primary, 'status' => status }
-          end
-        json['target_words'] = user.settings['target_words'].slice('generated', 'list') if user.settings['target_words']
-        json['home_board_key'] = user.settings['preferences'] && user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['key']
+        # Goal summaries are free-text therapy/IEP content -- FERPA education
+        # records, and clinical content under HIPAA for the hospital deployments.
+        # They are NOT needed to pick a communicator to model for, which is all
+        # the roster row exists to support, so they hang off can_set_goals rather
+        # than off the row. Without this a per-link modeling-only supporter --
+        # a caller user.rb:77 explicitly bars from goals -- received up to ten
+        # goal summaries immediately next to `can_set_goals: false`.
+        if json['can_set_goals']
+          json['goals_count'] = UserGoal.where(:user_id => user.id, :active => true).count
+          json['active_goals'] = UserGoal.where(:user_id => user.id, :active => true)
+            .order('"primary" DESC NULLS LAST, updated_at DESC').limit(10).map do |g|
+              # Derived status — surfaces a high-level state the
+              # caseload card can color-code without the supporter
+              # having to open the goal detail page.
+              #   'achieved'    → goal is no longer active but ended
+              #   'in_progress' → started + updated within 14 days
+              #   'paused'      → active but no recent updates
+              #   'active'      → default (started, currently active)
+              status =
+                if !g.active && g.settings && g.settings['ended_at']
+                  'achieved'
+                elsif g.updated_at && g.updated_at > 14.days.ago
+                  'in_progress'
+                elsif g.settings && g.settings['started_at'].nil?
+                  'paused'
+                else
+                  'active'
+                end
+              { 'id' => g.global_id, 'summary' => g.summary, 'primary' => !!g.primary, 'status' => status }
+            end
+          json['target_words'] = user.settings['target_words'].slice('generated', 'list') if user.settings['target_words']
+          json['home_board_key'] = user.settings['preferences'] && user.settings['preferences']['home_board'] && user.settings['preferences']['home_board']['key']
+        end
       elsif args[:supervisee]
         json['edit_permission'] = user.edit_permission_for?(args[:supervisee])
         json['modeling_only'] = user.modeling_only_for?(args[:supervisee])
@@ -487,7 +506,12 @@ json['preferences']['skin'] = user.settings['preferences']['skin']
       if json['permissions'] && json['permissions']['view_detailed']
         json['stats']['board_set_ids'] = board_ids.uniq
         if json['supervisees']
-          json['stats']['board_set_ids_including_supervisees'] = user.board_set_ids(:include_supervisees => true)
+          # Filtering json['supervisees'] above is not enough: board_set_ids
+          # re-walks `self.supervisees` unfiltered (user.rb:1933), so the home
+          # board and its whole downstream set still shipped for children whose
+          # identity had just been withheld. Board ids ARE the disclosure here --
+          # they are directly fetchable. Pass the authorized list through.
+          json['stats']['board_set_ids_including_supervisees'] = user.board_set_ids(:include_supervisees => true, :supervisees => listable_supervisees)
         else 
           json['stats']['board_set_ids_including_supervisees'] = json['stats']['board_set_ids']
         end
