@@ -186,7 +186,34 @@ strip_comments() { sed -E 's/^[[:space:]]*#.*$//' "$1"; }
 #   check 6b `Anthropic::BedrockClient.new( # base_url: see ADR-12`
 # Each reported GREEN after the thing it guards had been removed. The `[^"']*$` bound
 # means a `#` inside a string literal is left alone.
-strip_trailing_comments() { sed -E "s/[[:space:]]#[^\"']*\$//"; }
+strip_trailing_comments() {
+  # Quote-AWARE. A naive sed cut at the first "#" preceded by whitespace stops at any
+  # quote in the comment, so `# deliberately bypasses "AiClient"` survived intact and
+  # could still satisfy a presence check from the comment alone. This walks each line
+  # tracking quote state and cuts at the first UNQUOTED "#".
+  #
+  # SQ/DQ are built with sprintf rather than written literally so the whole awk
+  # program can live inside single quotes without escaping games.
+  awk '
+    BEGIN { SQ = sprintf("%c", 39); DQ = sprintf("%c", 34) }
+    {
+      inq = 0; q = ""; out = ""; n = length($0)
+      for (i = 1; i <= n; i++) {
+        c = substr($0, i, 1)
+        if (inq) {
+          if (c == "\\") { out = out c substr($0, i + 1, 1); i++; continue }
+          if (c == q) inq = 0
+        } else if (c == DQ || c == SQ) {
+          inq = 1; q = c
+        } else if (c == "#") {
+          break
+        }
+        out = out c
+      }
+      print out
+    }
+  '
+}
 
 # `|| true` because an EMPTY result is a legitimate outcome that check 8 reports
 # with a precise message; grep exiting 1 on no-match is not an internal error.
@@ -202,7 +229,7 @@ if [ -n "$RUNTIME_FILES" ]; then
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     stripped="$(strip_comments "$f")"
-    if [ -n "$(grep -E "$SEAM_RE" <<< "$stripped" || true)" ]; then
+    if [ -n "$(grep -iE "$SEAM_RE" <<< "$stripped" || true)" ]; then
       SEAMS="${SEAMS}${f}"$'\n'
     fi
   done <<< "$RUNTIME_FILES"
@@ -268,7 +295,9 @@ if [ -n "$RUNTIME_FILES" ]; then
       printf '%s\n' "$hits" | sed "s|^|  $f:|"
     fi
 
-    hits="$(grep -nE "$VENDOR_HOST_RE" <<< "$stripped" || true)"
+    # -i because DNS is case-insensitive: https://API.ANTHROPIC.COM reaches the same
+    # endpoint as the lowercase form, and a case-sensitive pattern missed it entirely.
+    hits="$(grep -niE "$VENDOR_HOST_RE" <<< "$stripped" || true)"
     if [ -n "$hits" ]; then
       fail "$f names an unapproved direct vendor inference endpoint -- only AWS Bedrock is an approved runtime egress"
       printf '%s\n' "$hits" | sed "s|^|  $f:|"
@@ -371,11 +400,42 @@ if [ -f "$SANCTIONED_CLIENT" ]; then
           else if (depth == 1) { top = top c }
           i++
         }
-        if (index(top, "base_url:") == 0) print lineno
+        # Requiring the KEYWORD is not enough: `base_url: ENV.fetch("ANTHROPIC_BEDROCK_
+        # BASE_URL")` satisfies a keyword check while permitting the exact env-driven
+        # redirect 6b exists to stop. The VALUE must be one of the two in-file pinning
+        # helpers, whose bodies are separately asserted below to derive an AWS host.
+        if (index(top, "base_url:") == 0) { print lineno }
+        else {
+          v = top
+          sub(/^.*base_url:[ \t]*/, "", v)
+          match(v, /^[A-Za-z_][A-Za-z0-9_]*/)
+          ident = substr(v, RSTART, RLENGTH)
+          if (ident != "classic_base_url" && ident != "mantle_base_url") print lineno
+        }
         pos = after
       }
     }
   ')"
+  # The value check above is only as good as what the helpers return, so pin them too.
+  for pin in "classic_base_url:bedrock-runtime\\..*\\.amazonaws\\.com" \
+             "mantle_base_url:bedrock-mantle\\..*\\.api\\.aws"; do
+    fn="${pin%%:*}"; want="${pin#*:}"
+    body="$(printf '%s\n' "$ai_client" | awk -v f="$fn" '
+      $0 ~ ("def[ \t]+" f "([ \t(]|$)") { inb = 1 }
+      inb { print }
+      inb && /^[ \t]*end[ \t]*$/ { exit }
+    ')"
+    if [ -z "$body" ]; then
+      fail "$SANCTIONED_CLIENT no longer defines $fn, which check 6b requires as the approved endpoint derivation"
+    elif [ -n "$(grep -E "ENV(\[|\.fetch)" <<< "$body" || true)" ]; then
+      # Checked BEFORE the host pattern: an env-driven helper fails both, and "reads
+      # ENV" is the diagnosis that actually tells the reader what to fix.
+      fail "$SANCTIONED_CLIENT: $fn reads ENV -- the Bedrock endpoint must be derived in code, not supplied by the environment"
+    elif [ -z "$(grep -E "$want" <<< "$body" || true)" ]; then
+      fail "$SANCTIONED_CLIENT: $fn no longer derives an approved AWS Bedrock host (expected to match /$want/)"
+    fi
+  done
+
   if [ -n "$missing_base_url" ]; then
     fail "$SANCTIONED_CLIENT constructs a Bedrock client without an explicit base_url -- the gem falls back to ANTHROPIC_BEDROCK_BASE_URL, letting an env var redirect Tier 1 traffic off the AWS BAA path"
     printf '%s\n' "$missing_base_url" | sed "s|^|  $SANCTIONED_CLIENT: constructor starting at line |"

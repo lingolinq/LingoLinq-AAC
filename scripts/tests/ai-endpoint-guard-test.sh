@@ -564,6 +564,64 @@ end
 RUBY
 expect_fail "const_get with a literal vendor path is still a seam" "$F" "never references AiClient"
 
+# DNS is case-insensitive, so a mixed-case host reaches the same endpoint. The
+# pattern was case-sensitive and missed it entirely.
+for host in 'https://API.ANTHROPIC.COM/v1/messages' 'https://Api.OpenAI.com/v1/chat' \
+            'https://GenerativeLanguage.GoogleAPIs.com/v1/models'; do
+  build_fixture "$F"
+  printf 'module Rogue\n  def self.go\n    Typhoeus.post("%s")\n  end\nend\n' "$host" > "$F/lib/rogue.rb"
+  expect_fail "mixed-case vendor host $host is caught" "$F" "unapproved direct vendor inference endpoint"
+done
+
+# A comment containing a QUOTE defeated the naive trailing-comment strip, which
+# re-opened the presence-check bypass it was written to close.
+build_fixture "$F"
+cat > "$F/lib/rogue.rb" <<'RUBY'
+module Rogue
+  KLASS = Anthropic::Errors::APIError # deliberately bypasses "AiClient"
+end
+RUBY
+expect_fail "a QUOTED comment cannot satisfy check 5" "$F" "never references AiClient"
+
+build_fixture "$F"
+python3 - "$F/lib/ai_client.rb" <<'PYEOF'
+import sys
+p = sys.argv[1]; s = open(p).read()
+s = s.replace("        base_url: classic_base_url\n", "")
+s = s.replace("Anthropic::BedrockClient.new(",
+              "Anthropic::BedrockClient.new( # omitted, see \"base_url:\" note", 1)
+open(p, 'w').write(s)
+PYEOF
+expect_fail "a QUOTED comment cannot satisfy check 6b" "$F" "without an explicit base_url"
+
+# ...and a `#` inside a real string literal must NOT be treated as a comment.
+build_fixture "$F"
+cat > "$F/lib/anchors.rb" <<'RUBY'
+module Anchors
+  FRAGMENT = "https://example.com/page#section"
+  SHARP = 'C# is a language'
+end
+RUBY
+expect_pass "a '#' inside a string literal is not mistaken for a comment" "$F"
+
+# Requiring the base_url KEYWORD is not enough -- the VALUE must be an approved
+# in-file derivation, or the env-driven redirect 6b exists to stop sails through.
+build_fixture "$F"
+sed -i 's|base_url: classic_base_url|base_url: ENV.fetch("ANTHROPIC_BEDROCK_BASE_URL")|' "$F/lib/ai_client.rb"
+expect_fail "base_url supplied from ENV is rejected" "$F" "without an explicit base_url"
+
+build_fixture "$F"
+sed -i 's|base_url: mantle_base_url|base_url: some_other_url|' "$F/lib/ai_client.rb"
+expect_fail "base_url from an unapproved helper is rejected" "$F" "without an explicit base_url"
+
+build_fixture "$F"
+sed -i 's|"https://bedrock-runtime.#{bedrock_region}.amazonaws.com"|ENV.fetch("BASE")|' "$F/lib/ai_client.rb"
+expect_fail "an endpoint helper that reads ENV is rejected" "$F" "reads ENV"
+
+build_fixture "$F"
+sed -i 's|"https://bedrock-runtime.#{bedrock_region}.amazonaws.com"|"https://attacker.example.com"|' "$F/lib/ai_client.rb"
+expect_fail "an endpoint helper pointing off AWS is rejected" "$F" "approved AWS Bedrock host"
+
 echo
 echo "ai-endpoint-guard-test: CHECK 3b, the guard fails CLOSED on its own breakage"
 # The guard had no set -e: an errored line wrote to stderr and execution ran on to the
