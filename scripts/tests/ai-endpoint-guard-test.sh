@@ -503,6 +503,87 @@ open(p, 'w').write(s)
 PYEOF
 expect_pass "a single-line Bedrock constructor that passes base_url is accepted" "$F"
 
+# A trailing comment must not SATISFY a presence check. The prohibitions are
+# correctly fail-closed on trailing comments; checks 5, 6 and 6b invert that, and each
+# was green after the thing it guards had been deleted.
+build_fixture "$F"
+cat > "$F/lib/rogue.rb" <<'RUBY'
+module Rogue
+  ERR = Anthropic::Errors::APIError # this deliberately bypasses AiClient
+end
+RUBY
+expect_fail "a comment naming AiClient cannot satisfy check 5" "$F" "never references AiClient"
+
+build_fixture "$F"
+sed -i 's|Anthropic::BedrockMantleClient.new(|NOPE_Mantle.new( # was Anthropic::BedrockMantleClient.new(|' "$F/lib/ai_client.rb"
+expect_fail "a comment cannot vouch for a deleted Mantle constructor (check 6)" "$F" "Mantle plane"
+
+build_fixture "$F"
+python3 - "$F/lib/ai_client.rb" <<'PYEOF'
+import sys
+p=sys.argv[1]; s=open(p).read()
+s=s.replace("        base_url: classic_base_url\n","")
+s=s.replace("Anthropic::BedrockClient.new(","Anthropic::BedrockClient.new( # base_url: omitted deliberately, see ADR-12",1)
+open(p,'w').write(s)
+PYEOF
+expect_fail "a comment naming base_url cannot satisfy check 6b" "$F" "without an explicit base_url"
+
+# A second Bedrock constructor must be checked on its OWN merits, not vouched for by
+# the first one's base_url. Same ride-along class check 6 already fixed; 6b regressed it.
+build_fixture "$F"
+sed -i 's|base_url: classic_base_url|base_url: classic_base_url, fallback: Anthropic::BedrockMantleClient.new|' "$F/lib/ai_client.rb"
+expect_fail "a same-line second Bedrock constructor is checked separately" "$F" "without an explicit base_url"
+
+build_fixture "$F"
+python3 - "$F/lib/ai_client.rb" <<'PYEOF'
+import sys
+p=sys.argv[1]; s=open(p).read()
+s=s.replace("        base_url: classic_base_url\n",
+            "        base_url: classic_base_url,\n        fallback: Anthropic::BedrockMantleClient.new(\n          aws_region: bedrock_region\n        )\n",1)
+open(p,'w').write(s)
+PYEOF
+expect_fail "a NESTED second Bedrock constructor is checked separately" "$F" "without an explicit base_url"
+
+# ERB executes Ruby in the runtime plane and lives inside a scanned directory; it was
+# dropped by the extension filter and named in neither the exclusion list nor LIMITATIONS.
+build_fixture "$F"
+mkdir -p "$F/app/views/ai"
+cat > "$F/app/views/ai/show.html.erb" <<'ERB'
+<% Anthropic::Client.new(api_key: ENV["ANTHROPIC_API_KEY"]).messages.create %>
+ERB
+expect_fail "a NEW .erb view seam is caught" "$F" "direct Anthropic::Client"
+
+# The semi-dynamic form still carries a literal vendor token, so rule 5 must apply.
+build_fixture "$F"
+cat > "$F/lib/rogue.rb" <<'RUBY'
+module Rogue
+  def self.go
+    Object.const_get("Anthropic::Client").new.messages.create
+  end
+end
+RUBY
+expect_fail "const_get with a literal vendor path is still a seam" "$F" "never references AiClient"
+
+echo
+echo "ai-endpoint-guard-test: CHECK 3b, the guard fails CLOSED on its own breakage"
+# The guard had no set -e: an errored line wrote to stderr and execution ran on to the
+# OK block, so a broken guard reported PASS and exited 0. Observed live during review.
+sabotage="$TMP/sabotaged-guard.sh"
+inject_line="$(grep -n '^# 5\. Every discovered AI seam' "$GUARD" | cut -d: -f1)"
+if [ -n "$inject_line" ]; then
+  awk -v n="$inject_line" 'NR==n{print "banner-that-lost-its-hash-zzz"} {print}' "$GUARD" > "$sabotage"
+  build_fixture "$F"
+  out="$(bash "$sabotage" --root "$F" 2>/dev/null)"; rc=$?
+  if [ $rc -eq 0 ]; then
+    fail "a guard with a broken line still exited 0 (fails OPEN)"
+    printf '%s\n' "$out" | sed 's/^/         /' | head -3
+  else
+    pass "a guard with a broken line fails closed (exit $rc, not 0)"
+  fi
+else
+  fail "could not locate an injection point to test fail-closed behaviour"
+fi
+
 echo
 echo "ai-endpoint-guard-test: CHECK 4, the Cloud Run mount rule still fires"
 build_fixture "$F"
@@ -545,9 +626,13 @@ RUBY
   ( cd "$G" && git rm -q --cached lib/ai_tracked_rogue.rb >/dev/null 2>&1 )
   expect_fail "git-backed discovery: an UNTRACKED rogue seam is still caught (--others)" "$G" "direct Anthropic::Client"
 
-  # A gitignored path is build output, not source; it must not be scanned, and it
-  # must not become a way to smuggle a seam past the guard either -- an ignored
-  # file is not deployed runtime source.
+  # A gitignored path is not scanned. The justification is specifically that PROD
+  # IMAGES BUILD FROM actions/checkout (.github/workflows/deploy-cloudrun.yml), where
+  # ignored files do not exist -- NOT the broader claim that an ignored file is never
+  # deployed. That broader claim is false for this repo: Dockerfile's `COPY . .` plus
+  # a .dockerignore that excludes no gitignored Ruby means a gitignored .rb under lib/
+  # WOULD ship from a local build context. Scanning what git tracks is still right,
+  # but the reason is the build path, not a property of .gitignore.
   rm -f "$G/lib/ai_tracked_rogue.rb"
   mkdir -p "$G/lib/generated"
   echo 'lib/generated/' > "$G/.gitignore"

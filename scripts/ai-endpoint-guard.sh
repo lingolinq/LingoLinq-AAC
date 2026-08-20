@@ -18,7 +18,7 @@
 # runtime file is covered the moment it exists, with no edit to this script.
 #
 # RUNTIME SCOPE (what is scanned)
-#   EVERY tracked Ruby file in the repository -- .rb, .rake, .ru and Rakefile --
+#   EVERY tracked Ruby file in the repository -- .rb, .rake, .ru, .erb and Rakefile --
 #   minus an explicit, justified exclusion list. The scope is defined by what is
 #   EXCLUDED, not by which directories someone remembered to include: naming three
 #   directories would have been a coarser version of the same allowlist bug this
@@ -70,7 +70,19 @@
 #   scripts/ai-endpoint-guard.sh --root DIR   # scan an arbitrary tree (tests)
 #   scripts/ai-endpoint-guard.sh --list-scope # print the discovered runtime files
 #   scripts/ai-endpoint-guard.sh --list-seams # print the discovered AI seams
-set -uo pipefail
+set -Eeuo pipefail
+
+# FAIL CLOSED ON OUR OWN BREAKAGE.
+#
+# Without this, any errored line -- a banner that lost its '#', a typo, a grep that
+# cannot start -- writes to stderr and execution continues straight to the "OK:"
+# block, so the guard reports PASS while broken and CI goes green. That is not
+# hypothetical: it was observed live in this script during review (a comment banner
+# lost its '#', bash said "command not found", the guard printed OK and exited 0).
+# Check 8 does not cover this -- it catches an empty DISCOVERY, not a broken GUARD.
+# A control that ten docs/legal/ records cite must not be able to report green while
+# it is broken, because that state is auditable as passing.
+trap 'rc=$?; echo "FAIL: ai-endpoint-guard internal error at line $LINENO (exit $rc) -- refusing to report a result" >&2; exit 2' ERR
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ROOT="$REPO_ROOT"
@@ -152,7 +164,7 @@ discover_runtime_files() {
     git ls-files --cached --others --exclude-standard 2>/dev/null
   else
     find . -type f -not -path './.git/*' 2>/dev/null | sed 's|^\./||'
-  fi | grep -E '(\.(rb|rake|ru)$|(^|/)Rakefile$)' \
+  fi | grep -E '(\.(rb|rake|ru|erb)$|(^|/)Rakefile$)' \
      | grep -vE '^scripts/' \
      | grep -vE '^app/frontend/' \
      | grep -vE '(^|/)(spec|specs|test|tests)/' \
@@ -163,7 +175,22 @@ discover_runtime_files() {
 # Full-line Ruby comments removed; everything else preserved verbatim.
 strip_comments() { sed -E 's/^[[:space:]]*#.*$//' "$1"; }
 
-RUNTIME_FILES="$(discover_runtime_files)"
+# Additionally removes TRAILING comments. Used ONLY by the presence checks (5, 6, 6b).
+#
+# The prohibitions ("this must not appear") are correctly fail-closed on trailing
+# comments: a trailing note naming a banned token trips them, and that is the safe
+# direction. The presence checks ("this must appear") invert that -- there, a trailing
+# comment is fail-OPEN, and each was satisfiable by a comment alone:
+#   check 5  `ERR = Anthropic::Errors::APIError # bypasses AiClient deliberately`
+#   check 6  `NOPE_Mantle.new( # was Anthropic::BedrockMantleClient.new(`
+#   check 6b `Anthropic::BedrockClient.new( # base_url: see ADR-12`
+# Each reported GREEN after the thing it guards had been removed. The `[^"']*$` bound
+# means a `#` inside a string literal is left alone.
+strip_trailing_comments() { sed -E "s/[[:space:]]#[^\"']*\$//"; }
+
+# `|| true` because an EMPTY result is a legitimate outcome that check 8 reports
+# with a precise message; grep exiting 1 on no-match is not an internal error.
+RUNTIME_FILES="$(discover_runtime_files || true)"
 
 if [ "$MODE" = 'list-scope' ]; then
   printf '%s\n' "$RUNTIME_FILES"
@@ -195,7 +222,7 @@ fail() { echo "FAIL: $*"; status=1; }
 #    tree, and must never be reported as a pass.
 # ---------------------------------------------------------------------------
 if [ -z "$RUNTIME_FILES" ]; then
-  fail "runtime scope discovery found no app/, lib/ or config/ Ruby files under '$ROOT' -- the scan is broken, refusing to report a pass"
+  fail "runtime scope discovery found no runtime Ruby files under '$ROOT' -- the scan is broken, refusing to report a pass"
 fi
 
 # ---------------------------------------------------------------------------
@@ -258,7 +285,7 @@ if [ -n "$SEAMS" ]; then
   while IFS= read -r f; do
     [ -n "$f" ] || continue
     [ "$f" = "$SANCTIONED_CLIENT" ] && continue
-    stripped="$(strip_comments "$f")"
+    stripped="$(strip_comments "$f" | strip_trailing_comments)"
     if [ -z "$(grep -F 'AiClient' <<< "$stripped" || true)" ]; then
       fail "$f looks like a runtime AI seam but never references AiClient -- every seam must route through $SANCTIONED_CLIENT"
     fi
@@ -277,7 +304,8 @@ fi
 if [ ! -f "$SANCTIONED_CLIENT" ]; then
   fail "$SANCTIONED_CLIENT is missing (the sanctioned Bedrock construction point)"
 else
-  ai_client="$(strip_comments "$SANCTIONED_CLIENT")"
+  # Code only: a trailing comment must not be able to satisfy a presence check.
+  ai_client="$(strip_comments "$SANCTIONED_CLIENT" | strip_trailing_comments)"
   [ -n "$(grep -E 'Anthropic::BedrockClient\.new' <<< "$ai_client" || true)" ] \
     || fail "$SANCTIONED_CLIENT does not construct Anthropic::BedrockClient (classic Bedrock plane)"
   [ -n "$(grep -E 'Anthropic::BedrockMantleClient\.new' <<< "$ai_client" || true)" ] \
@@ -305,17 +333,49 @@ if [ -f "$SANCTIONED_CLIENT" ]; then
   # Walks each Bedrock constructor's argument list by paren balance and reports the
   # line of any that never names base_url. Handles single-line and multi-line forms,
   # and treats a bare `.new` with no argument list as a violation.
+  # Walks EACH Bedrock constructor independently and checks base_url at that
+  # constructor's OWN top level (depth 1 of its own argument list).
+  #
+  # An earlier line-oriented version tracked one constructor at a time, so a second
+  # Bedrock constructor nested inside or sitting beside the first was never checked --
+  # the outer constructor's base_url vouched for the inner one, and
+  # `fallback: Anthropic::BedrockMantleClient.new(aws_region: r)` passed with no pin
+  # of its own. That is the same ride-along bug class check 6 already fixed by
+  # extracting each CONSTRUCTOR rather than filtering whole lines; this check had
+  # regressed it. Restricting the search to depth 1 also stops an inner constructor's
+  # base_url from vouching for an outer one that lacks it.
   missing_base_url="$(printf '%s\n' "$ai_client" | awk '
-    function opens(s,  t, n) { t = s; n = gsub(/\(/, "(", t); return n }
-    function closes(s, t, n) { t = s; n = gsub(/\)/, ")", t); return n }
-    !inb && /Anthropic::Bedrock[A-Za-z]*Client\.new/ { inb = 1; start = NR; has = 0; depth = 0 }
-    inb {
-      if ($0 ~ /base_url:/) has = 1
-      depth += opens($0) - closes($0)
-      if (depth <= 0) { if (!has) print start; inb = 0 }
+    { src = src $0 "\n" }
+    END {
+      n = length(src)
+      pos = 1
+      while (1) {
+        rest = substr(src, pos)
+        m = match(rest, /Anthropic::Bedrock[A-Za-z]*Client\.new/)
+        if (m == 0) break
+        abs = pos + m - 1
+        after = abs + RLENGTH
+        pre = substr(src, 1, abs - 1)
+        nl = gsub(/\n/, "\n", pre)
+        lineno = nl + 1
+
+        i = after
+        while (i <= n && substr(src, i, 1) ~ /[ \t\n]/) i++
+        if (substr(src, i, 1) != "(") { print lineno; pos = after; continue }
+
+        depth = 0; top = ""
+        while (i <= n) {
+          c = substr(src, i, 1)
+          if (c == "(") { depth++ }
+          else if (c == ")") { depth--; if (depth == 0) break }
+          else if (depth == 1) { top = top c }
+          i++
+        }
+        if (index(top, "base_url:") == 0) print lineno
+        pos = after
+      }
     }
-    END { if (inb && !has) print start }
-  ' || true)"
+  ')"
   if [ -n "$missing_base_url" ]; then
     fail "$SANCTIONED_CLIENT constructs a Bedrock client without an explicit base_url -- the gem falls back to ANTHROPIC_BEDROCK_BASE_URL, letting an env var redirect Tier 1 traffic off the AWS BAA path"
     printf '%s\n' "$missing_base_url" | sed "s|^|  $SANCTIONED_CLIENT: constructor starting at line |"
@@ -339,7 +399,11 @@ fi
 if [ $status -eq 0 ]; then
   scope_count="$(printf '%s\n' "$RUNTIME_FILES" | grep -c . || true)"
   seam_count="$(printf '%s\n' "$SEAMS" | grep -c . || true)"
-  echo "OK: runtime AI routes via AWS Bedrock (AiClient); no direct client, vendor credential, or unapproved endpoint in the runtime scope."
+  # "NAMED" is load-bearing: this proves lexical ABSENCE across the scanned scope,
+  # not egress containment. Endpoint pinning is asserted by check 6b here and by
+  # spec/lib/ai_client_spec.rb, which sets ANTHROPIC_BEDROCK_BASE_URL to a hostile
+  # host. Do not let this sentence reach a docs/legal/ record without "named" in it.
+  echo "OK: runtime AI routes via AWS Bedrock (AiClient); no direct client, vendor credential, or unapproved endpoint NAMED in the runtime scope."
   echo "    runtime scope: $scope_count discovered runtime Ruby files (whole repo minus stated exclusions)"
   echo "    AI seams discovered ($seam_count):"
   printf '%s\n' "$SEAMS" | sed 's|^|      |'
@@ -355,6 +419,27 @@ exit $status
 #     string concatenation, or reads a credential through an indirection
 #     (ENV[key_name]), is not detected. This guard raises the floor on the
 #     accidental case; it is not an exfiltration control.
+#   - FULLY dynamic constant resolution is NOT detected, and this is a deliberate
+#     trade rather than an oversight. `Object.const_get(%w[Anthropic Client]
+#     .join("::")).new` carries no literal `Anthropic::`, so no rule fires and the
+#     file is not even classified as a seam. The obvious countermeasure -- treat
+#     const_get/constantize as a seam marker -- was tried and rejected: it flags four
+#     files doing ordinary Rails metaprogramming (app/models/progress.rb,
+#     app/models/webhook.rb, config/initializers/paper_trail.rb,
+#     lib/system_email_template_security.rb), and a guard that cries wolf on routine
+#     code gets silenced, which costs more than this gap. The SEMI-dynamic form
+#     `const_get("Anthropic::Client")` IS caught, because the literal `Anthropic::`
+#     still makes the file a seam and rule 5 then applies. Nobody writes the fully
+#     dynamic form by accident, so the residual threat is a determined author, which
+#     a lexical CI grep does not model anyway.
+#   - The Gemfile is out of scope, and that is where a vendor SDK actually enters the
+#     runtime. `ruby-openai` sits in the :default group, so Bundler.require makes
+#     OpenAI::Client a live constant in every web and Resque process even though no
+#     code references it. Consequence worth stating plainly: AI_REQUIRE_RE is close to
+#     decorative in a Rails app, because nobody writes `require 'openai'` -- Bundler
+#     does. Dropping that unused gem is the real fix and is not this script's job.
+#   - Credentials are detected only as ENV reads. Rails credentials, an encrypted
+#     YAML, or a Secret Manager fetch are invisible to check 3.
 #   - Vendor detection is token-based (AI_VENDOR_NS), which generalizes across a
 #     vendor's whole namespace but still cannot name a vendor nobody has heard of
 #     yet. A wholly unrecognized SDK reached through a hand-rolled HTTP client and
