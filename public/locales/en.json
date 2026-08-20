@@ -2125,6 +2125,8 @@
   "copy_failed_background": "Copying the board failed. Please try again.",
   "copy_board_missing_board": "Board is not available for copying",
   "copy_ready": "Copy created!",
+  "core_words_tooltip_checked": "Include 40-60% high-frequency core words (I, want, go, more, stop, like, not, help, do, is, it, the, my, turn, fast, slow, etc.), rest topic-specific vocabulary",
+  "core_words_tooltip_unchecked": "Focus on topic-specific vocabulary only (nouns, topic verbs, descriptors, phrases unique to that context)",
   "skin_dropdown_mix_only": "Mix only chosen tones",
   "skin_dropdown_mix_prefer": "Favor chosen tones",
   "board_detail_background": "Background",

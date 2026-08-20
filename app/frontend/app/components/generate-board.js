@@ -136,8 +136,8 @@ export default Component.extend({
 
   core_words_tooltip: computed('include_core_words', function() {
     return this.get('include_core_words')
-      ? i18n.t('core_words_tooltip_checked', 'Include 40-60% high-frequency core words (I, want, go, more, stop, like, not, help, do, is, it, the, my, turn, fast, slow, etc.), rest topic-specific vocabulary')
-      : i18n.t('core_words_tooltip_unchecked', 'Focus on topic-specific vocabulary only (nouns, topic verbs, descriptors, phrases unique to that context)');
+      ? i18n.t('core_words_tooltip_checked', "Include 40-60% high-frequency core words (I, want, go, more, stop, like, not, help, do, is, it, the, my, turn, fast, slow, etc.), rest topic-specific vocabulary")
+      : i18n.t('core_words_tooltip_unchecked', "Focus on topic-specific vocabulary only (nouns, topic verbs, descriptors, phrases unique to that context)");
   }),
 
   has_supervisees: computed('appState.sessionUser.supervisees', 'appState.sessionUser.managed_orgs', function() {

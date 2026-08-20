@@ -8650,6 +8650,8 @@
   "enable_ai_features_submit": "*** Enable AI board generation",
   "folder_context_back": "*** Back to Folders",
   "caseload_qa_assess_tracker": "*** Assess Tracker",
+  "core_words_tooltip_checked": "*** Include 40-60% high-frequency core words (I, want, go, more, stop, like, not, help, do, is, it, the, my, turn, fast, slow, etc.), rest topic-specific vocabulary",
+  "core_words_tooltip_unchecked": "*** Focus on topic-specific vocabulary only (nouns, topic verbs, descriptors, phrases unique to that context)",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "На дату [[ On the Date",
   "after_time": "Після часу [[ After Time",

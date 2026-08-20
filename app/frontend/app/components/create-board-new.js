@@ -435,6 +435,32 @@ export default Component.extend({
   ai_generating: false,
   ai_generate_error: null,
 
+  /* Core Words. Rides the generate_labels request as `include_core_words`, and the
+     Rails prompt builder swaps its WHOLE vocabulary instruction on it
+     (lib/ai_board_generator.rb:96) — on, it asks for 40-60% high-frequency core
+     words mixed with topic vocabulary; off, topic-specific only.
+
+     This switch is the only way to reach the topic-only prompt. The core-words
+     instruction is appended AFTER the user's description, so it overrides wording
+     like "animals, no core vocabulary" in the description itself — which is exactly
+     the bug this fixes: the page hard-coded `true` and a topic-only request still
+     came back full of I / want / go / more / help.
+
+     Defaults to true, matching the generate-board modal (generate-board.js:52), so
+     anyone who never touches it sees no change. */
+  include_core_words: true,
+
+  /* Same two strings the generate-board modal uses, deliberately — one behaviour,
+     one set of words. Double-quoted because they are user-facing and
+     i18n_generator.rb only registers keys whose default is double-quoted; the
+     modal's single-quoted copies are why neither key was ever in the locale files
+     (fixed in generate-board.js in the same change). */
+  core_words_tooltip: computed('include_core_words', function() {
+    return this.get('include_core_words')
+      ? i18n.t('core_words_tooltip_checked', "Include 40-60% high-frequency core words (I, want, go, more, stop, like, not, help, do, is, it, the, my, turn, fast, slow, etc.), rest topic-specific vocabulary")
+      : i18n.t('core_words_tooltip_unchecked', "Focus on topic-specific vocabulary only (nouns, topic verbs, descriptors, phrases unique to that context)");
+  }),
+
   // ── Display Preferences toolbar (ported from board-detail) ────────────
   // Dropdown open-state flags
   display_prefs_font_dropdown_open: false,
@@ -1975,7 +2001,7 @@ export default Component.extend({
           prompt: prompt,
           rows: parseInt(_this.get('model.grid.rows'), 10) || 2,
           columns: parseInt(_this.get('model.grid.columns'), 10) || 4,
-          include_core_words: true,
+          include_core_words: _this.get('include_core_words'),
           labels_order: _this.get('model.grid.labels_order') || 'columns',
           locale: (_this.get('model.locale') || 'en')
         };
@@ -2056,6 +2082,9 @@ export default Component.extend({
     },
     setForUserId: function(userId) {
       this.set('model.for_user_id', userId);
+    },
+    toggleIncludeCoreWords: function() {
+      this.set('include_core_words', !this.get('include_core_words'));
     },
     toggleCreatingForSomeoneElse: function() {
       var newValue = !this.get('creating_for_someone_else');

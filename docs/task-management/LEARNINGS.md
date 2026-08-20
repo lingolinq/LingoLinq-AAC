@@ -23,6 +23,7 @@ file (see [README.md](README.md)).
 - [Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep](#gotcha-the-boot-skeleton-is-ll-skel-progress-not-ll-premium-progress--and-a-shared-component-fix-has-no-siblings-left-to-sweep)
 - [Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`](#pattern-the-board-tile-board_action-is-a-contextual-remove-not-a-delete-button--gate-on-remove_type)
 - [Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing](#gotcha-a-hard-coded-forcegroupingtrue-makes-a-preview-lie-about-the-preference-it-is-previewing)
+- [Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes](#gotcha-single-quoted-i18n-defaults-never-reach-the-locale-files--and-a-ui-control-is-only-fixed-when-the-payload-changes)
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
@@ -13619,3 +13620,58 @@ for the preview, so it lands on the preference, which is the answer you want.
 
 **Evidence:** [`2026-08-18-categorize-switch-prominence-and-off-state.md`](./2026-08-18-categorize-switch-prominence-and-off-state.md),
 probe `app/frontend/scripts/board-categorize-toggle-qa.mjs` (6/6).
+
+
+## Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes
+
+Two independent lessons from adding the Core Words switch to the Create Board AI page.
+
+**1. The string-quoting convention is load-bearing, and breaking it fails SILENTLY.**
+`generate-board.js` wrote `i18n.t('core_words_tooltip_checked', 'Include 40-60%…')` with
+a SINGLE-quoted default. `i18n_generator.rb` is a static parser that only registers keys
+whose default is double-quoted, so both tooltip keys were missing from all 13 locale
+files — for as long as that modal has shipped. Nothing breaks visibly: `i18n.t` falls
+back to the inline default, so English looks perfect and every other locale silently
+shows English. When reusing an existing key, CHECK IT IS ACTUALLY REGISTERED
+(`grep '"key"' public/locales/en.json`) rather than assuming a live `i18n.t` call means
+a live key.
+
+**2. For a control that changes a request, the assertion is the request body.** A toggle
+that flips `aria-checked` while the payload still sends the old value is exactly the bug
+being fixed, and every DOM-level assertion passes anyway. Intercept the request, read the
+body, and ABORT it — aborting keeps the check deterministic and, when the endpoint calls
+a model, avoids spending on every run:
+
+```js
+page.on('request', (req) => {
+  if (req.method() === 'POST' && /generate_labels/.test(req.url())) {
+    captured = JSON.parse(req.postData() || '{}');
+    req.abort();            // payload is all we need
+    return;
+  }
+  req.continue();
+});
+```
+
+**Reaching the AI flows at all** (cost four probe runs):
+- `.nb-generate-ai-btn` is MODAL-only — `{{#unless this.standalone}}`. The standalone
+  `/create-board-new` page enters AI mode via the create chooser
+  (`.nb-create-chooser__btn--ai`).
+- `choose_ai` does not enter AI mode by itself: `boardGenerationEntry` returns
+  `needs_opt_in` unless `preferences.ai_board_generation` is explicitly true, and the app
+  opens the enable-ai-features modal first. A probe must complete that modal.
+- Account choice is a precondition. `marcus_williams_slp` has `ai_features_enabled: ""`,
+  which the gate fails CLOSED on by design (unrecognized = blocked). `sarah_chen_slp` has
+  it absent, which is grandfathered. If a probe opts an account in, DELETE the keys
+  afterwards to leave dev data as found.
+
+**Restarting the dev stack without 1Password:** `bin/fresh_start_op` requires `op run`,
+and `op whoami` fails with no active session. Machine-local start works —
+`PORT=5000 DB_USER=tracid PGPASSWORD=password bundle exec puma -C config/puma.rb` plus
+`bin/ember-server` — but `PORT=5000` is mandatory: `config/puma.rb:9` defaults to 3000
+while `app/frontend/.ember-cli:15` proxies to 5000, so without it the frontend has no
+API and every probe dies at login. Also: never pipe a long-running server through
+`| tail -N` — output buffers until exit, so the log looks empty while the server is fine.
+
+**Evidence:** [`2026-08-20-create-board-core-words-control.md`](./2026-08-20-create-board-core-words-control.md),
+probe `app/frontend/scripts/create-board-core-words-qa.mjs` (5/5).

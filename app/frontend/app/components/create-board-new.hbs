@@ -380,6 +380,36 @@
                   </div>
                 </div>
               {{/if}}
+              {{!-- CORE WORDS — AI MODE ONLY. This whole `nb-ai-generate` block sits
+                   inside `{{#unless this.show_full_size_section}}`, and
+                   show_full_size_section is `!ai_mode || ai_labels_generated`, so
+                   regular Create Board never renders it and neither does AI mode once
+                   labels exist. Sits directly above the Generate button because it
+                   changes what that button asks the model for.
+                   Uses the same `nb-toggle-row` switch as the "creating this board for
+                   someone else?" control above, so this page keeps ONE toggle idiom
+                   rather than importing the modal's `checkbox big_checkbox`. --}}
+              <div class="nb-field nb-toggle-row nb-ai-generate__core-words">
+                <span class="nb-toggle-row__question" id="new_board_core_words_label">{{t "Core Words" key="core_words"}}</span>
+                <div class="nb-toggle-row__control">
+                  <span class="nb-toggle-row__state {{unless this.include_core_words 'nb-toggle-row__state--active'}}" aria-hidden="true">{{t "No" key="no"}}</span>
+                  <button type="button"
+                          role="switch"
+                          aria-checked={{if this.include_core_words "true" "false"}}
+                          aria-labelledby="new_board_core_words_label"
+                          aria-describedby="new_board_core_words_hint"
+                          class="nb-toggle__switch {{if this.include_core_words 'nb-toggle__switch--on'}}"
+                          {{on "click" (this.ctrlAction "toggleIncludeCoreWords")}}>
+                    <span class="nb-toggle__thumb" aria-hidden="true"></span>
+                  </button>
+                  <span class="nb-toggle-row__state {{if this.include_core_words 'nb-toggle-row__state--active'}}" aria-hidden="true">{{t "Yes" key="yes"}}</span>
+                </div>
+              </div>
+              {{!-- The tooltip copy, SHOWN rather than hidden in a `title=`: the modal
+                   version is title-only, which no touch user can reach, and this
+                   sentence is the only thing that says what the switch actually
+                   changes about the generated vocabulary. --}}
+              <p class="nb-field__hint nb-ai-generate__core-words-hint" id="new_board_core_words_hint">{{this.core_words_tooltip}}</p>
               <button type="button"
                       class="btn btn-primary nb-ai-generate__btn"
                       disabled={{this.ai_generate_disabled}}
