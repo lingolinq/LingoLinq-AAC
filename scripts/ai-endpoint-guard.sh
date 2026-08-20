@@ -121,7 +121,7 @@ VENDOR_HOST_RE='api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatfo
 
 # A bare direct Anthropic client. Anchored so Anthropic::BedrockClient and
 # Anthropic::BedrockMantleClient do NOT match -- only the api.anthropic.com route.
-DIRECT_CLIENT_RE='(^|[^:[:alnum:]_])(::)?Anthropic::Client\.new'
+DIRECT_CLIENT_RE='(^|[^:[:alnum:]_])(::)?Anthropic::Client[.:]+new'
 
 # Constant-name tokens that mark a namespace as a model vendor SDK. Matching on the
 # TOKEN rather than on a list of full class names is deliberate: an enumeration of
@@ -135,16 +135,21 @@ AI_VENDOR_NS='Anthropic|OpenAI|GenerativeAI|GenerativeLanguage|Gemini|VertexAI|A
 # through untouched.
 CLIENT_FACTORY_RE='new!?|build!?|create!?|from_env|from_config|configure!?|connect|client|instance|default|get_client'
 
+# `Foo.new` and `Foo::new` are the same call in Ruby, so the separator is [.:]+ rather
+# than a literal dot. Line-broken forms (`Anthropic::Client\n  .new(...)`) are handled
+# by joining a constant path to a following leading-dot continuation line before
+# matching -- see join_method_continuations.
+
 # Any model-client construction at all, for the "only AiClient builds clients" rule:
 # a construction call on any constant whose path carries a vendor token.
-ANY_CLIENT_RE="(^|[^:[:alnum:]_])(::)?([A-Za-z0-9_]+::)*[A-Za-z0-9_]*($AI_VENDOR_NS)[A-Za-z0-9_]*(::[A-Za-z0-9_]+)*\.($CLIENT_FACTORY_RE)\b"
+ANY_CLIENT_RE="(^|[^:[:alnum:]_])(::)?([A-Za-z0-9_]+::)*[A-Za-z0-9_]*($AI_VENDOR_NS)[A-Za-z0-9_]*(::[A-Za-z0-9_]+)*[.:]+($CLIENT_FACTORY_RE)\b"
 
 # The ONLY constructions the sanctioned point is allowed to make. Anchored to the
 # FULL extracted match (grep -no emits `<line>:<match>`), because an unanchored
 # pattern would also accept a look-alike under another namespace -- Ruby treats
 # Foo::Anthropic::BedrockClient as a different class than Anthropic::BedrockClient,
 # and the unanchored form filtered it out as approved.
-PERMITTED_CLIENT_RE='^[0-9]+:[^:[:alnum:]_]?(::)?Anthropic::Bedrock(Mantle)?Client\.new$'
+PERMITTED_CLIENT_RE='^[0-9]+:[^:[:alnum:]_]?(::)?Anthropic::Bedrock(Mantle)?Client[.:]+new$'
 
 # Requiring a vendor SDK gem is itself a seam marker, even before any constructor.
 AI_REQUIRE_RE="require[[:space:]_a-z]*[[:space:](]+['\"](anthropic|openai|ruby-openai|gemini[-_a-z]*|google-cloud-ai_platform[-_a-z]*|google_generative_ai|generative[-_]ai|mistral[-_a-z]*|cohere[-_a-z]*|groq[-_a-z]*|replicate|ollama[-_a-z]*|langchainrb|ruby_llm|aws-sdk-bedrock[a-z]*)['\"]"
@@ -160,7 +165,10 @@ SEAM_RE="AiClient|(^|[^:[:alnum:]_])(::)?($AI_VENDOR_NS)[A-Za-z0-9_]*::|(^|[^:[:
 # covered locally; CI checkouts are fully tracked either way. Falls back to find
 # for a non-git tree (the test fixtures).
 discover_runtime_files() {
-  if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  # `git ls-files` is used ONLY when ROOT is the repository TOPLEVEL. Pointed at a
+  # subdirectory it still emits repo-root-relative paths while the script has already
+  # cd'd into ROOT, so every path resolves one level too deep. Fall back to find.
+  if [ "$(git rev-parse --show-toplevel 2>/dev/null)" = "$(pwd -P)" ]; then
     git ls-files --cached --others --exclude-standard 2>/dev/null
   else
     find . -type f -not -path './.git/*' 2>/dev/null | sed 's|^\./||'
@@ -172,8 +180,35 @@ discover_runtime_files() {
      | LC_ALL=C sort -u
 }
 
+# Joins a line ending in a constant path to a following line that STARTS with a
+# method separator, so `Anthropic::Client\n  .new(...)` is matched as one call. Line
+# numbers are preserved by emitting a blank line for each line folded upward.
+join_method_continuations() {
+  awk '
+    NR > 1 {
+      # A SINGLE leading dot only. `::Foo` at line start is a fully-qualified CONSTANT,
+      # not a method continuation -- treating it as one glued `else` onto
+      # `::Anthropic::BedrockClient.new` and made the approved constructor unrecognizable.
+      if ($0 ~ /^[ \t]*\.[A-Za-z_]/ && prev ~ /[A-Za-z0-9_)\]][ \t]*$/) {
+        sub(/^[ \t]*/, "", $0); prev = prev $0; pending++
+        next
+      }
+      print prev
+      while (pending > 0) { print ""; pending-- }
+    }
+    NR == 1 { prev = $0; next }
+    { prev = $0 }
+    END { if (NR > 0) { print prev; while (pending > 0) { print ""; pending-- } } }
+  '
+}
+
 # Full-line Ruby comments removed; everything else preserved verbatim.
-strip_comments() { sed -E 's/^[[:space:]]*#.*$//' "$1"; }
+strip_comments() {
+  # Ruby full-line comments, plus ERB (`<%# ... %>`) and HTML (`<!-- ... -->`)
+  # comments, which .erb files legitimately use to document or disable code. Without
+  # these, a harmless `<%# Anthropic::Client.new %>` in a template failed the guard.
+  sed -E -e 's/<%#[^%]*%>//g' -e 's/<!--.*-->//g' -e 's/^[[:space:]]*#.*$//' "$1"
+}
 
 # Additionally removes TRAILING comments. Used ONLY by the presence checks (5, 6, 6b).
 #
@@ -228,7 +263,7 @@ SEAMS=''
 if [ -n "$RUNTIME_FILES" ]; then
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    stripped="$(strip_comments "$f")"
+    stripped="$(strip_comments "$f" | join_method_continuations)"
     if [ -n "$(grep -iE "$SEAM_RE" <<< "$stripped" || true)" ]; then
       SEAMS="${SEAMS}${f}"$'\n'
     fi
@@ -260,7 +295,7 @@ fi
 if [ -n "$RUNTIME_FILES" ]; then
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    stripped="$(strip_comments "$f")"
+    stripped="$(strip_comments "$f" | join_method_continuations)"
 
     hits="$(grep -nE "$DIRECT_CLIENT_RE" <<< "$stripped" || true)"
     if [ -n "$hits" ]; then
@@ -334,7 +369,7 @@ if [ ! -f "$SANCTIONED_CLIENT" ]; then
   fail "$SANCTIONED_CLIENT is missing (the sanctioned Bedrock construction point)"
 else
   # Code only: a trailing comment must not be able to satisfy a presence check.
-  ai_client="$(strip_comments "$SANCTIONED_CLIENT" | strip_trailing_comments)"
+  ai_client="$(strip_comments "$SANCTIONED_CLIENT" | strip_trailing_comments | join_method_continuations)"
   [ -n "$(grep -E 'Anthropic::BedrockClient\.new' <<< "$ai_client" || true)" ] \
     || fail "$SANCTIONED_CLIENT does not construct Anthropic::BedrockClient (classic Bedrock plane)"
   [ -n "$(grep -E 'Anthropic::BedrockMantleClient\.new' <<< "$ai_client" || true)" ] \

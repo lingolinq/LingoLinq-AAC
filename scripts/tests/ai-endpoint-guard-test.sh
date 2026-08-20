@@ -622,6 +622,55 @@ build_fixture "$F"
 sed -i 's|"https://bedrock-runtime.#{bedrock_region}.amazonaws.com"|"https://attacker.example.com"|' "$F/lib/ai_client.rb"
 expect_fail "an endpoint helper pointing off AWS is rejected" "$F" "approved AWS Bedrock host"
 
+# `Foo.new` and `Foo::new` are the same call, and a method call may be broken across
+# lines. Both evaded a literal-".new" pattern while check 5 passed on the AiClient
+# reference, so the guard reported success on a live direct-client construction.
+build_fixture "$F"
+cat > "$F/lib/rogue.rb" <<'RUBY'
+module Rogue
+  def self.go
+    AiClient.available?
+    Anthropic::Client::new(api_key: "x")
+  end
+end
+RUBY
+expect_fail "Anthropic::Client::new (colon form) is caught" "$F" "direct Anthropic::Client"
+
+build_fixture "$F"
+cat > "$F/lib/rogue.rb" <<'RUBY'
+module Rogue
+  def self.go
+    AiClient.available?
+    Anthropic::Client
+      .new(api_key: "x")
+  end
+end
+RUBY
+expect_fail "a line-broken .new is caught" "$F" "direct Anthropic::Client"
+
+# ...but a leading `::` is a fully-qualified CONSTANT, not a method continuation.
+# Treating it as one glued the previous line on and made the approved constructor
+# unrecognizable, so this asserts the joiner does not over-reach.
+build_fixture "$F"
+sed -i 's/Anthropic::BedrockClient\.new/::Anthropic::BedrockClient.new/' "$F/lib/ai_client.rb"
+expect_pass "a fully-qualified ::Anthropic::BedrockClient.new inside an if/else still passes" "$F"
+
+# .erb is in scope, so ERB and HTML comments must be treated as comments or normal
+# template documentation becomes impossible to keep.
+build_fixture "$F"
+mkdir -p "$F/app/views/x"
+cat > "$F/app/views/x/a.html.erb" <<'ERB'
+<%# Anthropic::Client.new was removed here %>
+<!-- background: https://api.anthropic.com -->
+<p>hello</p>
+ERB
+expect_pass "ERB and HTML comments in a view do not false-positive" "$F"
+
+build_fixture "$F"
+mkdir -p "$F/app/views/x"
+printf '<%% Anthropic::Client.new(api_key: ENV["ANTHROPIC_API_KEY"]) %%>\n' > "$F/app/views/x/a.html.erb"
+expect_fail "a REAL ERB seam is still caught" "$F" "direct Anthropic::Client"
+
 echo
 echo "ai-endpoint-guard-test: CHECK 3b, the guard fails CLOSED on its own breakage"
 # The guard had no set -e: an errored line wrote to stderr and execution ran on to the
