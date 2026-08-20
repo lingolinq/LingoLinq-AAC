@@ -703,6 +703,43 @@ cat > "$F/app/views/x/a.html.erb" <<'ERB'
 ERB
 expect_fail "a real ERB seam after a closed block comment is still caught" "$F" "direct Anthropic::Client"
 
+# Check 5 must require a real AiClient CALL. Naming it in a log line or error string
+# made a seam look routed while it built its own client through an unlisted method.
+build_fixture "$F"
+cat > "$F/lib/rogue.rb" <<'RUBY'
+module Rogue
+  def self.go
+    Rails.logger.info("not using AiClient here")
+    Anthropic::Client.public_send(:new, api_key: "x")
+  end
+end
+RUBY
+expect_fail "naming AiClient in a string does not count as routing through it" "$F" "FAIL"
+
+# Azure OpenAI is a mainstream direct route and was covered by neither the host list
+# nor the credential list.
+build_fixture "$F"
+cat > "$F/lib/rogue.rb" <<'RUBY'
+module Rogue
+  def self.go
+    AiClient.available?
+    Typhoeus.post("https://my-res.openai.azure.com/openai/deployments/x")
+  end
+end
+RUBY
+expect_fail "an Azure OpenAI endpoint is caught" "$F" "unapproved direct vendor inference endpoint"
+
+build_fixture "$F"
+cat > "$F/lib/rogue.rb" <<'RUBY'
+module Rogue
+  def self.key
+    AiClient.available?
+    ENV["AZURE_OPENAI_API_KEY"]
+  end
+end
+RUBY
+expect_fail "an AZURE_OPENAI_API_KEY read is caught" "$F" "direct-provider AI credential"
+
 echo
 echo "ai-endpoint-guard-test: CHECK 3b, the guard fails CLOSED on its own breakage"
 # The guard had no set -e: an errored line wrote to stderr and execution ran on to the

@@ -111,13 +111,13 @@ SANCTIONED_CLIENT='lib/ai_client.rb'
 # Direct-provider AI credentials. Deliberately NOT a broad *_API_KEY / GOOGLE_*
 # pattern: GOOGLE_TTS_TOKEN, GOOGLE_TRANSLATE_TOKEN and GOOGLE_PLACES_TOKEN are
 # legitimate non-model Google services this app uses at runtime.
-VENDOR_KEY_RE="ENV(\[|\.fetch\()[[:space:]]*['\"](ANTHROPIC|GEMINI|OPENAI|DEEPSEEK|MISTRAL|OPENROUTER|GROQ|XAI|PERPLEXITY|COHERE|TOGETHER|REPLICATE)_API_KEY['\"]"
+VENDOR_KEY_RE="ENV(\[|\.fetch\()[[:space:]]*['\"](ANTHROPIC|GEMINI|OPENAI|AZURE_OPENAI|DEEPSEEK|MISTRAL|OPENROUTER|GROQ|XAI|PERPLEXITY|COHERE|TOGETHER|REPLICATE)_API_KEY['\"]"
 
 # Unapproved direct model-inference hosts. Host-specific on purpose: the approved
 # Bedrock hosts (bedrock-runtime.<region>.amazonaws.com, bedrock-mantle.<region>.api.aws)
 # are absent from this list, and so are non-model vendor APIs on shared domains
 # (texttospeech.googleapis.com is used for TTS and must not trip this).
-VENDOR_HOST_RE='api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|api\.openai\.com|api\.deepseek\.com|openrouter\.ai|api\.mistral\.ai|api\.cohere\.(ai|com)|api\.groq\.com|api\.x\.ai|api\.perplexity\.ai|api\.together\.xyz|api\.replicate\.com'
+VENDOR_HOST_RE='api\.anthropic\.com|openai\.azure\.com|generativelanguage\.googleapis\.com|aiplatform\.googleapis\.com|api\.openai\.com|api\.deepseek\.com|openrouter\.ai|api\.mistral\.ai|api\.cohere\.(ai|com)|api\.groq\.com|api\.x\.ai|api\.perplexity\.ai|api\.together\.xyz|api\.replicate\.com'
 
 # A bare direct Anthropic client. Anchored so Anthropic::BedrockClient and
 # Anthropic::BedrockMantleClient do NOT match -- only the api.anthropic.com route.
@@ -133,7 +133,7 @@ AI_VENDOR_NS='Anthropic|OpenAI|GenerativeAI|GenerativeLanguage|Gemini|VertexAI|A
 # Construction is not only `.new`. A client handed back by a factory method is just
 # as much an egress seam, and matching `.new` alone let `OpenAI::Client.from_env`
 # through untouched.
-CLIENT_FACTORY_RE='new!?|build!?|create!?|from_env|from_config|configure!?|connect|client|instance|default|get_client'
+CLIENT_FACTORY_RE='new!?|build!?|create!?|from_env|from_config|configure!?|connect|client|instance|default|get_client|send|public_send|__send__|allocate'
 
 # `Foo.new`, `Foo::new`, `Foo .new` and `(Foo).new` are all the same call in Ruby, so
 # the separator tolerates surrounding whitespace and a closing paren rather than being
@@ -378,7 +378,10 @@ if [ -n "$SEAMS" ]; then
     [ -n "$f" ] || continue
     [ "$f" = "$SANCTIONED_CLIENT" ] && continue
     stripped="$(strip_comments "$f" | strip_trailing_comments)"
-    if [ -z "$(grep -F 'AiClient' <<< "$stripped" || true)" ]; then
+    # A CALL (`AiClient.build!`), not a substring: a seam that merely names AiClient in
+    # a log line or error string was treated as routed while constructing its own
+    # client through an unlisted method.
+    if [ -z "$(grep -E 'AiClient[[:space:]]*[.:]+[[:space:]]*[a-z_]' <<< "$stripped" || true)" ]; then
       fail "$f looks like a runtime AI seam but never references AiClient -- every seam must route through $SANCTIONED_CLIENT"
     fi
   done <<< "$SEAMS"
