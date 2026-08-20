@@ -121,7 +121,7 @@ VENDOR_HOST_RE='api\.anthropic\.com|generativelanguage\.googleapis\.com|aiplatfo
 
 # A bare direct Anthropic client. Anchored so Anthropic::BedrockClient and
 # Anthropic::BedrockMantleClient do NOT match -- only the api.anthropic.com route.
-DIRECT_CLIENT_RE='(^|[^:[:alnum:]_])(::)?Anthropic::Client[.:]+new'
+DIRECT_CLIENT_RE='(^|[^:[:alnum:]_])(::)?Anthropic::Client[[:space:]]*\)?[[:space:]]*[.:]+[[:space:]]*new'
 
 # Constant-name tokens that mark a namespace as a model vendor SDK. Matching on the
 # TOKEN rather than on a list of full class names is deliberate: an enumeration of
@@ -135,21 +135,22 @@ AI_VENDOR_NS='Anthropic|OpenAI|GenerativeAI|GenerativeLanguage|Gemini|VertexAI|A
 # through untouched.
 CLIENT_FACTORY_RE='new!?|build!?|create!?|from_env|from_config|configure!?|connect|client|instance|default|get_client'
 
-# `Foo.new` and `Foo::new` are the same call in Ruby, so the separator is [.:]+ rather
-# than a literal dot. Line-broken forms (`Anthropic::Client\n  .new(...)`) are handled
+# `Foo.new`, `Foo::new`, `Foo .new` and `(Foo).new` are all the same call in Ruby, so
+# the separator tolerates surrounding whitespace and a closing paren rather than being
+# a literal dot. Line-broken forms (`Anthropic::Client\n  .new(...)`) are handled
 # by joining a constant path to a following leading-dot continuation line before
 # matching -- see join_method_continuations.
 
 # Any model-client construction at all, for the "only AiClient builds clients" rule:
 # a construction call on any constant whose path carries a vendor token.
-ANY_CLIENT_RE="(^|[^:[:alnum:]_])(::)?([A-Za-z0-9_]+::)*[A-Za-z0-9_]*($AI_VENDOR_NS)[A-Za-z0-9_]*(::[A-Za-z0-9_]+)*[.:]+($CLIENT_FACTORY_RE)\b"
+ANY_CLIENT_RE="(^|[^:[:alnum:]_])(::)?([A-Za-z0-9_]+::)*[A-Za-z0-9_]*($AI_VENDOR_NS)[A-Za-z0-9_]*(::[A-Za-z0-9_]+)*[[:space:]]*\)?[[:space:]]*[.:]+[[:space:]]*($CLIENT_FACTORY_RE)\b"
 
 # The ONLY constructions the sanctioned point is allowed to make. Anchored to the
 # FULL extracted match (grep -no emits `<line>:<match>`), because an unanchored
 # pattern would also accept a look-alike under another namespace -- Ruby treats
 # Foo::Anthropic::BedrockClient as a different class than Anthropic::BedrockClient,
 # and the unanchored form filtered it out as approved.
-PERMITTED_CLIENT_RE='^[0-9]+:[^:[:alnum:]_]?(::)?Anthropic::Bedrock(Mantle)?Client[.:]+new$'
+PERMITTED_CLIENT_RE='^[0-9]+:[^:[:alnum:]_]?(::)?Anthropic::Bedrock(Mantle)?Client[[:space:]]*[.:]+[[:space:]]*new$'
 
 # Requiring a vendor SDK gem is itself a seam marker, even before any constructor.
 AI_REQUIRE_RE="require[[:space:]_a-z]*[[:space:](]+['\"](anthropic|openai|ruby-openai|gemini[-_a-z]*|google-cloud-ai_platform[-_a-z]*|google_generative_ai|generative[-_]ai|mistral[-_a-z]*|cohere[-_a-z]*|groq[-_a-z]*|replicate|ollama[-_a-z]*|langchainrb|ruby_llm|aws-sdk-bedrock[a-z]*)['\"]"
@@ -207,7 +208,34 @@ strip_comments() {
   # Ruby full-line comments, plus ERB (`<%# ... %>`) and HTML (`<!-- ... -->`)
   # comments, which .erb files legitimately use to document or disable code. Without
   # these, a harmless `<%# Anthropic::Client.new %>` in a template failed the guard.
-  sed -E -e 's/<%#[^%]*%>//g' -e 's/<!--.*-->//g' -e 's/^[[:space:]]*#.*$//' "$1"
+  # Block comments are stripped across LINES, not just within one: an .erb file may
+  # open `<%#` or `<!--` on one line and close it several lines later, and a
+  # line-local substitution left the interior visible, so an ordinary commented-out
+  # example failed the guard. Interior lines are blanked rather than deleted so
+  # reported line numbers stay accurate.
+  awk '
+    {
+      line = $0
+      while (1) {
+        if (inblk) {
+          i = index(line, endtok)
+          if (i == 0) { line = ""; break }
+          line = substr(line, i + length(endtok)); inblk = 0
+          continue
+        }
+        e = index(line, "<%#"); h = index(line, "<!--")
+        if (e == 0 && h == 0) break
+        if (e > 0 && (h == 0 || e < h)) { start = e; starttok = "<%#"; endtok = "%>" }
+        else                            { start = h; starttok = "<!--"; endtok = "-->" }
+        head = substr(line, 1, start - 1)
+        tail = substr(line, start + length(starttok))
+        j = index(tail, endtok)
+        if (j == 0) { line = head; inblk = 1; break }
+        line = head substr(tail, j + length(endtok))
+      }
+      print line
+    }
+  ' "$1" | sed -E 's/^[[:space:]]*#.*$//'
 }
 
 # Additionally removes TRAILING comments. Used ONLY by the presence checks (5, 6, 6b).

@@ -671,6 +671,38 @@ mkdir -p "$F/app/views/x"
 printf '<%% Anthropic::Client.new(api_key: ENV["ANTHROPIC_API_KEY"]) %%>\n' > "$F/app/views/x/a.html.erb"
 expect_fail "a REAL ERB seam is still caught" "$F" "direct Anthropic::Client"
 
+# Ruby lets whitespace and parens sit between a constant and its method.
+for form in 'Anthropic::Client .new(api_key: "x")' '(Anthropic::Client).new(api_key: "x")' \
+            'Anthropic::Client ::new(api_key: "x")'; do
+  build_fixture "$F"
+  printf 'module Rogue\n  def self.go\n    AiClient.available?\n    %s\n  end\nend\n' "$form" > "$F/lib/rogue.rb"
+  expect_fail "whitespace/paren form is caught: $form" "$F" "direct Anthropic::Client"
+done
+
+# Block comments in .erb may span lines; a line-local strip left the interior visible
+# and failed the guard on ordinary commented-out template code.
+build_fixture "$F"
+mkdir -p "$F/app/views/x"
+cat > "$F/app/views/x/a.html.erb" <<'ERB'
+<%#
+  Anthropic::Client.new was removed here
+%>
+<!--
+  background: https://api.anthropic.com
+-->
+<p>hello</p>
+ERB
+expect_pass "MULTILINE ERB and HTML comments do not false-positive" "$F"
+
+# ...and the block strip must not become a bypass.
+build_fixture "$F"
+mkdir -p "$F/app/views/x"
+cat > "$F/app/views/x/a.html.erb" <<'ERB'
+<%# a closed comment %>
+<% Anthropic::Client.new(api_key: ENV["ANTHROPIC_API_KEY"]) %>
+ERB
+expect_fail "a real ERB seam after a closed block comment is still caught" "$F" "direct Anthropic::Client"
+
 echo
 echo "ai-endpoint-guard-test: CHECK 3b, the guard fails CLOSED on its own breakage"
 # The guard had no set -e: an errored line wrote to stderr and execution ran on to the
