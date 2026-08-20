@@ -55,10 +55,24 @@ module AiClient
 
   def build!
     if plane == 'mantle'
-      Anthropic::BedrockMantleClient.new(region: bedrock_region)
+      Anthropic::BedrockMantleClient.new(
+        aws_region: bedrock_region,
+        base_url: mantle_base_url
+      )
     else
-      Anthropic::BedrockClient.new(region: bedrock_region)
+      Anthropic::BedrockClient.new(
+        aws_region: bedrock_region,
+        base_url: classic_base_url
+      )
     end
+  end
+
+  def classic_base_url
+    "https://bedrock-runtime.#{bedrock_region}.amazonaws.com"
+  end
+
+  def mantle_base_url
+    "https://bedrock-mantle.#{bedrock_region}.api.aws/anthropic"
   end
 
   def plane
@@ -286,7 +300,10 @@ for shape in 'Google::GenerativeAI::Client.new' 'OpenAI::Client.new' 'Mistral::C
              'Aws::BedrockRuntime::Client.new' 'RubyLLM::Chat.new' 'Cohere::Client.new'; do
   build_fixture "$F"
   printf 'module Rogue\n  def self.go\n    %s\n  end\nend\n' "$shape" > "$F/lib/rogue.rb"
-  expect_fail "unlisted SDK shape $shape is caught" "$F" "FAIL"
+  # Needle is the SPECIFIC rule, not a bare "FAIL": a needle that matches any failure
+  # would also pass if the guard exited 1 for an unrelated reason, e.g. a fixture the
+  # builder forgot to write. Every expect_fail in this harness names its own rule.
+  expect_fail "unlisted SDK shape $shape is caught" "$F" "only sanctioned construction point"
 done
 
 # A seam that DOES reference AiClient but also builds its own vendor client must be
@@ -316,6 +333,40 @@ done
 build_fixture "$F"
 printf "require 'openai'\nmodule Rogue\nend\n" > "$F/lib/rogue.rb"
 expect_fail "requiring a vendor SDK gem alone marks a seam" "$F" "never references AiClient"
+
+# Naming three directories would have been a coarser version of the same allowlist
+# bug this guard exists to fix. db/, Rakefile, config.ru and the repo root are all
+# runtime Ruby that a three-directory scope silently left unscanned.
+build_fixture "$F"
+mkdir -p "$F/db/migrate"
+cat > "$F/db/migrate/20260820000000_backfill_with_ai.rb" <<'RUBY'
+class BackfillWithAi < ActiveRecord::Migration[7.2]
+  def up
+    Anthropic::Client.new(api_key: ENV['ANTHROPIC_API_KEY'])
+  end
+end
+RUBY
+expect_fail "a NEW db/migrate seam is caught" "$F" "direct Anthropic::Client"
+
+build_fixture "$F"
+cat > "$F/Rakefile" <<'RUBY'
+require 'openai'
+OpenAI::Client.new(access_token: ENV['OPENAI_API_KEY'])
+RUBY
+expect_fail "a NEW Rakefile seam is caught" "$F" "direct-provider AI credential"
+
+build_fixture "$F"
+cat > "$F/config.ru" <<'RUBY'
+Google::GenerativeAI::Client.new
+run Rails.application
+RUBY
+expect_fail "a NEW config.ru seam is caught" "$F" "only sanctioned construction point"
+
+build_fixture "$F"
+cat > "$F/adhoc_backfill.rb" <<'RUBY'
+Typhoeus.post('https://api.openai.com/v1/chat/completions', body: {})
+RUBY
+expect_fail "a NEW repo-root .rb seam is caught" "$F" "unapproved direct vendor inference endpoint"
 
 echo
 echo "ai-endpoint-guard-test: CHECK 2, reviewer-only tooling, tests and comments do NOT false-positive"
@@ -410,6 +461,48 @@ expect_pass "AiClient may build the fully-qualified ::Anthropic::BedrockClient.n
 build_fixture "$F"
 expect_pass "an unmodified AiClient building both Bedrock clients still passes" "$F"
 
+# base_url is a SEPARATE control from which class is built. Both gem clients resolve
+# `base_url ||= ENV.fetch("ANTHROPIC_BEDROCK_BASE_URL")`, so a constructor that omits
+# it lets an env var redirect Tier 1 traffic off the BAA'd AWS path while every
+# class-level check above stays green. lib/ai_client.rb documents this; nothing
+# enforced it until now.
+build_fixture "$F"
+sed -i 's/^ *base_url: classic_base_url$/        aws_region: bedrock_region,/' "$F/lib/ai_client.rb"
+expect_fail "dropping base_url from the classic Bedrock constructor fails" "$F" "without an explicit base_url"
+
+build_fixture "$F"
+sed -i 's/^ *base_url: mantle_base_url$/        aws_region: bedrock_region,/' "$F/lib/ai_client.rb"
+expect_fail "dropping base_url from the Mantle constructor fails" "$F" "without an explicit base_url"
+
+build_fixture "$F"
+sed -i 's/^ *base_url: \(classic\|mantle\)_base_url$/        aws_region: bedrock_region,/' "$F/lib/ai_client.rb"
+expect_fail "dropping base_url from BOTH constructors fails" "$F" "without an explicit base_url"
+
+# A bare `.new` with no argument list is the same exposure, and must not slip past
+# the paren-balance walk.
+build_fixture "$F"
+python3 - "$F/lib/ai_client.rb" <<'PYEOF'
+import re, sys
+p = sys.argv[1]
+s = open(p).read()
+s = re.sub(r'Anthropic::BedrockClient\.new\([^)]*\)', 'Anthropic::BedrockClient.new', s, count=1)
+open(p, 'w').write(s)
+PYEOF
+expect_fail "a bare Bedrock .new with no argument list fails" "$F" "without an explicit base_url"
+
+# ...and the single-line form that DOES pass base_url must still be accepted.
+build_fixture "$F"
+python3 - "$F/lib/ai_client.rb" <<'PYEOF'
+import re, sys
+p = sys.argv[1]
+s = open(p).read()
+s = re.sub(r'Anthropic::BedrockClient\.new\([^)]*\)',
+           'Anthropic::BedrockClient.new(aws_region: bedrock_region, base_url: classic_base_url)',
+           s, count=1)
+open(p, 'w').write(s)
+PYEOF
+expect_pass "a single-line Bedrock constructor that passes base_url is accepted" "$F"
+
 echo
 echo "ai-endpoint-guard-test: CHECK 4, the Cloud Run mount rule still fires"
 build_fixture "$F"
@@ -499,10 +592,17 @@ for known in lib/ai_word_predictor.rb lib/ai_prediction_generator.rb \
 done
 
 if [ "$(printf '%s\n' "$scope" | grep -c .)" -ge 50 ]; then
-  pass "runtime scope resolves to a populated app/ + lib/ + config/ file set"
+  pass "runtime scope resolves to a populated whole-repo runtime Ruby file set"
 else
   fail "runtime scope is implausibly small ($(printf '%s\n' "$scope" | grep -c .) files)"
 fi
+for included in 'db/migrate/' 'Rakefile' 'config.ru'; do
+  if printf '%s\n' "$scope" | grep -qF "$included"; then
+    pass "runtime scope includes $included (not just app/ lib/ config/)"
+  else
+    fail "runtime scope is missing $included"
+  fi
+done
 for excluded in '^app/frontend/' '^spec/' '^scripts/' '_spec\.rb$'; do
   if printf '%s\n' "$scope" | grep -qE "$excluded"; then
     fail "runtime scope wrongly includes $excluded"

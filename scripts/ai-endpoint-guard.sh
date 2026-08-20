@@ -18,11 +18,15 @@
 # runtime file is covered the moment it exists, with no edit to this script.
 #
 # RUNTIME SCOPE (what is scanned)
-#   Every Ruby file (.rb AND .rake) under app/, lib/ and config/ -- the server-side
-#   runtime plane, the only place that can read a server credential or open a
-#   server-side egress. .rake is in scope because lib/tasks/generate_predictions.rake
-#   already drives AiPredictionGenerator: a rake task is runtime code that runs in
-#   the production container, not tooling.
+#   EVERY tracked Ruby file in the repository -- .rb, .rake, .ru and Rakefile --
+#   minus an explicit, justified exclusion list. The scope is defined by what is
+#   EXCLUDED, not by which directories someone remembered to include: naming three
+#   directories would have been a coarser version of the same allowlist bug this
+#   guard exists to fix, and it silently left db/, Rakefile, config.ru and the
+#   repo-root scripts unscanned.
+#   .rake is in scope because lib/tasks/generate_predictions.rake already drives
+#   AiPredictionGenerator: a rake task is runtime code that runs in the production
+#   container, not tooling.
 #   Deliberately EXCLUDED, each for a stated reason:
 #     - scripts/**            reviewer-only Tier 2 tooling (codex-review and
 #                             friends) legitimately reads ANTHROPIC_API_KEY; it
@@ -49,6 +53,8 @@
 #   4. A runtime file names an unapproved direct vendor inference endpoint.
 #   5. A discovered AI seam does not route through AiClient.
 #   6. AiClient stops building either Bedrock client, or starts building a direct one.
+#   6b. A Bedrock client is constructed without an explicit base_url, which would let
+#      ANTHROPIC_BEDROCK_BASE_URL redirect Tier 1 traffic off the AWS BAA path.
 #   7. Either deprecated direct-provider key returns to the Cloud Run runtime mount.
 #   8. Scope discovery yields nothing (a broken scan must not read as a clean tree).
 #
@@ -143,10 +149,11 @@ SEAM_RE="AiClient|(^|[^:[:alnum:]_])(::)?($AI_VENDOR_NS)[A-Za-z0-9_]*::|(^|[^:[:
 # for a non-git tree (the test fixtures).
 discover_runtime_files() {
   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    git ls-files --cached --others --exclude-standard -- app lib config 2>/dev/null
+    git ls-files --cached --others --exclude-standard 2>/dev/null
   else
-    find app lib config -type f 2>/dev/null | sed 's|^\./||'
-  fi | grep -E '\.(rb|rake)$' \
+    find . -type f -not -path './.git/*' 2>/dev/null | sed 's|^\./||'
+  fi | grep -E '(\.(rb|rake|ru)$|(^|/)Rakefile$)' \
+     | grep -vE '^scripts/' \
      | grep -vE '^app/frontend/' \
      | grep -vE '(^|/)(spec|specs|test|tests)/' \
      | grep -vE '_(spec|test)\.rb$' \
@@ -278,6 +285,44 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 6b. Every Bedrock client must be constructed with an EXPLICIT base_url.
+#
+#     Checks 1-6 constrain which CLASS is built. They say nothing about the HOST it
+#     talks to, and for these two clients those are separable. Both gem clients
+#     resolve their endpoint as `base_url ||= ENV.fetch("ANTHROPIC_BEDROCK_BASE_URL")`
+#     (Mantle: ANTHROPIC_BEDROCK_MANTLE_BASE_URL). Because that is `||=`, a
+#     constructor that omits base_url hands an environment variable the power to
+#     redirect every runtime AI request -- still SigV4-signed, still built from the
+#     approved class, still green on every other check in this file -- to an
+#     arbitrary host off the BAA'd AWS path.
+#
+#     lib/ai_client.rb:340-352 already documents this and passes base_url explicitly
+#     for exactly this reason. That comment also names the gap this check closes: the
+#     protection was a convention no CI control enforced, so a refactor that dropped
+#     the argument would have shipped green.
+# ---------------------------------------------------------------------------
+if [ -f "$SANCTIONED_CLIENT" ]; then
+  # Walks each Bedrock constructor's argument list by paren balance and reports the
+  # line of any that never names base_url. Handles single-line and multi-line forms,
+  # and treats a bare `.new` with no argument list as a violation.
+  missing_base_url="$(printf '%s\n' "$ai_client" | awk '
+    function opens(s,  t, n) { t = s; n = gsub(/\(/, "(", t); return n }
+    function closes(s, t, n) { t = s; n = gsub(/\)/, ")", t); return n }
+    !inb && /Anthropic::Bedrock[A-Za-z]*Client\.new/ { inb = 1; start = NR; has = 0; depth = 0 }
+    inb {
+      if ($0 ~ /base_url:/) has = 1
+      depth += opens($0) - closes($0)
+      if (depth <= 0) { if (!has) print start; inb = 0 }
+    }
+    END { if (inb && !has) print start }
+  ' || true)"
+  if [ -n "$missing_base_url" ]; then
+    fail "$SANCTIONED_CLIENT constructs a Bedrock client without an explicit base_url -- the gem falls back to ANTHROPIC_BEDROCK_BASE_URL, letting an env var redirect Tier 1 traffic off the AWS BAA path"
+    printf '%s\n' "$missing_base_url" | sed "s|^|  $SANCTIONED_CLIENT: constructor starting at line |"
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # 7. Deprecated direct-provider credentials must not return to the Cloud Run mount.
 #    The exact NON_BOOT_SECRETS assignment is checked rather than comments, which
 #    may continue to name the removed keys for historical context.
@@ -295,7 +340,7 @@ if [ $status -eq 0 ]; then
   scope_count="$(printf '%s\n' "$RUNTIME_FILES" | grep -c . || true)"
   seam_count="$(printf '%s\n' "$SEAMS" | grep -c . || true)"
   echo "OK: runtime AI routes via AWS Bedrock (AiClient); no direct client, vendor credential, or unapproved endpoint in the runtime scope."
-  echo "    runtime scope: $scope_count discovered app/ + lib/ + config/ Ruby files (no allowlist)"
+  echo "    runtime scope: $scope_count discovered runtime Ruby files (whole repo minus stated exclusions)"
   echo "    AI seams discovered ($seam_count):"
   printf '%s\n' "$SEAMS" | sed 's|^|      |'
 fi

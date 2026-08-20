@@ -62,8 +62,8 @@ jobs:
       - name: AI endpoint guard (runtime AI must route via AWS Bedrock, not api.anthropic.com)
         run: bash scripts/ai-endpoint-guard.sh
 
-      # The guard above scans a scope DISCOVERED from app/ + lib/ + config/ rather than a
-      # hardcoded seam list, precisely so a newly added runtime AI file cannot pass
+      # The guard above scans a scope DISCOVERED from the whole repo (minus stated
+      # exclusions) rather than a hardcoded seam list, so a newly added runtime AI file
       # by not being listed (finding LL-1189af1b3c). A discovered scope is only worth
       # what its discovery is worth, so the guard is tested rather than trusted:
       # fixtures assert every rule fires, and that reviewer-only scripts, specs and
