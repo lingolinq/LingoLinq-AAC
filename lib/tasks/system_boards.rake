@@ -51,6 +51,24 @@ namespace :lingolinq do
     exit 1 if results.any? { |r| !r[:ok] }
   end
 
+  desc 'Stamp LingoLinq descriptions onto existing Quick Core library roots (no OBZ re-import). Use after OpenAAC boards are already seeded.'
+  task apply_quick_core_descriptions: :environment do
+    owner = SystemBoardSources.owner
+    raise "User not found: #{SystemBoardSources::USER_NAME}. Run db:seed first." unless owner
+
+    results = QuickCoreDescriptions.apply_existing_roots!(owner: owner)
+    if results.empty?
+      puts 'No Quick Core roots found on the system board user.'
+      puts "  Import first: VOCABULARY_USER_NAME=#{SystemBoardSources::USER_NAME} bundle exec rake openaac:import_vocabularies"
+      exit 1
+    end
+    results.each do |r|
+      status = r[:changed] ? 'UPDATED' : 'unchanged'
+      puts "#{status}: #{r[:key]}"
+    end
+    puts "Done (#{results.count { |r| r[:changed] }} updated)."
+  end
+
   desc 'Import curated gallery vocabularies from static S3 (prefer over OpenAAC overlaps). ONLY=<id> to limit. Local tmp/seed-boards fallback if S3 missing.'
   task import_curated_vocabularies: :environment do
     owner = SystemBoardSources.owner
