@@ -55,6 +55,7 @@ file (see [README.md](README.md)).
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Pattern: boards-page Mine list — cache-first paint, atomic background refresh](#pattern-boards-page-mine-list--cache-first-paint-atomic-background-refresh)
+- [Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint](#gotcha-board-picker-category-tabs-share-one-category_boards-list--stale-loads-must-not-paint)
 - [Gotcha: Android “classic board” error may be stale packaged board-detail](#gotcha-android-classic-board-error-may-be-stale-packaged-board-detail)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
@@ -383,6 +384,16 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 **Gotcha (list summary + locale):** Omitting button/content blobs must not skip `localized_name` / `localized_locale`. Index already eager-loads `board_content`; when `args[:locale]` is present, still load translations for `board_name` matching, but do not rewrite per-button labels (list payloads have no `buttons`). Gating the whole locale block behind `!list_summary` broke `Api::BoardsController index should return a localized board name`.
 
 **First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md); pass 2 [2026-08-17-boards-page-load-pass2.md](./2026-08-17-boards-page-load-pass2.md)
+
+## Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint
+
+**Surface:** `/board-picker` `BoardPicker` with `searchAtTop` ([`components/board-picker.js`](../../app/frontend/app/components/board-picker.js)).
+
+**Gotcha:** All Available Boards waits for every mine/shared page plus the first public page before painting, so it is slow. The selected tab (`current_category`) and the grid (`category_boards`) are separate. Switching to Cause and Effect starts a new query but does not cancel the All Available requests. Those writers used to call `this.set('category_boards', …)` with no generation check, so the default list appeared under the new category.
+
+**Fix:** All Available uses its own `_available_load_id` so the first fetch can finish in the background. Results are snapshotted and reused when the user returns to the tab; they only paint `category_boards` while that tab is selected. Tagged categories still bump `_boards_load_id` so a late Cause and Effect response cannot overwrite All Available. Tests in `tests/unit/components/board-picker-category-race-test.js`.
+
+**First seen in:** [2026-08-20-board-picker-category-race.md](./2026-08-20-board-picker-category-race.md)
 
 ## Gotcha: Android “classic board” error may be stale packaged board-detail
 
@@ -9249,7 +9260,7 @@ Stop Masquerading controls (PR #714) signal masquerade without naming the acting
 
 **Root cause:** Two systems share the word category. (1) Personal folders = `user.settings.board_tags` via the tag-board modal. (2) Catalog browse = `board.settings.categories` with fixed ids (`cause_effect`, `robust`, …), set in Edit Board Details when "can be used as a home board" is checked. The tabbed picker also had a hard-coded coming-soon stub that skipped `_resolveCategoryBoards` for `cause_effect`.
 
-**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags.
+**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags. PR #761 also removed the Keyboards "Coming soon" placeholders the same way (`_resolveCategoryBoards('keyboards')`). Traci's later picker rework (`f2cc29f13`, 2026-08-09) put those placeholders back; restored on `fix/melissa-board-picker-stale-category`.
 
 **Evidence:** [`2026-08-05-board-picker-cause-effect-catalog.md`](./2026-08-05-board-picker-cause-effect-catalog.md); `components/board-picker.js` / `.hbs`.
 
