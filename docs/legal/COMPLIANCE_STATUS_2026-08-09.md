@@ -38,7 +38,7 @@ Headline at staging HEAD `64cdccba1` plus the two rows added by PR #838 (2026-08
 - **52** open Medium, **42** open Low. **114** live total (`open` + `remediated-unverified`).
 - Across all findings: 106 `open`, 8 `remediated-unverified`, 51 `verified-closed`, 5
   `accepted-risk`, 2 `superseded`.
-- The 2026-08-12 six-finder full audit run added 46 new findings (9 High / 22 Medium / 15 Low)
+- The 2026-08-12 six-finder full audit run added 40 new findings (9 High / 18 Medium / 13 Low)
   across privacy, infra, api, dependency, accessibility, and code-hygiene -- the single largest
   driver of the count rise since the 2026-08-09 draft. Notably several GCP production-access and
   logging gaps (WIF ref-lock LL-1e7b568ef3, no Data Access audit logging LL-b7ccc522b9, a
@@ -75,7 +75,7 @@ accepted in *this* drafting session.
 | AI Governance Memo | Re-attested 2026-08-04 (git). | Published; branded Drive mirror review date still older. |
 | Bedrock / BAA claim correction | 2026-08-01 through 2026-08-07 corpus sweep; LL-1b0d78dbe6 filed, then **verified-closed 2026-08-11**. | Unverifiable Bedrock-account assertion retracted; closed operational window documented; check now landed and verified. |
 | Subprocessor quarterly review | Performed 2026-08-08. | Two omissions found (recorded in review notes); list hygiene in progress. |
-| 2026-08-12 six-finder full audit run | privacy, infra, api, dependency, accessibility, code-hygiene finders; 46 net-new findings (9 High). | Largest single driver of the count rise since this snapshot's original 2026-08-09 date; not narrated elsewhere in this document until this refresh. |
+| 2026-08-12 six-finder full audit run | privacy, infra, api, dependency, accessibility, code-hygiene finders; 40 net-new findings (9 High). | Largest single driver of the count rise since this snapshot's original 2026-08-09 date; not narrated elsewhere in this document until this refresh. |
 | Remediation pending verify | Five High + three Medium in `remediated-unverified` (was three High + two Medium at 2026-08-09). | Code/config changes landed; need fresh-context verification + Scot close. |
 | Register hygiene | No `regression: true` findings at last full-run citation-check (2026-08-12, PASS 150/FAIL 0/SKIP 15; not re-run for this content-only refresh). | Evidence anchors for most findings still validate at pinned SHAs. |
 

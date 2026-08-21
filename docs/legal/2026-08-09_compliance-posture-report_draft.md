@@ -12,7 +12,7 @@
 > Register audited SHA (last full `/audit-run`): `59f502aa4` (auditedDate 2026-08-18; a monthly
 > light-run restamp, not a full re-scan -- see `meta.auditedShaPriorNote` in the register for why
 > the pointer moved there rather than to the current tip). The last full 6-finder audit was
-> `d67ed76e0a1` (2026-08-12), which added 46 new findings (9 High / 22 Medium / 15 Low). The
+> `d67ed76e0a1` (2026-08-12), which added 40 new findings (9 High / 18 Medium / 13 Low). The
 > counts below are re-derived from `audit-reports/FINDINGS.json` **as committed at staging HEAD
 > `64cdccba1`, plus the two rows added by PR #838** (2026-08-20), not from a re-run audit,
 > using the publisher convention (`open` + `remediated-unverified` findings by severity, per
@@ -98,10 +98,10 @@ The practices behind these numbers:
 
 ## Posture by framework
 
-Open-finding distribution across regulatory frameworks (a single finding can map to more than
+Live-finding distribution across regulatory frameworks (a single finding can map to more than
 one framework):
 
-| Framework | Open findings | Open High | Context |
+| Framework | Live | Live High | Context |
 |---|---:|---:|---|
 | FERPA (US schools) | 36 | 11 | Student data isolation, access scoping, audit trail, share-token and deletion residuals. |
 | HIPAA (US hospitals) | 29 | 10 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
