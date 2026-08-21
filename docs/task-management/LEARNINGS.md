@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: a status-block lead must not over-claim "remaining" or "historical"](#gotcha-a-status-block-lead-must-not-over-claim-remaining-or-historical)
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
@@ -12015,3 +12016,7 @@ Deferring `schedule_once` until after commit closes the Redis-vs-Postgres orderi
 ## Gotcha: `audit-artifacts-integrity` green proves renders match JSON, NOT that the register is loadable
 
 Every check in that CI job compares a generated markdown against its JSON source; none of them reads the field *shapes* the register's consumers depend on. A finding whose `source` was written as a bare String instead of an object merged fully green and then hard-crashed `promote-finding.rb` (`Hash#dig': String does not have #dig method (TypeError)`) for the **entire** register weeks later — `citation-check.rb` exited 0 on it too, since it only validates evidence. Closed with two complementary gates: `scripts/register-lint.rb` (predicted shapes, enums, id uniqueness — precise error messages) and `scripts/tests/register-consumer-smoke-test.sh` (runs the real consumers over each committed register with empty input, asserting exit 0 **and** byte-identical output — catches whatever the predicate list failed to anticipate). When adding a validator for a data file, gate on *consumability*, not just on render consistency. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
+
+## Gotcha: a status-block lead must not over-claim "remaining" or "historical"
+
+A runbook lead that says "the remaining gates are A, B, C" reads as exhaustive. If a later authoritative list also requires D and E, an operator skimming the lead can onboard with those still open. Same failure mode for "the rest of this block is historical / not as open work" when later paragraphs in the same block are live checklists. Narrow the lead (e.g. "remaining infrastructure/decommission actions") and scope the historical label to the dated snapshot paragraph only. Ref: PR #840 Codex P1s, `scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md`, [`2026-08-21-phase5-runbook-review-comments.md`](./2026-08-21-phase5-runbook-review-comments.md).
