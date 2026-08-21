@@ -7,18 +7,20 @@ passed; the customer-facing Posture Report still claims **8** open High from the
 re-attest while the live register at HEAD now reads **20** High (up from 12 at the 2026-08-09
 draft, almost entirely from the 2026-08-12 six-finder full audit run); overdue monthly-light audit
 and COPPA quarterly retention checks need surfacing.
-**Status:** DRAFT - awaiting attestation. Headline counts are re-derived from
-`audit-reports/FINDINGS.json` as committed at staging HEAD `64cdccba1` plus the two rows added
-by PR #838 (2026-08-20; publisher convention: `open` + `remediated-unverified` by severity).
-Register `meta.auditedSha` is `59f502aa4` (auditedDate 2026-08-18, a monthly light-run restamp)
-with the last full 6-finder scan
+**Status:** ATTESTED 2026-08-20 by Scot Wahlquist, CEO. Headline counts are re-derived from
+`audit-reports/FINDINGS.json` as committed at staging HEAD `64cdccba1` (2026-08-20; publisher
+convention: `open` + `remediated-unverified` by severity). Register `meta.auditedSha` is
+`59f502aa4` (auditedDate 2026-08-18, a monthly light-run restamp) with the last full 6-finder scan
 at `d67ed76e0a1` (auditedDate 2026-08-12); it records the last full audit *run*, not the last
 register edit.
 **Related:** `audit-reports/FINDINGS.json` (source of truth),
-`docs/legal/2026-08-09_compliance-posture-report_draft.md` (successor draft),
-`docs/legal/2026-08-09_compliance-program_draft.md` (successor draft),
-`docs/legal/COMPLIANCE_POSTURE_REPORT.md` (attested predecessor, frozen),
-`docs/legal/COMPLIANCE_PROGRAM.md` (attested predecessor, frozen),
+`docs/legal/2026-08-20_compliance-posture-report.md` (ATTESTED 2026-08-20, same transaction as
+this snapshot's attestation),
+`docs/legal/2026-08-20_compliance-program.md` (ATTESTED 2026-08-20, same transaction),
+`docs/legal/2026-08-09_compliance-posture-report_draft.md` (unattested, superseded by the above),
+`docs/legal/2026-08-09_compliance-program_draft.md` (unattested, superseded by the above),
+`docs/legal/COMPLIANCE_POSTURE_REPORT.md` (attested 2026-07-23, frozen, superseded),
+`docs/legal/COMPLIANCE_PROGRAM.md` (attested 2026-08-04, frozen, superseded),
 `docs/legal/AI_GOVERNANCE_MEMO.md`, `docs/legal/SUBPROCESSORS.md`,
 `audit-reports/compliance-calendar.md`, `docs/legal/COMPLIANCE_STATUS_2026-06-18.md` (prior
 snapshot, superseded).
@@ -31,14 +33,14 @@ LingoLinq runs compliance as a continuous findings register. This snapshot recor
 since the 2026-07-23 Posture Report re-attest and what is still needed. It does not close any
 finding or attest any control; only Scot does that.
 
-Headline at staging HEAD `64cdccba1` plus the two rows added by PR #838 (2026-08-20, publisher convention):
+Headline at staging HEAD `64cdccba1` (2026-08-20, publisher convention):
 
 - **0 open Critical** findings (the gating metric).
 - **20 open High** findings (15 `open` + 5 `remediated-unverified`).
-- **52** open Medium, **42** open Low. **114** live total (`open` + `remediated-unverified`).
-- Across all findings: 106 `open`, 8 `remediated-unverified`, 51 `verified-closed`, 5
+- **52** open Medium, **40** open Low. **112** live total (`open` + `remediated-unverified`).
+- Across all findings: 104 `open`, 8 `remediated-unverified`, 51 `verified-closed`, 5
   `accepted-risk`, 2 `superseded`.
-- The 2026-08-12 six-finder full audit run added 40 new findings (9 High / 18 Medium / 13 Low)
+- The 2026-08-12 six-finder full audit run added 46 new findings (9 High / 22 Medium / 15 Low)
   across privacy, infra, api, dependency, accessibility, and code-hygiene -- the single largest
   driver of the count rise since the 2026-08-09 draft. Notably several GCP production-access and
   logging gaps (WIF ref-lock LL-1e7b568ef3, no Data Access audit logging LL-b7ccc522b9, a
@@ -52,7 +54,7 @@ The attested Posture Report (2026-07-23) still shows **8 High / 27 Medium**. Tha
 accurate at an early-2026-07-23 register state and drifted the same day; three further Highs were
 promoted from PR review on 2026-08-02/08-04, then the 2026-08-12 six-finder run added 9 more. A
 Posture Report successor draft (`docs/legal/2026-08-09_compliance-posture-report_draft.md`), now
-refreshed to **0 / 20 / 52 / 42**, is included in this package for Scot's attestation (Path A
+refreshed to **0 / 20 / 52 / 40**, is included in this package for Scot's attestation (Path A
 supersession; attested predecessor left untouched).
 
 ---
@@ -75,7 +77,7 @@ accepted in *this* drafting session.
 | AI Governance Memo | Re-attested 2026-08-04 (git). | Published; branded Drive mirror review date still older. |
 | Bedrock / BAA claim correction | 2026-08-01 through 2026-08-07 corpus sweep; LL-1b0d78dbe6 filed, then **verified-closed 2026-08-11**. | Unverifiable Bedrock-account assertion retracted; closed operational window documented; check now landed and verified. |
 | Subprocessor quarterly review | Performed 2026-08-08. | Two omissions found (recorded in review notes); list hygiene in progress. |
-| 2026-08-12 six-finder full audit run | privacy, infra, api, dependency, accessibility, code-hygiene finders; 40 net-new findings (9 High). | Largest single driver of the count rise since this snapshot's original 2026-08-09 date; not narrated elsewhere in this document until this refresh. |
+| 2026-08-12 six-finder full audit run | privacy, infra, api, dependency, accessibility, code-hygiene finders; 46 net-new findings (9 High). | Largest single driver of the count rise since this snapshot's original 2026-08-09 date; not narrated elsewhere in this document until this refresh. |
 | Remediation pending verify | Five High + three Medium in `remediated-unverified` (was three High + two Medium at 2026-08-09). | Code/config changes landed; need fresh-context verification + Scot close. |
 | Register hygiene | No `regression: true` findings at last full-run citation-check (2026-08-12, PASS 150/FAIL 0/SKIP 15; not re-run for this content-only refresh). | Evidence anchors for most findings still validate at pinned SHAs. |
 
@@ -116,17 +118,17 @@ from the 2026-08-12 run are all still within SLA (8 days old).
 ## 3. Current posture by framework
 
 Live = `open` + `remediated-unverified` at HEAD. A finding can map to more than one framework, so
-rows do not sum to 114. Nineteen live findings carry no framework tag (engineering / API-contract /
+rows do not sum to 112. Nineteen live findings carry no framework tag (engineering / API-contract /
 dependency items; one High, LL-7d50b089c9).
 
 | Framework | Live | Live High | Notes |
 |---|---:|---:|---|
 | FERPA | 36 | 11 | Includes token share URLs, masquerade audit, deletion residuals, prediction cache, plus several from the 2026-08-12 run. |
-| HIPAA | 29 | 10 | Bedrock account binding (now closed), masquerade, prediction cache, audited console, plus GCP access/logging gaps from the 2026-08-12 run. |
+| HIPAA | 27 | 10 | Bedrock account binding (now closed), masquerade, prediction cache, audited console, plus GCP access/logging gaps from the 2026-08-12 run. |
 | GDPR | 22 | 6 | Deletion/erasure, seat reclaim, prediction cache, terms modal, Article 50 transparency. |
 | COPPA | 10 | 4 | Seat reclaim (LL-f150e0e828); hard-delete media (LL-854b1d3853); two new from the 2026-08-12 run (context.topic to Bedrock LL-8908c7ac6f; PredictionEntry deletion residual LL-e8614c103f). |
 | WCAG | 19 | 2 | Terms scanning (LL-104bfa61dc, open); Article 50 disclosure contrast (LL-a9d6d5a46b, remediated-unverified as of 2026-08-19). |
-| SOC 2 | 45 | 9 | Worker memory, S3 KMS writes, audited console, plus GCP production-access/logging and public-ingress gaps from the 2026-08-12 run. |
+| SOC 2 | 43 | 9 | Worker memory, S3 KMS writes, audited console, plus GCP production-access/logging and public-ingress gaps from the 2026-08-12 run. |
 
 ---
 
@@ -135,8 +137,11 @@ dependency items; one High, LL-7d50b089c9).
 Surfaced, not decided. No AI closes a finding, downgrades severity, accepts risk, or attests a
 customer-facing doc.
 
-1. **Re-attest the Posture Report** at **0 Critical / 20 High / 52 Medium / 42 Low** (draft refresh
-   in this package). Branded Drive mirror (`DOC-ae3f9d06ef`) remains a separate operator refresh.
+1. ~~**Re-attest the Posture Report** at **0 Critical / 20 High / 52 Medium / 40 Low**~~ **DONE
+   2026-08-20**, in the same attestation transaction as this snapshot: `docs/legal/2026-08-20_compliance-posture-report.md`
+   and `docs/legal/2026-08-20_compliance-program.md` (Path A supersession off the unattested
+   `_draft` files, per the grandfathered-`_draft` transition rule in `docs/legal/README.md`).
+   Branded Drive mirror (`DOC-ae3f9d06ef`) remains a separate operator refresh.
 2. **Article 50 position (obligation live since 2026-08-02).** The server-side disclosure backstop
    now covers all 5 AI ingresses (#829/#831), and the contrast blocker (LL-a9d6d5a46b) is
    remediated-unverified. Either enable `article_50_disclosure` for EU-resolved users after
@@ -199,9 +204,9 @@ Plus this package: Status snapshot, Posture Report refresh, COMPLIANCE_PROGRAM d
 | Field | Value |
 |---|---|
 | Prepared by | compliance-officer role (draft, 2026-08-09); content refreshed by Claude Code 2026-08-20 |
-| Reviewed by | adversary review (pending) |
-| Attested by | _Scot Wahlquist (pending signature)_ |
-| Attestation date | _pending_ |
+| Reviewed by | Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review not separately run |
+| Attested by | Scot Wahlquist, CEO |
+| Attestation date | 2026-08-20 |
 
 _Internal status snapshot. Headline counts are read from the register; every other audit-report
 file is a point-in-time snapshot and is not authoritative for status. Only Scot closes findings

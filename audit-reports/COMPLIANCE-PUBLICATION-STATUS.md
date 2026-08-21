@@ -70,9 +70,6 @@
 | Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | 2026-08-04 | approved | Review date is older than 2026-08-18. |
 | Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-08-18. |
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-08-18. |
-| Compliance Posture Report (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-posture-report_draft.md` | 2026-08-09 | draft | Review date is older than 2026-08-18. |
-| Compliance Program (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program_draft.md` | 2026-08-09 | draft | Review date is older than 2026-08-18. |
-| Compliance Status Snapshot (2026-08-09) | git | `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` | 2026-08-09 | draft | Review date is older than 2026-08-18. |
 | Data Retention Schedule (2026-08-09 draft) | git | `docs/legal/2026-08-09_data-retention_draft.md` | 2026-08-09 | draft | Review date is older than 2026-08-18. |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | 2026-06-21 | published | Review date is older than 2026-08-18. |
 | EU AI Act Article 50 Transparency: Implementation Milestone Plan | git | `docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md` | 2026-07-14 | draft | Review date is older than 2026-08-18. |
@@ -174,7 +171,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `executed-agreement` | term + 7 years | archive | 9 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 40 | draft |
+| `policy-version` | supersession + 7 years | archive | 42 | draft |
 | `audit-evidence` | 7 years | archive | 17 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -183,7 +180,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 1 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 15 | draft |
 
-All 82 rows carry a retention block.
+All 84 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -221,7 +218,7 @@ _No record is under legal hold. A hold suspends all disposition for the rows it 
 
 ## Attestation Integrity
 
-23 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
+26 attested git record(s). `attestation.attestedContentHash` pins the bytes that were attested; `ruby scripts/document-register-render.rb --check` fails when a pinned hash stops matching the file. Drive and Notion rows are out of scope: their hashes are operator-supplied, so there is nothing CI can verify.
 
 **No pinned attestation has drifted.** Every record that pins a hash still matches the attested bytes.
 
@@ -238,8 +235,10 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | AWS BAA Acceptance and Runtime Status Record | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | (none) |
 | Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | (none) |
 | Compliance Posture Report | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | Compliance Posture Report (2026-08-09 draft) | (none) |
+| Compliance Posture Report (2026-08-09 draft) | `docs/legal/2026-08-09_compliance-posture-report_draft.md` | Compliance Posture Report | (none) |
 | Compliance Posture Report (branded) | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | Compliance Posture Report (branded, 2026-07-16 re-attest) | compliance-records-set-2026-06 |
 | Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | Compliance Program (2026-08-09 draft) | compliance-records-set-2026-06 |
+| Compliance Program (2026-08-09 draft) | `docs/legal/2026-08-09_compliance-program_draft.md` | Compliance & Security Program | (none) |
 | Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | Data Retention Schedule (2026-08-09 draft) | (none) |
 | Incident Response and Breach Runbook | `docs/legal/BREACH_RUNBOOK.md` | Incident Response and Breach Runbook (2026-08-15 successor) | (none) |
 | LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | (none) |
@@ -296,4 +295,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_82 documents tracked. 67 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 11 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_84 documents tracked. 64 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 13 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

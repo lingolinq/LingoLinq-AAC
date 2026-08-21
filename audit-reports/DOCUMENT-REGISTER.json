@@ -261,8 +261,8 @@
         "description": "What a US school-district diligence / DPA review asks for (FERPA / COPPA / accessibility).",
         "requiredDocs": [
           {
-            "title": "Compliance Posture Report (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_compliance-posture-report_draft.md"
+            "title": "Compliance Posture Report",
+            "location": "docs/legal/2026-08-20_compliance-posture-report.md"
           },
           {
             "title": "Subprocessor Register (2026-08-16 successor)",
@@ -307,8 +307,8 @@
         "description": "What a school district or hospital IT security questionnaire asks for. Deliberately SEPARATE from soc2-evidence: this is the customer-facing diligence pack (posture, accessibility, AI data-flow, subprocessors), whereas soc2-evidence is the internal controls-evidence pack. Merging them would force each to carry documents the other reviewer never asks for.",
         "requiredDocs": [
           {
-            "title": "Compliance Posture Report (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_compliance-posture-report_draft.md"
+            "title": "Compliance Posture Report",
+            "location": "docs/legal/2026-08-20_compliance-posture-report.md"
           },
           {
             "title": "LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft)",
@@ -435,8 +435,8 @@
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
           },
           {
-            "title": "Compliance Posture Report (2026-08-09 draft)",
-            "location": "docs/legal/2026-08-09_compliance-posture-report_draft.md"
+            "title": "Compliance Posture Report",
+            "location": "docs/legal/2026-08-20_compliance-posture-report.md"
           }
         ],
         "gaps": [
@@ -618,12 +618,12 @@
     },
     {
       "title": "Compliance Posture Report (2026-08-09 draft)",
-      "description": "2026-08-09 counts refresh draft of the customer-facing posture report (0 Critical / 12 High / 30 Medium / 25 Low at HEAD). Awaiting Scot attestation.",
+      "description": "2026-08-09 counts refresh draft of the customer-facing posture report. Superseded, never attested.",
       "type": "legal",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-09_compliance-posture-report_draft.md",
-      "status": "draft",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -636,14 +636,11 @@
       "nextReviewDue": "2026-11-09",
       "attestation": {},
       "contentHash": "a5a22ac4f4e1d6e354372a47feafa086ecc6b06dc42be51261d4dc8d87095019",
-      "bundles": [
-        "school-dpa-package",
-        "security-review",
-        "grant"
-      ],
+      "bundles": [],
       "mirrors": [],
       "supersedes": "DOC-4e3b7fb1fb",
-      "notes": "Path A successor to attested COMPLIANCE_POSTURE_REPORT.md. Empty attestation until Scot signs.",
+      "supersededBy": "DOC-59273ae805",
+      "notes": "Path A successor to attested COMPLIANCE_POSTURE_REPORT.md. SUPERSEDED 2026-08-20 by DOC-59273ae805 (Path A: never attested, so this row is retired rather than frozen-with-attestation; the grandfathered _draft transition rule in docs/legal/README.md required leaving this path before attestation).",
       "id": "DOC-4fc1647b7e",
       "retention": {
         "class": "policy-version",
@@ -656,12 +653,12 @@
     },
     {
       "title": "Compliance Program (2026-08-09 draft)",
-      "description": "2026-08-09 v1.3 draft of the internal Compliance & Security Program (done vs roadmap). Awaiting Scot attestation.",
+      "description": "2026-08-09 v1.3 draft of the internal Compliance & Security Program (done vs roadmap). Superseded, never attested.",
       "type": "legal",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-09_compliance-program_draft.md",
-      "status": "draft",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -676,7 +673,8 @@
       "bundles": [],
       "mirrors": [],
       "supersedes": "DOC-b61994933c",
-      "notes": "Path A successor to attested COMPLIANCE_PROGRAM.md v1.2. Frozen binder retains the predecessor. Empty attestation until Scot signs.",
+      "supersededBy": "DOC-5a4b795792",
+      "notes": "Path A successor to attested COMPLIANCE_PROGRAM.md v1.2. SUPERSEDED 2026-08-20 by DOC-5a4b795792 (Path A: never attested, so this row is retired rather than frozen-with-attestation; the grandfathered _draft transition rule in docs/legal/README.md required leaving this path before attestation).",
       "id": "DOC-73a80fc88d",
       "retention": {
         "class": "policy-version",
@@ -688,18 +686,115 @@
       "dispositionEligibleAfter": null
     },
     {
+      "title": "Compliance Posture Report",
+      "description": "Customer-facing posture; headline is the open Critical/High count from the findings register. Attested.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-20_compliance-posture-report.md",
+      "status": "approved",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-20",
+      "nextReviewDue": "2026-11-20",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-20",
+        "attestedContentHash": "6c3373faff8bb936bbf14b5bec9986a8736b167d5296e883d28ac76e956e986a",
+        "priorAttestations": [
+          "2026-06-19",
+          "2026-07-16",
+          "2026-07-23"
+        ],
+        "note": "Attested 2026-08-20 after Claude Code verified every cited finding ID against the live register (audit-reports/FINDINGS.json at staging HEAD 64cdccba1) and confirmed the Article 50 server-side backstop (#829/#831) and disclosure-link contrast fix (#694) claims against live code. Infrastructure claims (Gate 1 cutover, GCP BAA/CDPA/SCCs, Redis TLS) are carried forward from the 2026-07-23 predecessor attestation and were not independently re-verified against live GCP/AWS state in this pass. Path A supersession of unattested draft DOC-4fc1647b7e (docs/legal/2026-08-09_compliance-posture-report_draft.md), which itself superseded DOC-4e3b7fb1fb (COMPLIANCE_POSTURE_REPORT.md, attested 2026-07-23)."
+      },
+      "contentHash": "6c3373faff8bb936bbf14b5bec9986a8736b167d5296e883d28ac76e956e986a",
+      "bundles": [
+        "school-dpa-package",
+        "security-review",
+        "grant"
+      ],
+      "mirrors": [],
+      "supersedes": "DOC-4fc1647b7e",
+      "notes": "Path A successor to unattested draft DOC-4fc1647b7e, which itself succeeded attested COMPLIANCE_POSTURE_REPORT.md (DOC-4e3b7fb1fb). Attested 2026-08-20.",
+      "id": "DOC-59273ae805",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
+    },
+    {
+      "title": "Compliance & Security Program",
+      "description": "Framework overview across FERPA/HIPAA/GDPR/COPPA and SOC 2 posture.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-20_compliance-program.md",
+      "status": "approved",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-20",
+      "nextReviewDue": "2027-08-07",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-20",
+        "attestedContentHash": "78804f7cd631c03216cf48518040a6e9bef16688abb290b997ba690b83c72b91",
+        "priorAttestations": [
+          "2026-06-18",
+          "2026-07-22",
+          "2026-08-04"
+        ],
+        "note": "Attested 2026-08-20 (v1.3) after Claude Code verified every cited finding ID against the live register (audit-reports/FINDINGS.json at staging HEAD 64cdccba1) and confirmed the Article 50 server-side backstop (#829/#831) and disclosure-link contrast fix (#694) claims against live code. Infrastructure and vendor/BAA claims (Sections 11, 15 points 2-3) are carried forward from the 2026-08-04 v1.2 attestation and were not independently re-verified against live GCP/AWS state in this pass. Path A supersession of unattested draft DOC-73a80fc88d (docs/legal/2026-08-09_compliance-program_draft.md), which itself superseded DOC-b61994933c (COMPLIANCE_PROGRAM.md v1.2, attested 2026-08-04)."
+      },
+      "contentHash": "78804f7cd631c03216cf48518040a6e9bef16688abb290b997ba690b83c72b91",
+      "bundles": [],
+      "mirrors": [],
+      "supersedes": "DOC-73a80fc88d",
+      "notes": "Path A successor to unattested draft DOC-73a80fc88d, which itself succeeded attested COMPLIANCE_PROGRAM.md v1.2 (DOC-b61994933c). Attested 2026-08-20 as v1.3.",
+      "id": "DOC-5a4b795792",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
+    },
+    {
       "title": "Compliance Status Snapshot (2026-08-09)",
-      "description": "Internal done-vs-needed status snapshot at HEAD 20aab90d3. DRAFT awaiting attestation.",
+      "description": "Internal done-vs-needed status snapshot at HEAD 20aab90d3. Attested 2026-08-20.",
       "type": "audit-artifact",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/COMPLIANCE_STATUS_2026-08-09.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [],
-      "lastReviewed": "2026-08-09",
+      "lastReviewed": "2026-08-20",
       "nextReviewDue": "",
-      "attestation": {},
-      "contentHash": "f52f14e6a61219967adb84fd88b0a998a5bab31d8d8ebcabfaa4924d0574d361",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-20",
+        "attestedContentHash": "7703f09ffae717111b164c1ef0c1d3b52794a55b8fd81b7fef60ac9bd992547b",
+        "priorAttestations": [],
+        "note": "Attested 2026-08-20 in the same transaction as the Posture Report and Compliance Program re-attestations this snapshot recommended. Not a _draft-suffixed filename, so no Path A supersession was required for this row; attested in place per docs/legal/README.md's grandfathered-name rule."
+      },
+      "contentHash": "7703f09ffae717111b164c1ef0c1d3b52794a55b8fd81b7fef60ac9bd992547b",
       "bundles": [],
       "mirrors": [],
       "notes": "Successor operational snapshot after COMPLIANCE_STATUS_2026-06-18.md.",
