@@ -44,6 +44,8 @@ module('Unit | board-picker category load race', function(hooks) {
   hooks.afterEach(function() {
     LingoLinq.store.query = this.origQuery;
     if (this.component && !this.component.isDestroyed) {
+      // Testing mode disables autorun; classic component destroy needs a loop.
+      // eslint-disable-next-line ember/no-runloop
       run(() => this.component.destroy());
     }
     this.component = null;
@@ -68,6 +70,8 @@ module('Unit | board-picker category load race', function(hooks) {
   }
 
   async function resolve(defer, boards) {
+    // Testing mode disables autorun; promise then-callbacks call this.set.
+    // eslint-disable-next-line ember/no-runloop
     run(function() { defer.resolve(boards.slice()); });
     await defer.promise;
     await RSVP.resolve();
