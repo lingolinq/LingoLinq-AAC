@@ -1,13 +1,12 @@
 # LingoLinq AAC Compliance Posture Report
 
-> **DRAFT - awaiting attestation (content refreshed 2026-08-20).** Successor to attested
-> `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (re-attested 2026-07-23). Prior attestations on the
-> predecessor: ATTESTED 2026-06-19 by Scot Wahlquist, CEO; RE-ATTESTED 2026-07-16; RE-ATTESTED
-> 2026-07-23. This draft refreshes headline and framework counts from the findings register at
-> HEAD. It is not a current attested statement until Scot signs. Originally drafted 2026-08-09 by
-> the compliance-officer; content re-verified and refreshed 2026-08-20 after the 2026-08-12 six-finder
-> audit run and the Article 50 server-side backstop work (#829/#831); for adversary review; for
-> CEO attestation.
+> **ATTESTED 2026-08-20 by Scot Wahlquist, CEO.** Successor via Path A supersession to the
+> unattested draft `docs/legal/2026-08-09_compliance-posture-report_draft.md`, which itself
+> succeeded attested `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (ATTESTED 2026-06-19; RE-ATTESTED
+> 2026-07-16; RE-ATTESTED 2026-07-23). This report refreshes headline and framework counts from the
+> findings register at HEAD. Originally drafted 2026-08-09 by the compliance-officer; content
+> re-verified and refreshed 2026-08-20 after the 2026-08-12 six-finder audit run and the Article 50
+> server-side backstop work (#829/#831); attested by the CEO.
 >
 > Register audited SHA (last full `/audit-run`): `59f502aa4` (auditedDate 2026-08-18; a monthly
 > light-run restamp, not a full re-scan -- see `meta.auditedShaPriorNote` in the register for why
@@ -18,7 +17,7 @@
 > `remediated-unverified` findings by severity, per `scripts/compliance-notion-publish.rb`). Do not
 > hand-edit the figures; refresh them from the register.
 
-### Changes since the 2026-08-09 draft (this refresh, 2026-08-20)
+### Changes since the 2026-08-09 draft (this attestation, 2026-08-20)
 
 - **Counts refreshed 2026-08-20.** Publisher convention at HEAD gives **0 Critical / 20 High / 52
   Medium / 40 Low** (112 live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
@@ -186,7 +185,7 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 ## What this report is and is not
 
 - It **is** an honest internal posture summary, generated from live data, suitable as the basis
-  for customer-facing responses once attested.
+  for customer-facing responses now that it is attested.
 - It is **not** a certification, a legal opinion, or a guarantee of compliance.
 - The disclosure altitude for any externally shared version (counts as shown, or summarized) is
   Scot's decision at attestation time.
@@ -196,10 +195,10 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 | Field | Value |
 |---|---|
 | Prepared by | compliance-officer agent (draft, 2026-08-09); content refreshed by Claude Code 2026-08-20 |
-| Reviewed by | _adversary review pending_ |
-| Attested by | _Scot Wahlquist, CEO (pending signature)_ |
+| Reviewed by | Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review not separately run |
+| Attested by | Scot Wahlquist, CEO |
 | Predecessor attestation dates | 2026-06-19; re-attested 2026-07-16; re-attested 2026-07-23 |
-| Attestation date (this draft) | _pending_ |
+| Attestation date | 2026-08-20 |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). Counts
 re-derived from `audit-reports/FINDINGS.json` as committed at staging HEAD `64cdccba1` on

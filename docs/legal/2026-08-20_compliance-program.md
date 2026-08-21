@@ -1,23 +1,25 @@
 # LingoLinq Compliance & Security Program
 
-> **DRAFT v1.3 - awaiting attestation (2026-08-09).** Successor to attested
-> `docs/legal/COMPLIANCE_PROGRAM.md` (v1.2). Internal use only until the CEO attests this file.
-> This document supersedes the external "Master Compliance & Security Program v1.1"
-> (Dominic, 2026-06-15). It is an honest, evidence-backed statement of the program as it actually
-> exists, plus a clearly-labeled roadmap of what is not yet built. It is not a certification, a
-> legal opinion, or a guarantee of compliance. It remains internal and is not authorized for
+> **ATTESTED v1.3, 2026-08-20 by Scot Wahlquist, CEO.** Successor via Path A supersession to the
+> unattested draft `docs/legal/2026-08-09_compliance-program_draft.md`, which itself succeeded
+> attested `docs/legal/COMPLIANCE_PROGRAM.md` (v1.2). Internal use only; not authorized for
 > external sharing, in full or in summary, until the CEO explicitly releases a version for that
-> purpose (see Section 15, point 6). Every "implemented" claim cites a file, pull request, or
-> finding ID that can be verified against live code. Aspirational controls are confined to
-> Section 12 and are marked "not yet built" so nothing here reads as a promise we cannot keep.
+> purpose (see Section 15, point 6). This document supersedes the external "Master Compliance &
+> Security Program v1.1" (Dominic, 2026-06-15). It is an honest, evidence-backed statement of the
+> program as it actually exists, plus a clearly-labeled roadmap of what is not yet built. It is not
+> a certification, a legal opinion, or a guarantee of compliance. Every "implemented" claim cites a
+> file, pull request, or finding ID that can be verified against live code. Aspirational controls
+> are confined to Section 12 and are marked "not yet built" so nothing here reads as a promise we
+> cannot keep.
 >
-> **Version:** 1.3 (DRAFT) · **Date:** 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04
-> (v1.2); 2026-08-09 (v1.3 draft) · **Attested by:** Scot Wahlquist, CEO (2026-06-18;
-> 2026-07-22; 2026-08-04 on predecessor); v1.3 pending · **Supersedes:** attested
+> **Version:** 1.3 · **Date:** 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04
+> (v1.2); 2026-08-20 (v1.3) · **Attested by:** Scot Wahlquist, CEO (2026-06-18;
+> 2026-07-22; 2026-08-04 on predecessor; 2026-08-20 on this v1.3) · **Supersedes:** unattested draft
+> `2026-08-09_compliance-program_draft.md` (DOC-73a80fc88d), which itself supersedes attested
 > `COMPLIANCE_PROGRAM.md` v1.2 (DOC-b61994933c) · **Source of truth for status:**
 > `audit-reports/FINDINGS.json`
 >
-> **v1.3 scope (2026-08-09 draft, content refreshed 2026-08-20).** Aligns Section 5 residuals and
+> **v1.3 scope (content refreshed 2026-08-20).** Aligns Section 5 residuals and
 > Section 12 roadmap with the live register at staging HEAD `64cdccba1` (0 Critical / 20 High / 52
 > Medium / 40 Low, publisher convention -- up from 12/30/25 at the 2026-08-09 draft, almost
 > entirely from the 2026-08-12 six-finder full audit run). Records that LL-6619cc1811,
@@ -102,11 +104,12 @@ mechanically verifiable against the running system.
 
 The gating metric is the count of **open Critical findings**, not a synthetic readiness score. The
 current authoritative counts are read directly from the register and summarized in
-`docs/legal/COMPLIANCE_POSTURE_REPORT.md` (regenerated per audit run; do not hand-edit).
+`docs/legal/2026-08-20_compliance-posture-report.md` (the current attested Posture Report;
+regenerated per audit run; do not hand-edit).
 
-- **Open Critical findings: 0** (the gate). As of the 2026-08-20 content refresh, live High /
+- **Open Critical findings: 0** (the gate). As of the 2026-08-20 attestation, live High /
   Medium / Low counts (publisher convention at HEAD) are **20 / 52 / 40**. See the register and
-  `docs/legal/2026-08-09_compliance-posture-report_draft.md` (DRAFT pending re-attest) for the
+  `docs/legal/2026-08-20_compliance-posture-report.md` (ATTESTED 2026-08-20) for the
   authoritative derivation; do not hand-edit counts here.
 - Distribution spans FERPA (student data isolation, access scoping, audit trail), HIPAA (PHI
   handling, minimum necessary, BAA coverage), GDPR (residency, subprocessor posture, deletion and
@@ -316,7 +319,7 @@ over them.
 | Artifact | Purpose |
 |---|---|
 | `audit-reports/FINDINGS.json` | Code-anchored findings register; single source of truth for status |
-| `docs/legal/2026-08-09_compliance-posture-report_draft.md` | Posture summary draft (counts by framework); attested predecessor frozen at `COMPLIANCE_POSTURE_REPORT.md` |
+| `docs/legal/2026-08-20_compliance-posture-report.md` | Posture summary (counts by framework), ATTESTED 2026-08-20; superseded predecessors frozen at `2026-08-09_compliance-posture-report_draft.md` (unattested) and `COMPLIANCE_POSTURE_REPORT.md` (attested 2026-07-23) |
 | `docs/legal/SUBPROCESSORS.md` | Article 28 subprocessor register; AWS BAA on file |
 | `docs/legal/DATA_RETENTION.md` | Retention schedule, legal basis, deletion mechanism per data type |
 | `docs/legal/BREACH_RUNBOOK.md` | Incident response and breach notification playbook |
@@ -332,7 +335,8 @@ over them.
 ## 14. What this document is and is not
 
 - It **is** an honest internal program statement, generated from live evidence, suitable as the
-  basis for customer-facing responses once attested.
+  basis for customer-facing responses now that it is attested (subject to the external-release
+  gate in point 5 below).
 - It is **not** a certification, a legal opinion, or a guarantee of compliance.
 - Aspirational controls are confined to Section 12 and marked "not yet built." No control in
   Sections 5 to 11 is asserted unless it is evidenced in code or a signed agreement.
@@ -352,11 +356,15 @@ by code, configuration, or signed agreements with accurate citations; aspiration
 confined to Section 12; known residuals remain tracked rather than hidden; counsel-dependent claims
 remain internal; and no external sharing is authorized until explicitly released. Prior residual
 IDs LL-11db0dc848, LL-6619cc1811, and LL-1b0d78dbe6 are now verified-closed in the register. Live
-residuals as of the 2026-08-20 content refresh include LL-7f7372e3eb, LL-aacae48768
+residuals as of this 2026-08-20 attestation include LL-7f7372e3eb, LL-aacae48768
 (accepted-risk), the High set listed in Section 5, and the additional GCP production-access/logging
-Highs added by the 2026-08-12 six-finder audit run. I additionally attest that, to the best of my
-knowledge as of 2026-08-20 (content refreshed against the live register; v1.2 on the predecessor
-was attested 2026-08-04):
+Highs added by the 2026-08-12 six-finder audit run. This attestation's fresh verification scope is
+the findings register and the Article 50 code-level claims (Sections 5/12); the infrastructure
+posture in point 2 and vendor/BAA posture in point 3 below are carried forward from their last live
+verification (Posture Report re-attest 2026-07-23; v1.2 attestation 2026-08-04) and were not
+independently re-checked against live GCP/AWS state for this v1.3 attestation. I additionally
+attest that, to the best of my knowledge as of 2026-08-20 (register cross-checked fresh; v1.2 on
+the predecessor was attested 2026-08-04):
 
 1. This document is an honest, evidence-based description of the compliance and security program as
    it actually exists after the Gate 1 GCP DNS cutover, not as we aspire for it to be.
@@ -386,18 +394,19 @@ was attested 2026-08-04):
    remain separate decisions. This document is internal and is not authorized for external sharing,
    in full or in summary, until I explicitly release a version for that purpose.
 
-This attestation reflects the register's audited commit and the live infrastructure state verified on
-the attestation date. It is not a certification, a legal opinion, or a guarantee of compliance.
+This attestation reflects the register's audited commit and the infrastructure state last verified
+live on 2026-07-23/2026-08-04 (see the scope note above); it is not a certification, a legal
+opinion, or a guarantee of compliance.
 
 | Field | Value |
 |---|---|
-| Prepared by | Compliance review (Claude, acting as compliance officer), draft; 2026-08-09 v1.3 successor draft; content refreshed 2026-08-20 |
-| Reviewed by | Predecessor v1.2 post-cutover sweep; v1.3 adversary review pending |
-| Register audited commit | last full `/audit-run`: `d67ed76e0a1` (auditedDate 2026-08-12, 46 new findings); monthly light-run restamp `59f502aa4` (auditedDate 2026-08-18); live counts re-derived at staging HEAD `64cdccba1` (2026-08-20) for this v1.3 draft |
-| Posture at HEAD (v1.3 draft, refreshed 2026-08-20) | 0 open Critical / 20 open High / 52 open Medium / 40 open Low (publisher convention), per `audit-reports/FINDINGS.json` |
-| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render retained as write-frozen rollback fallback pending explicit decommission. LL-6619cc1811 verified-closed. Not re-verified against live infrastructure as part of this 2026-08-20 content refresh (register-only pass); re-check before attesting if infrastructure has changed since 2026-07-22. |
-| Attested by | Scot Wahlquist, CEO (v1.0–v1.2 on predecessor); v1.3 pending |
-| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-09 (v1.3 draft, content refreshed 2026-08-20, pending) |
+| Prepared by | Compliance review (Claude, acting as compliance officer); 2026-08-09 v1.3 draft; content refreshed and attested 2026-08-20 |
+| Reviewed by | Predecessor v1.2 post-cutover sweep; Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review not separately run |
+| Register audited commit | last full `/audit-run`: `d67ed76e0a1` (auditedDate 2026-08-12, 46 new findings); monthly light-run restamp `59f502aa4` (auditedDate 2026-08-18); live counts re-derived at staging HEAD `64cdccba1` (2026-08-20) |
+| Posture at HEAD (v1.3, attested 2026-08-20) | 0 open Critical / 20 open High / 52 open Medium / 40 open Low (publisher convention), per `audit-reports/FINDINGS.json` |
+| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render retained as write-frozen rollback fallback pending explicit decommission. LL-6619cc1811 verified-closed. **Not re-verified against live infrastructure for this 2026-08-20 attestation** (register-and-code-only pass); this row carries forward the 2026-07-22/23 live verification. Re-check against live GCP/AWS state before relying on this for anything infrastructure-sensitive. |
+| Attested by | Scot Wahlquist, CEO (v1.0-v1.2 on predecessor; v1.3 on this document) |
+| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3) |
 
 _Once attested, the canonical home for this document is the repository at
 `docs/legal/COMPLIANCE_PROGRAM.md`, alongside the evidence it indexes. Moving it there is a
