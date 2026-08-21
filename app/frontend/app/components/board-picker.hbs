@@ -97,27 +97,6 @@
       <p>{{t "Phrase-based boards and your own recorded voice work well for high-stress moments or conditions like ALS. Use %app_name%'s recording tools to build a message bank." key="phrases_1"}}</p>
     {{else if this.category.keyboards}}
       <p>{{t "If spelling works well for them, keyboard boards with word prediction can speed things up. Many include quick phrases too." key="keyboards_1"}}</p>
-      {{!-- Hardcoded keyboard placeholders (alphabetic + QWERTY) — styled to
-           match the real board cards, with a mini keyboard preview. --}}
-      <div class="md-home-boards-picker__grid {{if this.compact_boards "md-home-boards-picker__grid--compact"}}">
-        {{#each this.keyboard_placeholders as |kb|}}
-          <div class="md-home-boards-picker__board simple_board_holder">
-            <div class="btn simple_board_icon md-home-boards-picker__keyboard-placeholder" aria-label={{kb.name}}>
-              <span class="md-home-boards-picker__keyboard-tag">{{t "Coming soon" key="coming_soon"}}</span>
-              <div class="md-home-boards-picker__keyboard-preview md-home-boards-picker__keyboard-preview--{{kb.id}}" aria-hidden="true">
-                {{#each kb.rows as |row|}}
-                  <div class="md-home-boards-picker__keyboard-row">
-                    {{#each row as |key|}}
-                      <span class="md-home-boards-picker__keyboard-key">{{key}}</span>
-                    {{/each}}
-                  </div>
-                {{/each}}
-              </div>
-              <div class="name">{{kb.name}}</div>
-            </div>
-          </div>
-        {{/each}}
-      </div>
     {{else if this.category.mine}}
       <p>{{t "Boards you've created, copied, or had shared with you." key="browse_mine"}}</p>
     {{else if this.category.available_boards}}
@@ -208,10 +187,8 @@
           </section>
         {{/each}}
       {{else}}
-      {{!-- Keyboards shows only the hardcoded placeholders above — suppress the
-           category_boards grid + fallback search (nothing is tagged "keyboards",
-           so it was falling back to unrelated popular boards). --}}
-      {{#unless this.category.keyboards}}
+      {{!-- Browse tabs including Keyboards: public home boards tagged with
+           that category id (settings.categories). --}}
       <div class="md-home-boards-picker__grid {{if this.compact_boards "md-home-boards-picker__grid--compact"}}">
         {{#if this.display_category_boards.loading}}
           <div class="md-home-boards-picker__grid-message">
@@ -251,11 +228,10 @@
           </div>
         {{/if}}
       {{/if}}
-      {{/unless}}
       {{/if}}
     {{/if}}
   </div>
-  {{#if (and (not this.searchAtTop) this.category (not this.category.mine) (not this.category.available_boards) (not this.category.keyboards) (not this.robust_tabbed))}}
+  {{#if (and (not this.searchAtTop) this.category (not this.category.mine) (not this.category.available_boards) (not this.robust_tabbed))}}
           <div class="md-home-boards-picker__search">
             <form class="md-home-boards-picker__search-form" {{on "submit" (this.ctrlAction "go_search_boards")}} role="search">
               <label for="board-picker-public-search-q" class="sr-only">{{t "Search Boards" key="search_boards"}}</label>
