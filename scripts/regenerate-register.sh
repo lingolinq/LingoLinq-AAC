@@ -28,10 +28,11 @@
 #                                           (audit-reports/notion/compliance-audit-page.md).
 #   6. compliance-publication-status      - rebuild the publication status report.
 #   7. Re-verify: every check audit-artifacts-integrity runs (the four artifact
-#      --check commands, the capability ledger, and the attestation-hash guard
-#      harness) PLUS a citation-check evidence gate. citation-check is intentionally
-#      NOT a CI job (see ci.yml); running it here is a stricter local gate. Green
-#      here means a green audit-artifacts-integrity in CI.
+#      --check commands, the capability ledger, the register-lint structural gate,
+#      and the attestation-hash guard harness) PLUS a citation-check evidence gate.
+#      citation-check is intentionally NOT a CI job (see ci.yml); running it here
+#      is a stricter local gate. Green here means a green audit-artifacts-integrity
+#      in CI.
 #      NOTE: that promise only holds while this list stays a superset of ci.yml's
 #      steps. The harness was missing from here until 2026-08-08, so the wrapper
 #      could go green while CI went red on the very guard protecting the register.
@@ -105,10 +106,11 @@ step() {  # step "label" cmd args...
   fi
 }
 
-# --- verification bundle: the four CI artifact --check commands (these ARE
+# --- verification bundle: every CI artifact --check command (these ARE
 # audit-artifacts-integrity) plus a citation-check evidence gate. citation-check
 # is intentionally NOT part of the CI integrity job (ci.yml); gating on it locally
-# is a stricter, correct pre-render safeguard. ---------------------------------
+# is a stricter, correct pre-render safeguard. Keep this list in step with the
+# audit-artifacts-integrity job in .github/workflows/ci.yml. -------------------
 verify_all() {
   # Run EVERY check and remember if ANY failed. verify_all is always called in a
   # condition context (`if verify_all` / `if ! verify_all`), which disables set -e
@@ -141,6 +143,10 @@ verify_all() {
   # attestation freezes the filename permanently.
   step "verify: the docs/legal naming guards actually fire" \
     bash scripts/tests/legal-naming-check-test.sh || rc=1
+  step "verify: registers structurally valid (field shapes, enums, id uniqueness)" \
+    ruby scripts/register-lint.rb audit-reports/FINDINGS.json audit-reports/ember-upgrade/FINDINGS-EMBER.json || rc=1
+  step "verify: registers consumable by promote-finding / audit-merge (no-op run)" \
+    scripts/tests/register-consumer-smoke-test.sh || rc=1
   return $rc
 }
 

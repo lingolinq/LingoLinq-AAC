@@ -125,6 +125,76 @@ module Supervising
     supervisee.supervisor_links.any?{|l| l['record_code'] == Webhook.get_record_code(self) && l['user_id'] == supervisee.global_id && l['state']['modeling_only'] }
   end
 
+  # Affirmative authorization for a communicator reached through someone
+  # else's supervisee list. "No relationship" must mean DENIED.
+  #
+  # Exclusion filters (`!modeling_only_for?`, `!private_logging?`) admit
+  # strangers: supervising.rb finds no link, returns false, and the
+  # negation lets them through. That was the badges / logs /
+  # users#supervisees leak class.
+  #
+  # `permission` is per-disclosure: 'set_goals' for progress, 'supervise'
+  # for usage data and roster identity. Both resolve through self,
+  # non-modeling supervisor, and org manager (user.rb:71,87).
+  #
+  # ApplicationController#supervisee_readable? wraps this for HTTP
+  # fan-out; JsonApi::User calls it directly for nested supervisees.
+  # No modeling_only conjunct here. Each permission rule already encodes its own
+  # modeling-only policy, at the granularity that rule needs:
+  #
+  #   'supervise'  (user.rb:72) excludes modeling-only outright -- usage data.
+  #   'set_goals'  (user.rb:77) excludes a PER-LINK modeling-only supporter but
+  #                deliberately KEEPS a globally billing-lapsed one, because
+  #                lapsing is about money and says nothing about the caller's
+  #                standing with that child.
+  #
+  # Adding `&& !caller.modeling_only_for?(self)` on top applied the coarse test to
+  # both, and modeling_only_for? opens `return true if self.modeling_only?`
+  # (:122) -- the GLOBAL billing flag. That silently defeated the set_goals
+  # carve-out and dropped a lapsed supporter's whole caseload from badges#index.
+  # Two granularities of "modeling only" exist; only the rules know which one
+  # applies, so let them decide.
+  def readable_as_supervisee_by?(caller, permission, scopes=['full'])
+    return false unless caller
+    return true if id == caller.id
+    allows?(caller, permission, scopes)
+  end
+
+  # ROSTER IDENTITY, as distinct from the DATA check above.
+  #
+  # readable_as_supervisee_by? is right for a disclosure ABOUT a communicator
+  # (progress, usage logs). It is wrong for the question "is this communicator
+  # on the caller's own roster at all", because both of its conjuncts fail for
+  # a supporter whose billing has lapsed:
+  #
+  #   modeling_only_for? opens with `return true if self.modeling_only?`
+  #   (:122) -- a property of the CALLER, not of the relationship -- and
+  #   billing_state returns :modeling_only as the final fall-through for any
+  #   supporter who is not premium, trialing, org-sponsored, an org supporter,
+  #   or a manager (subscription.rb:832). The 'supervise' rule at user.rb:71
+  #   carries the same conjunct, so `allows?` fails too.
+  #
+  # The result was that a lapsed free supporter got an EMPTY supervisee list on
+  # their own /users/self -- which also closes their websocket, because
+  # sync.js:196 only connects when `!supporter_role || supervisees.length`.
+  # Remote modeling is the one thing that tier exists to do.
+  #
+  # 'model' is the permission that survives a lapse: user.rb:69 grants it to any
+  # supervisor_for? without the modeling_only conjunct, user.rb:87 grants it to
+  # an org manager, and the self rules grant it to the caller themselves. No
+  # rule grants 'model' to a stranger -- the public-account rule
+  # (:58) deliberately stops at view_existence/view_detailed -- so the fan-out leak
+  # this whole class of fix exists to close stays closed.
+  #
+  # Going through allows? rather than a bare supervisor_for? keeps restricted
+  # OAuth tokens held to their scopes, and picks up the permissable Redis cache
+  # (permissions.rb:29) that supervisor_for? does not have.
+  def listable_as_supervisee_by?(caller, scopes=['full'])
+    return false unless caller
+    return true if id == caller.id
+    allows?(caller, 'model', scopes)
+  end
+
   def org_units_for_supervising(supervisee)
     unit_ids = supervisee_links.map{|l| l['state']['organization_unit_ids'] }.compact.flatten.uniq
     OrganizationUnit.find_all_by_global_id(unit_ids)
@@ -177,13 +247,83 @@ module Supervising
           supervisor.settings['preferences']['role'] = 'communicator'
           supervisor.save_with_sync('un-supervisor')
         end
-        supervisor.schedule_once(:update_available_boards)
+        schedule_board_cache_refresh(supervisor, true)
         supervisor.update_setting({
           'supervisees' => supervisor.settings['supervisees']
         })
       end
     end
     
+
+    # update_available_boards recomputes settings['available_private_board_ids'],
+    # which board.rb:76 reads to grant view/edit/delete/share -- it writes
+    # AUTHORIZATION state, not display state, and its result sits behind a
+    # 30-minute permission cache. The persisted list has no TTL of its own, so a
+    # missed refresh stays stale until some other event retriggers it.
+    #
+    # Ordering: schedule_once pushes to Redis the moment it is called, and Redis
+    # is not enrolled in the Postgres transaction. SupervisorConsentService runs
+    # both link_supervisor_to_user and unlink_supervisor_from_user inside
+    # `with_lock`, so a worker could dequeue and recompute from the PRE-COMMIT
+    # snapshot: a revoke undone by its own job, re-granting a removed supervisor
+    # real access to a child's private boards. The consent service's post-commit
+    # re-enqueue only made that race CONVERGE -- it cannot order the two workers'
+    # writes, and schedule_once dedupes against a job still sitting in the queue,
+    # so the corrective enqueue could itself be a silent no-op. Deferring at the
+    # source is the ordering fix.
+    #
+    # after_all_transactions_commit, not a bare call: with no open transaction it
+    # runs the block IMMEDIATELY, so the many non-transactional callers of these
+    # two methods are unchanged. Only callers already inside a transaction see
+    # the deferral -- which is exactly the set that was broken.
+    #
+    # Durability: the post-commit callback cannot roll the relationship change
+    # back. If the process exits or Redis is down between commit and enqueue, the
+    # supervisor link is gone and no refresh job exists. RemoteAction is this
+    # app's outbox for the same job (board_caching.rb, organization.rb);
+    # writing it in the same transaction as the link change means
+    # Uploader.remote_remove_batch (hourly) will still schedule the refresh.
+    # The outbox row is a FALLBACK for the post-commit enqueue, and it is released
+    # by the WORKER on completion (board_caching.rb#update_available_boards), not
+    # here on enqueue. Resque.enqueue returning means Redis accepted an LPUSH, not
+    # that the refresh happened; available_private_board_ids is authorization state
+    # (board.rb:76) with no TTL, so clearing on acceptance would let a job lost to
+    # eviction, failover, or a SIGKILL past the shutdown grace leave a REVOKED
+    # supervisor holding real access to a child's private boards indefinitely.
+    # Releasing on completion still collapses the doubled recompute -- the row is
+    # gone before hourly remote_remove_batch ever sees it -- without trading a
+    # durability guarantee for it, and it needs no ownership tracking, so a
+    # concurrent operation cannot adopt or destroy another's row.
+    #
+    # `revoked` distinguishes the two callers. On a revoke a delayed row must be
+    # pulled forward: board_caching.rb:22-25 parks a deliberate 30-minutes-out row
+    # for accounts with >500 view ids, and a revoked supervisor must not keep real
+    # access for that long. On a LINK there is no such urgency, and dragging that
+    # row forward defeated the debounce it exists to provide -- the batch would
+    # fire it immediately, update_available_boards would see a <60-minute generated
+    # stamp, and park a fresh row 30 minutes out again.
+    def schedule_board_cache_refresh(supervisor, revoked=false)
+      return unless supervisor
+      persist_board_cache_refresh(supervisor, revoked)
+      ActiveRecord.after_all_transactions_commit do
+        supervisor.schedule_once(:update_available_boards)
+      rescue StandardError => e
+        Rails.logger.warn("supervising: board-cache enqueue failed for #{supervisor.global_id}: #{e.class}: #{e.message}")
+      end
+    end
+
+    def persist_board_cache_refresh(supervisor, revoked=false)
+      path = supervisor.global_id
+      return unless path
+      scope = RemoteAction.where(path: path, action: 'update_available_boards')
+      if revoked
+        return if scope.update_all(act_at: Time.now) > 0
+      elsif scope.exists?
+        return
+      end
+      RemoteAction.create(path: path, action: 'update_available_boards', act_at: Time.now)
+    end
+
     def link_supervisor_to_user(supervisor, user, code=nil, type=true, organization_unit_id=nil)
       type = 'edit' if type == true
       type ||= 'read_only'
@@ -219,10 +359,25 @@ module Supervising
       end
       # If a user is on a free trial and they're added as a supervisor, set them to a free supporter subscription
       if supervisor.grace_period?
-        supervisor.schedule(:remove_supervisors!)
+        # Deferred for the same reason as the board-cache refresh above: Resque is
+        # not enrolled in the Postgres transaction. This job is the destructive one
+        # -- remove_supervisors! (:157) unlinks EVERY one of this user's
+        # supervisors. Enqueued bare inside the transaction, a rollback meant the
+        # link that triggered it never happened while the unlink-everything job
+        # still ran. No outbox row here on purpose: losing this job is the safe
+        # failure, re-running it is not.
+        ActiveRecord.after_all_transactions_commit do
+          supervisor.schedule(:remove_supervisors!)
+        rescue StandardError => e
+          # Identified, because this one has no outbox: the role change is already
+          # committed and nothing retries, so this line is the only trace that a
+          # grace-period account was left marked supporter while still holding
+          # supervisors. Silent is not an acceptable form of the safe failure.
+          Rails.logger.warn("supervising: remove_supervisors! enqueue failed for #{supervisor.global_id}: #{e.class}: #{e.message}")
+        end
         supervisor.settings['preferences']['role'] = 'supporter'
       end
-      supervisor.schedule_once(:update_available_boards)
+      schedule_board_cache_refresh(supervisor)
       user.save_with_sync('supervisee')
       supervisor.save_with_sync('supervisor')
     end

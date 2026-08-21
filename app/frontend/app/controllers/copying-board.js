@@ -18,6 +18,10 @@ export default modal.ModalController.extend({
       _this.start_copying();
       return;
     }
+    if(this.get('model.skip_hierarchy_picker')) {
+      _this.start_copying();
+      return;
+    }
 
     loadHierarchyForCopyModal(board, {
       skipBoardReloadForCopyModal: true,
@@ -56,15 +60,18 @@ export default modal.ModalController.extend({
     this.set('loading', false);
     var board_ids_to_include = null;
     var include_missing = this.get('includeMissing') || this.get('hierarchy.include_missing');
+    var live_links_incomplete = this.get('hierarchy.live_links_incomplete') || this.get('model.expand_selected_board_ids_to_copy');
     if(include_missing) {
       board_ids_to_include = null;
       this.set('hierarchy', null);
     } else if(this.get('hierarchy') && this.get('hierarchy').selected_board_ids) {
       board_ids_to_include = this.get('hierarchy').selected_board_ids();
       this.set('hierarchy', null);
+    } else if(this.get('model.board_ids_to_copy')) {
+      board_ids_to_include = this.get('model.board_ids_to_copy');
     }
     this.get('model.board').set('downstream_board_ids_to_copy', board_ids_to_include);
-    this.get('model.board').set('expand_selected_board_ids_to_copy', !include_missing && this.get('hierarchy.live_links_incomplete'));
+    this.get('model.board').set('expand_selected_board_ids_to_copy', !include_missing && live_links_incomplete);
     var _this = this;
     _this.set('model.board.default_locale', null);
     if(this.get('model.default_locale') && this.get('model.board.locale') != this.get('model.default_locale')) {

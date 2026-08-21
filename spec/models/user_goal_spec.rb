@@ -625,7 +625,16 @@ describe UserGoal, type: :model do
         'next_template_id' => '123',
         'goal_duration' => 3.weeks
       })
-      expect(g.calculate_advancement.to_i).to eq((Time.now + 3.weeks).to_i)
+      # BRACKET the call instead of comparing against a later Time.now.
+      # calculate_advancement is `Time.now + goal_duration` (user_goal.rb:570) and
+      # the spec's own Time.now runs afterwards, so a clock tick between the two
+      # makes `.to_i` differ by exactly one and the assertion fails. Asserting the
+      # result falls between the pre- and post-call instants is EXACT: it holds for
+      # any runner speed, and unlike a fixed tolerance there is no margin to guess.
+      before = Time.now.to_i
+      advancement = g.calculate_advancement.to_i
+      after = Time.now.to_i
+      expect(advancement).to be_between(before + 3.weeks.to_i, after + 3.weeks.to_i)
     end
     
     it "should return concrete time if goal_advances_at is set" do
@@ -835,12 +844,19 @@ describe UserGoal, type: :model do
         'goal_duration' => 2.weeks.to_i
       })
       u = User.create
+      # See the note in "should return time-from-now if goal_duration is set".
+      # advance_at is `Time.now + goal_duration` computed INSIDE process_new
+      # (user_goal.rb:610 -> :570), so bracketing the call is what makes the
+      # assertion exact. This is the assertion that went red on CI —
+      # `expected: 1788129652, got: 1788129651`, off by a single clock tick.
+      before = Time.now.to_i
       g1 = UserGoal.process_new({
         template_id: t1.global_id
       }, {user: u, author: u})
+      after = Time.now.to_i
       expect(g1.settings['author_id']).to eq(u.global_id)
       expect(g1.settings['template_id']).to eq(t1.global_id)
-      expect(g1.advance_at.to_i).to eq((Time.now + two_weeks).to_i)
+      expect(g1.advance_at.to_i).to be_between(before + two_weeks, after + two_weeks)
       expect(g1.active).to eq(true)
       g1.advance_at = 2.hours.ago
       

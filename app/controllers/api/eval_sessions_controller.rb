@@ -72,6 +72,17 @@ class Api::EvalSessionsController < ApplicationController
     # egress for "no"/"False"/"Off".)
     raw_opt_in = params['use_anthropic']
     payload['use_anthropic'] = (raw_opt_in == true || raw_opt_in == 'true')
+    # EU AI Act Article 50(1) server-side backstop (shared helper LL-6723438462):
+    # only reachable when payload['use_anthropic'] is true, since that is the only
+    # branch that actually interacts with an AI system (the default path returns a
+    # deterministic local template with no external call, and Article 50(1) applies
+    # to AI interaction, not to this endpoint unconditionally). Gates on @api_user
+    # (the SLP clicking "Generate AI Narrative"), the same caller article_50 disclosure
+    # is tracked against at every other AI ingress -- not `user` (the evaluated
+    # student), whose own COPPA/EU-under-16 consent gate is enforced inside
+    # EvalNarrator itself.
+    return if payload['use_anthropic'] && !require_article_50_disclosure!
+
     result = EvalNarrator.draft_narrative(payload, user: user)
     # EU AI Act Article 50(2): the RAW signed marker (nil for the deterministic
     # template draft) is returned to the frontend at generation time so it can be

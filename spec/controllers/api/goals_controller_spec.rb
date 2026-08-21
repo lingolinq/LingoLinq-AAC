@@ -414,4 +414,51 @@ describe Api::GoalsController, type: :controller do
       expect(UserGoal.find_by_global_id(g.global_id)).to eq(nil)
     end
   end
+
+  # Rails' controller-test harness stringifies `params:` scalars, so every other
+  # spec in this file asserts against the OLD form-encoded wire shape. The Ember
+  # adapter posts a real JSON body (adapters/application.js:45-47), and
+  # UserGoal#process_params:384 reads `active` through `!!params[:active]` with
+  # no string coercion — so `"false"` becomes TRUE and `false` stays false. Only
+  # a raw `body:` can tell those two apart.
+  describe "update with a raw JSON body" do
+    it "should keep active false rather than coercing the string \"false\" to true" do
+      token_user
+      g = UserGoal.create(:user => @user, :active => true)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => g.global_id}, body: {
+        :goal => {:active => false}
+      }.to_json
+      expect(response).to be_successful
+      expect(g.reload.active).to eq(false)
+      expect(g.active).to be_a(FalseClass)
+    end
+
+    it "should keep active true when sent as a real boolean" do
+      token_user
+      g = UserGoal.create(:user => @user, :active => false)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => g.global_id}, body: {
+        :goal => {:active => true}
+      }.to_json
+      expect(response).to be_successful
+      expect(g.reload.active).to eq(true)
+      expect(g.active).to be_a(TrueClass)
+    end
+
+    it "should not touch active when the client omits it" do
+      # An attribute the client never set serializes to null, and the `!= nil`
+      # guard then skips it. Under the form-encoded shape it arrived as "",
+      # which passed the guard and forced active to true on every save.
+      token_user
+      g = UserGoal.create(:user => @user, :active => false)
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => g.global_id}, body: {
+        :goal => {:summary => 'still inactive', :active => nil}
+      }.to_json
+      expect(response).to be_successful
+      expect(g.reload.active).to eq(false)
+      expect(g.settings['summary']).to eq('still inactive')
+    end
+  end
 end

@@ -260,6 +260,8 @@
     <TourBoardPicker />
   {{else if (is-equal this.currentTemplate "eu-ai-parental-consent")}}
     <EuAiParentalConsent />
+  {{else if (is-equal this.currentTemplate "enable-ai-features")}}
+    <EnableAiFeatures />
   {{else}}
     {{! Other modals still use outlet-based rendering during migration }}
     {{! This will be expanded as more modals are converted to components }}

@@ -59,8 +59,25 @@ jobs:
         run: |
           bundle exec rails db:create db:schema:load
 
+      # Parse-check the guard BEFORE trusting its verdict. The guard had no `set -e`,
+      # so a single broken line (a comment banner that lost its '#') printed to stderr,
+      # ran on to the OK block, and exited 0 -- observed live during review. The guard
+      # now traps ERR and fails closed, and this step is the belt to that braces: a
+      # syntax error is caught before the control is asked for an answer at all.
+      - name: Parse-check the AI endpoint guard and its test harness
+        run: bash -n scripts/ai-endpoint-guard.sh && bash -n scripts/tests/ai-endpoint-guard-test.sh
+
       - name: AI endpoint guard (runtime AI must route via AWS Bedrock, not api.anthropic.com)
         run: bash scripts/ai-endpoint-guard.sh
+
+      # The guard above scans a scope DISCOVERED from the whole repo (minus stated
+      # exclusions) rather than a hardcoded seam list, so a newly added runtime AI file
+      # cannot pass simply by not being listed (finding LL-1189af1b3c). A discovered scope is only worth
+      # what its discovery is worth, so the guard is tested rather than trusted:
+      # fixtures assert every rule fires, and that reviewer-only scripts, specs and
+      # prose comments do not false-positive. Bash-only, offline, no credentials.
+      - name: Verify the AI endpoint guard actually fires
+        run: scripts/tests/ai-endpoint-guard-test.sh
 
       - name: Run RSpec
         run: bundle exec rspec
@@ -207,6 +224,22 @@ jobs:
       # the check works.
       - name: Verify the docs/legal naming guards actually fire
         run: scripts/tests/legal-naming-check-test.sh
+
+      # Structural gate on the registers themselves. The render checks above only compare a
+      # generated markdown to its JSON source; none of them reads the field SHAPES the register's
+      # consumers depend on, so a malformed row (observed: `source` written as a bare String
+      # instead of an object) merged green here and then hard-crashed promote-finding.rb for the
+      # entire register weeks later. This validates shapes, enum membership, and id uniqueness.
+      # Stdlib-only and git-free, like the checks above, so it is equally low-friction to gate on.
+      - name: Verify findings registers are structurally valid
+        run: ruby scripts/register-lint.rb audit-reports/FINDINGS.json audit-reports/ember-upgrade/FINDINGS-EMBER.json
+
+      # Belt and braces to the lint above: register-lint checks the shapes we PREDICTED the
+      # consumers need; this runs the real consumers (promote-finding.rb, audit-merge.rb) over each
+      # committed register with empty input and asserts they exit 0 AND leave the file
+      # byte-identical. It catches whatever the predicate list failed to anticipate.
+      - name: Verify registers are consumable by promote-finding / audit-merge (no-op run)
+        run: scripts/tests/register-consumer-smoke-test.sh
 
   codex-review-tests:
     runs-on: ubuntu-latest

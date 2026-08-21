@@ -14,6 +14,7 @@ import RSVP from 'rsvp';
 import persistence from './persistence';
 import stashes from './_stashes';
 import eval_recommend from './eval_recommend';
+import app_state from './app_state';
 
 const STATES = ['configuring', 'screening', 'targeting', 'comprehensive', 'reviewing'];
 
@@ -157,14 +158,29 @@ const EvalSession = EmberObject.extend({
 
   // --- queries -----------------------------------------------------------
 
+  // Symbol-library subtests. On a deployment that ships a single library there
+  // is nothing to compare and no preference the recommendation could honour, so
+  // asking the communicator to pick between three renderings only costs them
+  // session time. Filtered out behind `eval_single_library`.
+  // Filtering HERE rather than editing the SUBTEST_ORDER tables keeps one
+  // definition of each flow and means every consumer (currentSubtest,
+  // progressFraction, the runners) sees the same filtered list automatically.
+  _withoutLibrarySubtests(order) {
+    if (!app_state || typeof app_state.get !== 'function') { return order; }
+    if (!app_state.get('feature_flags.eval_single_library')) { return order; }
+    return order.filter(function(s) { return s !== 'library_compare' && s !== 'library_3way'; });
+  },
+
   subtestOrder() {
+    var order;
     if (this.get('state') === 'comprehensive') {
-      return COMPREHENSIVE_SUBTEST_ORDER[this.get('protocolProfile')] || COMPREHENSIVE_SUBTEST_ORDER['peds-emerging'];
+      order = COMPREHENSIVE_SUBTEST_ORDER[this.get('protocolProfile')] || COMPREHENSIVE_SUBTEST_ORDER['peds-emerging'];
+    } else if (this.get('state') === 'targeting') {
+      order = TARGETED_SUBTEST_ORDER[this.get('protocolProfile')] || TARGETED_SUBTEST_ORDER['peds-emerging'];
+    } else {
+      order = SUBTEST_ORDER[this.get('protocolProfile')] || SUBTEST_ORDER['peds-emerging'];
     }
-    if (this.get('state') === 'targeting') {
-      return TARGETED_SUBTEST_ORDER[this.get('protocolProfile')] || TARGETED_SUBTEST_ORDER['peds-emerging'];
-    }
-    return SUBTEST_ORDER[this.get('protocolProfile')] || SUBTEST_ORDER['peds-emerging'];
+    return this._withoutLibrarySubtests(order);
   },
 
   currentSubtest() {

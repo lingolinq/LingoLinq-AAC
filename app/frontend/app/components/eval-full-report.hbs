@@ -1,0 +1,149 @@
+{{!-- SLP summary for the full eval — recommendation, feature match, goals, and
+     what still has to be written by hand. Sits above the raw trial tables on
+     user.log / last-eval. --}}
+<header class="evq-report__header">
+  <span class="evq-report__eyebrow">{{t "Full evaluation" key="full_report_eyebrow"}}</span>
+  <h2 class="evq-report__title">{{t "Recommended starting point" key="report_title"}}</h2>
+  <div class="evq-report__meta">
+    <span class="evq-report__chip">{{this.evidenceLabel}}</span>
+    <span class="evq-report__chip">{{this.accuracyLabel}}</span>
+    <span class="evq-report__chip">{{this.responseLabel}}</span>
+  </div>
+
+  {{!-- A funding report and an IEP are not the same document, and the rules
+       conflict: one must name the product, the other must not. --}}
+  <div class="evq-report__modes hide_print" role="group" aria-label={{t "Report type" key="full_report_mode_group"}}>
+    <button type="button" class="evq-btn {{if this.isSchoolMode "evq-btn--ghost" "evq-btn--primary"}}" {{on "click" (this.ctrlAction "setMode" "medical")}}>
+      {{t "Medical / funding" key="full_report_mode_medical"}}
+    </button>
+    <button type="button" class="evq-btn {{if this.isSchoolMode "evq-btn--primary" "evq-btn--ghost"}}" {{on "click" (this.ctrlAction "setMode" "school")}}>
+      {{t "School / IEP" key="full_report_mode_school"}}
+    </button>
+  </div>
+  <p class="evq-report__mode-note">
+    {{#if this.isSchoolMode}}
+      {{t "School / IEP report. Product names are withheld — naming a device or page set in an IEP obligates the district to provide that exact product. The recommendation below is described by feature instead." key="full_report_mode_note_school"}}
+    {{else}}
+      {{t "Medical / funding report. Funding reviewers require the specific make, model and page set, plus a least-costly-alternative analysis. Switch to School / IEP before sharing with an IEP team." key="full_report_mode_note_medical"}}
+    {{/if}}
+  </p>
+</header>
+
+<div class="evq-report__grid">
+  {{#if this.recommendation.access_label}}
+    <article class="evq-card">
+      <span class="evq-card__label">{{t "Access method" key="report_access_method"}}</span>
+      <strong class="evq-card__value">{{this.recommendation.access_label}}</strong>
+      <small class="evq-card__hint">{{t "Settings used are listed under Evaluation Settings below" key="full_report_access_hint"}}</small>
+    </article>
+  {{/if}}
+
+  {{#if this.gridLabel}}
+    <article class="evq-card">
+      <span class="evq-card__label">{{t "Grid" key="report_grid"}}</span>
+      <strong class="evq-card__value">{{this.gridLabel}}</strong>
+      <small class="evq-card__hint">{{t "Largest grid mastered in this evaluation" key="full_report_grid_hint"}}</small>
+    </article>
+  {{/if}}
+
+  {{#if this.buttonSizeLabel}}
+    <article class="evq-card">
+      <span class="evq-card__label">{{t "Target size" key="full_report_target_size"}}</span>
+      <strong class="evq-card__value">{{this.buttonSizeLabel}}</strong>
+      <small class="evq-card__hint">{{t "Smallest reliably-selected target" key="full_report_target_size_hint"}}</small>
+    </article>
+  {{/if}}
+
+  {{#if this.recommendation.field_size}}
+    <article class="evq-card">
+      <span class="evq-card__label">{{t "Visual field" key="full_report_field"}}</span>
+      <strong class="evq-card__value">{{t "%{n} items" key="full_report_field_value" n=this.recommendation.field_size}}</strong>
+    </article>
+  {{/if}}
+
+  {{!-- Medical mode only: an IEP must not name a product. --}}
+  {{#if this.showPageSetCard}}
+    <EvalPageSetCard @buttons={{this.vocalFlairButtons}} @user={{this.user}} />
+  {{/if}}
+
+  {{!-- Symbol library: only when more than one was trialled AND the deployment
+       still offers a choice (eval_single_library). --}}
+  {{#if this.librarySelectionActive}}
+    <article class="evq-card">
+      <span class="evq-card__label">{{t "Symbol library" key="report_library"}}</span>
+      <strong class="evq-card__value">{{this.recommendation.library.name}}</strong>
+      <small class="evq-card__hint">{{t "%{p}% accuracy — highest of the libraries trialled" key="full_report_library_hint" p=this.recommendation.library.pct}}</small>
+    </article>
+  {{/if}}
+
+  {{#if this.recommendation.literacy}}
+    <article class="evq-card">
+      <span class="evq-card__label">{{t "Text access" key="full_report_literacy"}}</span>
+      <strong class="evq-card__value">{{t "%{p}%" key="full_report_pct" p=this.recommendation.literacy.pct}}</strong>
+      <small class="evq-card__hint">{{t "%{c} of %{t} word-only items correct" key="full_report_literacy_hint" c=this.recommendation.literacy.correct t=this.recommendation.literacy.trials}}</small>
+    </article>
+  {{/if}}
+</div>
+
+{{!-- Feature match — standards spine item 12. Every row carries its evidence so
+     the SLP can cite it directly. Feature language, never product language, so
+     it is valid in both report modes. --}}
+{{#if this.featureMatch}}
+  <section class="evq-report__features" aria-labelledby="evq-full-features-title">
+    <header class="evq-report__targeted-head">
+      <span class="evq-report__targeted-eyebrow">{{t "Feature match" key="full_report_features_eyebrow"}}</span>
+      <h3 id="evq-full-features-title" class="evq-report__targeted-title">
+        {{t "Required features and the evidence for each" key="full_report_features_title"}}
+      </h3>
+    </header>
+    <table class="table table-bordered evq-report__features-table">
+      <thead>
+        <tr>
+          <th>{{t "Feature" key="full_report_features_col_feature"}}</th>
+          <th>{{t "Requirement" key="full_report_features_col_requirement"}}</th>
+          <th>{{t "Evidence" key="full_report_features_col_evidence"}}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each this.featureMatch as |row|}}
+          <tr>
+            <td class="evq-report__feature-label">{{row.label}}</td>
+            <td class="evq-report__feature-value">{{row.value}}</td>
+            <td class="evq-report__feature-evidence">{{row.evidence}}</td>
+          </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </section>
+{{/if}}
+
+{{#if this.goalsGrid}}
+  <section class="evq-report__goals" aria-labelledby="evq-full-goals-title">
+    <header class="evq-report__goals-head">
+      <span class="evq-report__goals-eyebrow">{{t "Goals grid" key="report_goals_eyebrow"}}</span>
+      <h3 id="evq-full-goals-title" class="evq-report__goals-title">
+        {{t "DAGG-style IEP goal suggestions" key="report_goals_title"}}
+      </h3>
+      <p class="evq-report__goals-lede">
+        {{t "Derived from the recommendation across Light's four communicative competencies. Edit before pasting into an IEP." key="report_goals_lede"}}
+      </p>
+    </header>
+    <div class="evq-report__goals-grid">
+      {{#each this.goalsGrid as |bucket|}}
+        <article class="evq-report__goals-cat" data-category={{bucket.category}}>
+          <span class="evq-report__goals-cat-label">{{bucket.category}}</span>
+          <ul class="evq-report__goals-list">
+            {{#each bucket.goals as |g|}}
+              <li class="evq-report__goals-item">{{g.text}}</li>
+            {{/each}}
+          </ul>
+        </article>
+      {{/each}}
+    </div>
+  </section>
+{{/if}}
+
+{{!-- What the evaluation cannot capture — as a fillable workbook rather than a
+     list, since every one of these sections is mandatory and has to come from
+     the SLP's own observation. Saves onto this eval. --}}
+<EvalWorkbook @mode={{this.reportMode}} @analysis={{this.analysis}} @assessment={{this.assessment}} @log={{this.log}} />

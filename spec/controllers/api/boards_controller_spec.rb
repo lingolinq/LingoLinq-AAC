@@ -2049,8 +2049,79 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board']['name']).to eq("best board")
       expect(json['board']['buttons'].map{|b| b['label']}).to eq(['fred', 'fred'])
     end
+
+    # See the sibling "should preserve grid order" spec in `describe "create"` for
+    # the same reasoning: `params:` in a controller spec stringifies scalars, so
+    # every other spec in this block exercises the OLD form-encoded shape rather
+    # than the JSON one the adapter sends now (6df5b1bbc). Boards carry the most
+    # type-sensitive payload in the app — an integer grid, boolean button flags —
+    # so the update path is pinned here explicitly.
+    describe "update with a raw JSON body" do
+      it "should keep grid dimensions and button ids as numbers" do
+        token_user
+        b = Board.create(:user => @user)
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => b.global_id}, body: {
+          :board => {
+            :name => "typed board",
+            :buttons => [{'id' => 1, 'label' => 'can'}, {'id' => 2, 'label' => 'span'}],
+            :grid => {'rows' => 1, 'columns' => 3, 'order' => [[1, nil, 2]]}
+          }
+        }.to_json
+        json = assert_success_json
+        expect(json['board']['name']).to eq("typed board")
+        expect(json['board']['grid']['rows']).to eq(1)
+        expect(json['board']['grid']['columns']).to eq(3)
+        # Integer ids and the nil hole both survive; a form-encoded body would
+        # deliver [["1", "", "2"]] and an index-keyed Hash instead of the Array.
+        expect(json['board']['grid']['order']).to eq([[1, nil, 2]])
+        expect(b.reload.buttons.map{|btn| btn['id'] }).to eq([1, 2])
+      end
+
+      it "should keep false button flags false rather than the truthy string 'false'" do
+        # board.rb normalizes hidden/link_disabled/hide_label/text_only precisely
+        # because a form-encoded "false" is truthy. That normalization must not
+        # invert a real boolean on the way through.
+        token_user
+        b = Board.create(:user => @user)
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => b.global_id}, body: {
+          :board => {
+            :name => "flag board",
+            # Both buttons carry a url: board.rb:2313 deletes link_disabled from
+            # any button with no link at all, so an unlinked button could not
+            # exercise that flag.
+            :buttons => [
+              {'id' => 1, 'label' => 'shown',  'url' => 'https://example.com/a', 'hidden' => false, 'link_disabled' => false, 'text_only' => false},
+              {'id' => 2, 'label' => 'hidden', 'url' => 'https://example.com/b', 'hidden' => true,  'link_disabled' => true,  'text_only' => true}
+            ],
+            :grid => {'rows' => 1, 'columns' => 2, 'order' => [[1, 2]]}
+          }
+        }.to_json
+        assert_success_json
+        buttons = b.reload.buttons
+        expect(buttons[0]['hidden']).to eq(false)
+        expect(buttons[0]['link_disabled']).to eq(false)
+        expect(buttons[0]['text_only']).to eq(false)
+        expect(buttons[1]['hidden']).to eq(true)
+        expect(buttons[1]['link_disabled']).to eq(true)
+        expect(buttons[1]['text_only']).to eq(true)
+      end
+
+      it "should keep a boolean public flag as a boolean" do
+        token_user
+        b = Board.create(:user => @user)
+        expect(b.public).to eq(false)
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => b.global_id}, body: {
+          :board => {:name => "pub board", :public => true}
+        }.to_json
+        assert_success_json
+        expect(b.reload.public).to eq(true)
+      end
+    end
   end
-  
+
   describe "star" do
     it "should require api token" do
       post :star, params: {:board_id => "1_1"}

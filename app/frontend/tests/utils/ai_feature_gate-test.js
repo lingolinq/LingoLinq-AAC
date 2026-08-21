@@ -234,4 +234,186 @@ describe('ai_feature_gate', function() {
       )).toEqual(true);
     });
   });
+
+  describe('prefExplicitlyEnabled', function() {
+    it('is false when user is missing (unlike prefAllowsAi grandfather)', function() {
+      expect(aiFeatureGate.prefExplicitlyEnabled(null, 'ai_board_generation')).toEqual(false);
+    });
+
+    it('is false when master is nil or missing', function() {
+      expect(aiFeatureGate.prefExplicitlyEnabled(userWithPrefs({}), 'ai_board_generation')).toEqual(false);
+      expect(aiFeatureGate.prefExplicitlyEnabled(userWithPrefs({
+        ai_features_enabled: null
+      }), 'ai_board_generation')).toEqual(false);
+    });
+
+    it('is false when master is an explicit opt-out', function() {
+      [false, 'false', 0, '0'].forEach(function(off) {
+        expect(aiFeatureGate.prefExplicitlyEnabled(userWithPrefs({
+          ai_features_enabled: off,
+          ai_board_generation: true
+        }), 'ai_board_generation')).toEqual(false);
+      });
+    });
+
+    it('is false when master is true but the child is missing or off', function() {
+      expect(aiFeatureGate.prefExplicitlyEnabled(userWithPrefs({
+        ai_features_enabled: true
+      }), 'ai_board_generation')).toEqual(false);
+      expect(aiFeatureGate.prefExplicitlyEnabled(userWithPrefs({
+        ai_features_enabled: true,
+        ai_board_generation: false
+      }), 'ai_board_generation')).toEqual(false);
+    });
+
+    it('is true when master and the per-feature pref are explicit trues', function() {
+      expect(aiFeatureGate.prefExplicitlyEnabled(userWithPrefs({
+        ai_features_enabled: true,
+        ai_board_generation: true
+      }), 'ai_board_generation')).toEqual(true);
+    });
+
+    it('allows a non-USER_PREF feature when only the master is an explicit true', function() {
+      expect(aiFeatureGate.prefExplicitlyEnabled(userWithPrefs({
+        ai_features_enabled: true
+      }), 'comprehensive_eval_ai')).toEqual(true);
+    });
+  });
+
+  describe('boardGenerationEntry', function() {
+    function entryState(opts) {
+      var user = {
+        get: function(key) {
+          if(key === 'preferences') { return opts.prefs; }
+          if(key === 'eu_under_16') { return !!opts.eu_under_16; }
+          if(key === 'eu_ai_parental_consent_active') { return !!opts.eu_consent_active; }
+          if(key === 'coppa_parental_consent_pending') { return !!opts.coppa_pending; }
+          return null;
+        },
+        preferences: opts.prefs
+      };
+      return {
+        get: function(key) {
+          if(key === 'feature_flags.ai_board_generation') { return opts.flagOn !== false; }
+          if(key === 'currentUser') { return opts.noUser ? null : user; }
+          return null;
+        }
+      };
+    }
+
+    it('returns eu_consent before any other check', function() {
+      expect(aiFeatureGate.boardGenerationEntry(entryState({
+        eu_under_16: true,
+        flagOn: false,
+        prefs: { ai_features_enabled: true, ai_board_generation: true }
+      }))).toEqual('eu_consent');
+    });
+
+    it('returns allowed for EU under-16 once parental consent is active and prefs are on', function() {
+      expect(aiFeatureGate.boardGenerationEntry(entryState({
+        eu_under_16: true,
+        eu_consent_active: true,
+        prefs: { ai_features_enabled: true, ai_board_generation: true }
+      }))).toEqual('allowed');
+    });
+
+    it('returns blocked_flag when the rollout flag is off', function() {
+      expect(aiFeatureGate.boardGenerationEntry(entryState({
+        flagOn: false,
+        prefs: { ai_features_enabled: true, ai_board_generation: true }
+      }))).toEqual('blocked_flag');
+    });
+
+    it('returns blocked_coppa when parental consent is pending', function() {
+      expect(aiFeatureGate.boardGenerationEntry(entryState({
+        coppa_pending: true,
+        prefs: {}
+      }))).toEqual('blocked_coppa');
+    });
+
+    it('returns needs_opt_in for unset prefs even though prefAllowsAi grandfathers', function() {
+      expect(aiFeatureGate.boardGenerationEntry(entryState({
+        prefs: {}
+      }))).toEqual('needs_opt_in');
+      expect(aiFeatureGate.prefAllowsAi(userWithPrefs({}), 'ai_board_generation')).toEqual(true);
+    });
+
+    it('returns allowed when master and board generation are explicit trues', function() {
+      expect(aiFeatureGate.boardGenerationEntry(entryState({
+        prefs: { ai_features_enabled: true, ai_board_generation: true }
+      }))).toEqual('allowed');
+    });
+  });
+
+  describe('applyAiFeaturePrefs', function() {
+    function mutableUser(initialPrefs) {
+      var prefs = initialPrefs;
+      return {
+        get: function(key) {
+          if(key === 'preferences') { return prefs; }
+          return null;
+        },
+        set: function(key, val) {
+          if(key === 'preferences') { prefs = val; }
+        }
+      };
+    }
+
+    it('turns on master and requested features without writing false over siblings', function() {
+      var user = mutableUser({
+        device: 'ipad',
+        ai_word_prediction: true
+      });
+      var payload = aiFeatureGate.applyAiFeaturePrefs(user, {
+        ai_board_generation: true
+      });
+      expect(payload.ai_features_enabled).toEqual(true);
+      expect(payload.ai_board_generation).toEqual(true);
+      expect(Object.prototype.hasOwnProperty.call(payload, 'ai_word_prediction')).toEqual(false);
+      expect(Object.prototype.hasOwnProperty.call(payload, 'ai_board_suggestions')).toEqual(false);
+      var prefs = user.get('preferences');
+      expect(prefs.ai_features_enabled).toEqual(true);
+      expect(prefs.ai_board_generation).toEqual(true);
+      expect(prefs.ai_word_prediction).toEqual(true);
+      expect(prefs.device).toEqual('ipad');
+      expect(Object.prototype.hasOwnProperty.call(prefs, 'ai_board_suggestions')).toEqual(false);
+    });
+
+    it('clones preferences so the original object is not mutated in place', function() {
+      var original = { ai_word_prediction: true };
+      var user = mutableUser(original);
+      aiFeatureGate.applyAiFeaturePrefs(user, { ai_board_generation: true });
+      expect(original.ai_board_generation).toEqual(undefined);
+      expect(original.ai_features_enabled).toEqual(undefined);
+      expect(user.get('preferences') === original).toEqual(false);
+    });
+  });
+
+  describe('rollbackAiFeaturePrefs', function() {
+    it('calls rollbackAttributes when the user model provides it', function() {
+      var called = false;
+      aiFeatureGate.rollbackAiFeaturePrefs({
+        rollbackAttributes: function() { called = true; }
+      });
+      expect(called).toEqual(true);
+    });
+
+    it('restores prior prefs so board generation is not treated as enabled', function() {
+      var stored = {};
+      var user = {
+        get: function(key) {
+          if(key === 'preferences') { return stored; }
+          return null;
+        },
+        set: function(key, val) {
+          if(key === 'preferences') { stored = val; }
+        },
+        rollbackAttributes: function() { stored = {}; }
+      };
+      aiFeatureGate.applyAiFeaturePrefs(user, { ai_board_generation: true });
+      expect(aiFeatureGate.prefExplicitlyEnabled(user, 'ai_board_generation')).toEqual(true);
+      aiFeatureGate.rollbackAiFeaturePrefs(user);
+      expect(aiFeatureGate.prefExplicitlyEnabled(user, 'ai_board_generation')).toEqual(false);
+    });
+  });
 });

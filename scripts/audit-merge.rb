@@ -16,7 +16,7 @@
 #   * NEVER downgrades an existing finding's severity (a finder cannot lower it).
 #   * Adds genuinely new findings as status "open".
 #   * For a known id still status "open"/"remediated-unverified": refreshes lastSeen and
-#     re-anchors evidence to the new audited SHA (so citation-check stays green), keeps the
+#     re-anchors evidence to the verification SHA (so citation-check stays green), keeps the
 #     Scot-owned fields (status, severity, owner, firstSeen, closureEvidence).
 #   * For a known id that was previously closed/accepted/superseded but a finder re-surfaced:
 #     leaves the Scot-owned status UNTOUCHED, sets regression:true with a loud note, and lists
@@ -25,11 +25,32 @@
 #
 # Pure git-free stdlib (json, digest, date). No network, no app boot. Safe in CI.
 #
+# THE TWO MEANINGS OF --sha (and why --no-restamp exists)
+#   --sha carries two jobs that coincide during a real /audit-run but are unrelated outside one:
+#     (1) the VERIFICATION sha -- the commit each incoming snippet is proven to exist at, written
+#         into every touched finding's evidence.sha; and
+#     (2) the AUDIT POINTER -- meta.auditedSha/auditedRef/auditedDate, whose meaning is the much
+#         stronger claim "/audit-run audited the WHOLE tree at this SHA". Restamping it is a
+#         governance act requiring Scot's sign-off plus an analysis of the intervening commits
+#         (see meta.auditedShaPriorNote in the register).
+#   Adding a finding OUTSIDE an /audit-run (a single hand-filed finding, a targeted re-anchor)
+#   used to force a choice between two wrong answers: pass the true commit and falsely assert the
+#   whole tree was re-audited, or pass the register's existing auditedSha to dodge the restamp and
+#   silently anchor the new evidence to a commit it was never verified against. The second is the
+#   dangerous one -- when the snippet happens to sit on the same line in both commits it passes
+#   citation-check GREEN with a wrong anchor.
+#   --no-restamp separates them: evidence anchors at the true --sha, meta is left byte-identical.
+#   This mirrors scripts/promote-finding.rb, which never touches the audit pointer for exactly the
+#   same reason (see its closing comment).
+#
 # Usage:
 #   ruby scripts/audit-merge.rb --register audit-reports/FINDINGS.json \
-#     --sha <auditedSha> [--ref <ref>] [--date YYYY-MM-DD] \
+#     --sha <verificationSha> [--ref <ref>] [--date YYYY-MM-DD] [--no-restamp] \
 #     --in finder1.json [--in finder2.json ...] \
 #     --out audit-reports/FINDINGS.json [--summary OUT.json]
+#
+#   /audit-run (whole-tree scan)    : --sha <auditedSha> --ref <auditedRef>   (restamps meta)
+#   single finding outside a run    : --sha <trueCommit> --no-restamp         (meta untouched)
 #
 # Exit codes: 0 = merged OK; 1 = bad input / invariant violation.
 
@@ -86,16 +107,18 @@ SECRET_PATTERNS = {
   google_oauth_token: /\bya29\.[0-9A-Za-z_-]{20,}/
 }.freeze
 
-opts = { ins: [], ref: nil, date: nil, summary: nil }
+opts = { ins: [], ref: nil, date: nil, summary: nil, no_restamp: false }
 OptionParser.new do |o|
-  o.banner = 'Usage: ruby scripts/audit-merge.rb --register F --sha S --in finder.json [...] --out F [--summary S]'
+  o.banner = 'Usage: ruby scripts/audit-merge.rb --register F --sha S --in finder.json [...] --out F [--summary S] [--no-restamp]'
   o.on('--register FILE') { |v| opts[:register] = v }
-  o.on('--sha SHA')       { |v| opts[:sha] = v }
+  o.on('--sha SHA', 'Verification sha: the commit incoming snippets are proven at (-> evidence.sha)') { |v| opts[:sha] = v }
   o.on('--ref REF')       { |v| opts[:ref] = v }
   o.on('--date DATE')     { |v| opts[:date] = v }
   o.on('--in FILE')       { |v| opts[:ins] << v }
   o.on('--out FILE')      { |v| opts[:out] = v }
   o.on('--summary FILE')  { |v| opts[:summary] = v }
+  o.on('--no-restamp', 'Anchor evidence at --sha but leave meta.auditedSha/Ref/Date untouched ' \
+                       '(use for any addition that is NOT a whole-tree /audit-run)') { opts[:no_restamp] = true }
 end.parse!(ARGV)
 
 def die(msg)
@@ -108,11 +131,18 @@ die('missing --sha')      unless opts[:sha]
 die('missing --out')      unless opts[:out]
 die('no --in finder files given') if opts[:ins].empty?
 die("register not found: #{opts[:register]}") unless File.file?(opts[:register])
+# --ref writes ONLY meta.auditedRef, which --no-restamp suppresses. Passing both means the caller
+# misunderstood one of the two flags, so fail closed rather than silently discarding --ref.
+die('--ref is meaningless with --no-restamp (--ref only writes meta.auditedRef, which --no-restamp leaves untouched)') if opts[:no_restamp] && opts[:ref]
 
 run_date = opts[:date] || Date.today.to_s
 run_sha  = opts[:sha]
 
-register = JSON.parse(File.read(opts[:register]))
+# encoding: 'UTF-8', not File.read's locale-dependent default -- on a C/POSIX process
+# locale (observed in CI; not reproduced in an interactive UTF-8 shell) File.read tags
+# the string US-ASCII, and JSON.parse then raises Encoding::InvalidByteSequenceError on
+# any raw non-ASCII byte the register happens to contain (e.g. an em dash).
+register = JSON.parse(File.read(opts[:register], encoding: 'UTF-8'))
 meta = register['meta'] || {}
 findings = register['findings'] || []
 by_id = {}
@@ -130,7 +160,7 @@ def snippet_present?(file, snippet, sha)
   return false if file.to_s.empty? || snippet.to_s.strip.empty?
   out, _err, status =
     if sha.to_s.empty?
-      File.file?(file) ? [File.read(file), nil, nil] : [nil, nil, nil]
+      File.file?(file) ? [File.read(file, encoding: 'UTF-8'), nil, nil] : [nil, nil, nil]
     else
       Open3.capture3('git', 'show', "#{sha}:#{file}")
     end
@@ -172,7 +202,12 @@ end
 
 CHECKABLE_TYPES = %w[code doc].freeze
 
+# auditedSha/auditedDate name the VERIFICATION commit for this run (kept under these keys so
+# existing summary readers do not break). restampedMeta records whether that commit was also
+# written into the register's audit pointer, so the summary never implies a whole-tree re-audit
+# that did not happen.
 summary = { 'auditedSha' => run_sha, 'auditedDate' => run_date,
+            'restampedMeta' => !opts[:no_restamp],
             'new' => [], 'reseen' => [], 'regressions' => [],
             'severityChangeCandidates' => [], 'skipped' => [] }
 
@@ -182,7 +217,7 @@ opts[:ins].each do |path|
   # the other finders' valid output rather than aborting the whole reconcile.
   doc =
     begin
-      JSON.parse(File.read(path))
+      JSON.parse(File.read(path, encoding: 'UTF-8'))
     rescue JSON::ParserError => e
       summary['skipped'] << { 'input' => path, 'reason' => "unparseable JSON: #{e.message[0, 120]}" }
       next
@@ -306,10 +341,19 @@ findings.each do |f|
   end
 end
 
-# Update register meta audit pointers; leave everything else in meta untouched.
-meta['auditedSha'] = run_sha
-meta['auditedRef'] = opts[:ref] if opts[:ref]
-meta['auditedDate'] = run_date
+# Update the register's audit pointer; leave everything else in meta untouched. Under
+# --no-restamp meta is left byte-identical: the pointer asserts "/audit-run audited the WHOLE tree
+# at this SHA", which a targeted addition has not earned. Per-finding evidence.sha still anchors at
+# run_sha either way, and citation-check validates each finding against its own evidence.sha, so
+# skipping the restamp costs nothing in verifiability.
+if opts[:no_restamp]
+  warn "audit-merge: --no-restamp: evidence anchored at #{run_sha}; meta.auditedSha left at " \
+       "#{meta['auditedSha'].inspect} (restamping is a governance act requiring Scot's sign-off)"
+else
+  meta['auditedSha'] = run_sha
+  meta['auditedRef'] = opts[:ref] if opts[:ref]
+  meta['auditedDate'] = run_date
+end
 register['meta'] = meta
 register['findings'] = findings
 
@@ -318,4 +362,4 @@ File.write(opts[:summary], JSON.pretty_generate(summary) + "\n") if opts[:summar
 
 puts "audit-merge: ok  new=#{summary['new'].size} reseen=#{summary['reseen'].size} " \
      "regressions=#{summary['regressions'].size} sevChangeCandidates=#{summary['severityChangeCandidates'].size} " \
-     "skipped=#{summary['skipped'].size}  -> #{opts[:out]}"
+     "skipped=#{summary['skipped'].size} restampedMeta=#{summary['restampedMeta']}  -> #{opts[:out]}"

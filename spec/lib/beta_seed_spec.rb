@@ -113,8 +113,10 @@ describe BetaSeed do
     it 'rolls back deletes and restores ENV when ensure_baseline! fails' do
       owner = User.create(user_name: 'lingolinq')
       Board.process_new({name: 'A', public: true}, {user: owner, key: 'a'})
-      prior_flag = ENV['SEED_IMPORT_OPENAAC_VOCABULARIES']
+      prior_openaac = ENV['SEED_IMPORT_OPENAAC_VOCABULARIES']
+      prior_curated = ENV['SEED_IMPORT_CURATED_VOCABULARIES']
       ENV.delete('SEED_IMPORT_OPENAAC_VOCABULARIES')
+      ENV.delete('SEED_IMPORT_CURATED_VOCABULARIES')
       allow(described_class).to receive(:ensure_baseline!).and_raise('seed failed')
 
       expect {
@@ -122,7 +124,8 @@ describe BetaSeed do
       }.to raise_error('seed failed')
 
       expect(Board.where(user_id: owner.id).count).to eq(1)
-      expect(ENV['SEED_IMPORT_OPENAAC_VOCABULARIES']).to eq(prior_flag)
+      expect(ENV['SEED_IMPORT_OPENAAC_VOCABULARIES']).to eq(prior_openaac)
+      expect(ENV['SEED_IMPORT_CURATED_VOCABULARIES']).to eq(prior_curated)
     end
 
     it 'refuses when other users reference content boards without ALLOW_REFERENCED_DELETE' do

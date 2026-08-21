@@ -206,7 +206,7 @@
       "antiClaim": "Do NOT claim these AI features are live or available to users today; they are code-complete but unconfigured in production as of 2026-08-04 (credentials withdrawn on revision 00014-5rw). Equally, do NOT claim they have never been operational: the path was configured from 2026-08-03T08:23Z to 2026-08-04T06:31Z on revision 00013-76w. Do NOT say all the features 'ran' in that window: only word prediction completed a call. Board generation and prediction seeding were reachable but unexercised, and eval narration was unavailable throughout (Opus 4.7 has no classic-plane profile and the account is not mantle-entitled). No user or student data was transmitted in that window. See the 2026-08-04 operational-status correction in docs/legal/AWS_BAA_ACCEPTED.md. The prior Google Gemini fallback was DISABLED 2026-07-09 (Gemini Developer/AI-Studio endpoint data-handling terms inadequate for child data); there is no runtime Gemini path today. When configured, runtime AI egresses to Claude on AWS Bedrock via lib/ai_client.rb, not the direct api.anthropic.com endpoint; enforced in CI by scripts/ai-endpoint-guard.sh. AWS exposes two Bedrock planes and AiClient supports both, selected by BEDROCK_PLANE: classic bedrock-runtime (the default, and the only plane this account is entitled to as of 2026-08-01) and bedrock-mantle (403 'not available for this account' on every model even with admin credentials; access request open with AWS). Both planes are inside the AWS account BAA boundary, so plane selection is an entitlement/routing matter, not a data-protection one. Only pseudonymized data is sent (see cap pii-scrubber-pseudonymization).",
       "currentEvidence": {
         "file": "lib/ai_word_predictor.rb",
-        "line": 318,
+        "line": 336,
         "snippet": "provider: :claude,"
       },
       "introducedEvidence": {
@@ -287,7 +287,7 @@
       "antiClaim": "This gate is NOT the same as signup COPPA (settings['coppa']) or second-tier AI data-sharing VPC (settings['ai_consent'] / government-ID). It only covers EU under-16 AI enablement.",
       "currentEvidence": {
         "file": "lib/feature_flags.rb",
-        "line": 249,
+        "line": 251,
         "snippet": "def self.eu_under16_blocks_ai_for?(user)"
       },
       "frameworks": [

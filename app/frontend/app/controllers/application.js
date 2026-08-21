@@ -425,6 +425,9 @@ export default Controller.extend({
       disconnect: decision.disconnect,
       new_owner: decision.new_owner,
       copy_finished: copy_finished,
+      skip_hierarchy_picker: decision.skip_hierarchy_picker,
+      board_ids_to_copy: decision.board_ids_to_copy,
+      expand_selected_board_ids_to_copy: decision.expand_selected_board_ids_to_copy,
       // When the copy was initiated to EDIT the board (copy-to-edit, incl. a board
       // previewed via the edit-mode Board Collections drawer), the completion lands the
       // user in edit mode of the new copy instead of the default speak-mode jump.

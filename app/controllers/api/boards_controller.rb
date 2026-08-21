@@ -573,25 +573,16 @@ class Api::BoardsController < ApplicationController
     unless FeatureFlags.ai_feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
     end
-    # EU AI Act Article 50(1) server-side backstop (Phase 3 Plan 03-04, T-03-04-01):
-    # a client that skips the ai-disclosure modal and calls this endpoint directly
-    # must still be refused. The feature-flag check comes FIRST and is load-bearing
-    # (T-03-04-02): 'article_50_disclosure' is not in AVAILABLE_FRONTEND_FEATURES on
-    # this branch (Phase 5 / RLL-01 owns that registration), so feature_enabled_for?
-    # returns false and this guard is inert until the 2026-08-02 enable gate.
-    # Shipping an active backstop before the modal is enabled would lock EU and
-    # unknown-jurisdiction users out of board generation with no way to unblock
-    # themselves. Gates on EuJurisdiction.disclosure_required? (D-04, true for :eu
-    # AND :unknown), never the retention-column jurisdiction stamp. Reads
-    # server-side state only (@api_user.article_50_disclosure_shown?), never a
-    # request field (T-03-04-06), and uses a distinct error code from the AI
-    # feature-flag refusal above so the client and the register can tell the two
-    # apart.
-    if FeatureFlags.feature_enabled_for?('article_50_disclosure', @api_user) &&
-       EuJurisdiction.disclosure_required?(@api_user) &&
-       !@api_user.article_50_disclosure_shown?
-      return api_error(403, { error: 'article_50_disclosure_required' })
-    end
+    # EU AI Act Article 50(1) server-side backstop (Phase 3 Plan 03-04, T-03-04-01;
+    # shared helper LL-6723438462): a client that skips the ai-disclosure modal and
+    # calls this endpoint directly must still be refused. The feature-flag check
+    # inside the helper is load-bearing (T-03-04-02): 'article_50_disclosure' is
+    # AVAILABLE-only as of this writing, so the guard is inert until the flag is
+    # enabled -- shipping an active backstop before the modal is enabled would lock
+    # EU and unknown-jurisdiction users out of board generation with no way to
+    # unblock themselves.
+    return unless require_article_50_disclosure!
+
     processed_params, json_body_source = board_json_body_params_source
     if json_body_source == :invalid_json_root
       return api_error(400, { error: 'JSON body must be an object' })

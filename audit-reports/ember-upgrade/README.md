@@ -26,7 +26,13 @@ ruby scripts/audit-merge.rb --register audit-reports/ember-upgrade/FINDINGS-EMBE
   --in /tmp/ember-finder-*.json \
   --out audit-reports/ember-upgrade/FINDINGS-EMBER.json --summary /tmp/ember-audit-summary.json
 ruby scripts/citation-check.rb audit-reports/ember-upgrade/FINDINGS-EMBER.json
+ruby scripts/register-lint.rb audit-reports/ember-upgrade/FINDINGS-EMBER.json
 ```
+
+`--sha` restamps this register's audit pointer, which is correct for the whole-tree slice fan-out
+above. A single finding filed OUTSIDE a full run takes `--sha <trueCommit> --no-restamp` instead,
+which anchors `evidence.sha` at the real commit and leaves `meta` untouched. See
+`audit-reports/README.md`, "The audit pointer vs. the evidence anchor".
 
 ## Governance (same rules as the main register)
 - The merge only ever ADDS findings or marks them `open`; regressions of Scot-decided

@@ -1,27 +1,41 @@
 # LingoLinq AAC Compliance Posture Report
 
-> **DRAFT - awaiting attestation (2026-08-09 counts refresh).** Successor to attested
+> **DRAFT - awaiting attestation (content refreshed 2026-08-20).** Successor to attested
 > `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (re-attested 2026-07-23). Prior attestations on the
 > predecessor: ATTESTED 2026-06-19 by Scot Wahlquist, CEO; RE-ATTESTED 2026-07-16; RE-ATTESTED
 > 2026-07-23. This draft refreshes headline and framework counts from the findings register at
-> HEAD. It is not a current attested statement until Scot signs. Drafted by the
-> compliance-officer; for adversary review; for CEO attestation.
+> HEAD. It is not a current attested statement until Scot signs. Originally drafted 2026-08-09 by
+> the compliance-officer; content re-verified and refreshed 2026-08-20 after the 2026-08-12 six-finder
+> audit run and the Article 50 server-side backstop work (#829/#831); for adversary review; for
+> CEO attestation.
 >
-> Register audited SHA: `20953ab3` (auditedDate 2026-07-08, ref `scot/compliance/audit-refresh-2026-07-07`).
-> That stamp records the last full audit RUN. The register has been amended by remediation and
-> disclosure PRs since, so the counts below are re-derived from `audit-reports/FINDINGS.json` **as
-> committed at HEAD `20aab90d3`**, not from a re-run audit, using the publisher convention (`open` +
-> `remediated-unverified` findings by severity, per `scripts/compliance-notion-publish.rb`). Do not
-> hand-edit the figures; refresh them from the register.
+> Register audited SHA (last full `/audit-run`): `59f502aa4` (auditedDate 2026-08-18; a monthly
+> light-run restamp, not a full re-scan -- see `meta.auditedShaPriorNote` in the register for why
+> the pointer moved there rather than to the current tip). The last full 6-finder audit was
+> `d67ed76e0a1` (2026-08-12), which added 40 new findings (9 High / 18 Medium / 13 Low). The
+> counts below are re-derived from `audit-reports/FINDINGS.json` **as committed at staging HEAD
+> `64cdccba1`, plus the two rows added by PR #838** (2026-08-20), not from a re-run audit,
+> using the publisher convention (`open` + `remediated-unverified` findings by severity, per
+> `scripts/compliance-notion-publish.rb`). Do not hand-edit the figures; refresh them from the
+> register.
 
-### Changes since the 2026-07-23 re-attest (predecessor)
+### Changes since the 2026-08-09 draft (this refresh, 2026-08-20)
 
-- **Counts refreshed 2026-08-09 (this draft).** Publisher convention at HEAD gives **0 Critical /
-  12 High / 30 Medium / 25 Low** (67 live), against 8 / 27 / 25 (60) at the 2026-07-23 re-attest.
-  Open Critical remains **0**, the gating metric. The High rise reflects three Highs promoted from
-  PR-review adversary passes (LL-1b0d78dbe6, LL-16ef84ad9a on 2026-08-02; LL-522c1a6d13 on
-  2026-08-04) plus same-day 2026-07-23 register movement after the early-day 8 High stamp. No
-  finding is marked closed in this draft.
+- **Counts refreshed 2026-08-20.** Publisher convention at HEAD gives **0 Critical / 20 High / 52
+  Medium / 42 Low** (114 live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
+  Critical remains **0**, the gating metric. The High rise is almost entirely the 2026-08-12
+  six-finder full audit run (privacy, infra, api, dependency, accessibility, code-hygiene), which
+  added 9 new open Highs in a single run -- notably three GCP production-access/logging gaps
+  (LL-1e7b568ef3 WIF ref-lock, LL-b7ccc522b9 no Data Access audit logging, LL-c0b3d59f58 a human
+  principal holding project-wide secretmanager/cloudsql admin) and a public-ingress Cloud Run
+  finding (LL-0b5443f43b). One High closed in the same window: LL-1b0d78dbe6 (Bedrock BAA-account
+  credential check) verified-closed 2026-08-11.
+- **EU AI Act Article 50 server-side backstop completed (#829, #831, 2026-08-19).** All 5 AI
+  ingresses now carry the `require_article_50_disclosure!` server-side guard (previously only 2 of
+  5); LL-6723438462 moved open -> remediated-unverified. The disclosure-link contrast blocker
+  (LL-a9d6d5a46b) was found to have already been fixed on 2026-07-28 (#694) but the register had
+  gone stale recording it as open; corrected to remediated-unverified with the #694 evidence.
+  `article_50_disclosure` remains AVAILABLE-only (not enabled) pending Scot's enablement decision.
 - **Gate 1 DNS cutover completed (2026-07-22).** `app.lingolinq.com` serves from GCP Cloud Run
   with Cloud SQL and Memorystore. Render remains a write-frozen rollback fallback pending
   explicit decommission.
@@ -29,16 +43,16 @@
   evidence and Scot attestation are on the finding; this report no longer treats Redis TLS as open.
 - **Eval consent-binding residual (LL-11db0dc848) verified-closed (2026-06-23).** Do not restate
   as an open High.
-- **EU AI Act Article 50 date passed (2026-08-02).** Article 50(2) machine-readable marking is
-  shipped (`lib/art50_marker.rb`). Article 50(1) disclosure UI is built but
-  `article_50_disclosure` remains AVAILABLE-only. Open WCAG High LL-a9d6d5a46b (low-contrast
-  full-notice link) is a pre-enable blocker for that modal.
 - **GCP infrastructure agreements recorded.** GCP CDPA + HIPAA BAA and SCCs for project
   `lingolinq-prod` remain as previously attested; Google Cloud infrastructure is an active
   subprocessor in `SUBPROCESSORS.md`. Google Gemini remains disabled as an AI runtime path.
 
 ### Earlier changes (retained for history)
 
+- **2026-08-09 draft counts.** Publisher convention gave 0 / 12 / 30 / 25 (67 live) at that time,
+  against 8 / 27 / 25 (60) at the 2026-07-23 re-attest. The High rise then reflected three Highs
+  promoted from PR-review adversary passes (LL-1b0d78dbe6, LL-16ef84ad9a on 2026-08-02;
+  LL-522c1a6d13 on 2026-08-04).
 - **Eval-narration AI surface brought under governance** (#411, #412, #413).
 - **Redis TLS capability shipped** (#410), later verified-closed after Gate 1.
 - **Open High count moved 13 -> 16 -> 4** after the 2026-06 disposition and remediation wave, then
@@ -50,9 +64,9 @@
 | Metric | Count |
 |---|---|
 | **Open Critical findings** | **0** |
-| **Open High findings** | **12** |
-| Open Medium / Low | 30 / 25 |
-| Verified closed (Scot attested) | 50 |
+| **Open High findings** | **20** |
+| Open Medium / Low | 52 / 42 |
+| Verified closed (Scot attested) | 51 |
 | Accepted risk | 5 |
 | Superseded | 2 |
 
@@ -84,20 +98,20 @@ The practices behind these numbers:
 
 ## Posture by framework
 
-Open-finding distribution across regulatory frameworks (a single finding can map to more than
+Live-finding distribution across regulatory frameworks (a single finding can map to more than
 one framework):
 
-| Framework | Open findings | Open High | Context |
+| Framework | Live | Live High | Context |
 |---|---:|---:|---|
-| FERPA (US schools) | 19 | 5 | Student data isolation, access scoping, audit trail, share-token and deletion residuals. |
-| HIPAA (US hospitals) | 11 | 4 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
-| GDPR (EU clients) | 13 | 4 | Data residency, subprocessor posture, deletion and export paths. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
-| COPPA (under-13 users) | 5 | 2 | Amended Rule enforceable since 2026-04-22. Open Highs include seat-reclaim consent (LL-f150e0e828) and hard-delete media (LL-854b1d3853). |
-| WCAG (accessibility) | 12 | 2 | Standing domain for an AAC tool. Open Highs: terms-agree switch scanning (LL-104bfa61dc); Article 50 disclosure contrast (LL-a9d6d5a46b). |
-| SOC 2 (in progress) | 24 | 3 | Control-evidence and audit-system hardening (worker memory, S3 KMS writes, audited console). |
+| FERPA (US schools) | 36 | 11 | Student data isolation, access scoping, audit trail, share-token and deletion residuals. |
+| HIPAA (US hospitals) | 29 | 10 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
+| GDPR (EU clients) | 22 | 6 | Data residency, subprocessor posture, deletion and export paths, EU AI Act Article 50 transparency. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
+| COPPA (under-13 users) | 10 | 4 | Amended Rule enforceable since 2026-04-22. Open Highs include seat-reclaim consent (LL-f150e0e828), hard-delete media (LL-854b1d3853), and two new from the 2026-08-12 run (unscrubbed context.topic to Bedrock LL-8908c7ac6f; PredictionEntry survives account deletion LL-e8614c103f). |
+| WCAG (accessibility) | 19 | 2 | Standing domain for an AAC tool. Open High: terms-agree switch scanning (LL-104bfa61dc). Article 50 disclosure contrast (LL-a9d6d5a46b) is remediated-unverified (fix landed via #694, closure evidence recorded 2026-08-19; awaiting Scot's verified-closed attestation), still counted as a High in the publisher convention. |
+| SOC 2 (in progress) | 45 | 9 | Control-evidence and audit-system hardening (worker memory, S3 KMS writes, audited console). 2026-08-12 run added several GCP production-access/logging Highs (WIF ref-lock, no Data Access audit logging, project-wide admin on a human principal, public Cloud Run ingress). |
 
-A single finding can map to more than one framework, so these rows do not sum to the 67 live total
-(open + remediated-unverified). 9 of those findings carry no framework tag (engineering-quality and
+A single finding can map to more than one framework, so these rows do not sum to the 114 live total
+(open + remediated-unverified). 19 of those findings carry no framework tag (engineering-quality and
 API-contract items).
 
 ### Active product controls (evidence in code)
@@ -121,7 +135,10 @@ These are implemented and operating, not aspirational:
   and the egress payload is bound to the server-resolved user. The prior consent-binding High
   (LL-11db0dc848) is verified-closed.
 - **Article 50(2) marking** (`lib/art50_marker.rb`): server-signed provenance markers on in-scope
-  generative paths. Article 50(1) disclosure remains built but flag-gated off.
+  generative paths. Article 50(1) disclosure UI is built, and the server-side disclosure backstop
+  (`require_article_50_disclosure!`) now covers all 5 AI ingresses as of 2026-08-19 (#829, #831),
+  but the `article_50_disclosure` flag remains AVAILABLE-only -- not enabled -- pending Scot's
+  enablement decision.
 
 ## Infrastructure migration state
 
@@ -155,8 +172,10 @@ an AAC tool. A WCAG 2.1 AA Accessibility Conformance Report is in draft
 (`docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md`). Current internal status is Partially
 Supports on the modernized surfaces, with remediation patterns identified. Assistive-technology
 user testing and full-surface coverage are the gaps to close before that report is published.
-Two open High accessibility items (LL-104bfa61dc, LL-a9d6d5a46b) block confident enablement of
-the Article 50 disclosure modal for AAC users.
+One open High accessibility item (LL-104bfa61dc, terms-agree modal unreachable by switch scanning)
+remains a confidence concern for the Article 50 disclosure modal, which shares that modal
+component. The contrast blocker (LL-a9d6d5a46b) is remediated-unverified as of 2026-08-19 (fix
+landed 2026-07-28 via #694); awaiting Scot's verified-closed attestation.
 
 ## AI governance
 
@@ -177,14 +196,15 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 
 | Field | Value |
 |---|---|
-| Prepared by | compliance-officer agent (draft) |
+| Prepared by | compliance-officer agent (draft, 2026-08-09); content refreshed by Claude Code 2026-08-20 |
 | Reviewed by | _adversary review pending_ |
-| Attested by | _Scot Wahlquist, CEO (pending signature on 2026-08-09 successor)_ |
+| Attested by | _Scot Wahlquist, CEO (pending signature)_ |
 | Predecessor attestation dates | 2026-06-19; re-attested 2026-07-16; re-attested 2026-07-23 |
 | Attestation date (this draft) | _pending_ |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). Counts
-re-derived from `audit-reports/FINDINGS.json` as committed at HEAD `20aab90d3` on 2026-08-09
-(the auditedSha stamp records the last full audit run, not the last register edit). The one-way
-Notion publish of this report is a separate, human-initiated step into the Master Inbox. The
-branded Drive mirror is an operator refresh tracked in COMPLIANCE-PUBLICATION-STATUS._
+re-derived from `audit-reports/FINDINGS.json` as committed at staging HEAD `64cdccba1` plus the
+two rows added by PR #838, on 2026-08-20 (the auditedSha stamp records the last full audit run,
+not the last register edit).
+The one-way Notion publish of this report is a separate, human-initiated step into the Master
+Inbox. The branded Drive mirror is an operator refresh tracked in COMPLIANCE-PUBLICATION-STATUS._

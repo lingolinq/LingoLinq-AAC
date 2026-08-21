@@ -6,6 +6,11 @@ import { computed, get as emberGet } from '@ember/object';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
+import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
+
+function copies_linked_boards(action) {
+  return action !== 'keep_links' && action !== 'remove_links';
+}
 
 /**
  * Copy Board modal (Phase 2).
@@ -67,8 +72,12 @@ export default Component.extend({
     this.set('symbol_library', 'original');
     this.set('new_owner', null);
     this.set('show_more_options', false);
+    this.set('show_board_picker', false);
+    this.set('hierarchy', null);
+    this.set('hierarchy_loading', false);
     this.set('default_locale', this.get('appState').get('label_locale') || this.get('model.board.locale'));
     this.set('home_board', null);
+    this.load_copy_hierarchy();
     const user_name = this.get('model.selected_user_name');
     let supervisees = [];
     this.set('model.known_supervisees', supervisees);
@@ -96,16 +105,65 @@ export default Component.extend({
     this.runOpening();
   }),
 
-  has_supervisees: computed('model.known_supervisees', 'appState.sessionUser.managed_orgs', function() {
+  has_supervisees: computed('model.known_supervisees.length', 'appState.sessionUser.managed_orgs.length', function() {
     return this.get('model.known_supervisees.length') > 0 || this.get('appState.sessionUser.managed_orgs.length') > 0;
   }),
 
-  linked: computed('model.board.buttons', 'model.board.downstream_boards', 'model.board.downstream_board_ids', 'model.original_board', function() {
+  linked: computed('model.board.buttons', 'model.board.linked_boards', 'model.board.linked_boards.length', 'model.board.downstream_boards', 'model.board.downstream_board_ids', 'model.board.downstream_board_ids.length', 'model.original_board', function() {
     return (this.get('model.board.linked_boards') || []).length > 0 ||
       (this.get('model.board.downstream_boards') || 0) > 0 ||
       (this.get('model.board.downstream_board_ids.length') || 0) > 0 ||
       !!this.get('model.original_board');
   }),
+
+  show_linked_copy_hint: computed('linked', 'loading', 'error', function() {
+    return !!this.get('linked') && !this.get('loading') && !this.get('error');
+  }),
+
+  // Only block a full-set copy after the user opens the picker and deselects
+  // the root board. A collapsed picker means "copy all", so the primary button
+  // stays enabled even if hierarchy.root.selected is briefly unset.
+  copy_full_set_disabled: computed('show_board_picker', 'hierarchy.root_deselected', function() {
+    return !!this.get('show_board_picker') && !!this.get('hierarchy.root_deselected');
+  }),
+
+  // Show the linked-board picker under the copy-set hint. Hidden while the
+  // destination-user lookup is in flight so it appears with that hint rather
+  // than jumping in above "Checking user...".
+  show_copy_hierarchy: computed('linked', 'loading', 'error', 'hierarchy', 'hierarchy_loading', function() {
+    if (!this.get('linked') || this.get('loading') || this.get('error')) {
+      return false;
+    }
+    return !!(this.get('hierarchy') || this.get('hierarchy_loading'));
+  }),
+
+  load_copy_hierarchy() {
+    const board = this.get('model.board');
+    if (!board || !this.get('linked')) {
+      this.set('hierarchy_loading', false);
+      this.set('hierarchy', null);
+      return;
+    }
+    const _this = this;
+    this.set('hierarchy_loading', true);
+    this.set('hierarchy', null);
+    loadHierarchyForCopyModal(board, {
+      skipBoardReloadForCopyModal: true,
+      expand_all: true,
+      early_live_links_delay_ms: this.get('earlyLiveLinksDelayMs')
+    }).then(function(result) {
+      if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
+      _this.set('hierarchy_loading', false);
+      const hierarchy = result && result.hierarchy;
+      if (hierarchy && hierarchy.get && hierarchy.get('root')) {
+        _this.set('hierarchy', hierarchy);
+      }
+    }, function() {
+      if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
+      _this.set('hierarchy_loading', false);
+      _this.set('hierarchy', null);
+    });
+  },
 
   locales: computed(function() {
     const list = i18n.get('translatable_locales');
@@ -236,6 +294,12 @@ export default Component.extend({
     updateCurrentlySelectedId(id) {
       this.set('currently_selected_id', id);
     },
+    toggle_board_picker() {
+      var now = (window.performance && performance.now) ? performance.now() : Date.now();
+      if (this._lastToggleAt != null && (now - this._lastToggleAt) < 250) { return; }
+      this._lastToggleAt = now;
+      this.toggleProperty('show_board_picker');
+    },
     tweakBoard(decision) {
       if (this.get('model.known_supervisees').length > 0) {
         if (!this.get('currently_selected_id')) {
@@ -259,7 +323,7 @@ export default Component.extend({
         name = this.get('board_prefix') + ' ' + name;
       }
       const lib = this.get('symbol_library') || 'original';
-      this.get('modal').close({
+      const payload = {
         action: decision,
         copy_board_source: this.get('model.board'),
         user: this.get('current_user'),
@@ -272,7 +336,18 @@ export default Component.extend({
         make_public: this.get('public'),
         default_locale: this.get('default_locale'),
         translate_locale: translate_locale
-      });
+      };
+      // When the hierarchy loaded on this modal, the second screen can skip
+      // its picker and copy the already-selected ids. keep_links / remove_links
+      // never use the picker. If load is still in flight or failed, omit the
+      // skip flag so copying-board keeps its existing fallback UI.
+      const hierarchy = this.get('hierarchy');
+      if (copies_linked_boards(decision) && hierarchy && typeof hierarchy.selected_board_ids === 'function') {
+        payload.skip_hierarchy_picker = true;
+        payload.board_ids_to_copy = hierarchy.selected_board_ids();
+        payload.expand_selected_board_ids_to_copy = !!hierarchy.get('live_links_incomplete');
+      }
+      this.get('modal').close(payload);
     }
   },
 

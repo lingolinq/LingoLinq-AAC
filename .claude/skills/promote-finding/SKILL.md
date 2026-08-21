@@ -186,4 +186,8 @@ ruby scripts/compliance-publication-status.rb                      # publication
 - Code/path evidence only; PII/secret-bearing findings are refused, never redacted-in.
 - Compliance content is Tier 2 (PII-free output): any approved reviewer is permitted; the data-bearing-path guard is the boundary.
 - Promotion does not change `meta.auditedSha` (these findings are anchored to their own PR sha,
-  not the last /audit-run tree).
+  not the last /audit-run tree). If you instead file a finding through `audit-merge.rb` outside a
+  full `/audit-run`, pass `--no-restamp` to get the same guarantee; never pass the register's
+  existing `auditedSha` to dodge the restamp, which silently anchors the evidence to a commit it
+  was never verified against (see `audit-reports/README.md`, "The audit pointer vs. the evidence
+  anchor").

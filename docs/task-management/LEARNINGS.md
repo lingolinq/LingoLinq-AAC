@@ -20,7 +20,15 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: a status-block lead must not over-claim "remaining" or "historical"](#gotcha-a-status-block-lead-must-not-over-claim-remaining-or-historical)
+- [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
+- [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
+- [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
+- [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
+- [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
+- [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
+- [Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`](#gotcha-redact_for_ai-on-the-sentence-does-not-automatically-cover-interpolated-contexttopic)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
@@ -41,12 +49,14 @@ file (see [README.md](README.md)).
 - [Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation](#gotcha-ember-input-checkboxes-need-type-and-bound-select-must-stoppropagation)
 - [Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props](#gotcha-ember-strict-mode-templates-treat-bare-names-as-helpers--use-this-for-controller-props)
 - [Gotcha: AI feature flags are rollout; prefs turn AI on — Ember UI must AND both](#gotcha-ai-feature-flags-are-rollout-prefs-turn-ai-on--ember-ui-must-and-both)
+- [Gotcha: Generate-with-AI UI opt-in is explicit; server grandfather is not](#gotcha-generate-with-ai-ui-opt-in-is-explicit-server-grandfather-is-not)
 - [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
 - [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Pattern: boards-page Mine list — cache-first paint, atomic background refresh](#pattern-boards-page-mine-list--cache-first-paint-atomic-background-refresh)
+- [Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint](#gotcha-board-picker-category-tabs-share-one-category_boards-list--stale-loads-must-not-paint)
 - [Gotcha: Android “classic board” error may be stale packaged board-detail](#gotcha-android-classic-board-error-may-be-stale-packaged-board-detail)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
@@ -109,6 +119,7 @@ file (see [README.md](README.md)).
 - [Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise](#gotcha-persistence-sync-jasmine-harness--wait-for-sync_boards-tail--syncsettled-not-only-the-sync-promise)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
+- [Pattern: curated system boards live on static S3 — prefer over OpenAAC](#pattern-curated-system-boards-live-on-static-s3--prefer-over-openaac)
 - [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
 - [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
 - [Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching](#pattern-shared-ai-reuse-caches-need-exact-scrubbed-keys-before-recommendation-matching)
@@ -357,6 +368,8 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 **Fix recipe:** Two-phase load — `GET …/tree?root_only=1` first (lite root), paint, then ingest full `/tree` in the background via `ingest_tree(..., { force: false, warm_root_images: false })`. Server skips descendant load when `root_only` is set. Do not “fix” slow opens by only extending TTL or prefetch coverage.
 
+**Gotcha (prefetch root_only vs cache hit):** Session prefetch stores `/tree?root_only=1`. A board-detail cache hit used to return without warming the full tree, so folder taps that used to be warm after prefetch were cold. Mark those entries `root_only`; on cache hit (modern `board-detail` and classic `board-alt`) call `warm_full_tree_if_root_only` so the full `/tree` still lands in the background. A full-tree ingest clears the mark. Do not treat empty `descendants` as the signal — a board with no children is a valid full tree. Do not let a later root_only ingest downgrade a fresh full-tree entry.
+
 **Diag:** `localStorage.ll_board_cache_diag=1` → [`board_cache_diag.js`](../../app/frontend/app/utils/board_cache_diag.js) marks on board-detail.
 
 **First seen in:** [2026-07-23-speak-mode-board-cache-latency.md](./2026-07-23-speak-mode-board-cache-latency.md)
@@ -367,11 +380,21 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 **Gotcha:** Re-entering the boards page always re-queried `store.query('board', { user_id })`. Streaming partial pages onto `model.my_boards` cleared `.done` until the last page, so a background refetch re-showed “Preparing your workspace.” Server Redis on boards index only caches public search, not Mine `user_id` lists. Even after cache-first paint, a within-TTL revisit still re-downloaded the full owned library (buttons+grid per row) while session `catalog_board_prefetch` flooded `/tree` and starved Mine pagination.
 
-**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. (5) **Within TTL, skip `store.query` entirely** when usable list + `hasFreshSnapshot`; clear snapshot on create/delete/copy so the next visit refreshes. (6) Paginated index JSON omits `buttons`/`grid`/`intro`/`background` (`args[:paginated]` in [`lib/json_api/board.rb`](../../lib/json_api/board.rb)). (7) Set `setMineListBusy` during Mine fetch; defer `board_detail_cache` phase-4 catalog `/tree` until clear. Distinct from `board_detail_cache` (speak `/tree`).
+**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. (5) **Within TTL, skip `store.query` entirely** when usable list + `hasFreshSnapshot`; clear snapshot on create/delete/copy so the next visit refreshes. (6) Paginated index JSON omits `buttons`/`grid`/`intro`/`background` (`args[:paginated]` in [`lib/json_api/board.rb`](../../lib/json_api/board.rb)). (7) Set `setMineListBusy` during Mine fetch; defer `board_detail_cache` phase-4 catalog `/tree` until clear. Distinct from `board_detail_cache` (speak `/tree`). (8) **Pass-2:** `setBoardsPageActive` on `user.boards` activate/deactivate; pause phase-1 home, phase-2 liked, phase-3 owned-list + phase-3/4 `/tree` and image warm while the route is active (TTL skip clears Mine busy, so Mine-busy-only deferral is not enough). Wait until deactivate — do not resume prefetch on a wall-clock cap while Boards is still open. (9) Prefetch `/tree?root_only=1` and mark the cache entry `root_only`; speak cache-hits call `warm_full_tree_if_root_only` so folder taps are not left cold. `collectPublicLookups` runs `filterBrandSetRootBoards` after wrapping plain API rows with `.get` (brand `test()` only reads `board.get('key')`). (10) Overlay/hero gate on `mineListPaintReady` (first page or `.done`), not last-page `.done`. (11) Gate `reload_logs` / `load_badges` / `load_goals` / `check_daily_use` on `isBoardsPageActive()` so boards visits do not fetch profile widgets; profile and account `setupController` still call them (including `check_daily_use`). Search may run on a partial library — show `boards_filter_library_loading` until `my_boards.done`.
 
 **Gotcha (list summary + locale):** Omitting button/content blobs must not skip `localized_name` / `localized_locale`. Index already eager-loads `board_content`; when `args[:locale]` is present, still load translations for `board_name` matching, but do not rewrite per-button labels (list payloads have no `buttons`). Gating the whole locale block behind `!list_summary` broke `Api::BoardsController index should return a localized board name`.
 
-**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md)
+**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md); pass 2 [2026-08-17-boards-page-load-pass2.md](./2026-08-17-boards-page-load-pass2.md)
+
+## Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint
+
+**Surface:** `/board-picker` `BoardPicker` with `searchAtTop` ([`components/board-picker.js`](../../app/frontend/app/components/board-picker.js)).
+
+**Gotcha:** All Available Boards waits for every mine/shared page plus the first public page before painting, so it is slow. The selected tab (`current_category`) and the grid (`category_boards`) are separate. Switching to Cause and Effect starts a new query but does not cancel the All Available requests. Those writers used to call `this.set('category_boards', …)` with no generation check, so the default list appeared under the new category.
+
+**Fix:** All Available uses its own `_available_load_id` so the first fetch can finish in the background. Results are snapshotted and reused when the user returns to the tab; they only paint `category_boards` while that tab is selected. Tagged categories still bump `_boards_load_id` so a late Cause and Effect response cannot overwrite All Available. Tests in `tests/unit/components/board-picker-category-race-test.js`.
+
+**First seen in:** [2026-08-20-board-picker-category-race.md](./2026-08-20-board-picker-category-race.md)
 
 ## Gotcha: Android “classic board” error may be stale packaged board-detail
 
@@ -3605,6 +3628,25 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 ---
 
+## Pattern: curated system boards live on static S3 — prefer over OpenAAC
+
+**Surface:** large gallery / signup OBZs that must not live in git, and must not land as CoughDrop-branded OpenAAC copies on `lingolinq`.
+
+**Fix recipe:**
+1. Keep sources in `tmp/seed-boards/` (gitignored). Never commit multi‑MB OBZs.
+2. Catalog local → `system-boards/<key>` in `CuratedVocabularySources::CATALOG`.
+3. Upload: `rake lingolinq:upload_curated_boards`. Use `UPLOAD_STATIC_S3_BUCKET=lingolinq-staging-static` (or prod) — **not** a leading `STATIC_S3_BUCKET=` before `op run`, because `--env-file` wins over the shell and will reset it to the local/dev bucket. Pattern: `op run --env-file=.env.op.local -- env UPLOAD_STATIC_S3_BUCKET=… bundle exec rake …`.
+4. Senner signup set: `SystemBoardSources.ensure_senner_baud!` (S3 primary, `SENNER_BAUD_OBZ_PATH` / `tmp/seed-boards/SennerBaudSocialPages60ll.obz` local fallback). After `from_obz`, call `sync_load_board_keys!` so `load_board.key` matches the board resolved by id (avoids `_N` dead links after key collisions).
+5. Gallery curated sets: `rake lingolinq:import_curated_vocabularies` or `SEED_IMPORT_CURATED_VOCABULARIES=1`.
+6. OpenAAC import skips filenames in `CuratedVocabularySources.openaac_skip_files`; keep OpenAAC for non-overlapping sets (quick-core-*, vocal-flair-60, etc.).
+7. Quick Core **root descriptions** cannot be cleaned with find-and-replace: they contain `app.mycoughdrop.com/example/core-N` sibling links and a sentence that is *about* CoughDrop ("isn't unique to CoughDrop"). Stamp a hand-written overlay after `from_obz` (`lib/quick_core_descriptions.rb`). Child boards that only have `built with CoughDrop` can be rewritten to `built with LingoLinq`. Already-seeded DBs: `rake lingolinq:apply_quick_core_descriptions` (no OBZ re-download). Do not put this rewrite in `Converters::LingoLinq.from_external` — it would alter therapist CoughDrop migrations.
+
+**Evidence:** `lib/curated_vocabulary_sources.rb`, `lib/system_board_sources.rb`, `lib/quick_core_descriptions.rb`, `lib/tasks/system_boards.rake`, `lib/tasks/openaac.rake`; task logs `2026-08-13-curated-s3-system-board-seeds.md`, `2026-08-20-quick-core-import-descriptions.md`.
+
+**Collision note (2026-08-14):** Senner OBZ boards can occupy bare keys like `lingolinq/core-60`. OpenAAC Quick Core roots also import as `core-N`, while signup expects `lingolinq/quick-core-N`. Seed order is Senner then OpenAAC. After Senner import, `relinquish_bare_core_roots!` moves bare `core-N` → `senner-baud-core-N` (child keys like `core-60-when` stay shared). After each `quick-core-N.obz` import, `rekey_quick_core_root!` sets the root to `quick-core-N` and `sync_load_board_keys!` runs.
+
+---
+
 ## Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in
 
 **Surface:** fresh beta/local DB setup through `db/seeds.rb`.
@@ -4582,7 +4624,7 @@ Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events
 
 ## Pattern: co-located modal `{{on "click" (fn this.ctrlAction …)}}` — use `(this.ctrlAction …)`
 
-**Surface:** `speak-menu`, `button-settings`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
+**Surface:** `speak-menu`, `button-settings`, `copy-just-this-board`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
 
 **Root cause:** `ctrlAction` returns a handler function. `(fn this.ctrlAction "x")` invokes `ctrlAction("x", …)` at click time and discards the returned handler, so the action never runs. Under speak mode, `raw_events` `dispatchPassThroughClick` still needs a bound handler — pass-through logs fire but close no-ops. Use `(this.ctrlAction "x")` (bind at render) for `{{on}}`, `modal-dialog` `action`/`opening`/`closing`, and `button-listener` `buttonEvent`. Classic `{{action "x"}}` also works; pair with `modalDialogClickRelease()` when pointer synthesis is suppressed.
 
@@ -6350,6 +6392,32 @@ word-prediction UI through it. Master `nil` = grandfather allow; master false = 
 = per-feature must be true for `USER_PREF_AI_FEATURES`. See
 `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-15)
 
+## Gotcha: Generate-with-AI UI opt-in is explicit; server grandfather is not
+
+`prefAllowsAi` still grandfathers a nil master (the generate_labels API can succeed). The
+create-board chooser uses `prefExplicitlyEnabled` / `boardGenerationEntry` so unset prefs open
+`enable-ai-features` instead of letting the user fill the form and then see "Feature not
+available". Do not fold that stricter check into `aiFeatureEnabled` — other AI UI still relies on
+grandfather. Register the modal in `modal-container.hbs` **and** `convertedModals` (same trap as
+`eu-ai-parental-consent`). Cancel is `modal.close(false)`, which **rejects**; callers must
+`.then(stay, stay)` or cancel looks like an unhandled error. EU under-16 without consent opens
+`eu-ai-parental-consent` instead of self-enable.
+
+The create-board chooser (`.nb-create-chooser`) is an in-page `position:fixed` overlay at
+z-index 6000, above Bootstrap `.modal` (1050). Opening `enable-ai-features` (or EU consent)
+while the chooser is visible paints the system modal behind the chooser, and the chooser's
+`backdrop-filter` blurs it. Hide the chooser before `modal.open`, restore it if the user
+does not proceed — same pattern as `choose_paste_html` / `choose_json_bundle`. Do not raise
+global `.modal` z-index to beat the chooser.
+
+`applyAiFeaturePrefs` must only write `true` for requested keys (master + the triggered feature).
+Writing `false` for the other `USER_PREF_AI_FEATURES` overwrites siblings that were already on
+(e.g. word prediction). Clone the whole `preferences` object before `user.set('preferences', …)`
+so Ember Data `attr('raw')` dirties. Apply runs before `user.save()`, so Cancel and a rejected
+save must `rollbackAttributes()` or the next Generate with AI skips the popup with in-memory prefs
+on and the API can still 403. See
+`docs/task-management/2026-08-17-ai-enable-popup.md`. (2026-08-17)
+
 ## Gotcha: `EvalNarrator` shipped against the OLD `ruby-anthropic` API; the gem is official `anthropic ~> 1.23`
 
 `lib/eval_narrator.rb#draft_via_anthropic` originally used `Anthropic::Client.new(access_token:)` +
@@ -6953,17 +7021,22 @@ Before adding any "choose which sub-boards to copy" UI, know the infra is alread
 - **Frontend:** `utils/board_hierarchy.js` builds the downstream tree with per-board `selected`
   flags, `selected_board_ids()`, `root_deselected`, `set_downstream(id,'selected',bool)`, `toggle()`.
   The `{{board-hierarchy selectable=true hierarchy=…}}` component renders the selectable tree
-  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, and the `copying-board` modal).
+  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, `copy-board`, and `copying-board`).
   `components/board-hierarchy.js` `select_all(state)` now honors `state` → `select_all false`
   is Deselect All (existing callers pass no arg, so they still select).
-- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols); the EXECUTION modal is
-  `copying-board`, which loads the hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all
-  selected by default) and passes `hierarchy.selected_board_ids()` as the include list.
+- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols). It also loads the
+  hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all selected by default) and shows the
+  collapsed `md-modal-expander` picker under the linked-boards hint. Confirming a full-set copy
+  passes `skip_hierarchy_picker` + `board_ids_to_copy`. The EXECUTION modal is `copying-board`,
+  which then skips its picker and starts the copy (progress only). If hierarchy load is still
+  in flight or failed, omit the skip flag so `copying-board` keeps its fallback picker.
+  `keep_links` / `remove_links` never skip; they still start copying immediately.
 - **Backend:** the copy endpoint already accepts `expand_selected_board_ids` (users_controller →
   user.rb#2559 → relinking.rb `copy_board_links_for`), so partial copies are supported server-side.
 So "modernize the copy modal / default-all-selected / deselect some" = a UI disclosure around the
 existing `board-hierarchy`, NOT a new feature. (2026-06-27: collapsed the picker behind a
-`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`.)
+`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`. 2026-08-21:
+moved that expander onto `copy-board` so linked-board copy is one decision screen.)
 
 ---
 
@@ -7580,7 +7653,14 @@ guards, or tests in a file that already has grandfathered findings (especially l
 new runloop call sites were added. Diagnose before migrating: compare counts of
 `file|ruleId|messageHash` (ignore line/column). Line-only churn → fix any truly new violations,
 then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
-in the same PR. See [`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md).
+in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new) and
+`feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
+computed dep; the rest were `application.js` line shifts from three payload keys). New unit tests
+must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
+`@ember/test-helpers`. See
+[`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),
+[`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md),
+and [`2026-08-21-copy-board-eslint-todo-gate.md`](./2026-08-21-copy-board-eslint-todo-gate.md).
 
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
@@ -9191,7 +9271,7 @@ Stop Masquerading controls (PR #714) signal masquerade without naming the acting
 
 **Root cause:** Two systems share the word category. (1) Personal folders = `user.settings.board_tags` via the tag-board modal. (2) Catalog browse = `board.settings.categories` with fixed ids (`cause_effect`, `robust`, …), set in Edit Board Details when "can be used as a home board" is checked. The tabbed picker also had a hard-coded coming-soon stub that skipped `_resolveCategoryBoards` for `cause_effect`.
 
-**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags.
+**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags. PR #761 also removed the Keyboards "Coming soon" placeholders the same way (`_resolveCategoryBoards('keyboards')`). Traci's later picker rework (`f2cc29f13`, 2026-08-09) put those placeholders back; restored on `fix/melissa-board-picker-stale-category`.
 
 **Evidence:** [`2026-08-05-board-picker-cause-effect-catalog.md`](./2026-08-05-board-picker-cause-effect-catalog.md); `components/board-picker.js` / `.hbs`.
 
@@ -11107,6 +11187,788 @@ regression check converts "I could not look" into "there is nothing there". Alwa
 HOW the read succeeded (length, access path) alongside the result, so a vacuous read is
 visible in the output rather than indistinguishable from a clean one.
 
+## Pattern: LingoLinq has TWO eval pipelines — check which one produced the page before "fixing" a report (2026-08-14)
+
+"The new report isn't showing on `/:user/logs/last-eval`" is almost never a broken
+render. There are two independent evals and they end in different places:
+
+| | Tiered eval | Full eval |
+|---|---|---|
+| Entry | `eval.quick` route (caseload link) | speak-mode boards, `app_state.eval_mode`, `obf/eval-*` |
+| Engine | `utils/eval_session.js` + `utils/eval_recommend.js` | `utils/eval.js` |
+| Ends at | `user.logs` list after `session.persist()` | **`user.log` / `last-eval`** (`eval.js:221`) |
+| Renderer | `eval-quick-report` / `eval-saved-summary` | `templates/user/log.hbs` raw trial tables |
+
+`routes/user/log.js:13` builds an **in-memory** log for `last-eval` with no
+`tiered_eval`, so the `{{#if this.model.tiered_eval_type}}` branch at `log.hbs:2`
+can never match there — it always falls through to the legacy `processed_assessment`
+renderer. Anything built only for the tiered flow is invisible on that page **by
+construction**, not by regression. Confirm which pipeline ran before diagnosing:
+a tiered eval leaves a `log_sessions` row, a full eval may leave nothing (memory +
+an IndexedDB `eval_progress_<uid>` snapshot only).
+
+Two traps when bridging them:
+
+1. **`analyze()` overwrites the raw access key with a localized label**
+   (`eval.js:892-903` — `res = Object.assign({}, assessment)` then
+   `res.access_method = <translated>`). Anything that needs to *branch* on the access
+   method must read the raw key, so `analyze()` now also emits `access_method_key`.
+   Same shape of trap anywhere a display label is written back over its own source value.
+2. **`GRID_BANDS[].band` labels describe the Quick Screen's EXTRAPOLATION, not a size.**
+   The Quick Screen probes stop at 4×6, so 24 demonstrated cells recommend the
+   84-button band. The full eval tests 1×2 → 8×14 directly (`eval.js:1099-1137`, clusters
+   24/60/112 = 4×6, 6×10, 8×14) and reports the largest grid actually mastered — so the
+   demonstrated grid IS the recommendation, and reusing the band label prints a mastered
+   4×6 as `tiny`. Share `GRID_BANDS` for *which published sizes exist*; do not carry its
+   labels across. Bonus: those clusters line up 1:1 with `VOCAL_FLAIR_BUTTON_COUNTS`
+   (24/40/60/84/112), so the page-set recommendation needs no heuristic.
+
+## Gotcha: an AAC eval report is TWO documents with conflicting rules — brand naming is the fork (2026-08-14)
+
+Per `docs/AAC_EVALUATION_STANDARDS.md` §2, a medical/funding report **must** name
+manufacturer + product + HCPCS, and a school/IEP report **must not** — naming a product
+in an IEP obligates the district to provide that exact product. So any recommendation UI
+that names a board/page set (`eval-page-set-card`, "Vocal Flair 84") is medical-mode only
+and must be replaced by feature language in school mode. This is a hard content rule, not
+a display preference: a single "eval report" that always names the product is wrong half
+the time. Related §6 rule — do not print a fabricated confidence number for a battery with
+no fixed denominator; report data volume (scored trials, accuracy, latency) instead.
+
+## Gotcha: a saved eval can only be rewritten by RE-SENDING it — and a mismatch silently forks the record (2026-08-14)
+
+There is no merge-into-a-saved-eval endpoint. `PUT /api/v1/logs/:id` reaches
+`LogSession#process_params` with `update_only`, which writes **only** `highlighted` and
+per-event notes (`log_session.rb:1678-1730`); `data['eval']` lives in the other branch and
+is unreachable on update. The client also never learns an eval's log id — evals are pushed
+as events through a `JobStash` and the response is a synthetic `fake-…/pending` record
+(`json_api/log.rb:13-18`), with the real LogSession created later in Resque. (Hence the
+long-standing `// TODO: how to get log_session_id for in-memory evaluation` in
+`controllers/user/log.js`.)
+
+The one supported rewrite is the resume path: **re-send the whole eval event**. The server
+matches it to the existing record by `log_session_id` (exact, unbounded) or by `ref_id` (a
+Ruby-side scan over evals created in roughly the last 72h — `data` is encrypted, so no SQL
+match is possible), then calls `s.process({eval: ...})`, which **replaces `data['eval']`
+wholesale** (`log_session.rb:1058-1077`, `1810`).
+
+Three consequences, all load-bearing:
+
+1. **Send the complete blob, never a patch** — and start from the RAW eval, not
+   `evaluation.analyze()`'s return value, which is an `Object.assign` copy carrying derived
+   display fields that must not be persisted. (This is why `controllers/user/log.js` now
+   has a `raw_assessment` computed that `processed_assessment` derives from.)
+2. **Authorship is a data-integrity boundary, not a permission nicety.** The reattach
+   requires `s.user == user && s.author == self.author`; when it fails the server does not
+   error — it creates a **duplicate eval LogSession** (`log_session.rb:1108`). Verified by
+   negative-control spec: a mismatched `ref_id` produced 2 eval logs and the new data never
+   reached the original. Any UI that re-sends an eval must gate on authorship first.
+3. **The write is asynchronous and unconfirmable** (stash → 10s-throttled push → Resque),
+   so UI must say "saved, syncing", never a bare "saved".
+
+Anything stored inside the eval blob (e.g. `data['eval']['report_workbook']`) rides along
+for free and reads back under `json['evaluation']` (`json_api/log.rb:102`) — no server
+change needed. But do NOT write `eval_mode` onto a legacy eval record: both
+`generate_defaults` (`log_session.rb:286-315`) and the serializer (`json_api/log.rb:82-104`)
+branch on it before `data['eval']`, so it would silently switch the record's date derivation
+and JSON shape.
+
+## Gotcha: `stashes.online` is seeded ONLY by an observer that never fires on a machine that starts online (2026-08-14)
+
+Symptom: nothing is ever logged to the server — no sessions, no evals, no assessments.
+`log_sessions` gets no new rows, `job_stashes` gets none, Resque queues sit empty, and
+`log/development.log` records **zero** `POST /api/v1/logs`. Everything piles up in
+`localStorage['lingolinqStash-usage_log']` instead, silently.
+
+Root cause: `push_log`'s guard is `this.get('online')` on the **stashes service**
+(`services/stashes.js`), which is a DIFFERENT flag from `persistence.get('online')`.
+The only thing that propagated a value into it was persistence's `on_connect`, an
+`observer('online', ...)` (`utils/persistence.js:3959`, `services/persistence.js:3945`).
+Observers fire on CHANGE. Persistence initializes its own flag from `navigator.onLine`,
+so when a machine is online at boot and stays online, that flag never changes, the
+observer never fires, and `stashes.online` stays **`undefined`** — falsy — for the whole
+session. Every push returns silently at the guard.
+
+Observed directly with Playwright against the running dev app (no user console needed):
+```
+navigator.onLine          -> true
+persistence.get('online') -> true
+stashes.get('online')     -> undefined     <-- every push silently dropped
+```
+
+Fix: seed it in `services/stashes.js#setup()` from the same source persistence uses
+(`this.set('online', navigator.onLine)`); the observer still keeps them in step afterwards.
+
+Two general lessons:
+1. **Two flags with the same name on two objects will drift.** `persistence.online`,
+   `stashes.online` and `navigator.onLine` are three separate things here; verifying one
+   in the console proves nothing about the one the write path actually reads.
+2. **A guard seeded only by an observer has no value until the observed thing CHANGES.**
+   If the initial state is already the steady state, the observer never runs. Seed
+   explicitly; don't let an observer be the sole initializer.
+
+Debugging technique worth reusing: browser-only state is observable from the shell with
+`npx playwright` against `localhost:8184` (chromium is already installed; log in via
+`/login`, fields `#identification` / `#password`). Far better than asking the user to run
+console commands and relay results.
+
+## Gotcha: `adapters/application.js` overrode `ajax()` and silently form-encoded every write (2026-08-15)
+
+`RESTAdapter#ajax` is not just a transport call — it is what invokes `ajaxOptions()`,
+and `ajaxOptions()` is what sets `contentType: application/json`, `dataType: 'json'`
+and `JSON.stringify(data)`. An override that calls `$.ajax(options)` directly (added in
+`248150d15`, 2026-01-18, to make extras.js' Authorization patch apply) skips it, and
+jQuery then form-encodes the body. Nothing warns; the request still succeeds.
+
+Form encoding loses three things the API can never recover:
+
+* **Arrays become index-keyed objects.** Rails builds an Array only for `a[]=`;
+  `log[events][0][type]` parses as `{'events' => {'0' => …}}`. Downstream
+  `params['events'].map{|e| e['user_id']}` then yields `['0', {...}]` and raises
+  `TypeError: no implicit conversion of String into Integer`.
+* **Numbers become strings** — `event['window_width'] > 0` →
+  `ArgumentError: comparison of String with 0 failed`.
+* **Booleans become strings** — `false` arrives as `"false"`, truthy in **both** Ruby
+  and JS. This is the one that forces a client-side fix: no server-side coercion can
+  tell the boolean from the string, so a failed eval trial silently reads as passed.
+
+Lessons:
+
+1. **When overriding a framework method to inject one concern, call the framework's own
+   option builder — don't hand it your raw input.** `$.ajax(this.ajaxOptions(url, type, options))`
+   keeps both the auth patch and the request semantics.
+2. **`extend({useFetch: false})` does NOT override a native class field.** Upstream
+   declares `useFetch = true` as a class field; field initializers run on the instance
+   after the prototype is built, so the `extend` property is overwritten before the first
+   request. Assign it in `init()` instead. The failure mode is nasty: `ajaxOptions` takes
+   the fetch branch and returns `{body}`, jQuery ignores `body` and form-encodes `data`
+   anyway, so the body is form-encoded while the header claims JSON and Rails answers
+   `ActionDispatch::Http::Parameters::ParseError`.
+3. **A 200 from an endpoint that enqueues work proves nothing.** `process_as_follow_on`
+   returns a synthetic `fake-…/pending` record and the real write happens in Resque. When
+   the job raises, the queues drain to empty and look healthy. Check
+   `redis-cli llen lingolinq-development:failed`, not queue depth.
+
+## Gotcha: `""` is truthy in Ruby, and a serialized client model sends `""` for every unset attribute (2026-08-15)
+
+`user_id = params['user_id'] || params['log']['user_id']; user = user_id ? find_by_path(user_id) : @api_user`
+looks safe and is not. The Ember client serializes the whole model, so an unset
+`user_id` arrives as `""` rather than being omitted — `""` is truthy, so it reached
+`find_by_path("")`, got nil, and `allowed?(nil, …)` rejected the request as
+`Not authorized`. Use `.presence`, not truthiness, on any id that comes from a
+serialized client model.
+
+Diagnostic tell worth remembering: `allowed?` adds `resource_class` / `resource_id` to
+its error body **only when the object is non-nil**. Their absence in a captured 400 says
+the object was nil — i.e. a lookup MISS, not a permission denial. That distinction was
+the whole difference between "the SLP lacks permission" and "we looked up the empty
+string".
+
+## Gotcha: permissions are Redis-cached, so `allows?` can disagree with the DB (2026-08-15)
+
+`Permissable` caches permission sets in Redis for 30 minutes
+(`app/models/concerns/permissions.rb` → `Permissable.permissions_redis`). A `rails
+runner` process and the running server can therefore return **different** answers for
+the same `allows?` call, and a stale entry survives edits to the underlying links.
+
+Before concluding that supervisor data was lost, check the durable state directly:
+`UserLink.where(user_id: communicator.id)`, `user.permissions_for(other)`, and
+`GET /api/v1/users/self`. If those look right and `allows?` says false, it is the cache.
+`u.touch` on both users changes the cache key and forces a recompute.
+
+Corollary for this repo: a browser login currently re-poisons that cache — see
+`HANDOFF-evals-not-saving.md`, "Environment problem". Open, unowned, pre-existing.
+
+## Pattern: a recompute that returns fresh objects will destroy the input the user is typing in (2026-08-15)
+
+`{{#each}}` keys on `@identity`. A computed that maps over a schema and returns **new
+plain objects** each time therefore forces Ember to tear down and rebuild every item's
+DOM whenever it invalidates — including a focused `<input>`. In `eval-workbook`,
+`writeField` called `notifyPropertyChange('workbook')` on every keystroke to refresh the
+"started" badges, so each field accepted exactly ONE character before the element was
+destroyed and focus fell back to `<body>`. The form was unusable, and it compiled, linted
+and passed static review.
+
+Fix shape: **separate stable structure from reactive status.** The structural computed
+depends only on structural keys; the per-keystroke status (badges, counters) hangs off a
+`revision` counter the writer increments, and the template reads it from a side map
+(`{{get this.startedMap section.id}}`). Genuinely structural edits — adding or removing a
+repeating row — still invalidate the structure, which is correct because nobody is
+mid-keystroke when they click a button.
+
+Detection technique, since this is invisible to unit tests and to `fill()`-style test
+helpers (which set `.value` and fire one event):
+
+```js
+await p.focus(sel);
+await p.evaluate(s => { document.querySelector(s).__mark = 'M'; }, sel);
+for (const ch of 'board') { await p.keyboard.type(ch); await p.waitForTimeout(120); }
+// same_node false / still_focused false / value === 'b'  => the node is being rebuilt
+```
+
+General lesson: **"it renders" and "it can be used" are different claims.** Only typing
+character by character, with focus assertions, distinguishes them.
+
+## Gotcha: a transient instance flag that changes permissions but not the cache key (2026-08-15)
+
+`User#valet_mode?` is `!!@valet_mode` — a per-instance, per-request flag, not a column.
+Nearly every rule in `User` is guarded by `&& !user.valet_mode?`, so it changes the answer
+completely. But Permissable keys its permission cache on `user.cache_key`
+(id + `updated_at`) plus the scopes, and the flag is in **neither**. A valet-mode
+computation and an ordinary one therefore share one Redis slot for 30 minutes, and
+whichever ran first wins.
+
+How it surfaced: every login PUTs the whole user model to `/users/self`; a user with a
+valet password configured sends `valet_login: true` with `valet_password: null` (the UI
+never echoes the secret back), which made `set_valet_password` treat a no-op re-save as a
+fresh enable — regenerating the secret AND calling `assert_valet_mode!` on the in-memory
+user. The rest of that request then computed permissions as a valet, and
+`JsonApi::User.build_json` cached "no model, no supervise" for every supervisee. Ordinary
+requests read it and 400'd for the next half hour: the supervisor was locked out of their
+own communicators.
+
+Lessons:
+
+1. **If a value changes what a cached computation returns, it belongs in the cache key.**
+   Folding it into the scopes works when the cache key already includes scopes, and is
+   safe when no rule declares that scope name (a scope match needs one intersection hit,
+   so an extra unmatched entry partitions the cache without granting anything).
+2. **Configuring a credential is not authenticating with it.** `set_valet_password`
+   asserting valet mode conflated "this account has a valet login" with "this request IS
+   the valet." The existing specs called `assert_valet_mode!` themselves, which is the tell
+   that the method was never meant to do it.
+3. **The direction you observe is not the only direction.** Here a restricted computation
+   denied a legitimate user. The inverse — a valet session reading the permissive entry a
+   normal session cached — is privilege escalation through the same slot.
+
+Debugging technique that broke the deadlock: **instrument the cache WRITE, not the read.**
+Logging inside `permissions_for` after `super` reports the inputs at read time, which look
+perfectly healthy on a cache hit and sent me chasing phantom data loss. `set_cached` only
+runs on a miss, so logging there — with the user stashed in a `Thread.current` by a thin
+`permissions_for` override — captured `valet=true` and the exact `caller` in one run.
+
+Corollary bug found alongside: `Permissable#allows?` appends `'*'` to the scopes and then
+passes the already-appended array to `permissions_for`, which appends it AGAIN. So
+`allows?` reads `scopes_full,*,*` while a direct `permissions_for` reads `scopes_full,*` —
+two cache entries for one question, free to disagree indefinitely, because a correct value
+computed via one path never repairs the other. If `allows?` and `permissions_for` ever
+disagree at the same instant, this is why.
+
+## Gotcha: Rails controller specs stringify scalar params — a green suite proves nothing about the JSON contract (2026-08-15)
+
+`post :create, params: {:x => true, :y => 4}` in a controller spec does **not** deliver a
+boolean and an integer. Rails' test harness flattens scalars to Strings, so the controller
+receives `"true"` and `"4"`. Nested Arrays and Hashes keep their structure. Probed directly
+against `Api::BoardsController`:
+
+```
+params: {:board => {:public => true, :rows => 4, :tags => ['a','b']}}
+  => "public"=>"true" (String), "rows"=>"4" (String), "tags"=>Array
+body:   {...}.to_json  + request.headers['Content-Type'] = 'application/json'
+  => "public"=>true (TrueClass), "rows"=>4 (Integer), "tags"=>Array
+```
+
+Consequences, both of which bit on this branch:
+
+1. **The `params:` style tests the form-encoded shape, not the JSON one.** After
+   `6df5b1bbc` restored JSON request bodies, the entire backend suite still exercised the
+   old wire format for scalars. A handler that accepts only `params['x'] == 'true'` passes
+   every spec in the repo and fails in the browser. Arrays are the exception — preserved
+   in both modes — which is why index-keyed-Hash handling *was* genuinely covered.
+2. **It silently launders type bugs into passing assertions.** The tell is a spec that
+   coerces before asserting: `expect(log.data['duration_s'].to_i).to eq(42)`. The `.to_i`
+   is there because the harness stringified it. Over a real JSON body the value is an
+   Integer and needs no coercion — so the `.to_i` was hiding the fact that the type was
+   never being tested.
+
+To pin a JSON contract, post a raw body:
+
+```ruby
+request.headers['Content-Type'] = 'application/json'
+put :update, params: {:id => b.global_id}, body: {:board => {...}}.to_json
+```
+
+`params:` still supplies path params (`:id`); the body is parsed and merged.
+
+**Always run the negative control.** Re-post the same assertions the `params:` way; only
+the ones that FAIL are regression detectors. Of nine specs added here, six failed the
+control (numbers, `false`, `duration_s`, button ids, numeric preferences, the no-clobber
+guard) and three passed it — because `board.rb`'s flag normalization and
+`process_boolean` already repair the string forms. Those three are contract pins, worth
+keeping but not worth counting as coverage. Without the control you cannot tell the two
+apart, and a "passing" spec that would pass either way proves nothing about the change
+it was written for.
+
+The control also produces evidence you cannot get any other way: posting an omitted
+preference the `params:` way showed a stored `750` being **overwritten with `""`**,
+confirming from observed behavior — not from reading the code — that under form encoding
+every unset attribute clobbered its setting on every save (`user.rb` PREFERENCE_PARAMS is
+guarded by `!= nil`, and `""` passes that guard while `nil` does not).
+
+See `docs/task-management/2026-08-15-adapter-json-blast-radius.md` for the full sweep.
+
+## Technique: replay the REAL captured request body — a hand-built payload tests nothing (2026-08-15)
+
+Probing an authorization boundary with a payload you constructed from reading the code is
+close to worthless, because the most likely outcome is that your payload is malformed and
+the request dies *before* reaching the decision you meant to test — while returning the
+same 200 a correct refusal would.
+
+Concretely: a hand-built eval-hijack POST put the blob at `log.data.eval`, returned
+`200 {"pending":true}`, and changed nothing. That reads exactly like "the server refused."
+It wasn't. `redis-cli llen lingolinq-development:failed` went 3497 → 3498 with
+`no valid events to process out of 0` — the job never reached an author check. The real
+client sends the eval inside `log.events[0].eval` (`utils/eval#save_workbook` →
+`stashes.log_event`, so it is an EVENT, not a `data` key).
+
+The reliable method:
+
+1. drive the real UI with Playwright and capture the request:
+   `p.on('request', rq => { if (rq.method()==='POST') body = rq.postData(); })`
+2. write it to disk, mutate only the one field you are attacking,
+3. replay with `curl --data-binary @body.json` under the other account's token.
+
+Only then does a "nothing happened" result mean refusal. Pair it with the failed-queue
+delta every time — in this codebase the HTTP response is a synthetic
+`fake-…/pending` record and the real write is a Resque job, so the queue counter is the
+only thing that distinguishes "refused" from "died".
+
+## Gotcha: before guarding against a behaviour, check whether a spec SPECIFIES it (2026-08-15)
+
+A non-author's eval save was forking the record, so the obvious fix was to refuse the
+write when `s.author != self.author`. That broke `log_session_spec.rb:1171` — "should
+create a new copy if the eval was resumed by a different author" — which specifies the
+fork as intended: two clinicians can each hold their own eval of the same communicator,
+and the second author's work must not overwrite the first's.
+
+The real defect was narrower than the behaviour it lived inside: the fork inherited the
+original's `ref_id`, and `utils/eval#find_saved_log_id` matches on `ref_id` and takes the
+first hit. Two records answering to one id made "which record does a workbook save bind
+to" list-order dependent, for BOTH accounts. In the pre-existing spec the fork carries no
+`ref_id`, which is exactly why that spec never caught it.
+
+Fix: drop only the inherited identifier, keep the fork. Rule of thumb — when a guard you
+add breaks an existing test, the test is usually describing a case you did not know
+about; re-scope the guard to the actual harm rather than deleting the test. RULE #0 §3.
+
+## Gotcha: `window.app_state` does not exist — it is `window.LingoLinq.appState` (2026-08-15)
+
+`utils/app_state.js` resolves the singleton via `LingoLinq.appState`, and `app.js:1006`
+exposes only `window.LingoLinq`. A Playwright probe reading `window.app_state.get(...)`
+returns `null` for everything, silently — including values you can see are set on screen.
+
+Two consequences worth internalising beyond the specific global:
+
+- **A probe that reports `null` for something you KNOW is set is broken, not evidence.**
+  Always include a control field (`currentUser` while plainly logged in). If the control
+  is null, throw the run away rather than interpreting it.
+- **Don't select a button by its CSS class alone when the class is shared.**
+  `.md-board-preview__action--primary` is worn by whichever primary CTA that footer
+  branch rendered; clicking it "worked" while pressing the wrong control entirely. Match
+  on the accessible text instead, and assert the label you matched.
+
+Working probe:
+
+```js
+const flags = () => p.evaluate(() => {
+  const as = window.LingoLinq && window.LingoLinq.appState;
+  const nm = (u) => (u && u.get) ? u.get('user_name') : (u === null ? null : String(u));
+  return { setup_user: nm(as.get('setup_user')), currentUser: nm(as.get('currentUser')) };
+});
+```
+
+## Gotcha: a DB read taken right after a backgrounded write is not a verdict (2026-08-15)
+
+Picking a home board for a supervisee schedules a `Progress`-backed copy (95 boards, in
+this case). Reading `settings['preferences']['home_board']` seconds later returned `NONE`
+twice, and I twice concluded the UI was reporting success while nothing persisted.
+
+It was persisting; my reads were racing the job. The thing that settled it was the full
+request trace — `PUT /api/v1/users/1_33` sent
+`{"id":"hannah_lee/vocal-flair-60","key":...}` and the server returned
+`{"id":"1_1458","key":...,"locale":"en_US"}`, a RESOLVED id, which is proof of a kept
+write in a way a racing `SELECT` is not.
+
+Order of evidence for "did this save?": the server's response body first, then a fresh
+reload, then the failed-queue delta. A bare model read immediately after a scheduled job
+is the weakest of the four and the easiest to misread as a bug.
+
+Related trap in the same flow: `saveHomeBoard` (`utils/home_board.js`) verifies the save
+by re-reading `preferences.home_board` off the SAVED record. That is only meaningful
+because the server re-serializes from its own record — had the response omitted the key,
+Ember Data would have kept the optimistic local value and the check would have verified
+its own write.
+
+## Gotcha: i18n_generator.rb silently drops any `i18n.t` call whose `)` is on the next line (2026-08-15)
+
+The parser extracts the key and the English string, then scans for the closing `)`
+**on the same line** (`i18n_generator.rb:124-134`). A call formatted like this:
+
+```js
+return i18n.t('workbook_progress', "%{n} of %{t} sections started", {
+  n: this.get('startedCount'), t: this.get('sectionCount')
+});
+```
+
+never finds it, so the key is counted MISSING. Two consequences, both quiet:
+
+1. **Generation is blocked entirely.** `if dups > 0 || missing > 0` prints
+   "FOUND ISSUES, SO NO GENERATION" and no locale file is written — so ONE badly
+   wrapped call stops every other new string from reaching every locale.
+2. **A regenerate DELETES the key.** en.json is rebuilt from the source scan, so a
+   key that was added by hand (and therefore looks fine in the app, because
+   `i18n.t` falls back to its English 2nd argument) vanishes on the next
+   `--generate`, and can never be translated in the meantime.
+
+Six keys on the eval-report branch were in exactly this state. Fix is formatting:
+keep the whole call on one line. The `)` inside the STRING does not help — the scan
+starts after the closing quote.
+
+Run `ruby i18n_generator.rb` with no arguments before finishing any string work: it
+writes nothing and prints `TOTAL DUPS / TOTAL MISSING / TOTAL STRINGS`. Anything
+other than 0/0 needs fixing before the file is committed.
+
+Related: the generator scans BOTH `app/frontend/app/**/*.js` (`:10`) and
+`**/*.hbs` (`:142`), so template-only keys are safe. And it now pins
+`Encoding.default_external = UTF-8` itself — it previously died on the first read of
+en.json in any shell without LANG/LC_ALL set (`"\xE2" on US-ASCII`), which is most
+non-interactive shells.
+
+## Gotcha: an Ember dependency key only works on a real PROPERTY, not a module import (2026-08-15)
+
+`controllers/user/log.js` had:
+
+```js
+import app_state from '../../utils/app_state';
+...
+same_author: computed('model.author.id', 'app_state.sessionUser.id', function() {
+  return this.get('model.author.id') == app_state.get('sessionUser.id');
+}),
+```
+
+The KEY was the bug that day — Ember cannot observe a module import. The BODY
+was not fully correct: it compared `sessionUser.id`, which is often the `'self'`
+sentinel. That second bug is the 2026-08-18 gotcha below.
+
+This fails silently in both directions — no error, no warning, and the value is
+CORRECT on first read, which is what makes it survive review. Grep for it:
+
+```bash
+grep -rn "computed(" app/frontend/app | grep -E "'(app_state|persistence|modal|capabilities)\."
+```
+
+Any dependency key naming a module import rather than an injected service is dead.
+Fix by injecting (`appState: service('app-state')`) and reading through
+`this.get(...)` so the watched path and the read path are the same object —
+`services/app-state.js:70` assigns `LingoLinq.appState = this` and
+`utils/app_state.js` is a Proxy onto it, so this is the same instance, not a second.
+
+**Test it with a mutation, not a value.** Asserting `same_author === true` passes on
+the broken version too. The only test that catches it reads once, changes
+`sessionUser`, and reads again — of 3 specs written here, that is the single one the
+negative control failed.
+
+## Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates (2026-08-18)
+
+Fixing the `same_author` *watch* path (injected `appState`, key
+`'appState.sessionUser.id'`) left the *comparison* broken.
+`serializers/application.js` pins the session-user record id to the literal
+`'self'` so Ember Data never re-keys the identifier. `models/user.js#global_id`
+is the real backend id. `model.author.id` is a real global id like `'1_24'`.
+`'1_24' == 'self'` is always false, so "Resume Evaluation" stayed hidden from
+the eval's own author.
+
+It is a window, not a constant: a later local-storage read can close it and put
+the real id on `.id`. While the window is open, `.id` comparisons fail. Mirror
+`eval-workbook.js#isAuthor`: prefer `sessionUser.global_id`, fall back to `.id`,
+drop the `'self'` sentinel, fail closed.
+
+A test that stubs `{ id: '1_24' }` will not catch this. Stub `{ id: 'self',
+global_id: '1_24' }` — that is the network load path.
+
+## Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if` (2026-08-18)
+
+`supervisor_relationships_controller.rb` had `channel` / `actor_id` at 4 spaces
+inside a 6-space `if` body. That looks like they escaped the guard. They did
+not: Ruby uses `if`/`end`, not indent. `AuditEvent.log_command` stayed inside
+the same `end`, so unresolvable tokens still wrote no audit row (the spec
+already asserted this). Re-indent for humans; do not "fix" control flow that
+is already correct.
+
+## Gotcha: a test that leaks state into a SHARED service hangs the run, it does not fail it (2026-08-15)
+
+A new unit test set `sessionUser` on the `app-state` service to a stub and never
+restored it. `app-state` is a singleton shared by every test in the run, so the stub
+outlived the module and reached the user-scoped `persistence` suite — where it did
+not fail an assertion. It **hung the browser**:
+
+```
+not ok 1513 PuppeteerChrome - error
+  Error: Browser timeout exceeded: 120s
+  Error while executing test: persistence: persistence find - should update freshness of results as applicable
+```
+
+testem killed the run at test 1513 of 1995, so ~480 tests never executed.
+
+Two things make this genuinely hard to spot:
+
+1. **It reads as flaky infrastructure, not a test defect.** "Browser timeout" plus
+   Chrome's GPU/GCM noise in the log looks like an environment problem, and the
+   machine really was loaded. The temptation is to shrug and re-run.
+2. **The truncated summary looks plausible.** It reported `1 fail` and `15 skip`.
+   The skip count is the tell — this suite has 38 skips, and a skip count can only
+   go DOWN if the run ended early. Always compare tests/pass/**skip** against a
+   known-complete baseline; `fail: 1` alone hides that 480 tests never ran.
+
+Fix is the cleanup hook, restoring the PRIOR value rather than blanking it:
+
+```js
+hooks.beforeEach(function() {
+  const app = this.owner.lookup('service:app-state');
+  this._priorSessionUser = app ? app.get('sessionUser') : null;
+});
+hooks.afterEach(function() {
+  const app = this.owner.lookup('service:app-state');
+  if (app) { app.set('sessionUser', this._priorSessionUser || null); }
+});
+```
+
+Rule: any test that writes to `app-state` (`sessionUser`, `currentUser`,
+`setup_user`, `tour_board_picker_active`, …), `stashes`, or `persistence` needs a
+matching `afterEach`. The board-preview spec in the same session already did this
+for `tour_board_picker_active`; the controller spec did not, and that asymmetry was
+the whole bug.
+
+Confirmed by re-running: with the hooks added the suite completed at 1995/1956/38
+skip/0 fail with zero browser timeouts, and `persistence find` ran normally.
+
+## Technique: negative-control the CHECK, not just the fix — a check that cannot fail is not a check (2026-08-15)
+
+Fixing the `%%` double-percent in the eval reports, I loaded the rendered report at
+`/hannah_lee/logs/1_5383`, found zero `%%` on the page, and nearly called it verified.
+Then ran a control with the bug deliberately restored in both templates: **also zero**.
+That eval carries no motor-map / dynamic-assessment / literacy data, so the blocks holding
+those strings never render. The "passing" check could not have failed.
+
+`EvalSavedSummary` really does render on that route (`templates/user/log.hbs:15`), which is
+what made the check look sound. Rendering the COMPONENT is not the same as rendering the
+BRANCH the string lives in.
+
+**Technique:** after a green check, break the thing on purpose and confirm the check goes
+red. If it stays green, the check is measuring nothing. Cheap, and it caught two worthless
+verifications in one session — the other being feeding the OLD literal into `i18n.t` and
+reporting it still showed `%%`, which only proves `i18n.t` returns the default you hand it.
+
+The verification that actually worked: parse every percent-bearing `{{t "..." key=...}}`
+literal straight out of the templates on disk, push each through the live in-page
+`i18n.t`, assert no `%%`. 24/24, nothing hardcoded, so it cannot drift from the source.
+
+## Gotcha: a truncated Testem run looks exactly like a failing one — `# skip` is the tell (2026-08-15)
+
+Three full `ember test` runs this session; two aborted early and both printed:
+
+```
+# tests 6      <- suite is 1995
+# pass  5
+# skip  0      <- suite has 38
+# fail  1
+Testem finished with non-zero exit code. Tests failed.
+```
+
+That reads as a regression. It is not — the run died at test 6 on
+`Browser timeout exceeded: 120s` and never reached the rest. **The discriminator is
+`# skip`:** a complete run of this suite reports 38, a truncated one reports 0. `# fail 1`
+is the timeout being counted, not an assertion.
+
+I reported "1 failure" before checking, and the conclusion would have been wrong. Check
+`# skip` against the known suite shape BEFORE reporting any regression. Better: have the
+progress monitor assert `# skip 38` and label the result COMPLETE vs TRUNCATED itself.
+
+## Gotcha: `tests/acceptance/board-lock-test.js` times out under machine load (2026-08-15)
+
+Both aborted runs above died inside this one file, on a DIFFERENT test each time. Run in
+isolation it is clean: `ember test --filter "board lock"` gives 3/3 pass. The hangs
+correlate with `ember serve` being up and browser probes hammering it concurrently.
+
+Not a real failure and not branch-specific. If a full run dies here, re-run with the dev
+server quiet before investigating anything else.
+
+## Technique: poll the built asset for a marker before probing — never sleep and hope (2026-08-15)
+
+Every browser probe against the dev server races the Ember rebuild. Sleeping a fixed
+interval either wastes time or silently tests the OLD bundle, which is how a negative
+control quietly turns into a false pass.
+
+Put a unique string in the edit and poll for it:
+
+```bash
+for i in $(seq 1 60); do
+  if curl -s http://localhost:8184/assets/frontend.js --max-time 30 | grep -q "MARKER"; then break; fi
+done
+```
+
+Note the bundle is `/assets/frontend.js` (not `lingolinq-aac.js`), and dev builds keep
+comments, so a comment marker works. Poll for the marker's ABSENCE to confirm a revert.
+
+## Gotcha: `(this.ctrlAction this.onRemove)` only works under a route controller, not angle-bracket invocation (2026-08-15)
+
+`board-preview.hbs` invoked its remove button as `(this.ctrlAction this.onRemove)`. That
+form assumes `onRemove` is an action NAME string and that `send()` will bubble from the
+component to a route controller acting as its `target` — the pre-overlay design, where
+`controllers/board-preview.js` was the target.
+
+The live path is `<BoardPreview>` rendered by `board-preview-overlay.hbs`. Angle-bracket
+invocation does not set `target`, and the passed `onRemove` is a CLOSURE, so `send(fn)`
+fails with:
+
+```
+Assertion Failed: <board-preview> had no action handler for: function () {...}
+```
+
+Match the file's own idiom instead: `(this.ctrlAction "remove")` plus a `remove` action
+that calls `this.onRemove()` if it is a function — exactly how `select`/`pick_for_home`
+already work in that component.
+
+## Pattern: when a template binding looks dead, check the SERVICE before blaming the template (2026-08-15)
+
+`board-preview.hbs`'s `{{#if this.removeContext}}` block never rendered. First diagnosis:
+`board-preview-overlay.hbs` does not pass `@removeContext`. True, but incomplete — the
+chain was broken in FOUR places, and the primary break was upstream of every template:
+
+1. `services/modal.js#_openBoardPreview` built its `boardPreview` object without copying
+   `options.remove`, so `boardPreview.remove` was ALWAYS undefined. `utils/modal.js:564,572`
+   dutifully computed and passed it; the service dropped it on the floor.
+2. the overlay did not forward `@removeContext` / `@onRemove`;
+3. the overlay had no `remove` action;
+4. the component invoked it in the route-controller form (above).
+
+Each link alone is enough to kill the feature, so fixing any one of them changes nothing
+observable — which is exactly why it stayed broken. Trace producer -> transport -> consumer
+and confirm the VALUE survives each hop, rather than stopping at the first missing binding.
+Corroborating evidence that the design was intended: `controllers/board-preview.js:123-134`
+(dead route-era code) already had the correct `remove` action.
+
+## Gotcha: `%%` in an i18n string renders doubled — this i18n layer has no printf escaping (2026-08-15)
+
+`utils/i18n.js` interpolates `%{name}` (regex at :40, substitution at :68) plus a few
+`%app_name%` tokens. There is no `%%` -> `%` unescape anywhere, so a literal `%%` reaches
+the DOM as `%%`:
+
+```
+i18n.t('report_motor_map_pct', "%{p}%% accurate", {p:42})  ->  "42%% accurate"
+i18n.t('__nope',               "%{p}% accurate",  {p:42})  ->  "42% accurate"
+```
+
+A bare `%` is safe: the interpolation regex only consumes `%` when followed by `{word}`.
+`i18n_generator.rb` has no `%%` handling either, confirming it was never a convention —
+`git log -S'%{p}%%'` traces all 8 sites to the Ember 5.12 upgrade (#490), a codemod
+applying printf-style escaping this layer does not use.
+
+Write a single `%`. When fixing, do the locale files too (13 x the same keys) or
+translators inherit the artifact.
+
+## Gotcha: `a || b ? c : d` parses as `(a || b) ? c : d` — bit `utils/modal.js` for years (2026-08-15)
+
+```js
+option: board.preview_option || board.get ? board.get('preview_option') : undefined,
+```
+
+Intent was "read preview_option, tolerating boards with no `.get`". Actual behaviour: `||`
+binds tighter than `?:`, so a plain-object board carrying a truthy `preview_option` took
+the TRUE branch and threw `board.get is not a function`. Ember-record callers never
+noticed because `.get` always exists for them.
+
+Branch on the RECEIVER, not the value: `board.get ? board.get('preview_option') : board.preview_option`.
+Note `preview_option` is always assigned as a PLAIN property even onto Ember Data records
+(`button-settings.js:1392`, `board-icon.js:318/399`) — it is not a model attr — so reading
+it as one is faithful.
+
+## Gotcha: `ember test` truncations are `browser_disconnect_timeout`, not failing tests (2026-08-16)
+
+Four of six full runs in one session died with:
+
+```
+Error: Browser timeout exceeded: 120s
+# tests 1428   <- suite is 1995
+# skip  14     <- suite has 38
+# fail  1
+Testem finished with non-zero exit code. Tests failed.
+```
+
+...in a DIFFERENT place each time (board-lock twice, speecher, misc). None of the accused
+tests fail in isolation. That is `testem.js`'s `browser_disconnect_timeout: 120` reaping a
+headless browser that stalled for 120s — typically because `ember serve` and/or browser
+probes are competing for the same machine. The `# fail 1` is the reaping, not an assertion.
+
+Two things follow:
+
+1. **`# skip` is the completeness tell.** A complete run of this suite reports 38. Anything
+   less means the run died early and the tally is meaningless. Check it BEFORE reporting a
+   regression — a truncated run mimics a failing one exactly (non-zero exit, a `# fail`
+   line, a named test).
+2. **Don't blind-retry — raise the timeout.** Wrap the repo config instead of editing it:
+
+```js
+const base = require('/abs/path/app/frontend/testem.js');
+module.exports = Object.assign({}, base, { browser_disconnect_timeout: 900 });
+```
+
+```bash
+npx ember test --config-file /abs/path/to/testem-patient.js
+```
+
+That turned a 4-in-6 truncation rate into a clean 7-minute run.
+
+**But do NOT raise it in the committed `testem.js`** — I recommended that before checking,
+and the evidence says otherwise. Across the last 30 `ci.yml` runs the Ember test step
+failed ZERO times (the 6 failures were audit-artifact checks x3, rspec, Ember lint, and
+the capability ledger). CI is not hitting this. And the 120s value is deliberate: the
+workflow comment at `.github/workflows/ci.yml:126-129` wants a wedged runner to "fail fast
+instead of burning the 6h Actions ceiling", backed by a 50-minute step cap. Raising it to
+900s would make a genuinely hung browser burn 15 minutes before reporting instead of 2.
+
+So this is a LOCAL problem with a local cause: `ember serve` and browser probes competing
+with the test run on the same box. Cheapest real fix is to not run them concurrently. The
+wrapped-config trick is a workaround for when you must.
+
+## Pattern: a sentinel used as an identity compares equal to itself across accounts (2026-08-16)
+
+`serializers/application.js` pins the session user's record id to the literal string
+`'self'` so Ember Data never re-keys the identifier, parking the real id in `_actual_id`.
+Any code that then treats `sessionUser.id` as an identity is comparing a CONSTANT, and
+`'self' === 'self'` is true for every pair of accounts.
+
+This produced two bugs on the same gate, in opposite directions:
+
+- **False deny.** `models/user.js` never declared `_actual_id`, so Ember Data dropped it
+  and the record had no usable id during the window. The eval's own author read as
+  not-the-author and got the read-only banner. Fix: declare the attr, add a `global_id`
+  computed (`_actual_id || id`, matching `board.js`/`buttonset.js`), compare with that.
+- **False allow — the dangerous one.** `utils/eval.js` stamped `assessment.author_id`
+  from `sessionUser.id`, so an eval started inside the window recorded its author as
+  `'self'`. A second SLP on a shared device, also inside the window, matched it and was
+  granted edit on the first SLP's eval — exactly the fork the stamp existed to prevent.
+
+Three things generalize:
+
+1. **A sentinel is not an identity.** Reject it explicitly on BOTH sides of a comparison
+   (`if (x === 'self') { x = null; }`), do not merely prefer the real id. Old persisted
+   data still carries the sentinel long after the writer stops emitting it.
+2. **Fail closed on an ambiguous stamp.** A stored `'self'` cannot be attributed, so the
+   gate refuses it even for the legitimate author. Bounded by
+   `EVAL_PROGRESS_MAX_AGE_S` (24h); retyping a workbook beats forking a clinical record.
+3. **Check the write side, not just the read side.** The read-side fix (`global_id`) was
+   correct and shipped first, and the gate still trusted a poisoned stamp because nothing
+   had audited what WROTE `author_id`. When you fix an identity comparison, grep for every
+   place that persisted that identity.
+
+The window is short (seconds) and that is what hides it — sampling at 9s showed 5/5
+healthy, sampling at 250ms caught it live in 2 of 3 loads. See also the entry on
+negative-controlling the check.
+
+**Removing a fallback is a behaviour change.** Tightening `global_id || id` to `global_id`
+alone broke two passing tests: plain-`EmberObject` test stubs have no `global_id` computed,
+and the old `|| id` had been carrying them. The fix is `global_id || id` with the sentinel
+stripped from whichever answered — preserving every case except the one being excluded.
 ---
 
 ## Gotcha: attestation hash claims must pin retrievable git bytes
@@ -11120,8 +11982,51 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 `v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
 [`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
 
+## Gotcha: staging → audit-register merge is a union, then regenerate
+
+When `staging` lands on a findings-register branch, do not pick one side of
+`FINDINGS.json` / `DOCUMENT-REGISTER.json`. Rebuild from `git show HEAD` +
+`MERGE_HEAD`: keep this branch's unique findings and docs, add staging-only
+rows, and for a shared id keep the longer staging notes/remediation trail
+without changing status, severity, or disposition. Then run
+`scripts/regenerate-register.sh` so the `.md` mirrors and publication status
+are derived, not hand-merged. If citation-check says `file not found at sha`,
+`git fetch` that evidence commit before re-anchoring the pin. Attested
+`attestedContentHash` pins stay untouched. Task log:
+[`2026-08-17-code-hygiene-auditor-staging-merge.md`](./2026-08-17-code-hygiene-auditor-staging-merge.md).
+
+## Gotcha: a dated successor must not inherit the predecessor's attestation dates
+
+Copying `**Attestation history:** re-attested 2026-08-08` onto a `draft` successor makes the new bytes look reviewed. Label it **Predecessor attestation history** and state that this record has none. Same defect for Related links: point at the operative dated register (`2026-08-16_subprocessor-register.md`), not the frozen `SUBPROCESSORS.md`. Ref: `docs/legal/2026-08-17_ai-data-flow-classification.md`.
+
+## Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`
+
+`AiWordPredictor.predict` used to scrub `sentence` then interpolate `context.topic` into `system_prompt` unsanitized (`lib/ai_word_predictor.rb`; forwarded by `Api::WordSuggestionsController`). Closed 2026-08-18: `scrub_context` runs `redact_for_ai` on topic before the cache key and before `call_anthropic`. Durable rule: every user-derived field that reaches the vendor prompt is an egress surface and must be scrubbed at the same choke point as the primary input, not only inventoried.
+
 ## Gotcha: BREACH_RUNBOOK vendor contacts live in §7, not §11
 
 §7 is Vendor Notification List; §11 is Appendix: Key References. Changelog / header /
 register `correctionNote` text that says "§11 vendor contacts" sends responders to the wrong
 procedure. When correcting Anthropic/OpenAI/Google contact rows, cite §7.
+
+## Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction
+
+Deferring `schedule_once` until after commit closes the Redis-vs-Postgres ordering race (a worker must not recompute `available_private_board_ids` from the pre-commit snapshot). It does not close the crash/Redis-down window after commit: the relationship change is already durable, the callback cannot roll it back, and a missed enqueue leaves a revoked supervisor's persisted board-id list stale until some unrelated refresh. `RemoteAction` with `action: 'update_available_boards'` is this app's outbox (`board_caching.rb`, `organization.rb`); write it in the same transaction as the link change, keep post-commit `schedule_once` as the fast path, and let hourly `Uploader.remote_remove_batch` drain the fallback. Pull an existing delayed row's `act_at` forward on revoke so a prior 30-minute RA cannot outlive the unlink. Ref: `app/models/concerns/supervising.rb` `schedule_board_cache_refresh`.
+
+## Gotcha: authorizing the supervisee-list owner does not authorize the children inside it
+
+"Modeling only" means two different things, and conflating them breaks a whole tier. `modeling_only?` is a GLOBAL BILLING state — `billing_state` returns `:modeling_only` as the final fall-through for any supporter who is not premium, trialing, org-sponsored, an org supporter, or a manager. A PER-LINK modeling-only restriction is a property of one relationship. `modeling_only_for?` returns true for both, because it opens `return true if self.modeling_only?`. Every permission rule already encodes the right granularity for itself: `'supervise'` excludes modeling-only outright, `'set_goals'` excludes per-link but deliberately KEEPS a billing-lapsed supporter (the carve-out is written into the rule body). Layering `&& !caller.modeling_only_for?(x)` on top of `allows?` applies the coarse test to both and silently overrides that carve-out — it emptied badge feeds and caseloads for lapsed supporters, and a spec was written asserting the broken result. Do not re-implement a permission's own policy at the call site; pass the right permission and let the rule decide. CI cannot catch this class on its own: a freshly-created account is `:trialing_supporter` for 60 days, so a test must drive the state (`expires_at = 2.days.ago`) to reach it at all.
+
+`allowed?(user, 'supervise')` on a therapist says nothing about the communicators inside `user.supervisees`. A district manager holds that permission on in-org therapists (`user.rb:87`), and a supporter asking about themselves always passes, so the gate admits the whole caseload — including a contracting SLP's private out-of-org children. Exclusion filters (`!modeling_only_for?`, `!private_logging?`) make it worse: no relationship returns false and the negation lets the stranger through. The check must be affirmative per child, and it must be the RIGHT check: roster identity uses `User#listable_as_supervisee_by?` / `supervisee_listable?` ('model'), while a disclosure ABOUT the child uses `User#readable_as_supervisee_by?` / `supervisee_readable?` ('set_goals' for progress, 'supervise' for usage). Using the data predicate for a roster empties the caseload of every billing-lapsed supporter, because 'supervise' carries a modeling-only conjunct and `billing_state` falls through to `:modeling_only` for any supporter who is not premium, trialing, org-sponsored, an org supporter, or a manager. HTTP list endpoints are not the only copy — `JsonApi::User` nests the first 10 with `limited_identity` (name, avatar, unread counts, org_status) on user show, which is the caseload source for <10 communicators, and `users#ws_settings` emits ids. Withholding identity is not sufficient on its own: the same payload carried the child's home board and full downstream board-id set via `board_set_ids(include_supervisees: true)`, which re-derived from the unfiltered list, and board ids are directly fetchable. `limited_identity` is not a redaction. Grep `user.supervisees` in `app/controllers` and `lib/json_api` before calling the class closed.
+
+## Gotcha: one CLI flag carrying two meanings silently corrupts the register's evidence anchors
+
+`scripts/audit-merge.rb --sha` used to do two unrelated jobs: stamp `meta.auditedSha` (the claim "an `/audit-run` audited the WHOLE tree at this SHA", a governance act needing Scot's sign-off per `meta.auditedShaPriorNote`) **and** overwrite every incoming finding's `evidence.sha`. Adding a finding outside a full run therefore had no correct invocation: passing the true commit falsely restamped the audit pointer, and passing the register's existing `auditedSha` to dodge that restamp silently re-anchored the new evidence to a commit it was never verified against. The second is the dangerous one — `citation-check.rb` matches per LINE, so when the snippet happens to sit on the same line in both commits it passes **green with a wrong anchor**; PR #742's session only caught it because line 182 vs 152 happened to differ. Fix: `--no-restamp` (evidence anchors at `--sha`, `meta` untouched), mirroring `promote-finding.rb`, which never touches the pointer for exactly this reason. General rule: when a flag feeds two sinks that only coincide in one workflow, the workflow that separates them is the one that gets corrupted silently. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
+
+## Gotcha: `audit-artifacts-integrity` green proves renders match JSON, NOT that the register is loadable
+
+Every check in that CI job compares a generated markdown against its JSON source; none of them reads the field *shapes* the register's consumers depend on. A finding whose `source` was written as a bare String instead of an object merged fully green and then hard-crashed `promote-finding.rb` (`Hash#dig': String does not have #dig method (TypeError)`) for the **entire** register weeks later — `citation-check.rb` exited 0 on it too, since it only validates evidence. Closed with two complementary gates: `scripts/register-lint.rb` (predicted shapes, enums, id uniqueness — precise error messages) and `scripts/tests/register-consumer-smoke-test.sh` (runs the real consumers over each committed register with empty input, asserting exit 0 **and** byte-identical output — catches whatever the predicate list failed to anticipate). When adding a validator for a data file, gate on *consumability*, not just on render consistency. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
+
+## Gotcha: a status-block lead must not over-claim "remaining" or "historical"
+
+A runbook lead that says "the remaining gates are A, B, C" reads as exhaustive. If a later authoritative list also requires D and E, an operator skimming the lead can onboard with those still open. Same failure mode for "the rest of this block is historical / not as open work" when later paragraphs in the same block are live checklists. Narrow the lead (e.g. "remaining infrastructure/decommission actions") and scope the historical label to the dated snapshot paragraph only. Ref: PR #840 Codex P1s, `scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md`, [`2026-08-21-phase5-runbook-review-comments.md`](./2026-08-21-phase5-runbook-review-comments.md).

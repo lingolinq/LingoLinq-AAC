@@ -7,6 +7,7 @@ import editManager from '../utils/edit_manager';
 import persistence from '../utils/persistence';
 import eval_board_builder from '../utils/eval_board_builder';
 import goals_grid from '../utils/eval_goals_grid';
+import { vocalFlairButtonsForGrid } from '../utils/recommended_home_board';
 
 /*
  * eval-quick-report — final summary card.
@@ -146,6 +147,20 @@ export default Component.extend({
       const accuracy = attempts ? Math.round((t.hits / attempts) * 100) : null;
       return { method: k, attempts: attempts, accuracy: accuracy, hits: t.hits || 0 };
     });
+  }),
+
+  // Symbol-library card is hidden on single-library deployments — there is no
+  // choice to report. Mirrors the subtest filtering in eval_session.
+  librarySelectionActive: computed('appState.feature_flags.eval_single_library', function() {
+    return !this.get('appState.feature_flags.eval_single_library');
+  }),
+
+  // The Vocal Flair set matching the recommended grid. The five published sets
+  // (24/40/60/84/112) line up 1:1 with GRID_BANDS, so this is a direct read.
+  vocalFlairButtons: computed('recommendation.grid_size', function() {
+    var grid = this.get('recommendation.grid_size');
+    if (!grid) { return null; }
+    return vocalFlairButtonsForGrid(grid);
   }),
 
   gridLabel: computed('recommendation.grid_size', function() {

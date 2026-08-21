@@ -5,12 +5,12 @@
 # Seeds the NON-BOOT app secrets the web service + worker need at RUNTIME into GCP Secret Manager:
 #
 #   GOOGLE_TTS_TOKEN GOOGLE_PLACES_TOKEN GOOGLE_TRANSLATE_TOKEN MAPS_KEY GOOGLE_OAUTH_CLIENT_ID
-#   GOOGLE_OAUTH_CLIENT_SECRET STRIPE_SECRET_KEY ANTHROPIC_API_KEY GEMINI_API_KEY SENTRY_DSN
+#   GOOGLE_OAUTH_CLIENT_SECRET STRIPE_SECRET_KEY SENTRY_DSN
 #   SMS_ENCRYPTION_KEY INTERNAL_API_TOKEN CACHE_TOKEN OPENSYMBOLS_SECRET IPLOCATE_API_KEY
-#   YOUTUBE_API_KEY                                            <- 16 Render-prod-sourced
+#   YOUTUBE_API_KEY                                            <- 13 Render-prod-sourced
 #   AWS_KEY AWS_SECRET                                         <- 2 NEW-IAM-user, 1Password-sourced
 #
-# SOURCE OF TRUTH (decided 2026-06-29): **live Render prod** for the 16, because 6 of the keys
+# SOURCE OF TRUTH (decided 2026-06-29): **live Render prod** for the 13, because 6 of the keys
 # (MAPS_KEY, GOOGLE_OAUTH_*, SENTRY_DSN, INTERNAL_API_TOKEN, CACHE_TOKEN) are NOT in the 1Password
 # sync manifest (scripts/sync-render-env.js) - only Render prod holds all of them, and seeding the
 # exact bytes prod runs today guarantees functional parity for the cutover. This is the INVERSE of
@@ -54,7 +54,7 @@ RUNTIME_SA="${RUNTIME_SA_ID}@${PROJECT_ID}.iam.gserviceaccount.com"
 OP_AWS_VAULT="${OP_AWS_VAULT:-LingoLinq Prod}"
 OP_AWS_ITEM="${OP_AWS_ITEM:-AWS_IAM_ACCESSKEY}"
 
-# The 15 secrets sourced from live Render prod (exact running bytes).
+# The 13 secrets sourced from live Render prod (exact running bytes).
 # NOTE: MAPS_KEY is intentionally NOT here. It is a CLIENT-PUBLIC key emitted into the browser via
 # app/assets/javascripts/globals.js.erb at `rake assets:precompile` (BUILD time), not read by any
 # runtime server code -- so a runtime Secret Manager mount would never reach the browser. It must be
@@ -63,7 +63,7 @@ OP_AWS_ITEM="${OP_AWS_ITEM:-AWS_IAM_ACCESSKEY}"
 RENDER_SECRETS=(
   GOOGLE_TTS_TOKEN GOOGLE_PLACES_TOKEN GOOGLE_TRANSLATE_TOKEN
   GOOGLE_OAUTH_CLIENT_ID GOOGLE_OAUTH_CLIENT_SECRET STRIPE_SECRET_KEY
-  ANTHROPIC_API_KEY GEMINI_API_KEY SENTRY_DSN SMS_ENCRYPTION_KEY
+  SENTRY_DSN SMS_ENCRYPTION_KEY
   INTERNAL_API_TOKEN CACHE_TOKEN OPENSYMBOLS_SECRET IPLOCATE_API_KEY YOUTUBE_API_KEY
 )
 # The 2 secrets sourced from 1Password (NEW IAM user), never from Render.
@@ -74,8 +74,6 @@ AWS_SECRETS=(AWS_KEY AWS_SECRET)
 declare -A OP_XCHECK=(
   [SMS_ENCRYPTION_KEY]="op://LingoLinq Prod/Rails Secrets/SMS_ENCRYPTION_KEY"
   [STRIPE_SECRET_KEY]="op://LingoLinq Prod/Stripe/STRIPE_SECRET_KEY"
-  [GEMINI_API_KEY]="op://LingoLinq Shared Dev/GEMINI_API_KEY/GEMINI_API_KEY"
-  [ANTHROPIC_API_KEY]="op://LingoLinq Shared Dev/ANTHROPIC_API_KEY/credential"
   [GOOGLE_TTS_TOKEN]="op://LingoLinq Shared Dev/Google APIs/GOOGLE_TTS_TOKEN"
   [GOOGLE_TRANSLATE_TOKEN]="op://LingoLinq Shared Dev/Google APIs/GOOGLE_TRANSLATE_TOKEN"
   [GOOGLE_PLACES_TOKEN]="op://LingoLinq Shared Dev/Google APIs/GOOGLE_PLACES_TOKEN"

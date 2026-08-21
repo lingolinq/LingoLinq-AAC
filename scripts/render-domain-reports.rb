@@ -1,10 +1,10 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 #
-# render-domain-reports.rb - renders 5 per-finder-domain markdown audit reports from the
+# render-domain-reports.rb - renders 6 per-finder-domain markdown audit reports from the
 # findings register (audit-reports/FINDINGS.json). One report per /audit-run finder domain:
-# privacy, infra, api, dependency, accessibility. Code/path evidence only (the register is
-# already PII-free); these are DRAFT views of the SSOT, not a separate source of truth.
+# privacy, infra, api, dependency, accessibility, code-hygiene. Code/path evidence only (the
+# register is already PII-free); these are DRAFT views of the SSOT, not a separate source of truth.
 #
 # Usage: ruby scripts/render-domain-reports.rb [--outdir DIR]
 #   Defaults to audit-reports/domain-reports/<auditedDate>/.
@@ -20,17 +20,19 @@ outdir = if (i = ARGV.index('--outdir')) then ARGV[i + 1]
          else "audit-reports/domain-reports/#{meta['auditedDate']}" end
 FileUtils.mkdir_p(outdir)
 
-DOMAINS = %w[privacy infra api dependency accessibility].freeze
+DOMAINS = %w[privacy infra api dependency accessibility code-hygiene].freeze
 DOMAIN_TITLES = {
   'privacy'       => 'Privacy & Data Protection (GDPR / FERPA / COPPA / HIPAA)',
   'infra'         => 'Infrastructure & Security (SOC2-style)',
   'api'           => 'API Contract (Ember <-> Rails)',
   'dependency'    => 'Dependency Freshness & CVEs',
-  'accessibility' => 'Accessibility (WCAG 2.1 AA / EN 301 549)'
+  'accessibility' => 'Accessibility (WCAG 2.1 AA / EN 301 549)',
+  'code-hygiene'  => 'Dead Code & AI-Slop'
 }.freeze
 FINDER = {
   'privacy' => 'privacy-auditor', 'infra' => 'infra-auditor', 'api' => 'api-auditor',
-  'dependency' => 'dependency-auditor', 'accessibility' => 'accessibility-auditor'
+  'dependency' => 'dependency-auditor', 'accessibility' => 'accessibility-auditor',
+  'code-hygiene' => 'code-hygiene-auditor'
 }.freeze
 
 # Explicit classification for the 15 pre-attribution (2026-04-09 seed + early-June) findings
@@ -47,8 +49,8 @@ MANUAL = {
 def domain_of(f)
   return MANUAL[f['id']] if MANUAL.key?(f['id'])
   n = f['notes'].to_s
-  if n =~ /Surfaced by (privacy|infra|api|dependency|accessibility) finder/ then return $1 end
-  if n =~ /(privacy|infra|api|dependency|accessibility) (?:auditor|finder)/ then return $1 end
+  if n =~ /Surfaced by (privacy|infra|api|dependency|accessibility|code-hygiene) finder/ then return $1 end
+  if n =~ /(privacy|infra|api|dependency|accessibility|code-hygiene) (?:auditor|finder)/ then return $1 end
   fw = f['frameworks'] || []
   return 'accessibility' if fw.include?('WCAG')
   return 'infra' if fw.include?('SOC2')
@@ -62,6 +64,14 @@ SEV_LABEL = { 'critical' => 'CRITICAL', 'high' => 'HIGH', 'medium' => 'MEDIUM', 
 open = findings.select { |f| f['status'] == 'open' }
 buckets = Hash.new { |h, k| h[k] = [] }
 open.each { |f| buckets[domain_of(f)] << f }
+
+# LL-6af580a23a (2026-08-16 dual-review): a finding moved out of 'open' via a hand-edit that
+# fixes the forward path but leaves a real residual (see closureEvidence.verifierNote) is easy
+# to lose track of if the domain view just drops it -- the reader has no way to learn it. Render
+# these as their own section so a status move away from 'open' is visible, not silent.
+remediated_unverified = findings.select { |f| f['status'] == 'remediated-unverified' }
+remediated_buckets = Hash.new { |h, k| h[k] = [] }
+remediated_unverified.each { |f| remediated_buckets[domain_of(f)] << f }
 
 def loc(f)
   ev = f['evidence'] || {}
@@ -120,6 +130,22 @@ DOMAINS.each do |dom|
       end
     end
   end
+  remfs = remediated_buckets[dom].sort_by { |f| [SEV_ORDER[f['severity']] || 9, f['id']] }
+  unless remfs.empty?
+    out << "\n## Remediated (awaiting verification) (#{remfs.size})\n\n"
+    out << "Forward-fix applied and independently re-inspected, but not yet independently "
+    out << "verified/closed -- still requires Scot's sign-off to close. If a residual is "
+    out << "recorded in `closureEvidence.verifierNote`, this finding is NOT fully resolved.\n\n"
+    remfs.each do |f|
+      out << "### #{f['title']}\n\n"
+      out << "- **ID:** `#{f['id']}`  |  **ruleKey:** `#{f['ruleKey']}`  |  **severity:** #{f['severity']}\n"
+      out << "- **Location:** #{loc(f)}\n"
+      note = f.dig('closureEvidence', 'verifierNote').to_s
+      out << "- **Residual:** #{note}\n" unless note.empty?
+      out << "\n"
+    end
+  end
+
   out << "\n---\n_Generated from the register at `#{meta['auditedSha']}`. Regenerate with "
   out << "`ruby scripts/render-domain-reports.rb`. Do not edit by hand._\n"
 
