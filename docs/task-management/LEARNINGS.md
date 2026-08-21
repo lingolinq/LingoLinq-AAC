@@ -4624,7 +4624,7 @@ Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events
 
 ## Pattern: co-located modal `{{on "click" (fn this.ctrlAction …)}}` — use `(this.ctrlAction …)`
 
-**Surface:** `speak-menu`, `button-settings`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
+**Surface:** `speak-menu`, `button-settings`, `copy-just-this-board`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
 
 **Root cause:** `ctrlAction` returns a handler function. `(fn this.ctrlAction "x")` invokes `ctrlAction("x", …)` at click time and discards the returned handler, so the action never runs. Under speak mode, `raw_events` `dispatchPassThroughClick` still needs a bound handler — pass-through logs fire but close no-ops. Use `(this.ctrlAction "x")` (bind at render) for `{{on}}`, `modal-dialog` `action`/`opening`/`closing`, and `button-listener` `buttonEvent`. Classic `{{action "x"}}` also works; pair with `modalDialogClickRelease()` when pointer synthesis is suppressed.
 
@@ -7021,17 +7021,22 @@ Before adding any "choose which sub-boards to copy" UI, know the infra is alread
 - **Frontend:** `utils/board_hierarchy.js` builds the downstream tree with per-board `selected`
   flags, `selected_board_ids()`, `root_deselected`, `set_downstream(id,'selected',bool)`, `toggle()`.
   The `{{board-hierarchy selectable=true hierarchy=…}}` component renders the selectable tree
-  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, and the `copying-board` modal).
+  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, `copy-board`, and `copying-board`).
   `components/board-hierarchy.js` `select_all(state)` now honors `state` → `select_all false`
   is Deselect All (existing callers pass no arg, so they still select).
-- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols); the EXECUTION modal is
-  `copying-board`, which loads the hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all
-  selected by default) and passes `hierarchy.selected_board_ids()` as the include list.
+- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols). It also loads the
+  hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all selected by default) and shows the
+  collapsed `md-modal-expander` picker under the linked-boards hint. Confirming a full-set copy
+  passes `skip_hierarchy_picker` + `board_ids_to_copy`. The EXECUTION modal is `copying-board`,
+  which then skips its picker and starts the copy (progress only). If hierarchy load is still
+  in flight or failed, omit the skip flag so `copying-board` keeps its fallback picker.
+  `keep_links` / `remove_links` never skip; they still start copying immediately.
 - **Backend:** the copy endpoint already accepts `expand_selected_board_ids` (users_controller →
   user.rb#2559 → relinking.rb `copy_board_links_for`), so partial copies are supported server-side.
 So "modernize the copy modal / default-all-selected / deselect some" = a UI disclosure around the
 existing `board-hierarchy`, NOT a new feature. (2026-06-27: collapsed the picker behind a
-`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`.)
+`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`. 2026-08-21:
+moved that expander onto `copy-board` so linked-board copy is one decision screen.)
 
 ---
 
@@ -7648,9 +7653,14 @@ guards, or tests in a file that already has grandfathered findings (especially l
 new runloop call sites were added. Diagnose before migrating: compare counts of
 `file|ruleId|messageHash` (ignore line/column). Line-only churn → fix any truly new violations,
 then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
-in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new). See
-[`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md)
-and [`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md).
+in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new) and
+`feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
+computed dep; the rest were `application.js` line shifts from three payload keys). New unit tests
+must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
+`@ember/test-helpers`. See
+[`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),
+[`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md),
+and [`2026-08-21-copy-board-eslint-todo-gate.md`](./2026-08-21-copy-board-eslint-todo-gate.md).
 
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
