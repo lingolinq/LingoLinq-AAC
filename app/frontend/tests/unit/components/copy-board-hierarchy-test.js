@@ -1,29 +1,10 @@
 import RSVP from 'rsvp';
 import EmberObject from '@ember/object';
 import Service from '@ember/service';
-import { run, later } from '@ember/runloop';
+import { settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupTest } from '../../helpers';
 import BoardHierarchy from 'frontend/utils/board_hierarchy';
-
-function pollUntil(condition, timeoutMs) {
-  timeoutMs = timeoutMs || 10000;
-  return new RSVP.Promise(function(resolve, reject) {
-    var start = Date.now();
-    function tick() {
-      if (condition()) {
-        resolve();
-        return;
-      }
-      if (Date.now() - start >= timeoutMs) {
-        reject(new Error('pollUntil timed out after ' + timeoutMs + 'ms'));
-        return;
-      }
-      later(tick, 10);
-    }
-    run(tick);
-  });
-}
 
 function selectableHierarchy(ids) {
   ids = ids || ['root-board', 'child-board'];
@@ -50,6 +31,18 @@ function linkedBoard() {
     downstream_boards: 1,
     downstream_board_ids: ['child-board']
   });
+}
+
+async function waitForCopyBoardReady(component) {
+  var start = Date.now();
+  await settled();
+  while (!(component.get('_copyBoardInitialized') && component.get('hierarchy_loading') === false)) {
+    if (Date.now() - start >= 10000) {
+      throw new Error('copy-board hierarchy did not finish loading');
+    }
+    await new Promise(function(resolve) { setTimeout(resolve, 10); });
+    await settled();
+  }
 }
 
 module('Unit | Component | copy-board hierarchy picker', function(hooks) {
@@ -98,27 +91,20 @@ module('Unit | Component | copy-board hierarchy picker', function(hooks) {
         getSettingsFor() { return null; },
         close(payload) { closedWith = payload; }
       }));
-      let component;
-      run(function() {
-        component = this.owner.factoryFor('component:copy-board').create({
-          earlyLiveLinksDelayMs: 0,
-          model: { board: linkedBoard() }
-        });
-      }.bind(this));
-
-      await pollUntil(function() {
-        return component.get('_copyBoardInitialized') && component.get('hierarchy_loading') === false;
+      const component = this.owner.factoryFor('component:copy-board').create({
+        earlyLiveLinksDelayMs: 0,
+        model: { board: linkedBoard() }
       });
+
+      await waitForCopyBoardReady(component);
 
       assert.strictEqual(component.get('hierarchy'), hierarchy, 'shows the hierarchy on the first modal');
       assert.true(component.get('show_copy_hierarchy'), 'renders the choose-boards expander');
 
-      run(function() {
-        component.send('tweakBoard', 'links_copy');
-      });
+      component.send('tweakBoard', 'links_copy');
+      await settled();
 
-      assert.deepEqual(closedWith && closedWith.board_ids_to_copy, ['root-board', 'child-board'], 'full-set copy sends the selected board ids');
-      component.destroy();
+      assert.deepEqual(closedWith.board_ids_to_copy, ['root-board', 'child-board'], 'full-set copy sends the selected board ids');
     } finally {
       BoardHierarchy.load_with_button_set = originalLoadButtonSet;
       BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
@@ -145,25 +131,18 @@ module('Unit | Component | copy-board hierarchy picker', function(hooks) {
         getSettingsFor() { return null; },
         close(payload) { closedWith = payload; }
       }));
-      let component;
-      run(function() {
-        component = this.owner.factoryFor('component:copy-board').create({
-          earlyLiveLinksDelayMs: 0,
-          model: { board: linkedBoard() }
-        });
-      }.bind(this));
-
-      await pollUntil(function() {
-        return component.get('_copyBoardInitialized') && component.get('hierarchy_loading') === false;
+      const component = this.owner.factoryFor('component:copy-board').create({
+        earlyLiveLinksDelayMs: 0,
+        model: { board: linkedBoard() }
       });
 
-      run(function() {
-        component.send('tweakBoard', 'keep_links');
-      });
+      await waitForCopyBoardReady(component);
 
-      assert.notOk(closedWith && closedWith.skip_hierarchy_picker, 'copy-just-this-board does not skip hierarchy handling');
-      assert.strictEqual(closedWith && closedWith.board_ids_to_copy, undefined, 'does not send a subset include-list');
-      component.destroy();
+      component.send('tweakBoard', 'keep_links');
+      await settled();
+
+      assert.notOk(closedWith.skip_hierarchy_picker, 'copy-just-this-board does not skip hierarchy handling');
+      assert.strictEqual(closedWith.board_ids_to_copy, undefined, 'does not send a subset include-list');
     } finally {
       BoardHierarchy.load_with_button_set = originalLoadButtonSet;
       BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
@@ -191,26 +170,19 @@ module('Unit | Component | copy-board hierarchy picker', function(hooks) {
         getSettingsFor() { return null; },
         close(payload) { closedWith = payload; }
       }));
-      let component;
-      run(function() {
-        component = this.owner.factoryFor('component:copy-board').create({
-          earlyLiveLinksDelayMs: 0,
-          model: { board: linkedBoard() }
-        });
-      }.bind(this));
-
-      await pollUntil(function() {
-        return component.get('_copyBoardInitialized') && component.get('hierarchy_loading') === false;
+      const component = this.owner.factoryFor('component:copy-board').create({
+        earlyLiveLinksDelayMs: 0,
+        model: { board: linkedBoard() }
       });
 
-      run(function() {
-        component.send('tweakBoard', 'links_copy');
-      });
+      await waitForCopyBoardReady(component);
 
-      assert.true(closedWith && closedWith.skip_hierarchy_picker, 'tells the progress modal to skip its picker');
-      assert.deepEqual(closedWith && closedWith.board_ids_to_copy, ['root-board', 'child-board'], 'includes the selected ids');
-      assert.true(closedWith && closedWith.expand_selected_board_ids_to_copy, 'forwards the incomplete-links expand flag');
-      component.destroy();
+      component.send('tweakBoard', 'links_copy');
+      await settled();
+
+      assert.true(closedWith.skip_hierarchy_picker, 'tells the progress modal to skip its picker');
+      assert.deepEqual(closedWith.board_ids_to_copy, ['root-board', 'child-board'], 'includes the selected ids');
+      assert.true(closedWith.expand_selected_board_ids_to_copy, 'forwards the incomplete-links expand flag');
     } finally {
       BoardHierarchy.load_with_button_set = originalLoadButtonSet;
       BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
@@ -237,40 +209,34 @@ module('Unit | Component | copy-board hierarchy picker', function(hooks) {
         getSettingsFor() { return null; },
         close(payload) { closedWith = payload; }
       }));
-      let component;
-      run(function() {
-        component = this.owner.factoryFor('component:copy-board').create({
-          earlyLiveLinksDelayMs: 0,
-          model: { board: linkedBoard() }
-        });
-      }.bind(this));
-
-      await pollUntil(function() {
-        return component.get('_copyBoardInitialized') && component.get('hierarchy_loading') === false;
+      const component = this.owner.factoryFor('component:copy-board').create({
+        earlyLiveLinksDelayMs: 0,
+        model: { board: linkedBoard() }
       });
 
-      run(function() {
-        component.set('loading', false);
-        component.set('error', false);
-        component.set('set_as_home', true);
-      });
+      await waitForCopyBoardReady(component);
+
+      component.set('loading', false);
+      component.set('error', false);
+      component.set('set_as_home', true);
+      await settled();
 
       assert.true(component.get('show_linked_copy_hint'), 'linked-boards hint stays visible when set-as-home is checked');
       assert.true(component.get('show_copy_hierarchy'), 'board picker stays visible when set-as-home is checked');
       assert.false(component.get('copy_full_set_disabled'), 'full-set copy stays enabled while the picker is collapsed');
 
-      run(function() {
-        component.send('tweakBoard', 'keep_links');
-      });
-      assert.strictEqual(closedWith && closedWith.action, 'keep_links', 'copy-just-this-board still closes the modal');
-      component.destroy();
+      component.send('tweakBoard', 'keep_links');
+      await settled();
+      assert.strictEqual(closedWith.action, 'keep_links', 'copy-just-this-board still closes the modal');
     } finally {
       BoardHierarchy.load_with_button_set = originalLoadButtonSet;
       BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
     }
   });
 
-  test('treats linked_boards as linked even without downstream_boards', function(assert) {
+  test('treats linked_boards as linked even without downstream_boards', async function(assert) {
+    assert.expect(1);
+
     this.owner.register('service:modal', Service.extend({
       getSettingsFor() { return null; },
       close() {}
@@ -284,20 +250,17 @@ module('Unit | Component | copy-board hierarchy picker', function(hooks) {
       return RSVP.resolve(null);
     };
     try {
-      let component;
-      run(function() {
-        component = this.owner.factoryFor('component:copy-board').create({
-          earlyLiveLinksDelayMs: 0,
-          model: {
-            board: EmberObject.create({
-              buttons: [],
-              linked_boards: [{ id: 'child-board', key: 'example/child' }]
-            })
-          }
-        });
-      }.bind(this));
+      const component = this.owner.factoryFor('component:copy-board').create({
+        earlyLiveLinksDelayMs: 0,
+        model: {
+          board: EmberObject.create({
+            buttons: [],
+            linked_boards: [{ id: 'child-board', key: 'example/child' }]
+          })
+        }
+      });
+      await settled();
       assert.true(component.get('linked'), 'linked_boards alone marks the board as linked');
-      component.destroy();
     } finally {
       BoardHierarchy.load_with_button_set = originalLoadButtonSet;
       BoardHierarchy.load_from_live_links = originalLoadLiveLinks;

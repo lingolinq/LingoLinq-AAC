@@ -105,7 +105,7 @@ export default Component.extend({
     this.runOpening();
   }),
 
-  has_supervisees: computed('model.known_supervisees', 'appState.sessionUser.managed_orgs', function() {
+  has_supervisees: computed('model.known_supervisees.length', 'appState.sessionUser.managed_orgs.length', function() {
     return this.get('model.known_supervisees.length') > 0 || this.get('appState.sessionUser.managed_orgs.length') > 0;
   }),
 

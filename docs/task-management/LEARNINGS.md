@@ -7652,9 +7652,14 @@ guards, or tests in a file that already has grandfathered findings (especially l
 new runloop call sites were added. Diagnose before migrating: compare counts of
 `file|ruleId|messageHash` (ignore line/column). Line-only churn → fix any truly new violations,
 then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
-in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new). See
-[`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md)
-and [`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md).
+in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new) and
+`feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
+computed dep; the rest were `application.js` line shifts from three payload keys). New unit tests
+must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
+`@ember/test-helpers`. See
+[`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),
+[`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md),
+and [`2026-08-21-copy-board-eslint-todo-gate.md`](./2026-08-21-copy-board-eslint-todo-gate.md).
 
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 

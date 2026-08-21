@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-21T16:34:22.055Z
+# Generated: 2026-08-21T18:58:25.939Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -110,8 +110,6 @@ app/components/confirm-delete-board.js|ember/no-runloop|209|25|2|5addc2170315
 app/components/confirm-delete-board.js|ember/require-computed-property-dependencies|70|26|1|b19855c081b9
 app/components/confirm-delete-user.js|ember/no-runloop|88|13|2|5addc2170315
 app/components/confirm-org-action.js|ember/require-computed-property-dependencies|107|18|1|4f3cfbc971db
-app/components/copy-board.js|ember/require-computed-property-dependencies|103|11|1|6489c6c44c3c
-app/components/copy-board.js|ember/require-computed-property-dependencies|99|20|1|3100c5558929
 app/components/create-board-new.js|ember/no-incorrect-calls-with-inline-anonymous-functions|2293|41|1|2da67c91d637
 app/components/create-board-new.js|ember/no-runloop|1159|5|2|ab6701509d85
 app/components/create-board-new.js|ember/no-runloop|1215|7|2|513c0395fe72
@@ -334,25 +332,25 @@ app/components/voice-output.js|ember/require-computed-property-dependencies|90|2
 app/components/word-data.js|ember/require-computed-property-dependencies|109|19|1|bb5da9ce015e
 app/components/word-data.js|ember/require-computed-property-dependencies|126|14|1|b05b3b9d1590
 app/controllers/add-to-sidebar.js|ember/no-runloop|73|11|2|5addc2170315
-app/controllers/application.js|ember/no-runloop|1578|15|2|5addc2170315
-app/controllers/application.js|ember/no-runloop|1644|21|2|5addc2170315
-app/controllers/application.js|ember/no-runloop|1657|17|2|5addc2170315
-app/controllers/application.js|ember/no-runloop|1698|13|2|5addc2170315
-app/controllers/application.js|ember/no-runloop|1796|11|2|5addc2170315
-app/controllers/application.js|ember/no-runloop|1854|19|2|5addc2170315
-app/controllers/application.js|ember/no-runloop|1856|7|2|513c0395fe72
+app/controllers/application.js|ember/no-runloop|1581|15|2|5addc2170315
+app/controllers/application.js|ember/no-runloop|1647|21|2|5addc2170315
+app/controllers/application.js|ember/no-runloop|1660|17|2|5addc2170315
+app/controllers/application.js|ember/no-runloop|1701|13|2|5addc2170315
+app/controllers/application.js|ember/no-runloop|1799|11|2|5addc2170315
+app/controllers/application.js|ember/no-runloop|1857|19|2|5addc2170315
 app/controllers/application.js|ember/no-runloop|1859|7|2|513c0395fe72
-app/controllers/application.js|ember/no-runloop|517|5|2|5addc2170315
-app/controllers/application.js|ember/no-runloop|535|13|2|5addc2170315
-app/controllers/application.js|ember/no-runloop|868|7|2|5addc2170315
-app/controllers/application.js|ember/no-runloop|972|15|2|5addc2170315
+app/controllers/application.js|ember/no-runloop|1862|7|2|513c0395fe72
+app/controllers/application.js|ember/no-runloop|520|5|2|5addc2170315
+app/controllers/application.js|ember/no-runloop|538|13|2|5addc2170315
+app/controllers/application.js|ember/no-runloop|871|7|2|5addc2170315
+app/controllers/application.js|ember/no-runloop|975|15|2|5addc2170315
 app/controllers/application.js|ember/require-computed-property-dependencies|150|11|1|0c26d9a1d4bc
-app/controllers/application.js|ember/require-computed-property-dependencies|2073|14|1|4d4efd7e8c53
-app/controllers/application.js|ember/require-computed-property-dependencies|471|20|1|d82b61ee1323
+app/controllers/application.js|ember/require-computed-property-dependencies|2076|14|1|4d4efd7e8c53
+app/controllers/application.js|ember/require-computed-property-dependencies|474|20|1|d82b61ee1323
 app/controllers/application.js|ember/require-computed-property-dependencies|50|19|1|955964149af8
 app/controllers/application.js|ember/require-computed-property-dependencies|72|27|1|955964149af8
-app/controllers/application.js|ember/require-return-from-computed|1827|53|1|8c8d53fa71e0
-app/controllers/application.js|ember/require-return-from-computed|1832|57|1|8c8d53fa71e0
+app/controllers/application.js|ember/require-return-from-computed|1830|53|1|8c8d53fa71e0
+app/controllers/application.js|ember/require-return-from-computed|1835|57|1|8c8d53fa71e0
 app/controllers/batch-recording.js|ember/no-runloop|276|7|2|5addc2170315
 app/controllers/batch-recording.js|ember/no-runloop|303|7|2|5addc2170315
 app/controllers/batch-recording.js|ember/no-runloop|338|9|2|5addc2170315

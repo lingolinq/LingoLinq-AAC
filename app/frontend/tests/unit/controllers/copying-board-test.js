@@ -538,20 +538,17 @@ module('Unit | Controller | copying-board', function(hooks) {
       this.owner.register('service:app-state', Service.extend({
         jump_to_board() {}
       }));
-      let component;
-      run(function() {
-        component = this.owner.factoryFor('component:copying-board').create({
-          model: {
-            action: 'links_copy',
-            skip_hierarchy_picker: true,
-            board_ids_to_copy: selectedIds,
-            expand_selected_board_ids_to_copy: true,
-            board: board,
-            user: EmberObject.create({ id: 'self' }),
-            symbol_library: 'original'
-          }
-        });
-      }.bind(this));
+      const component = this.owner.factoryFor('component:copying-board').create({
+        model: {
+          action: 'links_copy',
+          skip_hierarchy_picker: true,
+          board_ids_to_copy: selectedIds,
+          expand_selected_board_ids_to_copy: true,
+          board: board,
+          user: EmberObject.create({ id: 'self' }),
+          symbol_library: 'original'
+        }
+      });
 
       assert.false(buttonsetCalled, 'does not load hierarchy when the first modal already chose boards');
       assert.deepEqual(board.get('downstream_board_ids_to_copy'), selectedIds, 'passes the selected board ids into the copy');
