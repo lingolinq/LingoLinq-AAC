@@ -5960,6 +5960,12 @@
         "verifierNote": "",
         "attestation": ""
       },
+      "source": {
+        "kind": "pr-review",
+        "pr": 834,
+        "promotedDate": "2026-08-20",
+        "reviewer": "adversary"
+      },
       "notes": "Surfaced by infra finder on 2026-08-20. Filed by hand as declared follow-up work at the close of PR #834 (merged to staging as 73c4e7d6), not by a finder run. NOT a claim that the control is failing today: PR #834 took the guard from a four-file allowlist to a 610-file discovered scope, added fail-closed behaviour on the guard's own breakage, and added endpoint (base_url) pinning; nine Codex senior-dev passes plus one Claude adversary pass drove that. This row exists because that review series did NOT converge to zero -- each pass kept finding narrower cases -- which is the expected shape of a lexical CI grep, and the honest place to record an open-ended residual is the register rather than an unbounded review loop or silence. Severity low: every residual requires deliberate authorship rather than ordinary drift, the compensating control (the AWS Bedrock BAA route, plus AiClient as the single sanctioned construction point) is unchanged, and lib/ai_client.rb's endpoint pin is independently asserted by spec/lib/ai_client_spec.rb with a hostile ANTHROPIC_BEDROCK_BASE_URL set. Distinct from LL-1189af1b3c, which is about the allowlist mechanism and whose disposition remains Scot's."
     },
     {
@@ -5991,6 +5997,12 @@
         "sha": "",
         "verifierNote": "",
         "attestation": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 834,
+        "promotedDate": "2026-08-20",
+        "reviewer": "adversary"
       },
       "notes": "Surfaced by infra finder on 2026-08-20. Surfaced by the Claude adversary pass over PR #834 and independently confirmed against the merged tree at 73c4e7d6. Not an egress finding -- nothing calls it -- but a loaded capability and a small attack-surface item: any code execution in a prod container has a fully-configured vendor SDK class already resident. Bounded by the fact that no credential for it is mounted (ANTHROPIC_API_KEY and GEMINI_API_KEY were both removed from the Cloud Run NON_BOOT_SECRETS list, and AZURE_OPENAI_API_KEY was never mounted), so this is defence-in-depth rather than a live exposure. Related: LL-bdc3344942 and LL-94e57af291 cover the dormant credentials themselves; this covers the dormant SDK."
     }
