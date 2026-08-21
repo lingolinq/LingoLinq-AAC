@@ -30,6 +30,13 @@ export default Route.extend({
     var session_user = this.get('appState.sessionUser');
     if(session_user && session_user.get('supervisees.length') >= 10) {
       session_user.set('load_all_connections', true);
+      /* RETURNED, not fire-and-forget. The only consumer (components/user-select.js)
+         snapshots `known_supervisees` once in didInsertElement with no observer, so a
+         supporter who opened the picker before these pages resolved got the truncated
+         10 and it never repopulated — the exact bug this load exists to fix, failing
+         intermittently and invisibly. models/user.js exposes the promise for this. */
+      var p = session_user.get('all_connections_promise');
+      if(p && p.then) { return p.then(null, function() { /* fall back to the 10 */ }); }
     }
   },
   resetController: function(controller, isExiting) {
@@ -38,6 +45,15 @@ export default Route.extend({
     }
   },
   setupController: function(controller, model) {
+    /* A subject change on this same route keeps the controller instance, and
+       resetController only fires on isExiting — so the PREVIOUS communicator's
+       device/location/snapshot/date filters rode along into the new report. Rails
+       applies an unowned device_id without an ownership check (lib/stats.rb), so the
+       new communicator's report rendered "no data" with a foreign device still in the
+       filter chip: indistinguishable from genuine inactivity in a clinical report. */
+    if(controller.get('model.id') && controller.get('model.id') !== model.get('id')) {
+      controller.reset_params();
+    }
     controller.set('model', model);
     if(model.get('preferences.logging')) {
       controller.load_charts();

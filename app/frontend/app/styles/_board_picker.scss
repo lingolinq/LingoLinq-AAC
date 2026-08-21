@@ -797,10 +797,174 @@ $bp-target: 44px;
 
 /* Suppressed in compact: size chip, language marker, CC-By credit, byline.
    `.author` needs the full chain — the board-card-modern mixin declares
-   `display: flex !important` for it at (0,4,0). */
+   `display: flex !important` for it at (0,4,0).
+
+   The size/info chip is suppressed in compact EVERYWHERE, including the Boards page.
+   It is absolutely-positioned chrome sized for a full tile; a compact ROW has no space
+   for it and it lands on top of the board name. Un-hiding it there to make the preview
+   (and so delete) reachable skewed every compact row — see the note in
+   available-boards-section.hbs about where deleting a board lives instead. */
 .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .board-icon__info,
 .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .board-icon__lang-marker,
 .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .board-icon__credit {
+  display: none !important;
+}
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder {
+  align-self: start;
+  padding: 0;
+}
+
+/* Card shell: one border, one restrained shadow — no halo.
+   SINGLE row. The Preview pill is suppressed in compact (board-icon.hbs
+   @compactRow), so the second grid row it used to occupy was empty and only
+   added height. One row also means `align-items: center` centres the title
+   against the icon rather than baseline-ing it to a phantom row.
+   Height: 48px icon + 8px top + 8px bottom = 64px for a single-line title — 8px
+   off the previous 72px. The icon had to come down with it: at 54px it alone set
+   a 72px floor no padding change could get under. A two-line title grows that
+   card and only that card.
+
+   DEPTH. Three surfaces, each a step above the one behind it: the flat panel,
+   the card lifted off it by a two-layer shadow (a tight contact shadow plus a
+   wider ambient one — one blurred shadow alone reads as a smudge), and the
+   thumbnail tile lifted off the card by its own hairline shadow. The card's
+   background is a barely-there vertical gradient rather than flat white, which
+   is what keeps a 64px row from looking like a rectangle of paper.
+
+   !important THROUGHOUT, and not by preference: the shared `board-card-modern`
+   mixin (app.scss ~94, included at `.md-home-boards-picker__board
+   .btn.simple_board_icon`) declares radius / border / background / box-shadow /
+   transition with !important. Plain declarations here lose to it no matter how
+   specific they are, which is why the compact rows still carried the gallery
+   card's 28px radius and 0 8px 20px + 0 24px 48px hover shadow. `height: auto`
+   answers the same rule's `height: 100%`. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: $bp-space-md;
+  min-height: 64px;
+  height: auto;
+  padding: 8px 14px;
+  border: 1px solid rgba($la-navy, 0.09) !important;
+  border-radius: $bp-radius-card !important;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FAFCFD 100%) !important;
+  box-shadow:
+    0 1px 2px rgba(27, 54, 93, 0.07),
+    0 4px 12px rgba(27, 54, 93, 0.08) !important;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease !important;
+}
+/* The mixin paints a 2px gradient hairline across the top of every card. On a
+   gallery tile it reads as a highlight; on a 72px row it is just noise. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon::before {
+  display: none;
+}
+/* Hover raises the same two layers rather than swapping in a different shadow,
+   so the card reads as lifting off the panel instead of changing material. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:hover {
+  border-color: rgba($brand-verdigris, 0.42) !important;
+  box-shadow:
+    0 1px 2px rgba(27, 54, 93, 0.08),
+    0 8px 20px rgba(27, 54, 93, 0.13) !important;
+  transform: translateY(-1px);
+}
+/* Pressed: back down onto the panel — contact shadow only. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:active {
+  transform: none;
+  box-shadow: 0 1px 2px rgba(27, 54, 93, 0.10) !important;
+}
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:focus-visible {
+  @include focus-ring($la-navy, 3px, 2px);
+}
+
+/* Standardised thumbnail frame — one size, one padding, never cropped.
+   The shared board-card-modern mixin forces width/height/padding with
+   !important, so these must answer in kind at (0,5,0). */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon img {
+  grid-column: 1;
+  width: 48px !important;
+  height: 48px !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 5px !important;
+  margin: 0 !important;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 10px;
+  background: #FFFFFF;
+  /* Its own hairline shadow — the tile sits ON the card, the card sits on the
+     panel. That third step is most of what "dimension" means at this size. */
+  box-shadow: 0 1px 2px rgba(27, 54, 93, 0.08);
+  object-fit: contain;
+  align-self: center;
+}
+
+/* Title: two intentional lines before clamping, left aligned. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .name {
+  grid-column: 2;
+  width: 100% !important;
+  margin: 0 !important;
+  align-self: center;
+  text-align: left !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+  line-height: 1.25 !important;
+  color: $la-navy !important;
+  max-height: 2.5em !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+/* Long names step down a size. Set by measurement, not by CSS — board-icon.js
+   #_syncCompactNameSize adds this class only when the name actually overflows
+   the two-line clamp, so 14px is spent on the names that need it and every
+   other row keeps the 16px reading size. `max-height` is in em, so the clamp
+   box follows the smaller size automatically. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .name.board-icon__name--clamped {
+  font-size: 14px !important;
+}
+
+/* Directional affordance — the whole row is the target, this just points. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .board-icon__row-chevron {
+  grid-column: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  /* 26px + the grid's 12px column-gap = 38px reserved at the right edge, so a
+     clamped two-line title runs out of room before it reaches the chevron. */
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  /* Third in the card's hierarchy — title, then thumbnail, then this. A shallow
+     well rather than a bare glyph: it gives the right edge a defined affordance
+     without competing with the name. */
+  background: rgba($la-navy, 0.04);
+  color: rgba($la-navy, 0.42);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:hover .board-icon__row-chevron {
+  background: rgba($brand-verdigris, 0.12);
+  color: $brand-verdigris-aa;
+}
+
+/* Suppressed in compact: language marker, CC-By credit, byline.
+   `.author` needs the full chain — the board-card-modern mixin declares
+   `display: flex !important` for it at (0,4,0). */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .board-icon__lang-marker,
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .board-icon__credit {
+  display: none !important;
+}
+/* The "i" + grid-size chip is suppressed only where the WHOLE CARD is the preview
+   target — the picker's compact rows. `ll-boards-grid--compact` is shared with the
+   Boards page grid, whose cards OPEN the board instead, so hiding it there removed the
+   only route to the preview and, with the hover trash gone, the only delete affordance
+   on the page. Excluded by the grid's own class rather than by adding a competing
+   rule (CLAUDE.md 0.7). */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact:not(.ub-boards-page__board-grid) .board-icon__info {
   display: none !important;
 }
 .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .author {

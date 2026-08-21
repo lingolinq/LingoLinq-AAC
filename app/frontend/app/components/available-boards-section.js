@@ -33,6 +33,9 @@ export default Component.extend({
      this to `true` rather than reconstructing it.
      TRADE-OFF: the boards clustered under these rows have no other entry point on this
      page, so they are no longer listed here. */
+  /* PAIRED with the orphan filter in controllers/user/index.js#board_list — flipping
+     this back on also means removing that filter, or the rows will be counted for
+     pagination but still absent from the grid. */
   showOrphanClusters: false,
 
   appState: service('app-state'),
@@ -391,6 +394,15 @@ export default Component.extend({
       this.set('compactBoards', !!compact);
     },
     toggleFoldersExpanded() {
+      /* Collapsing while drilled into a folder would hide the drilled-in grid (it lives
+         inside the foldersExpanded block) while the main grid is still suppressed by
+         `{{#unless mineTagFolderDrillIn}}` — an empty page. Leaving the folder on collapse
+         is the coherent reading of the gesture: "stop showing me folders" restores the
+         full board list rather than showing nothing. */
+      var collapsing = !!this.get('foldersExpanded');
+      if (collapsing && this.get('boardsCtrl.mineTagFolderDrillIn')) {
+        this.set('boardsCtrl.mineTagFolderDrillIn', null);
+      }
       this.toggleProperty('foldersExpanded');
       /* Persist the new state so the user's choice survives a
          reload. localStorage may be unavailable (private mode /
@@ -649,6 +661,31 @@ export default Component.extend({
         });
       }, {timeout: 10000});
     },
+    /* One row = one disclosure. Clicking the open folder collapses it; clicking another
+       moves the expansion there. `mineTagFolderDrillIn` still carries WHICH folder is
+       open (and still rides the `?folder=` query param), so Back, Forward and refresh
+       keep working — only the PRESENTATION changed from a separate destination view to
+       an in-place expansion. */
+    toggleMineFolderTag(tag, event) {
+      var ctrl = this.get('boardsCtrl');
+      if (!ctrl) { return; }
+      /* Read the rendered state, not a bound argument — see the note at the call site. */
+      var el = event && event.currentTarget;
+      var isOpen = !!(el && el.getAttribute && el.getAttribute('data-folder-open') === 'true');
+      /* `isOpen` comes from the TEMPLATE's own `is-equal`, the same expression that
+         renders the panel and the chevron — so the three cannot disagree. Reading the
+         controller property here instead was unreliable. */
+      /* Both branches go through ctrl.send(): the CONTROLLER owns
+         `mineTagFolderDrillIn` (it is the query-param-backed property) and owns both
+         actions, so routing enter and exit down the same channel keeps them symmetric.
+         Reading or writing the property from the component did not take effect. */
+      if (isOpen) {
+        ctrl.send('exitMineFolderTag');
+        this.set('folderBoardsMenuOpen', false);
+      } else {
+        ctrl.send('enterMineFolderTag', tag);
+      }
+    },
     exitMineFolderTag() {
       var ctrl = this.get('boardsCtrl');
       if (!ctrl) { return; }
@@ -776,6 +813,12 @@ export default Component.extend({
       return;
     }
     if (this._collapsedForNarrow) { return; }
+    /* NEVER collapse while drilled into a folder. The drilled-in board grid is rendered
+       INSIDE the `{{#if this.foldersExpanded}}` block, and the main grid is suppressed by
+       `{{#unless mineTagFolderDrillIn}}` — so collapsing here removed every board grid on
+       the page, leaving a lone "Folders" header and no way back. Reachable just by
+       rotating an iPad from landscape to portrait while inside a folder. */
+    if (this.get('boardsCtrl.mineTagFolderDrillIn')) { return; }
     var sideBySide = false;
     try {
       sideBySide = document.body.getAttribute('data-boards-layout') === 'side-by-side';

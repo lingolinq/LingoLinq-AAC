@@ -235,9 +235,7 @@
               <span class="nb-ai-sparkle-badge nb-generate-ai-btn__sparkle-badge" aria-hidden="true">
                 <span class="nb-ai-sparkle nb-generate-ai-btn__sparkle"></span>
               </span>
-              <span class="nb-generate-ai-btn__title ub-communicate" aria-label={{t "Generate with AI" key="generate_with_ai"}}>
-                <span class="ub-letter" style="animation-delay:0s" aria-hidden="true">G</span><span class="ub-letter" style="animation-delay:0.05s" aria-hidden="true">e</span><span class="ub-letter" style="animation-delay:0.10s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.15s" aria-hidden="true">e</span><span class="ub-letter" style="animation-delay:0.20s" aria-hidden="true">r</span><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.30s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.35s" aria-hidden="true">e</span><span class="ub-letter ub-letter--space" style="animation-delay:0.40s" aria-hidden="true">&nbsp;</span><span class="ub-letter" style="animation-delay:0.45s" aria-hidden="true">w</span><span class="ub-letter" style="animation-delay:0.50s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.60s" aria-hidden="true">h</span><span class="ub-letter ub-letter--space" style="animation-delay:0.65s" aria-hidden="true">&nbsp;</span><span class="ub-letter" style="animation-delay:0.70s" aria-hidden="true">A</span><span class="ub-letter" style="animation-delay:0.75s" aria-hidden="true">I</span>
-              </span>
+              <span class="nb-generate-ai-btn__title ub-communicate" aria-label={{t "Generate with AI" key="generate_with_ai"}}>{{letter-stagger (t "Generate with AI" key="generate_with_ai") start=0 step=0.05}}</span>
             </button>
           {{/if}}
         {{/if}}
@@ -293,14 +291,14 @@
               <div class="nb-basics-grid__col nb-basics-grid__col--left">
                 <div class="nb-field">
                   <label for="new_board_name" class="nb-field__label">{{t "Name" key="name"}}</label>
-                  <input value={{this.model.name}} required={{true}} aria-required="true" aria-invalid={{if this.field_errors.name "true" "false"}} aria-describedby={{if this.field_errors.name "new-board-name-error"}} class="form-control nb-field__input {{if this.field_errors.name 'nb-field__input--error'}}" id="new_board_name" placeholder="My Board" {{on "blur" (this.ctrlAction "markFieldTouched" "name")}} {{on "input" (set-field this "model.name")}} />
+                  <input value={{this.model.name}} required={{true}} aria-required="true" aria-invalid={{if this.field_errors.name "true" "false"}} aria-describedby={{if this.field_errors.name "new-board-name-error"}} class="form-control nb-field__input {{if this.field_errors.name 'nb-field__input--error'}}" id="new_board_name" placeholder={{t "My Board" key="new_board_name_placeholder"}} {{on "blur" (this.ctrlAction "markFieldTouched" "name")}} {{on "input" (set-field this "model.name")}} />
                   {{#if this.field_errors.name}}
                     <p id="new-board-name-error" class="nb-field__hint nb-field__hint--error" role="alert">{{this.field_errors.name}}</p>
                   {{/if}}
                 </div>
                 <div class="nb-field new-board-field--description">
                   <label for="new_board_description" class="nb-field__label">{{t "Description" key="description"}}{{#if this.ai_mode}}<span class="nb-field__required-pill">{{t "required" key="required"}}</span>{{else}}<span class="nb-field__optional-pill">{{t "optional" key="optional"}}</span>{{/if}}</label>
-                  <textarea class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder="Brief description of the board" rows="1" {{on "input" (set-field this "model.description")}}>{{this.model.description}}</textarea>
+                  <textarea class="form-control nb-field__input nb-field__input--fill" id="new_board_description" placeholder={{t "Brief description of the board" key="new_board_description_placeholder"}} rows="1" {{on "input" (set-field this "model.description")}}>{{this.model.description}}</textarea>
                 </div>
               </div>
               {{!-- supporter_role gate added per Phase D #19 review:

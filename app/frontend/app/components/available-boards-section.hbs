@@ -175,311 +175,322 @@
                    into the header row, just left of the chevron. See
                    .ub-boards-page__folders-actions--header above. --}}
             </div>
-            {{#if this.boardsCtrl.mineTagFolderDrillIn}}
-              {{!-- Folder destination view — replaces the folder strip
-                   when drilled in. Three distinct layers:
-                   (1) breadcrumb navigation row at the top
-                   (2) identity block: large folder icon + name + subtitle
-                   (3) action row: pill-styled Edit + Delete buttons
-                   Each layer has its own breathing room so the user
-                   reads them as separate purposes (navigation,
-                   identity, actions) instead of one cramped toolbar. --}}
-              <div class="ub-boards-page__folder-context">
-                {{!-- TOP ROW — breadcrumb on the left, the way out centred.
-                     A wrapper rather than placing both directly in the card grid: the card
-                     is `auto 1fr auto`, whose middle column is only centred when the two
-                     auto flanks happen to match, and its other children auto-place, so a
-                     second item in the breadcrumb's row would have been dropped into the
-                     identity row's first free cell. This row owns `1fr auto 1fr`, which
-                     centres the link on the CARD regardless of how wide the breadcrumb
-                     text gets. --}}
-                <div class="ub-boards-page__folder-context-toprow">
-                  {{!-- Breadcrumb row — clickable "Folders" returns to
-                       the folder list; the current folder name sits
-                       after a chevron separator. --}}
-                  <nav class="ub-boards-page__folder-context-breadcrumb" aria-label={{t "Breadcrumb" key="breadcrumb"}}>
-                    <button type="button" class="ub-boards-page__folder-context-breadcrumb-back" {{on "click" (this.ctrlAction "exitMineFolderTag")}}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
-                      <span>{{t "Folders" key="folders"}}</span>
-                    </button>
-                    <span class="ub-boards-page__folder-context-breadcrumb-sep" aria-hidden="true">/</span>
-                    <span class="ub-boards-page__folder-context-breadcrumb-current">{{this.boardsCtrl.mineTagFolderDrillIn}}</span>
-                  </nav>
-                  <a href="#" class="ub-boards-page__folder-context-back" {{on "click" (this.ctrlAction "exitMineFolderTag")}}>
-                    <svg class="ub-boards-page__folder-context-back-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-                    <span class="ub-boards-page__folder-context-back-label">{{t "Back to Folders" key="folder_context_back"}}</span>
-                  </a>
-                {{!-- Delete. Swapped with the boards-in-folder dropdown
-                     (2026-08-17, requested): this now occupies the top row's right
-                     track. The Edit pill was removed in favor of the inline pencil
-                     icon next to the folder name. --}}
-                {{#unless this.editingFolderName}}
-                  <div class="ub-boards-page__folder-context-actions">
-                    <button type="button" class="ub-boards-page__folder-context-action ub-boards-page__folder-context-action--delete" {{on "click" (this.sendAction "startDeleteFolder")}}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                      <span>{{t "Delete" key="delete"}}</span>
-                    </button>
-                  </div>
-                {{/unless}}
-                </div>
-                {{!-- Identity block — large folder icon, name as page
-                     title, plus subtitle hint. This is the "destination"
-                     anchor of the view. --}}
-                <div class="ub-boards-page__folder-context-identity">
-                  <div class="ub-boards-page__folder-context-identity-icon" aria-hidden="true">
-                    {{!-- Two-path layered folder for depth: the "back"
-                         path is the full folder body including the tab
-                         on top-left; the "front" path overlays the
-                         visible face of the folder with a slightly
-                         lighter tone. Reads as a manila card with a
-                         peeking tab rather than a flat silhouette. --}}
-                    <svg class="ub-boards-page__folder-context-identity-icon-svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="none">
-                      <path class="ub-boards-page__folder-context-identity-icon-back" d="M2 6.5a2 2 0 0 1 2-2h5.5a2 2 0 0 1 1.41.58l1.5 1.5a2 2 0 0 0 1.41.58H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/>
-                      <path class="ub-boards-page__folder-context-identity-icon-front" d="M2 9.5h20v8.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/>
-                    </svg>
-                  </div>
-                  <div class="ub-boards-page__folder-context-identity-text">
-                    {{#if this.editingFolderName}}
-                      <form class="ub-boards-page__folder-rename-form" {{on "submit" this.onSaveFolderRename}}>
-                        <input class="ub-boards-page__folder-rename-input" type="text" value={{this.editFolderNameValue}} {{on "input" (set-field this "editFolderNameValue")}} aria-label={{t "Folder name" key="folder_name"}} />
-                        <button type="submit" class="ub-boards-page__folder-rename-save" aria-label={{t "Save" key="save"}}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        </button>
-                        <button type="button" class="ub-boards-page__folder-rename-cancel" {{on "click" (this.sendAction "cancelFolderRename")}} aria-label={{t "Cancel" key="cancel"}}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                        </button>
-                      </form>
-                    {{else}}
-                      <h3 class="ub-boards-page__folder-context-name">
-                        <span class="ub-boards-page__folder-context-name-text">{{this.boardsCtrl.mineTagFolderDrillIn}}</span>
-                        {{!-- Inline rename trigger — verdigris pencil sat right
-                             after the folder name. Replaces the standalone
-                             "Edit" pill in the actions row so the affordance
-                             reads as "edit this name" instead of "edit this
-                             folder entity". Same startFolderRename action. --}}
-                        <button type="button"
-                          class="ub-boards-page__folder-context-name-edit"
-                          {{on "click" (this.selfActionNoBubble "startFolderRename")}}
-                          aria-label={{t "Rename folder" key="rename_folder"}}
-                          title={{t "Rename folder" key="rename_folder"}}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </button>
-                      </h3>
-                      <p class="ub-boards-page__folder-context-description">{{t "Organize related vocabularies and page-sets" key="folder_context_description"}}</p>
-                    {{/if}}
-                  </div>
-                </div>
-                {{!-- Boards-in-folder dropdown. Swapped with the Delete row
-                     (2026-08-17, requested): this now sits on the identity row at the
-                     card's right edge, where Delete used to be. --}}
-                {{!-- Boards-in-folder dropdown — sits between the identity
-                     block and the actions row. Lists every board tagged
-                     with this folder; each row has a modern × button that
-                     untags the board (the board itself is not deleted). --}}
-                {{#unless this.editingFolderName}}
-                  <div class="ub-boards-page__folder-context-boards-menu">
-                    <button type="button"
-                      class="ub-boards-page__folder-context-boards-menu-trigger {{if this.folderBoardsMenuOpen 'ub-boards-page__folder-context-boards-menu-trigger--open'}}"
-                      aria-haspopup="true"
-                      aria-expanded={{if this.folderBoardsMenuOpen "true" "false"}}
-                      {{on "click" (this.selfActionNoBubble "toggleFolderBoardsMenu")}}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                        <rect x="3" y="3" width="7" height="7" rx="1"/>
-                        <rect x="14" y="3" width="7" height="7" rx="1"/>
-                        <rect x="3" y="14" width="7" height="7" rx="1"/>
-                        <rect x="14" y="14" width="7" height="7" rx="1"/>
-                      </svg>
-                      <span class="ub-boards-page__folder-context-boards-menu-label">{{t "Boards in this folder" key="boards_in_this_folder"}}</span>
-                      <span class="ub-boards-page__folder-context-boards-menu-count">{{this.folderBoardsList.length}}</span>
-                      <svg class="ub-boards-page__folder-context-boards-menu-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <polyline points="6 9 12 15 18 9"/>
-                      </svg>
-                    </button>
-                    {{#if this.folderBoardsMenuOpen}}
-                      <div class="ub-boards-page__folder-context-boards-menu-panel" role="group" aria-label={{t "Boards in this folder" key="boards_in_this_folder"}}>
-                        {{!-- Inline search — filters folderBoardsList by name
-                             so the user can quickly find a board when the
-                             folder has many. Focus is set on open via the
-                             toggle action below. --}}
-                        <div class="ub-boards-page__folder-context-boards-menu-search">
-                          <svg class="ub-boards-page__folder-context-boards-menu-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="11" cy="11" r="7"/>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                          </svg>
-                          <input
-                            type="text"
-                            class="ub-boards-page__folder-context-boards-menu-search-input"
-                            autocomplete="off"
-                            placeholder={{t "Search boards..." key="folder_menu_search_placeholder"}}
-                            aria-label={{t "Search boards in this folder" key="folder_menu_search_label"}}
-                            value={{this.folderBoardsSearch}}
-                            {{on "input" (this.selfEventAction "updateFolderBoardsSearch")}}
-                          />
-                          {{#if this.folderBoardsSearch}}
-                            <button type="button"
-                              class="ub-boards-page__folder-context-boards-menu-search-clear"
-                              {{on "click" (this.selfActionNoBubble "clearFolderBoardsSearch")}}
-                              aria-label={{t "Clear search" key="clear_search"}}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                            </button>
-                          {{/if}}
-                        </div>
-                        {{#each this.filteredFolderBoardsList key="@index" as |entry|}}
-                          <div class="ub-boards-page__folder-context-boards-menu-row">
-                            {{!-- Row name acts as an open-in-speak-mode trigger.
-                                 Separate sibling button from the × so we don't
-                                 nest interactives — bubble of the open-action
-                                 is the implicit row click; × uses bubbles=false
-                                 so it doesn't double-fire the open action. --}}
-                            <button type="button"
-                              class="ub-boards-page__folder-context-boards-menu-row-open"
-                              {{on "click" (this.sendAction "openBoardFromMenu" entry.board)}}
-                              title={{entry.name}}>
-                              {{entry.name}}
-                            </button>
-                            <button type="button"
-                              class="ub-boards-page__folder-context-boards-menu-row-remove"
-                              {{on "click" (this.selfActionNoBubble "removeBoardFromFolder" entry.board)}}
-                              aria-label={{t "Remove from folder" key="remove_from_folder"}}
-                              title={{t "Remove from folder" key="remove_from_folder"}}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                            </button>
-                          </div>
-                        {{else}}
-                          <p class="ub-boards-page__folder-context-boards-menu-empty">
-                            {{#if this.folderBoardsSearch}}
-                              {{t "No matching boards." key="folder_menu_search_empty"}}
-                            {{else}}
-                              {{t "No boards in this folder yet." key="folder_menu_empty"}}
-                            {{/if}}
-                          </p>
-                        {{/each}}
-                      </div>
-                    {{/if}}
-                  </div>
-                {{/unless}}
-                {{#if this.confirmingFolderDelete}}
-                  <div class="la-delete-folder-backdrop" {{on "click" (this.sendAction "cancelDeleteFolder")}}></div>
-                  <div class="la-delete-folder-modal la-delete-folder-modal--inline">
-                    <div class="la-modal-header">
-                      <span class="la-modal-header-label">{{t "Delete folder" key="delete_folder"}}</span>
-                      <button type="button" class="la-modal-close" {{on "click" (this.sendAction "cancelDeleteFolder")}} aria-label={{t "Close" key="close"}}>✕</button>
-                    </div>
-                    <div class="la-delete-folder-modal-body">
-                      <div class="la-delete-folder-modal-icon" aria-hidden="true">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                      </div>
-                      <p class="la-delete-folder-modal-title">{{t "Are you sure you want to delete" key="confirm_delete_folder_pre"}} <strong>"{{this.boardsCtrl.mineTagFolderDrillIn}}"</strong>?</p>
-                      <p class="la-delete-folder-modal-desc">{{t "The boards in this folder won't be deleted. They will be moved back to the main boards view where you can reorganize them." key="delete_folder_explainer"}}</p>
-                    </div>
-                    <div class="la-delete-folder-modal-actions">
-                      <button type="button" class="la-delete-folder-modal-delete" {{on "click" (this.sendAction "confirmDeleteFolder")}} disabled={{this.deletingFolder}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        {{t "Delete folder" key="delete_folder"}}
-                      </button>
-                      <button type="button" class="la-delete-folder-modal-cancel" {{on "click" (this.sendAction "cancelDeleteFolder")}}>{{t "Cancel" key="cancel"}}</button>
-                    </div>
-                  </div>
-                {{/if}}
-                {{!-- Boards inside the drilled-in folder render here so
-                     the folder card itself becomes the destination
-                     container. The Boards summary section below is
-                     hidden while drilled in (see {{#unless drill-in}}
-                     wrap further down) so the boards appear only here,
-                     not in two places. --}}
-                <div class="ub-boards-page__folder-context-boards" role="region" aria-label={{t "Boards in folder" key="boards_in_folder"}}>
-                  <div
-                    class="ub-boards-page__board-grid {{if this.compactBoards 'll-boards-grid--compact'}}"
-                    aria-describedby={{this.boardGridAriaDescribedby}}
-                  >
-                    {{#each this.boardsCtrl.boards_page_visible_results key="board.id" as |board|}}
-                      {{#if board.board.key}}
-                        {{#unless board.board.removed}}
-                          <div
-                            class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
-                            draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "true" "false"}}
-                            {{on "dragstart" (this.selfEventAction "boardDragStart" board.board)}}
-                          >
-                            {{#if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key)}}
-                              <span class="ub-boards-page__board-item-home-badge">{{t "Home Board" key="home_board"}}</span>
-                            {{/if}}
-                            {{#if board.board.starred_for_current_user}}
-                              <span class="ub-boards-page__board-item-heart" aria-label={{t "Liked" key="starred"}} title={{t "Liked" key="starred"}}>
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-                                  <path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/>
-                                </svg>
-                              </span>
-                            {{/if}}
-                            <BoardIcon @board={{board}} @compactRow={{this.compactBoards}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
-                            {{#if this.boardsCtrl.model.permissions.edit}}
-                              {{!-- Contextual remove affordance. DELETE is deliberately NOT offered
-                                   here: a hover-only trash can sitting on a board tile is a one-click
-                                   path to destroying a whole board set, and being hover-only it never
-                                   existed on touch devices in the first place. Deleting a board lives
-                                   in Board Actions and Board Details, and in the board preview —
-                                   BoardIcon still receives @removeCallback above, so the preview's
-                                   touch-reachable remove is unaffected. The NON-destructive contextual
-                                   removes (un-like, unlink, untag) stay: undoing one costs a click. --}}
-                              {{#if (and board.board.id (not (is-equal this.boardsCtrl.board_list.remove_type "delete")))}}
-                                <button class="board_action" type="button" {{on "click" (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}}>
-                                  <span title={{this.boardsCtrl.board_list.remove_label}}><span class={{this.boardsCtrl.board_list.remove_icon}}></span></span>
-                                </button>
-                              {{/if}}
-                            {{/if}}
-                          </div>
-                        {{/unless}}
-                      {{/if}}
-                    {{else}}
-                      <p class="ub-boards-page__folder-context-empty">{{t "No boards in this folder yet. Drag a board onto a folder, or use \"Tag a board\" to add one." key="folder_empty_hint"}}</p>
-                    {{/each}}
-                    {{#if this.boardsCtrl.boards_page_search_truncated}}
-                      <p class="ub-boards-page__filter-truncated-hint">{{t "Showing the first %{count} matches. Keep typing to narrow results." key="boards_filter_truncated_hint" count=this.boardsCtrl.boards_page_search_limit}}</p>
-                    {{/if}}
-                    {{#if this.boardsCtrl.board_list.has_more}}
-                      {{#unless this.boardsCtrl.filterString}}
-                        <div class="ub-boards-page__show-more" style="overflow-anchor: none;">
-                          <a href="#" class="ub-boards-page__show-more-btn" {{on "click" (this.ctrlAction "show_more_boards")}}>
-                            {{t "More" key="more"}}
-                            <span class="ub-boards-page__show-more-chevrons" aria-hidden="true">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                            </span>
-                          </a>
-                        </div>
-                      {{/unless}}
-                    {{/if}}
-                  </div>
-                </div>
-              </div>
-            {{else}}
-              {{!-- Folder strip — only renders when the user has at
-                   least one folder AND is not drilled into one. --}}
-              {{#if this.boardsCtrl.mineTagFolderSummaries.length}}
-                <div class="ub-boards-page__folder-strip" role="list" aria-label={{t "Board folders" key="mine_board_folders_label"}}
-                  {{on "dragover" (this.selfEventAction "emptyFolderDragOver")}}
-                  {{on "drop" (this.selfEventAction "emptyFolderDrop")}}
-                >
-                  {{#each this.filteredFolderSummaries as |folder|}}
+            {{!-- FOLDERS AS AN ACCORDION. Each folder is a row — icon, name, count — and
+                 clicking it EXPANDS that folder's boards in place instead of navigating to a
+                 separate destination view. The expanded panel is the SAME
+                 `ub-boards-page__folder-context` card the detail screen used, moved here intact,
+                 so its colours, borders, rename and delete are unchanged — only the breadcrumb
+                 and "Back to Folders" were dropped, since the row itself now collapses it.
+                 `mineTagFolderDrillIn` still records which folder is open and still rides the
+                 `?folder=` query param, so Back/Forward/refresh keep working. One folder is open
+                 at a time, so the list stays short. --}}
+            {{#if this.boardsCtrl.mineTagFolderSummaries.length}}
+              <div class="ub-boards-page__folder-list" role="list" aria-label={{t "Board folders" key="mine_board_folders_label"}}
+                {{on "dragover" (this.selfEventAction "emptyFolderDragOver")}}
+                {{on "drop" (this.selfEventAction "emptyFolderDrop")}}
+              >
+                {{#each this.filteredFolderSummaries as |folder|}}
+                  <div class="ub-boards-page__folder-row-wrap {{if (is-equal this.boardsCtrl.mineTagFolderDrillIn folder.tag) 'ub-boards-page__folder-row-wrap--open'}}" role="listitem">
                     <button
                       type="button"
-                      class="ub-boards-page__tag-folder"
-                      role="listitem"
-                      {{on "click" (this.ctrlAction "enterMineFolderTag" folder.tag)}}
+                      class="ub-boards-page__folder-row"
+                      aria-expanded={{if (is-equal this.boardsCtrl.mineTagFolderDrillIn folder.tag) "true" "false"}}
+                      {{!-- The OPEN test is done here, in the template, rather than inside the
+               action: the same `is-equal` drives the panel and the chevron directly
+               above, so one expression decides all three and they cannot disagree.
+               (An equivalent comparison inside the action read the controller property
+               as null while the template saw the tag — one source of truth avoids the
+               class of bug entirely.) --}}
+          {{!-- The open flag is read from `data-folder-open` at CLICK time rather than
+               passed as a bound argument. The same `is-equal` renders correctly into
+               aria-expanded and the panel, but when handed to the handler as a
+               subexpression it kept arriving stale (always false), so the row could
+               expand but never collapse. The attribute is rendered by the expression
+               that demonstrably works, and `selfEventAction` forwards the raw event so
+               the handler can read it off currentTarget. --}}
+          data-folder-open={{if (is-equal this.boardsCtrl.mineTagFolderDrillIn folder.tag) "true" "false"}}
+          {{on "click" (this.selfEventAction "toggleMineFolderTag" folder.tag)}}
                       {{on "dragover" (this.selfEventAction "folderDragOver" folder.tag)}}
                       {{on "dragenter" (this.selfEventAction "folderDragEnter" folder.tag)}}
                       {{on "dragleave" (this.selfEventAction "folderDragLeave" folder.tag)}}
                       {{on "drop" (this.selfEventAction "folderDrop" folder.tag)}}
                     >
-                      <span class="ub-boards-page__tag-folder-back">
-                        <span class="ub-boards-page__tag-folder-tab"></span>
+                      <span class="ub-boards-page__folder-row-icon" aria-hidden="true">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M3 7.5a2 2 0 0 1 2-2h4.2a2 2 0 0 1 1.4.6l1.2 1.2a2 2 0 0 0 1.4.6H19a2 2 0 0 1 2 2v7.6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                        </svg>
                       </span>
-                      <span class="ub-boards-page__tag-folder-card">
-                        <span class="ub-boards-page__tag-folder-name">{{folder.tag}}</span>
-                        <span class="ub-boards-page__tag-folder-count">{{folder.count}}</span>
+                      <span class="ub-boards-page__folder-row-name">{{folder.tag}}</span>
+                      <span class="ub-boards-page__folder-row-count">{{t "board" key="n_boards" count=folder.count}}</span>
+                      <span class="ub-boards-page__folder-row-chevron" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                       </span>
                     </button>
-                  {{/each}}
-                </div>
-              {{/if}}
+                    {{#if (is-equal this.boardsCtrl.mineTagFolderDrillIn folder.tag)}}
+                  <div class="ub-boards-page__folder-context">
+                    {{!-- TOP ROW — breadcrumb on the left, the way out centred.
+                         A wrapper rather than placing both directly in the card grid: the card
+                         is `auto 1fr auto`, whose middle column is only centred when the two
+                         auto flanks happen to match, and its other children auto-place, so a
+                         second item in the breadcrumb's row would have been dropped into the
+                         identity row's first free cell. This row owns `1fr auto 1fr`, which
+                         centres the link on the CARD regardless of how wide the breadcrumb
+                         text gets. --}}
+                    <div class="ub-boards-page__folder-context-toprow">
+                    {{!-- Delete. Swapped with the boards-in-folder dropdown
+                         (2026-08-17, requested): this now occupies the top row's right
+                         track. The Edit pill was removed in favor of the inline pencil
+                         icon next to the folder name. --}}
+                    {{#unless this.editingFolderName}}
+                      <div class="ub-boards-page__folder-context-actions">
+                        <button type="button" class="ub-boards-page__folder-context-action ub-boards-page__folder-context-action--delete" {{on "click" (this.sendAction "startDeleteFolder")}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          <span>{{t "Delete" key="delete"}}</span>
+                        </button>
+                      </div>
+                    {{/unless}}
+                    </div>
+                    {{!-- Identity block — large folder icon, name as page
+                         title, plus subtitle hint. This is the "destination"
+                         anchor of the view. --}}
+                    <div class="ub-boards-page__folder-context-identity">
+                      <div class="ub-boards-page__folder-context-identity-icon" aria-hidden="true">
+                        {{!-- Two-path layered folder for depth: the "back"
+                             path is the full folder body including the tab
+                             on top-left; the "front" path overlays the
+                             visible face of the folder with a slightly
+                             lighter tone. Reads as a manila card with a
+                             peeking tab rather than a flat silhouette. --}}
+                        <svg class="ub-boards-page__folder-context-identity-icon-svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="none">
+                          <path class="ub-boards-page__folder-context-identity-icon-back" d="M2 6.5a2 2 0 0 1 2-2h5.5a2 2 0 0 1 1.41.58l1.5 1.5a2 2 0 0 0 1.41.58H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/>
+                          <path class="ub-boards-page__folder-context-identity-icon-front" d="M2 9.5h20v8.5a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2z"/>
+                        </svg>
+                      </div>
+                      <div class="ub-boards-page__folder-context-identity-text">
+                        {{#if this.editingFolderName}}
+                          <form class="ub-boards-page__folder-rename-form" {{on "submit" this.onSaveFolderRename}}>
+                            <input class="ub-boards-page__folder-rename-input" type="text" value={{this.editFolderNameValue}} {{on "input" (set-field this "editFolderNameValue")}} aria-label={{t "Folder name" key="folder_name"}} />
+                            <button type="submit" class="ub-boards-page__folder-rename-save" aria-label={{t "Save" key="save"}}>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            </button>
+                            <button type="button" class="ub-boards-page__folder-rename-cancel" {{on "click" (this.sendAction "cancelFolderRename")}} aria-label={{t "Cancel" key="cancel"}}>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            </button>
+                          </form>
+                        {{else}}
+                          <h3 class="ub-boards-page__folder-context-name">
+                            <span class="ub-boards-page__folder-context-name-text">{{this.boardsCtrl.mineTagFolderDrillIn}}</span>
+                            {{!-- Inline rename trigger — verdigris pencil sat right
+                                 after the folder name. Replaces the standalone
+                                 "Edit" pill in the actions row so the affordance
+                                 reads as "edit this name" instead of "edit this
+                                 folder entity". Same startFolderRename action. --}}
+                            <button type="button"
+                              class="ub-boards-page__folder-context-name-edit"
+                              {{on "click" (this.selfActionNoBubble "startFolderRename")}}
+                              aria-label={{t "Rename folder" key="rename_folder"}}
+                              title={{t "Rename folder" key="rename_folder"}}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                          </h3>
+                          <p class="ub-boards-page__folder-context-description">{{t "Organize related vocabularies and page-sets" key="folder_context_description"}}</p>
+                        {{/if}}
+                      </div>
+                    </div>
+                    {{!-- Boards-in-folder dropdown. Swapped with the Delete row
+                         (2026-08-17, requested): this now sits on the identity row at the
+                         card's right edge, where Delete used to be. --}}
+                    {{!-- Boards-in-folder dropdown — sits between the identity
+                         block and the actions row. Lists every board tagged
+                         with this folder; each row has a modern × button that
+                         untags the board (the board itself is not deleted). --}}
+                    {{#unless this.editingFolderName}}
+                      <div class="ub-boards-page__folder-context-boards-menu">
+                        <button type="button"
+                          class="ub-boards-page__folder-context-boards-menu-trigger {{if this.folderBoardsMenuOpen 'ub-boards-page__folder-context-boards-menu-trigger--open'}}"
+                          aria-haspopup="true"
+                          aria-expanded={{if this.folderBoardsMenuOpen "true" "false"}}
+                          {{on "click" (this.selfActionNoBubble "toggleFolderBoardsMenu")}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1"/>
+                          </svg>
+                          <span class="ub-boards-page__folder-context-boards-menu-label">{{t "Boards in this folder" key="boards_in_this_folder"}}</span>
+                          <span class="ub-boards-page__folder-context-boards-menu-count">{{this.folderBoardsList.length}}</span>
+                          <svg class="ub-boards-page__folder-context-boards-menu-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <polyline points="6 9 12 15 18 9"/>
+                          </svg>
+                        </button>
+                        {{#if this.folderBoardsMenuOpen}}
+                          <div class="ub-boards-page__folder-context-boards-menu-panel" role="group" aria-label={{t "Boards in this folder" key="boards_in_this_folder"}}>
+                            {{!-- Inline search — filters folderBoardsList by name
+                                 so the user can quickly find a board when the
+                                 folder has many. Focus is set on open via the
+                                 toggle action below. --}}
+                            <div class="ub-boards-page__folder-context-boards-menu-search">
+                              <svg class="ub-boards-page__folder-context-boards-menu-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <circle cx="11" cy="11" r="7"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                              </svg>
+                              <input
+                                type="text"
+                                class="ub-boards-page__folder-context-boards-menu-search-input"
+                                autocomplete="off"
+                                placeholder={{t "Search boards..." key="folder_menu_search_placeholder"}}
+                                aria-label={{t "Search boards in this folder" key="folder_menu_search_label"}}
+                                value={{this.folderBoardsSearch}}
+                                {{on "input" (this.selfEventAction "updateFolderBoardsSearch")}}
+                              />
+                              {{#if this.folderBoardsSearch}}
+                                <button type="button"
+                                  class="ub-boards-page__folder-context-boards-menu-search-clear"
+                                  {{on "click" (this.selfActionNoBubble "clearFolderBoardsSearch")}}
+                                  aria-label={{t "Clear search" key="clear_search"}}>
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                              {{/if}}
+                            </div>
+                            {{#each this.filteredFolderBoardsList key="@index" as |entry|}}
+                              <div class="ub-boards-page__folder-context-boards-menu-row">
+                                {{!-- Row name acts as an open-in-speak-mode trigger.
+                                     Separate sibling button from the × so we don't
+                                     nest interactives — bubble of the open-action
+                                     is the implicit row click; × uses bubbles=false
+                                     so it doesn't double-fire the open action. --}}
+                                <button type="button"
+                                  class="ub-boards-page__folder-context-boards-menu-row-open"
+                                  {{on "click" (this.sendAction "openBoardFromMenu" entry.board)}}
+                                  title={{entry.name}}>
+                                  {{entry.name}}
+                                </button>
+                                <button type="button"
+                                  class="ub-boards-page__folder-context-boards-menu-row-remove"
+                                  {{on "click" (this.selfActionNoBubble "removeBoardFromFolder" entry.board)}}
+                                  aria-label={{t "Remove from folder" key="remove_from_folder"}}
+                                  title={{t "Remove from folder" key="remove_from_folder"}}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                              </div>
+                            {{else}}
+                              <p class="ub-boards-page__folder-context-boards-menu-empty">
+                                {{#if this.folderBoardsSearch}}
+                                  {{t "No matching boards." key="folder_menu_search_empty"}}
+                                {{else}}
+                                  {{t "No boards in this folder yet." key="folder_menu_empty"}}
+                                {{/if}}
+                              </p>
+                            {{/each}}
+                          </div>
+                        {{/if}}
+                      </div>
+                    {{/unless}}
+                    {{#if this.confirmingFolderDelete}}
+                      <div class="la-delete-folder-backdrop" {{on "click" (this.sendAction "cancelDeleteFolder")}}></div>
+                      <div class="la-delete-folder-modal la-delete-folder-modal--inline">
+                        <div class="la-modal-header">
+                          <span class="la-modal-header-label">{{t "Delete folder" key="delete_folder"}}</span>
+                          <button type="button" class="la-modal-close" {{on "click" (this.sendAction "cancelDeleteFolder")}} aria-label={{t "Close" key="close"}}>✕</button>
+                        </div>
+                        <div class="la-delete-folder-modal-body">
+                          <div class="la-delete-folder-modal-icon" aria-hidden="true">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                          </div>
+                          <p class="la-delete-folder-modal-title">{{t "Are you sure you want to delete" key="confirm_delete_folder_pre"}} <strong>"{{this.boardsCtrl.mineTagFolderDrillIn}}"</strong>?</p>
+                          <p class="la-delete-folder-modal-desc">{{t "The boards in this folder won't be deleted. They will be moved back to the main boards view where you can reorganize them." key="delete_folder_explainer"}}</p>
+                        </div>
+                        <div class="la-delete-folder-modal-actions">
+                          <button type="button" class="la-delete-folder-modal-delete" {{on "click" (this.sendAction "confirmDeleteFolder")}} disabled={{this.deletingFolder}}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            {{t "Delete folder" key="delete_folder"}}
+                          </button>
+                          <button type="button" class="la-delete-folder-modal-cancel" {{on "click" (this.sendAction "cancelDeleteFolder")}}>{{t "Cancel" key="cancel"}}</button>
+                        </div>
+                      </div>
+                    {{/if}}
+                    {{!-- Boards inside the drilled-in folder render here so
+                         the folder card itself becomes the destination
+                         container. The Boards summary section below is
+                         hidden while drilled in (see {{#unless drill-in}}
+                         wrap further down) so the boards appear only here,
+                         not in two places. --}}
+                    <div class="ub-boards-page__folder-context-boards" role="region" aria-label={{t "Boards in folder" key="boards_in_folder"}}>
+                      <div
+                        class="ub-boards-page__board-grid {{if this.compactBoards 'll-boards-grid--compact'}}"
+                        aria-describedby={{this.boardGridAriaDescribedby}}
+                      >
+                        {{#each this.boardsCtrl.boards_page_visible_results key="board.id" as |board|}}
+                          {{#if board.board.key}}
+                            {{#unless board.board.removed}}
+                              <div
+                                class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
+                                draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "true" "false"}}
+                                {{on "dragstart" (this.selfEventAction "boardDragStart" board.board)}}
+                              >
+                                {{#if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key)}}
+                                  <span class="ub-boards-page__board-item-home-badge">{{t "Home Board" key="home_board"}}</span>
+                                {{/if}}
+                                {{#if board.board.starred_for_current_user}}
+                                  <span class="ub-boards-page__board-item-heart" aria-label={{t "Liked" key="starred"}} title={{t "Liked" key="starred"}}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                                      <path d="M12 21s-7.5-4.5-9.5-9.5C1.2 7.6 3.6 4 7.3 4c2 0 3.5 1 4.7 2.6C13.2 5 14.7 4 16.7 4c3.7 0 6.1 3.6 4.8 7.5C19.5 16.5 12 21 12 21z"/>
+                                    </svg>
+                                  </span>
+                                {{/if}}
+                                <BoardIcon @board={{board}} @compactRow={{this.compactBoards}} @onAction={{this.onOpenBoardInUserView}} @removeType={{this.boardsCtrl.board_list.remove_type}} @removeLabel={{this.boardsCtrl.board_list.remove_label}} @removeIcon={{this.boardsCtrl.board_list.remove_icon}} @removeCallback={{if this.boardsCtrl.model.permissions.edit (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}} />
+                                {{#if this.boardsCtrl.model.permissions.edit}}
+                                  {{!-- Contextual remove affordance. DELETE is deliberately NOT offered
+                                       here: a hover-only trash can sitting on a board tile is a one-click
+                                       path to destroying a whole board set, and being hover-only it never
+                                       existed on touch devices in the first place. Deleting a board lives
+                                       in Board Actions ("Other Actions" -> Delete Board), reachable from the
+                                       board view and the board-detail edit panel. NOT in Board Details — that
+                                       modal has a delete ACTION but no button wired to it.
+                                   
+                                       It is also in the board preview (BoardIcon still receives @removeCallback
+                                       above) — but ONLY in the non-compact density: compact rows suppress both
+                                       preview entry points, and this page defaults to compact. Un-hiding the chip
+                                       there to close that gap was tried and REVERTED — it is absolutely-positioned
+                                       tile chrome that lands on the board name and skewed every row. So in the
+                                       default density, deleting a board goes through the board itself.
+                                   
+                                       The NON-destructive contextual removes (un-like, unlink, untag) stay:
+                                       undoing one costs a click. --}}
+                                  {{#if (and board.board.id (not (is-equal this.boardsCtrl.board_list.remove_type "delete")))}}
+                                    <button class="board_action" type="button" {{on "click" (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}}>
+                                      <span title={{this.boardsCtrl.board_list.remove_label}}><span class={{this.boardsCtrl.board_list.remove_icon}}></span></span>
+                                    </button>
+                                  {{/if}}
+                                {{/if}}
+                              </div>
+                            {{/unless}}
+                          {{/if}}
+                        {{else}}
+                          <p class="ub-boards-page__folder-context-empty">{{t "No boards in this folder yet. Drag a board onto a folder, or use \"Tag a board\" to add one." key="folder_empty_hint"}}</p>
+                        {{/each}}
+                        {{#if this.boardsCtrl.boards_page_search_truncated}}
+                          <p class="ub-boards-page__filter-truncated-hint">{{t "Showing the first %{count} matches. Keep typing to narrow results." key="boards_filter_truncated_hint" count=this.boardsCtrl.boards_page_search_limit}}</p>
+                        {{/if}}
+                        {{#if this.boardsCtrl.board_list.has_more}}
+                          {{#unless this.boardsCtrl.filterString}}
+                            <div class="ub-boards-page__show-more" style="overflow-anchor: none;">
+                              <a href="#" class="ub-boards-page__show-more-btn" {{on "click" (this.ctrlAction "show_more_boards")}}>
+                                {{t "More" key="more"}}
+                                <span class="ub-boards-page__show-more-chevrons" aria-hidden="true">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                                </span>
+                              </a>
+                            </div>
+                          {{/unless}}
+                        {{/if}}
+                      </div>
+                    </div>
+                  </div>
+                    {{/if}}
+                  </div>
+                {{/each}}
+              </div>
             {{/if}}
           </div>
           {{/if}}
@@ -494,8 +505,16 @@
            filter row, tabs, folder-drill-in context, and the board
            grid so they read as the contents of this section.
            Hidden entirely while drilled into a folder — the folder
-           card above becomes the sole boards container. --}}
-      {{#unless this.boardsCtrl.mineTagFolderDrillIn}}
+           card above becomes the sole boards container.
+
+           GATED ON THE DRILLED-IN GRID ACTUALLY RENDERING, not on the drill-in flag
+           alone. That grid lives inside `mineFoldersEnabled` (:49) and `foldersExpanded`
+           (:119), so a drill-in that survives into a state where either is false hid the
+           folder card AND this section — a blank boards page with no way back. Reachable
+           by pressing Back onto a restored `?folder=` while another tab is selected
+           (mineFoldersEnabled false), or by collapsing the accordion while drilled in.
+           The invariant is now: exactly one board grid always renders. --}}
+      {{#unless (and this.boardsCtrl.mineTagFolderDrillIn this.boardsCtrl.mineFoldersEnabled this.foldersExpanded)}}
       <div class="ub-boards-page__boards-summary-section">
         <div class="ub-boards-page__boards-summary-header">
           <span class="ub-boards-page__boards-summary-title">
@@ -760,10 +779,19 @@
                        here: a hover-only trash can sitting on a board tile is a one-click
                        path to destroying a whole board set, and being hover-only it never
                        existed on touch devices in the first place. Deleting a board lives
-                       in Board Actions and Board Details, and in the board preview —
-                       BoardIcon still receives @removeCallback above, so the preview's
-                       touch-reachable remove is unaffected. The NON-destructive contextual
-                       removes (un-like, unlink, untag) stay: undoing one costs a click. --}}
+                       in Board Actions ("Other Actions" -> Delete Board), reachable from the
+                       board view and the board-detail edit panel. NOT in Board Details — that
+                       modal has a delete ACTION but no button wired to it.
+                       
+                       It is also in the board preview (BoardIcon still receives @removeCallback
+                       above) — but ONLY in the non-compact density: compact rows suppress both
+                       preview entry points, and this page defaults to compact. Un-hiding the chip
+                       there to close that gap was tried and REVERTED — it is absolutely-positioned
+                       tile chrome that lands on the board name and skewed every row. So in the
+                       default density, deleting a board goes through the board itself.
+                       
+                       The NON-destructive contextual removes (un-like, unlink, untag) stay:
+                       undoing one costs a click. --}}
                   {{#if (and board.board.id (not (is-equal this.boardsCtrl.board_list.remove_type "delete")))}}
                     <button class="board_action" type="button" {{on "click" (this.ctrlAction "remove_board" this.boardsCtrl.board_list.remove_type board.board)}}>
                       <span title={{this.boardsCtrl.board_list.remove_label}}><span class={{this.boardsCtrl.board_list.remove_icon}}></span></span>

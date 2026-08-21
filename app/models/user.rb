@@ -1473,14 +1473,18 @@ class User < ApplicationRecord
         # Fitzgerald category grouping on board-detail. Empty order = the frontend
         # registry supplies the default sequence.
         #
-        # PRE-PRODUCTION: defaults ON so the grouped board is visible without any
-        # console work while the design is being evaluated. Before production this
-        # must go back to 'enabled' => false — turning it on MOVES vocabulary out of
-        # the cells a user has built positional motor memory on, which is a clinical
-        # change and has to be opt-in. See the matching PRE-PRODUCTION markers in
-        # lib/feature_flags.rb and components/board-detail-grid.js#groupingEnabled;
-        # all three flip together.
-        'board_category_grouping' => {'enabled' => true, 'order' => []},
+        # OFF by default, deliberately. Turning grouping on MOVES vocabulary out of the
+        # cells a user has built positional motor memory on — a clinical change, so it
+        # must be opt-in.
+        #
+        # This default is NOT only for new signups: `generate_defaults` is a before_save
+        # with no new_record? guard covering this loop, so every preference_defaults
+        # entry is backfilled onto EVERY existing user on their next routine save
+        # (login, sync, home-board change). With 'enabled' => true that silently
+        # regrouped every existing communicator's board, and — because the value was
+        # then PERSISTED as an explicit true — removing the feature flag before
+        # production would NOT have undone it.
+        'board_category_grouping' => {'enabled' => false, 'order' => []},
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,
         'click_buttons' => true,
@@ -2332,6 +2336,7 @@ class User < ApplicationRecord
     # Boards-page arrangement is a separate concern from the dashboard grid, so it
     # gets its own sanitizer rather than widening the dashboard one.
     sanitize_boards_layout_preference! if params['preferences']
+    sanitize_board_category_grouping! if params['preferences']
     # On INITIAL registration only, derive preferences.role from the
     # picked registration_type so the canonical app-wide gate
     # (preferences.role == 'supporter' → frontend `supporter_role`)
@@ -2634,6 +2639,39 @@ class User < ApplicationRecord
   # than persisted, which makes the client fall back to its own default (SIDE_BY_SIDE),
   # matching how dashboard_layout behaves.
   BOARDS_LAYOUT_VALUES = ['side-by-side', 'top-down']
+  # Mirrors app/frontend/app/utils/board_categories.js BOARD_CATEGORIES. Kept as a
+  # constant here so the SERVER, not the client, decides what may be stored.
+  BOARD_CATEGORY_KEYS = ['people', 'actions', 'describe', 'how_when', 'places',
+                         'questions', 'social', 'no_not', 'words', 'controls',
+                         'extra', 'things']
+
+  # `board_category_grouping` is a nested hash written verbatim by the PREFERENCE_PARAMS
+  # loop, which coerces only TOP-LEVEL values — so its members were entirely unvalidated:
+  #   * a form-encoded `enabled=false` stored the STRING "false", which every consumer
+  #     read as truthy (they test `=== true` now, so a string reads as off — but storing
+  #     a string at all is a bug, and the opposite coercion would have flipped it ON);
+  #   * `order` and any extra keys were stored unbounded, then echoed back on every user
+  #     load and in every sync payload for that user and their supervisors.
+  # Constrain the shape on write, the same way boards_layout is.
+  def sanitize_board_category_grouping!
+    prefs = self.settings['preferences']
+    return unless prefs.is_a?(Hash)
+    return unless prefs.has_key?('board_category_grouping')
+    val = prefs['board_category_grouping']
+    unless val.is_a?(Hash)
+      prefs.delete('board_category_grouping')
+      return
+    end
+    enabled = val['enabled']
+    order = val['order']
+    order = [] unless order.is_a?(Array)
+    prefs['board_category_grouping'] = {
+      'enabled' => [true, 'true', 1, '1'].include?(enabled),
+      # Known keys only, de-duplicated, and bounded by the registry itself.
+      'order' => order.select { |k| BOARD_CATEGORY_KEYS.include?(k) }.uniq
+    }
+  end
+
   def sanitize_boards_layout_preference!
     prefs = self.settings['preferences']
     return unless prefs.is_a?(Hash)

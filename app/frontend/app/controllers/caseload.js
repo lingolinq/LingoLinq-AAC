@@ -146,23 +146,31 @@ export default Controller.extend({
   // the param is read during setup but `supervisees` resolves from
   // model.known_supervisees, which arrives later (load_all_connections is set in
   // routes/caseload.js#afterModel). Hence an observer on both rather than a one-shot
-  // in setupController. `_deepLinkApplied` keeps the URL shareable (the param is left
+  // in setupController. `_deepLinkAppliedFor` keeps the URL shareable (the param is left
   // in place) while ensuring a later list refresh can't yank the supporter's manual
   // selection back to the deep-linked row.
-  _deepLinkApplied: false,
+  _deepLinkAppliedFor: null,
   _superviseeDeepLink: observer('supervisee', 'supervisees.[]', function() {
     this._applySuperviseeDeepLink();
   }),
   _applySuperviseeDeepLink: function() {
-    if (this.get('_deepLinkApplied')) { return; }
     var name = this.get('supervisee');
     if (!name) { return; }
+    /* Keyed to the NAME that was applied, not a boolean. As a one-way latch this also
+       swallowed a genuinely NEW deep link: arriving from the attention card for Bob and
+       then for Alice left Alice's URL rendering BOB's expanded panel — his goals, badge
+       progress and org status. The original intent still holds, because a later
+       `supervisees` refresh re-fires the observer with the SAME name and returns here. */
+    if (this.get('_deepLinkAppliedFor') === name) { return; }
     var list = this.get('supervisees') || [];
     var match = list.find(function(s) { return s && s.user_name === name; });
     // Not loaded yet, or not on this caseload at all — leave the page alone and let
     // a later list update re-run this. Never invent a selection for an unknown name.
     if (!match) { return; }
-    this.set('_deepLinkApplied', true);
+    this.set('_deepLinkAppliedFor', name);
+    /* A stale roster filter can hide the very row we are deep-linking to, which made the
+       arrival silently do nothing for the rest of the session. */
+    if (this.get('superviseeFilter')) { this.set('superviseeFilter', ''); }
     if (match.modeling_only) {
       this.set('highlightedSupervisee', name);
       this.set('selectedSupervisee', null);
@@ -464,7 +472,12 @@ export default Controller.extend({
       // controls handle their own click without also toggling the
       // card.
       if (event && event.target && event.target.closest) {
-        if (event.target.closest('.md-caseload__list-quick button, .md-caseload__list-quick a')) {
+        /* `--more` is EXCLUDED: it deliberately carries no handler of its own and relies
+           on this click bubbling to the row header, but it is itself a
+           `.md-caseload__list-quick button`, so this guard swallowed it — the button did
+           nothing and aria-expanded never flipped. The tour now points at it, so a dead
+           control is the first thing a new supporter is shown. */
+        if (event.target.closest('.md-caseload__list-quick button:not(.md-caseload__quick-action--more), .md-caseload__list-quick a')) {
           return;
         }
       }

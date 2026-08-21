@@ -300,6 +300,15 @@ export default Component.extend({
 
   actions: {
     toggle() {
+      /* Closing via this button must go through close(), like every other close path
+         (Cancel, OK, Escape, click-outside). Toggling `isOpen` alone left pendingRows/
+         pendingCols staged and the scroll/resize listeners bound — so dismissing with a
+         staged 6x6, setting 2x2 with the steppers, reopening and pressing OK silently
+         reinstated 6x6 and discarded the stepper values. */
+      if (this.get('isOpen')) {
+        this.close();
+        return;
+      }
       this.toggleProperty('isOpen');
       if (this.get('isOpen')) {
         var self = this;

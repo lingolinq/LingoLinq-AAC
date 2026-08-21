@@ -157,7 +157,18 @@ function attentionBadgeFor(supervisee) {
     return { label: i18n.t('caseload_attention_support_needed', "Support needed"),
              hint: i18n.t('caseload_attention_support_needed_hint', "This communicator needs additional support.") };
   }
-  // 'no-home-board' lands here and returns null by design (see above).
+  /* 'no-home-board' normally returns null because the row's own "Board needed" badge
+     (templates/caseload.hbs:134) covers it — but that badge is wrapped in
+     `{{#unless supervisee.modeling_only}}`, so a MODELING-ONLY communicator with no home
+     board got neither marker. They are still listed on the dashboard's "Communicators
+     Need Attention" card (communicatorsNeedingAttention has no modeling_only exclusion),
+     so clicking through landed on a caseload row carrying nothing — breaking the
+     invariant both files document, that a communicator on that card is always flagged
+     here too. Reuse the row badge's own strings so there is one wording for one state. */
+  if(state === 'no-home-board' && supervisee && supervisee.modeling_only) {
+    return { label: i18n.t('caseload_board_needed', "Board needed"),
+             hint: i18n.t('caseload_board_needed_hint', "This communicator has no home board yet — choose one to finish setting them up.") };
+  }
   return null;
 }
 
@@ -476,6 +487,16 @@ function gridLayoutState(vis, order, layout, heroKey) {
   if (layout === 'focused') { classes.push('md-grid--hero-' + (heroKey || 'speak')); }
   var built = (layout === 'focused') ? focusedLayout(vis, order, heroKey) : dashboardLayout(vis, order);
   var areas = built.areas, rows = built.rows;
+  /* A card that is RENDERED but whose `grid-area` names no area in the template gets
+     auto-placed by the browser into an implicit track, which distorts the whole grid.
+     That happened to Speak on an org dashboard whose owner had hidden My Caseload:
+     `orgPair` needs both, so focusedLayout dropped speak from the areas — but it works
+     on a COPY of `vis`, and the card's own visibility comes from a separate path
+     (authenticated-view#cardHideStyle <- sectionVisibility), so the card still rendered.
+     Derived from the built areas rather than by re-deriving the condition, so it covers
+     any future case of visible-but-unplaced, not just this one. */
+  var speakPlaced = areas.some(function(row) { return row.split(' ').indexOf('speak') !== -1; });
+  if (vis.speak && !speakPlaced) { classes.push('md-grid--speak-unplaced'); }
   // Flag when Boards spans BOTH columns (a full-width 'boards boards' row) so the
   // CSS can let the board strip shrink to fit instead of horizontally scrolling.
   if (areas.some(function(row) { var t = row.split(' '); return t.length > 1 && t.every(function(c) { return c === 'boards'; }); })) { classes.push('md-grid--boards-full'); }

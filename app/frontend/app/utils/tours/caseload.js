@@ -245,7 +245,12 @@ function interiorSteps() {
     },
     {
       id: 'caseload_tour_goals',
-      sel: '.md-caseload__bottom-row__goal',
+      /* EXCLUDE the badge block. `.md-caseload__bottom-row__goal` is used twice in the
+         panel — once inside `.md-caseload__bottom-row--badge` (caseload.hbs:354) and
+         once by the real goals block (:456) — and visibleBySelector returns the FIRST
+         visible match. The badge block always renders once badgeLoading is false, so
+         the step titled "Goals" spotlighted the BADGE every time. */
+      sel: '.md-caseload__bottom-row:not(.md-caseload__bottom-row--badge) .md-caseload__bottom-row__goal',
       on: 'top',
       padded: true,
       expand: true,
@@ -301,6 +306,20 @@ function expandFirstRow() {
   };
 }
 
+/* Open the row, THEN wait for the step's own target — which is what the call site's
+   comment has always claimed. expandFirstRow() resolves as soon as the PANEL exists,
+   but a panel step's real target may still be in flight: the badge needs two round
+   trips (store.query then findRecord), so its step showed with the target still absent,
+   liveTarget returned null, Shepherd fell back to document.body and the card rendered
+   unattached, highlighting nothing. */
+function expandThenWait(selector) {
+  var expand = expandFirstRow();
+  var wait = waitForElement(selector);
+  return function() {
+    return expand().then(function() { return wait(); });
+  };
+}
+
 // Push one step per interior target. Steps whose target is already on screen are
 // gated by visibleEl(); `expand` steps are gated instead on a roster row EXISTING
 // (their real target only appears after the row opens, so a build-time
@@ -323,7 +342,7 @@ function pushInteriorSteps(steps) {
       attachTo: { element: liveTarget(cfg.sel, el), on: cfg.on },
       // Panel steps must open the row FIRST, then wait for their own target;
       // everything else just waits for its target.
-      beforeShowPromise: cfg.expand ? expandFirstRow() : waitForElement(cfg.sel),
+      beforeShowPromise: cfg.expand ? expandThenWait(cfg.sel) : waitForElement(cfg.sel),
       title: cfg.title,
       text: cfg.text,
       // Per-step class hook, same spelling the board-picker tour uses (`cfg.cls`) so the

@@ -201,11 +201,14 @@
 }
 .md-feature-unavailable__col-title {
   margin: 0 0 8px;
-  font-size: 12px;
+  /* Was 12px at rgba($la-navy, 0.55) — about 3.14:1 on the #F5F6F8 panel, under AA for
+     normal text, and below this product's legibility floor. These are the headings that
+     tell a user WHY a feature is unavailable. */
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba($la-navy, 0.55);
+  color: rgba($la-navy, 0.75);
 }
 .md-feature-unavailable__list {
   margin: 0;

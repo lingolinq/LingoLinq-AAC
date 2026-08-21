@@ -876,6 +876,19 @@ function _onDisplayShow(component) {
     if (saveTimer) { clearTimeout(saveTimer); }
     saveTimer = setTimeout(function() { saveTimer = null; persist(); }, 180);
   };
+  /* The claim above that "the pending timer survives the close (no app navigation)" is
+     only true for close paths that do not navigate. Done/Cancel run
+     _reloadAfterDashboardDesign, and `window.location.reload()` discards a pending
+     timer — so unchecking a card and pressing Done within 180ms silently lost the
+     change and the card came back. (The `hide:` step hooks are NOT a fallback: Shepherd
+     triggers 'hide' only when moving between steps; Done/×/Esc go through
+     Step.destroy(), which triggers 'destroy'.) Expose a synchronous flush for those
+     paths to call before they navigate. */
+  if (component) {
+    component._flushDisplayStyleSave = function() {
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; persist(); }
+    };
+  }
 
   // Build the preview content — a clone of the user's real dashboard (see
   // _buildPreviewContent). The layout-card click handler rebuilds it when the choice
@@ -901,6 +914,11 @@ function _onDisplayShow(component) {
         _fitStylePreviews(el);
       };
       window.addEventListener('resize', refit);
+      /* Also tracked for deterministic teardown: the self-detach above only runs on the
+         NEXT resize, and on a fixed-orientation AAC tablet a resize never fires — so
+         each modal open leaked a listener closing over a detached step (two
+         document.write-populated iframes among them). */
+      if (component && component._trackResizeListener) { component._trackResizeListener(refit); }
       // The modal animates in, so the slot has no final size on the first frame.
       // Re-fit once it has settled, otherwise every preview scales against a 0-height
       // slot and falls back to the minimum. setTimeout (not runLater) to match this
@@ -1225,6 +1243,7 @@ function _onDisplayShow(component) {
         _fitPreviewZoom(liveEl);
       };
       window.addEventListener('resize', onPreviewResize);
+      if (component && component._trackResizeListener) { component._trackResizeListener(onPreviewResize); }
     } catch (e) { /* fitting is an enhancement — never block the step */ }
     // Drag-to-swap (flagged): let the user rearrange cards by dragging one onto another
     // in the preview. Each swap re-runs syncState (re-rendering the grid + re-stamping the
@@ -1301,10 +1320,34 @@ export default Component.extend({
     };
   },
 
+  /* Registry for window listeners registered by the step-show helpers, which live in
+     module scope and cannot see the component's lifecycle on their own. */
+  _trackResizeListener: function(fn) {
+    var list = this._tracked_resize_listeners || [];
+    list.push(fn);
+    this._tracked_resize_listeners = list;
+  },
+
   willDestroy: function() {
+    (this._tracked_resize_listeners || []).forEach(function(fn) {
+      try { window.removeEventListener('resize', fn); } catch (e) { /* already gone */ }
+    });
+    this._tracked_resize_listeners = null;
     if (this.get('appState.dashboard_design_opener')) {
       this.set('appState.dashboard_design_opener', null);
     }
+    /* `md-ds-active` is added to <body> and removed only by _clearCentered() off
+       Shepherd's complete/cancel events — but the modal is portalled to <body>, so a
+       route change that bypasses those (browser Back, Android hardware Back, a
+       session-expiry redirect) destroyed this component with the class still set.
+       `body.md-ds-active .md-workspace { visibility: hidden !important }` then blanked
+       the DESTINATION route, and .md-workspace is on essentially every authenticated
+       page. Cancel the tour too, so its own listeners do not outlive the component. */
+    try {
+      var tour = this.get('tour');
+      if (tour && tour.cancel) { tour.cancel(); }
+    } catch (e) { /* tour already torn down */ }
+    _clearCentered();
     this._super.apply(this, arguments);
   },
 
@@ -1405,6 +1448,12 @@ export default Component.extend({
   // unreliable cross-browser and adds motion AAC users don't need. Deferred until
   // the save persists so the reloaded page reflects the chosen layout.
   _reloadAfterDashboardDesign: function() {
+    /* Commit any debounced visibility/position change BEFORE anything here can trigger
+       a reload. Without this, a toggle made within 180ms of pressing Done was discarded
+       with the page. Safe to call unconditionally — it is a no-op when no save is
+       pending, and it runs even on the early return below, which is what the
+       already-settled path needs. */
+    if (this._flushDisplayStyleSave) { this._flushDisplayStyleSave(); }
     if (!this._dashboardDesignChanged) { return; }
     this._dashboardDesignChanged = false;
     var _this = this;

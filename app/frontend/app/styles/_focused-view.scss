@@ -1890,6 +1890,15 @@ body.ll-layout-focused .md-grid.md-grid--hero-org .md-card.md-card--caseload-as-
 // The light art's saturate/brightness lift is cleared: the dark version is already tuned,
 // and stacking the filter on it muddied the tile.
 body.ll-layout-focused .md-card--org-management .md-room-card__icon {
+  /* PLAIN url() FIRST as the fallback. `type()` inside image-set() needs Safari 17+ /
+     Chrome 113+, and legacy -webkit-image-set() never supported type() at all — so on
+     an older iPad or a pre-2023 Android WebView (a very common AAC device population)
+     BOTH declarations below were dropped, the base rule's LIGHT artwork won, and
+     `filter: none` still applied, stripping the saturate/brightness lift that light art
+     was tuned with: exactly the washed-out tile the -dark variants exist to prevent.
+     This also makes the PNG reachable at all — every engine that supports
+     image-set()+type() also supports WebP, so the in-set PNG branch never wins. */
+  background-image: url('../images/organization-dark.png') !important;
   background-image: -webkit-image-set(
     url('../images/organization-dark.webp') type('image/webp'),
     url('../images/organization-dark.png') type('image/png')) !important;
@@ -1921,6 +1930,15 @@ body.ll-layout-focused .md-card--org-management .md-room-card__icon {
 // even begin fetching until the card painted, and the illustration would pop in after the
 // rest of the card.
 body.ll-layout-focused .md-grid .md-card.md-card--org-management .md-card__icon--org {
+  /* PLAIN url() FIRST as the fallback. `type()` inside image-set() needs Safari 17+ /
+     Chrome 113+, and legacy -webkit-image-set() never supported type() at all — so on
+     an older iPad or a pre-2023 Android WebView (a very common AAC device population)
+     BOTH declarations below were dropped, the base rule's LIGHT artwork won, and
+     `filter: none` still applied, stripping the saturate/brightness lift that light art
+     was tuned with: exactly the washed-out tile the -dark variants exist to prevent.
+     This also makes the PNG reachable at all — every engine that supports
+     image-set()+type() also supports WebP, so the in-set PNG branch never wins. */
+  background-image: url('../images/organizations-dark.png') !important;
   background-image: -webkit-image-set(
     url('../images/organizations-dark.webp') type('image/webp'),
     url('../images/organizations-dark.png') type('image/png')) !important;

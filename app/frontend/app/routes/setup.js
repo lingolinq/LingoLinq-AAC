@@ -1,5 +1,4 @@
 import Route from '@ember/routing/route';
-import RSVP from 'rsvp';
 import { later as runLater } from '@ember/runloop';
 import speecher from '../utils/speecher';
 import { inject as service } from '@ember/service';
@@ -21,7 +20,7 @@ export default Route.extend({
   // revived or reworked later without reconstructing it. Do not delete these files
   // without checking with Traci first.
   //
-  // A BLANKET block: as of 2026-08-15 no code transitions here at all. The two
+  // A BLANKET block: as of 2026-08-15 no REACHABLE caller transitions here — controllers/application.js:1794 still does, but that is the retired wizard's own footer paging and is dead with the route. The two
   // non-wizard modes this route also served are both closed off with it —
   //   • mode=layout   — the board symbol-layout editor. A distinct feature that
   //                     merely lives on this route; its only entry point
@@ -41,8 +40,14 @@ export default Route.extend({
   // effectively a catch-all, so removing it would resolve /setup as a USER named
   // "setup" and show "Error loading user" rather than redirecting home.
   beforeModel: function() {
+    /* Redirect and STOP. This used to `return RSVP.reject({setup_retired: true})` — a
+       non-Error POJO — relying on router_js classifying it as an abort. When that race
+       is lost (or return_to_index hits its no-router branch) the rejection reaches the
+       application error handler, which returns true, and the user typing /setup gets a
+       "Failed to load" error page instead of their home page. A plain object also can't
+       be classified by TransitionAborted checks, so the best case is an unhandled
+       rejection in the console. A redirect guard should redirect, not reject. */
     this.appState.return_to_index();
-    return RSVP.reject({ setup_retired: true });
   },
   setupController: function(controller) {
     if (controller.get('mode') === 'layout') {

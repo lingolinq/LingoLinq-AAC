@@ -1965,7 +1965,18 @@ export default Component.extend({
      *  button. Leaving AI mode keeps any generated labels so toggling
      *  back and forth doesn't lose work. */
     set_create_mode: function(mode) {
-      this.set('ai_mode', mode === 'ai');
+      var to_ai = (mode === 'ai');
+      /* LEAVING AI mode must clear what AI produced. `model.ai_generated` is the
+         server-signed EU AI Act Art.50(2) provenance marker: left in place, a user who
+         switched to regular mode and hand-replaced every label still saved a board that
+         is recorded and displayed as AI-generated — a false provenance claim on a
+         compliance marker. `ai_labels_generated` is cleared with it so the section
+         gating (`!ai_mode || ai_labels_generated`) returns to its regular-mode meaning. */
+      if(!to_ai && this.get('ai_mode')) {
+        this.set('ai_labels_generated', false);
+        if(this.get('model')) { this.set('model.ai_generated', null); }
+      }
+      this.set('ai_mode', to_ai);
       this.set('ai_generate_error', null);
     },
 

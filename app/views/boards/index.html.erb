@@ -68,7 +68,13 @@
     primary/secondary text. Text dynamically switches at 3s for slower
     loads ("Still working… Large board sets…"). When Ember boots,
     app-state.js:586 removes this #loading_box element. %>
-<div id="loading_box" <% if crawler? %>style="display: none;"<% end %>>
+<%# The live region lives HERE, not only on .ll-skel-progress. The `.is-anonymous`
+    branch display:none's that progress card, and it carried the shell's ONLY
+    role="status" — so an anonymous visitor opening a shared board link, a lesson link
+    or /about (all served by boards#index) got a bare gradient and zero screen-reader
+    announcement for the entire bundle load. app/frontend/app/index.html:328 already
+    puts it here; the two shells had drifted. %>
+<div id="loading_box" role="status" aria-live="polite" aria-busy="true" <% if crawler? %>style="display: none;"<% end %>>
   <style>
     /* All inline — the Ember CSS bundle hasn't loaded yet. Brand palette
        hardcoded as hex/rgba so we don't depend on any @import or

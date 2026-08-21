@@ -232,6 +232,28 @@ const clickEl = async (page, sel) => {
         else { fail('8. OFF — tapping a preview button does NOT open the move picker', JSON.stringify(off2)); }
       }
     }
+    /* 9. PERSISTENCE. Every check above reads in-page state, which would pass even if
+       nothing ever reached the server — the switch and the preview are both bound to the
+       locally-set value. Read the preference off the RE-FETCHED user record after a full
+       reload; that reflects what the server actually stored, and needs no panel. */
+    const wanted = (await page.evaluate(PANEL)).checked;
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await sleep(9000);
+    const stored = await page.evaluate(() => {
+      const as = window.appState;
+      if (!as || !as.get) { return { reachable: false }; }
+      const v = as.get('referenced_user.preferences.board_category_grouping');
+      return { reachable: true, enabled: v && v.enabled, raw: JSON.stringify(v) };
+    });
+    if (!stored.reachable) {
+      fail('9. the setting survives a reload', 'appState not reachable after reload — inconclusive');
+    } else if (!!stored.enabled === !!wanted) {
+      pass('9. the setting survives a reload',
+        `panel left it ${wanted ? 'ON' : 'OFF'}; the re-fetched user record agrees (${stored.raw})`);
+    } else {
+      fail('9. the setting survives a reload',
+        `panel left it ${wanted ? 'ON' : 'OFF'} but the re-fetched record says ${stored.enabled} (${stored.raw}) — the preference is not reaching the server`);
+    }
   } catch (e) {
     if (!/no board|no categorize entry|panel/.test(e.message)) {
       console.log('\nERROR ' + e.message);

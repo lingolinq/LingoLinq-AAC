@@ -100,24 +100,16 @@ const waitForTiles = async (page) => {
        (board-preview.hbs:97-107) is fed by `board.preview_remove`
        (board-icon.js:330-340). `@removeCallback` on <BoardIcon> was left in place,
        so this path is unaffected — assert that rather than assume it. --- */
-    /* The boards page defaults to COMPACT rows (`compactBoards: true`,
-       available-boards-section.js:24) and BoardIcon suppresses both Preview
-       buttons when `compactRow` is set (board-icon.hbs:63,88) — so the Preview
-       chip only exists in the OTHER density. Flip the segmented control
-       (available-boards-section.hbs:706-711) first, or this check measures the
-       wrong density and reports a false absence. */
+    /* Switch OUT of compact first. Compact rows suppress both preview entry points
+       (board-icon.hbs) — that is deliberate: the chip is absolutely-positioned tile
+       chrome and overlaps the name in a row. So the preview route to delete exists in
+       the grid density only; in compact, deleting goes through Board Actions. */
     const densityBtns = await page.$$('.bp-segmented__option');
     if (densityBtns.length >= 2) {
       const b = await densityBtns[1].boundingBox();
       if (b) { await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2); }
       await new Promise((r) => setTimeout(r, 1500));
     }
-    /* Two equivalent preview triggers exist on a non-compact tile: the bottom-center
-       "Preview" pill (`button.info`) and the top-right info chip
-       (`.board-icon__info`) — board-icon.hbs:64 and :91, same action. Both are
-       revealed on hover, so hover the tile before clicking, and prefer the info
-       chip: the bottom pill sits under the tile's own name/author overlay at some
-       widths and the click lands on the card instead. */
     const tile = await page.$('.ub-boards-page__board-grid .ub-boards-page__board-item');
     let rm = null;
     if (tile) {

@@ -355,6 +355,12 @@ export default Service.extend({
       
       if(!onlineStatus) {
         if (_vb) { console.log('[check_token] Already marked as offline, returning success: false'); }
+        /* `token_validated` must mean "the server said yes, just now" — nothing weaker.
+           Leaving a previous true here made it a one-way latch: with a server-revoked
+           token and a dropped connection, routes/login.js:29 still bounced the user to
+           index, index failed to resolve the user, and they landed back on the landing
+           page with no route to the sign-in form. */
+        _this.set('token_validated', false);
         return {success: false};
       }
       
@@ -433,6 +439,8 @@ export default Service.extend({
       
       var result = {success: false, browserToken: browserTokenForResult, networkError: isNetworkError};
       if (_vb) { console.log('[check_token] Returning result:', result); }
+      // Not a validation — see the note on the offline return above.
+      _this.set('token_validated', false);
       return RSVP.resolve(result);
     });
   },
@@ -644,6 +652,9 @@ export default Service.extend({
     if (this.isDestroyed || this.isDestroying) {
       return;
     }
+    // Signing out is not a validation. Without this the flag survived logout and
+    // routes/login.js:29 could bounce the next visitor away from the sign-in form.
+    this.set('token_validated', false);
     var full_invalidate = force || !!(this.appState.get('currentUser') || this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback());
     if(full_invalidate) {
       // Purge any in-progress eval snapshot (partially-answered clinical data)

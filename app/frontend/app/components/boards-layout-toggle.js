@@ -75,6 +75,24 @@ export default Component.extend({
     }
   },
 
+  /* ArrowLeft/Up/Right/Down move selection AND focus, per the ARIA radiogroup pattern.
+     With exactly two options every arrow simply moves to the other one, so there is no
+     index arithmetic to get wrong. Selection follows focus because choosing is instant
+     and reversible — there is no commit step to defer to. */
+  onGroupKeydown: function(event) {
+    var key = event && event.key;
+    if(key !== 'ArrowRight' && key !== 'ArrowDown' && key !== 'ArrowLeft' && key !== 'ArrowUp') { return; }
+    event.preventDefault();
+    var root = event.currentTarget;
+    this.send('choose', this.get('isSideBySide') ? TOP_DOWN : SIDE_BY_SIDE);
+    /* Focus the button that is about to become checked. The re-render has not happened
+       yet, so that is the currently-unchecked one. */
+    if(root && root.querySelector) {
+      var target = root.querySelector('[aria-checked="false"]');
+      if(target && target.focus) { target.focus(); }
+    }
+  },
+
   isSideBySide: computed('layoutMode', function() {
     return this.get('layoutMode') !== TOP_DOWN;
   }),

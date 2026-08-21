@@ -324,6 +324,17 @@ export default Controller.extend(prefClasses, {
      board's buttons grouped into their categories at real size while the order is
      rearranged. */
   category_order_open: false,
+  /* Closes the Categorize takeover whenever edit mode ends — Done, Cancel, browser Back,
+     Android Back, a session-expiry redirect, anything. An observer rather than a patch in
+     cancel_edit/save_board because those are two of many exits, and the ones that bit
+     here (Back) go through none of them. The template also gates on edit_mode, so this is
+     belt-and-braces: it clears the STATE, the gate stops the RENDER. */
+  _close_category_panel_on_edit_exit: observer('edit_mode', function() {
+    if(!this.get('edit_mode') && this.get('category_order_open')) {
+      this.set('category_order_open', false);
+      this.set('category_move_button', null);
+    }
+  }),
   /* The button whose "move to category" picker is open in the Categorize panel,
      or null. Holding the button (not just its id) keeps its label available for
      the picker heading without a second lookup. */
@@ -3283,12 +3294,31 @@ export default Controller.extend(prefClasses, {
     skin:                 'preferences.skin'
   },
 
-  folder_labels_on_tab: computed('folder_display_style', function() {
-    return this.get('folder_display_style') === 'tab_labels';
+  /* Is category grouping actually in force for this user? Flag AND preference — the
+     preference alone is meaningless when the feature is not deployed. */
+  grouping_active: computed('app_state.feature_flags.board_category_grouping', 'categorize_enabled', function() {
+    return !!this.get('app_state.feature_flags.board_category_grouping') && !!this.get('categorize_enabled');
   }),
 
-  folder_colored_corner: computed('folder_display_style', function() {
-    return this.get('folder_display_style') === 'colored_corner';
+  /* Category grouping already communicates a button's category through its PANEL, and
+     the folder treatments (tab labels especially) compete with that — two different
+     colour/label systems on the same cell. So while grouping is on the folder style is
+     pinned to Colored Corner.
+
+     DERIVED, never written: the user's stored `folder_display_style` is left untouched,
+     so turning grouping back off restores whatever they had chosen rather than silently
+     rewriting their preference to a value they never picked. */
+  effective_folder_display_style: computed('folder_display_style', 'grouping_active', function() {
+    if(this.get('grouping_active')) { return 'colored_corner'; }
+    return this.get('folder_display_style');
+  }),
+
+  folder_labels_on_tab: computed('effective_folder_display_style', function() {
+    return this.get('effective_folder_display_style') === 'tab_labels';
+  }),
+
+  folder_colored_corner: computed('effective_folder_display_style', function() {
+    return this.get('effective_folder_display_style') === 'colored_corner';
   }),
 
   // Map of speak-menu item id → true for items the user has hidden.
@@ -5214,9 +5244,9 @@ export default Controller.extend(prefClasses, {
      move controls — a disabled control is clearer than one that silently no-ops
      at the ends of the list. */
   category_order_list: computed(
-    'app_state.currentUser.preferences.board_category_grouping.order',
+    'app_state.referenced_user.preferences.board_category_grouping.order',
     function() {
-      var order = normalizeCategoryOrder(this.get('app_state.currentUser.preferences.board_category_grouping.order'));
+      var order = normalizeCategoryOrder(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
       return order.map(function(key, idx) {
         var cat = categoryForKey(key);
         return {
@@ -5232,10 +5262,24 @@ export default Controller.extend(prefClasses, {
     }
   ),
 
+  /* Destinations the move picker may offer. A category is a COLOUR here — the move is
+     performed by painting — so a category with no paintable type (`controls`, `extra`,
+     whose `types: []` makes swatch_for_category return null) cannot be a destination:
+     move_button_to_category bailed and closed the dialog with no change and no message,
+     so two of the twelve offered destinations were dead controls. Ordering still comes
+     from category_order_list, so the picker matches the panel. */
+  category_move_targets: computed('category_order_list.[]', function() {
+    return (this.get('category_order_list') || []).filter(function(cat) {
+      return cat && swatchForCategory(cat.key);
+    });
+  }),
+
   categorize_enabled: computed(
-    'app_state.currentUser.preferences.board_category_grouping.enabled',
+    'app_state.referenced_user.preferences.board_category_grouping.enabled',
     function() {
-      return this.get('app_state.currentUser.preferences.board_category_grouping.enabled') !== false;
+      // Must use the SAME test as BoardDetailGrid#groupingEnabled (`=== true`), or the
+      // Categorize switch reads On while the board it describes is ungrouped.
+      return this.get('app_state.referenced_user.preferences.board_category_grouping.enabled') === true;
     }
   ),
 
@@ -5245,16 +5289,37 @@ export default Controller.extend(prefClasses, {
      ship the change (see LEARNINGS "a new user preference is a 3-touch change").
      Writes the WHOLE sub-hash so enabled and order always move together. */
   _save_category_grouping: function(changes) {
-    var user = this.get('app_state.currentUser');
+    /* Write to the user the board is FOR — see the note in board-detail-grid.js. A
+       supervisor modelling for a communicator changes THAT communicator's setting; on
+       their own board they change their own. Read and write must resolve the same user
+       or the switch would describe one account and persist to another. */
+    var user = this.get('app_state.referenced_user');
     if(!user || !user.set) { return; }
     var current = user.get('preferences.board_category_grouping') || {};
     var next = {
-      enabled: changes.enabled === undefined ? (current.enabled !== false) : !!changes.enabled,
+      /* `=== true`, matching groupingEnabled. With `!== false` an ABSENT preference read
+         as enabled, so saving an order-only change (a move arrow, or Reset order)
+         silently turned grouping ON for a user who had never opted in. */
+      enabled: changes.enabled === undefined ? (current.enabled === true) : !!changes.enabled,
       order: changes.order || normalizeCategoryOrder(current.order)
     };
+    var previous = current;
     user.set('preferences.board_category_grouping', next);
+    /* `preferences.device` may not exist on the record — setting a nested path through a
+       missing object throws "object in path could not be found", which would abort this
+       handler AFTER the local set above and leave the UI showing a state that was never
+       persisted. Same guard as components/boards-layout-toggle.js:135. */
+    if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
     user.set('preferences.device.updated', true);
-    if(user.save) { user.save().then(null, function() {}); }
+    if(user.save) {
+      user.save().then(null, function() {
+        /* Do not swallow this. The switch and preview are bound to the local value, so a
+           silently failed save (offline, 5xx) left the supervisor believing they had
+           changed the communicator's board when nothing reached the server. */
+        if(user.set) { user.set('preferences.board_category_grouping', previous); }
+        modal.error(i18n.t('board_categorize_save_failed', "Couldn't save the Categorize setting. Please try again."));
+      });
+    }
   },
 
   actions: {
@@ -5281,7 +5346,7 @@ export default Controller.extend(prefClasses, {
        chosen. So up/down is the whole model — there is no honest meaning for
        left/right, and it would behave differently at each breakpoint. */
     move_category: function(key, direction) {
-      var order = normalizeCategoryOrder(this.get('app_state.currentUser.preferences.board_category_grouping.order'));
+      var order = normalizeCategoryOrder(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
       var idx = order.indexOf(key);
       if(idx === -1) { return; }
       var target = direction === 'up' ? idx - 1 : idx + 1;
@@ -5344,6 +5409,14 @@ export default Controller.extend(prefClasses, {
       var previous_em_paint = editManager.paint_mode;
 
       this.send('set_paint_mode', swatch.fill, swatch.border, swatch.part_of_speech);
+      /* Take the undo snapshot HERE. The controller's paint_button (unlike
+         editManager.paint_button, which opens with save_state) never records one, so a
+         category move pushed no history entry — pressing Undo afterwards popped the
+         snapshot taken before the PREVIOUS edit and reverted both of them in one press,
+         with no way to undo the move on its own and no indication two edits were lost. */
+      try {
+        editManager.save_state({ mode: 'paint', button_id: this._btn_id(btn) });
+      } catch(e) { /* no active edit session — nothing to snapshot */ }
       this.send('paint_button', btn);
 
       // Restore whatever paint state was armed before — this borrows the paint
@@ -8025,6 +8098,12 @@ export default Controller.extend(prefClasses, {
 
     set_folder_style: function(style) {
       var _this = this;
+      /* Second half of the gate the template already applies (the options are
+         `disabled` while grouping is on). Kept as its own check so no future caller can
+         write a folder style that the grouped board will not honour — the effective
+         style is pinned to colored_corner while grouping is active, so persisting a
+         different one would store a preference the user cannot see taking effect. */
+      if(_this.get('grouping_active')) { return; }
       _this.set('folder_display_style', style);
       _this.set('folder_dropdown_open', false);
       var user = _this.get('app_state.currentUser');

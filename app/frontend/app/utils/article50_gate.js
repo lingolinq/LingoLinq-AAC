@@ -101,12 +101,22 @@ export function presentBlockingGate(appState) {
   }
   return new RSVP.Promise(function(resolve, reject) {
     modal.open('ai-disclosure', { scannable: true }).then(function(result) {
-      if (!result || !result.replaced) {
-        resolve(result);
-      } else {
+      if (result && result.replaced) {
         // Bumped by another modal, not a genuine acknowledgement. The caller's
         // gated action must not proceed, but it DOES need to know why.
         reject({ art50_gate: GATE_NOT_ACKNOWLEDGED });
+      } else if (needsAcknowledgement(appState)) {
+        /* Resolved WITHOUT an acknowledgement being recorded. This branch used to
+           resolve positively on any non-`replaced` result, including `resolve(null)` —
+           and utils/modal.js#close resolves the pending promise with its `success`
+           argument, so a bare `modal.close()` anywhere (e.g. app-state#check_scanning,
+           which closes whatever modal is open) satisfied the gate and let an AI request
+           proceed for an EU user with no Art.50(1) acknowledgement on record.
+           Only `@uncloseable` on the disclosure template was holding that shut; the gate
+           now verifies the outcome itself, against the same predicate it entered on. */
+        reject({ art50_gate: GATE_NOT_ACKNOWLEDGED });
+      } else {
+        resolve(result);
       }
     }, function(err) {
       reject(err);

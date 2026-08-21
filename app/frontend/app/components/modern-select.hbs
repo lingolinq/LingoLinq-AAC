@@ -33,11 +33,29 @@
       {{#each this.filteredContent as |item|}}
         {{#if item.heading}}
           {{!-- Group heading (the custom-list equivalent of <optgroup label>).
-               `role="none"` keeps it out of the listbox a11y tree so screen
-               readers still announce only `option` children, and it carries no
-               tabindex, so the ArrowDown/Up handlers — which walk
-               `.modern-select__option` — skip it for free. --}}
-          <li class="modern-select__group-label" role="none">{{item.name}}</li>
+               It WAS `role="none"`, which kept it out of the listbox a11y tree
+               entirely — so the grouping was purely visual and a screen-reader
+               user heard Root / Liked / Shared with Me / Private as flat siblings
+               with no group label at all (WCAG 1.3.1).
+
+               `role="option" aria-disabled="true"` gets the label announced in
+               its correct position, ahead of the options it introduces, without
+               touching the data shape. The ideal markup is a nested
+               `<ul role="group" aria-label>`, but the content here is a FLAT
+               list of headings and options, so that would mean restructuring
+               `filteredContent` and every producer that feeds it — a large change
+               to a select used across many modals.
+
+               Safe because option handling in modern-select.js is entirely
+               CLASS-based (`.modern-select__option` at :182, :183, :246, :285,
+               :290) and this element carries `modern-select__group-label`, so
+               focus landing and ArrowDown/Up still skip it exactly as before; it
+               also still has no tabindex.
+
+               Known trade-off: AT that announces positional counts will include
+               the heading in "n of m". That is a smaller harm than the grouping
+               being inaudible. --}}
+          <li class="modern-select__group-label" role="option" aria-disabled="true" aria-selected="false">{{item.name}}</li>
         {{else}}
           <li
             class="modern-select__option {{if (is-equal this.selection item.id) "modern-select__option--selected"}}"

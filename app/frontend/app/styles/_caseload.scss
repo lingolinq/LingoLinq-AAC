@@ -1275,7 +1275,12 @@
   .md-caseload__list-header .md-caseload__list-quick .md-caseload__quick-label {
     display: inline;
     min-width: 0;
-    font-size: clamp(10px, calc(8px + 0.55vw), 12px);
+    /* Floor raised from 10px. Inside this <=640px query the old ceiling was
+       unreachable (11.52px at 640px), so these five captions rendered at ~10px — about
+       half this product's AAC legibility floor, which turns a labelled tile row back
+       into five guessable icons. The row is `align-items: stretch`, so wrapping to two
+       lines is already accommodated. */
+    font-size: clamp(14px, calc(12px + 0.55vw), 16px);
     line-height: 1.15;
     text-align: center;
     /* MUST release the base label's `white-space: nowrap`. Only `--choose-board` and

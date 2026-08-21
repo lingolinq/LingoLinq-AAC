@@ -1,6 +1,7 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { computed, get } from '@ember/object';
+import { guidFor } from '@ember/object/internals';
 import { scheduleOnce, debounce, cancel } from '@ember/runloop';
 import labelFit from '../utils/label_fit';
 import { group_buttons, normalize_order, assign_columns, GROUP_INNER_COLUMNS } from '../utils/board_categories';
@@ -14,6 +15,7 @@ var RESIZE_DEBOUNCE_MS = 250;
 // hard-coding document.querySelector('.md-board-detail-grid') would
 // break if the legacy /board/:key view ever co-mounted; scoping to
 // the board-detail shell keeps us isolated.
+/* Document-wide fallback, used only when an instance has not stamped its id yet. */
 function findGridEl() {
   return document.querySelector('.md-board-detail-main .md-board-detail-grid') ||
          document.querySelector('.md-board-detail-grid');
@@ -22,6 +24,21 @@ function findGridEl() {
 export default Component.extend({
   tagName: '',
   app_state: service('app-state'),
+
+  /* This component is rendered TWICE at once on board-detail: the real board inside
+     `.md-board-detail-main`, and the Categorize panel's live preview at shell level.
+     A document-wide `findGridEl()` resolved BOTH instances to the main grid, so the
+     preview ran labelFit on the real board and never shrink-to-fit its own labels —
+     the preview drifted from what ships, which is the one thing it exists not to do.
+     Stamp a per-instance id and look that up first. */
+  gridElementId: computed(function() {
+    return 'bd-grid-' + guidFor(this);
+  }),
+
+  _findGridEl: function() {
+    var id = this.get('gridElementId');
+    return (id && document.getElementById(id)) || findGridEl();
+  },
 
   // True when any button on the board opens a folder (load_board). Drives the
   // grid's --has-folders class so the folder-tab top reserve — which pushes every
@@ -64,7 +81,13 @@ export default Component.extend({
    */
   groupingEnabled: computed(
     'app_state.feature_flags.board_category_grouping',
-    'app_state.currentUser.preferences.board_category_grouping.enabled',
+    /* referenced_user, NOT currentUser: the setting belongs to whoever the board is
+       FOR. When a supervisor models or speaks as a communicator, referenced_user is
+       that communicator (app-state.js:3743 — currentUser except when modeling, where it
+       resolves to referenced_speak_mode_user); on the supervisor's own board it is the
+       supervisor. currentUser alone gets speak-as right but misses the modeling case.
+       Same primitive board-detail already uses for word_suggestions. */
+    'app_state.referenced_user.preferences.board_category_grouping.enabled',
     'editMode',
     'forceGrouping',
     function() {
@@ -76,12 +99,16 @@ export default Component.extend({
       if(!this.get('app_state.feature_flags.board_category_grouping')) { return false; }
       if(this.get('forceGrouping')) { return true; }
       if(this.get('editMode')) { return false; }
-      return this.get('app_state.currentUser.preferences.board_category_grouping.enabled') !== false;
+      /* `=== true`, NOT `!== false`. The permissive form treated an ABSENT preference as
+         ON, so every user who had never opted in got their board regrouped the moment
+         the feature flag was enabled — and it could not distinguish "chose it" from
+         "was backfilled by generate_defaults". Absence now means off. */
+      return this.get('app_state.referenced_user.preferences.board_category_grouping.enabled') === true;
     }
   ),
 
-  categoryOrder: computed('app_state.currentUser.preferences.board_category_grouping.order', function() {
-    return normalize_order(this.get('app_state.currentUser.preferences.board_category_grouping.order'));
+  categoryOrder: computed('app_state.referenced_user.preferences.board_category_grouping.order', function() {
+    return normalize_order(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
   }),
 
   /*
@@ -226,7 +253,7 @@ export default Component.extend({
   // one layout read, but it's a single cell and runs at most once per render tick.
   _publish_cell_metrics: function() {
     if(this.isDestroyed || this.isDestroying) { return; }
-    var gridEl = findGridEl();
+    var gridEl = this._findGridEl();
     if(!gridEl) { return; }
     var cell = gridEl.querySelector('.md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty)');
     if(!cell) { return; }
@@ -246,7 +273,7 @@ export default Component.extend({
   // stay at the chosen size. Shrink-only — never grows text past preference.
   _run_label_fit: function() {
     if(this.isDestroyed || this.isDestroying) { return; }
-    var gridEl = findGridEl();
+    var gridEl = this._findGridEl();
     if(!gridEl) { return; }
     labelFit.apply(gridEl);
   },

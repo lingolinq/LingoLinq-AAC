@@ -2971,10 +2971,18 @@
                      user.preferences.folder_colored_face. --}}
                 <div class="md-board-edit-right-panel__section-body">
                   <span class="md-board-edit-right-panel__row-pair-label" style="display: block; margin-bottom: 8px;">{{t "Display Style" key="board_detail_folder_display_style_label"}}</span>
-                  <div class="md-folder-style-list" role="radiogroup" aria-label={{t "Folder display style" key="board_detail_folder_style"}}>
+                  {{#if this.grouping_active}}
+                    {{!-- Succinct, and it names the control that unlocks this. Rendered
+                         ABOVE the options so the reason precedes the disabled buttons
+                         rather than explaining them after the fact. --}}
+                    <p class="md-folder-style-locked-note" id="folder-style-locked-note">{{t "Grouping by category sets folders to Colored Corner. Turn off Categorize above to choose another style." key="board_detail_folder_style_locked_by_grouping"}}</p>
+                  {{/if}}
+                  <div class="md-folder-style-list" role="radiogroup" aria-label={{t "Folder display style" key="board_detail_folder_style"}} aria-describedby={{if this.grouping_active "folder-style-locked-note"}}>
                     <button type="button" role="radio"
-                      aria-checked={{if (is-equal this.folder_display_style "default") "true" "false"}}
-                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'default') 'md-folder-style-option--active'}}"
+                      aria-checked={{if (is-equal this.effective_folder_display_style "default") "true" "false"}}
+                      disabled={{this.grouping_active}}
+                      aria-disabled={{if this.grouping_active "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.effective_folder_display_style 'default') 'md-folder-style-option--active'}} {{if this.grouping_active 'md-folder-style-option--locked'}}"
                       {{on "click" (this.ctrlAction "set_folder_style" "default")}}>
                       <span class="md-folder-style-option__icon" aria-hidden="true">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
@@ -2985,8 +2993,10 @@
                       </span>
                     </button>
                     <button type="button" role="radio"
-                      aria-checked={{if (is-equal this.folder_display_style "colored_corner") "true" "false"}}
-                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'colored_corner') 'md-folder-style-option--active'}}"
+                      aria-checked={{if (is-equal this.effective_folder_display_style "colored_corner") "true" "false"}}
+                      disabled={{this.grouping_active}}
+                      aria-disabled={{if this.grouping_active "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.effective_folder_display_style 'colored_corner') 'md-folder-style-option--active'}} {{if this.grouping_active 'md-folder-style-option--locked'}}"
                       {{on "click" (this.ctrlAction "set_folder_style" "colored_corner")}}>
                       <span class="md-folder-style-option__icon" aria-hidden="true">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 3l-6 6" stroke-width="3"/></svg>
@@ -2997,8 +3007,10 @@
                       </span>
                     </button>
                     <button type="button" role="radio"
-                      aria-checked={{if (is-equal this.folder_display_style "tab_labels") "true" "false"}}
-                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'tab_labels') 'md-folder-style-option--active'}}"
+                      aria-checked={{if (is-equal this.effective_folder_display_style "tab_labels") "true" "false"}}
+                      disabled={{this.grouping_active}}
+                      aria-disabled={{if this.grouping_active "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.effective_folder_display_style 'tab_labels') 'md-folder-style-option--active'}} {{if this.grouping_active 'md-folder-style-option--locked'}}"
                       {{on "click" (this.ctrlAction "set_folder_style" "tab_labels")}}>
                       <span class="md-folder-style-option__icon" aria-hidden="true">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
@@ -3488,7 +3500,12 @@
         is previewed cannot drift from what ships; @editMode is deliberately false
         so the preview is not draggable and the real board's drag/swap/paint
         behaviour is untouched. --}}
-  {{#if this.category_order_open}}
+  {{!-- GATED ON edit_mode. This block sits at shell level, so without the gate the
+       Categorize takeover — position:absolute, inset:0, opaque — kept rendering over the
+       SPEAK board after leaving edit mode by any path other than its own Done button,
+       and its live preview would repaint real board buttons outside an edit session,
+       with no Save, Cancel or undo. --}}
+  {{#if (and this.edit_mode this.category_order_open)}}
     <div class="md-board-category-order" id="board-category-order-panel" role="region" aria-label={{t "Categorize board" key="board_categorize_panel"}}>
       {{!-- The Categorize switch is this panel's PRIMARY control — the order list,
            Reset and the grouped preview below all only mean something while it is
@@ -3607,7 +3624,9 @@
           </div>
           <p class="md-board-category-order__picker-note">{{t "This changes the button's color on the board." key="board_move_button_recolors"}}</p>
           <div class="md-board-category-order__picker-list">
-            {{#each this.category_order_list as |cat|}}
+            {{!-- category_move_targets, not category_order_list: two registry categories
+                 have no paintable colour and silently no-op as destinations. --}}
+            {{#each this.category_move_targets as |cat|}}
               <button type="button" class="md-board-category-order__picker-item"
                 style={{safe-style (concat "--bd-group-fill:var(" cat.fillVar ")")}}
                 {{on "click" (this.ctrlAction "move_button_to_category" cat.key)}}>

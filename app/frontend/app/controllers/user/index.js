@@ -280,6 +280,23 @@ export default Controller.extend({
       }
     }, 300);
   }),
+  /* A `?folder=` value can outlive the folder it names — rename or delete pushes a
+     history entry carrying the OLD name, so Back restores a tag that no longer exists.
+     Without this the page rendered a folder card titled with the dead name, containing
+     zero boards, with live Rename and Delete buttons; and when board_tag_map was empty
+     the drill filter was skipped entirely so the FULL board list rendered inside a card
+     labelled with the bogus folder.
+
+     Only clears once the map has actually loaded and is non-empty — an absent map means
+     "not fetched yet", and clearing then would break a legitimate deep link. */
+  _clearStaleFolderDrillIn: observer('mineTagFolderDrillIn', 'model.board_tag_map', function() {
+    var tag = this.get('mineTagFolderDrillIn');
+    if(!tag) { return; }
+    var map = this.get('model.board_tag_map');
+    if(!map || Object.keys(map).length === 0) { return; }
+    if(!map[tag]) { this.set('mineTagFolderDrillIn', null); }
+  }),
+
   mineFoldersEnabled: computed(
     'selected',
     'parent_object',
@@ -978,6 +995,14 @@ export default Controller.extend({
           new_list = dedupeBoardRows(new_list, { preferUserNames: preferOwners });
         }
       }
+      /* Orphan CLUSTER rows are synthetic placeholders that the Boards page does NOT
+         render (components/available-boards-section.js#showOrphanClusters is false, and
+         the template skips them). They were still counted here, so a page could show
+         well under 18 tiles while "More" remained visible and each click revealed fewer
+         boards than expected. Drop them BEFORE the slice so the counts match what the
+         user actually sees. If showOrphanClusters is ever flipped back on, this filter
+         has to come off with it — they are one decision. */
+      new_list = (new_list || []).filter(function(row) { return !(row && row.orphan); });
       /* if(this.get('filterString')) {
         var re = new RegExp(this.get('filterString'), 'i');
         new_list = new_list.filter(function(i) {

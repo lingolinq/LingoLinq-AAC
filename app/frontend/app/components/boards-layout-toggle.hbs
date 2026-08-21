@@ -7,11 +7,16 @@
       NAME — without one the radiogroup announces as an unlabelled set of two radios. The
       same i18n key now supplies it via `aria-label` instead of a visible `aria-labelledby`
       target, so the string stays in use and translated. --}}
-<span class="ub-boards-page__layout-toggle-options" role="radiogroup" aria-label={{t "Layout" key="boards_layout_label"}}>
+{{!-- Roving tabindex + arrow keys: a `radiogroup` is ONE tab stop whose selection moves
+      with the arrows. Without this it behaved as two independent tab stops, so a
+      keyboard user pressing Right/Down on "Side by side" got nothing, and a switch
+      scanner spent two steps on what is one control. --}}
+<span class="ub-boards-page__layout-toggle-options" role="radiogroup" aria-label={{t "Layout" key="boards_layout_label"}} {{on "keydown" this.onGroupKeydown}}>
   <button
     type="button"
     role="radio"
     aria-checked={{if this.isSideBySide "true" "false"}}
+    tabindex={{if this.isSideBySide "0" "-1"}}
     class="ub-boards-page__layout-toggle-btn {{if this.isSideBySide 'ub-boards-page__layout-toggle-btn--active'}}"
     title={{t "Folders beside the boards — folders take a quarter of the width on the left" key="boards_layout_side_by_side_hint"}}
     {{on "click" (this.sendAction "choose" "side-by-side")}}
@@ -27,6 +32,7 @@
     type="button"
     role="radio"
     aria-checked={{if this.isSideBySide "false" "true"}}
+    tabindex={{unless this.isSideBySide "0" "-1"}}
     class="ub-boards-page__layout-toggle-btn {{unless this.isSideBySide 'ub-boards-page__layout-toggle-btn--active'}}"
     title={{t "Folders stacked above the boards, each at full width" key="boards_layout_top_down_hint"}}
     {{on "click" (this.sendAction "choose" "top-down")}}

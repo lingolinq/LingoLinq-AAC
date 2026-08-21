@@ -304,6 +304,10 @@
 /* On dark backgrounds, use a light focus ring for contrast */
 #within_ember.board-detail-view:has(.md-board-detail--dark) *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
 .md-board-detail--dark *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+/* The Categorize takeover paints $brand-charcoal-dark unconditionally, so it needs the
+   light ring regardless of the board's dark_mode — which defaults false, leaving Reset,
+   Close and every category up/down arrow with a navy-on-charcoal ring at 1.17:1. */
+.md-board-category-order *:focus-visible,
 header:has(#speak) *:focus-visible,
 #inner_header:has(#speak) *:focus-visible,
 .md-board-detail-sentence-bar *:focus-visible,
@@ -31926,7 +31930,9 @@ $ds-choice-width: 380px;
 .md-ds-stylepreview__caption {
   font-size: 15px;
   font-weight: 600;
-  color: rgba($la-navy, 0.62);
+  /* Was rgba($la-navy, 0.62) — ~3.89:1 on white and lower again on the tour's
+     translucent glass, under AA for 15px. This caption names the style being chosen. */
+  color: rgba($la-navy, 0.78);
   text-align: center;
 }
 /* The selected style's preview is the one the user is committing to — give it the
@@ -32140,7 +32146,12 @@ $ds-choice-width: 380px;
   transform: translateY(-1px);
 }
 .md-ds-select[data-gst-layout="gentle"]:focus-visible {
-  outline: none;
+  /* Keep a REAL outline. `outline: none` plus a 0.45-alpha ring composited to roughly
+     1.69:1 — under the 3:1 non-text floor — and this modal is portalled outside
+     `#within_ember`, so the global focus-ring and forced-colors safety nets there do not
+     apply to it. The solid ring below carries the visible focus. */
+  outline: 3px solid $brand-dusty-denim;
+  outline-offset: 2px;
   box-shadow:
     0 0 0 3px rgba($brand-dusty-denim, 0.45),
     inset 0 1px 1px rgba(255, 255, 255, 0.7),
@@ -51696,6 +51707,12 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
   align-items: center;
   justify-content: center;
   gap: 14px;
+  /* `color` and `font-size` folded in from a byte-equivalent `&__loading` that used to
+     sit ~18k lines below inside `.ub-boards-page` — same selector, same specificity, so
+     source order silently won and THIS block's padding was dead. One authoritative rule
+     now (CLAUDE.md 0.7). */
+  color: #8a9ab8;
+  font-size: 14px;
   padding: 32px 16px;
   text-align: center;
 }
@@ -51713,7 +51730,10 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
    applies to user-facing copy. */
 .ub-boards-page__loading-label {
   margin: 0;
-  font-size: calc(0.92rem * 1.3);
+  /* px, NOT rem: bootstrap sets `html { font-size: 10px }` in this codebase, so
+     `calc(0.92rem * 1.3)` rendered 11.96px — about 40% under the AAC legibility floor
+     this line was written to meet, and smaller than its own container's 14px. */
+  font-size: 20px;
   line-height: 1.4;
   font-weight: 500;
   color: $brand-slate-blue;
@@ -52165,6 +52185,14 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
    to flex, where `grid-column` is simply inert.
    `1 / -1` resolves to the explicit grid's first and last lines, so it cannot itself
    create a track. */
+/* Speak is rendered but has NO grid area (utils/dashboard_sections.js#gridLayoutState
+   emits this when `vis.speak` is true and 'speak' appears in no area row) — an org
+   dashboard whose owner hid My Caseload is the case that surfaced it. Without this the
+   browser auto-places the card into an implicit track and the whole grid distorts. */
+.md-grid.md-grid--speak-unplaced > .md-card.md-card--speak,
+.md-grid.md-grid--speak-unplaced > .md-card.md-card--speak-focused {
+  display: none !important;
+}
 .md-grid.md-grid--dashboard:not(.md-grid--hero-org) > .md-card.md-card--speak-focused,
 .md-grid.md-grid--dashboard:not(.md-grid--hero-org) > .md-card.md-card--speak,
 .md-grid.md-grid--dashboard > .md-card.md-card--extras {
@@ -54140,6 +54168,18 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: ub-letter-bounce 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+/* Cursive/combining scripts are emitted as ONE span with no animation
+   (helpers/letter-stagger.js). `display: inline` is the load-bearing part: the
+   inline-block above forces Arabic letters into isolated forms and severs the joining
+   that makes the word legible. Same specificity (0,2,0) as the base rule and declared
+   after it, so no !important is needed. */
+.nb-generate-ai-btn__title .ub-letter--plain,
+.ub-boards-page .ub-letter--plain {
+  display: inline;
+  animation: none;
+  opacity: 1;
+  transform: none;
 }
 .nb-generate-ai-btn__title .ub-letter--space {
   /* Spaces don't need the gradient (whitespace doesn't render any
@@ -65035,8 +65075,10 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   box-shadow: 0 2px 6px rgba($brand-verdigris-aa, 0.30);
 }
 .board-picker__set-home-btn--active:hover {
-  background: $brand-verdigris;
-  border-color: $brand-verdigris;
+  /* -aa, not the raw token: white on $brand-verdigris is 3.36:1, under AA for this
+     14px/600 label. $brand-verdigris-aa is 5.05:1 and is already used for the border. */
+  background: $brand-verdigris-aa;
+  border-color: $brand-verdigris-aa;
   color: #fff;
   box-shadow: 0 2px 6px rgba($brand-verdigris-aa, 0.30);
 }
@@ -68566,6 +68608,109 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       background: rgba($brand-teal, 0.06);
     }
   }
+  /* ── FOLDER ROWS (accordion) ───────────────────────────────────────────────
+     Folders are rows that EXPAND in place rather than tiles that navigate away.
+     Deliberately reuses the folder TILE's palette below so both presentations read as
+     the same object: white surface at 10px radius, the name in $indigo, the count as
+     the same teal pill. The expanded panel is the unchanged
+     `ub-boards-page__folder-context` card, so the detail styling carries over intact. */
+  &__folder-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+
+  &__folder-row-wrap {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__folder-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid rgba($la-navy, 0.10);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba($la-navy, 0.06);
+    cursor: pointer;
+    text-align: left;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+
+    &:hover {
+      box-shadow: 0 6px 18px rgba($la-navy, 0.12);
+      border-color: rgba($la-navy, 0.18);
+    }
+  }
+
+  /* The folder glyph carries the same blue-grey the tile's folder body uses. */
+  &__folder-row-icon {
+    flex: 0 0 auto;
+    display: inline-flex;
+    color: $brand-charcoal-blue;
+  }
+
+  &__folder-row-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* 16px, not the tile's 14px: a row has the width for it, and this is the primary
+       label of the control (AAC legibility floor). */
+    font-size: 16px;
+    font-weight: 600;
+    color: $indigo;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Same pill as the tile's count. */
+  &__folder-row-count {
+    flex: 0 0 auto;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 600;
+    color: $brand-teal;
+    background: rgba($brand-teal, 0.12);
+  }
+
+  &__folder-row-chevron {
+    flex: 0 0 auto;
+    display: inline-flex;
+    color: rgba($la-navy, 0.55);
+    transition: transform 0.2s ease;
+  }
+
+  &__folder-row-wrap--open &__folder-row {
+    border-color: rgba($brand-teal, 0.45);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  &__folder-row-wrap--open &__folder-row-chevron {
+    transform: rotate(180deg);
+  }
+
+  /* The expanded panel joins the row above it — one object, not two stacked cards. */
+  &__folder-row-wrap--open .ub-boards-page__folder-context {
+    border: 1px solid rgba($brand-teal, 0.45);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    background: #fff;
+    padding: 12px 14px 14px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &__folder-row,
+    &__folder-row-chevron {
+      transition: none;
+    }
+  }
+
   &__tag-folder {
     position: relative;
     display: inline-flex;
@@ -68883,7 +69028,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     min-height: 44px;
     padding: 4px 8px;
     color: $brand-verdigris-aa;
-    font-size: calc(0.95rem * 1.3);
+    /* px, not rem — 10px root (see the note on __loading-label). This is the primary
+       exit from a drilled-in folder; at 12.35px it was the smallest thing in its row. */
+    font-size: 20px;
     font-weight: 650;
     line-height: 1.2;
     text-decoration: none;
@@ -69955,7 +70102,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       margin: -4px 0;
     }
   }
-  &__loading { color: #8a9ab8; font-size: 14px; padding: 12px 0; }
 
   // ── Back to Top ─────────────────────────────────────────────
   &__back-to-top-wrap {
@@ -83473,6 +83619,25 @@ span.md-board-detail-modeling-btn--paused:hover {
   width: 100%;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
+
+/* Locked while category grouping is on: the panel already carries the category, so the
+   folder treatments would be a second, competing colour/label system on the same cell.
+   The buttons are genuinely `disabled` in the template — this is only the paint, and it
+   keeps them READABLE (0.55, not the usual dimmed-to-invisible) because the note above
+   them has to be legible alongside. */
+.md-folder-style-option--locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.md-folder-style-locked-note {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.35;
+  color: rgba($la-navy, 0.78);
+}
+.md-board-detail--dark .md-folder-style-locked-note {
+  color: rgba(255, 255, 255, 0.82);
+}
 .md-folder-style-option:hover,
 .md-folder-style-option:focus-visible {
   background: rgba($la-navy, 0.05);
@@ -86980,11 +87145,14 @@ span.md-board-detail-modeling-btn--paused:hover {
    (see modern-select.js#filteredContent). */
 .modern-select.md-modal-modern-select .modern-select__group-label {
   padding: 10px 14px 4px;
-  font-size: 11px;
+  /* Was 11px at rgba($la-navy, 0.5) — composites to #8D9AAE on the white list for
+     2.87:1, under AA, and 3px under the size floor. These headings are the only thing
+     separating a long grouped option list into readable sections. */
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba($la-navy, 0.5);
+  color: rgba($la-navy, 0.72);
   cursor: default;
   pointer-events: none;
 }
@@ -101331,8 +101499,10 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
 }
 
 .md-board-category-order__toggle--off .md-board-category-order__toggle-state {
-  background: rgba(255, 255, 255, 0.20);
-  color: #fff;
+  /* Opaque, not a 0.20 white veil: composited over the charcoal bar that gave #787E89
+     and 4.08:1 against white text — under AA for 12px/800, which is normal text. */
+  background: #E8EAED;
+  color: $brand-charcoal-dark;
 }
 
 @media (prefers-reduced-motion: reduce) {

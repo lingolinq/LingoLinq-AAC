@@ -226,4 +226,51 @@ describe FeatureFlags do
       expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).to include('boards_side_by_side_layout')
     end
   end
+
+  describe "board_category_grouping" do
+    # Same TRIPWIRE shape as boards_side_by_side_layout above, and this is the flag that
+    # actually needs it: turning grouping on MOVES vocabulary out of the cells a user has
+    # built positional motor memory on. It previously had no spec at all, which is how a
+    # default of `enabled => true` reached the branch unnoticed.
+    it "is registered as available" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('board_category_grouping')
+    end
+
+    it "is currently forced ON for everyone — remove from ENABLED before go-live" do
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).to include('board_category_grouping')
+    end
+
+    # The clinical guarantee. `generate_defaults` backfills preference_defaults onto EVERY
+    # existing user on their next save, so a `true` here silently regroups established
+    # communicators' boards — and persists an explicit true that survives removing the
+    # flag. Grouping must be opt-in.
+    it "defaults to OFF for every user" do
+      expect(User.preference_defaults['any_user']['board_category_grouping']['enabled']).to eq(false)
+    end
+
+    it "is an accepted user preference" do
+      expect(User::PREFERENCE_PARAMS).to include('board_category_grouping')
+    end
+
+    it "stores only a boolean enabled and known category keys" do
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {
+        'enabled' => 'false', 'order' => ['people', 'people', 'bogus_key'], 'junk' => 'x'
+      }}})
+      stored = u.settings['preferences']['board_category_grouping']
+      expect(stored['enabled']).to eq(false)
+      expect(stored['order']).to eq(['people'])
+      expect(stored['junk']).to eq(nil)
+    end
+
+    it "drops a non-hash value rather than storing client JSON" do
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => 'nope'}})
+      stored = u.settings['preferences']['board_category_grouping']
+      # The sanitizer deletes the bad value; generate_defaults then backfills the safe
+      # default. The guarantee that matters is that the client string never persists AND
+      # the fallback is OFF — not that the key is absent.
+      expect(stored).to eq({'enabled' => false, 'order' => []})
+    end
+  end
 end

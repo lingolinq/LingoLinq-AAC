@@ -9098,5 +9098,9 @@
   "board_categorize_off": "*** Off",
   "board_categorize_hint_off": "*** Categorizing is off. This board's buttons are shown in their original order.",
   "core_words_tooltip_checked": "*** Include 40-60% high-frequency core words (I, want, go, more, stop, like, not, help, do, is, it, the, my, turn, fast, slow, etc.), rest topic-specific vocabulary",
-  "core_words_tooltip_unchecked": "*** Focus on topic-specific vocabulary only (nouns, topic verbs, descriptors, phrases unique to that context)"
+  "core_words_tooltip_unchecked": "*** Focus on topic-specific vocabulary only (nouns, topic verbs, descriptors, phrases unique to that context)",
+  "board_categorize_save_failed": "*** Couldn't save the Categorize setting. Please try again.",
+  "new_board_name_placeholder": "*** My Board",
+  "new_board_description_placeholder": "*** Brief description of the board",
+  "board_detail_folder_style_locked_by_grouping": "*** Grouping by category sets folders to Colored Corner. Turn off Categorize above to choose another style."
 }

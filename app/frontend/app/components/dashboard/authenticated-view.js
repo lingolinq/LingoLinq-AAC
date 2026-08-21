@@ -910,7 +910,12 @@ export default Component.extend({
   // hence the shared homePillLabel rather than a second copy of that rule.
   // (Defaults are double-quoted per the i18n convention: a single-quoted default
   // is silently DELETED by the next i18n_generator.rb run.)
-  activeTabLabel: computed('activeTab', 'appState.currentUser.supporter_role', function() {
+  // `has_management_responsibility` is READ below and must be a dependent key, or the
+  // dropdown trigger keeps a stale label when org-manager status resolves after first
+  // render (late org payload, or a role change in-session) — the pill row beside it
+  // would say "Home" while this said "Dashboard", the exact disagreement homePillLabel
+  // exists to prevent.
+  activeTabLabel: computed('activeTab', 'appState.currentUser.supporter_role', 'appState.currentUser.has_management_responsibility', function() {
     var tab = this.get('activeTab');
     var labels = { home: homePillLabel(this.get('appState.currentUser.supporter_role'), this.get('appState.currentUser.has_management_responsibility')), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
     return labels[tab] || labels.home;
