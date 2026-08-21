@@ -8,9 +8,10 @@ re-attest while the live register at HEAD now reads **20** High (up from 12 at t
 draft, almost entirely from the 2026-08-12 six-finder full audit run); overdue monthly-light audit
 and COPPA quarterly retention checks need surfacing.
 **Status:** DRAFT - awaiting attestation. Headline counts are re-derived from
-`audit-reports/FINDINGS.json` as committed at staging HEAD `64cdccba1` (2026-08-20; publisher
-convention: `open` + `remediated-unverified` by severity). Register `meta.auditedSha` is
-`59f502aa4` (auditedDate 2026-08-18, a monthly light-run restamp) with the last full 6-finder scan
+`audit-reports/FINDINGS.json` as committed at staging HEAD `64cdccba1` plus the two rows added
+by PR #838 (2026-08-20; publisher convention: `open` + `remediated-unverified` by severity).
+Register `meta.auditedSha` is `59f502aa4` (auditedDate 2026-08-18, a monthly light-run restamp)
+with the last full 6-finder scan
 at `d67ed76e0a1` (auditedDate 2026-08-12); it records the last full audit *run*, not the last
 register edit.
 **Related:** `audit-reports/FINDINGS.json` (source of truth),
@@ -30,12 +31,12 @@ LingoLinq runs compliance as a continuous findings register. This snapshot recor
 since the 2026-07-23 Posture Report re-attest and what is still needed. It does not close any
 finding or attest any control; only Scot does that.
 
-Headline at staging HEAD `64cdccba1` (2026-08-20, publisher convention):
+Headline at staging HEAD `64cdccba1` plus the two rows added by PR #838 (2026-08-20, publisher convention):
 
 - **0 open Critical** findings (the gating metric).
 - **20 open High** findings (15 `open` + 5 `remediated-unverified`).
-- **52** open Medium, **40** open Low. **112** live total (`open` + `remediated-unverified`).
-- Across all findings: 104 `open`, 8 `remediated-unverified`, 51 `verified-closed`, 5
+- **52** open Medium, **42** open Low. **114** live total (`open` + `remediated-unverified`).
+- Across all findings: 106 `open`, 8 `remediated-unverified`, 51 `verified-closed`, 5
   `accepted-risk`, 2 `superseded`.
 - The 2026-08-12 six-finder full audit run added 46 new findings (9 High / 22 Medium / 15 Low)
   across privacy, infra, api, dependency, accessibility, and code-hygiene -- the single largest
@@ -115,17 +116,17 @@ from the 2026-08-12 run are all still within SLA (8 days old).
 ## 3. Current posture by framework
 
 Live = `open` + `remediated-unverified` at HEAD. A finding can map to more than one framework, so
-rows do not sum to 112. Nineteen live findings carry no framework tag (engineering / API-contract /
+rows do not sum to 114. Nineteen live findings carry no framework tag (engineering / API-contract /
 dependency items; one High, LL-7d50b089c9).
 
 | Framework | Live | Live High | Notes |
 |---|---:|---:|---|
 | FERPA | 36 | 11 | Includes token share URLs, masquerade audit, deletion residuals, prediction cache, plus several from the 2026-08-12 run. |
-| HIPAA | 27 | 10 | Bedrock account binding (now closed), masquerade, prediction cache, audited console, plus GCP access/logging gaps from the 2026-08-12 run. |
+| HIPAA | 29 | 10 | Bedrock account binding (now closed), masquerade, prediction cache, audited console, plus GCP access/logging gaps from the 2026-08-12 run. |
 | GDPR | 22 | 6 | Deletion/erasure, seat reclaim, prediction cache, terms modal, Article 50 transparency. |
 | COPPA | 10 | 4 | Seat reclaim (LL-f150e0e828); hard-delete media (LL-854b1d3853); two new from the 2026-08-12 run (context.topic to Bedrock LL-8908c7ac6f; PredictionEntry deletion residual LL-e8614c103f). |
 | WCAG | 19 | 2 | Terms scanning (LL-104bfa61dc, open); Article 50 disclosure contrast (LL-a9d6d5a46b, remediated-unverified as of 2026-08-19). |
-| SOC 2 | 43 | 9 | Worker memory, S3 KMS writes, audited console, plus GCP production-access/logging and public-ingress gaps from the 2026-08-12 run. |
+| SOC 2 | 45 | 9 | Worker memory, S3 KMS writes, audited console, plus GCP production-access/logging and public-ingress gaps from the 2026-08-12 run. |
 
 ---
 
