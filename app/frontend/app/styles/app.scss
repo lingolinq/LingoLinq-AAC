@@ -83723,6 +83723,8 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
 .md-modal-expander__body {
   padding: 10px 14px 12px;
   border-top: 1px solid #e2e6ea;
+  max-height: 40vh;
+  overflow-y: auto;
 }
 /* board-hierarchy selectable toolbar (Select All / Deselect All / Expand / Collapse). */
 .md-hierarchy-toolbar {
