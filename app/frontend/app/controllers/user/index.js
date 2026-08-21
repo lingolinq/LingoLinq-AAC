@@ -12,6 +12,7 @@ import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import session from '../../utils/session';
 import { getOwner } from '@ember/application';
+import { readFoldersExpanded } from '../../utils/folders_panel_state';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import {
@@ -269,6 +270,17 @@ export default Controller.extend({
   filterStringDebounced: '',
   /** When set, Mine tab shows boards tagged with this folder name (flat folders). */
   mineTagFolderDrillIn: null,
+
+  /* Mirrors the folders panel's expanded/collapsed state from
+     components/available-boards-section.js (which owns it, persists it to
+     localStorage, and syncs it here). The controller needs it because `board_list`
+     hides foldered boards ONLY while the panel is actually presenting them — see the
+     tagged-board filter in board_list.
+
+     Initialised from the SAME stored preference the component restores from, so both
+     agree on first paint without anyone writing across the boundary mid-render. The
+     component's observer carries changes after that. */
+  mineFoldersPanelExpanded: readFoldersExpanded(),
   _scheduleFilterDebounce: observer('filterString', function() {
     var _this = this;
     debounce(this, function() {
@@ -647,6 +659,7 @@ export default Controller.extend({
     'model.id',
     'model.board_tag_map',
     'mineTagFolderDrillIn',
+    'mineFoldersPanelExpanded',
     'model.my_boards',
     'model.prior_home_boards',
     'model.public_boards',
@@ -894,7 +907,23 @@ export default Controller.extend({
             });
             // Children stay nested under their root, exactly as in the
             // main boards grid — no flattening, no second render.
-          } else {
+          } else if (this.get('mineFoldersEnabled') && this.get('mineFoldersPanelExpanded')) {
+            /* Foldered boards are held out of the main grid ONLY while the folders
+               panel is open — filing a board into a folder MOVES it there, so showing a
+               second loose copy in the grid would defeat the point.
+
+               When the panel is COLLAPSED (or folders are not enabled on this tab) the
+               grid is the only view of the library on the page, so holding boards out of
+               it makes them unreachable with nothing on screen to hint they exist. That
+               is exactly what "the folder content disappears" was: collapsing the panel
+               from inside a folder both exited the folder and hid everything filed in
+               one. A board with no untagged twin — and that is not the home board, which
+               is exempted below — vanished from the page entirely.
+
+               So the exclusion is scoped to the state where folders are visibly the
+               alternative home for those boards. Same condition the template uses to
+               decide whether the drilled-in grid is rendering at all, which keeps the
+               two in agreement. */
             /* Home board must ALWAYS render in the main boards grid,
                even when categorized into a folder — it's the user's
                anchor board and hiding it behind a folder turns the

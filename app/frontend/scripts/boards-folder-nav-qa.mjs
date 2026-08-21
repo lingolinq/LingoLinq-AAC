@@ -89,7 +89,7 @@ const SNAP = () => {
       const c = card.getBoundingClientRect();
       return Math.round(Math.abs(((r.left + r.right) / 2) - ((c.left + c.right) / 2)));
     })(),
-    folderStripVisible: !!document.querySelector('.ub-boards-page__folder-strip'),
+    folderListVisible: !!document.querySelector('.ub-boards-page__folder-list'),
     layoutAttr: document.body.getAttribute('data-boards-layout'),
     sideBySide: (() => {
       const f = document.querySelector('.ub-boards-page__folders-section');
@@ -109,14 +109,14 @@ const SNAP = () => {
     await login(page, OPTS);
     await page.setViewport({ width: 1920, height: 1000 });
     await page.goto(`${OPTS.BASE}/${OPTS.USER}/boards`, { waitUntil: 'networkidle2' });
-    await page.waitForSelector('.ub-boards-page__tag-folder', { timeout: 45000 });
+    await page.waitForSelector('.ub-boards-page__folder-row', { timeout: 45000 });
 
     const before = await page.evaluate(SNAP);
     if (before.drilledIn) { throw new Error('already inside a folder before the test started'); }
 
     // 1. open a folder
-    (await page.$$('.ub-boards-page__tag-folder'))[0].click
-      ? await (await page.$$('.ub-boards-page__tag-folder'))[0].click()
+    (await page.$$('.ub-boards-page__folder-row'))[0].click
+      ? await (await page.$$('.ub-boards-page__folder-row'))[0].click()
       : null;
     await new Promise((r) => setTimeout(r, 1500));
     const opened = await page.evaluate(SNAP);
@@ -195,7 +195,7 @@ const SNAP = () => {
     if (!backed.drilledIn && !/[?&]folder=/.test(backed.url) && /\/boards$/.test(backed.url)) {
       pass('4. the BROWSER Back button closes the folder view',
         `back to "${backed.url}", folder view gone, still on the boards page ` +
-        `(folder list visible: ${backed.folderStripVisible})`);
+        `(folder list visible: ${backed.folderListVisible})`);
     } else {
       fail('4. the BROWSER Back button closes the folder view',
         `url="${backed.url}" drilledIn=${backed.drilledIn}`);
@@ -251,14 +251,14 @@ const SNAP = () => {
           'could not establish side-by-side before the test — nothing below would mean anything');
       } else {
         // exit via the BROWSER back button
-        await (await page.$$('.ub-boards-page__tag-folder'))[0].click();
+        await (await page.$$('.ub-boards-page__folder-row'))[0].click();
         await new Promise((r) => setTimeout(r, 1500));
         await page.goBack();
         await new Promise((r) => setTimeout(r, 1800));
         const afterBack = await page.evaluate(SNAP);
 
         // exit via the in-page link
-        await (await page.$$('.ub-boards-page__tag-folder'))[0].click();
+        await (await page.$$('.ub-boards-page__folder-row'))[0].click();
         await new Promise((r) => setTimeout(r, 1500));
         const l = await page.$('.ub-boards-page__folder-context-back');
         if (l) { await l.click(); }

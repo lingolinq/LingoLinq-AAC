@@ -51223,41 +51223,24 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   }
 }
 
-/* Two folder columns once the column is genuinely wide enough for them.
-   MEASURED, not assumed: at full screen in side-by-side the folders column is 378px
-   and the strip's inner width is ~308px, so two tracks come out at ~147px each —
-   comfortably wider than the 112.5px the base `repeat(auto-fill, 112.5px)` track uses.
-   Before this the strip rendered ONE 229.5px column there, because 378px still matches
-   the `max-width: 420px` block above and that block pins a single 75% track.
-
-   DELIBERATELY OVERLAPPING that block, rather than moving its 420px boundary down.
-   Between 320 and 420px both apply and that is the intent: the narrow treatment's other
-   work — wrapping the header pills and the toolbar so "Tag a board" is not clipped, and
-   the 12px strip padding — is still wanted at this width. Only the column count is
-   wrong there. Source order settles the one declaration they both set; this block is
-   after it, and carries `!important` to match.
-
-   The 320px floor keeps 769-1024px side-by-side on a single column, where the folders
-   column is only ~185-220px and two tracks would be ~80px each. The container is
-   established ONLY inside the side-by-side grid (~51540), so the stacked layout is
-   untouched at every width. */
-@container boards-folders (min-width: 320px) {
-  .ub-boards-page__folder-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-}
 
 
-/* Folder COUNT chip and its divider, hidden at <=1024px in SIDE-BY-SIDE only.
-   The divider is `.ub-boards-page__folders-count::before` — a pseudo-element OF the
-   count — so hiding the count removes both; a second rule for the divider would be
+/* Folder COUNTS hidden at <=1024px in SIDE-BY-SIDE only — both the header chip and the
+   per-row count pill (2026-08-20, requested for the rows).
+   The header divider is `.ub-boards-page__folders-count::before` — a pseudo-element OF
+   the count — so hiding the count removes both; a second rule for the divider would be
    redundant.
    Gated on `body[data-boards-layout='side-by-side']` so the stacked layout, which has the
-   full page width for its header, keeps them. Side-by-side only exists down to 769px (it
-   falls back to stacked below that), so this effectively covers 769-1024px, where the
-   folders column is at its narrowest and the header has to give up its optional pieces. */
+   full page width for its header AND its rows, keeps them. Side-by-side only exists down
+   to 769px (it falls back to stacked below that), so this effectively covers 769-1024px,
+   where the folders column is at its narrowest and has to give up its optional pieces.
+   The row's NAME is the part that must survive: it is the control's label, and at this
+   width it is what the truncation budget should be spent on.
+   ONE rule for one decision — the header chip and the row pill are the same call about
+   the same column at the same breakpoint, so they are not split across two blocks. */
 @media (max-width: 1024px) {
-  body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__folders-count {
+  body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__folders-count,
+  body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__folder-row-count {
     display: none;
   }
 }
@@ -51331,11 +51314,18 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
 
     /* The panel the user actually sees. `__folders-body` is a flex column
        (padding/display authored at ~68179) holding the toolbar and then either the
-       folder strip or, when drilled in, the folder context — so whichever of those is
+       folder LIST or, when drilled in, the folder context — so whichever of those is
        present takes the slack and the card's own background reaches the bottom.
+       `__folder-list` is the rows container that REPLACED the tile strip. It was missed
+       when the strip was swapped out, so the panel silently stopped growing and the card
+       floated above ~183px of dead space at 1920px — measured, and the cause of this
+       file's long-red "card fills rather than floating above dead space" check.
+       `__folder-strip` is kept in the selector list only until the dead tile CSS is
+       removed wholesale; it matches nothing in the DOM today.
        `min-height: 0` because a flex item's default `min-height: auto` refuses to
        shrink below its content, which would push the card past the row it is meant to
        fit when the folder list is long. */
+    .ub-boards-page__folder-list,
     .ub-boards-page__folder-strip,
     .ub-boards-page__folder-context {
       flex: 1 1 auto;
@@ -51400,10 +51390,24 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
          the header box itself is gone. */
       min-height: 72px;
     }
+    /* NO EXPAND/COLLAPSE CONTROL IN SIDE-BY-SIDE (2026-08-20, requested). The folders
+       card owns its own column here, so collapsing it does not buy the boards grid any
+       room — it just leaves a third of the row empty, which is the same reasoning
+       `_syncSideBySideFoldersExpand` (components/available-boards-section.js) already
+       encodes by auto-expanding the card on entry to this layout.
+       The `chevron` grid area named in `grid-template-areas` above simply goes unused;
+       an empty named area is legal, and the `auto 1fr` columns leave the slack exactly
+       where it already sat to the caret's right.
+       Positioning declarations (grid-area/justify-self/padding-left) were REMOVED
+       rather than left behind the `display: none` — they cannot take effect and would
+       read as live layout to the next person.
+       GATED AT 769px by the enclosing media query, which is load-bearing: the body
+       attribute keeps saying `side-by-side` below 768px even though the page has fallen
+       back to STACKED, and down there the caret is the only expand control the user
+       has — `_syncNarrowFoldersCollapse` collapses the card on the way down and they
+       need a way back. */
     .ub-boards-page__folders-chevron-btn {
-      grid-area: chevron;
-      justify-self: start;
-      padding-left: 0;
+      display: none;
     }
     /* THE FOLDERS ROW GETS THE SAME UNDER-SHADOW THE BODY DRAWS (2026-08-16, requested).
        The card's one divider treatment — hairline + highlight + tight inner shadow + wide
@@ -51625,20 +51629,22 @@ body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__bo
    comparison the selector exists to make. */
 body[data-boards-layout='side-by-side'] #content.boards-page .ub-boards-page__boards-body:has(> .ub-boards-page__folders-section):has(> .ub-boards-page__boards-summary-section) {
   display: grid;
-  grid-template-columns: 1fr 3fr;
+  /* 1/3 folders : 2/3 boards at EVERY width this layout exists at (2026-08-20,
+     requested). One value, no breakpoint: side-by-side runs from 769px up (below that
+     the `max-width: 768px` fallback at the foot of this block switches to `display:
+     block` and these column values go inert), so this single declaration covers the
+     whole range.
 
-  /* FULL-SCREEN split is 1/3 folders : 2/3 boards (2026-08-17, requested). Below
-     1025px the quarter column above stays: between 769 and 1024 the folders column is
-     already only ~185-220px, and taking a third there would come straight out of the
-     board grid, which is the thing the page exists to show. Nested INSIDE this rule
-     rather than added as a separate selector so the two column values live together
-     and there is one authoritative source for the split — same idiom as the
-     `max-width: 768px` stack-fallback at the foot of this block.
-     Pairs with the wide-screen workspace widening (~51432): together they give the
-     folders column its third WITHOUT the boards grid losing width. */
-  @media (min-width: 1025px) {
-    grid-template-columns: 1fr 2fr;
-  }
+     This replaces a 1fr 3fr base with a `min-width: 1025px` override to 1fr 2fr. The
+     quarter column was kept below 1025px on the reasoning that a third of a ~570-770px
+     workspace comes straight out of the board grid — but it made the folders column
+     ~185-220px, where folder names truncate hard and the column reads as a different
+     component than the one on a wide screen. Holding the ratio steady keeps the
+     proportion the user chose recognisable at every size.
+
+     Pairs with the wide-screen workspace widening (~51432), which gives the folders
+     column its third WITHOUT the boards grid losing width above 1024px. */
+  grid-template-columns: 1fr 2fr;
   gap: 16px;
   /* Folders is far shorter than the board grid. Without this it stretches to the
      full row height and its panel floats above a tall band of dead space. */
@@ -66688,6 +66694,48 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   display: none !important;
 }
 
+/* Folder GLYPH TILE — the rounded, gradient-lit square the layered folder glyph sits
+   on. Defined once and shared by the folder DETAIL identity icon (60px) and the
+   miniature in each folder ROW (32px) on the boards page, so the two cannot drift
+   apart: the row is meant to read as the same object as the detail header, just
+   smaller.
+
+   Gradient starts at a near-opaque off-white (not transparent white) so the top-left
+   corner reads against the card's white-ish background instead of fading invisibly
+   into it. Slight cool tint at the start keeps the tile distinct from the field behind
+   it without sacrificing the "light catching" feel of the 135deg ramp. Verdigris
+   mid-stop and slate-blue bottom-right give the diagonal depth.
+
+   The navy-tinted hairline border (not white) defines the edge reliably regardless of
+   the card background; the inset top highlight still catches light on the upper rim.
+
+   $lift scales the two OUTER shadows with the tile: a 60px tile carries a 6px/14px
+   drop, but the same drop under a 32px tile reads as a smudge. The inset hairlines are
+   1px at both sizes by design — they are edge definition, not depth. */
+@mixin ub-folder-glyph-tile($size, $radius, $lift: 1) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: $size;
+  height: $size;
+  flex-shrink: 0;
+  border-radius: $radius;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(248, 251, 254, 0.98) 0%,
+      rgba($brand-verdigris-aa, 0.22) 45%,
+      rgba($brand-slate-blue, 0.26) 100%
+    );
+  border: 1px solid rgba($la-navy, 0.10);
+  color: $brand-charcoal-blue;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -1px 0 rgba($la-navy, 0.06),
+    0 (1px * $lift) (2px * $lift) rgba($la-navy, 0.10),
+    0 (6px * $lift) (14px * $lift) rgba($la-navy, 0.10);
+}
+
 /* ============================================================
    User Boards Page  (user.boards route)
    Styled to match authenticated-view / landing-alt aesthetic
@@ -68608,23 +68656,32 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       background: rgba($brand-teal, 0.06);
     }
   }
-  /* ── FOLDER ROWS (accordion) ───────────────────────────────────────────────
-     Folders are rows that EXPAND in place rather than tiles that navigate away.
-     Deliberately reuses the folder TILE's palette below so both presentations read as
-     the same object: white surface at 10px radius, the name in $indigo, the count as
-     the same teal pill. The expanded panel is the unchanged
-     `ub-boards-page__folder-context` card, so the detail styling carries over intact. */
+  /* ── FOLDER ROWS ──────────────────────────────────────────────────────────
+     One row per folder — icon, name, count — replacing the tile strip that used to
+     sit here. Rows because tiles wrapped into a block that pushed the board grid
+     off-screen once a user had more than a handful of folders, and a folder name in
+     a fixed-width tile truncates.
+     A row NAVIGATES to the folder view; it is not a disclosure, so there is no open
+     state and the chevron does not rotate. Deliberately keeps the old tile's palette
+     so the object still reads as the same thing: white surface at 10px radius, name
+     in $indigo, count as the same teal pill. */
   &__folder-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
     width: 100%;
-  }
 
-  &__folder-row-wrap {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
+    /* Hover suppressed for the duration of a board drag and briefly after a drop, so
+       the cursor travelling back across the list does not fire the lift on every row
+       it passes. Set from JS (boardDragStart / folderDrop). Beats the plain :hover on
+       specificity alone — no !important needed. */
+    &--no-hover .ub-boards-page__folder-row,
+    &--no-hover .ub-boards-page__folder-row:hover,
+    &--no-hover .ub-boards-page__folder-row:focus-visible {
+      border-color: rgba($la-navy, 0.10);
+      box-shadow: 0 1px 2px rgba($la-navy, 0.06);
+      transition: none;
+    }
   }
 
   &__folder-row {
@@ -68645,35 +68702,86 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       box-shadow: 0 6px 18px rgba($la-navy, 0.12);
       border-color: rgba($la-navy, 0.18);
     }
+
+    /* Drag-hover drop target. The tile version lifted its layered card; a row has no
+       layers, so the "you can drop here" signal is the teal border + tint used for
+       active state elsewhere in the folders UI. */
+    &--dropping {
+      border-color: $brand-teal;
+      background: rgba($brand-teal, 0.08);
+      box-shadow: 0 0 0 3px rgba($brand-teal, 0.25);
+    }
+
+    /* Post-drop confirmation on the row that just received the board. */
+    &--animating {
+      animation: folder-row-full 0.6s ease-out forwards;
+      transition: none;
+    }
+    &--animating .ub-boards-page__folder-row-count {
+      animation: folder-count-full 0.5s ease-out forwards;
+    }
   }
 
-  /* The folder glyph carries the same blue-grey the tile's folder body uses. */
+  /* Miniature of the folder-detail identity icon — same gradient tile, same two-tone
+     layered glyph, scaled down. Shares ub-folder-glyph-tile so the two stay in step. */
   &__folder-row-icon {
     flex: 0 0 auto;
-    display: inline-flex;
-    color: $brand-charcoal-blue;
+    @include ub-folder-glyph-tile(32px, 10px, $lift: 0.5);
   }
 
   &__folder-row-name {
     flex: 1 1 auto;
     min-width: 0;
     /* 16px, not the tile's 14px: a row has the width for it, and this is the primary
-       label of the control (AAC legibility floor). */
-    font-size: 16px;
+       label of the control (AAC legibility floor).
+
+       Scales DOWN below 850px, never past 14px (2026-08-20, requested). Expressed as
+       one clamp rather than a media query because the max term already pins 16px at
+       every width above 850: `2vw - 1px` only drops under 16px once the viewport does.
+
+       Two fixed points were specified: 16px at 850px and 15px at 800px. That sets the
+       slope at (16 - 15) / (850 - 800) = 0.02px per px of viewport, and 0.02 * vw IS
+       2vw, so the fluid term is `2vw - 1px`. It keeps shrinking as the window does and
+       meets the 14px floor at 750px, below which the floor holds.
+
+       calc() around the mixed-unit term is REQUIRED, not decorative — see
+       docs/CSS_SCSS_GUIDELINES.md: px + vw inside clamp() cannot be evaluated at
+       compile time and fails without it.
+
+       Viewport units, not container units: the ask was about SCREEN width, and the
+       folders column already changes width with the viewport anyway. */
+    font-size: clamp(14px, calc(2vw - 1px), 16px);
     font-weight: 600;
     color: $indigo;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    /* WRAPS AT ANY WIDTH whenever the name exceeds its column (2026-08-20, requested).
+       No breakpoint and no truncation: this replaces `white-space: nowrap` +
+       `text-overflow: ellipsis`, which ended long names in an ellipsis at every width
+       and only wrapped below 850px. A folder name is the row's label — the row has
+       vertical room to give, and two readable lines beat one line with the words cut
+       off. `overflow: hidden` went with them: it existed to clip for the ellipsis, and
+       leaving it would silently cut a wrapped name instead.
+       `break-word` and NOT `anywhere`: the two differ on when they may split a word.
+       `anywhere` breaks mid-word even when the word would have fitted on the next line,
+       which shreds ordinary multi-word names in a narrow column — measured at 5 lines
+       for a name that needs 2. `break-word` splits only a word that cannot fit on a
+       line of its own, so normal names keep whole words. */
+    overflow-wrap: break-word;
   }
 
-  /* Same pill as the tile's count. */
+  /* Same pill as the tile's count, and like the tile it shows the bare NUMBER — the
+     row's own label already says what is being counted, so "3 boards" repeated down
+     the list is noise. min-width keeps one- and two-digit counts the same width so the
+     pills line up vertically down the column. */
   &__folder-row-count {
     flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
     padding: 2px 10px;
     border-radius: 999px;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     color: $brand-teal;
     background: rgba($brand-teal, 0.12);
   }
@@ -68682,31 +68790,10 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     flex: 0 0 auto;
     display: inline-flex;
     color: rgba($la-navy, 0.55);
-    transition: transform 0.2s ease;
-  }
-
-  &__folder-row-wrap--open &__folder-row {
-    border-color: rgba($brand-teal, 0.45);
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-
-  &__folder-row-wrap--open &__folder-row-chevron {
-    transform: rotate(180deg);
-  }
-
-  /* The expanded panel joins the row above it — one object, not two stacked cards. */
-  &__folder-row-wrap--open .ub-boards-page__folder-context {
-    border: 1px solid rgba($brand-teal, 0.45);
-    border-top: none;
-    border-radius: 0 0 10px 10px;
-    background: #fff;
-    padding: 12px 14px 14px;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    &__folder-row,
-    &__folder-row-chevron {
+    &__folder-row {
       transition: none;
     }
   }
@@ -69083,51 +69170,25 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      (see template) so the folder reads as a layered manila card
      rather than a flat silhouette. */
   &__folder-context-identity-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 60px;
-    height: 60px;
-    flex-shrink: 0;
-    border-radius: 16px;
-    /* Gradient starts at a near-opaque off-white (not transparent
-       white) so the top-left corner reads against the card's
-       white-ish background instead of fading invisibly into it.
-       Slight cool tint at the start keeps the tile distinct from
-       the field behind it without sacrificing the "light catching"
-       feel of the 135deg ramp. Verdigris mid-stop and slate-blue
-       bottom-right give the diagonal depth. */
-    background:
-      linear-gradient(
-        135deg,
-        rgba(248, 251, 254, 0.98) 0%,
-        rgba($brand-verdigris-aa, 0.22) 45%,
-        rgba($brand-slate-blue, 0.26) 100%
-      );
-    /* Navy-tinted hairline border (was white) — defines the edge of
-       the tile reliably regardless of the card's background color.
-       The inset top highlight below still catches light on the upper
-       rim, but the actual silhouette now stays crisp. */
-    border: 1px solid rgba($la-navy, 0.10);
-    color: $brand-charcoal-blue;
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.85),
-      inset 0 -1px 0 rgba($la-navy, 0.06),
-      0 1px 2px rgba($la-navy, 0.10),
-      0 6px 14px rgba($la-navy, 0.10);
+    /* Recipe lives in ub-folder-glyph-tile so the row miniature stays identical. */
+    @include ub-folder-glyph-tile(60px, 16px);
   }
   /* SVG drop-shadow for the folder glyph itself — subtle inner
-     depth so the folder doesn't look pasted flat onto the tile. */
-  &__folder-context-identity-icon .ub-boards-page__folder-context-identity-icon-svg {
+     depth so the folder doesn't look pasted flat onto the tile.
+     Both sizes, one rule. */
+  &__folder-context-identity-icon .ub-boards-page__folder-context-identity-icon-svg,
+  &__folder-row-icon .ub-boards-page__folder-glyph-svg {
     filter: drop-shadow(0 1px 1px rgba($la-navy, 0.18));
   }
   /* Two-tone folder paths — the back (tab + body) takes a darker
      navy tint; the front face takes a slightly lighter shade so the
      folder reads as a layered card with a visible tab. */
-  &__folder-context-identity-icon-back {
+  &__folder-context-identity-icon-back,
+  &__folder-glyph-back {
     fill: rgba($brand-slate-blue, 0.95);
   }
-  &__folder-context-identity-icon-front {
+  &__folder-context-identity-icon-front,
+  &__folder-glyph-front {
     fill: rgba($brand-charcoal-blue, 0.85);
   }
   &__folder-context-identity-text {
@@ -70398,6 +70459,14 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   0%   { transform: scale(0.9); opacity: 0.6; }
   50%  { transform: scale(1.06); opacity: 1; }
   100% { transform: scale(1); }
+}
+
+/* Row equivalent of folder-full: the tile flashed its whole layered body, a row
+   flashes its border and surface instead. */
+@keyframes folder-row-full {
+  0%   { border-color: $brand-teal; background: rgba($brand-teal, 0.18); }
+  60%  { border-color: $brand-teal; background: rgba($brand-teal, 0.10); }
+  100% { border-color: rgba($la-navy, 0.10); background: #fff; }
 }
 
 @media (max-width: 1024px) {

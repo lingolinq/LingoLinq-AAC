@@ -13686,3 +13686,183 @@ API and every probe dies at login. Also: never pipe a long-running server throug
 
 **Evidence:** [`2026-08-20-create-board-core-words-control.md`](./2026-08-20-create-board-core-words-control.md),
 probe `app/frontend/scripts/create-board-core-words-qa.mjs` (5/5).
+
+## Changing a component's markup idiom? Grep the component JS for the OLD class names first
+**Surface:** swapping one presentation for another in a component (tiles → rows, cards → list)
+where the old markup had interactive states.
+
+**Trap:** state classes are frequently applied IMPERATIVELY from the component JS via
+`classList.add/remove` and `document.querySelector`, so they are invisible when you read the
+template. Replacing the markup leaves the JS writing classes onto elements that no longer
+exist — a silent no-op with no console error and no lint failure.
+
+**Concrete case (folders tiles → rows, `available-boards-section`):** 12 references across 6
+class names would have broken drag-hover feedback and the post-drop folder animation:
+`ub-boards-page__tag-folder--dropping`, `--animating`, `-name`, and
+`ub-boards-page__folder-strip--no-hover` / `.ub-boards-page__folder-strip`.
+
+**Recipe:** before swapping markup, `grep -rn '<old-block-class>' app/frontend --include=*.js
+--include=*.mjs --include=*.hbs` and classify every hit: template, imperative JS state, or QA
+probe selector. Port the state styles to the new block (a row has no layered card, so the
+tile's lift/flash becomes a border + tint), then repoint the JS and the probes in the same
+change. Verify with a compile (`sass.compile`) asserting the NEW modifiers are present and the
+dead ones absent.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## A batched commit makes file-level revert unsafe — classify hunks with `git diff -w` first
+**Surface:** "revert feature X" when X shipped inside a large batched commit alongside
+unrelated fixes to the SAME files.
+
+**Trap:** `git checkout <commit>^ -- <file>` looks like a clean revert and silently discards
+every unrelated fix that rode along in that file. In one case this would have reverted a
+blank-page guard AND re-introduced a factually wrong code comment that a review had just
+corrected — in a file whose diff *looked* like one contiguous restructure.
+
+**Recipe:** diff the file with `-w` (kills reindent noise, leaves genuine edits), list the
+hunks with `grep '^@@'`, and classify each as feature-under-revert vs keep. Rebuild the file
+from the parent version and RE-APPLY the keepers programmatically with assertions on the
+match count (`assert patched == 2`) so a silent miss fails loudly. Then diff the result back
+against the parent: the remaining hunk count must equal the number of keepers, exactly.
+
+**Corollary:** before attributing any probe/test failure to your change, run the same probe
+against a stashed HEAD. In this task 2 of 2 "new" failures were already red at baseline, and
+the change actually fixed a third.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## Boards-page QA probe gotchas (`app/frontend/scripts/*-qa.mjs`)
+- Run them from `app/frontend`, not the repo root.
+- `qa-helpers.mjs` exposes **`OPTS.BASE` / `OPTS.USER` (uppercase)**. Using `OPTS.user`
+  yields `undefined` in the URL and the failure surfaces as a misleading
+  `waitForSelector ... failed` timeout that reads like a broken component.
+- **`await page.setViewport({width: 1920, height: 1000})` before waiting on any folders
+  selector.** The folders section auto-collapses at narrow widths (`_collapsedForNarrow`),
+  and puppeteer's 800x600 default trips it — again surfacing as a selector timeout.
+- Write screenshots to the scratchpad, never into `app/frontend/` (untracked repo litter).
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## Never sync component state onto a controller during render — it blanks the component
+**Surface:** a component owns UI state (a panel's expanded flag, a density toggle) that a
+controller's computed property also needs.
+
+**Trap:** the obvious fix — mirror it from `didReceiveAttrs` (or `init`, or a `didInsertElement`
+write) — runs DURING render. Setting a property that a rendered computed depends on, after the
+template already consumed that computed in the same pass, makes Ember discard the component's
+entire output. The page renders BLANK, with **no `pageerror`** to point at it, so it reads like
+a data-loading failure rather than a reactivity violation.
+
+**Worse, it is intermittent by construction.** It only fires when the pushed value actually
+DIFFERS from the controller's default, so it passes in a fresh browser (empty localStorage,
+values agree) and fails only once a stored preference diverges. Four states can look correct
+and the fifth is blank.
+
+**Recipe:** do not write across the boundary at startup at all. Give both sides the SAME source
+of truth and have each READ its own initial value (a small util wrapping the storage key +
+guarded try/catch), so they already agree on first paint. Keep an observer for LATER changes
+only — user toggles and auto-collapse fire outside render and are safe. As a bonus this kills
+the duplicated localStorage try/catch.
+
+**Detection:** if a component renders nothing while its gating properties all read TRUE
+(`foldersEnabled:true` but `section:false`), suspect a render-time invalidation, not the data.
+Check whether the outer template has an `{{#if (or (not x) x.loading)}}` branch it is now stuck
+in.
+
+**Evidence:** `app/frontend/app/utils/folders_panel_state.js`; task log
+`2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## Folders on the boards page are a MOVE, not a label
+`controllers/user/index.js#board_list` (~909) deliberately removes tagged boards from the main
+Mine grid — filing a board into a folder is a move, and the home board is the one exemption.
+Before "fixing" a board that seems missing from the grid, check `model.board_tag_map`.
+
+**Two things mask this and will mislead a diagnosis:** a same-name UNTAGGED duplicate copy can
+occupy the grid slot (so a tagged board looks present when what you see is its twin), and the
+home board is exempt. Only a tagged board with no twin that is not the home board actually
+disappears — which is why it looks like an intermittent bug affecting some folders and not
+others. Dump `{name, global_id, folder}` for every board before concluding anything.
+
+The exclusion is now scoped to `mineFoldersEnabled && mineFoldersPanelExpanded`: when the
+folders panel is collapsed the grid is the only view, so it shows everything.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## A cache snapshot must carry every field its CONSUMERS classify on, not just what renders
+**Surface:** a compact list snapshot persisted to localStorage to paint a page fast, storing an
+explicit attribute allow-list.
+
+**Trap:** the allow-list gets chosen from "what does the tile DISPLAY" — id, key, name, image.
+But downstream code CLASSIFIES those records (is this a root or a sub-board? does it belong to a
+brand set?), and classification reads fields the tile never shows. Drop one and the hydrated
+record silently classifies differently from the live one, so the page is correct on the first
+visit and wrong on every cached visit inside the TTL.
+
+**Concrete case:** `boards_page_list_cache.js#SNAPSHOT_ATTRS` omitted `parent_board_key`.
+`board-brands#brandRootMatchKey` matches a board against its PARENT's key first and falls back to
+the board's own key — that fallback is exactly what lets a RENAMED copy still register as a brand
+root. Without the field every renamed copy of a Quick Core / Sequoia / CommuniKate / Vocal Flair
+board read as a sub-board and vanished from the owner's grid on visit 2+.
+
+**The failure mode is what makes it expensive:** the fallback is silent and plausible, so there is
+no error — just a board that is there, then isn't. It also looks like a *different* bug depending
+on which page you were on when you noticed (it was first reported, and first mis-diagnosed by me,
+as "exiting a folder loses a board").
+
+**Recipe:** when adding or reviewing a snapshot allow-list, grep every consumer of the hydrated
+records for `get('...')` and reconcile against the list — display fields are the minority. Then
+prove it by loading twice: first visit is the live query, second is the cache, and the two must
+produce identical rows. Diffing every field of ONE record across those two visits is what located
+this in minutes after inference had failed.
+
+**Related:** a cap on such a snapshot should count the units the page actually renders. `MAX_BOARDS`
+sliced the first N rows in server order, letting sub-board pages (never tiles) crowd out top-level
+boards (always tiles). It now budgets top-level boards only, with an absolute row backstop — a
+snapshot that overruns the localStorage quota throws on `setItem` and is lost entirely, which is
+worse than storing a partial tail.
+
+**Evidence:** task log `2026-08-20-boards-renamed-brand-copy-vanishes-on-second-visit.md`.
+
+## Test doubles for board classification MUST have a `get` shim
+Family matchers in `utils/board-brands.js` read a board's key only via `board.get('key')` (unlike
+`brandRootMatchKey`, which also accepts plain properties). A plain-object fixture therefore has no
+key from the matcher's point of view, matches NO brand family, and falls through to "not a known
+brand — treat as root". Every fixture classifies as top-level and any sub-board branch silently
+never executes — the test passes for the wrong reason.
+
+Use `Object.assign({}, attrs, { get(k) { return this[k]; } })` for board fixtures.
+
+**Also:** `ember test` cannot launch in this environment (`testem`'s vendored `execa` is ESM while
+testem `require()`s it — same class of breakage as the `sass` CLI). Do NOT patch shared config to
+work around it. Run the real module in the browser instead via the app's AMD loader against the
+running dev server: `window.require('frontend/utils/<module>').default`. That executes the actual
+shipped code, and it is what caught the wrong-reason pass above.
+
+**Evidence:** task log `2026-08-20-boards-renamed-brand-copy-vanishes-on-second-visit.md`.
+
+## Renaming a container class? Grep the LAYOUT rules that size it, not just the ones that paint it
+**Surface:** swapping a component's container element/class (tile strip -> rows list, grid -> flex
+column) while other rules elsewhere in the stylesheet size or stretch that container by name.
+
+**Trap:** the visible styling gets ported because it is obvious when it is missing — colours,
+padding, borders. What silently does not get ported is the *structural* rule authored far away:
+a `flex: 1 1 auto; min-height: 0` in a LAYOUT block that made the panel fill its card. Nothing
+looks broken; the panel just stops growing, and the card floats above a band of dead space that
+reads as a spacing bug rather than a stale selector.
+
+**Concrete case:** `.ub-boards-page__folder-strip` was replaced in the DOM by
+`.ub-boards-page__folder-list`, but the side-by-side fill rule still named the strip. Result:
+183px of empty card at 1920px, and a QA check red across multiple sessions while looking like a
+pre-existing layout quirk.
+
+**Detection:** when a "dead space" / "does not fill" symptom appears, read the computed
+`flex-grow` on the inner element. `flexGrow: 0` where a rule claims to set `flex: 1 1 auto` means
+the rule is not matching — the selector is stale, not the value wrong. Then
+`grep -n '<old-class>' app/frontend/app/styles/` and check every hit for a rule that SIZES rather
+than paints.
+
+**Recipe:** at rename time, grep the old class across the whole stylesheet and triage each hit as
+paint (port or drop) vs layout/sizing (must port). Keep the old selector alongside the new one if
+the dead CSS removal is a separate decision — an extra selector is inert, a missing one is a bug.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md` section 5b.

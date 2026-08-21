@@ -5,6 +5,7 @@ import { run, next } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import actionLock from '../utils/action-lock';
 import buildEventAction from '../utils/event_action';
+import { readFoldersExpanded, writeFoldersExpanded } from '../utils/folders_panel_state';
 
 /**
  * Available Boards grid (Mine folders, filter, DnD) — used on user/boards and dashboard.
@@ -84,7 +85,30 @@ export default Component.extend({
      `false` here is the floor — actual initial value is set in
      init() based on the persisted preference. */
   foldersExpanded: false,
-  _foldersExpandedStorageKey: 'ub-boards-folders-expanded',
+
+  /* Mirror the panel's expanded state onto the controller, which needs it to decide
+     whether to hold foldered boards out of the main grid (controller:user/index
+     #board_list). ONE method rather than a set() at each of the four places that write
+     `foldersExpanded` (init restore, the toggle action, the narrow auto-collapse, and
+     the drill-in re-expand) — those would drift apart the moment a fifth appears. */
+  /* Carries LATER changes only — the toggle action, the narrow auto-collapse, the
+     side-by-side auto-expand. The INITIAL value is not pushed from here: the controller
+     reads the same stored preference itself (utils/folders_panel_state), so the two
+     already agree on first paint.
+
+     Do NOT add a didReceiveAttrs/init write to close a perceived gap. That fires during
+     render, and setting this property invalidates `board_list` — which the template has
+     already consumed in the same pass — so Ember discards the component's whole output
+     and the boards page renders blank. Reproduced whenever the stored preference was
+     `true` while the controller still held its default. */
+  _syncFoldersExpandedToCtrl: observer('foldersExpanded', function() {
+    var ctrl = this.get('boardsCtrl');
+    if (!ctrl || ctrl.isDestroyed || ctrl.isDestroying) { return; }
+    var value = !!this.get('foldersExpanded');
+    if (ctrl.get('mineFoldersPanelExpanded') !== value) {
+      ctrl.set('mineFoldersPanelExpanded', value);
+    }
+  }),
   init() {
     this._super(...arguments);
     /* Restore the user's last folders-section preference. Read at
@@ -93,12 +117,7 @@ export default Component.extend({
        catch because localStorage can throw (Safari Private mode,
        SSR rendering, sandboxed iframes); the `false` default still
        holds in those cases. */
-    try {
-      var stored = localStorage.getItem(this._foldersExpandedStorageKey);
-      if (stored === 'true' || stored === 'false') {
-        this.set('foldersExpanded', stored === 'true');
-      }
-    } catch (e) { /* localStorage unavailable; keep default */ }
+    this.set('foldersExpanded', readFoldersExpanded());
 
     var self = this;
     this.ctrlAction = function(actionName) {
@@ -408,12 +427,7 @@ export default Component.extend({
          reload. localStorage may be unavailable (private mode /
          sandboxed iframe) — fail silently rather than disrupting
          the click. */
-      try {
-        localStorage.setItem(
-          this._foldersExpandedStorageKey,
-          this.get('foldersExpanded') ? 'true' : 'false'
-        );
-      } catch (e) { /* localStorage unavailable; in-memory state still updates */ }
+      writeFoldersExpanded(this.get('foldersExpanded'));
     },
     toggleHomeBoardInfo() {
       this.toggleProperty('homeBoardInfoOpen');
@@ -427,18 +441,18 @@ export default Component.extend({
     folderDragEnter(tag, event) {
       if (event && event.preventDefault) { event.preventDefault(); }
       var el = event && event.currentTarget;
-      if (el && el.classList) { el.classList.add('ub-boards-page__tag-folder--dropping'); }
+      if (el && el.classList) { el.classList.add('ub-boards-page__folder-row--dropping'); }
     },
     folderDragLeave(tag, event) {
       var el = event && event.currentTarget;
-      if (el && el.classList) { el.classList.remove('ub-boards-page__tag-folder--dropping'); }
+      if (el && el.classList) { el.classList.remove('ub-boards-page__folder-row--dropping'); }
     },
     folderDrop(tag, event) {
       if (event && event.preventDefault) { event.preventDefault(); }
       if (event && event.stopPropagation) { event.stopPropagation(); }
       var el = event && event.currentTarget;
       if (el && el.classList) {
-        el.classList.remove('ub-boards-page__tag-folder--dropping');
+        el.classList.remove('ub-boards-page__folder-row--dropping');
       }
       var raw = event && event.dataTransfer ? event.dataTransfer.getData('text/plain') : '';
       var parts = (raw || '').split('|');
@@ -471,25 +485,25 @@ export default Component.extend({
         // Ember re-renders the folder list after the API call updates the model.
         // Wait for the next render cycle, then find the fresh DOM element and animate it.
         setTimeout(function() {
-          var folders = document.querySelectorAll('.ub-boards-page__tag-folder');
+          var folders = document.querySelectorAll('.ub-boards-page__folder-row');
           var freshEl = null;
           folders.forEach(function(f) {
-            var nameEl = f.querySelector('.ub-boards-page__tag-folder-name');
+            var nameEl = f.querySelector('.ub-boards-page__folder-row-name');
             if (nameEl && nameEl.textContent.trim() === tag) {
               freshEl = f;
             }
           });
           if (freshEl) {
-            freshEl.classList.add('ub-boards-page__tag-folder--animating');
+            freshEl.classList.add('ub-boards-page__folder-row--animating');
             setTimeout(function() {
-              freshEl.classList.remove('ub-boards-page__tag-folder--animating');
+              freshEl.classList.remove('ub-boards-page__folder-row--animating');
             }, 1500);
           }
           // Keep hover disabled for 5 seconds after drop animation
-          var strip = document.querySelector('.ub-boards-page__folder-strip');
-          if (strip) { strip.classList.add('ub-boards-page__folder-strip--no-hover'); }
+          var strip = document.querySelector('.ub-boards-page__folder-list');
+          if (strip) { strip.classList.add('ub-boards-page__folder-list--no-hover'); }
           setTimeout(function() {
-            if (strip) { strip.classList.remove('ub-boards-page__folder-strip--no-hover'); }
+            if (strip) { strip.classList.remove('ub-boards-page__folder-list--no-hover'); }
           }, 5000);
         }, 100);
       }).catch(function() {
@@ -497,8 +511,8 @@ export default Component.extend({
       });
     },
     boardDragStart(board, event) {
-      var strip = document.querySelector('.ub-boards-page__folder-strip');
-      if (strip) { strip.classList.add('ub-boards-page__folder-strip--no-hover'); }
+      var strip = document.querySelector('.ub-boards-page__folder-list');
+      if (strip) { strip.classList.add('ub-boards-page__folder-list--no-hover'); }
       var ctrl = this.get('boardsCtrl');
       var tag = ctrl && ctrl.get('mineTagFolderDrillIn');
       var gid = board && board.get ? board.get('id') : '';
@@ -516,7 +530,7 @@ export default Component.extend({
     emptyFolderDragOver(event) {
       if (event && event.preventDefault) { event.preventDefault(); }
       /* Stop bubbling — this handler is now wired on BOTH the
-         outer folders-section and the inner folder-strip. Without
+         outer folders-section and the inner folder-list. Without
          stopPropagation, a dragover on the strip would re-fire on
          the section, causing redundant work each frame of the
          drag. The folder-tag-specific handlers already stop
@@ -660,31 +674,6 @@ export default Component.extend({
           _this.set('confirmingFolderDelete', false);
         });
       }, {timeout: 10000});
-    },
-    /* One row = one disclosure. Clicking the open folder collapses it; clicking another
-       moves the expansion there. `mineTagFolderDrillIn` still carries WHICH folder is
-       open (and still rides the `?folder=` query param), so Back, Forward and refresh
-       keep working — only the PRESENTATION changed from a separate destination view to
-       an in-place expansion. */
-    toggleMineFolderTag(tag, event) {
-      var ctrl = this.get('boardsCtrl');
-      if (!ctrl) { return; }
-      /* Read the rendered state, not a bound argument — see the note at the call site. */
-      var el = event && event.currentTarget;
-      var isOpen = !!(el && el.getAttribute && el.getAttribute('data-folder-open') === 'true');
-      /* `isOpen` comes from the TEMPLATE's own `is-equal`, the same expression that
-         renders the panel and the chevron — so the three cannot disagree. Reading the
-         controller property here instead was unreliable. */
-      /* Both branches go through ctrl.send(): the CONTROLLER owns
-         `mineTagFolderDrillIn` (it is the query-param-backed property) and owns both
-         actions, so routing enter and exit down the same channel keeps them symmetric.
-         Reading or writing the property from the component did not take effect. */
-      if (isOpen) {
-        ctrl.send('exitMineFolderTag');
-        this.set('folderBoardsMenuOpen', false);
-      } else {
-        ctrl.send('enterMineFolderTag', tag);
-      }
     },
     exitMineFolderTag() {
       var ctrl = this.get('boardsCtrl');

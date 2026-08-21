@@ -49,24 +49,12 @@ const MEASURE = () => {
       const fs = g('.ub-boards-page__folders-section');
       const bs = g('.ub-boards-page__boards-summary-section');
       const fb = g('.ub-boards-page__folders-body');
-      const strip = g('.ub-boards-page__folder-strip') || g('.ub-boards-page__folder-context');
+      const strip = g('.ub-boards-page__folder-list') || g('.ub-boards-page__folder-context');
       return {
         folders: fs ? Math.round(fs.height) : null,
         boards: bs ? Math.round(bs.height) : null,
         // how much empty card sits under the visible panel
         deadBand: (fb && strip) ? Math.round(fb.bottom - strip.bottom) : null
-      };
-    })(),
-    folderCols: (() => {
-      const strip = document.querySelector('.ub-boards-page__folder-strip');
-      if (!strip) { return null; }
-      const tiles = Array.from(strip.querySelectorAll('.ub-boards-page__tag-folder'));
-      if (!tiles.length) { return null; }
-      const tops = [...new Set(tiles.map((t) => Math.round(t.getBoundingClientRect().top)))];
-      return {
-        template: getComputedStyle(strip).gridTemplateColumns,
-        tiles: tiles.length,
-        perRow: tiles.filter((t) => Math.round(t.getBoundingClientRect().top) === tops[0]).length
       };
     })(),
     boardsW: br ? Math.round(br.width * 100) / 100 : null,
@@ -160,58 +148,28 @@ async function at(page, width, layout) {
       }
     }
 
-    // below the breakpoint the quarter column must remain
+    /* The SAME 1/3 : 2/3 split below 1025px (2026-08-20, requested). This used to assert
+       a 3.000 quarter column here — the ratio was deliberately different at narrow
+       widths. It is now held steady across every width side-by-side exists at, so the
+       proportion the user chose stays recognisable instead of the column reading as a
+       different component on a smaller screen. */
     const midCols = await at(page, 900, 'side-by-side');
     if (midCols.sideBySide && midCols.foldersW && midCols.boardsW) {
       const midRatio = midCols.boardsW / midCols.foldersW;
-      if (Math.abs(midRatio - 3) <= 0.12) {
-        pass('5. below 1025px the quarter column is retained',
-          `at vw=${midCols.vw} boards/folders = ${midRatio.toFixed(3)} (3.000 target) — ` +
-          'the wider folders column is scoped to full screen only');
+      if (Math.abs(midRatio - 2) <= 0.12) {
+        pass('5. below 1025px keeps the SAME split as full screen',
+          `at vw=${midCols.vw} boards/folders = ${midRatio.toFixed(3)} (2.000 target) — ` +
+          `folders is ${(100 * midCols.foldersW / (midCols.foldersW + midCols.boardsW)).toFixed(1)}% ` +
+          'of the pair, matching full screen');
       } else {
-        fail('5. below 1025px the quarter column is retained',
-          `at vw=${midCols.vw} boards/folders = ${midRatio.toFixed(3)}, expected ~3.000`);
+        fail('5. below 1025px keeps the SAME split as full screen',
+          `at vw=${midCols.vw} boards/folders = ${midRatio.toFixed(3)}, expected ~2.000`);
       }
     } else {
-      fail('5. below 1025px the quarter column is retained',
+      fail('5. below 1025px keeps the SAME split as full screen',
         `columns not side by side at vw=${midCols.vw} — could not measure`);
     }
 
-    // ---- folders lay out in TWO columns at full screen ----
-    const fsSide = await at(page, WIDE, 'side-by-side');
-    const fc = fsSide.folderCols;
-    if (!fc) {
-      fail('6. folders fit two columns at full screen',
-        'no folder tiles on the page for this account — the check could not run');
-    } else if (fc.tiles < 2) {
-      fail('6. folders fit two columns at full screen',
-        `only ${fc.tiles} folder tile(s); at least 2 are needed to observe a second column`);
-    } else if (fc.perRow === 2 && /\S+\s+\S+/.test(fc.template)) {
-      pass('6. folders fit two columns at full screen',
-        `grid-template-columns "${fc.template}", ${fc.perRow} tiles per row across ` +
-        `${fc.tiles} folders in a ${fsSide.foldersW}px column`);
-    } else {
-      fail('6. folders fit two columns at full screen',
-        `perRow=${fc.perRow}, template "${fc.template}" (expected two tracks)`);
-    }
-
-    // below the container floor the single column must remain
-    const midSide = await at(page, 900, 'side-by-side');
-    const mfc = midSide.folderCols;
-    if (mfc && mfc.tiles >= 2) {
-      if (mfc.perRow === 1) {
-        pass('7. narrow folders column stays single-track (control bites)',
-          `at vw=${midSide.vw} the ${midSide.foldersW}px column renders ` +
-          `"${mfc.template}", ${mfc.perRow} per row — two columns are scoped to full screen`);
-      } else {
-        fail('7. narrow folders column stays single-track (control bites)',
-          `at vw=${midSide.vw} perRow=${mfc.perRow}, template "${mfc.template}" — ` +
-          'the two-column rule leaked below its container floor');
-      }
-    } else {
-      fail('7. narrow folders column stays single-track (control bites)',
-        'could not measure folder tiles at the narrow width');
-    }
 
     // ---- folders column stretches to the boards column's height ----
     const hSide = await at(page, WIDE, 'side-by-side');
