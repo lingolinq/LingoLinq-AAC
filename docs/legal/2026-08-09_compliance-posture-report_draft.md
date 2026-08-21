@@ -21,7 +21,7 @@
 ### Changes since the 2026-08-09 draft (this refresh, 2026-08-20)
 
 - **Counts refreshed 2026-08-20.** Publisher convention at HEAD gives **0 Critical / 20 High / 52
-  Medium / 40 Low** (112 live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
+  Medium / 42 Low** (114 live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
   Critical remains **0**, the gating metric. The High rise is almost entirely the 2026-08-12
   six-finder full audit run (privacy, infra, api, dependency, accessibility, code-hygiene), which
   added 9 new open Highs in a single run -- notably three GCP production-access/logging gaps
@@ -64,7 +64,7 @@
 |---|---|
 | **Open Critical findings** | **0** |
 | **Open High findings** | **20** |
-| Open Medium / Low | 52 / 40 |
+| Open Medium / Low | 52 / 42 |
 | Verified closed (Scot attested) | 51 |
 | Accepted risk | 5 |
 | Superseded | 2 |

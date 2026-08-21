@@ -635,7 +635,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "2026-11-09",
       "attestation": {},
-      "contentHash": "60630710da1386b4bf8ebf54ee2c716e1ac2fdae4b99cbf0d8caf8e71f0a43a0",
+      "contentHash": "828eb68b4aa53ac383b45ee4f203ef0c232f674c83cd3320b523e276d7bb3fe6",
       "bundles": [
         "school-dpa-package",
         "security-review",
@@ -672,7 +672,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "2027-08-09",
       "attestation": {},
-      "contentHash": "5d9e37fecae4be670d9d01c7be94cc808b1288db7c89410c68496ee4517cba7a",
+      "contentHash": "baf4493d0acbadb3f82a58e29ce04605a9c29e183ebeafc02f0c54624b564e8e",
       "bundles": [],
       "mirrors": [],
       "supersedes": "DOC-b61994933c",
@@ -699,7 +699,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "",
       "attestation": {},
-      "contentHash": "7598917aefa485a79eb10b277a234191e430874bcbdb242269f7910911253e93",
+      "contentHash": "d737c5b1a960559f9dbb472fca3e4dc079bb6b248af9a124f32af2bcb160f53a",
       "bundles": [],
       "mirrors": [],
       "notes": "Successor operational snapshot after COMPLIANCE_STATUS_2026-06-18.md.",
@@ -1533,7 +1533,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "076e1fd4045146b792a35676b17a1b33e9f5248d4de3d5d77a79377c17ab1f2d",
+      "contentHash": "09849887406429e48acaf0a705877cb4cc0e675090aa4a1aef84daf8d9047e2d",
       "bundles": [],
       "mirrors": [
         {

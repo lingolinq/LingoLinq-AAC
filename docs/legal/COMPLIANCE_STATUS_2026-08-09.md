@@ -51,7 +51,7 @@ The attested Posture Report (2026-07-23) still shows **8 High / 27 Medium**. Tha
 accurate at an early-2026-07-23 register state and drifted the same day; three further Highs were
 promoted from PR review on 2026-08-02/08-04, then the 2026-08-12 six-finder run added 9 more. A
 Posture Report successor draft (`docs/legal/2026-08-09_compliance-posture-report_draft.md`), now
-refreshed to **0 / 20 / 52 / 40**, is included in this package for Scot's attestation (Path A
+refreshed to **0 / 20 / 52 / 42**, is included in this package for Scot's attestation (Path A
 supersession; attested predecessor left untouched).
 
 ---
@@ -134,7 +134,7 @@ dependency items; one High, LL-7d50b089c9).
 Surfaced, not decided. No AI closes a finding, downgrades severity, accepts risk, or attests a
 customer-facing doc.
 
-1. **Re-attest the Posture Report** at **0 Critical / 20 High / 52 Medium / 40 Low** (draft refresh
+1. **Re-attest the Posture Report** at **0 Critical / 20 High / 52 Medium / 42 Low** (draft refresh
    in this package). Branded Drive mirror (`DOC-ae3f9d06ef`) remains a separate operator refresh.
 2. **Article 50 position (obligation live since 2026-08-02).** The server-side disclosure backstop
    now covers all 5 AI ingresses (#829/#831), and the contrast blocker (LL-a9d6d5a46b) is
