@@ -33,6 +33,7 @@ class Api::SupervisorRelationshipsController < ApplicationController
 
   def create
     return unless @api_user
+    return unless require_consent_flow!(@api_user)
     rel_params = params['supervisor_relationship'] || {}
     rel_params = rel_params.permit! if rel_params.is_a?(ActionController::Parameters)
 
@@ -193,6 +194,33 @@ class Api::SupervisorRelationshipsController < ApplicationController
   end
 
   private
+
+  # Server-side gate for the consent flow.
+  #
+  # `supervisor_consent_flow` is advertised to the client and IS checked on the
+  # other creation ingress (supervisor_key_processor.rb:119), but this controller
+  # never checked it. That made the flag a UX toggle rather than a control: a
+  # direct POST /api/v1/supervisor_relationships created a pending relationship and
+  # mailed a consent request to a child's guardian whether or not the flow was
+  # enabled for anyone. With this, both ingresses that can CREATE supervision are
+  # gated at the server.
+  #
+  # Deliberately scoped to #create. #consent_response, #approve, #deny, #index,
+  # #show and #destroy stay ungated, because a relationship can only exist if
+  # #create (or the supervisor-key path) was permitted when it ran. Gating the
+  # response endpoints would mean turning the flag off leaves a guardian holding a
+  # pending request they can no longer DENY, and gating #destroy would strand live
+  # supervision that cannot be revoked -- a kill switch must not remove the ability
+  # to say no.
+  def require_consent_flow!(user)
+    return true if FeatureFlags.feature_enabled_for?('supervisor_consent_flow', user)
+    api_error 400, {
+      error: "Not authorized",
+      unauthorized: true,
+      feature: 'supervisor_consent_flow'
+    }
+    false
+  end
 
   # Rails reserves params['action'] for the controller action name, so clients must
   # send decision/consent_action (or hit PUT approve/deny member routes).

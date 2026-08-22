@@ -155,7 +155,11 @@ die("register not found: #{opts[:register]}") unless File.file?(opts[:register])
 
 run_date = opts[:date] || Date.today.to_s
 
-register = JSON.parse(File.read(opts[:register]))
+# encoding: 'UTF-8', not File.read's locale-dependent default -- on a C/POSIX process
+# locale (observed in CI; not reproduced in an interactive UTF-8 shell) File.read tags
+# the string US-ASCII, and JSON.parse then raises Encoding::InvalidByteSequenceError on
+# any raw non-ASCII byte the register happens to contain (e.g. an em dash).
+register = JSON.parse(File.read(opts[:register], encoding: 'UTF-8'))
 meta = register['meta'] || {}
 findings = register['findings'] || []
 by_id = {}
@@ -178,7 +182,7 @@ def snippet_match_lines(file, snippet, sha)
   return [] if file.to_s.empty? || snippet.to_s.strip.empty?
   out, _err, status =
     if sha.to_s.empty?
-      File.file?(file) ? [File.read(file), nil, nil] : [nil, nil, nil]
+      File.file?(file) ? [File.read(file, encoding: 'UTF-8'), nil, nil] : [nil, nil, nil]
     else
       Open3.capture3('git', 'show', "#{sha}:#{file}")
     end
@@ -225,7 +229,7 @@ opts[:ins].each do |path|
   die("input not found: #{path}") unless File.file?(path)
   doc =
     begin
-      JSON.parse(File.read(path))
+      JSON.parse(File.read(path, encoding: 'UTF-8'))
     rescue JSON::ParserError => e
       summary['skipped'] << { 'input' => path, 'reason' => "unparseable JSON: #{e.message[0, 120]}" }
       next

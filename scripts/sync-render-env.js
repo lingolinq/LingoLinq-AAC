@@ -64,7 +64,7 @@ const RENDER_WORKERS = {
 
 // 1Password vault structure (post-2026-04-06 restructure):
 //   - LingoLinq Admin: AWS Credentials, Render API (admin-only access)
-//   - LingoLinq Shared Dev: ANTHROPIC_API_KEY, GEMINI_API_KEY, Notion, Stripe (test), Email Config, etc. (all devs)
+//   - LingoLinq Shared Dev: Notion, Stripe (test), Email Config, etc. (all devs)
 //   - LingoLinq Staging: per-env Rails secrets, Stripe staging, etc.
 //   - LingoLinq Prod: per-env Rails secrets, Stripe LIVE, Database, etc.
 const VAULTS = {
@@ -138,12 +138,6 @@ const KEY_MANIFEST = {
   NEW_REGISTRATION_EMAIL:{ vault: 'shared', item: 'Email Config', field: 'NEW_REGISTRATION_EMAIL', shared: true },
 
   // -- AI/API keys (shared vault) --
-  // Per-key 1Password items (the old combined "AI Keys" item was split into
-  // per-key API-credential items on 2026-07-17). ANTHROPIC uses the standard
-  // API-credential `credential` field; GEMINI uses a custom field of its own name.
-  GEMINI_API_KEY:        { vault: 'shared', item: 'GEMINI_API_KEY', field: 'GEMINI_API_KEY', shared: true },
-  ANTHROPIC_API_KEY:     { vault: 'shared', item: 'ANTHROPIC_API_KEY', field: 'credential', shared: true },
-
   // -- Google APIs (shared vault) --
   GOOGLE_TTS_TOKEN:      { vault: 'shared', item: 'Google APIs', field: 'GOOGLE_TTS_TOKEN', shared: true },
   GOOGLE_TRANSLATE_TOKEN:{ vault: 'shared', item: 'Google APIs', field: 'GOOGLE_TRANSLATE_TOKEN', shared: true },
@@ -683,8 +677,6 @@ async function exportToOp() {
     'Rails Secrets': ['SECRET_KEY_BASE', 'SECURE_ENCRYPTION_KEY', 'SECURE_NONCE_KEY', 'COOKIE_KEY', 'SMS_ENCRYPTION_KEY'],
     'AWS Credentials': ['AWS_KEY', 'AWS_SECRET'],
     'Email Config': ['DEFAULT_EMAIL_FROM', 'SYSTEM_ERROR_EMAIL', 'NEW_REGISTRATION_EMAIL'],
-    'GEMINI_API_KEY': ['GEMINI_API_KEY'],
-    'ANTHROPIC_API_KEY': ['ANTHROPIC_API_KEY'],
     'Google APIs': ['GOOGLE_TTS_TOKEN', 'GOOGLE_TRANSLATE_TOKEN', 'GOOGLE_PLACES_TOKEN', 'YOUTUBE_API_KEY'],
     'Stripe': ['STRIPE_SECRET_KEY', 'STRIPE_PUBLIC_KEY'],
     'OpenSymbols': ['OPENSYMBOLS_SECRET'],
@@ -699,19 +691,10 @@ async function exportToOp() {
     'HubSpot': ['HUBSPOT_ACCESS_TOKEN', 'HUBSPOT_CLIENT_SECRET'],
   };
 
-  // 1Password field label per env var, for items whose secret lives in a field
-  // whose name differs from the env var name. The ANTHROPIC_API_KEY item is an
-  // API-Credential item storing its value in the standard `credential` field --
-  // the same field the forward KEY_MANIFEST reads -- so the export helper must
-  // emit `credential[password]=...`, not `ANTHROPIC_API_KEY[password]=...`, or a
-  // recreated item would be unreadable by the sync (the warn-and-skip drift class
-  // this file's manifest fix addresses). Keys absent here default to their own name.
-  const opFieldLabel = { ANTHROPIC_API_KEY: 'credential' };
-
   for (const [itemName, keys] of Object.entries(categories)) {
     const fields = keys
       .filter(k => envVars[k])
-      .map(k => `${opFieldLabel[k] || k}[password]=${envVars[k]}`);
+      .map(k => `${k}[password]=${envVars[k]}`);
 
     if (fields.length === 0) continue;
 

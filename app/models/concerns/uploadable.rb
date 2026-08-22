@@ -361,8 +361,31 @@ module Uploadable
     `convert -background none -density 300 -resize 400x400 -gravity center -extent 400x400 #{path} #{path}.raster.png`
   end
 
+  # Images stay on SvgSanitizer (image/* only, SVG XSS path). Audio data URIs
+  # from curated OBF/OBZ imports (e.g. jokes.obf rimshot) are data:audio/mpeg
+  # and must not go through the image decoder or upload_to_remote rejects them
+  # as invalid_data_uri and the button falls back to TTS of the label.
   def decode_data_uri_body(data_uri)
-    SvgSanitizer.decode_image_data_uri_payload(data_uri)
+    str = data_uri.to_s
+    if str.match?(/\Adata:audio\//i)
+      decode_audio_data_uri_payload(str)
+    else
+      SvgSanitizer.decode_image_data_uri_payload(str)
+    end
+  end
+
+  def decode_audio_data_uri_payload(data_uri)
+    str = data_uri.to_s
+    return nil unless str.match?(/\Adata:audio\//i)
+
+    payload = str.sub(/\Adata:[^,]*,/, '')
+    if str.match?(/;base64,/i)
+      Base64.strict_decode64(payload)
+    else
+      URI.decode_www_form_component(payload)
+    end
+  rescue StandardError
+    nil
   end
 
   # When S3 is unavailable, keep imported media usable:

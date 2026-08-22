@@ -263,6 +263,55 @@ describe Api::UsersController, :type => :controller do
       expect(json['user']['id']).to eq(u.global_id)
       expect(json['user']['preferences']).to_not eq(nil)
     end
+
+    it "should not nest supervisees the caller has no relationship with" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect((json['user']['supervisees'] || []).map { |s| s['id'] }).to_not include(outside.global_id)
+    end
+
+    it "should nest supervisees the caller independently supervises" do
+      token_user
+      supporter = User.create
+      shared = User.create
+      User.link_supervisor_to_user(supporter, shared)
+      User.link_supervisor_to_user(@user, shared)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect((json['user']['supervisees'] || []).map { |s| s['id'] }).to eq([shared.global_id])
+    end
+
+    it "should not nest a district manager's therapist's out-of-org caseload" do
+      token_user
+      supporter = User.create
+      inside = User.create
+      outside = User.create
+      o = Organization.create(:settings => {'total_licenses' => 4})
+      o.add_manager(@user.user_name, true)
+      o.add_supervisor(supporter.user_name, false)
+      o.add_user(inside.user_name, false)
+      User.link_supervisor_to_user(supporter, inside)
+      User.link_supervisor_to_user(supporter, outside)
+      @user.reload
+      supporter.reload
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      ids = (json['user']['supervisees'] || []).map { |s| s['id'] }
+      expect(ids).to include(inside.global_id)
+      expect(ids).to_not include(outside.global_id)
+    end
   end
   
   describe "index" do
@@ -2894,6 +2943,94 @@ describe Api::UsersController, :type => :controller do
       expect(json['user'].length).to eq(1)
       expect(json['user'][0]['id']).to eq(u.global_id)
     end
+
+    # The gate above authorizes the caller against the LIST OWNER. Every account
+    # inside that list is a third party the caller may have no standing with, and
+    # `limited_identity` is not a redaction -- json_api/user.rb:327 emits the
+    # child's real name, avatar, unread message/alert counts, external device and
+    # org_status. Same defect class as badges#index and logs#index.
+    it "should not return supervisees the caller has no relationship with" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to_not include(outside.global_id)
+      expect(json['user']).to eq([])
+    end
+
+    # Positive control, so the example above cannot pass by hiding everything: the
+    # same list, same caller, same list owner -- the only difference is that the
+    # caller now independently supervises the communicator.
+    it "should return supervisees the caller independently supervises" do
+      token_user
+      supporter = User.create
+      shared = User.create
+      User.link_supervisor_to_user(supporter, shared)
+      User.link_supervisor_to_user(@user, shared)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to eq([shared.global_id])
+    end
+
+    # Regression guard for the fix above over-reaching. `supervise` (the
+    # permission the first version of this filter used) carries a
+    # modeling_only conjunct, and modeling_only_for? returns true for ANY
+    # supervisee once the caller's own billing_state is :modeling_only -- the
+    # fall-through state for a lapsed free supporter. That emptied a whole
+    # tier's caseload on their OWN request. CI could not see it because a
+    # freshly-created account is :trialing_supporter for 60 days, so the
+    # billing state has to be forced.
+    it "should return a billing-lapsed supporter's own supervisees" do
+      token_user
+      communicator = User.create
+      User.link_supervisor_to_user(@user, communicator)
+      # Drive the REAL billing fall-through rather than stubbing modeling_only?:
+      # a supporter with no subscription and a past expiry lands on
+      # :modeling_only (subscription.rb:832). Stubbing would also mark the
+      # communicator modeling-only, which is a different relationship and would
+      # let this pass for the wrong reason.
+      @user.settings['preferences']['role'] = 'supporter'
+      @user.expires_at = 2.days.ago
+      @user.save
+      expect(@user.reload.billing_state).to eq(:modeling_only)
+
+      get 'supervisees', params: {'user_id' => @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to eq([communicator.global_id])
+    end
+
+    # ...and the leak stays closed for that same caller: modeling-only does not
+    # become a way back into someone else's roster. Here the refusal lands one
+    # step earlier than the row filter -- 'supervise' on the LIST OWNER is what
+    # the endpoint gate demands (:621), and that permission does carry the
+    # modeling_only conjunct -- so the request never reaches the fan-out at all.
+    # Asserted as a denial rather than an empty list, because that is what the
+    # code actually does; an empty-list assertion here would be describing a
+    # response shape that is never produced.
+    it "should refuse another supporter's roster to a billing-lapsed caller" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+      @user.settings['preferences']['role'] = 'supporter'
+      @user.expires_at = 2.days.ago
+      @user.save
+      expect(@user.reload.billing_state).to eq(:modeling_only)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to_not be_successful
+      expect(response.body).to_not include(outside.global_id)
+    end
   end
   
   describe "GET 'sync_stamp'" do
@@ -3704,6 +3841,30 @@ describe Api::UsersController, :type => :controller do
       expect(json['supervisees'][0]['ws_user_id']).to_not eq(nil)
       expect(json['supervisees'][0]['my_device_id']).to eq(nil)
       expect(json['supervisees'][0]['verifier']).to eq(nil)
+    end
+
+    it "should not list a district manager's therapist's out-of-org caseload" do
+      token_user
+      supporter = User.create
+      inside = User.create
+      outside = User.create
+      o = Organization.create(:settings => {'total_licenses' => 4})
+      o.add_manager(@user.user_name, true)
+      o.add_supervisor(supporter.user_name, false)
+      o.add_user(inside.user_name, false)
+      User.link_supervisor_to_user(supporter, inside)
+      User.link_supervisor_to_user(supporter, outside)
+      @user.reload
+      supporter.reload
+
+      get 'ws_settings', params: {user_id: supporter.global_id}
+      json = assert_success_json
+      ids = (json['supervisees'] || []).map { |s| s['user_id'] }
+      expect(ids).to include(inside.global_id)
+      expect(ids).to_not include(outside.global_id)
+      (json['supervisees'] || []).each do |row|
+        expect(row['verifier']).to eq(nil)
+      end
     end
 
     it 'should have a consistent iv for multiple requests in the same session' do

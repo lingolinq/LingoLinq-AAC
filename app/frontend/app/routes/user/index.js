@@ -21,6 +21,7 @@ export default Route.extend({
     controller.reload_logs();
     controller.load_badges();
     controller.load_goals();
+    controller.check_daily_use();
     window.scrollTo(0, 0);
   },
   actions: {

@@ -21,6 +21,10 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
+- [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
+- [Gotcha: a status-block lead must not over-claim "remaining" or "historical"](#gotcha-a-status-block-lead-must-not-over-claim-remaining-or-historical)
+- [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
+- [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
 - [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
@@ -54,6 +58,7 @@ file (see [README.md](README.md)).
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Pattern: boards-page Mine list — cache-first paint, atomic background refresh](#pattern-boards-page-mine-list--cache-first-paint-atomic-background-refresh)
+- [Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint](#gotcha-board-picker-category-tabs-share-one-category_boards-list--stale-loads-must-not-paint)
 - [Gotcha: Android “classic board” error may be stale packaged board-detail](#gotcha-android-classic-board-error-may-be-stale-packaged-board-detail)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
@@ -116,6 +121,7 @@ file (see [README.md](README.md)).
 - [Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise](#gotcha-persistence-sync-jasmine-harness--wait-for-sync_boards-tail--syncsettled-not-only-the-sync-promise)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
+- [Pattern: curated system boards live on static S3 — prefer over OpenAAC](#pattern-curated-system-boards-live-on-static-s3--prefer-over-openaac)
 - [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
 - [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
 - [Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching](#pattern-shared-ai-reuse-caches-need-exact-scrubbed-keys-before-recommendation-matching)
@@ -364,6 +370,8 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 **Fix recipe:** Two-phase load — `GET …/tree?root_only=1` first (lite root), paint, then ingest full `/tree` in the background via `ingest_tree(..., { force: false, warm_root_images: false })`. Server skips descendant load when `root_only` is set. Do not “fix” slow opens by only extending TTL or prefetch coverage.
 
+**Gotcha (prefetch root_only vs cache hit):** Session prefetch stores `/tree?root_only=1`. A board-detail cache hit used to return without warming the full tree, so folder taps that used to be warm after prefetch were cold. Mark those entries `root_only`; on cache hit (modern `board-detail` and classic `board-alt`) call `warm_full_tree_if_root_only` so the full `/tree` still lands in the background. A full-tree ingest clears the mark. Do not treat empty `descendants` as the signal — a board with no children is a valid full tree. Do not let a later root_only ingest downgrade a fresh full-tree entry.
+
 **Diag:** `localStorage.ll_board_cache_diag=1` → [`board_cache_diag.js`](../../app/frontend/app/utils/board_cache_diag.js) marks on board-detail.
 
 **First seen in:** [2026-07-23-speak-mode-board-cache-latency.md](./2026-07-23-speak-mode-board-cache-latency.md)
@@ -374,11 +382,21 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 **Gotcha:** Re-entering the boards page always re-queried `store.query('board', { user_id })`. Streaming partial pages onto `model.my_boards` cleared `.done` until the last page, so a background refetch re-showed “Preparing your workspace.” Server Redis on boards index only caches public search, not Mine `user_id` lists. Even after cache-first paint, a within-TTL revisit still re-downloaded the full owned library (buttons+grid per row) while session `catalog_board_prefetch` flooded `/tree` and starved Mine pagination.
 
-**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. (5) **Within TTL, skip `store.query` entirely** when usable list + `hasFreshSnapshot`; clear snapshot on create/delete/copy so the next visit refreshes. (6) Paginated index JSON omits `buttons`/`grid`/`intro`/`background` (`args[:paginated]` in [`lib/json_api/board.rb`](../../lib/json_api/board.rb)). (7) Set `setMineListBusy` during Mine fetch; defer `board_detail_cache` phase-4 catalog `/tree` until clear. Distinct from `board_detail_cache` (speak `/tree`).
+**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. (5) **Within TTL, skip `store.query` entirely** when usable list + `hasFreshSnapshot`; clear snapshot on create/delete/copy so the next visit refreshes. (6) Paginated index JSON omits `buttons`/`grid`/`intro`/`background` (`args[:paginated]` in [`lib/json_api/board.rb`](../../lib/json_api/board.rb)). (7) Set `setMineListBusy` during Mine fetch; defer `board_detail_cache` phase-4 catalog `/tree` until clear. Distinct from `board_detail_cache` (speak `/tree`). (8) **Pass-2:** `setBoardsPageActive` on `user.boards` activate/deactivate; pause phase-1 home, phase-2 liked, phase-3 owned-list + phase-3/4 `/tree` and image warm while the route is active (TTL skip clears Mine busy, so Mine-busy-only deferral is not enough). Wait until deactivate — do not resume prefetch on a wall-clock cap while Boards is still open. (9) Prefetch `/tree?root_only=1` and mark the cache entry `root_only`; speak cache-hits call `warm_full_tree_if_root_only` so folder taps are not left cold. `collectPublicLookups` runs `filterBrandSetRootBoards` after wrapping plain API rows with `.get` (brand `test()` only reads `board.get('key')`). (10) Overlay/hero gate on `mineListPaintReady` (first page or `.done`), not last-page `.done`. (11) Gate `reload_logs` / `load_badges` / `load_goals` / `check_daily_use` on `isBoardsPageActive()` so boards visits do not fetch profile widgets; profile and account `setupController` still call them (including `check_daily_use`). Search may run on a partial library — show `boards_filter_library_loading` until `my_boards.done`.
 
 **Gotcha (list summary + locale):** Omitting button/content blobs must not skip `localized_name` / `localized_locale`. Index already eager-loads `board_content`; when `args[:locale]` is present, still load translations for `board_name` matching, but do not rewrite per-button labels (list payloads have no `buttons`). Gating the whole locale block behind `!list_summary` broke `Api::BoardsController index should return a localized board name`.
 
-**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md)
+**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md); pass 2 [2026-08-17-boards-page-load-pass2.md](./2026-08-17-boards-page-load-pass2.md)
+
+## Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint
+
+**Surface:** `/board-picker` `BoardPicker` with `searchAtTop` ([`components/board-picker.js`](../../app/frontend/app/components/board-picker.js)).
+
+**Gotcha:** All Available Boards waits for every mine/shared page plus the first public page before painting, so it is slow. The selected tab (`current_category`) and the grid (`category_boards`) are separate. Switching to Cause and Effect starts a new query but does not cancel the All Available requests. Those writers used to call `this.set('category_boards', …)` with no generation check, so the default list appeared under the new category.
+
+**Fix:** All Available uses its own `_available_load_id` so the first fetch can finish in the background. Results are snapshotted and reused when the user returns to the tab; they only paint `category_boards` while that tab is selected. Tagged categories still bump `_boards_load_id` so a late Cause and Effect response cannot overwrite All Available. Tests in `tests/unit/components/board-picker-category-race-test.js`.
+
+**First seen in:** [2026-08-20-board-picker-category-race.md](./2026-08-20-board-picker-category-race.md)
 
 ## Gotcha: Android “classic board” error may be stale packaged board-detail
 
@@ -3623,8 +3641,9 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 4. Senner signup set: `SystemBoardSources.ensure_senner_baud!` (S3 primary, `SENNER_BAUD_OBZ_PATH` / `tmp/seed-boards/SennerBaudSocialPages60ll.obz` local fallback). After `from_obz`, call `sync_load_board_keys!` so `load_board.key` matches the board resolved by id (avoids `_N` dead links after key collisions).
 5. Gallery curated sets: `rake lingolinq:import_curated_vocabularies` or `SEED_IMPORT_CURATED_VOCABULARIES=1`.
 6. OpenAAC import skips filenames in `CuratedVocabularySources.openaac_skip_files`; keep OpenAAC for non-overlapping sets (quick-core-*, vocal-flair-60, etc.).
+7. Quick Core **root descriptions** cannot be cleaned with find-and-replace: they contain `app.mycoughdrop.com/example/core-N` sibling links and a sentence that is *about* CoughDrop ("isn't unique to CoughDrop"). Stamp a hand-written overlay after `from_obz` (`lib/quick_core_descriptions.rb`). Child boards that only have `built with CoughDrop` can be rewritten to `built with LingoLinq`. Already-seeded DBs: `rake lingolinq:apply_quick_core_descriptions` (no OBZ re-download). Do not put this rewrite in `Converters::LingoLinq.from_external` — it would alter therapist CoughDrop migrations.
 
-**Evidence:** `lib/curated_vocabulary_sources.rb`, `lib/system_board_sources.rb`, `lib/tasks/system_boards.rake`, `lib/tasks/openaac.rake`; task log `2026-08-13-curated-s3-system-board-seeds.md`.
+**Evidence:** `lib/curated_vocabulary_sources.rb`, `lib/system_board_sources.rb`, `lib/quick_core_descriptions.rb`, `lib/tasks/system_boards.rake`, `lib/tasks/openaac.rake`; task logs `2026-08-13-curated-s3-system-board-seeds.md`, `2026-08-20-quick-core-import-descriptions.md`.
 
 **Collision note (2026-08-14):** Senner OBZ boards can occupy bare keys like `lingolinq/core-60`. OpenAAC Quick Core roots also import as `core-N`, while signup expects `lingolinq/quick-core-N`. Seed order is Senner then OpenAAC. After Senner import, `relinquish_bare_core_roots!` moves bare `core-N` → `senner-baud-core-N` (child keys like `core-60-when` stay shared). After each `quick-core-N.obz` import, `rekey_quick_core_root!` sets the root to `quick-core-N` and `sync_load_board_keys!` runs.
 
@@ -4607,7 +4626,7 @@ Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events
 
 ## Pattern: co-located modal `{{on "click" (fn this.ctrlAction …)}}` — use `(this.ctrlAction …)`
 
-**Surface:** `speak-menu`, `button-settings`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
+**Surface:** `speak-menu`, `button-settings`, `copy-just-this-board`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
 
 **Root cause:** `ctrlAction` returns a handler function. `(fn this.ctrlAction "x")` invokes `ctrlAction("x", …)` at click time and discards the returned handler, so the action never runs. Under speak mode, `raw_events` `dispatchPassThroughClick` still needs a bound handler — pass-through logs fire but close no-ops. Use `(this.ctrlAction "x")` (bind at render) for `{{on}}`, `modal-dialog` `action`/`opening`/`closing`, and `button-listener` `buttonEvent`. Classic `{{action "x"}}` also works; pair with `modalDialogClickRelease()` when pointer synthesis is suppressed.
 
@@ -7004,17 +7023,22 @@ Before adding any "choose which sub-boards to copy" UI, know the infra is alread
 - **Frontend:** `utils/board_hierarchy.js` builds the downstream tree with per-board `selected`
   flags, `selected_board_ids()`, `root_deselected`, `set_downstream(id,'selected',bool)`, `toggle()`.
   The `{{board-hierarchy selectable=true hierarchy=…}}` component renders the selectable tree
-  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, and the `copying-board` modal).
+  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, `copy-board`, and `copying-board`).
   `components/board-hierarchy.js` `select_all(state)` now honors `state` → `select_all false`
   is Deselect All (existing callers pass no arg, so they still select).
-- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols); the EXECUTION modal is
-  `copying-board`, which loads the hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all
-  selected by default) and passes `hierarchy.selected_board_ids()` as the include list.
+- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols). It also loads the
+  hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all selected by default) and shows the
+  collapsed `md-modal-expander` picker under the linked-boards hint. Confirming a full-set copy
+  passes `skip_hierarchy_picker` + `board_ids_to_copy`. The EXECUTION modal is `copying-board`,
+  which then skips its picker and starts the copy (progress only). If hierarchy load is still
+  in flight or failed, omit the skip flag so `copying-board` keeps its fallback picker.
+  `keep_links` / `remove_links` never skip; they still start copying immediately.
 - **Backend:** the copy endpoint already accepts `expand_selected_board_ids` (users_controller →
   user.rb#2559 → relinking.rb `copy_board_links_for`), so partial copies are supported server-side.
 So "modernize the copy modal / default-all-selected / deselect some" = a UI disclosure around the
 existing `board-hierarchy`, NOT a new feature. (2026-06-27: collapsed the picker behind a
-`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`.)
+`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`. 2026-08-21:
+moved that expander onto `copy-board` so linked-board copy is one decision screen.)
 
 ---
 
@@ -7631,7 +7655,14 @@ guards, or tests in a file that already has grandfathered findings (especially l
 new runloop call sites were added. Diagnose before migrating: compare counts of
 `file|ruleId|messageHash` (ignore line/column). Line-only churn → fix any truly new violations,
 then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
-in the same PR. See [`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md).
+in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new) and
+`feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
+computed dep; the rest were `application.js` line shifts from three payload keys). New unit tests
+must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
+`@ember/test-helpers`. See
+[`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),
+[`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md),
+and [`2026-08-21-copy-board-eslint-todo-gate.md`](./2026-08-21-copy-board-eslint-todo-gate.md).
 
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
@@ -9261,7 +9292,7 @@ Stop Masquerading controls (PR #714) signal masquerade without naming the acting
 
 **Root cause:** Two systems share the word category. (1) Personal folders = `user.settings.board_tags` via the tag-board modal. (2) Catalog browse = `board.settings.categories` with fixed ids (`cause_effect`, `robust`, …), set in Edit Board Details when "can be used as a home board" is checked. The tabbed picker also had a hard-coded coming-soon stub that skipped `_resolveCategoryBoards` for `cause_effect`.
 
-**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags.
+**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags. PR #761 also removed the Keyboards "Coming soon" placeholders the same way (`_resolveCategoryBoards('keyboards')`). Traci's later picker rework (`f2cc29f13`, 2026-08-09) put those placeholders back; restored on `fix/melissa-board-picker-stale-category`.
 
 **Evidence:** [`2026-08-05-board-picker-cause-effect-catalog.md`](./2026-08-05-board-picker-cause-effect-catalog.md); `components/board-picker.js` / `.hbs`.
 
@@ -12009,3 +12040,29 @@ Copying `**Attestation history:** re-attested 2026-08-08` onto a `draft` success
 §7 is Vendor Notification List; §11 is Appendix: Key References. Changelog / header /
 register `correctionNote` text that says "§11 vendor contacts" sends responders to the wrong
 procedure. When correcting Anthropic/OpenAI/Google contact rows, cite §7.
+
+## Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction
+
+Deferring `schedule_once` until after commit closes the Redis-vs-Postgres ordering race (a worker must not recompute `available_private_board_ids` from the pre-commit snapshot). It does not close the crash/Redis-down window after commit: the relationship change is already durable, the callback cannot roll it back, and a missed enqueue leaves a revoked supervisor's persisted board-id list stale until some unrelated refresh. `RemoteAction` with `action: 'update_available_boards'` is this app's outbox (`board_caching.rb`, `organization.rb`); write it in the same transaction as the link change, keep post-commit `schedule_once` as the fast path, and let hourly `Uploader.remote_remove_batch` drain the fallback. Pull an existing delayed row's `act_at` forward on revoke so a prior 30-minute RA cannot outlive the unlink. Ref: `app/models/concerns/supervising.rb` `schedule_board_cache_refresh`.
+
+## Gotcha: authorizing the supervisee-list owner does not authorize the children inside it
+
+"Modeling only" means two different things, and conflating them breaks a whole tier. `modeling_only?` is a GLOBAL BILLING state — `billing_state` returns `:modeling_only` as the final fall-through for any supporter who is not premium, trialing, org-sponsored, an org supporter, or a manager. A PER-LINK modeling-only restriction is a property of one relationship. `modeling_only_for?` returns true for both, because it opens `return true if self.modeling_only?`. Every permission rule already encodes the right granularity for itself: `'supervise'` excludes modeling-only outright, `'set_goals'` excludes per-link but deliberately KEEPS a billing-lapsed supporter (the carve-out is written into the rule body). Layering `&& !caller.modeling_only_for?(x)` on top of `allows?` applies the coarse test to both and silently overrides that carve-out — it emptied badge feeds and caseloads for lapsed supporters, and a spec was written asserting the broken result. Do not re-implement a permission's own policy at the call site; pass the right permission and let the rule decide. CI cannot catch this class on its own: a freshly-created account is `:trialing_supporter` for 60 days, so a test must drive the state (`expires_at = 2.days.ago`) to reach it at all.
+
+`allowed?(user, 'supervise')` on a therapist says nothing about the communicators inside `user.supervisees`. A district manager holds that permission on in-org therapists (`user.rb:87`), and a supporter asking about themselves always passes, so the gate admits the whole caseload — including a contracting SLP's private out-of-org children. Exclusion filters (`!modeling_only_for?`, `!private_logging?`) make it worse: no relationship returns false and the negation lets the stranger through. The check must be affirmative per child, and it must be the RIGHT check: roster identity uses `User#listable_as_supervisee_by?` / `supervisee_listable?` ('model'), while a disclosure ABOUT the child uses `User#readable_as_supervisee_by?` / `supervisee_readable?` ('set_goals' for progress, 'supervise' for usage). Using the data predicate for a roster empties the caseload of every billing-lapsed supporter, because 'supervise' carries a modeling-only conjunct and `billing_state` falls through to `:modeling_only` for any supporter who is not premium, trialing, org-sponsored, an org supporter, or a manager. HTTP list endpoints are not the only copy — `JsonApi::User` nests the first 10 with `limited_identity` (name, avatar, unread counts, org_status) on user show, which is the caseload source for <10 communicators, and `users#ws_settings` emits ids. Withholding identity is not sufficient on its own: the same payload carried the child's home board and full downstream board-id set via `board_set_ids(include_supervisees: true)`, which re-derived from the unfiltered list, and board ids are directly fetchable. `limited_identity` is not a redaction. Grep `user.supervisees` in `app/controllers` and `lib/json_api` before calling the class closed.
+
+## Gotcha: one CLI flag carrying two meanings silently corrupts the register's evidence anchors
+
+`scripts/audit-merge.rb --sha` used to do two unrelated jobs: stamp `meta.auditedSha` (the claim "an `/audit-run` audited the WHOLE tree at this SHA", a governance act needing Scot's sign-off per `meta.auditedShaPriorNote`) **and** overwrite every incoming finding's `evidence.sha`. Adding a finding outside a full run therefore had no correct invocation: passing the true commit falsely restamped the audit pointer, and passing the register's existing `auditedSha` to dodge that restamp silently re-anchored the new evidence to a commit it was never verified against. The second is the dangerous one — `citation-check.rb` matches per LINE, so when the snippet happens to sit on the same line in both commits it passes **green with a wrong anchor**; PR #742's session only caught it because line 182 vs 152 happened to differ. Fix: `--no-restamp` (evidence anchors at `--sha`, `meta` untouched), mirroring `promote-finding.rb`, which never touches the pointer for exactly this reason. General rule: when a flag feeds two sinks that only coincide in one workflow, the workflow that separates them is the one that gets corrupted silently. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
+
+## Gotcha: `audit-artifacts-integrity` green proves renders match JSON, NOT that the register is loadable
+
+Every check in that CI job compares a generated markdown against its JSON source; none of them reads the field *shapes* the register's consumers depend on. A finding whose `source` was written as a bare String instead of an object merged fully green and then hard-crashed `promote-finding.rb` (`Hash#dig': String does not have #dig method (TypeError)`) for the **entire** register weeks later — `citation-check.rb` exited 0 on it too, since it only validates evidence. Closed with two complementary gates: `scripts/register-lint.rb` (predicted shapes, enums, id uniqueness — precise error messages) and `scripts/tests/register-consumer-smoke-test.sh` (runs the real consumers over each committed register with empty input, asserting exit 0 **and** byte-identical output — catches whatever the predicate list failed to anticipate). When adding a validator for a data file, gate on *consumability*, not just on render consistency. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
+
+## Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)
+
+`lingolinq/jokes` (and similar curated `.obf`s) embed rimshot/drumroll/laughter/sigh as `data:audio/mpeg;base64,...`. `Uploadable#upload_to_remote` decoded every data URI through `SvgSanitizer.decode_image_data_uri_payload`, which returns nil unless the URI is `data:image/`. Audio was `invalid_data_uri`; `ButtonSound#process_params` also ignores non-http urls, so the button kept a `sound_id` with no playable `url` and Speak Mode TTS'd the label. Fix: decode `data:audio/*` in `Uploadable#decode_data_uri_body`; leave the image sanitizer unchanged. After deploy, re-import only `jokes` (not a full library rebuild). Ref: [`2026-08-22-jokes-sounds-not-playing.md`](./2026-08-22-jokes-sounds-not-playing.md).
+
+## Gotcha: a status-block lead must not over-claim "remaining" or "historical"
+
+A runbook lead that says "the remaining gates are A, B, C" reads as exhaustive. If a later authoritative list also requires D and E, an operator skimming the lead can onboard with those still open. Same failure mode for "the rest of this block is historical / not as open work" when later paragraphs in the same block are live checklists. Narrow the lead (e.g. "remaining infrastructure/decommission actions") and scope the historical label to the dated snapshot paragraph only. Ref: PR #840 Codex P1s, `scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md`, [`2026-08-21-phase5-runbook-review-comments.md`](./2026-08-21-phase5-runbook-review-comments.md).

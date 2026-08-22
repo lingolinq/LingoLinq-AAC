@@ -129,7 +129,13 @@ describe Api::BadgesController, :type => :controller do
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['badge'].length).to eq(2)
-      expect(json['badge'].map{|b| b['id']}.sort).to eq([b.global_id, b2.global_id])
+      # Sort BOTH sides. global_ids are strings, so once the UserBadge sequence
+      # crosses a digit boundary the lexicographic order of two consecutively
+      # created badges inverts ("1_1000" < "1_999") and the sorted actual stops
+      # matching a literal written in creation order. Latent since this example was
+      # written; it only fires on a test database whose sequence happens to straddle
+      # the boundary.
+      expect(json['badge'].map{|b| b['id']}.sort).to eq([b.global_id, b2.global_id].sort)
     end
 
     it "should not include badges for supervisees the caller cannot view in detail" do
@@ -205,12 +211,37 @@ describe Api::BadgesController, :type => :controller do
       mine = UserBadge.create(:user => @user)
       UserBadge.create(:user => supervisee)
 
+      sup_badge = UserBadge.where(:user_id => supervisee.id).first
+
       get 'index', params: {:user_id => @user.global_id, recent: true}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      # Two guarantees at once: self stays exempt (or a modeling-only supporter
-      # loses their own badges), and a globally modeling-only account is
-      # modeling-only for EVERYONE (supervising.rb:122), so the supervisee drops.
+      # A LAPSED supporter keeps their caseload here. user.rb:75-83 says so
+      # explicitly -- "Billing-only modeling supporters (subscription lapsed)
+      # could lose set_goals even though they still supervise and model" -- and
+      # the rule's own guard (`modeling_only_for? && !modeling_only?`) is written
+      # to exempt exactly this caller. An earlier revision of the shared helper
+      # layered a second, coarser modeling_only test on top and overrode that
+      # carve-out, which emptied this feed; this example is what pins it.
+      expect(json['badge'].map{|b| b['id']}.sort).to eq([mine.global_id, sup_badge.global_id].sort)
+    end
+
+    # The other granularity of "modeling only": a PER-LINK restriction, which
+    # user.rb:77 does deny. Same endpoint, same shape, opposite expectation --
+    # so the example above cannot pass by admitting everything.
+    it "should not return a supervisee's badges over a per-link modeling-only relationship" do
+      token_user
+      supervisee = User.create
+      User.link_supervisor_to_user(@user, supervisee, nil, 'modeling_only')
+      expect(@user.reload.modeling_only?).to eq(false)
+      expect(@user.modeling_only_for?(supervisee.reload)).to eq(true)
+
+      mine = UserBadge.create(:user => @user)
+      UserBadge.create(:user => supervisee)
+
+      get 'index', params: {:user_id => @user.global_id, recent: true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
       expect(json['badge'].map{|b| b['id']}).to eq([mine.global_id])
     end
 
