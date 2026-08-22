@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
 - [Gotcha: a status-block lead must not over-claim "remaining" or "historical"](#gotcha-a-status-block-lead-must-not-over-claim-remaining-or-historical)
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
@@ -12026,6 +12027,10 @@ Deferring `schedule_once` until after commit closes the Redis-vs-Postgres orderi
 ## Gotcha: `audit-artifacts-integrity` green proves renders match JSON, NOT that the register is loadable
 
 Every check in that CI job compares a generated markdown against its JSON source; none of them reads the field *shapes* the register's consumers depend on. A finding whose `source` was written as a bare String instead of an object merged fully green and then hard-crashed `promote-finding.rb` (`Hash#dig': String does not have #dig method (TypeError)`) for the **entire** register weeks later — `citation-check.rb` exited 0 on it too, since it only validates evidence. Closed with two complementary gates: `scripts/register-lint.rb` (predicted shapes, enums, id uniqueness — precise error messages) and `scripts/tests/register-consumer-smoke-test.sh` (runs the real consumers over each committed register with empty input, asserting exit 0 **and** byte-identical output — catches whatever the predicate list failed to anticipate). When adding a validator for a data file, gate on *consumability*, not just on render consistency. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
+
+## Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)
+
+`lingolinq/jokes` (and similar curated `.obf`s) embed rimshot/drumroll/laughter/sigh as `data:audio/mpeg;base64,...`. `Uploadable#upload_to_remote` decoded every data URI through `SvgSanitizer.decode_image_data_uri_payload`, which returns nil unless the URI is `data:image/`. Audio was `invalid_data_uri`; `ButtonSound#process_params` also ignores non-http urls, so the button kept a `sound_id` with no playable `url` and Speak Mode TTS'd the label. Fix: decode `data:audio/*` in `Uploadable#decode_data_uri_body`; leave the image sanitizer unchanged. After deploy, re-import only `jokes` (not a full library rebuild). Ref: [`2026-08-22-jokes-sounds-not-playing.md`](./2026-08-22-jokes-sounds-not-playing.md).
 
 ## Gotcha: a status-block lead must not over-claim "remaining" or "historical"
 
