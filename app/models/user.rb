@@ -397,14 +397,24 @@ class User < ApplicationRecord
     c['parent_consent_revoked_at'].present?
   end
 
+  def coppa_parental_consent_declined?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    c['parent_consent_declined_at'].present?
+  end
+
   def coppa_parental_consent_active?
     c = self.settings && self.settings['coppa']
     return false unless c.is_a?(Hash)
-    c['parent_consent_granted_at'].present? && c['parent_consent_revoked_at'].blank?
+    c['parent_consent_granted_at'].present? &&
+      c['parent_consent_revoked_at'].blank? &&
+      c['parent_consent_declined_at'].blank?
   end
 
   def coppa_parental_consent_blocks_access?
-    coppa_parental_consent_pending? || coppa_parental_consent_revoked?
+    coppa_parental_consent_pending? ||
+      coppa_parental_consent_revoked? ||
+      coppa_parental_consent_declined?
   end
 
   # Compliance Kernel profile for this user (nil when flag OFF).
@@ -520,10 +530,13 @@ class User < ApplicationRecord
   # under-13 → COPPA pending (optional parent email);
   # under-16 → AI prefs off; EU org also sets eu_under_16 for parental re-consent
   # when they re-enable AI in preferences.
-  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil)
+  # force_under_13: automated license expiry (no manager attestation) when
+  # school_authorization is still on file.
+  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false)
     attested_under_13 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 13
     )
+    attested_under_13 = true if force_under_13 && attested_under_13.nil?
     attested_under_16 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 16
     )
@@ -567,9 +580,13 @@ class User < ApplicationRecord
           self.settings.delete('school_authorization')
         end
         parent = parent_email.to_s.strip
+        started_at = Time.now.utc.iso8601
+        deadline_at = 14.days.from_now.utc.iso8601
         blob = {
           'pending_parent_consent' => true,
-          'offboarding' => true
+          'offboarding' => true,
+          'offboarding_started_at' => started_at,
+          'offboarding_deadline_at' => deadline_at
         }
         if parent.present?
           parent = self.class.validate_parent_consent_email!(
@@ -578,7 +595,7 @@ class User < ApplicationRecord
           )
           blob['parent_email'] = process_string(parent)
           blob['parent_consent_token'] = GoSecure.nonce('parent_consent')
-          blob['parent_consent_expires_at'] = 14.days.from_now.utc.iso8601
+          blob['parent_consent_expires_at'] = deadline_at
           blob['needs_parent_email'] = false
           send_coppa_email = true
         else
@@ -656,14 +673,20 @@ class User < ApplicationRecord
       self.settings ||= {}
       prior = self.settings['coppa']
       offboarding = prior.is_a?(Hash) && !!prior['offboarding']
-      self.settings['coppa'] = {
+      deadline = 14.days.from_now.utc.iso8601
+      blob = {
         'pending_parent_consent' => true,
         'offboarding' => offboarding,
         'parent_email' => process_string(parent),
         'parent_consent_token' => GoSecure.nonce('parent_consent'),
-        'parent_consent_expires_at' => 14.days.from_now.utc.iso8601,
+        'parent_consent_expires_at' => deadline,
         'needs_parent_email' => false
       }
+      if offboarding && prior.is_a?(Hash)
+        blob['offboarding_started_at'] = prior['offboarding_started_at'] || Time.now.utc.iso8601
+        blob['offboarding_deadline_at'] = prior['offboarding_deadline_at'] || deadline
+      end
+      self.settings['coppa'] = blob
       self.save!
       record_id = SecureRandom.uuid
       AuditEvent.create!(
@@ -681,6 +704,191 @@ class User < ApplicationRecord
     devices.each(&:invalidate_cached_keys)
     UserMailer.schedule_parent_consent_delivery(:parental_consent_request, self.global_id)
     true
+  end
+
+  # True when an offboarded minor's pending COPPA window has ended (token /
+  # deadline expiry) or the guardian explicitly declined — ready for
+  # export-then-delete. Already-scheduled rows are skipped. An in-flight
+  # claim (offboarding_export_started_at) also blocks until it goes stale so
+  # concurrent callers cannot each run Exporter.export_user.
+  OFFBOARDING_EXPORT_CLAIM_STALE = 6.hours
+
+  def coppa_offboarding_export_due?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash) && c['offboarding']
+    return false if c['offboarding_export_scheduled_at'].present?
+    started = c['offboarding_export_started_at']
+    if started.present?
+      begin
+        return false if Time.iso8601(started) > OFFBOARDING_EXPORT_CLAIM_STALE.ago.utc
+      rescue ArgumentError
+        # Bad stamp should not permanently block; fall through to due checks.
+      end
+    end
+    return true if c['parent_consent_declined_at'].present?
+    return false unless c['pending_parent_consent']
+    deadline = c['parent_consent_expires_at'].presence || c['offboarding_deadline_at']
+    return false if deadline.blank?
+    Time.iso8601(deadline) < Time.now.utc
+  rescue ArgumentError
+    false
+  end
+
+  # Parent declines the pending consent link (same token as grant). Offboarding
+  # accounts are queued for export-then-delete; signup declines mark declined
+  # and schedule deletion without the offboarding export mailer path.
+  def decline_parental_consent!(token, ip: nil, user_agent: nil)
+    return false if token.blank?
+    res = false
+    offboarding = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      next unless c['pending_parent_consent']
+      next if c['parent_consent_granted_at'].present?
+      next if c['parent_consent_declined_at'].present?
+      stored = c['parent_consent_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      exp = c['parent_consent_expires_at']
+      if exp.present?
+        begin
+          next if Time.iso8601(exp) < Time.now.utc
+        rescue ArgumentError
+          next
+        end
+      end
+      declined_at = Time.now.utc.iso8601
+      record_id = SecureRandom.uuid
+      offboarding = !!c['offboarding']
+      c['parent_consent_declined_at'] = declined_at
+      c.delete('pending_parent_consent')
+      c.delete('parent_consent_expires_at')
+      # Keep parent_consent_token so the decline link stays idempotent on revisit
+      # (same pattern as grant retaining the grant token).
+      self.settings['coppa'] = c
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_decline',
+          'method' => 'email_token_link',
+          'offboarding' => offboarding,
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'declined_at' => declined_at,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_decline',
+        record_id: record_id
+      )
+      res = true
+    end
+    devices.each(&:invalidate_cached_keys) if res
+    if res
+      if offboarding
+        schedule_offboarding_export_then_delete!(reason: 'declined')
+      else
+        self.schedule_deletion_at ||= 36.hours.from_now
+        self.save
+      end
+    end
+    res
+  end
+
+  # Export account data (when possible), notify parent, schedule hard delete.
+  # Idempotent via settings['coppa']['offboarding_export_scheduled_at'].
+  # Claims under lock (offboarding_export_started_at) before the expensive
+  # Exporter.export_user call so concurrent workers/manual declines cannot
+  # each generate a full export for the same user.
+  def schedule_offboarding_export_then_delete!(reason:)
+    claimed = false
+    self.with_lock(requires_new: true) do
+      next unless coppa_offboarding_export_due?
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      c['offboarding_export_started_at'] = Time.now.utc.iso8601
+      self.settings['coppa'] = c
+      self.save!
+      claimed = true
+    end
+    return false unless claimed
+
+    upload = nil
+    begin
+      upload = Exporter.export_user(self.global_id)
+    rescue StandardError => e
+      Rails.logger.error("[COPPA offboarding export] user=#{global_id} #{e.class}: #{e.message}")
+    end
+
+    scheduled = false
+    mailed = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash) && c['offboarding']
+      # Claim owns the work; skip if another finisher already recorded scheduled_at.
+      next if c['offboarding_export_scheduled_at'].present?
+      now = Time.now.utc.iso8601
+      c['offboarding_export_scheduled_at'] = now
+      c['offboarding_export_reason'] = reason.to_s
+      c.delete('offboarding_export_started_at')
+      if upload.is_a?(Hash) && upload[:path].present?
+        c['offboarding_export_path'] = upload[:path]
+      end
+      self.settings['coppa'] = c
+      self.schedule_deletion_at = 36.hours.from_now
+      self.save!
+      record_id = SecureRandom.uuid
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_offboarding_export_scheduled',
+          'reason' => reason.to_s,
+          'export_path_present' => c['offboarding_export_path'].present?,
+          'scheduled_deletion_at' => self.schedule_deletion_at&.iso8601,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_offboarding_export_scheduled',
+        record_id: record_id
+      )
+      mailed = c['parent_email'].present?
+      scheduled = true
+    end
+
+    if scheduled && mailed
+      UserMailer.schedule_parent_consent_delivery(
+        :parental_consent_offboarding_export,
+        self.global_id
+      )
+    end
+    scheduled
+  end
+
+  # Daily sweep: offboarding COPPA pending past deadline / declined → export-then-delete.
+  # Candidate discovery via AuditEvent (user.settings is encrypted).
+  def self.process_expired_offboarding_consents!
+    return 0 unless JsonApi::Json.coppa_parental_consent_enabled?
+    count = 0
+    user_keys = AuditEvent.where(event_type: 'parental_consent_offboarding_started')
+      .where('created_at > ?', 90.days.ago)
+      .distinct
+      .pluck(:user_key)
+    user_keys.each do |key|
+      user = User.find_by_global_id(key)
+      next unless user && user.coppa_offboarding_export_due?
+      reason = if user.settings.dig('coppa', 'parent_consent_declined_at').present?
+        'declined'
+      else
+        'expired'
+      end
+      count += 1 if user.schedule_offboarding_export_then_delete!(reason: reason)
+    end
+    count
   end
 
   # Validates the grant link token from the parental consent request email.

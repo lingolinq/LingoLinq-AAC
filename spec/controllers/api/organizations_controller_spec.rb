@@ -354,7 +354,14 @@ describe Api::OrganizationsController, :type => :controller do
         o.add_manager(@user.user_name)
         u = User.create
         o.add_user(u.user_name, false)
-        put :update, params: {:id => o.global_id, :organization => {:management_action => "remove_user-#{u.user_name}"}}
+        put :update, params: {
+          :id => o.global_id,
+          :organization => {
+            :management_action => "remove_user-#{u.user_name}",
+            :offboarding_birth_month => Time.now.utc.month,
+            :offboarding_birth_year => Time.now.utc.year - 25
+          }
+        }
         expect(response.successful?).to eq(true)
         json = JSON.parse(response.body)
         expect(o.managed_user?(u.reload)).to eq(false)

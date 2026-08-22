@@ -125,4 +125,17 @@ describe('login-form google SSO', function() {
     component.set('google_link_password', 'secret123');
     expect(component.get('googleLinkSubmitDisabled')).toEqual(false);
   });
+
+  it('sets declined-consent login_error from ?coppa_declined=1', function() {
+    var prev = window.location.pathname + window.location.search + window.location.hash;
+    window.history.replaceState({}, '', '/login?coppa_declined=1');
+    try {
+      component.syncGoogleReturnParams();
+      expect(component.get('coppa_awaiting_parent')).toEqual(false);
+      expect(component.get('coppa_needs_parent_email')).toEqual(false);
+      expect(String(component.get('login_error'))).toMatch(/declined consent/);
+    } finally {
+      window.history.replaceState({}, '', prev);
+    }
+  });
 });
