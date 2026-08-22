@@ -59,15 +59,11 @@ Placeholders: `%{app_name}`, `%{consent_age}`, `%{child_username}`, `%{registere
 
 **Unexpected heading:** Didn't expect this email?
 
-**Decline CTA:** Decline and request deletion → `GET /parental_consent/decline?user_id=…&token=…`
-
-**Footer (signup):**
+**Footer:**
 
 > No worries! If this wasn't you, you can simply ignore this message. The account will stay locked and restricted until a parent approves it, or the request eventually expires.
 
-**Footer (org offboarding):** If nobody responds before the request expires, we prepare an export and then permanently delete the account.
-
-*(The implementation appends the one-time approve/decline URLs on their own lines.)*
+*(The implementation appends the one-time URL on its own line.)*
 
 **Confirmation intro** (for `parental_consent_confirmation_mailer`, with `%{app_name}`, `%{child_username}`, `%{registered_at}`):
 

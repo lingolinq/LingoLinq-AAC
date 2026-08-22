@@ -28,6 +28,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
 - [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
+- [Gotcha: "Scot re-attested" is not a pin on this branch until the row hash matches](#gotcha-scot-re-attested-is-not-a-pin-on-this-branch-until-the-row-hash-matches)
 - [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
 - [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
 - [Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`](#gotcha-redact_for_ai-on-the-sentence-does-not-automatically-cover-interpolated-contexttopic)
@@ -10937,6 +10938,18 @@ Example this session: Capability Ledger (`docs/legal/CAPABILITY_LEDGER.md`) is u
 drift from `feature_flags.rb` only needed regenerate after the ledger JSON line bump. Skills:
 `.claude/skills/re-attest-record/SKILL.md`, `promote-finding/SKILL.md`; guide:
 `docs/legal/COMPLIANCE_DOCS_GUIDE.md`.
+
+## Gotcha: "Scot re-attested" is not a pin on this branch until the row hash matches
+
+**Surface:** CI `audit-artifacts-integrity` on an attested `docs/legal/**` file (PR #737,
+`PARENTAL_CONSENT_EMAIL.md`).
+
+Scot's last pin of that row is still 2026-07-23 (`d7c935ce4743…`, PR #672). His later attest
+PRs (#832, #839) covered other documents. A Slack/chat "I re-attested" does not change
+`attestation.attestedContentHash` on this branch. Confirm with `sha256sum` of the file vs the
+row pin. If they differ, the author reverts the attested file (or Scot runs `/re-attest-record`
+Path A). Do not run render. Task log:
+`docs/task-management/2026-08-22-pr737-attested-parental-consent-drift.md`.
 
 ## Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes
 
