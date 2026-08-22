@@ -1398,6 +1398,29 @@ describe Converters::LingoLinq do
       expect(board.settings['buttons'][1]['vocalization']).to eq(nil)
     end
 
+    it "uploads embedded audio data URIs so joke sound buttons keep a playable ButtonSound" do
+      u = User.create
+      audio = "data:audio/mpeg;base64,#{Base64.strict_encode64('ID3fake')}"
+      json = {
+        'id' => 'jokes-root',
+        'name' => 'Jokes',
+        'buttons' => [
+          {'id' => '26', 'label' => 'rimshot', 'sound_id' => 'snd-rim'}
+        ],
+        'sounds' => [
+          {'id' => 'snd-rim', 'content_type' => 'audio/mpeg', 'data' => audio}
+        ]
+      }
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
+      btn = board.settings['buttons'].detect { |b| b['label'] == 'rimshot' }
+      expect(btn['sound_id']).to be_present
+      sound = ButtonSound.find_by_global_id(btn['sound_id'])
+      expect(sound).to be_present
+      expect(sound.url).to be_present
+      expect(sound.settings['pending']).to eq(false)
+      expect(sound.settings['content_type']).to eq('audio/mpeg')
+    end
+
     it "should process a single action" do
       u = User.create
       json = {
