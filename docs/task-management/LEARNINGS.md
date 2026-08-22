@@ -330,7 +330,9 @@ the layout override it so switching back to Dynamic restores their Extras choice
 
 Keyboard boards use vocalizations as control protocols: `+a` composes spelling, `:space` completes the in-progress word, and `:shift` toggles capitalization. `Board#translated_buttons` must not replace those `:`/`+` vocalizations with visible labels when label and vocalization locales match, or controls start speaking words like “space”/“shift” and letters stop composing. If `lingolinq/keyboard` has stale locale metadata, default it back to English when no user locale or Switch Languages override exists, and repair the content board through `SystemSidebarBoards.ensure_for`.
 
-**First seen in:** [2026-06-03-keyboard-shift-space-default-language.md](./2026-06-03-keyboard-shift-space-default-language.md)
+**Import gotcha:** Vocal Flair / Open Board Format files store those protocols on the OBF `action` (or `actions`) field, not `vocalization`. `Converters::LingoLinq.vocalization_from_obf_button` copies them onto `vocalization` during import. A blank `actions` array is truthy in Ruby and used to hide `action`, so only treat `actions` as present when it has values. `SystemSidebarBoards.repair_utility_board` also restores missing `:shift` / `:space` / `+letter` vocalizations from `public/system-boards/keyboard.obz` when the live button has no vocalization (or only repeats the label).
+
+**First seen in:** [2026-06-03-keyboard-shift-space-default-language.md](./2026-06-03-keyboard-shift-space-default-language.md); import-side drop in [2026-08-22-keyboard-import-control-vocalizations.md](./2026-08-22-keyboard-import-control-vocalizations.md)
 
 ## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
 
