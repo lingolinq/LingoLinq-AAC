@@ -18,8 +18,8 @@
 > `audit-reports/FINDINGS.json`
 >
 > **v1.3 scope (2026-08-09 draft, content refreshed 2026-08-20).** Aligns Section 5 residuals and
-> Section 12 roadmap with the live register at staging HEAD `64cdccba1` plus the two rows added by PR #838 (0 Critical / 20 High / 52
-> Medium / 42 Low, publisher convention -- up from 12/30/25 at the 2026-08-09 draft, almost
+> Section 12 roadmap with the live register at staging HEAD `64cdccba1` (0 Critical / 20 High / 52
+> Medium / 40 Low, publisher convention -- up from 12/30/25 at the 2026-08-09 draft, almost
 > entirely from the 2026-08-12 six-finder full audit run). Records that LL-6619cc1811,
 > LL-11db0dc848, and LL-1b0d78dbe6 are verified-closed; that the Article 50(1) server-side
 > disclosure backstop now covers all 5 AI ingresses (LL-6723438462 remediated-unverified, #829/#831);
@@ -105,7 +105,7 @@ current authoritative counts are read directly from the register and summarized 
 `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (regenerated per audit run; do not hand-edit).
 
 - **Open Critical findings: 0** (the gate). As of the 2026-08-20 content refresh, live High /
-  Medium / Low counts (publisher convention at HEAD) are **20 / 52 / 42**. See the register and
+  Medium / Low counts (publisher convention at `64cdccba1`) are **20 / 52 / 40**. See the register and
   `docs/legal/2026-08-09_compliance-posture-report_draft.md` (DRAFT pending re-attest) for the
   authoritative derivation; do not hand-edit counts here.
 - Distribution spans FERPA (student data isolation, access scoping, audit trail), HIPAA (PHI
@@ -393,8 +393,8 @@ the attestation date. It is not a certification, a legal opinion, or a guarantee
 |---|---|
 | Prepared by | Compliance review (Claude, acting as compliance officer), draft; 2026-08-09 v1.3 successor draft; content refreshed 2026-08-20 |
 | Reviewed by | Predecessor v1.2 post-cutover sweep; v1.3 adversary review pending |
-| Register audited commit | last full `/audit-run`: `d67ed76e0a1` (auditedDate 2026-08-12, 40 new findings); monthly light-run restamp `59f502aa4` (auditedDate 2026-08-18); live counts re-derived at staging HEAD `64cdccba1` plus the two rows added by PR #838 (2026-08-20) for this v1.3 draft |
-| Posture at HEAD (v1.3 draft, refreshed 2026-08-20) | 0 open Critical / 20 open High / 52 open Medium / 42 open Low (publisher convention), per `audit-reports/FINDINGS.json` |
+| Register audited commit | last full `/audit-run`: `d67ed76e0a1` (auditedDate 2026-08-12, 40 new findings); monthly light-run restamp `59f502aa4` (auditedDate 2026-08-18); live counts re-derived at staging HEAD `64cdccba1` (2026-08-20) for this v1.3 draft |
+| Posture at `64cdccba1` (v1.3 draft, refreshed 2026-08-20) | 0 open Critical / 20 open High / 52 open Medium / 40 open Low (publisher convention), per `audit-reports/FINDINGS.json` |
 | Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render retained as write-frozen rollback fallback pending explicit decommission. LL-6619cc1811 verified-closed. Not re-verified against live infrastructure as part of this 2026-08-20 content refresh (register-only pass); re-check before attesting if infrastructure has changed since 2026-07-22. |
 | Attested by | Scot Wahlquist, CEO (v1.0–v1.2 on predecessor); v1.3 pending |
 | Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-09 (v1.3 draft, content refreshed 2026-08-20, pending) |

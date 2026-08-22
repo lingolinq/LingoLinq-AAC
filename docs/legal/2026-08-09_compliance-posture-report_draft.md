@@ -3,10 +3,11 @@
 > **DRAFT - awaiting attestation (content refreshed 2026-08-20).** Successor to attested
 > `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (re-attested 2026-07-23). Prior attestations on the
 > predecessor: ATTESTED 2026-06-19 by Scot Wahlquist, CEO; RE-ATTESTED 2026-07-16; RE-ATTESTED
-> 2026-07-23. This draft refreshes headline and framework counts from the findings register at
-> HEAD. It is not a current attested statement until Scot signs. Originally drafted 2026-08-09 by
-> the compliance-officer; content re-verified and refreshed 2026-08-20 after the 2026-08-12 six-finder
-> audit run and the Article 50 server-side backstop work (#829/#831); for adversary review; for
+> 2026-07-23. This draft refreshes headline and framework counts from the findings register as
+> committed at staging HEAD `64cdccba1`. It is not a current attested statement until Scot
+> signs. Originally drafted 2026-08-09 by the compliance-officer; content re-verified and
+> refreshed 2026-08-20 after the 2026-08-12 six-finder audit run and the Article 50 server-side
+> backstop work (#829/#831); for adversary review; for
 > CEO attestation.
 >
 > Register audited SHA (last full `/audit-run`): `59f502aa4` (auditedDate 2026-08-18; a monthly
@@ -14,15 +15,14 @@
 > the pointer moved there rather than to the current tip). The last full 6-finder audit was
 > `d67ed76e0a1` (2026-08-12), which added 40 new findings (9 High / 18 Medium / 13 Low). The
 > counts below are re-derived from `audit-reports/FINDINGS.json` **as committed at staging HEAD
-> `64cdccba1`, plus the two rows added by PR #838** (2026-08-20), not from a re-run audit,
-> using the publisher convention (`open` + `remediated-unverified` findings by severity, per
-> `scripts/compliance-notion-publish.rb`). Do not hand-edit the figures; refresh them from the
-> register.
+> `64cdccba1`** (2026-08-20), not from a re-run audit, using the publisher convention (`open` +
+> `remediated-unverified` findings by severity, per `scripts/compliance-notion-publish.rb`). Do not
+> hand-edit the figures; refresh them from the register.
 
 ### Changes since the 2026-08-09 draft (this refresh, 2026-08-20)
 
-- **Counts refreshed 2026-08-20.** Publisher convention at HEAD gives **0 Critical / 20 High / 52
-  Medium / 42 Low** (114 live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
+- **Counts refreshed 2026-08-20.** Publisher convention at `64cdccba1` gives **0 Critical / 20 High / 52
+  Medium / 40 Low** (112 live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
   Critical remains **0**, the gating metric. The High rise is almost entirely the 2026-08-12
   six-finder full audit run (privacy, infra, api, dependency, accessibility, code-hygiene), which
   added 9 new open Highs in a single run -- notably three GCP production-access/logging gaps
@@ -63,9 +63,9 @@
 
 | Metric | Count |
 |---|---|
-| **Open Critical findings** | **0** |
-| **Open High findings** | **20** |
-| Open Medium / Low | 52 / 42 |
+| **Live Critical findings** | **0** |
+| **Live High findings** | **20** |
+| Live Medium / Low | 52 / 40 |
 | Verified closed (Scot attested) | 51 |
 | Accepted risk | 5 |
 | Superseded | 2 |
@@ -104,13 +104,13 @@ one framework):
 | Framework | Live | Live High | Context |
 |---|---:|---:|---|
 | FERPA (US schools) | 36 | 11 | Student data isolation, access scoping, audit trail, share-token and deletion residuals. |
-| HIPAA (US hospitals) | 29 | 10 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
+| HIPAA (US hospitals) | 27 | 10 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
 | GDPR (EU clients) | 22 | 6 | Data residency, subprocessor posture, deletion and export paths, EU AI Act Article 50 transparency. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
 | COPPA (under-13 users) | 10 | 4 | Amended Rule enforceable since 2026-04-22. Open Highs include seat-reclaim consent (LL-f150e0e828), hard-delete media (LL-854b1d3853), and two new from the 2026-08-12 run (unscrubbed context.topic to Bedrock LL-8908c7ac6f; PredictionEntry survives account deletion LL-e8614c103f). |
 | WCAG (accessibility) | 19 | 2 | Standing domain for an AAC tool. Open High: terms-agree switch scanning (LL-104bfa61dc). Article 50 disclosure contrast (LL-a9d6d5a46b) is remediated-unverified (fix landed via #694, closure evidence recorded 2026-08-19; awaiting Scot's verified-closed attestation), still counted as a High in the publisher convention. |
-| SOC 2 (in progress) | 45 | 9 | Control-evidence and audit-system hardening (worker memory, S3 KMS writes, audited console). 2026-08-12 run added several GCP production-access/logging Highs (WIF ref-lock, no Data Access audit logging, project-wide admin on a human principal, public Cloud Run ingress). |
+| SOC 2 (in progress) | 43 | 9 | Control-evidence and audit-system hardening (worker memory, S3 KMS writes, audited console). 2026-08-12 run added several GCP production-access/logging Highs (WIF ref-lock, no Data Access audit logging, project-wide admin on a human principal, public Cloud Run ingress). |
 
-A single finding can map to more than one framework, so these rows do not sum to the 114 live total
+A single finding can map to more than one framework, so these rows do not sum to the 112 live total
 (open + remediated-unverified). 19 of those findings carry no framework tag (engineering-quality and
 API-contract items).
 
@@ -203,8 +203,7 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 | Attestation date (this draft) | _pending_ |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). Counts
-re-derived from `audit-reports/FINDINGS.json` as committed at staging HEAD `64cdccba1` plus the
-two rows added by PR #838, on 2026-08-20 (the auditedSha stamp records the last full audit run,
-not the last register edit).
+re-derived from `audit-reports/FINDINGS.json` as committed at staging HEAD `64cdccba1` on
+2026-08-20 (the auditedSha stamp records the last full audit run, not the last register edit).
 The one-way Notion publish of this report is a separate, human-initiated step into the Master
 Inbox. The branded Drive mirror is an operator refresh tracked in COMPLIANCE-PUBLICATION-STATUS._
