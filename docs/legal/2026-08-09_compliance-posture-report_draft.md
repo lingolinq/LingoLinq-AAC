@@ -4,7 +4,7 @@
 > `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (re-attested 2026-07-23). Prior attestations on the
 > predecessor: ATTESTED 2026-06-19 by Scot Wahlquist, CEO; RE-ATTESTED 2026-07-16; RE-ATTESTED
 > 2026-07-23. This draft refreshes headline and framework counts from the findings register as
-> committed at staging HEAD `64cdccba1`. It is not a current attested statement until Scot
+> committed at staging commit `64cdccba1`. It is not a current attested statement until Scot
 > signs. Originally drafted 2026-08-09 by the compliance-officer; content re-verified and
 > refreshed 2026-08-20 after the 2026-08-12 six-finder audit run and the Article 50 server-side
 > backstop work (#829/#831); for adversary review; for
@@ -14,7 +14,7 @@
 > light-run restamp, not a full re-scan -- see `meta.auditedShaPriorNote` in the register for why
 > the pointer moved there rather than to the current tip). The last full 6-finder audit was
 > `d67ed76e0a1` (2026-08-12), which added 40 new findings (9 High / 18 Medium / 13 Low). The
-> counts below are re-derived from `audit-reports/FINDINGS.json` **as committed at staging HEAD
+> counts below are re-derived from `audit-reports/FINDINGS.json` **as committed at staging commit
 > `64cdccba1`** (2026-08-20), not from a re-run audit, using the publisher convention (`open` +
 > `remediated-unverified` findings by severity, per `scripts/compliance-notion-publish.rb`). Do not
 > hand-edit the figures; refresh them from the register.
@@ -203,7 +203,7 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 | Attestation date (this draft) | _pending_ |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). Counts
-re-derived from `audit-reports/FINDINGS.json` as committed at staging HEAD `64cdccba1` on
+re-derived from `audit-reports/FINDINGS.json` as committed at staging commit `64cdccba1` on
 2026-08-20 (the auditedSha stamp records the last full audit run, not the last register edit).
 The one-way Notion publish of this report is a separate, human-initiated step into the Master
 Inbox. The branded Drive mirror is an operator refresh tracked in COMPLIANCE-PUBLICATION-STATUS._
