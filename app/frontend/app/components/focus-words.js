@@ -244,6 +244,11 @@ export default Component.extend({
       reuse: this.get('reuse'),
       title: this.get('title'),
       focus_id: this.get('focus_id'),
+      // Typed into the visible search box (focus-words.hbs:130, revealed by the
+      // same reuse_or_existing block as the list-name field). This is authored
+      // text, NOT the derived `search` results object that find_source() builds
+      // from it -- that one is correctly discarded.
+      search_term: this.get('search_term'),
       // Attribution for words a PREVIOUS generation produced. Restoring `words`
       // without this leaves AI-generated words with no AiFocusWordSet id, so
       // record_ai_focus_usage() returns early (:316-317) and applying or
@@ -361,9 +366,18 @@ export default Component.extend({
       // _presentArticle50Gate re-opens this modal with art50_resume because
       // acknowledging destroys and replaces the component mid-flow; without this
       // the user silently loses everything they had already entered. Runs after
-      // the resets above so it wins over them. Transient navigation state
-      // (search, browse, analysis, ideas) is deliberately NOT restored: the user
-      // is returning to a fresh view, and only what they authored should survive.
+      // the resets above so it wins over them.
+      //
+      // The invariant, stated because getting it wrong has caused four separate
+      // defects on this branch: opening() clears 16 fields; this payload carries
+      // the 9 the user AUTHORED. The 7 it does not carry are derived or must
+      // reset -- `search` (results object built from search_term by find_source),
+      // `browse`, `analysis`, `ideas`, `navigated`, plus `ai_generating` and
+      // `ai_generate_error`, which have to start clean on any open. Note
+      // `search_term` is authored and IS carried, while `search` is derived and
+      // is not; they are easy to conflate and were conflated once already.
+      // If you add a field to the resets above, decide explicitly which side of
+      // that line it falls on. Partial preservation is worse than none.
       const art50Resume = this.get('model.art50_resume');
       if (art50Resume) {
         this.set('ai_prompt', art50Resume.ai_prompt);
@@ -374,6 +388,7 @@ export default Component.extend({
         this.set('title', art50Resume.title);
         this.set('focus_id', art50Resume.focus_id);
         this.set('ai_focus_word_set_id', art50Resume.ai_focus_word_set_id);
+        this.set('search_term', art50Resume.search_term);
       }
       if (window.webkitSpeechRecognition) {
         const speech = new window.webkitSpeechRecognition();

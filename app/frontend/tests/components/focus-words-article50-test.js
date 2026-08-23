@@ -164,6 +164,7 @@ describe('focus-words Article 50 gate', function() {
       component.set('existing', true);
       component.set('focus_id', 'set_9');
       component.set('ai_focus_word_set_id', 'lib_7');
+      component.set('search_term', 'winter words');
 
       component.send('generate_focus_words_with_ai');
 
@@ -176,6 +177,9 @@ describe('focus-words Article 50 gate', function() {
         expect(resume.existing).toEqual(true);
         expect(resume.focus_id).toEqual('set_9');
         expect(resume.ai_focus_word_set_id).toEqual('lib_7');
+        // Authored text. Its derived counterpart `search` is correctly absent.
+        expect(resume.search_term).toEqual('winter words');
+        expect(resume.search).toEqual(undefined);
       });
     });
 
@@ -406,7 +410,8 @@ describe('focus-words Article 50 gate', function() {
         reuse: true,
         title: 'Grinch Unit',
         focus_id: 'set_9',
-        ai_focus_word_set_id: 'lib_7'
+        ai_focus_word_set_id: 'lib_7',
+        search_term: 'winter words'
       }});
       component.set('modal', EmberObject.create({setComponent: function() {}}));
 
@@ -422,6 +427,12 @@ describe('focus-words Article 50 gate', function() {
       // record_ai_focus_usage() returns early and applying the retained list
       // records nothing.
       expect(component.get('ai_focus_word_set_id')).toEqual('lib_7');
+      expect(component.get('search_term')).toEqual('winter words');
+      // Derived state stays cleared: restoring stale results next to a fresh
+      // view is exactly the partial-preservation bug this invariant guards.
+      expect(component.get('search')).toEqual(null);
+      expect(component.get('browse')).toEqual(null);
+      expect(component.get('analysis')).toEqual(null);
       // reuse_or_existing gates the "Word List Name" input's visibility, so a
       // restored title is unreachable in the UI unless this is true as well.
       expect(component.get('reuse_or_existing')).toEqual(true);
