@@ -696,6 +696,13 @@ export default Component.extend({
         // Re-confirm we're still the board-detail edit tour before starting (the
         // route could have changed during the poll).
         if (!_this._isBoardDetailEditTour()) { return; }
+        // Show the walkthrough ONCE per user, same rule as the SPEAK auto-open.
+        // `tourKey` only resolves to the edit key once we're on the board-detail
+        // page in edit mode, so this is checked here (at fire time) rather than
+        // when the pending flag is consumed. Manual entry via the "Take a tour"
+        // trigger is unaffected — this gate is only on the AUTO path.
+        if (_this.get('tourAutoShown')) { return; }
+        _this._markTourAutoShown();
         _this._startTour();
       } else {
         runLater(_this, tryStart, 150);
