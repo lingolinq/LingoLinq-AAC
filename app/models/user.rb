@@ -1440,6 +1440,13 @@ class User < ApplicationRecord
         'button_text_position' => 'top',
         'utterance_text_only' => false,
         'vocalization_height' => 'small',
+        # Suppresses the on-screen "Larger screen recommended" / "Landscape mode
+        # recommended" helper overlays for this device. DEFAULT false = keep showing
+        # them, which is the behaviour every existing user has today: generate_defaults
+        # backfills this onto EVERY device hash of EVERY user on save (no new_record?
+        # guard), so a `true` default would silently disable the helpers account-wide
+        # for everyone — the same trap board_category_grouping hit.
+        'hide_screen_helpers' => false,
         'wakelock' => true
       },
       'any_user' => {

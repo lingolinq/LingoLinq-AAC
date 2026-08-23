@@ -7,7 +7,7 @@
          Dashboard Design step's .md-ds-orientation pattern. "Continue Anyway" is
          the accessibility escape for mounted / non-rotatable setups. SVG def ids
          are nb-prefixed so they never collide with the board-detail instance. --}}
-    <div class="md-board-detail-portrait-overlay nb-orientation-overlay {{if this.orientation_overlay_dismissed 'nb-orientation-overlay--dismissed'}}" role="dialog" aria-modal="true" aria-label={{t "Landscape mode recommended" key="board_detail_landscape_recommended"}}>
+    <div class="md-board-detail-portrait-overlay nb-orientation-overlay {{if this.orientation_overlay_hidden 'nb-orientation-overlay--dismissed'}}" role="dialog" aria-modal="true" aria-label={{t "Landscape mode recommended" key="board_detail_landscape_recommended"}}>
       <div class="md-board-detail-portrait-overlay__card">
         <span class="md-board-detail-portrait-overlay__accent" aria-hidden="true"></span>
         <div class="md-board-detail-portrait-overlay__phone" aria-hidden="true">

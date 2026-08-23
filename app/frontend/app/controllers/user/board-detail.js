@@ -124,6 +124,10 @@ function _customize_menu_i18n_extractor_no_op() {
 
 export default Controller.extend(prefClasses, {
   app_state: service('app-state'),
+  /* Session-wide dismissal of the screen-recommendation overlays, shared with
+     create-board-new and the Display Style step so "Continue Anyway" here silences the
+     same message everywhere for the session. */
+  overlay_dismissals: service('overlay-dismissals'),
   stashes: service('stashes'),
   router: service('router'),
   persistence: service('persistence'),
@@ -3647,10 +3651,12 @@ export default Controller.extend(prefClasses, {
   //   • >6 columns → gate at ≤460px
   //   • >4 columns → gate at ≤375px
   portrait_overlay_dismissed: false,
-  // Sticky for the whole session: set once the user chooses "Continue Anyway"
-  // so the rotate-to-landscape prompt is never shown again this session, even
-  // when they navigate to other boards. Only a full app reload clears it.
-  portrait_overlay_session_dismissed: false,
+  // The session-wide latch moved to `service:overlay-dismissals`
+  // (`larger_screen_dismissed`). It used to be a controller property, which made it
+  // sticky across BOARDS but not across PAGES — the same recommendation still appeared
+  // on other routes after the user had already said "Continue Anyway". The service is
+  // shared by every site that shows it. `portrait_overlay_dismissed` below stays local
+  // because it is the PER-BOARD arm-state, which is a different thing.
   quick_actions_open: false,
   // Live-measured rendered button width, published by _sync_prediction_tile_size.
   board_cell_width: 0,
@@ -3681,11 +3687,14 @@ export default Controller.extend(prefClasses, {
     return false;
   }),
 
-  // The actual "show the card now" gate — eligible AND the user hasn't
-  // dismissed it. The first dismissal is scoped to the current board; once
-  // they pick "Continue Anyway", `portrait_overlay_session_dismissed` keeps
-  // `portrait_overlay_dismissed` latched across board changes for the session.
-  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'board_collection_open', 'edit_board_collection_open', function() {
+  // The actual "show the card now" gate — eligible AND the user hasn't dismissed it.
+  // `portrait_overlay_dismissed` is the per-board arm-state; once they pick "Continue
+  // Anyway", the service's `larger_screen_dismissed` suppresses it for the rest of the
+  // session everywhere in the app, and keeps the per-board flag from re-arming.
+  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'overlay_dismissals.larger_screen_hidden', 'board_collection_open', 'edit_board_collection_open', function() {
+    // Hidden because the user turned the helper messages off in Preferences, or because
+    // they chose "Continue Anyway" anywhere in the app this session.
+    if(this.get('overlay_dismissals.larger_screen_hidden')) { return false; }
     // Either Board Collections drawer (speak-mode right / edit-mode left) intentionally
     // shrinks the center board area (layout padding), which drops the live-measured
     // board_cell_width below the 35px signal and FALSE-triggers the larger-screen
@@ -3711,7 +3720,7 @@ export default Controller.extend(prefClasses, {
   // suppressed for the rest of the session. The quick-actions popover always
   // closes on a board change regardless.
   _reset_portrait_overlay_on_board_change: observer('model.id', function() {
-    if(!this.get('portrait_overlay_session_dismissed')) {
+    if(!this.get('overlay_dismissals.larger_screen_hidden')) {
       this.set('portrait_overlay_dismissed', false);
     }
     this.set('quick_actions_open', false);
@@ -5274,6 +5283,38 @@ export default Controller.extend(prefClasses, {
     });
   }),
 
+  /* The user's INTENT for the Categorize switch while a toggle is being applied.
+     `null` means nothing is pending and the switch simply mirrors the stored value.
+
+     WHY THIS EXISTS: `categorize_enabled` feeds `grouping_active`, which re-renders the
+     WHOLE board grid — every card's style, layout, paint and symbol <img>. Profiled at
+     ~350ms of blocked main thread on a fast desktop and ~2.4s at 4x CPU throttle, and it
+     scales with board size, so on a real tablet it runs into seconds. Nothing repaints
+     while that runs — INCLUDING the switch — so the control looked broken and users
+     clicked it again. (The click, the action and the save were never the problem: the
+     native checkbox flips instantly and the PUT returns in ~0.2s.)
+
+     An optimistic flag alone would NOT have helped: the pill already updated in the same
+     tick and was blocked by the same render pass. The deferral below is the part that
+     matters. */
+  categorize_intent: null,
+
+  /* What the SWITCH paints: the pending intent if there is one, else the stored value.
+     Only the pill, the state word and the checkbox read this — never `grouping_active`,
+     or we would be right back to painting and regrouping in one pass. */
+  categorize_switch_on: computed('categorize_intent', 'categorize_enabled', function() {
+    var intent = this.get('categorize_intent');
+    if(intent === null || intent === undefined) { return this.get('categorize_enabled'); }
+    return !!intent;
+  }),
+
+  /* True only while the switch is showing something the preview has not caught up to. */
+  categorize_preview_loading: computed('categorize_intent', 'categorize_enabled', function() {
+    var intent = this.get('categorize_intent');
+    if(intent === null || intent === undefined) { return false; }
+    return !!intent !== !!this.get('categorize_enabled');
+  }),
+
   categorize_enabled: computed(
     'app_state.referenced_user.preferences.board_category_grouping.enabled',
     function() {
@@ -5332,12 +5373,37 @@ export default Controller.extend(prefClasses, {
        deferring it to the board's Save button would attach it to the wrong
        lifecycle and silently discard it if the edit is cancelled. */
     toggle_categorize: function() {
-      var next_enabled = !this.get('categorize_enabled');
+      /* Read the SWITCH, not the stored value: with a toggle already in flight the
+         stored value is still the old one, so a quick second click would compute the
+         same target again instead of reversing it. */
+      var next_enabled = !this.get('categorize_switch_on');
       /* Switching OFF while the move-to-category picker is open would leave a
          dialog about categories floating over a preview that no longer has any.
          Close it here rather than only blocking new opens. */
       if(!next_enabled) { this.set('category_move_button', null); }
-      this._save_category_grouping({ enabled: next_enabled });
+
+      /* Paint the switch and the preview's loading message FIRST, then do the expensive
+         regroup. Two rAFs, not one: the first fires BEFORE the paint that the intent
+         change schedules, so the callback would still land in the same frame and block
+         it. The second runs after that frame has been painted, which is the whole point.
+         Falls back to running inline where rAF is unavailable (tests, SSR) — the
+         behaviour is then exactly what it was before this change. */
+      this.set('categorize_intent', next_enabled);
+      var _this = this;
+      var apply = function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this._save_category_grouping({ enabled: next_enabled });
+        /* Clear in the same tick as the save: `categorize_switch_on` then falls back to
+           the stored value, which now equals the intent, so the switch does not flicker.
+           If the save FAILS, _save_category_grouping restores the previous preference and
+           the switch follows it back — the revert stays honest. */
+        _this.set('categorize_intent', null);
+      };
+      if(typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(function() { requestAnimationFrame(apply); });
+      } else {
+        apply();
+      }
     },
 
     /* Move one category earlier/later in the sequence.
@@ -7257,13 +7323,14 @@ export default Controller.extend(prefClasses, {
 
     // ── Portrait orientation overlay action ──
     // "Continue Anyway" — the overlay's only action: an accessibility-critical
-    // escape hatch for mounted/one-handed/non-rotatable setups. Dismisses the
-    // prompt and latches `portrait_overlay_session_dismissed` so it won't
-    // re-appear on later board changes this session. The board then renders at
-    // its natural scale; CSS grid preserves rows/columns/spacing and never reflows.
+    // escape hatch for mounted/one-handed/non-rotatable setups. Dismisses the prompt and
+    // latches the SHARED session flag so it won't re-appear on later board changes, or
+    // on any other page, this session. The board then renders at its natural scale; CSS
+    // grid preserves rows/columns/spacing and never reflows.
     dismiss_portrait_overlay: function() {
       this.set('portrait_overlay_dismissed', true);
-      this.set('portrait_overlay_session_dismissed', true);
+      // App-wide for the session, not just this controller — see service:overlay-dismissals.
+      this.get('overlay_dismissals').dismiss('larger_screen');
     },
 
     // Down-arrow chevron in the immersive sentence bar toggles the

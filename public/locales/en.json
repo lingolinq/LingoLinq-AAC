@@ -8329,5 +8329,8 @@
   "n_orgs": "0 orgs || 1 org || %{n} orgs",
   "org_name_lower": "org name",
   "admin_user_name_lower": "admin user name",
-  "add_org": "Add Organization"
+  "add_org": "Add Organization",
+  "screen_helper_messages": "Screen Helper Messages",
+  "hide_screen_helpers": "Don't show screen size or rotate-device suggestions",
+  "board_categorize_loading": "Updating categories..."
 }

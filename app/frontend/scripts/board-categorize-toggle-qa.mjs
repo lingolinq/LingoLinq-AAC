@@ -61,6 +61,22 @@ const PANEL = () => {
 };
 
 // Real CDP click at the element's centre.
+/* Wait for a Categorize toggle to be fully applied.
+   `toggle_categorize` deliberately paints the switch first and applies the regroup one
+   frame later (controllers/user/board-detail.js), showing
+   `.md-board-category-order__preview-loading` in between. A fixed sleep is therefore a
+   race: it was long enough on a fast desktop and too short at 6x CPU throttle, where the
+   next step then grabbed a preview button while the grid was still hidden and its
+   bounding box was empty. Wait for the signal the UI actually gives. */
+const settleToggle = async (page, ms = 20000) => {
+  try {
+    await page.waitForFunction(
+      () => !document.querySelector('.md-board-category-order__preview-loading'),
+      { timeout: ms, polling: 100 }
+    );
+  } catch (e) { /* fall through — the assertion that follows reports the real state */ }
+};
+
 const clickEl = async (page, sel) => {
   const h = await page.$(sel);
   if (!h) { return false; }
@@ -157,7 +173,7 @@ const clickEl = async (page, sel) => {
     }
 
     /* Normalise to ON first — the preference persists between runs. */
-    if (!s.checked) { await clickEl(page, '.md-board-category-order__toggle-track'); await sleep(2500); s = await page.evaluate(PANEL); }
+    if (!s.checked) { await clickEl(page, '.md-board-category-order__toggle-track'); await settleToggle(page); await sleep(800); s = await page.evaluate(PANEL); }
 
     if (s.checked && s.list && s.reset && s.grouped) {
       pass('2. ON — order list, Reset and a GROUPED preview',
@@ -168,7 +184,8 @@ const clickEl = async (page, sel) => {
 
     /* 3. OFF */
     await clickEl(page, '.md-board-category-order__toggle-track');
-    await sleep(3000);
+    await settleToggle(page);
+    await sleep(800);
     const off = await page.evaluate(PANEL);
     const offOk = !off.checked && !off.list && !off.reset && off.previewGrid && !off.grouped;
     if (offOk) {
@@ -180,7 +197,8 @@ const clickEl = async (page, sel) => {
 
     /* 4. Back ON */
     await clickEl(page, '.md-board-category-order__toggle-track');
-    await sleep(3000);
+    await settleToggle(page);
+    await sleep(800);
     const back = await page.evaluate(PANEL);
     if (back.checked && back.list && back.reset && back.grouped) {
       pass('4. back ON — everything returns', `${back.listItems} categories, Reset visible, preview grouped again`);
@@ -214,7 +232,8 @@ const clickEl = async (page, sel) => {
         document.querySelector('.md-board-category-order__toggle input[type="checkbox"]').focus();
       });
       await page.keyboard.press('Space');
-      await sleep(2500);
+      await settleToggle(page);
+      await sleep(800);
       const closed = await page.evaluate(PANEL);
       if (!closed.checked && !closed.picker) { pass('7. switching OFF closes an open move picker', 'picker dismissed with the switch'); }
       else { fail('7. switching OFF closes an open move picker', JSON.stringify(closed)); }

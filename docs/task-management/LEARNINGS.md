@@ -13866,3 +13866,49 @@ paint (port or drop) vs layout/sizing (must port). Keep the old selector alongsi
 the dead CSS removal is a separate decision — an extra selector is inert, a missing one is a bug.
 
 **Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md` section 5b.
+
+## Batch DOM writes and reads ACROSS items, not within one — the per-item loop is the trap
+**Surface:** any pass that measures-then-sizes many elements (shrink-to-fit labels, autosizing
+inputs, canvas-free text fitting) written as "for each element: write a style, read a layout".
+
+**The trap is that the obvious optimisations all miss.** On `utils/label_fit.js`, a full pass
+over 96 labels cost 4776ms and SIX attempts to speed it up delivered nothing:
+
+| attempt | result |
+|---|---|
+| bisection: ~26 size probes -> ~5 | 1/96 labels changed size — reverted |
+| batch the signature reads | no change |
+| fit only on-screen labels, defer the rest | no change (whole grid was on screen) |
+| memoise results by signature | 7/96 labels changed — reverted |
+| hoist the width read above the style writes *within* the function | 4776 -> 4093ms only |
+| batch `clearFont` + base-size reads across labels | no change |
+
+**Why:** the cost was never the algorithm. Profiling showed ~1.2 probes per label — 89 of 96
+labels fit at their base size and stop on the first try. Every millisecond was a layout READ
+that follows a style WRITE, each flush ~23ms on a complex (grouped) grid. Relocating or
+removing one read just moves which read pays for the flush; the flush is unavoidable while
+writes and reads alternate per element.
+
+**The fix that worked (14.8x on the pass, 41x on the interaction it dominated):** restructure
+into rounds ACROSS all elements —
+```
+WRITE clear/prepare every element
+READ  every element's geometry            <- one layout total
+LOOP  round N: WRITE candidate to all unresolved
+               READ  all measurements      <- one layout per round
+               decide in pure JS
+WRITE apply final values
+```
+Same per-element candidate sequence and predicate, so output is identical; only the
+interleaving changes. ~200 forced layouts became ~5.
+
+**Gate any attempt on OUTPUT EQUALITY, not on the probe passing.** Capture every element's
+computed result before and after and diff them. That gate caught three separate wrong
+answers here, including one where the "faster" version produced a label that overflowed its
+box, and one where a refactor silently stopped fitting anything (the caller stamped the cache
+key, then the callee re-checked that same key and returned early).
+
+**And profile before optimising.** Three of the six failures were aimed at a search loop that
+runs 1.2 times per element.
+
+**Evidence:** task log `2026-08-21-categorize-toggle-perceived-unresponsive.md`.

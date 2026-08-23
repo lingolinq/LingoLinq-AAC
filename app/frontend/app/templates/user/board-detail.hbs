@@ -3516,14 +3516,20 @@
            screen-reader role and the click-the-label target are unchanged; only the
            painting differs (see `.md-board-category-order__toggle` in app.scss). --}}
       <div class="md-board-category-order__bar">
-        <label class="md-board-category-order__toggle {{unless this.categorize_enabled "md-board-category-order__toggle--off"}}">
-          <input type="checkbox" checked={{this.categorize_enabled}} {{on "change" (this.ctrlAction "toggle_categorize")}} aria-describedby="board-category-order-hint">
+        {{!-- The switch paints `categorize_switch_on` (the user's INTENT), NOT
+             `categorize_enabled` (the stored value that drives the regroup). Flipping
+             grouping re-renders the whole board grid, which blocks the main thread long
+             enough on a tablet that nothing repainted — including this control — and the
+             click read as ignored. Intent paints in the current frame; the regroup is
+             applied one frame later (controller#toggle_categorize). --}}
+        <label class="md-board-category-order__toggle {{unless this.categorize_switch_on "md-board-category-order__toggle--off"}}">
+          <input type="checkbox" checked={{this.categorize_switch_on}} {{on "change" (this.ctrlAction "toggle_categorize")}} aria-describedby="board-category-order-hint">
           <span class="md-board-category-order__toggle-track" aria-hidden="true"><span class="md-board-category-order__toggle-knob"></span></span>
           <span class="md-board-category-order__toggle-label">{{t "Categorize" key="board_categorize"}}</span>
           {{!-- aria-hidden: the checkbox already announces its own checked state,
                so voicing "On"/"Off" again would double it. This is for sighted
                users reading the switch at a glance. --}}
-          <span class="md-board-category-order__toggle-state" aria-hidden="true">{{#if this.categorize_enabled}}{{t "On" key="board_categorize_on"}}{{else}}{{t "Off" key="board_categorize_off"}}{{/if}}</span>
+          <span class="md-board-category-order__toggle-state" aria-hidden="true">{{#if this.categorize_switch_on}}{{t "On" key="board_categorize_on"}}{{else}}{{t "Off" key="board_categorize_off"}}{{/if}}</span>
         </label>
         <p class="md-board-category-order__hint" id="board-category-order-hint">
           {{#if this.categorize_enabled}}
@@ -3571,7 +3577,17 @@
         </ol>
         {{/if}}
 
-        <div class="md-board-category-order__preview">
+        <div class="md-board-category-order__preview {{if this.categorize_preview_loading 'md-board-category-order__preview--loading'}}">
+          {{!-- Shown for the one frame (or the few seconds, on a slow device) between the
+               switch painting and the regrouped board being ready. The grid below is
+               HIDDEN BY CSS while this shows (`--loading`), deliberately NOT unmounted:
+               an `{{#if}}` around it destroyed and rebuilt all ~84 button components on
+               every toggle, which added render work to the very transition this change
+               exists to speed up — measured as a regression in the Categorize probe at
+               6x CPU throttle. Hiding keeps the components alive, so only the CSS
+               changes and the user still never sees the stale arrangement.
+               role=status + aria-live=polite so it is announced without stealing focus;
+               the switch itself already announced the state change. --}}
           {{!-- selectButton is wired to the move picker rather than to activation:
                 inside this panel, tapping a button means "move this one", not
                 "speak this one".
@@ -3581,6 +3597,9 @@
                 handler is enough — BoardDetailGrid#invokeAttr no-ops when the action
                 is falsy (board-detail-grid.js:169-177) — and the action itself also
                 guards, so neither path can open the picker on its own. --}}
+          {{#if this.categorize_preview_loading}}
+            <p class="md-board-category-order__preview-loading" role="status" aria-live="polite">{{t "Updating categories..." key="board_categorize_loading"}}</p>
+          {{/if}}
           <BoardDetailGrid
             @board={{this.model}}
             @orderedButtons={{this.ordered_buttons}}

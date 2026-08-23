@@ -101706,6 +101706,38 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
   border-radius: 12px;
   padding: 8px;
   background: rgba(0, 0, 0, 0.18);
+
+  /* While a Categorize toggle is being applied the grid is hidden rather than
+     unmounted — see the note in board-detail.hbs. `display: none` and not
+     `visibility: hidden`: the latter keeps the grid in layout, so the loading message
+     would be pushed below a full-height blank space instead of sitting where the grid
+     was. */
+  &--loading .md-board-detail-grid {
+    display: none;
+  }
+}
+
+/* Shown in place of the preview grid while a Categorize toggle is being applied.
+   Centred in the panel the grid would have filled, so the box does not collapse and
+   then jump back to full height when the regrouped board arrives — the same reasoning
+   as the boards-page loading state's min-height.
+   Plain text, matching this app's other inline loading affordances (a `<p>` with
+   "Loading…"), rather than a spinner: the wait is normally one frame and only becomes
+   visible on a slow device, where an animation would itself be competing for the main
+   thread that is busy doing the regroup. */
+.md-board-category-order__preview-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  height: 100%;
+  margin: 0;
+  padding: 24px 16px;
+  text-align: center;
+  /* 15px, not the 14px this panel uses for secondary text: this is the only thing on
+     screen while it shows, and the AAC legibility floor applies. */
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 /* Move-to-category picker (Categorize panel). Centred over the panel rather than

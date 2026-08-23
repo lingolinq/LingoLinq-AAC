@@ -275,6 +275,7 @@ describe User, :type => :model do
         'button_text' => 'medium',
         'button_text_position'=> 'top',
         'vocalization_height' => 'small',
+        'hide_screen_helpers' => false,
         'wakelock' => true
       })
       expect(u.settings['preferences']['activation_location']).to eq('end')
@@ -308,6 +309,7 @@ describe User, :type => :model do
         'button_text' => 'medium',
         'button_text_position' => 'top',
         'vocalization_height' => 'small',
+        'hide_screen_helpers' => false,
         'wakelock' => true
       })
       expect(u.user_name).to eq("bob-miller")
@@ -382,6 +384,31 @@ describe User, :type => :model do
       User.preference_defaults.each do |bucket, defaults|
         expect(defaults).not_to have_key('word_suggestions'), "found word_suggestions in preference_defaults['#{bucket}']"
       end
+    end
+
+    # `hide_screen_helpers` suppresses the "Larger screen recommended" / "Landscape mode
+    # recommended" overlays. It IS in the device bucket, so generate_defaults backfills it
+    # onto every device hash of every existing user on their next save — a `true` here
+    # would silently turn the helpers off account-wide for people who never asked, and
+    # persist an explicit true. Same trap board_category_grouping hit.
+    it "defaults hide_screen_helpers to false so the helper overlays stay visible" do
+      expect(User.preference_defaults['device']['hide_screen_helpers']).to eq(false)
+    end
+
+    it "backfills hide_screen_helpers as false onto existing device hashes" do
+      u = User.create
+      u.settings['preferences']['devices'] ||= {}
+      u.settings['preferences']['devices']['default'] ||= {}
+      u.settings['preferences']['devices']['default'].delete('hide_screen_helpers')
+      u.save
+      expect(u.settings['preferences']['devices']['default']['hide_screen_helpers']).to eq(false)
+    end
+
+    it "keeps an explicit hide_screen_helpers=true through a save" do
+      u = User.create
+      u.process({'preferences' => {'device' => {'hide_screen_helpers' => true}}}, {})
+      u.save
+      expect(u.settings['preferences']['devices']['default']['hide_screen_helpers']).to eq(true)
     end
   end
 

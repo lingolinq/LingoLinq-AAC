@@ -1273,17 +1273,39 @@ function _onDisplayShow(component) {
   } catch (e) { /* preview + gating are decorative — never block the step */ }
 
   // Orientation overlay (shown by CSS at ≤640px): Continue Anyway hides it so the step
-  // stays usable in portrait. Rotating to landscape widens past 640px and auto-hides it.
+  // stays usable in portrait, and latches the session flag so the same message does not
+  // reappear on another step or another page. Rotating to landscape widens past 640px
+  // and auto-hides it.
   // The old Rotate Device button and its `screen.orientation.lock('landscape')` handler
   // were removed with the button — see _orientationOverlayHtml for why.
   try {
-    var orientation = el.querySelector('.md-ds-orientation');
-    var dismissBtn = orientation && orientation.querySelector('[data-gst-dismiss]');
-    if (dismissBtn && !dismissBtn._gstWired) {
-      dismissBtn._gstWired = true;
-      dismissBtn.addEventListener('click', function() {
-        if (orientation) { orientation.style.setProperty('display', 'none', 'important'); }
-      });
+    var dismissals = (component && component.get) ? component.get('overlay_dismissals') : null;
+    /* Hide EVERY instance in the document, not just this step's. The overlay is emitted
+       by more than one step, Shepherd portals panels into <body>, and the same message
+       is rendered by create-board-new — "Continue Anyway" is meant to silence the
+       message, not the one node the user happened to click. */
+    var hideAllOrientationOverlays = function() {
+      var all = document.querySelectorAll('.md-ds-orientation');
+      for (var n = 0; n < all.length; n++) {
+        all[n].style.setProperty('display', 'none', 'important');
+      }
+    };
+    /* Already dismissed earlier this session (possibly on another page)? Then this step
+       must not re-show it. Steps render lazily, so this runs per show and covers a step
+       first opened AFTER the dismissal. */
+    if (dismissals && dismissals.hidden('rotate_device')) { hideAllOrientationOverlays(); }
+    var overlays = el.querySelectorAll('.md-ds-orientation');
+    for (var i = 0; i < overlays.length; i++) {
+      var dismissBtn = overlays[i].querySelector('[data-gst-dismiss]');
+      if (dismissBtn && !dismissBtn._gstWired) {
+        dismissBtn._gstWired = true;
+        dismissBtn.addEventListener('click', function() {
+          /* Latch the session flag FIRST so any overlay rendered later is born hidden,
+             then hide the ones already on screen. */
+          if (dismissals) { dismissals.dismiss('rotate_device'); }
+          hideAllOrientationOverlays();
+        });
+      }
     }
   } catch (e) { /* never block the step */ }
 }
@@ -1302,6 +1324,9 @@ export default Component.extend({
 
   tour: service('tour'),
   appState: service('app-state'),
+  /* Shared with board-detail and create-board-new so a "Continue Anyway" anywhere
+     silences the rotate-device message everywhere for the session. */
+  overlay_dismissals: service('overlay-dismissals'),
 
   // Register a DIRECT opener on the shared app-state service so any component
   // (e.g. the home "Edit Dashboard" card) can open this tour at a specific step

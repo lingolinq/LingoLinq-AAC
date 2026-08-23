@@ -32,6 +32,17 @@ export default Component.extend({
   router: service('router'),
   store: service('store'),
   stashes: service('stashes'),
+  /* Shared with board-detail and the Display Style step so "Continue Anyway" on ANY
+     rotate-device overlay silences them all for the session. */
+  overlay_dismissals: service('overlay-dismissals'),
+
+  /* What the template actually gates on. A computed rather than reading the local flag
+     alone, so the overlay also disappears the moment the user turns helper messages off
+     in Preferences (or dismisses the message on another page) while this page is open —
+     the init seed below would otherwise be stale for the life of the component. */
+  orientation_overlay_hidden: computed('orientation_overlay_dismissed', 'overlay_dismissals.rotate_device_hidden', function() {
+    return !!(this.get('orientation_overlay_dismissed') || this.get('overlay_dismissals.rotate_device_hidden'));
+  }),
   appState: service('app-state'),
   tagName: '',
 
@@ -146,10 +157,11 @@ export default Component.extend({
     // board-detail speak mode's sentence box). Single-clicking a button appends
     // its label here and speaks it; the bar's Speak/Backspace/Clear act on it.
     this.set('_speak_words', []);
-    // ≤768px landscape-rotate overlay: shown via CSS media query; "Continue
-    // Anyway" flips this to dismiss it for the rest of this visit (resets on
-    // re-entry — see dismiss_orientation_overlay).
-    this.set('orientation_overlay_dismissed', false);
+    // ≤768px landscape-rotate overlay: shown via CSS media query; "Continue Anyway"
+    // dismisses it. Seeded from the SHARED session flag rather than hard `false`, so a
+    // dismissal made on another page (board-detail, the Display Style step) is already
+    // in effect on arrival instead of the overlay re-appearing here.
+    this.set('orientation_overlay_dismissed', this.get('overlay_dismissals.rotate_device_hidden'));
     // Create-method chooser: on entry to the create-board page, present three
     // animated options (Create My Own / Import / Generate with AI). Picking one
     // routes into that flow and dismisses the chooser.
@@ -2387,11 +2399,13 @@ export default Component.extend({
     speak_clear: function() {
       this.set('_speak_words', []);
     },
-    // "Continue Anyway" on the ≤1024px landscape-rotate overlay — dismiss it for
-    // the rest of THIS visit (accessibility escape for mounted / non-rotatable
-    // setups). State lives on the component, so it resets on a later visit, where
-    // the device orientation may well differ. Adds nb-orientation-overlay--dismissed,
-    // which beats the media query.
+    // "Continue Anyway" on the ≤1024px landscape-rotate overlay — dismiss it for the
+    // rest of the SESSION, app-wide (accessibility escape for mounted / non-rotatable
+    // setups). Adds nb-orientation-overlay--dismissed, which beats the media query.
+    // Previously this reset on every re-entry to the page; a user who had already said
+    // "Continue Anyway" still met the same overlay on the next visit and on other
+    // pages. The session flag lives in service:overlay-dismissals; it is still not
+    // persisted across a reload, so a genuinely new visit re-evaluates the device.
     //
     // Adversarial-review note ("a11y: SR users trapped if they can't rotate"): not a
     // trap — this is a real, keyboard/SR-reachable <button> that fully removes the
@@ -2401,6 +2415,8 @@ export default Component.extend({
     // the dismissal to a preference is a possible future nicety, not an a11y blocker.)
     dismiss_orientation_overlay: function() {
       this.set('orientation_overlay_dismissed', true);
+      // Session-wide, every page — see service:overlay-dismissals.
+      this.get('overlay_dismissals').dismiss('rotate_device');
     },
     // ── Create-method chooser actions ──────────────────────────────────
     // "Create My Own Board" → the regular create-board form (dismiss the chooser;
