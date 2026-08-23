@@ -12131,10 +12131,13 @@ pending.
 - **Search for the problem, not the symbol.** Grep the behavior (`created_at`,
   `delete_all`, the table name) and check sibling mechanisms (`Flusher`, the
   `scheduler.rake` tasks, `flush_leftovers`) before concluding nothing handles it.
-- **Use `gh pr list --head <branch>`, never a bounded `gh pr list --limit N`.**
-  A `--limit 300` sweep silently missed PRs #242, #266 and #381 and made three
-  already-merged branches look orphaned. Per-branch `--head` queries are
-  authoritative and cheap.
+- **Use `gh pr list --state all --head <branch>`, never a bounded
+  `gh pr list --limit N`.** A `--limit 300` sweep silently missed PRs #242, #266 and
+  #381 and made three already-merged branches look orphaned. **`--state all` is not
+  optional here:** `gh pr list` defaults to `--state open`, so the bare `--head` form
+  returns `[]` for a merged branch and reproduces the exact false-orphan conclusion
+  this checklist exists to prevent. Verified against `gh pr list --help` ("default
+  \"open\"") and by running both forms against a known-merged branch.
 - **Read the caller before editing a method.** `Progress.clear_old_progresses` reads
   like a nightly cron task and is actually invoked from inside `Progress.schedule`
   (`app/models/progress.rb`), i.e. on every scheduled job. The May branch's per-row
