@@ -24,6 +24,14 @@ module.exports = {
   },
   rules: {
     'lingolinq/no-this-in-promise-executor': 'warn',
+    // Catches an action that ships but that no control reaches. The
+    // board-detail redesign left nine board actions on an edit-mode-only panel
+    // and orphaned the old menu's actions outright; the speak-bar features went
+    // the same way. Both were found by outside usability review months later.
+    // 'warn' + the .eslint-todo baseline: the ~74 pre-existing cases do not
+    // block anyone, but a NEW orphan fails lint:js:ci. See
+    // docs/task-management/CLAIM-CHECK-BACKLOG.md section G.
+    'lingolinq/no-orphaned-action': 'warn',
     'no-console': 'off',
     'no-unused-vars': 'off',
     'ember/no-function-prototype-extensions': 'off',
