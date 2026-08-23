@@ -83308,6 +83308,19 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   font-size: 16px;
   letter-spacing: 0.005em;
 }
+/* Explainer under "Setting up your board...". The copy step takes 30-40s and a
+   bare spinner reads as a hang, so this says what is happening and why. Quieter
+   than the label above it, and width-capped so it wraps to 2-3 short lines
+   rather than one long one. */
+.md-board-details-modal__overlay-subtext {
+  display: block;
+  margin-top: 6px;
+  max-width: 28em;
+  color: rgba($la-navy, 0.65); /* matches the sibling __overlay-count */
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.45;
+}
 /* Per-image "N / total" count under the loading label. Block so it sits on its
    own line; tabular-nums so the width doesn't jitter as the count ticks up. */
 .md-board-details-modal__overlay-count {

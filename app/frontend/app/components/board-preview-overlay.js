@@ -426,6 +426,14 @@ export default Component.extend({
       }
     };
     var finish = function() {
+      /* Confirm the switch in words. The pickingForOther branch above has always
+         done this ("Great! This is now the user's home board!"); the self-pick
+         path silently transitioned, so after a 30-40s wait the user arrived with
+         no statement that anything had changed. modal.flash survives the route
+         change, so it lands on the new board rather than on the dying preview.
+         Named so it also answers "why did that take so long". */
+      modal.success(i18n.t('board_now_your_home_board',
+        "This is now your home board, and it's saved for offline use."), true);
       go();
     };
     preload_board_images(homeBoard).then(finish, finish);
