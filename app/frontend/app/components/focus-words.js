@@ -520,13 +520,49 @@ export default Component.extend({
           // (ApplicationController#require_article_50_disclosure!). Reaching here
           // means the client gate above did NOT fire, which happens when the local
           // user record is stale: the flag was enabled, or CURRENT_VERSION was
-          // bumped, after this record was cached. Reload the user so
-          // needsAcknowledgement() is accurate on the next press, and show a human
-          // sentence. Never render the raw error code -- it is an untranslated
-          // machine token and tells the user nothing they can act on.
-          msg = i18n.t('ai_focus_words_disclosure_required', "Before AI can suggest focus words, you need to read and acknowledge the AI transparency notice. Press Generate Focus Words with AI again to open it.");
+          // bumped, after this record was cached. That is the NORMAL state of every
+          // already-signed-in user at the moment the flag is enabled, so this path
+          // has to be reliable rather than best-effort.
+          //
+          // Do NOT tell the user to press Generate again. Until the reload lands,
+          // needsAcknowledgement() still reads the stale record and returns false,
+          // so a retry re-sends the request and collects the same 403 -- and if the
+          // reload fails, every retry does, with the message still promising a
+          // notice that never opens. Instead hold the action pending across the
+          // reload and open the notice here. `ai_generating` stays true for that
+          // window, so the button is disabled and the retry race cannot be entered.
+          // The button reads "Generating Focus Words..." meanwhile, which is a
+          // slight overstatement of a sub-second window that ends with the
+          // disclosure replacing this modal outright.
           const user = _this.get('appState.currentUser');
-          if (user && typeof user.reload === 'function') { user.reload().then(function() {}, function() {}); }
+          if (user && typeof user.reload === 'function') {
+            user.reload().then(function() {
+              if (_this.isDestroyed || _this.isDestroying) { return; }
+              _this.set('ai_generating', false);
+              if (article50Gate.needsAcknowledgement(_this.get('appState'))) {
+                // Record is accurate now, so present the gate directly. This is
+                // the draft-preserving path, so nothing the user typed is lost.
+                _this._presentArticle50Gate(prompt, count);
+              } else {
+                // Refreshed cleanly and the record still does not ask for an
+                // acknowledgement, so the gate cannot be opened from here. Surface
+                // the refusal rather than swallowing it and appearing to hang.
+                _this.set('ai_generate_error', i18n.t('ai_focus_words_disclosure_unavailable', "AI focus words need the AI transparency notice acknowledged first. You can review it in your Preferences."));
+              }
+            }, function() {
+              // The refresh itself failed, so the record is still stale and a retry
+              // would loop on the same 403. Say what actually happened instead of
+              // promising a retry that cannot work.
+              if (_this.isDestroyed || _this.isDestroying) { return; }
+              _this.set('ai_generating', false);
+              _this.set('ai_generate_error', i18n.t('ai_focus_words_disclosure_refresh_failed', "We could not check your AI transparency settings. Check your connection, then try again."));
+            });
+            return;
+          }
+          // No refreshable user record, so there is no way to reach an accurate
+          // gate state from here. Never render the raw error code either -- it is
+          // an untranslated machine token that tells the user nothing actionable.
+          msg = i18n.t('ai_focus_words_disclosure_unavailable', "AI focus words need the AI transparency notice acknowledged first. You can review it in your Preferences.");
         } else if (resp && resp.error) {
           msg = resp.error;
           if (resp.error_detail) { msg += ' - ' + resp.error_detail; }

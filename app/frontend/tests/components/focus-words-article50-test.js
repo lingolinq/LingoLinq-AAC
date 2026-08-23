@@ -44,7 +44,15 @@ describe('focus-words Article 50 gate', function() {
   }
 
   function setAppState(flagOn, user) {
+    // Has to satisfy BOTH access styles the code actually uses, because they do
+    // not resolve the same way: article50_gate calls appState.get('currentUser')
+    // explicitly, while the component reads the Ember path
+    // this.get('appState.currentUser'), and Ember's path get on a plain object
+    // is a property lookup -- it never calls the object's own .get(). A stub with
+    // only .get() silently hands the component `undefined` for currentUser.
     component.set('appState', {
+      currentUser: user,
+      feature_flags: {article_50_disclosure: flagOn},
       get: function(key) {
         if(key === 'feature_flags.article_50_disclosure') { return flagOn; }
         if(key === 'currentUser') { return user; }
@@ -249,8 +257,101 @@ describe('focus-words Article 50 gate', function() {
       waitsFor(function() { return component.get('ai_generating') === false; });
       runs(function() {
         var shown = component.get('ai_generate_error');
-        expect(shown).toEqual(i18n.t('ai_focus_words_disclosure_required', "Before AI can suggest focus words, you need to read and acknowledge the AI transparency notice. Press Generate Focus Words with AI again to open it."));
+        // makeUser() has no reload(), so there is no route to an accurate gate
+        // state and the component says so instead of inviting a doomed retry.
+        expect(shown).toEqual(i18n.t('ai_focus_words_disclosure_unavailable', "AI focus words need the AI transparency notice acknowledged first. You can review it in your Preferences."));
         expect(shown.indexOf('article_50_disclosure_required')).toEqual(-1);
+      });
+    });
+
+    it('holds the action pending across the user refresh, then opens the notice itself', function() {
+      var reject = null;
+      var opened = [];
+      var resolveReload = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      stub(modal, 'open', function(template, opts) {
+        opened.push({template: template, opts: opts});
+        return RSVP.resolve({});
+      });
+      var user = makeUser();
+      user.reload = function() {
+        return new RSVP.Promise(function(res) {
+          resolveReload = function() {
+            user.set('article_50_disclosure_required', true);
+            res(user);
+          };
+        });
+      };
+      // Flag ON, cached record says no disclosure needed. That is the exact state
+      // of every already-signed-in user the moment the flag is enabled, and it is
+      // how a request slips past the client gate into the server backstop.
+      setAppState(true, user);
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+      reject({responseJSON: {error: 'article_50_disclosure_required'}});
+
+      waitsFor(function() { return !!resolveReload; });
+      runs(function() {
+        // The retry race. While the refresh is in flight the button stays
+        // disabled; otherwise a second press re-sends and collects the same 403,
+        // because needsAcknowledgement() is still reading the stale record.
+        expect(component.get('ai_generating')).toEqual(true);
+        expect(component.get('ai_generate_error')).toEqual(null);
+        resolveReload();
+      });
+      waitsFor(function() { return opened.length > 0; });
+      runs(function() {
+        expect(component.get('ai_generating')).toEqual(false);
+        // The user never has to press anything: the notice opens on its own.
+        expect(opened[0].template).toEqual('ai-disclosure');
+        expect(component.get('ai_generate_error')).toEqual(null);
+      });
+    });
+
+    it('does not invite a retry when the user refresh itself fails', function() {
+      var reject = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      var user = makeUser();
+      user.reload = function() { return RSVP.reject('offline'); };
+      setAppState(true, user);
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+      reject({responseJSON: {error: 'article_50_disclosure_required'}});
+
+      waitsFor(function() { return component.get('ai_generating') === false; });
+      runs(function() {
+        var shown = component.get('ai_generate_error');
+        expect(shown).toEqual(i18n.t('ai_focus_words_disclosure_refresh_failed', "We could not check your AI transparency settings. Check your connection, then try again."));
+        // The record is still stale, so a retry would loop on the same 403. The
+        // message must not promise that pressing Generate again opens anything.
+        expect(shown.indexOf('again to open it')).toEqual(-1);
+      });
+    });
+
+    it('surfaces the refusal when the refresh succeeds but the record still asks for nothing', function() {
+      var reject = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      var user = makeUser();
+      // Resolves without ever setting article_50_disclosure_required, so the gate
+      // cannot be opened. The server's refusal must not be swallowed.
+      user.reload = function() { return RSVP.resolve(user); };
+      setAppState(true, user);
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+      reject({responseJSON: {error: 'article_50_disclosure_required'}});
+
+      waitsFor(function() { return component.get('ai_generating') === false; });
+      runs(function() {
+        expect(component.get('ai_generate_error')).toEqual(i18n.t('ai_focus_words_disclosure_unavailable', "AI focus words need the AI transparency notice acknowledged first. You can review it in your Preferences."));
       });
     });
 
