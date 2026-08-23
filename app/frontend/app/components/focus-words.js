@@ -243,7 +243,14 @@ export default Component.extend({
       existing: this.get('existing'),
       reuse: this.get('reuse'),
       title: this.get('title'),
-      focus_id: this.get('focus_id')
+      focus_id: this.get('focus_id'),
+      // Attribution for words a PREVIOUS generation produced. Restoring `words`
+      // without this leaves AI-generated words with no AiFocusWordSet id, so
+      // record_ai_focus_usage() returns early (:316-317) and applying or
+      // analyzing the retained list silently records nothing. Reachable when the
+      // disclosure requirement appears BETWEEN two generations in one session,
+      // which is what a flag enable or a CURRENT_VERSION bump does.
+      ai_focus_word_set_id: this.get('ai_focus_word_set_id')
     };
     article50Gate.presentBlockingGate(this.get('appState')).then(function() {
       modal.open('modals/focus-words', Object.assign({}, settings, { art50_resume: resume }));
@@ -366,6 +373,7 @@ export default Component.extend({
         this.set('reuse', art50Resume.reuse);
         this.set('title', art50Resume.title);
         this.set('focus_id', art50Resume.focus_id);
+        this.set('ai_focus_word_set_id', art50Resume.ai_focus_word_set_id);
       }
       if (window.webkitSpeechRecognition) {
         const speech = new window.webkitSpeechRecognition();

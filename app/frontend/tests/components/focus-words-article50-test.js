@@ -163,6 +163,7 @@ describe('focus-words Article 50 gate', function() {
       component.set('words', 'half, third, quarter');
       component.set('existing', true);
       component.set('focus_id', 'set_9');
+      component.set('ai_focus_word_set_id', 'lib_7');
 
       component.send('generate_focus_words_with_ai');
 
@@ -174,6 +175,7 @@ describe('focus-words Article 50 gate', function() {
         expect(resume.words).toEqual('half, third, quarter');
         expect(resume.existing).toEqual(true);
         expect(resume.focus_id).toEqual('set_9');
+        expect(resume.ai_focus_word_set_id).toEqual('lib_7');
       });
     });
 
@@ -403,7 +405,8 @@ describe('focus-words Article 50 gate', function() {
         existing: true,
         reuse: true,
         title: 'Grinch Unit',
-        focus_id: 'set_9'
+        focus_id: 'set_9',
+        ai_focus_word_set_id: 'lib_7'
       }});
       component.set('modal', EmberObject.create({setComponent: function() {}}));
 
@@ -415,6 +418,10 @@ describe('focus-words Article 50 gate', function() {
       expect(component.get('words')).toEqual('grinch, sleigh, whoville');
       expect(component.get('existing')).toEqual(true);
       expect(component.get('focus_id')).toEqual('set_9');
+      // Attribution for words an earlier generation produced. Without it,
+      // record_ai_focus_usage() returns early and applying the retained list
+      // records nothing.
+      expect(component.get('ai_focus_word_set_id')).toEqual('lib_7');
       // reuse_or_existing gates the "Word List Name" input's visibility, so a
       // restored title is unreachable in the UI unless this is true as well.
       expect(component.get('reuse_or_existing')).toEqual(true);
