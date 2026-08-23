@@ -89703,9 +89703,15 @@ blockquote small {
 .beta-feedback-drawer-tab {
   position: fixed;
   top: var(--topbar-height, 70px);
-  left: 50%;
+  /* Corner-anchored, not centred. A fixed tap target in the middle of the top
+     edge of EVERY page is a mis-tap risk for switch-scanning and magnifier
+     users, and it can sit over modal headers. The --navbar variant below
+     re-centres itself, because there it is positioned inside the navbar rather
+     than over the page. */
+  right: 16px;
+  left: auto;
   z-index: 1078;
-  transform: translateX(-50%);
+  transform: none;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
@@ -89726,6 +89732,12 @@ blockquote small {
 .beta-feedback-drawer-tab--navbar {
   position: absolute;
   top: 100%;
+  /* Restores the centring the base rule used to provide. This variant is
+     positioned within the navbar, so centring under its ancestor is correct
+     here even though it is wrong for the page-level fixed tab. */
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
 }
 .beta-feedback-drawer-tab--speak {
   /* Speak mode: the drawer lives at the BOTTOM of the page, so the tab hangs
