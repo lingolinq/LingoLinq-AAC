@@ -692,7 +692,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-20_compliance-posture-report.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -731,7 +731,8 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-c5408d90b7"
     },
     {
       "title": "Compliance & Security Program",
@@ -740,7 +741,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-20_compliance-program.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -774,7 +775,8 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-e5e85eccb1"
     },
     {
       "title": "Compliance Status Snapshot (2026-08-09)",
@@ -783,7 +785,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/COMPLIANCE_STATUS_2026-08-09.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [],
       "lastReviewed": "2026-08-20",
       "nextReviewDue": "",
@@ -806,7 +808,8 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-af01c65b10"
     },
     {
       "title": "AI Governance Memo",
@@ -3537,6 +3540,100 @@
       "dispositionEligibleAfter": null,
       "driveFileId": "1vPwlcZwllRPuTU1TlqFeSwxJZ445pxsh6O0cBrGyE6M",
       "id": "DOC-78b0aa1618"
+    },
+    {
+      "title": "Compliance Posture Report",
+      "description": "Corrects the 2026-08-12 run size (46 -> 40, 9/18/13), three mislabelled table headers that read \"Open\" while carrying live values, an off-by-one open-High count, an unqualified article_50_disclosure runtime claim, and a missing infrastructure methodology caveat. No count or posture claim otherwise changed.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-22_compliance-posture-report.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-22",
+      "nextReviewDue": "2026-11-22",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "supersedes": "DOC-59273ae805",
+      "notes": "Path A successor to unattested draft DOC-4fc1647b7e, which itself succeeded attested COMPLIANCE_POSTURE_REPORT.md (DOC-4e3b7fb1fb). Attested 2026-08-20.",
+      "id": "DOC-c5408d90b7",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "contentHash": "5f404d665ceae11b155bce7fa52732b977e1670e74a57c9d0873cc8b0f2bbefc"
+    },
+    {
+      "title": "Compliance & Security Program",
+      "description": "v1.3.1. Corrects the 2026-08-12 run size (46 -> 40), live values labelled \"open\" in the attestation table, unqualified \"at HEAD\" statements, and unqualified article_50_disclosure runtime claims. No program claim otherwise changed.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-22_compliance-program.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-22",
+      "nextReviewDue": "2026-11-22",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "supersedes": "DOC-5a4b795792",
+      "notes": "Path A successor to unattested draft DOC-73a80fc88d, which itself succeeded attested COMPLIANCE_PROGRAM.md v1.2 (DOC-b61994933c). Attested 2026-08-20 as v1.3.",
+      "id": "DOC-e5e85eccb1",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "contentHash": "cf8e83d58ae850f148bbf858a3c3078531121cbb14251f171b772e6c1c49be3e"
+    },
+    {
+      "title": "Compliance Status Snapshot (2026-08-09)",
+      "description": "Corrects the 2026-08-12 run size (46 -> 40, 9/18/13), unqualified \"at HEAD\" statements, and the unqualified article_50_disclosure runtime claim.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-22_compliance-status-snapshot.md",
+      "status": "draft",
+      "frameworks": [],
+      "lastReviewed": "2026-08-22",
+      "nextReviewDue": "2026-11-22",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Successor operational snapshot after COMPLIANCE_STATUS_2026-06-18.md.",
+      "id": "DOC-af01c65b10",
+      "retention": {
+        "class": "working-note",
+        "rule": "90 days",
+        "disposition": "delete",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-3468caf949",
+      "contentHash": "e9b3f84bc2b465d4b4e4ef545258707257d513108434557cae06774d1e5cc0f5"
     }
   ]
 }
