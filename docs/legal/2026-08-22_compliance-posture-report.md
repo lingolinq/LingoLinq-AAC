@@ -47,8 +47,14 @@
   post-deploy `AiApiLog` rows. That column (`app/models/user.rb:1532-1539`) is true only after
   an actual modal acknowledgement, which a never-enabled disclosure cannot produce. Scope
   caveat from that same record: the 63 rows come from 2 accounts, consistent with internal
-  pre-tenant testing. Resolve by reading `SystemFeatureSettings.default_enabled_features` in
-  production before this document is attested or bundled.
+  pre-tenant testing. Resolve by evaluating
+  `FeatureFlags.feature_enabled_for?('article_50_disclosure', user)` in production for a REAL EU
+  user or organization, before this document is attested or bundled. Reading
+  `SystemFeatureSettings.default_enabled_features` alone is NOT sufficient:
+  `effective_enabled_for` (`lib/system_feature_settings.rb:84-88`) returns
+  `org_enabled_features(org) || default_enabled_features`, so an organization-scoped override can
+  enable or disable the flag independently of the default. Record timestamp, scope, and result as
+  attestation evidence.
 
 > **Methodology caveat for this section.** The infrastructure statements in "Infrastructure
 > migration state" below were carried
