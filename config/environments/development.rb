@@ -30,6 +30,14 @@ Rails.application.configure do
   # This option may cause significant delays in view rendering with a large
   # number of complex assets.
   config.assets.debug = true
-  
+
+  # Match production and docs/CSS_SCSS_GUIDELINES.md: never run built CSS back
+  # through SassC. sassc-rails forces `:sass` on any environment that does not
+  # set this (sassc-rails-2.1.2 lib/sassc/rails/railtie.rb:74), and SassC cannot
+  # parse the modern CSS the Ember build emits, so pages that include
+  # frontend.css 500 with "Incompatible units: 'vw' and 'px'" once the frontend
+  # has been built locally.
+  config.assets.css_compressor = nil
+
   config.action_mailer.delivery_method = :ses
 end
