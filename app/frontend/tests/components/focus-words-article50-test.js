@@ -1,0 +1,259 @@
+import RSVP from 'rsvp';
+import EmberObject from '@ember/object';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  waitsFor,
+  runs,
+  stub
+} from 'frontend/tests/helpers/jasmine';
+import 'frontend/tests/helpers/ember_helper';
+import persistence from '../../utils/persistence';
+import modal from '../../utils/modal';
+import i18n from '../../utils/i18n';
+
+/**
+ * Regression coverage for the EU AI Act Article 50(1) gate on the AI focus-word
+ * generator.
+ *
+ * Before this, focus-words was the one AI ingress of five with no client-side
+ * gate. The server-side backstop refused correctly (403
+ * `article_50_disclosure_required`), but the failure handler assigned
+ * `msg = resp.error` straight into `ai_generate_error`, which focus-words.hbs
+ * renders verbatim -- so an EU or unknown-jurisdiction user saw the raw,
+ * untranslated token `article_50_disclosure_required` in an alert with no way to
+ * acknowledge from that screen.
+ *
+ * The two behaviours worth locking down are (a) no request is dispatched at all
+ * when acknowledgement is needed, and (b) if the server refuses anyway (stale
+ * client record), the raw error code never reaches the user.
+ */
+describe('focus-words Article 50 gate', function() {
+  var component = null;
+  var ajaxCalls = null;
+
+  function makeUser(attrs) {
+    return EmberObject.create(Object.assign({
+      id: '1_1',
+      article_50_disclosure_required: false,
+      article_50_disclosure_shown: false
+    }, attrs || {}));
+  }
+
+  function setAppState(flagOn, user) {
+    component.set('appState', {
+      get: function(key) {
+        if(key === 'feature_flags.article_50_disclosure') { return flagOn; }
+        if(key === 'currentUser') { return user; }
+        return null;
+      }
+    });
+  }
+
+  beforeEach(function() {
+    ajaxCalls = [];
+    component = this.owner.factoryFor('component:focus-words').create();
+    stub(persistence, 'get', function(key) {
+      if(key === 'online') { return true; }
+      return null;
+    });
+  });
+
+  afterEach(function() {
+    if(component && !component.isDestroyed) { component.destroy(); }
+    component = null;
+  });
+
+  describe('pre-request gate', function() {
+    it('does NOT dispatch the generate request when acknowledgement is needed, and opens the disclosure instead', function() {
+      var opened = [];
+      stub(persistence, 'ajax', function(url) {
+        ajaxCalls.push(url);
+        return RSVP.resolve({});
+      });
+      stub(modal, 'open', function(template, opts) {
+        opened.push({template: template, opts: opts});
+        return RSVP.resolve({});
+      });
+      setAppState(true, makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false
+      }));
+      component.set('model', {board: 'b1'});
+      component.set('ai_prompt', 'the grinch');
+      component.set('ai_word_count', 12);
+
+      component.send('generate_focus_words_with_ai');
+
+      // The whole point: no prompt reaches the provider.
+      expect(ajaxCalls.length).toEqual(0);
+      expect(component.get('ai_generating')).toEqual(false);
+      expect(opened.length).toEqual(1);
+      expect(opened[0].template).toEqual('ai-disclosure');
+      // Opened scannable so switch-scanning users can reach the acknowledge
+      // control (the modal.js scanner selector only walks .modal_targets).
+      expect(opened[0].opts.scannable).toEqual(true);
+    });
+
+    it('re-opens focus-words with the typed description and count restored after acknowledgement', function() {
+      var opened = [];
+      stub(persistence, 'ajax', function(url) {
+        ajaxCalls.push(url);
+        return RSVP.resolve({});
+      });
+      stub(modal, 'open', function(template, opts) {
+        opened.push({template: template, opts: opts});
+        // ai-disclosure resolves with no `replaced` marker on a genuine ack.
+        return RSVP.resolve({});
+      });
+      setAppState(true, makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false
+      }));
+      component.set('model', {board: 'b1'});
+      component.set('ai_prompt', 'fractions lesson');
+      component.set('ai_word_count', 30);
+
+      component.send('generate_focus_words_with_ai');
+
+      waitsFor(function() { return opened.length > 1; });
+      runs(function() {
+        var reopen = opened[1];
+        expect(reopen.template).toEqual('modals/focus-words');
+        // Original modal settings are preserved, not dropped on the floor.
+        expect(reopen.opts.board).toEqual('b1');
+        // And the user does not lose what they typed.
+        expect(reopen.opts.art50_resume.ai_prompt).toEqual('fractions lesson');
+        expect(reopen.opts.art50_resume.ai_word_count).toEqual(30);
+      });
+    });
+
+    it('does NOT re-open focus-words when the disclosure was bumped rather than acknowledged', function() {
+      var opened = [];
+      stub(persistence, 'ajax', function(url) {
+        ajaxCalls.push(url);
+        return RSVP.resolve({});
+      });
+      stub(modal, 'open', function(template, opts) {
+        opened.push({template: template, opts: opts});
+        // utils/modal#open resolves a BUMPED modal with {replaced: true}; that is
+        // not an acknowledgement and must not let the gated action proceed.
+        return RSVP.resolve({replaced: true});
+      });
+      setAppState(true, makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false
+      }));
+      component.set('model', {board: 'b1'});
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+
+      waitsFor(function() { return opened.length >= 1; });
+      runs(function() {
+        expect(ajaxCalls.length).toEqual(0);
+        expect(opened.length).toEqual(1);
+        expect(opened[0].template).toEqual('ai-disclosure');
+      });
+    });
+
+    it('dispatches normally when the flag is off, so the non-EU and pre-enable paths are unchanged', function() {
+      stub(persistence, 'ajax', function(url) {
+        ajaxCalls.push(url);
+        return RSVP.resolve({words: 'a,b,c'});
+      });
+      setAppState(false, makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false
+      }));
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+
+      expect(ajaxCalls.length).toEqual(1);
+      expect(ajaxCalls[0]).toEqual('/api/v1/focus/generate_words');
+    });
+
+    it('dispatches normally when the user is already acknowledged', function() {
+      stub(persistence, 'ajax', function(url) {
+        ajaxCalls.push(url);
+        return RSVP.resolve({words: 'a,b,c'});
+      });
+      setAppState(true, makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: true
+      }));
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+
+      expect(ajaxCalls.length).toEqual(1);
+    });
+  });
+
+  describe('server backstop 403 handling', function() {
+    it('never renders the raw article_50_disclosure_required token to the user', function() {
+      var reject = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      // Flag reads OFF on this stale client record, which is exactly how the
+      // request gets past the pre-request gate and reaches the server backstop.
+      setAppState(false, makeUser());
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+      reject({responseJSON: {error: 'article_50_disclosure_required'}});
+
+      waitsFor(function() { return component.get('ai_generating') === false; });
+      runs(function() {
+        var shown = component.get('ai_generate_error');
+        expect(shown).toEqual(i18n.t('ai_focus_words_disclosure_required', "Before AI can suggest focus words, you need to read and acknowledge the AI transparency notice. Press Generate Focus Words with AI again to open it."));
+        expect(shown.indexOf('article_50_disclosure_required')).toEqual(-1);
+      });
+    });
+
+    it('still surfaces other server errors verbatim, so this change does not swallow unrelated failures', function() {
+      var reject = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      setAppState(false, makeUser());
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+      reject({responseJSON: {error: 'Feature not available'}});
+
+      waitsFor(function() { return component.get('ai_generating') === false; });
+      runs(function() {
+        expect(component.get('ai_generate_error')).toEqual('Feature not available');
+      });
+    });
+  });
+
+  describe('opening() resume', function() {
+    it('restores the AI form from art50_resume instead of clearing it', function() {
+      component.set('model', {board: 'b1', art50_resume: {ai_prompt: 'the grinch', ai_word_count: 15}});
+      component.set('modal', EmberObject.create({setComponent: function() {}}));
+
+      component.send('opening');
+
+      expect(component.get('ai_prompt')).toEqual('the grinch');
+      expect(component.get('ai_word_count')).toEqual(15);
+    });
+
+    it('still clears the AI form on a normal open with no resume payload', function() {
+      component.set('model', {board: 'b1'});
+      component.set('modal', EmberObject.create({setComponent: function() {}}));
+      component.set('ai_prompt', 'stale text');
+
+      component.send('opening');
+
+      expect(component.get('ai_prompt')).toEqual(null);
+      expect(component.get('ai_word_count')).toEqual(20);
+    });
+  });
+});

@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-21T18:58:25.939Z
+# Generated: 2026-08-23T00:33:23.149Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -175,8 +175,8 @@ app/components/extra-colors.js|ember/require-super-in-lifecycle-hooks|14|3|1|04f
 app/components/fast-html-grabber.js|ember/require-super-in-lifecycle-hooks|10|3|1|04fd54f45db7
 app/components/find-button.js|ember/no-runloop|290|5|2|5addc2170315
 app/components/find-button.js|ember/no-runloop|544|9|2|5addc2170315
-app/components/focus-words.js|ember/require-computed-property-dependencies|229|22|1|a1504f862d94
-app/components/focus-words.js|ember/require-computed-property-dependencies|64|14|1|2842efb9082b
+app/components/focus-words.js|ember/require-computed-property-dependencies|260|22|1|a1504f862d94
+app/components/focus-words.js|ember/require-computed-property-dependencies|65|14|1|2842efb9082b
 app/components/grid-listener.js|ember/require-super-in-lifecycle-hooks|35|3|1|04fd54f45db7
 app/components/grid-listener.js|ember/require-super-in-lifecycle-hooks|42|3|1|04fd54f45db7
 app/components/guided-tour.js|ember/no-incorrect-calls-with-inline-anonymous-functions|549|39|1|2da67c91d637

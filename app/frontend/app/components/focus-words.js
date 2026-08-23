@@ -21,6 +21,7 @@ import persistence from '../utils/persistence';
 import editManager from '../utils/edit_manager';
 import sync from '../utils/sync';
 import aiFeatureGate from '../utils/ai_feature_gate';
+import article50Gate from '../utils/article50_gate';
 
 export default Component.extend({
   modal: service('modal'),
@@ -208,6 +209,36 @@ export default Component.extend({
     }
   ),
 
+  /**
+   * EU AI Act Article 50(1) hand-off for the AI focus-word generator.
+   *
+   * Opening ai-disclosure REPLACES this modal, so this component is destroyed
+   * partway through. Everything the continuation needs is therefore captured
+   * BEFORE the gate opens (`settings`, `resume`), and nothing after it reads
+   * component state -- the same discipline new-board.js#generateWithAi uses when
+   * it captures `standalone` up front. `modal` here is the module import, not the
+   * component-bound service, so it still resolves after this component is gone.
+   *
+   * On acknowledgement the focus-words modal is re-opened with the typed
+   * description and word count restored (see the art50_resume branch in
+   * `opening`). It deliberately does NOT auto-submit: acknowledging a
+   * transparency notice must never itself dispatch an AI request. The user
+   * presses Generate again, which is one click and keeps the AI call explicitly
+   * user-initiated.
+   */
+  _presentArticle50Gate(prompt, count) {
+    const settings = this.get('model') || {};
+    const resume = { ai_prompt: prompt, ai_word_count: count };
+    article50Gate.presentBlockingGate(this.get('appState')).then(function() {
+      modal.open('modals/focus-words', Object.assign({}, settings, { art50_resume: resume }));
+    }, function() {
+      // Bumped by another modal, so no acknowledgement was recorded and the AI
+      // call must not proceed. The user is looking at whatever replaced the
+      // disclosure; fail-closed with no extra error surface, matching
+      // new-board.js#generateWithAi's rejection branch.
+    });
+  },
+
   ai_generate_disabled: computed('ai_generating', 'ai_prompt', 'ai_word_count', function() {
     const count = parseInt(this.get('ai_word_count'), 10);
     return !!this.get('ai_generating') ||
@@ -303,6 +334,16 @@ export default Component.extend({
       this.set('ai_generating', false);
       this.set('ai_generate_error', null);
       this.set('ai_focus_word_set_id', null);
+      // Restore the AI form after an Article 50(1) disclosure round-trip.
+      // _presentArticle50Gate re-opens this modal with art50_resume because
+      // acknowledging destroys and replaces the component mid-flow; without this
+      // the user silently loses the description they had already typed. Runs
+      // after the resets above so it wins over them.
+      const art50Resume = this.get('model.art50_resume');
+      if (art50Resume) {
+        this.set('ai_prompt', art50Resume.ai_prompt);
+        this.set('ai_word_count', art50Resume.ai_word_count);
+      }
       if (window.webkitSpeechRecognition) {
         const speech = new window.webkitSpeechRecognition();
         if (speech) {
@@ -411,6 +452,23 @@ export default Component.extend({
       }
 
       this.set('ai_generate_error', null);
+
+      // EU AI Act Article 50(1) first-AI-use gate, BLOCK mode (D-03). Placed
+      // AFTER the prompt/count validation so acknowledging a disclosure is never
+      // immediately followed by a "add a description" error, and BEFORE the
+      // request so no prompt reaches a model provider unacknowledged.
+      //
+      // Unlike new-board.js#generateWithAi there is no pre-typing gate point to
+      // move this to: the description and word count are typed directly into THIS
+      // modal, and modal.open() REPLACES the current modal, so opening
+      // ai-disclosure destroys this component and everything the user entered.
+      // _presentArticle50Gate therefore captures the form state up front and
+      // re-opens focus-words with it restored.
+      if (article50Gate.needsAcknowledgement(this.get('appState'))) {
+        this._presentArticle50Gate(prompt, count);
+        return;
+      }
+
       this.set('ai_generating', true);
       persistence.ajax('/api/v1/focus/generate_words', {
         type: 'POST',
@@ -434,7 +492,19 @@ export default Component.extend({
         if (_this.isDestroyed || _this.isDestroying) { return; }
         let msg = i18n.t('generate_failed', "Generation failed");
         const resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
-        if (resp && resp.error) {
+        if (resp && resp.error === 'article_50_disclosure_required') {
+          // The server-side Article 50(1) backstop refused this call
+          // (ApplicationController#require_article_50_disclosure!). Reaching here
+          // means the client gate above did NOT fire, which happens when the local
+          // user record is stale: the flag was enabled, or CURRENT_VERSION was
+          // bumped, after this record was cached. Reload the user so
+          // needsAcknowledgement() is accurate on the next press, and show a human
+          // sentence. Never render the raw error code -- it is an untranslated
+          // machine token and tells the user nothing they can act on.
+          msg = i18n.t('ai_focus_words_disclosure_required', "Before AI can suggest focus words, you need to read and acknowledge the AI transparency notice. Press Generate Focus Words with AI again to open it.");
+          const user = _this.get('appState.currentUser');
+          if (user && typeof user.reload === 'function') { user.reload().then(function() {}, function() {}); }
+        } else if (resp && resp.error) {
           msg = resp.error;
           if (resp.error_detail) { msg += ' - ' + resp.error_detail; }
         }
