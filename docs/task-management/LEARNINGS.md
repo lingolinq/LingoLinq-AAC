@@ -12109,13 +12109,16 @@ That one is about a grep that was *wrong*. This one is about greps that were
    and its own comment said so explicitly. A grep for the *symbol* could not see a
    fix that shares no identifiers with it.
 
-3. **The branch that looked like the fix carried a known-false claim.** A WIP branch
-   proposed rewriting that runbook block to say "Production traffic for
-   `app.lingolinq.com` is now served by the GCP HTTPS load balancer" — the exact
-   inference the file already records as wrong, in the "PROD HAS NO REAL USERS YET"
-   paragraph of that same block ("inferred from DNS resolving plus a 200 health
-   check"). Merging the "fix" would have reintroduced a
-   defect someone had already caught.
+3. **The branch that looked like the fix was missing the file's later corrections.**
+   A WIP branch proposed rewriting that runbook block. Its factual statements about LB
+   routing were fine, and the file affirms them ("`app.lingolinq.com` resolves to
+   `136.68.41.122` ... `/api/v1/health` returns 200 through the LB"). The problem was
+   what it *dropped*: it predated, and therefore omitted, both the "PROD HAS NO REAL
+   USERS YET" paragraph (which exists precisely to stop readers inferring real
+   district traffic from DNS resolving plus a 200 health check) and the launch-gate
+   checklist. Porting it wholesale would have deleted two later corrections in the act
+   of "fixing" the block. Being *newer than the defect* is not the same as being
+   *newer than the file*: check what landed in between.
 
 **Why this keeps happening:** the repo evolves by *replacing* mechanisms, not by
 filling in the originally-proposed one. The second implementation usually shares no
