@@ -43821,6 +43821,23 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      against #content's top padding and overflow. */
   min-height: 0 !important;
 }
+/* Preferences only: let the page's sticky action bar (.md-preferences__actions)
+   actually stick. `.md-shell` above sets `overflow-x: hidden`, and per CSS spec a
+   `visible` value on the OTHER axis computes to `auto` when its partner is
+   `hidden` — so the shell silently becomes a scrolling box on Y even though no
+   overflow-y is declared anywhere (verified in-browser: computed overflowY on
+   .md-shell--user is "auto", with scrollHeight === clientHeight === 2138, i.e. it
+   never actually scrolls). `position: sticky` binds to that nearest scrolling
+   box, so the bar was pinned inside a scrollport that never moves and rendered at
+   its natural y=2026 in an 800px viewport — inert.
+   `clip` is the fix rather than removing the hidden: it still prevents horizontal
+   overflow but does NOT establish a scroll container, so overflow-y stays
+   `visible` and sticky resolves against the real scroller (#content /
+   div.with_user.new_index). Scoped to preferences deliberately — `.md-shell` is
+   shared by many pages and a global change needs its own regression pass. */
+#content:has(.md-preferences) .md-shell--user {
+  overflow-x: clip !important;
+}
 
 .md-workspace {
   max-width: min(1200px, calc(100% - 24px)) !important;
@@ -49036,12 +49053,27 @@ a.md-goal-nav-action:hover,
   color: $brand-teal;
   font-weight: 600;
 }
+/* Pinned to the bottom of the viewport while the form scrolls. With only the
+   Basics section expanded the form runs ~2,025px, so a statically-placed bar
+   puts Save two and a half screens below the fold and a user cannot tell their
+   edits were ever committed. Mirrors the board editor's always-visible
+   Cancel/Save toolbar. NOTE: this declaration alone is inert — `.md-shell`'s
+   `overflow-x: hidden` makes the shell a scrolling box that never scrolls, and
+   sticky binds to that. See the `overflow-x: clip` rule under
+   `.md-shell.md-shell--user` (~43833); both are required. */
 .md-preferences__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   justify-content: center;
   gap: 12px;
   padding-top: 20px;
+  padding-bottom: 20px;
   margin-top: 24px;
+  /* Opaque on purpose — var(--md-surface) is rgba(255,255,255,0.76) and the
+     form's content would ghost through a translucent pinned bar as it scrolls. */
+  background: var(--md-bg, #eef1f6);
   border-top: 1.5px solid rgba($brand-blue-black, 0.12);
 }
 /* Modern select dropdowns in preferences */

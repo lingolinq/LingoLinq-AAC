@@ -20,6 +20,11 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 
+/* Mirrors the server-side default in User#generate_defaults. Kept in sync by
+   hand; the backend value is asserted in spec/models/user_spec.rb and
+   spec/models/utterance_spec.rb, so it does not drift silently. */
+const SERVER_PLACEHOLDER_NAME = 'No name';
+
 LingoLinq.User = BaseModel.extend({
   persistence: service('persistence'),
   appState: service('app-state'),
@@ -83,6 +88,19 @@ LingoLinq.User = BaseModel.extend({
   authored_organization_id: attr('string'),
   terms_agree: attr('boolean'),
   name: attr('string'),
+  /* Human-safe name, never the server's placeholder. Signup does not collect a
+     name, so User#generate_defaults (app/models/user.rb) seeds every account
+     with the literal string "No name" and json_api/user.rb serializes it as
+     `name`. That sentinel is load-bearing on the backend (named_email, utterance
+     sharing) so it stays there, but it must never reach a human — untreated it
+     renders as "Hi No name" and "NO NAME" in the account menu. Treat it as
+     absent and fall back to the handle. Use this anywhere a name is DISPLAYED;
+     `name` remains the raw attribute for round-tripping to the server. */
+  display_name: computed('name', 'user_name', function() {
+    var name = (this.get('name') || '').trim();
+    if (name && name !== SERVER_PLACEHOLDER_NAME) { return name; }
+    return this.get('user_name') || '';
+  }),
   email: attr('string'),
   needs_billing_update: attr('string'),
   public: attr('boolean'),
