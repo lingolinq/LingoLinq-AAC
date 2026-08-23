@@ -1,11 +1,11 @@
-<%= @author_name %> just posted a message to the log of <%= @target.settings['name'] %>
+<%= @author_name %> just posted a message to the log of <%= @target.display_name %>
 
 Message: 
 <%= (@log.data['note'] && @log.data['note']['text']) || "no message" %>
 <%= JsonApi::Json.current_host %>/<%= @target.user_name %>/logs?type=note
 <% if @log.data['include_status_footer'] %>
 
-How do you feel things are going lately for <%= @target.settings['name'] %>?
+How do you feel things are going lately for <%= @target.display_name %>?
   Going Poorly    - <%= JsonApi::Json.current_host %>/goal_status/summary-#{@target.global_id}/<%= UserGoal.goal_code('summary', @user) %>?status=1
   Just OK         - <%= JsonApi::Json.current_host %>/goal_status/summary-#{@target.global_id}/<%= UserGoal.goal_code('summary', @user) %>?status=2
   No Complaints   - <%= JsonApi::Json.current_host %>/goal_status/summary-#{@target.global_id}/<%= UserGoal.goal_code('summary', @user) %>?status=3

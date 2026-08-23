@@ -1696,6 +1696,30 @@ describe Api::OrganizationsController, :type => :controller do
       expect(json['valid']).to eq(true)
       expect(json['name']).to eq(@user.settings['name'])
     end
+
+    it "should return the supervisor's user_name so the client can resolve the \"No name\" placeholder" do
+      token_user
+      code = Organization.activation_code(@user, {})
+      Organization.start_codes(@user.reload)
+      get 'start_code_lookup', params: {code: code}
+      json = assert_success_json
+      # Signup collects no name, so `name` alone leaves the register page with
+      # nothing human to render -- it needs the handle alongside it.
+      expect(json['name']).to eq(nil)
+      expect(json['user_name']).to eq(@user.user_name)
+    end
+
+    it "should not return a user_name for an organization start code" do
+      token_user
+      o = Organization.create(:settings => {'name' => 'Springfield Schools'})
+      o.add_manager(@user.user_name, true)
+      code = Organization.activation_code(o, {})
+      Organization.start_codes(o.reload)
+      get 'start_code_lookup', params: {code: code}
+      json = assert_success_json
+      expect(json['name']).to eq('Springfield Schools')
+      expect(json['user_name']).to eq(nil)
+    end
   end
 
   describe "generate_start_code" do

@@ -14,7 +14,7 @@
         <span style='font-size: 14px;'>
         {{#if this.user_showable}}
           <LinkTo @route="user.index" @model={{this.model.user.user_name}}>
-            {{this.model.user.name}}
+            {{display-name this.model.user}}
           </LinkTo>
           {{t "said:" key="said_colon"}}
         {{else}}
@@ -46,7 +46,7 @@
         </div>
       {{/if}}
       <h3>
-        {{#if this.model.private_only}}{{t "Write a Message" key="write_a_message"}}{{else}}{{t "Write a Reply" key="write_a_reply"}}{{/if}}{{#if this.model.user.name}} {{t "to" key="to"}} {{this.model.user.name}}{{/if}}{{t ":" key="colon"}}
+        {{#if this.model.private_only}}{{t "Write a Message" key="write_a_message"}}{{else}}{{t "Write a Reply" key="write_a_reply"}}{{/if}}{{#if this.model.user.name}} {{t "to" key="to"}} {{display-name this.model.user}}{{/if}}{{t ":" key="colon"}}
       </h3>
       <div style='margin: -5px 0 30px;'>
         {{#if this.reachable_core}}

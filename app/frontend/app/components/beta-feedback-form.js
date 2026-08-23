@@ -5,6 +5,7 @@ import { run, scheduleOnce } from '@ember/runloop';
 import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import { display_name_for } from '../utils/display_name';
 
 export default Component.extend({
   tagName: '',
@@ -46,7 +47,7 @@ export default Component.extend({
     const u = this.get('appState.sessionUser');
     if (u) {
       this.setProperties({
-        name: u.get('name'),
+        name: display_name_for(u),
         email: u.get('email')
       });
     }

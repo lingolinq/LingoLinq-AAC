@@ -235,12 +235,52 @@ describe User, :type => :model do
     end
   end
   
+  describe "display_name" do
+    it "should return a real name unchanged" do
+      u = User.new
+      u.generate_defaults
+      u.user_name = 'ada'
+      u.settings['name'] = 'Ada Lovelace'
+      expect(u.display_name).to eq('Ada Lovelace')
+    end
+
+    it "should fall back to the handle when there is no name" do
+      u = User.new
+      u.generate_defaults
+      u.user_name = 'ada'
+      expect(u.settings['name']).to eq(nil)
+      expect(u.display_name).to eq('ada')
+    end
+
+    # Accounts created before the placeholder was removed keep the string until
+    # `rake extras:clear_no_name_placeholder` runs, so this must not leak.
+    it "should treat the legacy \"No name\" placeholder as absent" do
+      u = User.new
+      u.generate_defaults
+      u.user_name = 'ada'
+      u.settings['name'] = 'No name'
+      expect(u.display_name).to eq('ada')
+    end
+  end
+
   describe "named_email" do
     it "should return a named email" do
       u = User.new
       u.generate_defaults
+      u.settings['name'] = "Bob Smith"
       u.settings['email'] = "bob@yahoo.com"
-      expect(u.named_email).to eq("No name <bob@yahoo.com>")
+      expect(u.named_email).to eq("Bob Smith <bob@yahoo.com>")
+    end
+
+    # Signup collects no name, so this is the common case, not an edge case.
+    # It must be a bare address rather than " <bob@yahoo.com>" with a stray
+    # leading space.
+    it "should return a bare address when there is no name" do
+      u = User.new
+      u.generate_defaults
+      u.settings['email'] = "bob@yahoo.com"
+      expect(u.settings['name']).to eq(nil)
+      expect(u.named_email).to eq("bob@yahoo.com")
     end
   end
 
@@ -264,7 +304,10 @@ describe User, :type => :model do
     it "should generate expected defaults" do
       u = User.new
       u.generate_defaults
-      expect(u.settings['name']).not_to eq(nil)
+      # Deliberately NOT defaulted. It used to seed the literal "No name",
+      # which is truthy and so defeated every `name || user_name` guard
+      # downstream -- including the SMS a family member receives.
+      expect(u.settings['name']).to eq(nil)
       expect(u.settings['preferences']).not_to eq(nil)
       expect(u.settings['preferences']['devices']['default']).to eq({
         'name' => 'Web browser for Desktop',
@@ -282,7 +325,13 @@ describe User, :type => :model do
       expect(u.settings['preferences']['geo_logging']).to eq(false)
       expect(u.settings['preferences']['auto_home_return']).to eq(false)
       expect(u.settings['preferences']['auto_open_speak_mode']).to eq(true)
-      expect(u.user_name).to match(/\Ano-name(_\d+)?\z/)
+      # Behaviour change from removing the "No name" seed. generate_user_name
+      # derives a handle from settings['name'], so a nameless account used to
+      # become "no-name"; with no name it now falls through to the email prefix
+      # and then to "person" (Processable#generate_user_name:179-183). Only
+      # reachable when name, user_name AND email are all absent -- a real signup
+      # supplies at least one -- and "person_3" reads better than "no-name_3".
+      expect(u.user_name).to match(/\Aperson(_\d+)?\z/)
       expect(u.email_hash).not_to eq(nil)
     end
     
@@ -296,7 +345,7 @@ describe User, :type => :model do
         'auto_home_return' => false
       }}}
       u.generate_defaults
-      expect(u.settings['name']).not_to eq(nil)
+      expect(u.settings['name']).to eq("Bob Miller")
       expect(u.settings['preferences']).not_to eq(nil)
       expect(u.settings['preferences']['devices']['default']).to eq({
         'name' => 'not_browser',
@@ -2971,7 +3020,7 @@ describe User, :type => :model do
         'message' => 'alternate pantsuit',
         'sharer_id' => u2.global_id,
         'to' => 'u1@example.com',
-        'sharer_name' => u2.settings['name'],
+        'sharer_name' => u2.user_name,
         'reply_url' => nil,
         'recipient_id' => u.global_id,
         'reply_id' => nil,

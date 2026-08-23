@@ -147,6 +147,12 @@ class Api::OrganizationsController < ApplicationController
           image_url: code[:target].is_a?(User) ? code[:target].generated_avatar_url('fallback') : code[:target].settings['image_url'],
           name: code[:target].settings['name']
         }
+        # Signup collects no name, so `name` above is the "No name" placeholder
+        # from User#generate_defaults for most supervisors. The client renders
+        # this as "Invited By Supervisor - <name>" and needs the handle to fall
+        # back to; without it there is nothing to show. Organizations always
+        # have a real name and no handle, so this is User-only.
+        json[:user_name] = code[:target].user_name if code[:target].is_a?(User)
         if include_users && code[:user_ids]
           user_ids = code[:user_ids] || []
           json['overrides'] = code[:overrides]

@@ -121,8 +121,11 @@ class User < ApplicationRecord
     res
   end
   
+  # A bare address when there is no name. Mail::Address happily normalizes
+  # " <a@b.com>" to "a@b.com", but building the string that way puts a stray
+  # leading space into logs and any code that treats this as a display label.
   def named_email
-    "#{self.settings['name']} <#{self.settings['email']}>"
+    self.settings['name'].blank? ? self.settings['email'] : "#{self.settings['name']} <#{self.settings['email']}>"
   end
 
   def external_email_allowed?
@@ -133,7 +136,7 @@ class User < ApplicationRecord
   
   def prior_named_email
     email = self.settings['old_emails'][-1]
-    "#{self.settings['name']} <#{email}>"
+    self.settings['name'].blank? ? email : "#{self.settings['name']} <#{email}>"
   end
   
   def registration_type
@@ -1523,7 +1526,16 @@ class User < ApplicationRecord
 
   def generate_defaults
     self.settings ||= {}
-    self.settings['name'] ||= "No name"
+    # NOTE: settings['name'] is deliberately NOT defaulted. Signup collects no
+    # name, and this used to seed the literal string "No name", which is not a
+    # null value -- every `name || user_name` guard in the codebase silently
+    # failed because a non-empty string is truthy. It reached users as
+    # "Hi No name", "Choose No name's home board", and worst, as an SMS to a
+    # family member reading "from No name - <message>" (see #share_with, where
+    # the guard is written correctly and only ever failed because of this line).
+    # Leaving it nil lets those guards work as written. Anything DISPLAYING a
+    # name should still go through the client-side helper
+    # (app/frontend/app/utils/display_name.js) or fall back to user_name.
     self.settings['preferences'] ||= {}
     self.settings['preferences']['progress'] ||= {}
     if self.settings['preferences']['home_board']
@@ -2796,6 +2808,21 @@ class User < ApplicationRecord
   
   def display_user_name
     (self.settings && self.settings['display_user_name']) || self.user_name
+  end
+
+  # The name a human should see. Server-side mirror of the client's
+  # app/frontend/app/utils/display_name.js, for the places JS cannot reach --
+  # mailer views, Open Graph tags, the SMS body of a shared utterance.
+  #
+  # Signup collects no name, so settings['name'] is absent for most accounts and
+  # every DISPLAY has to fall back to the handle. The "No name" comparison is for
+  # accounts created before that placeholder was removed from generate_defaults;
+  # they keep the string until `rake extras:clear_no_name_placeholder` runs.
+  # Use `settings['name']` directly only when round-tripping, never to display.
+  def display_name
+    name = self.settings && self.settings['name']
+    return name if name.present? && name != 'No name'
+    self.display_user_name
   end
 
   def obfuscated_name

@@ -11,6 +11,12 @@
     <div class="form-group">
       <label for="name" class="col-sm-3 control-label">{{t "Name" key="name"}}</label>
       <div class="col-sm-5">
+        {{!-- Deliberately raw `name`, NOT {{display-name}} — this is a WRITE
+              binding: `set-field` writes straight back to model.name, so a
+              display value here would be saved over the real one.
+              A nameless account renders this field EMPTY, which is correct:
+              User#generate_defaults no longer seeds the "No name" placeholder,
+              so the server sends null. See app/utils/display_name.js. --}}
         <input value={{this.model.name}} class="form-control" id="name" placeholder="Full Name" autocomplete="name" {{on "input" (set-field this "model.name")}} />
       </div>
     </div>

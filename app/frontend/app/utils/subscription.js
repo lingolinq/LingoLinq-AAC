@@ -11,6 +11,7 @@ import capabilities from './capabilities';
 import progress_tracker from './progress_tracker';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { display_name_for } from './display_name';
 
 var types = ['communicator_type', 'supporter_type', 'monthly_subscription', 'long_term_subscription',
   'communicator_monthly_subscription', 'communicator_long_term_subscription',
@@ -106,7 +107,7 @@ var Subscription = EmberObject.extend({
       var plan = u.get('subscription.plan_id');
 
       this.set('email', u.get('email'));
-      this.set('name', u.get('name'));
+      this.set('name', display_name_for(u));
 
       if(u.get('preferences.role') == 'supporter') {
         this.set('user_type', 'supporter');
@@ -797,7 +798,7 @@ Subscription.reopenClass({
       if(Subscription.handler.defer) {
       }
       Subscription.handler.open({
-        name: subscription.get('name') || subscription.get('user.name') || LingoLinq.app_name,
+        name: subscription.get('name') || display_name_for(subscription.get('user')) || LingoLinq.app_name,
         description: subscription.get('description'),
         amount: amount,
         panelLabel: subscription.get('purchase_description'),

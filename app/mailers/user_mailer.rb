@@ -96,7 +96,9 @@ class UserMailer < ActionMailer::Base
     @user = User.find_by_global_id(user_id)
     @log = LogSession.find_by_global_id(log_id)
     @author = @log.author
-    @author_name = (@log.data['author_contact'] || {})['name'] || @author.settings['name']
+    # display_name, not settings['name']: most accounts have no name, and this
+    # opens the email ("X just posted a message...") so a blank reads as broken.
+    @author_name = (@log.data['author_contact'] || {})['name'].presence || @author.display_name
     @target = @log.user
     mail_message(@user, "New Message")
   end

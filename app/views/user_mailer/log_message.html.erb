@@ -1,4 +1,4 @@
-<%= @author_name %> just posted a message to the log of <%= @target.settings['name'] %><br/><br/>
+<%= @author_name %> just posted a message to the log of <%= @target.display_name %><br/><br/>
 Message:<br/>
 <div style="white-space: pre-line;"><%= (@log.data['note'] && @log.data['note']['text']) || "no message" %></div>
 <a href="<%= JsonApi::Json.current_host %>/<%= @target.user_name %>/logs?type=note">View the full user's log</a>

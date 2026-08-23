@@ -117,8 +117,8 @@ describe ExternalTracker do
       expect(Typhoeus).to receive(:post).with("https://api.hubapi.com/contacts/v1/contact/", {
         body: {properties: [
           {property: 'email', value: 'testing@example.com' },
-          {property: 'firstname', value: 'No'},
-          {property: 'lastname', value: 'name'},
+          {property: 'firstname', value: nil},
+          {property: 'lastname', value: nil},
           {property: 'city', value: nil},
           {property: 'username', value: u.user_name},
           {property: 'state', value: nil},
@@ -153,8 +153,8 @@ describe ExternalTracker do
       expect(Typhoeus).to receive(:post).with("https://api.hubapi.com/contacts/v1/contact/", {
         body: {properties: [
           {property: 'email', value: 'testing@example.com' },
-          {property: 'firstname', value: 'No'},
-          {property: 'lastname', value: 'name'},
+          {property: 'firstname', value: nil},
+          {property: 'lastname', value: nil},
           {property: 'city', value: 'Sandy'},
           {property: 'username', value: u.user_name},
           {property: 'state', value: 'Utah'},
@@ -189,8 +189,8 @@ describe ExternalTracker do
       expect(Typhoeus).to receive(:post).with("https://api.hubapi.com/contacts/v1/contact/", {
         body: {properties: [
           {property: 'email', value: 'testing@example.com' },
-          {property: 'firstname', value: 'No'},
-          {property: 'lastname', value: 'name'},
+          {property: 'firstname', value: nil},
+          {property: 'lastname', value: nil},
           {property: 'city', value: 'Sandy'},
           {property: 'username', value: u.user_name},
           {property: 'state', value: 'Utah'},
@@ -224,8 +224,8 @@ describe ExternalTracker do
       expect(Typhoeus).to receive(:post).with("https://api.hubapi.com/contacts/v1/contact/", {
         body: {properties: [
           {property: 'email', value: 'testing@example.com' },
-          {property: 'firstname', value: 'No'},
-          {property: 'lastname', value: 'name'},
+          {property: 'firstname', value: nil},
+          {property: 'lastname', value: nil},
           {property: 'city', value: 'Paris'},
           {property: 'username', value: u.user_name},
           {property: 'state', value: 'Île-de-France'},
@@ -253,8 +253,8 @@ describe ExternalTracker do
       expect(Typhoeus).to receive(:post).with("https://api.hubapi.com/contacts/v1/contact/", {
         body: {properties: [
           {property: 'email', value: 'testing@example.com' },
-          {property: 'firstname', value: 'No'},
-          {property: 'lastname', value: 'name'},
+          {property: 'firstname', value: nil},
+          {property: 'lastname', value: nil},
           {property: 'city', value: nil},
           {property: 'username', value: u.user_name},
           {property: 'state', value: nil},
@@ -282,8 +282,8 @@ describe ExternalTracker do
       expect(Typhoeus).to receive(:post).with("https://api.hubapi.com/contacts/v1/contact/", {
         body: {properties: [
           {property: 'email', value: 'testing@example.com' },
-          {property: 'firstname', value: 'No'},
-          {property: 'lastname', value: 'name'},
+          {property: 'firstname', value: nil},
+          {property: 'lastname', value: nil},
           {property: 'city', value: nil},
           {property: 'username', value: u.user_name},
           {property: 'state', value: nil},

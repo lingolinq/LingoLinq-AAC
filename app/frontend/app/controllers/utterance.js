@@ -9,6 +9,7 @@ import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
+import { display_name_for } from '../utils/display_name';
 
 export default Controller.extend({
   appState: service('app-state'),
@@ -17,7 +18,7 @@ export default Controller.extend({
   title: computed('model.sentence', 'model.show_user', 'model.user', function() {
     var sentence = this.get('model.sentence') || "something";
     if(this.get('model.show_user') && this.get('model.user')) {
-      return (this.get('model.user.name') || this.get('model.user.user_name')) + " said: \"" + sentence + "\"";
+      return display_name_for(this.get('model.user')) + " said: \"" + sentence + "\"";
     } else {
       return "Someone said: \"" + sentence + "\"";
     }

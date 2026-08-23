@@ -40,7 +40,7 @@
               <img src={{supervisor.avatar_url}} style="height: 50px; width: 50px;">
             </td>
             <td>
-              <div style="font-size: 20px;">{{supervisor.name}}</div>
+              <div style="font-size: 20px;">{{display-name supervisor}}</div>
               <LinkTo @route="user" @model={{supervisor.user_name}}>{{supervisor.user_name}}</LinkTo>
               {{#if supervisor.organization_unit_id}}
                 <span class="text-muted">({{t "added by organization" key="org_added"}})</span>
@@ -149,7 +149,7 @@
                 <img src={{supervisee.avatar_url}} style="height: 50px; width: 50px;">
               </td>
               <td>
-                <div style="font-size: 20px;">{{supervisee.name}}</div>
+                <div style="font-size: 20px;">{{display-name supervisee}}</div>
                 <LinkTo @route="user" @model={{supervisee.user_name}}>{{supervisee.user_name}}</LinkTo>
                 {{#if supervisee.edit_permission}}
                   <span class="text-muted">{{t "(editing allowed)" key="editing_allowed"}}</span>
@@ -241,7 +241,7 @@
             <img src={{supervisor.avatar_url}} class="md-modal-avatar" style="width: 40px; height: 40px;" alt="">
             <div class="md-modal-shared-user__info">
               <div class="md-modal-shared-user__name">
-                {{supervisor.name}}
+                {{display-name supervisor}}
                 {{#if supervisor.organization_unit_id}}
                   <span class="md-modal-shared-user__badge">({{t "added by organization" key="org_added"}})</span>
                 {{/if}}
@@ -354,7 +354,7 @@
             <div class="md-modal-shared-user">
               <img src={{supervisee.avatar_url}} class="md-modal-avatar" style="width: 40px; height: 40px;" alt="">
               <div class="md-modal-shared-user__info">
-                <div class="md-modal-shared-user__name">{{supervisee.name}}</div>
+                <div class="md-modal-shared-user__name">{{display-name supervisee}}</div>
                 <div class="md-modal-shared-user__detail">
                   <LinkTo @route="user" @model={{supervisee.user_name}}>{{supervisee.user_name}}</LinkTo>
                   {{#if supervisee.edit_permission}}
