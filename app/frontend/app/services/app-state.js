@@ -2448,6 +2448,11 @@ export default Service.extend({
         user.set('preferences.progress.app_added', true);
         user.save().then(null, function() { });
       }
+      /* `prev` captured BEFORE the set so the notify below can tell a real user switch
+         from a redundant re-set. This observer keys off `sessionUser`, and find_user
+         sets that several times per boot (initial, again after user.reload(), again at
+         the LingoLinq.appState path below), so it runs repeatedly with the SAME user. */
+      var prev = this.get('currentUser');
       this.set('currentUser', user);
       if (_vb) {
         console.log('[APP-STATE] set_current_user: currentUser set', {
@@ -2455,7 +2460,32 @@ export default Service.extend({
           currentUser_id: this.get('currentUser') ? this.get('currentUser.id') : null
         });
       }
-      runNext(() => this.notifyPropertyChange("currentUser"));
+      /* Only notify when the user ACTUALLY changed.
+         The unconditional version came from 48a055d55 (2026-01-20, the migration of the
+         146KB utils/app_state.js singleton into this service), commented "Force notify
+         property change to ensure reactivity". Mid-migration that was real: reads and
+         writes were routed through the utils/app_state.js Proxy shim, whose set trap
+         does a RAW assignment that bypasses Ember's set() and therefore never notifies,
+         and which returns undefined ("Service not ready yet") before the service exists.
+         That hazard no longer reaches currentUser — all five writes to it go through
+         .set(), and none of the 113 files importing the shim assign to it raw.
+
+         Measured cost of notifying unconditionally: an identical-value set() is already
+         a no-op in Ember (verified: real change -> 1 observer fire, two identical sets ->
+         still 1), so this call was the ENTIRE source of the invalidation. It fires ~4x
+         per board open, and because runNext defers it past the current render it landed
+         ~280ms after the board had painted, invalidating the ~13 preference-derived
+         arguments of <BoardDetailGrid> and re-rendering all 84 cells for no visual
+         change. Guarding it takes board open from 2 grid render passes to 1, with the
+         rendered output identical (cell count and computed label size unchanged).
+
+         The guard deliberately KEEPS the notify for real switches — speak-as, modeling,
+         and the initial null -> user load, which is what late-attaching observers such as
+         utils/utterance.js#update_voice depend on to pick up the first value.
+         See docs/task-management/2026-08-23-board-render-first-paint-research.md. */
+      if(prev !== user) {
+        runNext(() => this.notifyPropertyChange("currentUser"));
+      }
     }
     if(this.get('currentUser')) {
       this.set('currentUser.load_all_connections', true);
