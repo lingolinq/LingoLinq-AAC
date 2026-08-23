@@ -314,6 +314,19 @@ export default Component.extend({
     return !!map[key];
   }),
 
+  // Whether THIS page+view's tour has already been AUTO-OPENED once for this
+  // user. Deliberately separate from `tourSeen` above: that flag records only a
+  // FINISHED tour (it drives the trigger's check badge, so binding it to cancel
+  // would make the badge lie). Auto-open needs the weaker "we already showed
+  // this to them" test — a user who skipped or dismissed the tour should not
+  // have it thrown at them again on their next board pick.
+  tourAutoShown: computed('appState.currentUser.preferences.progress.guided_tours_autoshown', 'tourKey', function() {
+    var key = this.get('tourKey');
+    if (!key) { return false; }
+    var map = this.get('appState.currentUser.preferences.progress.guided_tours_autoshown') || {};
+    return !!map[key];
+  }),
+
   // Auto-fire the tour when `appState.auto_open_home_tour` is flipped to true —
   // set by terms-agree confirm for newly-registered users who are skipping the
   // full setup wizard intro. The observer clears the flag on start so
@@ -704,6 +717,13 @@ export default Component.extend({
                   document.querySelector('.md-board-detail-grid');
       if (ready || attempts >= 20) {        // ~3s ceiling (20 × 150ms)
         if (!_this._isBoardDetailSpeakTour()) { return; }
+        // Show the walkthrough ONCE per user. `tourKey` only resolves to the
+        // speak key now that we're on the board-detail speak page, so this is
+        // checked here (at fire time) rather than when the pending flag is
+        // consumed. Manual entry via the "Take a tour" trigger is unaffected —
+        // this gate is only on the AUTO path.
+        if (_this.get('tourAutoShown')) { return; }
+        _this._markTourAutoShown();
         _this._startTour();
       } else {
         runLater(_this, tryStart, 150);
@@ -746,6 +766,23 @@ export default Component.extend({
     // before addSteps() so Shepherd picks them up when instantiating each step.
     tour.set('confirmCancel', false);
     tour.set('modal', true);
+    // MUST be set explicitly even though Shepherd defaults both to true.
+    // ember-shepherd's tour service declares `exitOnEsc` / `keyboardNavigation`
+    // as tracked properties initialised to undefined and then passes them
+    // POSITIVELY into `new Shepherd.Tour({ exitOnEsc, keyboardNavigation, ... })`
+    // (services/tour.js#_initialize). Shepherd merges with
+    // `Object.assign({}, {exitOnEsc: true, keyboardNavigation: true}, options)`,
+    // and an explicit `undefined` OVERWRITES the default — so leaving these
+    // unset silently disabled both. Verified live: tourObject.options.exitOnEsc
+    // read back as undefined, Escape did not dismiss, and arrow keys did not
+    // navigate. That made a full-screen modal overlay (modal:true +
+    // canClickTarget:false below) impossible to escape by keyboard — a hard trap
+    // for switch-scanning and eye-gaze users, who cannot click the X.
+    // Safe on cancel: _unlockTourScroll, _detachTourResize, _clearTourCenteredClass
+    // and the afterComplete handoff are all bound to `cancel` as well as
+    // `complete`, so an Esc exit cleans up exactly like the X button.
+    tour.set('exitOnEsc', true);
+    tour.set('keyboardNavigation', true);
     tour.set('defaultStepOptions', {
       classes: 'md-tour__step',
       cancelIcon: { enabled: true },
@@ -1021,6 +1058,31 @@ export default Component.extend({
     if (done[key]) { return; }
     done[key] = true;
     progress.guided_tours_completed = done;
+    prefs.progress = progress;
+    user.set('preferences', prefs);
+    if (user.save) { user.save().then(null, function() { /* best-effort */ }); }
+  },
+
+  // Persist "this page's tour has been AUTO-OPENED once" as
+  // preferences.progress.guided_tours_autoshown[<tourKey>] = true. Recorded when
+  // the tour auto-fires, NOT when it ends, so it sticks however the user leaves
+  // it (finish, skip, X, Esc). Without this the board-detail SPEAK tour re-fired
+  // on EVERY home-board pick forever: _scheduleBoardDetailSpeakAutoOpen called
+  // _startTour unconditionally, and guided_tours_completed is only written on
+  // `complete`, so anyone who dismissed it was never recorded at all.
+  // Same fresh-object-copy discipline as _markTourCompleted: ember-data only
+  // serializes a real reference change, so mutating the nested map in place
+  // would leave hasDirtyAttributes false and never save.
+  _markTourAutoShown: function() {
+    var key = this.get('tourKey');
+    var user = this.get('appState.currentUser');
+    if (!key || !user) { return; }
+    var prefs = Object.assign({}, user.get('preferences') || {});
+    var progress = Object.assign({}, prefs.progress || {});
+    var shown = Object.assign({}, progress.guided_tours_autoshown || {});
+    if (shown[key]) { return; }
+    shown[key] = true;
+    progress.guided_tours_autoshown = shown;
     prefs.progress = progress;
     user.set('preferences', prefs);
     if (user.save) { user.save().then(null, function() { /* best-effort */ }); }

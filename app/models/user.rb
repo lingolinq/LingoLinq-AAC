@@ -2014,10 +2014,21 @@ class User < ApplicationRecord
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports',
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']
   RESEARCH_PREFERENCE_PARAMS = ['research_primary_use', 'research_age', 'research_experience_level']
-  PROGRESS_PARAMS = ['setup_done', 'intro_watched', 'profile_edited', 'preferences_edited', 
+  # NOTE: this is an ALLOWLIST — a progress key absent here is silently dropped on
+  # save. `guided_tours_completed` was written by the frontend for months without
+  # being listed, so the guided-tour "seen" badge never survived a reload and
+  # `tourSeen` was permanently false. Both tour maps are listed now; anything new
+  # under preferences.progress must be added here or it will not persist.
+  PROGRESS_PARAMS = ['setup_done', 'intro_watched', 'profile_edited', 'preferences_edited',
       'home_board_set', 'app_added', 'skipped_subscribe_modal', 'speak_mode_intro_done',
       'modeling_intro_done', 'modeling_ideas_viewed', 'modeling_ideas_target_words_reviewed',
-      'board_intros']
+      'board_intros', 'guided_tours_completed', 'guided_tours_autoshown']
+  # Progress keys that hold a {<tour_key> => true} map from the client. Sanitized
+  # on write (see process_params) so a malformed or hostile client cannot stash
+  # arbitrary JSON in the user record.
+  GUIDED_TOUR_PROGRESS_PARAMS = ['guided_tours_completed', 'guided_tours_autoshown']
+  GUIDED_TOUR_MAX_KEYS = 50
+  GUIDED_TOUR_MAX_KEY_LENGTH = 64
   def process_params(params, non_user_params)
     # Defensive guard: `settings['admin']` may only be set via
     # non_user_params['admin'] (see ~line 1485 below). Strip any
@@ -2476,6 +2487,25 @@ class User < ApplicationRecord
       end
       if self.settings['preferences']['progress']['board_intros']
         self.settings['preferences']['progress']['board_intros'] = self.settings['preferences']['progress']['board_intros'].uniq
+      end
+      # Guided-tour maps are client-supplied JSON. Keep only truthy entries,
+      # normalise every value to `true`, bound the key length and the map size,
+      # and discard the value entirely if it is not a Hash — so the stored shape
+      # is always {String => true} regardless of what the client sent.
+      GUIDED_TOUR_PROGRESS_PARAMS.each do |tour_attr|
+        val = self.settings['preferences']['progress'][tour_attr]
+        next if val.nil?
+        if val.is_a?(Hash)
+          cleaned = {}
+          val.each do |k, v|
+            next unless v
+            break if cleaned.size >= GUIDED_TOUR_MAX_KEYS
+            cleaned[k.to_s[0, GUIDED_TOUR_MAX_KEY_LENGTH]] = true
+          end
+          self.settings['preferences']['progress'][tour_attr] = cleaned
+        else
+          self.settings['preferences']['progress'].delete(tour_attr)
+        end
       end
     end
     if params['preferences'] && params['preferences']['requested_phrase_changes']
