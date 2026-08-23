@@ -9,7 +9,8 @@ draft, almost entirely from the 2026-08-12 six-finder full audit run); overdue m
 and COPPA quarterly retention checks need surfacing.
 **Status:** DRAFT - awaiting attestation. Successor via Path A supersession to attested
 `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` (ATTESTED 2026-08-20 by Scot Wahlquist, CEO),
-correcting the 2026-08-12 run-size figure only. Headline counts are re-derived from
+correcting the defects listed in "Corrections in this successor" below, which include the
+Article 50(1) enablement claim. Headline counts are re-derived from
 `audit-reports/FINDINGS.json` as committed at staging commit `64cdccba1` (2026-08-20; publisher
 convention: `open` + `remediated-unverified` by severity). Register `meta.auditedSha` is
 `59f502aa4` (auditedDate 2026-08-18, a monthly light-run restamp) with the last full 6-finder scan
@@ -17,7 +18,7 @@ at `d67ed76e0a1` (auditedDate 2026-08-12); it records the last full audit *run*,
 register edit.
 **Related:** `audit-reports/FINDINGS.json` (source of truth),
 `docs/legal/2026-08-20_compliance-posture-report.md` (ATTESTED 2026-08-20, same transaction as
-this snapshot's attestation),
+this snapshot's PREDECESSOR's attestation; this successor is unattested),
 `docs/legal/2026-08-20_compliance-program.md` (ATTESTED 2026-08-20, same transaction),
 `docs/legal/2026-08-09_compliance-posture-report_draft.md` (unattested, superseded by the above),
 `docs/legal/2026-08-09_compliance-program_draft.md` (unattested, superseded by the above),
@@ -63,11 +64,14 @@ Headline at staging commit `64cdccba1` (2026-08-20, publisher convention):
   known green per the register's run log (2026-08-12 run, PASS 150/FAIL 0/SKIP 15). Re-run before
   attesting if a fresh confirmation is wanted.
 
-The attested Posture Report (2026-07-23) still shows **8 High / 27 Medium**. That figure was
+The Posture Report attested at the time this snapshot was first drafted (2026-07-23) showed
+**8 High / 27 Medium**; the currently attested one is `docs/legal/2026-08-20_compliance-posture-report.md`
+at 0 / 20 / 52 / 40. That figure was
 accurate at an early-2026-07-23 register state and drifted the same day; three further Highs were
-promoted from PR review on 2026-08-02/08-04, then the 2026-08-12 six-finder run added 9 more. A
-Posture Report successor draft (`docs/legal/2026-08-09_compliance-posture-report_draft.md`), now
-refreshed to **0 / 20 / 52 / 40**, is included in this package for Scot's attestation (Path A
+promoted from PR review on 2026-08-02/08-04, then the 2026-08-12 six-finder run added 9 more. The
+Posture Report successor now in this package for Scot's attestation is
+`docs/legal/2026-08-22_compliance-posture-report.md` at the same 0 / 20 / 52 / 40; the
+2026-08-09 draft it descends from is superseded (Path A
 supersession; attested predecessor left untouched).
 
 ---
@@ -85,7 +89,7 @@ accepted in *this* drafting session.
 | GCP BAA / CDPA / SCCs | Accepted and recorded (`docs/legal/GCP_BAA_ACCEPTED.md`; Drive capture 2026-07-14). | HIPAA-eligible infra path on Covered Products; not a Vertex AI / Gemini BAA. |
 | Article 50(2) marking | Server-signed provenance marker shipped (`lib/art50_marker.rb`; board gen + word prediction). | Machine-readable marking path exists; 50(2) grace to 2026-12-02 is not headroom for a first EU placement after 2026-08-02. |
 | Article 50(1) server-side backstop | All 5 AI ingresses now call `require_article_50_disclosure!` (#829, #831, 2026-08-19), up from 2 of 5. LL-6723438462 moved open -> remediated-unverified. | Enabling the flag would no longer produce silent partial enforcement. |
-| Article 50(1) disclosure UI | Modal + ack + first-AI-use gate built; `article_50_disclosure` is AVAILABLE-only, not in `ENABLED_FRONTEND_FEATURES`, in `lib/feature_flags.rb` at `64cdccba1`. Code default only: `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132`, `:174`, `:180`), a database override no code listing can show. **Production flag state must be verified before attestation.** | Built; runtime enablement NOT verified. Production state must be checked before attestation. Obligation date passed 2026-08-02. |
+| Article 50(1) disclosure UI | Modal + ack + first-AI-use gate built; `article_50_disclosure` is AVAILABLE-only, not in `ENABLED_FRONTEND_FEATURES`, in `lib/feature_flags.rb` at `64cdccba1`. Code default only: `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset, a database override no code listing can show. **Production flag state must be verified before attestation.** | Built; runtime enablement NOT verified. Production state must be checked before attestation. Obligation date passed 2026-08-02. |
 | Article 50 disclosure contrast (LL-a9d6d5a46b) | Found already fixed via #694 (2026-07-28, `$brand-verdigris-aa` token, 5.05:1 on white); register had gone stale showing it as open. Corrected to remediated-unverified 2026-08-19. | One of the two pre-enable accessibility blockers is remediated, pending Scot's verified-closed attestation. LL-104bfa61dc remains open. |
 | AI Governance Memo | Re-attested 2026-08-04 (git). | Published; branded Drive mirror review date still older. |
 | Bedrock / BAA claim correction | 2026-08-01 through 2026-08-07 corpus sweep; LL-1b0d78dbe6 filed, then **verified-closed 2026-08-11**. | Unverifiable Bedrock-account assertion retracted; closed operational window documented; check now landed and verified. |
@@ -151,7 +155,7 @@ Surfaced, not decided. No AI closes a finding, downgrades severity, accepts risk
 customer-facing doc.
 
 1. ~~**Re-attest the Posture Report** at **0 Critical / 20 High / 52 Medium / 40 Low**~~ **DONE
-   2026-08-20**, in the same attestation transaction as this snapshot: `docs/legal/2026-08-20_compliance-posture-report.md`
+   2026-08-20**, in the same attestation transaction as this snapshot's PREDECESSOR: `docs/legal/2026-08-20_compliance-posture-report.md`
    and `docs/legal/2026-08-20_compliance-program.md` (Path A supersession off the unattested
    `_draft` files, per the grandfathered-`_draft` transition rule in `docs/legal/README.md`).
    Branded Drive mirror (`DOC-ae3f9d06ef`) remains a separate operator refresh.
@@ -186,7 +190,7 @@ customer-facing doc.
 |---|---|---|---|
 | Close or disposition the 20 live Highs | Scot / eng | SLA advisory 15-30d (8 already past) | Prioritize data-bearing: LL-16ef84ad9a, LL-522c1a6d13, LL-f150e0e828, LL-854b1d3853, plus the 2026-08-12 GCP access/logging set. |
 | Verify + attest 8 remediated-unverified | Scot | Near-term | LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium). |
-| Article 50(1) enablement decision | Scot / product | Overdue since 2026-08-02 | Server-side backstop complete (#829/#831); WCAG contrast blocker LL-a9d6d5a46b is now remediated-unverified. LL-104bfa61dc (terms-agree modal switch scanning) remains the open blocker. |
+| Article 50(1) enablement decision | Scot / product | **UNVERIFIED - may already be enabled** (~~Overdue since 2026-08-02~~) | **CONTRADICTED BY ATTESTED EVIDENCE - DO NOT REPEAT UNTIL RESOLVED.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`, itself CEO-attested 2026-08-19, records a live production read: `article_50_disclosure_shown` is TRUE on all 63 post-deploy `AiApiLog` rows. That column comes from `User#article_50_disclosure_shown?` (`app/models/user.rb:1532-1539`), which returns true only when the user's `settings['ai_transparency']` carries a `shown_at` AND a matching `disclosures_version` -- i.e. only after an actual modal acknowledgement. A disclosure never enabled cannot produce that. (Scope caveat from that same record: the 63 rows come from 2 accounts, consistent with internal pre-tenant testing.) Resolve by reading `SystemFeatureSettings.default_enabled_features` in production before this document is attested.  Server-side backstop complete (#829/#831); WCAG contrast blocker LL-a9d6d5a46b is now remediated-unverified. LL-104bfa61dc (terms-agree modal switch scanning) remains the open blocker. |
 | ACR / VPAT attestation | Scot | Before district asks; calendar refresh 2026-12-13 | Git + branded Drive still `draft`. |
 | Overdue monthly-light audit | Scot / compliance | Overdue 26d | Register has had no scan stamp since 2026-07-08. |
 | Overdue COPPA quarterly check | Scot / privacy | Overdue 14d | Only ongoing verification linked to passed-enforceable COPPA rule. |

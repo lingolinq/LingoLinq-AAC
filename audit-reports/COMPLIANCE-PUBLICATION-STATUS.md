@@ -241,7 +241,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | Compliance Posture Report (branded) | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | Compliance Posture Report (branded, 2026-07-16 re-attest) | compliance-records-set-2026-06 |
 | Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | Compliance Program (2026-08-09 draft) | compliance-records-set-2026-06 |
 | Compliance Program (2026-08-09 draft) | `docs/legal/2026-08-09_compliance-program_draft.md` | Compliance & Security Program | (none) |
-| Compliance Status Snapshot (2026-08-09) | `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` | Compliance Status Snapshot (2026-08-09) | (none) |
+| Compliance Status Snapshot (2026-08-09) | `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` | Compliance Status Snapshot (2026-08-22) | (none) |
 | Data Retention Schedule | `docs/legal/DATA_RETENTION.md` | Data Retention Schedule (2026-08-09 draft) | (none) |
 | Incident Response and Breach Runbook | `docs/legal/BREACH_RUNBOOK.md` | Incident Response and Breach Runbook (2026-08-15 successor) | (none) |
 | LingoLinq Security, Privacy & Compliance Overview | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | (none) |

@@ -5,8 +5,8 @@
 > (ATTESTED 2026-08-20 by Scot Wahlquist, CEO), which succeeded the unattested draft
 > `docs/legal/2026-08-09_compliance-posture-report_draft.md`, which itself succeeded attested
 > `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (ATTESTED 2026-06-19; RE-ATTESTED 2026-07-16;
-> RE-ATTESTED 2026-07-23). This successor exists ONLY to correct three defects carried by its
-> predecessor; no count, finding, or posture claim is otherwise changed. See "Corrections in this
+> RE-ATTESTED 2026-07-23). This successor exists ONLY to correct the seven defects listed below,
+> carried by its predecessor; no count, finding, or posture claim is otherwise changed. See "Corrections in this
 > successor" below. This report refreshes headline and framework counts from the
 > findings register as committed at staging commit `64cdccba1`. Originally drafted 2026-08-09 by the compliance-officer; content
 > re-verified and refreshed 2026-08-20 after the 2026-08-12 six-finder audit run and the Article 50
@@ -21,7 +21,7 @@
 > `remediated-unverified` findings by severity, per `scripts/compliance-notion-publish.rb`). Do not
 > hand-edit the figures; refresh them from the register.
 
-### Changes since the 2026-08-09 draft (this attestation, 2026-08-20)
+### Changes since the 2026-08-09 draft (predecessor attestation, 2026-08-20)
 
 - **Counts refreshed 2026-08-20.** Publisher convention at `64cdccba1` gives **0 Critical / 20 High / 52
   Medium / 40 Low** (112 live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
@@ -40,8 +40,9 @@
   `article_50_disclosure` is AVAILABLE-only, not in `ENABLED_FRONTEND_FEATURES`, in
   `lib/feature_flags.rb` at `64cdccba1`. **That is the code default, not the runtime state.**
   `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for`
-  (`lib/feature_flags.rb:132`, `:174`, `:180`), a database override a code listing cannot show.
+  (`lib/feature_flags.rb:132` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset, a database override a code listing cannot show.
   Production flag state must be verified before this statement is attested.
+
 > **Methodology caveat for this section.** The infrastructure statements below were carried
 > forward from the 2026-07-23 predecessor and were NOT re-verified against live GCP or AWS
 > state in the 2026-08-20 register-only refresh or in this correction pass. Re-check before
@@ -83,9 +84,8 @@ still `64cdccba1` -- these corrections do not move the derivation to a later com
 | 2 | Framework table headed "Open findings / Open High" (:99, :102) | "Live / Live High" | The values are live (`open` + `remediated-unverified`), as the document's own text nine lines below confirms by reconciling those rows against the 112 live total. At `64cdccba1` the true open-only figures are FERPA 33/9, HIPAA 26/9, GDPR 20/6, COPPA 9/4, WCAG 18/1, SOC 2 39/6 -- so the "Open High" label overstated open Highs on four of six rows, SOC 2 most visibly (9 shown, 6 open). Values are correct and unchanged; only the label moves. |
 | 3 | Summary table rows headed "Open Critical / Open High / Open Medium-Low" (:64-66) | "Live ..." | Same defect. At `64cdccba1` open-only is 15 High and 49 Medium against the table's 20 and 52. Values correct and unchanged. |
 | 4 | "from the findings register at HEAD" (:7) and "Publisher convention at HEAD gives" (:22) | pinned to `` `64cdccba1` ``; every "staging HEAD `64cdccba1`" also reworded to "staging commit", since staging HEAD has since moved and the phrase decays | Live-tense phrasing fought the pinned footer, which already said "as committed at staging commit `64cdccba1`". A reader could take the counts as current rather than as of that commit. |
-
-| 5 | "added 9 new open Highs in a single run" (:28) | "9 new Highs (8 still open at `64cdccba1`)" | One of the nine, `LL-6af580a23a`, was `remediated-unverified` at the pinned commit, not `open`. |
-| 6 | `article_50_disclosure` "remains AVAILABLE-only (not enabled)" (:38, :140) | restated as the CODE DEFAULT at `64cdccba1`, with the runtime source named | The claim stated a runtime fact but rested only on a code listing. `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132`, `:174`, `:180`) -- a database override no code listing can show. **Production flag state must be verified before this document is attested.** |
+| 5 | "added 9 new open Highs in a single run" (:26) | "9 new Highs (8 still open at `64cdccba1`)" | One of the nine, `LL-6af580a23a`, was `remediated-unverified` at the pinned commit, not `open`. |
+| 6 | `article_50_disclosure` "remains AVAILABLE-only (not enabled)" (:36, :138) | restated as the CODE DEFAULT at `64cdccba1`, with the runtime source named | The claim stated a runtime fact but rested only on a code listing. `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset -- a database override no code listing can show. **Production flag state must be verified before this document is attested.** |
 | 7 | Infrastructure section asserted live GCP/Render state with no methodology caveat | caveat added | The Compliance Program carries exactly this caveat for the identical claims; the Posture Report did not, so a reader took the uncaveated one as verified. |
 
 Correction 1 was found by adversary review during PR #838; corrections 2-4 during the follow-up

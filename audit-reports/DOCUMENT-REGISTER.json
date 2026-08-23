@@ -3563,7 +3563,7 @@
       "bundles": [],
       "mirrors": [],
       "supersedes": "DOC-59273ae805",
-      "notes": "Path A successor to unattested draft DOC-4fc1647b7e, which itself succeeded attested COMPLIANCE_POSTURE_REPORT.md (DOC-4e3b7fb1fb). Attested 2026-08-20.",
+      "notes": "Path A successor to CEO-attested DOC-59273ae805 (docs/legal/2026-08-20_compliance-posture-report.md, attested 2026-08-20). UNATTESTED DRAFT - carries no attestation of its own. Corrects seven defects the predecessor carries: the 2026-08-12 run size (46 -> 40, 9/18/13), three tables headed \"Open\" while carrying live values, an off-by-one open-High count, unqualified \"at HEAD\" phrasing, a missing infrastructure methodology caveat, and an article_50_disclosure runtime claim that rested only on a code listing. Bundles intentionally EMPTY: school-dpa-package, security-review and grant still pin the predecessor by path, so external packages keep resolving to a signed document. Retarget all three from DOC-59273ae805 to this row in the same change that attests it, not before.",
       "id": "DOC-c5408d90b7",
       "retention": {
         "class": "policy-version",
@@ -3573,7 +3573,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "5f404d665ceae11b155bce7fa52732b977e1670e74a57c9d0873cc8b0f2bbefc"
+      "contentHash": "d813491b0234a081e01c5b8dd315407ac66bfed301fef9b1848af02fd7213e25"
     },
     {
       "title": "Compliance & Security Program",
@@ -3596,7 +3596,7 @@
       "bundles": [],
       "mirrors": [],
       "supersedes": "DOC-5a4b795792",
-      "notes": "Path A successor to unattested draft DOC-73a80fc88d, which itself succeeded attested COMPLIANCE_PROGRAM.md v1.2 (DOC-b61994933c). Attested 2026-08-20 as v1.3.",
+      "notes": "v1.3.1. Path A successor to CEO-attested DOC-5a4b795792 (docs/legal/2026-08-20_compliance-program.md, v1.3, attested 2026-08-20). UNATTESTED DRAFT - carries no attestation of its own; Section 15 reproduces the v1.3 statement unchanged and explicitly marks it as not re-made. Corrects the 2026-08-12 run size (46 -> 40), live values labelled \"open\" in the attestation block, unqualified \"at HEAD\" phrasing, and the article_50_disclosure enablement claim.",
       "id": "DOC-e5e85eccb1",
       "retention": {
         "class": "policy-version",
@@ -3606,10 +3606,10 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "cf8e83d58ae850f148bbf858a3c3078531121cbb14251f171b772e6c1c49be3e"
+      "contentHash": "9226f73124fa020c4bc8817bd57be106f76e9990276dcbdca64ffdd2156ff843"
     },
     {
-      "title": "Compliance Status Snapshot (2026-08-09)",
+      "title": "Compliance Status Snapshot (2026-08-22)",
       "description": "Corrects the 2026-08-12 run size (46 -> 40, 9/18/13), unqualified \"at HEAD\" statements, and the unqualified article_50_disclosure runtime claim.",
       "type": "audit-artifact",
       "owner": "Scot Wahlquist",
@@ -3622,7 +3622,7 @@
       "attestation": {},
       "bundles": [],
       "mirrors": [],
-      "notes": "Successor operational snapshot after COMPLIANCE_STATUS_2026-06-18.md.",
+      "notes": "Path A successor to CEO-attested DOC-3468caf949 (docs/legal/COMPLIANCE_STATUS_2026-08-09.md, attested 2026-08-20). UNATTESTED DRAFT - carries no attestation of its own. Corrects the 2026-08-12 run size (46 -> 40, 9/18/13), unqualified \"at HEAD\" phrasing, stale self-references to the predecessor's attestation, and the article_50_disclosure enablement claim.",
       "id": "DOC-af01c65b10",
       "retention": {
         "class": "working-note",
@@ -3633,7 +3633,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-3468caf949",
-      "contentHash": "e9b3f84bc2b465d4b4e4ef545258707257d513108434557cae06774d1e5cc0f5"
+      "contentHash": "659b62d8b13a7a40275dc7f136cb96f306ceec335be15761f2ba3492dbc4eea3"
     }
   ]
 }

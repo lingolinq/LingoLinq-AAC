@@ -4,8 +4,9 @@
 > Successor via Path A supersession to attested `docs/legal/2026-08-20_compliance-program.md`
 > (v1.3, ATTESTED 2026-08-20 by Scot Wahlquist, CEO), which succeeded the unattested draft
 > `docs/legal/2026-08-09_compliance-program_draft.md`, which itself succeeded attested
-> `docs/legal/COMPLIANCE_PROGRAM.md` (v1.2). This successor exists ONLY to correct two defects
-> carried by its predecessor; no program claim is otherwise changed. Internal use only; not authorized for
+> `docs/legal/COMPLIANCE_PROGRAM.md` (v1.2). This successor exists ONLY to correct the defects listed below, carried
+> by its predecessor. Those include the Article 50(1) enablement claim, which IS a program claim;
+> nothing else in the program is changed. Internal use only; not authorized for
 > external sharing, in full or in summary, until the CEO explicitly releases a version for that
 > purpose (see Section 15, point 6). This document supersedes the external "Master Compliance &
 > Security Program v1.1" (Dominic, 2026-06-15). It is an honest, evidence-backed statement of the
@@ -15,10 +16,12 @@
 > are confined to Section 12 and are marked "not yet built" so nothing here reads as a promise we
 > cannot keep.
 >
-> **Version:** 1.3 · **Date:** 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04
-> (v1.2); 2026-08-20 (v1.3) · **Attested by:** Scot Wahlquist, CEO (2026-06-18;
-> 2026-07-22; 2026-08-04 on predecessor; 2026-08-20 on this v1.3) · **Supersedes:** unattested draft
-> `2026-08-09_compliance-program_draft.md` (DOC-73a80fc88d), which itself supersedes attested
+> **Version:** 1.3.1 (DRAFT - NOT YET ATTESTED) · **Date:** 2026-06-18 (v1.0);
+> 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3); v1.3.1 drafted 2026-08-22 ·
+> **Attested by:** PREDECESSOR VERSIONS ONLY - Scot Wahlquist, CEO (2026-06-18; 2026-07-22;
+> 2026-08-04; 2026-08-20 on v1.3). **v1.3.1 carries no attestation.** · **Supersedes:** attested
+> `2026-08-20_compliance-program.md` v1.3 (DOC-5a4b795792), which superseded unattested draft
+> `2026-08-09_compliance-program_draft.md` (DOC-73a80fc88d), which itself superseded attested
 > `COMPLIANCE_PROGRAM.md` v1.2 (DOC-b61994933c) · **Source of truth for status:**
 > `audit-reports/FINDINGS.json`
 >
@@ -319,7 +322,7 @@ as a false promise. Several of these came from v1.1, where they were incorrectly
 | Multi-state minor/biometric/health law coverage (CCPA-minor, TX CUBI, WA MHMDA, IL BIPA) | Deferred | Apply as the customer footprint reaches those states; not pre-MVP. |
 | Formal SOC 2 program (risk assessments, training cadence, KPIs, internal audit schedule) | In progress / deferred | Enterprise maturity; staged as the team grows. |
 | Render decommission | Pending | Render is superseded as primary host but remains a write-frozen rollback fallback until explicit teardown. Retires accepted-risk LL-aacae48768 path once fallback is gone. |
-| Article 50(1) disclosure enablement | Backstop built and complete; not in `ENABLED_FRONTEND_FEATURES` at `64cdccba1` (code default -- runtime unverified) | Code default only: `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132`, `:174`, `:180`), a database override no code listing can show. **Production flag state must be verified before attestation.** `article_50_disclosure` is AVAILABLE-only in code while `ai_board_generation` is enabled. Obligation date 2026-08-02 has passed. Server-side backstop now covers all 5 AI ingresses (#829/#831, 2026-08-19; LL-6723438462 remediated-unverified). The contrast blocker (LL-a9d6d5a46b) is also remediated-unverified (already fixed via #694). LL-104bfa61dc (terms-agree modal switch scanning, same shared modal component) remains open. Scot decision required: enable for EU users or record a dated non-applicability rationale. |
+| Article 50(1) disclosure enablement | Backstop built and complete; not in `ENABLED_FRONTEND_FEATURES` at `64cdccba1` (code default -- runtime unverified) | Code default only: `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset, a database override no code listing can show. **Production flag state must be verified before attestation.** `article_50_disclosure` is AVAILABLE-only in code while `ai_board_generation` is enabled. Obligation date 2026-08-02 has passed. Server-side backstop now covers all 5 AI ingresses (#829/#831, 2026-08-19; LL-6723438462 remediated-unverified). The contrast blocker (LL-a9d6d5a46b) is also remediated-unverified (already fixed via #694). LL-104bfa61dc (terms-agree modal switch scanning, same shared modal component) remains open. Scot decision required, but the premise is UNVERIFIED. **CONTRADICTED BY ATTESTED EVIDENCE - DO NOT REPEAT UNTIL RESOLVED.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`, itself CEO-attested 2026-08-19, records a live production read: `article_50_disclosure_shown` is TRUE on all 63 post-deploy `AiApiLog` rows. That column comes from `User#article_50_disclosure_shown?` (`app/models/user.rb:1532-1539`), which returns true only when the user's `settings['ai_transparency']` carries a `shown_at` AND a matching `disclosures_version` -- i.e. only after an actual modal acknowledgement. A disclosure never enabled cannot produce that. (Scope caveat from that same record: the 63 rows come from 2 accounts, consistent with internal pre-tenant testing.) Resolve by reading `SystemFeatureSettings.default_enabled_features` in production before this document is attested. If it is already enabled, this is a documentation correction, not a roadmap item. |
 | ACR / VPAT publish | Draft | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` and branded Drive mirror remain `draft` awaiting attestation. |
 | Remediated-unverified verification wave | In progress | Eight findings (five High) await fresh-context verification before Scot can close: LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium). |
 
@@ -363,7 +366,12 @@ over them.
 
 ## 15. Attestation
 
-**Re-attestation statement.** As CEO and the accountable owner of LingoLinq's compliance program, I
+> **NOT RE-MADE FOR v1.3.1.** The statement below is the **v1.3 attestation as signed on
+> 2026-08-20**, reproduced unchanged for the record. Its first-person voice and its dates are
+> the predecessor's. No part of it has been re-made for v1.3.1, and v1.3.1 is unattested. If
+> Scot attests v1.3.1, a new statement dated to that attestation must be written here first.
+
+**Re-attestation statement (v1.3, as signed 2026-08-20 -- reproduced, not re-made).** As CEO and the accountable owner of LingoLinq's compliance program, I
 re-affirm points 1 through 6 of the 2026-06-18 attestation: this document is an honest,
 evidence-based description of the program; implemented controls in Sections 5 through 11 are backed
 by code, configuration, or signed agreements with accurate citations; aspirational controls remain

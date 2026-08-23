@@ -10,7 +10,7 @@
 
 - **Status:** draft 13, approved 13, published 43, superseded 18
 - **Overdue for review** (as of 2026-07-23): none
-- **Drafts awaiting attestation:** Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report; Compliance & Security Program; Compliance Status Snapshot (2026-08-09)
+- **Drafts awaiting attestation:** Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report; Compliance & Security Program; Compliance Status Snapshot (2026-08-22)
 
 ## Documents by type
 
@@ -45,11 +45,11 @@
 | Anthropic Business Associate Agreement (2026-05-06) | Drive | [open](https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | (supplied) | baa |
 | AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | published | HIPAA | Scot Wahlquist | 2026-05-11 | 2027-05-11 | 2026-02 | `55f28e00168c` | baa |
 | Compliance & Security Program | git | `docs/legal/2026-08-20_compliance-program.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-20 | 2027-08-07 | 2026-08-20 | `78804f7cd631` |  |
-| Compliance & Security Program | git | `docs/legal/2026-08-22_compliance-program.md` | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-22 | 2026-11-22 | no | `cf8e83d58ae8` |  |
+| Compliance & Security Program | git | `docs/legal/2026-08-22_compliance-program.md` | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-22 | 2026-11-22 | no | `9226f73124fa` |  |
 | Compliance & Security Program v1.0 (Attested) | Drive | [open](https://docs.google.com/document/d/1bvVQClfhbNUCCPnmFZoDABlBA9hGNCEHQnWA2Z-r9Dg/edit) | published | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-12-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 | Compliance Posture Report | git | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | superseded | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-07-23 | 2026-10-23 | 2026-07-23 | `b29b1cd0d5ca` |  |
 | Compliance Posture Report | git | `docs/legal/2026-08-20_compliance-posture-report.md` | superseded | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-08-20 | 2026-11-20 | 2026-08-20 | `6c3373faff8b` | school-dpa-package, security-review, grant |
-| Compliance Posture Report | git | `docs/legal/2026-08-22_compliance-posture-report.md` | draft | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-08-22 | 2026-11-22 | no | `5f404d665cea` |  |
+| Compliance Posture Report | git | `docs/legal/2026-08-22_compliance-posture-report.md` | draft | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-08-22 | 2026-11-22 | no | `d813491b0234` |  |
 | Compliance Posture Report (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-posture-report_draft.md` | superseded | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-08-09 | 2026-11-09 | no | `c491a7aa043d` |  |
 | Compliance Posture Report (branded) | Drive | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | superseded | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 | Compliance Posture Report (branded, 2026-07-16 re-attest) | Drive | [open](https://docs.google.com/document/d/1yx-jVYesJ0ZQM0myir6d0rRMMzGEoH5EL5_luicucYo/edit) | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-07-22 | 2027-01-22 | no | (supplied) | school-dpa-package, security-review |
@@ -90,7 +90,7 @@
 | Compliance Status Snapshot (2026-04-23) | git | `docs/legal/COMPLIANCE_STATUS_2026-04-23.md` | superseded |  | Scot Wahlquist | 2026-04-23 |  | no | `0cacd835e906` |  |
 | Compliance Status Snapshot (2026-06-18) | git | `docs/legal/COMPLIANCE_STATUS_2026-06-18.md` | superseded |  | Scot Wahlquist | 2026-06-18 |  | no | `155c8a1a6102` |  |
 | Compliance Status Snapshot (2026-08-09) | git | `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` | superseded |  | Scot Wahlquist | 2026-08-20 |  | 2026-08-20 | `7703f09ffae7` |  |
-| Compliance Status Snapshot (2026-08-09) | git | `docs/legal/2026-08-22_compliance-status-snapshot.md` | draft |  | Scot Wahlquist | 2026-08-22 | 2026-11-22 | no | `e9b3f84bc2b4` |  |
+| Compliance Status Snapshot (2026-08-22) | git | `docs/legal/2026-08-22_compliance-status-snapshot.md` | draft |  | Scot Wahlquist | 2026-08-22 | 2026-11-22 | no | `659b62d8b13a` |  |
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
 | Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `098498874064` |  |
@@ -323,7 +323,7 @@ frozen point-in-time binder. Only the pointer is added.
 | Compliance Posture Report (branded) (`DOC-9f6a2412ad`) | Compliance Posture Report (branded, 2026-07-16 re-attest) (`DOC-ae3f9d06ef`) | compliance-records-set-2026-06 |
 | Compliance Program (`DOC-b61994933c`) | Compliance Program (2026-08-09 draft) (`DOC-73a80fc88d`) | compliance-records-set-2026-06 |
 | Compliance Program (2026-08-09 draft) (`DOC-73a80fc88d`) | Compliance & Security Program (`DOC-5a4b795792`) | (none) |
-| Compliance Status Snapshot (2026-08-09) (`DOC-3468caf949`) | Compliance Status Snapshot (2026-08-09) (`DOC-af01c65b10`) | (none) |
+| Compliance Status Snapshot (2026-08-09) (`DOC-3468caf949`) | Compliance Status Snapshot (2026-08-22) (`DOC-af01c65b10`) | (none) |
 | Data Retention Schedule (`DOC-bff9acf51f`) | Data Retention Schedule (2026-08-09 draft) (`DOC-e62caf7fb9`) | (none) |
 | Incident Response and Breach Runbook (`DOC-d4e3b8be32`) | Incident Response and Breach Runbook (2026-08-15 successor) (`DOC-28f19f73e4`) | (none) |
 | LingoLinq Security, Privacy & Compliance Overview (`DOC-03cb9fe91f`) | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) (`DOC-90632edc44`) | (none) |
