@@ -266,6 +266,20 @@ export default Controller.extend({
   },
 
   actions: {
+    /* Live search text from the find-boards combobox (SearchBoardJump).
+       Must be a real action, NOT `(mut this.searchString)`: SearchBoardJump is a
+       classic @ember/component, and a mut cell reaches one UNWRAPPED TO ITS
+       VALUE. The component reads `this.get('onQueryChange')` and guards with
+       `typeof fn === 'function'`, so the cell arrived as the string "food" and
+       every keystroke was silently discarded — no error, no console warning.
+       That broke three things at once: typing never filtered, the x clear button
+       did nothing, and Enter re-submitted the PREVIOUS query (searchBoards reads
+       a searchString that had never changed). Verified in-browser by inspecting
+       the live component: onQueryChange was type "string" while the sibling
+       `@onSelect={{this.ctrlAction ...}}` was type "function" and worked. */
+    updateSearchString: function(value) {
+      this.set('searchString', value || '');
+    },
     searchBoards: function() {
       this.load_results(this.get('searchString'));
       this.router.transitionTo('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));
