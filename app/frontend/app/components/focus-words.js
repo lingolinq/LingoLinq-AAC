@@ -228,7 +228,23 @@ export default Component.extend({
    */
   _presentArticle50Gate(prompt, count) {
     const settings = this.get('model') || {};
-    const resume = { ai_prompt: prompt, ai_word_count: count };
+    // Capture the WHOLE authored draft, not just the two AI fields. `opening()`
+    // also clears words/existing/reuse/title/focus_id, and the "Save for Re-Use"
+    // checkbox (with the "Word List Name" input it reveals) sits on the same view
+    // as the AI panel, so a user can legitimately have all of them filled in when
+    // the gate fires. Restoring only the AI fields silently unchecked the box and
+    // discarded the typed list name, which then changed downstream behavior:
+    // set_focus_words bails early when `reuse` is set without a `title`, and the
+    // saved-set usage ping is keyed on `focus_id`.
+    const resume = {
+      ai_prompt: prompt,
+      ai_word_count: count,
+      words: this.get('words'),
+      existing: this.get('existing'),
+      reuse: this.get('reuse'),
+      title: this.get('title'),
+      focus_id: this.get('focus_id')
+    };
     article50Gate.presentBlockingGate(this.get('appState')).then(function() {
       modal.open('modals/focus-words', Object.assign({}, settings, { art50_resume: resume }));
     }, function() {
@@ -334,15 +350,22 @@ export default Component.extend({
       this.set('ai_generating', false);
       this.set('ai_generate_error', null);
       this.set('ai_focus_word_set_id', null);
-      // Restore the AI form after an Article 50(1) disclosure round-trip.
+      // Restore the authored draft after an Article 50(1) disclosure round-trip.
       // _presentArticle50Gate re-opens this modal with art50_resume because
       // acknowledging destroys and replaces the component mid-flow; without this
-      // the user silently loses the description they had already typed. Runs
-      // after the resets above so it wins over them.
+      // the user silently loses everything they had already entered. Runs after
+      // the resets above so it wins over them. Transient navigation state
+      // (search, browse, analysis, ideas) is deliberately NOT restored: the user
+      // is returning to a fresh view, and only what they authored should survive.
       const art50Resume = this.get('model.art50_resume');
       if (art50Resume) {
         this.set('ai_prompt', art50Resume.ai_prompt);
         this.set('ai_word_count', art50Resume.ai_word_count);
+        this.set('words', art50Resume.words);
+        this.set('existing', art50Resume.existing);
+        this.set('reuse', art50Resume.reuse);
+        this.set('title', art50Resume.title);
+        this.set('focus_id', art50Resume.focus_id);
       }
       if (window.webkitSpeechRecognition) {
         const speech = new window.webkitSpeechRecognition();

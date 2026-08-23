@@ -131,6 +131,44 @@ describe('focus-words Article 50 gate', function() {
       });
     });
 
+    it('carries the re-use selection, list name, and words through the gate too', function() {
+      var opened = [];
+      stub(persistence, 'ajax', function(url) {
+        ajaxCalls.push(url);
+        return RSVP.resolve({});
+      });
+      stub(modal, 'open', function(template, opts) {
+        opened.push({template: template, opts: opts});
+        return RSVP.resolve({});
+      });
+      setAppState(true, makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false
+      }));
+      component.set('model', {board: 'b1'});
+      component.set('ai_prompt', 'fractions lesson');
+      component.set('ai_word_count', 30);
+      // "Save for Re-Use" and its "Word List Name" input render on the same view
+      // as the AI panel, so all of this can be filled in when the gate fires.
+      component.set('reuse', true);
+      component.set('title', 'Fractions Unit');
+      component.set('words', 'half, third, quarter');
+      component.set('existing', true);
+      component.set('focus_id', 'set_9');
+
+      component.send('generate_focus_words_with_ai');
+
+      waitsFor(function() { return opened.length > 1; });
+      runs(function() {
+        var resume = opened[1].opts.art50_resume;
+        expect(resume.reuse).toEqual(true);
+        expect(resume.title).toEqual('Fractions Unit');
+        expect(resume.words).toEqual('half, third, quarter');
+        expect(resume.existing).toEqual(true);
+        expect(resume.focus_id).toEqual('set_9');
+      });
+    });
+
     it('does NOT re-open focus-words when the disclosure was bumped rather than acknowledged', function() {
       var opened = [];
       stub(persistence, 'ajax', function(url) {
@@ -254,6 +292,49 @@ describe('focus-words Article 50 gate', function() {
 
       expect(component.get('ai_prompt')).toEqual(null);
       expect(component.get('ai_word_count')).toEqual(20);
+    });
+
+    it('restores the re-use selection, list name, and words alongside the AI fields', function() {
+      component.set('model', {board: 'b1', art50_resume: {
+        ai_prompt: 'the grinch',
+        ai_word_count: 15,
+        words: 'grinch, sleigh, whoville',
+        existing: true,
+        reuse: true,
+        title: 'Grinch Unit',
+        focus_id: 'set_9'
+      }});
+      component.set('modal', EmberObject.create({setComponent: function() {}}));
+
+      component.send('opening');
+
+      // The gate has to be transparent: everything the user authored survives it.
+      expect(component.get('reuse')).toEqual(true);
+      expect(component.get('title')).toEqual('Grinch Unit');
+      expect(component.get('words')).toEqual('grinch, sleigh, whoville');
+      expect(component.get('existing')).toEqual(true);
+      expect(component.get('focus_id')).toEqual('set_9');
+      // reuse_or_existing gates the "Word List Name" input's visibility, so a
+      // restored title is unreachable in the UI unless this is true as well.
+      expect(component.get('reuse_or_existing')).toEqual(true);
+    });
+
+    it('still clears the re-use selection and list name on a normal open', function() {
+      component.set('model', {board: 'b1'});
+      component.set('modal', EmberObject.create({setComponent: function() {}}));
+      component.set('reuse', true);
+      component.set('title', 'stale list');
+      component.set('words', 'stale words');
+      component.set('existing', true);
+      component.set('focus_id', 'set_stale');
+
+      component.send('opening');
+
+      expect(component.get('reuse')).toEqual(null);
+      expect(component.get('title')).toEqual(null);
+      expect(component.get('words')).toEqual(null);
+      expect(component.get('existing')).toEqual(null);
+      expect(component.get('focus_id')).toEqual(null);
     });
   });
 });
