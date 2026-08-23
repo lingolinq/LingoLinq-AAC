@@ -44,7 +44,7 @@
   Production flag state must be verified before this statement is attested.
   **CONTRADICTED BY ATTESTED EVIDENCE.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`,
   itself CEO-attested 2026-08-19, records `article_50_disclosure_shown` TRUE on all 63
-  post-deploy `AiApiLog` rows. That column (`app/models/user.rb:1532-1539`) is true only after
+  post-deploy `AiApiLog` rows. That column (`app/models/user.rb:1324-1331` at `64cdccba1`) is true only after
   an actual modal acknowledgement, which a never-enabled disclosure cannot produce. Scope
   caveat from that same record: the 63 rows come from 2 accounts, consistent with internal
   pre-tenant testing. Resolve by evaluating
@@ -54,7 +54,12 @@
   `effective_enabled_for` (`lib/system_feature_settings.rb:84-88`) returns
   `org_enabled_features(org) || default_enabled_features`, so an organization-scoped override can
   enable or disable the flag independently of the default. Record timestamp, scope, and result as
-  attestation evidence.
+  attestation evidence. A single-user probe is a SAMPLE, not a determination: `frontend_flags_for`
+  (`lib/feature_flags.rb:136-144` at `64cdccba1`) can also return true via per-user
+  `beta_opt_in_features` or `canary_enabled_features`, and `effective_enabled_for` resolves per
+  MANAGING ORGANIZATION. Read all four before concluding --
+  `Setting.get('default_enabled_features')`, `SystemFeatureSettings.org_enabled_features(org)` for
+  every EU-facing org, the beta/canary lists, and then the per-user probe as confirmation.
 
 > **Methodology caveat for this section.** The infrastructure statements in "Infrastructure
 > migration state" below were carried
@@ -250,7 +255,7 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 | Field | Value |
 |---|---|
 | Prepared by | compliance-officer agent (draft, 2026-08-09); content refreshed by Claude Code 2026-08-20 |
-| Reviewed by | Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review not separately run |
+| Reviewed by | Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review run on PR #838, #845 and #846 (the #846 pass produced the Section 15 fidelity, citation-anchor and provenance corrections recorded above) |
 | Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO |
 | Predecessor attestation dates | 2026-06-19; re-attested 2026-07-16; re-attested 2026-07-23; 2026-08-20 (immediate predecessor) |
 | Attestation date | pending |

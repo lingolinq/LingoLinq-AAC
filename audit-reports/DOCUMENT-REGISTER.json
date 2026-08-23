@@ -3573,7 +3573,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "711b21ccb7666afac9265a266b2a4f7dcb8efd6c95691035ff8fe645338c8377"
+      "contentHash": "47b2135aa0537df4bfc0ff147982522593184c8e20673176d16aedc1ed82864f"
     },
     {
       "title": "Compliance & Security Program",
@@ -3596,7 +3596,7 @@
       "bundles": [],
       "mirrors": [],
       "supersedes": "DOC-5a4b795792",
-      "notes": "v1.3.1. Path A successor to CEO-attested DOC-5a4b795792 (docs/legal/2026-08-20_compliance-program.md, v1.3, attested 2026-08-20). UNATTESTED DRAFT - carries no attestation of its own; Section 15 reproduces the v1.3 statement unchanged and explicitly marks it as not re-made. Corrects the 2026-08-12 run size (46 -> 40), live values labelled \"open\" in the attestation block, unqualified \"at HEAD\" phrasing, and the article_50_disclosure enablement claim.",
+      "notes": "v1.3.1. Path A successor to CEO-attested DOC-5a4b795792 (docs/legal/2026-08-20_compliance-program.md, v1.3, attested 2026-08-20). UNATTESTED DRAFT - carries no attestation of its own; Section 15 reproduces the v1.3 STATEMENT byte-for-byte and marks it as not re-made; the metadata table beneath that statement is not part of what was signed and does carry this successor's corrections (run size, HEAD-pinning, open -> live relabel, draft status). Corrects the 2026-08-12 run size (46 -> 40), live values labelled \"open\" in the attestation block, unqualified \"at HEAD\" phrasing, and the article_50_disclosure enablement claim.",
       "id": "DOC-e5e85eccb1",
       "retention": {
         "class": "policy-version",
@@ -3606,7 +3606,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "cb14cd01f545b1b1057a6a5b5db8866a24c5cf2e3ca5cf1e31a4468572114c2a"
+      "contentHash": "c6edb9dc038f5fa054f89b5607ad16ab90f340a40259f24f9fc96a05411cacd5"
     },
     {
       "title": "Compliance Status Snapshot (2026-08-22)",
@@ -3633,7 +3633,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-3468caf949",
-      "contentHash": "50e829d6801ce14d16549a1ff78d4532c889018b1ffb3d258ccc13b257250039"
+      "contentHash": "a8fff3d550538660fa421579b4c2d863ae7ff5dad1e7d3b75a8c8ef9c09882b5"
     }
   ]
 }
