@@ -41,13 +41,15 @@
 ## Corrections in this successor
 
 This successor exists only to correct defects carried by its predecessor. Every count, finding
-id, framework figure, and posture claim is otherwise unchanged, and the snapshot boundary is
-still `64cdccba1` -- these corrections do not move the derivation to a later commit.
+id and framework figure is otherwise unchanged, and the snapshot boundary is still `64cdccba1` --
+these corrections do not move the derivation to a later commit. The one substantive claim that
+IS corrected is the Article 50(1) enablement claim; see the row for it below.
 
 | # | Defect in `2026-08-20_compliance-program.md` | Correction |
 |---|---|---|
 | 1 | "auditedDate 2026-08-12, 46 new findings" (:405) | 40 new findings. Verified against both `firstSeen: 2026-08-12` in the register (40 rows, 9 High / 18 Medium / 13 Low) and `audit-reports/run-log/runs.jsonl` (`"new": 40`). Wrong at every commit. |
 | 2 | "(publisher convention at HEAD) are **20 / 52 / 40**" (:111) and "Posture at HEAD" (:406) | pinned to `` `64cdccba1` ``, so the live-tense phrasing stops fighting the document's own pinned derivation. Values unchanged. |
+| 3 | Article 50(1) enablement claim: "the flag remains AVAILABLE-only, not enabled" | Restated as the CODE DEFAULT at `64cdccba1`, with the runtime source named, AND flagged as contradicted | The claim stated a RUNTIME fact but rested only on a code listing. `FeatureFlags` resolves the effective list through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`), a `Setting` DB row that falls back to the code constant only when unset. Separately, `docs/legal/2026-08-17_ai-data-flow-classification.md:132` -- CEO-attested 2026-08-19 -- records `article_50_disclosure_shown` TRUE on all 63 post-deploy `AiApiLog` rows, a column (`app/models/user.rb:1532-1539`) that is true only after an actual modal acknowledgement. **Production flag state must be read before this document is attested.** | (:151, :322)
 
 ## 1. Purpose and how to read this
 

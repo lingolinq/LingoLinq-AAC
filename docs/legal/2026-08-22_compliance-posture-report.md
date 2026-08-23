@@ -42,6 +42,13 @@
   `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for`
   (`lib/feature_flags.rb:132` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset, a database override a code listing cannot show.
   Production flag state must be verified before this statement is attested.
+  **CONTRADICTED BY ATTESTED EVIDENCE.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`,
+  itself CEO-attested 2026-08-19, records `article_50_disclosure_shown` TRUE on all 63
+  post-deploy `AiApiLog` rows. That column (`app/models/user.rb:1532-1539`) is true only after
+  an actual modal acknowledgement, which a never-enabled disclosure cannot produce. Scope
+  caveat from that same record: the 63 rows come from 2 accounts, consistent with internal
+  pre-tenant testing. Resolve by reading `SystemFeatureSettings.default_enabled_features` in
+  production before this document is attested or bundled.
 
 > **Methodology caveat for this section.** The infrastructure statements below were carried
 > forward from the 2026-07-23 predecessor and were NOT re-verified against live GCP or AWS
@@ -174,7 +181,9 @@ These are implemented and operating, not aspirational:
   but the `article_50_disclosure` flag is AVAILABLE-only -- not in
   `ENABLED_FRONTEND_FEATURES` -- in `lib/feature_flags.rb` at `64cdccba1`. As above, that is
   the code default; the runtime answer comes from the `SystemFeatureSettings` database
-  override and is unverified here.
+  override and is unverified here. See the CONTRADICTED BY ATTESTED EVIDENCE note in
+  "Changes since the 2026-08-09 draft" above: an attested record indicates the disclosure may
+  already be live in production.
 
 ## Infrastructure migration state
 

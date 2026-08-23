@@ -1,6 +1,6 @@
 # LingoLinq Compliance Status Snapshot
 
-**Date:** 2026-08-09 (content refreshed 2026-08-20)
+**Date:** 2026-08-09 (original); content refreshed 2026-08-20; corrected 2026-08-22 (this successor)
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Trigger:** Post–Gate 1 operate-mode maintenance: EU AI Act Article 50 date (2026-08-02) has
 passed; the customer-facing Posture Report still claims **8** open High from the 2026-07-23
@@ -33,13 +33,15 @@ snapshot, superseded).
 ## Corrections in this successor
 
 This successor exists only to correct defects carried by its predecessor. Every count, finding
-id, framework figure, and posture claim is otherwise unchanged, and the snapshot boundary is
-still `64cdccba1` -- these corrections do not move the derivation to a later commit.
+id and framework figure is otherwise unchanged, and the snapshot boundary is still `64cdccba1` --
+these corrections do not move the derivation to a later commit. The one substantive claim that
+IS corrected is the Article 50(1) enablement claim; see the row for it below.
 
 | # | Defect in `COMPLIANCE_STATUS_2026-08-09.md` | Correction |
 |---|---|---|
 | 1 | "added 46 new findings (9 High / 22 Medium / 15 Low)" (:43) and "46 net-new findings (9 High)" (:80) | 40 (9 / 18 / 13). Verified against `firstSeen: 2026-08-12` in the register and `audit-reports/run-log/runs.jsonl` (`"new": 40`, 40-element `newIds`). Wrong at every commit. |
 | 2 | "the live register at HEAD now reads **20** High" (:7) and "Live = `open` + `remediated-unverified` at HEAD" (:120) | pinned to `` `64cdccba1` ``. Values unchanged. |
+| 3 | Article 50(1) enablement claim: "remains AVAILABLE-only" | Restated as the CODE DEFAULT at `64cdccba1`, with the runtime source named, AND flagged as contradicted | The claim stated a RUNTIME fact but rested only on a code listing. `FeatureFlags` resolves the effective list through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`), a `Setting` DB row that falls back to the code constant only when unset. Separately, `docs/legal/2026-08-17_ai-data-flow-classification.md:132` -- CEO-attested 2026-08-19 -- records `article_50_disclosure_shown` TRUE on all 63 post-deploy `AiApiLog` rows, a column (`app/models/user.rb:1532-1539`) that is true only after an actual modal acknowledgement. **Production flag state must be read before this document is attested.** | (:88), and "Overdue since 2026-08-02" (:189)
 
 ## 1. Executive summary
 
@@ -190,7 +192,7 @@ customer-facing doc.
 |---|---|---|---|
 | Close or disposition the 20 live Highs | Scot / eng | SLA advisory 15-30d (8 already past) | Prioritize data-bearing: LL-16ef84ad9a, LL-522c1a6d13, LL-f150e0e828, LL-854b1d3853, plus the 2026-08-12 GCP access/logging set. |
 | Verify + attest 8 remediated-unverified | Scot | Near-term | LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium). |
-| Article 50(1) enablement decision | Scot / product | **UNVERIFIED - may already be enabled** (~~Overdue since 2026-08-02~~) | **CONTRADICTED BY ATTESTED EVIDENCE - DO NOT REPEAT UNTIL RESOLVED.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`, itself CEO-attested 2026-08-19, records a live production read: `article_50_disclosure_shown` is TRUE on all 63 post-deploy `AiApiLog` rows. That column comes from `User#article_50_disclosure_shown?` (`app/models/user.rb:1532-1539`), which returns true only when the user's `settings['ai_transparency']` carries a `shown_at` AND a matching `disclosures_version` -- i.e. only after an actual modal acknowledgement. A disclosure never enabled cannot produce that. (Scope caveat from that same record: the 63 rows come from 2 accounts, consistent with internal pre-tenant testing.) Resolve by reading `SystemFeatureSettings.default_enabled_features` in production before this document is attested.  Server-side backstop complete (#829/#831); WCAG contrast blocker LL-a9d6d5a46b is now remediated-unverified. LL-104bfa61dc (terms-agree modal switch scanning) remains the open blocker. |
+| Article 50(1) enablement decision | Scot / product | **UNVERIFIED - may already be enabled** (~~Overdue since 2026-08-02~~) | **CONTRADICTED BY ATTESTED EVIDENCE - DO NOT REPEAT UNTIL RESOLVED.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`, itself CEO-attested 2026-08-19, records a live production read: `article_50_disclosure_shown` is TRUE on all 63 post-deploy `AiApiLog` rows. That column comes from `User#article_50_disclosure_shown?` (`app/models/user.rb:1532-1539`), which returns true only when the user's `settings['ai_transparency']` carries a `shown_at` AND a matching `disclosures_version` -- i.e. only after an actual modal acknowledgement. A disclosure never enabled cannot produce that. (Scope caveat from that same record: the 63 rows come from 2 accounts, consistent with internal pre-tenant testing.) Resolve by reading `SystemFeatureSettings.default_enabled_features` in production before this document is attested. Prior status text follows: Server-side backstop complete (#829/#831); WCAG contrast blocker LL-a9d6d5a46b is now remediated-unverified. LL-104bfa61dc (terms-agree modal switch scanning) remains the open blocker. |
 | ACR / VPAT attestation | Scot | Before district asks; calendar refresh 2026-12-13 | Git + branded Drive still `draft`. |
 | Overdue monthly-light audit | Scot / compliance | Overdue 26d | Register has had no scan stamp since 2026-07-08. |
 | Overdue COPPA quarterly check | Scot / privacy | Overdue 14d | Only ongoing verification linked to passed-enforceable COPPA rule. |
