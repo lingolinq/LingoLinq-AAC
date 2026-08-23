@@ -50,7 +50,8 @@
   pre-tenant testing. Resolve by reading `SystemFeatureSettings.default_enabled_features` in
   production before this document is attested or bundled.
 
-> **Methodology caveat for this section.** The infrastructure statements below were carried
+> **Methodology caveat for this section.** The infrastructure statements in "Infrastructure
+> migration state" below were carried
 > forward from the 2026-07-23 predecessor and were NOT re-verified against live GCP or AWS
 > state in the 2026-08-20 register-only refresh or in this correction pass. Re-check before
 > attesting if infrastructure has changed since 2026-07-22. This mirrors the caveat the
@@ -82,8 +83,9 @@
 ## Corrections in this successor
 
 This successor exists only to correct defects carried by its predecessor. Every count, finding
-id, framework figure, and posture claim is otherwise unchanged, and the snapshot boundary is
-still `64cdccba1` -- these corrections do not move the derivation to a later commit.
+id and framework figure is otherwise unchanged, and the snapshot boundary is still `64cdccba1` --
+these corrections do not move the derivation to a later commit. The one substantive claim that
+IS corrected is the Article 50(1) enablement claim; see row 6 below.
 
 | # | Defect in `2026-08-20_compliance-posture-report.md` | Correction | Why it was wrong |
 |---|---|---|---|
