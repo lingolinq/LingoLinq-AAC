@@ -3437,6 +3437,25 @@ export default Controller.extend(prefClasses, {
     }
   ),
 
+  /* Copy and Set-as-Home are offered in VIEW mode, so they need their own
+     gates. can_edit_or_copy_board is deliberately not reused: it short-circuits
+     to true on edit permission, which would offer "Make a Copy" on a board the
+     owner is not allowed to copy (uncopyable / for_sale). */
+  can_copy_board: computed(
+    'model.uncopyable', 'model.for_sale', 'app_state.sessionUser',
+    function() {
+      if(!this.get('app_state.sessionUser')) { return false; }
+      return !this.get('model.uncopyable') && !this.get('model.for_sale');
+    }
+  ),
+
+  /* Anyone signed in can choose a home board. The set-as-home modal decides
+     whether a copy is required first and, for a supporter, which user it is
+     being set for -- so there is nothing more to gate on here. */
+  can_set_as_home: computed('app_state.sessionUser', function() {
+    return !!this.get('app_state.sessionUser');
+  }),
+
   undo_redo_disabled: computed('borders_matched', 'board_recolored', function() {
     return this.get('borders_matched') || this.get('board_recolored');
   }),
