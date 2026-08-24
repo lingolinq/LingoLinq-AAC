@@ -5810,29 +5810,20 @@ export default Controller.extend(prefClasses, {
       appState.set('modeling_paused', !appState.get('modeling_paused'));
     },
 
-    toggle_details_dropdown: function() {
-      var was_open = this.get('details_dropdown_open');
-      this.toggleProperty('details_dropdown_open');
-      var _this = this;
-      runLater(function() {
-        if(_this.isDestroyed || _this.isDestroying) { return; }
-        if(!was_open) {
-          var first_item = document.querySelector('.md-board-detail-share-dropdown .md-board-detail-share-dropdown__item');
-          if(first_item) { first_item.focus(); }
-        } else {
-          var trigger = document.querySelector('.md-board-detail-details-dropdown-wrap > button');
-          if(trigger) { trigger.focus(); }
-        }
-      }, 50);
-    },
+    /* G3: `toggle_details_dropdown` and `details_dropdown_keydown` were deleted
+       2026-08-24. They drove the "Details & Actions" dropdown that the
+       board-detail redesign removed — no template referenced either, and
+       `details_dropdown_keydown` was the ONLY route to the toggle (via
+       `_dropdown_keydown_handler`'s dynamic `send(opts.toggle_action)`), so the
+       whole chain was unreachable. `_dropdown_keydown_handler` itself stays: it
+       is live for `toggle_paint_dropdown`.
 
-    details_dropdown_keydown: function(event) {
-      this._dropdown_keydown_handler(event, {
-        state_prop: 'details_dropdown_open',
-        item_sel: '.md-board-detail-share-dropdown__item',
-        toggle_action: 'toggle_details_dropdown'
-      });
-    },
+       The `details_dropdown_open` FLAG is deliberately left in place. Several
+       surviving actions still write it and the document click-handler at ~:604
+       reads it; with the toggle gone it is simply always false, which is
+       harmless. Untangling it means touching ~20 sites across two files
+       including a global click handler — a refactor, not a deletion, and not
+       worth the regression surface in this controller. */
 
     // ── Display Preferences Panel ──
     toggle_display_font_dropdown: function() {
@@ -6405,9 +6396,10 @@ export default Controller.extend(prefClasses, {
       }, function() {});
     },
 
-    toggle_share_dropdown: function() {
-      this.toggleProperty('share_dropdown_open');
-    },
+    /* G3: `toggle_share_dropdown` deleted 2026-08-24 — the share dropdown it
+       opened was removed in the redesign and nothing referenced this. Its
+       `share_dropdown_open` flag is left for the same reason as
+       `details_dropdown_open` above. */
 
     other_board_actions: function() {
       this.set('details_dropdown_open', false);
@@ -7939,29 +7931,11 @@ export default Controller.extend(prefClasses, {
       }
     },
 
-    toggle_folder_dropdown: function() {
-      var was_open = this.get('folder_dropdown_open');
-      this.toggleProperty('folder_dropdown_open');
-      var _this = this;
-      runLater(function() {
-        if(_this.isDestroyed || _this.isDestroying) { return; }
-        if(!was_open) {
-          var first_item = document.querySelector('.md-board-detail-folder-dropdown .md-board-detail-folder-dropdown__item');
-          if(first_item) { first_item.focus(); }
-        } else {
-          var trigger = document.querySelector('.md-board-detail-edit-toolbar__btn--folder-toggle');
-          if(trigger) { trigger.focus(); }
-        }
-      }, 50);
-    },
-
-    folder_dropdown_keydown: function(event) {
-      this._dropdown_keydown_handler(event, {
-        state_prop: 'folder_dropdown_open',
-        item_sel: '.md-board-detail-folder-dropdown__item',
-        toggle_action: 'toggle_folder_dropdown'
-      });
-    },
+    /* G3: `toggle_folder_dropdown` / `folder_dropdown_keydown` deleted
+       2026-08-24 — same shape as the details pair above. No template referenced
+       either; the keydown handler was the only route to the toggle. The
+       `folder_dropdown_open` flag stays (read by the document click-handler and
+       reset in routes/user/board-detail.js:333). */
 
     match_borders_to_fill: function() {
       var ob = this.get('ordered_buttons') || [];

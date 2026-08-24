@@ -37,7 +37,15 @@
           <dd>
             {{this.model.downstream_boards}}
           </dd>
-        <dt>{{t "Available Buttons" key="available_buttons"}}</dt>
+        {{!-- N8: this is `unlinked_buttons` — buttons with no `load_board`, i.e.
+              ones that SPEAK rather than navigate, summed across the whole linked
+              set (board.rb:854). The old label "Available Buttons" read as "how
+              many buttons are on this board", so a 24-cell board showing 10 looked
+              like a bug; it is not, the other 14 are navigation. The number was
+              right and the label was wrong. New key rather than restating
+              `available_buttons`, so existing translations of that string are not
+              silently repurposed to a different meaning. --}}
+        <dt title={{t "Buttons that speak a word or phrase, across this board and every board it links to. Navigation buttons are not counted." key="word_buttons_explainer"}}>{{t "Word Buttons" key="word_buttons"}}</dt>
           <dd>
             {{this.model.unlinked_buttons}}
           </dd>

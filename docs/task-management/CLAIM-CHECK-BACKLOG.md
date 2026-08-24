@@ -196,6 +196,20 @@ Judged not worth a fourth placement change without a design call.
   identified — now fixed.
 - **Direct-URL 500/502s** — did not reproduce; Render free-tier spin-down. Infra decision (D12).
 - **Board editor Save/Cancel pinned** — working as intended; it is the pattern Preferences borrowed.
+- **Placeholder siblings of the "No name" bug — NOT the same class (audited 2026-08-24).** `Board`
+  seeds `"Unnamed Board"` (`board.rb:840`), `Organization` seeds `"Unnamed Organization"`
+  (`organization.rb:54`), `Device` seeds `'Web browser for Desktop'` (`device.rb:19`). All three are
+  the same truthy-not-null *shape*, but none reproduces the defect. What made `"No name"` a bug was
+  that it silently defeated `name || user_name` — a guard written everywhere, so every account showed
+  a placeholder instead of its handle. **No equivalent `name || key` fallback exists for boards**
+  (the only two hits are record-vs-plain-object normalisation in `board-collection.js:401` and
+  `board-picker.js:239`), and the sentinel is already explicitly guarded where it matters
+  (`board.rb:1233`, `:1644`, `:2601`, `board/index.js:1011`). Scale: **1 of 2247** boards in dev, and
+  "Unnamed Board" reads correctly to a user in a way "Hi No name" never did. Note the earlier
+  sighting of "Copy of Unnamed Board" in the copy modal was the modal reporting the board's REAL
+  name, not a failure to read it — `lingolinq/keyboard` is genuinely named that in the dev database.
+  Removing these seeds would also hit the trap recorded in LEARNINGS: it repairs guarded consumers
+  and breaks unguarded ones. No action.
 
 ## C. Corrected — v2's headline new finding is wrong, and its fix is explicitly forbidden
 
@@ -327,10 +341,45 @@ approval mints the token and lets the child in. The child-facing UI passed 8/8 i
 with a parent or guardian" screen, a clear reason on the login page, and a self-service **"Resend
 approval email to parent"** control.
 
-**Still open from N1:** `Worker.domain_id` / `set_domain_id` remain dead code, so a queued email
-still cannot resolve an org's *custom domain* and will use `DEFAULT_HOST` — multi-domain deployments
-would send consent links pointing at the default host. SES deliverability is still unverified
-(construction only); so are the parent-facing approval/revoke pages and the 14-day token expiry.
+**Parent-facing pages: verified 12/12 in-browser (2026-08-24).** `n1-consent-pages-qa.mjs`. Valid
+approval → *"Thank you — Parental consent has been recorded"*; clicked twice → *"Consent already
+recorded"*; tampered token → *"Link invalid or expired"*; **a 15-day-old link is correctly rejected**,
+so the 14-day `parent_consent_expires_at` window works; revoke → *"Consent withdrawn — the account is
+now restricted and the child cannot sign in"*; revoke twice → *"Consent already withdrawn"*. No token
+echoed into any page, no false success, no 500s. Note the revoke page's promise that the child
+"cannot sign in" was only half-true until the `invalidate_keys!` fix above — existing sessions
+survived. It is now accurate.
+
+### N1 follow-up — queued mail cannot resolve a custom domain (OPEN, not fixed)
+
+Broader than COPPA and pre-existing. Nothing restores the request host in a Resque worker
+(`Worker.domain_id` / `Worker.set_domain_id` are defined at `lib/worker.rb:89` and `:149` and called
+from **nowhere**), so in a worker `JsonApi::Json.current_domain` returns the default domain —
+measured: `host: nil`, `app_name: "LingoLinq"`.
+
+Mail reads that blob for more than links: `app_name` (`mailers/concerns/general.rb:20`), the **From
+address** via `admin_email` (`general.rb:7`, `admin_mailer.rb:10`, `subscription_mailer.rb:10`),
+`full_domain` (`general.rb:16`), and `mailer_helper.rb:34` hands the whole settings hash to the
+templates. Organizations can set per-host `host_settings` and even `email_templates`
+(`organization.rb:1206-1218`).
+
+**So for an org on a custom domain, every queued email is sent with DEFAULT branding, a default From
+address, and links to `DEFAULT_HOST` instead of their domain.** `absolute_host` fixed the *shape* of
+those links; it cannot fix *which host* they point at.
+
+**Deliberately not fixed here.** The remedy is to capture the domain at enqueue and restore it at
+perform — i.e. actually use the two dead methods — which touches every background job in the app. No
+org with `custom_domain: true` exists in the dev database (`Organization.load_domains` → `[]`), so
+there is nothing local to test against, and whether any exists in production is unverified from here.
+Shipping a core Worker change blind against zero test coverage is exactly the bet RULE #0 forbids.
+
+Scoped as: confirm whether any production org uses a custom domain (if none, this is latent and can
+wait); if so, add host capture/restore to `Worker` with a custom-domain fixture and specs covering at
+least one queued mailer.
+
+**Still unverified after all of the above:** SES deliverability — `development.rb:42` sets
+`delivery_method = :ses` with `raise_delivery_errors = false`, so local failures are silent and only
+message *construction* has ever been exercised, never transmission.
 
 ## G. Orphaned-control sweep (2026-08-23)
 
@@ -367,7 +416,30 @@ copyable board, prompting a copy — but "Edit" signals *modify this board*, not
 board*. A supporter evaluating a vocabulary they don't own will not click it. That is why two
 independent reviewers concluded the actions were missing entirely.
 
-**This supersedes the narrow framing of D1**: it is not one missing menu entry, it is nine actions
+**RESOLVED 2026-08-24 — all nine now have a view-mode route.** `set_as_home` and `make_a_copy` were
+restored to the options menu earlier (see A1); `share_board`, `print_board` and `download_board`
+already had one under Share & Print. The final four — `board_details`, `toggle_favorite`,
+`add_to_sidebar`, `other_board_actions` — now live in a **"Board Actions" submenu** in the view-mode
+options menu.
+
+Wired to `board_submenu_open` / `toggle_board_submenu`, which **already existed in the controller
+with no template referencing them** — an orphaned control left behind by the very migration this
+finding is about. Wiring it rather than adding new state dropped `lingolinq/no-orphaned-action` from
+74 to 73, so this also retires one item from the G5 triage list.
+
+A submenu rather than four more top-level rows: the menu is already long and these are secondary to
+Edit / Set as Home. All four are safe outside edit mode — `board_details` passes
+`edit_mode: this.get('edit_mode')` so its modal renders read-only, and `other_board_actions` opens
+`modals/board-actions`, which already tells the user which items their permissions withhold. Gated on
+a signed-in user, since favouriting and the sidebar write to that user's own account. The favourite
+row's label now tracks state ("Set as Favorite" / "Remove Favorite") — a toggle that always reads the
+same gives no feedback that the tap worked.
+
+*Verified:* `scripts/g2-board-actions-qa.mjs` → **10/10** — submenu opens in confirmed view mode, all
+four reachable by real clicks, and all four fire (three open their modal; the favourite label flips
+false→true). eslint gate `new=0`; 5/5 unit tests; template-lint clean.
+
+**This superseded the narrow framing of D1**: it is not one missing menu entry, it is nine actions
 migrated to an edit-mode-only surface. Fixing D1 by adding two items to `board-actions.hbs` treats
 the symptom; the question worth answering first is which of the nine belong in a view-mode surface.
 
@@ -426,6 +498,204 @@ dynamic `send(someVar)` is unknowable. Absence of a hit is not proof of reachabi
 
 **Still worth doing:** triage the 74 baselined cases. They are leads, not confirmed dead code —
 `orphans.json` and section G3 hold the ones already verified.
+
+### Sticky action bars: the `.md-shell` fix is now global (2026-08-24)
+
+The Preferences sticky-bar fix (`35cc67d05`) shipped scoped to
+`#content:has(.md-preferences) .md-shell--user`, with a note that `.md-shell` is shared and a global
+change needed its own regression pass. That pass is done and the fix now lives on `.md-shell` itself;
+the narrow override is deleted (CLAUDE.md rule 7 — edit the original rather than stacking).
+
+**The bug, restated:** per CSS spec an `overflow` of `hidden` on one axis computes the other to
+`auto`, so `.md-shell`'s `overflow-x: hidden` silently made the shell a scrolling box on Y — measured
+`overflow-y: auto` with `scrollHeight === clientHeight`, i.e. a scrollport that never scrolls.
+`position: sticky` binds to the nearest scrolling box, so **every** sticky element on a shell page was
+pinned inside it and rendered inert at its natural offset. `clip` still contains horizontal overflow
+but does not establish a scrollport, so sticky resolves against the real scroller (`#content`).
+
+**Two declarations, deliberately:** `overflow-x: hidden` then `overflow-x: clip`. `clip` is
+unsupported before Safari 16; there the second line is dropped as invalid and the first still
+contains overflow, so old iPads keep the previous (sticky-inert) behaviour rather than losing
+containment and gaining a horizontal scrollbar. That matters for an AAC product on older hardware.
+
+**Regression pass** — `scripts/md-shell-sticky-qa.mjs`, 7 shell pages (preferences, home, badges,
+goals, subscription, boards, stats), **15/15**: every shell now reports
+`overflow-x: clip / overflow-y: visible`, no page gained horizontal overflow
+(`document.scrollWidth == viewport` on all 7), and the Preferences bar still pins (y=642) covering
+nothing.
+
+**The risk of going global was the mirror of the bug** — elements that were inert suddenly pinning and
+covering content on pages nobody checked. Enumerated: **Preferences is the only shell page with any
+sticky descendant at all.** So today the global rule is behaviourally identical to the scoped one; it
+is simply correct for the next sticky element somebody adds, instead of silently inert.
+
+### D7 / G3 / N7 / N8 (2026-08-24)
+
+**D7 — preview-modal CTA pinned. FIXED, 20/20** (`scripts/d7-preview-cta-qa.mjs`, 4 viewport sizes
+incl. the reported ~620px). `.md-board-preview__actions` is now `position: sticky`, pinned to the
+bottom of `.md-board-details-modal__body` (the real scrollport). Checked first that neither
+`.md-board-preview` nor `__canvas-col` declares `overflow` — an ancestor with `overflow` hidden on
+either axis silently becomes the scrollport, which is the bug behind the `.md-shell` fix.
+`bottom: -28px`, not `0`: sticky resolves against the scrollport's CONTENT box, so at `0` the bar
+floated 28px up and scrolled content showed through the body's bottom padding beneath it (measured —
+row bottom 579 vs body bottom 607). Pushing it down by that padding and adding the same 28px to its
+own padding-bottom keeps the buttons where they were and lets the background cover the gutter; row
+bottom now equals body bottom exactly at every size. Verified the CTA is in-viewport **with the body
+scrolled to the top** and wins its own hit-test.
+
+**G3 — partially done, and the backlog's framing was too confident.** Deleted five genuinely dead
+leaf actions: `toggle_details_dropdown`, `details_dropdown_keydown`, `toggle_share_dropdown`,
+`toggle_folder_dropdown`, `folder_dropdown_keydown`. Each had no call site; the keydown handlers were
+the *only* route to their toggles, via `_dropdown_keydown_handler`'s dynamic
+`send(opts.toggle_action)` (`board-detail.js:4957`). That handler stays — it is live for
+`toggle_paint_dropdown`.
+
+**Not deleted, deliberately.** The backlog listed the `*_dropdown_open` FLAGS as dead too. They are
+not: `details_dropdown_open` is read by the document click-handler at ~`:604` and written by ~8
+surviving actions, and `folder_dropdown_open` is reset from `routes/user/board-detail.js:333`.
+Removing them means touching ~20 sites across two files including a global click handler — a refactor
+with real regression surface in the app's largest controller, not the tidy deletion the entry
+implies. With the toggles gone the flags simply stay false, which is harmless. Also left alone:
+`open_board_picker`, `toggleSetHomeMode`, and the view-style family (`go_to_classic`,
+`go_to_modern_edit`, `set_board_view_style`, `revert_to_old_style`) — those are potential *features*,
+not scaffolding. Note `go_to_modern_edit` lives in a different controller (`board/index.js:1471`) and
+`go_to_classic` is referenced by five comments as a live pattern, so "superseded by `set_view_style`"
+needs its own trace before anyone deletes them.
+
+*Lint discipline:* deletions shifted line numbers, so the gate reported `new=18` against a total that
+had **dropped** 1530 → 1525. Verified per-rule before rebaselining — nothing grew; the entire delta
+is `lingolinq/no-orphaned-action` −3 and `ember/no-runloop` −2 (the two deleted toggles each held a
+`runLater`). Four core rules appeared to "grow" only because they are unprefixed and my first
+comparison filtered them out; confirmed identical to baseline (16/8/2/2) and in files not touched.
+
+**N7 — does not reproduce.** Loaded the landing page logged-out with console, pageerror and response
+listeners attached: **zero** console errors and no 4xx. The reported 405/404 were seen on staging, so
+this is environment-specific rather than a code defect. Needs a repro against staging to re-open.
+
+**N8 — label fixed; the "clipping" half does not reproduce.** "Available Buttons: 10" on a 24-cell
+board was **the right number under the wrong label**. The value is `unlinked_buttons` — buttons with
+no `load_board`, i.e. ones that SPEAK rather than navigate, summed across the whole linked set
+(`board.rb:854`). The other 14 cells are navigation. Relabelled to **"Word Buttons"** with an
+explanatory `title`, under a NEW key so existing translations of `available_buttons` are not silently
+repurposed. Verified in-browser. The second half — "description clips mid-sentence" — is the same
+misreport shape as the modal-scroll claim in section B: `.md-board-preview__description` is
+`max-height: 190px; overflow: auto`, so it scrolls and no text is lost.
+
+### Tap targets and the timezone-fragile stats specs (2026-08-24)
+
+**Tap targets — measured, NOT a defect, no change made.** Swept the board-detail controls from
+1440px down to 320px. The options toggle and sidebar toggle are **44x44 down to 712px** (the base
+rule already carries a `WCAG 2.5.5 AAA touch target` comment) and shrink to 32x31, then 32x26 at
+<=390px. **Every tier clears WCAG 2.5.8 AA (24x24); nothing measured below 24 anywhere.** AAA
+(44x44) is therefore met on tablet/desktop and deliberately traded away on phones — `app.scss:69775`
+explains why: these are "row-height-forcing controls", and at 44px each they hold the sentence bar
+~90px tall, taking space from the communication surface. Enlarging them is a design decision with a
+real cost to an AAC user, not a compliance fix, so it was left alone. The 26px height on the primary
+communication surface is still worth a deliberate product call.
+
+### The stats timezone failures are a PRODUCTION bug, not a spec bug (OPEN)
+
+The backlog carried "~10 stats specs share the UTC-only shape". Measured: `spec/lib/stats_spec.rb`
+is **58 examples — 4 failures under TZ=Pacific/Auckland and TZ=Asia/Tokyo, 1 under Europe/London, 0
+under Honolulu, Denver and UTC.** So the fragility is real, but it is not in the specs.
+
+All four failures are `expect(res[:days].length).to eq(4)` returning 5. **An attempted spec-side fix
+was made and reverted** — making both ends of the range come from one clock (`Time.now` rather than
+mixing `3.days.ago` with `Time.now`) is better hygiene but changes nothing, because
+`Stats.find_sessions` calls `sanitize_find_options!`, which **rewrites both ends before the day loop
+ever reads them** (`lib/stats.rb:801`, `:767-788`):
+
+```ruby
+end_time = (options[:end_at].to_date + 1).to_time      # local midnight AFTER the end date
+options[:end_at]   = (end_time + end_time.utc_offset - 1).utc
+options[:start_at] = options[:start_at].to_time.utc    # plain conversion, no local-date step
+```
+
+The two ends are normalised **asymmetrically**: the end is snapped to the end of its *system-local*
+date and then offset-shifted into UTC, while the start is converted straight to UTC. In a zone ahead
+of UTC the local date is a day ahead, so the normalised end lands one UTC date further from the
+start and `start.to_date.upto(end.to_date)` yields an extra bucket. Traced under Auckland: end
+normalises to `2026-08-25` UTC against a start of `2026-08-21` — five days; the same inputs in UTC
+give four.
+
+**This is a real reporting bug, not test flake.** `daily_use` is what backs per-day usage reports, so
+for any user east of UTC the day range can carry an extra, empty day — and `lib/stats.rb:86` already
+admits it with `# TODO: this doesn't account for timezones at all.`
+
+**Deliberately not fixed here.** Correcting the normalisation changes report boundaries for real
+users and needs a product answer first — should a day boundary follow the *communicator's* timezone,
+the *server's*, or UTC? Weakening the assertions to make CI green would bury a live defect. Scoped
+as: decide the zone semantics, fix `sanitize_find_options!` symmetrically, then assert day counts in
+that zone.
+
+### D4 — "board clutter" investigated: the premise is wrong (2026-08-24)
+
+**The backlog said:** *"350+ boards after two picks. Each pick clones the whole linked set; old
+copies are never cleaned up."* Measured against the dev database — both halves of that are wrong.
+
+**It is signup, not picks.** Two COPPA test accounts created today own **300 boards each**, made
+**within 2 seconds of the account row itself** and before any board was ever picked (`home_board`
+preference still `{}`). `UserBoardProvisioner.provision_for` runs on account creation
+(`api/users_controller.rb:274`, also `session_controller.rb:966`) and copies whole linked sets:
+
+| root slug | boards in its linked set |
+|---|---|
+| quick-core-60 | 61 |
+| vocal-flair-60 | 94 |
+| vocal-flair-84 | 97 |
+| crisis-vocabulary | 1 |
+| senner-baud | 43 |
+| + `yesno`, `inflections` (sidebar utilities) | 2 |
+
+296 + 2 ≈ **300 — exactly the observed count.** Gated by `signup_default_library_boards`, which is
+**ON by default** (`FeatureFlags.signup_default_library_boards_enabled?` → true).
+
+**Copies do NOT accumulate.** Checked every user for two copies of the same source board
+(`parent_board_id` tallied per owner): **no user anywhere has a duplicate.** Picking a board already
+in your library does not re-clone it, so "old copies are never cleaned up" does not reproduce. The
+per-pick growth the reviewer inferred is not the mechanism.
+
+**So D4 is not a bug — it is a design question with a number attached.** Every new account
+materialises ~300 board rows (plus their BoardContent and button sets) before the user does anything.
+That is deliberate: it gives a new user a browsable starter library and makes boards work offline.
+The two real questions, neither of which is mine to answer:
+
+1. **Is a 300-board starter library the right default**, or should provisioning be lazier (copy on
+   first use / on pick)? At launch scale this is 300 rows per signup.
+2. **The user-visible complaint is the boards LIST, not the row count.** 300 entries in "My Boards"
+   is overwhelming regardless of whether the rows are justified. That may be a filtering/grouping UX
+   fix rather than a provisioning change — and it would address the reported symptom without touching
+   the offline story.
+
+Re-scoped as a product decision, not a defect. Note the `example` account (100 boards) predates the
+current slug list, so counts vary by signup date.
+
+### D6 — editor label truncation: NOT reproduced, and the backlog's premise is also wrong (OPEN)
+
+**The backlog said:** *"no ellipsis rule exists; labels are dynamically sized. Speak Mode renders
+them fine, so it is editor-cell specific."*
+
+**An ellipsis rule does exist.** Measured on `/example/board-detail/communikate-home` in speak mode:
+18 cell labels, **0 clipped**, and `.md-board-detail-symbol-card__label` computes
+`overflow: hidden; text-overflow: ellipsis; white-space: normal` at 21.6px. So the first clause is
+false.
+
+**The surface is not what earlier notes assumed.** `.button-label` — the class
+`edit_manager.js:1041` writes, and the one an earlier trace pointed at — **does not appear on
+board-detail at all** (0 nodes in either mode). That markup belongs to the CLASSIC board view
+(`templates/board/index.hbs`, `user/board-alt`). Modern board-detail renders
+`.md-board-detail-grid__cell` / `.md-board-detail-symbol-card__label`.
+
+**Not reproduced in edit mode.** After entering edit mode the probe found **0 text nodes inside
+`.md-board-detail-grid__cell`** — the editor re-renders the grid with different markup again, which
+the probe did not capture.
+
+**What this needs before anyone attempts a fix:** a specific repro — which board, which label text,
+which view (modern editor vs classic), and at what viewport width. Without that, the previous two
+attempts have both aimed at the wrong markup family. Worth noting that `edit_manager.js:1041` writes
+`<span class='button-label' style='display: inline;'>` — an INLINE-styled `display: inline`, which
+cannot be clipped by `text-overflow: ellipsis` at all — so if the report came from the classic view,
+that inline style is the first thing to check.
 
 ## F. Housekeeping
 

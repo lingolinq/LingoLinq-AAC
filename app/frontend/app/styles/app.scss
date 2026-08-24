@@ -43766,7 +43766,27 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 
   max-width: 100% !important;
 
+  /* `clip`, not `hidden` — this governs whether `position: sticky` works ANYWHERE
+     inside the shell. Per CSS spec an `overflow` of `hidden` on one axis makes the
+     other compute to `auto`, so `overflow-x: hidden` silently turned .md-shell into
+     a scrolling box on Y (verified in-browser: computed overflowY "auto", with
+     scrollHeight === clientHeight === 2138 — it never actually scrolls). Sticky
+     binds to the nearest scrolling box, so every sticky element on a shell page was
+     pinned inside a scrollport that never moves, and rendered at its natural offset:
+     inert. `clip` still prevents horizontal overflow but does NOT establish a scroll
+     container, so overflow-y stays `visible` and sticky resolves against the real
+     scroller (#content).
+
+     Two declarations on purpose: `clip` is unsupported before Safari 16, where the
+     second line is dropped as invalid and the first still contains horizontal
+     overflow. Those browsers keep the old (sticky-inert) behaviour rather than
+     losing containment and gaining a horizontal scrollbar.
+
+     Was previously scoped to `#content:has(.md-preferences) .md-shell--user` while
+     the global change awaited a regression pass; that pass is done (see
+     scripts/md-shell-sticky-qa.mjs) and the narrow override is removed. */
   overflow-x: hidden !important;
+  overflow-x: clip !important;
 
   padding-top: 3rem !important;
 
@@ -43821,23 +43841,9 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      against #content's top padding and overflow. */
   min-height: 0 !important;
 }
-/* Preferences only: let the page's sticky action bar (.md-preferences__actions)
-   actually stick. `.md-shell` above sets `overflow-x: hidden`, and per CSS spec a
-   `visible` value on the OTHER axis computes to `auto` when its partner is
-   `hidden` — so the shell silently becomes a scrolling box on Y even though no
-   overflow-y is declared anywhere (verified in-browser: computed overflowY on
-   .md-shell--user is "auto", with scrollHeight === clientHeight === 2138, i.e. it
-   never actually scrolls). `position: sticky` binds to that nearest scrolling
-   box, so the bar was pinned inside a scrollport that never moves and rendered at
-   its natural y=2026 in an 800px viewport — inert.
-   `clip` is the fix rather than removing the hidden: it still prevents horizontal
-   overflow but does NOT establish a scroll container, so overflow-y stays
-   `visible` and sticky resolves against the real scroller (#content /
-   div.with_user.new_index). Scoped to preferences deliberately — `.md-shell` is
-   shared by many pages and a global change needs its own regression pass. */
-#content:has(.md-preferences) .md-shell--user {
-  overflow-x: clip !important;
-}
+/* (The preferences-only `overflow-x: clip` override that used to live here is
+   gone — the fix is now on `.md-shell` itself, with a `hidden` fallback for
+   pre-16 Safari. See the comment on that rule.) */
 
 .md-workspace {
   max-width: min(1200px, calc(100% - 24px)) !important;
@@ -83396,6 +83402,43 @@ span.md-board-detail-sentence-bar__modeling-badge--paused:hover {
   /* Guaranteed breathing room between the bottom of the preview canvas and the
      buttons, independent of the flex/auto-margin sizing above. */
   padding-top: 24px;
+
+  /* D7: pin the CTA row to the bottom of the scrolling modal body. At short
+     viewport heights the primary action ("Pick this Board" in picker/recommend
+     mode, "Try This Board" otherwise) sits below the fold — the modal DOES
+     scroll, so it was reachable but easy to miss at the exact moment someone
+     chooses a home board.
+
+     `bottom: 0` is the pinned-footer case, not the fragile one: the element is
+     the last child of a TALL containing block (.md-board-preview__canvas-col,
+     which holds the canvas), so sticky has the full column height to pull it
+     UP into view. The scrollport it binds to is
+     .md-board-details-modal__body (`overflow: auto`); neither
+     .md-board-preview nor __canvas-col declares overflow, so nothing
+     intermediate captures it — checked, because an ancestor with `overflow`
+     hidden on either axis silently becomes the scrollport (the bug behind the
+     .md-shell sticky fix).
+
+     Negative inline margins cancel the body's 28px gutters and are re-added as
+     padding, so the bar spans the full width and scrolled content does not show
+     through beside it. Background matches .md-board-details-modal__content.
+
+     `bottom: -28px` rather than 0 because sticky resolves against the
+     scrollport's CONTENT box: at `bottom: 0` the bar floats 28px up from the
+     body's edge (measured) and scrolled content shows through the body's
+     28px bottom padding beneath it. Pushing it down by that padding and adding
+     the same 28px to its own padding-bottom keeps the buttons visually where
+     they were while the background covers the gutter. */
+  position: sticky;
+  bottom: -28px;
+  z-index: 2;
+  margin-left: -28px;
+  margin-right: -28px;
+  padding-right: 28px;
+  padding-left: 28px;
+  padding-bottom: 44px;
+  background: #fff;
+  border-top: 1px solid rgba($la-navy, 0.08);
 }
 /* Modern button override — beats the legacy `.btn` / `.btn-lg`
    bootstrap rules that were on these elements (we keep the bootstrap
