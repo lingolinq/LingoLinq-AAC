@@ -29,6 +29,16 @@ post-under-13-signup gap. All other v2 findings are restatements of v1.
 | Speak Mode tour repeats on every board | `b0e32c94d` | Pick #1 fires, pick #2 does not |
 | Tour cannot be dismissed from the keyboard | `b0e32c94d` | Escape closes, arrows advance |
 | Tour progress never persisted at all (not in either report) | `b0e32c94d` | `guided_tours_completed` was missing from the server allowlist — the "seen" badge had never worked |
+| **D1** — Set as Home / Make a Copy unreachable outside edit mode | `7692d3c08` | Two of the nine edit-panel actions restored to the view-mode header, with gating tests. **Seven remain edit-mode-only** — see G2. |
+| **D2** — home-board pick: no progress explanation, no confirmation | `231bdcaeb` | Copy-wait explainer + the self-pick confirmation the pick-for-others path already had |
+| **D10** — beta-feedback tab centred on every page | `868193344` | Corner-anchored. Its a11y sub-finding did **not** reproduce — see below. |
+
+> **D10's accessibility claim is closed as not-reproducing.** All three `BetaFeedbackPanel` render
+> sites carry `inert` + `aria-hidden` when closed, added 2026-07-08 — *before* the Aug 20 re-test.
+> Needs a fresh repro to re-open.
+>
+> **None of D1/D2/D10 is browser-verified yet** — gates and compile are tested, the rendered result
+> is not. See the handoff's Part 3.
 
 ## B. Closed — investigated, not defects
 
