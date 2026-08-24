@@ -301,9 +301,9 @@ class UserMailer < ActionMailer::Base
     end
 
     esc_tok = CGI.escape(c['parent_consent_token'].to_s)
-    @consent_url = "#{JsonApi::Json.current_host}/parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @consent_url = "#{JsonApi::Json.absolute_host}/parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
     # COPPA direct-notice: surface our privacy practices to the parent before they consent.
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
     @child_name = @user.settings['name']
     @parent_email = c['parent_email']
     @consent_age = JsonApi::Json.coppa_consent_age(@user)
@@ -327,9 +327,9 @@ class UserMailer < ActionMailer::Base
     end
 
     esc_tok = CGI.escape(c['parent_consent_revoke_token'].to_s)
-    @revoke_url = "#{JsonApi::Json.current_host}/parental_consent/revoke?user_id=#{@user.global_id}&token=#{esc_tok}"
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
-    @contact_url = "#{JsonApi::Json.current_host}/contact"
+    @revoke_url = "#{JsonApi::Json.absolute_host}/parental_consent/revoke?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @contact_url = "#{JsonApi::Json.absolute_host}/contact"
     @child_name = @user.settings['name']
     @child_username = @user.display_user_name
     @parent_email = c['parent_email']
@@ -358,8 +358,8 @@ class UserMailer < ActionMailer::Base
       return message
     end
 
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
-    @contact_url = "#{JsonApi::Json.current_host}/contact"
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @contact_url = "#{JsonApi::Json.absolute_host}/contact"
     @child_name = @user.settings['name']
     @child_username = @user.display_user_name
     @parent_email = c['parent_email']
@@ -389,8 +389,8 @@ class UserMailer < ActionMailer::Base
     end
 
     esc_tok = CGI.escape(c['parent_consent_token'].to_s)
-    @consent_url = "#{JsonApi::Json.current_host}/eu_ai_parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
+    @consent_url = "#{JsonApi::Json.absolute_host}/eu_ai_parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
     @child_name = @user.settings['name']
     @parent_email = c['parent_email']
     from = JsonApi::Json.current_domain['settings']['admin_email']
@@ -412,9 +412,9 @@ class UserMailer < ActionMailer::Base
     end
 
     esc_tok = CGI.escape(c['parent_consent_revoke_token'].to_s)
-    @revoke_url = "#{JsonApi::Json.current_host}/eu_ai_parental_consent/revoke?user_id=#{@user.global_id}&token=#{esc_tok}"
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
-    @contact_url = "#{JsonApi::Json.current_host}/contact"
+    @revoke_url = "#{JsonApi::Json.absolute_host}/eu_ai_parental_consent/revoke?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @contact_url = "#{JsonApi::Json.absolute_host}/contact"
     @child_name = @user.settings['name']
     @child_username = @user.display_user_name
     @parent_email = c['parent_email']
@@ -441,8 +441,8 @@ class UserMailer < ActionMailer::Base
       return message
     end
 
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
-    @contact_url = "#{JsonApi::Json.current_host}/contact"
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @contact_url = "#{JsonApi::Json.absolute_host}/contact"
     @child_name = @user.settings['name']
     @child_username = @user.display_user_name
     @parent_email = c['parent_email']

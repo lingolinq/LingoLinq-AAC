@@ -3,12 +3,12 @@ processing your purchase for the user account <b><%= @user.user_name %></b>. You
 card information may no longer be valid, we'll need updated information within the
 next few days in order to keep your <%= app_name %> account active.
 Please confirm your credit card information and
-<a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">update your
+<a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">update your
 billing settings again</a>.
 
 If you need help finding a funding solution, please don't be afraid to reach out to us, 
 we're willing to work with individuals to find a good solution. Just 
-<a href="<%= JsonApi::Json.current_host %>/contact">contact us</a>
+<a href="<%= JsonApi::Json.absolute_host %>/contact">contact us</a>
 to make a request.<br/><br/>
 
 Thanks!<br/>

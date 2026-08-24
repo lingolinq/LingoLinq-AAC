@@ -99,8 +99,8 @@ class Api::SystemEmailTemplatesController < ApplicationController
     text_custom = attrs[:text_body].presence
     html_template = html_custom || SystemEmailTemplates.default_body(@entry[:key], 'html') || ''
     text_template = text_custom || SystemEmailTemplates.default_body(@entry[:key], 'text') || ''
-    sample_consent_url = "#{JsonApi::Json.current_host}/parental_consent/complete?user_id=#{user.global_id}&token=sample-token"
-    sample_revoke_url = "#{JsonApi::Json.current_host}/parental_consent/revoke?user_id=#{user.global_id}&token=sample-revoke-token"
+    sample_consent_url = "#{JsonApi::Json.absolute_host}/parental_consent/complete?user_id=#{user.global_id}&token=sample-token"
+    sample_revoke_url = "#{JsonApi::Json.absolute_host}/parental_consent/revoke?user_id=#{user.global_id}&token=sample-revoke-token"
     sample_granted_at = Time.now.utc
     sample_revoked_at = Time.now.utc
 
@@ -174,8 +174,8 @@ class Api::SystemEmailTemplatesController < ApplicationController
     helper.instance_variable_set(:@user, user)
     helper.instance_variable_set(:@consent_url, sample_consent_url)
     helper.instance_variable_set(:@revoke_url, sample_revoke_url)
-    helper.instance_variable_set(:@privacy_url, "#{JsonApi::Json.current_host}/privacy")
-    helper.instance_variable_set(:@contact_url, "#{JsonApi::Json.current_host}/contact")
+    helper.instance_variable_set(:@privacy_url, "#{JsonApi::Json.absolute_host}/privacy")
+    helper.instance_variable_set(:@contact_url, "#{JsonApi::Json.absolute_host}/contact")
     helper.instance_variable_set(:@child_name, user.settings['name'])
     helper.instance_variable_set(:@child_username, user.display_user_name)
     helper.instance_variable_set(:@parent_email, (user.settings['coppa'] || {})['parent_email'] || 'parent@example.com')

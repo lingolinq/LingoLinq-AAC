@@ -1,9 +1,9 @@
 <%= @user.settings['name'] %> just signed up for <%= app_name %>!<br/><br/>
-User name: <b><a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>"><%= @user.user_name %></a></b><br/>
+User name: <b><a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>"><%= @user.user_name %></a></b><br/>
 Email: <b><%= @user.settings['email'] %></b><br/>
 Type: <b><%= @user.registration_type %></b><br/><br/>
 <% if (@user.settings['activations'] || []).length > 0 %>
-  Start Code: <a href="<%= JsonApi::Json.current_host %>/start_codes/<%= CGI.escape(@user.settings['activations'][0]['code'] || 'none') %>"><%= @user.settings['activations'].map{|a| a['code'] || 'none' }.join(', ') %></a><br/>
+  Start Code: <a href="<%= JsonApi::Json.absolute_host %>/start_codes/<%= CGI.escape(@user.settings['activations'][0]['code'] || 'none') %>"><%= @user.settings['activations'].map{|a| a['code'] || 'none' }.join(', ') %></a><br/>
 <% end %>
 <%if @location%>Location: <%= @location %><br/><% end %>
 <%if @user.settings['referrer']%>Source: <%= @user.settings['referrer'] %><br/><% end %>

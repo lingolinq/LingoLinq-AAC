@@ -280,7 +280,7 @@ runtime check before assuming it works.
 | # | Item | Size | Note |
 |---|---|---|---|
 | C1 | **Get counsel to sign off the documented age-gate position, then record it** | doc | The design is deliberate (see C). Two questions for counsel: is the non-consent legal basis for EU minors' accounts sound, and is Art. 8 consent correctly scoped to AI only? Then add it to the compliance register so the next reviewer doesn't re-raise it. Consider the FTC's month+year typed fields — which also closes D5. |
-| N1 | **Untested: the whole post-under-13-signup experience** | medium | Nobody has exercised the pending-approval state, the parent's approval email, or what the child can do while waiting. This is the COPPA path actually working or not. |
+| ~~N1~~ | ~~Untested: the whole post-under-13-signup experience~~ | — | **EXERCISED AND FIXED 2026-08-24 — see N1 detail below.** Two HIGH defects found and closed; the rest of the flow was correct. |
 | N2 | **Webview: Google OAuth will break** | medium | Google blocks OAuth from embedded webviews (`disallowed_useragent`). Needs Chrome Custom Tabs (Android) / `ASWebAuthenticationSession` (iOS), or hide the button in wrapped builds. |
 | N3 | **Webview: every dead end becomes a trap** | medium | No browser Back. Raises the stakes on D7 (tablet-shaped screens) and any screen without an in-app exit. The registration flow's "Change date of birth" links are the right pattern to copy. |
 | N4 | **Webview: parental approval crosses contexts** | medium | The parent opens the link in their own browser, so approval must sync back (poll/push) and the child's app needs a "waiting for your parent" state. Pairs with N1. |
@@ -289,6 +289,48 @@ runtime check before assuming it works.
 | N7 | Landing-page console errors (a 405 and a 404) | low | Small ticket. |
 | N8 | Preview-modal data oddities | low | "Available Buttons: 10" on a 24-cell board; description clips mid-sentence. |
 | N9 | Search results open in two steps | low | Not a bug — desktop layout is fine at 1280×800 and 1000×700. One click slower than CoughDrop. |
+
+### N1 detail — the under-13 / COPPA parental-consent path (2026-08-24)
+
+Driven end to end against a live stack (Rails + Ember + Resque): API create, the child-facing UI,
+the parent's email, the approval endpoint, login, and revoke. **Two HIGH defects, both fixed.**
+The working log is `2026-08-24-n1-under-13-signup-path.md` (gitignored, local).
+
+**HIGH 1 — the parental-consent approval link was unfollowable.** Every backend-built email URL was
+`"#{JsonApi::Json.current_host}/path"`. `current_host` is absolute only when set from a web request
+(`application_controller.rb:29` prepends `request.protocol`); its fallback `ENV['DEFAULT_HOST']` is a
+bare host by design (`.env.example:8` documents `www.lingolinq.com`). Mail is delivered from a Resque
+worker, which has no request — and nothing restores one, because `Worker.domain_id` /
+`Worker.set_domain_id` are **called from nowhere in the repo**. So the parent received
+`href="www.lingolinq.com/parental_consent/complete?..."`, a *relative* URL a mail client cannot
+follow. The child was correctly held pending and could never be approved: the COPPA gate failed
+closed — safe, but non-functional.
+*Fixed* with a new `JsonApi::Json.absolute_host` (scheme guaranteed, idempotent, loopback→http),
+applied to all 105 `current_host` uses in `app/mailers` + `app/views` (67 files), utterance
+email/SMS reply links, the email-template previews and the valet login URL. API-payload and
+OBF-export links were deliberately left on `current_host`.
+
+**HIGH 2 — revoking consent did not end the child's session.** `revoke_parental_consent!` called
+`devices.each(&:invalidate_cached_keys)`, which only drops the Redis `user_token/...` cache and
+leaves `settings['keys']` populated. `Device#valid_token?` checks only `disabled?` and key
+membership — no consent check — and refreshes `last_timestamp` on use, so an active session never
+aged out. Verified pre-fix: a token minted before revocation still returned the child's record from
+`/api/v1/users/self`. A parent could withdraw consent and the child stayed signed in.
+*Fixed* by switching that one call to `invalidate_keys!`. The sibling call sites (grant, submit
+parent email, family offboarding) keep the cache-only behaviour on purpose — they must not log
+anyone out.
+
+**What was already correct** (verified, not assumed): the gate is default-ON; the pending account
+gets no device token; confirm-registration / new-user / tracking emails are all suppressed while
+pending; login is blocked at four entry points (form login, API, Google OAuth, confirm-registration);
+approval mints the token and lets the child in. The child-facing UI passed 8/8 in-browser — a "check
+with a parent or guardian" screen, a clear reason on the login page, and a self-service **"Resend
+approval email to parent"** control.
+
+**Still open from N1:** `Worker.domain_id` / `set_domain_id` remain dead code, so a queued email
+still cannot resolve an org's *custom domain* and will use `DEFAULT_HOST` — multi-domain deployments
+would send consent links pointing at the default host. SES deliverability is still unverified
+(construction only); so are the parent-facing approval/revoke pages and the 14-day token expiry.
 
 ## G. Orphaned-control sweep (2026-08-23)
 
@@ -389,7 +431,13 @@ dynamic `send(someVar)` is unknowable. Absence of a hit is not proof of reachabi
 
 - Delete the stray staging account `claudec1claudec1` (automation retry).
 - Confirm which staging credentials are current — the Aug 13-14 ones returned 400 on re-test.
-- **Rotate the staging password** if the one quoted in the v1 report is still live.
+- **Rotate the staging password** if it is still live. *Corrected 2026-08-24: this item previously
+  read "the one quoted in the v1 report", which is wrong and caused a false alarm.* The v1 report
+  does **not** quote a password — it says "(password in the original report)", pointing at the
+  external reviewer's document. Verified: `2026-08-21-lingolinq-claim-check.md` has **never been
+  committed on any ref** (0 commits touch that path) and is gitignored by `.gitignore:149`
+  (`[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md`). **No staging password is in this repo or on
+  GitHub.** The exposure question, if any, is about the external report — not this repository.
 
 ---
 

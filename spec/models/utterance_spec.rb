@@ -295,9 +295,9 @@ describe Utterance, :type => :model do
         Worker.process_queues
         utterance.reload
         expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
-          {'cell' => '98765', 'pushed' => true, 'text' => "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A"}
+          {'cell' => '98765', 'pushed' => true, 'text' => "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}A"}
         )
-        expect(Worker.scheduled_for?('priority', Pusher, :sms, '98765', "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", nil)).to eq(true)
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '98765', "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}A", nil)).to eq(true)
         expect(utterance.data['sms_attempts'][0]['timestamp']).to be > 10.seconds.ago.to_i
       end    
     end
@@ -326,9 +326,9 @@ describe Utterance, :type => :model do
         Worker.process_queues
         utterance.reload
         expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
-          {'cell' => '5558675307', 'pushed' => true, 'text' => "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A"}
+          {'cell' => '5558675307', 'pushed' => true, 'text' => "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}A"}
         )
-        expect(Worker.scheduled_for?('priority', Pusher, :sms, '5558675307', "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", "+15551234567")).to eq(true)
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '5558675307', "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}A", "+15551234567")).to eq(true)
         expect(utterance.data['sms_attempts'][0]['timestamp']).to be > 10.seconds.ago.to_i
       end    
     end
@@ -361,7 +361,7 @@ describe Utterance, :type => :model do
         'recipient_id' => nil,
         'sharer_name' => u1.user_name,
         'utterance_id' => u.global_id,
-        'reply_url' => "#{JsonApi::Json.current_host}/u/#{u.reply_nonce}A",
+        'reply_url' => "#{JsonApi::Json.absolute_host}/u/#{u.reply_nonce}A",
         'to' => 'bob@example.com'
       })
       res = u.deliver_to({'sharer_id' => u1.global_id, 'email' => 'bob@example.com', 'share_index' => 0})
@@ -387,7 +387,7 @@ describe Utterance, :type => :model do
         'utterance_id' => u.global_id,
         'share_index' => nil,
         'reply_id' => nil,
-        'reply_url' => "#{JsonApi::Json.current_host}/u/#{u.reply_nonce}A"
+        'reply_url' => "#{JsonApi::Json.absolute_host}/u/#{u.reply_nonce}A"
       })
       res = u.deliver_to({'sharer_id' => u1.global_id, 'user_id' => u2.global_id})
       expect(res).to eq(true)
@@ -431,7 +431,7 @@ describe Utterance, :type => :model do
         'reply_id' => Webhook.get_record_code(session),
         'utterance_id' => utterance.global_id,
         'share_index' => 0,
-        'reply_url' => "#{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}#{Utterance.to_alpha_code(0)}",
+        'reply_url' => "#{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}#{Utterance.to_alpha_code(0)}",
         'text' => 'hat cat scat',
         'text_only' => nil
       }, u)
@@ -541,9 +541,9 @@ describe Utterance, :type => :model do
         utterance.save
         utterance.deliver_message('text', u, {'sharer' => {'name' => 'bob'}, 'share_index' => 1})
         expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
-          {'cell' => '123456', 'pushed' => true, 'text' => "from bob - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}B"}
+          {'cell' => '123456', 'pushed' => true, 'text' => "from bob - howdy\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}B"}
         )
-        expect(Worker.scheduled_for?('priority', Pusher, :sms, '123456', "from bob - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}B", nil)).to eq(true)
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '123456', "from bob - howdy\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}B", nil)).to eq(true)
         expect(utterance.data['sms_attempts'][0]['timestamp']).to be > 10.seconds.ago.to_i
       end
 
@@ -566,9 +566,9 @@ describe Utterance, :type => :model do
         Worker.process_queues
         utterance.reload
         expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
-          {'cell' => '98765', 'pushed' => true, 'text' => "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A"}
+          {'cell' => '98765', 'pushed' => true, 'text' => "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}A"}
         )
-        expect(Worker.scheduled_for?('priority', Pusher, :sms, '98765', "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", nil)).to eq(true)
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '98765', "from #{u.user_name} - whatevs\n\nreply: #{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}A", nil)).to eq(true)
         expect(utterance.data['sms_attempts'][0]['timestamp']).to be > 10.seconds.ago.to_i
       end
     end
@@ -587,7 +587,7 @@ describe Utterance, :type => :model do
         'message' => 'howdy',
         'utterance_id' => utterance.global_id,
         'to' => 'bob@example.com',
-        'reply_url' => "#{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}B"
+        'reply_url' => "#{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}B"
       })
       utterance.deliver_message('email', u, {'sharer' => {'name' => 'bob'}, 'share_index' => 1})
     end
@@ -618,7 +618,7 @@ describe Utterance, :type => :model do
         'reply_id' => nil,
         'recipient_id' => "#{u.global_id}x48toytn4ta84ty",
         'to' => 'mom@example.com',
-        'reply_url' => "#{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A"
+        'reply_url' => "#{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}A"
       })
       Worker.process_queues
     end
@@ -642,7 +642,7 @@ describe Utterance, :type => :model do
         'message' => 'howdy',
         'utterance_id' => utterance.global_id,
         'to' => 'bob@example.com',
-        'reply_url' => "#{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}B"
+        'reply_url' => "#{JsonApi::Json.absolute_host}/u/#{utterance.reply_nonce}B"
       })
       utterance.deliver_message('email', u, {'sharer' => {'name' => 'bob'}, 'share_index' => 1})
     end

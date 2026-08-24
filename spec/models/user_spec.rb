@@ -758,6 +758,45 @@ describe User, :type => :model do
       expect(ae.data['user_agent']).to eq('TestAgent/2.0')
     end
 
+    # Withdrawal of consent has to end access ALREADY granted, not merely block
+    # the next sign-in. This previously called devices.each(&:invalidate_cached_keys),
+    # which only drops the Redis `user_token/...` cache and leaves settings['keys']
+    # populated -- so a token minted before the revocation stayed valid, and
+    # Device#valid_token? refreshes last_timestamp on use so an active session
+    # never aged out either. Verified against a running stack before the fix:
+    # /api/v1/users/self still returned the child's record post-revoke.
+    it "revoke_parental_consent! invalidates issued device tokens, and granting does not" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_tokens',
+        'email' => 'kidtokens@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parenttokens@example.com'
+      }, {})
+      u.save!
+
+      grant_tok = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(grant_tok)).to eq(true)
+
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
+      d.generate_token!
+      key = d.reload.settings['keys'].last['value']
+      expect(d.valid_token?(key)).to eq(true)
+
+      # Granting must NOT log the child out -- it busts the permission cache only.
+      expect(u.reload.grant_parental_consent!(grant_tok)).to eq(false) # already granted
+      expect(d.reload.settings['keys'].length).to eq(1)
+      expect(d.valid_token?(key)).to eq(true)
+
+      revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
+      expect(u.revoke_parental_consent!(revoke_tok)).to eq(true)
+
+      expect(d.reload.settings['keys']).to eq([])
+      expect(d.valid_token?(key)).to eq(false)
+    end
+
     it "should coerce preferences cookies to boolean" do
       u = User.new
       u.settings = {'preferences' => {}}

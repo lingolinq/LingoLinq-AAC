@@ -85,6 +85,40 @@ module JsonApi::Json
     (@@running_hosts[Worker.thread_id] || {})['host'] || ENV['DEFAULT_HOST']
   end
 
+  # Absolute base URL -- scheme guaranteed -- for links handed to a HUMAN:
+  # emails, and anything else opened outside the app.
+  #
+  # `current_host` is not reliably absolute. Set from a web request it carries
+  # the protocol (`application_controller#set_host` uses
+  # "#{request.protocol}#{request.host_with_port}"), but its fallback
+  # ENV['DEFAULT_HOST'] is a BARE host by design -- .env.example documents it as
+  # e.g. "www.lingolinq.com". Mail is delivered from a Resque worker, which has
+  # no request, and nothing restores the request host across the queue boundary
+  # (Worker.domain_id / Worker.set_domain_id exist but are called from nowhere).
+  # So every link built as "#{current_host}/path" reached the recipient as
+  # "www.lingolinq.com/path" -- a RELATIVE url inside an <a href>, which a mail
+  # client resolves against its own base and cannot follow. That broke the COPPA
+  # parental-consent approval link, i.e. the only way to activate a child's
+  # account. See docs/task-management/2026-08-24-n1-under-13-signup-path.md.
+  #
+  # Deliberately a separate method rather than a change to current_host, which is
+  # also consumed as a bare identifier (job_stash.rb:64 ships it as a 'host'
+  # field; load_domain strips a scheme back off). Idempotent: a host that already
+  # carries a scheme is returned untouched, so request-context callers are
+  # unaffected and cannot end up double-prefixed.
+  def self.absolute_host
+    host = current_host.to_s.strip.sub(/\/+\z/, '')
+    return host if host.blank?
+    return host if host.match?(/\A[a-zA-Z][a-zA-Z0-9+.\-]*:\/\//)
+    "#{url_scheme_for(host)}#{host}"
+  end
+
+  # Loopback hosts are served over http in development; everything else is https.
+  def self.url_scheme_for(host)
+    return 'http://' if host.to_s.match?(/\A(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?\z/i)
+    'https://'
+  end
+
   def self.load_domain(host)
     host = host.split(/\/\//).pop.split(/\:/).first
     default_domain = JsonApi::Json.default_domain

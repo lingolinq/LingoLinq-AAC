@@ -7,7 +7,7 @@ Type: <%= @user.registration_type %>
 <%if @location%>Location: <%= @location %><% end %>
 <%if @user.settings['referrer']%>Source: <%= @user.settings['referrer'] %><% end %>
 <%if @user.settings['ad_referrer']%>Ad Key: <%= @user.settings['ad_referrer'] %><% end %>
-<%= JsonApi::Json.current_host %>/<%= @user.user_name %>
+<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>
 
 Thanks!
 <%= email_signature %>

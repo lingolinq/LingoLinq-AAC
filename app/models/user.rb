@@ -819,7 +819,20 @@ class User < ApplicationRecord
       )
       res = true
     end
-    devices.each(&:invalidate_cached_keys) if res
+    # invalidate_keys!, NOT invalidate_cached_keys. The latter only deletes the
+    # Redis `user_token/...` cache entries and leaves settings['keys'] intact, so
+    # every token issued before the revocation stayed VALID -- verified: a bearer
+    # token minted pre-revoke still returned the child's record from
+    # /api/v1/users/self afterwards. Device#valid_token? checks only `disabled?`
+    # and key membership (no consent check) and refreshes last_timestamp on use,
+    # so an actively-used session would never age out either. Withdrawal of
+    # consent is the one control COPPA guarantees a parent; it has to end access
+    # already granted, not just block the next sign-in.
+    #
+    # The sibling call sites deliberately keep invalidate_cached_keys: granting
+    # (grant_parental_consent!), submitting a parent email, and family
+    # offboarding all want fresh permissions WITHOUT logging the user out.
+    devices.each(&:invalidate_keys!) if res
     res
   end
 

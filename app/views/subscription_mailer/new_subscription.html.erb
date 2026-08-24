@@ -1,5 +1,5 @@
 <%= @user.settings['name'] %> just updated their <%= app_name %> billing information!<br/><br/>
-User name: <b><a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>"><%= @user.user_name %></a></b><br/>
+User name: <b><a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>"><%= @user.user_name %></a></b><br/>
 Email: <b><%= @user.settings['email'] %></b><br/>
 <%if @location%>Location: <%= @location %><br/><% end %>
 <%if @user.settings['referrer']%>Source: <%= @user.settings['referrer'] %><br/><% end %>
