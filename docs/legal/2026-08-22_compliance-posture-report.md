@@ -41,25 +41,21 @@
   `lib/feature_flags.rb` at `64cdccba1`. **That is the code default, not the runtime state.**
   `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for`
   (`lib/feature_flags.rb:132` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset, a database override a code listing cannot show.
-  Production flag state must be verified before this statement is attested.
-  **CONTRADICTED BY ATTESTED EVIDENCE.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`,
+  Production flag state WAS verified on 2026-08-23; see the resolution below.
+  **CONTRADICTION RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`,
   itself CEO-attested 2026-08-19, records `article_50_disclosure_shown` TRUE on all 63
   post-deploy `AiApiLog` rows. That column (`app/models/user.rb:1324-1331` at `64cdccba1`) is true only after
   an actual modal acknowledgement, which a never-enabled disclosure cannot produce. Scope
   caveat from that same record: the 63 rows come from 2 accounts, consistent with internal
-  pre-tenant testing. Resolve by evaluating
-  `FeatureFlags.feature_enabled_for?('article_50_disclosure', user)` in production for a REAL EU
-  user or organization, before this document is attested or bundled. Reading
-  `SystemFeatureSettings.default_enabled_features` alone is NOT sufficient:
-  `effective_enabled_for` (`lib/system_feature_settings.rb:84-88`) returns
-  `org_enabled_features(org) || default_enabled_features`, so an organization-scoped override can
-  enable or disable the flag independently of the default. Record timestamp, scope, and result as
-  attestation evidence. A single-user probe is a SAMPLE, not a determination: `frontend_flags_for`
-  (`lib/feature_flags.rb:136-144` at `64cdccba1`) can also return true via per-user
-  `beta_opt_in_features` or `canary_enabled_features`, and `effective_enabled_for` resolves per
-  MANAGING ORGANIZATION. Read all four before concluding --
-  `Setting.get('default_enabled_features')`, `SystemFeatureSettings.org_enabled_features(org)` for
-  every EU-facing org, the beta/canary lists, and then the per-user probe as confirmation.
+  pre-tenant testing. **RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** Production was read through the
+  application path: `Setting.get('default_enabled_features')` CONTAINS `article_50_disclosure`,
+  and `FeatureFlags.feature_enabled_for?('article_50_disclosure', user)` resolved TRUE for every
+  user probed at `2026-08-23T21:04:12Z` (`RAILS_ENV=production`, image `web:73a8f633`). No org,
+  beta or canary layer modifies it: production holds 2 organizations, 0 EU-stamped and 0 carrying
+  any feature override, and neither the canary nor the beta `Setting` row exists. Enabled-SINCE
+  date is NOT recoverable -- `Setting` carries no PaperTrail history (0 version rows) and
+  `Setting.set` overwrites in place; the containing row was created `2026-08-04T07:19:11Z` and
+  last written `2026-08-13T00:03:56Z`. Full record: `docs/legal/2026-08-23_article-50-production-flag-verification.md`.
 
 > **Methodology caveat for this section.** The infrastructure statements in "Infrastructure
 > migration state" below were carried
@@ -105,7 +101,7 @@ IS corrected is the Article 50(1) enablement claim; see row 6 below.
 | 3 | Summary table rows headed "Open Critical / Open High / Open Medium-Low" (:64-66) | "Live ..." | Same defect. At `64cdccba1` open-only is 15 High and 49 Medium against the table's 20 and 52. Values correct and unchanged. |
 | 4 | "from the findings register at HEAD" (:7) and "Publisher convention at HEAD gives" (:22) | pinned to `` `64cdccba1` ``; every "staging HEAD `64cdccba1`" also reworded to "staging commit", since staging HEAD has since moved and the phrase decays | Live-tense phrasing fought the pinned footer, which already said "as committed at staging commit `64cdccba1`". A reader could take the counts as current rather than as of that commit. |
 | 5 | "added 9 new open Highs in a single run" (:26) | "9 new Highs (8 still open at `64cdccba1`)" | One of the nine, `LL-6af580a23a`, was `remediated-unverified` at the pinned commit, not `open`. |
-| 6 | `article_50_disclosure` "remains AVAILABLE-only (not enabled)" (:36, :138) | restated as the CODE DEFAULT at `64cdccba1`, with the runtime source named | The claim stated a runtime fact but rested only on a code listing. `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset -- a database override no code listing can show. **Production flag state must be verified before this document is attested.** |
+| 6 | `article_50_disclosure` "remains AVAILABLE-only (not enabled)" (:36, :138) | restated as the CODE DEFAULT at `64cdccba1`, with the runtime source named | The claim stated a runtime fact but rested only on a code listing. `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset -- a database override no code listing can show. **Production flag state WAS verified 2026-08-23: ENABLED in production via the `default_enabled_features` DB Setting (see `docs/legal/2026-08-23_article-50-production-flag-verification.md`).** |
 | 7 | Infrastructure section asserted live GCP/Render state with no methodology caveat | caveat added | The Compliance Program carries exactly this caveat for the identical claims; the Posture Report did not, so a reader took the uncaveated one as verified. |
 
 Correction 1 was found by adversary review during PR #838; corrections 2-4 during the follow-up
@@ -194,9 +190,9 @@ These are implemented and operating, not aspirational:
   but the `article_50_disclosure` flag is AVAILABLE-only -- not in
   `ENABLED_FRONTEND_FEATURES` -- in `lib/feature_flags.rb` at `64cdccba1`. As above, that is
   the code default; the runtime answer comes from the `SystemFeatureSettings` database
-  override and is unverified here. See the CONTRADICTED BY ATTESTED EVIDENCE note in
-  "Changes since the 2026-08-09 draft" above: an attested record indicates the disclosure may
-  already be live in production.
+  override, which was READ on 2026-08-23 and CONTAINS the flag. See the "CONTRADICTION RESOLVED"
+  note in "Changes since the 2026-08-09 draft" above: production was read directly and the
+  disclosure IS live. Full record: `docs/legal/2026-08-23_article-50-production-flag-verification.md`.
 
 ## Infrastructure migration state
 

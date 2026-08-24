@@ -1669,7 +1669,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "4cddcd9ec580a583a928719a55e043439bfe327234b8d03b68c0ab15304b1b8b",
+      "contentHash": "113334ce9f06c2f8df598bd8b979663f1933939fdffe581ffd140143399f1b03",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -3173,7 +3173,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "89eea139ee5762ad8d36e1a22e83a0295e3cc8df27bd9f01228661c8e082b2fc",
+      "contentHash": "bc6f7a5b3b98edaba8f8659ad59c540b73772df334d9489d4a616b156bb711d7",
       "bundles": [],
       "mirrors": [
         {
@@ -3573,7 +3573,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "47b2135aa0537df4bfc0ff147982522593184c8e20673176d16aedc1ed82864f"
+      "contentHash": "6ce2e4739303c9d6cb19e8847bed082f51399b842bc370bf57e4650f0e88209f"
     },
     {
       "title": "Compliance & Security Program",
@@ -3606,7 +3606,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "c6edb9dc038f5fa054f89b5607ad16ab90f340a40259f24f9fc96a05411cacd5"
+      "contentHash": "e99129538ad1c0b688fb5ff4e1ec4c2b79dee1554494c4cfe9b7caffe3568986"
     },
     {
       "title": "Compliance Status Snapshot (2026-08-22)",
@@ -3633,7 +3633,36 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-3468caf949",
-      "contentHash": "a8fff3d550538660fa421579b4c2d863ae7ff5dad1e7d3b75a8c8ef9c09882b5"
+      "contentHash": "f7e52f9a943f6e75bbea83aa4716bf8bdb58b5f51fc1ffcd719a46dcc58a159d"
+    },
+    {
+      "title": "Article 50(1) Disclosure - Production Feature-Flag Verification",
+      "description": "Direct read of production feature-flag state for article_50_disclosure across five layers (global default, org overrides, beta/canary cohorts, per-user resolution, DB override history). Finds the flag ENABLED in production via the default_enabled_features DB Setting, contradicting the code default; finds the enabled-since date structurally unrecoverable because Setting carries no version history.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-23_article-50-production-flag-verification.md",
+      "status": "draft",
+      "frameworks": [
+        "GDPR",
+        "EU_AI_Act"
+      ],
+      "lastReviewed": "2026-08-23",
+      "nextReviewDue": "2026-11-23",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Evidence record, UNATTESTED DRAFT. Produced by two audited read-only rails runner executions (lingolinq-migrate-jqpxb, lingolinq-migrate-4ss8l) against RAILS_ENV=production on image web:73a8f633, attributed attribution label scot-art50-flag-verification-2026-08-23, supplied via the USER_KEY environment variable; each execution wrote an AuditEvent, disclosed in the record. Resolves the open Article 50(1) enablement question carried by DOC-c5408d90b7, DOC-e5e85eccb1 and DOC-af01c65b10, and corroborates the attested live-production observation at docs/legal/2026-08-17_ai-data-flow-classification.md:132. Does NOT establish an enabled-since date: Setting has no PaperTrail history (0 version rows) and Setting.set overwrites in place, so that question is unanswerable for every Setting-backed control, not only this flag. Surfaces two pre-existing open items: zero organizations carry a jurisdiction stamp, and code/DB disagree on the default feature set.",
+      "id": "DOC-6c023a20a0",
+      "contentHash": "8b4f7a0133418fb80a3df3b70923231c27ce8a0f748aa2dc3a79d90aa1b5b9d6",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
     }
   ]
 }
