@@ -424,7 +424,7 @@ describe Organization, :type => :model do
       expect(!!res).to eq(true)
       expect(o.sponsored_user?(u)).to eq(true)
       
-      res = o.remove_user(u.user_name)
+      res = o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
       u.reload
       expect(res).to eq(true)
       expect(o.sponsored_user?(u)).to eq(false)
@@ -434,7 +434,7 @@ describe Organization, :type => :model do
       o = Organization.create(:settings => {'total_licenses' => 1})
       u = User.create(:expires_at => Time.now + 100, :settings => {'subscription' => {'org_sponsored' => true, 'seconds_left' => 3.weeks.to_i}})
       o.add_user(u.user_name, false, true)
-      o.remove_user(u.user_name)
+      o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
       u.reload
       expect(u.settings['subscription_left']) == nil
       expect(u.expires_at).to be >= Time.now + (3.weeks.to_i - 10)
@@ -460,7 +460,7 @@ describe Organization, :type => :model do
       o = Organization.create(:settings => {'total_licenses' => 1})
       u = User.create(:expires_at => Time.now + 100, :settings => {'subscription' => {'org_sponsored' => false, 'seconds_left' => 3.weeks.to_i}})
       o.add_user(u.user_name, false, false)
-      o.remove_user(u.user_name)
+      o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
       u.reload
       expect(u.settings['subscription_left']) == nil
       expect(u.expires_at).to be >= Time.now + 90
@@ -472,7 +472,7 @@ describe Organization, :type => :model do
       u = User.create(:expires_at => Time.now + 100, :settings => {'subscription' => {'org_sponsored' => true, 'seconds_left' => 5}})
       expect(u.expires_at).to be < 1.day.from_now
       o.add_user(u.user_name, false, true)
-      o.remove_user(u.user_name)
+      o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
       u.reload
       expect(u.settings['subscription_left']) == nil
       expect(u.expires_at).to be >= Time.now + (2.weeks.to_i - 10)
@@ -489,7 +489,7 @@ describe Organization, :type => :model do
       expect(o.user?(u)).to eq(true)
       
       expect(UserMailer).to receive(:schedule_delivery).with(:organization_unassigned, u.global_id, o.global_id)
-      res = o.remove_user(u.user_name)
+      res = o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
       Worker.process_queues
       u.reload
       expect(res).to eq(true)
@@ -512,7 +512,7 @@ describe Organization, :type => :model do
       expect(o.managed_user?(u)).to eq(false)
       expect(o2.managed_user?(u)).to eq(true)
       expect(UserLink.count).to eq(1)
-      expect{ o.remove_user(u.user_name) }.to_not raise_error #("already associated with a different organization")
+      expect{ o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25) }.to_not raise_error #("already associated with a different organization")
       u.reload
       expect(UserLink.count).to eq(1)
       expect(o.managed_user?(u)).to eq(false)
@@ -849,7 +849,7 @@ describe Organization, :type => :model do
       o.add_manager(u2.user_name)
       Organization.where(:id => o.id).update_all(:updated_at => 2.weeks.ago)
       expect(o.reload.updated_at).to be < 1.hour.ago
-      o.remove_user(u.user_name)
+      o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
       expect(o.reload.updated_at).to be > 1.hour.ago
       Organization.where(:id => o.id).update_all(:updated_at => 2.weeks.ago)
       expect(o.reload.updated_at).to be < 1.hour.ago
@@ -1442,7 +1442,7 @@ describe Organization, :type => :model do
       expect(o.pending_user?(u.reload)).to eq(true)
       expect(o.managed_user?(u)).to eq(true)
     
-      o.remove_user(u.user_name)
+      o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
       expect(o.reload.users.count).to eq(0)
     end
   
@@ -2223,7 +2223,7 @@ describe Organization, :type => :model do
         o.add_user(u1.user_name, false, false)
         o.reload
         expect(o.link_saml_user(u1, {:external_id => 'wgawgwag'})).to_not eq(false)
-        o.remove_user(u1.user_name)
+        o.remove_user(u1.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
         o.reload
         expect(o.find_saml_user('wgawgwag')).to eq(nil)
       end
@@ -2371,7 +2371,7 @@ describe Organization, :type => :model do
         u.reload
         o.reload
         o.link_saml_alias(u, 'bacon')
-        o.remove_user(u.user_name)
+        o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
         o.reload
         expect(o.find_saml_alias('bacon', nil)).to eq(nil)
       end

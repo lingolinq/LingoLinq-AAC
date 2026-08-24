@@ -96,11 +96,59 @@ class SystemSidebarBoards
   end
 
   def self.repair_utility_board(board, spec)
+    changed = false
     if spec[:slug] == 'keyboard' && board.settings['locale'] != 'en'
       board.settings['locale'] = 'en'
-      board.save!
+      changed = true
     end
+    if spec[:slug] == 'keyboard' && spec[:obz_source]
+      changed = true if restore_keyboard_control_vocalizations!(board, spec)
+    end
+    board.save! if changed
     board
+  end
+
+  # System keyboards imported from Vocal Flair-style OBZ files can lose
+  # `:shift` / `:space` / `+letter` if a later save drops vocalization.
+  # Re-running ensure_for used to no-op on an existing board. Copy the
+  # control protocol back from the committed OBZ when the live button
+  # has no vocalization (or only repeats the visible label).
+  def self.restore_keyboard_control_vocalizations!(board, spec)
+    path = SYSTEM_BOARDS_DIR.join(spec[:obz_source])
+    return false unless File.exist?(path)
+    return false unless keyboard_control_vocalizations_missing?(board)
+
+    require 'obf'
+    require Rails.root.join('lib', 'converters', 'lingo_linq')
+    content = OBF::External.from_obz(path.to_s, {})
+    source_buttons = Array(content.dig('boards', 0, 'buttons'))
+    source_by_id = source_buttons.index_by { |b| b['id'].to_s }
+    buttons = board.buttons.map { |b| b.dup }
+    changed = false
+    buttons.each do |button|
+      source = source_by_id[button['id'].to_s]
+      next unless source
+      control = Converters::LingoLinq.vocalization_from_obf_button(source)
+      next unless control.to_s.match?(/\A[:+]/)
+      current = button['vocalization'].to_s
+      next unless current.blank? || current == button['label'].to_s
+      button['vocalization'] = control
+      changed = true
+    end
+    return false unless changed
+
+    board.settings['buttons'] = buttons
+    board.instance_variable_set('@buttons_changed', 'restored keyboard controls')
+    true
+  end
+
+  def self.keyboard_control_vocalizations_missing?(board)
+    (board.buttons || []).any? do |button|
+      label = button['label'].to_s
+      next false unless label.match?(/\A(shift|space|[a-z0-9]|[:.])\z/i)
+      current = button['vocalization'].to_s
+      current.blank? || current == label
+    end
   end
 
   def self.generate_keyboard(user)

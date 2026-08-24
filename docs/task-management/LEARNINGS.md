@@ -20,13 +20,20 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
+- [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
+- [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
+- [Gotcha: a status-block lead must not over-claim "remaining" or "historical"](#gotcha-a-status-block-lead-must-not-over-claim-remaining-or-historical)
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
 - [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
+- [Gotcha: "Scot re-attested" is not a pin on this branch until the row hash matches](#gotcha-scot-re-attested-is-not-a-pin-on-this-branch-until-the-row-hash-matches)
 - [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
 - [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
+- [Gotcha: the metadata table is not the signed attestation — write the statement, then pin](#gotcha-the-metadata-table-is-not-the-signed-attestation--write-the-statement-then-pin)
+- [Gotcha: a Path A correction must convert leftover present-tense operational bullets, not only the headline claim](#gotcha-a-path-a-correction-must-convert-leftover-present-tense-operational-bullets-not-only-the-headline-claim)
 - [Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`](#gotcha-redact_for_ai-on-the-sentence-does-not-automatically-cover-interpolated-contexttopic)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
@@ -42,6 +49,7 @@ file (see [README.md](README.md)).
 - [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
 - [Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set](#gotcha-board-translation-google-egress-is-userstranslate--worddata-not-boardtranslate_set)
 - [Pattern: before adding a guard, grep the canonical path for one that already exists — with the exact flag name, in that file alone](#pattern-before-adding-a-guard-grep-the-canonical-path-for-one-that-already-exists--with-the-exact-flag-name-in-that-file-alone)
+- [Pattern: an accurate "this code is missing" grep does NOT prove the problem still exists](#pattern-an-accurate-this-code-is-missing-grep-does-not-prove-the-problem-still-exists)
 - [Pattern: deleting dead CSS is a text-surgery problem — `:not()` and multi-line selector lists are the two ways to silently break live styling](#pattern-deleting-dead-css-is-a-text-surgery-problem---not-and-multi-line-selector-lists-are-the-two-ways-to-silently-break-live-styling)
 - [Pattern: a "protected" flag on a media record is an ENTITLEMENT boundary — never relax its predicate to fix a rendering bug](#pattern-a-protected-flag-on-a-media-record-is-an-entitlement-boundary--never-relax-its-predicate-to-fix-a-rendering-bug)
 - [Gotcha: Textarea `@value` on a get-only computed crashes on keystroke — needs a setter/cache](#gotcha-textarea-value-on-a-get-only-computed-crashes-on-keystroke--needs-a-settercache)
@@ -55,6 +63,7 @@ file (see [README.md](README.md)).
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Pattern: boards-page Mine list — cache-first paint, atomic background refresh](#pattern-boards-page-mine-list--cache-first-paint-atomic-background-refresh)
+- [Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint](#gotcha-board-picker-category-tabs-share-one-category_boards-list--stale-loads-must-not-paint)
 - [Gotcha: Android “classic board” error may be stale packaged board-detail](#gotcha-android-classic-board-error-may-be-stale-packaged-board-detail)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
@@ -328,7 +337,9 @@ the layout override it so switching back to Dynamic restores their Extras choice
 
 Keyboard boards use vocalizations as control protocols: `+a` composes spelling, `:space` completes the in-progress word, and `:shift` toggles capitalization. `Board#translated_buttons` must not replace those `:`/`+` vocalizations with visible labels when label and vocalization locales match, or controls start speaking words like “space”/“shift” and letters stop composing. If `lingolinq/keyboard` has stale locale metadata, default it back to English when no user locale or Switch Languages override exists, and repair the content board through `SystemSidebarBoards.ensure_for`.
 
-**First seen in:** [2026-06-03-keyboard-shift-space-default-language.md](./2026-06-03-keyboard-shift-space-default-language.md)
+**Import gotcha:** Vocal Flair / Open Board Format files store those protocols on the OBF `action` (or `actions`) field, not `vocalization`. `Converters::LingoLinq.vocalization_from_obf_button` copies them onto `vocalization` during import. A blank `actions` array is truthy in Ruby and used to hide `action`, so only treat `actions` as present when it has values. `SystemSidebarBoards.repair_utility_board` also restores missing `:shift` / `:space` / `+letter` vocalizations from `public/system-boards/keyboard.obz` when the live button has no vocalization (or only repeats the label).
+
+**First seen in:** [2026-06-03-keyboard-shift-space-default-language.md](./2026-06-03-keyboard-shift-space-default-language.md); import-side drop in [2026-08-22-keyboard-import-control-vocalizations.md](./2026-08-22-keyboard-import-control-vocalizations.md)
 
 ## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
 
@@ -383,6 +394,16 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 **Gotcha (list summary + locale):** Omitting button/content blobs must not skip `localized_name` / `localized_locale`. Index already eager-loads `board_content`; when `args[:locale]` is present, still load translations for `board_name` matching, but do not rewrite per-button labels (list payloads have no `buttons`). Gating the whole locale block behind `!list_summary` broke `Api::BoardsController index should return a localized board name`.
 
 **First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md); pass 2 [2026-08-17-boards-page-load-pass2.md](./2026-08-17-boards-page-load-pass2.md)
+
+## Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint
+
+**Surface:** `/board-picker` `BoardPicker` with `searchAtTop` ([`components/board-picker.js`](../../app/frontend/app/components/board-picker.js)).
+
+**Gotcha:** All Available Boards waits for every mine/shared page plus the first public page before painting, so it is slow. The selected tab (`current_category`) and the grid (`category_boards`) are separate. Switching to Cause and Effect starts a new query but does not cancel the All Available requests. Those writers used to call `this.set('category_boards', …)` with no generation check, so the default list appeared under the new category.
+
+**Fix:** All Available uses its own `_available_load_id` so the first fetch can finish in the background. Results are snapshotted and reused when the user returns to the tab; they only paint `category_boards` while that tab is selected. Tagged categories still bump `_boards_load_id` so a late Cause and Effect response cannot overwrite All Available. Tests in `tests/unit/components/board-picker-category-race-test.js`.
+
+**First seen in:** [2026-08-20-board-picker-category-race.md](./2026-08-20-board-picker-category-race.md)
 
 ## Gotcha: Android “classic board” error may be stale packaged board-detail
 
@@ -3604,6 +3625,10 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 **Evidence:** task logs `2026-07-06-signup-boards-sidebar-copies.md`, `2026-07-28-staging-registration-timeout.md`.
 
+**Extension (2026-08-24) — VF84 + Senner-Baud as signup-only sidebar extras:** Do **not** put VF84 or Senner on `default_active_sidebar_boards`. Empty stored prefs stay the old utility list so a deploy does not change existing speak-mode sidebars or enqueue those trees as sync roots. Persist `User.signup_sidebar_boards` (utilities + VF84 + `lingolinq/senner-baud`) from `UserBoardProvisioner.apply_signup_sidebar!` at signup only. Replace the mbaud12 Social catalog slot with `lingolinq/senner-baud` and keep that key in `inactive_by_default_sidebar_keys` (disabled pool, not live sidebar). Do **not** add VF84/Senner to `sidebar_auto_add_keys` or `SIDEBAR_COPY_SLUGS`.
+
+**Evidence:** `User.signup_sidebar_boards`, `UserBoardProvisioner.apply_signup_sidebar!`; task log `2026-08-24-signup-sidebar-vf60-senner.md`.
+
 ---
 
 ## Pattern: custom lingolinq content boards — commit OBZ + `SystemBoardSources.ensure_*`
@@ -4612,7 +4637,7 @@ Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events
 
 ## Pattern: co-located modal `{{on "click" (fn this.ctrlAction …)}}` — use `(this.ctrlAction …)`
 
-**Surface:** `speak-menu`, `button-settings`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
+**Surface:** `speak-menu`, `button-settings`, `copy-just-this-board`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
 
 **Root cause:** `ctrlAction` returns a handler function. `(fn this.ctrlAction "x")` invokes `ctrlAction("x", …)` at click time and discards the returned handler, so the action never runs. Under speak mode, `raw_events` `dispatchPassThroughClick` still needs a bound handler — pass-through logs fire but close no-ops. Use `(this.ctrlAction "x")` (bind at render) for `{{on}}`, `modal-dialog` `action`/`opening`/`closing`, and `button-listener` `buttonEvent`. Classic `{{action "x"}}` also works; pair with `modalDialogClickRelease()` when pointer synthesis is suppressed.
 
@@ -7009,17 +7034,22 @@ Before adding any "choose which sub-boards to copy" UI, know the infra is alread
 - **Frontend:** `utils/board_hierarchy.js` builds the downstream tree with per-board `selected`
   flags, `selected_board_ids()`, `root_deselected`, `set_downstream(id,'selected',bool)`, `toggle()`.
   The `{{board-hierarchy selectable=true hierarchy=…}}` component renders the selectable tree
-  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, and the `copying-board` modal).
+  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, `copy-board`, and `copying-board`).
   `components/board-hierarchy.js` `select_all(state)` now honors `state` → `select_all false`
   is Deselect All (existing callers pass no arg, so they still select).
-- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols); the EXECUTION modal is
-  `copying-board`, which loads the hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all
-  selected by default) and passes `hierarchy.selected_board_ids()` as the include list.
+- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols). It also loads the
+  hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all selected by default) and shows the
+  collapsed `md-modal-expander` picker under the linked-boards hint. Confirming a full-set copy
+  passes `skip_hierarchy_picker` + `board_ids_to_copy`. The EXECUTION modal is `copying-board`,
+  which then skips its picker and starts the copy (progress only). If hierarchy load is still
+  in flight or failed, omit the skip flag so `copying-board` keeps its fallback picker.
+  `keep_links` / `remove_links` never skip; they still start copying immediately.
 - **Backend:** the copy endpoint already accepts `expand_selected_board_ids` (users_controller →
   user.rb#2559 → relinking.rb `copy_board_links_for`), so partial copies are supported server-side.
 So "modernize the copy modal / default-all-selected / deselect some" = a UI disclosure around the
 existing `board-hierarchy`, NOT a new feature. (2026-06-27: collapsed the picker behind a
-`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`.)
+`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`. 2026-08-21:
+moved that expander onto `copy-board` so linked-board copy is one decision screen.)
 
 ---
 
@@ -7636,9 +7666,14 @@ guards, or tests in a file that already has grandfathered findings (especially l
 new runloop call sites were added. Diagnose before migrating: compare counts of
 `file|ruleId|messageHash` (ignore line/column). Line-only churn → fix any truly new violations,
 then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
-in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new). See
-[`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md)
-and [`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md).
+in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new) and
+`feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
+computed dep; the rest were `application.js` line shifts from three payload keys). New unit tests
+must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
+`@ember/test-helpers`. See
+[`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),
+[`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md),
+and [`2026-08-21-copy-board-eslint-todo-gate.md`](./2026-08-21-copy-board-eslint-todo-gate.md).
 
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
@@ -7779,6 +7814,25 @@ after revoke. EU under-16 users get `apply_eu_ai_offboarding_reset!` (force `EU_
 false + invalidate consent) so AI stays off until a new parent grant. Do not require parent
 email to complete org remove — login dialog is the fallback. See
 `docs/task-management/2026-07-16-org-offboarding-parental-consent.md`.
+
+## Pattern: Offboarding COPPA remaining gaps (expire / birth / export-delete) (2026-08-03)
+
+`Organization#remove_user` alone was not enough for LL-f150e0e828. Three residual gaps:
+
+1. **`License.expire_stale_licenses!`** must call `begin_family_offboarding_consents!` after
+   `release_user!`, with `force_under_13: true` when `school_authorization` is present and no
+   birth month/year is on file (no manager attestation on automated expiry).
+2. **Server-require birth month/year** on `remove_user` when COPPA is enabled — UI already
+   required it; API omission skipped COPPA and could leave `school_authorization` on a consumer
+   trial. `ArgumentError` is caught by org `process_params` as a processing error.
+3. **Export-then-delete:** pending offboarding COPPA past `parent_consent_expires_at` /
+   `offboarding_deadline_at`, or explicit decline via `GET /parental_consent/decline`, runs
+   `Exporter.export_user` → parent mailer → `schedule_deletion_at` (36h) for
+   `Flusher.flush_deleted_users`. Discover candidates via
+   `AuditEvent` `parental_consent_offboarding_started` (settings are encrypted). Daily:
+   `OffboardingCoppaExpirationWorker` in `scheduler:dispatch`.
+
+See `docs/task-management/2026-08-03-offboarding-coppa-remaining-gaps.md`.
 
 ## Pattern: Org `settings['jurisdiction']` drives release-time age laws (2026-07-17)
 
@@ -8931,6 +8985,10 @@ Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the servin
 
 `ApplicationController#replace_helper_params` rewrites top-level `id` / `*_id` placeholders like `user_id=self` → `@api_user.global_id`, but **not** nested hashes. `Api::SoundsController#create` resolves nested `sound[user_id]` with `User.find_by_path`, which treats non-digit strings as `user_name` — there is no user named `self`, so create returns **404 Record not found** before any `ButtonSound` insert. Images create never looks up nested `user_id`, so picture upload can still work while sound upload fails. Same class of bug as boards index `?user_id=self` (2026-07-15 learning). Fix: treat nested `'self'` as `@api_user` (boards already special-cases `for_user_id == 'self'`), ignore blank, and on the frontend never POST the literal `'self'` — use `currentUser._actual_id || id` or omit. Ref: [`2026-08-04-sound-upload-nested-self-404.md`](./2026-08-04-sound-upload-nested-self-404.md).
 
+## Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search
+
+Button Settings → Sound → upload calls `contentGrabbers.file_selected('sound', files)`, which only kept files whose `type` matched `/^audio/`. Anything else `alert`s **"No valid sound found"** (`no_valid_sound_found`) — search-shaped copy for an upload that never reached `soundGrabber`. On Windows/WSL, `.mp3`/`.wav` often have an empty MIME type; `.m4a` is often `video/mp4`, and the `video/*` branch ran first so the sound picker still failed. No POST `/api/v1/sounds` happens. Classify with `looks_like_audio` (audio MIME **or** common audio extension) before the video branch. Same helper for drop and recordings upload. Distinct from the nested `user_id=self` 404 (that path already POSTs). Ref: [`2026-08-24-button-sound-upload-mime.md`](./2026-08-24-button-sound-upload-mime.md).
+
 ## Pattern: board-detail Speak bar must speak vocalization, not just label
 
 **Surface:** board-detail Speak Mode — button with distinct `label` vs `vocalization` (e.g. joke boards: label "Money joke", vocalization = the joke text).
@@ -9249,7 +9307,7 @@ Stop Masquerading controls (PR #714) signal masquerade without naming the acting
 
 **Root cause:** Two systems share the word category. (1) Personal folders = `user.settings.board_tags` via the tag-board modal. (2) Catalog browse = `board.settings.categories` with fixed ids (`cause_effect`, `robust`, …), set in Edit Board Details when "can be used as a home board" is checked. The tabbed picker also had a hard-coded coming-soon stub that skipped `_resolveCategoryBoards` for `cause_effect`.
 
-**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags.
+**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags. PR #761 also removed the Keyboards "Coming soon" placeholders the same way (`_resolveCategoryBoards('keyboards')`). Traci's later picker rework (`f2cc29f13`, 2026-08-09) put those placeholders back; restored on `fix/melissa-board-picker-stale-category`.
 
 **Evidence:** [`2026-08-05-board-picker-cause-effect-catalog.md`](./2026-08-05-board-picker-cause-effect-catalog.md); `components/board-picker.js` / `.hbs`.
 
@@ -10901,6 +10959,18 @@ drift from `feature_flags.rb` only needed regenerate after the ledger JSON line 
 `.claude/skills/re-attest-record/SKILL.md`, `promote-finding/SKILL.md`; guide:
 `docs/legal/COMPLIANCE_DOCS_GUIDE.md`.
 
+## Gotcha: "Scot re-attested" is not a pin on this branch until the row hash matches
+
+**Surface:** CI `audit-artifacts-integrity` on an attested `docs/legal/**` file (PR #737,
+`PARENTAL_CONSENT_EMAIL.md`).
+
+Scot's last pin of that row is still 2026-07-23 (`d7c935ce4743…`, PR #672). His later attest
+PRs (#832, #839) covered other documents. A Slack/chat "I re-attested" does not change
+`attestation.attestedContentHash` on this branch. Confirm with `sha256sum` of the file vs the
+row pin. If they differ, the author reverts the attested file (or Scot runs `/re-attest-record`
+Path A). Do not run render. Task log:
+`docs/task-management/2026-08-22-pr737-attested-parental-consent-drift.md`.
+
 ## Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes
 
 **Surface:** `Api::SupervisorRelationshipsController#consent_response`, Ember `consent-response` / `pending-consent-requests`.
@@ -11966,6 +12036,17 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 `v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
 [`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
 
+## Gotcha: COPPA decline copy must split signup vs offboarding on every surface
+
+Signup `decline_parental_consent!` schedules deletion only. Offboarding runs
+`schedule_offboarding_export_then_delete!`. Email templates already branch on
+`@offboarding` (`decline_prompt` vs `offboarding_decline_prompt`). The
+post-click landing page (`parental_consents/decline.html.erb`) must do the same;
+a shared `decline_thanks_body` that mentions export will lie to signup parents.
+When Copilot flags the emails, grep `prepare an export` across mailers *and*
+`app/views/parental_consents/`. Ref:
+[`2026-08-17-copilot-coppa-review-comments.md`](./2026-08-17-copilot-coppa-review-comments.md).
+
 ## Gotcha: staging → audit-register merge is a union, then regenerate
 
 When `staging` lands on a findings-register branch, do not pick one side of
@@ -11976,12 +12057,26 @@ without changing status, severity, or disposition. Then run
 `scripts/regenerate-register.sh` so the `.md` mirrors and publication status
 are derived, not hand-merged. If citation-check says `file not found at sha`,
 `git fetch` that evidence commit before re-anchoring the pin. Attested
-`attestedContentHash` pins stay untouched. Task log:
-[`2026-08-17-code-hygiene-auditor-staging-merge.md`](./2026-08-17-code-hygiene-auditor-staging-merge.md).
+`attestedContentHash` pins stay untouched **once they have landed**; an
+in-progress attestation PR that has not merged is different: if staging
+expanded the same `docs/legal/**` file, keep the staging body and retarget
+the pin to the merged bytes. Restoring `--ours` would clobber staging on
+merge-back; keeping staging's "NOT YET ATTESTED" table would drop the
+attestation. Task logs:
+[`2026-08-17-code-hygiene-auditor-staging-merge.md`](./2026-08-17-code-hygiene-auditor-staging-merge.md),
+[`2026-08-24-pr857-staging-merge-conflicts.md`](./2026-08-24-pr857-staging-merge-conflicts.md).
 
 ## Gotcha: a dated successor must not inherit the predecessor's attestation dates
 
 Copying `**Attestation history:** re-attested 2026-08-08` onto a `draft` successor makes the new bytes look reviewed. Label it **Predecessor attestation history** and state that this record has none. Same defect for Related links: point at the operative dated register (`2026-08-16_subprocessor-register.md`), not the frozen `SUBPROCESSORS.md`. Ref: `docs/legal/2026-08-17_ai-data-flow-classification.md`.
+
+## Gotcha: the metadata table is not the signed attestation — write the statement, then pin
+
+Flipping a successor's banner, register `status`, and `attestedContentHash` does not attest it if Section 15 still says the new version is unattested and only reproduces the predecessor's first-person statement. The metadata table is not part of what was signed. Live `requiredDocs` also stay on the predecessor until they are retargeted by `canonicalLocation` in the same change. Write the dated statement, remove leftover "unattested / awaiting attestation" language, move `school-dpa-package` / `security-review` / `grant` onto the successor, then pin. Codex P1/P2 on PR #857; task log: [2026-08-24-pr857-attestation-comment-fixes.md](./2026-08-24-pr857-attestation-comment-fixes.md).
+
+## Gotcha: a Path A correction must convert leftover present-tense operational bullets, not only the headline claim
+
+Correcting a superseded claim in place (e.g. "gated OFF" → "ENABLED IN PRODUCTION") leaves the successor as the live operational document. Any remaining present-tense bullets in the same section that still say enabling is a future gate, or that keeping the flag OFF is the accepted posture, are mutually exclusive instructions, not history. Convert those bullets to dated history in the same edit, or rewrite them to the verified state. The same class of defect: bumping an evidence count ("two sessions" → "six") without updating the execution inventory and the document-register `notes` in the same change. Do not invent missing Cloud Run IDs; name every retained execution and disclose any count-delta rows that cannot be bound. Ref: PR #856, `docs/legal/2026-08-24_ai-governance-memo.md` §5.2, `docs/legal/2026-08-23_article-50-production-flag-verification.md`.
 
 ## Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`
 
@@ -12119,3 +12214,238 @@ Seating the beta-feedback tab below the navbar is clean at 1440 and 390 but clip
 Two transferable moves. First, before picking a spot for a floating element, compute `firstInteractiveRowTop - navbarBottom` and compare it to the element's height — if the gap is smaller, every vertical option is a trade and you should say so rather than iterate. Second, when the vertical axis is impossible, the horizontal one may not be: the row's right edge scales with the viewport while a right-anchored element's left edge is `100vw - offset - width`, so *narrowing* the element clears the row without moving it. Extending the existing compact sizing up through the band fixed 760-820 and cut the 721 overlap from 41px to 10px.
 
 Also worth knowing: collisions here were **height-dependent as well as width-dependent** — 712px was clean at viewport height 1000 and colliding at 1138, because the surrounding layout reflows. A single height per width will under-report.
+## Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)
+
+`lingolinq/jokes` (and similar curated `.obf`s) embed rimshot/drumroll/laughter/sigh as `data:audio/mpeg;base64,...`. `Uploadable#upload_to_remote` decoded every data URI through `SvgSanitizer.decode_image_data_uri_payload`, which returns nil unless the URI is `data:image/`. Audio was `invalid_data_uri`; `ButtonSound#process_params` also ignores non-http urls, so the button kept a `sound_id` with no playable `url` and Speak Mode TTS'd the label. Fix: decode `data:audio/*` in `Uploadable#decode_data_uri_body`; leave the image sanitizer unchanged. After deploy, re-import only `jokes` (not a full library rebuild). Ref: [`2026-08-22-jokes-sounds-not-playing.md`](./2026-08-22-jokes-sounds-not-playing.md).
+
+## Gotcha: a status-block lead must not over-claim "remaining" or "historical"
+
+A runbook lead that says "the remaining gates are A, B, C" reads as exhaustive. If a later authoritative list also requires D and E, an operator skimming the lead can onboard with those still open. Same failure mode for "the rest of this block is historical / not as open work" when later paragraphs in the same block are live checklists. Narrow the lead (e.g. "remaining infrastructure/decommission actions") and scope the historical label to the dated snapshot paragraph only. Ref: PR #840 Codex P1s, `scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md`, [`2026-08-21-phase5-runbook-review-comments.md`](./2026-08-21-phase5-runbook-review-comments.md).
+
+## Pattern: an accurate "this code is missing" grep does NOT prove the problem still exists
+
+**Surface:** triaging an old branch, a stale-looking doc, or any "is this still
+broken?" question by grepping current `staging` for the symbol that would fix it.
+
+This is the companion to [the guard/flag entry above](#pattern-before-adding-a-guard-grep-the-canonical-path-for-one-that-already-exists--with-the-exact-flag-name-in-that-file-alone).
+That one is about a grep that was *wrong*. This one is about greps that were
+**right** and still produced wrong conclusions three times in one session
+(2026-08-19..22, stale-clone branch triage):
+
+1. **The doc looked stale; it corrected itself further down.**
+   `scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md` opened with "the irreversible cutover
+   actions remain gated on Scot's explicit go" (dated 2026-07-15), so it read as a
+   month out of date. Ten lines into the same block: "**THE DNS CUT HAS HAPPENED
+   (step 9 is DONE).**" Only the first paragraph had been read. The real defect was
+   much smaller than "the doc is wrong" — a stale *lead sentence* on a block that
+   was otherwise current (fixed in #840).
+
+2. **The fix was genuinely absent, and genuinely unnecessary.** A May branch added
+   stalled-row cleanup to `Progress.clear_old_progresses`; that code really was
+   not on `staging`. But `Flusher.flush_leftovers` (`lib/flusher.rb`) had closed the
+   gap months earlier from the other direction — an unconditional
+   `created_at < 1.month.ago` sweep that runs daily and catches never-started rows —
+   and its own comment said so explicitly. A grep for the *symbol* could not see a
+   fix that shares no identifiers with it.
+
+3. **The branch that looked like the fix was missing the file's later corrections.**
+   A WIP branch proposed rewriting that runbook block. Its factual statements about LB
+   routing were fine, and the file affirms them ("`app.lingolinq.com` resolves to
+   `136.68.41.122` ... `/api/v1/health` returns 200 through the LB"). The problem was
+   what it *dropped*: it predated, and therefore omitted, both the "PROD HAS NO REAL
+   USERS YET" paragraph (which exists precisely to stop readers inferring real
+   district traffic from DNS resolving plus a 200 health check) and the launch-gate
+   checklist. Porting it wholesale would have deleted two later corrections in the act
+   of "fixing" the block. Being *newer than the defect* is not the same as being
+   *newer than the file*: check what landed in between.
+
+**Why this keeps happening:** the repo evolves by *replacing* mechanisms, not by
+filling in the originally-proposed one. The second implementation usually shares no
+method name, file, or vocabulary with the first, so a name-based grep is structurally
+blind to it. Old branches are therefore superseded far more often than they are
+pending.
+
+**Checklist before acting on an absence:**
+
+- **Read the whole block, not the lead.** Long status blocks in this repo accrete
+  dated corrections at the bottom. The newest sentence is usually the true one and it
+  is rarely first.
+- **Search for the problem, not the symbol.** Grep the behavior (`created_at`,
+  `delete_all`, the table name) and check sibling mechanisms (`Flusher`, the
+  `scheduler.rake` tasks, `flush_leftovers`) before concluding nothing handles it.
+- **Use `gh pr list --state all --head <branch>`, never a bounded
+  `gh pr list --limit N`.** A `--limit 300` sweep silently missed PRs #242, #266 and
+  #381 and made three already-merged branches look orphaned. **`--state all` is not
+  optional here:** `gh pr list` defaults to `--state open`, so the bare `--head` form
+  returns `[]` for a merged branch and reproduces the exact false-orphan conclusion
+  this checklist exists to prevent. Verified against `gh pr list --help` ("default
+  \"open\"") and by running both forms against a known-merged branch.
+- **Read the caller before editing a method.** `Progress.clear_old_progresses` reads
+  like a nightly cron task and is actually invoked from inside `Progress.schedule`
+  (`app/models/progress.rb`), i.e. on every scheduled job. The May branch's per-row
+  `Rails.logger.error` loop would have landed in that hot path, where a
+  null-`settings` row raises `NoMethodError` and breaks scheduling app-wide.
+
+**One-line version:** missing code is evidence about *code*. It says nothing about
+whether the *problem* survived.
+
+## Gotcha: naming a one-shot review subagent silently discards its entire report
+
+**Surface:** spawning `adversary`, any `*-auditor`, or any read-only review agent
+via the Agent tool and passing a `name`, for addressability or nicer progress
+output.
+
+Two adversary reviews of PR #848 produced nothing on 2026-08-23. Both agents ran,
+read the whole component, and then reported themselves **idle / available**. No
+error, no timeout, no missing-output warning. Asking each one directly for its
+findings produced another idle notification and no text.
+
+A controlled experiment settled it. The same agent type, same prompt shape,
+spawned **without** a name, returned its text in 2.4 seconds:
+
+| Spawn | Becomes | Delivery channel | Result |
+|---|---|---|---|
+| unnamed | one-shot async subagent | final text auto-returned in the task notification | works |
+| **named** | persistent addressable teammate | `SendMessage` **only** | **silently lost** |
+
+The mechanism: passing `name` converts a fire-and-forget subagent into a teammate
+whose output must be delivered by calling `SendMessage`. Every read-only review
+agent in this repo declares tools that do **not** include `SendMessage`
+(`adversary`: `Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__github`; the
+`*-auditor` agents are `Read, Grep, Glob, Bash` plus MCP reads). So a named review
+agent is physically incapable of returning its findings. The work happens, lands in
+its own transcript, and dies there.
+
+**Why this is worse than a crash:** the failure presents as success. `ListAgents`
+shows the agent `idle`, which reads as "finished." A dual-review that loses its
+adversary leg still reports as a completed dual review. For `/audit-run`, a named
+finder fleet would produce an empty findings register that reads as *clean*.
+
+**Rule:** never pass `name` to a one-shot review or audit agent. Name it only if
+you also grant it `SendMessage`. If a named agent goes idle without returning text,
+do not re-ask it — respawn unnamed.
+
+**Corollary for the reviewer, not just the spawner:** when a review leg produces
+nothing, say the leg did not run. Substituting your own analysis is weaker by
+construction when you are reviewing your own changes, and reporting it as a
+completed review launders that weakness.
+
+## Gotcha: a test double that satisfies one access style routes the test through a different branch
+
+**Surface:** stubbing an injected Ember service as a plain object in a unit test.
+
+Writing specs for the Article 50 gate (#848), two new cases failed and the failure
+looked exactly like a product bug: the component took its "no refreshable user"
+branch and produced the wrong message. The stub was:
+
+```js
+component.set('appState', { get: function(key) { /* returns currentUser */ } });
+```
+
+`utils/article50_gate.js` calls `appState.get('currentUser')` **explicitly as a
+method**, so `needsAcknowledgement()` worked and the pre-request specs passed. But
+the component reads the Ember path `this.get('appState.currentUser')`, and Ember's
+path `get` on a **plain object** is a property lookup — it never calls that
+object's own `.get()`. So `currentUser` resolved `undefined`, and the specs
+silently exercised a different branch than the one under test.
+
+In the real app `appState` is a service (`focus-words.js:29`), so the path resolves
+correctly and the component is fine. The bug was entirely in the double.
+
+**Rule:** a stub must satisfy **every** access style its consumers actually use.
+Grep for both shapes before trusting a red test — `svc.get('x')` and
+`this.get('svc.x')` are not the same lookup. Give POJO stubs the real properties
+*and* the method:
+
+```js
+component.set('appState', {
+  currentUser: user,                               // for this.get('appState.currentUser')
+  feature_flags: { article_50_disclosure: flagOn },
+  get: function(key) { /* for appState.get('currentUser') */ }
+});
+```
+
+**Tell:** the failing branch is a fallback / defensive branch you did not intend to
+reach. Suspect the double before the code.
+
+## Pattern: partial preservation across a state boundary is worse than none
+
+**Surface:** any flow that captures state, tears a component down, and restores it
+— modal replacement, route transition, offline queue, resume-after-auth.
+
+PR #848 had to carry the user's draft across `modal.open()`, which **replaces** the
+current modal and destroys the component. It took **five** rounds to get right, and
+**four of the five defects were introduced by the fix for a previous one**:
+
+1. Payload carried only `ai_prompt` / `ai_word_count` → lost the "Save for Re-Use"
+   checkbox and typed list name.
+2. Fix 1 restored `words` but not `ai_focus_word_set_id` → `record_ai_focus_usage()`
+   returned early and metrics undercounted.
+3. Fix 1 also missed `search_term` (authored text at `focus-words.hbs:130`).
+4. Fix 1 carried `existing` but not `navigated`, which `pick_set` sets **together**
+   with it → produced `existing=true / navigated=false`, a combination no user action
+   can reach, rendering a picked set alongside the "get started by pasting text"
+   explainer.
+
+Each individual patch was correct. The failure was maintaining **two hand-written
+lists that silently drift**: `opening()` cleared 16 fields, the payload carried 8,
+and nothing reconciled them. Every round asserted "the authored draft is preserved
+as a unit" while getting the membership of that unit wrong.
+
+**What actually closed it** was mechanical enumeration instead of another guess:
+diff the set the teardown clears against the set the payload carries, then check
+each remaining field for a template input binding. That bounded the problem — it
+proved exactly one authored field was still missing rather than leaving an
+open-ended series.
+
+**Rule:** when you restore state across a boundary, enumerate both sets explicitly
+and record a preserve-or-discard decision for *every* field, in a comment next to
+the teardown. Prefer a structural argument over a semantic one: "the Generate button
+is unreachable while `browse` is set, because the template nests the AI panel inside
+its `{{else}}`" is checkable; "`browse` is navigational" is an opinion.
+
+**And beware the comment itself.** Two of the five rounds shipped an *invariant
+comment that was wrong*, each time in the same direction as the defect it described
+— one grouped the authored `search_term` with the derived `search` results object,
+another claimed `search_term` renders in the same conditional branch as the list-name
+field when it is the mutually exclusive `{{else}}` arm. A wrong invariant comment in
+a file like this is the next defect's seed, because it is what the next maintainer
+follows.
+
+## Gotcha: the local Codex model can drift off the approved-reviewer registry
+
+**Surface:** running `/review-pr`, `/dual-review`, or `~/bin/codex-review` and
+assuming the reviewer is the model the registry approves.
+
+On 2026-08-23 `~/.codex/config.toml` was pinned to `model = "gpt-5.6-luna"`. The
+approved-reviewer registry in `~/.claude/CLAUDE.md` lists **`gpt-5.6-terra`**
+(default) / `gpt-5.6-sol` (careful) for the interactive Codex row, and explicitly
+rejects `luna` for the CI row with a specific rationale: the chunk leg is the only
+leg that reads raw code, so a defect the cheap tier misses is *unreachable* rather
+than merely unreported. Nothing warns you; the review simply runs on an unapproved
+model and reports normally.
+
+Override per-run rather than reviewing on the wrong tier:
+
+```bash
+~/bin/codex-review --base staging -c model='"gpt-5.6-terra"' --title "..."
+```
+
+**Two related path facts, both of which cost time:**
+
+- The PII pre-flight guard is **not** in this repo. `CLAUDE.md` cites
+  `scripts/codex-review-guard.sh`, but `scripts/` here holds thirteen *other*
+  `codex-review-*` scripts and not that one. It lives at
+  `~/ai-company-brain/scripts/codex-review-guard.sh`, and it takes a **base ref**
+  (`... origin/staging`), appending `...HEAD` itself.
+- `chatgpt-codex-connector[bot]` PR reviews and the `codex-review` GitHub Action are
+  **different billing routes**. The bot is the Codex cloud GitHub App (ChatGPT
+  subscription); the workflow authenticates with `secrets.CODEX_OPENAI_API_KEY` via
+  `codex login --with-api-key` (pay-per-use platform key,
+  `.github/workflows/codex-review.yml:333,338`). Commenting `@codex review` does not
+  touch the platform key.
+
+**Also:** the bot does not always pick up a new head. It reviewed three pushes on
+#848 within ~5 minutes each, then never reviewed the fourth. Zero inline findings on
+a head are *inconclusive* — a successful clean review also produces none. Check the
+review list's `commit_id` before reading silence as a skip *or* as approval.

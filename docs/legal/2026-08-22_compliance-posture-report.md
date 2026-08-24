@@ -1,14 +1,16 @@
 # LingoLinq AAC Compliance Posture Report
 
-> **DRAFT - awaiting attestation (content refreshed 2026-08-20).** Successor to attested
-> `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (re-attested 2026-07-23). Prior attestations on the
-> predecessor: ATTESTED 2026-06-19 by Scot Wahlquist, CEO; RE-ATTESTED 2026-07-16; RE-ATTESTED
-> 2026-07-23. This draft refreshes headline and framework counts from the findings register as
-> committed at staging commit `64cdccba1`. It is not a current attested statement until Scot
-> signs. Originally drafted 2026-08-09 by the compliance-officer; content re-verified and
-> refreshed 2026-08-20 after the 2026-08-12 six-finder audit run and the Article 50 server-side
-> backstop work (#829/#831); for adversary review; for
-> CEO attestation.
+> **ATTESTED 2026-08-24 by Scot Wahlquist, CEO.** Successor
+> via Path A supersession to attested `docs/legal/2026-08-20_compliance-posture-report.md`
+> (ATTESTED 2026-08-20 by Scot Wahlquist, CEO), which succeeded the unattested draft
+> `docs/legal/2026-08-09_compliance-posture-report_draft.md`, which itself succeeded attested
+> `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (ATTESTED 2026-06-19; RE-ATTESTED 2026-07-16;
+> RE-ATTESTED 2026-07-23). This successor exists ONLY to correct the seven defects listed below,
+> carried by its predecessor; no count, finding, or posture claim is otherwise changed. See "Corrections in this
+> successor" below. This report refreshes headline and framework counts from the
+> findings register as committed at staging commit `64cdccba1`. Originally drafted 2026-08-09 by the compliance-officer; content
+> re-verified and refreshed 2026-08-20 after the 2026-08-12 six-finder audit run and the Article 50
+> server-side backstop work (#829/#831); corrected 2026-08-22; attested 2026-08-24.
 >
 > Register audited SHA (last full `/audit-run`): `59f502aa4` (auditedDate 2026-08-18; a monthly
 > light-run restamp, not a full re-scan -- see `meta.auditedShaPriorNote` in the register for why
@@ -19,13 +21,13 @@
 > `remediated-unverified` findings by severity, per `scripts/compliance-notion-publish.rb`). Do not
 > hand-edit the figures; refresh them from the register.
 
-### Changes since the 2026-08-09 draft (this refresh, 2026-08-20)
+### Changes since the 2026-08-09 draft (predecessor attestation, 2026-08-20)
 
 - **Counts refreshed 2026-08-20.** Publisher convention at `64cdccba1` gives **0 Critical / 20 High / 52
   Medium / 40 Low** (112 live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
   Critical remains **0**, the gating metric. The High rise is almost entirely the 2026-08-12
   six-finder full audit run (privacy, infra, api, dependency, accessibility, code-hygiene), which
-  added 9 new open Highs in a single run -- notably three GCP production-access/logging gaps
+  added 9 new Highs in a single run (8 still open at `64cdccba1`) -- notably three GCP production-access/logging gaps
   (LL-1e7b568ef3 WIF ref-lock, LL-b7ccc522b9 no Data Access audit logging, LL-c0b3d59f58 a human
   principal holding project-wide secretmanager/cloudsql admin) and a public-ingress Cloud Run
   finding (LL-0b5443f43b). One High closed in the same window: LL-1b0d78dbe6 (Bedrock BAA-account
@@ -35,7 +37,33 @@
   5); LL-6723438462 moved open -> remediated-unverified. The disclosure-link contrast blocker
   (LL-a9d6d5a46b) was found to have already been fixed on 2026-07-28 (#694) but the register had
   gone stale recording it as open; corrected to remediated-unverified with the #694 evidence.
-  `article_50_disclosure` remains AVAILABLE-only (not enabled) pending Scot's enablement decision.
+  `article_50_disclosure` is AVAILABLE-only, not in `ENABLED_FRONTEND_FEATURES`, in
+  `lib/feature_flags.rb` at `64cdccba1`. **That is the code default, not the runtime state.**
+  `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for`
+  (`lib/feature_flags.rb:132` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset, a database override a code listing cannot show.
+  Production flag state WAS verified on 2026-08-23; see the resolution below.
+  **CONTRADICTION RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`,
+  itself CEO-attested 2026-08-19, records `article_50_disclosure_shown` TRUE on all 63
+  post-deploy `AiApiLog` rows. That column (`app/models/user.rb:1324-1331` at `64cdccba1`) is true only after
+  an actual modal acknowledgement, which a never-enabled disclosure cannot produce. Scope
+  caveat from that same record: the 63 rows come from 2 accounts, consistent with internal
+  pre-tenant testing. **RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** Production was read through the
+  application path: `Setting.get('default_enabled_features')` CONTAINS `article_50_disclosure`,
+  and `FeatureFlags.feature_enabled_for?('article_50_disclosure', user)` resolved TRUE for every
+  user probed at `2026-08-23T21:04:12Z` (`RAILS_ENV=production`, image `web:73a8f633`). No org,
+  beta or canary layer modifies it: production holds 2 organizations, 0 EU-stamped and 0 carrying
+  any feature override, and neither the canary nor the beta `Setting` row exists. Enabled-SINCE
+  date is NOT recoverable -- `Setting` carries no PaperTrail history (0 version rows) and
+  `Setting.set` overwrites in place; the containing row was created `2026-08-04T07:19:11Z` and
+  last written `2026-08-13T00:03:56Z`. Full record: `docs/legal/2026-08-23_article-50-production-flag-verification.md`.
+
+> **Methodology caveat for this section.** The infrastructure statements in "Infrastructure
+> migration state" below were carried
+> forward from the 2026-07-23 predecessor and were NOT re-verified against live GCP or AWS
+> state in the 2026-08-20 register-only refresh or in this correction pass. Re-check before
+> attesting if infrastructure has changed since 2026-07-22. This mirrors the caveat the
+> Compliance Program carries for the identical claims.
+
 - **Gate 1 DNS cutover completed (2026-07-22).** `app.lingolinq.com` serves from GCP Cloud Run
   with Cloud SQL and Memorystore. Render remains a write-frozen rollback fallback pending
   explicit decommission.
@@ -58,6 +86,28 @@
 - **Open High count moved 13 -> 16 -> 4** after the 2026-06 disposition and remediation wave, then
   rose again through the 2026-07-07 audit refresh and subsequent PR-time filings (see register).
 - **Counts refreshed and re-attested 2026-07-16 and 2026-07-23** on the predecessor file.
+
+## Corrections in this successor
+
+This successor exists only to correct defects carried by its predecessor. Every count, finding
+id and framework figure is otherwise unchanged, and the snapshot boundary is still `64cdccba1` --
+these corrections do not move the derivation to a later commit. The one substantive claim that
+IS corrected is the Article 50(1) enablement claim; see row 6 below.
+
+| # | Defect in `2026-08-20_compliance-posture-report.md` | Correction | Why it was wrong |
+|---|---|---|---|
+| 1 | "added 46 new findings (9 High / 22 Medium / 15 Low)" (:14) | 40 (9 High / 18 Medium / 13 Low) | The register holds exactly 40 rows with `firstSeen: 2026-08-12` at that split, and `audit-reports/run-log/runs.jsonl` -- the run's own record -- carries `"new": 40` with a 40-element `newIds` array whose per-domain note also sums to 40 (privacy 7, infra 16, api 2, dependency 1, accessibility 7, code-hygiene 7). Wrong at every commit, so the snapshot boundary does not reach it. The old figures were self-consistent (9+22+15=46), which is why they read as plausible. |
+| 2 | Framework table headed "Open findings / Open High" (:99, :102) | "Live / Live High" | The values are live (`open` + `remediated-unverified`), as the document's own text nine lines below confirms by reconciling those rows against the 112 live total. At `64cdccba1` the true open-only figures are FERPA 33/9, HIPAA 26/9, GDPR 20/6, COPPA 9/4, WCAG 18/1, SOC 2 39/6 -- so the "Open High" label overstated open Highs on four of six rows, SOC 2 most visibly (9 shown, 6 open). Values are correct and unchanged; only the label moves. |
+| 3 | Summary table rows headed "Open Critical / Open High / Open Medium-Low" (:64-66) | "Live ..." | Same defect. At `64cdccba1` open-only is 15 High and 49 Medium against the table's 20 and 52. Values correct and unchanged. |
+| 4 | "from the findings register at HEAD" (:7) and "Publisher convention at HEAD gives" (:22) | pinned to `` `64cdccba1` ``; every "staging HEAD `64cdccba1`" also reworded to "staging commit", since staging HEAD has since moved and the phrase decays | Live-tense phrasing fought the pinned footer, which already said "as committed at staging commit `64cdccba1`". A reader could take the counts as current rather than as of that commit. |
+| 5 | "added 9 new open Highs in a single run" (:26) | "9 new Highs (8 still open at `64cdccba1`)" | One of the nine, `LL-6af580a23a`, was `remediated-unverified` at the pinned commit, not `open`. |
+| 6 | `article_50_disclosure` "remains AVAILABLE-only (not enabled)" (:36, :138) | restated as the CODE DEFAULT at `64cdccba1`, with the runtime source named | The claim stated a runtime fact but rested only on a code listing. `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset -- a database override no code listing can show. **Production flag state WAS verified 2026-08-23: ENABLED in production via the `default_enabled_features` DB Setting (see `docs/legal/2026-08-23_article-50-production-flag-verification.md`).** |
+| 7 | Infrastructure section asserted live GCP/Render state with no methodology caveat | caveat added | The Compliance Program carries exactly this caveat for the identical claims; the Posture Report did not, so a reader took the uncaveated one as verified. |
+
+Correction 1 was found by adversary review during PR #838; corrections 2-4 during the follow-up
+sweep in PR #845, which applied 1-3 to the superseded 2026-08-09 predecessor drafts; corrections
+5-7 by adversary review of PR #845. Corrections 5-7 are pre-existing defects inherited from the
+predecessor chain, not regressions introduced by #838 or #845.
 
 ## Headline
 
@@ -137,8 +187,12 @@ These are implemented and operating, not aspirational:
 - **Article 50(2) marking** (`lib/art50_marker.rb`): server-signed provenance markers on in-scope
   generative paths. Article 50(1) disclosure UI is built, and the server-side disclosure backstop
   (`require_article_50_disclosure!`) now covers all 5 AI ingresses as of 2026-08-19 (#829, #831),
-  but the `article_50_disclosure` flag remains AVAILABLE-only -- not enabled -- pending Scot's
-  enablement decision.
+  but the `article_50_disclosure` flag is AVAILABLE-only -- not in
+  `ENABLED_FRONTEND_FEATURES` -- in `lib/feature_flags.rb` at `64cdccba1`. As above, that is
+  the code default; the runtime answer comes from the `SystemFeatureSettings` database
+  override, which was READ on 2026-08-23 and CONTAINS the flag. See the "CONTRADICTION RESOLVED"
+  note in "Changes since the 2026-08-09 draft" above: production was read directly and the
+  disclosure IS live. Full record: `docs/legal/2026-08-23_article-50-production-flag-verification.md`.
 
 ## Infrastructure migration state
 
@@ -187,7 +241,7 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 ## What this report is and is not
 
 - It **is** an honest internal posture summary, generated from live data, suitable as the basis
-  for customer-facing responses once attested.
+  for customer-facing responses now that it is attested.
 - It is **not** a certification, a legal opinion, or a guarantee of compliance.
 - The disclosure altitude for any externally shared version (counts as shown, or summarized) is
   Scot's decision at attestation time.
@@ -197,10 +251,10 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 | Field | Value |
 |---|---|
 | Prepared by | compliance-officer agent (draft, 2026-08-09); content refreshed by Claude Code 2026-08-20 |
-| Reviewed by | _adversary review pending_ |
-| Attested by | _Scot Wahlquist, CEO (pending signature)_ |
-| Predecessor attestation dates | 2026-06-19; re-attested 2026-07-16; re-attested 2026-07-23 |
-| Attestation date (this draft) | _pending_ |
+| Reviewed by | Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review run on PR #838, #845 and #846 (the #846 pass produced the Section 15 fidelity, citation-anchor and provenance corrections recorded above) |
+| Attested by | Scot Wahlquist, CEO |
+| Predecessor attestation dates | 2026-06-19; re-attested 2026-07-16; re-attested 2026-07-23; 2026-08-20 (immediate predecessor) |
+| Attestation date | 2026-08-24 |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). Counts
 re-derived from `audit-reports/FINDINGS.json` as committed at staging commit `64cdccba1` on

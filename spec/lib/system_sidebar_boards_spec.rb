@@ -22,6 +22,10 @@ describe SystemSidebarBoards do
       # imported, not copied from the legacy example board
       expect(board.parent_board_id).to eq(nil)
       expect(board.settings['name']).to eq('Vocal Flair 84 - Keyboard')
+      by_label = board.buttons.index_by { |b| b['label'] }
+      expect(by_label['shift']['vocalization']).to eq(':shift')
+      expect(by_label['space']['vocalization']).to eq(':space')
+      expect(by_label['a']['vocalization']).to eq('+a')
     end
 
     it "falls back to copying the legacy example board when the OBZ is missing" do
@@ -43,6 +47,27 @@ describe SystemSidebarBoards do
 
       board = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
       expect(board.settings['locale']).to eq('en')
+    end
+
+    it "restores missing keyboard control vocalizations from the committed OBZ" do
+      user = User.create(user_name: 'lingolinq')
+      Board.process_new({
+        'name' => 'Vocal Flair 84 - Keyboard',
+        'public' => true,
+        'locale' => 'en',
+        'buttons' => [
+          {'id' => 36, 'label' => 'shift'},
+          {'id' => 44, 'label' => 'space'},
+          {'id' => 27, 'label' => 'a'}
+        ],
+        'grid' => {'rows' => 1, 'columns' => 3, 'order' => [[36, 44, 27]]}
+      }, {user: user, key: 'keyboard'})
+
+      board = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
+      by_label = board.buttons.index_by { |b| b['label'] }
+      expect(by_label['shift']['vocalization']).to eq(':shift')
+      expect(by_label['space']['vocalization']).to eq(':space')
+      expect(by_label['a']['vocalization']).to eq('+a')
     end
 
     it "is idempotent" do

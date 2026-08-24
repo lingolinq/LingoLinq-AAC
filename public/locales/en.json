@@ -2438,6 +2438,8 @@
   "error_saving_user": "Focus words failed to save",
   "error_saving_ideas": "Requested Ideas failed to save",
   "ai_focus_words_requires_online": "AI focus word generation requires an Internet connection.",
+  "ai_focus_words_disclosure_unavailable": "AI focus words need the AI transparency notice acknowledged first. You can review it in your Preferences.",
+  "ai_focus_words_disclosure_refresh_failed": "We could not check your AI transparency settings. Check your connection, then try again.",
   "ai_focus_description_required": "Add a description so AI can generate focus words.",
   "ai_focus_word_count_invalid": "Choose between 5 and 50 focus words.",
   "focus_words_analyze_needs_user": "User information is not available. Try opening this screen again or signing in.",

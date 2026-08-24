@@ -804,6 +804,9 @@ class Api::UsersController < ApplicationController
         if user.coppa_parental_consent_revoked?
           return api_error 400, {error: 'parental consent revoked', coppa_parental_consent_revoked: true}
         end
+        if user.coppa_parental_consent_declined?
+          return api_error 400, {error: 'parental consent declined', coppa_parental_consent_declined: true}
+        end
         if user.coppa_needs_parent_email?
           return api_error 400, {error: 'parent email required', coppa_parent_email_required: true}
         end

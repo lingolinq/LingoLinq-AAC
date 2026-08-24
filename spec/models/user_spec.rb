@@ -2830,20 +2830,53 @@ describe User, :type => :model do
 
     it "should not re-add sidebar boards the user removed from their saved list" do
       u = User.new
-      social_key = 'mbaud12/senner-baud-greetings'
+      senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
       saved = User.default_sidebar_boards.reject do |b|
-        b['key'] == social_key || b['key'] == SystemBoardSources.board_key('crisis-vocabulary')
+        b['key'] == senner_key || b['key'] == SystemBoardSources.board_key('crisis-vocabulary')
       end
       u.settings = {'preferences' => {'sidebar_boards' => saved}}
       keys = u.sidebar_boards.map { |b| b['key'] || 'alert' }
-      expect(keys).not_to include(social_key)
+      expect(keys).not_to include(senner_key)
       expect(keys).to include(SystemBoardSources.board_key('crisis-vocabulary'))
     end
 
-    it "should leave social in the disabled pool by default" do
+    it "should leave senner-baud in the disabled pool by default" do
+      senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
       keys = User.default_active_sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).not_to include(senner_key)
+      expect(User.default_sidebar_boards.map { |b| b['key'] }).to include(senner_key)
+      expect(User.default_sidebar_boards.map { |b| b['key'] }).not_to include('mbaud12/senner-baud-greetings')
+    end
+
+    it "should not include vocal-flair-84 or senner-baud in the empty-list fallback" do
+      u = User.new
+      keys = u.sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(keys).not_to include(SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
+    end
+
+    it "should include vocal-flair-84 and senner-baud in the signup sidebar list" do
+      keys = User.signup_sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(keys).to include(SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
       expect(keys).not_to include('mbaud12/senner-baud-greetings')
-      expect(User.default_sidebar_boards.map { |b| b['key'] }).to include('mbaud12/senner-baud-greetings')
+    end
+
+    it "should not auto-add vocal-flair-84 or senner-baud into an older saved sidebar" do
+      u = User.new
+      vf84_key = SystemBoardSources.board_key('vocal-flair-84')
+      senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
+      crisis_key = SystemBoardSources.board_key('crisis-vocabulary')
+      saved = User.default_sidebar_boards.reject do |b|
+        [senner_key, crisis_key].include?(b['key'])
+      end
+      u.settings = {'preferences' => {'sidebar_boards' => saved}}
+      keys = u.sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).not_to include(vf84_key)
+      expect(keys).not_to include(senner_key)
+      expect(keys).to include(crisis_key)
     end
 
     it "should resolve default sidebar entries to user-owned copies except keyboard" do
@@ -2864,6 +2897,30 @@ describe User, :type => :model do
       expect(keys).not_to include(yesno.key)
       expect(keys).not_to include(inflections.key)
       expect(keys).not_to include(crisis.key)
+    end
+
+    it "should resolve signup sidebar entries to user-owned copies except keyboard" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
+      inflections = Board.process_new({name: 'Inflections', public: true}, {user: source, key: 'inflections'})
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      vf84 = Board.process_new({name: 'Vocal Flair 84', public: true}, {user: source, key: 'vocal-flair-84'})
+      senner = Board.process_new({name: SystemBoardSources::SENNER_BAUD_NAME, public: true}, {user: source, key: 'senner-baud'})
+      yesno.copy_for(u)
+      inflections.copy_for(u)
+      crisis.copy_for(u)
+      vf84_copy = vf84.copy_for(u)
+      senner_copy = senner.copy_for(u)
+      UserBoardProvisioner.apply_signup_sidebar!(u)
+      u.reload
+
+      keys = u.sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).to include(vf84_copy.key)
+      expect(keys).to include(senner_copy.key)
+      expect(keys).to include(SystemBoardSources.board_key('keyboard'))
+      expect(keys).not_to include(vf84.key)
+      expect(keys).not_to include(senner.key)
     end
 
     it "should not auto-add crisis when the user's resolved copy key is already stored" do

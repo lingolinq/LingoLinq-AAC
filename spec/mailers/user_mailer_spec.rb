@@ -121,6 +121,31 @@ describe UserMailer, :type => :mailer do
       expect(m.subject).to eq(I18n.t('parental_consent_mailer.subject', app_name: 'LingoLinq'))
       html = message_body(m, :html)
       expect(html).to match(/parental_consent\/complete/)
+      expect(html).to include(I18n.t('parental_consent_mailer.decline_prompt'))
+      expect(html).not_to include('prepare an export')
+    end
+
+    it "uses offboarding decline copy that mentions export when coppa.offboarding is set" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_off_kid',
+        'email' => 'kid_off_m@example.com',
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_off_m@example.com'
+      }, {:pending => true})
+      c = u.settings['coppa']
+      c['offboarding'] = true
+      u.settings['coppa'] = c
+      u.save!
+      m = UserMailer.parental_consent_request(u.global_id)
+      html = message_body(m, :html)
+      text = message_body(m, :text)
+      expect(html).to include(I18n.t('parental_consent_mailer.offboarding_decline_prompt'))
+      expect(text).to include(I18n.t('parental_consent_mailer.offboarding_decline_prompt'))
+      expect(html).not_to include(I18n.t('parental_consent_mailer.decline_prompt'))
     end
 
     it "uses admin-edited i18n overrides in the email body" do
