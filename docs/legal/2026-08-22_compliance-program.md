@@ -1,6 +1,6 @@
 # LingoLinq Compliance & Security Program
 
-> **v1.3.1 DRAFT - awaiting attestation. Internal use only until the CEO attests this file.**
+> **v1.3.1. ATTESTED 2026-08-24 by Scot Wahlquist, CEO.**
 > Successor via Path A supersession to attested `docs/legal/2026-08-20_compliance-program.md`
 > (v1.3, ATTESTED 2026-08-20 by Scot Wahlquist, CEO), which succeeded the unattested draft
 > `docs/legal/2026-08-09_compliance-program_draft.md`, which itself succeeded attested
@@ -16,10 +16,10 @@
 > are confined to Section 12 and are marked "not yet built" so nothing here reads as a promise we
 > cannot keep.
 >
-> **Version:** 1.3.1 (DRAFT - NOT YET ATTESTED) · **Date:** 2026-06-18 (v1.0);
+> **Version:** 1.3.1 (ATTESTED 2026-08-24) · **Date:** 2026-06-18 (v1.0);
 > 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3); v1.3.1 drafted 2026-08-22 ·
-> **Attested by:** PREDECESSOR VERSIONS ONLY - Scot Wahlquist, CEO (2026-06-18; 2026-07-22;
-> 2026-08-04; 2026-08-20 on v1.3). **v1.3.1 carries no attestation.** · **Supersedes:** attested
+> **Attested by:** Scot Wahlquist, CEO (2026-06-18; 2026-07-22;
+> 2026-08-04; 2026-08-20 on v1.3; **2026-08-24 on v1.3.1**). · **Supersedes:** attested
 > `2026-08-20_compliance-program.md` v1.3 (DOC-5a4b795792), which superseded unattested draft
 > `2026-08-09_compliance-program_draft.md` (DOC-73a80fc88d), which itself superseded attested
 > `COMPLIANCE_PROGRAM.md` v1.2 (DOC-b61994933c) · **Source of truth for status:**
@@ -440,8 +440,8 @@ opinion, or a guarantee of compliance.
 | Register audited commit | last full `/audit-run`: `d67ed76e0a1` (auditedDate 2026-08-12, 40 new findings); monthly light-run restamp `59f502aa4` (auditedDate 2026-08-18); live counts re-derived at staging commit `64cdccba1` (2026-08-20) |
 | Posture at `64cdccba1` (v1.3, attested 2026-08-20) | 0 live Critical / 20 live High / 52 live Medium / 40 live Low (publisher convention), per `audit-reports/FINDINGS.json` |
 | Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render retained as write-frozen rollback fallback pending explicit decommission. LL-6619cc1811 verified-closed. **Not re-verified against live infrastructure for this 2026-08-20 attestation** (register-and-code-only pass); this row carries forward the 2026-07-22/23 live verification. Re-check against live GCP/AWS state before relying on this for anything infrastructure-sensitive. |
-| Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO (v1.3.1) |
-| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3); v1.3.1 pending |
+| Attested by | Scot Wahlquist, CEO (v1.3.1) |
+| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3); 2026-08-24 (v1.3.1) |
 
 _Once attested, the canonical home for this document is the repository at
 `docs/legal/COMPLIANCE_PROGRAM.md`, alongside the evidence it indexes. Moving it there is a

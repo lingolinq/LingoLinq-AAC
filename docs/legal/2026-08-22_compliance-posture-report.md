@@ -1,6 +1,6 @@
 # LingoLinq AAC Compliance Posture Report
 
-> **DRAFT - awaiting attestation. Internal use only until the CEO attests this file.** Successor
+> **ATTESTED 2026-08-24 by Scot Wahlquist, CEO.** Successor
 > via Path A supersession to attested `docs/legal/2026-08-20_compliance-posture-report.md`
 > (ATTESTED 2026-08-20 by Scot Wahlquist, CEO), which succeeded the unattested draft
 > `docs/legal/2026-08-09_compliance-posture-report_draft.md`, which itself succeeded attested
@@ -252,9 +252,9 @@ EU AI Act classification analysis are documented in the AI Governance Memo
 |---|---|
 | Prepared by | compliance-officer agent (draft, 2026-08-09); content refreshed by Claude Code 2026-08-20 |
 | Reviewed by | Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review run on PR #838, #845 and #846 (the #846 pass produced the Section 15 fidelity, citation-anchor and provenance corrections recorded above) |
-| Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO |
+| Attested by | Scot Wahlquist, CEO |
 | Predecessor attestation dates | 2026-06-19; re-attested 2026-07-16; re-attested 2026-07-23; 2026-08-20 (immediate predecessor) |
-| Attestation date | pending |
+| Attestation date | 2026-08-24 |
 
 _Phase 3 deliverable of the Audit/Compliance System Modernization (plan section 6). Counts
 re-derived from `audit-reports/FINDINGS.json` as committed at staging commit `64cdccba1` on

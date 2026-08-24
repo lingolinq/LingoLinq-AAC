@@ -3548,7 +3548,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-22_compliance-posture-report.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -3557,9 +3557,20 @@
         "WCAG",
         "SOC2"
       ],
-      "lastReviewed": "2026-08-22",
-      "nextReviewDue": "2026-11-22",
-      "attestation": {},
+      "lastReviewed": "2026-08-24",
+      "nextReviewDue": "2026-11-24",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-24",
+        "attestedContentHash": "e453a31bac80daf67137bab624a97c7800380f65c41d60a63ab0b63dc259d144",
+        "priorAttestations": [
+          "2026-06-19",
+          "2026-07-16",
+          "2026-07-23",
+          "2026-08-20"
+        ],
+        "note": "Attestation recorded by Claude Code on 2026-08-24 at Scot Wahlquist's explicit direction. Verified in this pass: the Article 50(1) runtime-enablement correction is present and correctly framed (the code-default claim is explicitly labelled as such and resolves to PRODUCTION VERIFIED ENABLED, citing docs/legal/2026-08-23_article-50-production-flag-verification.md); scripts/regenerate-register.sh --check passed clean; and every in-document status and attestation block was reconciled with this attestation, so the attested bytes no longer describe themselves as a draft awaiting attestation. NOT independently re-verified in this pass: individual finding IDs, framework counts, and infrastructure claims, all carried forward from the 2026-08-20 predecessor attestation. Path A supersession of DOC-59273ae805 (docs/legal/2026-08-20_compliance-posture-report.md, attested 2026-08-20)."
+      },
       "bundles": [],
       "mirrors": [],
       "supersedes": "DOC-59273ae805",
@@ -3573,7 +3584,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "6ce2e4739303c9d6cb19e8847bed082f51399b842bc370bf57e4650f0e88209f"
+      "contentHash": "e453a31bac80daf67137bab624a97c7800380f65c41d60a63ab0b63dc259d144"
     },
     {
       "title": "Compliance & Security Program",
@@ -3582,7 +3593,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-22_compliance-program.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -3590,9 +3601,20 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-08-22",
-      "nextReviewDue": "2026-11-22",
-      "attestation": {},
+      "lastReviewed": "2026-08-24",
+      "nextReviewDue": "2026-11-24",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-24",
+        "attestedContentHash": "63e06cc87f207afa0b60a8221f0c6861849a17cee4f17bdc101646f42e2a3c50",
+        "priorAttestations": [
+          "2026-06-18",
+          "2026-07-22",
+          "2026-08-04",
+          "2026-08-20"
+        ],
+        "note": "Attestation recorded by Claude Code on 2026-08-24 at Scot Wahlquist's explicit direction. Verified in this pass: the Article 50(1) runtime-enablement correction is present and correctly framed (the code-default claim is explicitly labelled as such and resolves to PRODUCTION VERIFIED ENABLED, citing docs/legal/2026-08-23_article-50-production-flag-verification.md); scripts/regenerate-register.sh --check passed clean; and every in-document status and attestation block was reconciled with this attestation, so the attested bytes no longer describe themselves as a draft awaiting attestation. NOT independently re-verified in this pass: individual finding IDs, framework counts, and infrastructure claims, all carried forward from the 2026-08-20 predecessor attestation. This is v1.3.1. Path A supersession of DOC-5a4b795792 (docs/legal/2026-08-20_compliance-program.md v1.3, attested 2026-08-20)."
+      },
       "bundles": [],
       "mirrors": [],
       "supersedes": "DOC-5a4b795792",
@@ -3606,7 +3628,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "e99129538ad1c0b688fb5ff4e1ec4c2b79dee1554494c4cfe9b7caffe3568986"
+      "contentHash": "63e06cc87f207afa0b60a8221f0c6861849a17cee4f17bdc101646f42e2a3c50"
     },
     {
       "title": "Compliance Status Snapshot (2026-08-22)",
@@ -3615,11 +3637,19 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-22_compliance-status-snapshot.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [],
-      "lastReviewed": "2026-08-22",
-      "nextReviewDue": "2026-11-22",
-      "attestation": {},
+      "lastReviewed": "2026-08-24",
+      "nextReviewDue": "2026-11-24",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-24",
+        "attestedContentHash": "331d1a4009aac398a14cb883a546cc7e36140a1f3263c79787ee53a80c5a67f7",
+        "priorAttestations": [
+          "2026-08-20"
+        ],
+        "note": "Attestation recorded by Claude Code on 2026-08-24 at Scot Wahlquist's explicit direction. Verified in this pass: the Article 50(1) runtime-enablement correction is present and correctly framed (the code-default claim is explicitly labelled as such and resolves to PRODUCTION VERIFIED ENABLED, citing docs/legal/2026-08-23_article-50-production-flag-verification.md); scripts/regenerate-register.sh --check passed clean; and every in-document status and attestation block was reconciled with this attestation, so the attested bytes no longer describe themselves as a draft awaiting attestation. NOT independently re-verified in this pass: individual finding IDs, framework counts, and infrastructure claims, all carried forward from the 2026-08-20 predecessor attestation. Path A supersession of DOC-3468caf949 (docs/legal/COMPLIANCE_STATUS_2026-08-09.md, attested 2026-08-20)."
+      },
       "bundles": [],
       "mirrors": [],
       "notes": "Path A successor to CEO-attested DOC-3468caf949 (docs/legal/COMPLIANCE_STATUS_2026-08-09.md, attested 2026-08-20). UNATTESTED DRAFT - carries no attestation of its own. Corrects the 2026-08-12 run size (46 -> 40, 9/18/13), unqualified \"at HEAD\" phrasing, stale self-references to the predecessor's attestation, and the article_50_disclosure enablement claim.",
@@ -3633,7 +3663,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-3468caf949",
-      "contentHash": "f7e52f9a943f6e75bbea83aa4716bf8bdb58b5f51fc1ffcd719a46dcc58a159d"
+      "contentHash": "331d1a4009aac398a14cb883a546cc7e36140a1f3263c79787ee53a80c5a67f7"
     },
     {
       "title": "Article 50(1) Disclosure - Production Feature-Flag Verification",
@@ -3642,19 +3672,24 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-23_article-50-production-flag-verification.md",
-      "status": "draft",
+      "status": "approved",
       "frameworks": [
         "GDPR",
         "EU_AI_Act"
       ],
-      "lastReviewed": "2026-08-23",
-      "nextReviewDue": "2026-11-23",
-      "attestation": {},
+      "lastReviewed": "2026-08-24",
+      "nextReviewDue": "2026-11-24",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-24",
+        "attestedContentHash": "6ead753b573feb9924c1e00414206556b5ce5ba2293a92b0be428f20636e66ef",
+        "note": "Attestation recorded by Claude Code on 2026-08-24 at Scot Wahlquist's explicit direction. New evidence record, supersedes nothing. It asserts no posture of its own beyond its recorded observations, which are point-in-time reads taken 2026-08-23 through the audited lingolinq-migrate Cloud Run job; the serving-revision and flag-state figures are scoped to that timestamp and are not claims about the present. Dual-reviewed on PR #849 (Codex senior-dev + Claude adversary): 3 High, 9 Medium, 3 Low, all addressed before merge. Verified in this pass: the record's own status and attestation blocks were reconciled with this attestation, and its stale 'NOT YET REVIEWED' line was corrected to record the #849 dual review. The production reads themselves were not re-executed."
+      },
       "bundles": [],
       "mirrors": [],
       "notes": "Evidence record, UNATTESTED DRAFT. Produced by two audited read-only rails runner executions (lingolinq-migrate-jqpxb, lingolinq-migrate-4ss8l) against RAILS_ENV=production on image web:73a8f633, attributed attribution label scot-art50-flag-verification-2026-08-23, supplied via the USER_KEY environment variable; each execution wrote an AuditEvent, disclosed in the record. Resolves the open Article 50(1) enablement question carried by DOC-c5408d90b7, DOC-e5e85eccb1 and DOC-af01c65b10, and corroborates the attested live-production observation at docs/legal/2026-08-17_ai-data-flow-classification.md:132. Does NOT establish an enabled-since date: Setting has no PaperTrail history (0 version rows) and Setting.set overwrites in place, so that question is unanswerable for every Setting-backed control, not only this flag. Surfaces two pre-existing open items: zero organizations carry a jurisdiction stamp, and code/DB disagree on the default feature set.",
       "id": "DOC-6c023a20a0",
-      "contentHash": "e42454727ccd4376d9a0855055674b158dda156e9da970f7602c73a3d91f5a36",
+      "contentHash": "6ead753b573feb9924c1e00414206556b5ce5ba2293a92b0be428f20636e66ef",
       "retention": {
         "class": "audit-evidence",
         "rule": "7 years",

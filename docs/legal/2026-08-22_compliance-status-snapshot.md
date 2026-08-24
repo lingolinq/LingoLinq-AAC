@@ -7,7 +7,7 @@ passed; the customer-facing Posture Report still claims **8** open High from the
 re-attest while the live register at `64cdccba1` reads **20** High (up from 12 at the 2026-08-09
 draft, almost entirely from the 2026-08-12 six-finder full audit run); overdue monthly-light audit
 and COPPA quarterly retention checks need surfacing.
-**Status:** DRAFT - awaiting attestation. Successor via Path A supersession to attested
+**Status:** ATTESTED 2026-08-24 by Scot Wahlquist, CEO. Successor via Path A supersession to attested
 `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` (ATTESTED 2026-08-20 by Scot Wahlquist, CEO),
 correcting the defects listed in "Corrections in this successor" below, which include the
 Article 50(1) enablement claim. Headline counts are re-derived from
@@ -224,7 +224,8 @@ From `audit-reports/DOCUMENT-REGISTER.json` (`status: draft`):
 - Annex A - Clinical BAA Template (Drive)
 - Annex B - US Schools SDPA Package (Drive)
 
-Plus this package: Status snapshot, Posture Report refresh, COMPLIANCE_PROGRAM draft revision.
+This package (Status snapshot, Posture Report refresh, COMPLIANCE_PROGRAM v1.3.1) was ATTESTED
+2026-08-24 and is no longer awaiting attestation; the list above is the remaining set.
 
 ---
 
@@ -234,8 +235,8 @@ Plus this package: Status snapshot, Posture Report refresh, COMPLIANCE_PROGRAM d
 |---|---|
 | Prepared by | compliance-officer role (draft, 2026-08-09); content refreshed by Claude Code 2026-08-20 |
 | Reviewed by | Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review run on PR #838, #845 and #846 (the #846 pass produced the Section 15 fidelity, citation-anchor and provenance corrections recorded above) |
-| Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO |
-| Attestation date | pending |
+| Attested by | Scot Wahlquist, CEO |
+| Attestation date | 2026-08-24 |
 
 _Internal status snapshot. Headline counts are read from the register; every other audit-report
 file is a point-in-time snapshot and is not authoritative for status. Only Scot closes findings
