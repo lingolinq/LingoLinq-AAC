@@ -4,13 +4,13 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-07-23 | Documents: 88 (git 56 / drive 28 / notion 4)
+> Generated: 2026-07-23 | Documents: 89 (git 57 / drive 28 / notion 4)
 
 ## Headline
 
-- **Status:** draft 10, approved 17, published 43, superseded 18
+- **Status:** draft 11, approved 17, published 42, superseded 19
 - **Overdue for review** (as of 2026-07-23): none
-- **Drafts awaiting attestation:** Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)
+- **Drafts awaiting attestation:** Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); AI Governance Memo (2026-08-24 successor)
 
 ## Documents by type
 
@@ -34,16 +34,17 @@
 | Vendor and Subprocessor Management Policy | Drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | published | SOC2, GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Written Information Security Program (WISP) | Drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | published | SOC2, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, security-review, baa |
 
-### legal (21)
+### legal (22)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | draft | WCAG | Scot Wahlquist | 2026-06-16 | 2026-09-16 | no | `e68ef80b2638` | school-dpa-package, security-review, grant |
 | Accessibility Conformance Report (ACR / VPAT) (branded) | Drive | [open](https://docs.google.com/document/d/1ez60NG2PVKnkcjjbz4NgHOeL_0OcQtVkdhToImcnihs/edit) | draft | WCAG | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) | compliance-records-set-2026-06, school-dpa-package |
-| AI Governance Memo | git | `docs/legal/AI_GOVERNANCE_MEMO.md` | published | GDPR, COPPA | Scot Wahlquist | 2026-08-04 | 2026-10-22 | 2026-08-04 | `f35f99bd8b29` | compliance-records-set-2026-06, security-review |
+| AI Governance Memo | git | `docs/legal/AI_GOVERNANCE_MEMO.md` | superseded | GDPR, COPPA | Scot Wahlquist | 2026-08-04 | 2026-10-22 | 2026-08-04 | `f35f99bd8b29` | compliance-records-set-2026-06, security-review |
+| AI Governance Memo (2026-08-24 successor) | git | `docs/legal/2026-08-24_ai-governance-memo.md` | draft | GDPR, COPPA, EU_AI_Act | Scot Wahlquist | 2026-08-24 | 2026-11-24 | no | `abd9fecd7376` |  |
 | AI Governance Memo (branded) | Drive | [open](https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit) | published | GDPR, COPPA | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 | Anthropic Business Associate Agreement (2026-05-06) | Drive | [open](https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | (supplied) | baa |
-| Article 50(1) Disclosure - Production Feature-Flag Verification | git | `docs/legal/2026-08-23_article-50-production-flag-verification.md` | approved | GDPR, EU_AI_Act | Scot Wahlquist | 2026-08-24 | 2026-11-24 | 2026-08-24 | `6ead753b573f` |  |
+| Article 50(1) Disclosure - Production Feature-Flag Verification | git | `docs/legal/2026-08-23_article-50-production-flag-verification.md` | approved | GDPR, EU_AI_Act | Scot Wahlquist | 2026-08-24 | 2026-11-24 | 2026-08-24 | `bfd3bf1b1e5a` |  |
 | AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | published | HIPAA | Scot Wahlquist | 2026-05-11 | 2027-05-11 | 2026-02 | `55f28e00168c` | baa |
 | Compliance & Security Program | git | `docs/legal/2026-08-20_compliance-program.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-20 | 2027-08-07 | 2026-08-20 | `78804f7cd631` |  |
 | Compliance & Security Program | git | `docs/legal/2026-08-22_compliance-program.md` | approved | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-24 | 2026-11-24 | 2026-08-24 | `b25a66c88069` |  |
@@ -229,7 +230,7 @@ What a federal or foundation grant application needs from the compliance library
 | `executed-agreement` | term + 7 years | contract-end | archive | 9 |
 | `corporate-permanent` | permanent | n/a | archive | 0 |
 | `grant-record` | award + 7 years | close-out | archive | 0 |
-| `policy-version` | supersession + 7 years | superseded | archive | 44 |
+| `policy-version` | supersession + 7 years | superseded | archive | 45 |
 | `audit-evidence` | 7 years | finding-closed | archive | 18 |
 | `attestation-record` | permanent | n/a | archive | 0 |
 | `dsar-case` | 3 years | case-closed | delete | 0 |
@@ -283,7 +284,7 @@ green build. Verified for git rows only; Drive and Notion hashes are operator-su
 | AI Governance Memo | 2026-08-04 | `f35f99bd8b29` | verified |
 | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | 2026-08-16 | `50d7771cce4d` | verified |
 | Anthropic HIPAA-Ready BAA Acceptance Record | 2026-08-04 | `bb1ff239ec4c` | verified |
-| Article 50(1) Disclosure - Production Feature-Flag Verification | 2026-08-24 | `6ead753b573f` | verified |
+| Article 50(1) Disclosure - Production Feature-Flag Verification | 2026-08-24 | `bfd3bf1b1e5a` | verified |
 | AWS BAA Acceptance and Runtime Status Record | 2026-08-11 | `d6d4fb76887c` | verified |
 | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | 2026-08-12 | `a5f2c59512fa` | verified |
 | AWS BAA Acceptance Record | 2026-08-04 | `376b1e18ce52` | verified |
@@ -318,6 +319,7 @@ frozen point-in-time binder. Only the pointer is added.
 | Superseded record | Replaced by | Still bundled in |
 |---|---|---|
 | AI Data-Flow Classification (`DOC-90b5d33227`) | AI Data-Flow Classification (2026-08-17 successor) (`DOC-6d37a68cf4`) | (none) |
+| AI Governance Memo (`DOC-39f37f8200`) | AI Governance Memo (2026-08-24 successor) (`DOC-506bbe2039`) | compliance-records-set-2026-06, security-review |
 | Anthropic HIPAA-Ready BAA Acceptance Record (`DOC-ab3a8c3ed4`) | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) (`DOC-91b87f5f7f`) | (none) |
 | AWS BAA Acceptance and Runtime Status Record (`DOC-211a60d29e`) | AWS BAA Acceptance and Runtime Status Record (2026-08-12) (`DOC-82e90ba16a`) | (none) |
 | AWS BAA Acceptance Record (`DOC-286318ff28`) | AWS BAA Acceptance and Runtime Status Record (`DOC-211a60d29e`) | (none) |
@@ -336,4 +338,4 @@ frozen point-in-time binder. Only the pointer is added.
 
 ---
 
-_88 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_89 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
