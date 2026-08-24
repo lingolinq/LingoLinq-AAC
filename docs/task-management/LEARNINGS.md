@@ -3622,6 +3622,10 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 **Evidence:** task logs `2026-07-06-signup-boards-sidebar-copies.md`, `2026-07-28-staging-registration-timeout.md`.
 
+**Extension (2026-08-24) — VF84 + Senner-Baud as signup-only sidebar extras:** Do **not** put VF84 or Senner on `default_active_sidebar_boards`. Empty stored prefs stay the old utility list so a deploy does not change existing speak-mode sidebars or enqueue those trees as sync roots. Persist `User.signup_sidebar_boards` (utilities + VF84 + `lingolinq/senner-baud`) from `UserBoardProvisioner.apply_signup_sidebar!` at signup only. Replace the mbaud12 Social catalog slot with `lingolinq/senner-baud` and keep that key in `inactive_by_default_sidebar_keys` (disabled pool, not live sidebar). Do **not** add VF84/Senner to `sidebar_auto_add_keys` or `SIDEBAR_COPY_SLUGS`.
+
+**Evidence:** `User.signup_sidebar_boards`, `UserBoardProvisioner.apply_signup_sidebar!`; task log `2026-08-24-signup-sidebar-vf60-senner.md`.
+
 ---
 
 ## Pattern: custom lingolinq content boards — commit OBZ + `SystemBoardSources.ensure_*`

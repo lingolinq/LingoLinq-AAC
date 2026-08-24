@@ -3490,11 +3490,39 @@ class User < ApplicationRecord
   end
 
   def self.inactive_by_default_sidebar_keys
-    ['mbaud12/senner-baud-greetings']
+    [SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)]
   end
 
   def self.default_active_sidebar_boards
     default_sidebar_boards.reject { |b| inactive_by_default_sidebar_keys.include?(b['key']) }
+  end
+
+  # Written onto the user at signup only. Existing accounts with an empty stored
+  # sidebar keep default_active_sidebar_boards (no VF84 / Senner) so a deploy
+  # does not change live speak-mode sidebars or enqueue those trees as sync roots.
+  def self.signup_sidebar_boards
+    vf84 = {
+      'name' => "Vocal Flair 84",
+      'key' => SystemBoardSources.board_key('vocal-flair-84'),
+      'image' => '/images/vocal-flair-84.png',
+      'home_lock' => false
+    }
+    senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
+    result = []
+    default_sidebar_boards.each do |entry|
+      key = entry['key']
+      if key == SystemBoardSources.board_key('keyboard')
+        result << entry
+        result << vf84
+      elsif key == senner_key
+        result << entry
+      elsif inactive_by_default_sidebar_keys.include?(key)
+        next
+      else
+        result << entry
+      end
+    end
+    result
   end
   
   def admin?
@@ -3506,7 +3534,7 @@ class User < ApplicationRecord
       {'name' => "Yes/No", 'key' => 'lingolinq/yesno', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png', 'home_lock' => false},
       {'name' => "Inflections", 'key' => SystemBoardSources.board_key('inflections'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verb.png', 'home_lock' => false},
       {'name' => "Keyboard", 'key' => SystemBoardSources.board_key('keyboard'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/noun-project/Computer%20Keyboard-19d40c3f5a.svg', 'home_lock' => false},
-      {'name' => 'Social', 'key' => 'mbaud12/senner-baud-greetings', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/greet_2.png', 'home_lock' => false},
+      {'name' => SystemBoardSources::SENNER_BAUD_NAME, 'key' => SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/greet_2.png', 'home_lock' => false},
       {'name' => "Crisis Vocabulary", 'key' => SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG), 'image' => 'https://cdn-icons-png.flaticon.com/512/7373/7373323.png', 'home_lock' => false},
       {'name' => "Alert", 'special' => true, 'alert' => true, 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/to%20sound.png'}
     ]
