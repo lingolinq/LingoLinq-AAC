@@ -393,9 +393,20 @@ class ApplicationController < ActionController::Base
   # all, so enabling the 'article_50_disclosure' flag would have produced silent partial
   # enforcement across the five AI ingresses.
   #
-  # 'article_50_disclosure' is AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES) as of
-  # this writing, so feature_enabled_for? returns false and this guard is inert until the
-  # flag is enabled. Do not enable it here. Gates on EuJurisdiction.disclosure_required?
+  # DO NOT read the source constants as the flag's runtime state. 'article_50_disclosure'
+  # is AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES), but FeatureFlags resolves a DB
+  # `Setting` row named 'default_enabled_features' FIRST (lib/feature_flags.rb:129-146,
+  # lib/system_feature_settings.rb:6-88), and the source constant is consulted only when
+  # that row is absent. In production that row IS present and DOES include this flag:
+  # verified by direct read on 2026-08-23 (PR #849,
+  # docs/legal/2026-08-23_article-50-production-flag-verification.md).
+  #
+  # So this guard is LIVE in production, not inert. It is live for every production user,
+  # because EuJurisdiction.status resolves :unknown for all of them and
+  # disclosure_required? is `status(user) != :non_eu`. An earlier version of this comment
+  # said the guard "is inert until the flag is enabled"; that was true of the code and
+  # false of the running system, which is the more dangerous direction to be wrong in.
+  # Do not enable it here. Gates on EuJurisdiction.disclosure_required?
   # (true for :eu AND :unknown, fail-safe), never the retention-column jurisdiction
   # stamp (EuJurisdiction.retention_stamp, a different fail-safe direction -- see that
   # method's own comment). Reads server-side state only
