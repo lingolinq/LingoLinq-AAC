@@ -818,7 +818,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AI_GOVERNANCE_MEMO.md",
-      "status": "published",
+      "status": "superseded",
       "frameworks": [
         "GDPR",
         "COPPA"
@@ -856,7 +856,8 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-506bbe2039"
     },
     {
       "title": "Accessibility Conformance Report (ACR / VPAT)",
@@ -3652,9 +3653,9 @@
       "attestation": {},
       "bundles": [],
       "mirrors": [],
-      "notes": "Evidence record, UNATTESTED DRAFT. Produced by two audited read-only rails runner executions (lingolinq-migrate-jqpxb, lingolinq-migrate-4ss8l) against RAILS_ENV=production on image web:73a8f633, attributed attribution label scot-art50-flag-verification-2026-08-23, supplied via the USER_KEY environment variable; each execution wrote an AuditEvent, disclosed in the record. Resolves the open Article 50(1) enablement question carried by DOC-c5408d90b7, DOC-e5e85eccb1 and DOC-af01c65b10, and corroborates the attested live-production observation at docs/legal/2026-08-17_ai-data-flow-classification.md:132. Does NOT establish an enabled-since date: Setting has no PaperTrail history (0 version rows) and Setting.set overwrites in place, so that question is unanswerable for every Setting-backed control, not only this flag. Surfaces two pre-existing open items: zero organizations carry a jurisdiction stamp, and code/DB disagree on the default feature set.",
+      "notes": "Evidence record, UNATTESTED DRAFT. Produced by four named audited read-only rails runner executions (lingolinq-migrate-jqpxb at 2026-08-23T21:04:12Z, lingolinq-migrate-4ss8l at 2026-08-23T21:08:00Z, lingolinq-migrate-wxt9x at 2026-08-23T23:14:30Z, lingolinq-migrate-stnwz at 2026-08-23T23:23:41Z) against RAILS_ENV=production on image web:73a8f633, attributed attribution label scot-art50-flag-verification-2026-08-23, supplied via the USER_KEY environment variable. AuditEvent.count moved 245 to 251 (six runner sessions) under that label; two of those six have no retained Cloud Run execution ID in this record and are disclosed as unbound. Resolves the open Article 50(1) enablement question carried by DOC-c5408d90b7, DOC-e5e85eccb1 and DOC-af01c65b10, and corroborates the attested live-production observation at docs/legal/2026-08-17_ai-data-flow-classification.md:132. Does NOT establish an enabled-since date: Setting has no PaperTrail history (0 version rows) and Setting.set overwrites in place, so that question is unanswerable for every Setting-backed control, not only this flag. Surfaces two pre-existing open items: zero organizations carry a jurisdiction stamp, and code/DB disagree on the default feature set.",
       "id": "DOC-6c023a20a0",
-      "contentHash": "e42454727ccd4376d9a0855055674b158dda156e9da970f7602c73a3d91f5a36",
+      "contentHash": "2d0186d443c8c9e88dab98d9034c8517f0c3b09bdb981b74a95e45cc0008d229",
       "retention": {
         "class": "audit-evidence",
         "rule": "7 years",
@@ -3663,6 +3664,37 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null
+    },
+    {
+      "title": "AI Governance Memo (2026-08-24 successor)",
+      "description": "Path A successor to the CEO-attested AI Governance Memo. Corrects three Article 50(1) claims that a direct production read falsified on 2026-08-23 -- the disclosure modal is not \"gated OFF\", not \"inert\", and not \"shown to no one\"; the flag is ENABLED in production via the default_enabled_features DB Setting. Adds the population-scope fact the predecessor could not state: all 34 production accounts are test/QA accounts, so no real person has encountered an undisclosed AI interaction.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-24_ai-governance-memo.md",
+      "status": "draft",
+      "frameworks": [
+        "GDPR",
+        "COPPA",
+        "EU_AI_Act"
+      ],
+      "lastReviewed": "2026-08-24",
+      "nextReviewDue": "2026-11-24",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-39f37f8200",
+      "notes": "Path A successor to CEO-attested DOC-39f37f8200 (docs/legal/AI_GOVERNANCE_MEMO.md, attested 2026-08-04). UNATTESTED DRAFT - carries no attestation of its own; the predecessor stays byte-identical and gains only a supersededBy pointer. Corrects section 5.2 (\"built and staged, gated OFF, not yet enabled for any user\" and \"OFF for everyone by default and the whole path is inert\") and marks the section 8 2026-07-22 amendment (\"shown to no one in production\") as overtaken, retaining it verbatim as historical record. Evidence: DOC-6c023a20a0, itself an unattested evidence record. Enabled-since is NOT recoverable (Setting has no version history), so no claim is made about the flag state on or before the 2026-08-02 obligation date. Bundles intentionally EMPTY: compliance-records-set-2026-06 and security-review still pin the predecessor by path, so external packages keep resolving to a signed document; retarget both in the same change that attests this one, not before. The Drive mirror likewise stays on the predecessor.",
+      "id": "DOC-506bbe2039",
+      "contentHash": "a5789c01782e78af70dcf16263a70c2f35ab2a1bef3fbe61c9f4aa88636ede42"
     }
   ]
 }
