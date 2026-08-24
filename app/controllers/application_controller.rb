@@ -394,16 +394,24 @@ class ApplicationController < ActionController::Base
   # enforcement across the five AI ingresses.
   #
   # DO NOT read the source constants as the flag's runtime state. 'article_50_disclosure'
-  # is AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES), but FeatureFlags resolves a DB
-  # `Setting` row named 'default_enabled_features' FIRST (lib/feature_flags.rb:129-146,
-  # lib/system_feature_settings.rb:6-88), and the source constant is consulted only when
-  # that row is absent. In production that row IS present and DOES include this flag:
-  # verified by direct read on 2026-08-23 (PR #849,
-  # docs/legal/2026-08-23_article-50-production-flag-verification.md).
+  # is AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES). FeatureFlags.frontend_flags_for
+  # (lib/feature_flags.rb:130-146) gets the effective list from
+  # SystemFeatureSettings.effective_enabled_for (lib/system_feature_settings.rb:84-88):
+  # a managing organization's settings['enabled_features'] wins when present -- even as
+  # an empty array -- and only then does the site-wide Setting row
+  # 'default_enabled_features' apply (lib/system_feature_settings.rb:6-12). The source
+  # constant ENABLED_FRONTEND_FEATURES is consulted only when that row is absent.
+  # User-level beta/canary flags can still enable a feature that is off in the
+  # effective list. In production as of 2026-08-23, no org carried an override, the
+  # default row WAS present and DID include this flag, and feature_enabled_for? was
+  # true for all 34 then-existing users (PR #849,
+  # docs/legal/2026-08-23_article-50-production-flag-verification.md). That is a
+  # dated snapshot, not a guarantee that every future user or org inherits it.
   #
-  # So this guard is LIVE in production, not inert. It is live for every production user,
-  # because EuJurisdiction.status resolves :unknown for all of them and
-  # disclosure_required? is `status(user) != :non_eu`. An earlier version of this comment
+  # So this guard is LIVE in production, not inert. On that same 2026-08-23 read,
+  # EuJurisdiction.status resolved :unknown for all 34 users, and
+  # disclosure_required? is `status(user) != :non_eu`, so the jurisdiction leg
+  # required disclosure for that population. An earlier version of this comment
   # said the guard "is inert until the flag is enabled"; that was true of the code and
   # false of the running system, which is the more dangerous direction to be wrong in.
   # Do not enable it here. Gates on EuJurisdiction.disclosure_required?
