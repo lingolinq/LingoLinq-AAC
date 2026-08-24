@@ -1491,7 +1491,14 @@ class User < ApplicationRecord
         # regrouped every existing communicator's board, and — because the value was
         # then PERSISTED as an explicit true — removing the feature flag before
         # production would NOT have undone it.
-        'board_category_grouping' => {'enabled' => false, 'order' => []},
+        # `show_category_names` and `vertical_scroll` default TRUE because both describe
+        # what the grouped board already does today: the category header always renders
+        # (board-detail-grid.hbs `{{#if group.label}}`) and the grouped grid is always
+        # `overflow-y: auto` (app.scss `.md-board-detail-grid--grouped`). Defaulting
+        # either to false would change the rendering for every user who already turned
+        # grouping on — a silent behaviour change, which is exactly what the `enabled`
+        # note above exists to warn about. They only take effect while `enabled` is true.
+        'board_category_grouping' => {'enabled' => false, 'order' => [], 'show_category_names' => true, 'vertical_scroll' => true},
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,
         'click_buttons' => true,
@@ -2648,9 +2655,13 @@ class User < ApplicationRecord
   BOARDS_LAYOUT_VALUES = ['side-by-side', 'top-down']
   # Mirrors app/frontend/app/utils/board_categories.js BOARD_CATEGORIES. Kept as a
   # constant here so the SERVER, not the client, decides what may be stored.
+  # MUST stay in step with BOARD_CATEGORIES in
+  # app/frontend/app/utils/board_categories.js — `order` is filtered against this list,
+  # so a category the client knows about but this array does not is silently dropped
+  # from the user's saved order.
   BOARD_CATEGORY_KEYS = ['people', 'actions', 'describe', 'how_when', 'places',
                          'questions', 'social', 'no_not', 'words', 'controls',
-                         'extra', 'things']
+                         'extra', 'things', 'keyboard']
 
   # `board_category_grouping` is a nested hash written verbatim by the PREFERENCE_PARAMS
   # loop, which coerces only TOP-LEVEL values — so its members were entirely unvalidated:
@@ -2672,10 +2683,22 @@ class User < ApplicationRecord
     enabled = val['enabled']
     order = val['order']
     order = [] unless order.is_a?(Array)
+    truthy = ->(v) { [true, 'true', 1, '1'].include?(v) }
+    # This method REBUILDS the hash from scratch, so any key not listed here is
+    # discarded — silently, and server-side, which makes it an easy trap. Every
+    # sub-preference of board_category_grouping must be echoed below or it will appear
+    # to save on the client and be gone on the next read.
+    #
+    # `show_category_names` / `vertical_scroll` default to TRUE when ABSENT (rather than
+    # coercing a missing key to false) because both describe what the grouped board
+    # already does. An existing user whose stored hash predates these keys must keep
+    # today's rendering, not lose their category headers and scrolling on next save.
     prefs['board_category_grouping'] = {
-      'enabled' => [true, 'true', 1, '1'].include?(enabled),
+      'enabled' => truthy.call(enabled),
       # Known keys only, de-duplicated, and bounded by the registry itself.
-      'order' => order.select { |k| BOARD_CATEGORY_KEYS.include?(k) }.uniq
+      'order' => order.select { |k| BOARD_CATEGORY_KEYS.include?(k) }.uniq,
+      'show_category_names' => val.has_key?('show_category_names') ? truthy.call(val['show_category_names']) : true,
+      'vertical_scroll' => val.has_key?('vertical_scroll') ? truthy.call(val['vertical_scroll']) : true
     }
   end
 

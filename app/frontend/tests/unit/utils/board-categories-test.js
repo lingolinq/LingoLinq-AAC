@@ -303,6 +303,31 @@ module('Unit | Utility | board_categories', function() {
    * never exposes which panels landed where, which is why nothing could be told
    * to stretch and the bottom edge stayed ragged.
    */
+  // A keyboard folder is its own category, not Connectors. It has no part of speech,
+  // so before this rule it was filed by COLOUR — and keyboard buttons are grey, which
+  // is nearest to Connectors. Detection is by board KEY suffix, matching
+  // models/board.js VARIANT_ROOT_SUFFIXES, so it survives a translated label.
+  test('category_for_button files a keyboard folder under keyboard, not words', function(assert) {
+    assert.strictEqual(category_for_button({ load_board: { key: 'someone/vocal-flair-84-keyboard' } }), 'keyboard',
+      'a -keyboard sub-board key');
+    assert.strictEqual(category_for_button({ load_board: { key: 'keyboard' } }), 'keyboard',
+      'a bare "keyboard" key');
+    assert.strictEqual(category_for_button({ load_board: { key: 'x/w-keyboard' } }), 'keyboard',
+      'the w-keyboard variant');
+  });
+
+  test('the keyboard rule beats the colour rule that used to claim it', function(assert) {
+    // Grey is nearest to Connectors; the keyboard rule runs first, so grey no longer wins.
+    assert.strictEqual(category_for_button({ load_board: { key: 'u/board-keyboard' }, background_color: '#e0e0e0' }),
+      'keyboard', 'grey keyboard folder is still keyboard');
+  });
+
+  test('a folder that merely MENTIONS keyboard is not miscategorised', function(assert) {
+    // Suffix-anchored: "keyboard-help" or "my-keyboards" are not keyboards.
+    assert.notStrictEqual(category_for_button({ load_board: { key: 'u/keyboard-help' } }), 'keyboard');
+    assert.notStrictEqual(category_for_button({ load_board: { key: 'u/my-keyboards' } }), 'keyboard');
+  });
+
   test('assign_columns keeps the user order intact', function(assert) {
     var groups = [
       { key: 'a', count: 8 }, { key: 'b', count: 8 },

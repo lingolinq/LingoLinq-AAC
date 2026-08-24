@@ -56,7 +56,15 @@ const PANEL = () => {
     picker: vis(q('.md-board-category-order__picker')),
     previewBtns: document.querySelectorAll('.md-board-category-order__preview .md-board-detail-symbol-card').length,
     previewGrid: !!grid,
-    grouped: !!(grid && grid.classList.contains('md-board-detail-grid--grouped'))
+    grouped: !!(grid && grid.classList.contains('md-board-detail-grid--grouped')),
+    /* The preview must render the folder treatment that will actually SHIP. While
+       grouping is on, effective_folder_display_style pins folders to colored_corner,
+       so the preview grid has to carry --folder-colored-corner too. It did not: the
+       preview was invoked without @folderColoredCorner, so it showed the default
+       treatment AND kept the folder-tab top reserve (app.scss:83604 skips that reserve
+       for colored-corner), making it fit looser than the real board. */
+    previewColoredCorner: !!(grid && grid.classList.contains('md-board-detail-grid--folder-colored-corner')),
+    previewTabLabels: !!(grid && grid.classList.contains('md-board-detail-grid--folder-tab-labels'))
   };
 };
 
@@ -180,6 +188,18 @@ const clickEl = async (page, sel) => {
         `${s.listItems} categories listed, Reset visible, preview grid carries --grouped`);
     } else {
       fail('2. ON — order list, Reset and a GROUPED preview', JSON.stringify(s));
+    }
+
+    /* The preview exists to show what will SHIP. Grouping pins folders to colored
+       corner, so a preview showing tab labels (or the default treatment) is lying —
+       and it also fits looser, because the folder-tab top reserve is skipped only for
+       --folder-colored-corner. */
+    if (s.previewColoredCorner && !s.previewTabLabels) {
+      pass('2b. ON — the preview shows the folder treatment that ships',
+        'preview grid carries --folder-colored-corner and not --folder-tab-labels');
+    } else {
+      fail('2b. ON — the preview shows the folder treatment that ships',
+        JSON.stringify({ previewColoredCorner: s.previewColoredCorner, previewTabLabels: s.previewTabLabels }));
     }
 
     /* 3. OFF */

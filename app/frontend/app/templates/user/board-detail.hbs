@@ -186,10 +186,36 @@
              paints them. Left intentionally as a comment for easy
              rollback / future re-introduction. --}}
 
-        {{!-- BOARD ACTIONS — moved to sit directly under the
-             Discard / Save tiles. Expandable, mirrors the Filter by
-             Category control: outlined toggle surface + chevron, body
-             shown when open. --}}
+        {{!-- CATEGORIZE — opens the full-width category-order panel below. Sits
+             ABOVE Board Actions: categorising is a board-shaping decision the
+             user makes before reaching for the destructive/one-off actions in the
+             gear menu. Gated on the grouping flag so the rail is unchanged when
+             the feature is off. --}}
+        {{#if this.app_state.feature_flags.board_category_grouping}}
+        <div class="md-board-edit-panel__group md-board-edit-panel__group--categorize">
+          <button type="button"
+            class="md-board-edit-panel__row md-board-edit-panel__row--categorize {{if this.category_order_open 'md-board-edit-panel__row--active'}}"
+            aria-expanded={{if this.category_order_open "true" "false"}}
+            aria-controls="board-category-order-panel"
+            data-bd-action="toggle_category_order"
+            {{on "click" (this.ctrlAction "toggle_category_order")}}>
+            <svg class="md-board-edit-panel__row-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+              <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+              <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+              <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Categorize" key="board_categorize"}}</span>
+          </button>
+        </div>
+        {{/if}}
+
+        {{!-- BOARD ACTIONS — sits below Categorize (which was moved above it
+             2026-08-23). Expandable, mirrors the Filter by Category control:
+             outlined toggle surface + chevron, body shown when open. Its
+             `__filter-toggle` surface is the shared reference the Categorize and
+             Board Collections rows now match — see `__row--categorize` and
+             `__row--collection` in app.scss. --}}
         <div class="md-board-edit-panel__filter md-board-edit-panel__filter--actions {{unless this.board_actions_collapsed 'md-board-edit-panel__filter--open'}}">
           <button type="button"
             class="md-board-edit-panel__filter-toggle"
@@ -293,28 +319,6 @@
           </div>
           {{/unless}}
         </div>
-
-        {{!-- CATEGORIZE — opens the full-width category-order panel below. Sits
-             between Board Actions and Search & Filter. Gated on the grouping
-             flag so the rail is unchanged when the feature is off. --}}
-        {{#if this.app_state.feature_flags.board_category_grouping}}
-        <div class="md-board-edit-panel__group md-board-edit-panel__group--categorize">
-          <button type="button"
-            class="md-board-edit-panel__row md-board-edit-panel__row--categorize {{if this.category_order_open 'md-board-edit-panel__row--active'}}"
-            aria-expanded={{if this.category_order_open "true" "false"}}
-            aria-controls="board-category-order-panel"
-            data-bd-action="toggle_category_order"
-            {{on "click" (this.ctrlAction "toggle_category_order")}}>
-            <svg class="md-board-edit-panel__row-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="3" width="7" height="7" rx="1"></rect>
-              <rect x="14" y="3" width="7" height="7" rx="1"></rect>
-              <rect x="3" y="14" width="7" height="7" rx="1"></rect>
-              <rect x="14" y="14" width="7" height="7" rx="1"></rect>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Categorize" key="board_categorize"}}</span>
-          </button>
-        </div>
-        {{/if}}
 
         {{!-- SEARCH & FILTER GROUP — the buttons-search input and the
              Filter by Category control share one labelled section,
@@ -1916,6 +1920,10 @@
         @folderLabelsOnTab={{this.folder_labels_on_tab}}
         @folderColoredCorner={{this.folder_colored_corner}}
         @folderColoredFace={{this.folder_colored_face}}
+        {{!-- Both are already ANDed with grouping_active in the controller, so they are
+             inert on an ungrouped board. --}}
+        @showCategoryNames={{this.show_category_names}}
+        @categoryScrollEnabled={{this.category_scroll_enabled}}
         @softBorders={{this.soft_borders}}
         @buttonTextSizeClass={{this.button_text_size_class}}
         @buttonTextPositionClass={{this.button_text_position_class}}
@@ -3541,6 +3549,30 @@
             {{t "Categorizing is off. This board's buttons are shown in their original order." key="board_categorize_hint_off"}}
           {{/if}}
         </p>
+        {{!-- Sub-options. Only rendered while Categorize is ON because both describe how
+             the GROUPED board draws — with grouping off there are no category panels to
+             name and no grouped scroll container. They persist inside the same
+             preference (preferences.board_category_grouping), so a user's choices here
+             survive turning Categorize off and back on. --}}
+        {{#if this.categorize_enabled}}
+          <div class="md-board-category-order__options" role="group" aria-label={{t "Category display options" key="board_categorize_options_aria"}}>
+            <label class="md-board-category-order__option">
+              <input type="checkbox" checked={{this.category_names_visible}} {{on "change" (this.ctrlAction "toggle_category_names")}}>
+              <span class="md-board-category-order__option-label">{{t "Show category names" key="board_categorize_show_names"}}</span>
+            </label>
+            {{!-- Described, not just labelled: turning scrolling off is an ACCESSIBILITY
+                 decision. A switch, dwell or head-pointer user cannot scroll, so a
+                 scrollable grouped board hides whatever falls below the fold from them
+                 entirely. The note says so rather than leaving it to be discovered. --}}
+            <label class="md-board-category-order__option">
+              <input type="checkbox" checked={{this.category_vertical_scroll}} {{on "change" (this.ctrlAction "toggle_category_scroll")}} aria-describedby="board-category-scroll-note">
+              <span class="md-board-category-order__option-label">{{t "Allow vertical scrolling" key="board_categorize_scroll"}}</span>
+            </label>
+            <p class="md-board-category-order__option-note" id="board-category-scroll-note">
+              {{t "Turn scrolling off if this board is used with a switch, dwell or head pointer — those users cannot scroll to reach buttons below the fold." key="board_categorize_scroll_note"}}
+            </p>
+          </div>
+        {{/if}}
         <div class="md-board-category-order__bar-actions">
           {{#if this.categorize_enabled}}
             <button type="button" class="md-board-category-order__reset" data-bd-action="reset_category_order" {{on "click" (this.ctrlAction "reset_category_order")}}>{{t "Reset order" key="board_categorize_reset"}}</button>
@@ -3612,6 +3644,23 @@
             @forceGrouping={{this.categorize_enabled}}
             @selectButton={{if this.categorize_enabled (this.ctrlAction "begin_category_move")}}
             @editMode={{false}}
+            {{!-- Folder treatment MUST be passed here or the preview lies. While grouping
+                 is on, `effective_folder_display_style` (controller :3314) pins the style
+                 to colored_corner — DERIVED, so the user's stored `folder_display_style`
+                 is never rewritten and returns the moment grouping goes off. The real
+                 board passes these three; the preview did not, so it rendered the DEFAULT
+                 folder treatment instead of the colored corners that actually ship.
+                 It also fitted LOOSER than the real board: the folder-tab top reserve
+                 (app.scss:83604) is skipped for `--folder-colored-corner`, so without the
+                 class the preview kept a reserve the shipped board drops — every cell
+                 padded down by `--bd-cell-min * 0.14` for tabs that are not there. --}}
+            @folderLabelsOnTab={{this.folder_labels_on_tab}}
+            @folderColoredCorner={{this.folder_colored_corner}}
+            @folderColoredFace={{this.folder_colored_face}}
+            {{!-- The preview must show what SHIPS, including whether category names
+                 render — that is the whole point of a live preview. --}}
+            @showCategoryNames={{this.show_category_names}}
+            @categoryScrollEnabled={{this.category_scroll_enabled}}
             @softBorders={{this.soft_borders}}
             @buttonTextSizeClass={{this.button_text_size_class}}
             @buttonTextPositionClass={{this.button_text_position_class}}

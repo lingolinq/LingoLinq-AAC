@@ -1,6 +1,6 @@
 <ButtonListener @buttonEvent={{this.invokeAttr0 "buttonEvent"}}>
 {{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember actions on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{on "click"}} on symbol cards for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
-<div id={{this.gridElementId}} class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.paintMode 'md-board-detail-grid--paint-mode'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.hasFolders 'md-board-detail-grid--has-folders'}} {{if this.softBorders 'md-board-detail-grid--soft-borders'}} {{if this.groupingEnabled 'md-board-detail-grid--grouped'}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+<div id={{this.gridElementId}} class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.paintMode 'md-board-detail-grid--paint-mode'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.hasFolders 'md-board-detail-grid--has-folders'}} {{if this.softBorders 'md-board-detail-grid--soft-borders'}} {{if this.groupingEnabled 'md-board-detail-grid--grouped'}} {{if this.groupingEnabled (unless this.categoryScrollEnabled 'md-board-detail-grid--grouped-no-scroll')}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
   data-id={{this.board.id}}
   data-filter={{this.activeCategory}}
   style={{safe-style (concat this.gridStyle ";--bd-button-text-size:" this.buttonTextSizePx "px" ";--bd-button-gap:" this.buttonSpacingPx "px" ";--bd-button-border:" this.buttonBorderPx "px" (if this.buttonFontStyle.family (concat ";--bd-button-font:" this.buttonFontStyle.family)) (if this.buttonFontStyle.transform (concat ";--bd-button-text-transform:" this.buttonFontStyle.transform)))}}>
@@ -29,10 +29,18 @@
       style={{if group.key (safe-style (concat "--bd-group-fill:var(" group.fillVar ");--bd-group-text:var(" group.textVar ")"))}}
       role={{if group.key "group" "presentation"}}
       aria-label={{if group.key group.label}}>
+      {{!-- The category NAME is optional (preferences.board_category_grouping
+           .show_category_names). The panel's tint and grouping already convey the
+           category, so some users prefer the names off to buy vertical space back.
+           `aria-label` on the group above still carries `group.label` either way, so
+           hiding the header is a VISUAL change only — a screen-reader user keeps the
+           category announced. That is why this gates the header and not the label. --}}
       {{#if group.label}}
-        <div class="md-board-detail-grid__group-header" aria-hidden="true">
-          <span class="md-board-detail-grid__group-name">{{group.label}}</span>
-        </div>
+        {{#if this.showCategoryNames}}
+          <div class="md-board-detail-grid__group-header" aria-hidden="true">
+            <span class="md-board-detail-grid__group-name">{{group.label}}</span>
+          </div>
+        {{/if}}
       {{/if}}
       {{!-- Inner container holding just the buttons. Carries the board surface
            colour so each category reads as a window onto the board sitting

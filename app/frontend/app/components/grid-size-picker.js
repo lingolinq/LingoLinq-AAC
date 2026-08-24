@@ -336,13 +336,29 @@ export default Component.extend({
       this.set('hoverRows', null);
       this.set('hoverCols', null);
     },
-    /* Clicking a cell STAGES a size — the panel stays open so the choice can be
-       adjusted, compared, or abandoned. Nothing reaches the caller until OK. */
+    /* Clicking a cell FINALIZES the size — commit and close, the way every other
+       sweep-a-grid size picker behaves.
+
+       It used to only STAGE the size and wait for OK, which read as a dead control:
+       `activeRows` is `hoverRows || markRow`, and while the pointer is anywhere over
+       the grid `hoverRows` is always set, so the staged pick could not change the
+       fill. `readout` prefers hover for the same reason, and the only thing a click
+       did change — `aria-selected` — has no style rule at all
+       (`app.scss:57951-57972` styles only `--on` and `:focus-visible`). So a click
+       produced ZERO visible feedback and nothing committed: the user swept to a size,
+       clicked, saw nothing happen, and concluded the picker was broken.
+
+       Keyboard is unaffected and improves: Enter/Space on a focused cell fires the
+       same delegated click (see grid_keydown), so it now commits too. OK remains for
+       committing the current size without picking a cell, and Cancel/Escape still
+       discard. `confirm()` reads chosen* (which is pending* here) BEFORE close()
+       clears it. */
     pick_from_event(ev) {
       var at = this._coords(ev);
       if (!at) { return; }
       this.set('pendingRows', at.row);
       this.set('pendingCols', at.col);
+      this.send('confirm');
     },
     confirm() {
       var callback = this.get('onChange');

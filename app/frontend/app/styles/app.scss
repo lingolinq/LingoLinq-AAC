@@ -51208,19 +51208,6 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
   .ub-boards-page__folder-filter-input {
     max-width: 100% !important;
   }
-  /* The strip's fixed 112.5px tracks leave a ragged right edge in a ~200px column, so
-     this is a SINGLE column per folder. At 75% (was `1fr`, i.e. the full content width)
-     the tile is 25% thinner than it rendered before, and the base rule's
-     `justify-content: center` keeps it centred in the track.
-     Percentage rather than a fixed px so it keeps that ratio as the column flexes
-     between ~170px and ~250px.
-     THE TAB FOLLOWS AUTOMATICALLY: `.ub-boards-page__tag-folder-tab` is a percentage of
-     the folder (30%), so it is exactly 25% narrower in absolute px too — no second
-     reduction is applied here, which would compound to ~44%. */
-  .ub-boards-page__folder-strip {
-    grid-template-columns: 75% !important;
-    padding: 12px !important;
-  }
 }
 
 
@@ -51320,55 +51307,16 @@ body.ll-layout-focused .ub-boards-page__layout-toggle {
        when the strip was swapped out, so the panel silently stopped growing and the card
        floated above ~183px of dead space at 1920px — measured, and the cause of this
        file's long-red "card fills rather than floating above dead space" check.
-       `__folder-strip` is kept in the selector list only until the dead tile CSS is
-       removed wholesale; it matches nothing in the DOM today.
        `min-height: 0` because a flex item's default `min-height: auto` refuses to
        shrink below its content, which would push the card past the row it is meant to
        fit when the folder list is long. */
     .ub-boards-page__folder-list,
-    .ub-boards-page__folder-strip,
     .ub-boards-page__folder-context {
       flex: 1 1 auto;
       min-height: 0;
     }
 
-    /* The PANEL fills the card, but the TILES must not inflate with it.
-       The base strip (~68240) uses `grid-auto-rows: 1fr`, which divides the panel's
-       height EQUALLY among its rows — so as soon as the panel grew to match the boards
-       column, four folders stretched to 189px each. Rows now size to their content and
-       pack at the top, leaving the surplus as empty card rather than as oversized tiles.
-       Scoped to side-by-side because that is the only layout where the panel is
-       stretched; top-down keeps the base behaviour, where `1fr` rows are content-sized
-       anyway and nothing changes. */
-    .ub-boards-page__folder-strip {
-      grid-auto-rows: max-content;
-      align-content: start;
-      /* No panel treatment in side-by-side: the strip sits inside the folders CARD,
-         which already draws its own surface, so a second inset panel was a card on a
-         card. Transparent + no padding lets the tiles sit directly on the card.
-         `background` needs no `!important` (the base rule at ~68240 does not use one and
-         this selector is far more specific), but `padding` does: the narrow-column
-         container query (`@container boards-folders (max-width: 420px)`, ~51199) pins
-         `padding: 12px !important`, and the folders column is 378px even at full screen,
-         so that rule is live here. */
-      background: transparent;
-      padding: 0 !important;
-      /* ...and no frame either. With a transparent fill the base rule's 1px border and
-         layered box-shadow (~68240) were still drawing a rounded outline around the
-         tiles — an empty frame where the panel used to be. The tiles now sit directly on
-         the folders card with nothing around them.
-         `border-radius` is deliberately left alone: with no fill, no border and no
-         shadow it paints nothing, and keeping it means the corner treatment returns
-         intact if this surface is ever given a background again. */
-      border: 0;
-      box-shadow: none;
-    }
 
-    /* Hard ceiling, requested. `max-height` rather than `height` so a tile with little
-       content still sizes down naturally instead of being padded out to 120px. */
-    .ub-boards-page__tag-folder {
-      max-height: 120px;
-    }
     .ub-boards-page__folders-header {
       display: contents;
       /* Span the section when `display: contents` does NOT win.
@@ -66199,12 +66147,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   border-color: rgba($la-navy, 0.24);
   outline: none;
 }
-.board-picker__folder-strip {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}
 .board-picker__folder-chip {
   display: inline-flex;
   align-items: center;
@@ -67346,51 +67288,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
       box-shadow: 0 0 0 3px rgba($brand-teal, 0.12);
     }
   }
-  &__folder-strip {
-    display: grid;
-    /* 112.5px = 150px - 25%. The folder tiles themselves are `width: 100%`, so the
-       TRACK is what actually sizes them — changing the tile would do nothing.
-       NOTE: this declaration appears TWICE in this `.ub-boards-page` block (a
-       pre-existing duplicate); both are set so the effective width cannot depend on
-       which one wins on source order. */
-    grid-template-columns: repeat(auto-fill, 112.5px);
-    justify-content: center;
-    grid-auto-rows: 1fr;
-    gap: 14px;
-    padding: 20px;
-    list-style: none;
-    /* Glossier inner surface — brighter mid-stop, thicker white
-       top-highlight stripe, soft glow halo. The outer folders panel
-       still uses the cool-blue sunken gradient; this inner strip
-       lifts toward near-pure white so it reads as glossy/elevated
-       against the panel rather than another sunken layer. */
-    background:
-      linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.98) 0%,
-        rgba(248, 251, 255, 0.97) 35%,
-        rgba(255, 255, 255, 0.99) 100%
-      );
-    border: 1px solid rgba(255, 255, 255, 0.85);
-    border-radius: 22px;
-    box-shadow:
-      inset 0 2px 0 rgba(255, 255, 255, 0.95),
-      inset 0 1px 12px rgba(91, 141, 239, 0.05),
-      0 1px 2px rgba($la-navy, 0.04),
-      0 6px 18px rgba($la-navy, 0.08);
-  }
-  &__folder-strip-empty {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 16px;
-  }
-  &__folder-strip-empty-text {
-    font-size: $aac-font-size-base;
-    color: #8a96a8;
-    font-style: italic;
-  }
 
   /* Whole-card drag — when a board tile is `--draggable`, the parent
      wrapper carries `draggable="true"` and a `dragstart` handler.
@@ -68445,82 +68342,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     color: #8a96a8;
     font-style: italic;
   }
-  &__folder-strip {
-    display: grid;
-    /* 112.5px = 150px - 25%. The folder tiles themselves are `width: 100%`, so the
-       TRACK is what actually sizes them — changing the tile would do nothing.
-       NOTE: this declaration appears TWICE in this `.ub-boards-page` block (a
-       pre-existing duplicate); both are set so the effective width cannot depend on
-       which one wins on source order. */
-    grid-template-columns: repeat(auto-fill, 112.5px);
-    justify-content: center;
-    grid-auto-rows: 1fr;
-    gap: 14px;
-    padding: 20px;
-    list-style: none;
-    /* Bright, glossy inner surface — pure-opaque white core so the
-       body's cool-blue/verdigris glow behind doesn't tint through,
-       layered with a near-white tint at the bottom for subtle
-       polish. Bright top highlight + cool inner halo + soft outer
-       lift make it read as a clearly elevated, "lit" inner card. */
-    background:
-      linear-gradient(
-        180deg,
-        #ffffff 0%,
-        #fcfdff 50%,
-        #ffffff 100%
-      );
-    border: 1px solid rgba(255, 255, 255, 1);
-    border-radius: 22px;
-    box-shadow:
-      /* Pronounced top-edge highlight — pure white, gives the strip
-         a clear "lit from above" feel. */
-      inset 0 2px 0 rgba(255, 255, 255, 1),
-      /* Cool inner glow ringing the inside edge — keeps the card
-         feeling polished without darkening it. */
-      inset 0 1px 14px rgba(91, 141, 239, 0.06),
-      inset 0 0 0 1px rgba(255, 255, 255, 0.9),
-      /* Outer lift — slightly more pronounced than before so the
-         brighter interior reads as elevated, not flat. */
-      0 1px 2px rgba($la-navy, 0.05),
-      0 8px 22px rgba($la-navy, 0.10);
-    &--no-hover .ub-boards-page__tag-folder,
-    &--no-hover .ub-boards-page__tag-folder:hover,
-    &--no-hover .ub-boards-page__tag-folder:focus-visible {
-      transform: none !important;
-      transition: none !important;
-    }
-    &--no-hover .ub-boards-page__tag-folder:hover .ub-boards-page__tag-folder-back,
-    &--no-hover .ub-boards-page__tag-folder:focus-visible .ub-boards-page__tag-folder-back {
-      box-shadow: 0 4px 16px rgba(27, 42, 65, 0.20), 0 8px 32px rgba(27, 42, 65, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
-      filter: none !important;
-      transition: none !important;
-    }
-    &--no-hover .ub-boards-page__tag-folder:hover .ub-boards-page__tag-folder-tab,
-    &--no-hover .ub-boards-page__tag-folder:focus-visible .ub-boards-page__tag-folder-tab {
-      background: rgb(115, 137, 163) !important;
-      filter: none !important;
-      transition: none !important;
-    }
-    &--no-hover .ub-boards-page__tag-folder:hover .ub-boards-page__tag-folder-card,
-    &--no-hover .ub-boards-page__tag-folder:focus-visible .ub-boards-page__tag-folder-card {
-      transform: none !important;
-      box-shadow: 0 4px 12px rgba($la-navy, 0.12), 0 8px 24px rgba(27, 42, 65, 0.10), 0 1px 3px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
-      transition: none !important;
-    }
-  }
-  &__folder-strip-empty {
-    grid-column: 1 / -1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 16px;
-  }
-  &__folder-strip-empty-text {
-    font-size: $aac-font-size-base;
-    color: #8a96a8;
-    font-style: italic;
-  }
   /* Compact informational empty state — lives in the toolbar row,
      to the LEFT of the New folder / Tag a board action buttons,
      occupying the slot the folder-filter form takes when folders
@@ -68798,141 +68619,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     }
   }
 
-  &__tag-folder {
-    position: relative;
-    display: inline-flex;
-    align-items: stretch;
-    width: 100%;
-    min-height: 80px;
-    padding: 6px 0 0;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-    &:hover,
-    &:focus-visible {
-      outline: none;
-    }
-    &:hover .ub-boards-page__tag-folder-back {
-      box-shadow:
-        0 6px 24px rgba(27, 42, 65, 0.25),
-        0 12px 48px rgba(27, 42, 65, 0.12),
-        inset 0 1px 0 rgba(255, 255, 255, 0.10);
-    }
-    &:hover .ub-boards-page__tag-folder-tab {
-      background: #5d6878;
-    }
-    &:hover .ub-boards-page__tag-folder-card {
-      box-shadow:
-        0 8px 24px rgba($la-navy, 0.16),
-        0 12px 36px rgba(27, 42, 65, 0.10),
-        0 2px 8px rgba(0, 0, 0, 0.06),
-        inset 0 1px 0 rgba(255, 255, 255, 1);
-    }
-    &--dropping {
-      transform: translateY(-3px);
-    }
-    &--dropping .ub-boards-page__tag-folder-back {
-      background: $brand-teal;
-      box-shadow: 0 0 0 3px rgba($brand-teal, 0.3), 0 6px 24px rgba($brand-teal, 0.2);
-    }
-    &--dropping .ub-boards-page__tag-folder-tab {
-      background: #1a9a9d;
-    }
-    &--animating {
-      animation: folder-full 0.6s ease-out forwards !important;
-      transition: none !important;
-    }
-    &--animating .ub-boards-page__tag-folder-card {
-      animation: folder-card-full 0.6s ease-out forwards !important;
-      transition: none !important;
-    }
-    &--animating .ub-boards-page__tag-folder-back {
-      animation: folder-back-full 0.8s ease-out forwards !important;
-      transition: none !important;
-    }
-    &--animating .ub-boards-page__tag-folder-tab {
-      animation: folder-tab-full 0.6s ease-out forwards !important;
-      transition: none !important;
-    }
-    &--animating .ub-boards-page__tag-folder-count {
-      animation: folder-count-full 0.5s ease-out forwards !important;
-    }
-  }
-  &__tag-folder-back {
-    position: absolute;
-    top: 2px;
-    left: -2px;
-    right: -2px;
-    bottom: -3px;
-    background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
-    border-radius: 10px 10px 14px 14px;
-    z-index: 0;
-    box-shadow:
-      0 4px 16px rgba(27, 42, 65, 0.20),
-      0 8px 32px rgba(27, 42, 65, 0.10),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    transition: box-shadow 0.25s ease, background 0.25s ease;
-  }
-  &__tag-folder-tab {
-    position: absolute;
-    top: -8px;
-    left: 8px;
-    /* 30% = 40% - 25%. This is a PERCENTAGE OF THE FOLDER, so the tab already got 25%
-       narrower in absolute terms when the track above shrank; this second 25% is
-       applied on top, making the tab visibly narrower RELATIVE to the card rather than
-       merely carried along by it (~44% narrower than before, in absolute px). If the
-       intent was only that the tab shrink with the folder, revert this to 40%. */
-    width: 30%;
-    height: 10px;
-    background: rgb(115, 137, 163);
-    border-radius: 5px 5px 0 0;
-    box-shadow:
-      0 -2px 8px rgba(27, 42, 65, 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.10);
-    transition: background 0.25s ease;
-  }
-  &__tag-folder-card {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 8px;
-    width: 100%;
-    height: 100%;
-    padding: 12px 14px;
-    background: #fff;
-    border-radius: 10px;
-    box-shadow:
-      0 4px 12px rgba($la-navy, 0.12),
-      0 8px 24px rgba(27, 42, 65, 0.10),
-      0 1px 3px rgba(0, 0, 0, 0.06),
-      inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
-  }
-  &__tag-folder-name {
-    text-align: left;
-    word-break: break-word;
-    font-size: 14px;
-    font-weight: 600;
-    color: $indigo;
-    line-height: 1.3;
-    flex: 1;
-  }
-  &__tag-folder-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    align-self: flex-end;
-    min-width: 2rem;
-    padding: 2px 10px;
-    border-radius: 999px;
-    font-size: 14px;
-    font-weight: 700;
-    color: $brand-teal;
-    background: rgba($brand-teal, 0.12);
-  }
 
   /* Folder destination view — a contained card surface that visually
      groups the breadcrumb, identity, and actions into a single
@@ -70440,20 +70126,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   0%   { transform: scale(0.98); }
   50%  { transform: scale(1.02); }
   100% { transform: scale(1); }
-}
-@keyframes folder-card-full {
-  0%   { transform: translateY(3px); opacity: 0.8; }
-  50%  { transform: translateY(-3px); opacity: 1; }
-  100% { transform: translateY(0); opacity: 1; }
-}
-@keyframes folder-back-full {
-  0%   { box-shadow: 0 0 0 0 rgba(44, 183, 176, 0.4), 0 4px 16px rgba(27, 42, 65, 0.20); filter: brightness(1.08); }
-  50%  { box-shadow: 0 0 0 10px rgba(44, 183, 176, 0), 0 5px 18px rgba(27, 42, 65, 0.18); filter: brightness(1.02); }
-  100% { box-shadow: 0 4px 16px rgba(27, 42, 65, 0.20), 0 8px 32px rgba(27, 42, 65, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.08); filter: brightness(1); }
-}
-@keyframes folder-tab-full {
-  0%   { filter: brightness(1.15); }
-  100% { filter: brightness(1); }
 }
 @keyframes folder-count-full {
   0%   { transform: scale(0.9); opacity: 0.6; }
@@ -78627,13 +78299,15 @@ span.md-board-detail-modeling-btn--paused:hover {
 }
 
 /* Panels keep their NATURAL height — no stretching.
-   Stretching the last panel to flush the column bottom just moved the problem:
-   the leftover height became padding inside that category, which reads as a group
-   with a hole in it rather than a tidy board. Even bottoms come from packing the
-   columns evenly instead (assign_columns minimises the tallest column), so any
-   residual difference is a row or less rather than a stretched panel.
-   Panels are top-aligned so a shorter column ends short rather than distributing
-   gaps between its categories. */
+   Two attempts at flushing the bottoms have now failed the same way:
+   (1) stretch only the LAST panel — all the slack lands in one category, a visible hole;
+   (2) distribute the slack across every panel with flex-grow — the hole is spread but
+       still reads as one, badly, on a category with few buttons (a 1-button SOCIAL panel
+       became mostly empty tint), and it does NOT line the columns up, because the columns
+       hold different amounts of content in the first place.
+   Flushing is a PACKING problem, not a stretching one: the fix is to make the columns
+   hold comparable amounts (see the 4-column / 3-across work), not to inflate whatever
+   was packed unevenly. Panels are top-aligned so a shorter column ends short. */
 .md-board-detail-grid--grouped .md-board-detail-grid__column {
   justify-content: flex-start;
 }
@@ -78643,7 +78317,8 @@ span.md-board-detail-modeling-btn--paused:hover {
   /* The button grid lives HERE now (moved off __group, which is a plain block
      stack). Panels hold their own columns so a 3-button group and a 16-button
      group both read as one block rather than inheriting the board's columns. */
-  grid-template-columns: repeat(var(--bd-group-inner-columns, 4), minmax(0, 1fr));
+  /* 3 across — see GROUP_INNER_COLUMNS in utils/board_categories.js; the two must agree. */
+  grid-template-columns: repeat(var(--bd-group-inner-columns, 3), minmax(0, 1fr));
   gap: var(--bd-button-gap, 8px);
   grid-auto-rows: min-content;
   padding: 7px;
@@ -78729,6 +78404,24 @@ span.md-board-detail-modeling-btn--paused:hover {
      DOWN, so a definite height is both safe and required here. */
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* Vertical scrolling is a PREFERENCE while grouping is on
+   (preferences.board_category_grouping.vertical_scroll, default on = today's
+   behaviour). Turning it off is an accessibility choice, not a cosmetic one: a
+   switch, dwell or head-pointer user cannot scroll, so for them a scrollable grid
+   silently hides whatever sits below the fold. With scrolling off the panels are
+   allowed to shrink instead — `min-height: 0` lets the group bodies compress rather
+   than forcing the container past its definite height, so the board stays whole.
+   Kept as a separate modifier rather than editing the rule above because the
+   scrollable case remains the default and this is the deviation from it. */
+.md-board-detail-grid--grouped-no-scroll {
+  overflow-y: hidden;
+}
+.md-board-detail-grid--grouped-no-scroll .md-board-detail-grid__column,
+.md-board-detail-grid--grouped-no-scroll .md-board-detail-grid__group,
+.md-board-detail-grid--grouped-no-scroll .md-board-detail-grid__group-body {
+  min-height: 0;
 }
 
 .md-board-detail-grid--grouped .md-board-detail-grid__group {
@@ -78830,6 +78523,16 @@ span.md-board-detail-modeling-btn--paused:hover {
 /* These set `columns`, not grid-template-columns — the grouped board is a
    multi-column context now, and a grid-template-* declaration here would be
    silently inert. */
+/* FOURTH column on large boards. With panels at 3-across (GROUP_INNER_COLUMNS) a
+   fourth column fits in roughly the width three 4-across columns needed, so the board
+   spreads sideways instead of running down the page — more categories above the fold,
+   fewer buttons stranded below it. Threshold mirrors board-detail-grid.js#columnCount;
+   if the two disagree, JS packs a column CSS has no track for and it collapses. */
+@media (min-width: 1400px) {
+  .md-board-detail-grid--grouped {
+    grid-template-columns: repeat(var(--bd-group-columns-lg, 4), minmax(0, 1fr));
+  }
+}
 @media (max-width: 1100px) {
   .md-board-detail-grid--grouped {
     grid-template-columns: repeat(var(--bd-group-columns-md, 2), minmax(0, 1fr));
@@ -96760,6 +96463,81 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+/* ── Rail hierarchy: Board Collections > Categorize > Board Actions ────────────
+   `__row--collection` and `__row--categorize` had NO rules of their own — bare
+   modifiers inheriting the transparent `__row` base, so they read as plain list items
+   beside the outlined Board Actions toggle.
+
+   Both now carry the SAME elevated surface, one step above the Board Actions
+   `__filter-toggle`: more opaque fill, a tinted rather than neutral border, 600 weight,
+   and a real drop shadow. Geometry (radius, padding, min-height) still matches the
+   toggle so the three read as one family — the hierarchy is expressed in WEIGHT, not
+   by making one of them a different shape.
+
+   Board Collections then leads on its own with a GLOW (below). It is the only one of
+   the three that navigates AWAY into another board; the other two act on the board in
+   front of you. */
+.md-board-edit-panel__row--collection,
+.md-board-edit-panel__row--categorize {
+  padding: 6px 10px 6px 9px;
+  border: 1px solid rgba($brand-slate-blue, 0.30);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+  font-weight: 600;
+  box-shadow:
+    inset 0 1px 2px rgba($la-navy, 0.04),
+    0 1px 2px rgba($la-navy, 0.06),
+    0 4px 10px rgba($la-navy, 0.08);
+}
+
+/* The glow that separates Collections from Categorize now that their surfaces match.
+   A soft accent halo BEHIND the button — two wide, low-alpha accent shadows under the
+   existing lift, so it reads as light spilling from behind rather than as a second
+   border. Deliberately restrained: this is a rail item, not a call to action, and a
+   strong glow next to an AAC board competes with the board itself. */
+.md-board-edit-panel__row--collection {
+  box-shadow:
+    inset 0 1px 2px rgba($la-navy, 0.04),
+    0 1px 2px rgba($la-navy, 0.06),
+    0 4px 10px rgba($la-navy, 0.08),
+    0 0 12px rgba($brand-slate-blue, 0.30),
+    0 0 24px rgba($brand-slate-blue, 0.16);
+}
+
+/* Hover/focus mirrors the Board Actions toggle so all three respond alike; Collections
+   keeps its glow, intensified, so the hierarchy holds in every state rather than
+   collapsing the moment the pointer lands. */
+.md-board-edit-panel__row--collection:hover,
+.md-board-edit-panel__row--collection:focus-visible,
+.md-board-edit-panel__row--categorize:hover,
+.md-board-edit-panel__row--categorize:focus-visible {
+  background: rgba($brand-slate-blue, 0.14);
+  border-color: rgba($brand-slate-blue, 0.44);
+  color: $brand-slate-blue;
+}
+.md-board-edit-panel__row--categorize:hover,
+.md-board-edit-panel__row--categorize:focus-visible {
+  box-shadow:
+    inset 0 1px 2px rgba($la-navy, 0.04),
+    0 2px 4px rgba($la-navy, 0.08),
+    0 6px 14px rgba($la-navy, 0.10);
+}
+.md-board-edit-panel__row--collection:hover,
+.md-board-edit-panel__row--collection:focus-visible {
+  box-shadow:
+    inset 0 1px 2px rgba($la-navy, 0.04),
+    0 2px 4px rgba($la-navy, 0.08),
+    0 6px 14px rgba($la-navy, 0.10),
+    0 0 16px rgba($brand-slate-blue, 0.42),
+    0 0 30px rgba($brand-slate-blue, 0.22);
+}
+
+/* Open state matches `__filter--open` on the Board Actions toggle. */
+.md-board-edit-panel__row--categorize.md-board-edit-panel__row--active {
+  border-color: rgba($brand-slate-blue, 0.40);
+  background: rgba($brand-slate-blue, 0.06);
+}
 .md-board-edit-panel__icon {
   /* Two-tone icon primary color aligned with the right rail's
      `__section-icon` (rgba($la-navy, .65)) so both rails share the
@@ -97370,6 +97148,41 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   background: rgba(255, 255, 255, 0.10);
   border-color: rgba(255, 255, 255, 0.28);
   color: #ffffff;
+}
+
+/* Dark-mode parity. Both rows share the elevated surface here too; Collections keeps
+   the glow, which on a dark ground is where a halo actually reads BEST — a drop shadow
+   disappears against dark, an accent glow does not. */
+.md-board-detail--dark .md-board-edit-panel__row--collection,
+.md-board-detail--dark .md-board-edit-panel__row--categorize {
+  background: rgba(255, 255, 255, 0.13);
+  border-color: rgba(255, 255, 255, 0.26);
+  color: #ffffff;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.28);
+}
+.md-board-detail--dark .md-board-edit-panel__row--collection {
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.28),
+    0 0 14px rgba($brand-slate-blue, 0.55),
+    0 0 28px rgba($brand-slate-blue, 0.30);
+}
+.md-board-detail--dark .md-board-edit-panel__row--collection:hover,
+.md-board-detail--dark .md-board-edit-panel__row--collection:focus-visible,
+.md-board-detail--dark .md-board-edit-panel__row--categorize:hover,
+.md-board-detail--dark .md-board-edit-panel__row--categorize:focus-visible {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.40);
+}
+.md-board-detail--dark .md-board-edit-panel__row--collection:hover,
+.md-board-detail--dark .md-board-edit-panel__row--collection:focus-visible {
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.15),
+    0 2px 8px rgba(0, 0, 0, 0.28),
+    0 0 18px rgba($brand-slate-blue, 0.70),
+    0 0 34px rgba($brand-slate-blue, 0.38);
 }
 .md-board-detail--dark .md-board-edit-panel__filter--open .md-board-edit-panel__filter-toggle {
   background: rgba(255, 255, 255, 0.10);
@@ -101589,6 +101402,43 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
   /* 0.75 alpha on the charcoal surface clears WCAG AA for this size; the earlier
      board empty-state at 0.35 did not, which is why that text was unreadable. */
   color: rgba(255, 255, 255, 0.75);
+}
+
+/* Sub-options under the Categorize switch (Show category names / Allow vertical
+   scrolling). A compact stacked list rather than more switches: the switch above is
+   the primary control and two more of the same weight beside it would flatten the
+   hierarchy — these are settings OF that switch, not siblings to it. */
+.md-board-category-order__options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 0;
+}
+.md-board-category-order__option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  /* 15px, not 14: this panel sits over the board and the AAC legibility floor
+     applies to controls a therapist reads at arm's length on a tablet. */
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.88);
+}
+.md-board-category-order__option input[type="checkbox"] {
+  /* Large enough to be a comfortable touch target beside the switch. */
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  cursor: pointer;
+}
+.md-board-category-order__option-label {
+  line-height: 1.3;
+}
+.md-board-category-order__option-note {
+  margin: 0 0 0 26px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .md-board-category-order__bar-actions {

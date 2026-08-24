@@ -59,8 +59,10 @@
           </div>
         {{/each}}
       </div>
-      {{!-- Clicking a cell STAGES a size and leaves the panel open, so a choice can
-           be adjusted or abandoned. Nothing reaches the caller until OK. --}}
+      {{!-- Clicking a cell COMMITS that size and closes the panel (see
+           grid-size-picker.js#pick_from_event). OK commits the size shown in the
+           readout without having to click a cell — the keyboard path, and the way to
+           accept the current size unchanged. Cancel and Escape discard. --}}
       <div class="nb-grid-picker__footer">
         <p class="nb-grid-picker__readout" aria-live="polite">{{this.readout}}</p>
         <div class="nb-grid-picker__actions">

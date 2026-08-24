@@ -55,8 +55,30 @@ const STATE = () => {
   };
 };
 
+/* Turn grouping on/off through the app's OWN action so the probe exercises the real
+   path (controller#toggle_categorize -> _save_category_grouping), and wait for the grid
+   to actually settle — the toggle paints the switch first and applies the regroup a
+   frame later, so a fixed sleep races it. */
+const setGrouping = async (page, want) => {
+  await page.evaluate(() => {
+    const { getOwner } = window.require('@ember/application');
+    const ctrl = getOwner(window.appState).lookup('controller:user/board-detail');
+    ctrl.send('toggle_categorize');
+  });
+  try {
+    await page.waitForFunction((w) => {
+      const g = document.querySelector('.md-board-detail-grid');
+      return !!g && g.classList.contains('md-board-detail-grid--grouped') === w;
+    }, { timeout: 30000, polling: 150 }, want);
+    return true;
+  } catch (e) { return false; }
+};
+
 (async () => {
   const { browser, page } = await launch(OPTS);
+  /* Tracks whether WE turned grouping on, so it is restored in `finally` and the dev
+     account is left exactly as found. */
+  let flipped = false;
   page.on('pageerror', (e) => console.log('  [pageerror] ' + e.message));
   try {
     console.log(`\nBASE ${OPTS.BASE}  USER ${OPTS.USER}`);
@@ -64,6 +86,23 @@ const STATE = () => {
     const key = await page.evaluate(() => window.appState && window.appState.get('currentUser.preferences.home_board.key'));
     await page.goto(`${OPTS.BASE}/${OPTS.USER}/board-detail/${String(key).split('/').pop()}`, { waitUntil: 'domcontentloaded' });
     await sleep(9000);
+
+    /* Grouping is OPT-IN: board-detail-grid.js#groupingEnabled tests
+       `...board_category_grouping.enabled === true`, and the dev account has it
+       explicitly FALSE, so the board never renders grouped on its own. The probe used
+       to simply assert `grouped` and fail its own precondition — reported as "cannot
+       reach the Folders section", but it never got that far. (It would have passed
+       under the OLD permissive test, where an absent preference counted as ON.) */
+    const alreadyGrouped = await page.evaluate(() => {
+      const g = document.querySelector('.md-board-detail-grid');
+      return !!(g && g.classList.contains('md-board-detail-grid--grouped'));
+    });
+    if (!alreadyGrouped) {
+      const ok = await setGrouping(page, true);
+      if (!ok) { fail('precondition — grouping could be switched on', 'grid never gained --grouped'); throw new Error('not grouped'); }
+      flipped = true;
+      console.log('  (grouping switched ON for this run; will be restored)');
+    }
 
     const speak = await page.evaluate(() => {
       const g = document.querySelector('.md-board-detail-grid');
@@ -83,7 +122,22 @@ const STATE = () => {
        (keyed on right_panel_open_section === 'folders'), so edit mode alone is not
        enough — the section has to be opened. */
     if (!(await page.$('.md-folder-style-option'))) {
-      await clickEl(page, '[data-bd-action="enter_edit_mode"]');
+      /* The board opens in SPEAK mode, where the toolbar edit button is hidden — its
+         boundingBox() is null, so clickEl correctly skips it and returns false, and
+         edit mode never engaged. That is the real cause of this probe's long-standing
+         "cannot reach the Folders section" failure (the diagnostic showed
+         editMode:false with enterBtn:true — the button exists but is not VISIBLE).
+         Fall back to the actions menu that also carries the action, exactly as
+         board-categorize-toggle-qa.mjs does. */
+      const clickedEdit = await clickEl(page, '[data-bd-action="enter_edit_mode"]');
+      if (!clickedEdit) {
+        await page.evaluate(() => {
+          const m = document.querySelector('[data-bd-action="toggle_options_menu"]');
+          if (m) { m.click(); }
+        });
+        await sleep(1500);
+        await clickEl(page, '[data-bd-action="enter_edit_mode"]');
+      }
       await sleep(6000);
     }
     if (!(await page.$('.md-folder-style-option'))) {
@@ -134,6 +188,26 @@ const STATE = () => {
   } catch (e) {
     if (!/not grouped|no control/.test(e.message)) { console.log('\nERROR ' + e.message); results.push({ n: 'probe completed', ok: false }); }
   } finally {
+    if (flipped) {
+      /* Restore by writing the PREFERENCE and verifying the STORED value — not by
+         toggling and watching the grid class. This probe ends in EDIT MODE, where
+         groupingEnabled() is false regardless of the preference, so the grid never
+         carries --grouped there: the old grid-class check returned success instantly
+         while the preference was left ON, which leaked `enabled: true` into the dev
+         account and broke board-grouping-overflow-qa (it needs an UNGROUPED control
+         run). Cleanup must be deterministic, so it does not depend on UI state. */
+      const restored = await page.evaluate(async () => {
+        try {
+          const u = window.appState.get('referenced_user');
+          u.set('preferences.board_category_grouping.enabled', false);
+          await u.save();
+          return window.appState.get('referenced_user.preferences.board_category_grouping.enabled') === false;
+        } catch (e) { return 'ERR ' + e.message; }
+      }).catch((e) => 'ERR ' + e.message);
+      console.log(restored === true
+        ? '  (grouping restored to OFF — stored preference verified)'
+        : `  (WARNING: could not restore grouping to OFF: ${restored}) — check the dev account`);
+    }
     await browser.close();
   }
   const bad = results.filter((r) => !r.ok).length;

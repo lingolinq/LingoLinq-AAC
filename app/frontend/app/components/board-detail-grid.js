@@ -65,19 +65,20 @@ export default Component.extend({
    *      drag, swap and paint, and a regrouped board no longer has those
    *      positions. Editing always shows the true underlying layout.
    *
-   * PRE-PRODUCTION on (2): a MISSING preference counts as ON, so the grouped
-   * board is visible without a console while the design is being evaluated. This
-   * is needed as well as the Rails default because `generate_defaults` only
-   * backfills on the user's next save, so existing users read `undefined` until
-   * then -- a strict `=== true` here would leave them ungrouped no matter what
-   * the Rails default says.
+   * On (2) the test is STRICT (`=== true`), so an absent preference means OFF and
+   * grouping is opt-in. That is already the case below -- see the note on the return.
+   * This paragraph previously described the opposite ("a MISSING preference counts as
+   * ON") and told the reader to "restore the strict test BEFORE PRODUCTION"; the code
+   * had since been made strict and the comment was not updated, so following it would
+   * have re-introduced the exact bug the strict test exists to prevent: every user who
+   * never opted in getting their board regrouped the moment the flag went on.
    *
-   * BEFORE PRODUCTION: restore the strict test --
-   *     return this.get('...board_category_grouping.enabled') === true;
-   * so grouping is opt-in. It MOVES vocabulary out of cells a user has built
-   * positional motor memory on, which is a clinical change, not a cosmetic one.
-   * Flip together with the PRE-PRODUCTION markers in lib/feature_flags.rb and
-   * app/models/user.rb (preference_defaults).
+   * STILL OUTSTANDING (not this file): `board_category_grouping` is force-enabled for
+   * everyone in `lib/feature_flags.rb:113` and must return to AVAILABLE-only (beta
+   * opt-in per user) before production go-live. Grouping MOVES vocabulary out of cells
+   * a user has built positional motor memory on -- a clinical change, not a cosmetic
+   * one -- so the opt-in default matters more here than for a cosmetic flag. Check the
+   * matching marker in `app/models/user.rb` (preference_defaults) at the same time.
    */
   groupingEnabled: computed(
     'app_state.feature_flags.board_category_grouping',
@@ -170,6 +171,12 @@ export default Component.extend({
     var w = (typeof window !== 'undefined' && window.innerWidth) || 1400;
     if(w <= 700) { return 1; }
     if(w <= 1100) { return 2; }
+    /* Fourth column on large boards — panels are 3-across, so four fit where three
+       4-across columns used to. Keep in step with the @media (min-width: 1400px) rule
+       for `.md-board-detail-grid--grouped`: this decides how many columns are PACKED,
+       the CSS decides how many tracks exist to hold them, and a mismatch either strands
+       a column or leaves an empty track. */
+    if(w >= 1400) { return 4; }
     return 3;
   }),
 

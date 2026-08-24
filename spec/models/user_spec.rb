@@ -412,6 +412,50 @@ describe User, :type => :model do
     end
   end
 
+  describe "sanitize_board_category_grouping!" do
+    # The sanitizer REBUILDS this hash from scratch, so a sub-preference that is not
+    # echoed there is discarded server-side — it appears to save on the client and is
+    # gone on the next read. These lock the two that drive rendering.
+    def grouping_for(pref)
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => pref}}, {})
+      u.save
+      u.reload.settings['preferences']['board_category_grouping']
+    end
+
+    it "defaults show_category_names and vertical_scroll to true" do
+      expect(User.preference_defaults['any_user']['board_category_grouping']['show_category_names']).to eq(true)
+      expect(User.preference_defaults['any_user']['board_category_grouping']['vertical_scroll']).to eq(true)
+    end
+
+    it "preserves both sub-preferences through a save" do
+      g = grouping_for({'enabled' => true, 'show_category_names' => false, 'vertical_scroll' => false})
+      expect(g['show_category_names']).to eq(false)
+      expect(g['vertical_scroll']).to eq(false)
+      expect(g['enabled']).to eq(true)
+    end
+
+    # The regression this guards: a user whose stored hash predates these keys must keep
+    # TODAY's rendering (headers shown, grid scrollable), not silently lose both because
+    # a missing key coerced to false.
+    it "treats an ABSENT sub-preference as true, not false" do
+      g = grouping_for({'enabled' => true, 'order' => []})
+      expect(g['show_category_names']).to eq(true)
+      expect(g['vertical_scroll']).to eq(true)
+    end
+
+    it "coerces string booleans the same way enabled does" do
+      g = grouping_for({'enabled' => 'true', 'show_category_names' => 'true', 'vertical_scroll' => '1'})
+      expect(g['show_category_names']).to eq(true)
+      expect(g['vertical_scroll']).to eq(true)
+    end
+
+    it "still strips unknown category keys from order" do
+      g = grouping_for({'enabled' => true, 'order' => ['people', 'not_a_real_category', 'people']})
+      expect(g['order']).to eq(['people'])
+    end
+  end
+
   describe "generate_email_hash" do
     it "should generate a hash for any value" do
       expect(User.generate_email_hash(nil)).to eq("334c4a4c42fdb79d7ebc3e73b517e6f8")

@@ -13912,3 +13912,100 @@ key, then the callee re-checked that same key and returned early).
 runs 1.2 times per element.
 
 **Evidence:** task log `2026-08-21-categorize-toggle-perceived-unresponsive.md`.
+
+## Gotcha: `npm ci --dry-run` DELETES `node_modules` before it validates anything (2026-08-23)
+
+**Symptom:** you run `--dry-run` to check whether `npm ci` is safe. It fails at a postinstall
+(`sh: 1: patch-package: not found`) and leaves `node_modules` **empty** — 0 packages. The dev
+environment is now broken by the command you ran to avoid breaking it.
+
+**Cause:** `npm ci` removes the tree as its FIRST step. `--dry-run` does not make that step
+inert. There is no "check only" mode for `npm ci`.
+
+**Fix / avoidance:**
+- To compare the installed tree against the lockfile, READ both — never invoke `npm ci` to find out:
+  `node -e "console.log(require('./node_modules/<pkg>/package.json').version)"` vs the
+  `packages['node_modules/<pkg>'].version` entry in `package-lock.json`.
+- Recovery is `npm install` (see the next entry for which one this repo actually wants).
+
+**Related and equally important — this repo's CI runs `npm install`, NOT `npm ci`**
+(`.github/workflows/ci.yml:97`). So a tree that differs from `package-lock.json` is **expected**,
+not corruption. Do not "fix" drift you have not proven harmful: `testem@3.20.1` with a nested
+ESM `execa@9.6.1` is what CI installs too, and it works there because CI is on **Node 22**.
+
+**Cost when this was learned:** two failed installs and a destroyed `node_modules`, chasing a
+"lockfile drift" theory that was wrong in its premise.
+
+## Gotcha: reinstalling on Node 22 needs a `python` shim for `sqlite3` (2026-08-23)
+
+`sqlite3@4.2.0` (a **dev** transitive of `websql`) has no prebuilt for Node 22's ABI (`node-v127`),
+so npm compiles it from source. The build's own makefile invokes bare `python`, and this box has
+only `python3`:
+
+```
+/bin/sh: 1: python: not found
+make: *** [deps/action_before_build.target.mk:13: ...sqlite3.c] Error 127
+```
+
+Machine-local fix, no repo changes:
+
+```sh
+mkdir -p /tmp/pyshim && ln -sf /usr/bin/python3 /tmp/pyshim/python
+export PATH="/tmp/pyshim:$PATH" npm_config_python=/usr/bin/python3
+npm install
+```
+
+A tree installed under Node 16 keeps a `node-v93` binding, which is the WRONG ABI for Node 22 —
+CI's cache key carries the Node major for exactly this reason (`ci.yml:81-84`).
+
+## The `token_validated` async leak: phantom suite failures attributed to random tests (2026-08-23)
+
+**Symptom:** `ember test` fails 6-7 tests, and the NAMES change between identical runs. The
+assertion is never about the test's own subject:
+
+```
+Error: Assertion Failed: calling set on destroyed object:
+  <frontend@service:session::ember1753>.token_validated = false
+```
+
+Timings cluster tightly (593ms, 594ms) because it is the same orphaned operation each time.
+
+**Cause:** every write to `token_validated` in `app/frontend/app/services/session.js`
+(`:287 :294 :298 :363 :382 :390`) is inside an async token-check promise handler. When one
+resolves after its test container is torn down, Ember throws, and QUnit charges the **global
+failure to whichever test is running at that moment**.
+
+**How to tell it from a real regression — run a BASELINE, do not reason about it.** Revert your
+change in the working tree (a one-token edit like `if(cond)` -> `if(true)` is enough; no git
+needed) and run the full suite again:
+
+| | with change | with change reverted |
+|---|---|---|
+| pass | 2111 | 2111 |
+| fail | 7 | 7 |
+| victims | `set_speak_mode_user` x2 | `toggle_mode`, `boards-layout-toggle` |
+
+**Identical counts, different victims = flaky, not a regression.** A real regression fails the
+SAME tests deterministically. Five failures (setup-guard x4, article50 gate) appeared in both and
+are the genuinely deterministic ones.
+
+Corollary: **you cannot attribute a suite failure without a baseline.** Two runs at the same
+commit tell you nothing about what your change did.
+
+## Process failure worth more than any of the above (2026-08-23)
+
+The Node-16/`ERR_REQUIRE_ESM` gotcha above was written on **2026-08-10** and already contained
+the exact fix. On 2026-08-23 a handoff nonetheless asserted "testem cannot launch in this
+environment at all", and the next session believed it, skipped the suite twice, and then burned
+an hour rediscovering it — including the two wasted moves that entry explicitly warns about.
+
+**The entry was not the problem. Not reading it was.** `Rule #0.8` says to skim LEARNINGS
+**before** diagnosing. Skimming for the topic you expect ("perf") is not skimming it; grep it for
+the ERROR TEXT you are actually looking at:
+
+```sh
+grep -n -i "<the exact error string>" docs/task-management/LEARNINGS.md
+```
+
+And when a handoff and LEARNINGS disagree, **LEARNINGS wins** — handoffs are one session's
+snapshot, are gitignored, and are never reviewed.

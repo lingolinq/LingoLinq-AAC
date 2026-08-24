@@ -264,7 +264,19 @@ export default Service.extend({
     return this.persistence.ajax(url, {
       type: 'GET'
     }).then(function(data) {
-      if(!_this) { return RSVP.resolve({ success: false }); }
+      /* `!_this` alone never fired — `_this` is the service, always truthy. The case that
+         actually happens is the service being DESTROYED while this token-check request is
+         still in flight: the response lands, every `_this.set(...)` below runs against a
+         torn-down object, and Ember throws
+             "calling set on destroyed object: <service:session>.token_validated = false"
+         In tests that surfaces as a GLOBAL failure charged to whichever test happened to be
+         running when the orphaned request resolved — so the suite failed 6-7 tests whose
+         names changed every run (593ms/594ms each, the same orphaned op). Guarding here
+         rather than at each `set` covers all six writes in this callback plus the
+         force_logout/persistence calls, which a destroyed service must not make either.
+         Same idiom as `invalidate()` below (:653). See LEARNINGS, "The `token_validated`
+         async leak". */
+      if(!_this || _this.isDestroyed || _this.isDestroying) { return RSVP.resolve({ success: false }); }
       var _vb = (window.LingoLinq || {}).verboseDebug;
       if (_vb) {
         console.log('[check_token] Token check succeeded', {
@@ -337,7 +349,19 @@ export default Service.extend({
       
       return RSVP.resolve({success: true, browserToken: browserToken});
     }, function(data) {
-      if(!_this) { return RSVP.resolve({ success: false }); }
+      /* `!_this` alone never fired — `_this` is the service, always truthy. The case that
+         actually happens is the service being DESTROYED while this token-check request is
+         still in flight: the response lands, every `_this.set(...)` below runs against a
+         torn-down object, and Ember throws
+             "calling set on destroyed object: <service:session>.token_validated = false"
+         In tests that surfaces as a GLOBAL failure charged to whichever test happened to be
+         running when the orphaned request resolved — so the suite failed 6-7 tests whose
+         names changed every run (593ms/594ms each, the same orphaned op). Guarding here
+         rather than at each `set` covers all six writes in this callback plus the
+         force_logout/persistence calls, which a destroyed service must not make either.
+         Same idiom as `invalidate()` below (:653). See LEARNINGS, "The `token_validated`
+         async leak". */
+      if(!_this || _this.isDestroyed || _this.isDestroying) { return RSVP.resolve({ success: false }); }
       var onlineStatus = _this.persistence ? _this.persistence.get('online') : false;
       var _vb = (window.LingoLinq || {}).verboseDebug;
       

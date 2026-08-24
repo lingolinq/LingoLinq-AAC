@@ -3325,6 +3325,38 @@ export default Controller.extend(prefClasses, {
     return this.get('effective_folder_display_style') === 'colored_corner';
   }),
 
+  /* Two sub-preferences of board_category_grouping. Both read `!== false` so an ABSENT
+     key means ON — they describe what the grouped board already did before they existed,
+     so a user whose stored hash predates them keeps today's rendering.
+
+     Read from `referenced_user`, matching grouping_active and _save_category_grouping:
+     when a supervisor models for a communicator these belong to THAT communicator, and
+     read and write must resolve the same account or the panel would describe one user
+     and persist to another. */
+  category_names_visible: computed(
+    'app_state.referenced_user.preferences.board_category_grouping.show_category_names',
+    function() {
+      return this.get('app_state.referenced_user.preferences.board_category_grouping.show_category_names') !== false;
+    }
+  ),
+  category_vertical_scroll: computed(
+    'app_state.referenced_user.preferences.board_category_grouping.vertical_scroll',
+    function() {
+      return this.get('app_state.referenced_user.preferences.board_category_grouping.vertical_scroll') !== false;
+    }
+  ),
+
+  /* What the GRID is told. Both only mean anything while grouping is in force, so they
+     are ANDed with grouping_active here rather than in the template or the component —
+     one place to reason about, and the ungrouped board is provably unaffected (the
+     ungrouped grid has no category headers and no scroll container of its own). */
+  show_category_names: computed('grouping_active', 'category_names_visible', function() {
+    return !!this.get('grouping_active') && this.get('category_names_visible');
+  }),
+  category_scroll_enabled: computed('grouping_active', 'category_vertical_scroll', function() {
+    return !!this.get('grouping_active') && this.get('category_vertical_scroll');
+  }),
+
   // Map of speak-menu item id → true for items the user has hidden.
   // Built from the `speak_menu_hidden_items` array (kept in sync with
   // user.preferences.speak_mode_hidden_menu_items). Templates use
@@ -5342,7 +5374,24 @@ export default Controller.extend(prefClasses, {
          as enabled, so saving an order-only change (a move arrow, or Reset order)
          silently turned grouping ON for a user who had never opted in. */
       enabled: changes.enabled === undefined ? (current.enabled === true) : !!changes.enabled,
-      order: changes.order || normalizeCategoryOrder(current.order)
+      order: changes.order || normalizeCategoryOrder(current.order),
+      /* Sub-preferences MUST be carried through every save. This object REPLACES the
+         stored hash wholesale, so a key omitted here is dropped — toggling Categorize
+         would silently reset the user's category-name and scrolling choices. The server
+         sanitizer rebuilds the hash the same way and has the matching echo
+         (user.rb#sanitize_board_category_grouping!).
+
+         `!== false` here, NOT `=== true`: absent means TRUE for these two, because both
+         describe what the grouped board already does (headers render, grid scrolls). The
+         `enabled` flag above is the opposite — absent means OFF — because turning
+         grouping on for someone who never asked is a clinical change, whereas keeping
+         today's rendering is the safe default. Same reasoning as the Rails defaults. */
+      show_category_names: changes.show_category_names === undefined
+        ? (current.show_category_names !== false)
+        : !!changes.show_category_names,
+      vertical_scroll: changes.vertical_scroll === undefined
+        ? (current.vertical_scroll !== false)
+        : !!changes.vertical_scroll
     };
     var previous = current;
     user.set('preferences.board_category_grouping', next);
@@ -5423,6 +5472,17 @@ export default Controller.extend(prefClasses, {
       this._save_category_grouping({ order: next });
     },
 
+    /* Both write through the SAME path as the switch, so the "carry sub-preferences
+       through" logic in _save_category_grouping is the single place that has to be
+       right. Neither defers behind rAF the way toggle_categorize does: that flip
+       re-renders the whole grid, whereas these two only toggle a class and a header,
+       so there is no long block to paint around. */
+    toggle_category_names: function() {
+      this._save_category_grouping({ show_category_names: !this.get('category_names_visible') });
+    },
+    toggle_category_scroll: function() {
+      this._save_category_grouping({ vertical_scroll: !this.get('category_vertical_scroll') });
+    },
     reset_category_order: function() {
       this._save_category_grouping({ order: DEFAULT_CATEGORY_ORDER.slice() });
     },

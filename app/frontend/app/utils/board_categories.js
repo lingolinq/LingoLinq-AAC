@@ -101,6 +101,22 @@ export const BOARD_CATEGORIES = [
     textVar: '--fitzgerald-determiner-gray-text'
   },
   {
+    /* Keyboards get their OWN panel rather than falling in with Connectors.
+       A keyboard is a different KIND of thing from vocabulary: a tool for spelling
+       anything, not a word choice. Burying it among "the / and / because" makes it
+       hard to find at exactly the moment a user has given up hunting for a word and
+       wants to spell it instead. It has no part of speech, so it only landed in
+       Connectors by COLOUR proximity — an accident, not a decision.
+       No `types`: membership is decided by the load_board rule in
+       category_for_button, not by part of speech. */
+    key: 'keyboard',
+    labelKey: 'board_category_keyboard',
+    defaultLabel: "Keyboard",
+    types: [],
+    fillVar: '--fitzgerald-determiner-gray',
+    textVar: '--fitzgerald-determiner-gray-text'
+  },
+  {
     // Board buttons whose vocalization is a special action (':clear', ':speak',
     // ':backspace', ':beep' -- see LingoLinq.special_actions, utils/button.js:1489).
     // These are BOARD CONTENT, not the sentence bar: the sentence bar and sidebar
@@ -387,6 +403,17 @@ export function category_for_button(btn) {
   const voc = btn.vocalization;
   if(voc && typeof voc === 'string' && voc.charAt(0) === ':') { return 'controls'; }
 
+  /* A folder that opens a KEYBOARD board is its own category. Detected by the board
+     KEY suffix, matching how the rest of the app identifies these boards
+     (models/board.js VARIANT_ROOT_SUFFIXES, board_hierarchy.js `key.match(/keyboard$/)`)
+     rather than by the English label, which would not survive a translated board.
+     Runs BEFORE the colour check below: keyboard buttons are usually grey, and grey is
+     nearest to Connectors — which is exactly how they ended up filed there. */
+  if(btn.load_board) {
+    const lb_key = btn.load_board.key || btn.load_board.id || '';
+    if(typeof lb_key === 'string' && /(^|[-_/])keyboard$/i.test(lb_key)) { return 'keyboard'; }
+  }
+
   const hex = normalize_color(btn.background_color);
   if(hex) {
     const byColor = nearest_category_for_color(hex);
@@ -429,7 +456,13 @@ export function normalize_order(stored) {
 // Buttons across inside one category panel. Exported so the CSS custom property
 // and the column-weighting below cannot disagree about how many rows a category
 // occupies.
-export const GROUP_INNER_COLUMNS = 4;
+/* Buttons across INSIDE a category panel.
+   3, not 4: a narrower panel is what makes room for a FOURTH outer column on large
+   boards (board-detail-grid.js#columnCount). Four columns of 3-across hold the same
+   buttons as three columns of 4-across, but in a SHORTER stack — which is the point:
+   the board gets wider rather than taller, so more of it is above the fold and less
+   sits below it. Must stay in step with `--bd-group-inner-columns` in app.scss. */
+export const GROUP_INNER_COLUMNS = 3;
 
 /*
  * Split panels into explicit stacking columns.

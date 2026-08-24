@@ -2,6 +2,12 @@
 /**
  * P1 manual-QA automation for board-picker supervisee context.
  *
+ * NAVIGATION: `domcontentloaded`, never `networkidle`. This app polls in the background,
+ * so the network never goes idle and `networkidle` times out at 60s — it failed here on
+ * the bare /board-picker navigation while other navigations happened to settle, which
+ * reads as a flaky product bug rather than a probe-harness choice. Every Puppeteer probe
+ * in this directory already uses `domcontentloaded` plus an explicit wait.
+ *
  * Run from app/frontend (that is where `playwright` resolves) under Node 22:
  *   node scripts/p1-board-picker-qa.mjs
  *     [--base http://localhost:8184] [--user marcus_williams_slp] [--pass 'demo2025!']
@@ -51,7 +57,7 @@ async function dismissDevicePrompt(page) {
 }
 
 async function login(page) {
-  await page.goto(`${BASE}/login`, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.fill('#identification', USER);
   await page.fill('#password', PASS);
   await page.locator('button.login-btn[type="submit"], form button[type="submit"]').first().click();
@@ -245,7 +251,7 @@ async function runFullPickE2E(page, supervisee) {
     beforeKey ? `home_board.key=${beforeKey} (will assert change after pick)` : 'no home board before pick'
   );
 
-  await page.goto(`${BASE}/board-picker?user_id=${supervisee.id}`, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.goto(`${BASE}/board-picker?user_id=${supervisee.id}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(2000);
 
   try {
@@ -349,14 +355,14 @@ async function runFullPickE2E(page, supervisee) {
   }
 
   if (!appNavigated) {
-    await page.goto(`${BASE}/${supervisee.user_name}/boards`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`${BASE}/${supervisee.user_name}/boards`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   }
 
   await page.waitForTimeout(4000);
   const homeCount = await page.locator('.ub-boards-page__board-item--home').count();
   record('full-pick-home-badge', homeCount >= 1, `${homeCount} tile(s) with --home badge on boards page`);
 
-  await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(4000);
   const afterReload = await getUserDetail(page, supervisee.user_name);
   record(
@@ -390,7 +396,7 @@ async function main() {
 
     if (!FULL_PICK_ONLY) {
     // --- Self flow: /board-picker ---
-    await page.goto(`${BASE}/board-picker`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`${BASE}/board-picker`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(3000);
     const selfUrl = page.url();
     record('self-picker-url', !selfUrl.includes('user_id='), selfUrl);
@@ -411,7 +417,7 @@ async function main() {
 
     // --- Supervisee flow ---
     if (!FULL_PICK_ONLY) {
-    await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(2000);
     const supervisee = await resolveSupervisee(page, USER);
     if (!supervisee) {
@@ -420,7 +426,7 @@ async function main() {
       record('supervisee-found', true, `${supervisee.user_name} (id=${supervisee.id}, hasHome=${supervisee.hasHome})`);
 
       // Boards page link
-      await page.goto(`${BASE}/${supervisee.user_name}/boards`, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(`${BASE}/${supervisee.user_name}/boards`, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(4000);
       const setHomeBtn = page.locator('.ub-boards-page__set-home-btn').first();
       if (await setHomeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -437,7 +443,7 @@ async function main() {
       }
 
       // Caseload Choose Board
-      await page.goto(`${BASE}/caseload`, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(`${BASE}/caseload`, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(4000);
       const chooseBoardBtn = page.locator('.md-caseload__list-row').filter({ hasText: supervisee.user_name }).locator('.md-caseload__quick-action--choose-board').first();
       const chooseVisible = await chooseBoardBtn.isVisible({ timeout: 3000 }).catch(() => false);
@@ -451,7 +457,7 @@ async function main() {
       }
 
       // Direct URL permission / resolution
-      await page.goto(`${BASE}/board-picker?user_id=${supervisee.id}`, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(`${BASE}/board-picker?user_id=${supervisee.id}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(4000);
       const directUrl = page.url();
       const directError = await page.locator('.text-danger').first().textContent().catch(() => '');
@@ -464,7 +470,7 @@ async function main() {
       }
 
       // Permission denied with bogus id
-      await page.goto(`${BASE}/board-picker?user_id=999999999`, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(`${BASE}/board-picker?user_id=999999999`, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(3000);
       const permErr = await page.locator('.text-danger').first().textContent().catch(() => '');
       record('permission-denied', /permission|error loading user/i.test(permErr), permErr.trim() || 'No error shown');

@@ -65,6 +65,8 @@ const clickSel = async (page, sel) => {
   const { browser, page } = await launch(OPTS);
   page.on('pageerror', (e) => console.log('  [pageerror] ' + e.message));
   const u = OPTS.USER;
+  /* Tracks whether WE turned grouping on, so the dev account is left as found. */
+  let flipped = false;
   try {
     console.log(`\nBASE ${OPTS.BASE}  USER ${OPTS.USER}`);
     await login(page, OPTS);
@@ -88,7 +90,29 @@ const clickSel = async (page, sel) => {
     /* Grouping is enabled OUT OF BAND (a preference write) rather than through the
        Categorize panel. What H5 asks is whether the GROUPED RENDER fits — the toggle
        path is covered by board-categorize-toggle-qa, and driving it here only adds
-       failure modes that look like product findings when they are probe problems. */
+       failure modes that look like product findings when they are probe problems.
+
+       The write below was DESCRIBED by this comment but never actually implemented, so
+       the probe measured the same ungrouped board twice and the ON phase could never be
+       grouped — which is why H5 has been unverifiable. Grouping is strictly opt-in
+       (board-detail-grid.js#groupingEnabled tests `=== true`), so it must be written
+       explicitly; it is restored in `finally`. */
+    const setPref = async (val) => page.evaluate(async (v) => {
+      try {
+        const u = window.appState.get('referenced_user');
+        u.set('preferences.board_category_grouping.enabled', v);
+        await u.save();
+        /* Verify the STORED value, not a DOM class: in edit mode (and in the preview)
+           the grid is ungrouped regardless of the preference, so a class check reports
+           success while the preference is untouched. */
+        return window.appState.get('referenced_user.preferences.board_category_grouping.enabled') === v;
+      } catch (e) { return 'ERR ' + e.message; }
+    }, val);
+
+    const enabled = await setPref(true);
+    if (enabled !== true) { fail('precondition — grouping preference could be written', String(enabled)); throw new Error('pref'); }
+    flipped = true;
+
     /* Back to the plain board view so we measure the REAL grid, not the preview. */
     await page.goto(boardUrl, { waitUntil: 'domcontentloaded' });
     await sleep(9000);
@@ -111,6 +135,19 @@ const clickSel = async (page, sel) => {
   } catch (e) {
     if (!/no grid|grouped/.test(e.message)) { console.log('\nERROR ' + e.message); results.push({ n: 'probe completed', ok: false }); }
   } finally {
+    if (flipped) {
+      const restored = await page.evaluate(async () => {
+        try {
+          const u = window.appState.get('referenced_user');
+          u.set('preferences.board_category_grouping.enabled', false);
+          await u.save();
+          return window.appState.get('referenced_user.preferences.board_category_grouping.enabled') === false;
+        } catch (e) { return 'ERR ' + e.message; }
+      }).catch((e) => 'ERR ' + e.message);
+      console.log(restored === true
+        ? '  (grouping restored to OFF — stored preference verified)'
+        : `  (WARNING: could not restore grouping to OFF: ${restored}) — check the dev account`);
+    }
     await browser.close();
   }
   const bad = results.filter((r) => !r.ok).length;

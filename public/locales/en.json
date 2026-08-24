@@ -8332,5 +8332,10 @@
   "add_org": "Add Organization",
   "screen_helper_messages": "Screen Helper Messages",
   "hide_screen_helpers": "Don't show screen size or rotate-device suggestions",
-  "board_categorize_loading": "Updating categories..."
+  "board_categorize_loading": "Updating categories...",
+  "board_categorize_options_aria": "Category display options",
+  "board_categorize_show_names": "Show category names",
+  "board_categorize_scroll": "Allow vertical scrolling",
+  "board_categorize_scroll_note": "Turn scrolling off if this board is used with a switch, dwell or head pointer — those users cannot scroll to reach buttons below the fold.",
+  "board_category_keyboard": "Keyboard"
 }
