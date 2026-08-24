@@ -12308,5 +12308,5 @@ Override per-run rather than reviewing on the wrong tier:
 
 **Also:** the bot does not always pick up a new head. It reviewed three pushes on
 #848 within ~5 minutes each, then never reviewed the fourth. Zero inline findings on
-a head means *not reviewed*, *not* clean — check the review list's `commit_id`
-before reading silence as approval.
+a head are *inconclusive* — a successful clean review also produces none. Check the
+review list's `commit_id` before reading silence as a skip *or* as approval.
