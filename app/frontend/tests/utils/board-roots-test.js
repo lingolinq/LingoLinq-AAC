@@ -11,7 +11,9 @@ import {
   filterBoardsPageTopLevelRoots,
   isBrandSetRootBoard,
   boardOwnerName,
-  boardsPagePreferUserNames
+  boardsPagePreferUserNames,
+  sortBySearchQuery,
+  searchQueryRank
 } from '../../utils/board-roots';
 
 describe('board-roots', function() {
@@ -275,6 +277,52 @@ describe('board-roots', function() {
       expect(result[1].orphan).toEqual(true);
       expect(result[1].board.get('name')).toEqual('Orphan Boards id:99');
       expect(result[1].children.length).toEqual(1);
+    });
+  });
+
+  describe('sortBySearchQuery', function() {
+    function names(list) {
+      return list.map(function(b) { return b.get('name'); });
+    }
+
+    it('uses natural name order when the query is empty', function() {
+      var a = makeBoard({ id: '1', name: 'Quick Core 112', key: 'lingolinq/quick-core-112' });
+      var b = makeBoard({ id: '2', name: 'Quick Core 24', key: 'lingolinq/quick-core-24' });
+      var c = makeBoard({ id: '3', name: 'CommuniKate Top Page', key: 'lingolinq/communikate-20' });
+      expect(names(sortBySearchQuery([a, b, c], ''))).toEqual([
+        'CommuniKate Top Page',
+        'Quick Core 24',
+        'Quick Core 112'
+      ]);
+    });
+
+    it('puts name prefix matches first for a typed query', function() {
+      var communikate = makeBoard({ id: '1', name: 'CommuniKate Top Page', key: 'lingolinq/communikate-20' });
+      var jokes = makeBoard({ id: '2', name: 'jokes', key: 'lingolinq/jokes' });
+      var qc24 = makeBoard({ id: '3', name: 'Quick Core 24', key: 'lingolinq/quick-core-24' });
+      var qc60 = makeBoard({ id: '4', name: 'Quick Core 60', key: 'lingolinq/quick-core-60' });
+      var project = makeBoard({ id: '5', name: 'Project Core-36 Universal Core', key: 'lingolinq/project-core' });
+      expect(names(sortBySearchQuery([communikate, jokes, qc60, project, qc24], 'quick'))).toEqual([
+        'Quick Core 24',
+        'Quick Core 60',
+        'CommuniKate Top Page',
+        'jokes',
+        'Project Core-36 Universal Core'
+      ]);
+    });
+
+    it('ranks name-contains above key-only matches', function() {
+      var named = makeBoard({ id: '1', name: 'Something Quick', key: 'lingolinq/other' });
+      var keyed = makeBoard({ id: '2', name: 'Ocean', key: 'lingolinq/quick-core-60-ocean' });
+      var other = makeBoard({ id: '3', name: 'jokes', key: 'lingolinq/jokes' });
+      expect(names(sortBySearchQuery([other, keyed, named], 'quick'))).toEqual([
+        'Something Quick',
+        'Ocean',
+        'jokes'
+      ]);
+      expect(searchQueryRank(named, 'quick')).toEqual(1);
+      expect(searchQueryRank(keyed, 'quick')).toEqual(2);
+      expect(searchQueryRank(other, 'quick')).toEqual(3);
     });
   });
 });

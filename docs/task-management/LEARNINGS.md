@@ -22,6 +22,7 @@ file (see [README.md](README.md)).
 
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
 - [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
+- [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
 - [Gotcha: a status-block lead must not over-claim "remaining" or "historical"](#gotcha-a-status-block-lead-must-not-over-claim-remaining-or-historical)
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
@@ -3622,6 +3623,10 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 **Extension (2026-07-06) — VF84 + sidebar user copies:** Schedule `vocal-flair-84` (and other library slugs) via Progress from `UserBoardProvisioner`; keep `SIGNUP_SYNC_SLUGS` empty. An in-request sync copy of VF84 exceeds `Rack::Timeout` (~16s) on staging and 500s signup after the user row is already saved. Prefer VF84 first in `SIGNUP_ASYNC_SLUGS`, then yesno/inflections, then remaining library slugs. Default sidebar still lists system keys in `default_sidebar_boards`, but `User#sidebar_boards` resolves entries to user-owned copies via `parent_board_id` except `keyboard` (`sidebar_system_keys`). Crisis vocabulary copies on signup like other library boards, so the sidebar link should resolve to the user's copy. **Crisis dedup:** auto-add and stored prefs must treat `lingolinq/crisis-vocabulary` and `username/crisis-vocabulary` as the same sidebar slot (match by slug); otherwise merge appends a second crisis entry and resolve turns both into duplicate user-copy links. Home-board pickers should use `findExistingUserCopy` / `links_copy_as_home` (see `assign-vocal-flair-home.js`), not point `preferences.home_board` at the catalog board.
 
 **Evidence:** task logs `2026-07-06-signup-boards-sidebar-copies.md`, `2026-07-28-staging-registration-timeout.md`.
+
+**Extension (2026-08-24) — VF84 + Senner-Baud as signup-only sidebar extras:** Do **not** put VF84 or Senner on `default_active_sidebar_boards`. Empty stored prefs stay the old utility list so a deploy does not change existing speak-mode sidebars or enqueue those trees as sync roots. Persist `User.signup_sidebar_boards` (utilities + VF84 + `lingolinq/senner-baud`) from `UserBoardProvisioner.apply_signup_sidebar!` at signup only. Replace the mbaud12 Social catalog slot with `lingolinq/senner-baud` and keep that key in `inactive_by_default_sidebar_keys` (disabled pool, not live sidebar). Do **not** add VF84/Senner to `sidebar_auto_add_keys` or `SIDEBAR_COPY_SLUGS`.
+
+**Evidence:** `User.signup_sidebar_boards`, `UserBoardProvisioner.apply_signup_sidebar!`; task log `2026-08-24-signup-sidebar-vf60-senner.md`.
 
 ---
 
@@ -8979,6 +8984,10 @@ Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the servin
 
 `ApplicationController#replace_helper_params` rewrites top-level `id` / `*_id` placeholders like `user_id=self` → `@api_user.global_id`, but **not** nested hashes. `Api::SoundsController#create` resolves nested `sound[user_id]` with `User.find_by_path`, which treats non-digit strings as `user_name` — there is no user named `self`, so create returns **404 Record not found** before any `ButtonSound` insert. Images create never looks up nested `user_id`, so picture upload can still work while sound upload fails. Same class of bug as boards index `?user_id=self` (2026-07-15 learning). Fix: treat nested `'self'` as `@api_user` (boards already special-cases `for_user_id == 'self'`), ignore blank, and on the frontend never POST the literal `'self'` — use `currentUser._actual_id || id` or omit. Ref: [`2026-08-04-sound-upload-nested-self-404.md`](./2026-08-04-sound-upload-nested-self-404.md).
 
+## Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search
+
+Button Settings → Sound → upload calls `contentGrabbers.file_selected('sound', files)`, which only kept files whose `type` matched `/^audio/`. Anything else `alert`s **"No valid sound found"** (`no_valid_sound_found`) — search-shaped copy for an upload that never reached `soundGrabber`. On Windows/WSL, `.mp3`/`.wav` often have an empty MIME type; `.m4a` is often `video/mp4`, and the `video/*` branch ran first so the sound picker still failed. No POST `/api/v1/sounds` happens. Classify with `looks_like_audio` (audio MIME **or** common audio extension) before the video branch. Same helper for drop and recordings upload. Distinct from the nested `user_id=self` 404 (that path already POSTs). Ref: [`2026-08-24-button-sound-upload-mime.md`](./2026-08-24-button-sound-upload-mime.md).
+
 ## Pattern: board-detail Speak bar must speak vocalization, not just label
 
 **Surface:** board-detail Speak Mode — button with distinct `label` vs `vocalization` (e.g. joke boards: label "Money joke", vocalization = the joke text).
@@ -12154,3 +12163,164 @@ pending.
 
 **One-line version:** missing code is evidence about *code*. It says nothing about
 whether the *problem* survived.
+
+## Gotcha: naming a one-shot review subagent silently discards its entire report
+
+**Surface:** spawning `adversary`, any `*-auditor`, or any read-only review agent
+via the Agent tool and passing a `name`, for addressability or nicer progress
+output.
+
+Two adversary reviews of PR #848 produced nothing on 2026-08-23. Both agents ran,
+read the whole component, and then reported themselves **idle / available**. No
+error, no timeout, no missing-output warning. Asking each one directly for its
+findings produced another idle notification and no text.
+
+A controlled experiment settled it. The same agent type, same prompt shape,
+spawned **without** a name, returned its text in 2.4 seconds:
+
+| Spawn | Becomes | Delivery channel | Result |
+|---|---|---|---|
+| unnamed | one-shot async subagent | final text auto-returned in the task notification | works |
+| **named** | persistent addressable teammate | `SendMessage` **only** | **silently lost** |
+
+The mechanism: passing `name` converts a fire-and-forget subagent into a teammate
+whose output must be delivered by calling `SendMessage`. Every read-only review
+agent in this repo declares tools that do **not** include `SendMessage`
+(`adversary`: `Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__github`; the
+`*-auditor` agents are `Read, Grep, Glob, Bash` plus MCP reads). So a named review
+agent is physically incapable of returning its findings. The work happens, lands in
+its own transcript, and dies there.
+
+**Why this is worse than a crash:** the failure presents as success. `ListAgents`
+shows the agent `idle`, which reads as "finished." A dual-review that loses its
+adversary leg still reports as a completed dual review. For `/audit-run`, a named
+finder fleet would produce an empty findings register that reads as *clean*.
+
+**Rule:** never pass `name` to a one-shot review or audit agent. Name it only if
+you also grant it `SendMessage`. If a named agent goes idle without returning text,
+do not re-ask it — respawn unnamed.
+
+**Corollary for the reviewer, not just the spawner:** when a review leg produces
+nothing, say the leg did not run. Substituting your own analysis is weaker by
+construction when you are reviewing your own changes, and reporting it as a
+completed review launders that weakness.
+
+## Gotcha: a test double that satisfies one access style routes the test through a different branch
+
+**Surface:** stubbing an injected Ember service as a plain object in a unit test.
+
+Writing specs for the Article 50 gate (#848), two new cases failed and the failure
+looked exactly like a product bug: the component took its "no refreshable user"
+branch and produced the wrong message. The stub was:
+
+```js
+component.set('appState', { get: function(key) { /* returns currentUser */ } });
+```
+
+`utils/article50_gate.js` calls `appState.get('currentUser')` **explicitly as a
+method**, so `needsAcknowledgement()` worked and the pre-request specs passed. But
+the component reads the Ember path `this.get('appState.currentUser')`, and Ember's
+path `get` on a **plain object** is a property lookup — it never calls that
+object's own `.get()`. So `currentUser` resolved `undefined`, and the specs
+silently exercised a different branch than the one under test.
+
+In the real app `appState` is a service (`focus-words.js:29`), so the path resolves
+correctly and the component is fine. The bug was entirely in the double.
+
+**Rule:** a stub must satisfy **every** access style its consumers actually use.
+Grep for both shapes before trusting a red test — `svc.get('x')` and
+`this.get('svc.x')` are not the same lookup. Give POJO stubs the real properties
+*and* the method:
+
+```js
+component.set('appState', {
+  currentUser: user,                               // for this.get('appState.currentUser')
+  feature_flags: { article_50_disclosure: flagOn },
+  get: function(key) { /* for appState.get('currentUser') */ }
+});
+```
+
+**Tell:** the failing branch is a fallback / defensive branch you did not intend to
+reach. Suspect the double before the code.
+
+## Pattern: partial preservation across a state boundary is worse than none
+
+**Surface:** any flow that captures state, tears a component down, and restores it
+— modal replacement, route transition, offline queue, resume-after-auth.
+
+PR #848 had to carry the user's draft across `modal.open()`, which **replaces** the
+current modal and destroys the component. It took **five** rounds to get right, and
+**four of the five defects were introduced by the fix for a previous one**:
+
+1. Payload carried only `ai_prompt` / `ai_word_count` → lost the "Save for Re-Use"
+   checkbox and typed list name.
+2. Fix 1 restored `words` but not `ai_focus_word_set_id` → `record_ai_focus_usage()`
+   returned early and metrics undercounted.
+3. Fix 1 also missed `search_term` (authored text at `focus-words.hbs:130`).
+4. Fix 1 carried `existing` but not `navigated`, which `pick_set` sets **together**
+   with it → produced `existing=true / navigated=false`, a combination no user action
+   can reach, rendering a picked set alongside the "get started by pasting text"
+   explainer.
+
+Each individual patch was correct. The failure was maintaining **two hand-written
+lists that silently drift**: `opening()` cleared 16 fields, the payload carried 8,
+and nothing reconciled them. Every round asserted "the authored draft is preserved
+as a unit" while getting the membership of that unit wrong.
+
+**What actually closed it** was mechanical enumeration instead of another guess:
+diff the set the teardown clears against the set the payload carries, then check
+each remaining field for a template input binding. That bounded the problem — it
+proved exactly one authored field was still missing rather than leaving an
+open-ended series.
+
+**Rule:** when you restore state across a boundary, enumerate both sets explicitly
+and record a preserve-or-discard decision for *every* field, in a comment next to
+the teardown. Prefer a structural argument over a semantic one: "the Generate button
+is unreachable while `browse` is set, because the template nests the AI panel inside
+its `{{else}}`" is checkable; "`browse` is navigational" is an opinion.
+
+**And beware the comment itself.** Two of the five rounds shipped an *invariant
+comment that was wrong*, each time in the same direction as the defect it described
+— one grouped the authored `search_term` with the derived `search` results object,
+another claimed `search_term` renders in the same conditional branch as the list-name
+field when it is the mutually exclusive `{{else}}` arm. A wrong invariant comment in
+a file like this is the next defect's seed, because it is what the next maintainer
+follows.
+
+## Gotcha: the local Codex model can drift off the approved-reviewer registry
+
+**Surface:** running `/review-pr`, `/dual-review`, or `~/bin/codex-review` and
+assuming the reviewer is the model the registry approves.
+
+On 2026-08-23 `~/.codex/config.toml` was pinned to `model = "gpt-5.6-luna"`. The
+approved-reviewer registry in `~/.claude/CLAUDE.md` lists **`gpt-5.6-terra`**
+(default) / `gpt-5.6-sol` (careful) for the interactive Codex row, and explicitly
+rejects `luna` for the CI row with a specific rationale: the chunk leg is the only
+leg that reads raw code, so a defect the cheap tier misses is *unreachable* rather
+than merely unreported. Nothing warns you; the review simply runs on an unapproved
+model and reports normally.
+
+Override per-run rather than reviewing on the wrong tier:
+
+```bash
+~/bin/codex-review --base staging -c model='"gpt-5.6-terra"' --title "..."
+```
+
+**Two related path facts, both of which cost time:**
+
+- The PII pre-flight guard is **not** in this repo. `CLAUDE.md` cites
+  `scripts/codex-review-guard.sh`, but `scripts/` here holds thirteen *other*
+  `codex-review-*` scripts and not that one. It lives at
+  `~/ai-company-brain/scripts/codex-review-guard.sh`, and it takes a **base ref**
+  (`... origin/staging`), appending `...HEAD` itself.
+- `chatgpt-codex-connector[bot]` PR reviews and the `codex-review` GitHub Action are
+  **different billing routes**. The bot is the Codex cloud GitHub App (ChatGPT
+  subscription); the workflow authenticates with `secrets.CODEX_OPENAI_API_KEY` via
+  `codex login --with-api-key` (pay-per-use platform key,
+  `.github/workflows/codex-review.yml:333,338`). Commenting `@codex review` does not
+  touch the platform key.
+
+**Also:** the bot does not always pick up a new head. It reviewed three pushes on
+#848 within ~5 minutes each, then never reviewed the fourth. Zero inline findings on
+a head are *inconclusive* — a successful clean review also produces none. Check the
+review list's `commit_id` before reading silence as a skip *or* as approval.
