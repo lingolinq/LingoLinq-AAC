@@ -35,8 +35,26 @@ row per session, which is application data. See "This verification wrote to prod
 | Audit attribution | attribution label `scot-art50-flag-verification-2026-08-23`, supplied via the `USER_KEY` environment variable |
 
 **This verification wrote to production.** The audited runner records one `AuditEvent` per
-session; two exist, both stamped with the `USER_KEY` above. That is the access control operating
-as designed, and it is disclosed here rather than omitted.
+session; six exist across the probe series, all stamped with the attribution label above. That is
+the access control operating as designed, and it is disclosed here rather than omitted.
+
+### 1.1 Population scope — READ THIS BEFORE ANY FIGURE BELOW
+
+**All 34 accounts in production are test/QA accounts. There are no real users.** (Confirmed by
+Scot Wahlquist, 2026-08-24; consistent with the pre-tenant posture recorded at cutover.) Every
+per-account figure in this record — "34 of 34", "29 of 34", "5 of 34" — describes that synthetic
+population. Two consequences, in opposite directions:
+
+- **It strengthens the exposure conclusion.** No real person has encountered an undisclosed AI
+  interaction, because no real person has used the product. That is a stronger statement than the
+  `AiApiLog` evidence alone could support (§2.5, and the under-recording caveat there).
+- **It limits what the gating figures demonstrate.** "29 of 34 gated" shows the mechanism
+  *resolves correctly*; it is not evidence about real-world behaviour, load, or jurisdiction
+  distribution. In particular the `:unknown`-for-everyone result in §2.6 is expected of seeded
+  accounts and says nothing about how real users will classify.
+
+Read every figure below as **configuration verified against a synthetic population**, not as
+observed user impact.
 
 ## 2. Observations
 
@@ -150,7 +168,7 @@ Measured against the resolver the gate actually consults (probe `lingolinq-migra
 | `User#article_50_disclosure_shown?` true | **5 of 34** |
 | **Currently gated (flag ON, disclosure required, not yet acknowledged)** | **29 of 34** |
 
-**The Article 50 disclosure surface is maximal in production, not inert.** Because no user carries
+**The Article 50 disclosure surface is maximal in production, not inert** (across the test-account population defined in §1.1; there are no real users). Because no user carries
 an authoritative `:non_eu` status, the disclosure is required for every user, and 29 who have not
 acknowledged it meet the gate on their next AI interaction. This is the control behaving as
 designed — the fail-safe is doing its job — but any reading of this record that concludes "the flag
@@ -180,7 +198,8 @@ consistent with it and is not evidence of it: the flag could equally have entere
 
 **`article_50_disclosure` is ENABLED in production as of `2026-08-23T21:04:12Z`**, by virtue of the
 `default_enabled_features` DB Setting, which supersedes the code default. It resolves **true**
-through the application path for **all 34 of 34 users in production**, not a sample. No org,
+through the application path for **all 34 of 34 accounts in production**, not a sample — all of
+them test/QA accounts, per §1.1. No org,
 beta, or canary layer modifies this. No EU-jurisdiction subject exists in production by either the
 organization or the user-level signal (0 of 2 orgs, 0 of 34 users), so the flag's EU-facing
 behaviour is verified as *configuration*, not as observed EU-user traffic.
