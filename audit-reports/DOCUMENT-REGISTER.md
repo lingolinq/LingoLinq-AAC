@@ -43,7 +43,7 @@
 | AI Governance Memo | git | `docs/legal/AI_GOVERNANCE_MEMO.md` | published | GDPR, COPPA | Scot Wahlquist | 2026-08-04 | 2026-10-22 | 2026-08-04 | `f35f99bd8b29` | compliance-records-set-2026-06, security-review |
 | AI Governance Memo (branded) | Drive | [open](https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit) | published | GDPR, COPPA | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06 |
 | Anthropic Business Associate Agreement (2026-05-06) | Drive | [open](https://drive.google.com/file/d/1sL3di9GRP4hlids-baZDT26n3SKjzwD5/view) | draft | HIPAA | Scot Wahlquist | 2026-07-22 | 2027-07-22 | no | (supplied) | baa |
-| Article 50(1) Disclosure - Production Feature-Flag Verification | git | `docs/legal/2026-08-23_article-50-production-flag-verification.md` | draft | GDPR, EU_AI_Act | Scot Wahlquist | 2026-08-23 | 2026-11-23 | no | `8b4f7a013341` |  |
+| Article 50(1) Disclosure - Production Feature-Flag Verification | git | `docs/legal/2026-08-23_article-50-production-flag-verification.md` | draft | GDPR, EU_AI_Act | Scot Wahlquist | 2026-08-23 | 2026-11-23 | no | `e42454727ccd` |  |
 | AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | published | HIPAA | Scot Wahlquist | 2026-05-11 | 2027-05-11 | 2026-02 | `55f28e00168c` | baa |
 | Compliance & Security Program | git | `docs/legal/2026-08-20_compliance-program.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-20 | 2027-08-07 | 2026-08-20 | `78804f7cd631` |  |
 | Compliance & Security Program | git | `docs/legal/2026-08-22_compliance-program.md` | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-22 | 2026-11-22 | no | `e99129538ad1` |  |
@@ -94,8 +94,8 @@
 | Compliance Status Snapshot (2026-08-22) | git | `docs/legal/2026-08-22_compliance-status-snapshot.md` | draft |  | Scot Wahlquist | 2026-08-22 | 2026-11-22 | no | `f7e52f9a943f` |  |
 | Data & Compliance Pipeline - Build Inventory (dated) | Drive | [open](https://docs.google.com/document/d/1xxLsESUXKm6rDWuqr_Z-Ob5kWzUZUbFD3gTKZWfLMnY/edit) | approved |  | Scot Wahlquist | 2026-06-22 | 2026-09-22 | no | (supplied) |  |
 | Document Register (this file) | git | `audit-reports/DOCUMENT-REGISTER.json` | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (self) |  |
-| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `1bbdb0139592` |  |
-| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `bc6f7a5b3b98` |  |
+| Findings Register (FINDINGS.json) | git | `audit-reports/FINDINGS.json` | published | FERPA, COPPA, HIPAA, GDPR, WCAG, SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | `95525f36e75c` |  |
+| LingoLinq Capability Ledger (rendered) | git | `docs/legal/CAPABILITY_LEDGER.md` | published |  | Scot Wahlquist | 2026-07-12 | 2027-01-12 | no | `b30ccf9d18cc` |  |
 | Notion - Compliance & Audits hub | Notion | [open](https://www.notion.so/3655fe8215c2815a949ec8ed971d5580) | published |  | Scot Wahlquist | 2026-06-19 | 2026-09-19 | no | (supplied) |  |
 | Notion - Compliance Documents board (LL) | Notion | [open](https://www.notion.so/3865fe8215c28174aef3ce32239ced5c) | published |  | Scot Wahlquist | 2026-06-21 | 2026-09-21 | no | (supplied) |  |
 | Notion - Compliance Findings board (LL) | Notion | [open](https://app.notion.com/p/1f8451c4a17b4f5b868878ac4386b805) | published |  | Scot Wahlquist | 2026-06-20 | 2026-09-20 | no | (supplied) |  |
