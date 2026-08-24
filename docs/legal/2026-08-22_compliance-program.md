@@ -125,17 +125,17 @@ mechanically verifiable against the running system.
 The gating metric is the count of **open Critical findings**, not a synthetic readiness score. The
 current authoritative counts are read directly from the register and summarized in
 `docs/legal/2026-08-22_compliance-posture-report.md` (this successor's corrected counterpart,
-UNATTESTED draft) and its last-attested predecessor
+ATTESTED 2026-08-24) and its attested predecessor
 `docs/legal/2026-08-20_compliance-posture-report.md` (ATTESTED 2026-08-20, frozen and superseded;
 it carries the 46-findings run-size defect this correction fixes). Read the successor for the
-corrected figures and the predecessor for the signed record. Regenerated per audit run; do not
+corrected figures and the predecessor for the prior signed record. Regenerated per audit run; do not
 hand-edit.
 
-- **Open Critical findings: 0** (the gate). As of the 2026-08-20 attestation, live High /
+- **Open Critical findings: 0** (the gate). As of the 2026-08-24 attestation, live High /
   Medium / Low counts (publisher convention at `64cdccba1`) are **20 / 52 / 40**. See the register and
-  `docs/legal/2026-08-22_compliance-posture-report.md` (corrected successor, UNATTESTED) for the
+  `docs/legal/2026-08-22_compliance-posture-report.md` (corrected successor, ATTESTED 2026-08-24) for the
   derivation, and `docs/legal/2026-08-20_compliance-posture-report.md` (ATTESTED 2026-08-20,
-  superseded) for the signed record; do not hand-edit counts here.
+  superseded) for the prior signed record; do not hand-edit counts here.
 - Distribution spans FERPA (student data isolation, access scoping, audit trail), HIPAA (PHI
   handling, minimum necessary, BAA coverage), GDPR (residency, subprocessor posture, deletion and
   export), SOC 2 (control-evidence and audit-system hardening, in progress), WCAG (standing AAC
@@ -344,8 +344,8 @@ over them.
 | Artifact | Purpose |
 |---|---|
 | `audit-reports/FINDINGS.json` | Code-anchored findings register; single source of truth for status |
-| `docs/legal/2026-08-22_compliance-posture-report.md` | Posture summary (counts by framework), CORRECTED SUCCESSOR - UNATTESTED draft; supersedes the attested 2026-08-20 report |
-| `docs/legal/2026-08-20_compliance-posture-report.md` | LAST-ATTESTED posture summary, ATTESTED 2026-08-20, now frozen and superseded by the 2026-08-22 successor above; earlier predecessors frozen at `2026-08-09_compliance-posture-report_draft.md` (unattested) and `COMPLIANCE_POSTURE_REPORT.md` (attested 2026-07-23) |
+| `docs/legal/2026-08-22_compliance-posture-report.md` | Posture summary (counts by framework), CORRECTED SUCCESSOR - ATTESTED 2026-08-24; supersedes the attested 2026-08-20 report |
+| `docs/legal/2026-08-20_compliance-posture-report.md` | Preceding attested posture summary, ATTESTED 2026-08-20, now frozen and superseded by the 2026-08-22 successor above; earlier predecessors frozen at `2026-08-09_compliance-posture-report_draft.md` (unattested) and `COMPLIANCE_POSTURE_REPORT.md` (attested 2026-07-23) |
 | `docs/legal/SUBPROCESSORS.md` | Article 28 subprocessor register; AWS BAA on file |
 | `docs/legal/DATA_RETENTION.md` | Retention schedule, legal basis, deletion mechanism per data type |
 | `docs/legal/BREACH_RUNBOOK.md` | Incident response and breach notification playbook |
@@ -375,14 +375,26 @@ over them.
 
 ## 15. Attestation
 
-> **NOT RE-MADE FOR v1.3.1.** The re-attestation *statement* below is the **v1.3 attestation as
-> signed on 2026-08-20**, reproduced byte-for-byte: its first-person voice and its dates are the
-> predecessor's, and no word of that statement has been re-made for v1.3.1.
-> **The metadata table beneath the statement is NOT part of what was signed**, and it does carry
-> this successor's corrections: the 2026-08-12 run size (46 -> 40, correction 1), the `HEAD` ->
-> `` `64cdccba1` `` pinning (correction 2), the `open` -> `live` severity relabel (correction 4),
-> and the draft attestation status. v1.3.1 is unattested. If Scot attests v1.3.1, a new statement
-> dated to that attestation must be written here first.
+> **v1.3.1 is attested.** The statement immediately below is the operative attestation for this
+> file, dated 2026-08-24. The v1.3 statement that follows it is reproduced byte-for-byte from the
+> 2026-08-20 predecessor as historical record; it is not the operative attestation for v1.3.1.
+> The metadata table beneath both statements is part of this v1.3.1 attestation.
+
+**Attestation statement (v1.3.1, 2026-08-24).** As CEO and the accountable owner of LingoLinq's
+compliance program, I attest this v1.3.1 successor as of 2026-08-24. I re-affirm the v1.3 statement
+reproduced below, including points 1 through 5 of that 2026-08-20 attestation. This successor
+exists only to correct defects the predecessor carried: the 2026-08-12 run size (46 -> 40), live
+values labelled "open" in the attestation table, unqualified "at HEAD" phrasing, and the
+`article_50_disclosure` runtime-enablement claim. No program claim is otherwise changed, and the
+snapshot boundary remains `64cdccba1`. This attestation's fresh verification scope is those
+corrections, including the Article 50(1) production-enablement record at
+`docs/legal/2026-08-23_article-50-production-flag-verification.md` (PRODUCTION VERIFIED ENABLED).
+Individual finding IDs, framework counts, infrastructure posture (Section 11 and v1.3 points 2-3),
+and vendor/BAA posture are carried forward from the 2026-08-20 v1.3 attestation and were not
+independently re-checked against live GCP/AWS state for this v1.3.1 attestation. This attestation
+does not close, downgrade, or supersede any finding. Finding status remains governed by
+`audit-reports/FINDINGS.json`. This document remains internal and is not authorized for external
+sharing, in full or in summary, until I explicitly release a version for that purpose.
 
 **Re-attestation statement (v1.3, as signed 2026-08-20 -- reproduced, not re-made).** As CEO and the accountable owner of LingoLinq's compliance program, I
 re-affirm points 1 through 6 of the 2026-06-18 attestation: this document is an honest,
@@ -435,11 +447,11 @@ opinion, or a guarantee of compliance.
 
 | Field | Value |
 |---|---|
-| Prepared by | Compliance review (Claude, acting as compliance officer); 2026-08-09 v1.3 draft; content refreshed and attested 2026-08-20 |
+| Prepared by | Compliance review (Claude, acting as compliance officer); 2026-08-09 v1.3 draft; content refreshed and attested 2026-08-20; v1.3.1 corrections attested 2026-08-24 |
 | Reviewed by | Predecessor v1.2 post-cutover sweep; Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review run on PR #838, #845 and #846 (the #846 pass produced the Section 15 fidelity, citation-anchor and provenance corrections recorded above) |
 | Register audited commit | last full `/audit-run`: `d67ed76e0a1` (auditedDate 2026-08-12, 40 new findings); monthly light-run restamp `59f502aa4` (auditedDate 2026-08-18); live counts re-derived at staging commit `64cdccba1` (2026-08-20) |
-| Posture at `64cdccba1` (v1.3, attested 2026-08-20) | 0 live Critical / 20 live High / 52 live Medium / 40 live Low (publisher convention), per `audit-reports/FINDINGS.json` |
-| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render retained as write-frozen rollback fallback pending explicit decommission. LL-6619cc1811 verified-closed. **Not re-verified against live infrastructure for this 2026-08-20 attestation** (register-and-code-only pass); this row carries forward the 2026-07-22/23 live verification. Re-check against live GCP/AWS state before relying on this for anything infrastructure-sensitive. |
+| Posture at `64cdccba1` (v1.3.1, attested 2026-08-24; counts unchanged from v1.3) | 0 live Critical / 20 live High / 52 live Medium / 40 live Low (publisher convention), per `audit-reports/FINDINGS.json` |
+| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render retained as write-frozen rollback fallback pending explicit decommission. LL-6619cc1811 verified-closed. **Not re-verified against live infrastructure for the 2026-08-20 v1.3 attestation or this 2026-08-24 v1.3.1 attestation** (register-and-code-only pass); this row carries forward the 2026-07-22/23 live verification. Re-check against live GCP/AWS state before relying on this for anything infrastructure-sensitive. |
 | Attested by | Scot Wahlquist, CEO (v1.3.1) |
 | Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3); 2026-08-24 (v1.3.1) |
 

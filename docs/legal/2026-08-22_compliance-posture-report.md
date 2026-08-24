@@ -10,7 +10,7 @@
 > successor" below. This report refreshes headline and framework counts from the
 > findings register as committed at staging commit `64cdccba1`. Originally drafted 2026-08-09 by the compliance-officer; content
 > re-verified and refreshed 2026-08-20 after the 2026-08-12 six-finder audit run and the Article 50
-> server-side backstop work (#829/#831); corrected 2026-08-22; awaiting CEO attestation.
+> server-side backstop work (#829/#831); corrected 2026-08-22; attested 2026-08-24.
 >
 > Register audited SHA (last full `/audit-run`): `59f502aa4` (auditedDate 2026-08-18; a monthly
 > light-run restamp, not a full re-scan -- see `meta.auditedShaPriorNote` in the register for why

@@ -31,6 +31,7 @@ file (see [README.md](README.md)).
 - [Gotcha: "Scot re-attested" is not a pin on this branch until the row hash matches](#gotcha-scot-re-attested-is-not-a-pin-on-this-branch-until-the-row-hash-matches)
 - [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
 - [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
+- [Gotcha: the metadata table is not the signed attestation — write the statement, then pin](#gotcha-the-metadata-table-is-not-the-signed-attestation--write-the-statement-then-pin)
 - [Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`](#gotcha-redact_for_ai-on-the-sentence-does-not-automatically-cover-interpolated-contexttopic)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
@@ -12046,6 +12047,10 @@ are derived, not hand-merged. If citation-check says `file not found at sha`,
 ## Gotcha: a dated successor must not inherit the predecessor's attestation dates
 
 Copying `**Attestation history:** re-attested 2026-08-08` onto a `draft` successor makes the new bytes look reviewed. Label it **Predecessor attestation history** and state that this record has none. Same defect for Related links: point at the operative dated register (`2026-08-16_subprocessor-register.md`), not the frozen `SUBPROCESSORS.md`. Ref: `docs/legal/2026-08-17_ai-data-flow-classification.md`.
+
+## Gotcha: the metadata table is not the signed attestation — write the statement, then pin
+
+Flipping a successor's banner, register `status`, and `attestedContentHash` does not attest it if Section 15 still says the new version is unattested and only reproduces the predecessor's first-person statement. The metadata table is not part of what was signed. Live `requiredDocs` also stay on the predecessor until they are retargeted by `canonicalLocation` in the same change. Write the dated statement, remove leftover "unattested / awaiting attestation" language, move `school-dpa-package` / `security-review` / `grant` onto the successor, then pin. Codex P1/P2 on PR #857; task log: [2026-08-24-pr857-attestation-comment-fixes.md](./2026-08-24-pr857-attestation-comment-fixes.md).
 
 ## Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`
 
