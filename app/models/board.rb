@@ -2848,6 +2848,7 @@ class Board < ApplicationRecord
     cache.instance_variable_set('@ease_saving', true) if is_root
     if (board_ids.blank? || board_ids.include?(swap_board_id) || (copy_id && swap_board.settings['copy_id'] == copy_id))
       updated_board_ids << swap_board_id
+      already_in_library = false
       if !library.instance_variable_get('@skip_swapped') || swap_board.current_library(true) != library
         # puts " checking if important"
         words = swap_board.buttons.map{|b| [b['label'], b['vocalization']] }.flatten.compact.uniq
@@ -2880,6 +2881,7 @@ class Board < ApplicationRecord
             # puts "SAFE PIC"
           elsif library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (OPENSYMBOLS_MEMBER_LIBRARIES.include?(old_bi.image_library) && library == OPENSYMBOLS_LIBRARY))
             # puts "ALREADY SWAPPED"
+            already_in_library = true
           elsif false
             # TODO: create or find an alternate version of the button_image that
             # uses the library_alternates version as the fault and puts the current default
@@ -2914,7 +2916,22 @@ class Board < ApplicationRecord
         swap_board.settings['buttons'] = buttons
         swap_board.settings['swapped_library'] = library
         @map_later = true
-        swap_board.save 
+        swap_board.save
+      elsif already_in_library && swap_board.settings['swapped_library'] != library
+        # Nothing changed, but ONLY because at least one button was already in the
+        # target library (the OPENSYMBOLS_MEMBER_LIBRARIES skip above) -- i.e. the
+        # swap succeeded as a no-op rather than finding nothing. Record the library:
+        # User#copy_to_home_board and User#copy_board_to_library use
+        # settings['swapped_library'] as their idempotency key --
+        # (swapped_library || 'original') == (symbol_library || 'original') -- so
+        # leaving it nil makes them re-copy the entire board set on every call.
+        # Deliberately NOT set when the swap simply found no replacement (see spec
+        # "should only save if buttons have actually changed"), which is a different
+        # outcome: there, the board is still awaiting a real swap.
+        # save_subtly because no button content changed: this must not read as an
+        # edit or trigger a buttonset / image reprocess.
+        swap_board.settings['swapped_library'] = library
+        swap_board.save_subtly
       end
       PaperTrail.request.whodunnit = whodunnit
     else

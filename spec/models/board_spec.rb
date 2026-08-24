@@ -5656,8 +5656,37 @@ describe Board, :type => :model do
       expect(Uploader).to_not receive(:find_images)
       b.swap_images(library, u, [], nil)
       expect(b.reload.buttons.map{|btn| btn['image_id'] }).to eq([bi.global_id, bi.global_id])
-      expect(b.settings['swapped_library']).to eq(nil)
       expect(ButtonImage.count).to eq(1)
+      # The swap changed nothing, but it DID run, so the library must still be
+      # recorded. User#copy_to_home_board / #copy_board_to_library key their
+      # "already copied, skip" check off this field; nil would read as 'original'
+      # and make them re-copy the whole board set on every call.
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+    end
+
+    it "should record swapped_library so repeat provisioning is idempotent" do
+      u = User.create
+      bi = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).and_return({})
+      b.swap_images(library, u, [], nil)
+      # This is the exact comparison User#copy_to_home_board makes (user.rb ~3088)
+      # and User#copy_board_to_library makes (user.rb ~3065).
+      b.reload
+      expect((b.settings['swapped_library'] || 'original')).to eq(('opensymbols' || 'original'))
+      # And the recorded library makes a REPEAT swap a no-op: current_library now
+      # returns the aggregate, so the outer gate closes and no lookup happens at all.
+      expect(b.current_library).to eq('opensymbols')
+      expect(Uploader).to_not receive(:default_images)
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
     end
 
     it "should still swap an image from a library opensymbols does not aggregate" do
