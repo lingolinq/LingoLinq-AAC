@@ -5,7 +5,6 @@ import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { debounce } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import progress_tracker from '../utils/progress_tracker';
@@ -73,7 +72,7 @@ export default Controller.extend({
       return name.indexOf(q) !== -1 || key.indexOf(q) !== -1;
     });
   },
-  filtered_online_groups: computed('online_groups', 'panel_filter', 'searchString', function() {
+  filtered_online_groups: computed('online_groups', '_filter_query', function() {
     var _this = this;
     var q = this.get('_filter_query');
     return (this.get('online_groups') || []).map(function(g) {
@@ -81,7 +80,7 @@ export default Controller.extend({
       return { id: g.id, label_key: g.label_key, default_label: g.default_label, boards: boards };
     }).filter(function(g) { return g.boards.length > 0; });
   }),
-  filtered_my_boards: computed('personal_results.results', 'panel_filter', 'searchString', function() {
+  filtered_my_boards: computed('personal_results.results', '_filter_query', function() {
     // The user_id='self' query returns EVERY owned board, including sub-board
     // copies that rode along inside a copied set. filterRootBoards drops those
     // (keys on copy_id), keeping only the visible root tiles — same cleanup the
@@ -124,7 +123,7 @@ export default Controller.extend({
   _search_group_i18n_extractor_no_op: function() {
     i18n.t('other_boards', "Other Boards");
   },
-  jump_sections: computed('online_results', 'searchString', 'panel_filter', function() {
+  jump_sections: computed('online_results', '_filter_query', function() {
     var userId = app_state.get('currentUser.id');
     var online = this.get('online_results');
     var preferOwners = boardsPagePreferUserNames(app_state);
@@ -228,9 +227,23 @@ export default Controller.extend({
 
   },
   /** Live filter: re-run the search whenever the query or locale changes (debounced 300ms). */
+  /* Hand-rolled rather than @ember/runloop debounce: ember/no-runloop bans
+     runloop helpers in favour of ember-lifeline, which is not installed. */
   _autoSearch: observer('searchString', 'locale', function() {
-    debounce(this, this._runAutoSearch, 300);
+    if (this._autoSearchTimer) { clearTimeout(this._autoSearchTimer); }
+    var _this = this;
+    this._autoSearchTimer = setTimeout(function() {
+      _this._autoSearchTimer = null;
+      _this._runAutoSearch();
+    }, 300);
   }),
+  willDestroy: function() {
+    this._super.apply(this, arguments);
+    if (this._autoSearchTimer) {
+      clearTimeout(this._autoSearchTimer);
+      this._autoSearchTimer = null;
+    }
+  },
   /* Changing the LANGUAGE filter invalidates the current preview — that board is
      in the previous language, and the panel is about to be re-scoped to the new
      one (load_results below re-queries with the new locale). Drop the preview
