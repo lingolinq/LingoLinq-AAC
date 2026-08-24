@@ -29,16 +29,161 @@ post-under-13-signup gap. All other v2 findings are restatements of v1.
 | Speak Mode tour repeats on every board | `b0e32c94d` | Pick #1 fires, pick #2 does not |
 | Tour cannot be dismissed from the keyboard | `b0e32c94d` | Escape closes, arrows advance |
 | Tour progress never persisted at all (not in either report) | `b0e32c94d` | `guided_tours_completed` was missing from the server allowlist — the "seen" badge had never worked |
-| **D1** — Set as Home / Make a Copy unreachable outside edit mode | `7692d3c08` | Two of the nine edit-panel actions restored to the view-mode header, with gating tests. **Seven remain edit-mode-only** — see G2. |
-| **D2** — home-board pick: no progress explanation, no confirmation | `231bdcaeb` | Copy-wait explainer + the self-pick confirmation the pick-for-others path already had |
-| **D10** — beta-feedback tab centred on every page | `868193344` | Corner-anchored. Its a11y sub-finding did **not** reproduce — see below. |
+| **D2** — home-board pick: no progress explanation, no confirmation | `231bdcaeb` | Copy-wait explainer + the self-pick confirmation the pick-for-others path already had. **Browser-verified 2026-08-23** — see A1. |
 
-> **D10's accessibility claim is closed as not-reproducing.** All three `BetaFeedbackPanel` render
-> sites carry `inert` + `aria-hidden` when closed, added 2026-07-08 — *before* the Aug 20 re-test.
-> Needs a fresh repro to re-open.
->
-> **None of D1/D2/D10 is browser-verified yet** — gates and compile are tested, the rendered result
-> is not. See the handoff's Part 3.
+> **D10's accessibility sub-claim is closed as not-reproducing.** All three `BetaFeedbackPanel`
+> render sites carry `inert` + `aria-hidden` when closed, added 2026-07-08 — *before* the Aug 20
+> re-test. Needs a fresh repro to re-open. (This is separate from D10's *placement* claim, which
+> is re-opened below.)
+
+### A1. Browser verification, 2026-08-23 — D1 and D10 did NOT hold up
+
+Ran `app/frontend/scripts/claim-check-d1-d2-d10-qa.mjs` (Playwright, 1440x900, live dev stack) against
+`26ee4f536`. Result: **4 passed, 3 failed.** D2 is confirmed; D1 and D10 are re-opened as **not fixed**.
+Both failures are the same shape — the source change is real, but a pre-existing higher-precedence
+rule means it never reaches the user.
+
+**D2 — CONFIRMED FIXED.** All three assertions pass against the real copy pipeline via `/board-picker`:
+the explainer renders under the spinner (verbatim), the copy completes and hands off to
+`/example/board-detail/communikate-home`, and the confirmation toast shows *"This is now your home
+board, and it's saved for offline use."* Note the flash lands in `.ll-toast`, not the legacy
+`.flash-message` outlet (`utils/modal.js:44`) — the first run failed purely on that selector.
+
+**D1 — was RE-OPENED, now FIXED in the options menu (browser-verified, 7/7).**
+
+*The failure:* the two buttons rendered, gated correctly and were wired — but were **unreachable in
+view mode**, which is the entire finding. They had been added to `.md-board-detail-header__actions`,
+inside `.md-board-detail-header`, which is hidden by `.md-shell--board-collapsed .md-board-detail-header
+{ display: none }` (`app.scss:76138`); `board_collapsed: true` is the controller default
+(`controllers/user/board-detail.js:267`), set `false` only on entering edit mode
+(`routes/user/board-detail/edit.js:57`, `board-detail.js:5365`) and back to `true` on exit
+(`edit.js:100`). **The only control that expands it — `toggle_board_collapsed` — is itself inside the
+hidden header** (measured 0x0), so a view-mode user could not reveal it. The actions had moved from one
+edit-mode-only container to another.
+
+*What the browser pass also turned up:* **`make_a_copy` was already reachable** the whole time, at
+`board-detail.hbs:1018` — Options → Share & Print → "Copy" — and it fired correctly. So only **one** of
+the two actions was genuinely missing. The reason both were reported absent is the label: under a
+"Share & Print" heading, a bare "Copy" reads as copy-to-clipboard/export, not "make this mine".
+
+*The fix:*
+- Removed both dead header buttons (a comment marks the spot so this is not re-attempted).
+- Added **Set as Home Board** to the options menu as a top-level item beside Edit Board, gated on
+  `can_set_as_home`. Top level, not inside Share & Print: it is a "make this mine" action, and it is
+  the step that makes a board work offline.
+- Relabelled the existing menu item "Copy" → **"Make a Copy"** under its own key
+  (`board_detail_copy_board`). `copy` could not be restyled in place — it is shared with the utterance
+  clipboard button (`share-utterance.hbs:67`) and a button-settings form label, both of which must
+  stay "Copy".
+- Gated that item on `can_copy_board`, so an uncopyable / for-sale board no longer offers a copy that
+  cannot happen. **This is a deliberate small behaviour change** — previously the menu offered Copy
+  regardless — and it puts the already-tested gate to use rather than leaving it dead.
+
+*Verified:* `claim-check-d1-d2-d10-qa.mjs --only d1` → 7/7, including both actions reachable by real
+clicks, the label assertion, "no dead copies left in a hidden container", and both modals opening.
+The set-as-home modal confirms the journey: *"This board is not owned by the user. You will probably
+want to make a new copy…"*. 5/5 unit tests pass, template-lint clean, eslint 1531 findings = unchanged
+baseline.
+
+*Still open (G2), corrected count:* the handoff's "seven remain edit-mode-only" was too pessimistic.
+Checked per action at HEAD — **four** have no view-mode render site at all and appear only in the
+edit panel: `board_details` (`:246`), `add_to_sidebar` (`:222`), `toggle_favorite` (`:263`),
+`other_board_actions` (`:278`). The other three — `share_board`, `print_board`, `download_board` —
+each have a second render site in the options menu (`:1058`, `:1068`, `:1078`) and were confirmed
+visible in the browser under Share & Print.
+
+**D10 — was RE-OPENED, now FIXED (browser-verified, 4/4).**
+
+*The failure:* the tab was still dead-centre on every page — measured box centre **720px of a 1440px
+viewport, 0px off centre**. `868193344`'s premise was false at runtime: it assumed the `--navbar`
+variant is `position: absolute` inside the navbar, so it re-added `left: 50%; right: auto;
+transform: translateX(-50%)` to that variant. But `#within_ember:not(.board-alt-view):not(.board-detail-view)
+.beta-feedback-drawer-tab--navbar { position: fixed; top: 0 }` (`app.scss:89818`, pre-existing,
+id+class specificity) forced it to `fixed`, i.e. page-level — so the re-centring landed on a
+page-level tab and kept the defect alive.
+
+*Correction to this document's own earlier entry:* it said the commit was a pure no-op and that
+"before and after are visually identical". That was wrong. There are **two** render sites, each
+always carrying a modifier — `app-navbar.hbs:77` (`--navbar`) and `application.hbs:1491` (`--speak`);
+the base class never applies alone. `--speak` overrides only top/bottom/borders, so it *did* inherit
+the new `right: 16px` and was corner-anchored by that commit. Only `--navbar` — the tab on every
+ordinary authenticated page — was unchanged.
+
+*The fix:* removed the three centring declarations from `--navbar`, and removed the
+`#within_ember… .beta-feedback-drawer-tab--navbar { position: fixed; top: 0 }` override entirely, so
+the variant's own `position: absolute; top: 100%` seats the tab directly beneath the navbar
+(`.app-navbar` is `position: relative`, height 70) with the base `right: 16px`. The drawer *panel*
+keeps its `top: 0`; only the tab moved.
+
+*Two traps found by measuring, both of which would have shipped a regression:*
+1. **The top-right corner at `top: 0` is not free.** Anchoring right while still pinned to `top: 0`
+   put the tab over **Settings, Support and the online-status control**. Simulating candidate boxes
+   against the live navbar: centred/top:0 collides with nothing, right/top:0 collides with three
+   controls, left/top:0 collides with the logo, right/below-navbar collides with nothing. The
+   original centred position was collision-free — so a naive corner-anchor trades one mis-tap risk
+   for another.
+2. **`top: 100%` under `position: fixed` resolves against the viewport,** not the navbar. Dropping
+   only the `top: 0` while keeping `position: fixed` sent the tab to y=900 — off-screen at a 900px
+   viewport. The `top: 0` had been masking that latent value.
+
+*Verified:* `--only d10` → 4/4 — not page-centred (602px off), covers no interactive control,
+on-screen with the hit-test at its centre landing on the tab, and the drawer still toggles
+(`aria-expanded false→true`, drawer un-hidden). Negative control: reverting `app.scss` to HEAD makes
+`D10-not-page-centred` fail at 0px off centre while the other three still pass, confirming the
+assertions discriminate. Note the D10 check now navigates explicitly to `/<user>/home`: the
+post-login landing `/` can come up with a welcome modal over the tab, which fails the hit-test for
+reasons unrelated to placement.
+
+### A2. Viewport + touch matrix, 2026-08-23
+
+`app/frontend/scripts/claim-check-viewport-touch-qa.mjs` — 7 viewports from 1920 down to 390, with
+real **touch input** (`hasTouch`, Playwright `.tap()`) on the three narrow ones, deliberately
+straddling the `@media (max-width: 720px)` breakpoint. **69 passed, 1 failed.**
+
+**D1 passes on every viewport and by real tap, including 390px.** Set as Home and Make a Copy are
+reachable from the options menu at every size; the set-as-home modal opens by tap on iPad, the 712
+band, and iPhone. Menu items measure 186x63 — comfortably past WCAG 2.5.5 AAA (44x44).
+
+**D10 passes 6 of 7.** Not page-centred, on-screen, wins its own hit-test, and still toggles the
+drawer everywhere — by tap as well as click.
+
+**Known residual (the 1 failure): a ~700-740px band clips one control by ~10-20px x 6px.**
+The cause is geometric and worth recording because no placement solves it:
+
+| width | navbar bottom | first interactive row below | gap | tab height |
+|---|---|---|---|---|
+| ~700-820 | 70 | 97 | **28px** | 34-36px |
+| 1440 | 70 | 141 | 72px | 36 |
+| 390 | 70 | 145 | 76px | 34 |
+
+In that band the home page's secondary nav row sits 28px below the navbar while the tab is 36px
+tall, so a tab seated under the navbar **must** clip it — there is no vertical gap to fit. Every
+alternative measured is worse: `top: 0` right covers Settings/Support/online at *all* widths;
+`top: 0` left covers the logo; bottom-right collides at nearly every size ("My Account",
+"Create a Board", the home-board card); and top-centre is the defect D10 reported.
+
+Mitigated, not eliminated, by extending the compact tab sizing (141px vs 172px) through 721-820 —
+the row's right edge scales with the viewport while the tab's left edge is `100vw - 16 - width`, so
+narrowing clears it horizontally. That took 760-820 to clean and cut the 721 overlap from 41px to
+10px. **Still open: ~700-740 at tall viewports**, where ~6px of the top edge of one secondary-nav
+control sits under the tab. Home-page-specific, and the affected control stays ~80% tappable.
+Judged not worth a fourth placement change without a design call.
+
+> **Tap-target note (not a regression, pre-existing):** the tab is 34-36px tall at every size —
+> past WCAG 2.5.8 AA (24x24) but **below 2.5.5 AAA (44x44)** on height. The board-detail options
+> toggle is 44x44 except at 390px, where it measures **32x26** — AA-compliant, AAA-failing. Neither
+> was introduced here; both are worth a separate a11y ticket for an AAC product.
+
+> **Method note:** the collision detector must skip `pointer-events: none`, `[inert]` and
+> `aria-hidden` subtrees. The closed beta-feedback drawer keeps its own form in the DOM, and its
+> file input reports an on-screen rect — it produced two false "collision" failures at 820 and 712
+> before being excluded. The exclusion was then validated against a true positive by injecting
+> `top: 0` and confirming Settings/Support/online are still flagged.
+
+> **Method note:** board-detail gates itself behind a full-viewport "Larger screen recommended" overlay
+> (z-index 450) that sets the header to `display: none`. A first run reported every header button as
+> 0x0 because of it — a property of the overlay, not the buttons. The script now dismisses it. Any
+> future board-detail UI test must do the same or its measurements are meaningless.
 
 ## B. Closed — investigated, not defects
 
@@ -85,8 +230,8 @@ in-code instruction.
 
 | # | Item | Size | Note |
 |---|---|---|---|
-| D1 | **"Set as Home" / "Copy" unreachable outside edit mode** | small-moderate | Highest-value remaining item — but **not** "build it", as both reports imply. See the note below the table. |
-| D2 | **Home-board pick feedback** | low | 30-40s copy behind a generic spinner; lands on My Boards, not the new board; no confirmation. Add progress + "makes it available offline" microcopy. |
+| ~~D1~~ | ~~"Set as Home" / "Copy" unreachable outside edit mode~~ | — | **DONE 2026-08-23.** Both now in the view-mode options menu; browser-verified 7/7 plus touch. See A1. The historical analysis below the table is kept because it explains the class of bug. |
+| ~~D2~~ | ~~Home-board pick feedback~~ | — | **DONE 2026-08-23.** Explainer + confirmation toast, browser-verified against the real copy pipeline. See A1. |
 | D3 | **Let users explore a set before picking** | moderate | Preview is a static image of the top board only. Offline-first makes this a core path, not polish. |
 | D4 | **Board clutter** — 350+ boards after two picks | moderate | Each pick clones the whole linked set; old copies are never cleaned up. |
 | D5 | **DOB dropdowns** → native/typeable inputs | moderate | 121-item custom scroller, no type-ahead. See C1 — month+year typed fields satisfy the FTC example *and* fix the motor load. |
@@ -94,7 +239,7 @@ in-code instruction.
 | D7 | Board preview CTA below the fold at ~620px | low | Modal *does* scroll (see B). A pinned action bar — same pattern as the Preferences fix — would close it. |
 | D8 | Registration consolidation (5 screens → fewer) | higher | Keep the DOB step; role + signup-method are the merge candidates. |
 | D9 | Contrast/font audit against **AAA** | medium | v1's "likely fails AA" was wrong — measured 4.59:1, which passes AA. Reframe as AAA (7:1) for this user base. Include the Maitree serif headings. |
-| D10 | Beta-feedback pill on every page | low | Make dismissible or corner-anchored. **Plus an a11y bug:** the expanded form stays in the DOM while visually hidden and can take focus and keystrokes — check screen-reader/switch behaviour. |
+| ~~D10~~ | ~~Beta-feedback pill on every page~~ | — | **DONE 2026-08-23.** Corner-anchored below the navbar, verified across 7 viewports + touch. One residual clip in a ~700-740px band (A2) and the a11y sub-claim did not reproduce (`inert` + `aria-hidden` already present). |
 | D11 | **Speak-bar feature gap** — Share, Repairs, Hold Thought, Repeats, Alerts | wiring + QA | Product call. The code still ships in the bundle (`hold_thought`, `repair`, `flip_text`, `share_message`…); the redesigned bar never wired it up. Repairs and Hold Thought matter most to communicators. |
 | D12 | Staging cold-start 500s | infra | Decide whether staging keeps a warm instance. |
 | D13 | **Verify TTS on real devices** | verification | Still unconfirmed outside a headless browser. Blocking for a communication app. Overlaps N6. |

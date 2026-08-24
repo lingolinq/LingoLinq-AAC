@@ -3,14 +3,18 @@ import { setupTest } from '../../helpers';
 import EmberObject from '@ember/object';
 
 /*
- * Gates for "Set as Home" and "Make a Copy" in VIEW mode.
+ * Gates for "Set as Home" and "Make a Copy" in VIEW mode. Both now render in the
+ * OPTIONS MENU (.md-board-detail-actions-menu), which stays visible in view mode.
  *
- * Both actions already existed but rendered only inside the left edit panel,
- * which is wrapped in {{#if this.edit_mode}} (board-detail.hbs:121 -> :130).
- * The journey that needs them most -- a supporter evaluating a vocabulary they
- * do NOT own -- cannot enter edit mode without first being prompted to copy, so
- * two independent usability reviews concluded the actions did not exist. It is
- * not cosmetic: a board only works offline once copied and set as home.
+ * History worth keeping, because it cost a full browser pass to find: these were
+ * first added to the view-mode HEADER, and they never rendered. That header lives
+ * inside .md-board-detail-header, which .md-shell--board-collapsed hides outright
+ * (app.scss:76138), and `board_collapsed` defaults to true in view mode
+ * (controllers/user/board-detail.js:267) -- it flips to false ONLY on entering
+ * edit mode. So the buttons swapped a Handlebars edit-mode gate for a CSS one and
+ * stayed exactly as unreachable. NOTHING at this unit-test layer can see that:
+ * these gates were green the whole time. Placement is only verifiable in a
+ * browser -- see app/frontend/scripts/claim-check-d1-d2-d10-qa.mjs.
  *
  * The gates are deliberately NOT can_edit_or_copy_board, which short-circuits
  * to true on edit permission and would therefore offer "Make a Copy" on a board

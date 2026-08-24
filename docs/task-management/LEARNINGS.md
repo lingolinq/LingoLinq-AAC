@@ -12062,3 +12062,60 @@ Hunting the "No name" sentinel, the first pass grepped for `.name` on variables 
 ## Gotcha: a client-side fallback needs the fallback VALUE to be in the payload (2026-08-23)
 
 `display_name_for` resolves the "No name" sentinel by falling back to `user_name`, which works everywhere the client holds a `limited_identity` payload — those carry both fields. The start-code lookup does not: `organizations_controller.rb:140-149` hand-builds its JSON with `name: code[:target].settings['name']` and no handle at all. Applying the helper there would have swapped "Invited By Supervisor - No name" for "Invited By Supervisor - " *blank*, trading a bad string for a worse one, and it would have looked correct in the diff. Fixed by emitting `json[:user_name]` for User targets (additive; the endpoint's specs assert per-field, not whole-payload equality, so nothing broke). Before reaching for a display-side fallback, confirm the field it falls back to is actually on the wire for that specific endpoint — hand-rolled controller JSON does not inherit what `JsonApi::User` provides.
+
+## Pattern: verify placement fixes at the RENDERED element — specificity and default state defeat correct-looking diffs (2026-08-23)
+
+A Playwright pass over three "fixed" claim-check items (D1 `7692d3c08`, D2 `231bdcaeb`, D10 `868193344`) found **two of the three were not fixed**, and both failed the same way: a correct, well-reasoned source change that a pre-existing higher-precedence rule silently overrode. Neither was catchable by reading the diff, and both had passing unit tests.
+
+**D10** moved `.beta-feedback-drawer-tab` from `left: 50%` to `right: 16px`, then deliberately re-added `left: 50%; transform: translateX(-50%)` to the `--navbar` variant on the stated premise that the variant "is `position: absolute` inside the navbar, not over the page". That premise is false at runtime: `#within_ember:not(.board-alt-view):not(.board-detail-view) .beta-feedback-drawer-tab--navbar { position: fixed; top: 0 }` (`app.scss:89818`, id+class specificity) forces it back to page-level `fixed`. Since **every** render site carries `--navbar`, the new base rule never applies and the re-centring re-creates the exact defect. Measured: box centre 720px of a 1440px viewport — 0px off centre, i.e. before and after are pixel-identical.
+
+**D1** added Set as Home / Make a Copy to `.md-board-detail-header__actions` to escape the edit-only left panel. But `.md-shell--board-collapsed .md-board-detail-header { display: none }` (`app.scss:76138`) hides that header, and `board_collapsed: true` is the controller default (`controllers/user/board-detail.js:267`), flipped to `false` **only** by entering edit mode (`routes/user/board-detail/edit.js:57`). The one control that expands it, `toggle_board_collapsed`, is itself inside the hidden header (measured 0x0) — so view-mode users cannot reveal it. The actions moved from one edit-mode-only container to another.
+
+The generalisable rule: when a fix is about **where something appears**, the diff cannot tell you whether it worked. Before shipping, resolve the *computed* style and box on the actual rendered node, and check the *default* value of any component state that gates its container. Two cheap checks that would have caught both: `grep -n '<class>' app.scss` and read **every** hit for specificity (not just the rule you edited), and confirm which variant/class combination the element actually renders with. A useful tell for the class of bug: if a variant modifier re-states a property the base rule just changed, one of the two is dead code — find out which.
+
+## Gotcha: board-detail hides its whole header by default, and gates itself behind a screen-size overlay (2026-08-23)
+
+Two independent things make `.md-board-detail-header` invisible, and both will make a browser test report every header control as 0x0 for reasons that have nothing to do with the control:
+
+1. **A full-viewport "Larger screen recommended" overlay** (`.md-board-detail-portrait-overlay`, z-index 450) renders at viewports as large as 1280x800 and sets the header to `display: none` while up. Dismiss it via `button[data-bd-action="dismiss_portrait_overlay"]` before measuring anything, or raise the viewport (1440x900 still triggers it for large grids).
+2. **`board_collapsed` defaults to `true`** (`controllers/user/board-detail.js:267`), applying `.md-shell--board-collapsed`, which hides the header outright (`app.scss:76138`). This is the canonical speak-mode look and is intentional — but it means **the board-detail header is not a place view-mode UI can live.** Anything that must be reachable without entering edit mode belongs in the toolbar, the sentence bar, or the options menu, all of which stay visible.
+
+A first run reported the D1 buttons as simply "not visible", which read as a failed gate and was wrong — the gates were fine. Always walk the ancestor chain for a `display: none` before concluding a control did not render: in-DOM-but-0x0 and absent-from-DOM are different bugs with different fixes.
+
+## Pattern: a negative control is what makes a browser test evidence rather than decoration (2026-08-23)
+
+Both D1 and D10 were re-verified by reverting the fix (`git checkout HEAD -- <file>`, wait for the ember/sass rebuild, re-run, restore from a scratchpad copy) and confirming the harness goes **red**. This is cheap and it is the only thing that distinguishes "my assertions pass" from "my assertions can fail". It paid for itself twice:
+
+- **D1's negative control failed exactly 3 of 6 assertions** — `set_as_home` unreachable, label reads "Copy", dead buttons still in a hidden container — while `make_a_copy-reachable` **passed** on the pre-fix build. That pass is a finding, not noise: it independently confirmed that Copy had been reachable all along (Options → Share & Print), so only ONE of the two actions was genuinely missing. A harness that only ever runs green cannot tell you that.
+- **D10's negative control** failed `not-page-centred` at 0px off centre while the three regression guards still passed, which is the correct shape: those guards protect the FIX, they do not restate the DEFECT.
+
+Corollary: pin the page under test. D10's hit-test check failed spuriously because the post-login landing `/` can come up with a welcome modal (`div.modal.fade.in`, z-index 1050) over the tab. Navigating explicitly to `/<user>/home` removed it. When a browser assertion fails, rule out page state before blaming the change.
+
+## Gotcha: corner-anchoring a floating control can trade one mis-tap risk for another — measure the corner first (2026-08-23)
+
+D10 asked for the beta-feedback tab to stop being a centred fixed tap target. Anchoring it `right: 16px` while it was still pinned to `top: 0` put it directly over **Settings, Support and the online-status control**. Simulating candidate boxes against the live navbar at 1440px, before committing to one:
+
+| anchor | collides with |
+|---|---|
+| centred, top:0 (the reported defect) | nothing |
+| right:16, top:0 | Settings, Support, online |
+| left:16, top:0 | the logo link |
+| right:16, below the navbar | nothing |
+
+The *reported* position was the collision-free one — so "move it to a corner" is not automatically an improvement, and the accessibility win has to be checked against what already occupies that corner. The reusable technique is to enumerate `a, button, input, select, [role="button"]`, intersect each rect with a hypothetical box, and additionally run `document.elementFromPoint` at the box centre — the hit test is decisive where rect maths is only suggestive.
+
+Second trap in the same fix: `top: 100%` means "100% of the containing block". Under `position: absolute` inside a `position: relative` navbar that is "just below the navbar"; under `position: fixed` it resolves against the **viewport** and parks the element at y=viewportHeight, off-screen. A long-standing `top: 0` override had been masking a latent `top: 100%`, so removing the override — which looked like a pure deletion — moved the element off-screen. When deleting a positioning override, check what the element's own rule then falls back to.
+
+## Gotcha: a collision detector must exclude inert / aria-hidden / pointer-events:none, then be re-validated against a true positive (2026-08-23)
+
+Checking whether a repositioned overlay covers other controls, a naive sweep of `a, button, input, select, textarea, [role="button"]` intersected with the overlay's rect produced two confident false failures. The culprit: the CLOSED beta-feedback drawer keeps its whole form in the DOM, and its file input (`.la-contact-input--file` inside `.la-beta-feedback__dropzone`) reports an on-screen `getBoundingClientRect()` even though the drawer itself is transformed to y=-1106. It is `pointer-events: none`, inside an `[inert]` subtree, and inside an `aria-hidden="true"` subtree — unreachable by pointer, keyboard or AT. Filter on all three before counting an overlap.
+
+The important half is what comes next: **after loosening a detector, prove it still catches the real thing.** Here that meant `page.addStyleTag` injecting the known-bad placement (`position: fixed; top: 0`) and confirming Settings / Support / the online control were still reported. Without that step, "0 collisions" is indistinguishable from "detector switched off" — and the loosening had been written specifically to make failures go away.
+
+## Gotcha: there may be no vertical gap for a floating control — measure the gap against the control's height before choosing a placement (2026-08-23)
+
+Seating the beta-feedback tab below the navbar is clean at 1440 and 390 but clips a control between ~700 and ~820px. The reason is not the anchor, it is arithmetic: in that band the home page's secondary nav row starts 28px below the navbar's bottom edge, and the tab is 34-36px tall. **No vertical position exists that clears both.** At 1440 and 390 the same gap is 72-76px, which is why the fix looked complete when verified at one size.
+
+Two transferable moves. First, before picking a spot for a floating element, compute `firstInteractiveRowTop - navbarBottom` and compare it to the element's height — if the gap is smaller, every vertical option is a trade and you should say so rather than iterate. Second, when the vertical axis is impossible, the horizontal one may not be: the row's right edge scales with the viewport while a right-anchored element's left edge is `100vw - offset - width`, so *narrowing* the element clears the row without moving it. Extending the existing compact sizing up through the band fixed 760-820 and cut the 721 overlap from 41px to 10px.
+
+Also worth knowing: collisions here were **height-dependent as well as width-dependent** — 712px was clean at viewport height 1000 and colliding at 1138, because the surrounding layout reflows. A single height per width will under-report.

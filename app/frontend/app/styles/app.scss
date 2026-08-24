@@ -89705,9 +89705,8 @@ blockquote small {
   top: var(--topbar-height, 70px);
   /* Corner-anchored, not centred. A fixed tap target in the middle of the top
      edge of EVERY page is a mis-tap risk for switch-scanning and magnifier
-     users, and it can sit over modal headers. The --navbar variant below
-     re-centres itself, because there it is positioned inside the navbar rather
-     than over the page. */
+     users, and it can sit over modal headers. BOTH variants (--navbar, --speak)
+     inherit this anchor; neither may re-centre. See the note on --navbar below. */
   right: 16px;
   left: auto;
   z-index: 1078;
@@ -89730,14 +89729,47 @@ blockquote small {
   overflow: visible !important;
 }
 .beta-feedback-drawer-tab--navbar {
+  /* Absolute + top:100% seats the tab immediately BELOW the navbar
+     (.app-navbar is position: relative, height 70), inheriting the base
+     `right: 16px` so it lands in the top-right corner clear of everything.
+     `.app-navbar__inner { overflow: visible !important }` above is what lets it
+     escape the navbar box.
+
+     Do NOT re-add `left: 50%; right: auto; transform: translateX(-50%)` here.
+     That was tried on 2026-08-23 to "restore" centring for this variant, on the
+     premise that it sits inside the navbar where centring is correct. At the
+     time a `#within_ember…` rule was also forcing `position: fixed; top: 0`, so
+     the centring applied to a PAGE-LEVEL tab and re-created the exact mis-tap
+     target D10 reported — measured dead centre, 720px of a 1440px viewport.
+     That override has since been removed (see the note further down). Two
+     traps if this is revisited: at top:0 the corner is NOT free — the tab
+     covers Settings / Support / the online-status control; and under
+     `position: fixed` this rule's own `top: 100%` resolves against the VIEWPORT,
+     dropping the tab to y=900, off-screen. */
   position: absolute;
   top: 100%;
-  /* Restores the centring the base rule used to provide. This variant is
-     positioned within the navbar, so centring under its ancestor is correct
-     here even though it is wrong for the page-level fixed tab. */
-  left: 50%;
-  right: auto;
-  transform: translateX(-50%);
+}
+/* Compact sizing through the 721-820 band as well as below 720 (that narrower
+   breakpoint lives in the @media block further down and keeps its other rules).
+   Reason is geometric, not cosmetic: from ~700 to ~820 the gap between the
+   navbar (bottom 70) and the home page's secondary nav row beneath it (top 97)
+   is only 28px, while the full-size tab is 36px tall — so a tab seated below
+   the navbar necessarily clips that row. There is no vertical fix; no 36px gap
+   exists. Narrowing the tab (141px vs 172px) clears the row HORIZONTALLY
+   instead, because the row's right edge scales with the viewport while the
+   tab's left edge is `100vw - 16 - width`.
+
+   Measured at height 1138, this clears 760-820 (e.g. at 760 the tab's left edge
+   is 603px and the row's rightmost control ends at 578px) and shrinks the
+   overlap at 721 from 41px to 10px. It does NOT fully clear ~700-740, where a
+   ~10-20px horizontal by 6px vertical clip of one control remains — see
+   CLAIM-CHECK-BACKLOG.md A1. Above ~820 the gap opens to 72px+ and the
+   full-size tab is clear regardless. */
+@media (min-width: 721px) and (max-width: 820px) {
+  .beta-feedback-drawer-tab {
+    font-size: 0.95rem;
+    min-height: 34px;
+  }
 }
 .beta-feedback-drawer-tab--speak {
   /* Speak mode: the drawer lives at the BOTTOM of the page, so the tab hangs
@@ -89815,10 +89847,16 @@ blockquote small {
 #within_ember:not(.board-alt-view):not(.board-detail-view) .beta-feedback-drawer:not(.beta-feedback-drawer--speak) {
   top: 0;
 }
-#within_ember:not(.board-alt-view):not(.board-detail-view) .beta-feedback-drawer-tab--navbar {
-  position: fixed;
-  top: 0;
-}
+/* NOTE: the TAB deliberately has no override here any more — it uses the
+   `.beta-feedback-drawer-tab--navbar` rule's own `position: absolute; top: 100%`,
+   which seats it directly beneath the navbar (position: relative, height 70).
+   It previously forced `position: fixed; top: 0` so the tab could float over the
+   navbar at top-CENTRE, where nothing sits. Corner-anchored that is wrong twice
+   over: at top:0 the tab covers Settings / Support / the online-status control
+   (measured at 1440px), and `position: fixed` also breaks the variant's own
+   `top: 100%`, which then resolves against the VIEWPORT and drops the tab to
+   y=900, off-screen. Absolute + top:100% + the base `right: 16px` collides with
+   nothing. The drawer panel above still pins to top: 0 — only the tab changed. */
 /* Hide the Beta Feedback drawer + tab entirely while a Shepherd tour is
    running, so the tour chrome owns the screen. Shepherd portals an active
    step's popover (`.shepherd-element.shepherd-enabled`) into <body>; the
