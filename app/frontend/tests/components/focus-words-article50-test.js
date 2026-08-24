@@ -164,7 +164,7 @@ describe('focus-words Article 50 gate', function() {
       component.set('existing', true);
       component.set('focus_id', 'set_9');
       component.set('ai_focus_word_set_id', 'lib_7');
-      component.set('search_term', 'winter words');
+      component.set('navigated', true);
 
       component.send('generate_focus_words_with_ai');
 
@@ -178,8 +178,10 @@ describe('focus-words Article 50 gate', function() {
         expect(resume.focus_id).toEqual('set_9');
         expect(resume.ai_focus_word_set_id).toEqual('lib_7');
         // Authored text. Its derived counterpart `search` is correctly absent.
-        expect(resume.search_term).toEqual('winter words');
+        expect(resume.navigated).toEqual(true);
+        // Derived counterparts stay out of the payload.
         expect(resume.search).toEqual(undefined);
+        expect(resume.browse).toEqual(undefined);
       });
     });
 
@@ -340,6 +342,29 @@ describe('focus-words Article 50 gate', function() {
       });
     });
 
+    it('does not latch ai_generating when the refresh never settles', function() {
+      var reject = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      var user = makeUser();
+      // Never settles: network dropped after the 403, or a cold-start stall.
+      user.reload = function() { return new RSVP.Promise(function() {}); };
+      setAppState(true, user);
+      component.set('art50_reload_timeout_ms', 20);
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+      reject({responseJSON: {error: 'article_50_disclosure_required'}});
+
+      waitsFor(function() { return component.get('ai_generating') === false; });
+      runs(function() {
+        // Without the bound the button stays disabled forever, still labelled
+        // "Generating Focus Words...", and the only escape discards the draft.
+        expect(component.get('ai_generate_error')).toEqual(i18n.t('ai_focus_words_disclosure_refresh_failed', "We could not check your AI transparency settings. Check your connection, then try again."));
+      });
+    });
+
     it('surfaces the refusal when the refresh succeeds but the record still asks for nothing', function() {
       var reject = null;
       stub(persistence, 'ajax', function() {
@@ -411,7 +436,7 @@ describe('focus-words Article 50 gate', function() {
         title: 'Grinch Unit',
         focus_id: 'set_9',
         ai_focus_word_set_id: 'lib_7',
-        search_term: 'winter words'
+        navigated: true
       }});
       component.set('modal', EmberObject.create({setComponent: function() {}}));
 
@@ -427,7 +452,9 @@ describe('focus-words Article 50 gate', function() {
       // record_ai_focus_usage() returns early and applying the retained list
       // records nothing.
       expect(component.get('ai_focus_word_set_id')).toEqual('lib_7');
-      expect(component.get('search_term')).toEqual('winter words');
+      // pick_set sets navigated and existing together, so restoring one without
+      // the other yields a state no user action can produce.
+      expect(component.get('navigated')).toEqual(true);
       // Derived state stays cleared: restoring stale results next to a fresh
       // view is exactly the partial-preservation bug this invariant guards.
       expect(component.get('search')).toEqual(null);
@@ -454,6 +481,49 @@ describe('focus-words Article 50 gate', function() {
       expect(component.get('words')).toEqual(null);
       expect(component.get('existing')).toEqual(null);
       expect(component.get('focus_id')).toEqual(null);
+    });
+
+    it('restores search_term in the arm where it is actually rendered', function() {
+      // focus-words.hbs:121 {{#if this.reuse_or_existing}} renders the "Word List
+      // Name" input at :124; its {{else}} at :127 renders the search input at
+      // :130. They are mutually exclusive, so a search_term is only reachable
+      // when reuse and existing are both falsy. Asserting it alongside
+      // reuse:true would be verifying a restore with no user-visible effect.
+      component.set('model', {board: 'b1', art50_resume: {
+        ai_prompt: 'the grinch',
+        ai_word_count: 15,
+        search_term: 'winter words',
+        reuse: null,
+        existing: null
+      }});
+      component.set('modal', EmberObject.create({setComponent: function() {}}));
+
+      component.send('opening');
+
+      expect(component.get('search_term')).toEqual('winter words');
+      expect(component.get('reuse_or_existing')).toBeFalsy();
+    });
+
+    it('reads art50_resume through the modal service, not just a hand-set model', function() {
+      // The seam the whole mechanism rests on and that nothing else covers:
+      // modal.open writes settingsFor[template] (services/modal.js:103), init()
+      // reads it back via getSettingsFor (focus-words.js:49-54), and
+      // didInsertElement invokes opening() (:710-720) because the service-based
+      // modal system does not. Hand-injecting `model` skips all three.
+      var settings = {board: 'b1', art50_resume: {ai_prompt: 'via the service', ai_word_count: 25}};
+      var svc = EmberObject.create({
+        setComponent: function() {},
+        settingsFor: {'modals/focus-words': settings},
+        getSettingsFor: function(template) { return this.get('settingsFor')[template] || {}; }
+      });
+      var built = this.owner.factoryFor('component:focus-words').create({modal: svc});
+
+      built.didInsertElement();
+
+      expect(built.get('model.art50_resume.ai_prompt')).toEqual('via the service');
+      expect(built.get('ai_prompt')).toEqual('via the service');
+      expect(built.get('ai_word_count')).toEqual(25);
+      built.destroy();
     });
   });
 });

@@ -29,6 +29,9 @@ export default Component.extend({
   appState: service('app-state'),
   tagName: '',
   ai_word_count: 20,
+  // Upper bound on the post-403 user refresh. Matches login-form.js:693's 6s
+  // fallback for a hanging user fetch. A property so specs can shorten it.
+  art50_reload_timeout_ms: 6000,
   ai_generating: false,
 
   init() {
@@ -244,11 +247,21 @@ export default Component.extend({
       reuse: this.get('reuse'),
       title: this.get('title'),
       focus_id: this.get('focus_id'),
-      // Typed into the visible search box (focus-words.hbs:130, revealed by the
-      // same reuse_or_existing block as the list-name field). This is authored
-      // text, NOT the derived `search` results object that find_source() builds
-      // from it -- that one is correctly discarded.
+      // Typed into the search box at focus-words.hbs:130. Note this is the
+      // {{else}} arm of the reuse_or_existing conditional at :121 -- the
+      // MUTUALLY EXCLUSIVE counterpart to the "Word List Name" input at :124,
+      // not a sibling of it. So exactly one of `title` / `search_term` is
+      // rendered at any moment, and carrying both is how the payload stays
+      // correct whichever arm the user was in. This is authored text, NOT the
+      // derived `search` results object find_source() builds from it (:390),
+      // which is correctly discarded.
       search_term: this.get('search_term'),
+      // pick_set sets navigated and existing TOGETHER (:471-477). Carrying
+      // `existing` without this produced existing=true / navigated=false, a
+      // combination no user action can reach: the modal showed a picked set with
+      // its list name AND the "get started by pasting text" explainer that
+      // focus-words.hbs:87 gates on {{#unless this.navigated}}.
+      navigated: this.get('navigated'),
       // Attribution for words a PREVIOUS generation produced. Restoring `words`
       // without this leaves AI-generated words with no AiFocusWordSet id, so
       // record_ai_focus_usage() returns early (:316-317) and applying or
@@ -370,12 +383,20 @@ export default Component.extend({
       //
       // The invariant, stated because getting it wrong has caused four separate
       // defects on this branch: opening() clears 16 fields; this payload carries
-      // the 9 the user AUTHORED. The 7 it does not carry are derived or must
-      // reset -- `search` (results object built from search_term by find_source),
-      // `browse`, `analysis`, `ideas`, `navigated`, plus `ai_generating` and
-      // `ai_generate_error`, which have to start clean on any open. Note
-      // `search_term` is authored and IS carried, while `search` is derived and
-      // is not; they are easy to conflate and were conflated once already.
+      // the 10 the user AUTHORED or that pair with authored state. The 6 it does
+      // not carry are `search` (results object built from search_term by
+      // find_source), `browse`, `analysis`, `ideas`, plus `ai_generating` and
+      // `ai_generate_error` which must start clean on any open.
+      //
+      // The first four are provably unreachable at gate time rather than merely
+      // judged discardable: focus-words.hbs:17 is {{#if this.analysis}} with the
+      // AI panel in its {{else}}, and within that, :152 {{#if this.browse}} /
+      // :200 {{else if this.search}} / :229 {{else}} holds the AI panel. So the
+      // Generate button cannot be reached while any of them is set, and `ideas`
+      // renders only inside {{#if this.analysis.missing}}.
+      //
+      // Note `search_term` is authored and IS carried while `search` is derived
+      // and is not; they are easy to conflate and were conflated once already.
       // If you add a field to the resets above, decide explicitly which side of
       // that line it falls on. Partial preservation is worse than none.
       const art50Resume = this.get('model.art50_resume');
@@ -389,6 +410,7 @@ export default Component.extend({
         this.set('focus_id', art50Resume.focus_id);
         this.set('ai_focus_word_set_id', art50Resume.ai_focus_word_set_id);
         this.set('search_term', art50Resume.search_term);
+        this.set('navigated', art50Resume.navigated);
       }
       if (window.webkitSpeechRecognition) {
         const speech = new window.webkitSpeechRecognition();
@@ -559,7 +581,25 @@ export default Component.extend({
           // disclosure replacing this modal outright.
           const user = _this.get('appState.currentUser');
           if (user && typeof user.reload === 'function') {
-            user.reload().then(function() {
+            // BOUND the refresh. Unbounded, a promise that never settles (network
+            // dropped after the 403, a cold-start stall) latches ai_generating
+            // true: the primary button is permanently disabled and still reads
+            // "Generating Focus Words...". Recovery exists but is destructive --
+            // reopening the modal REPLACES settingsFor, so art50_resume is gone
+            // and opening() clears the draft, costing the user exactly what this
+            // gate was built to protect. Timing out falls through to the
+            // refresh_failed branch, which already says the honest thing.
+            //
+            // runLater is the house idiom (login-form.js:693), but focus-words.js
+            // carries no grandfathered ember/no-runloop entry and .eslint-todo is
+            // not for baselining suppressions on new code.
+            const bounded = RSVP.race([
+              user.reload(),
+              new RSVP.Promise(function(resolve, reject) {
+                setTimeout(function() { reject('art50_reload_timeout'); }, _this.get('art50_reload_timeout_ms'));
+              })
+            ]);
+            bounded.then(function() {
               if (_this.isDestroyed || _this.isDestroying) { return; }
               _this.set('ai_generating', false);
               if (article50Gate.needsAcknowledgement(_this.get('appState'))) {
