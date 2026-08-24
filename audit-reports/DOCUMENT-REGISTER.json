@@ -1631,7 +1631,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "09849887406429e48acaf0a705877cb4cc0e675090aa4a1aef84daf8d9047e2d",
+      "contentHash": "95525f36e75c2ad61f8ffbc0fe433f33b7d33a1afca742795746d52627334410",
       "bundles": [],
       "mirrors": [
         {
@@ -3173,7 +3173,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "bc6f7a5b3b98edaba8f8659ad59c540b73772df334d9489d4a616b156bb711d7",
+      "contentHash": "b30ccf9d18cc2b937c532c7b0e00f61c424455a7bd183f2f889a837e378928d9",
       "bundles": [],
       "mirrors": [
         {
@@ -3654,7 +3654,7 @@
       "mirrors": [],
       "notes": "Evidence record, UNATTESTED DRAFT. Produced by two audited read-only rails runner executions (lingolinq-migrate-jqpxb, lingolinq-migrate-4ss8l) against RAILS_ENV=production on image web:73a8f633, attributed attribution label scot-art50-flag-verification-2026-08-23, supplied via the USER_KEY environment variable; each execution wrote an AuditEvent, disclosed in the record. Resolves the open Article 50(1) enablement question carried by DOC-c5408d90b7, DOC-e5e85eccb1 and DOC-af01c65b10, and corroborates the attested live-production observation at docs/legal/2026-08-17_ai-data-flow-classification.md:132. Does NOT establish an enabled-since date: Setting has no PaperTrail history (0 version rows) and Setting.set overwrites in place, so that question is unanswerable for every Setting-backed control, not only this flag. Surfaces two pre-existing open items: zero organizations carry a jurisdiction stamp, and code/DB disagree on the default feature set.",
       "id": "DOC-6c023a20a0",
-      "contentHash": "8b4f7a0133418fb80a3df3b70923231c27ce8a0f748aa2dc3a79d90aa1b5b9d6",
+      "contentHash": "e42454727ccd4376d9a0855055674b158dda156e9da970f7602c73a3d91f5a36",
       "retention": {
         "class": "audit-evidence",
         "rule": "7 years",
