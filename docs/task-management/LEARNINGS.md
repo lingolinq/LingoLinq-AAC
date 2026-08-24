@@ -12149,3 +12149,164 @@ pending.
 
 **One-line version:** missing code is evidence about *code*. It says nothing about
 whether the *problem* survived.
+
+## Gotcha: naming a one-shot review subagent silently discards its entire report
+
+**Surface:** spawning `adversary`, any `*-auditor`, or any read-only review agent
+via the Agent tool and passing a `name`, for addressability or nicer progress
+output.
+
+Two adversary reviews of PR #848 produced nothing on 2026-08-23. Both agents ran,
+read the whole component, and then reported themselves **idle / available**. No
+error, no timeout, no missing-output warning. Asking each one directly for its
+findings produced another idle notification and no text.
+
+A controlled experiment settled it. The same agent type, same prompt shape,
+spawned **without** a name, returned its text in 2.4 seconds:
+
+| Spawn | Becomes | Delivery channel | Result |
+|---|---|---|---|
+| unnamed | one-shot async subagent | final text auto-returned in the task notification | works |
+| **named** | persistent addressable teammate | `SendMessage` **only** | **silently lost** |
+
+The mechanism: passing `name` converts a fire-and-forget subagent into a teammate
+whose output must be delivered by calling `SendMessage`. Every read-only review
+agent in this repo declares tools that do **not** include `SendMessage`
+(`adversary`: `Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__github`; the
+`*-auditor` agents are `Read, Grep, Glob, Bash` plus MCP reads). So a named review
+agent is physically incapable of returning its findings. The work happens, lands in
+its own transcript, and dies there.
+
+**Why this is worse than a crash:** the failure presents as success. `ListAgents`
+shows the agent `idle`, which reads as "finished." A dual-review that loses its
+adversary leg still reports as a completed dual review. For `/audit-run`, a named
+finder fleet would produce an empty findings register that reads as *clean*.
+
+**Rule:** never pass `name` to a one-shot review or audit agent. Name it only if
+you also grant it `SendMessage`. If a named agent goes idle without returning text,
+do not re-ask it — respawn unnamed.
+
+**Corollary for the reviewer, not just the spawner:** when a review leg produces
+nothing, say the leg did not run. Substituting your own analysis is weaker by
+construction when you are reviewing your own changes, and reporting it as a
+completed review launders that weakness.
+
+## Gotcha: a test double that satisfies one access style routes the test through a different branch
+
+**Surface:** stubbing an injected Ember service as a plain object in a unit test.
+
+Writing specs for the Article 50 gate (#848), two new cases failed and the failure
+looked exactly like a product bug: the component took its "no refreshable user"
+branch and produced the wrong message. The stub was:
+
+```js
+component.set('appState', { get: function(key) { /* returns currentUser */ } });
+```
+
+`utils/article50_gate.js` calls `appState.get('currentUser')` **explicitly as a
+method**, so `needsAcknowledgement()` worked and the pre-request specs passed. But
+the component reads the Ember path `this.get('appState.currentUser')`, and Ember's
+path `get` on a **plain object** is a property lookup — it never calls that
+object's own `.get()`. So `currentUser` resolved `undefined`, and the specs
+silently exercised a different branch than the one under test.
+
+In the real app `appState` is a service (`focus-words.js:29`), so the path resolves
+correctly and the component is fine. The bug was entirely in the double.
+
+**Rule:** a stub must satisfy **every** access style its consumers actually use.
+Grep for both shapes before trusting a red test — `svc.get('x')` and
+`this.get('svc.x')` are not the same lookup. Give POJO stubs the real properties
+*and* the method:
+
+```js
+component.set('appState', {
+  currentUser: user,                               // for this.get('appState.currentUser')
+  feature_flags: { article_50_disclosure: flagOn },
+  get: function(key) { /* for appState.get('currentUser') */ }
+});
+```
+
+**Tell:** the failing branch is a fallback / defensive branch you did not intend to
+reach. Suspect the double before the code.
+
+## Pattern: partial preservation across a state boundary is worse than none
+
+**Surface:** any flow that captures state, tears a component down, and restores it
+— modal replacement, route transition, offline queue, resume-after-auth.
+
+PR #848 had to carry the user's draft across `modal.open()`, which **replaces** the
+current modal and destroys the component. It took **five** rounds to get right, and
+**four of the five defects were introduced by the fix for a previous one**:
+
+1. Payload carried only `ai_prompt` / `ai_word_count` → lost the "Save for Re-Use"
+   checkbox and typed list name.
+2. Fix 1 restored `words` but not `ai_focus_word_set_id` → `record_ai_focus_usage()`
+   returned early and metrics undercounted.
+3. Fix 1 also missed `search_term` (authored text at `focus-words.hbs:130`).
+4. Fix 1 carried `existing` but not `navigated`, which `pick_set` sets **together**
+   with it → produced `existing=true / navigated=false`, a combination no user action
+   can reach, rendering a picked set alongside the "get started by pasting text"
+   explainer.
+
+Each individual patch was correct. The failure was maintaining **two hand-written
+lists that silently drift**: `opening()` cleared 16 fields, the payload carried 8,
+and nothing reconciled them. Every round asserted "the authored draft is preserved
+as a unit" while getting the membership of that unit wrong.
+
+**What actually closed it** was mechanical enumeration instead of another guess:
+diff the set the teardown clears against the set the payload carries, then check
+each remaining field for a template input binding. That bounded the problem — it
+proved exactly one authored field was still missing rather than leaving an
+open-ended series.
+
+**Rule:** when you restore state across a boundary, enumerate both sets explicitly
+and record a preserve-or-discard decision for *every* field, in a comment next to
+the teardown. Prefer a structural argument over a semantic one: "the Generate button
+is unreachable while `browse` is set, because the template nests the AI panel inside
+its `{{else}}`" is checkable; "`browse` is navigational" is an opinion.
+
+**And beware the comment itself.** Two of the five rounds shipped an *invariant
+comment that was wrong*, each time in the same direction as the defect it described
+— one grouped the authored `search_term` with the derived `search` results object,
+another claimed `search_term` renders in the same conditional branch as the list-name
+field when it is the mutually exclusive `{{else}}` arm. A wrong invariant comment in
+a file like this is the next defect's seed, because it is what the next maintainer
+follows.
+
+## Gotcha: the local Codex model can drift off the approved-reviewer registry
+
+**Surface:** running `/review-pr`, `/dual-review`, or `~/bin/codex-review` and
+assuming the reviewer is the model the registry approves.
+
+On 2026-08-23 `~/.codex/config.toml` was pinned to `model = "gpt-5.6-luna"`. The
+approved-reviewer registry in `~/.claude/CLAUDE.md` lists **`gpt-5.6-terra`**
+(default) / `gpt-5.6-sol` (careful) for the interactive Codex row, and explicitly
+rejects `luna` for the CI row with a specific rationale: the chunk leg is the only
+leg that reads raw code, so a defect the cheap tier misses is *unreachable* rather
+than merely unreported. Nothing warns you; the review simply runs on an unapproved
+model and reports normally.
+
+Override per-run rather than reviewing on the wrong tier:
+
+```bash
+~/bin/codex-review --base staging -c model='"gpt-5.6-terra"' --title "..."
+```
+
+**Two related path facts, both of which cost time:**
+
+- The PII pre-flight guard is **not** in this repo. `CLAUDE.md` cites
+  `scripts/codex-review-guard.sh`, but `scripts/` here holds thirteen *other*
+  `codex-review-*` scripts and not that one. It lives at
+  `~/ai-company-brain/scripts/codex-review-guard.sh`, and it takes a **base ref**
+  (`... origin/staging`), appending `...HEAD` itself.
+- `chatgpt-codex-connector[bot]` PR reviews and the `codex-review` GitHub Action are
+  **different billing routes**. The bot is the Codex cloud GitHub App (ChatGPT
+  subscription); the workflow authenticates with `secrets.CODEX_OPENAI_API_KEY` via
+  `codex login --with-api-key` (pay-per-use platform key,
+  `.github/workflows/codex-review.yml:333,338`). Commenting `@codex review` does not
+  touch the platform key.
+
+**Also:** the bot does not always pick up a new head. It reviewed three pushes on
+#848 within ~5 minutes each, then never reviewed the fourth. Zero inline findings on
+a head means *not reviewed*, *not* clean — check the review list's `commit_id`
+before reading silence as approval.
