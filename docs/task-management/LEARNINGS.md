@@ -23,6 +23,9 @@ file (see [README.md](README.md)).
 - [Gotcha: highlight-outlet must not mount opening-observer with a null model](#gotcha-highlight-outlet-must-not-mount-opening-observer-with-a-null-model)
 - [Gotcha: online invalid_token must not fall back to cached user/self](#gotcha-online-invalid_token-must-not-fall-back-to-cached-userself)
 - [Pattern: Playwright settings e2e — three settings surfaces + restore after mutate](#pattern-playwright-settings-e2e--three-settings-surfaces--restore-after-mutate)
+- [Gotcha: blank board-detail has no symbol grid — empty-state is a valid ready signal](#gotcha-blank-board-detail-has-no-symbol-grid--empty-state-is-a-valid-ready-signal)
+- [Gotcha: Button Settings `#label` is hidden on the Help tab](#gotcha-button-settings-label-is-hidden-on-the-help-tab)
+- [Gotcha: board-detail empty-cell save ignores placeholder ids like `fake_0_0`](#gotcha-board-detail-empty-cell-save-ignores-placeholder-ids-like-fake_0_0)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
@@ -5337,11 +5340,15 @@ Shared helper: `tests/helpers/auth.ts`. Confirmed 2026-08-07.
 wrapped it in `opening-observer`. On insert, that called `highlight.opening()`, which
 does nested sets like `this.set('model.shift_color', false)`. With no active highlight,
 `model` was null → Ember threw "Property set failed: object in path \"model\"…" as an
-**unrecoverable render error**, freezing the main outlet on `index-loading`
-("Preparing your workspace") forever even while APIs returned 200. Fix: only mount
-when `settings` is present (`{{#if (and this.highlightController this.settings)}}`),
-and null-guard `opening` / `closing` / `compute_styles` / `shift_color` in
-`controllers/highlight.js`. Confirmed 2026-08-07.
+**unrecoverable render error**, freezing the Ember runloop. Symptoms: the main
+outlet stuck on `index-loading` ("Preparing your workspace"), **or** `/login`
+stuck on disabled Sign In ("Initializing...") because `login-form`'s 2s
+`runLater` never fires to pick up `BROWSER_TOKEN`. APIs (`domain_settings`,
+`token_check`) can still return 200. Fix: only mount when `settings` is present
+(`{{#if this.settings}}`), and null-guard `opening` / `closing` /
+`compute_styles` / `shift_color` in `controllers/highlight.js` (staging PR
+#466). Confirmed 2026-08-07; login-button symptom confirmed 2026-08-13 on a
+branch that lacked #466.
 
 ## Gotcha: online invalid_token must not fall back to cached user/self
 
@@ -5365,3 +5372,44 @@ collapsed `.md-pref-box` sections and custom `bound-select` buttons (not native
 Helpers in `tests/helpers/preferences.ts`; suite serial + restores values.
 `bound-select` treats `id: ''` as unset (`- Select -` after reload) — skip those
 options for persistence asserts. Confirmed 2026-08-07 (33/33 pass locally).
+
+## Gotcha: blank board-detail has no symbol grid — empty-state is a valid ready signal
+
+`user/board-detail` only mounts `board-detail-grid` (`role="grid"` /
+`aria-label="Symbol board"`) when there is at least one visible button.
+A brand-new blank board hits `nothing_visible_not_edit` and renders
+`.md-board-detail-empty-board` instead (“This board hasn't been set up yet…”
+plus **Edit this Board**). Waiting only for the grid times out even though
+the board was created and the URL is already `/:user/board-detail/:slug`.
+The header title *does* contain the new name, but speak mode sets
+`board_collapsed` (`display: none` on `.md-board-detail-header`) so
+`toBeVisible()` on that text also hangs. Playwright ready-wait: grid **or**
+that empty-state block (scoped so the confirm-edit-board modal's same button
+label does not match). Assert the empty-state as the visible end state; read
+the title with `textContent` / `toBeAttached`, not `toBeVisible`. See
+`tests/helpers/click-efficiency.ts` `boardDetailReady` /
+`expectBlankBoardCreated`. Confirmed 2026-08-17.
+
+## Gotcha: Button Settings `#label` is hidden on the Help tab
+
+Empty-cell click does open the Button Settings modal. `#label` is always
+in the DOM (General tab, `class="hidden"` until `generalState`). Users
+without `preferences.disable_button_help` get `state = 'help'` in
+`button-settings.js` `opening()`, so Playwright `locator('#label')` resolves
+but `toBeVisible()` hangs. Wait for the dialog, then if `#label` is not
+visible click the **General** tab (role=tab) before fill. Do not click
+“Skip this help in the future” in e2e against the shared seed user — that
+persists `disable_button_help`. Helper: `fillButtonSettingsLabel` in
+`tests/helpers/click-efficiency.ts`. Confirmed 2026-08-17.
+
+## Gotcha: board-detail empty-cell save ignores placeholder ids like `fake_0_0`
+
+Blank board-detail edit cells are placeholders (`fake_0_0`, etc.), not rows
+in `board.buttons`. `editManager.change_button` only patches existing
+`board.buttons` entries and never inserts for a placeholder id.
+`process_for_saving` only assigns a numeric id when `id < 0` or `!id`; the
+string `'fake_0_0'` is neither, so Done Editing → Save returns to the
+“hasn't been set up yet” empty state with no label. Same for a human
+following the UI. Click-efficiency add-symbol tests are `test.skip` until
+fixed; user how-to marks the task blocked. See
+`docs/how-to/click-efficiency-findings.md`. Confirmed 2026-08-17.
