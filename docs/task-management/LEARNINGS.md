@@ -46,6 +46,7 @@ file (see [README.md](README.md)).
 - [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
 - [Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set](#gotcha-board-translation-google-egress-is-userstranslate--worddata-not-boardtranslate_set)
 - [Pattern: before adding a guard, grep the canonical path for one that already exists — with the exact flag name, in that file alone](#pattern-before-adding-a-guard-grep-the-canonical-path-for-one-that-already-exists--with-the-exact-flag-name-in-that-file-alone)
+- [Pattern: an accurate "this code is missing" grep does NOT prove the problem still exists](#pattern-an-accurate-this-code-is-missing-grep-does-not-prove-the-problem-still-exists)
 - [Pattern: deleting dead CSS is a text-surgery problem — `:not()` and multi-line selector lists are the two ways to silently break live styling](#pattern-deleting-dead-css-is-a-text-surgery-problem---not-and-multi-line-selector-lists-are-the-two-ways-to-silently-break-live-styling)
 - [Pattern: a "protected" flag on a media record is an ENTITLEMENT boundary — never relax its predicate to fix a rendering bug](#pattern-a-protected-flag-on-a-media-record-is-an-entitlement-boundary--never-relax-its-predicate-to-fix-a-rendering-bug)
 - [Gotcha: Textarea `@value` on a get-only computed crashes on keystroke — needs a setter/cache](#gotcha-textarea-value-on-a-get-only-computed-crashes-on-keystroke--needs-a-settercache)
@@ -12081,3 +12082,70 @@ Every check in that CI job compares a generated markdown against its JSON source
 ## Gotcha: a status-block lead must not over-claim "remaining" or "historical"
 
 A runbook lead that says "the remaining gates are A, B, C" reads as exhaustive. If a later authoritative list also requires D and E, an operator skimming the lead can onboard with those still open. Same failure mode for "the rest of this block is historical / not as open work" when later paragraphs in the same block are live checklists. Narrow the lead (e.g. "remaining infrastructure/decommission actions") and scope the historical label to the dated snapshot paragraph only. Ref: PR #840 Codex P1s, `scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md`, [`2026-08-21-phase5-runbook-review-comments.md`](./2026-08-21-phase5-runbook-review-comments.md).
+
+## Pattern: an accurate "this code is missing" grep does NOT prove the problem still exists
+
+**Surface:** triaging an old branch, a stale-looking doc, or any "is this still
+broken?" question by grepping current `staging` for the symbol that would fix it.
+
+This is the companion to [the guard/flag entry above](#pattern-before-adding-a-guard-grep-the-canonical-path-for-one-that-already-exists--with-the-exact-flag-name-in-that-file-alone).
+That one is about a grep that was *wrong*. This one is about greps that were
+**right** and still produced wrong conclusions three times in one session
+(2026-08-19..22, stale-clone branch triage):
+
+1. **The doc looked stale; it corrected itself further down.**
+   `scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md` opened with "the irreversible cutover
+   actions remain gated on Scot's explicit go" (dated 2026-07-15), so it read as a
+   month out of date. Ten lines into the same block: "**THE DNS CUT HAS HAPPENED
+   (step 9 is DONE).**" Only the first paragraph had been read. The real defect was
+   much smaller than "the doc is wrong" — a stale *lead sentence* on a block that
+   was otherwise current (fixed in #840).
+
+2. **The fix was genuinely absent, and genuinely unnecessary.** A May branch added
+   stalled-row cleanup to `Progress.clear_old_progresses`; that code really was
+   not on `staging`. But `Flusher.flush_leftovers` (`lib/flusher.rb`) had closed the
+   gap months earlier from the other direction — an unconditional
+   `created_at < 1.month.ago` sweep that runs daily and catches never-started rows —
+   and its own comment said so explicitly. A grep for the *symbol* could not see a
+   fix that shares no identifiers with it.
+
+3. **The branch that looked like the fix was missing the file's later corrections.**
+   A WIP branch proposed rewriting that runbook block. Its factual statements about LB
+   routing were fine, and the file affirms them ("`app.lingolinq.com` resolves to
+   `136.68.41.122` ... `/api/v1/health` returns 200 through the LB"). The problem was
+   what it *dropped*: it predated, and therefore omitted, both the "PROD HAS NO REAL
+   USERS YET" paragraph (which exists precisely to stop readers inferring real
+   district traffic from DNS resolving plus a 200 health check) and the launch-gate
+   checklist. Porting it wholesale would have deleted two later corrections in the act
+   of "fixing" the block. Being *newer than the defect* is not the same as being
+   *newer than the file*: check what landed in between.
+
+**Why this keeps happening:** the repo evolves by *replacing* mechanisms, not by
+filling in the originally-proposed one. The second implementation usually shares no
+method name, file, or vocabulary with the first, so a name-based grep is structurally
+blind to it. Old branches are therefore superseded far more often than they are
+pending.
+
+**Checklist before acting on an absence:**
+
+- **Read the whole block, not the lead.** Long status blocks in this repo accrete
+  dated corrections at the bottom. The newest sentence is usually the true one and it
+  is rarely first.
+- **Search for the problem, not the symbol.** Grep the behavior (`created_at`,
+  `delete_all`, the table name) and check sibling mechanisms (`Flusher`, the
+  `scheduler.rake` tasks, `flush_leftovers`) before concluding nothing handles it.
+- **Use `gh pr list --state all --head <branch>`, never a bounded
+  `gh pr list --limit N`.** A `--limit 300` sweep silently missed PRs #242, #266 and
+  #381 and made three already-merged branches look orphaned. **`--state all` is not
+  optional here:** `gh pr list` defaults to `--state open`, so the bare `--head` form
+  returns `[]` for a merged branch and reproduces the exact false-orphan conclusion
+  this checklist exists to prevent. Verified against `gh pr list --help` ("default
+  \"open\"") and by running both forms against a known-merged branch.
+- **Read the caller before editing a method.** `Progress.clear_old_progresses` reads
+  like a nightly cron task and is actually invoked from inside `Progress.schedule`
+  (`app/models/progress.rb`), i.e. on every scheduled job. The May branch's per-row
+  `Rails.logger.error` loop would have landed in that hot path, where a
+  null-`settings` row raises `NoMethodError` and breaks scheduling app-wide.
+
+**One-line version:** missing code is evidence about *code*. It says nothing about
+whether the *problem* survived.
