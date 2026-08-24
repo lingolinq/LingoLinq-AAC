@@ -22,6 +22,7 @@ file (see [README.md](README.md)).
 
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
 - [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
+- [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
 - [Gotcha: a status-block lead must not over-claim "remaining" or "historical"](#gotcha-a-status-block-lead-must-not-over-claim-remaining-or-historical)
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
@@ -8981,6 +8982,10 @@ Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the servin
 ## Gotcha: nested `sound[user_id]=self` 404s on create (replace_helper_params is top-level only)
 
 `ApplicationController#replace_helper_params` rewrites top-level `id` / `*_id` placeholders like `user_id=self` → `@api_user.global_id`, but **not** nested hashes. `Api::SoundsController#create` resolves nested `sound[user_id]` with `User.find_by_path`, which treats non-digit strings as `user_name` — there is no user named `self`, so create returns **404 Record not found** before any `ButtonSound` insert. Images create never looks up nested `user_id`, so picture upload can still work while sound upload fails. Same class of bug as boards index `?user_id=self` (2026-07-15 learning). Fix: treat nested `'self'` as `@api_user` (boards already special-cases `for_user_id == 'self'`), ignore blank, and on the frontend never POST the literal `'self'` — use `currentUser._actual_id || id` or omit. Ref: [`2026-08-04-sound-upload-nested-self-404.md`](./2026-08-04-sound-upload-nested-self-404.md).
+
+## Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search
+
+Button Settings → Sound → upload calls `contentGrabbers.file_selected('sound', files)`, which only kept files whose `type` matched `/^audio/`. Anything else `alert`s **"No valid sound found"** (`no_valid_sound_found`) — search-shaped copy for an upload that never reached `soundGrabber`. On Windows/WSL, `.mp3`/`.wav` often have an empty MIME type; `.m4a` is often `video/mp4`, and the `video/*` branch ran first so the sound picker still failed. No POST `/api/v1/sounds` happens. Classify with `looks_like_audio` (audio MIME **or** common audio extension) before the video branch. Same helper for drop and recordings upload. Distinct from the nested `user_id=self` 404 (that path already POSTs). Ref: [`2026-08-24-button-sound-upload-mime.md`](./2026-08-24-button-sound-upload-mime.md).
 
 ## Pattern: board-detail Speak bar must speak vocalization, not just label
 
