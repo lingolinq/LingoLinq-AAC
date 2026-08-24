@@ -401,20 +401,31 @@ var contentGrabbers = Service.extend({
       }
     }
   },
+  // Browser File.type is often empty on Windows/WSL, or video/mp4 for .m4a.
+  // MIME-only matching then alerts "No valid sound found" on a real upload.
+  looks_like_audio: function(file) {
+    if(!file) { return false; }
+    var mime = (file.type || '').toLowerCase();
+    if(mime.indexOf('audio/') === 0 || mime === 'application/ogg') { return true; }
+    var name = (file.name || file.localURL || '').split('?')[0].toLowerCase();
+    return /\.(mp3|mp2|mpga|wav|m4a|m4b|aac|ogg|oga|opus|flac|weba|aiff|aif|wma|mid|midi)$/.test(name);
+  },
   file_selected: function(type, files) {
     var image = null, sound = null, board = null, video = null, zip = null;
     for(var idx = 0; idx < files.length; idx++) {
-      if(!image && files[idx].type.match(/^image/)) {
+      var mime = (files[idx].type || '');
+      var filename = (files[idx].name || '');
+      if(!image && mime.match(/^image/)) {
         image = files[idx];
-      } else if(!sound && files[idx].type.match(/^audio/)) {
+      } else if(!sound && this.looks_like_audio(files[idx])) {
         sound = files[idx];
-      } else if(!video && files[idx].type.match(/^video/)) {
+      } else if(!video && mime.match(/^video/)) {
         video = files[idx];
       } else {
-        if(!board && files[idx].name.match(/\.(obf|obz)$/)) {
+        if(!board && filename.match(/\.(obf|obz)$/)) {
           board = files[idx];
         }
-        if(!zip && files[idx].name.match(/\.zip$/)) {
+        if(!zip && filename.match(/\.zip$/)) {
           zip = files[idx];
         }
       }
@@ -470,9 +481,10 @@ var contentGrabbers = Service.extend({
       var files = dataTransfer.files;
       var image = null, sound = null;
       for(var idx = 0; idx < files.length; idx++) {
-        if(!image && files[idx].type.match(/^image/)) {
+        var mime = (files[idx].type || '');
+        if(!image && mime.match(/^image/)) {
           image = files[idx];
-        } else if(!sound && files[idx].type.match(/^audio/)) {
+        } else if(!sound && this.looks_like_audio(files[idx])) {
           sound = files[idx];
         }
       }
@@ -2404,9 +2416,9 @@ var soundGrabber = EmberObject.extend({
     var _this = this;
 
     var type = null;
-    if(file && file.type.match(/^audio/)) {
+    if(window.cg.looks_like_audio(file)) {
       type = 'sound';
-    } else if(file && file.name.match(/\.zip$/)) {
+    } else if(file && file.name && file.name.match(/\.zip$/)) {
       type = 'zip';
     }
 

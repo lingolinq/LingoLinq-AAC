@@ -1,7 +1,10 @@
 # Copies default vocabulary boards into a new user's library on signup.
 class UserBoardProvisioner
   def self.provision_for(user)
-    return [] unless user && FeatureFlags.signup_default_library_boards_enabled?(user)
+    return [] unless user
+
+    apply_signup_sidebar!(user)
+    return [] unless FeatureFlags.signup_default_library_boards_enabled?(user)
 
     source_user = SystemBoardSources.owner
     unless source_user
@@ -15,6 +18,19 @@ class UserBoardProvisioner
 
     sync_slugs(user, source_user, SystemBoardSources::SIGNUP_SYNC_SLUGS)
     schedule_slugs(user, source_user, SystemBoardSources::SIGNUP_ASYNC_SLUGS)
+  end
+
+  # Persist the signup sidebar once. Empty stored prefs keep using
+  # default_active_sidebar_boards, so this must not run for existing users.
+  def self.apply_signup_sidebar!(user)
+    return unless user
+    user.settings ||= {}
+    user.settings['preferences'] ||= {}
+    stored = user.settings['preferences']['sidebar_boards']
+    return if stored.present?
+
+    user.settings['preferences']['sidebar_boards'] = User.signup_sidebar_boards.map { |entry| entry.dup }
+    user.save
   end
 
   def self.sync_slugs(user, source_user, slugs)
