@@ -308,12 +308,22 @@ so no grace is needed for them.
   predecessor read "OFF for everyone by default and the whole path is inert until the flag is
   enabled". Note the delivered flag name is
   `article_50_disclosure` (the earlier plan named it `article_50_disclosure_modal`).
-- **Enabling the flag is the hard 2026-08-02 release gate**, done on Scot's explicit sign-off and only
-  after the production deploy of Phases 3-5. Enabling is NOT part of this documentation change.
-- **The interim deferral is ratified and bounded.** Per the 2026-07-09 fallback memo, keeping the flag
-  OFF short of 2026-08-02 is accepted **because prod carries no real EU users** (internal/test accounts
-  only). The deferral is withdrawn the instant a real EU customer onboards, at which point enabling the
-  flag moves to unconditional priority.
+- **The flag is ENABLED in production.** Verified 2026-08-23 by direct read
+  (`docs/legal/2026-08-23_article-50-production-flag-verification.md`, DOC-6c023a20a0). Enabling
+  **was** the hard 2026-08-02 release gate, on Scot's explicit sign-off after the production deploy
+  of Phases 3-5; that gate is discharged for the current production `Setting`. This documentation
+  change records the verified state. It does not itself enable or disable the flag. Enabled-since
+  remains unrecoverable (`Setting` has no version history), so this is not a claim about the flag's
+  state on or before 2026-08-02.
+- **The 2026-07-09 interim deferral is dated history, not current posture.** That fallback memo
+  accepted keeping the flag OFF short of 2026-08-02 because prod carried no real EU users
+  (internal/test accounts only), and treated onboarding a real EU customer as the trigger to enable.
+  Those sentences were current operational instructions through the 2026-07-22 Phase 5 rewrite. They
+  are **withdrawn as live guidance** as of the 2026-08-23 production read: the flag is ON via the
+  `default_enabled_features` DB `Setting`, and because `EuJurisdiction.disclosure_required?` is
+  fail-safe open the modal is required for every account. Production still has no real users
+  (test/QA only, confirmed 2026-08-24); that fact limits what the gating figures demonstrate. It
+  does not restore an OFF posture.
 
 **Ownership -- the 50(1) modal originated on the VPC track.** Build and delivery of the Article
 50(1) disclosure modal belonged to the **VPC (Verifiable Parental Consent) GSD project** as a phase
@@ -477,7 +487,9 @@ explicit sign-off after the production deploy. **[CORRECTION 2026-08-24: the two
 preceding sentence - "not enabled for any user" and "shown to no one in production" - were true of
 the code default and are FALSE of production. A direct read on 2026-08-23 found the flag enabled via
 the `default_enabled_features` DB Setting. This paragraph is retained verbatim as the historical
-record of what the 2026-07-22 amendment stated; it is not a live claim. See "Corrections in this
+record of what the 2026-07-22 amendment stated; it is not a live claim. The closing sentence of
+this amendment ("Nothing in this refresh goes live in production until Phases 3-5 deploy and the
+flag is enabled") is the same class of overtaken instruction. See "Corrections in this
 successor".]** Phase 4 jurisdiction stamping (`Article50CallContext`
 stamps `jurisdiction = 'EU'` at the three AI call sites, merged to staging) un-inerts the EU
 `AiApiLog` 5-year retention purge (`purge_old_eu_logs!`) wherever Phase 4 is deployed. The

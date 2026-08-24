@@ -25,18 +25,32 @@ row per session, which is application data. See "This verification wrote to prod
 
 | Field | Value |
 |---|---|
-| Probe timestamps (UTC) | `2026-08-23T21:04:12Z` (layers 1-4); `2026-08-23T21:08:00Z` (layer 5) |
+| Probe timestamps (UTC) | `2026-08-23T21:04:12Z` (layers 1-4); `2026-08-23T21:08:00Z` (layer 5); `2026-08-23T23:14:30Z` (user-level jurisdiction sweep); `2026-08-23T23:23:41Z` (`EuJurisdiction` gate resolver) |
 | Environment | `RAILS_ENV=production`, GCP project `lingolinq-prod` |
 | Image (tag) | `web:73a8f63396af78328a76045a7c2e08be6a3cc47c` |
 | Image (digest — the actual byte pin) | `sha256:1abfdc731108a0e13116c3e5bd55558dc9fa83b4b90781a5d77358ee20e8c73d` |
 | Serving revision compared against | `lingolinq-web-00024-yij`, 100% of traffic and also `latestReadyRevision`; its container image resolves to the SAME digest above (`gcloud run revisions describe`, not `services describe`, so this is the traffic-serving revision and not merely the latest template) |
 | Bridge to the pinned commit | `lib/feature_flags.rb` and `lib/system_feature_settings.rb` are **byte-identical** at `64cdccba1` (the commit this record's sibling documents pin) and at `73a8f633` (the probed image's commit): sha256 `8854f05a5b3e4453` and `c73e0cb987ca51c2` respectively. The constants read during the probe therefore correspond to the pinned derivation. |
-| Executions | `lingolinq-migrate-jqpxb`, `lingolinq-migrate-4ss8l` |
+| Named executions | `lingolinq-migrate-jqpxb`, `lingolinq-migrate-4ss8l`, `lingolinq-migrate-wxt9x`, `lingolinq-migrate-stnwz` (see inventory below) |
 | Audit attribution | attribution label `scot-art50-flag-verification-2026-08-23`, supplied via the `USER_KEY` environment variable |
 
 **This verification wrote to production.** The audited runner records one `AuditEvent` per
-session; six exist across the probe series, all stamped with the attribution label above. That is
-the access control operating as designed, and it is disclosed here rather than omitted.
+session. `AuditEvent.count` read 245 before the probe series and 251 after — six rows, all
+stamped with the attribution label above. Four of those sessions are bound to named Cloud Run
+executions retained in this record (inventory below). Two additional `AuditEvent` rows exist
+under the same label but have no retained execution ID or inlined stdout here, so they cannot
+be reconstructed from these artifacts. That is the access control operating as designed, and it
+is disclosed here rather than omitted.
+
+### 1.0 Execution inventory
+
+| Cloud Run execution | Timestamp (UTC) | Scope | Stdout in this record |
+|---|---|---|---|
+| `lingolinq-migrate-jqpxb` | `2026-08-23T21:04:12Z` | layers 1-4 | Appendix, inlined |
+| `lingolinq-migrate-4ss8l` | `2026-08-23T21:08:00Z` | layer 5 + cohort provenance | Appendix, inlined |
+| `lingolinq-migrate-wxt9x` | `2026-08-23T23:14:30Z` | all-user `feature_enabled_for?` + jurisdiction sweep | Appendix, inlined |
+| `lingolinq-migrate-stnwz` | `2026-08-23T23:23:41Z` | `EuJurisdiction` gate resolver | Appendix: `(unavailable)` |
+| *(not retained)* | unknown | two further runner sessions implied by `AuditEvent.count` 245 → 251 | not retained |
 
 ### 1.1 Population scope — READ THIS BEFORE ANY FIGURE BELOW
 
@@ -261,7 +275,7 @@ testing.
 
 | Field | Value |
 |---|---|
-| Prepared by | Claude Code, 2026-08-23, from two audited production reads |
+| Prepared by | Claude Code, 2026-08-23, from four named production executions plus a queried six-session `AuditEvent` delta |
 | Reviewed by | NOT YET REVIEWED |
 | Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO |
 | Attestation date | pending |

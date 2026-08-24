@@ -31,6 +31,7 @@ file (see [README.md](README.md)).
 - [Gotcha: "Scot re-attested" is not a pin on this branch until the row hash matches](#gotcha-scot-re-attested-is-not-a-pin-on-this-branch-until-the-row-hash-matches)
 - [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
 - [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
+- [Gotcha: a Path A correction must convert leftover present-tense operational bullets, not only the headline claim](#gotcha-a-path-a-correction-must-convert-leftover-present-tense-operational-bullets-not-only-the-headline-claim)
 - [Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`](#gotcha-redact_for_ai-on-the-sentence-does-not-automatically-cover-interpolated-contexttopic)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
@@ -12046,6 +12047,10 @@ are derived, not hand-merged. If citation-check says `file not found at sha`,
 ## Gotcha: a dated successor must not inherit the predecessor's attestation dates
 
 Copying `**Attestation history:** re-attested 2026-08-08` onto a `draft` successor makes the new bytes look reviewed. Label it **Predecessor attestation history** and state that this record has none. Same defect for Related links: point at the operative dated register (`2026-08-16_subprocessor-register.md`), not the frozen `SUBPROCESSORS.md`. Ref: `docs/legal/2026-08-17_ai-data-flow-classification.md`.
+
+## Gotcha: a Path A correction must convert leftover present-tense operational bullets, not only the headline claim
+
+Correcting a superseded claim in place (e.g. "gated OFF" → "ENABLED IN PRODUCTION") leaves the successor as the live operational document. Any remaining present-tense bullets in the same section that still say enabling is a future gate, or that keeping the flag OFF is the accepted posture, are mutually exclusive instructions, not history. Convert those bullets to dated history in the same edit, or rewrite them to the verified state. The same class of defect: bumping an evidence count ("two sessions" → "six") without updating the execution inventory and the document-register `notes` in the same change. Do not invent missing Cloud Run IDs; name every retained execution and disclose any count-delta rows that cannot be bound. Ref: PR #856, `docs/legal/2026-08-24_ai-governance-memo.md` §5.2, `docs/legal/2026-08-23_article-50-production-flag-verification.md`.
 
 ## Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`
 
