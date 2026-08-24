@@ -5608,6 +5608,100 @@ describe Board, :type => :model do
     end
   end
 
+  describe "swap_images opensymbols aggregation skip" do
+    # Builds a ButtonImage that ButtonImage#image_library will classify as +library+.
+    # image_library reads settings['license'] and only classifies when 'uneditable',
+    # 'author_name' and 'author_url' are all present.
+    def licensed_image(user, author_name, author_url)
+      bi = ButtonImage.create(user: user)
+      bi.settings['license'] = {
+        'uneditable' => true,
+        'author_name' => author_name,
+        'author_url' => author_url
+      }
+      bi.save
+      bi
+    end
+
+    it "should name the aggregate library and its members without a bare literal" do
+      # Regression guard: the member check below was dead for three years because the
+      # sibling literal was misspelled 'opensybmols'. image_library never returns the
+      # aggregate name itself, so a typo here fails silently rather than raising.
+      expect(Board::OPENSYMBOLS_LIBRARY).to eq('opensymbols')
+      expect(Board::OPENSYMBOLS_MEMBER_LIBRARIES).to eq(['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'])
+      expect(Board::OPENSYMBOLS_MEMBER_LIBRARIES).to be_frozen
+      expect(Board::OPENSYMBOLS_MEMBER_LIBRARIES).to_not include(Board::OPENSYMBOLS_LIBRARY)
+    end
+
+    it "should not re-search an image already sourced from a library opensymbols aggregates" do
+      u = User.create
+      bi = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      expect(bi.image_library).to eq('arasaac')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => bi.global_id},
+      ], nil)
+      # current_library downgrades an arasaac-dominant board to 'arasaac', so the outer
+      # gate opens and the per-button skip is what has to hold.
+      expect(b.current_library(true)).to eq('arasaac')
+      # Re-fetch: process_buttons leaves @buttons_changed set on this instance, and
+      # swap_images gates its settings write on that same ivar. Without a clean object
+      # the swapped_library assertion below would pass on stale state, not behavior.
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat'], 'en', u, true, false).and_return({})
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+      expect(b.reload.buttons.map{|btn| btn['image_id'] }).to eq([bi.global_id, bi.global_id])
+      expect(b.settings['swapped_library']).to eq(nil)
+      expect(ButtonImage.count).to eq(1)
+    end
+
+    it "should still swap an image from a library opensymbols does not aggregate" do
+      u = User.create
+      bi = licensed_image(u, 'Tobii Dynavox', 'https://www.tobiidynavox.com/')
+      expect(bi.image_library).to eq('pcs')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat'], 'en', u, true, false).and_return({
+        'hat' => {'url' => 'https://www.example.com/hat.png'}
+      })
+      b.swap_images(library, u, [], nil)
+      expect(b.reload.buttons.map{|btn| btn['image_id'] }).to_not eq([bi.global_id])
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+    end
+
+    it "should still swap a member-library image when the target is a different member" do
+      u = User.create
+      bi = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+      ], nil)
+      # 'twemoji' is a member of the aggregate but is NOT the aggregate, so an arasaac
+      # image must still be replaced rather than skipped.
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'twemoji'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('twemoji', ['hat'], 'en', u, true, false).and_return({
+        'hat' => {'url' => 'https://www.example.com/hat.png'}
+      })
+      b.swap_images(library, u, [], nil)
+      expect(b.reload.buttons.map{|btn| btn['image_id'] }).to_not eq([bi.global_id])
+      expect(b.settings['swapped_library']).to eq('twemoji')
+    end
+  end
+
   describe "downstream_board_ids" do
     it "should return list of board ids" do
       u = User.create

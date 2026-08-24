@@ -23,6 +23,14 @@ class Board < ApplicationRecord
   # When a board used as home/sidebar by more users than this, cleanup runs in a background job
   # to avoid blocking board destruction and request timeouts on popular public boards.
   HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD = 25
+  # Symbol libraries that opensymbols AGGREGATES. An image already sourced from one of
+  # these is effectively an opensymbols image, so a swap whose target is 'opensymbols'
+  # should leave it in place rather than spending a per-word remote lookup to fetch a
+  # near-identical replacement. Named (not inlined) because this list is used in two
+  # places and a typo in the sibling 'opensymbols' literal silently disabled the
+  # swap_images skip below for three years.
+  OPENSYMBOLS_LIBRARY = 'opensymbols'
+  OPENSYMBOLS_MEMBER_LIBRARIES = ['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].freeze
   include Processable
   include Permissions
   include Async
@@ -2788,8 +2796,8 @@ class Board < ApplicationRecord
         res = 'opensymbols'
         self.known_button_images.each do |bi|
           lib = bi.image_library || 'unknown'
-          if ['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].include?(lib)
-            votes['opensymbols'] = (votes['opensymbols'] || 0) + 1
+          if OPENSYMBOLS_MEMBER_LIBRARIES.include?(lib)
+            votes[OPENSYMBOLS_LIBRARY] = (votes[OPENSYMBOLS_LIBRARY] || 0) + 1
           end            
           if lib != 'unknown'
             votes[lib] = (votes[lib] || 0) + 1
@@ -2870,7 +2878,7 @@ class Board < ApplicationRecord
             # JSON bundle / migration import — keep exported image
           elsif old_bi && old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
             # puts "SAFE PIC"
-          elsif library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].include?(old_bi.image_library) && library == 'opensybmols'))
+          elsif library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (OPENSYMBOLS_MEMBER_LIBRARIES.include?(old_bi.image_library) && library == OPENSYMBOLS_LIBRARY))
             # puts "ALREADY SWAPPED"
           elsif false
             # TODO: create or find an alternate version of the button_image that
