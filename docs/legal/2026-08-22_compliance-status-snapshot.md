@@ -7,7 +7,7 @@ passed; the customer-facing Posture Report still claims **8** open High from the
 re-attest while the live register at `64cdccba1` reads **20** High (up from 12 at the 2026-08-09
 draft, almost entirely from the 2026-08-12 six-finder full audit run); overdue monthly-light audit
 and COPPA quarterly retention checks need surfacing.
-**Status:** DRAFT - awaiting attestation. Successor via Path A supersession to attested
+**Status:** ATTESTED 2026-08-24 by Scot Wahlquist, CEO. Successor via Path A supersession to attested
 `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` (ATTESTED 2026-08-20 by Scot Wahlquist, CEO),
 correcting the defects listed in "Corrections in this successor" below, which include the
 Article 50(1) enablement claim. Headline counts are re-derived from
@@ -17,11 +17,13 @@ convention: `open` + `remediated-unverified` by severity). Register `meta.audite
 at `d67ed76e0a1` (auditedDate 2026-08-12); it records the last full audit *run*, not the last
 register edit.
 **Related:** `audit-reports/FINDINGS.json` (source of truth),
-`docs/legal/2026-08-20_compliance-posture-report.md` (ATTESTED 2026-08-20, same transaction as
-this snapshot's PREDECESSOR's attestation; this successor is unattested),
-`docs/legal/2026-08-20_compliance-program.md` (ATTESTED 2026-08-20, same transaction),
-`docs/legal/2026-08-09_compliance-posture-report_draft.md` (unattested, superseded by the above),
-`docs/legal/2026-08-09_compliance-program_draft.md` (unattested, superseded by the above),
+`docs/legal/2026-08-22_compliance-posture-report.md` (ATTESTED 2026-08-24, same transaction as
+this snapshot),
+`docs/legal/2026-08-22_compliance-program.md` (ATTESTED 2026-08-24, same transaction),
+`docs/legal/2026-08-20_compliance-posture-report.md` (ATTESTED 2026-08-20, frozen and superseded),
+`docs/legal/2026-08-20_compliance-program.md` (ATTESTED 2026-08-20, frozen and superseded),
+`docs/legal/2026-08-09_compliance-posture-report_draft.md` (unattested, superseded by the 2026-08-20 report),
+`docs/legal/2026-08-09_compliance-program_draft.md` (unattested, superseded by the 2026-08-20 program),
 `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (attested 2026-07-23, frozen, superseded),
 `docs/legal/COMPLIANCE_PROGRAM.md` (attested 2026-08-04, frozen, superseded),
 `docs/legal/AI_GOVERNANCE_MEMO.md`, `docs/legal/SUBPROCESSORS.md`,
@@ -67,12 +69,12 @@ Headline at staging commit `64cdccba1` (2026-08-20, publisher convention):
   attesting if a fresh confirmation is wanted.
 
 The Posture Report attested at the time this snapshot was first drafted (2026-07-23) showed
-**8 High / 27 Medium**; the currently attested one is `docs/legal/2026-08-20_compliance-posture-report.md`
-at 0 / 20 / 52 / 40. That figure was
+**8 High / 27 Medium**; the currently attested one is `docs/legal/2026-08-22_compliance-posture-report.md`
+at 0 / 20 / 52 / 40. The 2026-07-23 figure was
 accurate at an early-2026-07-23 register state and drifted the same day; three further Highs were
 promoted from PR review on 2026-08-02/08-04, then the 2026-08-12 six-finder run added 9 more. The
-Posture Report successor now in this package for Scot's attestation is
-`docs/legal/2026-08-22_compliance-posture-report.md` at the same 0 / 20 / 52 / 40; the
+immediate attested predecessor, now frozen and superseded, is
+`docs/legal/2026-08-20_compliance-posture-report.md` at the same 0 / 20 / 52 / 40; the
 2026-08-09 draft it descends from is superseded (Path A
 supersession; attested predecessor left untouched).
 
@@ -160,7 +162,8 @@ customer-facing doc.
    2026-08-20**, in the same attestation transaction as this snapshot's PREDECESSOR: `docs/legal/2026-08-20_compliance-posture-report.md`
    and `docs/legal/2026-08-20_compliance-program.md` (Path A supersession off the unattested
    `_draft` files, per the grandfathered-`_draft` transition rule in `docs/legal/README.md`).
-   Branded Drive mirror (`DOC-ae3f9d06ef`) remains a separate operator refresh.
+   The 2026-08-22 successors (this snapshot, the posture report, and the program) were attested
+   2026-08-24. Branded Drive mirror (`DOC-ae3f9d06ef`) remains a separate operator refresh.
 2. **Article 50 position (obligation live since 2026-08-02).** The server-side disclosure backstop
    now covers all 5 AI ingresses (#829/#831), and the contrast blocker (LL-a9d6d5a46b) is
    remediated-unverified. **`article_50_disclosure` is already ENABLED in production**, verified
@@ -224,7 +227,8 @@ From `audit-reports/DOCUMENT-REGISTER.json` (`status: draft`):
 - Annex A - Clinical BAA Template (Drive)
 - Annex B - US Schools SDPA Package (Drive)
 
-Plus this package: Status snapshot, Posture Report refresh, COMPLIANCE_PROGRAM draft revision.
+This package (Status snapshot, Posture Report refresh, COMPLIANCE_PROGRAM v1.3.1) was ATTESTED
+2026-08-24 and is no longer awaiting attestation; the list above is the remaining set.
 
 ---
 
@@ -234,8 +238,8 @@ Plus this package: Status snapshot, Posture Report refresh, COMPLIANCE_PROGRAM d
 |---|---|
 | Prepared by | compliance-officer role (draft, 2026-08-09); content refreshed by Claude Code 2026-08-20 |
 | Reviewed by | Claude Code content-accuracy pass 2026-08-20 (every cited finding ID cross-checked against the live register); adversary review run on PR #838, #845 and #846 (the #846 pass produced the Section 15 fidelity, citation-anchor and provenance corrections recorded above) |
-| Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO |
-| Attestation date | pending |
+| Attested by | Scot Wahlquist, CEO |
+| Attestation date | 2026-08-24 |
 
 _Internal status snapshot. Headline counts are read from the register; every other audit-report
 file is a point-in-time snapshot and is not authoritative for status. Only Scot closes findings
