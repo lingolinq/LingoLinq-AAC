@@ -4273,6 +4273,29 @@ describe User, :type => :model do
       expect(u.copy_board_to_library({'id' => b1.global_id}, owner.global_id, nil)).to eq(true)
       expect(u.boards.where(parent_board: b1).first.id).to eq(existing.id)
     end
+
+    it "should re-swap an existing library copy in place when swap_incomplete is set" do
+      u = User.create
+      owner = User.create
+      b1 = Board.create(user: owner, public: true)
+      bi = ButtonImage.create(user: owner)
+      b1.process({'buttons' => [
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+      ]}, {})
+      existing = b1.copy_for(u)
+      existing.settings['swapped_library'] = 'opensymbols'
+      existing.settings['swap_incomplete'] = true
+      existing.save
+      expect(u).to_not receive(:copy_board_links)
+      expect(Uploader).to receive(:default_images).and_return({
+        'hat' => {'url' => 'https://www.example.com/hat.png'}
+      })
+      expect(u.copy_board_to_library({'id' => b1.global_id}, owner.global_id, 'opensymbols')).to eq(true)
+      expect(u.boards.where(parent_board: b1).count).to eq(1)
+      existing.reload
+      expect(existing.settings['swap_incomplete']).to eq(nil)
+      expect(existing.buttons[0]['image_id']).to_not eq(bi.global_id)
+    end
   end
 
   describe "copy_to_home_board" do
@@ -4346,6 +4369,31 @@ describe User, :type => :model do
         expect(opts[:swap_library]).to eq('mulberry')
       end
       expect(u.copy_to_home_board({'id' => b1.global_id}, u.global_id, 'mulberry')).to eq(true)
+    end
+
+    it "should re-swap an existing home copy in place when swap_incomplete is set" do
+      u = User.create
+      owner = User.create
+      b1 = Board.create(user: owner, public: true)
+      bi = ButtonImage.create(user: owner)
+      b1.process({'buttons' => [
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+      ]}, {})
+      b2 = b1.copy_for(u)
+      b2.settings['swapped_library'] = 'opensymbols'
+      b2.settings['swap_incomplete'] = true
+      b2.save
+      u.settings['preferences']['home_board'] = {'id' => b2.global_id, 'key' => b2.key}
+      u.save
+      expect(u).to_not receive(:copy_board_links)
+      expect(Uploader).to receive(:default_images).and_return({
+        'hat' => {'url' => 'https://www.example.com/hat.png'}
+      })
+      expect(u.copy_to_home_board({'id' => b1.global_id}, owner.global_id, 'opensymbols')).to eq(true)
+      expect(u.settings['preferences']['home_board']['id']).to eq(b2.global_id)
+      b2.reload
+      expect(b2.settings['swap_incomplete']).to eq(nil)
+      expect(b2.buttons[0]['image_id']).to_not eq(bi.global_id)
     end
 
     it "should create a shallow clone if specified" do
