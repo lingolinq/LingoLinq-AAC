@@ -21,6 +21,9 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
+- [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
+- [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
+- [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
 - [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
 - [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
@@ -12034,6 +12037,67 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 ## Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it
 
 `op://LingoLinq Admin/Render API/credential` is not a vault Melissa can see. The key that works is `op://LingoLinq Prod/RENDER_API_KEY/credential`. A Render one-off job starts the moment `POST /v1/services/{id}/jobs` returns 201; there is no deploy-then-execute step like Cloud Run Jobs. `lingolinq-staging` still has `RAILS_ENV=production`, shares `lingolinq-dev-staging-db` with `lingolinq-dev`, and needs `ALLOW_PROD_REBUILD=1` plus `plan-srv-013` (16 GB) for `lingolinq:rebuild_library`. Empty `STAGING_SRV` / `RENDER_API_KEY` makes curl look like it did nothing (exit 0, no body). Ref: [`2026-08-24-render-staging-rebuild-library-job.md`](./2026-08-24-render-staging-rebuild-library-job.md).
+
+## Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures
+
+`defaults['_missing']` reads like the symbol library declaring "there is no symbol
+for this word." It is not. `Uploader.find_images` caches an **empty** result as a
+miss whenever `cache_forever` is set:
+
+```ruby
+cache.add_missing_word(keyword, cache_forever) if cache_forever   # lib/uploader.rb:1015
+```
+
+and `cache_forever` is `important_board` at both call sites in `Board#swap_images`
+(`app/models/board.rb:2869,2894`). `OpenSymbols.search` returns `[]` on a 429, on
+any non-2xx, and on its 10s timeout — indistinguishable from a genuine miss. So an
+outage while provisioning a *suggested-list* board writes a miss stamped
+`6.months.from_now` (`LibraryCache#add_missing_word:141`), which
+`LibraryCache#find_words:208-209` reads back as `{'missing' => true}` **with no
+expiry check at all**, and `lib/uploader.rb:775-778` folds into `_missing`.
+
+Net: `_missing` conflates "no such symbol" with "the API was down when we asked,"
+and does so *only* on the highest-value boards — the ones flagged important. Never
+treat membership in `_missing` as proof that work is complete or that a retry is
+futile. Using it to skip a redundant lookup within one run is fine; using it as a
+terminal state is not. Fixed in #861 (`4b9fb85d8`); the underlying cache-write
+conflation at `uploader.rb:1013-1016` is still open.
+
+## Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions
+
+`User#copy_to_home_board` and `User#copy_board_to_library` gate on
+`(swapped_library || 'original') == (symbol_library || 'original')`
+(`app/models/user.rb:3065,3088,3095`). That makes the field hazardous *both* ways,
+which is what made #861 take three attempts:
+
+- **Withhold it when the swap really did complete** → the board never matches the
+  check, so provisioning re-copies the ENTIRE board set on every call, unbounded.
+- **Record it when the swap did not complete** → provisioning treats the board as
+  done, `swap_images`' own `current_library(true) != library` gate closes, and the
+  unswapped buttons are never retried.
+
+The correct rule is narrow: record only when every eligible button was *either*
+already in the target library *or* successfully swapped. "Some button changed" is
+not enough, and "nothing changed" is not the same as "nothing needed changing."
+
+## Technique: one control run on base does not prove a flake — re-run the identical tree
+
+A red example plus a green run on stashed changes feels like proof the change is at
+fault. It is not — it is two samples from two different trees, and a load-sensitive
+test can flip either one. In #861, `board_spec.rb:1343`
+(`Worker`/`RemoteAction` scheduling, never calls `swap_images`) failed once with the
+change, passed on base, then passed again **on the identical failing tree**:
+
+| Run | Tree | Result | Wall |
+|---|---|---|---|
+| 1 | changed | 1 failure `:1343` | 4m26s |
+| 2 | base | 0 failures | 4m28s |
+| 3 | changed (same as 1) | 0 failures | 1m12s |
+
+Only run 3 settled it. The 4m26s → 1m12s swing is the tell: machine load, not code.
+Pair this with RULE #0.10 — reconcile the example **count** against baseline first
+(284 here, matching, so the run completed), then re-run the same tree before
+attributing a failure to your diff *or* dismissing it as noise.
 
 ## Gotcha: COPPA decline copy must split signup vs offboarding on every surface
 
