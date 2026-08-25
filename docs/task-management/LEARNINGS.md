@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
 - [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
 - [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
@@ -12029,6 +12030,10 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 `version + full sha256 + commit` (and a distinct label per attested byte set — e.g.
 `v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
 [`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
+
+## Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it
+
+`op://LingoLinq Admin/Render API/credential` is not a vault Melissa can see. The key that works is `op://LingoLinq Prod/RENDER_API_KEY/credential`. A Render one-off job starts the moment `POST /v1/services/{id}/jobs` returns 201; there is no deploy-then-execute step like Cloud Run Jobs. `lingolinq-staging` still has `RAILS_ENV=production`, shares `lingolinq-dev-staging-db` with `lingolinq-dev`, and needs `ALLOW_PROD_REBUILD=1` plus `plan-srv-013` (16 GB) for `lingolinq:rebuild_library`. Empty `STAGING_SRV` / `RENDER_API_KEY` makes curl look like it did nothing (exit 0, no body). Ref: [`2026-08-24-render-staging-rebuild-library-job.md`](./2026-08-24-render-staging-rebuild-library-job.md).
 
 ## Gotcha: COPPA decline copy must split signup vs offboarding on every surface
 
