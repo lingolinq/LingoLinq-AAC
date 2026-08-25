@@ -1136,6 +1136,7 @@ class Board < ApplicationRecord
   def save_without_post_processing
     @skip_post_process = true
     self.save
+  ensure
     @skip_post_process = false
   end
 
@@ -2988,8 +2989,13 @@ class Board < ApplicationRecord
       cache.save_if_added
       # Root is saved before children run. Bubble descendant unresolved so
       # copy_to_home_board, which only inspects the home root, still retries.
+      # Only persist when this board already recorded swapped_library: a
+      # found-nothing swap must remain a no-op (board_spec "should do nothing
+      # when no images found"). Stamping swap_incomplete alone would also
+      # call save_subtly, and a raise inside that window used to leave
+      # PaperTrail disabled for the rest of the process.
       tree_incomplete = !!library.instance_variable_get('@had_unresolved')
-      if !!swap_board.settings['swap_incomplete'] != tree_incomplete
+      if swap_board.settings['swapped_library'] == library && (!!swap_board.settings['swap_incomplete'] != tree_incomplete)
         swap_board.assign_swap_incomplete!(tree_incomplete)
         swap_board.save_subtly
       end

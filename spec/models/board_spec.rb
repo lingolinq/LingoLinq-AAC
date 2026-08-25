@@ -4212,6 +4212,11 @@ describe Board, :type => :model do
       expect(Uploader).to receive(:find_images).with('cats', 'bacon', 'en', u, nil, true, false).and_return([])
       res = b.swap_images('bacon', u, [])
       expect(res).to eq({done: true, id: b.global_id, library: 'bacon', board_ids: [], updated: [b.global_id], visited: [b.global_id]})
+      # Found-nothing must not stamp swap_incomplete. That save (via the root
+      # bubble) is what turned CI red on c89c9f882: save_subtly disabled
+      # PaperTrail, the mock raised, and versions stayed off for later examples.
+      expect(b.settings['swapped_library']).to eq(nil)
+      expect(b.settings['swap_incomplete']).to eq(nil)
     end
 
     it 'should do nothing when asking for premium images but not enabled' do

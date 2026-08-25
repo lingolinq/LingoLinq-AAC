@@ -23,6 +23,7 @@ file (see [README.md](README.md)).
 - [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
 - [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
+- [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
 - [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
 - [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
@@ -12086,6 +12087,25 @@ when `current_library` already matches, and which `copy_to_home_board` /
 `copy_board_to_library` honor by calling `retry_incomplete_library_swap` on the
 existing board. Trace **both** `swapped_library` writers (`@buttons_changed` and
 the no-op `elsif`) before changing either.
+
+A related trap on #861: do **not** persist `swap_incomplete` on a board that never
+recorded `swapped_library`. The root bubble used to call `save_subtly` whenever
+`@had_unresolved` differed from the stored flag. A found-nothing swap (empty
+lookups, no skip, no button change) still sets `@had_unresolved`, so the bubble
+saved a board the old spec treats as a no-op (`board_spec.rb` "should do nothing
+when no images found"). That `save` is also how PaperTrail got stuck off in CI
+(see the next entry). Gate the bubble on `swapped_library == library`.
+
+## Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised
+
+`Board#save_subtly` (`app/models/concerns/upstream_downstream.rb`) turns
+`PaperTrail.enabled` off, then calls `save_without_post_processing`. Until #861
+the restore was a statement after the call, not an `ensure`. A raise inside that
+window (the `:save` mock on the found-nothing swap spec) left versions disabled
+for every later example in the process: version counts of `0`, "no valid version
+found" on `DeletedBoard#restore!`. Pair the PaperTrail toggle **and**
+`@skip_post_process` with `ensure`. A process-global flag that a spec mock can
+trip is a suite-wide failure, not a local one.
 
 ## Technique: one control run on base does not prove a flake — re-run the identical tree
 
