@@ -3190,7 +3190,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "2dbc04b843ea35eb5252a5e2156995b62039fb7aaa077319c67dd0b9e3557256",
+      "contentHash": "0abe53ff080e825110de70d9cd0a4a5237482e235d8c28c19fc0fbb54ea3d483",
       "bundles": [],
       "mirrors": [
         {
@@ -3594,7 +3594,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "9ea6cb99f6adca9cff7a39d1bb749781234d176c63b58f7a93c1eb3431108192"
+      "contentHash": "5dfd58dec0f965b9ed8ef8270efb20aaf769b054a081a5d427862749a27429bc"
     },
     {
       "title": "Compliance & Security Program (2026-08-22 successor)",
@@ -3627,7 +3627,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "ace5cf9e25e502a7b82c115ef289fb34473fcd9ab4a815a3890b6a67e06dd70b"
+      "contentHash": "b5edf13cd0c919277bab0cbf0be2c7f4fe3d155d56f45f4e38c4e41f50d1b1ee"
     },
     {
       "title": "Compliance Status Snapshot (2026-08-22)",
@@ -3654,7 +3654,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-3468caf949",
-      "contentHash": "1750274985e7ce132de900f72f5aae3d5a427bb41b698156cd581b8238a1f6a9"
+      "contentHash": "4007a6ea4fbaaf324280694ee13597637f643d80dd3465e3724e2071e1c24514"
     },
     {
       "title": "Article 50(1) Disclosure - Production Feature-Flag Verification",
@@ -3687,7 +3687,7 @@
     },
     {
       "title": "AI Governance Memo (2026-08-24 successor)",
-      "description": "Path A successor to the CEO-attested AI Governance Memo. Corrects three Article 50(1) claims that a direct production read falsified on 2026-08-23 -- the disclosure modal is not \"gated OFF\", not \"inert\", and not \"shown to no one\"; the flag is ENABLED in production via the default_enabled_features DB Setting. Adds the population-scope fact the predecessor could not state: all 34 production accounts are test/QA accounts, so no real person has encountered an undisclosed AI interaction.",
+      "description": "Path A successor to the CEO-attested AI Governance Memo. Corrects the Article 50(1) enablement and inertness claims a direct production read falsified on 2026-08-23 -- the disclosure modal is not \"gated OFF\" and not \"inert\"; the flag is ENABLED in production via the default_enabled_features DB Setting. The same read does not establish that the modal was displayed; \"shown to no one because the flag is off\" is false, but this record does not claim the UI rendered. Adds the population-scope fact the predecessor could not state: all 34 production accounts are test/QA accounts, so no real person has encountered an undisclosed AI interaction.",
       "type": "legal",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -3714,9 +3714,9 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-39f37f8200",
-      "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified all three -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. Until that is swept the pack is internally inconsistent on this point. Still status:draft with empty attestation; only Scot attests.",
+      "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified the enablement and inertness claims -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). The same read does not establish that the modal was displayed; 'shown to no one because the flag is off' is false, but this record does not claim the UI rendered. (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. Until that is swept the pack is internally inconsistent on this point. Still status:draft with empty attestation; only Scot attests.",
       "id": "DOC-506bbe2039",
-      "contentHash": "4891bfc6c743aa549e5c75043823ccfc112d80b08f684ea2ae87124829f84d4f"
+      "contentHash": "d8b1ed099f527135380466847755dd9709d1a887af4da6c78057f8feb2b5d216"
     }
   ]
 }

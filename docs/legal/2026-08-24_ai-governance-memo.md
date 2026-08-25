@@ -39,10 +39,16 @@ acceptance record, the incident-response and breach runbook, and the AI data-flo
 *Second, falsified Article 50 status.* The predecessor states that the 50(1) disclosure modal is
 "built and staged, gated OFF, not yet enabled for any user", that "the whole path is inert", and
 that the modal is "shown to no one in production". A direct audited production read on 2026-08-23
-falsified all three: the `article_50_disclosure` flag **IS ENABLED** in production via the
-`default_enabled_features` DB `Setting`, which overrides the code constant. See
+falsified the enablement and inertness claims: the `article_50_disclosure` flag **IS ENABLED** in
+production via the `default_enabled_features` DB `Setting`, which overrides the code constant. See
 `docs/legal/2026-08-23_article-50-production-flag-verification.md` (`DOC-6c023a20a0`, an UNATTESTED
-evidence record) and the Corrections table below.
+evidence record) and the Corrections table below. The same read does **not** establish that the
+modal was displayed. The probe counted `User#article_50_disclosure_shown?` (true for 5 of 34
+accounts); that bit can also be set by the allowlisted `admin_backfill` source
+(`app/models/user.rb:1550`) or by posting the edit-permitted acknowledgement endpoint
+(`app/controllers/api/users_controller.rb:957-967`) without the UI having rendered.
+Acknowledgement `AuditEvent`s and UI telemetry were not checked. So "shown to no one because the
+flag is off" is false; "the modal was shown" is not a claim this record makes.
 
 **Scope of this revision.** Unlike the 2026-08-19 draft this revision incorporates, whose scope note
 read that "section 5.2 (EU AI Act Article 50) was carried forward from the predecessor unchanged and
@@ -124,7 +130,7 @@ prior attestation.
 |---|---|---|
 | 1 | Section 5.2: the disclosure modal "is **built and staged, gated OFF**, not yet enabled for any user" (:261) | The flag is AVAILABLE-only in **code**, but production overrides the code constant through the `default_enabled_features` DB `Setting` and the flag **IS ENABLED** there. Verified 2026-08-23 by direct production read (`docs/legal/2026-08-23_article-50-production-flag-verification.md`, DOC-6c023a20a0, an UNATTESTED evidence record). |
 | 2 | Section 5.2: "so it is **OFF for everyone by default and the whole path is inert** until the flag is enabled" (:266-268) | Not inert. `EuJurisdiction.disclosure_required?` is `status(user) != :non_eu` (`lib/eu_jurisdiction.rb:57-59`), fail-safe OPEN, so `:unknown` requires disclosure. In production `EuJurisdiction.status` is `:unknown` for **34 of 34** accounts and 29 of 34 were gated at the five AI ingresses as of `2026-08-23T23:23:41Z`. The path is maximal, not inert. |
-| 3 | Section 8, 2026-07-22 amendment: "the modal is therefore **shown to no one** in production" (:426-428) | Overtaken by the same read. Retained verbatim as the historical record of the Phase 5 handoff, with a dated correction marker appended in place. |
+| 3 | Section 8, 2026-07-22 amendment: "the modal is therefore **shown to no one** in production" (:426-428) | The flag-OFF rationale is falsified (row 1). The 2026-08-23 probe counted `User#article_50_disclosure_shown?` (5 of 34 true) and `AiApiLog.article_50_disclosure_shown` (63 of 64 true); those bits can also be set by `admin_backfill` (`app/models/user.rb:1550`) or by posting the acknowledgement endpoint (`app/controllers/api/users_controller.rb:957-967`) without the UI having rendered. This record does not claim the modal was shown. It claims the gate is live, so "shown to no one because the flag is off" is false. Retained verbatim as the historical record of the Phase 5 handoff, with a dated correction marker appended in place. |
 | 4 | Population scope, stated by the predecessor only as a forward-looking deferral rationale ("prod carries no real EU users (internal/test accounts only)") | The 34 accounts above are **test/QA accounts, not real users** (confirmed by Scot, 2026-08-24). Production has no real user population. So the corrected posture is that the disclosure is **correctly configured and live**, and separately that **no real person has encountered an undisclosed AI interaction** - a stronger statement than the logs alone support, and one the predecessor could not make either way. |
 | 5 | Stale **Bedrock runtime status**, in four places: the section 2 operational-status note, the section 3 BAA coverage-boundaries bullet, the "Runtime routing update" paragraph, and the closing 2026-08-04 trailer. All state or imply the runtime AI path has been not operational since revision `00014-5rw`. | False since 2026-08-04T07:25:08Z. Credentials were re-mounted 53 minutes after the withdrawal, on `00015-9l9`, and the path has since carried user-attributed traffic (63 of 64 `AiApiLog` rows carry a `user_global_id`). Corrections incorporated from the 2026-08-19 Bedrock truth-up (PR #827), which is superseded by this record and closed. |
 | 6 | **Three sites** (header history line, section 5.2, section 8): the Phase 4 jurisdiction helper "**un-inerts the EU log-retention purge**", which "now matches `jurisdiction = 'EU'` rows". | Overstated. The mechanism IS wired, but it matches **zero rows today**: the stamp writes `'EU'` only for a CONFIRMED `:eu` user and `EuJurisdiction.status` is `:unknown` for 34 of 34 production accounts. So the purge is **wired and dormant**, not un-inerted. The stamp begins writing on the first AI call logged for a confirmed `:eu` user (`EuJurisdiction.locale_is_eu?` resolves `:eu` from a bare `pl`/`de`/`fr` locale; an EU user who makes no AI call produces no stamped row), but the purge only DELETES rows older than five years, and the `jurisdiction` column dates from 2026-06-21, so nothing is deleted by it before ~2031-06. NOTE: `lib/tasks/scheduler.rake:153-158` and `docs/legal/DATA_RETENTION.md:33` still describe this purge as "enforced"; both are listed as declared follow-ups, not corrected here. This claim was falsified by the same 2026-08-23 read that falsified rows 1-3, and was missed by the first correction pass. |
@@ -665,10 +671,11 @@ disclosure modal, its acknowledgement endpoint, and the first-AI-use gate are **
 but gated OFF** behind the `article_50_disclosure` frontend flag, which is registered in
 `AVAILABLE_FRONTEND_FEATURES` only (not enabled for any user); the modal is therefore shown to no
 one in production, and enabling it for EU accounts is the 2026-08-02 release gate on the CEO's
-explicit sign-off after the production deploy. **[CORRECTION 2026-08-25: the two claims in the
-preceding sentence - "not enabled for any user" and "shown to no one in production" - were true of
-the code default and are FALSE of production. A direct read on 2026-08-23 found the flag enabled via
-the `default_enabled_features` DB Setting. This paragraph is retained verbatim as the historical
+explicit sign-off after the production deploy. **[CORRECTION 2026-08-25: the claim "not enabled for any user" was true of
+the code default and is FALSE of production. A direct read on 2026-08-23 found the flag enabled via
+the `default_enabled_features` DB Setting. "Shown to no one in production" is the flag-OFF
+rationale, which that read falsifies; it is not independent proof that the modal was displayed
+(see Corrections row 3). This paragraph is retained verbatim as the historical
 record of what the 2026-07-22 amendment stated; it is not a live claim. The closing sentence of
 this amendment ("Nothing in this refresh goes live in production until Phases 3-5 deploy and the
 flag is enabled") is the same class of overtaken instruction. See "Corrections in this
@@ -713,10 +720,12 @@ first described the move as completed egress, was then over-corrected to say the
 operational, and was then bounded to a closed window ending 2026-08-04 that closed the wrong way.
 The routing change shipped. The Bedrock path was operational 2026-08-03T08:23Z to 2026-08-04T06:31Z
 on revision `00013-76w`, carrying one internal verification call with no user or student data; the
-credential was restored on `00015-9l9` at 2026-08-04T07:25:08Z, and **the path is operational
-today**. The clause "**not operational as of 2026-08-04**" was false from 2026-08-04T07:25:08Z
-onward and is withdrawn. See the 2026-08-19 operational-status note in section 2, including what
-that evidence does not establish, and
+credential was restored on `00015-9l9` at 2026-08-04T07:25:08Z, and **the path was operational on
+the last checked serving revision, `lingolinq-web-00020-per` (swept 2026-08-16)**. No later
+revision has been checked, and credential mounts are non-monotonic (see the operational-status
+note in section 2). The clause "**not operational as of 2026-08-04**" was false from
+2026-08-04T07:25:08Z onward and is withdrawn. See the 2026-08-19 operational-status note in
+section 2, including what that evidence does not establish, and
 `docs/legal/2026-08-12_aws-baa-acceptance-record.md`._
 
 - **Governing BAA for runtime egress, which is live, is the AWS account BAA**
