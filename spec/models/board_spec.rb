@@ -5694,18 +5694,19 @@ describe Board, :type => :model do
       # library cannot resolve records swapped_library even though that second button
       # was never swapped, so provisioning treats the board as done and never retries.
       #
-      # That is DELIBERATE. The alternative -- withhold swapped_library until every
-      # button resolves -- reinstates the exact bug this branch fixes: the board never
-      # matches the idempotency check, so User#copy_to_home_board re-copies the ENTIRE
-      # board set on every provisioning call, forever.
+      # Deliberate, but ONLY for this narrow case: the word is in `_missing`, which is
+      # the library DECLARING it has no symbol for it. swap_images honours that by
+      # skipping the find_images fallback entirely, so re-running yields the same
+      # nothing and a retry is futile. Withholding swapped_library here would buy
+      # nothing and reinstate the bug this branch fixes -- the board never matches the
+      # idempotency check, so User#copy_to_home_board re-copies the ENTIRE board set on
+      # every provisioning call, forever.
       #
-      # A retry also cannot help. `_missing` is the library saying it has no symbol for
-      # that word, and the code honours it by skipping the find_images fallback
-      # entirely (board.rb:2886-2889). Re-running the same swap yields the same nothing.
-      # An unswappable word is a cosmetic gap on one button; an unbounded re-copy loop
-      # on district provisioning is not. swapped_library has never meant "every image
-      # resolved" -- the pre-existing @buttons_changed branch records it when ANY button
-      # changes, while others fail.
+      # The DIFFERENT case -- unresolved but NOT declared missing -- is handled by the
+      # sibling spec below and must stay retryable. Do not collapse the two.
+      #
+      # swapped_library has never meant "every image resolved": the pre-existing
+      # @buttons_changed branch records it when ANY button changes while others fail.
       u = User.create
       member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
       plain = ButtonImage.create(user: u)
@@ -5728,6 +5729,43 @@ describe Board, :type => :model do
       expect(b.buttons.map{|btn| btn['image_id'] }).to eq([member.global_id, plain.global_id])
       # ...and the library is still recorded, so provisioning stays idempotent.
       expect(b.settings['swapped_library']).to eq('opensymbols')
+    end
+
+    it "should NOT record swapped_library when a lookup failed in a way a retry could fix" do
+      # The other half of the pair above, and the one that makes the codex P1 real.
+      #
+      # `_missing` is populated ONLY from the LibraryCache lookup (lib/uploader.rb:776-779).
+      # A word that was never cached and that the remote returned nothing for is absent
+      # from `_missing` entirely, so find_images DOES run for it. And find_images can
+      # come back empty for transient reasons: OpenSymbols.search returns [] on a 429,
+      # on any non-2xx, and on its 10s timeout (lib/open_symbols.rb:42-75). A miss is
+      # only written to the cache when cache_forever is set, which for a non-important
+      # board it is not.
+      #
+      # So "unresolved and not in _missing" may simply mean the API was throttled.
+      # Recording swapped_library there would freeze a transient failure into a
+      # permanently wrong image, because provisioning would never retry the board.
+      u = User.create
+      member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      plain = ButtonImage.create(user: u)
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => member.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => plain.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      # No '_missing' key at all: the library never declared 'cat' unavailable.
+      expect(Uploader).to receive(:default_images).and_return({})
+      # ...so the fallback runs, and comes back empty the way a throttled call would.
+      expect(Uploader).to receive(:find_images).and_return([])
+      b.swap_images(library, u, [], nil)
+      b.reload
+      expect(b.buttons.map{|btn| btn['image_id'] }).to eq([member.global_id, plain.global_id])
+      # Left unrecorded so User#copy_to_home_board will try this board again.
+      expect(b.settings['swapped_library']).to eq(nil)
     end
 
     it "should skip only the member images on a board that mixes libraries" do

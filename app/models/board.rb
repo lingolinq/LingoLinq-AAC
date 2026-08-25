@@ -2849,6 +2849,7 @@ class Board < ApplicationRecord
     if (board_ids.blank? || board_ids.include?(swap_board_id) || (copy_id && swap_board.settings['copy_id'] == copy_id))
       updated_board_ids << swap_board_id
       already_in_library = false
+      unresolved_retryable = false
       if !library.instance_variable_get('@skip_swapped') || swap_board.current_library(true) != library
         # puts " checking if important"
         words = swap_board.buttons.map{|b| [b['label'], b['vocalization']] }.flatten.compact.uniq
@@ -2904,6 +2905,16 @@ class Board < ApplicationRecord
               new_bi.assert_fallback(old_bi)
               button['image_id'] = new_bi.global_id
               @buttons_changed = 'swapped images'
+            elsif !defaults['_missing'] || !defaults['_missing'].include?(button['label'] || button['vocalization'])
+              # Nothing resolved, and the library never DECLARED this word missing --
+              # so find_images above actually ran and came back empty. That is not the
+              # same as "no such symbol": OpenSymbols.search returns [] on a 429, on any
+              # non-2xx, and on its 10s timeout (lib/open_symbols.rb:42-75), and a miss
+              # is only cached when cache_forever is set. A later run may well succeed.
+              # Flagging it keeps the board out of the no-op swapped_library shortcut
+              # below so provisioning can retry, instead of freezing a transient API
+              # failure into a permanently wrong image.
+              unresolved_retryable = true
             end
           end
           button
@@ -2917,10 +2928,12 @@ class Board < ApplicationRecord
         swap_board.settings['swapped_library'] = library
         @map_later = true
         swap_board.save
-      elsif already_in_library && swap_board.settings['swapped_library'] != library
+      elsif already_in_library && !unresolved_retryable && swap_board.settings['swapped_library'] != library
         # Nothing changed, but ONLY because at least one button was already in the
         # target library (the OPENSYMBOLS_MEMBER_LIBRARIES skip above) -- i.e. the
-        # swap succeeded as a no-op rather than finding nothing. Record the library:
+        # swap succeeded as a no-op rather than finding nothing -- AND no button
+        # failed in a way a later run could recover from (see unresolved_retryable
+        # above). Record the library:
         # User#copy_to_home_board and User#copy_board_to_library use
         # settings['swapped_library'] as their idempotency key --
         # (swapped_library || 'original') == (symbol_library || 'original') -- so
