@@ -5689,6 +5689,39 @@ describe Board, :type => :model do
       b.swap_images(library, u, [], nil)
     end
 
+    it "should skip only the member images on a board that mixes libraries" do
+      # The realistic shape: boards are rarely 100% one library. The member image
+      # must be left alone while the non-member one is swapped, and because SOME
+      # button changed, swapped_library goes through the normal @buttons_changed
+      # path rather than the no-op path.
+      u = User.create
+      keep = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      swap = licensed_image(u, 'Tobii Dynavox', 'https://www.tobiidynavox.com/')
+      expect(keep.image_library).to eq('arasaac')
+      expect(swap.image_library).to eq('pcs')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => keep.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => swap.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat'], 'en', u, true, false).and_return({
+        'cat' => {'url' => 'https://www.example.com/cat.png'}
+      })
+      # 'hat' is skipped, so it must never reach the per-word fallback even though
+      # default_images returned nothing for it.
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+      b.reload
+      ids = b.buttons.map{|btn| btn['image_id'] }
+      expect(ids[0]).to eq(keep.global_id)
+      expect(ids[1]).to_not eq(swap.global_id)
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+    end
+
     it "should still swap an image from a library opensymbols does not aggregate" do
       u = User.create
       bi = licensed_image(u, 'Tobii Dynavox', 'https://www.tobiidynavox.com/')
