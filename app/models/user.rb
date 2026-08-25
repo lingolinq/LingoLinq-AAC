@@ -3154,6 +3154,7 @@ class User < ApplicationRecord
 
     existing = self.boards.where(parent_board: original).order('id DESC').first
     if existing && ((existing.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
+      retry_incomplete_library_swap(existing, symbol_library)
       return true
     end
 
@@ -3177,6 +3178,7 @@ class User < ApplicationRecord
     # First, if the user already has a copy as their home board, then stop
     current_home = self.settings['preferences']['home_board'] && Board.find_by_path(self.settings['preferences']['home_board']['id'])
     if current_home && current_home.parent_board == original && ((current_home.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
+      retry_incomplete_library_swap(current_home, symbol_library)
       return true
     elsif current_home && current_home.global_id(true) == original.global_id
       return true
@@ -3184,6 +3186,7 @@ class User < ApplicationRecord
     # Second, if the user already has a copy not as their home bord, then set that
     home = self.boards.where(parent_board: original).order('id DESC').first
     if home && ((home.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
+      retry_incomplete_library_swap(home, symbol_library)
       self.settings['preferences']['home_board'] = {
         'id' => home.global_id,
         'key' => home.key
@@ -3229,6 +3232,21 @@ class User < ApplicationRecord
     return true
   end
 
+  # swapped_library matching is "do not copy_for again". swap_incomplete is
+  # "the last swap left buttons unresolved, run swap_images on THIS copy".
+  # Callers must already have confirmed the library marker matches.
+  def retry_incomplete_library_swap(board, symbol_library)
+    return unless board && symbol_library.present? && symbol_library != 'default' && symbol_library != 'original'
+    board = Board.find_by_global_id(board.global_id) || board
+    return unless board.settings && board.settings['swap_incomplete']
+    ids = [board.global_id]
+    ids += (board.downstream_board_ids || [])
+    ids.instance_variable_set('@skip_keyboard', true)
+    swap_library = symbol_library.dup
+    swap_library.instance_variable_set('@skip_swapped', true)
+    board.swap_images(swap_library, self, ids)
+  end
+  
   def schedule_audit_protected_sources
     ra_cnt = RemoteAction.where(path: "#{self.global_id}", action: 'audit_protected_sources').count
     RemoteAction.create(path: "#{self.global_id}", act_at: 10.minutes.from_now, action: 'audit_protected_sources') if ra_cnt == 0

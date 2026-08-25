@@ -20,6 +20,11 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
+- [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
+- [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
+- [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
+- [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
 - [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
 - [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
@@ -12035,6 +12040,97 @@ had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`
 `version + full sha256 + commit` (and a distinct label per attested byte set — e.g.
 `v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
 [`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
+
+## Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it
+
+`op://LingoLinq Admin/Render API/credential` is not a vault Melissa can see. The key that works is `op://LingoLinq Prod/RENDER_API_KEY/credential`. A Render one-off job starts the moment `POST /v1/services/{id}/jobs` returns 201; there is no deploy-then-execute step like Cloud Run Jobs. `lingolinq-staging` still has `RAILS_ENV=production`, shares `lingolinq-dev-staging-db` with `lingolinq-dev`, and needs `ALLOW_PROD_REBUILD=1` plus `plan-srv-013` (16 GB) for `lingolinq:rebuild_library`. Empty `STAGING_SRV` / `RENDER_API_KEY` makes curl look like it did nothing (exit 0, no body). Ref: [`2026-08-24-render-staging-rebuild-library-job.md`](./2026-08-24-render-staging-rebuild-library-job.md).
+
+## Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures
+
+`defaults['_missing']` reads like the symbol library declaring "there is no symbol
+for this word." It is not. `Uploader.find_images` caches an **empty** result as a
+miss whenever `cache_forever` is set:
+
+```ruby
+cache.add_missing_word(keyword, cache_forever) if cache_forever   # lib/uploader.rb:1015
+```
+
+and `cache_forever` is `important_board` at both call sites in `Board#swap_images`.
+`OpenSymbols.search` returns `[]` on a 429, on any non-2xx, and on its 10s timeout
+— indistinguishable from a genuine miss. So an outage while provisioning a
+*suggested-list* board writes a miss stamped `6.months.from_now`
+(`LibraryCache#add_missing_word:141`), which `LibraryCache#find_words:208-209`
+reads back as `{'missing' => true}` **with no expiry check at all**, and
+`lib/uploader.rb:775-778` folds into `_missing`. The future `added` stamp only
+stops `add_missing_word` from refreshing; it does not age the miss out.
+
+Net: `_missing` conflates "no such symbol" with "the API was down when we asked,"
+and does so *only* on the highest-value boards — the ones flagged important. Never
+treat membership in `_missing` as proof that work is complete or that a retry is
+futile. Using it to skip a redundant lookup within one run is fine; using it as a
+terminal state is not. The cache-write conflation at `uploader.rb:1013-1016` is
+still open.
+
+## Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions
+
+`User#copy_to_home_board` and `User#copy_board_to_library` gate on
+`(swapped_library || 'original') == (symbol_library || 'original')`
+(`app/models/user.rb:3065,3088,3095`). A nil marker is a **library mismatch**:
+those methods `copy_for` a second board set. They do **not** re-run `swap_images`
+on the existing copy. That makes the field hazardous *both* ways, which is what
+made #861 take three attempts plus an adversary pass:
+
+- **Withhold it when the copy-path swap finished** → next `copy_to_home_board`
+  mints a duplicate set and can retarget `home_board`.
+- **Record it when some buttons are still unresolved, with no other flag** →
+  `current_library` returns the marker, the `@skip_swapped` outer gate skips the
+  whole loop, and those buttons are frozen.
+
+Do not use one field for both jobs. `swapped_library` is copy idempotency: record
+it when the copy-path swap ran (already-in-library skip and/or `@buttons_changed`).
+Completeness is `settings['swap_incomplete']`, which re-enters the swap loop even
+when `current_library` already matches, and which `copy_to_home_board` /
+`copy_board_to_library` honor by calling `retry_incomplete_library_swap` on the
+existing board. Trace **both** `swapped_library` writers (`@buttons_changed` and
+the no-op `elsif`) before changing either.
+
+A related trap on #861: do **not** persist `swap_incomplete` on a board that never
+recorded `swapped_library`. The root bubble used to call `save_subtly` whenever
+`@had_unresolved` differed from the stored flag. A found-nothing swap (empty
+lookups, no skip, no button change) still sets `@had_unresolved`, so the bubble
+saved a board the old spec treats as a no-op (`board_spec.rb` "should do nothing
+when no images found"). That `save` is also how PaperTrail got stuck off in CI
+(see the next entry). Gate the bubble on `swapped_library == library`.
+
+## Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised
+
+`Board#save_subtly` (`app/models/concerns/upstream_downstream.rb`) turns
+`PaperTrail.enabled` off, then calls `save_without_post_processing`. Until #861
+the restore was a statement after the call, not an `ensure`. A raise inside that
+window (the `:save` mock on the found-nothing swap spec) left versions disabled
+for every later example in the process: version counts of `0`, "no valid version
+found" on `DeletedBoard#restore!`. Pair the PaperTrail toggle **and**
+`@skip_post_process` with `ensure`. A process-global flag that a spec mock can
+trip is a suite-wide failure, not a local one.
+
+## Technique: one control run on base does not prove a flake — re-run the identical tree
+
+A red example plus a green run on stashed changes feels like proof the change is at
+fault. It is not — it is two samples from two different trees, and a load-sensitive
+test can flip either one. In #861, `board_spec.rb:1343`
+(`Worker`/`RemoteAction` scheduling, never calls `swap_images`) failed once with the
+change, passed on base, then passed again **on the identical failing tree**:
+
+| Run | Tree | Result | Wall |
+|---|---|---|---|
+| 1 | changed | 1 failure `:1343` | 4m26s |
+| 2 | base | 0 failures | 4m28s |
+| 3 | changed (same as 1) | 0 failures | 1m12s |
+
+Only run 3 settled it. The 4m26s → 1m12s swing is the tell: machine load, not code.
+Pair this with RULE #0.10 — reconcile the example **count** against baseline first
+(284 here, matching, so the run completed), then re-run the same tree before
+attributing a failure to your diff *or* dismissing it as noise.
 
 ## Gotcha: COPPA decline copy must split signup vs offboarding on every surface
 
