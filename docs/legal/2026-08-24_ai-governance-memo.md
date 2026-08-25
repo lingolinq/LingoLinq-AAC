@@ -585,7 +585,7 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 | Field | Value |
 |---|---|
 | Prepared by | compliance-officer agent (draft); this successor drafted by Claude Code 2026-08-24 |
-| Reviewed by | adversary agent (predecessor); this successor: dual-reviewed 2026-08-25 (Claude adversary + Codex gpt-5.6-terra); rounds through `438554fa6` applied. This line records rounds run, not a judgement that review is finished -- the register row and PR history are authoritative |
+| Reviewed by | adversary agent (predecessor); this successor: dual-reviewed 2026-08-25 (Claude adversary + Codex gpt-5.6-terra); rounds through `beeeece37` applied. This line records rounds run, not a judgement that review is finished -- the register row and PR history are authoritative |
 | **Attested by (THIS document, v2026-08-24)** | **NOT YET ATTESTED - awaiting Scot Wahlquist, CEO** |
 | **Attestation date (THIS document)** | **pending** |
 | Attested by (PREDECESSOR versions only) | Scot Wahlquist, CEO |
