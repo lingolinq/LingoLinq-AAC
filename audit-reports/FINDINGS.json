@@ -6005,6 +6005,224 @@
         "reviewer": "claude-adversary-review"
       },
       "notes": "Surfaced by the Claude adversary pass over PR #834 and independently confirmed against the merged tree at 73c4e7d6. Not an egress finding -- nothing calls it -- but a loaded capability and a small attack-surface item: any code execution in a prod container finds the vendor SDK class already resident. It is resident but UNCONFIGURED, which is a stronger bound than the absence of any particular credential mount: OpenAI::Configuration#initialize defaults access_token to nil, and ruby-openai 7.4.0 contains no ENV reference anywhere in its lib/, so no environment variable can arm this gem at all -- doing so requires new code. Load-path note for anyone re-deriving this: `require 'ruby-openai'` raises LoadError (the gem ships no ruby-openai.rb), and Bundler swallows that and retries the dash-to-slash form `require 'ruby/openai'`, which succeeds. The absence of ruby-openai.rb is therefore not evidence that the gem stays unloaded. This is defence-in-depth rather than a live exposure. Related: LL-bdc3344942 and LL-94e57af291 cover the dormant credentials themselves; this covers the dormant SDK."
+    },
+    {
+      "id": "LL-f29ce6ca22",
+      "ruleKey": "art50-memo-asserts-disclosure-modal-gated-off-while-production-flag-is-enabled",
+      "title": "Attested AI Governance Memo states the Article 50 disclosure modal is \"built and staged, gated OFF, not yet enabled for any user\"; the production flag is in fact ENABLED via the default_enabled_features DB Setting",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 261,
+        "snippet": "**built and staged, gated OFF**, not yet enabled for any user",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change. The record is the defect. Attest the successor, which states the enabled-in-production fact and names the resolution path.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. Falsified by a direct audited production read on 2026-08-23. Membership in AVAILABLE_FRONTEND_FEATURES is a CEILING, not the enabled list: SystemFeatureSettings.effective_enabled_for returns the default_enabled_features DB Setting intersected against AVAILABLE (system_feature_settings.rb:9,11), so the DB Setting REPLACES the ENABLED_FRONTEND_FEATURES code constant. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 1), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-ea07a705d1",
+      "ruleKey": "art50-memo-asserts-whole-article-50-path-is-inert",
+      "title": "Attested AI Governance Memo states \"the whole path is inert until the flag is enabled\"; the flag is enabled in production, so the path is not inert",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 269,
+        "snippet": "whole path is inert** until the flag is enabled",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change. Attest the successor.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. Same root cause as the gated-OFF claim: the memo reasons from the code constant rather than from SystemFeatureSettings.effective_enabled_for. \"Inert\" is the operative word an auditor would rely on. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 2), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-644bcbf48f",
+      "ruleKey": "art50-memo-asserts-modal-shown-to-no-one-in-production",
+      "title": "Attested AI Governance Memo section 8 states the Article 50 modal \"is therefore shown to no one in production\"; the stated rationale (flag off) is false",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 427,
+        "snippet": "the modal is therefore shown to no",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change. The successor asserts the rationale is false WITHOUT asserting the modal was displayed; preserve that distinction on attestation.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. The RATIONALE is falsified: the flag is not off. The DISPLAY claim is separately unproven in both directions. The 2026-08-23 probe counted User#article_50_disclosure_shown? (5 of 34 accounts), a settings bit also writable by admin_backfill (app/models/user.rb:1550) and by the edit-permitted acknowledgement endpoint, so it does not establish that the UI rendered. Acknowledgement AuditEvents and UI telemetry were not checked. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 3), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-7784f74447",
+      "ruleKey": "art50-memo-population-scope-claims-no-real-eu-users-in-production",
+      "title": "Attested AI Governance Memo justifies deferring the Article 50 gate \"because prod carries no real EU users (internal/test accounts only)\" without a stated basis",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 274,
+        "snippet": "**because prod carries no real EU users**",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change. Keep the population fact anchored to its dated read rather than restated as a standing property.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. The predecessor offered this only as a forward-looking deferral rationale, with no population read behind it. A 2026-08-23 read found all 34 production accounts are test/QA accounts, which happens to support the conclusion but was not the evidence the predecessor had. An unevidenced population claim load-bearing for a regulatory deferral is the defect, independent of it turning out true. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 4), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-5f0a016e2b",
+      "ruleKey": "art50-memo-stale-bedrock-runtime-not-operational-claim",
+      "title": "Attested AI Governance Memo states the Bedrock runtime AI path is \"not operational since\" revision 00014-5rw; credentials were re-mounted 53 minutes later and the path carries user-attributed traffic",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 499,
+        "snippet": "no user or student data), not operational since",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change. Attest the three 2026-08-25 successors plus the memo successor together, so the claim is not left corrected in one record and live in another.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. Credentials were re-mounted on revision 00015-9l9 at 2026-08-04T07:25:08Z and have been continuously mounted since (docs/legal/2026-08-16_subprocessor-register.md:99,268); 63 of 64 AiApiLog rows carry a user_global_id (:96). Revision credential mounts are NOT monotonic, so reading one revision does not establish the next. Highest severity of this set: the error UNDERSTATES live AI egress and the same claim class propagated to COMPLIANCE.md (soc2-evidence bundle, public repo root) and AI_DATA_SHARING_CONSENT.md, each now superseded by a 2026-08-25 Path A successor. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 5), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-ce68ceb1b5",
+      "ruleKey": "art50-memo-claims-phase4-helper-un-inerts-eu-log-retention-purge",
+      "title": "Attested AI Governance Memo states the Phase 4 helper \"un-inerts the EU log-retention purge\" which \"now matches jurisdiction = EU rows\"; the purge cannot delete any row before 2031-06-21",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 283,
+        "snippet": "un-inerts the EU log-retention purge",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change required for compliance. Optionally log the matched-row count so a no-op purge is visible rather than inferred.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248). The jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21. The job runs and matches zero rows. This is an ENFORCEMENT overstatement, not a retention violation: Article 50 requires the logs be kept, and they are. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 6), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-ad67eecb9c",
+      "ruleKey": "art50-memo-describes-disclosure-gate-as-eu-gated-when-it-is-fail-safe-open",
+      "title": "Attested AI Governance Memo describes the deliverable as the \"EU-gated\" disclosure modal; the gate is fail-safe OPEN, so non-EU and unknown-jurisdiction users are also in scope",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 260,
+        "snippet": "**EU-gated AI-interaction disclosure modal**",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change; the fail-safe-open behaviour is the correct design. Fix the description.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. EuJurisdiction.disclosure_required? is status(user) != :non_eu, so UNKNOWN resolves to disclosure-required. \"EU-gated\" reads as an allowlist and understates who sees the modal, which matters for any statement about which populations the disclosure reaches. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 7), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
     }
   ]
 }

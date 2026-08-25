@@ -55,7 +55,6 @@
 | Subprocessor Register (branded) | drive | [open](https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit) | 2026-06-19 | published | Review date is older than 2026-08-18. |
 | Vendor and Subprocessor Management Policy | drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | 2026-06-19 | published | Review date is older than 2026-08-18. |
 | Written Information Security Program (WISP) | drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | 2026-06-19 | published | Review date is older than 2026-08-18. |
-| AI Data-Sharing Consent: Rationale and Policy | git | `docs/legal/AI_DATA_SHARING_CONSENT.md` | 2026-08-04 | approved | Review date is older than 2026-08-18. |
 | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | git | `docs/legal/2026-08-12_aws-baa-acceptance-record.md` | 2026-08-12 | approved | Review date is older than 2026-08-18. |
 | AWS Business Associate Agreement (signed PDF) | git | `docs/legal/AWS_BAA_2026-02.pdf` | 2026-05-11 | published | Review date is older than 2026-08-18. |
 | Accessibility Conformance Report (ACR / VPAT) | git | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` | 2026-06-16 | draft | Review date is older than 2026-08-18. |
@@ -66,7 +65,6 @@
 | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | git | `docs/legal/2026-08-16_anthropic-baa-acceptance-record.md` | 2026-08-16 | approved | Review date is older than 2026-08-18. |
 | Audit Reports Index (audit-reports/README.md) | git | `audit-reports/README.md` | 2026-06-16 | published | Review date is older than 2026-08-18. |
 | COPPA Final-Rule Verification | git | `docs/legal/COPPA_VERIFICATION_2026-04-26.md` | 2026-07-23 | approved | Review date is older than 2026-08-18. |
-| Compliance & Data Governance (COMPLIANCE.md) | git | `COMPLIANCE.md` | 2026-08-04 | approved | Review date is older than 2026-08-18. |
 | Compliance Calendar (compliance-calendar.json) | git | `audit-reports/compliance-calendar.json` | 2026-06-16 | published | Review date is older than 2026-08-18. |
 | Compliance Docs Guide (runbook) | git | `docs/legal/COMPLIANCE_DOCS_GUIDE.md` | 2026-06-21 | published | Review date is older than 2026-08-18. |
 | Data Retention Schedule (2026-08-09 draft) | git | `docs/legal/2026-08-09_data-retention_draft.md` | 2026-08-09 | draft | Review date is older than 2026-08-18. |
@@ -170,7 +168,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `executed-agreement` | term + 7 years | archive | 9 | draft |
 | `corporate-permanent` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `grant-record` | award + 7 years | archive | 0 | unused (no record of this class exists yet) |
-| `policy-version` | supersession + 7 years | archive | 45 | draft |
+| `policy-version` | supersession + 7 years | archive | 48 | draft |
 | `audit-evidence` | 7 years | archive | 18 | draft |
 | `attestation-record` | permanent | archive | 0 | unused (no record of this class exists yet) |
 | `dsar-case` | 3 years | delete | 0 | unused (no record of this class exists yet) |
@@ -179,7 +177,7 @@ Every rule is `status: draft` and legally inert. No deletion behaviour is wired 
 | `working-note` | 90 days | delete | 2 | draft |
 | `operational-config` | retain while in use; supersession + 1 year | archive | 15 | draft |
 
-All 89 rows carry a retention block.
+All 92 rows carry a retention block.
 
 No retention rule has been approved. Nothing in this register is eligible for disposition.
 
@@ -230,10 +228,13 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | Superseded | Location | Replaced by | Still bundled in |
 |---|---|---|---|
 | AI Data-Flow Classification | `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md` | AI Data-Flow Classification (2026-08-17 successor) | (none) |
+| AI Data-Flow Classification (2026-08-17 successor) | `docs/legal/2026-08-17_ai-data-flow-classification.md` | AI Data-Flow Classification (2026-08-25 successor) | school-dpa-package, security-review, dsar |
+| AI Data-Sharing Consent: Rationale and Policy | `docs/legal/AI_DATA_SHARING_CONSENT.md` | AI Data-Sharing Consent: Rationale and Policy (2026-08-25 successor) | (none) |
 | AI Governance Memo | `docs/legal/AI_GOVERNANCE_MEMO.md` | AI Governance Memo (2026-08-24 successor) | compliance-records-set-2026-06, security-review |
 | AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | AWS BAA Acceptance and Runtime Status Record | (none) |
 | AWS BAA Acceptance and Runtime Status Record | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | (none) |
 | Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | (none) |
+| Compliance & Data Governance (COMPLIANCE.md) | `COMPLIANCE.md` | Compliance & Data Governance (2026-08-25 successor) | soc2-evidence |
 | Compliance & Security Program | `docs/legal/2026-08-20_compliance-program.md` | Compliance & Security Program (2026-08-22 successor) | (none) |
 | Compliance Posture Report | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | Compliance Posture Report (2026-08-09 draft) | (none) |
 | Compliance Posture Report | `docs/legal/2026-08-20_compliance-posture-report.md` | Compliance Posture Report (2026-08-22 successor) | school-dpa-package, security-review, grant |
@@ -298,4 +299,4 @@ The missing layer is a Google Docs publisher/refresh workflow. Until that exists
 
 ---
 
-_89 documents tracked. 63 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 17 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._
+_92 documents tracked. 61 stale review item(s). 27 Drive refresh item(s). 4 Notion hash item(s). 23 inferred retention class(es). 0 legal hold(s). 20 superseded record(s). 0 drifted attestation(s), 0 attested record(s) with no pinned hash, none awaiting re-attestation. 23 bundle gap(s) across 6 bundle(s)._

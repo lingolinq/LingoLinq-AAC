@@ -507,7 +507,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "COMPLIANCE.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -540,7 +540,43 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-f6d26afec8"
+    },
+    {
+      "id": "DOC-f6d26afec8",
+      "title": "Compliance & Data Governance (2026-08-25 successor)",
+      "description": "Path A successor to the CEO-attested repo-root COMPLIANCE.md. Corrects two sites stating the Anthropic/Bedrock runtime AI path is NOT OPERATIONAL and that AiClient.configured? is false. Credentials were re-mounted on revision 00015-9l9 at 2026-08-04T07:25:08Z, 53 minutes after the withdrawal the predecessor recorded as the end state, and have been continuously mounted since; the path carries user-attributed traffic (63 of 64 AiApiLog rows have a user_global_id).",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-25_compliance-data-governance.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-25",
+      "nextReviewDue": "2026-11-25",
+      "attestation": {},
+      "bundles": [
+        "soc2-evidence"
+      ],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-9b299a785b",
+      "notes": "Path A successor to DOC-9b299a785b (attested 2026-08-04), created 2026-08-25. Corrects the Bedrock runtime operational-status claim at two sites: the subprocessor table Anthropic row (:130, \"NOT OPERATIONAL as of 2026-08-04 ... Not operational before or since ... Nothing egresses while the path is dormant\") and the architecture-diagram status note (:182-190, \"the model leg of this diagram is NOT OPERATIONAL. No lingolinq-web revision currently carries a Bedrock credential\"). Both were overtaken 53 minutes after the moment they describe by the 00015-9l9 re-mount (evidence: docs/legal/2026-08-16_subprocessor-register.md:99,268; row counts :96). Direction of error is understatement of live AI egress, and the predecessor is in the soc2-evidence bundle, so the claim travels to auditors and prospects. GOVERNANCE NOTE FOR THE ATTESTER: Path A leaves the repo-root COMPLIANCE.md frozen with the false claim and no in-file pointer, in a PUBLIC AGPLv3 repository. If that is unacceptable, Path B (re-pin and re-attest COMPLIANCE.md in place) is the alternative and only Scot can authorise it; this successor is drafted so its corrected text serves either path.",
+      "contentHash": "833474fea677701aacf61918bc442daf970bb61dec70bff0210f95318f077cfa"
     },
     {
       "title": "Compliance Program",
@@ -973,7 +1009,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "2027-04-20",
       "attestation": {},
-      "contentHash": "032d6a3e9b7e784295d252b3dafb603935d02482d558c257d7cc2ddcc3f916dd",
+      "contentHash": "38f8f95a3a20ddb6421d57bfed71c0db37f6906756aac9abea5f443aed82f4df",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -1648,7 +1684,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "95525f36e75c2ad61f8ffbc0fe433f33b7d33a1afca742795746d52627334410",
+      "contentHash": "04172d9984398a6bc63de9b6298bfb957e559e45ce5b953823928850e839a723",
       "bundles": [],
       "mirrors": [
         {
@@ -2998,7 +3034,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/2026-08-17_ai-data-flow-classification.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -3029,7 +3065,44 @@
         "attestedDate": "2026-08-19",
         "attestedContentHash": "473e7ebb4ef8e103a784b013d96a0957e2c6bad595b1153497f8716150df8362",
         "note": "First attestation of this dated successor (Path A successor to DOC-90b5d33227). Section 2's audit-basis paragraph was annotated before signing: it describes the code at c595f6304, which predates PR #570, and read in the present tense would have wrongly implied this product ships an OpenAI SDK aimed at Gemini."
-      }
+      },
+      "supersededBy": "DOC-48adac383b"
+    },
+    {
+      "id": "DOC-48adac383b",
+      "title": "AI Data-Flow Classification (2026-08-25 successor)",
+      "description": "Path A successor to the CEO-attested 2026-08-17 AI Data-Flow Classification. Withdraws the claim that the EU-jurisdiction AiApiLog retention tier is \"Enforced\" and \"Now functional ... matches EU rows\". The scheduled purge cannot delete any row before 2031-06-21 because the jurisdiction column was created 2026-06-21 and the window is 5 years.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-25_ai-data-flow-classification.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-08-25",
+      "nextReviewDue": "2026-11-25",
+      "attestation": {},
+      "bundles": [
+        "school-dpa-package",
+        "security-review",
+        "dsar"
+      ],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-6d37a68cf4",
+      "notes": "Path A successor to DOC-6d37a68cf4 (attested 2026-08-19), created 2026-08-25. Corrects an ENFORCEMENT claim, not a compliance one: purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248); the jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21 and the job matches zero rows until then. Two carriers: the attestation-history narrative (:36, PR #656 moved \"the EU tier from inert to functional\") and the section 6 retention table (:293). Article 50 record-keeping requires the logs be KEPT and they are; no data was retained longer than a rule permits. The defect is that a document offered as evidence described a dormant job as an operating control. The same claim was corrected in place in the unattested draft docs/legal/2026-08-09_data-retention_draft.md (DOC-e62caf7fb9), which needed no supersession.",
+      "contentHash": "07182762e414ba430219bdda0135c9d686962abb622748a2dfb7f36cc972c185"
     },
     {
       "title": "AI Data-Sharing Consent: Rationale and Policy",
@@ -3038,7 +3111,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AI_DATA_SHARING_CONSENT.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -3067,7 +3140,39 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "id": "DOC-2e9fdc06e4"
+      "id": "DOC-2e9fdc06e4",
+      "supersededBy": "DOC-33e056e136"
+    },
+    {
+      "id": "DOC-33e056e136",
+      "title": "AI Data-Sharing Consent: Rationale and Policy (2026-08-25 successor)",
+      "description": "Path A successor to the CEO-attested AI Data-Sharing Consent rationale. Corrects two operational-status facts in the section 3 bullet: the 2026-08-04 verification call was the first AiApiLog row but not the only one (64 rows as of 2026-08-16, 63 user-attributed), and the path did not stop being operational at the 00014-5rw withdrawal. The consent policy itself is unchanged.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-25_ai-data-sharing-consent.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-08-25",
+      "nextReviewDue": "2026-11-25",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-2e9fdc06e4",
+      "notes": "Path A successor to DOC-2e9fdc06e4 (attested 2026-08-04), created 2026-08-25. Corrects (1) \":66 recorded as the first and only row in AiApiLog\" - it was the first, not the only: 64 rows as of 2026-08-16, 63 carrying a user_global_id (docs/legal/2026-08-16_subprocessor-register.md:96,99); and (2) \":67 the path is not operational as of that timestamp\" - credentials were re-mounted 53 minutes later on 00015-9l9 at 2026-08-04T07:25:08Z and have been continuously mounted since (same source, :99,268). Revision credential mounts are NOT monotonic, so a status read from one revision does not establish a subsequent one. No consent policy, gate, or disclosure text changes; only the operational-status facts. A consent rationale is read to decide what families are told, so an UNDERSTATED egress is the direction of error that matters.",
+      "contentHash": "f82a6f9f3c150407555e99b2066b5d847a3542bcba2a241faece2161dc258fd5"
     },
     {
       "title": "LingoLinq Security, Privacy & Compliance Overview",
