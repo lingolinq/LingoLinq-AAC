@@ -1579,6 +1579,9 @@ describe Api::BoardsController, :type => :controller do
         # docs/legal/2026-08-23_article-50-production-flag-verification.md). What makes
         # feature_enabled_for? false here is that the TEST DB carries no such Setting row.
         # Any jurisdiction/acknowledgement combination must be unaffected on this path.
+        # Guard: pin the code-default explicitly so seeding a default_enabled_features
+        # row in test cannot silently invert this assertion.
+        allow(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).and_return(false)
         allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
         allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
         allow(AiBoardGenerator).to receive(:generate_words).and_return(

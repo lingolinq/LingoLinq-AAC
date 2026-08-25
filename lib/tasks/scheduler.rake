@@ -152,9 +152,15 @@ task "scheduler:dispatch" => :environment do
     #
     # ENFORCED here today:
     #   - EU 5-year purge (purge_old_eu_ai_api_logs below): scans jurisdiction = 'EU'
-    #     rows, which the Art50 Phase 4 shared call-context helper now stamps at the
-    #     three AI call sites. It is functional wherever Phase 4 is deployed (staged
-    #     on staging; effective in production only after the Phase 4/5 prod deploy).
+    #     rows, which the Art50 Phase 4 shared call-context helper stamps at the three
+    #     AI call sites. CORRECTED 2026-08-25: this said the purge is "functional
+    #     wherever Phase 4 is deployed (staged on staging; effective in production only
+    #     after the Phase 4/5 prod deploy)". Phase 4 IS in production. The purge is
+    #     WIRED but currently deletes NOTHING: the stamp writes 'EU' only for a
+    #     confirmed :eu user, production has none, and the filter is
+    #     created_at < 5.years.ago while the jurisdiction column dates from
+    #     2026-06-21 -- so no row can match before ~2031-06. See
+    #     docs/legal/2026-08-23_article-50-production-flag-verification.md.
     #   - 90-day IP redaction (redact_old_ai_api_log_ips above).
     #   - Row-lifecycle deletion when the owning account is deleted (Flusher cascade).
     #

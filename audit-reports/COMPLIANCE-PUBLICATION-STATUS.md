@@ -236,7 +236,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | (none) |
 | Compliance & Security Program | `docs/legal/2026-08-20_compliance-program.md` | Compliance & Security Program | (none) |
 | Compliance Posture Report | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | Compliance Posture Report (2026-08-09 draft) | (none) |
-| Compliance Posture Report | `docs/legal/2026-08-20_compliance-posture-report.md` | Compliance Posture Report | school-dpa-package, security-review, grant |
+| Compliance Posture Report | `docs/legal/2026-08-20_compliance-posture-report.md` | Compliance Posture Report (2026-08-22 successor) | school-dpa-package, security-review, grant |
 | Compliance Posture Report (2026-08-09 draft) | `docs/legal/2026-08-09_compliance-posture-report_draft.md` | Compliance Posture Report | (none) |
 | Compliance Posture Report (branded) | [open](https://docs.google.com/document/d/1A2cM0m6GvErHwpiMgns258NbN_M2krNB_HyedHJkqpk/edit) | Compliance Posture Report (branded, 2026-07-16 re-attest) | compliance-records-set-2026-06 |
 | Compliance Program | `docs/legal/COMPLIANCE_PROGRAM.md` | Compliance Program (2026-08-09 draft) | compliance-records-set-2026-06 |

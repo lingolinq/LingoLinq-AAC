@@ -246,7 +246,10 @@ testing.
 3. **Code and DB disagree on the default feature set.** A reader of `lib/feature_flags.rb` alone
    reaches the wrong conclusion about production. That is what produced the defect corrected here.
 4. **Runtime-code comments shipping in the live image were falsified by this record.**
-   RESOLVED 2026-08-25, **eight carriers, all closed**:
+   RESOLVED 2026-08-25. **Scope of this closure, stated as scope rather than as a count:** every
+   carrier found by a full read of `app/`, `lib/`, `spec/`, `db/`, `lib/tasks/` and `docs/`
+   (including `docs/task-management/`) is corrected. Nine are listed below. The count is deliberately
+   NOT the claim -- see the process note, which records that a count has been wrong here six times:
    - `app/controllers/application_controller.rb` -- corrected by PR #853; `:411` now reads "this
      guard is LIVE in production, not inert".
    - `app/controllers/api/boards_controller.rb:580` -- "the guard is inert until the flag is
@@ -276,11 +279,35 @@ testing.
      `AVAILABLE_FRONTEND_FEATURES` on this branch" and calling that "**the shipping state**". Doubly
      false: the flag IS registered there, and production enables it via the DB Setting. Found only
      after the seventh was fixed, by a reviewer searching `spec/` a second time. Corrected here.
+   - `docs/task-management/LEARNINGS.md:6371` -- "`article_50_disclosure` is AVAILABLE-only -- do not
+     enable it just to exercise the backstop". A TRACKED in-repo carrier, in the one file `CLAUDE.md`
+     Rule #0 item 8 orders every agent and developer to read BEFORE starting a researched task. It
+     therefore has a higher read rate on this exact decision than any of the eight code carriers, and
+     it carried an operational instruction that is now wrong. No prior sweep looked at `docs/` outside
+     `docs/legal/`. Corrected here.
 
-   **Process note, and it is the useful part of this item.** This item was closed FIVE times on
-   incomplete sweeps: at two carriers, then four, then six, then seven, now eight. The eighth was in
-   a spec file, found on a SECOND search of `spec/` after the seventh had already been fixed -- so
-   even widening the search space did not exhaust it on the first pass. Each closure was made in good
+   **Process note, and it is the useful part of this item.** This item was closed SIX times on
+   incomplete sweeps: at two carriers, then four, six, seven, eight, now nine. Every closure was made
+   in good faith immediately after a sweep, and every one was wrong.
+
+   The failures were not carelessness; each had a distinct structural cause:
+   - 2 -> 4: the sweep was keyword-scoped to wording already known ("inert").
+   - 4 -> 6: it read controllers but skimmed the model layer.
+   - 6 -> 7: it searched only `app/` and `lib/`, never `spec/`.
+   - 7 -> 8: it searched `spec/` once and stopped at the first hit.
+   - 8 -> 9: it searched `spec/` twice but never `docs/` outside `docs/legal/` -- missing the file
+     Rule #0 requires every agent to read first.
+
+   **The count was the defect.** A number invites the next false closure: it reads as a verified
+   total when it is only a tally of what the last search happened to reach. This item now states
+   SCOPE -- which directories were read in full -- so a reader can see what was NOT searched and
+   judge the residual risk themselves.
+
+   A grep gate over `inert` + `article_50_disclosure`, the counter-measure this item once proposed,
+   would have found four of the nine. Carriers 7, 8 and 9 are not comments at all -- two are green
+   TEST NAMES and one is a learnings entry -- so no comment-scoped or phrase-scoped mechanism could
+   ever reach them. What worked was independent reviewers with different reading strategies, each
+   searching somewhere the last one had not. Each closure was made in good
    faith after a sweep, and each sweep was scoped by the wording of the carriers already known.
 
    Each escalation came from a DIFFERENT method, not from a better keyword list:
