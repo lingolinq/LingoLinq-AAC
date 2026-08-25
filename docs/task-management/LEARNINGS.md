@@ -6368,7 +6368,7 @@ flag — no user/org scope) skips every consent check on a cache HIT; the genera
 `ai_feature_enabled_for?` only runs on MISS. Specs that only exercise the miss path pass against
 the broken code. Mutation-test cache-hit 403 examples: revert the controller gate, confirm red
 (200 + cached words), restore, confirm green. Mirror `boards_controller#generate_labels` for the
-gate + Article 50 backstop (`article_50_disclosure` is registered AVAILABLE-only in CODE, but production ENABLES it via the `default_enabled_features` DB Setting — verified 2026-08-23, see `docs/legal/2026-08-23_article-50-production-flag-verification.md`; do not enable or disable it just to
+gate + Article 50 backstop (`article_50_disclosure` is registered AVAILABLE-only in CODE, but production ENABLES it via the `default_enabled_features` DB Setting -- verified 2026-08-23, see `docs/legal/2026-08-23_article-50-production-flag-verification.md`; do not enable or disable it just to
 exercise the backstop). See `docs/task-management/2026-08-07-focus-words-consent-gate.md`.
 
 ## Pattern: every external-model call site must gate the same way (COPPA + org opt-out + PiiScrubber + AiApiLog)

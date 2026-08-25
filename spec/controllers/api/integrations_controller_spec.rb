@@ -560,7 +560,7 @@ describe Api::IntegrationsController, :type => :controller do
           # Jurisdiction/ack must not affect the response on this path.
           # Guard: pin the code-default explicitly so seeding a default_enabled_features
           # row in test cannot silently invert this assertion.
-          allow(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).and_return(false)
+          expect(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).at_least(:once).and_return(false)
           allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
           allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
           expect(AiBoardGenerator).not_to receive(:generate_focus_words)

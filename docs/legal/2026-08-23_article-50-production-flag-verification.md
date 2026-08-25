@@ -246,10 +246,27 @@ testing.
 3. **Code and DB disagree on the default feature set.** A reader of `lib/feature_flags.rb` alone
    reaches the wrong conclusion about production. That is what produced the defect corrected here.
 4. **Runtime-code comments shipping in the live image were falsified by this record.**
-   RESOLVED 2026-08-25. **Scope of this closure, stated as scope rather than as a count:** every
-   carrier found by a full read of `app/`, `lib/`, `spec/`, `db/`, `lib/tasks/` and `docs/`
-   (including `docs/task-management/`) is corrected. Nine are listed below. The count is deliberately
-   NOT the claim -- see the process note, which records that a count has been wrong here six times:
+   RESOLVED 2026-08-25 for every EDITABLE carrier. **Scope, stated as scope rather than as a count,
+   with its exclusions named:**
+
+   *Swept and corrected:* a full read of `app/`, `lib/`, `spec/`, `db/`, `lib/tasks/` and `docs/`
+   (including `docs/task-management/`). Nine carriers are listed below as evidence. The count is
+   deliberately NOT the claim -- see the process note, which records that a count has been wrong here
+   six times.
+
+   *NOT swept, and unreachable by edit:* four ATTESTED documents carry this claim and are frozen
+   under Path A governance, which forbids editing attested bytes. They are addressed by supersession,
+   not correction, and are named here so this closure cannot be read as covering them:
+   `docs/legal/AI_GOVERNANCE_MEMO.md` (:18, :269, :427 -- superseded by `DOC-506bbe2039`, this PR),
+   `docs/legal/2026-08-20_compliance-posture-report.md` (:36, :138 -- superseded by `DOC-c5408d90b7`,
+   which is now carried alongside it in all three affected bundles),
+   `docs/legal/2026-08-20_compliance-program.md` (:137, :308 -- superseded by `DOC-e5e85eccb1`), and
+   `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` (:75 -- superseded by `DOC-af01c65b10`). Each
+   successor exists and corrects the claim; none is attested, so until Scot attests them the
+   customer-facing packs contain both the signed-but-false record and its unsigned correction. That
+   residual is deliberate and is recorded on `DOC-506bbe2039` and `DOC-c5408d90b7`.
+
+   The carriers corrected by this record:
    - `app/controllers/application_controller.rb` -- corrected by PR #853; `:411` now reads "this
      guard is LIVE in production, not inert".
    - `app/controllers/api/boards_controller.rb:580` -- "the guard is inert until the flag is
@@ -285,48 +302,57 @@ testing.
      therefore has a higher read rate on this exact decision than any of the eight code carriers, and
      it carried an operational instruction that is now wrong. No prior sweep looked at `docs/` outside
      `docs/legal/`. Corrected here.
+   - `app/frontend/tests/components/focus-words-article50-test.js:217` -- a THIRD green test name,
+     "dispatches normally when the flag is off, so the non-EU and **pre-enable** paths are unchanged".
+     "pre-enable" asserts the flag has not been enabled in production. Found inside `app/` -- the
+     first directory the previous version of this scope statement claimed to have read in full.
+     Corrected here.
 
-   **Process note, and it is the useful part of this item.** This item was closed SIX times on
-   incomplete sweeps: at two carriers, then four, six, seven, eight, now nine. Every closure was made
-   in good faith immediately after a sweep, and every one was wrong.
+   **Process note, and it is the useful part of this item.** This item has now been closed on an
+   incomplete sweep FIVE demonstrated times: at two carriers, then four, six, seven, eight, nine --
+   each time in good faith immediately after a search, each time wrong. This is the sixth closure and
+   **it does not certify itself**; the entry below records why no closure of this item should be read
+   as final.
 
-   The failures were not carelessness; each had a distinct structural cause:
-   - 2 -> 4: the sweep was keyword-scoped to wording already known ("inert").
-   - 4 -> 6: it read controllers but skimmed the model layer.
-   - 6 -> 7: it searched only `app/` and `lib/`, never `spec/`.
-   - 7 -> 8: it searched `spec/` once and stopped at the first hit.
-   - 8 -> 9: it searched `spec/` twice but never `docs/` outside `docs/legal/` -- missing the file
-     Rule #0 requires every agent to read first.
+   Each failure had a distinct structural cause, and none was carelessness:
+   - 2 -> 4: keyword-scoped to wording already known (`inert`).
+   - 4 -> 6: read the controllers, skimmed the model layer.
+   - 6 -> 7: searched `app/` and `lib/`, never `spec/`.
+   - 7 -> 8: searched `spec/` once, stopped at the first hit.
+   - 8 -> 9: searched `spec/` twice, never `docs/` outside `docs/legal/` -- missing the file
+     `CLAUDE.md` Rule #0 requires every agent to read first.
+   - 9 -> 10: replaced the count with a claim to have read whole directories -- and the very first
+     directory named (`app/`) still contained an uncorrected carrier in `app/frontend/tests/`.
 
-   **The count was the defect.** A number invites the next false closure: it reads as a verified
-   total when it is only a tally of what the last search happened to reach. This item now states
-   SCOPE -- which directories were read in full -- so a reader can see what was NOT searched and
-   judge the residual risk themselves.
+   **Two counter-measures were tried here and BOTH failed.** First a count, which reads as a verified
+   total when it is only a tally of what the last search reached. Then a scope statement, on the
+   theory that "which directories were read" is auditable where a number is not. It is not: "I read
+   directory X in full" is the same unverifiable self-report, and it broke on its first directory.
+   A grep gate -- the third proposal -- would have found four of the ten, since carriers 7, 8, 9 and
+   10 are not comments at all (three green TEST NAMES and a learnings entry), so no comment- or
+   phrase-scoped mechanism can reach them.
 
-   A grep gate over `inert` + `article_50_disclosure`, the counter-measure this item once proposed,
-   would have found four of the nine. Carriers 7, 8 and 9 are not comments at all -- two are green
-   TEST NAMES and one is a learnings entry -- so no comment-scoped or phrase-scoped mechanism could
-   ever reach them. What worked was independent reviewers with different reading strategies, each
-   searching somewhere the last one had not. Each closure was made in good
-   faith after a sweep, and each sweep was scoped by the wording of the carriers already known.
+   **What actually worked, every time, was an independent reviewer with a different reading strategy
+   searching somewhere the previous one had not.** That is a property of the process, not of any
+   artifact, and it cannot be asserted by this document.
 
-   Each escalation came from a DIFFERENT method, not from a better keyword list:
-   - carriers 3-4 (`feature_flags.rb`, `article50_gate.js`): an adversarial reviewer reading the
-     flag-resolution path end to end;
-   - carriers 5-6 (`user.rb`): a second, independent reviewer that read the model layer the first
-     had skimmed;
-   - carrier 7 (`integrations_controller_spec.rb`): a third pass that searched `spec/`, which no
-     previous sweep had looked at at all.
+   **Recommended durable counter-measure, for Scot's decision (NOT implemented here):** track each
+   falsified ASSERTION as its own row in `audit-reports/FINDINGS.json`, closed individually with
+   evidence, rather than as a prose claim in this record about how thoroughly someone read. A row
+   cannot be closed by a sweep that never looked at it; a prose claim can. Creating those rows is a
+   governance act and is deliberately left to Scot.
 
-   A grep gate over `inert` co-occurring with `article_50_disclosure` -- the counter-measure this
-   item once proposed -- would have found the first four and missed all three of the rest: they say
-   "shown=false", "nothing calls it", and "AVAILABLE-only shipping state", and none uses the word
-   "inert". Recording that explicitly, because the tempting lesson ("add a grep gate") is the wrong
-   one. No phrase list derived from known carriers can bound a defect class whose defining property
-   is being phrased in a way nobody anticipated. What worked was independent reviewers with
-   different reading strategies, and widening the search space (`spec/`) rather than the keyword
-   list. Carrier 7 is the sharpest case: it was not a comment at all but a GREEN TEST NAME, which no
-   comment-scoped sweep could ever have reached.
+   **Known carriers NOT corrected, because they are ATTESTED and frozen under Path A** (editing
+   attested bytes is forbidden; each needs a successor, which is separate work):
+   - `COMPLIANCE.md:130,181-190` -- repo ROOT of a public AGPLv3 repo, `DOC-9b299a785b`, status
+     `approved`, in the `soc2-evidence` bundle. Says the Bedrock runtime is "NOT OPERATIONAL ...
+     **not operational before or since**". This is the strongest surviving form of the claim.
+   - `docs/legal/2026-08-17_ai-data-flow-classification.md:293` -- `approved`, attested 2026-08-19,
+     ships in `school-dpa-package`, `security-review` and `dsar`.
+   - `docs/legal/AI_DATA_SHARING_CONSENT.md:66-67` -- `approved`; says the log holds "the first and
+     only row in `AiApiLog`". There are 64.
+   - `docs/legal/DATA_RETENTION.md:33` -- describes the EU purge as "enforced".
+   - The four superseded-and-attested records already named in the scope exclusions above.
 
 5. **Two human-owned fields in the findings SSOT carried the same falsified claim.**
    RESOLVED 2026-08-24 by PR #850. `audit-reports/FINDINGS.json` finding LL-6723438462 previously

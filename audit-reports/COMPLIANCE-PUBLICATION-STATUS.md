@@ -234,7 +234,7 @@ A superseded record is never edited, renamed, or moved. It keeps its row and its
 | AWS BAA Acceptance Record | `docs/legal/AWS_BAA_ACCEPTED.md` | AWS BAA Acceptance and Runtime Status Record | (none) |
 | AWS BAA Acceptance and Runtime Status Record | `docs/legal/2026-08-11_aws-baa-acceptance-record.md` | AWS BAA Acceptance and Runtime Status Record (2026-08-12) | (none) |
 | Anthropic HIPAA-Ready BAA Acceptance Record | `docs/legal/ANTHROPIC_BAA_ACCEPTED.md` | Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16) | (none) |
-| Compliance & Security Program | `docs/legal/2026-08-20_compliance-program.md` | Compliance & Security Program | (none) |
+| Compliance & Security Program | `docs/legal/2026-08-20_compliance-program.md` | Compliance & Security Program (2026-08-22 successor) | (none) |
 | Compliance Posture Report | `docs/legal/COMPLIANCE_POSTURE_REPORT.md` | Compliance Posture Report (2026-08-09 draft) | (none) |
 | Compliance Posture Report | `docs/legal/2026-08-20_compliance-posture-report.md` | Compliance Posture Report (2026-08-22 successor) | school-dpa-package, security-review, grant |
 | Compliance Posture Report (2026-08-09 draft) | `docs/legal/2026-08-09_compliance-posture-report_draft.md` | Compliance Posture Report | (none) |

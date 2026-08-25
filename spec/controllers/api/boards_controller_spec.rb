@@ -1581,7 +1581,7 @@ describe Api::BoardsController, :type => :controller do
         # Any jurisdiction/acknowledgement combination must be unaffected on this path.
         # Guard: pin the code-default explicitly so seeding a default_enabled_features
         # row in test cannot silently invert this assertion.
-        allow(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).and_return(false)
+        expect(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).at_least(:once).and_return(false)
         allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
         allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
         allow(AiBoardGenerator).to receive(:generate_words).and_return(

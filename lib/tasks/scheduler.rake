@@ -150,14 +150,15 @@ task "scheduler:dispatch" => :environment do
     # up to 5 years EU-jurisdiction, up to 6 years HIPAA hard floor
     # (45 CFR 164.316(b)(2)). NOT a flat 24-month purge.
     #
-    # ENFORCED here today:
+    # WIRED here today (per-item status below; the EU purge currently matches zero rows):
     #   - EU 5-year purge (purge_old_eu_ai_api_logs below): scans jurisdiction = 'EU'
     #     rows, which the Art50 Phase 4 shared call-context helper stamps at the three
     #     AI call sites. CORRECTED 2026-08-25: this said the purge is "functional
     #     wherever Phase 4 is deployed (staged on staging; effective in production only
     #     after the Phase 4/5 prod deploy)". Phase 4 IS in production. The purge is
     #     WIRED but currently deletes NOTHING: the stamp writes 'EU' only for a
-    #     confirmed :eu user, production has none, and the filter is
+    #     confirmed :eu user, production had none as of the 2026-08-23 audited read,
+    #     and the filter is
     #     created_at < 5.years.ago while the jurisdiction column dates from
     #     2026-06-21 -- so no row can match before ~2031-06. See
     #     docs/legal/2026-08-23_article-50-production-flag-verification.md.
