@@ -20,6 +20,7 @@ unless Rails.env.development? || Rails.env.test?
 end
 
 require 'json'
+require 'securerandom'
 
 host = JsonApi::Json.absolute_host
 abort 'no host: set DEFAULT_HOST' if host.blank?
@@ -31,7 +32,14 @@ def build_child(stamp, suffix)
     'name' => "qa_consent_#{suffix}_#{stamp}",
     'user_name' => "qa_consent_#{suffix}_#{stamp}",
     'email' => "qa_consent_#{suffix}_#{stamp}@example.com",
-    'password' => 'abcdef123456',
+    # Random per account, never printed. This started as a hardcoded literal and
+    # gitleaks' generic-api-key rule blocked the PR on it -- correctly, even
+    # though the value was a throwaway for a dev-only account: a committed
+    # credential-shaped literal is worth failing a build over, and the fix is to
+    # stop committing one rather than to allowlist it. Nothing needs the value
+    # back: the harness reaches these accounts through consent-token URLs, never
+    # by signing in, so there is no reason for a human to know it either.
+    'password' => SecureRandom.hex(16),
     'terms_agree' => true,
     'coppa_under_13' => true,
     'parent_consent_email' => "qa_parent_#{suffix}_#{stamp}@example.com"
