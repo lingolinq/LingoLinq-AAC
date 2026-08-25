@@ -121,8 +121,11 @@ class User < ApplicationRecord
     res
   end
   
+  # A bare address when there is no name. Mail::Address happily normalizes
+  # " <a@b.com>" to "a@b.com", but building the string that way puts a stray
+  # leading space into logs and any code that treats this as a display label.
   def named_email
-    "#{self.settings['name']} <#{self.settings['email']}>"
+    self.settings['name'].blank? ? self.settings['email'] : "#{self.settings['name']} <#{self.settings['email']}>"
   end
 
   def external_email_allowed?
@@ -133,7 +136,7 @@ class User < ApplicationRecord
   
   def prior_named_email
     email = self.settings['old_emails'][-1]
-    "#{self.settings['name']} <#{email}>"
+    self.settings['name'].blank? ? email : "#{self.settings['name']} <#{email}>"
   end
   
   def registration_type
@@ -1024,7 +1027,20 @@ class User < ApplicationRecord
       )
       res = true
     end
-    devices.each(&:invalidate_cached_keys) if res
+    # invalidate_keys!, NOT invalidate_cached_keys. The latter only deletes the
+    # Redis `user_token/...` cache entries and leaves settings['keys'] intact, so
+    # every token issued before the revocation stayed VALID -- verified: a bearer
+    # token minted pre-revoke still returned the child's record from
+    # /api/v1/users/self afterwards. Device#valid_token? checks only `disabled?`
+    # and key membership (no consent check) and refreshes last_timestamp on use,
+    # so an actively-used session would never age out either. Withdrawal of
+    # consent is the one control COPPA guarantees a parent; it has to end access
+    # already granted, not just block the next sign-in.
+    #
+    # The sibling call sites deliberately keep invalidate_cached_keys: granting
+    # (grant_parental_consent!), submitting a parent email, and family
+    # offboarding all want fresh permissions WITHOUT logging the user out.
+    devices.each(&:invalidate_keys!) if res
     res
   end
 
@@ -1741,7 +1757,16 @@ class User < ApplicationRecord
 
   def generate_defaults
     self.settings ||= {}
-    self.settings['name'] ||= "No name"
+    # NOTE: settings['name'] is deliberately NOT defaulted. Signup collects no
+    # name, and this used to seed the literal string "No name", which is not a
+    # null value -- every `name || user_name` guard in the codebase silently
+    # failed because a non-empty string is truthy. It reached users as
+    # "Hi No name", "Choose No name's home board", and worst, as an SMS to a
+    # family member reading "from No name - <message>" (see #share_with, where
+    # the guard is written correctly and only ever failed because of this line).
+    # Leaving it nil lets those guards work as written. Anything DISPLAYING a
+    # name should still go through the client-side helper
+    # (app/frontend/app/utils/display_name.js) or fall back to user_name.
     self.settings['preferences'] ||= {}
     self.settings['preferences']['progress'] ||= {}
     if self.settings['preferences']['home_board']
@@ -2232,10 +2257,21 @@ class User < ApplicationRecord
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports',
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']
   RESEARCH_PREFERENCE_PARAMS = ['research_primary_use', 'research_age', 'research_experience_level']
-  PROGRESS_PARAMS = ['setup_done', 'intro_watched', 'profile_edited', 'preferences_edited', 
+  # NOTE: this is an ALLOWLIST — a progress key absent here is silently dropped on
+  # save. `guided_tours_completed` was written by the frontend for months without
+  # being listed, so the guided-tour "seen" badge never survived a reload and
+  # `tourSeen` was permanently false. Both tour maps are listed now; anything new
+  # under preferences.progress must be added here or it will not persist.
+  PROGRESS_PARAMS = ['setup_done', 'intro_watched', 'profile_edited', 'preferences_edited',
       'home_board_set', 'app_added', 'skipped_subscribe_modal', 'speak_mode_intro_done',
       'modeling_intro_done', 'modeling_ideas_viewed', 'modeling_ideas_target_words_reviewed',
-      'board_intros']
+      'board_intros', 'guided_tours_completed', 'guided_tours_autoshown']
+  # Progress keys that hold a {<tour_key> => true} map from the client. Sanitized
+  # on write (see process_params) so a malformed or hostile client cannot stash
+  # arbitrary JSON in the user record.
+  GUIDED_TOUR_PROGRESS_PARAMS = ['guided_tours_completed', 'guided_tours_autoshown']
+  GUIDED_TOUR_MAX_KEYS = 50
+  GUIDED_TOUR_MAX_KEY_LENGTH = 64
   def process_params(params, non_user_params)
     # Defensive guard: `settings['admin']` may only be set via
     # non_user_params['admin'] (see ~line 1485 below). Strip any
@@ -2695,6 +2731,25 @@ class User < ApplicationRecord
       if self.settings['preferences']['progress']['board_intros']
         self.settings['preferences']['progress']['board_intros'] = self.settings['preferences']['progress']['board_intros'].uniq
       end
+      # Guided-tour maps are client-supplied JSON. Keep only truthy entries,
+      # normalise every value to `true`, bound the key length and the map size,
+      # and discard the value entirely if it is not a Hash — so the stored shape
+      # is always {String => true} regardless of what the client sent.
+      GUIDED_TOUR_PROGRESS_PARAMS.each do |tour_attr|
+        val = self.settings['preferences']['progress'][tour_attr]
+        next if val.nil?
+        if val.is_a?(Hash)
+          cleaned = {}
+          val.each do |k, v|
+            next unless v
+            break if cleaned.size >= GUIDED_TOUR_MAX_KEYS
+            cleaned[k.to_s[0, GUIDED_TOUR_MAX_KEY_LENGTH]] = true
+          end
+          self.settings['preferences']['progress'][tour_attr] = cleaned
+        else
+          self.settings['preferences']['progress'].delete(tour_attr)
+        end
+      end
     end
     if params['preferences'] && params['preferences']['requested_phrase_changes']
       (params['preferences']['requested_phrase_changes'] || []).each do |change|
@@ -2984,6 +3039,42 @@ class User < ApplicationRecord
   
   def display_user_name
     (self.settings && self.settings['display_user_name']) || self.user_name
+  end
+
+  # The literal string generate_defaults used to seed into settings['name'].
+  # It is truthy, so it defeated every `name || user_name` guard in the codebase.
+  # The seed is gone; accounts created before that still carry the string until
+  # `rake extras:clear_no_name_placeholder` runs, so every DISPLAY path has to
+  # keep filtering it. Mirrored client-side as SERVER_PLACEHOLDER_NAME in
+  # app/frontend/app/utils/display_name.js.
+  PLACEHOLDER_NAME = 'No name'
+
+  # True when settings['name'] holds nothing a human should be shown.
+  def placeholder_name?
+    name = self.settings && self.settings['name']
+    name.blank? || name == PLACEHOLDER_NAME
+  end
+
+  # The name a human should see. Server-side mirror of the client's
+  # app/frontend/app/utils/display_name.js, for the places JS cannot reach --
+  # mailer views, Open Graph tags, the SMS body of a shared utterance.
+  #
+  # Signup collects no name, so settings['name'] is absent for most accounts and
+  # every DISPLAY has to fall back to the handle.
+  # Use `settings['name']` directly only when round-tripping, never to display.
+  def display_name
+    return self.display_user_name if placeholder_name?
+    self.settings['name']
+  end
+
+  # #display_name for UNAUTHENTICATED surfaces: same resolution, but the handle
+  # fallback is obfuscated. `user_name` is accepted as a login credential by
+  # session_controller, so any endpoint that skips require_api_token must never
+  # emit it -- see api/organizations_controller#start_code_lookup, which is
+  # reachable by anyone holding a forwarded start-code link.
+  def obfuscated_display_name
+    return obfuscated_name if placeholder_name?
+    self.settings['name']
   end
 
   def obfuscated_name

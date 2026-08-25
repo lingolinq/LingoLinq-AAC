@@ -19,6 +19,7 @@ import BoardHierarchy from '../utils/board_hierarchy';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { display_name_for } from '../utils/display_name';
 
 LingoLinq.User = BaseModel.extend({
   persistence: service('persistence'),
@@ -83,6 +84,14 @@ LingoLinq.User = BaseModel.extend({
   authored_organization_id: attr('string'),
   terms_agree: attr('boolean'),
   name: attr('string'),
+  /* Human-safe name, never the server's "No name" placeholder — see
+     utils/display_name for why the sentinel exists and stays on the backend.
+     Use this anywhere a name is DISPLAYED; `name` remains the raw attribute for
+     round-tripping to the server. Templates handed a raw payload rather than a
+     record want the {{display-name}} helper, which applies the same rule. */
+  display_name: computed('name', 'user_name', function() {
+    return display_name_for(this);
+  }),
   email: attr('string'),
   needs_billing_update: attr('string'),
   public: attr('boolean'),
@@ -249,11 +258,11 @@ LingoLinq.User = BaseModel.extend({
     if(this.get('is_managed') && this.get('managing_orgs.length')) {
       names = names.concat(this.get('managing_orgs').map(function(u) { return u.name; }));
     }
-    names = names.concat((this.get('supervisors') || []).map(function(u) { return u.name || u.user_name; }));
+    names = names.concat((this.get('supervisors') || []).map(function(u) { return display_name_for(u); }));
     return names.join(", ");
   }),
   supervisee_names: computed('supervisees', function() {
-    return (this.get('supervisees') || []).map(function(u) { return u.name; }).join(", ");
+    return (this.get('supervisees') || []).map(function(u) { return display_name_for(u); }).join(", ");
   }),
   profile_class: computed('last_profile', 'profile_due', 'appState.refresh_stamp', function() {
     var res = 'profile_circle';

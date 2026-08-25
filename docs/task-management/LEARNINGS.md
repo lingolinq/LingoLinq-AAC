@@ -9509,6 +9509,12 @@ Two companions to that message:
 
 **First seen in:** [2026-08-08-speecher-load-beep-suite-failure.md](./2026-08-08-speecher-load-beep-suite-failure.md)
 
+## Gotcha: `throttling_spec` 500s locally AFTER you build the frontend — the Ember build strips a `calc()` SassC needs (2026-08-23)
+
+`spec/features/throttling_spec.rb:87` does `get "/"` and expects a 200. Locally it can return **500**, and the cause is nowhere near throttling — `log/test.log` shows `SassC::SyntaxError (Error: Incompatible units: 'vw' and 'px')` on `padding: clamp(20px, 20px + 1vw, 40px)`. The SCSS **source is correct**: `app/frontend/app/styles/_eval_quick.scss:68` writes `clamp(20px, calc(20px + 1vw), 40px)`, exactly as CLAUDE.md's mixed-unit rule requires. The Ember build **strips the redundant `calc()`** on the way to `app/frontend/dist/assets/frontend.css`, which `rake extras:assert_js` symlinks in as `app/assets/stylesheets/frontend.css` — and the test environment (unlike production, which sets `config.assets.css_compressor = nil`, `config/environments/production.rb:38`) still runs the sprockets SassC compressor over it. So the CLAUDE.md rule is being silently undone downstream of the file it applies to.
+
+Three consequences worth knowing. It is **invisible in CI**: the `rspec` job never builds Ember, so `dist/` is absent and there is nothing for SassC to choke on. It is **invisible in production**: no css compressor. And it appears **only after you run `ember build`/`ember test` locally** and then `extras:assert_js` — i.e. exactly the sequence of a thorough local verification pass. If a page-rendering spec 500s locally and the diff cannot explain it, read `log/test.log` for the real exception before believing the spec name.
+
 ## Gotcha: verify a CI job the way CI runs it — `TZ=UTC` — before believing a local red
 
 `spec/lib/stats_spec.rb` builds its window from `2.days.ago.utc` and
@@ -12199,6 +12205,114 @@ Deferring `schedule_once` until after commit closes the Redis-vs-Postgres orderi
 
 Every check in that CI job compares a generated markdown against its JSON source; none of them reads the field *shapes* the register's consumers depend on. A finding whose `source` was written as a bare String instead of an object merged fully green and then hard-crashed `promote-finding.rb` (`Hash#dig': String does not have #dig method (TypeError)`) for the **entire** register weeks later — `citation-check.rb` exited 0 on it too, since it only validates evidence. Closed with two complementary gates: `scripts/register-lint.rb` (predicted shapes, enums, id uniqueness — precise error messages) and `scripts/tests/register-consumer-smoke-test.sh` (runs the real consumers over each committed register with empty input, asserting exit 0 **and** byte-identical output — catches whatever the predicate list failed to anticipate). When adding a validator for a data file, gate on *consumability*, not just on render consistency. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
 
+## Gotcha: `overflow-x: hidden` silently makes the OTHER axis a scroll box — and kills descendant `position: sticky` (2026-08-23)
+
+`.md-shell` (`app.scss:43771`) declares only `overflow-x: hidden !important` and never mentions `overflow-y`. Per CSS spec a `visible` value computes to `auto` when its partner is `hidden`, so the shell becomes a **scrolling box on Y** that never actually scrolls. `position: sticky` resolves against the nearest scrolling box, so a sticky bar inside it is pinned to a scrollport that cannot move — the declaration applies and does nothing. Verified live on `/u/:id/preferences`: computed `overflowY: "auto"` with `scrollHeight === clientHeight === 2138`, the real scroller two levels up (`div.with_user.new_index`, 2184 → 800), and the "sticky" bar rendering at its natural `y=2026` in an 800px viewport. Fix is `overflow-x: clip`, which still prevents horizontal overflow but establishes **no** scroll container, so `overflow-y` stays `visible`. When sticky "doesn't work," walk the ancestor chain for any `overflow` value — including one declared on the *other* axis. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
+
+## Gotcha: `min-height: 0` on a flex item that is ITSELF the scroller is a no-op — the famous fix does not apply there (2026-08-23)
+
+The well-known "flex item needs `min-height: 0` or `overflow` won't engage" rule has a precondition most write-ups omit: per Flexbox §4.5, a flex item's *automatic minimum size* (`min-height: auto` resolving to content height) applies **only when the item's computed overflow in that axis is `visible`**. An element that already declares `overflow-y: auto` therefore already has `min-height: auto` resolving to zero, and adding `min-height: 0` changes nothing. This produced a confident-but-wrong diagnosis: `.md-modal-body--tour-picker` was "fixed" by adding `min-height: 0`, and a browser A/B (toggling the declaration on the live modal) showed **identical** `clientHeight` 511 / `scrollHeight` 1822 / `scrollable: true` both ways — the modal had never been broken. The cited "working/broken pair" (`.md-board-details-modal__body` has `min-height: 0` and scrolls) was correlation: it scrolls because of `overflow: auto`, and its `min-height: 0` is equally redundant. The rule applies to an **ancestor** flex item with visible overflow that *contains* a scroller, not to the scroller itself. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
+
+## Pattern: CSS that applies is not CSS that works — a computed style is not a verdict (2026-08-23)
+
+Two same-session CSS diagnoses were both wrong from source-reading alone, in opposite directions: one declaration was inert but looked correct (`position: sticky` present, `bottom: 0px`, bar still at y=2026), and one "fix" was redundant but looked load-bearing (`min-height: 0` on an element that already had `overflow-y: auto`). Reading a property and inferring behavior skips the part that decides it — the ancestor chain and the spec preconditions on that property. The cheap discriminator is a browser measurement plus an **A/B**: toggle the declaration in-page via `el.style.<prop>` and re-measure. If the numbers do not move, the rule is not doing the work, regardless of how good the causal story sounds. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
+
+## Gotcha: `utils/modal#open()` returns a promise that settles only on CLOSE — it hangs Playwright `evaluate` (2026-08-23)
+
+`modal.open('<template>', {})` returns an RSVP promise resolved when the modal is *dismissed*. Handing it to Playwright with an implicit arrow return — `p.evaluate(() => modal.open('tour-board-picker', {}))` — makes `evaluate` await that promise forever; four scripted runs hung with no output and no error. Use a block body returning a sentinel: `p.evaluate(() => { modal.open(...); return 'ok'; })`. Two debugging notes that generalize: piped `console.log` from node is buffered and showed nothing, so synchronous `fs.appendFileSync` step tracing is what located the hang; and `modal.open` needs `modal.setup(route)` to have run (`services/app-state.js:437`), so it only works once the app has booted a route. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
+
+## Pattern: a placeholder that is not a null value defeats every guard written against it (2026-08-23)
+
+`User#generate_defaults` seeded `settings['name'] = "No name"` because signup collects no name. The codebase is full of guards written correctly for an absent name — `name || user_name` in `Utterance#share_with`, `sharer_name` in the share mailer, `display_name` on the Ember model — and **every one of them silently failed**, because a non-empty string is truthy. The bug was never in the guards; it was in the value. Symptoms ranged from cosmetic ("Hi No name") to an SMS delivered to a communicator's family reading **"from No name - I want juice"** (`app/models/utterance.rb:271`), which no amount of client-side fixing could reach. Removing the seed made ~10 sites correct at once without touching any of them.
+
+Three things that made the removal safe, each verified rather than assumed: `Mail::Address` normalizes `" <a@b.com>"` to a bare address, so a blank name does **not** break mail (an earlier claim that it would was wrong); `Processable#generate_user_name` already `blank?`-guards and falls through to the email prefix then `"person"`; and the nil-unsafe `settings['name'].<method>` call sites are all on Board/Device records, while the User ones (`lib/eval_pdf.rb:650`, `app/controllers/session_controller.rb:1075`) already fall back to the handle. The one real behaviour change is that a user with no name, handle, **and** email now generates `person_N` instead of `no-name_N`.
+
+Two traps if you do this again. **Empty string is not absent**: `self.settings[arg] = ... if params[arg]` (`user.rb:2044`) treats `''` as present and `||=` will not re-seed it, so a blank save persists permanently — which is fine here, but means `''` and `nil` are not interchangeable. And **removing a seed does not clean existing rows**: every account created before the change keeps the string, so a backfill is part of the work, not a follow-up (`rake extras:clear_no_name_placeholder`, dry-run by default). Prefer absent over a sentinel; if a sentinel already exists, deleting it fixes more than guarding against it.
+
+## Gotcha: removing a placeholder fixes the BROKEN consumers and breaks the ones that had no fallback (2026-08-23)
+
+Deleting the `"No name"` seed repaired ten sites without touching them — every consumer written as `name || user_name` (eight supervisor mailer templates, the Open Graph title in `app/models/concerns/meta_record.rb:9`, the utterance SMS) simply started working. But four consumers had **no fallback at all**, and for those the same change traded a bad string for an empty one: `app/mailers/user_mailer.rb:99` opened an email with `" just posted a message…"` and `app/views/user_mailer/log_message.*.erb` rendered "…to the log of ". A blank reads as broken software in a way "No name" does not. When removing a value that was previously guaranteed non-nil, grep for consumers that **lack** a guard, not just ones whose guard was defeated — the defeated ones fix themselves, the unguarded ones regress. Note also that a frontend-only sweep cannot find these: mailer views, Open Graph tags and SMS bodies are rendered server-side, so `app/frontend` was clean the whole time. Fixed by adding `User#display_name` as a server-side mirror of `app/frontend/app/utils/display_name.js`.
+
+## Gotcha: a "passing" spec may be asserting a placeholder's length by accident (2026-08-23)
+
+`spec/controllers/api/users_controller_spec.rb` "should not allow blank user name" posted `user_name: ''` and then asserted `json['user']['name'].length > 5` — on **name**, not user_name. It only ever passed because the seeded placeholder `"No name"` happens to be 7 characters. Removing the seed turned it into `NoMethodError: undefined method 'length' for nil`, which reads like a regression and is actually the test finally being honest. When a spec breaks on a value change, check whether it was asserting the thing its own description names before "fixing" it — the right repair here was to assert `user_name`, the actual subject.
+
+## Gotcha: every account carries the literal name "No name" — use `display_name`, never `name`, for display (2026-08-23)
+
+Signup never collects a name, so `User#generate_defaults` (`app/models/user.rb:1537`) seeds `settings['name'] = "No name"` and `lib/json_api/user.rb:328` serializes it as `name`. Guards of the form `name || user_name` or `(name || '').trim() || 'Friend'` therefore **never** fire — the sentinel is a non-empty string. It surfaced as "Hi No name" on the beta welcome, "NO NAME" in the account menu, and "Choose No name's home board" in the board picker. **SUPERSEDED 2026-08-24 — the seed was removed.** This entry originally concluded "do **not** change it" because the value was asserted in 7 spec locations; that was a reason to change the specs, not a reason to keep shipping a sentinel to users. `generate_defaults` no longer seeds a name, `rake extras:clear_no_name_placeholder` backfills existing rows to nil, and `User#display_name` / `User#placeholder_name?` are the server-side resolution. The sentinel check survives in both `display_name_for` and `placeholder_name?` because un-backfilled accounts and cached offline payloads still carry the string. Removing a placeholder is only half the job: every consumer that had **no fallback** now renders blank, which is how the welcome email came to open with an empty line — see CLAIM-CHECK-BACKLOG.md section A2. Use `display_name` anywhere a name is rendered; `name` remains correct for round-tripping to the server. The rule now lives in one place, `app/frontend/app/utils/display_name.js`, with the `{{display-name}}` helper and the model's `display_name` computed both delegating to it. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
+
+## Gotcha: a computed property on the user model cannot fix most name displays — most users arrive as raw JSON (2026-08-23)
+
+The `display_name` computed above only runs on an Ember-Data **record**, and the majority of users rendered in this app never are one. `limited_identity` payloads — `board.shared_users` (`concerns/sharing.rb:174`), `utterance.user` (`json_api/utterance.rb:37`), the org roster (`organizations_controller.rb:37`), and `supervisors`/`supervisees`, which are declared `attr('raw')` on the user model (`models/user.js:180`/`:183`) — are all plain objects. On those, `user.display_name` silently renders **empty**, which is worse than the bug it replaces. Check whether the binding is a record or a raw payload *before* reaching for a model computed; if either shape is possible, the logic belongs in a util that reads through an `obj.get ? obj.get(k) : obj[k]` shim, with a template helper wrapping it. Note this failure is invisible to both a green build and a unit test — helper lookup happens at render time, so `tests/integration/display-name-helper-test.js` is what actually guards it.
+
+## Gotcha: `name` on the wire is not always a user's name field — check the serializer per site before a sweep (2026-08-23)
+
+Sweeping for raw `.name` renders produced more false positives than real ones, and each had a different reason. Contacts are not users and carry real, user-entered names: `utterance.hbs:44`, `speak-menu.hbs:261`, and `user/log.hbs:345` all bind `author`/`contact` objects built by `msg[:contact].slice('id','name','image_url')` (`json_api/utterance.rb:32`). Alerts go further and emit the *handle* under the `name` key — `'name' => alert.author.user_name` (`json_api/alert.rb:25`, `:36`) — so `inbox.hbs:29` is already correct. `user-select.hbs:7` looks identical to a broken site but its list is synthesized client-side as `name: supervisee.user_name` (`components/user-select.js:29`). And organizations legitimately own a `name` with no handle to fall back to (`application.hbs:712`, `start-codes.hbs:4`, which renders an org *or* a user through one slot). Write-path bindings must also stay raw: `new-user.hbs:11` and `add-supervisor.hbs:49` bind `name` as an editable `<input value=>`, where substituting a display value would write the handle into the name field on save. Resolve each hit to its serializer before editing; the sentinel only ever comes from `User#generate_defaults`.
+
+## Pattern: a grep keyed on variable NAMES is not a sweep — enumerate the accessor, then classify (2026-08-23)
+
+Hunting the "No name" sentinel, the first pass grepped for `.name` on variables containing `user`, `author`, `supervisor`, `supervisee`, `communicator`, or `member`, and reported the work complete. It had missed nine sites, including the `<h1>` on the **user profile page** (`templates/user/index.hbs:15`, bound as `this.model.name`) and the Stripe checkout dialog title (`utils/subscription.js:800`) — because the binding is named for the *route's model*, not for what it holds. The reliable shape is the inverse: enumerate **every** occurrence of the accessor (`grep -rnoE "[a-zA-Z_][a-zA-Z_0-9.]*\.name" --include='*.hbs'`, then `sort | uniq -c`, ~117 distinct bindings here), and classify that list by hand against the serializer. Cheap, and the count is a check on itself. Two further gaps a template-only grep leaves open: display strings assembled in **JS** (`sessionUser.get('name') + ' <' + email + '>'` in `components/support.js:64` — the same broken guard, invisible to any `.hbs` search), and the fact that "is it fixed everywhere?" cannot be answered from the diff alone. Note also that four of the nine were found only *after* being asked the question directly — treat "did you get all of them?" as a prompt to re-derive the list from scratch, not to re-read the one you already produced.
+
+## Gotcha: a client-side fallback needs the fallback VALUE to be in the payload (2026-08-23)
+
+`display_name_for` resolves the "No name" sentinel by falling back to `user_name`, which works everywhere the client holds a `limited_identity` payload — those carry both fields. The start-code lookup does not: `organizations_controller.rb:140-149` hand-builds its JSON with `name: code[:target].settings['name']` and no handle at all. Applying the helper there would have swapped "Invited By Supervisor - No name" for "Invited By Supervisor - " *blank*, trading a bad string for a worse one, and it would have looked correct in the diff. Fixed by emitting `json[:user_name]` for User targets (additive; the endpoint's specs assert per-field, not whole-payload equality, so nothing broke). Before reaching for a display-side fallback, confirm the field it falls back to is actually on the wire for that specific endpoint — hand-rolled controller JSON does not inherit what `JsonApi::User` provides.
+
+## Pattern: verify placement fixes at the RENDERED element — specificity and default state defeat correct-looking diffs (2026-08-23)
+
+A Playwright pass over three "fixed" claim-check items (D1 `7692d3c08`, D2 `231bdcaeb`, D10 `868193344`) found **two of the three were not fixed**, and both failed the same way: a correct, well-reasoned source change that a pre-existing higher-precedence rule silently overrode. Neither was catchable by reading the diff, and both had passing unit tests.
+
+**D10** moved `.beta-feedback-drawer-tab` from `left: 50%` to `right: 16px`, then deliberately re-added `left: 50%; transform: translateX(-50%)` to the `--navbar` variant on the stated premise that the variant "is `position: absolute` inside the navbar, not over the page". That premise is false at runtime: `#within_ember:not(.board-alt-view):not(.board-detail-view) .beta-feedback-drawer-tab--navbar { position: fixed; top: 0 }` (`app.scss:89818`, id+class specificity) forces it back to page-level `fixed`. Since **every** render site carries `--navbar`, the new base rule never applies and the re-centring re-creates the exact defect. Measured: box centre 720px of a 1440px viewport — 0px off centre, i.e. before and after are pixel-identical.
+
+**D1** added Set as Home / Make a Copy to `.md-board-detail-header__actions` to escape the edit-only left panel. But `.md-shell--board-collapsed .md-board-detail-header { display: none }` (`app.scss:76138`) hides that header, and `board_collapsed: true` is the controller default (`controllers/user/board-detail.js:267`), flipped to `false` **only** by entering edit mode (`routes/user/board-detail/edit.js:57`). The one control that expands it, `toggle_board_collapsed`, is itself inside the hidden header (measured 0x0) — so view-mode users cannot reveal it. The actions moved from one edit-mode-only container to another.
+
+The generalisable rule: when a fix is about **where something appears**, the diff cannot tell you whether it worked. Before shipping, resolve the *computed* style and box on the actual rendered node, and check the *default* value of any component state that gates its container. Two cheap checks that would have caught both: `grep -n '<class>' app.scss` and read **every** hit for specificity (not just the rule you edited), and confirm which variant/class combination the element actually renders with. A useful tell for the class of bug: if a variant modifier re-states a property the base rule just changed, one of the two is dead code — find out which.
+
+## Gotcha: board-detail hides its whole header by default, and gates itself behind a screen-size overlay (2026-08-23)
+
+Two independent things make `.md-board-detail-header` invisible, and both will make a browser test report every header control as 0x0 for reasons that have nothing to do with the control:
+
+1. **A full-viewport "Larger screen recommended" overlay** (`.md-board-detail-portrait-overlay`, z-index 450) renders at viewports as large as 1280x800 and sets the header to `display: none` while up. Dismiss it via `button[data-bd-action="dismiss_portrait_overlay"]` before measuring anything, or raise the viewport (1440x900 still triggers it for large grids).
+2. **`board_collapsed` defaults to `true`** (`controllers/user/board-detail.js:267`), applying `.md-shell--board-collapsed`, which hides the header outright (`app.scss:76138`). This is the canonical speak-mode look and is intentional — but it means **the board-detail header is not a place view-mode UI can live.** Anything that must be reachable without entering edit mode belongs in the toolbar, the sentence bar, or the options menu, all of which stay visible.
+
+A first run reported the D1 buttons as simply "not visible", which read as a failed gate and was wrong — the gates were fine. Always walk the ancestor chain for a `display: none` before concluding a control did not render: in-DOM-but-0x0 and absent-from-DOM are different bugs with different fixes.
+
+## Pattern: a negative control is what makes a browser test evidence rather than decoration (2026-08-23)
+
+Both D1 and D10 were re-verified by reverting the fix (`git checkout HEAD -- <file>`, wait for the ember/sass rebuild, re-run, restore from a scratchpad copy) and confirming the harness goes **red**. This is cheap and it is the only thing that distinguishes "my assertions pass" from "my assertions can fail". It paid for itself twice:
+
+- **D1's negative control failed exactly 3 of 6 assertions** — `set_as_home` unreachable, label reads "Copy", dead buttons still in a hidden container — while `make_a_copy-reachable` **passed** on the pre-fix build. That pass is a finding, not noise: it independently confirmed that Copy had been reachable all along (Options → Share & Print), so only ONE of the two actions was genuinely missing. A harness that only ever runs green cannot tell you that.
+- **D10's negative control** failed `not-page-centred` at 0px off centre while the three regression guards still passed, which is the correct shape: those guards protect the FIX, they do not restate the DEFECT.
+
+Corollary: pin the page under test. D10's hit-test check failed spuriously because the post-login landing `/` can come up with a welcome modal (`div.modal.fade.in`, z-index 1050) over the tab. Navigating explicitly to `/<user>/home` removed it. When a browser assertion fails, rule out page state before blaming the change.
+
+## Gotcha: corner-anchoring a floating control can trade one mis-tap risk for another — measure the corner first (2026-08-23)
+
+D10 asked for the beta-feedback tab to stop being a centred fixed tap target. Anchoring it `right: 16px` while it was still pinned to `top: 0` put it directly over **Settings, Support and the online-status control**. Simulating candidate boxes against the live navbar at 1440px, before committing to one:
+
+| anchor | collides with |
+|---|---|
+| centred, top:0 (the reported defect) | nothing |
+| right:16, top:0 | Settings, Support, online |
+| left:16, top:0 | the logo link |
+| right:16, below the navbar | nothing |
+
+The *reported* position was the collision-free one — so "move it to a corner" is not automatically an improvement, and the accessibility win has to be checked against what already occupies that corner. The reusable technique is to enumerate `a, button, input, select, [role="button"]`, intersect each rect with a hypothetical box, and additionally run `document.elementFromPoint` at the box centre — the hit test is decisive where rect maths is only suggestive.
+
+Second trap in the same fix: `top: 100%` means "100% of the containing block". Under `position: absolute` inside a `position: relative` navbar that is "just below the navbar"; under `position: fixed` it resolves against the **viewport** and parks the element at y=viewportHeight, off-screen. A long-standing `top: 0` override had been masking a latent `top: 100%`, so removing the override — which looked like a pure deletion — moved the element off-screen. When deleting a positioning override, check what the element's own rule then falls back to.
+
+## Gotcha: a collision detector must exclude inert / aria-hidden / pointer-events:none, then be re-validated against a true positive (2026-08-23)
+
+Checking whether a repositioned overlay covers other controls, a naive sweep of `a, button, input, select, textarea, [role="button"]` intersected with the overlay's rect produced two confident false failures. The culprit: the CLOSED beta-feedback drawer keeps its whole form in the DOM, and its file input (`.la-contact-input--file` inside `.la-beta-feedback__dropzone`) reports an on-screen `getBoundingClientRect()` even though the drawer itself is transformed to y=-1106. It is `pointer-events: none`, inside an `[inert]` subtree, and inside an `aria-hidden="true"` subtree — unreachable by pointer, keyboard or AT. Filter on all three before counting an overlap.
+
+The important half is what comes next: **after loosening a detector, prove it still catches the real thing.** Here that meant `page.addStyleTag` injecting the known-bad placement (`position: fixed; top: 0`) and confirming Settings / Support / the online control were still reported. Without that step, "0 collisions" is indistinguishable from "detector switched off" — and the loosening had been written specifically to make failures go away.
+
+## Gotcha: there may be no vertical gap for a floating control — measure the gap against the control's height before choosing a placement (2026-08-23)
+
+Seating the beta-feedback tab below the navbar is clean at 1440 and 390 but clips a control between ~700 and ~820px. The reason is not the anchor, it is arithmetic: in that band the home page's secondary nav row starts 28px below the navbar's bottom edge, and the tab is 34-36px tall. **No vertical position exists that clears both.** At 1440 and 390 the same gap is 72-76px, which is why the fix looked complete when verified at one size.
+
+Two transferable moves. First, before picking a spot for a floating element, compute `firstInteractiveRowTop - navbarBottom` and compare it to the element's height — if the gap is smaller, every vertical option is a trade and you should say so rather than iterate. Second, when the vertical axis is impossible, the horizontal one may not be: the row's right edge scales with the viewport while a right-anchored element's left edge is `100vw - offset - width`, so *narrowing* the element clears the row without moving it. Extending the existing compact sizing up through the band fixed 760-820 and cut the 721 overlap from 41px to 10px.
+
+Also worth knowing: collisions here were **height-dependent as well as width-dependent** — 712px was clean at viewport height 1000 and colliding at 1138, because the surrounding layout reflows. A single height per width will under-report.
 ## Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)
 
 `lingolinq/jokes` (and similar curated `.obf`s) embed rimshot/drumroll/laughter/sigh as `data:audio/mpeg;base64,...`. `Uploadable#upload_to_remote` decoded every data URI through `SvgSanitizer.decode_image_data_uri_payload`, which returns nil unless the URI is `data:image/`. Audio was `invalid_data_uri`; `ButtonSound#process_params` also ignores non-http urls, so the button kept a `sound_id` with no playable `url` and Speak Mode TTS'd the label. Fix: decode `data:audio/*` in `Uploadable#decode_data_uri_body`; leave the image sanitizer unchanged. After deploy, re-import only `jokes` (not a full library rebuild). Ref: [`2026-08-22-jokes-sounds-not-playing.md`](./2026-08-22-jokes-sounds-not-playing.md).
@@ -12463,3 +12577,72 @@ evidence would be acknowledgement AuditEvents or UI telemetry.
 does not change what consumers see first. Rewrite the primary fields
 (`capability`, `claimLanguage`, `antiClaim`) to present-tense dated status; keep
 history in those fields rather than as a contradicting trailer.
+
+### A source-level fix plus a green unit test is not evidence that a user path works
+
+Six of the seven High findings in the 2026-08-24 adversarial review of
+`fix/traci-claim-check-quick-wins` were **correct source changes defeated by something outside the
+diff**, and every one of them had shipped with a passing test and a backlog row marked "Done — do not
+re-open". Reading the diff could not have found any of them. The defeating mechanism each time:
+
+| Fix | Defeated by |
+|---|---|
+| `overflow-x: clip` on `.md-shell` | a `@media (max-width: 1024px)` block ~17,000 lines later re-declaring `overflow-x: hidden !important` at equal specificity |
+| once-per-user tour suppression | the manual "Take a tour" trigger writing the **same** hand-off flag as the auto-open |
+| search-box `mut` → action | the route: the controller's own refetch guard was bypassed by `setupController` re-running on the URL change the controller itself caused |
+| `current_host` → `absolute_host` (~130 sites) | the test fixture: `DEFAULT_HOST` was already absolute, so every assertion was a no-op |
+| corner-anchoring the feedback tab | putting it on the **base** rule, so the unrelated `--speak` variant inherited it onto the board grid |
+| removing the `"No name"` seed | the consumers that had no fallback, which went from wrong to blank |
+
+Three habits that would have caught them, cheapest first:
+
+1. **Grep for the property, not just the selector.** Before trusting a CSS fix, `grep` the whole
+   stylesheet for every other declaration of that property on that element — especially inside media
+   queries, which sit far from the base rule and usually carry `!important`. Same for any shared
+   runtime flag: `git grep <flag_name>` and read *every* writer, not only the one you added.
+2. **Ask what the test would do if the fix were reverted.** If you cannot answer concretely, the test
+   is decoration. Actually revert the line and watch it go red — that took under a minute here and
+   was the only thing that proved the COPPA link coverage was real. Check the **fixtures** too: a
+   fixture that is friendlier than production silently disables whole classes of assertion.
+3. **Vary the axis the fix depends on.** A viewport-sensitive fix needs more than one viewport; a
+   worker-vs-request fix needs both contexts; a per-user gate needs a second user *and* a second
+   invocation. The sticky harness ran one 1280x800 viewport and reported green while the fix was
+   dead on every tablet and phone.
+
+Corollary for the backlog: **"do not re-open" is a claim about a whole user path.** Close a row only
+after exercising the surface a user touches, and when the evidence is a script, make the script
+runnable by someone else — no hardcoded scratchpad paths, no uncommitted fixtures.
+
+### One breakpoint is not the breakpoint: re-declared shorthands defeat a narrower fix
+
+`overflow-x: clip` was added to `.md-shell` and to the `@media (max-width: 1024px)` scroll-guard
+block to stop the shell capturing `position: sticky`. Both edits were correct, both were reasoned
+from the spec, and the Preferences Save bar was still dead on every phone and portrait tablet —
+because two NARROWER blocks re-declare the **shorthand** on the same element:
+
+```
+@media (max-width: 950px)  .md-workspace { overflow: hidden !important; }
+@media (max-width: 820px)  .md-workspace { overflow: hidden !important; }
+```
+
+`overflow: hidden` sets both axes, so it overwrites an `overflow-x` fix completely. Measured:
+`.md-workspace` computed `clip/visible` at 1024px wide (bar pinned at y=685..768) and
+`hidden/hidden` at 768px (bar at y=1936 in a 1024px viewport). 2116 Ember tests reported `# fail 0`
+throughout.
+
+Three things to take from it:
+
+1. **Grep the PROPERTY across every breakpoint, not just the one you are fixing.** A media query
+   narrower than yours is still "later in the cascade" for the viewports it covers, and the fix you
+   verified at 1024px tells you nothing about 768px. Enumerate every declaration of that property
+   on that selector and check each one's media context.
+2. **A shorthand beats a longhand fix.** `overflow: hidden` silently reverts `overflow-x: clip`.
+   When patching one axis, search for the shorthand too — they will not look like the same rule.
+3. **`overflow: clip` is usually what these rules meant.** Where `overflow: hidden` pairs with
+   `border-radius` the intent is clipping the corners, not scrolling; `clip` does that and creates
+   no scroll container, so it cannot capture sticky. Keep `hidden` first as the pre-Safari-16
+   fallback.
+
+The general lesson, which is the same one A2 records: a CSS change verified at one viewport is
+verified at one viewport. Vary the axis the fix depends on, or you have tested the fix rather than
+the bug.

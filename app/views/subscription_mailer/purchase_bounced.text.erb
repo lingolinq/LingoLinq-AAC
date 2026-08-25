@@ -1,8 +1,8 @@
 Thank you for purchasing to <%= app_name %>! Unfortunately there was an unexpected problem processing your purchase for the user account "<%= @user.user_name %>". Please confirm your credit card information and purchase settings and update your billing settings again:
 
-<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>
+<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>
 
-If you need help finding a funding solution, please don't be afraid to reach out to us, we're willing to work with individuals to find a good solution. Just contact us (<%= JsonApi::Json.current_host %>/contact) to make a request.
+If you need help finding a funding solution, please don't be afraid to reach out to us, we're willing to work with individuals to find a good solution. Just contact us (<%= JsonApi::Json.absolute_host %>/contact) to make a request.
 
 Thanks!
 <%= email_signature %>

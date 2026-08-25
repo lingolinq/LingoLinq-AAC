@@ -11,13 +11,13 @@ If you haven't had much chance to use <%= app_name %> yet, remember that it's a 
 <% end %>
 <% if @logging_disabled %>
 * Logging *
-<%= app_name %> has powerful reporting and logging built-in. Once you turn on logging (<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/stats) then any usage that happens will be automatically gathered into detailed reports and summaries. The communicator and their support team can see things like what time of day communication is happening, what types of speech are being used and where on the screen buttons are being pressed, all with the goal of working toward better communication strategies.
+<%= app_name %> has powerful reporting and logging built-in. Once you turn on logging (<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/stats) then any usage that happens will be automatically gathered into detailed reports and summaries. The communicator and their support team can see things like what time of day communication is happening, what types of speech are being used and where on the screen buttons are being pressed, all with the goal of working toward better communication strategies.
 <% end %>
 <% if @no_subscription %>
 * Purchasing *
-If you like what you're seeing with <%= app_name %>, feel free to update your billing settings (<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/subscription) to keep using all the features of <%= app_name %> for the long-term! Remember, you can buy <%= app_name %> as a one-time purchase, or as a monthly subscription, whatever works better for you.
+If you like what you're seeing with <%= app_name %>, feel free to update your billing settings (<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/subscription) to keep using all the features of <%= app_name %> for the long-term! Remember, you can buy <%= app_name %> as a one-time purchase, or as a monthly subscription, whatever works better for you.
 <% end %>
-We hope this was a helpful check-in! If you have any questions or concerns, please check out our YouTube channel (<%= domain_settings['youtube_url'] %>) or reach out to us (<%= JsonApi::Json.current_host %>/contact) and we'll be happy to help you out.
+We hope this was a helpful check-in! If you have any questions or concerns, please check out our YouTube channel (<%= domain_settings['youtube_url'] %>) or reach out to us (<%= JsonApi::Json.absolute_host %>/contact) and we'll be happy to help you out.
 
 
 Thanks!

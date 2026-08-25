@@ -221,10 +221,33 @@ export default Controller.extend({
     }
     loadBoards();
 
-    persistence.addObserver('online', function() {
-      loadBoards();
-    });
+    /* Refetch when connectivity returns. Registered ONCE per controller, with the
+       current loader held in an instance slot. This used to add a fresh anonymous
+       observer on every load_results call — tolerable when that happened once per
+       page visit, but typing can now re-enter the route, so it accumulated one
+       permanent listener per keystroke, each closing over a stale loader, and
+       every online/offline flip fired all of them. Removed in willDestroy. */
+    this._reloadBoards = loadBoards;
+    if(!this._onlineObserver) {
+      this._onlineObserver = function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(_this._reloadBoards) { _this._reloadBoards(); }
+      };
+      persistence.addObserver('online', this._onlineObserver);
+    }
+  },
 
+  /* "Load the catalog if we do not already have one for this locale."
+     The single owner of that decision — both the typing path (_runAutoSearch)
+     and the route (routes/search.js#setupController) go through here, so a
+     controller-driven transition cannot re-enter the route and trigger a refetch
+     the controller had deliberately skipped. Typing filters the in-memory
+     catalog; only a language change or a cold start needs the server. */
+  ensure_results_loaded: function(str) {
+    var locale = (this.get('locale') || '').split(/-/)[0];
+    if(!this.get('online_results.results') || this._catalogLocale !== locale) {
+      this.load_results(str || '');
+    }
   },
   /** Live filter: re-run the search whenever the query or locale changes (debounced 300ms). */
   /* Hand-rolled rather than @ember/runloop debounce: ember/no-runloop bans
@@ -243,6 +266,13 @@ export default Controller.extend({
       clearTimeout(this._autoSearchTimer);
       this._autoSearchTimer = null;
     }
+    /* persistence is a module singleton and outlives this controller, so an
+       observer left on it leaks the controller with it. */
+    if (this._onlineObserver) {
+      persistence.removeObserver('online', this._onlineObserver);
+      this._onlineObserver = null;
+    }
+    this._reloadBoards = null;
   },
   /* Changing the LANGUAGE filter invalidates the current preview — that board is
      in the previous language, and the panel is about to be re-scoped to the new
@@ -264,14 +294,18 @@ export default Controller.extend({
        filtered_online_groups). Re-fetch when the language changes or
        the catalog has not loaded yet — a keystroke refetch would flash
        "Loading boards…" and, with q=str, used to wipe the list. */
-    if(!this.get('online_results.results') || this._catalogLocale !== locale) {
-      this.load_results(str);
-    }
+    this.ensure_results_loaded(str);
     /* clear_filter resets the language to '' ([Choose a Language]); skip the
        route transition so the route's empty-locale→preferred resolution doesn't
        snap the dropdown back to a concrete language. */
     if(this._suppressTransition) { this._suppressTransition = false; return; }
-    this.router.transitionTo('search', this.get('locale'), encodeURIComponent(str || '_'));
+    /* replaceWith, not transitionTo: this fires on every ~300ms typing pause, so
+       pushing history would put one entry per pause behind the user and Back
+       would walk the query back a character at a time instead of leaving the
+       page. The URL still tracks the typed text; only the history entry is
+       reused. `locale` is read live rather than from the `locale` local above,
+       which is split to its base form for the catalog comparison. */
+    this.router.replaceWith('search', this.get('locale'), encodeURIComponent(str || '_'));
   },
   init() {
     this._super(...arguments);
@@ -299,6 +333,20 @@ export default Controller.extend({
   },
 
   actions: {
+    /* Live search text from the find-boards combobox (SearchBoardJump).
+       Must be a real action, NOT `(mut this.searchString)`: SearchBoardJump is a
+       classic @ember/component, and a mut cell reaches one UNWRAPPED TO ITS
+       VALUE. The component reads `this.get('onQueryChange')` and guards with
+       `typeof fn === 'function'`, so the cell arrived as the string "food" and
+       every keystroke was silently discarded — no error, no console warning.
+       That broke three things at once: typing never filtered, the x clear button
+       did nothing, and Enter re-submitted the PREVIOUS query (searchBoards reads
+       a searchString that had never changed). Verified in-browser by inspecting
+       the live component: onQueryChange was type "string" while the sibling
+       `@onSelect={{this.ctrlAction ...}}` was type "function" and worked. */
+    updateSearchString: function(value) {
+      this.set('searchString', value || '');
+    },
     searchBoards: function() {
       this.load_results(this.get('searchString'));
       this.router.transitionTo('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));

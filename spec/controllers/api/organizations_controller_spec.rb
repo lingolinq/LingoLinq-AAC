@@ -1701,7 +1701,56 @@ describe Api::OrganizationsController, :type => :controller do
       expect(json['image_url']).to_not eq(nil)
       expect(json['supervisor']).to eq(true)
       expect(json['valid']).to eq(true)
-      expect(json['name']).to eq(@user.settings['name'])
+      expect(json['name']).to eq(@user.obfuscated_display_name)
+    end
+
+    it "should return the supervisor's real name when they have one" do
+      token_user
+      @user.settings['name'] = 'Alex Rivera'
+      @user.save!
+      code = Organization.activation_code(@user, {})
+      Organization.start_codes(@user.reload)
+      get 'start_code_lookup', params: {code: code}
+      json = assert_success_json
+      expect(json['name']).to eq('Alex Rivera')
+    end
+
+    it "should obfuscate the handle rather than leak it when the supervisor has no name" do
+      token_user
+      expect(@user.settings['name']).to eq(nil)
+      code = Organization.activation_code(@user, {})
+      Organization.start_codes(@user.reload)
+      get 'start_code_lookup', params: {code: code}
+      json = assert_success_json
+      # This action skips require_api_token, and user_name is accepted as a
+      # login credential by session_controller -- it must never appear here.
+      expect(json['user_name']).to eq(nil)
+      expect(json.to_json).to_not match(/#{Regexp.escape(@user.user_name)}/)
+      expect(json['name']).to eq(@user.obfuscated_name)
+      expect(json['name']).to_not eq(@user.user_name)
+    end
+
+    it "should still resolve the legacy \"No name\" placeholder to an obfuscated handle" do
+      token_user
+      @user.settings['name'] = 'No name'
+      @user.save!
+      code = Organization.activation_code(@user, {})
+      Organization.start_codes(@user.reload)
+      get 'start_code_lookup', params: {code: code}
+      json = assert_success_json
+      expect(json['name']).to eq(@user.obfuscated_name)
+    end
+
+    it "should return an organization's name unobfuscated and no handle" do
+      token_user
+      o = Organization.create(:settings => {'name' => 'Springfield Schools'})
+      o.add_manager(@user.user_name, true)
+      code = Organization.activation_code(o, {})
+      Organization.start_codes(o.reload)
+      get 'start_code_lookup', params: {code: code}
+      json = assert_success_json
+      expect(json['name']).to eq('Springfield Schools')
+      expect(json['user_name']).to eq(nil)
     end
   end
 

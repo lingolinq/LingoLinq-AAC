@@ -235,12 +235,117 @@ describe User, :type => :model do
     end
   end
   
+  describe "display_name" do
+    it "should return a real name unchanged" do
+      u = User.new
+      u.generate_defaults
+      u.user_name = 'ada'
+      u.settings['name'] = 'Ada Lovelace'
+      expect(u.display_name).to eq('Ada Lovelace')
+    end
+
+    it "should fall back to the handle when there is no name" do
+      u = User.new
+      u.generate_defaults
+      u.user_name = 'ada'
+      expect(u.settings['name']).to eq(nil)
+      expect(u.display_name).to eq('ada')
+    end
+
+    # Accounts created before the placeholder was removed keep the string until
+    # `rake extras:clear_no_name_placeholder` runs, so this must not leak.
+    it "should treat the legacy \"No name\" placeholder as absent" do
+      u = User.new
+      u.generate_defaults
+      u.user_name = 'ada'
+      u.settings['name'] = 'No name'
+      expect(u.display_name).to eq('ada')
+    end
+  end
+
   describe "named_email" do
     it "should return a named email" do
       u = User.new
       u.generate_defaults
+      u.settings['name'] = "Bob Smith"
       u.settings['email'] = "bob@yahoo.com"
-      expect(u.named_email).to eq("No name <bob@yahoo.com>")
+      expect(u.named_email).to eq("Bob Smith <bob@yahoo.com>")
+    end
+
+    # Signup collects no name, so this is the common case, not an edge case.
+    # It must be a bare address rather than " <bob@yahoo.com>" with a stray
+    # leading space.
+    it "should return a bare address when there is no name" do
+      u = User.new
+      u.generate_defaults
+      u.settings['email'] = "bob@yahoo.com"
+      expect(u.settings['name']).to eq(nil)
+      expect(u.named_email).to eq("bob@yahoo.com")
+    end
+  end
+
+  describe "prior_named_email" do
+    # Sibling of named_email and the same blank-name branch, but its only other
+    # spec reference (spec/mailers/user_mailer_spec.rb) stubs the method out
+    # entirely, so the branch itself had never been exercised.
+    it "should return a named email for the previous address" do
+      u = User.new
+      u.generate_defaults
+      u.settings['name'] = "Bob Smith"
+      u.settings['old_emails'] = ['old@yahoo.com']
+      expect(u.prior_named_email).to eq("Bob Smith <old@yahoo.com>")
+    end
+
+    it "should return a bare address when there is no name" do
+      u = User.new
+      u.generate_defaults
+      u.settings['old_emails'] = ['old@yahoo.com']
+      expect(u.settings['name']).to eq(nil)
+      expect(u.prior_named_email).to eq("old@yahoo.com")
+    end
+
+    it "should use the most recent prior address" do
+      u = User.new
+      u.generate_defaults
+      u.settings['old_emails'] = ['oldest@yahoo.com', 'newest@yahoo.com']
+      expect(u.prior_named_email).to eq("newest@yahoo.com")
+    end
+  end
+
+  describe "display_name" do
+    it "should return the name when there is a real one" do
+      u = User.new
+      u.generate_defaults
+      u.settings['name'] = 'Ada Lovelace'
+      expect(u.display_name).to eq('Ada Lovelace')
+      expect(u.placeholder_name?).to eq(false)
+    end
+
+    it "should fall back to the handle when there is no name" do
+      u = User.create!
+      expect(u.settings['name']).to eq(nil)
+      expect(u.placeholder_name?).to eq(true)
+      expect(u.display_name).to eq(u.display_user_name)
+    end
+
+    # The seed is gone, but accounts created before that still carry the literal
+    # string until the backfill rake task runs. It is truthy, so it defeats every
+    # `name || user_name` guard -- filtering it is the whole point of this method.
+    it "should treat the legacy \"No name\" placeholder as absent" do
+      u = User.create!
+      u.settings['name'] = 'No name'
+      u.save!
+      expect(u.placeholder_name?).to eq(true)
+      expect(u.display_name).to eq(u.display_user_name)
+      expect(u.display_name).to_not eq('No name')
+    end
+
+    it "should obfuscate the handle for unauthenticated surfaces" do
+      u = User.create!
+      expect(u.obfuscated_display_name).to eq(u.obfuscated_name)
+      expect(u.obfuscated_display_name).to_not eq(u.user_name)
+      u.settings['name'] = 'Ada Lovelace'
+      expect(u.obfuscated_display_name).to eq('Ada Lovelace')
     end
   end
 
@@ -264,7 +369,10 @@ describe User, :type => :model do
     it "should generate expected defaults" do
       u = User.new
       u.generate_defaults
-      expect(u.settings['name']).not_to eq(nil)
+      # Deliberately NOT defaulted. It used to seed the literal "No name",
+      # which is truthy and so defeated every `name || user_name` guard
+      # downstream -- including the SMS a family member receives.
+      expect(u.settings['name']).to eq(nil)
       expect(u.settings['preferences']).not_to eq(nil)
       expect(u.settings['preferences']['devices']['default']).to eq({
         'name' => 'Web browser for Desktop',
@@ -282,7 +390,13 @@ describe User, :type => :model do
       expect(u.settings['preferences']['geo_logging']).to eq(false)
       expect(u.settings['preferences']['auto_home_return']).to eq(false)
       expect(u.settings['preferences']['auto_open_speak_mode']).to eq(true)
-      expect(u.user_name).to match(/\Ano-name(_\d+)?\z/)
+      # Behaviour change from removing the "No name" seed. generate_user_name
+      # derives a handle from settings['name'], so a nameless account used to
+      # become "no-name"; with no name it now falls through to the email prefix
+      # and then to "person" (Processable#generate_user_name:179-183). Only
+      # reachable when name, user_name AND email are all absent -- a real signup
+      # supplies at least one -- and "person_3" reads better than "no-name_3".
+      expect(u.user_name).to match(/\Aperson(_\d+)?\z/)
       expect(u.email_hash).not_to eq(nil)
     end
     
@@ -296,7 +410,7 @@ describe User, :type => :model do
         'auto_home_return' => false
       }}}
       u.generate_defaults
-      expect(u.settings['name']).not_to eq(nil)
+      expect(u.settings['name']).to eq("Bob Miller")
       expect(u.settings['preferences']).not_to eq(nil)
       expect(u.settings['preferences']['devices']['default']).to eq({
         'name' => 'not_browser',
@@ -549,6 +663,75 @@ describe User, :type => :model do
     end
   end
 
+  describe "process_params guided-tour progress" do
+    # PROGRESS_PARAMS is an ALLOWLIST: a key absent from it is silently dropped on
+    # save. `guided_tours_completed` was written by the frontend for months without
+    # being listed, so the "seen" badge never survived a reload -- and none of it
+    # had a spec, which is how it stayed broken. These cover both halves: that the
+    # keys persist at all, and that the client-supplied map is sanitized.
+    def progress_for(params)
+      u = User.new
+      u.process_params({'preferences' => {'progress' => params}}, {})
+      u.settings['preferences']['progress']
+    end
+
+    it "should persist both guided-tour maps (they are on the allowlist)" do
+      progress = progress_for({
+        'guided_tours_completed' => {'home_gentle' => true},
+        'guided_tours_autoshown' => {'board_detail_speak_gentle' => true}
+      })
+      expect(progress['guided_tours_completed']).to eq({'home_gentle' => true})
+      expect(progress['guided_tours_autoshown']).to eq({'board_detail_speak_gentle' => true})
+    end
+
+    it "should drop a progress key that is not on the allowlist" do
+      progress = progress_for({'guided_tours_completed' => {'a' => true}, 'not_a_real_key' => {'x' => true}})
+      expect(progress['guided_tours_completed']).to eq({'a' => true})
+      expect(progress['not_a_real_key']).to eq(nil)
+    end
+
+    it "should normalise every value to true and drop falsy entries" do
+      progress = progress_for({'guided_tours_completed' => {
+        'kept' => 'yes', 'also_kept' => 1, 'dropped' => false, 'also_dropped' => nil
+      }})
+      expect(progress['guided_tours_completed']).to eq({'kept' => true, 'also_kept' => true})
+    end
+
+    it "should discard the value entirely when the client sends a non-Hash" do
+      ['not a hash', 42, ['a', 'b']].each do |junk|
+        progress = progress_for({'guided_tours_completed' => junk})
+        expect(progress['guided_tours_completed']).to eq(nil), "expected #{junk.inspect} to be discarded"
+      end
+    end
+
+    it "should bound the number of keys" do
+      big = {}
+      (User::GUIDED_TOUR_MAX_KEYS + 25).times { |i| big["tour_#{i}"] = true }
+      progress = progress_for({'guided_tours_completed' => big})
+      expect(progress['guided_tours_completed'].size).to eq(User::GUIDED_TOUR_MAX_KEYS)
+    end
+
+    it "should bound the length of each key" do
+      long = 'x' * (User::GUIDED_TOUR_MAX_KEY_LENGTH + 50)
+      progress = progress_for({'guided_tours_completed' => {long => true}})
+      key = progress['guided_tours_completed'].keys.first
+      expect(key.length).to eq(User::GUIDED_TOUR_MAX_KEY_LENGTH)
+      expect(progress['guided_tours_completed'][key]).to eq(true)
+    end
+
+    it "should coerce non-string keys to strings" do
+      progress = progress_for({'guided_tours_completed' => {5 => true, :sym => true}})
+      expect(progress['guided_tours_completed']).to eq({'5' => true, 'sym' => true})
+    end
+
+    it "should survive a round-trip through save" do
+      u = User.create!
+      u.process_params({'preferences' => {'progress' => {'guided_tours_completed' => {'home_gentle' => true}}}}, {})
+      u.save!
+      expect(u.reload.settings['preferences']['progress']['guided_tours_completed']).to eq({'home_gentle' => true})
+    end
+  end
+
   describe "process_params" do
     it "should ignore missing parameters" do
       u = User.new
@@ -707,6 +890,45 @@ describe User, :type => :model do
       ae = AuditEvent.where(event_type: 'parental_consent_revoke', user_key: u.global_id).last
       expect(ae.data['ip']).to eq('203.0.113.8')
       expect(ae.data['user_agent']).to eq('TestAgent/2.0')
+    end
+
+    # Withdrawal of consent has to end access ALREADY granted, not merely block
+    # the next sign-in. This previously called devices.each(&:invalidate_cached_keys),
+    # which only drops the Redis `user_token/...` cache and leaves settings['keys']
+    # populated -- so a token minted before the revocation stayed valid, and
+    # Device#valid_token? refreshes last_timestamp on use so an active session
+    # never aged out either. Verified against a running stack before the fix:
+    # /api/v1/users/self still returned the child's record post-revoke.
+    it "revoke_parental_consent! invalidates issued device tokens, and granting does not" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_tokens',
+        'email' => 'kidtokens@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parenttokens@example.com'
+      }, {})
+      u.save!
+
+      grant_tok = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(grant_tok)).to eq(true)
+
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
+      d.generate_token!
+      key = d.reload.settings['keys'].last['value']
+      expect(d.valid_token?(key)).to eq(true)
+
+      # Granting must NOT log the child out -- it busts the permission cache only.
+      expect(u.reload.grant_parental_consent!(grant_tok)).to eq(false) # already granted
+      expect(d.reload.settings['keys'].length).to eq(1)
+      expect(d.valid_token?(key)).to eq(true)
+
+      revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
+      expect(u.revoke_parental_consent!(revoke_tok)).to eq(true)
+
+      expect(d.reload.settings['keys']).to eq([])
+      expect(d.valid_token?(key)).to eq(false)
     end
 
     it "should coerce preferences cookies to boolean" do
@@ -3028,7 +3250,7 @@ describe User, :type => :model do
         'message' => 'alternate pantsuit',
         'sharer_id' => u2.global_id,
         'to' => 'u1@example.com',
-        'sharer_name' => u2.settings['name'],
+        'sharer_name' => u2.user_name,
         'reply_url' => nil,
         'recipient_id' => u.global_id,
         'reply_id' => nil,

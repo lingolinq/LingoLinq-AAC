@@ -69,6 +69,6 @@ class SupervisorMailer < ActionMailer::Base
 
   def consent_response_url(relationship, action)
     token = relationship.consent_response_token
-    "#{JsonApi::Json.current_host}/consent/#{token}?action=#{action}"
+    "#{JsonApi::Json.absolute_host}/consent/#{token}?action=#{action}"
   end
 end

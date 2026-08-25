@@ -47,7 +47,7 @@ class Api::UsersController < ApplicationController
     nonce = GoSecure.nonce('valet_hash_password')[0, 5]
     password = user.valet_temp_password(nonce)
     credentials = "model-#{user.global_id}:#{password.gsub(/\?:\#/, '-')}"
-    url = "#{JsonApi::Json.current_host}/login?#{credentials}"
+    url = "#{JsonApi::Json.absolute_host}/login?#{credentials}"
     render json: {user_name: "model@#{user.global_id.sub(/_/, '.')}", password: password, url: url}
   end
   

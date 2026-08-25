@@ -12,6 +12,7 @@ import utterance from '../utils/utterance';
 import LingoLinq from '../app';
 import persistence from '../utils/persistence';
 import stashes from '../utils/_stashes';
+import { display_name_for } from '../utils/display_name';
 
 /**
  * Share Utterance modal (Phase 2).
@@ -101,7 +102,11 @@ export default Component.extend({
       }
       if (app_state.get('reply_note.author')) {
         res.unshift({
-          user_name: app_state.get('reply_note.author.name'),
+          // The log `author` payload carries user_name and (since this change)
+          // a resolved `name`; older cached notes carry only user_name, so go
+          // through display_name_for rather than reading `name` directly —
+          // this row used to render blank on every one of them.
+          user_name: display_name_for(app_state.get('reply_note.author')),
           id: app_state.get('reply_note.author.id'),
           avatar_url: app_state.get('reply_note.author.image_url'),
           reply: app_state.get('reply_note')
