@@ -114,7 +114,7 @@ membership from those lists would be a false positive.
 Precisely: beta falls back to the full AVAILABLE list, and canary falls back to
 `AVAILABLE_FRONTEND_FEATURES - DISABLED_CANARY_FEATURES` (`lib/system_feature_settings.rb:29`). The
 73 = 73 equality and the beta/canary identity above hold **only because
-`DISABLED_CANARY_FEATURES` is currently empty** (`lib/feature_flags.rb:93`); both go silently false
+`DISABLED_CANARY_FEATURES` is currently empty** (`lib/feature_flags.rb:103`); both go silently false
 the first time anything is added to that denylist.
 
 ### 2.4 Per-user resolution — true (confirmation only)
@@ -162,7 +162,7 @@ country, so the 29 unresolved users are *unknown*, not affirmatively non-EU.
 **This is the operationally important layer, and it is not what the organization histogram in 2.2
 suggests.** With the flag on, `article_50_disclosure_missing?`
 (`app/controllers/application_controller.rb:419-422`) is armed at all five AI ingresses:
-`app/controllers/api/boards_controller.rb:584`, `api/eval_sessions_controller.rb:84`,
+`app/controllers/api/boards_controller.rb:592`, `api/eval_sessions_controller.rb:84`,
 `api/integrations_controller.rb:104`, `api/word_suggestions_controller.rb:28`,
 `api/words_controller.rb:63`.
 
