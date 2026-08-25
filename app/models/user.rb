@@ -1527,8 +1527,12 @@ class User < ApplicationRecord
   # It is versioned against Article50Disclosures::CURRENT_VERSION (its OWN version
   # source, not the ai_consent one, PN-02) so an Art.50 copy change re-prompts
   # without forcing an ai_consent re-consent. Defaults to false for a nil/missing
-  # key: nothing flips shown=true until the Phase 3/5 modal acknowledge ships, so in
-  # production every AiApiLog row carries article_50_disclosure_shown=false until then.
+  # key. CORRECTED 2026-08-25: an earlier version of this comment said "nothing flips
+  # shown=true until the Phase 3/5 modal acknowledge ships, so in production every
+  # AiApiLog row carries article_50_disclosure_shown=false until then". That modal HAS
+  # shipped and the flag enabling it IS on in production, so the claim is false: of the
+  # 64 AiApiLog rows observed on 2026-08-23, 63 carry article_50_disclosure_shown=true.
+  # See docs/legal/2026-08-23_article-50-production-flag-verification.md.
   def article_50_disclosure_shown?(disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION)
     c = self.settings && self.settings['ai_transparency']
     return false unless c.is_a?(Hash)
@@ -1555,10 +1559,13 @@ class User < ApplicationRecord
   # grant_ai_consent! code -- NOT GoSecure.nonce, which had low entropy under bulk
   # backfill. Raises ArgumentError 'invalid_source' for a non-allowlisted source.
   #
-  # WRITE TRIGGER: the Phase 3/5 modal acknowledge is the writer. Phase 4 ships this
-  # API only; nothing calls it in production yet, so article_50_disclosure_shown?
-  # stays false on every row until the modal ships (that is expected -- the plumbing
-  # is the deliverable).
+  # WRITE TRIGGER: the Phase 3/5 modal acknowledge is the writer. CORRECTED 2026-08-25:
+  # an earlier version of this comment said "nothing calls it in production yet, so
+  # article_50_disclosure_shown? stays false on every row until the modal ships". Both
+  # halves are now false. The modal shipped and calls this endpoint from
+  # app/frontend/app/components/ai-disclosure.js:105, and 63 of 64 AiApiLog rows
+  # observed on 2026-08-23 carry article_50_disclosure_shown=true.
+  # See docs/legal/2026-08-23_article-50-production-flag-verification.md.
   def mark_article_50_disclosure_shown!(disclosures_version:, source:, ip: nil, user_agent: nil)
     raise ArgumentError, 'invalid_source' unless ARTICLE_50_DISCLOSURE_SOURCES.include?(source)
     disclosures_version = ai_consent_normalize_version!(disclosures_version)

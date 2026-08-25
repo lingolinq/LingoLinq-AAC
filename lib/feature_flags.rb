@@ -54,12 +54,22 @@ module FeatureFlags
               # RLL-01). Reaches the client via frontend_flags_for(user) ->
               # appState.feature_flags.article_50_disclosure, which is the ONLY input
               # utils/article50_gate.js#needsAcknowledgement reads before it will show
-              # the modal. AVAILABLE-only => OFF for everyone by default, so the whole
-              # Phase 3/4 disclosure path stays inert (the intended pre-2026-08-02
-              # state). Enabling it is a HARD release gate for the 2026-08-02 Article 50
-              # deadline: add to ENABLED_FRONTEND_FEATURES (or opt individual EU orgs in
-              # via per-user beta flag) ONLY on Scot's explicit sign-off, and only after
-              # the production deploy of Phases 3-5. Do NOT blanket-enable here.
+              # the modal. CAUTION, corrected 2026-08-25: AVAILABLE-only describes THIS
+              # CONSTANT, not production. Production resolves the effective feature list
+              # through SystemFeatureSettings.effective_enabled_for, where the
+              # default_enabled_features DB Setting REPLACES this constant. A direct
+              # audited read on 2026-08-23 found article_50_disclosure PRESENT in that
+              # Setting and feature_enabled_for? true for all 34 then-existing accounts.
+              # So the Phase 3/4 disclosure path is LIVE in production, NOT inert -- an
+              # earlier version of this comment said it "stays inert", which was true of
+              # this file and false of the running system. An org's
+              # settings['enabled_features'] still wins over the default row (even when
+              # empty), so a district override can disable it for that org's users.
+              # The 2026-08-02 release gate's OUTCOME is satisfied in the current
+              # production Setting; whether it was discharged by the explicit sign-off
+              # the gate required is unrecoverable, since Setting carries no version
+              # history. Do NOT blanket-enable here; change the Setting deliberately.
+              # See docs/legal/2026-08-23_article-50-production-flag-verification.md.
               'article_50_disclosure',
               # Privacy Compliance Kernel (lib/compliance/): segment + jurisdiction +
               # digital-consent-age profile. AVAILABLE-only => OFF by default so

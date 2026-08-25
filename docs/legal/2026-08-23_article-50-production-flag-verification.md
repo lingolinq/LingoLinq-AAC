@@ -245,12 +245,38 @@ testing.
    control change" is unanswerable for every `Setting`-backed control, not only this one.
 3. **Code and DB disagree on the default feature set.** A reader of `lib/feature_flags.rb` alone
    reaches the wrong conclusion about production. That is what produced the defect corrected here.
-4. **A runtime-code comment shipping in the live image was falsified by this record.**
-   RESOLVED 2026-08-25 (both carriers). `app/controllers/application_controller.rb` was corrected
-   by PR #853; it now reads "this guard is LIVE in production, not inert" at `:411`.
-   `app/controllers/api/boards_controller.rb:580` carried the same claim and is corrected in the
-   same PR as this amendment. Same code-default-mistaken-for-runtime-state class as item 3. Both
-   carriers are now closed; the item is retained as history of what shipped.
+4. **Runtime-code comments shipping in the live image were falsified by this record.**
+   RESOLVED 2026-08-25, **six carriers, all closed**:
+   - `app/controllers/application_controller.rb` -- corrected by PR #853; `:411` now reads "this
+     guard is LIVE in production, not inert".
+   - `app/controllers/api/boards_controller.rb:580` -- "the guard is inert until the flag is
+     enabled". Corrected here.
+   - `lib/feature_flags.rb:57-63` -- "AVAILABLE-only => OFF for everyone by default, so the whole
+     Phase 3/4 disclosure path stays inert", plus a sign-off gate the production `Setting` had
+     already bypassed. This is the same file item 3 below names as the one that makes readers reach
+     the wrong conclusion about production. Corrected here.
+   - `app/frontend/app/utils/article50_gate.js:14-16` -- "the flag is not registered yet on this
+     branch"; "the intended inert state". Both false. Corrected here.
+   - `app/models/user.rb:1531` -- "in production every `AiApiLog` row carries
+     `article_50_disclosure_shown=false`". False: 63 of 64 observed rows carry `true` (2.4).
+     Corrected here.
+   - `app/models/user.rb:1559` -- "nothing calls it in production yet". False:
+     `app/frontend/app/components/ai-disclosure.js:105` calls the acknowledgement endpoint.
+     Corrected here.
+
+   **Process note, and it is the useful part of this item.** This item was closed THREE times on
+   incomplete sweeps: first at two carriers, then at four, now at six. Each closure was made in good
+   faith after a keyword sweep, and each keyword sweep was chosen from the wording of the carriers
+   already known. The last two were found only because a second, independent reviewer read the code
+   rather than grepping it.
+
+   A grep gate over `inert` co-occurring with `article_50_disclosure` -- the counter-measure this
+   item previously proposed -- would have found the first four and **missed the last two**, because
+   they say "shown=false" and "nothing calls it" and never use the word "inert". Recording that
+   explicitly, because the tempting lesson here ("add a grep gate") is the wrong one. No phrase list
+   derived from known carriers can bound a defect whose defining property is that it is phrased in a
+   way nobody anticipated. What actually worked was two reviewers with different methods reading the
+   same code independently.
 
 5. **Two human-owned fields in the findings SSOT carried the same falsified claim.**
    RESOLVED 2026-08-24 by PR #850. `audit-reports/FINDINGS.json` finding LL-6723438462 previously

@@ -91,7 +91,7 @@ belongs to a review of the Anthropic BAA posture, not to this correction.
 > Draft date: 2026-06-13. Refreshed 2026-06-18 (eval narration added to the inventory after
 > #411/#412/#413; DeepSeek-on-compliance-surface discrepancy flagged in section 4). Re-verified
 > and attested 2026-06-19. Refreshed 2026-07-12 (section 4.1 discrepancy resolved via Scot's
-> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Refreshed 2026-07-18/19 (Anthropic HIPAA-Ready BAA recorded; section 3 HIPAA conclusion for the model-call path updated to BAA-covered; eval narration classified NOT a Healthcare Activity; model inventory updated). Re-attested 2026-07-19. Refreshed 2026-07-22 (Art50 Phase 5: section 5.2 rewritten to record that the 50(1) disclosure modal, ack endpoint, and first-AI-use gate are built and staged, gated OFF behind the `article_50_disclosure` flag registered AVAILABLE-only **[CORRECTION 2026-08-25: that 2026-07-22 description was falsified by the 2026-08-23 production read -- the flag IS ENABLED in production via the `default_enabled_features` DB Setting. See the Corrections table.]**; Phase 4 jurisdiction stamping shipped and un-inerts the EU log-retention purge; retention tiers reconciled). Re-attested 2026-07-22 by Scot Wahlquist, CEO (see section 8, 2026-07-22 amendment). Operative reference: NIST AI RMF plus the Generative AI Profile
+> ratified two-tier AI data-routing policy). Re-attested 2026-07-13. Refreshed 2026-07-18/19 (Anthropic HIPAA-Ready BAA recorded; section 3 HIPAA conclusion for the model-call path updated to BAA-covered; eval narration classified NOT a Healthcare Activity; model inventory updated). Re-attested 2026-07-19. Refreshed 2026-07-22 (Art50 Phase 5: section 5.2 rewritten to record that the 50(1) disclosure modal, ack endpoint, and first-AI-use gate are built and staged, gated OFF behind the `article_50_disclosure` flag registered AVAILABLE-only **[CORRECTION 2026-08-25: that 2026-07-22 description was falsified by the 2026-08-23 production read -- the flag IS ENABLED in production via the `default_enabled_features` DB Setting. See the Corrections table.]**; Phase 4 jurisdiction stamping shipped and un-inerts the EU log-retention purge **[CORRECTION 2026-08-25: it does not; see Corrections row 6]**; retention tiers reconciled). Re-attested 2026-07-22 by Scot Wahlquist, CEO (see section 8, 2026-07-22 amendment). Operative reference: NIST AI RMF plus the Generative AI Profile
 > (NIST AI 600-1). ISO 42001 certification is not yet a small-vendor expectation and is out of
 > scope for now.
 >
@@ -127,7 +127,7 @@ prior attestation.
 | 3 | Section 8, 2026-07-22 amendment: "the modal is therefore **shown to no one** in production" (:426-428) | Overtaken by the same read. Retained verbatim as the historical record of the Phase 5 handoff, with a dated correction marker appended in place. |
 | 4 | Population scope, stated by the predecessor only as a forward-looking deferral rationale ("prod carries no real EU users (internal/test accounts only)") | The 34 accounts above are **test/QA accounts, not real users** (confirmed by Scot, 2026-08-24). Production has no real user population. So the corrected posture is that the disclosure is **correctly configured and live**, and separately that **no real person has encountered an undisclosed AI interaction** - a stronger statement than the logs alone support, and one the predecessor could not make either way. |
 | 5 | Stale **Bedrock runtime status**, in four places: the section 2 operational-status note, the section 3 BAA coverage-boundaries bullet, the "Runtime routing update" paragraph, and the closing 2026-08-04 trailer. All state or imply the runtime AI path has been not operational since revision `00014-5rw`. | False since 2026-08-04T07:25:08Z. Credentials were re-mounted 53 minutes after the withdrawal, on `00015-9l9`, and the path has since carried user-attributed traffic (63 of 64 `AiApiLog` rows carry a `user_global_id`). Corrections incorporated from the 2026-08-19 Bedrock truth-up (PR #827), which is superseded by this record and closed. |
-| 6 | Section 5.2 and section 8: the Phase 4 jurisdiction helper "**un-inerts the EU log-retention purge**", which "now matches `jurisdiction = 'EU'` rows". | It does not. The stamp writes `'EU'` only for a CONFIRMED `:eu` user; `EuJurisdiction.status` is `:unknown` for 34 of 34 production accounts, so the stamp writes nothing and `purge_old_eu_logs!` matches nothing. The purge remains **inert**. This claim was falsified by the same 2026-08-23 read that falsified rows 1-3, and was missed by the first correction pass. |
+| 6 | **Three sites** (header history line, section 5.2, section 8): the Phase 4 jurisdiction helper "**un-inerts the EU log-retention purge**", which "now matches `jurisdiction = 'EU'` rows". | Overstated. The mechanism IS wired, but it matches **zero rows today**: the stamp writes `'EU'` only for a CONFIRMED `:eu` user and `EuJurisdiction.status` is `:unknown` for 34 of 34 production accounts. So the purge is **wired and dormant**, not un-inerted, and it begins matching on the first confirmed EU user (`EuJurisdiction.locale_is_eu?` resolves `:eu` from a bare `pl`/`de`/`fr` locale). NOTE: `lib/tasks/scheduler.rake:153-158` and `docs/legal/DATA_RETENTION.md:33` still describe this purge as "enforced"; both are listed as declared follow-ups, not corrected here. This claim was falsified by the same 2026-08-23 read that falsified rows 1-3, and was missed by the first correction pass. |
 | 7 | Section 5.2 described the deliverable as the "**EU-gated** AI-interaction disclosure modal". | The gate is fail-safe OPEN: `EuJurisdiction.disclosure_required?` is `status(user) != :non_eu` (`lib/eu_jurisdiction.rb:57-59`), so the modal is required for every account not authoritatively `:non_eu`, not for an EU subset. The "EU-gated" framing invited reasoning from the org histogram (0 of 2 EU orgs) rather than from the resolver, and is itself part of what made "shown to no one" plausible. |
 | 8 | Section 5.2 carried a 2026-08-19 marker stating the section was "carried forward unverified" and that "**the production flag state was not read**". | Withdrawn. The production flag state WAS read on 2026-08-23. That marker's stated caution turned out to be exactly correct (a DB override can enable a flag registered AVAILABLE-only), so the predecessor's claim is not merely unchecked, it is false. |
 
@@ -476,11 +476,14 @@ on that track, not to any standalone Article 50 effort or compliance-doc thread.
 dependency -- a shared call-context helper (`LingoLinq::Article50CallContext.for`) that stamps
 `jurisdiction:` at the three AI call sites (board generation, word prediction, eval narration) --
 **shipped as Phase 4 (PR #635)**, and that same helper was described as un-inerting the EU log-retention purge
-(`AiApiLog.purge_old_eu_logs!`). **[CORRECTION 2026-08-25: it does not. The stamp writes
-`jurisdiction = 'EU'` only for a CONFIRMED `:eu` user. Production has zero confirmed EU users
-(`EuJurisdiction.status` is `:unknown` for 34 of 34), so the stamp writes nothing and
-`purge_old_eu_logs!` matches nothing. The purge remains inert. See
-`docs/legal/2026-08-23_article-50-production-flag-verification.md` section 4 item 1.]** The helper is
+(`AiApiLog.purge_old_eu_logs!`). **[CORRECTION 2026-08-25: overstated. The mechanism IS wired -- the helper stamps
+and the purge reads that column -- but it currently matches ZERO rows, because the stamp writes
+`jurisdiction = 'EU'` only for a CONFIRMED `:eu` user and production has none
+(`EuJurisdiction.status` is `:unknown` for 34 of 34 as of 2026-08-23). So the purge is wired and
+dormant, not un-inerted. It begins matching on the first confirmed EU user;
+`EuJurisdiction.locale_is_eu?` resolves `:eu` from a bare `pl`/`de`/`fr` locale, so a single Polish
+beta tester changes this. See `docs/legal/2026-08-23_article-50-production-flag-verification.md`
+section 4 item 1.]** The helper is
 deployed wherever Phase 4 is
 deployed (staged; effective in production after the Phase 4/5 prod deploy). Boundary rules that
 remain in force: **(1)** only the code track edits the three AI call sites, the
@@ -665,11 +668,15 @@ flag is enabled") is the same class of overtaken instruction. See "Corrections i
 successor".]** Phase 4 jurisdiction stamping (`Article50CallContext`
 stamps `jurisdiction = 'EU'` at the three AI call sites, merged to staging) was described as
 un-inerting the EU `AiApiLog` 5-year retention purge (`purge_old_eu_logs!`) wherever Phase 4 is
-deployed. **[CORRECTION 2026-08-25: it does not un-inert it. The stamp fires only for a CONFIRMED
-`:eu` user and production has none, so `purge_old_eu_logs!` matches nothing and the purge is still
-inert.]** The
+deployed. **[CORRECTION 2026-08-25: overstated as written. The mechanism is wired but matches
+ZERO rows today: the stamp fires only for a CONFIRMED `:eu` user and production has none. Wired and
+dormant, not un-inerted. It begins matching on the first confirmed EU user.]** The
 `AiApiLog` retention tiers were reconciled to a single wording across the memo, `DATA_RETENTION.md`,
-`AI_DATA_FLOW_CLASSIFICATION.md`, and `scheduler.rake` (EU 5-year and 90-day IP redaction enforced;
+`AI_DATA_FLOW_CLASSIFICATION.md`, and `scheduler.rake` (EU 5-year and 90-day IP redaction described
+there as enforced **[CORRECTION 2026-08-25: the EU 5-year leg is wired but matches zero rows, per the
+bracket immediately above. `lib/tasks/scheduler.rake:153-158` and `docs/legal/DATA_RETENTION.md:33`
+still describe it as enforced and are listed as declared follow-ups, not corrected here. The 90-day
+IP redaction leg is unaffected by this correction.]**;
 children 12-month and general 24-month **decided, not yet enforced** pending a per-row
 retention-class marker; HIPAA 6-year floor open). No new external data egress or model routing is
 introduced. This is a **substantive** change to the attested Article 50 position; per section 6 (AI
@@ -747,7 +754,7 @@ that evidence does not establish, and
   the *direct* third-party Anthropic endpoint (now unused at runtime; covered by the Anthropic BAA
   if re-enabled) and any non-AWS model provider.
 
-_Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing). Prose corrected 2026-07-27
+_Re-attested 2026-07-24 by Scot Wahlquist, CEO (Bedrock runtime routing; **on the predecessor `DOC-39f37f8200`, not on these bytes**). Prose corrected 2026-07-27
 to remove a contradictory "re-attestation owed" banner left in the bytes that attestation covered._
 
 _Corrected 2026-08-01 by Claude Code to remove the stale completed-egress framing and the retracted
@@ -771,7 +778,10 @@ Bedrock credentials, records 64 application-observed `AiApiLog` rows through 202
 zero non-null `organization_global_id` values, and states plainly that no AWS-side or vendor-side
 confirmation was obtained and that mounted credentials do not prove continuous traffic or individual
 call success. The evidence pull behind it was read-**mostly**: it created three framework
-`AuditEvent` session-open rows and nothing else. **Re-attestation of this successor is owed and is
-deliberately blocked**: section 5.2 (Article 50) was out of scope here, was not re-verified, and is
-the subject of a separate production-status truth-up. A separately-tracked infrastructure item is
+`AuditEvent` session-open rows and nothing else. **[CORRECTION 2026-08-25: the sentence that stood here said re-attestation was "deliberately
+blocked" because section 5.2 "was out of scope here, was not re-verified, and is the subject of a
+separate production-status truth-up". That was written by the 2026-08-19 Bedrock-scoped revision and
+is no longer true. That truth-up has landed: section 5.2 IS re-verified in these bytes against the
+2026-08-23 audited production read. The attestation hold it asserted is withdrawn. This record is
+still unattested, but as an ordinary un-signed draft, not a blocked one.]** A separately-tracked infrastructure item is
 noted in section 7._

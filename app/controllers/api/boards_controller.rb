@@ -581,7 +581,11 @@ class Api::BoardsController < ApplicationController
     # not production. Production serves it from the default_enabled_features DB
     # Setting, which overrides the code constant, and a direct read on 2026-08-23
     # found the flag ENABLED for all 34 then-existing accounts. So this guard is
-    # LIVE in production, not inert. An earlier version of this comment said it was
+    # LIVE in production, not inert. Two limits, per the sibling comment: an org's
+    # settings['enabled_features'] wins over the default row even when empty, so a
+    # district override can put this guard back to inert for that org's users; and
+    # the 2026-08-23 figure is a dated snapshot, not a guarantee that every future
+    # user or org inherits it. An earlier version of this comment said it was
     # "inert until the flag is enabled"; that was true of the code and false of the
     # running system. See docs/legal/2026-08-23_article-50-production-flag-verification.md
     # and application_controller.rb#article_50_disclosure_missing? for the same note.
