@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-23
 **Owner:** Scot Wahlquist, CEO
-**Status:** ATTESTED 2026-08-24 by Scot Wahlquist, CEO. Evidence record; asserts no posture of its own beyond
+**Status:** DRAFT - awaiting attestation. Evidence record; asserts no posture of its own beyond
 the observations below.
 **Trigger:** Three compliance successors merged in PR #846 state that `article_50_disclosure` is
 AVAILABLE-only at `64cdccba1` with runtime enablement UNVERIFIED, and instruct that production be
@@ -276,9 +276,9 @@ testing.
 | Field | Value |
 |---|---|
 | Prepared by | Claude Code, 2026-08-23, from four named production executions plus a queried six-session `AuditEvent` delta |
-| Reviewed by | Dual review on PR #849 (Codex senior-dev + Claude adversary): 3 High, 9 Medium, 3 Low, all addressed before merge |
-| Attested by | Scot Wahlquist, CEO |
-| Attestation date | 2026-08-24 |
+| Reviewed by | NOT YET REVIEWED |
+| Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO |
+| Attestation date | pending |
 
 **Observation vs derivation.** Every figure in the Section 2 tables is a direct read. Four
 statements elsewhere in this record are DERIVED and are labelled as such: the image/commit
