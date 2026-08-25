@@ -3,10 +3,14 @@ import {
   it,
   itAsync,
   expect,
-  beforeEach
+  beforeEach,
+  afterEach
 } from 'frontend/tests/helpers/jasmine';
 import 'frontend/tests/helpers/ember_helper';
 import EmberObject from '@ember/object';
+import RSVP from 'rsvp';
+import modalUtil from '../../utils/modal';
+import persistence from '../../utils/persistence';
 
 /*
  * create-board-new component coverage — Scot #3 (High) pre-merge review.
@@ -177,6 +181,160 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       deferredResolve();
       await ensurePromise;
       expect(settled).toEqual(true);
+    });
+  });
+
+  describe('AI enable intercept', function() {
+    var originalOpen;
+
+    beforeEach(function() {
+      originalOpen = modalUtil.open;
+    });
+
+    afterEach(function() {
+      modalUtil.open = originalOpen;
+    });
+
+    function stubUser(prefs, extras) {
+      extras = extras || {};
+      return EmberObject.create({
+        preferences: prefs || {},
+        eu_under_16: !!extras.eu_under_16,
+        eu_ai_parental_consent_active: !!extras.eu_consent_active,
+        coppa_parental_consent_pending: !!extras.coppa_pending,
+        eu_ai_parental_consent_parent_email: extras.parentEmail || ''
+      });
+    }
+
+    function stubAppState(flagOn, user) {
+      return EmberObject.create({
+        feature_flags: EmberObject.create({ ai_board_generation: flagOn }),
+        currentUser: user
+      });
+    }
+
+    itAsync('opens enable-ai-features and stays on the chooser when prefs are unset', async function() {
+      var c = makeComponent();
+      c.set('show_create_chooser', true);
+      c.set('ai_mode', false);
+      c.set('appState', stubAppState(true, stubUser({})));
+      var opened = null;
+      modalUtil.open = function(template, options) {
+        opened = {
+          template: template,
+          options: options,
+          chooserVisible: c.get('show_create_chooser')
+        };
+        return RSVP.reject({ reason: 'force close' });
+      };
+      await c._requestEnterAiMode();
+      expect(opened.template).toEqual('enable-ai-features');
+      expect(opened.options.triggeredPref).toEqual('ai_board_generation');
+      expect(opened.chooserVisible).toEqual(false);
+      expect(c.get('ai_mode')).toEqual(false);
+      expect(c.get('show_create_chooser')).toEqual(true);
+    });
+
+    itAsync('enters AI mode after enabling board generation', async function() {
+      var c = makeComponent();
+      c.set('show_create_chooser', true);
+      c.set('ai_mode', false);
+      c.set('appState', stubAppState(true, stubUser({})));
+      modalUtil.open = function() {
+        return RSVP.resolve({
+          saved: true,
+          requested_features: { ai_board_generation: true }
+        });
+      };
+      await c._requestEnterAiMode();
+      expect(c.get('ai_mode')).toEqual(true);
+      expect(c.get('show_create_chooser')).toEqual(false);
+    });
+
+    itAsync('stays on the chooser when save omits board generation', async function() {
+      var c = makeComponent();
+      c.set('show_create_chooser', true);
+      c.set('ai_mode', false);
+      c.set('appState', stubAppState(true, stubUser({})));
+      modalUtil.open = function() {
+        return RSVP.resolve({
+          saved: true,
+          requested_features: { ai_board_generation: false, ai_word_prediction: true }
+        });
+      };
+      await c._requestEnterAiMode();
+      expect(c.get('ai_mode')).toEqual(false);
+      expect(c.get('show_create_chooser')).toEqual(true);
+    });
+
+    itAsync('opens the EU parental-consent modal instead of self-enable', async function() {
+      var c = makeComponent();
+      c.set('show_create_chooser', true);
+      c.set('ai_mode', false);
+      c.set('appState', stubAppState(true, stubUser({}, { eu_under_16: true })));
+      var opened = null;
+      modalUtil.open = function(template, options) {
+        opened = { template: template, options: options };
+        return RSVP.resolve({ sent: true });
+      };
+      await c._requestEnterAiMode();
+      expect(opened.template).toEqual('eu-ai-parental-consent');
+      expect(c.get('ai_mode')).toEqual(false);
+      expect(c.get('show_create_chooser')).toEqual(true);
+    });
+
+    itAsync('opens a blocked enable modal when the rollout flag is off', async function() {
+      var c = makeComponent();
+      c.set('show_create_chooser', true);
+      c.set('ai_mode', false);
+      c.set('appState', stubAppState(false, stubUser({
+        ai_features_enabled: true,
+        ai_board_generation: true
+      })));
+      var opened = null;
+      modalUtil.open = function(template, options) {
+        opened = { template: template, options: options };
+        return RSVP.resolve();
+      };
+      await c._requestEnterAiMode();
+      expect(opened.template).toEqual('enable-ai-features');
+      expect(opened.options.blocked).toEqual(true);
+      expect(opened.options.blockedReason).toEqual('flag');
+      expect(c.get('ai_mode')).toEqual(false);
+    });
+
+    itAsync('skips the popup when board generation is already explicitly on', async function() {
+      var c = makeComponent();
+      c.set('show_create_chooser', true);
+      c.set('ai_mode', false);
+      c.set('appState', stubAppState(true, stubUser({
+        ai_features_enabled: true,
+        ai_board_generation: true
+      })));
+      var opened = false;
+      modalUtil.open = function() {
+        opened = true;
+        return RSVP.resolve();
+      };
+      await c._requestEnterAiMode();
+      expect(opened).toEqual(false);
+      expect(c.get('ai_mode')).toEqual(true);
+    });
+
+    itAsync('generate_labels_with_ai does not continue when opt-in is cancelled', async function() {
+      var c = makeComponent();
+      c.set('model.description', 'A board for elementary math.');
+      c.set('appState', stubAppState(true, stubUser({})));
+      persistence.set('online', true);
+      var ensureCalled = false;
+      c._ensureAiBoardGenerationAccess = function() {
+        ensureCalled = true;
+        return RSVP.resolve({ proceed: false });
+      };
+      var fn = (c.actions && c.actions.generate_labels_with_ai) || c.generate_labels_with_ai;
+      await fn.call(c);
+      expect(ensureCalled).toEqual(true);
+      expect(c.get('ai_labels_generated')).toEqual(false);
     });
   });
 });

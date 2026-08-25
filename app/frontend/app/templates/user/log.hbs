@@ -28,7 +28,7 @@
 {{else}}
   <h2>{{t "Log Entry Details" key="log_entry_details"}}</h2>
 {{/if}}
-<div class='visible-print-block' style='margin-top: -10px; margin-bottom: 10px;'>{{this.user.name}} - {{this.user.user_name}}</div>
+<div class='visible-print-block' style='margin-top: -10px; margin-bottom: 10px;'>{{display-name this.user}} - {{this.user.user_name}}</div>
 {{#if this.processed_assessment}}
   <div class="md-eval-report">
   {{#if this.processed_assessment.date}}

@@ -176,8 +176,17 @@ explicitly marked not operational.
   account and its configurations.
 - Erasure removes the account, its configurations, and the board, log, and connection records tied
   to it, plus the user's own voice recordings (`ButtonSound`, including off-board / message-bank
-  rows) and videos (`UserVideo`), with Uploadable scheduling S3 object removal on destroy; account
-  merges transfer license records rather than orphaning them.
+  rows) and videos (`UserVideo`), with Uploadable scheduling removal of the primary S3 object and
+  the `MediaObject` concern scheduling removal of the transcription working copy, prior-transcode
+  originals, the video thumbnail, and an abandoned/never-confirmed upload's raw object, all on
+  destroy. Thumbnail removal additionally needs `s3:ListBucket` on the uploads-bucket credential
+  (not yet verified in production, with a bounded best-effort fallback -- the first five thumbnail
+  indices only, stopping at the first gap -- if listing fails or is denied). This coverage list is
+  not exhaustive: a transcode job whose completion is never recorded (owning record destroyed
+  mid-job, or a lost/never-delivered SNS completion notification) leaves its S3 output with no
+  persisted application metadata for any sweep to discover, tracked separately as LL-c4566fa37f.
+  LL-854b1d3853 remains open pending independent (dual-reviewer) verification of complete
+  media-object erasure; account merges transfer license records rather than orphaning them.
 - Organizations can set retention policies, and retention enforcement runs on a schedule.
 
 **Voice recordings**
@@ -186,8 +195,12 @@ explicitly marked not operational.
   are stored encrypted at rest and in transit so they are available across the user's devices.
 - We do not create voiceprints, perform speaker identification, or use these recordings to train
   AI. Users can delete recordings from the application, and account erasure also destroys owned
-  `ButtonSound` / `UserVideo` rows so removable unique S3 URLs are scheduled for remote removal.
-  They are the user's own communication content, not a biometric identifier used for recognition.
+  `ButtonSound` / `UserVideo` rows, scheduling removal of the primary recording, the transcription
+  working copy, prior-transcode originals, the video thumbnail, and an abandoned/never-confirmed
+  upload's raw object (see the Data lifecycle and deletion section above for the thumbnail's
+  additional `s3:ListBucket` dependency). LL-854b1d3853 remains open pending independent
+  (dual-reviewer) verification of complete media-object erasure. They are the user's own
+  communication content, not a biometric identifier used for recognition.
 
 **Accessibility**
 - As an AAC tool, accessibility is core to the product. We target Web Content Accessibility

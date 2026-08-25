@@ -45,6 +45,13 @@
                      rapidly-changing numbers don't spam screen readers. --}}
                 {{#if this.copying}}
                   <span class="md-board-details-modal__overlay-text">{{t "Setting up your board..." key="setting_up_your_board"}}</span>
+                  {{!-- This step copies the whole linked board set, which takes
+                        30-40s. With only a spinner it reads as a hang -- the
+                        reviewer screenshotted twice thinking it had frozen. Say
+                        what is happening and why it is worth the wait. --}}
+                  <span class="md-board-details-modal__overlay-subtext">
+                    {{t "Copying the full board set to this account. This can take up to a minute, and it's what makes the board work offline." key="setting_up_your_board_explainer"}}
+                  </span>
                 {{else if this.preview_images_total}}
                   <span class="md-board-details-modal__overlay-text">
                     {{t "Loading board images..." key="loading_board_images"}}

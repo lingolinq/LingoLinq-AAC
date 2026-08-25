@@ -385,6 +385,7 @@ Or the individual checks:
   ruby scripts/compliance-calendar-render.rb --check
   ruby scripts/compliance-publication-status.rb --check
   ruby scripts/capability-check.rb --check
+  ruby scripts/register-lint.rb audit-reports/FINDINGS.json audit-reports/ember-upgrade/FINDINGS-EMBER.json  # exit 1 on a malformed register row (field shape, enum, duplicate id)
   git diff --check
   # exec-bit: only for CHANGED scripts that a doc/skill invokes DIRECTLY (./script),
   # not every non-exec file in scripts/ (most .rb/.py run via `ruby`/`python` and are
@@ -519,10 +520,11 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 | `.claude/hooks/audit-readonly-guard.sh` | PreToolUse write-blocker wired into each finder |
 | `audit-reports/FINDINGS.json` + `FINDINGS.md` | The findings register: single source of truth |
 | `scripts/citation-check.rb` | Mechanical evidence validator (snippet exists at SHA) |
+| `scripts/register-lint.rb` | Structural validator (field shapes, enums, id uniqueness); CI-gated |
 | `scripts/audit-merge.rb` | Deterministic register reconciler (never auto-closes) |
 
 ### Running a Full Audit
-1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the five
+1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the six
    read-only finders in parallel, reconciles results into `audit-reports/FINDINGS.json` via
    `scripts/audit-merge.rb`, runs the `adversary` agent as verifier, and validates with
    `scripts/citation-check.rb`.
@@ -537,6 +539,7 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 | `api-auditor` | Ember<->Rails API contract | `api-contract-audit` |
 | `dependency-auditor` | Dependency freshness + CVEs | `dependency-audit` |
 | `accessibility-auditor` | WCAG 2.1 AA / EN 301 549 (static markup/SCSS) | `accessibility-audit` |
+| `code-hygiene-auditor` | Dead code + AI-slop patterns (static Rails/Ember) | `code-hygiene-audit` |
 
 Retired from the fan-out: `ember-stabilization` and `rails-upgrade` (migration-era, shipped)
 and the `mvp-readiness` 0-100 score (replaced by open Critical/High counts).
@@ -558,6 +561,15 @@ using the same `audit-merge.rb`/`citation-check.rb` machinery and the same gover
   PreToolUse hook that blocks mutating Bash. They report; they never fix.
 - The register (`audit-reports/FINDINGS.json`) is the single source of truth. `audit-merge.rb`
   only ever ADDS findings or marks them `open`; it never closes or downgrades.
+- **Restamping `meta.auditedSha` is a governance act, not a side effect of adding a finding.** The
+  pointer means "/audit-run audited the WHOLE tree at this SHA" and moving it needs Scot's sign-off
+  plus an analysis of the intervening commits (see `meta.auditedShaPriorNote`). Only a real
+  whole-tree `/audit-run` passes `--sha` bare. Any other addition uses
+  `audit-merge.rb --sha <trueCommit> --no-restamp`, which anchors `evidence.sha` at the real commit
+  while leaving `meta` untouched; `promote-finding.rb` never touches the pointer at all. Never
+  pass the register's existing `auditedSha` just to dodge the restamp - that silently anchors the
+  new evidence to a commit it was never verified against, and passes citation-check green whenever
+  the snippet happens to sit on the same line in both commits.
 - No student/patient data ever appears in findings; evidence snippets are code only.
 - Compliance content is **Tier 2**: the register is PII-free (code evidence only), so any approved reviewer is permitted; the data-bearing-path guard (`codex-review-guard.sh`), not a Claude-only rule, is the boundary.
 - All findings include file paths and line numbers, anchored to the audited commit SHA.

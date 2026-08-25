@@ -95,9 +95,25 @@ module('Unit | Utility | board-prefetch-planner', function() {
     assert.deepEqual(phased.phase4, ['lingolinq/cat', 'other/public']);
   });
 
+  test('collectPublicLookups keeps brand-set roots and drops child pages', function(assert) {
+    var user = mockUser();
+    var lookups = boardPrefetchPlanner.collectPublicLookups(user, [
+      { key: 'lingolinq/vocal-flair-112', name: 'Vocal Flair 112' },
+      { key: 'lingolinq/vocal-flair-112-adjectives-ij', name: 'Adjectives IJ' },
+      { key: 'lingolinq/communikate-20', name: 'CommuniKate 20' },
+      { key: 'lingolinq/communikate-bodyparts', name: 'Body Parts' },
+      { key: 'lingolinq/custom-board', name: 'Custom Board' }
+    ], [], {});
+    assert.deepEqual(
+      lookups,
+      ['lingolinq/vocal-flair-112', 'lingolinq/communikate-20', 'lingolinq/custom-board'],
+      'drops Vocal Flair / CommuniKate child keys when the parent root is in the list'
+    );
+  });
+
   test('lookupsToSyncSeeds produces sync queue entries', function(assert) {
     var seeds = boardPrefetchPlanner.lookupsToSyncSeeds(['user/a', '1_99'], 'owned root', 0);
-    assert.equal(seeds.length, 2);
+    assert.strictEqual(seeds.length, 2);
     assert.deepEqual(seeds[0], { key: 'user/a', depth: 0, visit_source: 'owned root' });
     assert.deepEqual(seeds[1], { id: '1_99', depth: 0, visit_source: 'owned root' });
   });

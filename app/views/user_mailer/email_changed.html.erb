@@ -4,6 +4,6 @@ The email address for the <%= app_name %> login, <b><%= @user.display_user_name 
 The email address for the <%= app_name %> login, <b><%= @user.display_user_name %></b> was recently updated to this address.<br/><br/>
 <% end %>
 If this was intentional feel free to ignore this message. If you were not aware of this
-email address change please <a href="<%= JsonApi::Json.current_host %>/contact">notify <%= app_name %> support immediately</a>.<br/><br/>
+email address change please <a href="<%= JsonApi::Json.absolute_host %>/contact">notify <%= app_name %> support immediately</a>.<br/><br/>
 Thanks!<br/>
 <%= email_signature %>

@@ -176,6 +176,11 @@ task "scheduler:dispatch" => :environment do
       "#{count} expired"
     end
 
+    run_task.call("expire_offboarding_coppa_consents") do
+      count = OffboardingCoppaExpirationWorker.perform
+      "#{count} export-then-delete scheduled"
+    end
+
     run_task.call("flush_expired_beta_feedback_recordings") do
       count = BetaFeedbackRecording.flush_expired
       "#{count} recordings deleted"

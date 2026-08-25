@@ -118,6 +118,13 @@ function testBedrockTargetsOnlyDevAndStaging() {
       KEY_MANIFEST.BEDROCK_AWS_KEY.item === 'BEDROCK_RUNTIME_AI');
 }
 
+function testDeprecatedDirectProviderKeysAreNotManaged() {
+  check('Gemini direct-provider key is absent from the Render manifest',
+    !Object.prototype.hasOwnProperty.call(KEY_MANIFEST, 'GEMINI_API_KEY'));
+  check('Anthropic direct-provider key is absent from the Render manifest',
+    !Object.prototype.hasOwnProperty.call(KEY_MANIFEST, 'ANTHROPIC_API_KEY'));
+}
+
 // --- tests ------------------------------------------------------------------
 
 async function testReadFailureThrows() {
@@ -375,6 +382,7 @@ async function testDryRunNeverPuts() {
 
 (async () => {
   testBedrockTargetsOnlyDevAndStaging();
+  testDeprecatedDirectProviderKeysAreNotManaged();
   await testReadFailureThrows();
   await testNonArrayResponseThrows();
   await testEmptyOkReadReturnsEmpty();

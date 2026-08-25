@@ -299,7 +299,10 @@ export default Component.extend({
           default_locale: decision.default_locale, 
           translate_locale: decision.translate_locale,
           disconnect: decision.disconnect,
-          new_owner: decision.new_owner
+          new_owner: decision.new_owner,
+          skip_hierarchy_picker: decision.skip_hierarchy_picker,
+          board_ids_to_copy: decision.board_ids_to_copy,
+          expand_selected_board_ids_to_copy: decision.expand_selected_board_ids_to_copy
         });
       });
 

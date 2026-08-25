@@ -282,6 +282,81 @@ export default Component.extend({
     }
   ),
 
+  /**
+   * UI opt-in before entering AI board generation. Server grandfather is
+   * unchanged; this only decides whether to show the enable popup, the EU
+   * parental-consent modal, or a blocked notice.
+   * Resolves { proceed: true } when generation may continue.
+   */
+  _ensureAiBoardGenerationAccess: function() {
+    var appState = this.get('appState');
+    var user = appState && appState.get && appState.get('currentUser');
+    var entry = aiFeatureGate.boardGenerationEntry(appState);
+    var stay = function() { return { proceed: false }; };
+
+    if(entry === 'allowed') {
+      return RSVP.resolve({ proceed: true });
+    }
+
+    if(entry === 'eu_consent') {
+      var parentEmail = '';
+      if(user && user.get) {
+        parentEmail = user.get('eu_ai_parental_consent_parent_email') || '';
+      }
+      return modalUtil.open('eu-ai-parental-consent', {
+        user: user,
+        triggeredPref: 'ai_board_generation',
+        parentEmail: parentEmail
+      }).then(stay, stay);
+    }
+
+    if(entry === 'blocked_flag' || entry === 'blocked_coppa') {
+      return modalUtil.open('enable-ai-features', {
+        blocked: true,
+        blockedReason: entry === 'blocked_coppa' ? 'coppa' : 'flag',
+        triggeredPref: 'ai_board_generation'
+      }).then(stay, stay);
+    }
+
+    return modalUtil.open('enable-ai-features', {
+      user: user,
+      triggeredPref: 'ai_board_generation'
+    }).then(function(result) {
+      var features = result && result.requested_features;
+      var boardGenOn = !!(features && features.ai_board_generation);
+      return { proceed: !!(result && result.saved && boardGenOn) };
+    }, stay);
+  },
+
+  _enterAiMode: function() {
+    this.send('set_create_mode', 'ai');
+    this.set('via_create_own', false);
+    this.set('show_create_chooser', false);
+  },
+
+  _requestEnterAiMode: function() {
+    var _this = this;
+    // The chooser is an in-page overlay at z-index 6000. Bootstrap .modal is
+    // 1050, so any ModalDialog opened while the chooser is up paints behind it
+    // and is blurred by the chooser's backdrop-filter. Other chooser actions
+    // (paste HTML / JSON bundle) already hide the overlay first. Hide it here
+    // too whenever a system modal will open; restore if the user does not proceed.
+    var fromChooser = !!this.get('show_create_chooser');
+    var entry = aiFeatureGate.boardGenerationEntry(this.get('appState'));
+    if(fromChooser && entry !== 'allowed') {
+      this.set('show_create_chooser', false);
+    }
+    return this._ensureAiBoardGenerationAccess().then(function(result) {
+      if(_this.isDestroyed || _this.isDestroying) { return result; }
+      if(result && result.proceed) {
+        _this._enterAiMode();
+      } else if(fromChooser) {
+        _this.set('show_create_chooser', true);
+      }
+      return result;
+    });
+  },
+
   paste_html_import_enabled: computed('appState.feature_flags.paste_html_import', function() {
     return !!this.appState.get('feature_flags.paste_html_import');
   }),
@@ -1853,7 +1928,11 @@ export default Component.extend({
     // Legacy entry point — now just switches the page into AI mode
     // instead of opening the old generate-board modal.
     generateWithAi: function() {
-      this.send('set_create_mode', 'ai');
+      this._requestEnterAiMode();
+    },
+
+    request_ai_mode: function() {
+      this._requestEnterAiMode();
     },
 
     /** Segmented mode switch: 'regular' or 'ai'. Import stays its own
@@ -1881,12 +1960,15 @@ export default Component.extend({
         return;
       }
       this.set('ai_generate_error', null);
-      // EU AI Act Article 50(1): first-AI-use gate. BLOCK mode (D-03) -- this is a
-      // deliberate, non-time-critical user action, so it is safe to hold the request
-      // behind the disclosure modal. Resolves immediately when no acknowledgement is
-      // needed (flag off, already acknowledged, out of scope). If the modal is
-      // abandoned, this promise never resolves and the request below never fires.
-      article50Gate.presentBlockingGate(this.get('appState')).then(function() {
+      return this._ensureAiBoardGenerationAccess().then(function(access) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(!access || !access.proceed) { return; }
+        // EU AI Act Article 50(1): first-AI-use gate. BLOCK mode (D-03) -- this is a
+        // deliberate, non-time-critical user action, so it is safe to hold the request
+        // behind the disclosure modal. Resolves immediately when no acknowledgement is
+        // needed (flag off, already acknowledged, out of scope). If the modal is
+        // abandoned, this promise never resolves and the request below never fires.
+        return article50Gate.presentBlockingGate(_this.get('appState')).then(function() {
         if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('ai_generating', true);
         var payload = {
@@ -1897,7 +1979,7 @@ export default Component.extend({
           labels_order: _this.get('model.grid.labels_order') || 'columns',
           locale: (_this.get('model.locale') || 'en')
         };
-        persistence.ajax('/api/v1/boards/generate_labels', {
+        return persistence.ajax('/api/v1/boards/generate_labels', {
           type: 'POST',
           contentType: 'application/json',
           dataType: 'json',
@@ -1933,6 +2015,7 @@ export default Component.extend({
         if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('ai_generating', false);
         _this.set('ai_generate_error', i18n.t('generate_disclosure_required', "Please review the AI transparency notice before generating a board with AI."));
+      });
       });
     },
     opening: function() {
@@ -2301,11 +2384,9 @@ export default Component.extend({
       var el = document.getElementById('board_upload');
       if(el) { el.click(); }
     },
-    // "Generate with AI" → the in-page AI generation flow.
+    // "Generate with AI" → opt-in popup if needed, then the in-page AI flow.
     choose_ai: function() {
-      this.send('set_create_mode', 'ai');
-      this.set('via_create_own', false);
-      this.set('show_create_chooser', false);
+      this._requestEnterAiMode();
     },
     // "Other Create Board Methods" (regular form) → reopen the chooser so the
     // user can switch to Import / Generate with AI.

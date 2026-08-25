@@ -269,4 +269,34 @@ export function sortByNameNatural(boards) {
   });
 }
 
+/* Rank for a typed Find Boards query. Lower is better:
+     0 — name starts with the query ("quick" → "Quick Core 24")
+     1 — name contains the query
+     2 — key contains the query
+     3 — no name/key match
+   Used after a name-natural sort so ties stay 24-before-112. */
+export function searchQueryRank(board, query) {
+  var q = (query || '').trim().toLowerCase();
+  if (!q || !board) { return 3; }
+  var name = ((emberGet(board, 'name') || '') + '').toLowerCase();
+  var key = ((emberGet(board, 'key') || '') + '').toLowerCase();
+  if (name.indexOf(q) === 0) { return 0; }
+  if (name.indexOf(q) !== -1) { return 1; }
+  if (key.indexOf(q) !== -1) { return 2; }
+  return 3;
+}
+
+/* Sort a board list for a header search query. Empty query → name-natural
+   (same as the unfiltered catalog). Non-empty → prefix name matches first,
+   then other name matches, then key matches, then the rest; natural name
+   order within each rank. */
+export function sortBySearchQuery(boards, query) {
+  var named = sortByNameNatural(boards);
+  var q = (query || '').trim();
+  if (!q) { return named; }
+  return named.slice().sort(function(a, b) {
+    return searchQueryRank(a, q) - searchQueryRank(b, q);
+  });
+}
+
 export default filterRootBoards;

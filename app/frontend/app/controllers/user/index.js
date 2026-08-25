@@ -146,6 +146,19 @@ export default Controller.extend({
   // controller (line 172, 196, 237) — `@each.public` on a non-array
   // value (e.g. Promise during initial render) can throw and break
   // the whole boards page below.
+  /* Overlay / hero gate: first Mine page or a completed list (including
+     empty). Distinct from my_boards.done, which still waits for the last
+     pagination page so copy-cluster and the library-complete hint can
+     use the full list. Search itself runs on pages loaded so far. */
+  mineListPaintReady: computed(
+    'model.my_boards.done',
+    'model.my_boards.paint_ready',
+    'model.my_boards.loading',
+    'model.my_boards.length',
+    function() {
+      return boardsPageListCache.isPaintReady(this.get('model.my_boards'));
+    }
+  ),
   public_boards_count: computed('model.my_boards.[]', function() {
     var boards = this.get('model.my_boards');
     if(!boards) { return 0; }
@@ -174,6 +187,7 @@ export default Controller.extend({
     return (now - lastSync) > (7 * 24 * 60 * 60 * 1000);
   }),
   check_daily_use: observer('model.user_name', 'model.id', 'model.permissions', 'appState.sessionUser.id', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     var current_user_name = this.get('daily_use.user_name');
     var user_name = this.get('model.user_name');
     // Don't make request if user_name is undefined or empty
@@ -525,20 +539,26 @@ export default Controller.extend({
     'boardsPageSearchRows.[]',
     'parent_object',
     'mineTagFolderDrillIn',
+    'boards_page_raw_list',
+    'boards_page_raw_list.done',
+    'model.my_boards.done',
+    'model.public_boards.done',
     function() {
       /* Folder drill-in hides the Boards Filter UI but keeps any
          prior filterStringDebounced — show the folder grid only. */
       if (this.get('mineTagFolderDrillIn')) {
-        return { results: this.get('filtered_results') || [], truncated: false };
+        return { results: this.get('filtered_results') || [], truncated: false, incomplete: false };
       }
       var filter = (this.get('filterStringDebounced') || '').trim();
       if (!filter) {
-        return { results: this.get('filtered_results') || [], truncated: false };
+        return { results: this.get('filtered_results') || [], truncated: false, incomplete: false };
       }
       var q = filter.toLowerCase();
       var rows = this.get('boardsPageSearchRows') || [];
       var matches = [];
       var truncated = false;
+      var sourceList = this.get('boards_page_raw_list') || [];
+      var incomplete = !sourceList.done;
       if (rows.length) {
         for (var i = 0; i < rows.length; i++) {
           if (rows[i].haystack.indexOf(q) === -1) { continue; }
@@ -548,7 +568,7 @@ export default Controller.extend({
           }
           matches.push({ board: rows[i].board, children: [] });
         }
-        return { results: matches, truncated: truncated };
+        return { results: matches, truncated: truncated, incomplete: incomplete };
       }
       var fallbackRows = this.get('filtered_results') || [];
       for (var j = 0; j < fallbackRows.length; j++) {
@@ -562,7 +582,7 @@ export default Controller.extend({
         }
         matches.push({ board: row.board, children: row.children || [] });
       }
-      return { results: matches, truncated: truncated };
+      return { results: matches, truncated: truncated, incomplete: incomplete };
     }
   ),
   boards_page_visible_results: computed('boardsPageSearchState', function() {
@@ -572,6 +592,10 @@ export default Controller.extend({
   boards_page_search_truncated: computed('boardsPageSearchState', function() {
     var state = this.get('boardsPageSearchState');
     return !!(state && state.truncated);
+  }),
+  boards_page_search_incomplete: computed('boardsPageSearchState', function() {
+    var state = this.get('boardsPageSearchState');
+    return !!(state && state.incomplete);
   }),
   boards_page_search_limit: computed(function() {
     return BOARDS_PAGE_SEARCH_LIMIT;
@@ -972,6 +996,7 @@ export default Controller.extend({
   },
   reload_logs: observer('persistence.online', 'model.permissions', function() {
     if(!this || typeof this.get !== 'function') { return; }
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     var _this = this;
     var persistenceService = this.get('persistence') || this.persistence;
     if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
@@ -1005,6 +1030,7 @@ export default Controller.extend({
     });
   }),
   load_badges: observer('model.permissions', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     if(this.get('model.permissions')) {
       var _this = this;
       if(!(_this.get('model.badges') || {}).length) {
@@ -1020,6 +1046,7 @@ export default Controller.extend({
     }
   }),
   load_goals: observer('model.permissions', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     if(this.get('model.permissions')) {
       var _this = this;
       if(!(_this.get('model.goals') || {}).length) {
@@ -1131,6 +1158,9 @@ export default Controller.extend({
         prior = chunk;
       }
       prior.user_id = _this.get('model.id');
+      if(isMineList) {
+        prior.paint_ready = true;
+      }
       _this.set(list_name, prior);
       if(meta && meta.more) {
         args.per_page = meta.per_page;
@@ -1151,6 +1181,7 @@ export default Controller.extend({
       } else {
         _this.set(list_name + '.done', true);
         if(isMineList) {
+          _this.set(list_name + '.paint_ready', true);
           boardsPageListCache.write(_this.get('model.id'), _this.get(list_name));
           boardsPageListCache.setMineListBusy(false);
         }

@@ -1,0 +1,20 @@
+# gitleaks findings that are known, reviewed, and deliberately not blocking.
+#
+# Format: <commit>:<file>:<rule>:<line>. Pinned to an exact commit AND line, so
+# an entry cannot silently cover anything else -- if the file changes and the
+# line moves, the fingerprint stops matching and the scanner speaks up again.
+#
+# Add to this file only when the finding is NOT a live credential and the code
+# has already been fixed going forward. "It is noisy" is not a reason.
+
+# scripts/n1-consent-fixtures.rb carried a hardcoded 'abcdef123456' password for
+# the throwaway under-13 accounts it creates. It never protected anything: the
+# script aborts outside development/test, the accounts are per-run and
+# disposable, and nothing reads the password back -- the QA harness reaches those
+# accounts through consent-token URLs, never by signing in.
+#
+# FIXED FORWARD in this same PR: the generator now uses SecureRandom.hex(16) and
+# never prints it. This entry covers only the historical commit, which cannot be
+# rewritten without a force-push (denied by repo policy, see
+# .claude/settings.local.json).
+8187bc5e61660ff26aef905e7c92b2e74b6070db:scripts/n1-consent-fixtures.rb:generic-api-key:34

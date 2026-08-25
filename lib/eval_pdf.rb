@@ -643,9 +643,13 @@ module EvalPdf
     mode == 'targeted' || mode == 'comprehensive'
   end
 
+  # display_name where available: the local blank check cannot filter the legacy
+  # "No name" sentinel, which is a non-empty string. Kept tolerant of a stubbed
+  # or non-User object, which is why this is not simply `user.display_name`.
   def self.student_display_name(log)
     user = log.user
     return 'Communicator' unless user
+    return user.display_name.to_s if user.respond_to?(:display_name)
     settings = (user.respond_to?(:settings) && user.settings) || {}
     settings['name'].to_s.strip.empty? ? user.user_name.to_s : settings['name']
   end
@@ -655,7 +659,9 @@ module EvalPdf
     return { name: nil, email: nil } unless author
     settings = (author.respond_to?(:settings) && author.settings) || {}
     {
-      name: settings['name'].to_s.strip.empty? ? author.user_name : settings['name'],
+      # See student_display_name above for why this prefers #display_name.
+      name: author.respond_to?(:display_name) ? author.display_name :
+              (settings['name'].to_s.strip.empty? ? author.user_name : settings['name']),
       email: settings['email']
     }
   end

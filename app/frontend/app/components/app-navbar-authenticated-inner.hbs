@@ -124,7 +124,7 @@
         <span class="caret"></span>
       </a>
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
-        <li class="dropdown-header">{{this.appState.currentUser.name}}</li>
+        <li class="dropdown-header">{{this.appState.currentUser.display_name}}</li>
         <li role="presentation">
           <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
@@ -195,7 +195,7 @@
     </button>
   </span>
   <LaMobileDrawer @isOpen={{this.isDrawerOpen}} @onClose={{this.onCloseDrawer}}>
-    <div class="la-mobile-drawer__header">{{this.appState.currentUser.name}}</div>
+    <div class="la-mobile-drawer__header">{{this.appState.currentUser.display_name}}</div>
     {{#if @showModernDashboardLink}}
       {{#if this.appState.currentUser.user_name}}
         <LinkTo @route="user.home" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{on "click" this.onCloseDrawer}}>{{t "Home Page" key="home_page"}}</LinkTo>

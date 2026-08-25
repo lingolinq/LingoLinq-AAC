@@ -324,6 +324,7 @@ module UpstreamDownstream
     was_enabled = PaperTrail.enabled?
     PaperTrail.enabled = false
     self.save_without_post_processing
+  ensure
     PaperTrail.enabled = was_enabled
   end
 

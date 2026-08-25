@@ -12,6 +12,7 @@ import 'frontend/tests/helpers/ember_helper';
 import { queryLog } from 'frontend/tests/helpers/ember_helper';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
+import boardsPageListCache from 'frontend/utils/boards_page_list_cache';
 
 describe('UserIndexController', 'controller:user-index', function() {
   var testOwner;
@@ -20,9 +21,41 @@ describe('UserIndexController', 'controller:user-index', function() {
     testOwner = this.owner;
   });
 
+  afterEach(function() {
+    boardsPageListCache.setBoardsPageActive(false);
+  });
+
   it("should exist", function() {
     expect(this).not.toEqual(null);
     expect(this).not.toEqual(window);
+  });
+
+  it('skips logs badges and goals fetches while the boards page is active', function() {
+    var queried = [];
+    var controller = testOwner.lookup('controller:user/index');
+    boardsPageListCache.setBoardsPageActive(true);
+    controller.set('store', {
+      query: function(type) {
+        queried.push(type);
+        return RSVP.resolve([]);
+      }
+    });
+    controller.set('persistence', EmberObject.create({
+      online: true,
+      get: function(key) { return key === 'online' ? true : undefined; }
+    }));
+    controller.set('model', EmberObject.create({
+      id: '1_1',
+      permissions: { supervise: true }
+    }));
+    controller.reload_logs();
+    controller.load_badges();
+    controller.load_goals();
+    expect(queried).toEqual([]);
+
+    boardsPageListCache.setBoardsPageActive(false);
+    controller.reload_logs();
+    expect(queried.indexOf('log') !== -1).toEqual(true);
   });
 
   it('loads global public boards with the same query as /search/en/_', function() {
@@ -413,6 +446,32 @@ describe('UserIndexController', 'controller:user-index', function() {
 
       expect(controller.get('boards_page_visible_results').length).toEqual(50);
       expect(controller.get('boards_page_search_truncated')).toEqual(true);
+    });
+
+    it('marks live filter incomplete until the Mine list is done', function() {
+      var controller = testOwner.lookup('controller:user/index');
+      var boards = [makeBoard({
+        id: 'b1',
+        name: 'Holiday Board',
+        key: 'lingolinq/holiday-1',
+        search_string: 'Holiday Board lingolinq holiday-1'
+      })];
+      controller.set('model', EmberObject.create({
+        id: 'lingolinq',
+        my_boards: boards,
+        preferences: { home_board: {} },
+        permissions: { edit: true }
+      }));
+      controller.set('selected', 'mine');
+      controller.set('parent_object', null);
+      controller.set('filterStringDebounced', 'holiday');
+
+      expect(controller.get('boards_page_search_incomplete')).toEqual(true);
+
+      var doneList = boards.slice();
+      doneList.done = true;
+      controller.set('model.my_boards', doneList);
+      expect(controller.get('boards_page_search_incomplete')).toEqual(false);
     });
 
     it('ignores live filter while drilled into a folder so the grid shows folder boards only', function() {

@@ -333,6 +333,114 @@ class ApplicationController < ActionController::Base
     response.headers['BROWSER_TOKEN'] = GoSecure.browser_token
   end
 
+  # Authorization for a communicator reached INDIRECTLY, through some OTHER
+  # account's supervisee list.
+  #
+  # Endpoints that fan out over `user.supervisees` and serve something about each
+  # one -- badges#index (`recent`), logs#index (`supervisees=true`),
+  # users#supervisees, users#ws_settings, and the nested list in JsonApi::User.
+  # In each the only gate was `allowed?(user, ...)` on the
+  # account whose list it is, which says nothing about the third parties inside it,
+  # and which passes unconditionally when a supporter asks about THEMSELVES.
+  #
+  # Each site had independently grown a per-supervisee filter that read like
+  # authorization but was not one: an exclusion filter (`!modeling_only_for?`) or a
+  # preference flag (`private_logging?`). Both return TRUE for a caller with no
+  # relationship at all -- supervising.rb:121 finds no link and returns false, and
+  # the negation then admits the stranger. Multiple instances of one mistake is why
+  # this is a shared helper (User#readable_as_supervisee_by?) and not another
+  # hand-rolled predicate.
+  #
+  # The check must be AFFIRMATIVE: here "no relationship" has to mean DENIED.
+  #
+  # `permission` is per-endpoint because the endpoints disclose different things --
+  # 'set_goals' for goal/progress data, 'supervise' for usage data. ROSTER identity
+  # is NOT one of these; it goes through supervisee_listable? below. Both resolve
+  # through self, non-modeling supervisor, and org manager (user.rb:72,88), so a
+  # legitimate cross-org manager keeps working.
+  #
+  # An earlier version added `&& !@api_user.modeling_only_for?(supervisee)` here and
+  # claimed it preserved the user.rb:77 `set_goals` carve-out for a BILLING-lapsed
+  # supporter. It did the reverse: modeling_only_for? short-circuits on the global
+  # billing flag, so the conjunct overrode the very carve-out it cited and emptied
+  # a lapsed supporter's badge feed. The rules own that policy now; see
+  # User#readable_as_supervisee_by?.
+  #
+  # Scopes are passed so a restricted API token is held to its own limits here, the
+  # same way `allowed?` does at every direct gate.
+  def supervisee_readable?(supervisee, permission)
+    return false unless supervisee && @api_user
+    supervisee.readable_as_supervisee_by?(@api_user, permission, api_permission_scopes)
+  end
+
+  # ROSTER identity rather than a disclosure about the communicator: "may the
+  # caller see that this account is on this roster at all". Used by the
+  # endpoints that return the caller's own caseload -- users#supervisees,
+  # users#ws_settings, and the nested list in JsonApi::User.
+  #
+  # Split out from supervisee_readable? because 'supervise' denies a
+  # billing-lapsed supporter their OWN caseload; see
+  # User#listable_as_supervisee_by? for the full trace.
+  def supervisee_listable?(supervisee)
+    return false unless supervisee && @api_user
+    supervisee.listable_as_supervisee_by?(@api_user, api_permission_scopes)
+  end
+
+  # EU AI Act Article 50(1) server-side backstop, shared across every AI-generation
+  # entry point (LL-6723438462). Previously duplicated verbatim at
+  # boards_controller#generate_labels and integrations_controller#focus_generate_words;
+  # word_suggestions#create, words#predict, and eval_sessions#narrate had no backstop at
+  # all, so enabling the 'article_50_disclosure' flag would have produced silent partial
+  # enforcement across the five AI ingresses.
+  #
+  # DO NOT read the source constants as the flag's runtime state. 'article_50_disclosure'
+  # is AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES). FeatureFlags.frontend_flags_for
+  # (lib/feature_flags.rb:130-146) gets the effective list from
+  # SystemFeatureSettings.effective_enabled_for (lib/system_feature_settings.rb:84-88):
+  # a managing organization's settings['enabled_features'] wins when present -- even as
+  # an empty array -- and only then does the site-wide Setting row
+  # 'default_enabled_features' apply (lib/system_feature_settings.rb:6-12). The source
+  # constant ENABLED_FRONTEND_FEATURES is consulted only when that row is absent.
+  # User-level beta/canary flags can still enable a feature that is off in the
+  # effective list. In production as of 2026-08-23, no org carried an override, the
+  # default row WAS present and DID include this flag, and feature_enabled_for? was
+  # true for all 34 then-existing users (PR #849,
+  # docs/legal/2026-08-23_article-50-production-flag-verification.md). That is a
+  # dated snapshot, not a guarantee that every future user or org inherits it.
+  #
+  # So this guard is LIVE in production, not inert. On that same 2026-08-23 read,
+  # EuJurisdiction.status resolved :unknown for all 34 users, and
+  # disclosure_required? is `status(user) != :non_eu`, so the jurisdiction leg
+  # required disclosure for that population. An earlier version of this comment
+  # said the guard "is inert until the flag is enabled"; that was true of the code and
+  # false of the running system, which is the more dangerous direction to be wrong in.
+  # Do not enable it here. Gates on EuJurisdiction.disclosure_required?
+  # (true for :eu AND :unknown, fail-safe), never the retention-column jurisdiction
+  # stamp (EuJurisdiction.retention_stamp, a different fail-safe direction -- see that
+  # method's own comment). Reads server-side state only
+  # (@api_user.article_50_disclosure_shown?), never a request field. Returns true (call
+  # site should proceed) or false after rendering the 403 itself (via +api_error+,
+  # `{error: 'article_50_disclosure_required'}`), mirroring the exists?/allowed?
+  # early-return convention already used throughout this controller. Callers whose
+  # own error-response shape differs from api_error's (e.g. word_suggestions#create
+  # renders `words: []` on every 403) should use +article_50_disclosure_missing?+
+  # directly instead, to preserve their tested response contract.
+  def require_article_50_disclosure!
+    if article_50_disclosure_missing?
+      api_error(403, { error: 'article_50_disclosure_required' })
+      return false
+    end
+    true
+  end
+
+  # The pure check behind require_article_50_disclosure!, with no rendering
+  # side effect, for callers that need to render their own response shape.
+  def article_50_disclosure_missing?
+    FeatureFlags.feature_enabled_for?('article_50_disclosure', @api_user) &&
+      EuJurisdiction.disclosure_required?(@api_user) &&
+      !@api_user.article_50_disclosure_shown?
+  end
+
   # Normalized token scopes for Permissable (same rules as +allowed?+).
   def api_permission_scopes
     scopes = ['full']

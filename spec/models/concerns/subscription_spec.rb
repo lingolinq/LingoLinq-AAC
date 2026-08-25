@@ -2634,7 +2634,7 @@ describe Subscription, :type => :model do
       expect(u.purchase_credit_duration).to be < ((Time.now - added).to_i + 5)
       expect(u.fully_purchased?).to eq(true)
       expect(Organization.managed?(u)).to eq(true)
-      o.reload.remove_user(u.user_name)
+      o.reload.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
       expect(u.reload.org_sponsored?).to eq(false)
       expect(u.purchase_credit_duration).to be > ((Time.now - added).to_i - 5)
       expect(u.purchase_credit_duration).to be < ((Time.now - added).to_i + 5)

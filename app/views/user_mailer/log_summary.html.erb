@@ -8,7 +8,7 @@ updates every <%= @log_period %>.</p>
 
 <% @users.each do |user| %>
   <div style='margin-top: 20px;'>
-    <a href="<%= JsonApi::Json.current_host %>/<%= user.user_name %>" style='color: #337ab7; text-decoration: none; font-size: 20px; font-weight: bold;'><%= user.user_name %></a><br/>
+    <a href="<%= JsonApi::Json.absolute_host %>/<%= user.user_name %>" style='color: #337ab7; text-decoration: none; font-size: 20px; font-weight: bold;'><%= user.user_name %></a><br/>
     <% if user.current_stats && user.pre_stats %>
       <table style='border-bottom: 1px solid #eee; width: 100%;' cellpadding='0' cellspacing='0'>
         <tbody>
@@ -92,7 +92,7 @@ updates every <%= @log_period %>.</p>
             <td style='border-top: 1px solid #eee; padding: 10px; background: #fafafa;'>Goals, Notes & Assessments</td>
             <td style='border-top: 1px solid #eee; padding: 10px; background: #fafafa; text-align: right; width: 40%;' colspan='2'>
               <% if user.total_notes && user.total_notes > 0 %>
-                <a href="<%= JsonApi::Json.current_host %>/<%= user.user_name %>/logs" style="color: #337ab7; text-decoration: none;">
+                <a href="<%= JsonApi::Json.absolute_host %>/<%= user.user_name %>/logs" style="color: #337ab7; text-decoration: none;">
                   <%= user.total_notes %> notes
                 </a>
               <% else %>
@@ -115,28 +115,28 @@ updates every <%= @log_period %>.</p>
               <td style='padding: 5px 0 10px 50px;' colspan='3'>
                 Update Goal Status
                 <% if user.secondary_goal_count > 0 %>
-                 (<a href="<%= JsonApi::Json.current_host %>/<%= user.user_name %>/goals" s>see more goals for this user</a>)
+                 (<a href="<%= JsonApi::Json.absolute_host %>/<%= user.user_name %>/goals">see more goals for this user</a>)
                 <% end %>
                 <br/>
                 <table style='border: 0; padding: 5px; margin-left: -10px;'>
                   <tbody><tr>
                     <td>
-                      <a href="<%= JsonApi::Json.current_host %>/goal_status/<%= user.primary_goal.global_id %>/<%= user.primary_goal.goal_code(@user) %>?status=1" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
+                      <a href="<%= JsonApi::Json.absolute_host %>/goal_status/<%= user.primary_goal.global_id %>/<%= user.primary_goal.goal_code(@user) %>?status=1" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
                         <span style="display: block; font-size: 30px; writing-mode: vertical-rl; text-orientation: sideways; width: 50px; padding-top: 1px; padding-bottom: 6px; height: 43px; border-radius: 100px; text-align: center; border: 2px solid #888; color: #444; background-color: #feffa9; margin: auto auto 10px;">:-(</span>
                         We didn't do it
                       </a>
                     </td><td>
-                      <a href="<%= JsonApi::Json.current_host %>/goal_status/<%= user.primary_goal.global_id %>/<%= user.primary_goal.goal_code(@user) %>?status=2" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
+                      <a href="<%= JsonApi::Json.absolute_host %>/goal_status/<%= user.primary_goal.global_id %>/<%= user.primary_goal.goal_code(@user) %>?status=2" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
                         <span style="display: block; font-size: 30px; writing-mode: vertical-rl; text-orientation: sideways; width: 50px; padding-top: 1px; padding-bottom: 6px; height: 43px; border-radius: 100px; text-align: center; border: 2px solid #888; color: #444; background-color: #feffa9; margin: auto auto 10px;">:-/</span>
                         We barely did it
                       </a>
                     </td><td>
-                      <a href="<%= JsonApi::Json.current_host %>/goal_status/<%= user.primary_goal.global_id %>/<%= user.primary_goal.goal_code(@user) %>?status=3" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
+                      <a href="<%= JsonApi::Json.absolute_host %>/goal_status/<%= user.primary_goal.global_id %>/<%= user.primary_goal.goal_code(@user) %>?status=3" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
                         <span style="display: block; font-size: 30px; writing-mode: vertical-rl; text-orientation: sideways; width: 50px; padding-top: 1px; padding-bottom: 6px; height: 43px; border-radius: 100px; text-align: center; border: 2px solid #888; color: #444; background-color: #feffa9; margin: auto auto 10px;">:-)</span>
                         We did good!
                       </a>
                     </td><td>
-                      <a href="<%= JsonApi::Json.current_host %>/goal_status/<%= user.primary_goal.global_id %>/<%= user.primary_goal.goal_code(@user) %>?status=4" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
+                      <a href="<%= JsonApi::Json.absolute_host %>/goal_status/<%= user.primary_goal.global_id %>/<%= user.primary_goal.goal_code(@user) %>?status=4" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
                         <span style="display: block; font-size: 30px; writing-mode: vertical-rl; text-orientation: sideways; width: 50px; padding-top: 1px; padding-bottom: 6px; height: 43px; border-radius: 100px; text-align: center; border: 2px solid #888; color: #444; background-color: #feffa9; margin: auto auto 10px;">:-D</span>
                         We did awesome!
                       </a>
@@ -149,7 +149,7 @@ updates every <%= @log_period %>.</p>
           
           <tr>
             <td style='border-top: 1px solid #eee; padding: 10px;' colspan='3'>
-              <a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/stats?split=1&start=<%= user.start %>&end=<%= user.end %>&start2=<%= user.pre_start %>&end2=<%= user.pre_end %>">more detailed reports available online</a>
+              <a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/stats?split=1&start=<%= user.start %>&end=<%= user.end %>&start2=<%= user.pre_start %>&end2=<%= user.pre_end %>">more detailed reports available online</a>
             </td>
           </tr>
         </tbody>
@@ -164,6 +164,6 @@ updates every <%= @log_period %>.</p>
 <p>
   If you no longer want to receive these notifications, or want to change how often you receive
   them, please 
-  <a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/edit">update the "Usage Summaries" preference</a> 
+  <a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/edit">update the "Usage Summaries" preference</a> 
   in your <%= app_name %> account settings.
 </p>

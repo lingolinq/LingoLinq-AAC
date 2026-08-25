@@ -55,6 +55,8 @@ export default Route.extend({
                 }
               }, 100);
             }
+            var warmKey = boardDetailCache.is_root_only(key) ? key : lookupKey;
+            boardDetailCache.warm_full_tree_if_root_only(warmKey);
             return RSVP.resolve(cache_record);
           }
         } catch (e) { /* fall through to identity-map peek / findRecord */ }

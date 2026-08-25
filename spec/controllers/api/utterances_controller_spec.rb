@@ -164,7 +164,7 @@ describe Api::UtterancesController, :type => :controller do
           'share_index' => 0,
           'text_only' => nil
         }]})).to eq(true)
-        expect(Pusher).to receive(:sms).with("12345", "from #{@user.settings['name']} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", nil).and_return(true)
+        expect(Pusher).to receive(:sms).with("12345", "from #{@user.user_name} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", nil).and_return(true)
         Worker.process_queues
         Worker.process_queues
 
@@ -198,7 +198,7 @@ describe Api::UtterancesController, :type => :controller do
           'share_index' => 0,
           'text_only' => nil
         }]})).to eq(true)
-        expect(Pusher).to receive(:sms).with("12345", "from #{@user.settings['name']} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", nil).and_return(true)
+        expect(Pusher).to receive(:sms).with("12345", "from #{@user.user_name} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", nil).and_return(true)
         Worker.process_queues
         Worker.process_queues
 
@@ -414,7 +414,7 @@ describe Api::UtterancesController, :type => :controller do
           'share_index' => 0,
           'text_only' => nil
         }]})).to eq(true)
-        expect(Pusher).to receive(:sms).with("12345", "from #{@user.settings['name']} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", '+15551234567').and_return(true)
+        expect(Pusher).to receive(:sms).with("12345", "from #{@user.user_name} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", '+15551234567').and_return(true)
         Worker.process_queues
         Worker.process_queues
       end

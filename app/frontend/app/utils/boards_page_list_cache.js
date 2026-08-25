@@ -15,6 +15,10 @@ var KEY_PREFIX = 'll_boards_page_mine_v1:';
    when the list reaches .done or errors. Module-level so prefetch can poll
    without depending on the Ember controller instance. */
 var _mineListBusy = false;
+/* True while the user.boards route is the visible route. Phase 3/4
+   prefetch waits on this so catalog /tree and a duplicate owned-list
+   fetch do not starve the boards page. */
+var _boardsPageActive = false;
 
 var SNAPSHOT_ATTRS = [
   'id',
@@ -130,6 +134,7 @@ function clear(userId) {
 
 function clearAll() {
   _mineListBusy = false;
+  _boardsPageActive = false;
   var storage = _storage();
   if (!storage) { return; }
   var toRemove = [];
@@ -179,6 +184,14 @@ function isUsableList(list) {
   return !!(list && list.done && !list.loading && !list.error && Array.isArray(list));
 }
 
+/* Overlay / hero gate: first Mine page is enough to paint. Empty
+   completed lists (done) also count so a zero-board library does not
+   keep “Preparing your workspace” up. */
+function isPaintReady(list) {
+  if (isUsableList(list)) { return true; }
+  return !!(list && list.paint_ready && !list.loading && !list.error && Array.isArray(list) && list.length);
+}
+
 /* True when localStorage still holds an unexpired Mine snapshot for this
    user. Used to skip store.query on boards-page re-entry within TTL. */
 function hasFreshSnapshot(userId) {
@@ -193,6 +206,14 @@ function isMineListBusy() {
   return !!_mineListBusy;
 }
 
+function setBoardsPageActive(active) {
+  _boardsPageActive = !!active;
+}
+
+function isBoardsPageActive() {
+  return !!_boardsPageActive;
+}
+
 export default {
   TTL_MS: TTL_MS,
   MAX_BOARDS: MAX_BOARDS,
@@ -205,7 +226,10 @@ export default {
   clearAll: clearAll,
   hydrate: hydrate,
   isUsableList: isUsableList,
+  isPaintReady: isPaintReady,
   hasFreshSnapshot: hasFreshSnapshot,
   setMineListBusy: setMineListBusy,
-  isMineListBusy: isMineListBusy
+  isMineListBusy: isMineListBusy,
+  setBoardsPageActive: setBoardsPageActive,
+  isBoardsPageActive: isBoardsPageActive
 };

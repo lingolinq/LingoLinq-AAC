@@ -1,6 +1,10 @@
 <%= mailer_t('parental_consent_mailer.greeting') %>
 
+<% if @offboarding %>
+<%= mailer_t('parental_consent_mailer.offboarding_intro', app_name: app_name, consent_age: @consent_age) %>
+<% else %>
 <%= mailer_t('parental_consent_mailer.intro', app_name: app_name, consent_age: @consent_age) %>
+<% end %>
 
 <%= mailer_t('parental_consent_mailer.safety_notice') %>
 
@@ -16,8 +20,23 @@
 <%= mailer_t('parental_consent_mailer.privacy_link_label') %>:
 <%= @privacy_url %>
 
+<%= mailer_t('parental_consent_mailer.decline_heading') %>
+
+<% if @offboarding %>
+<%= mailer_t('parental_consent_mailer.offboarding_decline_prompt') %>
+<% else %>
+<%= mailer_t('parental_consent_mailer.decline_prompt') %>
+<% end %>
+
+<%= mailer_t('parental_consent_mailer.decline_cta_label') %>:
+<%= @decline_url %>
+
 <%= mailer_t('parental_consent_mailer.unexpected_heading') %>
 
+<% if @offboarding %>
+<%= mailer_t('parental_consent_mailer.offboarding_footer') %>
+<% else %>
 <%= mailer_t('parental_consent_mailer.footer') %>
+<% end %>
 
 <%= email_signature %>

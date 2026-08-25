@@ -1,0 +1,53 @@
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}} @uncloseable={{this.saving}}>
+  <div class="modal-header md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    {{#if this.blocked}}
+      <h3 class="md-modal-title">{{t "AI features are not available" key="enable_ai_features_blocked_title"}}</h3>
+    {{else}}
+      <h3 class="md-modal-title">{{t "AI board generation is turned off" key="enable_ai_features_title"}}</h3>
+    {{/if}}
+  </div>
+  <div class="modal-body md-modal-body" style="text-align: left;">
+    {{#if this.blocked}}
+      {{#if this.blockedCoppa}}
+        <p class="md-modal-hint" style="font-weight: 600;">
+          {{t "AI features require parental consent for this account." key="enable_ai_features_blocked_coppa"}}
+        </p>
+      {{else}}
+        <p class="md-modal-hint" style="font-weight: 600;">
+          {{t "AI board generation is not available for this account." key="enable_ai_features_blocked_flag"}}
+        </p>
+      {{/if}}
+    {{else}}
+      <p class="md-modal-hint" style="font-weight: 600;">
+        {{t "AI board generation needs to be turned on before you can generate a board with AI." key="enable_ai_features_intro"}}
+      </p>
+      <p class="md-modal-hint">
+        {{t "Enable will turn on AI board generation only. Other AI features stay as they are. You can explore and turn on more features on the Preferences page under AI Features." key="enable_ai_features_preferences_note"}}
+      </p>
+      {{#if this.save_error}}
+        <p class="text-danger">{{t "Could not save AI feature settings. Please try again." key="enable_ai_features_save_error"}}</p>
+      {{/if}}
+    {{/if}}
+  </div>
+  <div class="modal-footer md-modal-footer">
+    {{#if this.blocked}}
+      <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "close")}}>
+        {{t "Close" key="close"}}
+      </button>
+    {{else}}
+      <button type="button" class="btn md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}} disabled={{this.saving}}>
+        {{t "Cancel" key="cancel"}}
+      </button>
+      <button type="button" class="btn md-modal-btn md-modal-btn--primary" {{on "click" (this.ctrlAction "enable")}} disabled={{this.saving}}>
+        {{#if this.saving}}
+          {{t "Saving..." key="saving"}}
+        {{else}}
+          {{t "Enable AI board generation" key="enable_ai_features_submit"}}
+        {{/if}}
+      </button>
+    {{/if}}
+  </div>
+</ModalDialog>
