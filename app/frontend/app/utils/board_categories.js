@@ -408,10 +408,18 @@ export function category_for_button(btn) {
      (models/board.js VARIANT_ROOT_SUFFIXES, board_hierarchy.js `key.match(/keyboard$/)`)
      rather than by the English label, which would not survive a translated board.
      Runs BEFORE the colour check below: keyboard buttons are usually grey, and grey is
-     nearest to Connectors — which is exactly how they ended up filed there. */
+     nearest to Connectors — which is exactly how they ended up filed there.
+
+     `(_\d+)?` is not optional polish — it is what makes this work on a COPIED board set,
+     which is what nearly every real user has. Board keys are disambiguated with a trailing
+     `_<n>` (`generate_unique_key`, app/models/concerns/processable.rb:147-150), so copying a
+     set turns `…/board-keyboard` into `…/board-keyboard_1`. Anchored on `keyboard$` alone
+     that misses, the folder falls through to the colour rule, and grey files it under
+     Connectors — the exact failure this rule exists to prevent. Verified against the dev
+     database: `marcus_williams_slp/vocal-flair-112-keyboard_1`. */
   if(btn.load_board) {
     const lb_key = btn.load_board.key || btn.load_board.id || '';
-    if(typeof lb_key === 'string' && /(^|[-_/])keyboard$/i.test(lb_key)) { return 'keyboard'; }
+    if(typeof lb_key === 'string' && /(^|[-_/])keyboard(_\d+)?$/i.test(lb_key)) { return 'keyboard'; }
   }
 
   const hex = normalize_color(btn.background_color);
@@ -559,20 +567,984 @@ export function assign_columns(groups, column_count, inner_columns) {
   return out;
 }
 
+/*
+ * The keyboard, as it is actually laid out — three rows of ten.
+ *
+ * Not just the letter runs: `.` opens the home row and `shift` / `space` / `?` bracket
+ * the bottom one, which is what makes each row exactly ten and keeps the letters in the
+ * staggered positions a speller reaches for. Tokens are NORMALISED labels (see
+ * normalize_key_label), so a button labelled "[shift]" or "[ space ]" matches `shift`
+ * and `space`.
+ */
+export const QWERTY_LAYOUT = [
+  ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+  ['.', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
+  ['shift', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'space', '?']
+];
+
+/* Tracks in the keyboard panel — the width of a row. */
+export const QWERTY_COLUMNS = QWERTY_LAYOUT[0].length;
+
+/* Letters only; the run gate counts these, not the punctuation. */
+const QWERTY_LETTERS = 'qwertyuiopasdfghjklzxcvbnm'.split('');
+
+/* How much of the alphabet has to be present before these buttons are treated as a
+   KEYBOARD. A vocabulary board legitimately holds single-letter words ("a", "I") and a
+   stray "q" is not a keyboard; requiring most of the alphabet means the letters only
+   become keys when they clearly are keys. */
+const QWERTY_MIN_RUN = 0.7;
+
+/* "[shift]" -> "shift", "[ space ]" -> "space", "Q" -> "q".
+   Boards label these keys inconsistently (brackets, spacing, case); the KEY is the
+   same. Letters keep their exact case for the caller to disambiguate — see below. */
+function normalize_key_label(raw) {
+  return String(raw == null ? '' : raw)
+    .replace(/[[\]]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+/*
+ * Find the keyboard on a board and give each key its position.
+ *
+ * Returns a Map of button -> {row, col} (1-based). Board-level on purpose:
+ * `category_for_button` sees one button at a time and cannot tell the word "a" from the
+ * "a" between s and d — that distinction only exists with the whole board in view.
+ */
+export function qwerty_positions(rows) {
+  /* Candidates, WITH their board position. A token can legitimately appear more than
+     once: `vocal-flair-112` carries both the key `a` (white, no part of speech, id 72)
+     and the word "a" (grey, conjunction, id 59). Taking the first match in board order
+     handed the WORD to the keyboard — the home row rendered as a grey determiner sitting
+     between "." and "s", and Connectors lost a word. Which one is the key is not
+     knowable from the label; it is knowable from WHERE it sits, so the position travels
+     with the candidate and the choice is made below.
+
+     Exact case still ranks above normalised: the pronoun "I" sits beside the key "i" on
+     the same boards, and there case alone settles it. */
+  const exact = new Map();
+  const loose = new Map();
+  (rows || []).forEach(function(row, r) {
+    (row || []).forEach(function(btn, c) {
+      if(!btn || btn.empty) { return; }
+      const raw = (btn && typeof btn.label === 'string') ? btn.label.trim() : '';
+      if(!raw) { return; }
+      const at = { btn: btn, r: r, c: c };
+      if(!exact.has(raw)) { exact.set(raw, []); }
+      exact.get(raw).push(at);
+      const norm = normalize_key_label(raw);
+      if(norm) {
+        if(!loose.has(norm)) { loose.set(norm, []); }
+        loose.get(norm).push(at);
+      }
+    });
+  });
+  const candidates = function(token) {
+    const hits = exact.get(token);
+    if(hits && hits.length) { return hits; }
+    return loose.get(token) || [];
+  };
+
+  const found = QWERTY_LETTERS.filter(function(ch) { return candidates(ch).length > 0; });
+  if(found.length < Math.ceil(QWERTY_LETTERS.length * QWERTY_MIN_RUN)) { return new Map(); }
+
+  /* Where the keyboard SITS on the board, estimated from the tokens that are not
+     ambiguous — most letters appear exactly once, and each one that does pins the
+     block's origin at (its board cell) minus (its position in the layout). The median
+     of those offsets is robust to a stray single-letter word that happens to be unique.
+
+     With an origin, every token has a PREDICTED cell, which is what disambiguates the
+     rest: the key `a` is the "a" one cell right of ".", not the "a" five rows down in
+     Connectors. */
+  const offsets_r = [];
+  const offsets_c = [];
+  QWERTY_LAYOUT.forEach(function(layout_row, lr) {
+    layout_row.forEach(function(token, lc) {
+      const hits = candidates(token);
+      if(hits.length !== 1) { return; }
+      offsets_r.push(hits[0].r - lr);
+      offsets_c.push(hits[0].c - lc);
+    });
+  });
+  const median = function(list) {
+    if(!list.length) { return 0; }
+    const sorted = list.slice().sort(function(a, b) { return a - b; });
+    return sorted[Math.floor(sorted.length / 2)];
+  };
+  const origin_r = median(offsets_r);
+  const origin_c = median(offsets_c);
+
+  const out = new Map();
+  QWERTY_LAYOUT.forEach(function(layout_row, lr) {
+    layout_row.forEach(function(token, lc) {
+      const hits = candidates(token);
+      if(!hits.length) { return; }
+      let best = null;
+      let best_score = null;
+      hits.forEach(function(at) {
+        /* A key already placed earlier in the layout is not claimed twice — a board with
+           one "." would otherwise land it in every slot that matches. */
+        if(out.has(at.btn)) { return; }
+        const score = Math.abs(at.r - (origin_r + lr)) + Math.abs(at.c - (origin_c + lc));
+        if(best_score === null || score < best_score) { best = at; best_score = score; }
+      });
+      if(best) { out.set(best.btn, { row: lr + 1, col: lc + 1 }); }
+    });
+  });
+  return out;
+}
+
+/*
+ * Category order for COMPACT mode (grouping on, scrolling off).
+ *
+ * Compact mode drops the panel boxes and flows every button into ONE grid, so the only
+ * thing that separates categories is where they sit — which makes the order carry all
+ * the meaning. Fixed lead, then the rest by size:
+ *
+ *   people (yellow) -> actions (green) -> describe (blue) -> everything else, largest
+ *   first -> keyboard LAST
+ *
+ * The lead three are the Fitzgerald colours a speller scans for first and they sit
+ * top-left, where reading order starts. After that, largest-first keeps the big blocks
+ * whole near the top and leaves the small categories to fill the tail, which is what
+ * stops a two-button category stranding a half-empty row in the middle of the board.
+ *
+ * The keyboard is pinned last regardless of size: it is a spatial layout that occupies
+ * its own rows at the bottom (see qwerty_positions), not a block of vocabulary.
+ *
+ * NOTE this deliberately does NOT use the user's stored category order. That order
+ * exists to arrange PANELS; compact mode has no panels, and honouring an arbitrary
+ * order here would scatter the colour blocks the mode exists to line up. The stored
+ * order still drives the panel layout when scrolling is on.
+ */
+export const COMPACT_LEAD = ['people', 'actions', 'describe'];
+
+export function compact_order(groups) {
+  const list = (groups || []).slice();
+  const rank = function(g) {
+    const lead = COMPACT_LEAD.indexOf(g.key);
+    if(lead !== -1) { return [0, lead, 0]; }
+    if(g.key === 'keyboard') { return [2, 0, 0]; }
+    /* Negative count => larger first, without needing a second comparator. */
+    return [1, -(g.count || 0), 0];
+  };
+  return list.sort(function(a, b) {
+    const ra = rank(a);
+    const rb = rank(b);
+    return (ra[0] - rb[0]) || (ra[1] - rb[1]) || 0;
+  });
+}
+
+/*
+ * COMPACT tiling — one rectangle per category on the board's OWN grid.
+ *
+ * Compact mode used to flow every button into the board grid with the category shown as
+ * a ring on each CELL, because a category whose cells wrap across rows occupies a
+ * staircase and no single border can draw that. Giving the category ONE ring means
+ * giving it one rectangle, which is what this packs.
+ *
+ * Pure on purpose, same as `assign_columns`: this decides how the board looks, so it is
+ * verifiable in tests rather than by eye.
+ *
+ * Two properties the layout depends on and which the caller must preserve:
+ *
+ *   1. Every tile is `w` columns of the board wide and `h` rows tall, and its inner grid
+ *      is exactly `w` x `h` equal tracks at the board's own gap with NO padding. That is
+ *      what keeps a button in a 3-wide tile the same size as one in a 9-wide tile —
+ *      padding would make button width a function of the tile's span, which is not a
+ *      trade to make on a board a user has motor memory for.
+ *   2. Rows are `minmax(0, 1fr)` under a definite grid height (LEARNINGS, "Board-detail
+ *      board grid height is a load-bearing magic-number calc"), so a tiling that needs
+ *      MORE rows than the board authored costs button HEIGHT and never introduces
+ *      scrolling. Compact mode exists because the user cannot scroll.
+ *
+ * The keyboard is pinned BOTTOM-RIGHT: it is a spatial layout a speller navigates by
+ * position, so it keeps its own shape (`qwerty_positions`) rather than being packed by
+ * button count. The notch to its left is filled from the END of the order, which
+ * `compact_order` has already sorted to the smallest categories — exactly what a few
+ * spare columns can hold.
+ */
+
+/* Band heights the search considers. Raised automatically when a single category cannot
+   fit the board width at this height. */
+const COMPACT_MAX_BAND_ROWS = 10;
+
+function tile_count(group) {
+  return (group && (group.count || (group.buttons || []).length)) || 0;
+}
+
+/*
+ * Choose the bands.
+ *
+ * A band is a horizontal run of tiles that all share a height — they must, or the band
+ * below has no shared row line to start on and the tiling develops holes. Within a band
+ * a category of N buttons at height h is ceil(N / h) columns wide, so the band height is
+ * the only real decision.
+ *
+ * This is a GLOBAL search (dynamic programming over the remaining categories), not a
+ * greedy per-band one. Greedy was the whole defect: scoring each band on its own wasted
+ * cells picked a 1-row band holding one 10-button category — locally the least waste on a
+ * 14-column board — and left everything after it to pack around that decision. The board
+ * came out as a stack of thin bands, each with its own ragged end.
+ *
+ * Minimising TOTAL cells (band height x board width, summed) is the same thing as
+ * minimising total rows, which is also what keeps the buttons as large as possible: rows
+ * are `1fr` under a definite grid height.
+ *
+ * Ties are broken on how CONCENTRATED the leftover space is, not how much of it there is
+ * — the sum of SQUARED emptiness, counted per tile and per band of dead board. Total
+ * emptiness cannot separate two layouts of equal height (they hold the same buttons in
+ * the same number of cells), and it is concentration that reads as a fault: four spare
+ * cells spread one-per-category is invisible, while the same four in one ring looks like
+ * buttons have gone missing, and a 4x1 strip of bare board beside a category looks like
+ * the board failed to draw. Squaring prefers the spread-out layout in both cases.
+ *
+ * Every prefix length is considered, not just the longest that fits, so the search is
+ * free to leave a category for the next band when that packs better. Order is never
+ * reshuffled: `compact_order` put the Fitzgerald lead colours first on purpose.
+ *
+ * Worked example, the 14-column board this was built against
+ * (people 10, actions 21, describe 20, words 16, questions 5):
+ *   greedy      -> 1-row band (people, 4 columns of bare board), then 3-row, then 2-row:
+ *                  10 rows, three ragged band ends
+ *   this search -> ONE 6-row band, widths 2 + 4 + 4 + 3 + 1 = 14 exactly: 6 rows above the
+ *                  keyboard, no bare board at all, at most 4 spare cells in any one ring
+ */
+/*
+ * Fit one band, shedding columns by DONATING buttons when the categories do not fit.
+ *
+ * A category of N buttons in a band `h` rows tall wants ceil(N / h) columns. When the
+ * band's categories together want more columns than the board has, one of them can be
+ * given a column less and its trailing buttons handed to the bottom band instead — the
+ * `donation`. The cheapest donation is taken first, which is what picks the category
+ * with a nearly-empty last row rather than one that is packed solid.
+ *
+ * This is the difference between a band that fits and one that does not, and on a real
+ * board it is the difference between every ring being exactly full and every ring
+ * carrying a half-empty final row. Worked example, 14 columns:
+ *   people 10, actions 21, describe 20, words 15, questions 5
+ *   h = 5 wants 2 + 5 + 4 + 3 + 1 = 15 columns — one too many, so no 5-row band exists
+ *   donate 1 button from actions (cost 1; every other category costs 5) -> 2 + 4 + 4 + 3
+ *   + 1 = 14, and all five rings hold exactly their buttons with nothing spare.
+ * Without donations the search has to fall back to h = 6, where the widths do fit but
+ * every one of the five rings gains a mostly-empty sixth row.
+ *
+ * Returns null when the band cannot be made to fit inside the donation budget.
+ */
+function fit_band(counts, h, columns, budget) {
+  const w = counts.map(function(c) { return Math.ceil(c / h); });
+  const donate = counts.map(function() { return 0; });
+  let used = w.reduce(function(a, b) { return a + b; }, 0);
+  let spent = 0;
+  while(used > columns) {
+    let pick = -1;
+    let cost = null;
+    for(let k = 0; k < w.length; k++) {
+      /* Never shed a category to nothing — a zero-width tile is not a tile. */
+      if(w[k] <= 1) { continue; }
+      const remaining = counts[k] - donate[k];
+      const need = Math.max(0, remaining - ((w[k] - 1) * h));
+      /* And never donate a category away entirely; it has to keep a block of its own. */
+      if(remaining - need < 1) { continue; }
+      if(cost === null || need < cost) { cost = need; pick = k; }
+      if(cost === 0) { break; }
+    }
+    if(pick < 0 || spent + cost > budget) { return null; }
+    w[pick] -= 1;
+    donate[pick] += cost;
+    spent += cost;
+    used -= 1;
+  }
+  return { w: w, donate: donate, used: used, spent: spent };
+}
+
+/*
+ * Choose the bands.
+ *
+ * A band is a horizontal run of tiles that all share a height — they must, or the band
+ * below has no shared row line to start on and the tiling develops holes. Within a band
+ * a category of N buttons at height h is ceil(N / h) columns wide, so the band height
+ * (and, now, which categories donate) is the whole decision.
+ *
+ * A GLOBAL search (dynamic programming over the remaining categories), not a greedy
+ * per-band one. Greedy was the original defect: scoring each band on its own wasted cells
+ * picked a 1-row band holding one 10-button category — locally the least waste on a
+ * 14-column board — and left everything after it to pack around that decision.
+ *
+ * The state is (categories left, donation budget left): a donation spends from a budget
+ * fixed by how many cells are free in the bottom band, so a band cannot promise the
+ * bottom band more buttons than it can hold.
+ *
+ * Minimising TOTAL cells (band height x board width, summed) is the same as minimising
+ * total rows, which is what keeps the buttons as large as possible — rows are `1fr` under
+ * a definite grid height.
+ *
+ * Ties are broken on how CONCENTRATED the leftover space is, not how much of it there is
+ * — the sum of SQUARED emptiness, per tile and per band of bare board. Total emptiness
+ * cannot separate two layouts of equal height (same buttons, same cells), and it is
+ * concentration that reads as a fault: four spare cells spread one-per-category is
+ * invisible, while the same four in one ring looks like buttons have gone missing.
+ *
+ * Every prefix length is considered, not just the longest that fits, so the search may
+ * leave a category for the next band when that packs better. Order is never reshuffled:
+ * `compact_order` put the Fitzgerald lead colours first on purpose.
+ */
+function plan_bands(list, columns, budget) {
+  const n = list.length;
+  if(!n) { return { bands: [], spent: 0 }; }
+  const counts = list.map(tile_count);
+  let max_h = COMPACT_MAX_BAND_ROWS;
+  counts.forEach(function(c) { max_h = Math.max(max_h, Math.ceil(c / columns)); });
+  const cap = Math.max(0, Math.floor(budget) || 0);
+
+  /* Scored on the band AFTER close_band_edge has run, not before: that step turns a small
+     ragged edge into spare cells inside the last ring, and a search that scored the
+     unstretched band would be ranking a layout that never renders. */
+  const band_spread = function(h, tiles, used) {
+    const slack = columns - used;
+    const stretch = (slack > 0 && slack <= stretch_cap(columns)) ? slack : 0;
+    const dead = (slack - stretch) * h;
+    let spread = dead * dead;
+    tiles.forEach(function(t, idx) {
+      const w = t.w + ((idx === tiles.length - 1) ? stretch : 0);
+      const empty = (w * h) - (tile_count(t.group) - t.donate);
+      spread += empty * empty;
+    });
+    return spread;
+  };
+
+  /* best[i][b] = cheapest way to pack categories i..n-1 with b donations still available.
+     Filled back to front so every `best[j + 1][...]` a candidate needs is already known. */
+  const best = [];
+  for(let i = 0; i <= n; i++) { best.push(new Array(cap + 1).fill(null)); }
+  for(let b = 0; b <= cap; b++) { best[n][b] = { cells: 0, spread: 0, bands: [], spent: 0 }; }
+
+  for(let i = n - 1; i >= 0; i--) {
+    for(let b = 0; b <= cap; b++) {
+      let choice = null;
+      for(let h = 1; h <= max_h; h++) {
+        for(let j = i; j < n; j++) {
+          const slice = counts.slice(i, j + 1);
+          const fit = fit_band(slice, h, columns, b);
+          /* Adding a category can only widen the band, so once a prefix cannot be made to
+             fit, no longer one can either. */
+          if(!fit) { break; }
+          const rest = best[j + 1][b - fit.spent];
+          if(!rest) { continue; }
+          const tiles = [];
+          for(let k = i; k <= j; k++) {
+            tiles.push({ group: list[k], w: fit.w[k - i], donate: fit.donate[k - i] });
+          }
+          const cells = (h * columns) + rest.cells;
+          const spread = band_spread(h, tiles, fit.used) + rest.spread;
+          if(!choice || cells < choice.cells || (cells === choice.cells && spread < choice.spread)) {
+            choice = {
+              cells: cells,
+              spread: spread,
+              spent: fit.spent + rest.spent,
+              bands: [{ h: h, tiles: tiles, used: fit.used }].concat(rest.bands)
+            };
+          }
+        }
+      }
+      best[i][b] = choice;
+    }
+  }
+
+  /* Unreachable for a non-empty list — h = ceil(count / columns) always fits the first
+     category with no donation — but a packer that silently dropped categories would be
+     far worse than one that fell back to full-width bands, so make the fallback explicit. */
+  if(!best[0][cap]) {
+    return {
+      bands: list.map(function(g) {
+        return { h: Math.max(1, Math.ceil(tile_count(g) / columns)),
+                 tiles: [{ group: g, w: columns, donate: 0 }], used: columns };
+      }),
+      spent: 0
+    };
+  }
+  return { bands: best[0][cap].bands, spent: best[0][cap].spent };
+}
+
+/*
+ * Fill a fixed region — the notch beside the keyboard — row by row.
+ *
+ * The band planner above takes strict PREFIXES, because in the main body of the board
+ * reading order is the layout and a packer that reshuffles categories would undo the
+ * Fitzgerald ordering. The notch is not that: it is a bin a handful of small categories
+ * drop into, and there the rule that matters is that each row comes out full.
+ *
+ * So this one may pull a later group FORWARD to close a row. Without it the notch cannot
+ * reach three rows on the real board — Places (3 wide) leaves one column, the next
+ * category in order is 2 wide and does not fit, and everything after is pushed onto a
+ * fourth row that the keyboard's height has no room for. With the pull, Places is
+ * completed by the next one-wide category and the whole notch lands in three rows.
+ */
+function fill_region(groups, width, pinned) {
+  /* `pinned` — groups that must stay at the END, in the order given, instead of being
+     pulled forward to close an earlier row. The pull below exists to stop the notch
+     fragmenting, and it is right for ordinary categories; a pinned group is one that has
+     been placed deliberately (see `notch_tail_order`) and must not be moved off its row.
+     They are still allowed to close each OTHER's row — that is the point of pinning them
+     as a run — so the skip applies only while the row was opened by an unpinned group. */
+  const pin = new Set(pinned || []);
+  const pending = (groups || []).filter(function(g) { return g && tile_count(g) > 0; });
+  const tiles = [];
+  let row = 1;
+  while(pending.length) {
+    const first = pending.shift();
+    const n = tile_count(first);
+    /* Too wide for one row: give it whole rows of its own rather than fragmenting it. */
+    if(n > width) {
+      const h = Math.ceil(n / width);
+      tiles.push({ group: first, col: 1, row: row, w: width, h: h, iw: width, ih: h });
+      row += h;
+      continue;
+    }
+    const in_row = [{ group: first, col: 1, w: n }];
+    const row_pinned = pin.has(first);
+    let col = 1 + n;
+    while(col <= width) {
+      let idx = -1;
+      for(let k = 0; k < pending.length; k++) {
+        if(!row_pinned && pin.has(pending[k])) { continue; }
+        if(tile_count(pending[k]) <= (width - col + 1)) { idx = k; break; }
+      }
+      if(idx < 0) { break; }
+      const next = pending.splice(idx, 1)[0];
+      const c = tile_count(next);
+      in_row.push({ group: next, col: col, w: c });
+      col += c;
+    }
+    /* Only after the pull has failed is a ragged edge worth absorbing. */
+    const slack = width - (col - 1);
+    if(slack > 0 && slack <= stretch_cap(width)) { in_row[in_row.length - 1].w += slack; }
+    in_row.forEach(function(t) {
+      tiles.push({ group: t.group, col: t.col, row: row, w: t.w, h: 1, iw: t.w, ih: 1 });
+    });
+    row += 1;
+  }
+  return { tiles: tiles, rows: row - 1 };
+}
+
+/* The trailing buttons each donating category handed down, as tiles of their own. Kept
+   in band order so the bottom band reads left to right the way the board above does. */
+function collect_donations(bands) {
+  const out = [];
+  (bands || []).forEach(function(band) {
+    (band.tiles || []).forEach(function(t) {
+      if(!t.donate) { return; }
+      const buttons = (t.group.buttons || []).slice(tile_count(t.group) - t.donate);
+      if(!buttons.length) { return; }
+      const spill = derived_group(t.group, buttons, '-spill');
+      /* Its OWN key, so it is addressable on its own. It renders the parent category's
+         colours and keeps its label, but it is a separate tile in a separate place on the
+         board, and sharing `actions` meant a rule meant for this one-button tile also hit
+         the 20-button Actions block. Named for the button it holds. */
+      spill.key = (buttons.length === 1 && buttons[0] && typeof buttons[0].label === 'string')
+        ? buttons[0].label.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_')
+        : (spill.key + '_spill');
+      out.push(spill);
+    });
+  });
+  return out;
+}
+
+/* A same-category tile holding a SLICE of a category's buttons. Used when a category
+   donates its trailing buttons to the bottom band, and when the keyboard's non-key
+   members are split off the keys. Carries the category's own label and colours, so two
+   tiles of one category still read as that category. */
+function derived_group(group, buttons, suffix, is_keyboard) {
+  return {
+    key: group.key,
+    label: group.label,
+    fillVar: group.fillVar,
+    textVar: group.textVar,
+    each_key: (group.each_key || ('cat-' + group.key)) + suffix,
+    buttons: buttons,
+    count: buttons.length,
+    is_keyboard: !!is_keyboard
+  };
+}
+
+/*
+ * Close a SMALL ragged edge by widening the band's last tile; leave a large one as board.
+ *
+ * A couple of spare cells inside a ring read as a category with room left, which is
+ * tidier than a notch cut out of the board. Past a point it inverts: a lone 5-button
+ * category stretched across a 14-column board is a ring two-thirds empty, and that reads
+ * as buttons having gone missing.
+ */
+/* How much ragged edge is worth absorbing rather than leaving as board. One definition,
+   used both by the search that scores a candidate band and by the step that applies it. */
+function stretch_cap(columns) {
+  return Math.max(1, Math.floor(columns / 4));
+}
+
+function close_band_edge(band, columns) {
+  const slack = columns - band.used;
+  if(slack <= 0 || slack > stretch_cap(columns)) { return band; }
+  const last = band.tiles[band.tiles.length - 1];
+  /* Never stretch a tile past half empty. The cap above is a fraction of the BOARD, which
+     says nothing about the tile absorbing the slack: on a 12-column board it let a
+     one-button category grow from 1x2 to 2x2 — a ring with three empty cells and one
+     button in it, which reads as a category whose buttons went missing. The band simply
+     ends short instead; bare board beside a small tile is quieter than a hollow ring. */
+  const count = tile_count(last.group);
+  const height = band.h || 1;
+  if(count * 2 < (last.w + slack) * height) { return band; }
+  last.w += slack;
+  band.used = columns;
+  return band;
+}
+
+/*
+ * SCROLLING ONLY: lift a one-column category out of a shared band onto a row of its own
+ * directly beneath that band.
+ *
+ * The pathology this fixes. A band's height is shared by everything in it, so a small
+ * category that joins a five-row band is drawn one column wide and five rows tall however
+ * few buttons it has. On the 14-column board the search picks exactly that — people 2 +
+ * actions 4 + describe 4 + connectors 3 + questions 1 = 14, a five-row band with not one
+ * wasted cell, the best score available — and Questions comes out as a 1-wide sliver of
+ * five stacked buttons beside four blocks three to four times its width. The score cannot
+ * see the problem: a column of five cells holding five buttons is full.
+ *
+ * Re-laid as a row the same five buttons are 5 x 1 at the board's own button size, which
+ * is the shape the rest of the board is already in.
+ *
+ * WHY SCROLLING ONLY. This costs a row, and the two variants pay for a row completely
+ * differently. With scrolling off the grid holds a definite height and its rows are
+ * `1fr`, so an extra row comes straight out of every button on the board — the mode
+ * exists to fit a board a user cannot scroll, and trading everyone's button size for one
+ * category's shape is the wrong trade there. With scrolling on the rows hold a floor
+ * (`minmax(--bd-scroll-row-min, auto)`) and the board simply grows, so the row is free.
+ *
+ * WHAT IT DOES NOT DO. It never re-plans: the band search has already run, tiles keep
+ * their order, and no category other than the lifted one changes band. The band it leaves
+ * is handed back to `close_band_edge` by the caller's render loop exactly as any other
+ * band is, so the column it vacated is absorbed by its neighbour under the same rule
+ * (and its "never stretch a tile past half empty" guard) that shapes every other band
+ * edge — that is the packer's existing answer to a short band, not a new one.
+ *
+ * Skipped for a DONATING tile: its width was chosen to make the band fit at all, and its
+ * trailing buttons are already committed to the notch, so re-widening it here would be
+ * reasoning about a split the notch has been packed against.
+ */
+function lift_column_tiles(bands, columns) {
+  const out = [];
+  (bands || []).forEach(function(band) {
+    const lifted = [];
+    const kept = [];
+    band.tiles.forEach(function(t) {
+      /* A one-column tile is only a SLIVER if the band is taller than it is wide and it
+         has company — a category alone in a one-row band is already a row. */
+      const sliver = band.tiles.length > 1 && band.h > 1 && t.w === 1 && !t.donate;
+      (sliver ? lifted : kept).push(t);
+    });
+    if(!lifted.length || !kept.length) { out.push(band); return; }
+
+    /* Shape the new row BEFORE touching the old band, so a band that cannot be re-laid is
+       left exactly as the search planned it. `fit_band` is the same width solver the
+       search uses, at no donation budget: the shortest height at which the lifted
+       categories fit the board width side by side. h = 1 for anything the board is wide
+       enough to hold in a single row, which is the case this exists for. */
+    const counts = lifted.map(function(t) { return tile_count(t.group); });
+    let h = 1;
+    let fit = null;
+    while(h <= COMPACT_MAX_BAND_ROWS && !fit) {
+      fit = fit_band(counts, h, columns, 0);
+      if(!fit) { h += 1; }
+    }
+    if(!fit) { out.push(band); return; }
+
+    band.tiles = kept;
+    band.used = kept.reduce(function(sum, t) { return sum + t.w; }, 0);
+    /* The column the lift freed is left as BARE BOARD, not handed to the neighbour.
+       `close_band_edge` would widen the last tile to absorb it, and because a tile's
+       buttons are always one board column wide, widening means adding a column of empty
+       SLOTS: Connectors would go from 3 x 5 holding fifteen buttons to 4 x 5 holding
+       fifteen, and the helper's own "never stretch past half empty" guard does not catch
+       it (fifteen in twenty is over half). On an AAC board an empty slot inside a ring
+       reads as a button that has gone missing, which is worse than a quiet strip of board
+       at the end of the row. */
+    band.no_edge_stretch = true;
+    out.push(band);
+    out.push({
+      h: h,
+      used: fit.used,
+      /* Marked so the caller can find it again — the lifted row is the one band that may
+         still take a category, and only it (see `continue_into_lifted_row`). */
+      lifted: true,
+      no_edge_stretch: true,
+      tiles: lifted.map(function(t, k) { return { group: t.group, w: fit.w[k], donate: 0 }; })
+    });
+  });
+  return out;
+}
+
+/*
+ * Continue the reading order into the lifted row: move the NEXT category into it, to the
+ * right of the tile that was lifted.
+ *
+ * A lifted row starts out short. Questions re-laid as 5 x 1 on a 14-column board uses
+ * five columns and leaves nine, and `close_band_edge` cannot help — its stretch cap is a
+ * quarter of the board (3 here), and it refuses to grow a tile past half empty anyway, so
+ * a five-button category is never widened to fourteen columns. An ordinary band closes
+ * its edge by holding more categories; this one has to do the same.
+ *
+ * The next category in reading order is the front of `notch_groups` — the run the notch
+ * was filled with, which is the tail of the order, so its first entry is the category
+ * that would otherwise have come next. On the 14-column board that is How & When, and it
+ * lands to the right of Questions on the same row.
+ *
+ * It keeps taking while the next category still fits, so the row is filled the only way
+ * that does not distort anything: with more CATEGORIES. The alternative — widening the
+ * tiles already there — would make their buttons wider than the rest of the board's, and
+ * a button is the same size everywhere when categories are on. On the 14-column board the
+ * run comes out exactly: Questions 5 + How & When 4 + Things 3 + No's 2 = 14.
+ *
+ * It stops before the notch would be stripped below one full row of its own — fewer
+ * buttons left than the notch is wide. That is the point where the notch stops reading as
+ * a block beside the keyboard and starts reading as a hole, and it is what keeps No's and
+ * Don'ts down there: taking it would leave three buttons for a four-wide notch.
+ *
+ * The notch is then re-packed ONCE and the whole move is REVERTED if the result no longer
+ * fits beside the keyboard: buttons fitting by count does not prove the rectangles do,
+ * which is the same check the donation path makes.
+ */
+function continue_into_lifted_row(bands, notch_groups, donated, notch_w, kb_h, columns) {
+  const band = (bands || []).filter(function(b) { return b && b.lifted; })[0];
+  if(!band || !notch_groups.length || notch_w <= 0) { return null; }
+
+  const take = [];
+  let used = band.used;
+  /* What the notch still has to show once the run has been taken out of it. */
+  let left_below = notch_groups.reduce(function(sum, g) { return sum + tile_count(g); }, 0);
+  while(take.length < notch_groups.length) {
+    const next = notch_groups[take.length];
+    const need = Math.ceil(tile_count(next) / band.h);
+    if(need > columns - used) { break; }
+    /* Never strip the notch below one full row of itself — see the note above. */
+    if(left_below - tile_count(next) < notch_w) { break; }
+    take.push({ group: next, w: need, donate: 0 });
+    used += need;
+    left_below -= tile_count(next);
+  }
+  if(!take.length) { return null; }
+
+  const remaining = notch_groups.slice(take.length);
+  const tail = notch_tail_order(remaining.concat(donated));
+  const repacked = fill_region(tail.list, notch_w, tail.pinned);
+  if(repacked.rows > kb_h) { return null; }
+
+  take.forEach(function(t) { band.tiles.push(t); });
+  band.used = used;
+  return { notch: repacked, taken: take.length };
+}
+
+/*
+ * The keyboard FOLDER tile goes last in the notch — the cell run to the left of the key
+ * block — so it sits immediately beside the keyboard it opens.
+ *
+ * Order in the notch is otherwise "trailing categories, then whatever the bands donated",
+ * and the folder is a trailing category while a donation (the Actions overflow that renders
+ * as the `yes` tile) is not — so the folder came out to the LEFT of a tile it has nothing to
+ * do with. Pulling it to the end swaps those two and puts the folder against the keys.
+ *
+ * Stable for everything else: the remaining tiles keep their relative order exactly.
+ */
+const NOTCH_TAIL_KEYS = ['social', 'keyboard_extra'];
+
+/*
+ * The notch's last row: Social, then the Keys tile.
+ *
+ * The folder that opens the keyboard goes at the end so it sits beside the keys it opens
+ * (this replaces the old `keyboard_folder_last`, which did only that half). Social joins
+ * it there, immediately to its left — both are
+ * one-button tiles, and paired on a row of their own they read as the small controls at
+ * the foot of the notch rather than as two odd cells padding out a row of vocabulary.
+ *
+ * Returning the pinned run as well as the list is what makes it stick: `fill_region`
+ * closes a short row by pulling a later group forward, and left to itself it would pull
+ * Social up to finish the No's row — which is exactly where it used to end up.
+ *
+ * Order inside the run follows NOTCH_TAIL_KEYS; everything else keeps its relative order.
+ *
+ * `keys` narrows the run. The donation re-pack passes `['keyboard_extra']` and ignores the
+ * `pinned` half, which is the folder-last rule on its own — the behaviour this had before
+ * Social was added to the tail. That call decides whether a DONATION survives, and a
+ * donation that is rejected sends the band search back to a plan a row taller for the
+ * whole board: pinning there cost the notch a row, the donation was refused, and the top
+ * band went from five rows to six. The tail belongs to the pack that renders, not to the
+ * one that is only testing whether a donation fits.
+ */
+function notch_tail_order(list, keys) {
+  const tail = [];
+  (keys || NOTCH_TAIL_KEYS).forEach(function(key) {
+    (list || []).forEach(function(g) { if(g && g.key === key) { tail.push(g); } });
+  });
+  if(!tail.length) { return { list: list, pinned: [] }; }
+  const rest = (list || []).filter(function(g) { return tail.indexOf(g) === -1; });
+  return { list: rest.concat(tail), pinned: tail };
+}
+
+/*
+ * `options.scrolling` — whether the board is allowed to exceed the viewport
+ * (`board_category_grouping.vertical_scroll`, which the grid carries as `--compact-scroll`).
+ * It is the ONE input here that is not about the board's own shape, and it buys exactly
+ * one thing: the freedom to spend a row. See `lift_column_tiles` for what that pays for
+ * and why the non-scrolling board must not do the same. Absent means false, so a caller
+ * that does not pass it gets the layout this function has always produced.
+ */
+export function pack_category_tiles(groups, columns, options) {
+  const opts = options || {};
+  const cols = Math.max(1, Math.floor(columns) || 1);
+  const list = (groups || []).filter(function(g) { return g && tile_count(g) > 0; });
+  if(!list.length) { return { tiles: [], rows: 0 }; }
+
+  let kb = list.filter(function(g) { return g.is_keyboard; })[0] || null;
+  const vocab = list.filter(function(g) { return g !== kb; });
+
+  /*
+   * A keyboard-category button with no QWERTY position is not a KEY — the folder that
+   * OPENS a keyboard board is the real case. `group_buttons` parks those on a row below
+   * the layout so they cannot displace a letter, which in a tiled compact board means the
+   * keyboard's ring grows a fourth row holding one button and nine empty cells.
+   *
+   * Split them into a tile of their own instead. The keys keep the 3x10 shape a speller
+   * navigates by position; the folder becomes an ordinary one-button tile the notch packs
+   * like any other. Both derived groups carry the keyboard category's own label and
+   * colours, so the two still read as the same category.
+   *
+   * `is_keyboard` is what the template keys the per-key `grid-row`/`grid-column`
+   * placement off, so the extras group must NOT carry it — its buttons still hold the
+   * kb_row group_buttons parked them on, and applying that inside a one-row tile would
+   * place them outside their own tile.
+   */
+  if(kb) {
+    const key_rows = QWERTY_LAYOUT.length;
+    const keys = (kb.buttons || []).filter(function(b) { return b && b.kb_row && b.kb_row <= key_rows; });
+    const extras = (kb.buttons || []).filter(function(b) { return b && (!b.kb_row || b.kb_row > key_rows); });
+    if(extras.length && keys.length) {
+      const base = kb;
+      kb = {
+        key: base.key, label: base.label, fillVar: base.fillVar, textVar: base.textVar,
+        each_key: (base.each_key || 'cat-keyboard') + '-keys',
+        buttons: keys, count: keys.length, is_keyboard: true
+      };
+      vocab.push({
+        /* `keyboard_extra`, not `keyboard`: this is the folder that OPENS a keyboard, a
+           one-button tile parked in the bottom band, and it shares nothing but a colour
+           with the 30-key block. One key for both meant a rule for either hit both.
+
+           Its own LABEL too. Sharing the block's "Keyboard" put the same word on two tiles
+           that do different things, and this one is a single small tile whose header has
+           room for a short word at most. Written here rather than in BOARD_CATEGORIES
+           because `keyboard_extra` is a derived group, not a category a user can order. */
+        key: base.key + '_extra', label: i18n.t('board_category_keys', "Keys"), fillVar: base.fillVar, textVar: base.textVar,
+        each_key: (base.each_key || 'cat-keyboard') + '-extra',
+        buttons: extras, count: extras.length, is_keyboard: false
+      });
+    }
+  }
+
+  /* The keyboard's shape comes from the KEYS, not from a count: `qwerty_positions` has
+     already placed them (and parked anything in the keyboard category without a layout
+     position, the folder that opens a keyboard board, on a row below). */
+  let kb_w = 0;
+  let kb_h = 0;
+  if(kb) {
+    (kb.buttons || []).forEach(function(b) {
+      if(!b || !b.kb_row) { return; }
+      if(b.kb_row > kb_h) { kb_h = b.kb_row; }
+      if(b.kb_col > kb_w) { kb_w = b.kb_col; }
+    });
+    kb_w = Math.max(1, kb_w);
+    kb_h = Math.max(1, kb_h);
+  }
+  /* On a board NARROWER than a QWERTY row the keyboard cannot have one board column per
+     key, so its tile spans what the board has while its inner grid keeps the full ten
+     tracks — the keys come out smaller than the vocabulary buttons, but the layout a
+     speller navigates by position survives, which is the whole reason the keyboard is
+     placed rather than flowed. Every other tile has inner tracks == span. */
+  const kb_span = Math.min(cols, kb_w);
+
+  /* Fill the notch to the LEFT of the keyboard from the tail of the order. Without this
+     the bottom band is a keyboard with a hole beside it.
+
+     The notch is packed by THIS function, recursively, against the notch width — it is
+     the same problem on a smaller board. That matters: giving each of the trailing
+     categories a full-height column instead put one button inside a four-cell ring.
+     The recursion terminates because the sub-list never contains the keyboard.
+
+     Take as many trailing categories as still pack within the keyboard's height. */
+  const notch_w = kb ? (cols - kb_span) : 0;
+  let notch_groups = [];
+  let notch = null;
+  if(notch_w > 0) {
+    let take = 0;
+    while(take < vocab.length) {
+      /* Deliberately the UNPINNED packing. This loop decides how many categories leave
+         `vocab` for the notch, and `vocab` is what the band search plans over — so a
+         different arrangement here does not just reshape the notch, it re-plans the whole
+         board. Pinning makes `fill_region` need a row more for the same set, which made
+         this loop stop a category earlier and moved every band above it. The pinned order
+         is applied to the pack that RENDERS (below), where it changes only the notch. */
+      const sub = fill_region(vocab.slice(vocab.length - (take + 1)), notch_w);
+      if(sub.rows > kb_h) { break; }
+      notch = sub;
+      take += 1;
+    }
+    if(notch) {
+      notch_groups = vocab.splice(vocab.length - take, take);
+    }
+  }
+
+  /*
+   * How many cells the notch has left over, and therefore how many buttons the bands
+   * above may DONATE down into it.
+   *
+   * This is what unlocks a band that fits exactly. On the real 14-column board the five
+   * vocabulary categories want 15 columns at five rows a piece, so without donations the
+   * search has to use six rows and every ring gains a mostly-empty final row. One button
+   * moved out of Actions makes it 14 — five rings, each holding exactly its own buttons —
+   * and the notch had a free cell for it anyway.
+   */
+  const notch_free = notch_w > 0
+    ? Math.max(0, (notch_w * kb_h) - notch_groups.reduce(function(sum, g) { return sum + tile_count(g); }, 0))
+    : 0;
+
+  let plan = plan_bands(vocab, cols, notch_free);
+  let donated = collect_donations(plan.bands);
+
+  /* Re-pack the notch with the donated tiles in it. Buttons fitting by COUNT does not
+     prove the rectangles fit, so a notch that now needs more rows than the keyboard is
+     tall is rejected and the whole layout falls back to donating nothing. */
+  if(donated.length) {
+    const tail = notch_tail_order(notch_groups.concat(donated), ['keyboard_extra']);
+    const repacked = fill_region(tail.list, notch_w);
+    if(repacked.rows <= kb_h) {
+      notch = repacked;
+    } else {
+      plan = plan_bands(vocab, cols, 0);
+      donated = [];
+    }
+  }
+
+  /* AFTER the donation settle, never before: a re-plan on the fallback path above would
+     throw away a lift computed against the first plan's bands. The notch and the keyboard
+     are already out of `plan.bands`, so this can only ever move a vocabulary tile within
+     the shelf above them. */
+  if(opts.scrolling) {
+    plan.bands = lift_column_tiles(plan.bands, cols);
+    const cont = continue_into_lifted_row(plan.bands, notch_groups, donated, notch_w, kb_h, cols);
+    if(cont) {
+      notch_groups.splice(0, cont.taken);
+      notch = cont.notch;
+    }
+  }
+
+  const tiles = [];
+  let row = 1;
+  plan.bands.forEach(function(band) {
+    /* `no_edge_stretch` is set only by the lift, on the two bands it disturbed — see the
+       note there for why their leftover columns stay bare instead of being absorbed. */
+    if(!band.no_edge_stretch) { close_band_edge(band, cols); }
+    let col = 1;
+    band.tiles.forEach(function(t) {
+      /* A donating category renders only the buttons it kept; the rest are already a tile
+         of their own in the notch. */
+      const group = t.donate
+        ? derived_group(t.group, (t.group.buttons || []).slice(0, tile_count(t.group) - t.donate), '-main')
+        : t.group;
+      tiles.push({ group: group, col: col, row: row, w: t.w, h: band.h, iw: t.w, ih: band.h });
+      col += t.w;
+    });
+    row += band.h;
+  });
+
+  if(kb) {
+    /* Top-aligned inside the band, so the notch continues the reading order from the
+       shelf above and any rows the sub-packing did not need fall at the bottom-left
+       corner as plain board rather than as a gap inside the flow. */
+    if(notch) {
+      notch.tiles.forEach(function(t) {
+        tiles.push({ group: t.group, col: t.col, row: row + t.row - 1, w: t.w, h: t.h, iw: t.iw, ih: t.ih });
+      });
+    }
+    tiles.push({ group: kb, col: cols - kb_span + 1, row: row, w: kb_span, h: kb_h, iw: kb_w, ih: kb_h });
+    row += kb_h;
+  }
+
+  /* Tiles come out in READING order (band by band, left to right). DOM order is what
+     decides focus and screen-reader order, so it has to be the order a user reads. */
+  return { tiles: tiles, rows: row - 1 };
+}
+
 export function group_buttons(rows, order) {
   const keys = normalize_order(order);
   const buckets = {};
   keys.forEach(function(k) { buckets[k] = []; });
 
+  /* Board-level pass first: QWERTY keys can only be recognised by looking at the whole
+     board (see qwerty_positions). Their position is stamped on the button so the
+     keyboard panel can lay them out on a real keyboard grid instead of reflowing them
+     into the panel's normal columns. */
+  const qwerty = qwerty_positions(rows);
+
   (rows || []).forEach(function(row) {
     (row || []).forEach(function(btn) {
       if(!btn || btn.empty) { return; }
+      const pos = qwerty.get(btn);
+      if(pos) {
+        btn.kb_row = pos.row;
+        btn.kb_col = pos.col;
+        buckets.keyboard = buckets.keyboard || [];
+        buckets.keyboard.push(btn);
+        return;
+      }
+      /* Clear any stale stamp: the same button object is reused across regroups, so a
+         button that stops qualifying must not keep a keyboard position. */
+      if(btn.kb_row) { btn.kb_row = null; btn.kb_col = null; }
       const key = category_for_button(btn);
       // category_for_button can only return a registry key, but guard anyway so a
       // future edit to it can never drop buttons on the floor.
       (buckets[key] || buckets.extra).push(btn);
     });
   });
+
+  /* Keys render in KEYBOARD order, not board order — the panel places each one
+     explicitly by kb_row/kb_col, but DOM order still decides focus and screen-reader
+     order, and tabbing through a keyboard should follow the keyboard. */
+  /* Only when the board actually HAS keys. `vocal-flair-84` carries the folder that opens
+     a keyboard but no letters of its own, and parking that folder below a layout that is
+     not there set `kb_row = 4` on it — which made `is_keyboard` true, gave the category a
+     phantom 4-row / 1-column shape, and had the compact packer reserve a 1x4 bottom-right
+     band for a single button with three empty cells under it, pushing every other category
+     into the notch beside it. A keyboard category with no keys is just a category. */
+  const has_keys = (buckets.keyboard || []).some(function(b) { return b && b.kb_row; });
+  if(has_keys && buckets.keyboard && buckets.keyboard.length) {
+    /* A keyboard-category button with no QWERTY position — the folder that OPENS a
+       keyboard board is the real case — is appended to the LAST row rather than left
+       unplaced. Unplaced items auto-flow into the first free cell, which put the
+       "keyboard" folder in the middle of the a..l row. On the authored board it sits at
+       the end of the bottom row, so that is where it goes. */
+    /* Anything in the keyboard category WITHOUT a layout position — the folder that
+       OPENS a keyboard board is the real case — goes on a row BELOW the keyboard rather
+       than into a key slot. The three rows are exactly ten wide and full; squeezing an
+       extra item in would shift the letters out of the positions a speller reaches for.
+       Unplaced items also auto-flow into the first free cell otherwise, which put the
+       "keyboard" folder in the middle of the home row. */
+    const lastRow = QWERTY_LAYOUT.length + 1;
+    let tail = 0;
+    buckets.keyboard.forEach(function(b) {
+      if(!b.kb_row) { tail += 1; b.kb_row = lastRow; b.kb_col = tail; }
+    });
+    buckets.keyboard.sort(function(a, b) {
+      return (a.kb_row - b.kb_row) || (a.kb_col - b.kb_col);
+    });
+  }
 
   return keys.filter(function(k) {
     return buckets[k] && buckets[k].length;
@@ -584,7 +1556,10 @@ export function group_buttons(rows, order) {
       fillVar: cat.fillVar,
       textVar: cat.textVar,
       buttons: buckets[k],
-      count: buckets[k].length
+      count: buckets[k].length,
+      /* The keyboard panel is laid out on a real keyboard grid and spans the full board
+         width, so the grid component pulls it out of the normal column packing. */
+      is_keyboard: k === 'keyboard' && buckets[k].some(function(b) { return b.kb_row; })
     };
   });
 }

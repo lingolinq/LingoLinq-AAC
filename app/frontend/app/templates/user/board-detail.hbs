@@ -1922,6 +1922,7 @@
         @folderColoredFace={{this.folder_colored_face}}
         {{!-- Both are already ANDed with grouping_active in the controller, so they are
              inert on an ungrouped board. --}}
+        @categoryEnabled={{this.categorize_enabled}}
         @showCategoryNames={{this.show_category_names}}
         @categoryScrollEnabled={{this.category_scroll_enabled}}
         @softBorders={{this.soft_borders}}
@@ -3515,69 +3516,165 @@
        with no Save, Cancel or undo. --}}
   {{#if (and this.edit_mode this.category_order_open)}}
     <div class="md-board-category-order" id="board-category-order-panel" role="region" aria-label={{t "Categorize board" key="board_categorize_panel"}}>
-      {{!-- The Categorize switch is this panel's PRIMARY control — the order list,
-           Reset and the grouped preview below all only mean something while it is
-           on, so everything else here is gated on it. Presented as a switch with an
-           explicit On/Off word because as a bare checkbox in this bar it was
-           reported as easy to miss entirely. It is still a real
-           <input type="checkbox"> inside its <label>, so keyboard operation, the
-           screen-reader role and the click-the-label target are unchanged; only the
-           painting differs (see `.md-board-category-order__toggle` in app.scss). --}}
+      {{!-- HEADER + two option cards, not one horizontal row.
+           The row treated the primary switch, two sub-options, an explanatory
+           paragraph, an accessibility note and both page-level actions as six peers on
+           one line, which is what made it read as clutter. Now: a titled header that
+           owns Reset/Done, then one card per setting, with a setting's own sub-option
+           NESTED inside its card so hierarchy is carried by structure rather than by
+           reading order.
+           The cards sit SIDE BY SIDE and wrap, rather than stacking as drawn: this bar
+           is `flex: 0 0 auto` above the order list and the live preview, so every pixel
+           it takes comes out of the preview. Side-by-side keeps the grouping without
+           halving the thing the panel exists to show. --}}
       <div class="md-board-category-order__bar">
-        {{!-- The switch paints `categorize_switch_on` (the user's INTENT), NOT
-             `categorize_enabled` (the stored value that drives the regroup). Flipping
-             grouping re-renders the whole board grid, which blocks the main thread long
-             enough on a tablet that nothing repainted — including this control — and the
-             click read as ignored. Intent paints in the current frame; the regroup is
-             applied one frame later (controller#toggle_categorize). --}}
-        <label class="md-board-category-order__toggle {{unless this.categorize_switch_on "md-board-category-order__toggle--off"}}">
-          <input type="checkbox" checked={{this.categorize_switch_on}} {{on "change" (this.ctrlAction "toggle_categorize")}} aria-describedby="board-category-order-hint">
-          <span class="md-board-category-order__toggle-track" aria-hidden="true"><span class="md-board-category-order__toggle-knob"></span></span>
-          <span class="md-board-category-order__toggle-label">{{t "Categorize" key="board_categorize"}}</span>
-          {{!-- aria-hidden: the checkbox already announces its own checked state,
-               so voicing "On"/"Off" again would double it. This is for sighted
-               users reading the switch at a glance. --}}
-          <span class="md-board-category-order__toggle-state" aria-hidden="true">{{#if this.categorize_switch_on}}{{t "On" key="board_categorize_on"}}{{else}}{{t "Off" key="board_categorize_off"}}{{/if}}</span>
-        </label>
-        <p class="md-board-category-order__hint" id="board-category-order-hint">
-          {{#if this.categorize_enabled}}
-            {{t "Group this board's buttons by category. Use the arrows to change the order the categories appear in." key="board_categorize_hint"}}
-          {{else}}
-            {{!-- The ON copy tells the user to "use the arrows", and the arrows are
-                 not rendered while this is off — so it needs its own sentence
-                 rather than being left to describe a control that isn't there. --}}
-            {{t "Categorizing is off. This board's buttons are shown in their original order." key="board_categorize_hint_off"}}
-          {{/if}}
-        </p>
-        {{!-- Sub-options. Only rendered while Categorize is ON because both describe how
-             the GROUPED board draws — with grouping off there are no category panels to
-             name and no grouped scroll container. They persist inside the same
-             preference (preferences.board_category_grouping), so a user's choices here
-             survive turning Categorize off and back on. --}}
-        {{#if this.categorize_enabled}}
-          <div class="md-board-category-order__options" role="group" aria-label={{t "Category display options" key="board_categorize_options_aria"}}>
-            <label class="md-board-category-order__option">
-              <input type="checkbox" checked={{this.category_names_visible}} {{on "change" (this.ctrlAction "toggle_category_names")}}>
-              <span class="md-board-category-order__option-label">{{t "Show category names" key="board_categorize_show_names"}}</span>
-            </label>
-            {{!-- Described, not just labelled: turning scrolling off is an ACCESSIBILITY
-                 decision. A switch, dwell or head-pointer user cannot scroll, so a
-                 scrollable grouped board hides whatever falls below the fold from them
-                 entirely. The note says so rather than leaving it to be discovered. --}}
-            <label class="md-board-category-order__option">
-              <input type="checkbox" checked={{this.category_vertical_scroll}} {{on "change" (this.ctrlAction "toggle_category_scroll")}} aria-describedby="board-category-scroll-note">
-              <span class="md-board-category-order__option-label">{{t "Allow vertical scrolling" key="board_categorize_scroll"}}</span>
-            </label>
-            <p class="md-board-category-order__option-note" id="board-category-scroll-note">
-              {{t "Turn scrolling off if this board is used with a switch, dwell or head pointer — those users cannot scroll to reach buttons below the fold." key="board_categorize_scroll_note"}}
-            </p>
+        {{!-- The header IS the grouping setting. It used to carry a panel title and a
+             subtitle ("Button organization" / "Control how buttons are grouped and
+             navigated.") that only restated what the panel obviously is, and the setting that
+             decides whether ANY of it applies sat below in a strip beside two sub-settings of
+             its own. Grouping now owns the header — heading, description and switch — and the
+             strip holds only the two settings that depend on it. --}}
+        <div class="md-board-category-order__head">
+          <div class="md-board-category-order__head-text">
+            <h2 class="md-board-category-order__title" id="bd-cat-group-title">{{t "Group by category" key="board_categorize_group_title"}}</h2>
+            <p class="md-board-category-order__subtitle" id="bd-cat-group-desc">{{t "Organize buttons into category groups." key="board_categorize_group_desc"}}</p>
           </div>
-        {{/if}}
-        <div class="md-board-category-order__bar-actions">
-          {{#if this.categorize_enabled}}
-            <button type="button" class="md-board-category-order__reset" data-bd-action="reset_category_order" {{on "click" (this.ctrlAction "reset_category_order")}}>{{t "Reset order" key="board_categorize_reset"}}</button>
+          {{!-- The long explanation, same disclosure the strip settings use. --}}
+          <details class="md-board-category-order__info">
+            <summary class="md-board-category-order__info-btn" aria-label={{t "More information about grouping by category" key="board_categorize_group_info_label"}}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            </summary>
+            <p class="md-board-category-order__info-body">
+              {{#if this.categorize_enabled}}
+                {{t "Organize this board's buttons into ordered category groups. Use the arrows below to change the order." key="board_categorize_group_hint"}}
+              {{else}}
+                {{t "Grouping is off. This board's buttons are shown in their original order." key="board_categorize_group_hint_off"}}
+              {{/if}}
+            </p>
+          </details>
+          <label class="md-board-category-order__onoff md-board-category-order__onoff--master" for="bd-cat-group">
+            <span class="md-board-category-order__onoff-word {{unless this.categorize_switch_on "md-board-category-order__onoff-word--active"}}" aria-hidden="true">{{t "Off" key="off"}}</span>
+            <span class="md-board-category-order__switch-wrap md-board-category-order__switch-wrap--master">
+              <input id="bd-cat-group" type="checkbox" data-bd-control="categorize" checked={{this.categorize_switch_on}} {{on "change" (this.ctrlAction "toggle_categorize")}} aria-describedby="bd-cat-group-desc">
+              <span class="md-board-category-order__switch {{unless this.categorize_switch_on "md-board-category-order__switch--off"}}" aria-hidden="true"><span class="md-board-category-order__switch-knob"></span></span>
+            </span>
+            <span class="md-board-category-order__onoff-word {{if this.categorize_switch_on "md-board-category-order__onoff-word--active"}}" aria-hidden="true">{{t "On" key="on"}}</span>
+          </label>
+          {{!-- Page-level actions live in the header, where they are expected — beside
+               the panel title rather than at the end of a settings row. --}}
+          <div class="md-board-category-order__bar-actions">
+            {{!-- Nested, not `(and …)`: Reset needs BOTH. The order list it resets is only
+                 rendered while grouping is on, so offering it with grouping off is a
+                 button pointing at nothing; and offering it on an order nobody has
+                 changed is a button that does nothing. --}}
+            {{!-- Reset order rides with the ordering list below: both are gated on
+                 `category_ordering_available`, which is off while category ORDERING is
+                 parked as a future feature. Resetting an order the user cannot see or
+                 change is a button pointing at nothing. --}}
+            {{#if this.category_ordering_available}}
+            {{#if this.categorize_enabled}}
+            {{#if this.category_order_changed}}
+              <button type="button" class="md-board-category-order__reset" data-bd-action="reset_category_order" {{on "click" (this.ctrlAction "reset_category_order")}}>{{t "Reset order" key="board_categorize_reset"}}</button>
+            {{/if}}
+            {{/if}}
+            {{/if}}
+            {{!-- Done wears the edit bar's SAVE styling, classes and all, rather than a
+                 lookalike: same pill, same raised slate, same two-tone check in its badge.
+                 Reusing `md-board-edit-session__btn--save` means the two cannot drift.
+                 `md-board-category-order__close` stays as the behaviour hook (probes and the
+                 focus rule key off it) but no longer carries any paint of its own. --}}
+            <button type="button" class="md-board-category-order__close md-board-edit-session__btn md-board-edit-session__btn--save" data-bd-action="toggle_category_order" {{on "click" (this.ctrlAction "toggle_category_order")}}>
+              <span class="md-board-edit-session__btn-badge" aria-hidden="true">
+                <svg class="md-board-edit-session__btn-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5" stroke="#cdd6e3"/><path d="M10 17.5 19 7" stroke="#8fe4df"/></svg>
+              </span>
+              <span class="md-board-edit-session__btn-label">{{t "Done" key="done"}}</span>
+            </button>
+          </div>
+        </div>
+
+        {{!-- ONE settings strip, not a card per setting. The three settings were two glass
+             cards holding a switch, a paragraph of body copy, a nested sub-option and a
+             permanent amber advisory — ~250px of chrome above the thing the panel exists to
+             show. They are three peer decisions, so they get three equal columns of one
+             strip: title, one-line description, switch. The long explanations moved into the
+             per-setting disclosures below, and the advisory now appears only in the state it
+             is advising about. --}}
+          {{!-- The switch paints `categorize_switch_on` (the user's INTENT), NOT
+               `categorize_enabled` (the stored value that drives the regroup). Flipping
+               grouping re-renders the whole board grid, which blocks the main thread long
+               enough on a tablet that nothing repainted — including this control — and the
+               click read as ignored. Intent paints in the current frame; the regroup is
+               applied one frame later (controller#toggle_categorize).
+               OFF/ON words either side of the track, unlike the two switches in the strip:
+               this one governs the whole panel, so it states its value in words as well as by
+               knob position. `aria-hidden` on both — the checkbox already announces its own
+               checked state, and reading "Off Group by category On" would be worse, not
+               better. --}}
+        {{!-- The two settings that only mean something while grouping is on. Both are
+             DISABLED rather than removed when it is off: removing them silently changed the
+             strip's height and read as the settings having been taken away. `disabled` keeps
+             them in the accessibility tree, announced as unavailable; the dimming says the
+             same thing visually. The stored preferences are untouched either way. --}}
+        <div class="md-board-category-order__strip">
+          {{!-- Scrolling. Also gated on grouping: `category_scroll_enabled` is ANDed with
+               `grouping_active` in the controller, so with grouping off this preference
+               changes nothing about how the board draws. --}}
+          <div class="md-board-category-order__setting {{unless this.categorize_enabled "md-board-category-order__inactive"}}">
+            <div class="md-board-category-order__row">
+              <span class="md-board-category-order__row-text">
+                <label class="md-board-category-order__row-label" for="bd-cat-scroll">{{t "Board scrolling" key="board_categorize_scroll_title"}}</label>
+                <span class="md-board-category-order__row-desc" id="bd-cat-scroll-desc">{{t "Allow page scrolling for larger boards." key="board_categorize_scroll_desc"}}</span>
+              </span>
+              <details class="md-board-category-order__info">
+                <summary class="md-board-category-order__info-btn" aria-label={{t "More information about board scrolling" key="board_categorize_scroll_info_label"}}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                </summary>
+                <p class="md-board-category-order__info-body">
+                  {{t "Allow the board to scroll vertically. With it off, the board is sized to fit the current view." key="board_categorize_scroll_hint_full"}}
+                </p>
+              </details>
+              <span class="md-board-category-order__switch-wrap">
+                <input id="bd-cat-scroll" type="checkbox" data-bd-control="category_scroll" checked={{this.category_vertical_scroll}} disabled={{not this.categorize_enabled}} {{on "change" (this.ctrlAction "toggle_category_scroll")}} aria-describedby="bd-cat-scroll-desc{{if this.category_vertical_scroll " bd-cat-scroll-note"}}">
+                <span class="md-board-category-order__switch {{unless this.category_vertical_scroll "md-board-category-order__switch--off"}}" aria-hidden="true"><span class="md-board-category-order__switch-knob"></span></span>
+              </span>
+            </div>
+            {{!-- Only in the state it is advising ABOUT. A permanent advisory reserved a line
+                 of height in every state and read as a live warning even beside a switch that
+                 was already off. Icon AND wording carry the meaning, so it does not rest on
+                 the amber alone.
+                 BELOW the row rather than inside the text block, which is where it started:
+                 in the text block it shares the column with the info button and the switch,
+                 which is ~100px narrower, and the sentence wrapped to two lines — measured at
+                 106px of strip against 92px out here. Only this column grows either way
+                 (`align-self: start` on the setting). --}}
+            {{#if this.category_vertical_scroll}}
+              <p class="md-board-category-order__advisory" id="bd-cat-scroll-note">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <span>{{t "Not recommended for switch, dwell, or head-pointer access." key="board_categorize_scroll_warning_on"}}</span>
+              </p>
+            {{/if}}
+          </div>
+
+          {{!-- Category labels only exist while the board SCROLLS. With scrolling off the
+               board is tiled to fit the screen and the tiles carry no headers at all (the
+               `--compact` rule hides them), so the setting would be a switch with nothing to
+               switch. Gated in the template rather than dimmed, so it leaves the tab order
+               too — and the strip drops to one column with it, which takes its left divider
+               with it. --}}
+          {{#if this.category_vertical_scroll}}
+          <div class="md-board-category-order__setting {{unless this.categorize_enabled "md-board-category-order__inactive"}}">
+            <div class="md-board-category-order__row">
+              <span class="md-board-category-order__row-text">
+                <label class="md-board-category-order__row-label" for="bd-cat-labels">{{t "Show category labels" key="board_categorize_show_labels"}}</label>
+                <span class="md-board-category-order__row-desc" id="bd-cat-labels-desc">{{t "Display a heading above each group." key="board_categorize_show_labels_desc"}}</span>
+              </span>
+              <span class="md-board-category-order__switch-wrap">
+                <input id="bd-cat-labels" type="checkbox" data-bd-control="category_names" checked={{this.category_names_visible}} disabled={{not this.categorize_enabled}} {{on "change" (this.ctrlAction "toggle_category_names")}} aria-describedby="bd-cat-labels-desc">
+                <span class="md-board-category-order__switch {{unless this.category_names_visible "md-board-category-order__switch--off"}}" aria-hidden="true"><span class="md-board-category-order__switch-knob"></span></span>
+              </span>
+            </div>
+          </div>
           {{/if}}
-          <button type="button" class="md-board-category-order__close" data-bd-action="toggle_category_order" {{on "click" (this.ctrlAction "toggle_category_order")}}>{{t "Done" key="done"}}</button>
         </div>
       </div>
 
@@ -3585,8 +3682,12 @@
         {{!-- Order list only while categorizing is on: with it off the board is not
              grouped, so a category SEQUENCE has nothing to sequence. Gated in the
              template rather than hidden in CSS so it leaves the accessibility tree
-             and the tab order too, instead of being invisible tab stops. --}}
-        {{#if this.categorize_enabled}}
+             and the tab order too, instead of being invisible tab stops.
+             ALSO gated on `category_ordering_available` — category ordering is parked as a
+             future feature, so the list and its Reset button are not rendered at all. The
+             live preview beside it stays: it shows the board the two settings above act on,
+             which is useful with or without ordering. --}}
+        {{#if (and this.category_ordering_available this.categorize_enabled)}}
         <ol class="md-board-category-order__list" aria-label={{t "Category order" key="board_category_order"}}>
           {{#each this.category_order_list as |cat|}}
             <li class="md-board-category-order__item" style={{safe-style (concat "--bd-group-fill:var(" cat.fillVar ");--bd-group-text:var(" cat.textVar ")")}}>
@@ -3659,6 +3760,7 @@
             @folderColoredFace={{this.folder_colored_face}}
             {{!-- The preview must show what SHIPS, including whether category names
                  render — that is the whole point of a live preview. --}}
+            @categoryEnabled={{this.categorize_enabled}}
             @showCategoryNames={{this.show_category_names}}
             @categoryScrollEnabled={{this.category_scroll_enabled}}
             @softBorders={{this.soft_borders}}

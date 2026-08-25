@@ -22,6 +22,7 @@ file (see [README.md](README.md)).
 
 - [Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep](#gotcha-the-boot-skeleton-is-ll-skel-progress-not-ll-premium-progress--and-a-shared-component-fix-has-no-siblings-left-to-sweep)
 - [Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`](#pattern-the-board-tile-board_action-is-a-contextual-remove-not-a-delete-button--gate-on-remove_type)
+- [Gotcha: the two categorised board variants do NOT space their categories the same way — one is ring-compensated, one is not](#gotcha-the-two-categorised-board-variants-do-not-space-their-categories-the-same-way--one-is-ring-compensated-one-is-not)
 - [Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing](#gotcha-a-hard-coded-forcegroupingtrue-makes-a-preview-lie-about-the-preference-it-is-previewing)
 - [Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes](#gotcha-single-quoted-i18n-defaults-never-reach-the-locale-files--and-a-ui-control-is-only-fixed-when-the-payload-changes)
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
@@ -14009,3 +14010,209 @@ grep -n -i "<the exact error string>" docs/task-management/LEARNINGS.md
 
 And when a handoff and LEARNINGS disagree, **LEARNINGS wins** — handoffs are one session's
 snapshot, are gitignored, and are never reviewed.
+
+## `display: contents` makes a group's region a STAIRCASE — you cannot ring it, only its cells
+
+If a wrapper is `display: contents` so its children join the parent grid, the wrapper has no
+box: it cannot take a border, background, outline, padding or placement. A category whose
+buttons flow across row boundaries therefore occupies a staircase, and the only ring available
+is one per CELL — which reads as N outlined buttons, not as one group. To ring the group you
+must give it a real box, which means giving it a RECTANGLE, which means packing.
+
+Two corollaries that bit on `board-detail-grid` (2026-08-24):
+
+1. **Inline `grid-row`/`grid-column` on a child escapes into whatever grid is actually above
+   it.** The QWERTY keys carry `grid-row: 1..3; grid-column: 1..10` from `qwerty_positions`.
+   In panel mode those resolved against the keyboard's `__group-body`; in compact mode that
+   container was `display: contents`, so the same values resolved against the BOARD grid and
+   pinned the whole keyboard to the board's top-left corner. The bug looks like a placement
+   bug and is really a *containing-block* bug — check which box the placement lands on.
+2. **A tile that re-creates board cells must have ZERO padding.** For a tile spanning `w`
+   columns, buttons stay board-sized only if the inner grid is `repeat(w, 1fr)` at the SAME
+   gap with no padding: with padding `p`, button width becomes `colW - 2p/w`, i.e. a function
+   of the span, so buttons change size with the category they landed in. Draw the group's ring
+   with `outline` (no layout cost) in the gap, and reserve grid padding for it — a
+   `--grouped-no-scroll` grid sets `overflow-y: hidden`, which makes overflow-x compute to
+   `auto`, so an unpadded outward ring both clips and can raise a horizontal scrollbar.
+
+Cost to know up front: rectangles waste cells a free flow does not, so a tiled board needs
+more rows than the board authored. That is only affordable because the grid holds a definite
+height with `minmax(0, 1fr)` rows — extra rows spend button HEIGHT, never scrolling.
+
+## Stretching a tile to close a ragged edge inverts past ~25% of the width
+
+Absorbing leftover columns into the last tile of a band is tidier than leaving a notch in the
+board — until the leftover is large. A 5-button category stretched across a 14-column board is
+a ring that is two-thirds empty, which reads as buttons having gone missing, not as a category
+with room. Cap the stretch (`columns / 4` worked) and leave a bigger gap as plain board.
+Same rule applies to filling a reserved region: pack it RECURSIVELY with the same packer
+against the narrower width instead of giving each category a full-height column, or a
+one-button category ends up inside a four-cell ring.
+
+## A "staggered columns" probe must exclude a column CSS deliberately spans full-width
+
+`category-bottoms-qa` reported a 158px stagger across four columns. Three were the vocabulary
+columns (flush at 1501px); the fourth was the keyboard panel, which
+`--has-keyboard-panel .__column:last-child { grid-column: 1 / -1 }` puts BELOW them on
+purpose. The probe predated the keyboard panel. Before calling a geometry probe's red a
+regression, dump what the outlier element actually IS — here `getComputedStyle(c).gridColumn`
+named it immediately. Filter by the property that makes it different (it spans), never by index.
+
+## Two modifier classes on ONE element = a source-order bug waiting to happen (2026-08-24)
+
+`board-detail-grid.hbs` puts BOTH `--compact` and `--compact-scroll` on the grid root
+(`compactCategories` is `groupingEnabled`; `compactScroll` is `groupingEnabled &&
+categoryScrollEnabled`). The two root rules are the same specificity (0,1,0), so the LATER one
+won `height` and `grid-template-rows` — and it was the wrong one. The scrolling board kept the
+non-scrolling geometry (definite height, `minmax(0, 1fr)` rows), every tile came out
+`k x height/rows` tall while its `__group-body` held a 76px row floor, and the buttons painted
+46px below their own tinted background.
+
+The author had already hit this one level down — the `__group` / `__group-body` pair carries a
+comment saying the scroll rules are "placed AFTER those shared rules deliberately". The ROOT pair
+was simply missed.
+
+- **When a component can emit two modifiers together, order their rules by specialisation**
+  (general first, specialised second) and say so in a comment at the specialised rule. Grep the
+  template for `{{if …'--a'}} {{if …'--b'}}` on one element before trusting either rule.
+- The tell in a probe: `getComputedStyle(grid).gridTemplateRows` with a SPREAD of 0 across N
+  tracks means `1fr`; content-sized tracks vary.
+
+## A definite height collapses `minmax(floor, auto)` rows onto the floor (2026-08-24)
+
+Corollary of the above, and the reason the same bug survived in EDIT mode after the root rules
+were reordered: `.md-shell--board-detail-edit … .md-board-detail-grid { height: … !important }`
+is (0,3,0), so a mode root at (0,1,0) cannot answer it.
+
+Why the rows collapse rather than grow: the category tiles carry `min-height: 0`, so a track's
+BASE size is the declared floor and only the `auto` MAX can grow it — and an auto max grows only
+into an INDEFINITE height. Under a definite height smaller than the content, every track sits at
+exactly the floor and the content overflows. Measured: 9 x 76px tracks in a 637px grid.
+
+- A scrolling mode and a fixed-height mode cannot share a height rule. Exempt the scrolling one
+  explicitly (`.a.b { height: auto !important }` as a separate state rule, or `:not(.b)` on the
+  clamp) and check what the exemption's specificity now beats — a `:not(.class)` costs a class,
+  which here would have made the clamp outrank a deliberately tighter short-viewport rule.
+- Look for EVERY clamp, not just the one you found: the same collapse was latent in the two
+  `@media (max-height: …)` speak rules.
+
+## `display: block` on a header turns its label into an inline box — and kills every fix for it (2026-08-24)
+
+A category name would neither ellipsise nor shrink: it ran out of its tile and was sheared by the
+grid's clip ("QUESTIO"). The name span had `white-space: nowrap; overflow: hidden; text-overflow:
+ellipsis; min-width: 0` — all correct, all INERT, because a mode rule re-showing the header used
+`display: block` where the shared rule sets `display: flex`. On a non-replaced INLINE box
+`overflow`, `text-overflow` and `min-width` do nothing, and `clientWidth` reads 0 — which also
+made `utils/label_fit.js` bail (it treats a 0 box as "not laid out").
+
+- When a rule undoes a `display: none`, restore the value the base rule sets, not a plausible one.
+- Symptom to recognise: text overflowing with NO ellipsis, despite an ellipsis rule. Check
+  `getComputedStyle(el).display` on the label AND its parent before touching the fitter.
+
+## A shrink-to-fit flex item's `clientWidth` is its TEXT width, not its room (2026-08-24)
+
+`utils/label_fit.js` fits by comparing measured text against `el.clientWidth`. That is right for
+an input or a stretched label, and wrong for a flex item that shrink-wraps: its clientWidth IS the
+text, so the fit shrinks exactly one step and then "fits" the smaller self it just produced —
+every category header came out 15px, including ones with 230px of room. The budget has to come
+from the PARENT's content box less its other children (`availableWidth`).
+
+Two more canvas-measurement blind spots fixed alongside it, both of which report a label as
+fitting when it does not: `ctx.measureText` applies neither `text-transform` (a user PREFERENCE
+here — `--bd-button-text-transform`) nor `letter-spacing`. Resolve the transform on the string and
+add `spacing x length` before comparing.
+
+## Bleeding a box outside its container: three things must agree (2026-08-24)
+
+To let the board run past `<main>` on the edit page:
+1. the ancestor that clips has to stop clipping — `<main>` is `overflow-x: hidden`, which shears
+   the bleed off. `overflow-x: clip` + `overflow-clip-margin` is the only value that allows a
+   measured amount of paint outside the padding box, and unlike `hidden` it does not make the box
+   a scroll container (so no horizontal scrollbar);
+2. the bleeding element's own clip has to allow whatever it paints outside its padding box — here
+   the category rings, which are spread-only box-shadows drawn `--bd-ring` past the tile;
+3. the negative margin must go on a box whose margins you actually own. The grid's belong to
+   `#within_ember.board-detail-view .md-board-detail-grid.board { margin: 0 }` — an ID selector at
+   (1,2,0) — so the margin went on the WRAP instead. Check for an ID rule before assuming a class
+   rule can move something.
+
+And size the bleed from a STRUCTURAL number, not a measured one: 12px here is the edit layout's
+own column gap, so the board lands on the rail's edge at any rail width. A first pass used the
+layout's 20px side padding and put the outer categories 4px under each rail.
+
+## Probe the RIGHT rail — speak-mode and edit-mode chrome share a naming family (2026-08-24)
+
+`.md-board-detail-sidebar` / `.md-board-detail-right-panel` are the SPEAK rails and render at 0
+width on the edit page; the edit rails are `.md-board-edit-panel` /
+`.md-board-edit-right-panel`. A probe measuring the first pair reports every board as clear of
+the rails while the board is visibly running under them. Confirm a probe's selector matches a
+NON-ZERO box before trusting a green "no overlap" result.
+
+## A board key suffix rule must tolerate the copy suffix `_<n>` (2026-08-24)
+
+`category_for_button` identified a keyboard folder with `/(^|[-_/])keyboard$/i`, matching how the
+rest of the app spots these boards. It worked on the library original and failed on every COPY:
+`generate_unique_key` (app/models/concerns/processable.rb:147-150) disambiguates board keys with a
+trailing `_<n>`, so a copied set turns `…-keyboard` into `…-keyboard_1`. The folder fell through to
+the colour rule, and grey files under Connectors — the exact bug the rule existed to prevent, back
+again for anyone who copied the board rather than opened the original.
+
+- Any `key$`-anchored rule on a Board key needs `(_\d+)?` before the anchor. Keep it digits-only so
+  it stays a suffix rule (`keyboard_notes` must not match).
+- Test the COPY, not just the original: a fixture keyed `…-keyboard` proves nothing about what real
+  users have.
+- Evidence beat inference here: `psql -U <you> -d lingolinq-development` over a UNIX SOCKET (peer
+  auth — the TCP password in the docs does not work) answered in one query what reading the
+  categoriser could only have guessed at. Board `settings` are `secure_serialize`d and unreadable
+  from SQL, but the `boards.key` column is plaintext and was enough.
+
+## A memoised fit must key on the box that decides the answer (2026-08-24)
+
+`utils/label_fit.js` skips a label whose signature (`text | cardW x cardH | basePx`) is unchanged.
+The signature looked up `closest('.md-board-detail-symbol-card') || closest('…__cell')` — and a
+CATEGORY HEADER is inside neither, so its signature was `text|0x0|basePx`: a constant. The fit ran
+once and never again, so a name shrunk on a narrow board stayed shrunk after the board widened.
+
+The fitter was already capable of growing it back — it clears the inline size and re-measures from
+the CSS size on every run — which is the point: "it doesn't grow back" was a CACHE bug, not a
+sizing one. When a fit refuses to re-run, check what its cache key resolves to for THAT element
+before touching the measurement code. The same trap had already been hit once for folder-tab
+labels (they sit in a sibling of the card), and the comment recording it was two lines above the
+lookup that missed the header.
+
+## Gotcha: the two categorised board variants do NOT space their categories the same way — one is ring-compensated, one is not
+
+**Surface:** `.md-board-detail-grid--compact` (Categorize ON, scrolling OFF) and
+`.md-board-detail-grid--compact-scroll` (Categorize ON, scrolling ON). The grid root
+carries BOTH classes when scrolling is on.
+
+**The trap:** the space between two categories is `--bd-compact-gap + 2 x --bd-tile-margin`,
+not the gap alone — each tile also carries `margin: var(--bd-tile-margin)`. What FILLS that
+space then differs by variant:
+
+- `--compact` paints the category ring as a spread-only `box-shadow` `--bd-ring` OUTSIDE
+  the tile, so two neighbouring rings MEET in the channel. The clear space is
+  `gap + 2 x margin - 2 x ring`, and the gap cannot drop below `2 x ring` without the
+  rings overlapping. That is why the `@media (max-width: 950px)` block moves
+  `--bd-compact-gap` and `--bd-ring` TOGETHER and the clear channel stays 4px.
+- `--compact-scroll` sets `box-shadow: none` and uses the tinted tray as the boundary.
+  There is no ring, so the whole `gap + 2 x margin` is dead space and the 950px block
+  barely changes what a user sees.
+
+Measured on `vocal-flair-84` with scrolling ON: 16px horizontal / 14px vertical between
+categories at every width down to 1024px, with nothing drawn in any of it.
+
+**Fix recipe:** to change category spacing, decide which variant you mean and scope to it.
+Two further constraints, both load-bearing:
+
+1. A scroll-scoped block must be declared **BELOW** the `@media (max-width: 950px)` block.
+   Both selectors are (0,1,0) and a media query adds no specificity, so at =<950px source
+   order alone decides which wins the variables (styling-recurring-problems #4).
+2. `--bd-tile-margin` has a floor of **2px**, not 0: the per-category downward stretch sets
+   `margin-bottom: calc(var(--bd-tile-margin) - 2px)`, so a 0 margin computes to -2px and
+   pulls eight categories 2px INTO the one below.
+
+**Verify by MEASURING, not by reading declarations.** `scripts/category-gap-qa.mjs` reports
+the smallest edge-to-edge distance between any two rendered
+`.md-board-detail-grid__group` boxes at a list of widths, and takes `--no-scroll` to run the
+other variant as a regression control.

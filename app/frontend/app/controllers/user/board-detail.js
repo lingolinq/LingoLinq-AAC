@@ -186,6 +186,14 @@ export default Controller.extend(prefClasses, {
    *  still falls back to parent_board_key as a safety net if it
    *  ever gets fired without history, but the button itself won't
    *  render in that case. */
+  /* Category ORDERING — the ordered list with the move arrows, and the Reset order button
+     that goes with it — is parked as a future feature: the packing decides placement in
+     compact mode and the ordering UI needs its own pass before it earns the space. Kept as
+     one named flag rather than commenting the markup out, so bringing it back is a single
+     `true` and the template still reads as one arrangement. The stored order itself is
+     untouched and still drives the panel layout when scrolling is on. */
+  category_ordering_available: false,
+
   show_board_back_nav: computed('board_detail_history.[]', function() {
     return (this.get('board_detail_history') || []).length > 0;
   }),
@@ -3333,18 +3341,37 @@ export default Controller.extend(prefClasses, {
      when a supervisor models for a communicator these belong to THAT communicator, and
      read and write must resolve the same account or the panel would describe one user
      and persist to another. */
-  category_names_visible: computed(
-    'app_state.referenced_user.preferences.board_category_grouping.show_category_names',
+  /*
+   * The grouping settings IN FORCE FOR THIS BOARD.
+   *
+   * `preferences.board_category_grouping` holds the user's default; `….boards[<board id>]`
+   * holds a per-board override in the same shape. A board with no entry uses the default,
+   * so nothing changes for boards nobody has configured.
+   *
+   * Keyed on the board's GLOBAL ID, not its key: a key is `owner/slug` and changes when
+   * the board is renamed or the owner changes username, which would silently orphan the
+   * settings. The id does not move.
+   *
+   * One resolver, and every consumer below reads it — the switch, the sub-options, the
+   * order list and the save all have to agree about which board they are describing.
+   */
+  board_category_settings: computed(
+    'model.id',
+    'app_state.referenced_user.preferences.board_category_grouping',
     function() {
-      return this.get('app_state.referenced_user.preferences.board_category_grouping.show_category_names') !== false;
+      var all = this.get('app_state.referenced_user.preferences.board_category_grouping') || {};
+      var id = this.get('model.id');
+      var per = (id && all.boards && all.boards[id]) || null;
+      return per || all;
     }
   ),
-  category_vertical_scroll: computed(
-    'app_state.referenced_user.preferences.board_category_grouping.vertical_scroll',
-    function() {
-      return this.get('app_state.referenced_user.preferences.board_category_grouping.vertical_scroll') !== false;
-    }
-  ),
+
+  category_names_visible: computed('board_category_settings', function() {
+    return (this.get('board_category_settings') || {}).show_category_names !== false;
+  }),
+  category_vertical_scroll: computed('board_category_settings', function() {
+    return (this.get('board_category_settings') || {}).vertical_scroll !== false;
+  }),
 
   /* What the GRID is told. Both only mean anything while grouping is in force, so they
      are ANDed with grouping_active here rather than in the template or the component —
@@ -5285,9 +5312,9 @@ export default Controller.extend(prefClasses, {
      move controls — a disabled control is clearer than one that silently no-ops
      at the ends of the list. */
   category_order_list: computed(
-    'app_state.referenced_user.preferences.board_category_grouping.order',
+    'board_category_settings',
     function() {
-      var order = normalizeCategoryOrder(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
+      var order = normalizeCategoryOrder((this.get('board_category_settings') || {}).order);
       return order.map(function(key, idx) {
         var cat = categoryForKey(key);
         return {
@@ -5300,6 +5327,25 @@ export default Controller.extend(prefClasses, {
           last: idx === order.length - 1
         };
       });
+    }
+  ),
+
+  /* Has the user actually reordered anything?
+
+     Reset used to sit beside Done unconditionally, so on a board nobody had reordered it
+     was a prominent button that did nothing — and it competed with Done for the same
+     corner. Compared against DEFAULT_CATEGORY_ORDER through the same normalizer the panel
+     renders from, so a stored order that merely predates a new category key (and is
+     backfilled to the default by normalize_order) still counts as unchanged. */
+  category_order_changed: computed(
+    'board_category_settings',
+    function() {
+      var order = normalizeCategoryOrder((this.get('board_category_settings') || {}).order);
+      if(order.length !== DEFAULT_CATEGORY_ORDER.length) { return true; }
+      for(var i = 0; i < order.length; i++) {
+        if(order[i] !== DEFAULT_CATEGORY_ORDER[i]) { return true; }
+      }
+      return false;
     }
   ),
 
@@ -5347,14 +5393,11 @@ export default Controller.extend(prefClasses, {
     return !!intent !== !!this.get('categorize_enabled');
   }),
 
-  categorize_enabled: computed(
-    'app_state.referenced_user.preferences.board_category_grouping.enabled',
-    function() {
-      // Must use the SAME test as BoardDetailGrid#groupingEnabled (`=== true`), or the
-      // Categorize switch reads On while the board it describes is ungrouped.
-      return this.get('app_state.referenced_user.preferences.board_category_grouping.enabled') === true;
-    }
-  ),
+  categorize_enabled: computed('board_category_settings', function() {
+    // Must use the SAME test as BoardDetailGrid#groupingEnabled (`=== true`), or the
+    // Categorize switch reads On while the board it describes is ungrouped.
+    return (this.get('board_category_settings') || {}).enabled === true;
+  }),
 
   /* Persist the grouping preference. Follows the documented 3-touch idiom: the
      nested set alone does not reliably mark the raw `preferences` attr dirty, so
@@ -5368,7 +5411,13 @@ export default Controller.extend(prefClasses, {
        or the switch would describe one account and persist to another. */
     var user = this.get('app_state.referenced_user');
     if(!user || !user.set) { return; }
-    var current = user.get('preferences.board_category_grouping') || {};
+    var all = user.get('preferences.board_category_grouping') || {};
+    var board_id = this.get('model.id');
+    /* Read from, and write back to, the SAME place the resolver reads (see
+       board_category_settings): the per-board entry when this board has one, the user
+       default otherwise. Without this the panel would describe one board's settings and
+       persist them over every board's. */
+    var current = (board_id && all.boards && all.boards[board_id]) || all;
     var next = {
       /* `=== true`, matching groupingEnabled. With `!== false` an ABSENT preference read
          as enabled, so saving an order-only change (a move arrow, or Reset order)
@@ -5393,8 +5442,29 @@ export default Controller.extend(prefClasses, {
         ? (current.vertical_scroll !== false)
         : !!changes.vertical_scroll
     };
-    var previous = current;
-    user.set('preferences.board_category_grouping', next);
+    /* Write into the board's own slot, leaving the user default and every other board's
+       entry untouched. The whole hash is replaced (that is what makes the sub-key echo
+       below necessary), so `boards` has to be rebuilt here rather than mutated in place. */
+    var boards = {};
+    Object.keys(all.boards || {}).forEach(function(k) { boards[k] = all.boards[k]; });
+    var previous = user.get('preferences.board_category_grouping');
+    var written;
+    if(board_id) {
+      boards[board_id] = next;
+      written = {
+        enabled: all.enabled === true,
+        order: normalizeCategoryOrder(all.order),
+        show_category_names: all.show_category_names !== false,
+        vertical_scroll: all.vertical_scroll !== false,
+        boards: boards
+      };
+    } else {
+      /* No board id (a preview with no model): fall back to the user default so the
+         control still does something rather than silently dropping the change. */
+      next.boards = boards;
+      written = next;
+    }
+    user.set('preferences.board_category_grouping', written);
     /* `preferences.device` may not exist on the record — setting a nested path through a
        missing object throws "object in path could not be found", which would abort this
        handler AFTER the local set above and leave the UI showing a state that was never
@@ -6996,6 +7066,14 @@ export default Controller.extend(prefClasses, {
           var _em_for_action = _this._em_button_with_current_actions(btn_id, _action_src);
           var _appCtrl = _this.get('app_state.controller');
           if(_em_for_action && _appCtrl && _appCtrl.activateButton) {
+            /* Record the trail BEFORE delegating. This path still navigates board-to-board —
+               activateButton adds the word, applies any temporary-home lock, and transitions
+               back onto board-detail — but it used to skip the history push that every other
+               folder path does, so `show_board_back_nav` stayed false and the Back button did
+               not render on the board it had just opened. The push is the same one the fast
+               paths below make; nothing else writes board_detail_nav_history, so there is no
+               double entry. */
+            _this._push_nav_history();
             _appCtrl.activateButton(_em_for_action, { board: _this.get('model'), trigger_source: 'click' });
             return;
           }

@@ -2693,13 +2693,42 @@ class User < ApplicationRecord
     # coercing a missing key to false) because both describe what the grouped board
     # already does. An existing user whose stored hash predates these keys must keep
     # today's rendering, not lose their category headers and scrolling on next save.
-    prefs['board_category_grouping'] = {
-      'enabled' => truthy.call(enabled),
-      # Known keys only, de-duplicated, and bounded by the registry itself.
-      'order' => order.select { |k| BOARD_CATEGORY_KEYS.include?(k) }.uniq,
-      'show_category_names' => val.has_key?('show_category_names') ? truthy.call(val['show_category_names']) : true,
-      'vertical_scroll' => val.has_key?('vertical_scroll') ? truthy.call(val['vertical_scroll']) : true
+    entry = lambda { |v|
+      v = {} unless v.is_a?(Hash)
+      ord = v['order']
+      ord = [] unless ord.is_a?(Array)
+      {
+        'enabled' => truthy.call(v['enabled']),
+        # Known keys only, de-duplicated, and bounded by the registry itself.
+        'order' => ord.select { |k| BOARD_CATEGORY_KEYS.include?(k) }.uniq,
+        'show_category_names' => v.has_key?('show_category_names') ? truthy.call(v['show_category_names']) : true,
+        'vertical_scroll' => v.has_key?('vertical_scroll') ? truthy.call(v['vertical_scroll']) : true
+      }
     }
+
+    # PER-BOARD overrides. The top-level keys stay the user's default, used by any board
+    # with no entry of its own; `boards` maps a board's global_id to a full settings hash
+    # in the same shape. Sanitized with the SAME lambda so an override cannot smuggle in a
+    # key or a category the top level would have rejected.
+    #
+    # This map has to be echoed here for the same reason every other sub-key does: this
+    # method REBUILDS the hash, so anything not listed is discarded silently, server-side.
+    #
+    # Bounded on both axes — an id shape and a count — because it is client-supplied and
+    # otherwise grows without limit.
+    boards = val['boards']
+    boards = {} unless boards.is_a?(Hash)
+    clean_boards = {}
+    boards.each do |bid, bval|
+      break if clean_boards.size >= 500
+      next unless bid.is_a?(String) && bid.length <= 64 && bid.match(/\A[0-9A-Za-z_\-]+\z/)
+      next unless bval.is_a?(Hash)
+      clean_boards[bid] = entry.call(bval)
+    end
+
+    prefs['board_category_grouping'] = entry.call(
+      val.merge('enabled' => enabled, 'order' => order)
+    ).merge('boards' => clean_boards)
   end
 
   def sanitize_boards_layout_preference!

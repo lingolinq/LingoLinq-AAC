@@ -36,7 +36,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PANEL = () => {
   const q = (s) => document.querySelector(s);
   const vis = (el) => !!(el && el.getClientRects().length > 0);
-  const toggle = q('.md-board-category-order__toggle');
+  /* `[data-bd-control]` rather than a positional selector: the panel now holds THREE
+     switches painted identically (grouping, category labels, board scrolling), so
+     ".md-board-category-order__row--primary" matches two of them and a :first-child
+     anchor would silently follow any reordering of the cards. */
+  const input = q('[data-bd-control="categorize"]');
+  const toggle = input && input.closest('.md-board-category-order__row');
   const grid = q('.md-board-category-order__preview .md-board-detail-grid');
   const box = toggle ? toggle.getBoundingClientRect() : null;
   return {
@@ -44,11 +49,16 @@ const PANEL = () => {
     toggle: vis(toggle),
     toggleW: box ? Math.round(box.width) : 0,
     toggleH: box ? Math.round(box.height) : 0,
-    track: vis(q('.md-board-category-order__toggle-track')),
-    knob: !!q('.md-board-category-order__toggle-knob'),
-    stateWord: ((q('.md-board-category-order__toggle-state') || {}).textContent || '').trim() || null,
-    input: !!q('.md-board-category-order__toggle input[type="checkbox"]'),
-    checked: !!(q('.md-board-category-order__toggle input[type="checkbox"]') || {}).checked,
+    track: vis(input && input.parentElement.querySelector('.md-board-category-order__switch')),
+    knob: !!(input && input.parentElement.querySelector('.md-board-category-order__switch-knob')),
+    /* All three settings must use the SAME switch painting — the panel used to mix one
+       switch with two system checkboxes, which put the same kind of decision in two
+       visual languages. A bare checkbox anywhere in the panel fails this. */
+    switches: document.querySelectorAll('.md-board-category-order__switch').length,
+    bareCheckboxes: [...document.querySelectorAll('.md-board-category-order__bar input[type="checkbox"]')]
+      .filter((i) => !i.parentElement.classList.contains('md-board-category-order__switch-wrap')).length,
+    input: !!input,
+    checked: !!(input || {}).checked,
     list: vis(q('.md-board-category-order__list')),
     listItems: document.querySelectorAll('.md-board-category-order__item').length,
     reset: vis(q('.md-board-category-order__reset')),
@@ -56,7 +66,15 @@ const PANEL = () => {
     picker: vis(q('.md-board-category-order__picker')),
     previewBtns: document.querySelectorAll('.md-board-category-order__preview .md-board-detail-symbol-card').length,
     previewGrid: !!grid,
-    grouped: !!(grid && grid.classList.contains('md-board-detail-grid--grouped')),
+    /* Grouping in force has TWO paintings, and this probe is about whether grouping
+       applies at all — not which one. With `vertical_scroll` on the grid carries
+       `--grouped` (category panels); with it off it carries `--compact` (category tiles
+       on the board's own grid). Testing only for `--grouped` reported a correctly
+       grouped compact preview as ungrouped. */
+    grouped: !!(grid && (grid.classList.contains('md-board-detail-grid--grouped') ||
+                         grid.classList.contains('md-board-detail-grid--compact'))),
+    groupingMode: grid ? (grid.classList.contains('md-board-detail-grid--compact') ? 'compact'
+                        : (grid.classList.contains('md-board-detail-grid--grouped') ? 'panels' : 'none')) : 'none',
     /* The preview must render the folder treatment that will actually SHIP. While
        grouping is on, effective_folder_display_style pins folders to colored_corner,
        so the preview grid has to carry --folder-colored-corner too. It did not: the
@@ -161,16 +179,20 @@ const clickEl = async (page, sel) => {
     /* 1. Prominence. The old control was a bare 18px checkbox + text label; the
        switch is a padded pill carrying a track, knob and a state word. Assert the
        parts AND the size, since "looks bigger" is the actual complaint. */
-    if (s.track && s.knob && s.stateWord && s.toggleH >= 34 && s.toggleW >= 150) {
+    /* The ON/OFF word badge was removed: a switch already states its value by KNOB
+       POSITION, a non-colour indicator, so the word was redundant chrome in a panel
+       whose problem was clutter. The 44px floor is the touch-target minimum the row
+       (which IS the label, so the whole row is the hit area) is held to. */
+    if (s.track && s.knob && s.switches === 3 && s.bareCheckboxes === 0 && s.toggleH >= 44 && s.toggleW >= 150) {
       pass('1. the switch reads as a switch, not a stray checkbox',
-        `track+knob present, state word "${s.stateWord}", hit target ${s.toggleW}x${s.toggleH}px`);
+        `track+knob present, ${s.switches} switches / ${s.bareCheckboxes} bare checkboxes, hit target ${s.toggleW}x${s.toggleH}px`);
     } else {
       fail('1. the switch reads as a switch, not a stray checkbox', JSON.stringify(s));
     }
 
     if (s.input) {
       const focused = await page.evaluate(() => {
-        const i = document.querySelector('.md-board-category-order__toggle input[type="checkbox"]');
+        const i = document.querySelector('[data-bd-control="categorize"]');
         i.focus();
         return document.activeElement === i;
       });
@@ -181,11 +203,11 @@ const clickEl = async (page, sel) => {
     }
 
     /* Normalise to ON first — the preference persists between runs. */
-    if (!s.checked) { await clickEl(page, '.md-board-category-order__toggle-track'); await settleToggle(page); await sleep(800); s = await page.evaluate(PANEL); }
+    if (!s.checked) { await clickEl(page, '.md-board-category-order__switch'); await settleToggle(page); await sleep(800); s = await page.evaluate(PANEL); }
 
     if (s.checked && s.list && s.reset && s.grouped) {
       pass('2. ON — order list, Reset and a GROUPED preview',
-        `${s.listItems} categories listed, Reset visible, preview grid carries --grouped`);
+        `${s.listItems} categories listed, Reset visible, preview grouping mode "${s.groupingMode}"`);
     } else {
       fail('2. ON — order list, Reset and a GROUPED preview', JSON.stringify(s));
     }
@@ -203,25 +225,25 @@ const clickEl = async (page, sel) => {
     }
 
     /* 3. OFF */
-    await clickEl(page, '.md-board-category-order__toggle-track');
+    await clickEl(page, '.md-board-category-order__switch');
     await settleToggle(page);
     await sleep(800);
     const off = await page.evaluate(PANEL);
     const offOk = !off.checked && !off.list && !off.reset && off.previewGrid && !off.grouped;
     if (offOk) {
       pass('3. OFF — list and Reset gone, preview back to the original board',
-        `checked=false, list=${off.list}, reset=${off.reset}, preview grid present but --grouped=${off.grouped}, state word "${off.stateWord}"`);
+        `checked=false, list=${off.list}, reset=${off.reset}, preview grid present but --grouped=${off.grouped}`);
     } else {
       fail('3. OFF — list and Reset gone, preview back to the original board', JSON.stringify(off));
     }
 
     /* 4. Back ON */
-    await clickEl(page, '.md-board-category-order__toggle-track');
+    await clickEl(page, '.md-board-category-order__switch');
     await settleToggle(page);
     await sleep(800);
     const back = await page.evaluate(PANEL);
     if (back.checked && back.list && back.reset && back.grouped) {
-      pass('4. back ON — everything returns', `${back.listItems} categories, Reset visible, preview grouped again`);
+      pass('4. back ON — everything returns', `${back.listItems} categories, Reset visible, preview grouping mode "${back.groupingMode}"`);
     } else {
       fail('4. back ON — everything returns', JSON.stringify(back));
     }
@@ -249,7 +271,7 @@ const clickEl = async (page, sel) => {
          pass for the wrong reason). Space on the focused checkbox is the path a
          keyboard user actually has, and it exercises the same `toggle_categorize`. */
       await page.evaluate(() => {
-        document.querySelector('.md-board-category-order__toggle input[type="checkbox"]').focus();
+        document.querySelector('[data-bd-control="categorize"]').focus();
       });
       await page.keyboard.press('Space');
       await settleToggle(page);

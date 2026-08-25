@@ -54,6 +54,11 @@ var WORD_WIDTH_SAFETY = 0.95;
 // Leaves room for the input caret + padding the canvas measurement
 // can't see.
 var INPUT_WIDTH_SAFETY = 0.9;
+// The CATEGORY HEADER span is the one width-fitted element whose measured box is its
+// CONTENT box — no caret, no padding — so it only needs the couple of percent that
+// separates canvas measureText from real layout. Inputs and folder-tab labels keep the
+// wider 0.9 above: both carry padding (and the input a caret) the canvas cannot see.
+var SPAN_WIDTH_SAFETY = 0.98;
 
 var _canvas = null;
 
@@ -100,14 +105,90 @@ function isTextSymbol(el) {
 
 
 // Single-line labels are fitted by WIDTH, not by wrapped height. Inputs are
-// intrinsically single-line; folder-tab labels (Show-Labels-on-Tab mode) are
-// white-space: nowrap — folder labels can't wrap onto a tab — so they overflow
-// horizontally and must be width-fitted the same way (the wrapped/height path
-// would never shrink them, since a single nowrap line always fits the 3-line
-// height box).
+// intrinsically single-line; folder-tab labels (Show-Labels-on-Tab mode) and the
+// CATEGORY HEADER are white-space: nowrap — a folder label can't wrap onto a tab and a
+// category name can't wrap inside its one-line header — so they overflow horizontally
+// and must be width-fitted the same way (the wrapped/height path would never shrink
+// them, since a single nowrap line always fits the 3-line height box).
 function isSingleLine(el) {
   return isInput(el) ||
-    (el.classList && el.classList.contains('md-folder-tab__label'));
+    (el.classList && (el.classList.contains('md-folder-tab__label') ||
+                      el.classList.contains('md-board-detail-grid__group-name')));
+}
+
+// The category header is the only width-fitted label with no padding and no caret, so
+// it measures against its own content box — see SPAN_WIDTH_SAFETY.
+function isGroupName(el) {
+  return !!(el && el.classList &&
+    el.classList.contains('md-board-detail-grid__group-name'));
+}
+
+// The room a label has, when the label itself does not have it.
+//
+// An input and a folder-tab label are stretched to their container, so their own
+// `clientWidth` IS the available width. The category name is a SHRINK-TO-FIT flex item, so
+// its clientWidth is the width of its own text — measure against that and every name shrinks
+// exactly one step, then "fits" the smaller self it just produced (measured: every header on
+// the board came out at 15px, including ones with 230px of room). The real budget is the
+// header's content box, less anything sharing the row with it.
+function availableWidth(el) {
+  var parent = el.parentElement;
+  if(!parent) { return el.clientWidth; }
+  var cs = window.getComputedStyle(parent);
+  var room = parent.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+  var gap = parseFloat(cs.columnGap);
+  if(!isFinite(gap)) { gap = 0; }
+  var kids = parent.children;
+  for(var i = 0; i < kids.length; i++) {
+    if(kids[i] === el) { continue; }
+    room -= kids[i].getBoundingClientRect().width + gap;
+  }
+  return room > 0 ? room : el.clientWidth;
+}
+
+// Width budget for a width-fitted label: its own box, except where that box is the text.
+function fitBoxWidth(el) {
+  return isGroupName(el) ? availableWidth(el) : el.clientWidth;
+}
+
+// Canvas measurement is blind to two properties the DOM applies for real, and both make
+// the rendered string WIDER than measureText reports:
+//   * `text-transform` — the button and folder-tab labels carry
+//     `text-transform: var(--bd-button-text-transform)` (a user PREFERENCE, app.scss
+//     ~79946), and the category header is uppercased unconditionally;
+//   * `letter-spacing` — 0.06em on the category header.
+// Measured without them a label that genuinely overflows reads as fitting, so it is never
+// shrunk and the browser ellipsises it instead. That is exactly what the category header
+// did at a narrow tile.
+function renderedText(text, textTransform) {
+  if(!text) { return ''; }
+  if(textTransform === 'uppercase') { return text.toUpperCase(); }
+  if(textTransform === 'lowercase') { return text.toLowerCase(); }
+  if(textTransform === 'capitalize') {
+    return text.replace(/(^|\s)(\S)/g, function(m, lead, ch) { return lead + ch.toUpperCase(); });
+  }
+  return text;
+}
+
+// Letter-spacing is applied after EVERY character, the last one included, so an n-character
+// string is n x spacing wider than its glyphs.
+//
+// `cssPx` is the size the spacing was READ at. Every non-zero letter-spacing on a fitted
+// label in this app is authored in `em` (0.06em on the category header), which resolves
+// against the element's own font-size — so it scales with the trial size and is normalised
+// here. A px-authored value would not scale, but there is none to get wrong.
+function letterSpacingPx(letterSpacing, sizePx, cssPx) {
+  var ls = parseFloat(letterSpacing);
+  if(!isFinite(ls) || !ls || !isFinite(cssPx) || cssPx <= 0) { return 0; }
+  return ls * (sizePx / cssPx);
+}
+
+// Width of a string as the DOM will actually draw it: glyphs at the trial size, plus the
+// letter-spacing the canvas does not apply, with `text-transform` already resolved by the
+// caller via renderedText.
+function drawnWidthPx(ctx, text, sizePx, letterSpacing, cssPx) {
+  if(!text) { return 0; }
+  return ctx.measureText(text).width + (letterSpacingPx(letterSpacing, sizePx, cssPx) * text.length);
 }
 
 // Width of the WIDEST single word at a given size, measured on an offscreen
@@ -124,13 +205,13 @@ function isSingleLine(el) {
 // the ONLY width condition that can trigger an ellipsis is a single word being
 // wider than the box. Measuring that directly is both correct and independent of
 // the measurement-time wrap/clamp state.
-function widestWordPx(ctx, text, sizePx, fontStyle, fontWeight, fontFamily) {
+function widestWordPx(ctx, text, sizePx, fontStyle, fontWeight, fontFamily, textTransform, letterSpacing, cssPx) {
   ctx.font = fontStyle + ' ' + fontWeight + ' ' + sizePx + 'px ' + fontFamily;
-  var words = (text || '').split(/\s+/);
+  var words = renderedText(text || '', textTransform).split(/\s+/);
   var max = 0;
   for(var i = 0; i < words.length; i++) {
     if(!words[i]) { continue; }
-    var w = ctx.measureText(words[i]).width;
+    var w = drawnWidthPx(ctx, words[i], sizePx, letterSpacing, cssPx);
     if(w > max) { max = w; }
   }
   return max;
@@ -187,6 +268,8 @@ function fitWrapped(el, basePx) {
   var fsPx = parseFloat(cs0.fontSize);
   var lhRatio = (isFinite(lhPx) && isFinite(fsPx) && fsPx > 0) ? (lhPx / fsPx) : LABEL_LINE_HEIGHT;
   var fontFamily = cs0.fontFamily || 'sans-serif';
+  var textTransform = cs0.textTransform || 'none';
+  var letterSpacing = cs0.letterSpacing || 'normal';
   var fontWeight = cs0.fontWeight || 'normal';
   var fontStyle = cs0.fontStyle || 'normal';
 
@@ -215,7 +298,7 @@ function fitWrapped(el, basePx) {
     var naturalPx = el.scrollHeight;
     var fitsHeight = naturalPx <= allowedPx + FIT_TOLERANCE_PX;
     var fitsWidth = !boxW ||
-      widestWordPx(ctx, text, size, fontStyle, fontWeight, fontFamily) <= boxW * WORD_WIDTH_SAFETY;
+      widestWordPx(ctx, text, size, fontStyle, fontWeight, fontFamily, textTransform, letterSpacing, fsPx) <= boxW * WORD_WIDTH_SAFETY;
     if(fitsHeight && fitsWidth) {
       chosen = size;
       break;
@@ -238,25 +321,28 @@ function fitWrapped(el, basePx) {
   return chosen;
 }
 
-// Single-line fit for the editable label input. The input's content
-// area is intrinsically one line, so the criterion is plain text
-// width vs input width.
+// Single-line fit for the editable label input, the folder-tab label and the category
+// header. Their content area is intrinsically one line, so the criterion is plain text
+// width vs box width — measured as the DOM will DRAW it (transform + letter-spacing).
 function fitSingleLine(el, basePx) {
   var text = labelText(el);
   if(!text) { return basePx; }
-  var width = el.clientWidth;
+  var width = fitBoxWidth(el);
   if(!width) { return basePx; }
   var cs = window.getComputedStyle(el);
   var fontFamily = cs.fontFamily || 'sans-serif';
   var fontWeight = cs.fontWeight || 'normal';
   var fontStyle = cs.fontStyle || 'normal';
+  var cssPx = parseFloat(cs.fontSize);
+  var drawn = renderedText(text, cs.textTransform || 'none');
+  var safety = isGroupName(el) ? SPAN_WIDTH_SAFETY : INPUT_WIDTH_SAFETY;
 
   var ctx = getCanvasCtx();
   var size = basePx;
   while(size >= MIN_FONT_PX) {
     ctx.font = fontStyle + ' ' + fontWeight + ' ' + size + 'px ' + fontFamily;
-    var measuredPx = ctx.measureText(text).width;
-    if(measuredPx <= width * INPUT_WIDTH_SAFETY) { return size; }
+    var measuredPx = drawnWidthPx(ctx, drawn, size, cs.letterSpacing || 'normal', cssPx);
+    if(measuredPx <= width * safety) { return size; }
     size -= 1;
   }
   return MIN_FONT_PX;
@@ -329,8 +415,15 @@ function applyOne(el, basePx) {
   // Cell as well as card: folder-tab labels sit in .md-folder-back, a SIBLING of
   // the card, so a card-only lookup returns null for them and the signature would
   // be a constant — never re-fitting when the tab resizes.
+  // Group as well as cell, for the same reason one step out: a CATEGORY HEADER sits in
+  // neither, so its signature was `text|0x0|basePx` — constant. The fit is shrink-only
+  // FROM THE CSS SIZE and re-measures from scratch every time it runs, so it grows a label
+  // back as soon as there is room — but only if it runs. With a constant signature a name
+  // shrunk on a narrow board stayed small after the board widened. The group is the box
+  // whose width decides the answer, so it belongs in the key.
   var card = el.closest && (el.closest('.md-board-detail-symbol-card') ||
-                            el.closest('.md-board-detail-grid__cell'));
+                            el.closest('.md-board-detail-grid__cell') ||
+                            el.closest('.md-board-detail-grid__group'));
   var cardW = card ? card.clientWidth : 0;
   var cardH = card ? card.clientHeight : 0;
   var sig = text + '|' + cardW + 'x' + cardH + '|' + basePx;
@@ -401,6 +494,11 @@ function batchedFit(items, basePx) {
     it.fontFamily = cs.fontFamily || 'sans-serif';
     it.fontWeight = cs.fontWeight || 'normal';
     it.fontStyle = cs.fontStyle || 'normal';
+    /* What the DOM will actually DRAW — the canvas applies neither of these itself. */
+    it.textTransform = cs.textTransform || 'none';
+    it.letterSpacing = cs.letterSpacing || 'normal';
+    it.cssPx = cssPx;
+    it.widthSafety = isGroupName(el) ? SPAN_WIDTH_SAFETY : INPUT_WIDTH_SAFETY;
     it.kind = isTextSymbol(el) ? 'full' : (isSingleLine(el) ? 'single' : 'wrapped');
     if(it.kind === 'wrapped') {
       var boxLines = parseInt(cs.webkitLineClamp, 10);
@@ -408,7 +506,7 @@ function batchedFit(items, basePx) {
       var lhPx = parseFloat(cs.lineHeight);
       it.lhRatio = (isFinite(lhPx) && isFinite(cssPx) && cssPx > 0) ? (lhPx / cssPx) : LABEL_LINE_HEIGHT;
     }
-    it.boxW = el.clientWidth;
+    it.boxW = (it.kind === 'single') ? fitBoxWidth(el) : el.clientWidth;
     it.boxH = el.clientHeight;
     it.text = labelText(el);
     it.size = it.base;
@@ -473,7 +571,7 @@ function batchedFit(items, basePx) {
           var allowedPx = it.boxLines * it.lhRatio * it.size;
           var fitsHeight = it.naturalH <= allowedPx + FIT_TOLERANCE_PX;
           var fitsWidth = !it.boxW ||
-            widestWordPx(ctx, it.text, it.size, it.fontStyle, it.fontWeight, it.fontFamily) <= it.boxW * WORD_WIDTH_SAFETY;
+            widestWordPx(ctx, it.text, it.size, it.fontStyle, it.fontWeight, it.fontFamily, it.textTransform, it.letterSpacing, it.cssPx) <= it.boxW * WORD_WIDTH_SAFETY;
           fits = fitsHeight && fitsWidth;
         } else {
           fits = !(it.naturalH > it.boxH + FIT_TOLERANCE_PX || it.naturalW > it.boxW + FIT_TOLERANCE_PX);
@@ -510,10 +608,11 @@ function batchedFit(items, basePx) {
 /* fitSingleLine's body, reading from the values already gathered. */
 function fitSingleLineFrom(ctx, it) {
   if(!it.text || !it.boxW) { return it.base; }
+  var drawn = renderedText(it.text, it.textTransform);
   var size = it.base;
   while(size >= MIN_FONT_PX) {
     ctx.font = it.fontStyle + ' ' + it.fontWeight + ' ' + size + 'px ' + it.fontFamily;
-    if(ctx.measureText(it.text).width <= it.boxW * INPUT_WIDTH_SAFETY) { return size; }
+    if(drawnWidthPx(ctx, drawn, size, it.letterSpacing, it.cssPx) <= it.boxW * it.widthSafety) { return size; }
     size -= 1;
   }
   return MIN_FONT_PX;
@@ -523,7 +622,8 @@ function selectLabels(gridEl) {
   return gridEl.querySelectorAll(
     '.md-board-detail-symbol-card__label, .md-board-detail-symbol-card__label-input, ' +
     '.md-board-detail-symbol-card__text-symbol, ' +
-    '.md-folder-tab__label, .md-folder-tab__label-input'
+    '.md-folder-tab__label, .md-folder-tab__label-input, ' +
+    '.md-board-detail-grid__group-name'
   );
 }
 
@@ -544,7 +644,8 @@ export default {
       var text = labelText(el);
       if(!text) { work.push({ el: el, empty: true }); continue; }
       var card = el.closest && (el.closest('.md-board-detail-symbol-card') ||
-                                el.closest('.md-board-detail-grid__cell'));
+                                el.closest('.md-board-detail-grid__cell') ||
+                                el.closest('.md-board-detail-grid__group'));
       var sig = text + '|' + (card ? card.clientWidth : 0) + 'x' + (card ? card.clientHeight : 0) + '|' + basePx;
       if(el._lf_sig === sig) { continue; }
       work.push({ el: el, sig: sig });
