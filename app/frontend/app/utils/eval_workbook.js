@@ -31,10 +31,15 @@
  * `prefill: true` means derive_prefill() can draft it from the eval itself.
  * `conditional: true` means it is required only when it applies (upgrades).
  *
- * NOT modelled here, deliberately: criteria 6 and 7 are not data entry. They are
- * statutory SENTENCES the report must PRINT above a signature — see
- * LCD_STATEMENTS below. Collecting them as free text would let an SLP paraphrase
- * a clause a reviewer checks for literally.
+ * Criteria 6 and 7: the CLAUSE TEXT is not data entry — LCD_STATEMENTS below holds
+ * it verbatim, because collecting the clause as free text would let an SLP
+ * paraphrase wording a reviewer checks for literally. But the FACTS the clauses
+ * turn on are data entry, and until 2026-08-25 they were not captured at all while
+ * the section claimed to cover both: `forwarded_date` evidences c6 (the date the
+ * evaluation went to the treating practitioner) and `supplier_relationship`
+ * evidences c7 (whether one exists). An earlier version of this comment said
+ * "criteria 6 and 7 are not data entry" full stop, and sat directly above a
+ * section tagged `c6,c7` — the contradiction is what hid the missing c7 field.
  */
 export const WORKBOOK_SECTIONS = {
   medical: [
@@ -42,7 +47,16 @@ export const WORKBOOK_SECTIONS = {
       fields: ['impairment_type', 'severity', 'language_skills', 'cognitive_ability', 'anticipated_course'] },
     { id: 'medical_condition', type: 'fields', lcd: 'c2',
       fields: ['diagnosis', 'onset', 'speech_diagnosis', 'speech_onset', 'treating_practitioner', 'payer_id'] },
-    { id: 'natural_modes', type: 'textarea', lcd: 'c1.2' },
+    /* c1.2 AND c3. They are near-duplicates but not the same thing: c1.2 is the
+       ASSESSMENT ("whether the individual's daily communication needs could be met
+       using other natural modes"), c3 is the standalone coverage FINDING ("the
+       beneficiary's speaking needs cannot be met using natural communication
+       methods"). c3 is independently deniable -- failing any of criteria 1-7 denies
+       the claim -- and it was missing from this schema entirely until 2026-08-25.
+       One field evidences both because the label asks for the assessment AND why the
+       modes are insufficient, which is the finding. If that label is ever narrowed to
+       just the assessment, c3 needs its own section again. */
+    { id: 'natural_modes', type: 'textarea', lcd: 'c1.2,c3' },
     { id: 'non_sgd_ruled_out', type: 'textarea', lcd: 'c4' },
     { id: 'least_costly', type: 'rows', columns: ['option', 'trial_length', 'training', 'reason'] },
     { id: 'daily_needs_by_environment', type: 'rows', columns: ['environment', 'partner', 'needs'] },
@@ -53,8 +67,15 @@ export const WORKBOOK_SECTIONS = {
     { id: 'implementation_plan', type: 'textarea', lcd: 'c1.5' },
     { id: 'upgrade_justification', type: 'textarea', lcd: 'c1.7', conditional: true },
     { id: 'product_line', type: 'fields', fields: ['manufacturer', 'product_name', 'model_number', 'hcpcs', 'accessories'] },
+    /* c6 is evidenced by `forwarded_date` -- the date the evaluation went to the
+       treating practitioner IS the evidence. c7 was tagged here from 2026-08-16
+       with NOTHING capturing it: the fields were name/licence/ASHA/NPI/physician,
+       none of which say anything about a financial relationship with the supplier.
+       lcdCoverage reported c7 as covered anyway, which is exactly the "asserted
+       rather than checked" failure the lcd keys exist to prevent.
+       `supplier_relationship` added 2026-08-25 so the tag is earned. */
     { id: 'attestations', type: 'fields', lcd: 'c6,c7',
-      fields: ['slp_name', 'license_number', 'asha_ccc', 'npi', 'physician', 'forwarded_date'] }
+      fields: ['slp_name', 'license_number', 'asha_ccc', 'npi', 'physician', 'forwarded_date', 'supplier_relationship'] }
   ],
   school: [
     { id: 'sett', type: 'fields', fields: ['student', 'environment', 'task'] },
@@ -67,8 +88,23 @@ export const WORKBOOK_SECTIONS = {
 };
 
 /*
- * Criteria 6 and 7 verbatim (docs/AAC_EVALUATION_STANDARDS.md §4a). The report
- * PRINTS these above a signature line; the SLP affirms by signing and dating.
+ * Criteria 6 and 7 verbatim (docs/AAC_EVALUATION_STANDARDS.md §4a).
+ *
+ * NOT WIRED UP YET — corrected 2026-08-25. This said "The report PRINTS these
+ * above a signature line", in the present tense, which was not true and is not
+ * true now: `git grep LCD_STATEMENTS` finds only this file and its test. The PDF
+ * (lib/eval_pdf.rb, the "Evaluator Signature" block) renders a generic "I attest
+ * that the findings above reflect my professional assessment" and never these.
+ * Treat this constant as a prepared value awaiting a consumer, not as shipped
+ * behaviour.
+ *
+ * Also worth settling before wiring it: printing c7 does not by itself produce an
+ * attestation. As written it is a third-person prohibition -- "The SLP performing
+ * the beneficiary evaluation may not be an employee of or have a financial
+ * relationship with the supplier" -- i.e. a coverage rule, not a declaration a
+ * signature can affirm. c6 is different: it states an action that has been taken,
+ * so a signature over it means something. Nothing in L33739 requires the criterion
+ * text be reprinted at all; that was our design choice and it is uncited.
  *
  * Kept as constants rather than translated strings on purpose: these are the
  * literal words of a US federal coverage determination, and a reviewer checks

@@ -86,12 +86,16 @@ producing.
 
 ★ = element explicitly required by Medicare LCD L33739.
 
-> **Read §4a first — this list was corrected on 2026-08-17.** The ★ markers below
-> were assigned from ASHA/USSAAC summaries. Now that the primary text has been
-> retrieved, three of them (§10's environment/partner breakdown, §12 feature
-> match, §13 per-trial data) are **required by NY Medicaid / MN DHS, not by
-> Medicare**, and two required elements were missing entirely. Marked inline as
-> ★→ⓝ (other payer) and ★NEW.
+> **Read §4a first — this list was corrected on 2026-08-17, and again on 2026-08-25.**
+> The ★ markers below were assigned from ASHA/USSAAC summaries. Now that the primary
+> text has been retrieved, **four** of them are not Medicare requirements — §10's
+> environment/partner breakdown, §12 feature match and §13 per-trial data are
+> **NY Medicaid / MN DHS**, and §14's manufacturer/product/HCPCS trio is
+> **A52469's supplier CLAIM rule, not an evaluation element**. Two required elements
+> were missing entirely. Marked inline as ★→ⓝ (other payer or other rule) and ★NEW.
+>
+> §14 was missed by the first pass: it was counted in "six hold" without appearing
+> in either audit table. See the note above those tables in §4a.
 
 1. Header / demographics — medical dx + onset, speech dx + onset, payer IDs, physician, SLP, eval date(s) vs report date
 2. Reason for referral & evaluation methods
@@ -107,7 +111,7 @@ producing.
 11. ★ Non-SGD options considered and ruled out — therapy, sign, writing, boards/PECS, low-tech, **and lower-cost tech incl. software on user-owned hardware**
 12. ★→ⓝ **Feature match** — required features derived from §4–10. **The phrase is absent from L33739; the mandate is "rationale for selection of a specific device and any accessories" (§4a)**
 13. ★→ⓝ Systems trialed — comparison table + per-trial data (see §5). **L33739 requires only "considered and ruled out"; the per-trial rigor is NY Medicaid / MN DHS (§4a)**
-14. ★ Recommendation — device/software + accessories, **manufacturer, product name and number, HCPCS**, per-accessory justification
+14. ★→ⓝ Recommendation — device/software + accessories, **manufacturer, product name and number, HCPCS**, per-accessory justification — **the manufacturer/product/HCPCS trio is A52469's SUPPLIER CLAIM rule, not an L33739 evaluation element; the evaluation mandate is the per-accessory rationale (criterion 1 bullet 4, see §12 and §4a)**
 15. ★ Functional communication goals — measurable, time-framed, **set before the trial** and achieved at completion
 16. ★ Treatment/implementation plan **with a training schedule**
 17. Environmental supports — caregiver capacity, training commitment, local support
@@ -197,8 +201,15 @@ Noridian Healthcare Solutions LLC (J-A, J-D), all DME MAC.
 ### What the verbatim text CHANGES about §3's ★ list
 
 The ★ markers in §3 were assigned from the ASHA/USSAAC secondary sources. Against
-the primary text, **six hold and three do not**. Corrected below; §3 is annotated
+the primary text, **five hold and four do not**. Corrected below; §3 is annotated
 to match.
+
+Every starred §3 item now appears in exactly one of the two tables. An earlier
+revision of this section said "six hold and three do not" and listed six *rows*
+in the confirmed table — but §19 occupies two of them, so only five distinct items
+were actually audited. **§14 was silently counted as holding without being
+checked**, and it does not hold (see below). If you add a ★ to §3, add a row here
+in the same edit; the count is not self-checking.
 
 **Confirmed ★ — traceable to a specific clause:**
 
@@ -212,6 +223,16 @@ to match.
 | §19 financial-independence statement | criterion 7 |
 
 **Overstated ★ — required by SOMETHING, but not by L33739:**
+
+- **§14 "manufacturer, product name and number, HCPCS."** These are **A52469's
+  supplier claim-submission requirements** — "when codes E2500–E2599 are billed,
+  the claim must include the manufacturer name, product name and number" — a rule
+  on the *supplier's claim*, not an element of the SLP's evaluation under
+  criterion 1. The only L33739 hook is criterion 1 bullet 4, "rationale for
+  selection of a specific device and any accessories," which §12 already carries.
+  Keep recording them — the supplier needs them and the claim is denied without
+  them — but they are not a Medicare requirement *on the evaluation*. This is the
+  same error §12 was corrected for, and it survived the first correction pass.
 
 - **§10 "by environment and partner… needs over next 2 years."** L33739 asks only
   for "an assessment of whether the individual's daily communication needs could

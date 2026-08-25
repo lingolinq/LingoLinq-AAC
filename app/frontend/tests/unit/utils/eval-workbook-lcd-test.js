@@ -22,6 +22,13 @@ const REQUIRED = {
   'c1.6': 'cognitive and physical abilities to effectively use the SELECTED device',
   'c1.7': 'upgrade — functional benefit compared with the device already issued',
   'c2': 'medical condition resulting in severe expressive speech impairment',
+  // Added 2026-08-25. c3 was absent from this map AND from the schema, so the test
+  // below reported that medical mode "can evidence every required clause" while a
+  // standalone, independently-deniable criterion was missing from both sides. This
+  // map is hand-maintained, so it can only test what its author remembered — that
+  // is its weakness, and the reason the count is asserted against the LCD's seven
+  // criteria in the test that follows rather than against the map's own length.
+  'c3': 'the beneficiary\'s speaking needs cannot be met using natural communication methods',
   'c4': 'other forms of treatment considered and ruled out',
   'c5': 'the impairment will benefit from the device ordered',
   'c6': "SLP's evaluation forwarded to the treating practitioner before ordering",
@@ -35,6 +42,21 @@ module('Unit | eval_workbook LCD coverage', function () {
     Object.keys(REQUIRED).forEach(function (clause) {
       assert.ok(covered.indexOf(clause) > -1,
         clause + ' — ' + REQUIRED[clause]);
+    });
+  });
+
+  /* Guards REQUIRED itself. The map above is hand-written, so the test that walks
+     it can only be as complete as its author's memory — and it was not: c3 was
+     missing from both the map and the schema, so "can evidence every required
+     clause" passed while an independently-deniable criterion was unrepresented.
+     L33739 has exactly seven numbered criteria; assert against that fixed shape
+     rather than against the map's own length, which is what let the gap hide. */
+  test('the required-clause map covers all seven LCD criteria', function (assert) {
+    assert.expect(7);
+    const tops = Object.keys(REQUIRED).map(function (c) { return c.split('.')[0]; });
+    ['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7'].forEach(function (top) {
+      assert.ok(tops.indexOf(top) > -1,
+        top + ' is represented in REQUIRED — L33739 denies the claim if ANY of the seven is unmet');
     });
   });
 

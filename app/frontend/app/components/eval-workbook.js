@@ -470,6 +470,7 @@ export default Component.extend({
       // Criterion 6 requires the evaluation to have reached the treating
       // practitioner BEFORE the device was ordered, so the date is the evidence.
       'attestations.forwarded_date': i18n.t('wb_attest_forwarded', "Date forwarded to treating practitioner"),
+      'attestations.supplier_relationship': i18n.t('wb_attest_supplier_rel', "Relationship to the SGD supplier (criterion 7 — state \"none\" if there is none)"),
 
       // --- School / IEP ------------------------------------------------------
       'sec.sett': i18n.t('wb_sec_sett', "SETT framework"),
