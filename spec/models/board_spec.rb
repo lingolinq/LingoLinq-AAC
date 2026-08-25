@@ -5689,6 +5689,47 @@ describe Board, :type => :model do
       b.swap_images(library, u, [], nil)
     end
 
+    it "should still record swapped_library when a word has no symbol in the target library" do
+      # Raised in review: a board with one already-aggregated image AND one word the
+      # library cannot resolve records swapped_library even though that second button
+      # was never swapped, so provisioning treats the board as done and never retries.
+      #
+      # That is DELIBERATE. The alternative -- withhold swapped_library until every
+      # button resolves -- reinstates the exact bug this branch fixes: the board never
+      # matches the idempotency check, so User#copy_to_home_board re-copies the ENTIRE
+      # board set on every provisioning call, forever.
+      #
+      # A retry also cannot help. `_missing` is the library saying it has no symbol for
+      # that word, and the code honours it by skipping the find_images fallback
+      # entirely (board.rb:2886-2889). Re-running the same swap yields the same nothing.
+      # An unswappable word is a cosmetic gap on one button; an unbounded re-copy loop
+      # on district provisioning is not. swapped_library has never meant "every image
+      # resolved" -- the pre-existing @buttons_changed branch records it when ANY button
+      # changes, while others fail.
+      u = User.create
+      member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      plain = ButtonImage.create(user: u)
+      expect(plain.image_library).to eq('unknown')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => member.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => plain.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).and_return({'_missing' => ['cat']})
+      # _missing suppresses the fallback, so 'cat' is genuinely unresolvable here.
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+      b.reload
+      # 'cat' keeps its original image: the swap really was incomplete.
+      expect(b.buttons.map{|btn| btn['image_id'] }).to eq([member.global_id, plain.global_id])
+      # ...and the library is still recorded, so provisioning stays idempotent.
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+    end
+
     it "should skip only the member images on a board that mixes libraries" do
       # The realistic shape: boards are rarely 100% one library. The member image
       # must be left alone while the non-member one is swapped, and because SOME
