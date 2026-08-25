@@ -2,6 +2,6 @@ The user account "<%= @user.display_user_name %>" was just removed from the supp
 
 <% if @user.expires_at %>If the organization was sponsoring your account, then please keep in mind that they are no longer funding your premium account. That means you'll need to find another sponsoring organization or set up payments yourself in order to not lose premium account access. <% if @user.expires_at > Time.now %>You have <%= time_ago_in_words(@user.expires_at) %> to figure things out.<% end %><% end %>
 
-If you need help, please don't be afraid to reach out to us, we're willing to work with individuals to find a good solution. Just contact us (<%= JsonApi::Json.current_host %>/contact) to make a request.
-Thanks!<br/>
+If you need help, please don't be afraid to reach out to us, we're willing to work with individuals to find a good solution. Just contact us (<%= JsonApi::Json.absolute_host %>/contact) to make a request.
+Thanks!
 <%= email_signature %>

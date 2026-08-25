@@ -198,7 +198,7 @@ class Utterance < ApplicationRecord
     idx = args['share_index'] || 0
     reply_id = args['share_index'] && self.data['reply_ids'] && self.data['reply_ids'][args['share_index'].to_s]
     share_code = Utterance.to_alpha_code(args['share_index'] || 0)
-    reply_url = "#{JsonApi::Json.current_host}/u/#{self.reply_nonce}#{share_code}"
+    reply_url = "#{JsonApi::Json.absolute_host}/u/#{self.reply_nonce}#{share_code}"
     if args['email']
       # Utterance.deliver_message
       self.deliver_message('email', nil, args, User.find_by_path(args['user_id']))
@@ -252,7 +252,7 @@ class Utterance < ApplicationRecord
     ref_user ||= User.find_by_path(args['sharer_id'] || args['sharer']['user_id'])
     if (!args['reply_url'] || !args['reply_id']) && args['share_index']
       share_code = Utterance.to_alpha_code(args['share_index'] || 0)
-      args['reply_url'] ||= "#{JsonApi::Json.current_host}/u/#{self.reply_nonce}#{share_code}"
+      args['reply_url'] ||= "#{JsonApi::Json.absolute_host}/u/#{self.reply_nonce}#{share_code}"
       args['reply_id'] ||= (self.data['reply_ids'] || {})[args['share_index'].to_s]
     end
     if pref == 'email'

@@ -26,7 +26,7 @@
       {{#if this.current.author.image_url}}
         <img src={{this.current.author.image_url}} style='width: 50px; height: 50px; float: left; margin: -20px 5px 0 0;' class='fit_image' >
       {{/if}}
-      {{t "from" key="from"}} <strong>{{this.current.author.name}}</strong> <span class='text-muted'>{{t "at" key="at"}} {{date this.current.sent}}</span>
+      {{t "from" key="from"}} <strong>{{display-name this.current.author}}</strong> <span class='text-muted'>{{t "at" key="at"}} {{date this.current.sent}}</span>
       <div style='clear: left;'></div>
       <div id='alert_message' class={{this.current_class}}>
         {{#if this.current_with_images}}

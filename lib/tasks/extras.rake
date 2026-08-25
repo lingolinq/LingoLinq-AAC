@@ -919,3 +919,55 @@ task "extras:fix_vocabulary_organization" => :environment do
   puts "Done!"
   puts "=============================================="
 end
+
+# One-time backfill for the "No name" placeholder removal.
+#
+# User#generate_defaults used to seed settings['name'] with the literal string
+# "No name" because signup collects no name. That is not a null value, so every
+# `name || user_name` guard in the codebase silently failed -- it surfaced as
+# "Hi No name" in the UI and, worse, as an SMS to a family member reading
+# "from No name - <message>" (Utterance#share_with). The seed is gone, but
+# existing accounts still carry the string, so their guards still fail.
+#
+# settings is GoSecure-encrypted at rest, so it cannot be queried in SQL --
+# every user has to be loaded and checked in Ruby.
+#
+#   rake extras:clear_no_name_placeholder            # report only, changes nothing
+#   rake extras:clear_no_name_placeholder FRD=1      # actually write
+task "extras:clear_no_name_placeholder" => :environment do
+  frd = ENV['FRD'] == '1'
+  puts "=============================================="
+  puts frd ? "Clearing the \"No name\" placeholder" : "DRY RUN -- pass FRD=1 to write"
+  puts "=============================================="
+
+  total = User.count
+  checked = 0
+  matched = 0
+  updated = 0
+  errors = 0
+
+  User.find_each do |user|
+    checked += 1
+    print "\r  Checked #{checked}/#{total}, found #{matched}...      " if checked % 100 == 0
+    begin
+      next unless user.settings && user.settings['name'] == 'No name'
+      matched += 1
+      next unless frd
+      user.settings['name'] = nil
+      # Plain settings mutation: before_save generate_defaults no longer seeds a
+      # name, and both after_save hooks early-return (track_boards needs
+      # @do_track_boards; notify_of_changes needs @password_changed /
+      # @email_changed / @opt_out). So this sends no mail and queues no jobs.
+      user.save!
+      updated += 1
+    rescue => e
+      errors += 1
+      puts "\n  ERROR on #{user.global_id}: #{e.class}: #{e.message}"
+    end
+  end
+
+  puts "\n  Checked #{checked} users"
+  puts "  Carrying the placeholder: #{matched}"
+  puts frd ? "  Cleared: #{updated} (#{errors} errors)" : "  Cleared: 0 (dry run)"
+  puts "=============================================="
+end

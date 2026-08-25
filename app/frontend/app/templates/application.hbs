@@ -1136,7 +1136,7 @@
           {{/if}}
           {{#unless this.app_state.limited_speak_mode_options}}
             {{#if this.isSessionAuthenticated}}
-              <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
+              <li class="dropdown-header">{{this.app_state.currentUser.display_name}}</li>
               {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
                   <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
@@ -1372,7 +1372,7 @@
         <span class="caret"></span>
       </a>
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
-        <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
+        <li class="dropdown-header">{{this.app_state.currentUser.display_name}}</li>
         {{!-- Exit Boards (identity dropdown, board-alt ≤1024px) — gives
              the user a way out when they're on board-alt normal mode and
              the dropdown is the only menu surface visible. Class

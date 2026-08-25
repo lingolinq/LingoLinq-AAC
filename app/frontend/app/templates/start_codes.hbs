@@ -39,9 +39,9 @@
             {{#if this.result.organization}}
               <LinkTo @route="organization" @model={{this.result.target_id}}>{{this.result.name}}</LinkTo>
             {{else if this.result.supervisor}}
-              <LinkTo @route="user" @model={{this.result.target_id}}>{{this.result.name}}</LinkTo>
+              <LinkTo @route="user" @model={{this.result.target_id}}>{{display-name this.result}}</LinkTo>
             {{else}}
-              {{this.result.name}}
+              {{display-name this.result}}
             {{/if}}
           </span>
         </div>

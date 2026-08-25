@@ -1080,7 +1080,9 @@ class SessionController < ApplicationController
   end
 
   def google_link_user_display_name(user)
-    (user.settings && user.settings['name'].presence) || user.display_user_name
+    # display_name, not `name.presence || display_user_name`: that guard cannot
+    # filter the legacy "No name" sentinel, which is a non-empty string.
+    user.display_name
   end
 
   def google_link_user_candidate(user, include_user_id: false)
