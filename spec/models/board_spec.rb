@@ -5689,24 +5689,26 @@ describe Board, :type => :model do
       b.swap_images(library, u, [], nil)
     end
 
-    it "should still record swapped_library when a word has no symbol in the target library" do
-      # Raised in review: a board with one already-aggregated image AND one word the
-      # library cannot resolve records swapped_library even though that second button
-      # was never swapped, so provisioning treats the board as done and never retries.
+    it "should not record swapped_library when a word is in _missing" do
+      # A board with one already-aggregated image AND one word in `_missing` must NOT
+      # record swapped_library, or provisioning treats the board as done and never
+      # retries the button that was never swapped.
       #
-      # Deliberate, but ONLY for this narrow case: the word is in `_missing`, which is
-      # the library DECLARING it has no symbol for it. swap_images honours that by
-      # skipping the find_images fallback entirely, so re-running yields the same
-      # nothing and a retry is futile. Withholding swapped_library here would buy
-      # nothing and reinstate the bug this branch fixes -- the board never matches the
-      # idempotency check, so User#copy_to_home_board re-copies the ENTIRE board set on
-      # every provisioning call, forever.
+      # Two earlier revisions of this branch recorded it anyway, on the theory that
+      # `_missing` is the library DECLARING it has no such symbol, making a retry
+      # futile. That theory is wrong. find_images caches an EMPTY result as a miss
+      # whenever cache_forever is set (lib/uploader.rb:1015), and cache_forever is
+      # important_board -- so a 429, a non-2xx, or the 10s OpenSymbols timeout on a
+      # suggested-list board is stamped 6.months.from_now by
+      # LibraryCache#add_missing_word and read back as missing with no expiry check
+      # (LibraryCache#find_words). `_missing` therefore conflates "no such symbol"
+      # with "the API was down when we asked", and recording on it freezes a blip
+      # into a permanently wrong image on exactly the highest-value boards.
       #
-      # The DIFFERENT case -- unresolved but NOT declared missing -- is handled by the
-      # sibling spec below and must stay retryable. Do not collapse the two.
-      #
-      # swapped_library has never meant "every image resolved": the pre-existing
-      # @buttons_changed branch records it when ANY button changes while others fail.
+      # The idempotency win of 4f6f47687 is unaffected: a board whose images are all
+      # already in the library has zero unresolved buttons and still records. Only a
+      # board with a genuinely unresolved button re-runs its swap, which is what
+      # staging does today.
       u = User.create
       member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
       plain = ButtonImage.create(user: u)
@@ -5721,30 +5723,28 @@ describe Board, :type => :model do
       library = 'opensymbols'
       library.instance_variable_set('@skip_swapped', true)
       expect(Uploader).to receive(:default_images).and_return({'_missing' => ['cat']})
-      # _missing suppresses the fallback, so 'cat' is genuinely unresolvable here.
+      # _missing still suppresses the fallback lookup within this run. That part is a
+      # legitimate optimisation and is left alone; what changed is that it no longer
+      # counts as proof the swap is complete.
       expect(Uploader).to_not receive(:find_images)
       b.swap_images(library, u, [], nil)
       b.reload
-      # 'cat' keeps its original image: the swap really was incomplete.
+      # 'cat' keeps its original image: the swap really was incomplete...
       expect(b.buttons.map{|btn| btn['image_id'] }).to eq([member.global_id, plain.global_id])
-      # ...and the library is still recorded, so provisioning stays idempotent.
-      expect(b.settings['swapped_library']).to eq('opensymbols')
+      # ...so the library must NOT be recorded, leaving the board retryable.
+      expect(b.settings['swapped_library']).to eq(nil)
     end
 
-    it "should NOT record swapped_library when a lookup failed in a way a retry could fix" do
-      # The other half of the pair above, and the one that makes the codex P1 real.
+    it "should not record swapped_library when the fallback lookup came back empty" do
+      # The other path to "unresolved": the word is absent from `_missing`, so the
+      # find_images fallback actually runs -- and returns []. OpenSymbols.search
+      # returns [] on a 429, on any non-2xx, and on its 10s timeout, so an empty
+      # result here is indistinguishable from a throttled call.
       #
-      # `_missing` is populated ONLY from the LibraryCache lookup (lib/uploader.rb:776-779).
-      # A word that was never cached and that the remote returned nothing for is absent
-      # from `_missing` entirely, so find_images DOES run for it. And find_images can
-      # come back empty for transient reasons: OpenSymbols.search returns [] on a 429,
-      # on any non-2xx, and on its 10s timeout (lib/open_symbols.rb:42-75). A miss is
-      # only written to the cache when cache_forever is set, which for a non-important
-      # board it is not.
-      #
-      # So "unresolved and not in _missing" may simply mean the API was throttled.
-      # Recording swapped_library there would freeze a transient failure into a
-      # permanently wrong image, because provisioning would never retry the board.
+      # Same outcome as the spec above, by design: both paths leave the board
+      # unrecorded and therefore retryable. The two are kept separate because they
+      # reach the flag through different branches -- this one runs the fallback, that
+      # one skips it -- and a regression could easily break one and not the other.
       u = User.create
       member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
       plain = ButtonImage.create(user: u)
