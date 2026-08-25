@@ -2821,6 +2821,20 @@ class Board < ApplicationRecord
     end
     'opensymbols'
   end
+
+  # Completeness flag, NOT the copy-idempotency key. swapped_library tells
+  # User#copy_to_home_board / copy_board_to_library "this copy already targeted
+  # that library, do not copy_for again". swap_incomplete tells the same
+  # methods to re-run swap_images on THIS board. Do not withhold
+  # swapped_library to mean "retry": a nil marker is a library mismatch and
+  # mints a second board set.
+  def assign_swap_incomplete!(unresolved)
+    if unresolved
+      self.settings['swap_incomplete'] = true
+    else
+      self.settings.delete('swap_incomplete')
+    end
+  end
   
   def swap_images(library, author, board_ids, user_local_id=nil, visited_board_ids=[], updated_board_ids=[])
     author = User.find_by_global_id(author) if author && author.is_a?(String)
@@ -2841,6 +2855,7 @@ class Board < ApplicationRecord
       swap_board = self.copy_for(@sub_global, skip_save: true, skip_user_update: true)
     end
     is_root = visited_board_ids.blank?
+    library.instance_variable_set('@had_unresolved', false) if is_root
     # puts "SWAPPING FOR #{self.key} #{is_root}"
     cache = library.instance_variable_get('@library_cache')
     cache ||= LibraryCache.find_or_create_by(library: library, locale: swap_board.settings['locale'] || 'en')
@@ -2850,7 +2865,7 @@ class Board < ApplicationRecord
       updated_board_ids << swap_board_id
       already_in_library = false
       unresolved = false
-      if !library.instance_variable_get('@skip_swapped') || swap_board.current_library(true) != library
+      if !library.instance_variable_get('@skip_swapped') || swap_board.current_library(true) != library || swap_board.settings['swap_incomplete']
         # puts " checking if important"
         words = swap_board.buttons.map{|b| [b['label'], b['vocalization']] }.flatten.compact.uniq
         # Important boards (i.e. boards that show up in the suggested list), should
@@ -2911,19 +2926,17 @@ class Board < ApplicationRecord
               button['image_id'] = new_bi.global_id
               @buttons_changed = 'swapped images'
             else
-              # Nothing resolved for this button. Treat EVERY such button as retryable,
-              # including one the cache reports in _missing: _missing is not an
-              # authoritative "no such symbol" declaration. OpenSymbols.search returns []
-              # on a 429, on any non-2xx, and on its 10s timeout, and find_images caches
-              # that empty result as a miss whenever cache_forever is set
-              # (lib/uploader.rb:1015). cache_forever is important_board here, so on
-              # exactly the highest-value boards a transient outage is stamped
-              # 6.months.from_now (LibraryCache#add_missing_word) and read back as
-              # missing with no expiry check (LibraryCache#find_words). Trusting
-              # _missing would freeze an API blip into a permanent wrong image.
-              # Flagging keeps the board out of the no-op swapped_library shortcut below
-              # so a later provisioning call retries it.
+              # Nothing resolved for this button. OpenSymbols.search returns [] on a
+              # 429, on any non-2xx, and on its 10s timeout. find_images caches that
+              # empty result as a miss when cache_forever is set (uploader.rb:1015),
+              # and LibraryCache#find_words returns it with no expiry check
+              # (library_cache.rb:208-210). The 6.months.from_now stamp on added only
+              # stops add_missing_word from refreshing; it does not age the miss out.
+              # Flag the board so copy consumers re-run swap_images in place. Still
+              # record swapped_library: withholding it is a library mismatch and
+              # mints a new board set (user.rb:3065, 3088, 3095).
               unresolved = true
+              library.instance_variable_set('@had_unresolved', true)
             end
           end
           button
@@ -2935,24 +2948,24 @@ class Board < ApplicationRecord
       if @buttons_changed
         swap_board.settings['buttons'] = buttons
         swap_board.settings['swapped_library'] = library
+        swap_board.assign_swap_incomplete!(unresolved)
         @map_later = true
         swap_board.save
-      elsif already_in_library && !unresolved && swap_board.settings['swapped_library'] != library
-        # Nothing changed, but ONLY because EVERY eligible button was already in the
-        # target library (the OPENSYMBOLS_MEMBER_LIBRARIES skip above) -- i.e. the
-        # swap succeeded as a no-op rather than finding nothing -- AND not one button
-        # was left unresolved (see unresolved above). Record the library:
-        # User#copy_to_home_board and User#copy_board_to_library use
-        # settings['swapped_library'] as their idempotency key --
-        # (swapped_library || 'original') == (symbol_library || 'original') -- so
-        # leaving it nil makes them re-copy the entire board set on every call.
-        # Deliberately NOT set when the swap simply found no replacement (see spec
-        # "should only save if buttons have actually changed"), which is a different
-        # outcome: there, the board is still awaiting a real swap.
-        # save_subtly because no button content changed: this must not read as an
-        # edit or trigger a buttonset / image reprocess.
-        swap_board.settings['swapped_library'] = library
-        swap_board.save_subtly
+      elsif already_in_library
+        # No-op because eligible buttons were already in the target library (the
+        # OPENSYMBOLS_MEMBER_LIBRARIES skip above). Always record swapped_library:
+        # that field is the copy-idempotency key, not a completeness flag.
+        # swap_incomplete (set when unresolved) is what lets a later
+        # copy_to_home_board re-run swap_images on THIS board. save_subtly because
+        # no button content changed: this must not read as an edit or trigger a
+        # buttonset / image reprocess.
+        library_changed = swap_board.settings['swapped_library'] != library
+        incomplete_changed = !!swap_board.settings['swap_incomplete'] != unresolved
+        if library_changed || incomplete_changed
+          swap_board.settings['swapped_library'] = library
+          swap_board.assign_swap_incomplete!(unresolved)
+          swap_board.save_subtly
+        end
       end
       PaperTrail.request.whodunnit = whodunnit
     else
@@ -2972,7 +2985,14 @@ class Board < ApplicationRecord
     end
     if is_root
       cache.instance_variable_set('@ease_saving', false)
-      cache.save_if_added 
+      cache.save_if_added
+      # Root is saved before children run. Bubble descendant unresolved so
+      # copy_to_home_board, which only inspects the home root, still retries.
+      tree_incomplete = !!library.instance_variable_get('@had_unresolved')
+      if !!swap_board.settings['swap_incomplete'] != tree_incomplete
+        swap_board.assign_swap_incomplete!(tree_incomplete)
+        swap_board.save_subtly
+      end
     end
     {done: true, id: swap_board.global_id, library: library, board_ids: board_ids, visited: visited_board_ids.uniq, updated: updated_board_ids.uniq}
   end  

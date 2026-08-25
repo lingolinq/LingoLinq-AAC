@@ -12048,37 +12048,44 @@ miss whenever `cache_forever` is set:
 cache.add_missing_word(keyword, cache_forever) if cache_forever   # lib/uploader.rb:1015
 ```
 
-and `cache_forever` is `important_board` at both call sites in `Board#swap_images`
-(`app/models/board.rb:2869,2894`). `OpenSymbols.search` returns `[]` on a 429, on
-any non-2xx, and on its 10s timeout — indistinguishable from a genuine miss. So an
-outage while provisioning a *suggested-list* board writes a miss stamped
-`6.months.from_now` (`LibraryCache#add_missing_word:141`), which
-`LibraryCache#find_words:208-209` reads back as `{'missing' => true}` **with no
-expiry check at all**, and `lib/uploader.rb:775-778` folds into `_missing`.
+and `cache_forever` is `important_board` at both call sites in `Board#swap_images`.
+`OpenSymbols.search` returns `[]` on a 429, on any non-2xx, and on its 10s timeout
+— indistinguishable from a genuine miss. So an outage while provisioning a
+*suggested-list* board writes a miss stamped `6.months.from_now`
+(`LibraryCache#add_missing_word:141`), which `LibraryCache#find_words:208-209`
+reads back as `{'missing' => true}` **with no expiry check at all**, and
+`lib/uploader.rb:775-778` folds into `_missing`. The future `added` stamp only
+stops `add_missing_word` from refreshing; it does not age the miss out.
 
 Net: `_missing` conflates "no such symbol" with "the API was down when we asked,"
 and does so *only* on the highest-value boards — the ones flagged important. Never
 treat membership in `_missing` as proof that work is complete or that a retry is
 futile. Using it to skip a redundant lookup within one run is fine; using it as a
-terminal state is not. Fixed in #861 (`4b9fb85d8`); the underlying cache-write
-conflation at `uploader.rb:1013-1016` is still open.
+terminal state is not. The cache-write conflation at `uploader.rb:1013-1016` is
+still open.
 
 ## Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions
 
 `User#copy_to_home_board` and `User#copy_board_to_library` gate on
 `(swapped_library || 'original') == (symbol_library || 'original')`
-(`app/models/user.rb:3065,3088,3095`). That makes the field hazardous *both* ways,
-which is what made #861 take three attempts:
+(`app/models/user.rb:3065,3088,3095`). A nil marker is a **library mismatch**:
+those methods `copy_for` a second board set. They do **not** re-run `swap_images`
+on the existing copy. That makes the field hazardous *both* ways, which is what
+made #861 take three attempts plus an adversary pass:
 
-- **Withhold it when the swap really did complete** → the board never matches the
-  check, so provisioning re-copies the ENTIRE board set on every call, unbounded.
-- **Record it when the swap did not complete** → provisioning treats the board as
-  done, `swap_images`' own `current_library(true) != library` gate closes, and the
-  unswapped buttons are never retried.
+- **Withhold it when the copy-path swap finished** → next `copy_to_home_board`
+  mints a duplicate set and can retarget `home_board`.
+- **Record it when some buttons are still unresolved, with no other flag** →
+  `current_library` returns the marker, the `@skip_swapped` outer gate skips the
+  whole loop, and those buttons are frozen.
 
-The correct rule is narrow: record only when every eligible button was *either*
-already in the target library *or* successfully swapped. "Some button changed" is
-not enough, and "nothing changed" is not the same as "nothing needed changing."
+Do not use one field for both jobs. `swapped_library` is copy idempotency: record
+it when the copy-path swap ran (already-in-library skip and/or `@buttons_changed`).
+Completeness is `settings['swap_incomplete']`, which re-enters the swap loop even
+when `current_library` already matches, and which `copy_to_home_board` /
+`copy_board_to_library` honor by calling `retry_incomplete_library_swap` on the
+existing board. Trace **both** `swapped_library` writers (`@buttons_changed` and
+the no-op `elsif`) before changing either.
 
 ## Technique: one control run on base does not prove a flake — re-run the identical tree
 

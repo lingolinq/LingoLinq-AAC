@@ -5700,6 +5700,7 @@ describe Board, :type => :model do
       # "already copied, skip" check off this field; nil would read as 'original'
       # and make them re-copy the whole board set on every call.
       expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(nil)
     end
 
     it "should record swapped_library so repeat provisioning is idempotent" do
@@ -5727,26 +5728,18 @@ describe Board, :type => :model do
       b.swap_images(library, u, [], nil)
     end
 
-    it "should not record swapped_library when a word is in _missing" do
-      # A board with one already-aggregated image AND one word in `_missing` must NOT
-      # record swapped_library, or provisioning treats the board as done and never
-      # retries the button that was never swapped.
+    it "should record swapped_library and mark swap_incomplete when a word is in _missing" do
+      # A board with one already-aggregated image AND one word in `_missing` must
+      # still record swapped_library. That field is the copy-idempotency key;
+      # User#copy_to_home_board treats a nil marker as a library mismatch and
+      # copy_for's a second board set (user.rb:3088). Completeness lives on
+      # swap_incomplete so a later copy re-runs swap_images on THIS board.
       #
-      # Two earlier revisions of this branch recorded it anyway, on the theory that
-      # `_missing` is the library DECLARING it has no such symbol, making a retry
-      # futile. That theory is wrong. find_images caches an EMPTY result as a miss
-      # whenever cache_forever is set (lib/uploader.rb:1015), and cache_forever is
-      # important_board -- so a 429, a non-2xx, or the 10s OpenSymbols timeout on a
-      # suggested-list board is stamped 6.months.from_now by
-      # LibraryCache#add_missing_word and read back as missing with no expiry check
-      # (LibraryCache#find_words). `_missing` therefore conflates "no such symbol"
-      # with "the API was down when we asked", and recording on it freezes a blip
-      # into a permanently wrong image on exactly the highest-value boards.
-      #
-      # The idempotency win of 4f6f47687 is unaffected: a board whose images are all
-      # already in the library has zero unresolved buttons and still records. Only a
-      # board with a genuinely unresolved button re-runs its swap, which is what
-      # staging does today.
+      # `_missing` is not an authoritative "no such symbol" declaration.
+      # find_images caches an EMPTY result as a miss whenever cache_forever is
+      # set (lib/uploader.rb:1015). LibraryCache#find_words returns that entry
+      # with no expiry check (library_cache.rb:208-210). The 6.months.from_now
+      # stamp on added only stops add_missing_word from refreshing.
       u = User.create
       member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
       plain = ButtonImage.create(user: u)
@@ -5761,28 +5754,23 @@ describe Board, :type => :model do
       library = 'opensymbols'
       library.instance_variable_set('@skip_swapped', true)
       expect(Uploader).to receive(:default_images).and_return({'_missing' => ['cat']})
-      # _missing still suppresses the fallback lookup within this run. That part is a
-      # legitimate optimisation and is left alone; what changed is that it no longer
-      # counts as proof the swap is complete.
+      # _missing still suppresses the fallback lookup within this run.
       expect(Uploader).to_not receive(:find_images)
       b.swap_images(library, u, [], nil)
       b.reload
-      # 'cat' keeps its original image: the swap really was incomplete...
       expect(b.buttons.map{|btn| btn['image_id'] }).to eq([member.global_id, plain.global_id])
-      # ...so the library must NOT be recorded, leaving the board retryable.
-      expect(b.settings['swapped_library']).to eq(nil)
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(true)
     end
 
-    it "should not record swapped_library when the fallback lookup came back empty" do
+    it "should record swapped_library and mark swap_incomplete when the fallback lookup came back empty" do
       # The other path to "unresolved": the word is absent from `_missing`, so the
       # find_images fallback actually runs -- and returns []. OpenSymbols.search
-      # returns [] on a 429, on any non-2xx, and on its 10s timeout, so an empty
-      # result here is indistinguishable from a throttled call.
+      # returns [] on a 429, on any non-2xx, and on its 10s timeout.
       #
-      # Same outcome as the spec above, by design: both paths leave the board
-      # unrecorded and therefore retryable. The two are kept separate because they
-      # reach the flag through different branches -- this one runs the fallback, that
-      # one skips it -- and a regression could easily break one and not the other.
+      # Same completeness outcome as the spec above, by a different branch: this
+      # one runs the fallback, that one skips it. Both still record swapped_library
+      # so copy stays idempotent.
       u = User.create
       member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
       plain = ButtonImage.create(user: u)
@@ -5795,15 +5783,13 @@ describe Board, :type => :model do
       b = Board.find_by_global_id(b.global_id)
       library = 'opensymbols'
       library.instance_variable_set('@skip_swapped', true)
-      # No '_missing' key at all: the library never declared 'cat' unavailable.
       expect(Uploader).to receive(:default_images).and_return({})
-      # ...so the fallback runs, and comes back empty the way a throttled call would.
       expect(Uploader).to receive(:find_images).and_return([])
       b.swap_images(library, u, [], nil)
       b.reload
       expect(b.buttons.map{|btn| btn['image_id'] }).to eq([member.global_id, plain.global_id])
-      # Left unrecorded so User#copy_to_home_board will try this board again.
-      expect(b.settings['swapped_library']).to eq(nil)
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(true)
     end
 
     it "should skip only the member images on a board that mixes libraries" do
@@ -5837,6 +5823,95 @@ describe Board, :type => :model do
       expect(ids[0]).to eq(keep.global_id)
       expect(ids[1]).to_not eq(swap.global_id)
       expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(nil)
+    end
+
+    it "should record swapped_library and swap_incomplete when a member skip, a successful swap, and an empty lookup share a board" do
+      # Both swapped_library writers must honor the same contract. The
+      # @buttons_changed branch used to record the marker with no unresolved
+      # check, which froze the empty-lookup button because current_library then
+      # returned opensymbols and the outer gate skipped the next run.
+      u = User.create
+      keep = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      pcs = licensed_image(u, 'Tobii Dynavox', 'https://www.tobiidynavox.com/')
+      plain = ButtonImage.create(user: u)
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => keep.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => pcs.global_id},
+        {'id' => '1_4', 'label' => 'dog', 'image_id' => plain.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat', 'dog'], 'en', u, true, false).and_return({
+        'cat' => {'url' => 'https://www.example.com/cat.png'}
+      })
+      expect(Uploader).to receive(:find_images).with('dog', 'opensymbols', 'en', u, nil, true, false).and_return([])
+      b.swap_images(library, u, [], nil)
+      b.reload
+      ids = b.buttons.map{|btn| btn['image_id'] }
+      expect(ids[0]).to eq(keep.global_id)
+      expect(ids[1]).to_not eq(pcs.global_id)
+      expect(ids[2]).to eq(plain.global_id)
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(true)
+    end
+
+    it "should re-enter the swap loop when swapped_library matches but swap_incomplete is set" do
+      u = User.create
+      member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      plain = ButtonImage.create(user: u)
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => member.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => plain.global_id},
+      ], nil)
+      b.settings['swapped_library'] = 'opensymbols'
+      b.settings['swap_incomplete'] = true
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat'], 'en', u, true, false).and_return({
+        'cat' => {'url' => 'https://www.example.com/cat.png'}
+      })
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+      b.reload
+      expect(b.buttons[0]['image_id']).to eq(member.global_id)
+      expect(b.buttons[1]['image_id']).to_not eq(plain.global_id)
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(nil)
+    end
+
+    it "should bubble swap_incomplete onto the root when a descendant is unresolved" do
+      u = User.create
+      member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      plain = ButtonImage.create(user: u)
+      root = Board.create(user: u)
+      child = Board.create(user: u)
+      root.process({'buttons' => [
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => member.global_id, 'load_board' => {'key' => child.key, 'id' => child.global_id}},
+      ]}, {user: u})
+      child.process({'buttons' => [
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => member.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => plain.global_id},
+      ]}, {user: u})
+      root = Board.find_by_global_id(root.global_id)
+      child = Board.find_by_global_id(child.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      allow(Uploader).to receive(:default_images).and_return({})
+      allow(Uploader).to receive(:find_images).and_return([])
+      root.swap_images(library, u, [], nil)
+      root.reload
+      child.reload
+      expect(child.settings['swapped_library']).to eq('opensymbols')
+      expect(child.settings['swap_incomplete']).to eq(true)
+      expect(root.settings['swapped_library']).to eq('opensymbols')
+      expect(root.settings['swap_incomplete']).to eq(true)
     end
 
     it "should still swap an image from a library opensymbols does not aggregate" do
