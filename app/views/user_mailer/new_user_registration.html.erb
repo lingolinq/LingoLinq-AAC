@@ -1,4 +1,4 @@
-<%= @user.settings['name'] %> just signed up for <%= app_name %>!<br/><br/>
+<%= @user.display_name %> just signed up for <%= app_name %>!<br/><br/>
 User name: <b><a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>"><%= @user.user_name %></a></b><br/>
 Email: <b><%= @user.settings['email'] %></b><br/>
 Type: <b><%= @user.registration_type %></b><br/><br/>

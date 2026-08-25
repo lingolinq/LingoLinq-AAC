@@ -12108,19 +12108,19 @@ Every check in that CI job compares a generated markdown against its JSON source
 
 ## Gotcha: `overflow-x: hidden` silently makes the OTHER axis a scroll box — and kills descendant `position: sticky` (2026-08-23)
 
-`.md-shell` (`app.scss:43771`) declares only `overflow-x: hidden !important` and never mentions `overflow-y`. Per CSS spec a `visible` value computes to `auto` when its partner is `hidden`, so the shell becomes a **scrolling box on Y** that never actually scrolls. `position: sticky` resolves against the nearest scrolling box, so a sticky bar inside it is pinned to a scrollport that cannot move — the declaration applies and does nothing. Verified live on `/u/:id/preferences`: computed `overflowY: "auto"` with `scrollHeight === clientHeight === 2138`, the real scroller two levels up (`div.with_user.new_index`, 2184 → 800), and the "sticky" bar rendering at its natural `y=2026` in an 800px viewport. Fix is `overflow-x: clip`, which still prevents horizontal overflow but establishes **no** scroll container, so `overflow-y` stays `visible`. When sticky "doesn't work," walk the ancestor chain for any `overflow` value — including one declared on the *other* axis. Ref: [`2026-08-21-claim-check-quick-wins.md`](./2026-08-21-claim-check-quick-wins.md).
+`.md-shell` (`app.scss:43771`) declares only `overflow-x: hidden !important` and never mentions `overflow-y`. Per CSS spec a `visible` value computes to `auto` when its partner is `hidden`, so the shell becomes a **scrolling box on Y** that never actually scrolls. `position: sticky` resolves against the nearest scrolling box, so a sticky bar inside it is pinned to a scrollport that cannot move — the declaration applies and does nothing. Verified live on `/u/:id/preferences`: computed `overflowY: "auto"` with `scrollHeight === clientHeight === 2138`, the real scroller two levels up (`div.with_user.new_index`, 2184 → 800), and the "sticky" bar rendering at its natural `y=2026` in an 800px viewport. Fix is `overflow-x: clip`, which still prevents horizontal overflow but establishes **no** scroll container, so `overflow-y` stays `visible`. When sticky "doesn't work," walk the ancestor chain for any `overflow` value — including one declared on the *other* axis. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
 
 ## Gotcha: `min-height: 0` on a flex item that is ITSELF the scroller is a no-op — the famous fix does not apply there (2026-08-23)
 
-The well-known "flex item needs `min-height: 0` or `overflow` won't engage" rule has a precondition most write-ups omit: per Flexbox §4.5, a flex item's *automatic minimum size* (`min-height: auto` resolving to content height) applies **only when the item's computed overflow in that axis is `visible`**. An element that already declares `overflow-y: auto` therefore already has `min-height: auto` resolving to zero, and adding `min-height: 0` changes nothing. This produced a confident-but-wrong diagnosis: `.md-modal-body--tour-picker` was "fixed" by adding `min-height: 0`, and a browser A/B (toggling the declaration on the live modal) showed **identical** `clientHeight` 511 / `scrollHeight` 1822 / `scrollable: true` both ways — the modal had never been broken. The cited "working/broken pair" (`.md-board-details-modal__body` has `min-height: 0` and scrolls) was correlation: it scrolls because of `overflow: auto`, and its `min-height: 0` is equally redundant. The rule applies to an **ancestor** flex item with visible overflow that *contains* a scroller, not to the scroller itself. Ref: [`2026-08-21-claim-check-quick-wins.md`](./2026-08-21-claim-check-quick-wins.md).
+The well-known "flex item needs `min-height: 0` or `overflow` won't engage" rule has a precondition most write-ups omit: per Flexbox §4.5, a flex item's *automatic minimum size* (`min-height: auto` resolving to content height) applies **only when the item's computed overflow in that axis is `visible`**. An element that already declares `overflow-y: auto` therefore already has `min-height: auto` resolving to zero, and adding `min-height: 0` changes nothing. This produced a confident-but-wrong diagnosis: `.md-modal-body--tour-picker` was "fixed" by adding `min-height: 0`, and a browser A/B (toggling the declaration on the live modal) showed **identical** `clientHeight` 511 / `scrollHeight` 1822 / `scrollable: true` both ways — the modal had never been broken. The cited "working/broken pair" (`.md-board-details-modal__body` has `min-height: 0` and scrolls) was correlation: it scrolls because of `overflow: auto`, and its `min-height: 0` is equally redundant. The rule applies to an **ancestor** flex item with visible overflow that *contains* a scroller, not to the scroller itself. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
 
 ## Pattern: CSS that applies is not CSS that works — a computed style is not a verdict (2026-08-23)
 
-Two same-session CSS diagnoses were both wrong from source-reading alone, in opposite directions: one declaration was inert but looked correct (`position: sticky` present, `bottom: 0px`, bar still at y=2026), and one "fix" was redundant but looked load-bearing (`min-height: 0` on an element that already had `overflow-y: auto`). Reading a property and inferring behavior skips the part that decides it — the ancestor chain and the spec preconditions on that property. The cheap discriminator is a browser measurement plus an **A/B**: toggle the declaration in-page via `el.style.<prop>` and re-measure. If the numbers do not move, the rule is not doing the work, regardless of how good the causal story sounds. Ref: [`2026-08-21-claim-check-quick-wins.md`](./2026-08-21-claim-check-quick-wins.md).
+Two same-session CSS diagnoses were both wrong from source-reading alone, in opposite directions: one declaration was inert but looked correct (`position: sticky` present, `bottom: 0px`, bar still at y=2026), and one "fix" was redundant but looked load-bearing (`min-height: 0` on an element that already had `overflow-y: auto`). Reading a property and inferring behavior skips the part that decides it — the ancestor chain and the spec preconditions on that property. The cheap discriminator is a browser measurement plus an **A/B**: toggle the declaration in-page via `el.style.<prop>` and re-measure. If the numbers do not move, the rule is not doing the work, regardless of how good the causal story sounds. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
 
 ## Gotcha: `utils/modal#open()` returns a promise that settles only on CLOSE — it hangs Playwright `evaluate` (2026-08-23)
 
-`modal.open('<template>', {})` returns an RSVP promise resolved when the modal is *dismissed*. Handing it to Playwright with an implicit arrow return — `p.evaluate(() => modal.open('tour-board-picker', {}))` — makes `evaluate` await that promise forever; four scripted runs hung with no output and no error. Use a block body returning a sentinel: `p.evaluate(() => { modal.open(...); return 'ok'; })`. Two debugging notes that generalize: piped `console.log` from node is buffered and showed nothing, so synchronous `fs.appendFileSync` step tracing is what located the hang; and `modal.open` needs `modal.setup(route)` to have run (`services/app-state.js:437`), so it only works once the app has booted a route. Ref: [`2026-08-21-claim-check-quick-wins.md`](./2026-08-21-claim-check-quick-wins.md).
+`modal.open('<template>', {})` returns an RSVP promise resolved when the modal is *dismissed*. Handing it to Playwright with an implicit arrow return — `p.evaluate(() => modal.open('tour-board-picker', {}))` — makes `evaluate` await that promise forever; four scripted runs hung with no output and no error. Use a block body returning a sentinel: `p.evaluate(() => { modal.open(...); return 'ok'; })`. Two debugging notes that generalize: piped `console.log` from node is buffered and showed nothing, so synchronous `fs.appendFileSync` step tracing is what located the hang; and `modal.open` needs `modal.setup(route)` to have run (`services/app-state.js:437`), so it only works once the app has booted a route. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
 
 ## Pattern: a placeholder that is not a null value defeats every guard written against it (2026-08-23)
 
@@ -12140,7 +12140,7 @@ Deleting the `"No name"` seed repaired ten sites without touching them — every
 
 ## Gotcha: every account carries the literal name "No name" — use `display_name`, never `name`, for display (2026-08-23)
 
-Signup never collects a name, so `User#generate_defaults` (`app/models/user.rb:1537`) seeds `settings['name'] = "No name"` and `lib/json_api/user.rb:328` serializes it as `name`. Guards of the form `name || user_name` or `(name || '').trim() || 'Friend'` therefore **never** fire — the sentinel is a non-empty string. It surfaced as "Hi No name" on the beta welcome, "NO NAME" in the account menu, and "Choose No name's home board" in the board picker. The backend value is load-bearing (`named_email`, utterance sharing) and asserted in 7 spec locations across 3 files, so do **not** change it; the Ember user model exposes `display_name`, which treats it as a sentinel and falls back to `user_name`. Use `display_name` anywhere a name is rendered; `name` remains correct for round-tripping to the server. The rule now lives in one place, `app/frontend/app/utils/display_name.js`, with the `{{display-name}}` helper and the model's `display_name` computed both delegating to it. Ref: [`2026-08-21-claim-check-quick-wins.md`](./2026-08-21-claim-check-quick-wins.md).
+Signup never collects a name, so `User#generate_defaults` (`app/models/user.rb:1537`) seeds `settings['name'] = "No name"` and `lib/json_api/user.rb:328` serializes it as `name`. Guards of the form `name || user_name` or `(name || '').trim() || 'Friend'` therefore **never** fire — the sentinel is a non-empty string. It surfaced as "Hi No name" on the beta welcome, "NO NAME" in the account menu, and "Choose No name's home board" in the board picker. **SUPERSEDED 2026-08-24 — the seed was removed.** This entry originally concluded "do **not** change it" because the value was asserted in 7 spec locations; that was a reason to change the specs, not a reason to keep shipping a sentinel to users. `generate_defaults` no longer seeds a name, `rake extras:clear_no_name_placeholder` backfills existing rows to nil, and `User#display_name` / `User#placeholder_name?` are the server-side resolution. The sentinel check survives in both `display_name_for` and `placeholder_name?` because un-backfilled accounts and cached offline payloads still carry the string. Removing a placeholder is only half the job: every consumer that had **no fallback** now renders blank, which is how the welcome email came to open with an empty line — see CLAIM-CHECK-BACKLOG.md section A2. Use `display_name` anywhere a name is rendered; `name` remains correct for round-tripping to the server. The rule now lives in one place, `app/frontend/app/utils/display_name.js`, with the `{{display-name}}` helper and the model's `display_name` computed both delegating to it. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
 
 ## Gotcha: a computed property on the user model cannot fix most name displays — most users arrive as raw JSON (2026-08-23)
 
@@ -12449,3 +12449,72 @@ Override per-run rather than reviewing on the wrong tier:
 #848 within ~5 minutes each, then never reviewed the fourth. Zero inline findings on
 a head are *inconclusive* — a successful clean review also produces none. Check the
 review list's `commit_id` before reading silence as a skip *or* as approval.
+
+### A source-level fix plus a green unit test is not evidence that a user path works
+
+Six of the seven High findings in the 2026-08-24 adversarial review of
+`fix/traci-claim-check-quick-wins` were **correct source changes defeated by something outside the
+diff**, and every one of them had shipped with a passing test and a backlog row marked "Done — do not
+re-open". Reading the diff could not have found any of them. The defeating mechanism each time:
+
+| Fix | Defeated by |
+|---|---|
+| `overflow-x: clip` on `.md-shell` | a `@media (max-width: 1024px)` block ~17,000 lines later re-declaring `overflow-x: hidden !important` at equal specificity |
+| once-per-user tour suppression | the manual "Take a tour" trigger writing the **same** hand-off flag as the auto-open |
+| search-box `mut` → action | the route: the controller's own refetch guard was bypassed by `setupController` re-running on the URL change the controller itself caused |
+| `current_host` → `absolute_host` (~130 sites) | the test fixture: `DEFAULT_HOST` was already absolute, so every assertion was a no-op |
+| corner-anchoring the feedback tab | putting it on the **base** rule, so the unrelated `--speak` variant inherited it onto the board grid |
+| removing the `"No name"` seed | the consumers that had no fallback, which went from wrong to blank |
+
+Three habits that would have caught them, cheapest first:
+
+1. **Grep for the property, not just the selector.** Before trusting a CSS fix, `grep` the whole
+   stylesheet for every other declaration of that property on that element — especially inside media
+   queries, which sit far from the base rule and usually carry `!important`. Same for any shared
+   runtime flag: `git grep <flag_name>` and read *every* writer, not only the one you added.
+2. **Ask what the test would do if the fix were reverted.** If you cannot answer concretely, the test
+   is decoration. Actually revert the line and watch it go red — that took under a minute here and
+   was the only thing that proved the COPPA link coverage was real. Check the **fixtures** too: a
+   fixture that is friendlier than production silently disables whole classes of assertion.
+3. **Vary the axis the fix depends on.** A viewport-sensitive fix needs more than one viewport; a
+   worker-vs-request fix needs both contexts; a per-user gate needs a second user *and* a second
+   invocation. The sticky harness ran one 1280x800 viewport and reported green while the fix was
+   dead on every tablet and phone.
+
+Corollary for the backlog: **"do not re-open" is a claim about a whole user path.** Close a row only
+after exercising the surface a user touches, and when the evidence is a script, make the script
+runnable by someone else — no hardcoded scratchpad paths, no uncommitted fixtures.
+
+### One breakpoint is not the breakpoint: re-declared shorthands defeat a narrower fix
+
+`overflow-x: clip` was added to `.md-shell` and to the `@media (max-width: 1024px)` scroll-guard
+block to stop the shell capturing `position: sticky`. Both edits were correct, both were reasoned
+from the spec, and the Preferences Save bar was still dead on every phone and portrait tablet —
+because two NARROWER blocks re-declare the **shorthand** on the same element:
+
+```
+@media (max-width: 950px)  .md-workspace { overflow: hidden !important; }
+@media (max-width: 820px)  .md-workspace { overflow: hidden !important; }
+```
+
+`overflow: hidden` sets both axes, so it overwrites an `overflow-x` fix completely. Measured:
+`.md-workspace` computed `clip/visible` at 1024px wide (bar pinned at y=685..768) and
+`hidden/hidden` at 768px (bar at y=1936 in a 1024px viewport). 2116 Ember tests reported `# fail 0`
+throughout.
+
+Three things to take from it:
+
+1. **Grep the PROPERTY across every breakpoint, not just the one you are fixing.** A media query
+   narrower than yours is still "later in the cascade" for the viewports it covers, and the fix you
+   verified at 1024px tells you nothing about 768px. Enumerate every declaration of that property
+   on that selector and check each one's media context.
+2. **A shorthand beats a longhand fix.** `overflow: hidden` silently reverts `overflow-x: clip`.
+   When patching one axis, search for the shorthand too — they will not look like the same rule.
+3. **`overflow: clip` is usually what these rules meant.** Where `overflow: hidden` pairs with
+   `border-radius` the intent is clipping the corners, not scrolling; `clip` does that and creates
+   no scroll container, so it cannot capture sticky. Keep `hidden` first as the pre-Safari-16
+   fallback.
+
+The general lesson, which is the same one A2 records: a CSS change verified at one viewport is
+verified at one viewport. Vary the axis the fix depends on, or you have tested the fix rather than
+the bug.

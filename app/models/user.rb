@@ -3031,19 +3031,40 @@ class User < ApplicationRecord
     (self.settings && self.settings['display_user_name']) || self.user_name
   end
 
+  # The literal string generate_defaults used to seed into settings['name'].
+  # It is truthy, so it defeated every `name || user_name` guard in the codebase.
+  # The seed is gone; accounts created before that still carry the string until
+  # `rake extras:clear_no_name_placeholder` runs, so every DISPLAY path has to
+  # keep filtering it. Mirrored client-side as SERVER_PLACEHOLDER_NAME in
+  # app/frontend/app/utils/display_name.js.
+  PLACEHOLDER_NAME = 'No name'
+
+  # True when settings['name'] holds nothing a human should be shown.
+  def placeholder_name?
+    name = self.settings && self.settings['name']
+    name.blank? || name == PLACEHOLDER_NAME
+  end
+
   # The name a human should see. Server-side mirror of the client's
   # app/frontend/app/utils/display_name.js, for the places JS cannot reach --
   # mailer views, Open Graph tags, the SMS body of a shared utterance.
   #
   # Signup collects no name, so settings['name'] is absent for most accounts and
-  # every DISPLAY has to fall back to the handle. The "No name" comparison is for
-  # accounts created before that placeholder was removed from generate_defaults;
-  # they keep the string until `rake extras:clear_no_name_placeholder` runs.
+  # every DISPLAY has to fall back to the handle.
   # Use `settings['name']` directly only when round-tripping, never to display.
   def display_name
-    name = self.settings && self.settings['name']
-    return name if name.present? && name != 'No name'
-    self.display_user_name
+    return self.display_user_name if placeholder_name?
+    self.settings['name']
+  end
+
+  # #display_name for UNAUTHENTICATED surfaces: same resolution, but the handle
+  # fallback is obfuscated. `user_name` is accepted as a login credential by
+  # session_controller, so any endpoint that skips require_api_token must never
+  # emit it -- see api/organizations_controller#start_code_lookup, which is
+  # reachable by anyone holding a forwarded start-code link.
+  def obfuscated_display_name
+    return obfuscated_name if placeholder_name?
+    self.settings['name']
   end
 
   def obfuscated_name

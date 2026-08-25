@@ -284,6 +284,71 @@ describe User, :type => :model do
     end
   end
 
+  describe "prior_named_email" do
+    # Sibling of named_email and the same blank-name branch, but its only other
+    # spec reference (spec/mailers/user_mailer_spec.rb) stubs the method out
+    # entirely, so the branch itself had never been exercised.
+    it "should return a named email for the previous address" do
+      u = User.new
+      u.generate_defaults
+      u.settings['name'] = "Bob Smith"
+      u.settings['old_emails'] = ['old@yahoo.com']
+      expect(u.prior_named_email).to eq("Bob Smith <old@yahoo.com>")
+    end
+
+    it "should return a bare address when there is no name" do
+      u = User.new
+      u.generate_defaults
+      u.settings['old_emails'] = ['old@yahoo.com']
+      expect(u.settings['name']).to eq(nil)
+      expect(u.prior_named_email).to eq("old@yahoo.com")
+    end
+
+    it "should use the most recent prior address" do
+      u = User.new
+      u.generate_defaults
+      u.settings['old_emails'] = ['oldest@yahoo.com', 'newest@yahoo.com']
+      expect(u.prior_named_email).to eq("newest@yahoo.com")
+    end
+  end
+
+  describe "display_name" do
+    it "should return the name when there is a real one" do
+      u = User.new
+      u.generate_defaults
+      u.settings['name'] = 'Ada Lovelace'
+      expect(u.display_name).to eq('Ada Lovelace')
+      expect(u.placeholder_name?).to eq(false)
+    end
+
+    it "should fall back to the handle when there is no name" do
+      u = User.create!
+      expect(u.settings['name']).to eq(nil)
+      expect(u.placeholder_name?).to eq(true)
+      expect(u.display_name).to eq(u.display_user_name)
+    end
+
+    # The seed is gone, but accounts created before that still carry the literal
+    # string until the backfill rake task runs. It is truthy, so it defeats every
+    # `name || user_name` guard -- filtering it is the whole point of this method.
+    it "should treat the legacy \"No name\" placeholder as absent" do
+      u = User.create!
+      u.settings['name'] = 'No name'
+      u.save!
+      expect(u.placeholder_name?).to eq(true)
+      expect(u.display_name).to eq(u.display_user_name)
+      expect(u.display_name).to_not eq('No name')
+    end
+
+    it "should obfuscate the handle for unauthenticated surfaces" do
+      u = User.create!
+      expect(u.obfuscated_display_name).to eq(u.obfuscated_name)
+      expect(u.obfuscated_display_name).to_not eq(u.user_name)
+      u.settings['name'] = 'Ada Lovelace'
+      expect(u.obfuscated_display_name).to eq('Ada Lovelace')
+    end
+  end
+
   describe "registration_code" do
     it "should generate a registration code if it doesn't exist yet" do
       u = User.new
@@ -595,6 +660,75 @@ describe User, :type => :model do
       u.settings['starred_board_ids'] = [b.global_id, 'ac', 'def']
       u.remember_starred_board!(b.global_id)
       expect(u.settings['starred_board_ids']).to eq(['ac', 'def'])
+    end
+  end
+
+  describe "process_params guided-tour progress" do
+    # PROGRESS_PARAMS is an ALLOWLIST: a key absent from it is silently dropped on
+    # save. `guided_tours_completed` was written by the frontend for months without
+    # being listed, so the "seen" badge never survived a reload -- and none of it
+    # had a spec, which is how it stayed broken. These cover both halves: that the
+    # keys persist at all, and that the client-supplied map is sanitized.
+    def progress_for(params)
+      u = User.new
+      u.process_params({'preferences' => {'progress' => params}}, {})
+      u.settings['preferences']['progress']
+    end
+
+    it "should persist both guided-tour maps (they are on the allowlist)" do
+      progress = progress_for({
+        'guided_tours_completed' => {'home_gentle' => true},
+        'guided_tours_autoshown' => {'board_detail_speak_gentle' => true}
+      })
+      expect(progress['guided_tours_completed']).to eq({'home_gentle' => true})
+      expect(progress['guided_tours_autoshown']).to eq({'board_detail_speak_gentle' => true})
+    end
+
+    it "should drop a progress key that is not on the allowlist" do
+      progress = progress_for({'guided_tours_completed' => {'a' => true}, 'not_a_real_key' => {'x' => true}})
+      expect(progress['guided_tours_completed']).to eq({'a' => true})
+      expect(progress['not_a_real_key']).to eq(nil)
+    end
+
+    it "should normalise every value to true and drop falsy entries" do
+      progress = progress_for({'guided_tours_completed' => {
+        'kept' => 'yes', 'also_kept' => 1, 'dropped' => false, 'also_dropped' => nil
+      }})
+      expect(progress['guided_tours_completed']).to eq({'kept' => true, 'also_kept' => true})
+    end
+
+    it "should discard the value entirely when the client sends a non-Hash" do
+      ['not a hash', 42, ['a', 'b']].each do |junk|
+        progress = progress_for({'guided_tours_completed' => junk})
+        expect(progress['guided_tours_completed']).to eq(nil), "expected #{junk.inspect} to be discarded"
+      end
+    end
+
+    it "should bound the number of keys" do
+      big = {}
+      (User::GUIDED_TOUR_MAX_KEYS + 25).times { |i| big["tour_#{i}"] = true }
+      progress = progress_for({'guided_tours_completed' => big})
+      expect(progress['guided_tours_completed'].size).to eq(User::GUIDED_TOUR_MAX_KEYS)
+    end
+
+    it "should bound the length of each key" do
+      long = 'x' * (User::GUIDED_TOUR_MAX_KEY_LENGTH + 50)
+      progress = progress_for({'guided_tours_completed' => {long => true}})
+      key = progress['guided_tours_completed'].keys.first
+      expect(key.length).to eq(User::GUIDED_TOUR_MAX_KEY_LENGTH)
+      expect(progress['guided_tours_completed'][key]).to eq(true)
+    end
+
+    it "should coerce non-string keys to strings" do
+      progress = progress_for({'guided_tours_completed' => {5 => true, :sym => true}})
+      expect(progress['guided_tours_completed']).to eq({'5' => true, 'sym' => true})
+    end
+
+    it "should survive a round-trip through save" do
+      u = User.create!
+      u.process_params({'preferences' => {'progress' => {'guided_tours_completed' => {'home_gentle' => true}}}}, {})
+      u.save!
+      expect(u.reload.settings['preferences']['progress']['guided_tours_completed']).to eq({'home_gentle' => true})
     end
   end
 

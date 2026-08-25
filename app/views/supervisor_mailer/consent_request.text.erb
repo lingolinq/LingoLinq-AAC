@@ -1,6 +1,6 @@
-Hello <%= @communicator.settings['name'] || @communicator.display_user_name %>,
+Hello <%= @communicator.display_name %>,
 
-<%= @supervisor.settings['name'] || @supervisor.display_user_name %><% if @org %>, at <%= @org.settings['name'] %><% end %>, is requesting <%= @permission_description %> access to your <%= app_name %> account.
+<%= @supervisor.display_name %><% if @org %>, at <%= @org.settings['name'] %><% end %>, is requesting <%= @permission_description %> access to your <%= app_name %> account.
 
 This means they would be able to help support your communication by viewing and interacting with your account at the requested level.
 

@@ -349,21 +349,31 @@ export default Component.extend({
 
   // True only when THIS instance is the board-detail EDIT tour (edit mode on a
   // board-detail route → tourKey 'board_detail_edit_*'). The auto-start guard must
-  // use this, NOT a bare `tourBuilder` truthy check: `board_detail_tour_pending`
-  // is flipped during "Pick this Board" while the user is STILL on /board-picker,
-  // where the navbar guided-tour instance has a (board-PICKER) tourBuilder — a
-  // truthy check would let it consume the flag and fire the WRONG tour. Gating on
-  // the board-detail-edit tourKey makes only the edit-chrome instance respond.
+  // use this, NOT a bare `tourBuilder` truthy check: the pending flag would be
+  // flipped while the user is STILL on /board-picker, where the navbar guided-tour
+  // instance has a (board-PICKER) tourBuilder — a truthy check would let it consume
+  // the flag and fire the WRONG tour. Gating on the board-detail-edit tourKey makes
+  // only the edit-chrome instance respond. (See the DORMANT note on
+  // _boardDetailTourWatcher below: no writer sets `board_detail_tour_pending` yet,
+  // so this guard is correct but currently unexercised.)
   _isBoardDetailEditTour: function() {
     return (this.get('tourKey') || '').indexOf('board_detail_edit') === 0;
   },
 
   // Auto-fire the board-detail EDIT tour when `appState.board_detail_tour_pending`
-  // is set — flipped by board-preview "Pick this Board" (and, eventually, the
-  // create-board path) right before routing into board-detail edit mode. All three
-  // entry points (init, this observer, didInsertElement) funnel into the single
-  // poll-based consumer below, which clears the flag once and only on the
-  // board-detail edit instance.
+  // is set. All three entry points (init, this observer, didInsertElement) funnel
+  // into the single poll-based consumer below, which clears the flag once and only
+  // on the board-detail edit instance.
+  //
+  // DORMANT: nothing in app/frontend sets this flag truthy. `git grep
+  // board_detail_tour_pending` returns only reads, the two `set(…, false)` clears,
+  // and comments. "Pick this Board" (components/board-preview-overlay.js) sets the
+  // SPEAK flag, `board_detail_tour_pending_speak`, which is a different path with
+  // its own consumer. This machinery is kept, not deleted, because the create-board
+  // path is the intended writer and the plumbing is correct as written — but until
+  // something sets the flag, the edit tour cannot auto-open, and any change here is
+  // unobservable at runtime. Do not read a passing test or a clean diff as evidence
+  // that a change to this path works; wire a writer first.
   _boardDetailTourWatcher: observer('appState.board_detail_tour_pending', 'tourKey', function() {
     this._consumePendingBoardDetailTour();
   }),
@@ -537,12 +547,19 @@ export default Component.extend({
             // stale flag WITHOUT firing so it can't auto-open on the wrong board.
             _this._bdSpeakTourConsuming = false;
             _this.appState.set('board_detail_tour_pending_speak', false);
+            _this.appState.set('board_detail_tour_speak_manual', false);
             return;
           }
         }
+        // Manual replay ("Take a tour") routes through the SAME pending flag as
+        // the post-pick auto-open, so the once-per-user gate downstream has to be
+        // told which one this is — otherwise it swallows the manual trigger too.
+        // Read and clear together with the pending flag.
+        var manual = !!_this.get('appState.board_detail_tour_speak_manual');
         _this._bdSpeakTourConsuming = false;
         _this.appState.set('board_detail_tour_pending_speak', false);
-        _this._scheduleBoardDetailSpeakAutoOpen();
+        _this.appState.set('board_detail_tour_speak_manual', false);
+        _this._scheduleBoardDetailSpeakAutoOpen(manual);
       } else if (attempts++ < 20) {              // ~3s ceiling (20 × 150ms)
         runLater(_this, tryConsume, 150);
       } else {
@@ -623,6 +640,11 @@ export default Component.extend({
       if (_this.isDestroyed || _this.isDestroying) { return; }
       // Flag the board-detail SPEAK tour to auto-open once we land on THIS board
       // (runtime hand-off flag; the board-detail route hides the overlay on load).
+      // Clear the manual-replay companion explicitly: a "Take a tour" request that
+      // was never consumed (user navigated away first) would otherwise still be
+      // set here and make this AUTO open skip its once-per-user bookkeeping,
+      // re-creating the every-pick re-fire this flag pair exists to prevent.
+      appState.set('board_detail_tour_speak_manual', false);
       appState.set('board_detail_tour_pending_speak', key);
       var t = _this.get('router').transitionTo('user.board-detail', userName, boardname);
       if (t && typeof t.catch === 'function') {
@@ -711,10 +733,18 @@ export default Component.extend({
     scheduleOnce('afterRender', this, tryStart);
   },
 
-  // Board-detail SPEAK auto-open. Same shape as the edit auto-open: wait for the
-  // board grid to render (so the interior spotlights resolve instead of being
+  // Board-detail SPEAK tour opener. Same shape as the edit auto-open: wait for
+  // the board grid to render (so the interior spotlights resolve instead of being
   // skipped), re-confirm we're still the speak tour, then start. Bounded.
-  _scheduleBoardDetailSpeakAutoOpen: function() {
+  //
+  // `manual` distinguishes the two callers, which share one pending flag: the
+  // post-"Pick this Board" auto-open (false) and the options-menu "Take a tour"
+  // item (true, via board-detail.js#start_speak_tour). Only the auto path is
+  // once-per-user. Getting this wrong is not a small bug: the component's own
+  // Shepherd trigger button is `display: none` (app.scss ~71474), so that menu
+  // item is the ONLY way to replay this tour, and every user who has picked a
+  // home board has already tripped the gate.
+  _scheduleBoardDetailSpeakAutoOpen: function(manual) {
     var _this = this;
     var attempts = 0;
     var tryStart = function() {
@@ -724,13 +754,16 @@ export default Component.extend({
                   document.querySelector('.md-board-detail-grid');
       if (ready || attempts >= 20) {        // ~3s ceiling (20 × 150ms)
         if (!_this._isBoardDetailSpeakTour()) { return; }
-        // Show the walkthrough ONCE per user. `tourKey` only resolves to the
+        // AUTO-show the walkthrough once per user. `tourKey` only resolves to the
         // speak key now that we're on the board-detail speak page, so this is
         // checked here (at fire time) rather than when the pending flag is
-        // consumed. Manual entry via the "Take a tour" trigger is unaffected —
-        // this gate is only on the AUTO path.
-        if (_this.get('tourAutoShown')) { return; }
-        _this._markTourAutoShown();
+        // consumed. A manual replay skips both the gate and the bookkeeping —
+        // asking for the tour is not an auto-show and must not consume the
+        // one-shot, or a second manual replay would be swallowed.
+        if (!manual) {
+          if (_this.get('tourAutoShown')) { return; }
+          _this._markTourAutoShown();
+        }
         _this._startTour();
       } else {
         runLater(_this, tryStart, 150);

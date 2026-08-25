@@ -85,20 +85,28 @@ QUnit.module('Integration | "No name" sentinel across real surfaces', function(h
     assert.true(txt.includes('Ada Lovelace'), 'a real name is preserved');
   });
 
-  // The start-code lookup page. `result` is assigned straight from the
-  // /api/v1/start_code response (controllers/start_codes.js:22), which was
-  // verified live to return name:"No name" with user_name alongside it.
-  QUnit.test('start-code lookup shows the handle for a supervisor target', async function(assert) {
-    this.set('result', { code: 'abc', supervisor: true, target_id: '1_9', name: SENTINEL, user_name: 'nameless_one' });
-    await render(hbs`{{#if this.result.supervisor}}<span id="out">{{display-name this.result}}</span>{{/if}}`);
-    assert.strictEqual(this.element.querySelector('#out').textContent.trim(), 'nameless_one',
-      'renders the handle the Rails change now supplies, not the sentinel');
-  });
-
-  QUnit.test('start-code lookup keeps an organization name, which has no handle', async function(assert) {
-    this.set('result', { code: 'abc', organization: true, target_id: '1_1', name: 'Springfield Schools' });
-    await render(hbs`<span id="out">{{display-name this.result}}</span>`);
-    assert.strictEqual(this.element.querySelector('#out').textContent.trim(), 'Springfield Schools',
-      'an org name survives — it must not be blanked by the handle fallback');
-  });
+  /* NO start-code case here, deliberately.
+   *
+   * Two used to live at this spot and neither belonged in this file. They set a
+   * `result` object and rendered `{{display-name this.result}}` in a scratch
+   * template — NOT app/templates/start_codes.hbs — so reverting that template to
+   * `{{this.result.name}}` left both green. They restated
+   * display-name-helper-test.js while reading like surface coverage, which is
+   * worse than no test: the file's own preamble promises "the REAL components".
+   * A rendering test can only mount a component; `start_codes.hbs` is a route
+   * template, so this layer genuinely cannot reach it.
+   *
+   * The contract also moved. api/organizations_controller#start_code_lookup is
+   * exempt from require_api_token, so it no longer ships `user_name` at all — it
+   * resolves the display value server-side via User#obfuscated_display_name and
+   * sends it as `name`. The payload those tests simulated (sentinel `name` plus a
+   * `user_name` to fall back to) can no longer be produced. That contract is
+   * covered where it is actually decided, in
+   * spec/controllers/api/organizations_controller_spec.rb — including an
+   * assertion that the handle appears nowhere in the response.
+   *
+   * The client helper is still the right thing in that template, as a safety net
+   * for cached/offline payloads predating the change, and its behaviour on every
+   * shape the server can emit is covered by tests/utils/display_name-test.js.
+   */
 });

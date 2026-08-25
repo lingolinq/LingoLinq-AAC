@@ -41,12 +41,12 @@
     {{#if this.model.permissions.reply}}
       {{#if this.model.prior}}
         <div style='margin: -10px 0 30px 20px;'>
-          <em>{{t "in reply to" key="in_reply_to"}}{{#if this.model.prior.author.name}} {{t "message from" key="message_from"}} {{this.model.prior.author.name}}{{/if}}:</em>
+          <em>{{t "in reply to" key="in_reply_to"}}{{#if (display-name this.model.prior.author)}} {{t "message from" key="message_from"}} {{display-name this.model.prior.author}}{{/if}}:</em>
           <div style="border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line;">{{this.model.prior.text}}</div>
         </div>
       {{/if}}
       <h3>
-        {{#if this.model.private_only}}{{t "Write a Message" key="write_a_message"}}{{else}}{{t "Write a Reply" key="write_a_reply"}}{{/if}}{{#if this.model.user.name}} {{t "to" key="to"}} {{display-name this.model.user}}{{/if}}{{t ":" key="colon"}}
+        {{#if this.model.private_only}}{{t "Write a Message" key="write_a_message"}}{{else}}{{t "Write a Reply" key="write_a_reply"}}{{/if}}{{#if (display-name this.model.user)}} {{t "to" key="to"}} {{display-name this.model.user}}{{/if}}{{t ":" key="colon"}}
       </h3>
       <div style='margin: -5px 0 30px;'>
         {{#if this.reachable_core}}

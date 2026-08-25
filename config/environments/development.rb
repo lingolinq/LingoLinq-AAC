@@ -31,12 +31,19 @@ Rails.application.configure do
   # number of complex assets.
   config.assets.debug = true
 
-  # Match production and docs/CSS_SCSS_GUIDELINES.md: never run built CSS back
-  # through SassC. sassc-rails forces `:sass` on any environment that does not
-  # set this (sassc-rails-2.1.2 lib/sassc/rails/railtie.rb:74), and SassC cannot
-  # parse the modern CSS the Ember build emits, so pages that include
-  # frontend.css 500 with "Incompatible units: 'vw' and 'px'" once the frontend
-  # has been built locally.
+  # Match production, test, and docs/CSS_SCSS_GUIDELINES.md: never run built CSS
+  # back through SassC, which cannot parse the modern CSS the Ember build emits.
+  #
+  # Belt-and-braces, not load-bearing: sassc-rails only forces `:sass` on
+  # environments where `Rails.env.development?` is FALSE
+  # (sassc-rails-2.1.2 lib/sassc/rails/railtie.rb:72-77 — the development branch
+  # sets `config.sass.style` instead and leaves css_compressor alone), and
+  # Rails' own default for it is nil. So development never had the
+  # "Incompatible units: 'vw' and 'px'" failure that made this necessary in
+  # config/environments/test.rb. Stated explicitly because an earlier version of
+  # this comment claimed the opposite and would have sent the next reader
+  # looking for a bug that is not here. Kept so all three environments declare
+  # the same intent in the same place.
   config.assets.css_compressor = nil
 
   config.action_mailer.delivery_method = :ses

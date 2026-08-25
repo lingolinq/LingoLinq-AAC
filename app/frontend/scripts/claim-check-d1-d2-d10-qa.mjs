@@ -24,6 +24,15 @@ const PASS = arg('--pass', 'password');
 const ONLY = arg('--only', null);
 const RUN_D2 = process.argv.includes('--d2');
 const HEADED = process.argv.includes('--headed');
+
+/* --d2 rewrites a real user's home board. Loopback only, for the same reason as
+   scripts/n1-under13-signup-qa.mjs; --i-know-this-writes overrides. */
+const LOOPBACK = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?(\/|$)/i;
+if (RUN_D2 && !LOOPBACK.test(BASE) && !process.argv.includes('--i-know-this-writes')) {
+  console.error(`Refusing to run --d2 against a non-loopback host: ${BASE}\n` +
+    "It overwrites the target account's home board. Re-run with --i-know-this-writes to override.");
+  process.exit(2);
+}
 // A board the session user does NOT own -- that is the journey D1 is about.
 const FOREIGN_BOARD = arg('--board', 'lingolinq/keyboard');
 

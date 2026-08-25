@@ -115,7 +115,7 @@ updates every <%= @log_period %>.</p>
               <td style='padding: 5px 0 10px 50px;' colspan='3'>
                 Update Goal Status
                 <% if user.secondary_goal_count > 0 %>
-                 (<a href="<%= JsonApi::Json.absolute_host %>/<%= user.user_name %>/goals" s>see more goals for this user</a>)
+                 (<a href="<%= JsonApi::Json.absolute_host %>/<%= user.user_name %>/goals">see more goals for this user</a>)
                 <% end %>
                 <br/>
                 <table style='border: 0; padding: 5px; margin-left: -10px;'>

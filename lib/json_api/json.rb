@@ -108,12 +108,31 @@ module JsonApi::Json
   # unaffected and cannot end up double-prefixed.
   def self.absolute_host
     host = current_host.to_s.strip.sub(/\/+\z/, '')
-    return host if host.blank?
+    if host.blank?
+      # No request host AND no ENV['DEFAULT_HOST']. Returning '' reproduces the
+      # exact defect this method exists to prevent -- every link built on it
+      # becomes relative and unfollowable from a mail client -- but raising here
+      # would take down mail delivery from a Resque worker for what is a
+      # configuration problem. Log it instead, so a misconfigured environment is
+      # findable in the logs rather than showing up as parents who cannot approve
+      # their child's account. Every deployment path sets DEFAULT_HOST
+      # (Dockerfile ARG, deploy-cloudrun.yml BOOT_SECRETS, .env.example), so this
+      # should be unreachable in practice.
+      Rails.logger.error('JsonApi::Json.absolute_host: no host available (ENV["DEFAULT_HOST"] unset and no request host) — generated links will be RELATIVE and unfollowable') rescue nil
+      return host
+    end
     return host if host.match?(/\A[a-zA-Z][a-zA-Z0-9+.\-]*:\/\//)
     "#{url_scheme_for(host)}#{host}"
   end
 
   # Loopback hosts are served over http in development; everything else is https.
+  #
+  # An already-absolute host is returned untouched by absolute_host above, http
+  # included -- deliberately, so that a request-context caller is never rewritten.
+  # That is safe in production because config/environments/production.rb sets
+  # `config.force_ssl = true`, so a request that reaches set_host has already been
+  # redirected to https and `request.protocol` is https. The http case is
+  # therefore development and self-hosting only.
   def self.url_scheme_for(host)
     return 'http://' if host.to_s.match?(/\A(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?\z/i)
     'https://'

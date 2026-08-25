@@ -54,6 +54,18 @@ const SPEAK_MENU_ITEMS = [
      `preferences.speak_mode_hidden_menu_items` arrays; that's
      harmless — the values are simply no longer referenced. */
   { id: 'board_collection',     section: 'board',     label_key: 'my_board_collection', default_label: 'My Board Collection' },
+  /* The view-mode rows restored in 3812ce5b6 / 72dabfe93. They were added
+     straight to the template, gated only on permission, which quietly made them
+     the only rows on this menu a user cannot hide — the customize panel is built
+     from THIS list, so an unlisted row simply never appears there. Anything added
+     to the options menu belongs here too. `set_as_home` is top-level; the other
+     four live in the Board Actions submenu and are listed individually, matching
+     how the Share & Print rows are handled. */
+  { id: 'set_as_home',          section: 'board',     label_key: 'set_as_home_board', default_label: 'Set as Home Board' },
+  { id: 'board_details',        section: 'board',     label_key: 'board_details', default_label: 'Board Details' },
+  { id: 'toggle_favorite',      section: 'board',     label_key: 'set_as_favorite', default_label: 'Set as Favorite' },
+  { id: 'add_to_sidebar',       section: 'board',     label_key: 'add_to_sidebar', default_label: 'Add to Sidebar' },
+  { id: 'other_board_actions',  section: 'board',     label_key: 'other_actions', default_label: 'Other Actions' },
   { id: 'find_button',          section: 'buttons',   label_key: 'find_a_button', default_label: 'Find a Button' },
   { id: 'focus_words',          section: 'buttons',   label_key: 'focus_words', default_label: 'Focus Words' },
   { id: 'show_hidden_buttons',  section: 'buttons',   label_key: 'show_all_buttons', default_label: 'Show Hidden Buttons' },
@@ -101,6 +113,11 @@ function _customize_menu_i18n_extractor_no_op() {
   i18n.t('session', "Session");
   // Items (SPEAK_MENU_ITEMS)
   i18n.t('my_board_collection', "My Board Collection");
+  i18n.t('set_as_home_board', "Set as Home Board");
+  i18n.t('board_details', "Board Details");
+  i18n.t('set_as_favorite', "Set as Favorite");
+  i18n.t('add_to_sidebar', "Add to Sidebar");
+  i18n.t('other_actions', "Other Actions");
   i18n.t('find_a_button', "Find a Button");
   i18n.t('focus_words', "Focus Words");
   i18n.t('show_all_buttons', "Show Hidden Buttons");
@@ -3269,6 +3286,37 @@ export default Controller.extend(prefClasses, {
     return set;
   }),
 
+  /* Dismiss the options menu and every submenu inside it.
+     For menu items that open a MODAL. `_closeDropdownsHandler` does not handle
+     `show_options_menu` — only the backdrop scrim does, and a modal overlay
+     covers the scrim, so a menu left open sits behind the modal and is still
+     there when it closes. The five items that had this problem all set
+     `details_dropdown_open` instead, which nothing has been able to set true
+     since the details dropdown was removed, so it was a no-op standing in for
+     the close that never happened. One helper rather than the two-line pair
+     repeated per item: the submenu list only grows, and the next item added
+     should not have to know about all of them. */
+  _close_options_menu: function() {
+    this.setProperties({
+      show_options_menu: false,
+      board_submenu_open: false,
+      share_print_submenu_open: false,
+      display_submenu_open: false,
+      buttons_submenu_open: false,
+      language_submenu_open: false
+    });
+  },
+
+  /* False once every child of the Board Actions submenu is hidden in Customize
+     Menu, so the disclosure toggle disappears with them rather than opening onto
+     an empty panel. Keep this list in step with the four `{{#unless}}` gates in
+     board-detail.hbs — they are the same four ids. */
+  board_submenu_has_visible_items: computed('speak_menu_hidden_set', function() {
+    var hidden = this.get('speak_menu_hidden_set') || {};
+    return ['board_details', 'toggle_favorite', 'add_to_sidebar', 'other_board_actions']
+      .some(function(id) { return !hidden[id]; });
+  }),
+
   // Pre-shaped list for the right-panel "Customize Menu" template.
   // Walks SPEAK_MENU_ITEMS, groups by section, and returns:
   //   [ { section: { id, label_key, default_label }, items: [...] }, ... ]
@@ -3449,11 +3497,44 @@ export default Controller.extend(prefClasses, {
     }
   ),
 
+  /* True when the board on screen is ALREADY the home board of the user this
+     page is scoped to. Subject is `referenced_user` (the communicator being
+     spoken for, which is who a home board set from this page belongs to),
+     falling back to the signed-in user — the same subject rule as
+     components/board-collection.js#_subjectHomeKey, kept in step deliberately so
+     "is this the home board" cannot mean two different things on two surfaces.
+
+     Compared by KEY, not id: `preferences.home_board` stores `{key, id}` and the
+     key is the one field always present on both sides (board list payloads omit
+     the id in places). Both sides must be non-empty — a user with no home board
+     set has `home_board.key` undefined, and `undefined === undefined` would
+     otherwise report every board as already-home. */
+  is_subject_home_board: computed(
+    'model.key',
+    'app_state.referenced_user',
+    'app_state.referenced_user.preferences.home_board.key',
+    'app_state.sessionUser',
+    'app_state.sessionUser.preferences.home_board.key',
+    function() {
+      var key = this.get('model.key');
+      if(!key) { return false; }
+      var subject = this.get('app_state.referenced_user') || this.get('app_state.sessionUser');
+      var home = subject && subject.get('preferences.home_board.key');
+      return !!home && home === key;
+    }
+  ),
+
   /* Anyone signed in can choose a home board. The set-as-home modal decides
      whether a copy is required first and, for a supporter, which user it is
-     being set for -- so there is nothing more to gate on here. */
-  can_set_as_home: computed('app_state.sessionUser', function() {
-    return !!this.get('app_state.sessionUser');
+     being set for -- so there is nothing more to gate on here, EXCEPT that the
+     board is not already the subject's home board: offering "Set as Home Board"
+     while standing on the home board is a no-op the user has to open a modal to
+     discover. Gates only the options-menu row on the speak page (the sole
+     consumer of this property); the edit-panel row is separately gated and
+     unaffected. */
+  can_set_as_home: computed('app_state.sessionUser', 'is_subject_home_board', function() {
+    if(!this.get('app_state.sessionUser')) { return false; }
+    return !this.get('is_subject_home_board');
   }),
 
   undo_redo_disabled: computed('borders_matched', 'board_recolored', function() {
@@ -5245,38 +5326,25 @@ export default Controller.extend(prefClasses, {
           if (!menu) { return; }
           var first_item = menu.querySelector('.md-board-detail-actions-menu__item');
           if (first_item) { first_item.focus(); }
-          // The Ember {{action on="keyDown"}} on the menu div does not reliably
-          // fire for ArrowUp/Down when a child button has focus. Attach native
-          // keydown listeners to each item (same pattern as paint dropdown).
-          var items = Array.prototype.slice.call(menu.querySelectorAll('.md-board-detail-actions-menu__item'))
-            .filter(function(el) { return el.offsetParent !== null; });
-          items.forEach(function(item) {
-            if (item._optionsKeydownBound) { return; }
-            item._optionsKeydownBound = true;
-            item.addEventListener('keydown', function(e) {
-              var key = e.key || e.keyCode;
-              if (key === 'ArrowDown' || key === 40) {
-                e.preventDefault(); e.stopPropagation();
-                var idx = items.indexOf(document.activeElement);
-                items[(idx + 1) % items.length].focus();
-              } else if (key === 'ArrowUp' || key === 38) {
-                e.preventDefault(); e.stopPropagation();
-                var idx2 = items.indexOf(document.activeElement);
-                items[(idx2 - 1 + items.length) % items.length].focus();
-              } else if (key === 'Escape' || key === 'Esc' || key === 27) {
-                e.preventDefault(); e.stopPropagation();
-                /* Two-step Escape: if the inline collection is open,
-                   step back to the normal menu first. A second Escape
-                   then closes the menu. Mirrors common nested-menu
-                   conventions. */
-                if (_this.get('board_collection_open')) {
-                  _this.send('close_board_collection');
-                } else if (_this.get('show_options_menu')) {
-                  _this.send('toggle_options_menu');
-                }
-              }
-            });
-          });
+          /* Arrow/Escape navigation is handled by `options_menu_keydown`, bound
+             with `{{on "keydown"}}` on the menu container (board-detail.hbs, the
+             `.md-board-detail-actions-menu` div). Native keydown bubbles from the
+             focused child button, so the container sees every key.
+
+             There used to be a block here that attached a native listener to each
+             item over a SNAPSHOT of the visible items, taken at open time, and
+             called stopPropagation. Two problems, one of them a real bug: the
+             stopPropagation meant the container handler never ran, and the
+             snapshot could not contain anything rendered later — so the four
+             items inside the Board Actions submenu, which only exist once it is
+             expanded, got no listener and were not in the array. Arrowing down
+             from "Board Actions" jumped straight past all four. The container
+             handler re-queries the DOM on every keypress, so it picks them up.
+
+             The comment that justified the per-item block ("the Ember
+             {{action on=\"keyDown\"}} on the menu div does not reliably fire")
+             described the pre-Ember-5 {{action}} form; the binding is a native
+             {{on}} modifier now. */
         } else {
           var trigger = document.querySelector('.md-board-detail-actions-toggle');
           if (trigger) { trigger.focus(); }
@@ -5347,11 +5415,21 @@ export default Controller.extend(prefClasses, {
     // visible runner lives in the hidden {{guided-tour}} host; we trigger it by
     // setting the same pending flag the post-"Pick this Board" auto-open uses
     // (scoped to this board's key), which the host's watcher consumes and starts.
+    //
+    // `board_detail_tour_speak_manual` tells the host this is a REPLAY, not an
+    // auto-open. Without it the host's once-per-user `tourAutoShown` gate
+    // swallows this trigger for anyone who has already seen the tour once —
+    // i.e. everyone who has picked a home board — and this menu item is the only
+    // way in, because the component's own Shepherd button is display:none.
+    // The host clears both flags when it consumes them.
     start_speak_tour: function() {
       this.set('show_options_menu', false);
       var app_state = this.get('app_state');
       var key = app_state && app_state.get('currentBoardState.key');
-      if (key) { app_state.set('board_detail_tour_pending_speak', key); }
+      if (key) {
+        app_state.set('board_detail_tour_speak_manual', true);
+        app_state.set('board_detail_tour_pending_speak', key);
+      }
     },
     enter_edit_mode: function() {
       var _this = this;
@@ -6269,7 +6347,7 @@ export default Controller.extend(prefClasses, {
     },
 
     toggle_favorite: function() {
-      this.set('details_dropdown_open', false);
+      this._close_options_menu();
       var board = this.get('model');
       if(board.get('starred')) {
         board.unstar();
@@ -6344,13 +6422,13 @@ export default Controller.extend(prefClasses, {
     },
 
     set_as_home: function() {
-      this.set('details_dropdown_open', false);
+      this._close_options_menu();
       var board = this.get('model');
       modal.open('set-as-home', {board: board});
     },
 
     add_to_sidebar: function() {
-      this.set('details_dropdown_open', false);
+      this._close_options_menu();
       var _this = this;
       var board = _this.get('model');
       modal.open('add-to-sidebar', {board: {
@@ -6402,7 +6480,7 @@ export default Controller.extend(prefClasses, {
        `details_dropdown_open` above. */
 
     other_board_actions: function() {
-      this.set('details_dropdown_open', false);
+      this._close_options_menu();
       modal.open('modals/board-actions', { board: this.get('model') });
     },
 
@@ -7666,7 +7744,7 @@ export default Controller.extend(prefClasses, {
     },
 
     board_details: function() {
-      this.set('details_dropdown_open', false);
+      this._close_options_menu();
       var board = this.get('model');
       if(!board) { return; }
       modal.open('board-details', { board: board, edit_mode: this.get('edit_mode') });
@@ -7977,16 +8055,13 @@ export default Controller.extend(prefClasses, {
       this.set('ordered_buttons', ob.map(function(row) { return [].concat(row); }));
     },
 
-    open_button_stash: function() {
-      this.set('paint_mode', null);
-      modal.open('button-stash');
-    },
-
-    suggestions: function() {
-      var board = this.get('model');
-      if(!board) { return; }
-      modal.open('button-suggestions', { board: board, user: this.get('app_state').get('currentUser') });
-    },
+    /* `open_button_stash` and `suggestions` were DELETED 2026-08-24, not lost:
+       both moved to components/board-actions.js when their rows moved out of this
+       controller's edit panel and into the Board Actions modal. Nothing in any
+       template or JS referenced them here afterwards (verified by grep and by
+       lingolinq/no-orphaned-action), and leaving a handler with no call site is
+       the exact condition this branch exists to clear. Recover with
+       `git show <this-commit>^:app/frontend/app/controllers/user/board-detail.js`. */
 
     // ── Drag & Drop ──
 

@@ -27,8 +27,11 @@
      already the adjacent column.
    Note also that a fallback only works where `user_name` is actually on the
    wire. `limited_identity` payloads carry it; hand-rolled controller JSON may
-   not (see api/organizations_controller.rb#start_code_lookup, which had to be
-   changed to emit it).
+   not. Where it is deliberately absent the server resolves the name itself and
+   this function's first branch simply returns it — api/organizations_controller
+   #start_code_lookup does that, because it skips require_api_token and
+   `user_name` is a login credential, so it emits User#obfuscated_display_name
+   as `name` rather than handing the raw handle to an anonymous caller.
 
    Server-side displays need their own fallback — this file cannot reach them.
    Utterance#share_with builds the SMS and email a family member receives
@@ -37,9 +40,15 @@
 
 const SERVER_PLACEHOLDER_NAME = 'No name';
 
+/* `typeof obj.get === 'function'`, not a truthy check: a plain payload is free to
+   carry a `get` key of its own (a JSON blob with a `get` field, a serialized
+   record) and a truthy check would then call a string. No current call site can
+   hit that — every shape was traced — but this function's whole reason to exist
+   is that it is handed BOTH Ember-Data records and raw `limited_identity` JSON,
+   so the one thing it must never do is throw on a shape it was given. */
 function read(obj, key) {
   if(!obj) { return null; }
-  return obj.get ? obj.get(key) : obj[key];
+  return typeof obj.get === 'function' ? obj.get(key) : obj[key];
 }
 
 /* Also safe on an organization, which has a `name` but no `user_name`: only

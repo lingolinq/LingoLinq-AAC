@@ -45,9 +45,16 @@
               right and the label was wrong. New key rather than restating
               `available_buttons`, so existing translations of that string are not
               silently repurposed to a different meaning. --}}
-        <dt title={{t "Buttons that speak a word or phrase, across this board and every board it links to. Navigation buttons are not counted." key="word_buttons_explainer"}}>{{t "Word Buttons" key="word_buttons"}}</dt>
+        {{!-- The explainer is VISIBLE text, not a `title` tooltip. A <dt> is not
+              focusable and carries no interactive role, so a tooltip on it is
+              mouse-only: unreachable by keyboard, by touch, and unannounced by
+              screen readers (WCAG 1.4.13 / 2.1.1). aria-describedby ties it to
+              the term so it is read as the term's description rather than as a
+              stray sentence. --}}
+        <dt aria-describedby="md-board-preview-word-buttons-help">{{t "Word Buttons" key="word_buttons"}}</dt>
           <dd>
             {{this.model.unlinked_buttons}}
+            <span id="md-board-preview-word-buttons-help" class="md-board-preview__meta-help">{{t "Buttons that speak a word or phrase, across this board and every board it links to. Navigation buttons are not counted." key="word_buttons_explainer"}}</span>
           </dd>
         <dt>{{t "Likes" key="stars"}}</dt>
           <dd>

@@ -33,10 +33,27 @@ const PAGES = [
   ['/example/stats', 'stats'],
 ];
 
+/* MULTIPLE VIEWPORTS, on purpose. The first version of this harness ran only
+   1280x800 and reported the fix green while it was entirely cancelled at
+   <=1024px: a pre-existing `@media (max-width: 1024px)` block re-declares
+   `overflow-x: hidden !important` on the whole ancestor chain at identical
+   specificity and later source order (app.scss ~60656, and again ~68384). One
+   viewport could not see it, and <=1024 is where it matters most -- tablets,
+   phones, and desktop at >=125% zoom, i.e. exactly the widths WCAG 1.4.10
+   Reflow and 1.4.4 Resize text are about. */
+const VIEWPORTS = [
+  ['desktop', 1280, 800],
+  ['desktop-125pct-zoom', 1024, 640],   // 1280 physical at 125% => 1024 CSS px
+  ['tablet-landscape', 1024, 768],
+  ['tablet-portrait', 768, 1024],
+  ['phone', 390, 844],
+];
+
 const results = [];
+let VP = '';
 function record(id, pass, detail) {
-  results.push({ id, pass, detail });
-  console.log(`  [${pass === true ? 'PASS' : pass === false ? 'FAIL' : 'INFO'}] ${id}: ${detail}`);
+  results.push({ id: `${VP}/${id}`, pass, detail });
+  console.log(`  [${pass === true ? 'PASS' : pass === false ? 'FAIL' : 'INFO'}] ${VP}/${id}: ${detail}`);
 }
 
 async function login(page) {
@@ -56,6 +73,10 @@ async function login(page) {
   try {
     await login(page);
 
+    for (const [vpName, vpW, vpH] of VIEWPORTS) {
+    VP = vpName;
+    await page.setViewportSize({ width: vpW, height: vpH });
+    console.log(`\n================ ${vpName} (${vpW}x${vpH}) ================`);
     for (const [path, label] of PAGES) {
       await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle', timeout: 60000 }).catch(() => {});
       await page.waitForTimeout(2600);
@@ -143,6 +164,7 @@ async function login(page) {
             s.covered.length ? `pinned at y=${s.y} and COVERS ${JSON.stringify(s.covered)}` : `${s.onScreen ? `pinned at y=${s.y}` : 'off-screen'}, covers nothing`);
         });
       }
+    }
     }
   } catch (e) {
     record('harness', false, `threw: ${e.message.slice(0, 150)}`);

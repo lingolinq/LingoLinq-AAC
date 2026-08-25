@@ -107,7 +107,15 @@ var Subscription = EmberObject.extend({
       var plan = u.get('subscription.plan_id');
 
       this.set('email', u.get('email'));
-      this.set('name', display_name_for(u));
+      /* Raw `name`, NOT display_name_for. This seeds the "Purchaser's Name"
+         input (templates/gift_purchase.hbs), which the user submits — a WRITE
+         binding, and display_name_for's own contract says not to use it for one.
+         Signup collects no name, so it would prefill the login handle
+         ("aiden_parker") as somebody's purchaser name and most people would not
+         notice before submitting. Blank is the honest default: the field asks
+         for a name, so let them type one. Same reasoning as
+         templates/user/edit.hbs, which is commented at the site. */
+      this.set('name', u.get('name') || '');
 
       if(u.get('preferences.role') == 'supporter') {
         this.set('user_type', 'supporter');

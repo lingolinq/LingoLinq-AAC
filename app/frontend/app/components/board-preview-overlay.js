@@ -383,7 +383,14 @@ export default Component.extend({
     // reads this once it mounts on THIS board and auto-starts the speak tour, then
     // clears it (see guided-tour.js _consumePendingBoardDetailSpeakTour). Scoped to
     // the board key so a stale flag can't fire the tour on a different board.
-    if (key) { app_state.set('board_detail_tour_pending_speak', key); }
+    // `board_detail_tour_speak_manual` is cleared explicitly rather than left
+    // alone: it rides the same pending flag to mark a "Take a tour" REPLAY, and a
+    // replay request that was never consumed would otherwise make this AUTO open
+    // skip its once-per-user bookkeeping and re-fire on every subsequent pick.
+    if (key) {
+      app_state.set('board_detail_tour_speak_manual', false);
+      app_state.set('board_detail_tour_pending_speak', key);
+    }
     if (locale) { app_state.set('label_locale', locale); }
     var parts = key.split('/');
     /* TWO OBSERVATIONS FROM THE SELF-PICK CLICK-TESTS, DEFERRED (2026-08-14).
@@ -425,18 +432,26 @@ export default Component.extend({
         routerSvc.transitionTo('board', key);
       }
     };
+    /* Confirm the switch in words. The pickingForOther branch above has always
+       done this ("Great! This is now the user's home board!"); the self-pick
+       path silently transitioned, so after a 30-40s wait the user arrived with
+       no statement that anything had changed. modal.flash survives the route
+       change, so it lands on the new board rather than on the dying preview.
+       Named so it also answers "why did that take so long".
+
+       Two handlers, not one: the home board is set either way, but the images
+       are exactly what did NOT get saved when the preload rejects, so promising
+       offline use on that path is the one claim we know to be false — and the
+       user finds out only when they are offline and the board renders blank. */
     var finish = function() {
-      /* Confirm the switch in words. The pickingForOther branch above has always
-         done this ("Great! This is now the user's home board!"); the self-pick
-         path silently transitioned, so after a 30-40s wait the user arrived with
-         no statement that anything had changed. modal.flash survives the route
-         change, so it lands on the new board rather than on the dying preview.
-         Named so it also answers "why did that take so long". */
-      modal.success(i18n.t('board_now_your_home_board',
-        "This is now your home board, and it's saved for offline use."), true);
+      modal.success(i18n.t('board_now_your_home_board', "This is now your home board, and it's saved for offline use."), true);
       go();
     };
-    preload_board_images(homeBoard).then(finish, finish);
+    var finish_without_images = function() {
+      modal.success(i18n.t('board_now_your_home_board_no_offline', "This is now your home board. Some images could not be saved for offline use — reconnect and open the board once to finish saving it."), true);
+      go();
+    };
+    preload_board_images(homeBoard).then(finish, finish_without_images);
   },
 
   // Clear the copying overlay and surface a (localized) error. Leaves the preview

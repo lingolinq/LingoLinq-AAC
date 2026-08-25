@@ -8,14 +8,38 @@
  * Also exercises the 14-day `parent_consent_expires_at` window and a tampered
  * token, because a consent page that fails silently is worse than one that errors.
  *
- * Fixtures are created by the rails-runner block in the working log; this reads
- * them from the scratchpad. Run from app/frontend.
+ * FIXTURES. This script needs live consent tokens, which cannot be committed.
+ * Generate them into a file of your choosing and pass its path:
+ *
+ *   bundle exec rails runner scripts/n1-consent-fixtures.rb > /tmp/consent_pages.json
+ *   node scripts/n1-consent-pages-qa.mjs --fixtures /tmp/consent_pages.json
+ *
+ * The generator is committed alongside this script so the whole run is
+ * reproducible by anyone. It previously read a hardcoded path inside one
+ * machine's Claude Code session scratchpad, which meant nobody else could run
+ * it and the "12/12 verified" claim in CLAIM-CHECK-BACKLOG.md rested on an
+ * artifact that no longer exists once /private/tmp is cleared.
+ *
+ * Run from app/frontend.
  */
 import { chromium } from 'playwright';
 import { readFileSync } from 'fs';
 
-const SP = '/private/tmp/claude-501/-Users-traciday-Documents-GitHub-lingolinq-LingoLinq-AAC/c05a4c39-9c9e-4466-a6b6-365215118aeb/scratchpad';
-const F = JSON.parse(readFileSync(`${SP}/consent_pages.json`, 'utf8'));
+const arg = (n, d) => process.argv.find((a, i) => process.argv[i - 1] === n) || d;
+const FIXTURES = arg('--fixtures', null);
+if (!FIXTURES) {
+  console.error('Missing --fixtures <path>. Generate it first:\n' +
+    '  bundle exec rails runner scripts/n1-consent-fixtures.rb > /tmp/consent_pages.json\n' +
+    '  node scripts/n1-consent-pages-qa.mjs --fixtures /tmp/consent_pages.json');
+  process.exit(2);
+}
+let F;
+try {
+  F = JSON.parse(readFileSync(FIXTURES, 'utf8'));
+} catch (e) {
+  console.error(`Could not read fixtures at ${FIXTURES}: ${e.message}`);
+  process.exit(2);
+}
 
 const results = [];
 function record(id, pass, detail) {

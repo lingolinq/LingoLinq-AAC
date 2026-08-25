@@ -14,6 +14,19 @@ import { chromium } from 'playwright';
 const arg = (n, d) => process.argv.find((a, i) => process.argv[i - 1] === n) || d;
 const BASE = arg('--base', 'http://localhost:8184');
 const HEADED = process.argv.includes('--headed');
+
+/* This harness SUBMITS the real registration form, so every run leaves behind a
+   live under-13 account and dispatches a real parental-consent email. Pointed at
+   staging or production by a stray --base that is orphan child records in a
+   regulated data set and mail to an address nobody owns. Loopback only; pass
+   --i-know-this-writes to override deliberately. */
+const LOOPBACK = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?(\/|$)/i;
+if (!LOOPBACK.test(BASE) && !process.argv.includes('--i-know-this-writes')) {
+  console.error(`Refusing to run against a non-loopback host: ${BASE}\n` +
+    'This script creates under-13 accounts and sends parental-consent email.\n' +
+    'Re-run with --i-know-this-writes if that is genuinely what you want.');
+  process.exit(2);
+}
 const STAMP = arg('--stamp', String(Math.floor(Number(process.env.QA_STAMP || '0')) || 0));
 
 const results = [];

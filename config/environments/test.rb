@@ -18,12 +18,15 @@ Rails.application.configure do
 
   # Match production (config/environments/production.rb) and the rule in
   # docs/CSS_SCSS_GUIDELINES.md: never run built CSS back through SassC.
-  # sassc-rails forces `:sass` on any environment that does not set this
-  # (sassc-rails-2.1.2 lib/sassc/rails/railtie.rb:74), and SassC cannot parse
+  # sassc-rails forces `:sass` on every environment except development
+  # (sassc-rails-2.1.2 lib/sassc/rails/railtie.rb:72-77), and SassC cannot parse
   # the modern CSS the Ember build emits -- e.g. `clamp(20px, 20px + 1vw, 40px)`
   # in app/frontend/dist/assets/frontend.css, which is valid browser CSS and
-  # comes from correctly-written source (_eval_quick.scss:68 wraps it in calc();
-  # the Ember minifier legitimately drops the now-redundant calc()).
+  # comes from correctly-written source: _eval_quick.scss:68 writes
+  # `clamp(20px, calc(20px + 1vw), 40px)` and Dart Sass simplifies away the
+  # now-redundant calc() on the way out. (NOT the Ember minifier, as an earlier
+  # version of this comment said -- app/frontend/ember-cli-build.js:23-25 sets
+  # `minifyCSS: { enabled: false }`, so no minification pass runs at all.)
   # Without this, ANY spec that renders a page 500s with
   # "Incompatible units: 'vw' and 'px'" -- but only on a machine where the
   # frontend has actually been built, so CI never sees it.

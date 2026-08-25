@@ -51,11 +51,20 @@ describe JsonApi::Json do
       expect(JsonApi::Json.absolute_host).to eq('')
     end
 
-    it "produces a followable consent link, which is the defect this exists for" do
-      expect(JsonApi::Json).to receive(:current_host).at_least(:once).and_return('www.lingolinq.com')
-      url = "#{JsonApi::Json.absolute_host}/parental_consent/complete?user_id=1_1&token=abc"
-      expect(url).to eq('https://www.lingolinq.com/parental_consent/complete?user_id=1_1&token=abc')
-      expect(url).to match(%r{\Ahttps?://})
-    end
+    # NOTE: there is deliberately no example here that builds a consent URL by
+    # interpolating absolute_host into a string literal and then asserts on the
+    # concatenation. One used to live here, titled "produces a followable consent
+    # link, which is the defect this exists for" -- it was a tautology. It
+    # restated the `strips a trailing slash` / `adds https to a bare host` cases
+    # above with a longer path, touched no mailer, view or controller, and would
+    # have passed unchanged with every production call site reverted to
+    # current_host. A unit test of a pure function cannot show that the defect is
+    # fixed; only a caller can.
+    #
+    # The real coverage is
+    # spec/mailers/user_mailer_spec.rb "builds parent-facing links as ABSOLUTE
+    # urls when there is no request host", which renders parental_consent_request
+    # with a bare host and asserts on the hrefs in both message parts. That one
+    # was confirmed to fail when a single call site is reverted.
   end
 end

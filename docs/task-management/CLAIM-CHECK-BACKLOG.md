@@ -20,21 +20,32 @@ post-under-13-signup gap. All other v2 findings are restatements of v1.
 
 ## A. Done — do not re-open
 
+> **Four of these rows were written prematurely.** An adversarial file-level review of the branch on
+> 2026-08-24 (section **A2**) found that three of them shipped incomplete and one shipped a *new*
+> regression, in every case because the source change was defeated by something outside the diff.
+> The rows below now carry the corrected status. The lesson, recorded in LEARNINGS: **"do not
+> re-open" is a claim about a whole user path, and a source-level change plus a green unit test is
+> not enough evidence to make it.** Verify at the surface the user touches, then close the row.
+
 | Finding (v1 + v2) | Fixed in | Verified |
 |---|---|---|
-| "Hi No name" / "NO NAME"; signup never asks for a name | `1e293fb03` (+ `35cc67d05`) | Root cause removed server-side, 20 client sites, 10 more fixed for free incl. the utterance SMS. Browser-verified against a live nameless account. |
-| Main Search box ignores typing; Enter re-fires previous query | `52d60457a` | Browser: label/URL/API all track typed text |
+| "Hi No name" / "NO NAME"; signup never asks for a name | `1e293fb03` (+ `35cc67d05`), completed 2026-08-24 | **Was incomplete when first closed.** The root cause (the `generate_defaults` seed) was removed, but six server-side consumers still rendered `settings['name']` raw — including the **welcome email**, which then opened with a blank. `author.name` was also read at five client surfaces while `lib/json_api/log.rb` never emitted the key at all. All now route through `User#display_name` / `display_name_for`. See A2 row M1. |
+| Main Search box ignores typing; Enter re-fires previous query | `52d60457a`, completed 2026-08-24 | **The typing fix was real but introduced a regression.** Each 300ms pause transitioned the route, re-entering `setupController`, which refetched unconditionally — flashing an empty panel per keystroke and leaking one `persistence` observer each time. Now `replaceWith` + a single owner for the reload decision. See A2 row H3. |
 | Board-picker filter works while main search doesn't | `52d60457a` | Same fix — the inconsistency is gone |
-| Save Preferences ~2,025px down, no sticky bar | `35cc67d05` | Bar pins at 717/800 in an 800px viewport |
-| Speak Mode tour repeats on every board | `b0e32c94d` | Pick #1 fires, pick #2 does not |
+| Save Preferences ~2,025px down, no sticky bar | `35cc67d05`, completed 2026-08-24 | **Verified only at 1280x800, and was entirely cancelled below that.** A pre-existing `@media (max-width: 1024px)` block re-declared `overflow-x: hidden !important` on the whole ancestor chain at equal specificity and later source order, so tablets, phones and desktop at ≥125% zoom got no pinned bar. See A2 row H6. |
+| Speak Mode tour repeats on every board | `b0e32c94d`, corrected 2026-08-24 | **The suppression also killed the only way to replay the tour.** Manual "Take a tour" shares the pending flag with the auto-open, so the once-per-user gate swallowed it for everyone who had picked a home board. Now discriminated. See A2 row H2. |
 | Tour cannot be dismissed from the keyboard | `b0e32c94d` | Escape closes, arrows advance |
-| Tour progress never persisted at all (not in either report) | `b0e32c94d` | `guided_tours_completed` was missing from the server allowlist — the "seen" badge had never worked |
-| **D2** — home-board pick: no progress explanation, no confirmation | `231bdcaeb` | Copy-wait explainer + the self-pick confirmation the pick-for-others path already had. **Browser-verified 2026-08-23** — see A1. |
+| Tour progress never persisted at all (not in either report) | `b0e32c94d` (+ specs 2026-08-24) | `guided_tours_completed` was missing from the server allowlist — the "seen" badge had never worked. Now covered by `spec/models/user_spec.rb` (allowlist persistence + the sanitizer), which had no coverage at all when first closed. |
+| **D2** — home-board pick: no progress explanation, no confirmation | `231bdcaeb` | Copy-wait explainer + the self-pick confirmation the pick-for-others path already had. **Browser-verified 2026-08-23** — see A1. (One correction: the completion handler was bound to both promise outcomes, so a failed image preload still claimed "saved for offline use". Split 2026-08-24.) |
 
-> **D10's accessibility sub-claim is closed as not-reproducing.** All three `BetaFeedbackPanel`
-> render sites carry `inert` + `aria-hidden` when closed, added 2026-07-08 — *before* the Aug 20
-> re-test. Needs a fresh repro to re-open. (This is separate from D10's *placement* claim, which
-> is re-opened below.)
+> **D10's accessibility sub-claim is closed as not-reproducing — but the stated evidence was
+> wrong.** CORRECTED 2026-08-24: only ONE of the three `BetaFeedbackPanel` render sites carries
+> `inert` + `aria-hidden` (`templates/application.hbs:1497`, the drawer). `templates/beta-feedback.hbs:10`
+> and `components/beta-feedback-modal.hbs:3` carry neither. The conclusion still holds per-site —
+> the standalone page is never "closed", and the modal only renders inside `ModalDialog` when open,
+> so neither has a hidden-but-focusable state — but "all three carry it" was not checked before it
+> was written, and it was the sole basis for closing an accessibility finding. Needs a fresh repro
+> to re-open. (Separate from D10's *placement* claim, which is re-opened below.)
 
 ### A1. Browser verification, 2026-08-23 — D1 and D10 did NOT hold up
 
@@ -62,7 +73,7 @@ hidden header** (measured 0x0), so a view-mode user could not reveal it. The act
 edit-mode-only container to another.
 
 *What the browser pass also turned up:* **`make_a_copy` was already reachable** the whole time, at
-`board-detail.hbs:1018` — Options → Share & Print → "Copy" — and it fired correctly. So only **one** of
+`board-detail.hbs` (the Share & Print "Copy" item) — Options → Share & Print → "Copy" — and it fired correctly. So only **one** of
 the two actions was genuinely missing. The reason both were reported absent is the label: under a
 "Share & Print" heading, a bare "Copy" reads as copy-to-clipboard/export, not "make this mine".
 
@@ -89,7 +100,7 @@ baseline.
 Checked per action at HEAD — **four** have no view-mode render site at all and appear only in the
 edit panel: `board_details` (`:246`), `add_to_sidebar` (`:222`), `toggle_favorite` (`:263`),
 `other_board_actions` (`:278`). The other three — `share_board`, `print_board`, `download_board` —
-each have a second render site in the options menu (`:1058`, `:1068`, `:1078`) and were confirmed
+each have a second render site in the options menu (each has a second render site under Share & Print in the options menu) and were confirmed
 visible in the browser under Share & Print.
 
 **D10 — was RE-OPENED, now FIXED (browser-verified, 4/4).**
@@ -203,7 +214,7 @@ Judged not worth a fourth placement change without a design call.
   that it silently defeated `name || user_name` — a guard written everywhere, so every account showed
   a placeholder instead of its handle. **No equivalent `name || key` fallback exists for boards**
   (the only two hits are record-vs-plain-object normalisation in `board-collection.js:401` and
-  `board-picker.js:239`), and the sentinel is already explicitly guarded where it matters
+  `board-picker.js` (the `name || user_name` fallback)), and the sentinel is already explicitly guarded where it matters
   (`board.rb:1233`, `:1644`, `:2601`, `board/index.js:1011`). Scale: **1 of 2247** boards in dev, and
   "Unnamed Board" reads correctly to a user in a way "Hi No name" never did. Note the earlier
   sighting of "Copy of Unnamed Board" in the copy modal was the modal reporting the board's REAL
@@ -252,7 +263,7 @@ in-code instruction.
 | D6 | **Editor label truncation** | not "low effort" | Investigated: no ellipsis rule exists; labels are dynamically sized. Speak Mode renders them fine, so it is editor-cell specific. Needs a real trace. |
 | D7 | Board preview CTA below the fold at ~620px | low | Modal *does* scroll (see B). A pinned action bar — same pattern as the Preferences fix — would close it. |
 | D8 | Registration consolidation (5 screens → fewer) | higher | Keep the DOB step; role + signup-method are the merge candidates. |
-| D9 | Contrast/font audit against **AAA** | medium | v1's "likely fails AA" was wrong — measured 4.59:1, which passes AA. Reframe as AAA (7:1) for this user base. Include the Maitree serif headings. |
+| D9 | Contrast/font audit against **AAA** | medium | v1's "likely fails AA" was wrong — measured 4.59:1, which passes AA. **(UNSUBSTANTIATED, flagged 2026-08-24: no artifact, script or file:line backs this number, and it is stated as a correction OF an outside reviewer, so it carries weight it has not earned. Re-measure and cite the token before relying on it. For calibration, the same audit pass found `.md-board-preview__meta dt` at 3.69:1 and two overlay styles at 4.23:1 — all failing — so "contrast is fine here" was not safe to assume.)** Reframe as AAA (7:1) for this user base. Include the Maitree serif headings. |
 | ~~D10~~ | ~~Beta-feedback pill on every page~~ | — | **DONE 2026-08-23.** Corner-anchored below the navbar, verified across 7 viewports + touch. One residual clip in a ~700-740px band (A2) and the a11y sub-claim did not reproduce (`inert` + `aria-hidden` already present). |
 | D11 | **Speak-bar feature gap** — Share, Repairs, Hold Thought, Repeats, Alerts | wiring + QA | Product call. The code still ships in the bundle (`hold_thought`, `repair`, `flip_text`, `share_message`…); the redesigned bar never wired it up. Repairs and Hold Thought matter most to communicators. |
 | D12 | Staging cold-start 500s | infra | Decide whether staging keeps a warm instance. |
@@ -320,7 +331,9 @@ worker, which has no request — and nothing restores one, because `Worker.domai
 follow. The child was correctly held pending and could never be approved: the COPPA gate failed
 closed — safe, but non-functional.
 *Fixed* with a new `JsonApi::Json.absolute_host` (scheme guaranteed, idempotent, loopback→http),
-applied to all 105 `current_host` uses in `app/mailers` + `app/views` (67 files), utterance
+applied to every `current_host` use in `app/mailers` + `app/views` — 129 lines across 67 files
+on staging, 130 `absolute_host` references at HEAD, and `git grep current_host -- app/views` now
+returns zero. (CORRECTED 2026-08-24: this said "105", which was never measured.) Also utterance
 email/SMS reply links, the email-template previews and the valet login URL. API-payload and
 OBF-export links were deliberately left on `current_host`.
 
@@ -341,7 +354,13 @@ approval mints the token and lets the child in. The child-facing UI passed 8/8 i
 with a parent or guardian" screen, a clear reason on the login page, and a self-service **"Resend
 approval email to parent"** control.
 
-**Parent-facing pages: verified 12/12 in-browser (2026-08-24).** `n1-consent-pages-qa.mjs`. Valid
+**Parent-facing pages: verified 12/12 in-browser (2026-08-24).** Reproduce with
+`bundle exec rails runner scripts/n1-consent-fixtures.rb > /tmp/consent_pages.json` then
+`cd app/frontend && node scripts/n1-consent-pages-qa.mjs --fixtures /tmp/consent_pages.json`.
+(CORRECTED 2026-08-24: as originally written this cited a script that read a hardcoded path inside
+one machine's session scratchpad, for a fixture file that was never committed — so the claim was
+not reproducible by anyone else, and would have broken outright once `/private/tmp` was cleared.
+The fixture generator is now committed and the path is a required argument.) Valid
 approval → *"Thank you — Parental consent has been recorded"*; clicked twice → *"Consent already
 recorded"*; tampered token → *"Link invalid or expired"*; **a 15-day-old link is correctly rejected**,
 so the 14-day `parent_consent_expires_at` window works; revoke → *"Consent withdrawn — the account is
@@ -445,15 +464,21 @@ the symptom; the question worth answering first is which of the nine belong in a
 
 ### G3. Confirmed dead code — the dropdown that was removed
 
-Zero references in any template or JS (verified individually, not just by the script):
+Zero references in any template or JS (verified individually, not just by the script).
+
+**Citation note (corrected 2026-08-24):** these were originally cited by line number in
+`board-detail.js`. Five of them have since been *deleted*, so those line numbers now point at
+unrelated code — a line citation for removed code is unresolvable by construction. Anchored to the
+removing commit instead; recover any of them with
+`git show 72dabfe93^:app/frontend/app/controllers/user/board-detail.js | grep -n '<action_name>'`.
 
 | Action | Site |
 |---|---|
-| `toggle_details_dropdown`, `details_dropdown_keydown` | `controllers/user/board-detail.js:5793`, `:5809` |
-| `toggle_share_dropdown` | `board-detail.js:6388` |
-| `toggle_folder_dropdown` | `board-detail.js:7922` |
-| `open_board_picker` | `board-detail.js:6405` |
-| `copy_board` (board-detail's own) | `board-detail.js:6326` — the sibling `set_as_home` survived into the edit panel; this one did not |
+| `toggle_details_dropdown`, `details_dropdown_keydown` | deleted in `72dabfe93` (`board-detail.js`) |
+| `toggle_share_dropdown` | deleted in `72dabfe93` (`board-detail.js`) |
+| `toggle_folder_dropdown` | deleted in `72dabfe93` (`board-detail.js`) |
+| `open_board_picker` | `board-detail.js#open_board_picker` (still present, still orphaned) |
+| `copy_board` (board-detail's own) | `board-detail.js#copy_board` — the sibling `set_as_home` survived into the edit panel; this one did not |
 | `toggleSetHomeMode` | `controllers/user/index.js:1561` — transitions to the dedicated board-picker; a second orphaned set-home entry point |
 | `go_to_classic`, `go_to_modern_edit`, `set_board_view_style`, `revert_to_old_style` | superseded by `set_view_style` in `board-actions.hbs` |
 
@@ -490,7 +515,7 @@ ones — the difference was almost entirely the `chipAction` drag/hold family.
 board-detail's orphaned `copy_board` is missed — `share-board.hbs` wires one of the same name), and
 dynamic `send(someVar)` is unknowable. Absence of a hit is not proof of reachability.
 
-**Rollout:** the 74 pre-existing cases are recorded in `.eslint-todo`, so nobody is blocked, and
+**Rollout:** the 70 pre-existing cases are recorded in `.eslint-todo`, so nobody is blocked, and
 `npm run lint:js:ci` fails on a NEW one. Verified end to end: a probe action added to
 `board-actions.js` produced `new=1` and a failing gate; wiring it into the template returned
 `new=0`; probes reverted. The rebaseline was checked per-rule — no other rule's count grew, and
@@ -633,10 +658,10 @@ that zone.
 **The backlog said:** *"350+ boards after two picks. Each pick clones the whole linked set; old
 copies are never cleaned up."* Measured against the dev database — both halves of that are wrong.
 
-**It is signup, not picks.** Two COPPA test accounts created today own **300 boards each**, made
+**It is signup, not picks.** *(Numbers in this section are DEV-DATABASE observations from uncommitted console runs — not production, and not reproducible from this repo. The mechanism below is traced in code and stands; treat the counts as illustrative.)* Two COPPA test accounts created today own **300 boards each**, made
 **within 2 seconds of the account row itself** and before any board was ever picked (`home_board`
 preference still `{}`). `UserBoardProvisioner.provision_for` runs on account creation
-(`api/users_controller.rb:274`, also `session_controller.rb:966`) and copies whole linked sets:
+(`api/users_controller.rb:274`, also `session_controller.rb#google_link_user_candidate`) and copies whole linked sets:
 
 | root slug | boards in its linked set |
 |---|---|
@@ -721,3 +746,268 @@ that inline style is the first thing to check.
 6. **D13 / N6** — TTS verification. Overdue for a communication app.
 7. **D11** — needs a product decision first, then wiring + QA.
 8. Everything else.
+
+---
+
+## A2. Adversarial review of this branch vs `staging`, 2026-08-24 — and the fixes
+
+A file-level review of the whole branch diff (137 files) fanned out across five slices. Findings
+below are the ones that were **verified in code at HEAD**, each with what was changed in response.
+The pattern worth carrying forward: every High here was a *correct source change defeated by
+something outside the diff* — a later `!important`, a shared flag, a route hook, a test fixture.
+Reading the diff could not have found any of them.
+
+| # | Finding | Fix |
+|---|---------|-----|
+| H1 | `start_code_lookup` shipped the supervisor's `user_name` on an endpoint that is exempt from `require_api_token`. `user_name` is accepted as a login credential by `session_controller`, so a forwarded invite link handed out a credential-stuffing target. | Server resolves the display value instead: `User#obfuscated_display_name` (real name when set, `obfuscated_name` otherwise). No handle on the wire. Specs assert the handle appears nowhere in the payload. |
+| H2 | The once-per-user `tourAutoShown` gate also swallowed the options-menu **"Take a tour"** replay — they share `board_detail_tour_pending_speak`. The menu item is the only entry point (the component's own Shepherd button is `display: none`), so it was dead for everyone who had picked a home board. The code comment claimed the opposite. | `board_detail_tour_speak_manual` rides alongside the pending flag; the gate and its bookkeeping are skipped for a manual replay. Both auto writers clear it explicitly so a stale replay flag can never make an auto-open skip its one-shot. |
+| H3 | Typing in the restored search box transitioned the route per 300 ms pause; the changed dynamic segment re-ran `setupController`, which called `load_results` unconditionally — flashing an empty "Loading boards…" panel on every pause and adding one permanent, never-removed `persistence` observer per keystroke. | `replaceWith` instead of `transitionTo`; one owner for the reload decision (`ensure_results_loaded`), called by both the controller and the route; the online observer is registered once and removed in `willDestroy`. The double-decode of `q` is now guarded (a lone `%` threw `URIError` on the hot path). |
+| H4 | `spec_helper` set `DEFAULT_HOST` to `http://test.host` — already absolute — so `absolute_host` was a no-op in every spec and the entire `current_host` → `absolute_host` sweep could be reverted with the suite green. | Fixture is now a **bare** host, matching what production actually sets. Added a mailer spec that renders `parental_consent_request` with a bare host and asserts absolute hrefs plus the absence of any bare-host occurrence. **Verified to fail on revert** of a single call site. |
+| H5 | All eight goal-status links in `log_message.{html,text}.erb` carried `#{@target.global_id}` as literal text outside any ERB tag, so every one 404'd. Pre-existing — but this branch rewrote all eight lines for the host sweep without noticing. | Converted to `<%= %>`. Also fixed on touched lines: a `/contact` path missing from the text part of `subscription_resume_failed`, a stray `s` attribute in `log_summary`, and `<br/>` in two `.text.erb` files. |
+| H6 | The `.md-shell` `overflow-x: clip` sticky fix was cancelled outright at ≤1024 px by a pre-existing `@media (max-width: 1024px)` block re-declaring `overflow-x: hidden !important` on the whole ancestor chain at identical specificity and later source order (~60656, again ~68384). Tablets, phones, and desktop at ≥125 % zoom got no pinned Save bar — i.e. it failed exactly where WCAG 1.4.10 / 1.4.4 apply. | `clip` companion added to both blocks. Safe on the full selector list including `#content`, because by spec a `clip` on one axis computes back to `hidden` when the other is `auto` — so the app's one real scroll container is untouched and the line only bites where overflow-y is `visible`. |
+| H7 | The corner anchor was put on the **base** tab rule, so `--speak` inherited it: an opaque `z-index: 1078` pill over the bottom-right communication cell of the board grid and the foot of the edit rail. D10's entire argument was about the navbar variant. | `right/left/transform` moved to `--navbar`; the base returns to centred. The 721–820 compact-sizing block is scoped to `--navbar` too — the collision it addresses only exists beneath the navbar. |
+| M1 | Removing the `"No name"` seed left six server-side consumers rendering it bare (including the **welcome email**, now opening with a blank), and `utterance.hbs:49` / `utterance.js#user_showable` still guarding on the raw `name` — a new regression that hid the linked name behind "Someone said:". Separately, `author.name` was rendered at five client surfaces but `lib/json_api/log.rb` never emitted the key at all. | Views and the remaining Ruby display guards go through `User#display_name`; `PLACEHOLDER_NAME` / `placeholder_name?` are now the single definition of the sentinel. `json_api/log.rb` emits a resolved `author.name` with the same precedence `UserMailer#log_message` uses, and the five client sites go through `{{display-name}}` / `display_name_for` so cached payloads still resolve. |
+| — | Ten user-facing strings had no locale entry. | `i18n_generator.rb --generate && --merge`; all twelve non-English locales now carry them. |
+| — | `.md-board-details-modal__overlay-subtext` and `__overlay-count` were 4.23:1, and the `.md-board-preview__meta dt` labels 3.69:1 — all below WCAG 1.4.3's 4.5:1 for normal-size text. | Raised to `rgba($la-navy, 0.7)` = 4.89:1. The "Word Buttons" explainer moved from a `title` on a non-focusable `<dt>` to visible text tied by `aria-describedby`. |
+| — | `board-preview-overlay` used one handler for both promise outcomes, so a failed image preload still told the user the board was "saved for offline use". | Separate reject path with an honest message. |
+| — | Two code comments asserted things that were not checked: sassc-rails does **not** force `:sass` in development (`railtie.rb:72-77` exempts it), and the `calc()` simplification is Dart Sass's, not "the Ember minifier" — `ember-cli-build.js:23-25` disables minification entirely. | Both corrected in place, with the prior error named so the next reader does not go looking for a bug that is not there. |
+
+**Process findings, recorded rather than fixed:**
+
+- `no-orphaned-action` is defeated by this repo's i18n key convention — the index matches any quoted
+  identifier-shaped token, and snake_case keys collide with snake_case action names (`board_layout`,
+  `new_dashboard`, `manage_supervisors` are each masked by a `key="…"` attribute). It is a sampler,
+  not a gate. Noted in `.eslintrc.js` so nobody reads a clean run as proof.
+- 70 violations were added to `.eslint-todo` as suppressions and 0 fixed. That is a legitimate
+  rollout choice, but it should be stated as such rather than implied to be a clean baseline.
+- Several evidence line numbers elsewhere in this document no longer resolve at HEAD (`board-detail.hbs` (the Share & Print "Copy" item)
+  is now `:1112`; `:1058/1068/1078` are `:1143/1133/1123`; `session_controller.rb#google_link_user_candidate` is `:971`, plus
+  seven in `board-detail.js`). PR preflight P4 requires evidence resolvable at HEAD; prefer symbol
+  names over line numbers in this document.
+- Two QA harnesses could write to whatever `--base` pointed at, with no guard. Both now refuse a
+  non-loopback host unless `--i-know-this-writes` is passed.
+
+### A2b. Second pass — the tail, 2026-08-24
+
+A2 above fixed the Highs and stopped. The remaining findings were then worked through,
+because "fixed the important ones" is how a backlog row ends up saying *Done* while the
+thing it describes is still half-broken — which is the failure this whole section is about.
+
+**Tests that were not testing anything.** `spec/lib/json_api/absolute_host_spec.rb` carried an
+example titled *"produces a followable consent link, which is the defect this exists for"* that
+interpolated `absolute_host` into a string literal **in the spec** and asserted on the
+concatenation. It touched no caller and passed with every production call site reverted. Deleted,
+with a comment at the site saying why, pointing at the mailer spec that does the job. Two of the
+four cases in `tests/integration/display-name-surfaces-test.js` had the same shape — they rendered
+`{{display-name}}` in a scratch template, not `start_codes.hbs`, in a file whose preamble promises
+"the REAL components". Removed; the contract they claimed to cover now lives in
+`organizations_controller_spec.rb`, where the server decides it. One assertion in the view-mode
+test read `assert.false(!!controller.get('can_set_as_home'))`, which is also true of `undefined` —
+it would have stayed green if the computed were deleted outright. Now type-checked first.
+
+**Coverage that did not exist.** The guided-tour sanitizer and the `PROGRESS_PARAMS` allowlist —
+live user-input handling on the user record — had **zero** specs, which is how the allowlist
+omission shipped in the first place. Eight examples added; verified they fail 7/8 with the
+allowlist entry removed and 5/8 with the sanitizer disabled. Also added: `prior_named_email`'s
+blank-name branch (its only prior reference stubbed the method out), `User#display_name` /
+`placeholder_name?` / `obfuscated_display_name`, three `external_tracker` cases restoring the
+name-splitting coverage the placeholder removal silently deleted, and
+`spec/lib/tasks/clear_no_name_placeholder_spec.rb` — a bulk mutation over the whole user table
+that had none, pinning the dry-run default, the substring non-match, and the "sends no mail,
+queues no jobs" claim its comment makes.
+
+**The lint gate caught a bug in this pass's own work.** `_close_options_menu` — the helper added
+so the five modal-opening menu items stop leaving the menu open behind them — was first written
+*inside* the `actions: {}` hash, where it is reachable as `controller.actions._close_options_menu`
+but **not** as `this._close_options_menu`, which is what the callers use. Every one of those five
+items would have thrown a TypeError on click. Nothing but `no-orphaned-action` noticed, and only
+because the rule flagged it as an unreferenced action. Moved to the controller body and pinned by
+a test that asserts it is *not* in the actions hash.
+
+**Everything else in the tail.** The four new Board Actions items are now reachable by the menu's
+own arrow keys (the per-item listeners snapshotted the visible items at open time and called
+`stopPropagation`, so the container handler — which re-queries live — never ran; the snapshot could
+not contain anything rendered later). All five new rows joined `SPEAK_MENU_ITEMS`, so they are
+toggleable in Customize Menu like every other row, and the submenu disappears when all four
+children are hidden rather than opening onto nothing. `aria-controls` + an id complete the
+disclosure. `display_name_for` no longer seeds the "Purchaser's Name" and "Your Name" **write**
+fields, against its own documented contract — blank is the honest default when signup collected no
+name. The Preferences bar is frosted glass rather than a flat `#eef1f6` band over a fixed gradient
+mesh, unpins below 560px of viewport height (WCAG 1.4.4), and preference dropdowns are `position:
+relative; z-index: 3` so their trailing options stop painting behind it. The `.mjs` QA harnesses
+are linted for the first time (`eslint .` walks only `.js` without `--ext`); the rule index now
+expires after 5s so `eslint_d` stops telling developers to delete code they just wired up.
+
+**Comments corrected rather than left to mislead**, each naming the prior error so the next reader
+does not go hunting: the `.md-board-preview__actions` margins do *not* span the modal's full width
+(the element is inside `col-sm-8`, so the left edge lands in the inter-column gutter — the right
+edge is exact); the board-detail EDIT tour is **dormant**, since nothing sets
+`board_detail_tour_pending` truthy, so no change to that path is observable at runtime; and
+`url_scheme_for` returning http untouched is safe in production because `force_ssl = true`.
+`absolute_host` now logs an error when it has no host at all instead of silently returning `''`
+and emitting relative links.
+
+### A2c. Not covered — read this before writing "verified" anywhere above
+
+Everything in A2 / A2b is verified by test, by trace, or by both. The following are **not**, and
+saying so here is the point: the failure this whole section documents is a source change that was
+correct and still never reached a user.
+
+**Needs a browser, on a live dev stack.** None of these can be seen from a unit test, and the
+class of bug they belong to is exactly the one that got through last time.
+
+> **The harness exists — it has not been run.** `app/frontend/scripts/a2c-click-tests-qa.mjs`
+> covers all four, read-only (no boards copied, no preferences saved, no accounts created):
+>
+> ```
+> bin/fresh_start                       # or foreman start; needs 8184 AND 5000 up
+> cd app/frontend
+> node scripts/a2c-click-tests-qa.mjs             # add --headed to watch
+> node scripts/a2c-click-tests-qa.mjs --only D    # one group at a time
+> ```
+>
+> **RUN 2026-08-24: 22 passed, 0 failed, 2 skipped.** Read the SKIPPED block in its summary as
+> carefully as the failures — a check that could not reach its surface verified nothing, and is
+> not a pass. The two skips are listed at the end of this section.
+- **Speak-mode / edit-mode occlusion** after moving the corner anchor to `--navbar`. The base tab
+  is centred again, which is where it sat before this branch, but no QA script exercises speak mode
+  or board-detail edit mode. For an AAC app, an opaque pill over a communication cell is a product
+  defect, so this wants a real click-test, not a cascade argument.
+- **The `≤1024px` sticky fix.** `scripts/md-shell-sticky-qa.mjs` now runs 5 viewports over 7
+  routes; run it. The reasoning (a `clip` on one axis computes back to `hidden` when the other is
+  `auto`, so `#content` keeps scrolling) is spec-derived, not measured.
+- **The Preferences bar** — frosted glass over the mesh, the `max-height: 560px` unpin, and
+  dropdown options no longer painting behind it. Three visual changes, zero screenshots.
+- **The Board Actions submenu by keyboard.** The per-item snapshot listeners are gone and the
+  container handler re-queries live, which should make all four reachable by ArrowDown. Verify with
+  a real Tab/Arrow pass, not by reading the handler.
+
+**IT FOUND A REAL BUG THAT THE CASCADE ARGUMENT MISSED — and this is the whole case for
+click-testing.** `overflow-x: clip` at ≤1024px was not enough. Two NARROWER blocks re-declare the
+shorthand on the same element, one breakpoint down:
+
+```
+@media (max-width: 950px)  .md-workspace { overflow: hidden !important; }
+@media (max-width: 820px)  .md-workspace { overflow: hidden !important; }
+```
+
+`overflow: hidden` sets BOTH axes, so `.md-workspace` became the scrollport again and captured the
+sticky bar. Measured, not inferred:
+
+| viewport | `.md-workspace` computed | Save bar |
+|---|---|---|
+| 1024x768 | `clip` / `visible` | pinned at y=685..768 |
+| 768x1024 | **`hidden` / `hidden`** | y=**1936** in a 1024px viewport |
+| 390x844  | **`hidden` / `hidden`** | y=**2337** in an 844px viewport |
+
+So the ≤1024 fix worked at exactly one breakpoint and the bar was still dead on every phone and
+portrait tablet — while 2116 Ember tests reported `# fail 0`. Fixed with `overflow: clip` on both
+axes (these rules pair with `border-radius` to clip the full-bleed corners, so the intent is
+CLIPPING, not scrolling; `clip` preserves it and establishes no scroll container). Re-measured:
+`768x1024 → y=941..1024`, `390x844 → y=761..844`.
+
+**Confirmed by the run:**
+- **A** — in board-detail EDIT mode the tab centre is **640 in a 1280 viewport**, i.e. centred, and
+  it covers no interactive element. Incidentally confirmed the `--navbar` geometry note: the tab
+  lands 1408 of 1440, **32px** from the edge, which is the double-padding predicted from
+  `.app-navbar__inner` rather than the `right: 16px` the rule appears to say.
+- **B** — all five viewports pin, computed `overflow-y: visible` throughout.
+- **C** — `rgba(255,255,255,0.76)` + `blur(14px)`; `static` at 520px height, `sticky` at 800px.
+- **D** — all four submenu items receive focus from ArrowDown; `aria-controls` resolves to a real
+  element once expanded.
+
+**Still unverified after the run — the two skips.**
+- `A-classic board` — the board URL redirects to `user.board-detail.index`, where the tab is
+  suppressed by `hide_beta_feedback_temporarily` (TEMPORARY, 2026-07-27). The occlusion question is
+  moot on that route while the suppression stands, but it is moot because nothing renders, not
+  because anything was checked. **The first version of this check pointed ONLY at that route and
+  skipped twice — which reads as a clean run and proves nothing.** If the suppression is removed,
+  re-target the check.
+- ~~`C-dropdown-above-bar`~~ — **CLOSED 2026-08-24, manually confirmed by Traci.** The harness
+  skipped it twice (no `bound-select`/`modern-select` renders on Preferences for the `example`
+  account), which made the `position: relative; z-index: 3` stacking fix the one change in
+  A2/A2b with no runtime evidence at all. Confirmed by hand instead: an open dropdown near the
+  bottom of the form paints ABOVE the pinned Save bar, and still pushes the card taller rather
+  than overlaying or being clipped by the accordion's rounded edge — so the `static` → `relative`
+  swap kept the in-flow behaviour the original rule was written for.
+  The automated check remains a SKIP; it needs an account whose Preferences page renders one of
+  those controls. Do not read the skip as coverage.
+
+**Manual confirmation log.** Items click-tested by a human, where the automated harness could not
+reach the surface or no harness covers it. Kept as a running list because "verified" without a date
+and a name is the same unsourced claim this section exists to stamp out.
+
+| Date | Who | Item | What was actually exercised |
+|---|---|---|---|
+| 2026-08-24 | Traci | Preferences dropdown stacking (`C-dropdown-above-bar`) | An open dropdown near the bottom of the form paints ABOVE the pinned Save bar, and still pushes the card taller rather than overlaying or being clipped by the accordion's rounded edge — so the `static` → `relative` swap kept the in-flow behaviour the original rule was written for. The automated check still SKIPS. |
+| 2026-08-24 | Traci | "Take a tour" manual replay (**H2**) | Options → Take a tour opens the tour; closing and choosing it AGAIN opens it a second time (the whole fix — it was permanently dead for anyone who had picked a home board); and the auto path still self-suppresses, firing once on a home-board pick and not on the next. **This was the ONLY evidence for H2**: `git grep board_detail_tour_speak_manual -- app/frontend/tests/` returned nothing, and `scripts/a2c-click-tests-qa.mjs` does not cover the tour either. A unit test for the flag-writing half has since been added (`user-board-detail-view-mode-actions-test.js`); actually STARTING the tour needs Shepherd plus a rendered board grid and remains browser-only. |
+| 2026-08-24 | Traci | Find Boards search (**H3**) | Typing at ~1 char/sec does not flash the results panel empty between keystrokes; a single Back leaves the page rather than walking the query back a character at a time; `50%` in the box does not blank the page or throw; Enter runs the search and the × clears it; changing the language dropdown re-fetches. This is the first runtime evidence for H3 — the `replaceWith` + `ensure_results_loaded` + observer-removal fix previously had only a code trace, and the defect it fixes (an empty-state flash and one leaked `persistence` observer per keystroke) is invisible to every unit test. |
+
+**Known limitation, shipped deliberately.** `overflow-x: clip` requires Safari 16 / Chrome 90 /
+Firefox 81. iPads capped at iPadOS 15 (iPad Air 2, iPad mini 4) and older Cordova WKWebViews keep
+the old, sticky-inert behaviour — the `hidden` fallback preserves containment, so nothing breaks,
+but the Save bar does not pin there. That is a real slice of AAC hardware.
+
+**Left as-is, with reasons.**
+- The **70 `no-orphaned-action` entries stay baselined**; none were triaged. That is a rollout
+  choice, not a clean baseline, and `.eslintrc.js` records that the rule is a sampler — this repo's
+  snake_case i18n keys collide with action names, so a clean run is not proof of no orphans.
+- The **board-detail EDIT tour is dormant**, not wired. Nothing sets `board_detail_tour_pending`
+  truthy, so changes to that path are unobservable at runtime.
+- **`.md-board-preview__actions`** still stops at the canvas column's gutter on the left at ≥768px.
+  Making it genuinely full-width means lifting it out of `col-sm-8`, which changes the layout the
+  modal was designed around; the comment now states the true geometry instead of claiming
+  otherwise.
+- **`absolute_host` still returns `''`** when there is no host at all. It logs an error now, so a
+  misconfigured environment is findable, but it cannot invent a host.
+- The **eslint-todo gate is line-anchored**, so an edit above a baselined line reports it as new
+  and forces a rebaseline. Verify a rebaseline by diffing PER-RULE counts, not the total — that is
+  what distinguishes renumbering from a real regression.
+
+
+### A3. Board Ideas · Button Stash · Set as Home Board relocated, 2026-08-24
+
+Moved out of the board-detail edit panel's "Board Actions" group (which had grown to seven rows)
+into the Board Actions modal, immediately above View Style — which came from the same panel
+earlier, so the modal is now where relocated panel rows live.
+
+**Why this needed care rather than a delete.** `suggestions` and `open_button_stash` had **no other
+render site anywhere in the app** — `git grep 'ctrlAction "open_button_stash"'` returned exactly one
+hit. Removing the rows alone would have made Button Stash unreachable from every surface, which is
+precisely the failure this modal exists to undo: the board-detail redesign migrated nine actions
+onto an edit-mode-only surface and four ended up with no route at all, found months later by an
+outside usability review. `set_as_home` was the safe one — it also renders in the view-mode options
+menu.
+
+**What was done**
+- Three rows added to `components/board-actions.hbs` before View Style, each with a handler on
+  `components/board-actions.js` mirroring the controller action it replaces (this modal handles its
+  own rows rather than delegating — see its siblings).
+- `open_button_stash` carries over the paint-mode clear as `editManager.clear_paint_mode()`. The
+  controller's version cleared its own `paint_mode` UI flag, which this component cannot reach; the
+  shared editManager state is the half that governs what a click on a button actually DOES.
+- Board Ideas / Button Stash are `disabled={{this.cannot_edit}}`, matching their neighbours.
+  **Set as Home is deliberately NOT**: `User#process_home_board` authorizes on `view`, so picking a
+  public vocabulary as your home board needs no edit rights on it. It is instead hidden when the
+  board is already the subject's home board, the same rule as the options-menu row.
+- The two now-dead controller actions were **deleted**, not left behind, after confirming by grep
+  and by `lingolinq/no-orphaned-action` that nothing referenced them.
+
+**Verified.** 9 unit tests on the component (handler existence, permission gating, the
+already-home rule, the empty-vs-empty trap, referenced_user-vs-supporter subject) plus
+`scripts/relocated-board-actions-qa.mjs` — **13 passed, 0 failed** on `example/communikate-action`
+(owned, not home), driving real clicks through BOTH entry points and asserting each row opens its
+modal by heading change: `"Board Actions" -> "Board Ideas" / "Button Stash" / "Set Home Board"`.
+
+**Two harness bugs found and fixed while writing it**, both of which had produced false failures
+against correct code — worth knowing because the same mistakes are easy to repeat:
+1. The edit panel's "Board Actions" group is a **collapsible accordion**; "Other Actions" is not in
+   the DOM until it is expanded. Not expanding it reported "no Other Actions entry point".
+2. The wiring check compared `document.body.innerText.slice(0, 400)` before and after the click.
+   That slice is the nav sidebar and is byte-identical either way, because the modal renders
+   elsewhere in the DOM — so every row looked like a silent dead action. Compare the modal HEADING.
+
+**Fixture sensitivity to know before reading a run.** Board Ideas and Button Stash are disabled
+without edit rights, and Set as Home is hidden on a board that is already home — so a run against
+the wrong board SKIPS the very checks you care about. `example/communikate-home` skips Set as Home;
+`lingolinq/crisis-vocabulary` skips both edit rows. Use an owned, non-home board.

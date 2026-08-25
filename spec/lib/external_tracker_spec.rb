@@ -131,7 +131,63 @@ describe ExternalTracker do
       res = ExternalTracker.persist_new_user(u.global_id)
       expect(res).to eq('201')
     end
-    
+
+    # Every example in this file asserts firstname/lastname as nil, because signup
+    # collects no name. That used to be 'No'/'name' -- the placeholder split in
+    # two -- which was accidental coverage of the split at external_tracker.rb:65.
+    # Removing the placeholder removed the coverage with it, leaving the split
+    # exercised only on the empty-string path. This restores it deliberately, on a
+    # user who actually has a name. It ships PII to HubSpot, so the shape matters.
+    it "should split a real name into firstname and lastname" do
+      u = User.create
+      u.settings['email'] = 'named@example.com'
+      u.settings['name'] = 'Ada Lovelace'
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.save
+      ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
+      posted = nil
+      expect(Typhoeus).to receive(:post) { |_url, opts| posted = JSON.parse(opts[:body]); OpenStruct.new(code: '201') }
+      ExternalTracker.persist_new_user(u.global_id)
+      props = posted['properties'].each_with_object({}) { |p, h| h[p['property']] = p['value'] }
+      expect(props['firstname']).to eq('Ada')
+      expect(props['lastname']).to eq('Lovelace')
+    end
+
+    it "should put a single-word name in firstname and leave lastname nil" do
+      u = User.create
+      u.settings['email'] = 'mono@example.com'
+      u.settings['name'] = 'Prince'
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.save
+      ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
+      posted = nil
+      expect(Typhoeus).to receive(:post) { |_url, opts| posted = JSON.parse(opts[:body]); OpenStruct.new(code: '201') }
+      ExternalTracker.persist_new_user(u.global_id)
+      props = posted['properties'].each_with_object({}) { |p, h| h[p['property']] = p['value'] }
+      expect(props['firstname']).to eq('Prince')
+      expect(props['lastname']).to eq(nil)
+    end
+
+    it "should keep a three-part name intact rather than dropping the middle" do
+      u = User.create
+      u.settings['email'] = 'triple@example.com'
+      u.settings['name'] = 'Ada King Lovelace'
+      u.settings['preferences'] ||= {}
+      u.settings['preferences']['registration_type'] = 'therapist'
+      u.save
+      ENV['HUBSPOT_ACCESS_TOKEN'] = 'hubby'
+      posted = nil
+      expect(Typhoeus).to receive(:post) { |_url, opts| posted = JSON.parse(opts[:body]); OpenStruct.new(code: '201') }
+      ExternalTracker.persist_new_user(u.global_id)
+      props = posted['properties'].each_with_object({}) { |p, h| h[p['property']] = p['value'] }
+      # split(/\s/, 2) caps at two fields, so everything after the first space
+      # lands in lastname -- no part of the name is silently discarded.
+      expect(props['firstname']).to eq('Ada')
+      expect(props['lastname']).to eq('King Lovelace')
+    end
+
     it "should check for geo location based on ip address" do
       ENV['IPLOCATE_API_KEY'] = 'testkey'
       u = User.create

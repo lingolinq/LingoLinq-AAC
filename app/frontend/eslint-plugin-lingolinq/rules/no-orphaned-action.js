@@ -45,7 +45,30 @@ const FRAMEWORK_ACTIONS = new Set([
   'willTransition', 'didTransition', 'error', 'loading', 'queryParamsDidChange'
 ]);
 
+/* Whole-tree index of every quoted identifier-shaped token under app/, built
+   once per process.
+
+   INDEX_TTL_MS exists because "once per process" is wrong for a LONG-LIVED one.
+   A single `eslint .` run is over in seconds and the cache is a pure win, but
+   eslint_d and the VS Code ESLint server persist for hours: a developer who
+   wires an orphaned action into a template keeps being told it is orphaned until
+   they restart the server, and the rule's own message tells them to delete it.
+   Being wrong in the direction of "delete this live code" is the one failure
+   mode this rule must not have. A 5s TTL costs a directory walk at most once
+   every 5 seconds and makes the stale window shorter than the edit-save-look
+   cycle. */
+const INDEX_TTL_MS = 5000;
 let INDEX = null;
+let INDEX_BUILT_AT = 0;
+
+function currentIndex() {
+  const now = Date.now();
+  if (INDEX === null || (now - INDEX_BUILT_AT) > INDEX_TTL_MS) {
+    INDEX = buildIndex();
+    INDEX_BUILT_AT = now;
+  }
+  return INDEX;
+}
 
 function buildIndex() {
   const names = new Set();
@@ -121,7 +144,7 @@ module.exports = {
         if (key !== 'actions') { return; }
         if (!node.value || node.value.type !== 'ObjectExpression') { return; }
 
-        if (INDEX === null) { INDEX = buildIndex(); }
+        const index = currentIndex();
 
         for (const prop of node.value.properties) {
           if (prop.type !== 'Property') { continue; }        // skip spreads
@@ -129,7 +152,7 @@ module.exports = {
           const name = prop.key && (prop.key.name || prop.key.value);
           if (!name || typeof name !== 'string') { continue; }
           if (FRAMEWORK_ACTIONS.has(name) || ignore.has(name)) { continue; }
-          if (INDEX.has(name)) { continue; }
+          if (index.has(name)) { continue; }
 
           context.report({ node: prop.key, messageId: 'orphaned', data: { name } });
         }

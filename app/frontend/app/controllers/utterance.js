@@ -104,8 +104,14 @@ export default Controller.extend({
     }
     return false;
   }),
+  /* Gate on what will actually RENDER, not on the raw `name` attribute. Signup
+     collects no name, so `name` is nil for most accounts; guarding on it hid the
+     linked name (and the whole "X said:" heading) behind "Someone said:" for
+     exactly the users the display_name fallback was added to serve. `user_name`
+     is still required separately — it is the LinkTo model, so without it there
+     is nothing to link to. */
   user_showable: computed('model.show_user', 'model.user.name', 'model.user.user_name', function() {
-    return this.get('model.show_user') && this.get('model.user.name') && this.get('model.user.user_name');
+    return !!(this.get('model.show_user') && display_name_for(this.get('model.user')) && this.get('model.user.user_name'));
   }),
   init() {
     this._super(...arguments);
