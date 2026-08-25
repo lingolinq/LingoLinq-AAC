@@ -245,31 +245,33 @@ testing.
    control change" is unanswerable for every `Setting`-backed control, not only this one.
 3. **Code and DB disagree on the default feature set.** A reader of `lib/feature_flags.rb` alone
    reaches the wrong conclusion about production. That is what produced the defect corrected here.
-4. **Runtime-code comments shipping in the live image are falsified by this record.**
-   `app/controllers/application_controller.rb:396-397` states that `article_50_disclosure` "is
-   AVAILABLE-only ... so `feature_enabled_for?` returns false and this guard is inert until the flag
-   is enabled", and `app/controllers/api/boards_controller.rb:580` repeats it ("the guard is inert
-   until the flag is enabled") three lines after naming LL-6723438462 by id. The guard is not inert;
-   per 2.6 it is live for 29 of 34 users. Same code-default-mistaken-for-runtime-state class as item
-   3. Neither is corrected here (runtime code is out of scope for a compliance record); both are
-   listed so the carriers are declared rather than merely unfixed.
-6. **An ATTESTED compliance document carries the same falsified claim, and cannot be edited.**
-   `docs/legal/AI_GOVERNANCE_MEMO.md` (DOC-39f37f8200, attested by Scot Wahlquist 2026-08-04, with a
-   pinned `attestedContentHash`) states at `:261` that the modal is "**built and staged, gated OFF**,
-   not yet enabled for any user" and at `:426-427` that it is "gated OFF ... (not enabled for any
-   user); the modal is therefore shown to no" one. Both are now false. Because the document is
-   attested it is frozen: correcting it requires a Path A successor and Scot's re-attestation, not an
-   in-place edit. **This is the highest-value open item in this list** -- it is a customer-facing
-   governance memo asserting that no user sees the disclosure, while production shows it required for
-   34 of 34 and gated for 29.
-5. **Two human-owned fields in the findings SSOT carry the same falsified claim, and they
-   propagate.** `audit-reports/FINDINGS.json` finding LL-6723438462 states in `verifierNote` that
-   the flag "remains AVAILABLE-only ... so this is still latent-until-enabled", and in `notes` that
-   this makes "all instances of the guard inert today". The second is load-bearing and is disproved
-   by 2.6. These are Scot-owned register fields — **deliberately NOT edited here** — but they are
-   inputs to `scripts/render-domain-reports.rb:143` and
-   `scripts/compliance-findings-notion-sync.rb:76`, so the next render republishes them. Amendment
-   and the timing of those renders are Scot's call.
+4. **A runtime-code comment shipping in the live image was falsified by this record.**
+   RESOLVED 2026-08-25 (both carriers). `app/controllers/application_controller.rb` was corrected
+   by PR #853; it now reads "this guard is LIVE in production, not inert" at `:411`.
+   `app/controllers/api/boards_controller.rb:580` carried the same claim and is corrected in the
+   same PR as this amendment. Same code-default-mistaken-for-runtime-state class as item 3. Both
+   carriers are now closed; the item is retained as history of what shipped.
+
+5. **Two human-owned fields in the findings SSOT carried the same falsified claim.**
+   RESOLVED 2026-08-24 by PR #850. `audit-reports/FINDINGS.json` finding LL-6723438462 previously
+   stated in `verifierNote` that the flag "remains AVAILABLE-only ... so this is still
+   latent-until-enabled", and in `notes` that this makes "all instances of the guard inert today".
+   Both fields were amended on Scot's direction; each now quotes the prior text and records that it
+   was false, so the falsified wording survives only as quoted-and-corrected history. The render
+   consumers (`scripts/render-domain-reports.rb:143`,
+   `scripts/compliance-findings-notion-sync.rb:76`) therefore republish the correction, not the
+   defect. Retained as history of what propagated.
+
+6. **An ATTESTED compliance document carried the same falsified claim.**
+   RESOLVED 2026-08-24 by PR #856. `docs/legal/AI_GOVERNANCE_MEMO.md` (`DOC-39f37f8200`, attested
+   by Scot Wahlquist 2026-08-04) stated at `:261` that the modal is "**built and staged, gated
+   OFF**, not yet enabled for any user" and at `:426-427` that it is "gated OFF ... the modal is
+   therefore shown to no one". Both were false. Because the document is attested it could not be
+   edited in place; it was superseded under Path A by
+   `docs/legal/2026-08-24_ai-governance-memo.md` (`DOC-506bbe2039`), which corrects both claims and
+   which the same PR as this amendment further reconciles. The predecessor remains frozen and
+   byte-identical as the signed record. **This was the highest-value open item in this list and it
+   is now discharged**, pending only Scot's attestation of the successor.
 
 ## Attestation
 
