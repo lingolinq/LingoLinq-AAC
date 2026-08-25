@@ -246,7 +246,7 @@ testing.
 3. **Code and DB disagree on the default feature set.** A reader of `lib/feature_flags.rb` alone
    reaches the wrong conclusion about production. That is what produced the defect corrected here.
 4. **Runtime-code comments shipping in the live image were falsified by this record.**
-   RESOLVED 2026-08-25, **seven carriers, all closed**:
+   RESOLVED 2026-08-25, **eight carriers, all closed**:
    - `app/controllers/application_controller.rb` -- corrected by PR #853; `:411` now reads "this
      guard is LIVE in production, not inert".
    - `app/controllers/api/boards_controller.rb:580` -- "the guard is inert until the flag is
@@ -270,9 +270,17 @@ testing.
      Worse than a stale comment: an auditor reading the spec suite concludes the flag ships off, and
      seeding that Setting in test would silently invert the assertion. Renamed and re-commented to
      pin the code-default path explicitly, not the production state. Corrected here.
+   - `spec/controllers/api/boards_controller_spec.rb:1571,1575` -- a SECOND green test, in a
+     different spec file, named "should proceed normally with the flag NOT enabled ... (primary
+     flag-off no-change regression)" with a comment stating the flag "is not in
+     `AVAILABLE_FRONTEND_FEATURES` on this branch" and calling that "**the shipping state**". Doubly
+     false: the flag IS registered there, and production enables it via the DB Setting. Found only
+     after the seventh was fixed, by a reviewer searching `spec/` a second time. Corrected here.
 
-   **Process note, and it is the useful part of this item.** This item was closed FOUR times on
-   incomplete sweeps: at two carriers, then four, then six, now seven. Each closure was made in good
+   **Process note, and it is the useful part of this item.** This item was closed FIVE times on
+   incomplete sweeps: at two carriers, then four, then six, then seven, now eight. The eighth was in
+   a spec file, found on a SECOND search of `spec/` after the seventh had already been fixed -- so
+   even widening the search space did not exhaust it on the first pass. Each closure was made in good
    faith after a sweep, and each sweep was scoped by the wording of the carriers already known.
 
    Each escalation came from a DIFFERENT method, not from a better keyword list:
