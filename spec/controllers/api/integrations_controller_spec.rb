@@ -549,12 +549,15 @@ describe Api::IntegrationsController, :type => :controller do
       end
 
       describe "article_50_disclosure backstop" do
-        it "should proceed on a cache hit with the flag NOT enabled (AVAILABLE-only shipping state)" do
+        it "should proceed on a cache hit when feature_enabled_for? is false (code-default path, not the production state)" do
           token_user
           focus_set = warm_focus_cache!
           expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
-          # article_50_disclosure is AVAILABLE-only; feature_enabled_for? returns
-          # false for real (no stub). Jurisdiction/ack must not affect the response.
+          # Pins the CODE-DEFAULT path: with no default_enabled_features row in the test
+          # DB, feature_enabled_for? returns false unstubbed. This is NOT the production
+          # state -- production enables article_50_disclosure via that DB Setting (verified
+          # 2026-08-23, docs/legal/2026-08-23_article-50-production-flag-verification.md).
+          # Jurisdiction/ack must not affect the response on this path.
           allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
           allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
           expect(AiBoardGenerator).not_to receive(:generate_focus_words)

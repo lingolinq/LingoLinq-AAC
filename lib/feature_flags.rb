@@ -54,10 +54,15 @@ module FeatureFlags
               # RLL-01). Reaches the client via frontend_flags_for(user) ->
               # appState.feature_flags.article_50_disclosure, which is the ONLY input
               # utils/article50_gate.js#needsAcknowledgement reads before it will show
-              # the modal. CAUTION, corrected 2026-08-25: AVAILABLE-only describes THIS
-              # CONSTANT, not production. Production resolves the effective feature list
-              # through SystemFeatureSettings.effective_enabled_for, where the
-              # default_enabled_features DB Setting REPLACES this constant. A direct
+              # the modal. CAUTION, corrected 2026-08-25: AVAILABLE-only describes the
+              # ENABLED_FRONTEND_FEATURES default, not production. Production resolves the
+              # effective list through SystemFeatureSettings.effective_enabled_for, where a
+              # default_enabled_features DB Setting REPLACES ENABLED_FRONTEND_FEATURES
+              # (system_feature_settings.rb:11). Membership in THIS constant
+              # (AVAILABLE_FRONTEND_FEATURES) is a hard CEILING the Setting is intersected
+              # against (`stored & AVAILABLE_FRONTEND_FEATURES`, system_feature_settings.rb:9):
+              # removing 'article_50_disclosure' from this list would silently TURN OFF the
+              # live production disclosure. Do not treat this list as inert against production. A direct
               # audited read on 2026-08-23 found article_50_disclosure PRESENT in that
               # Setting and feature_enabled_for? true for all 34 then-existing accounts.
               # So the Phase 3/4 disclosure path is LIVE in production, NOT inert -- an

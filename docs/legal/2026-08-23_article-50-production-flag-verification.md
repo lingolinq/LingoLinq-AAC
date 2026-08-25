@@ -114,13 +114,13 @@ membership from those lists would be a false positive.
 Precisely: beta falls back to the full AVAILABLE list, and canary falls back to
 `AVAILABLE_FRONTEND_FEATURES - DISABLED_CANARY_FEATURES` (`lib/system_feature_settings.rb:29`). The
 73 = 73 equality and the beta/canary identity above hold **only because
-`DISABLED_CANARY_FEATURES` is currently empty** (`lib/feature_flags.rb:103`); both go silently false
+`DISABLED_CANARY_FEATURES` is currently empty** (`lib/feature_flags.rb:108`); both go silently false
 the first time anything is added to that denylist.
 
 ### 2.4 Per-user resolution — true (confirmation only)
 
 Resolved through the real path, `FeatureFlags.feature_enabled_for?('article_50_disclosure', user)`,
-the same call the server backstop makes at `app/controllers/application_controller.rb:419-422`.
+the same call the server backstop makes at `app/controllers/application_controller.rb:438-442`.
 
 | User (global_id) | Managing org | `feature_enabled_for?` | Effective list contains flag |
 |---|---|---|---|
@@ -161,7 +161,7 @@ country, so the 29 unresolved users are *unknown*, not affirmatively non-EU.
 
 **This is the operationally important layer, and it is not what the organization histogram in 2.2
 suggests.** With the flag on, `article_50_disclosure_missing?`
-(`app/controllers/application_controller.rb:419-422`) is armed at all five AI ingresses:
+(`app/controllers/application_controller.rb:438-442`) is armed at all five AI ingresses:
 `app/controllers/api/boards_controller.rb:592`, `api/eval_sessions_controller.rb:84`,
 `api/integrations_controller.rb:104`, `api/word_suggestions_controller.rb:28`,
 `api/words_controller.rb:63`.
@@ -246,7 +246,7 @@ testing.
 3. **Code and DB disagree on the default feature set.** A reader of `lib/feature_flags.rb` alone
    reaches the wrong conclusion about production. That is what produced the defect corrected here.
 4. **Runtime-code comments shipping in the live image were falsified by this record.**
-   RESOLVED 2026-08-25, **six carriers, all closed**:
+   RESOLVED 2026-08-25, **seven carriers, all closed**:
    - `app/controllers/application_controller.rb` -- corrected by PR #853; `:411` now reads "this
      guard is LIVE in production, not inert".
    - `app/controllers/api/boards_controller.rb:580` -- "the guard is inert until the flag is
@@ -258,25 +258,40 @@ testing.
    - `app/frontend/app/utils/article50_gate.js:14-16` -- "the flag is not registered yet on this
      branch"; "the intended inert state". Both false. Corrected here.
    - `app/models/user.rb:1531` -- "in production every `AiApiLog` row carries
-     `article_50_disclosure_shown=false`". False: 63 of 64 observed rows carry `true` (2.4).
+     `article_50_disclosure_shown=false`". False: 63 of 64 observed rows carry `true` (section 3).
      Corrected here.
-   - `app/models/user.rb:1559` -- "nothing calls it in production yet". False:
+   - `app/models/user.rb:1564` -- "nothing calls it in production yet". False:
      `app/frontend/app/components/ai-disclosure.js:105` calls the acknowledgement endpoint.
      Corrected here.
+   - `spec/controllers/api/integrations_controller_spec.rb:552,556` -- a GREEN TEST whose NAME
+     asserted the falsified claim as fact: "should proceed on a cache hit with the flag NOT enabled
+     (**AVAILABLE-only shipping state**)", with a comment reading "article_50_disclosure is
+     AVAILABLE-only". It passes only because the test DB carries no `default_enabled_features` row.
+     Worse than a stale comment: an auditor reading the spec suite concludes the flag ships off, and
+     seeding that Setting in test would silently invert the assertion. Renamed and re-commented to
+     pin the code-default path explicitly, not the production state. Corrected here.
 
-   **Process note, and it is the useful part of this item.** This item was closed THREE times on
-   incomplete sweeps: first at two carriers, then at four, now at six. Each closure was made in good
-   faith after a keyword sweep, and each keyword sweep was chosen from the wording of the carriers
-   already known. The last two were found only because a second, independent reviewer read the code
-   rather than grepping it.
+   **Process note, and it is the useful part of this item.** This item was closed FOUR times on
+   incomplete sweeps: at two carriers, then four, then six, now seven. Each closure was made in good
+   faith after a sweep, and each sweep was scoped by the wording of the carriers already known.
+
+   Each escalation came from a DIFFERENT method, not from a better keyword list:
+   - carriers 3-4 (`feature_flags.rb`, `article50_gate.js`): an adversarial reviewer reading the
+     flag-resolution path end to end;
+   - carriers 5-6 (`user.rb`): a second, independent reviewer that read the model layer the first
+     had skimmed;
+   - carrier 7 (`integrations_controller_spec.rb`): a third pass that searched `spec/`, which no
+     previous sweep had looked at at all.
 
    A grep gate over `inert` co-occurring with `article_50_disclosure` -- the counter-measure this
-   item previously proposed -- would have found the first four and **missed the last two**, because
-   they say "shown=false" and "nothing calls it" and never use the word "inert". Recording that
-   explicitly, because the tempting lesson here ("add a grep gate") is the wrong one. No phrase list
-   derived from known carriers can bound a defect whose defining property is that it is phrased in a
-   way nobody anticipated. What actually worked was two reviewers with different methods reading the
-   same code independently.
+   item once proposed -- would have found the first four and missed all three of the rest: they say
+   "shown=false", "nothing calls it", and "AVAILABLE-only shipping state", and none uses the word
+   "inert". Recording that explicitly, because the tempting lesson ("add a grep gate") is the wrong
+   one. No phrase list derived from known carriers can bound a defect class whose defining property
+   is being phrased in a way nobody anticipated. What worked was independent reviewers with
+   different reading strategies, and widening the search space (`spec/`) rather than the keyword
+   list. Carrier 7 is the sharpest case: it was not a comment at all but a GREEN TEST NAME, which no
+   comment-scoped sweep could ever have reached.
 
 5. **Two human-owned fields in the findings SSOT carried the same falsified claim.**
    RESOLVED 2026-08-24 by PR #850. `audit-reports/FINDINGS.json` finding LL-6723438462 previously

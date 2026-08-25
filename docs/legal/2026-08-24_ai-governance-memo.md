@@ -127,7 +127,7 @@ prior attestation.
 | 3 | Section 8, 2026-07-22 amendment: "the modal is therefore **shown to no one** in production" (:426-428) | Overtaken by the same read. Retained verbatim as the historical record of the Phase 5 handoff, with a dated correction marker appended in place. |
 | 4 | Population scope, stated by the predecessor only as a forward-looking deferral rationale ("prod carries no real EU users (internal/test accounts only)") | The 34 accounts above are **test/QA accounts, not real users** (confirmed by Scot, 2026-08-24). Production has no real user population. So the corrected posture is that the disclosure is **correctly configured and live**, and separately that **no real person has encountered an undisclosed AI interaction** - a stronger statement than the logs alone support, and one the predecessor could not make either way. |
 | 5 | Stale **Bedrock runtime status**, in four places: the section 2 operational-status note, the section 3 BAA coverage-boundaries bullet, the "Runtime routing update" paragraph, and the closing 2026-08-04 trailer. All state or imply the runtime AI path has been not operational since revision `00014-5rw`. | False since 2026-08-04T07:25:08Z. Credentials were re-mounted 53 minutes after the withdrawal, on `00015-9l9`, and the path has since carried user-attributed traffic (63 of 64 `AiApiLog` rows carry a `user_global_id`). Corrections incorporated from the 2026-08-19 Bedrock truth-up (PR #827), which is superseded by this record and closed. |
-| 6 | **Three sites** (header history line, section 5.2, section 8): the Phase 4 jurisdiction helper "**un-inerts the EU log-retention purge**", which "now matches `jurisdiction = 'EU'` rows". | Overstated. The mechanism IS wired, but it matches **zero rows today**: the stamp writes `'EU'` only for a CONFIRMED `:eu` user and `EuJurisdiction.status` is `:unknown` for 34 of 34 production accounts. So the purge is **wired and dormant**, not un-inerted, and it begins matching on the first confirmed EU user (`EuJurisdiction.locale_is_eu?` resolves `:eu` from a bare `pl`/`de`/`fr` locale). NOTE: `lib/tasks/scheduler.rake:153-158` and `docs/legal/DATA_RETENTION.md:33` still describe this purge as "enforced"; both are listed as declared follow-ups, not corrected here. This claim was falsified by the same 2026-08-23 read that falsified rows 1-3, and was missed by the first correction pass. |
+| 6 | **Three sites** (header history line, section 5.2, section 8): the Phase 4 jurisdiction helper "**un-inerts the EU log-retention purge**", which "now matches `jurisdiction = 'EU'` rows". | Overstated. The mechanism IS wired, but it matches **zero rows today**: the stamp writes `'EU'` only for a CONFIRMED `:eu` user and `EuJurisdiction.status` is `:unknown` for 34 of 34 production accounts. So the purge is **wired and dormant**, not un-inerted, The stamp begins writing on the first confirmed `:eu` user (`EuJurisdiction.locale_is_eu?` resolves `:eu` from a bare `pl`/`de`/`fr` locale), but the purge only DELETES rows older than five years, and the `jurisdiction` column dates from 2026-06-21, so nothing is deleted by it before ~2031-06. NOTE: `lib/tasks/scheduler.rake:153-158` and `docs/legal/DATA_RETENTION.md:33` still describe this purge as "enforced"; both are listed as declared follow-ups, not corrected here. This claim was falsified by the same 2026-08-23 read that falsified rows 1-3, and was missed by the first correction pass. |
 | 7 | Section 5.2 described the deliverable as the "**EU-gated** AI-interaction disclosure modal". | The gate is fail-safe OPEN: `EuJurisdiction.disclosure_required?` is `status(user) != :non_eu` (`lib/eu_jurisdiction.rb:57-59`), so the modal is required for every account not authoritatively `:non_eu`, not for an EU subset. The "EU-gated" framing invited reasoning from the org histogram (0 of 2 EU orgs) rather than from the resolver, and is itself part of what made "shown to no one" plausible. |
 | 8 | Section 5.2 carried a 2026-08-19 marker stating the section was "carried forward unverified" and that "**the production flag state was not read**". | Withdrawn. The production flag state WAS read on 2026-08-23. That marker's stated caution turned out to be exactly correct (a DB override can enable a flag registered AVAILABLE-only), so the predecessor's claim is not merely unchecked, it is false. |
 
@@ -480,12 +480,19 @@ dependency -- a shared call-context helper (`LingoLinq::Article50CallContext.for
 and the purge reads that column -- but it currently matches ZERO rows, because the stamp writes
 `jurisdiction = 'EU'` only for a CONFIRMED `:eu` user and production has none
 (`EuJurisdiction.status` is `:unknown` for 34 of 34 as of 2026-08-23). So the purge is wired and
-dormant, not un-inerted. It begins matching on the first confirmed EU user;
-`EuJurisdiction.locale_is_eu?` resolves `:eu` from a bare `pl`/`de`/`fr` locale, so a single Polish
-beta tester changes this. See `docs/legal/2026-08-23_article-50-production-flag-verification.md`
+dormant, not un-inerted. Two separate clocks, and an earlier version of this
+correction conflated them: the STAMP begins writing `'EU'` on the first confirmed `:eu` user
+(`EuJurisdiction.locale_is_eu?` resolves `:eu` from a bare `pl`/`de`/`fr` locale, so a single Polish
+beta tester starts that). The PURGE begins DELETING only five years after the earliest stamped row,
+because `purge_old_eu_logs!` is `where(jurisdiction: 'EU').where('created_at < ?', 5.years.ago)`
+(`app/models/ai_api_log.rb:244-248`) and the `jurisdiction` column was created 2026-06-21
+(`db/migrate/20260621120000`). So no EU AI log can be deleted by this purge before ~2031-06. See `docs/legal/2026-08-23_article-50-production-flag-verification.md`
 section 4 item 1.]** The helper is
 deployed wherever Phase 4 is
-deployed (staged; effective in production after the Phase 4/5 prod deploy). Boundary rules that
+deployed **[CORRECTION 2026-08-25: this read "(staged; effective in production
+after the Phase 4/5 prod deploy)". Phase 4 IS in production. `Article50CallContext` is the only
+writer of `AiApiLog.article_50_disclosure_shown` (via `lib/ai_board_generator.rb`,
+`lib/ai_word_predictor.rb`, `lib/eval_narrator.rb`) and 63 production rows carry `true`.]**. Boundary rules that
 remain in force: **(1)** only the code track edits the three AI call sites, the
 `article_50_disclosure` flag, and the 50(1) paragraph of this section; **(2)** this section 5.2 is the
 shared contract -- any Article 50 thread reads it first and updates it last; **(3)** this section was
@@ -572,7 +579,7 @@ Tracked on the compliance calendar (`fix-euaiact-art50-2026-08-02`,
 | Field | Value |
 |---|---|
 | Prepared by | compliance-officer agent (draft); this successor drafted by Claude Code 2026-08-24 |
-| Reviewed by | adversary agent (predecessor); this successor pending dual review |
+| Reviewed by | adversary agent (predecessor); this successor: dual review completed 2026-08-25 (Claude adversary + Codex gpt-5.6-terra, two rounds); findings applied |
 | **Attested by (THIS document, v2026-08-24)** | **NOT YET ATTESTED - awaiting Scot Wahlquist, CEO** |
 | **Attestation date (THIS document)** | **pending** |
 | Attested by (PREDECESSOR versions only) | Scot Wahlquist, CEO |
@@ -670,7 +677,10 @@ stamps `jurisdiction = 'EU'` at the three AI call sites, merged to staging) was 
 un-inerting the EU `AiApiLog` 5-year retention purge (`purge_old_eu_logs!`) wherever Phase 4 is
 deployed. **[CORRECTION 2026-08-25: overstated as written. The mechanism is wired but matches
 ZERO rows today: the stamp fires only for a CONFIRMED `:eu` user and production has none. Wired and
-dormant, not un-inerted. It begins matching on the first confirmed EU user.]** The
+dormant, not un-inerted. The stamp begins writing on the first confirmed EU user;
+the purge begins deleting only five years after the earliest stamped row, i.e. not before ~2031-06
+(`purge_old_eu_logs!` filters `created_at < 5.years.ago`; the `jurisdiction` column dates from
+2026-06-21).]** The
 `AiApiLog` retention tiers were reconciled to a single wording across the memo, `DATA_RETENTION.md`,
 `AI_DATA_FLOW_CLASSIFICATION.md`, and `scheduler.rake` (EU 5-year and 90-day IP redaction described
 there as enforced **[CORRECTION 2026-08-25: the EU 5-year leg is wired but matches zero rows, per the

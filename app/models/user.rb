@@ -1530,8 +1530,10 @@ class User < ApplicationRecord
   # key. CORRECTED 2026-08-25: an earlier version of this comment said "nothing flips
   # shown=true until the Phase 3/5 modal acknowledge ships, so in production every
   # AiApiLog row carries article_50_disclosure_shown=false until then". That modal HAS
-  # shipped and the flag enabling it IS on in production, so the claim is false: of the
-  # 64 AiApiLog rows observed on 2026-08-23, 63 carry article_50_disclosure_shown=true.
+  # shipped and the flag enabling it IS on in production, so the claim is false. Note the
+  # unit: this predicate is per-USER, and on 2026-08-23 it was true for 5 of 34 accounts,
+  # with 29 of 34 still gated. (The often-quoted "63 of 64 true" is a per-ROW AiApiLog
+  # figure from 2 accounts; do not read it as a user-level acknowledgement rate.)
   # See docs/legal/2026-08-23_article-50-production-flag-verification.md.
   def article_50_disclosure_shown?(disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION)
     c = self.settings && self.settings['ai_transparency']
@@ -1563,8 +1565,9 @@ class User < ApplicationRecord
   # an earlier version of this comment said "nothing calls it in production yet, so
   # article_50_disclosure_shown? stays false on every row until the modal ships". Both
   # halves are now false. The modal shipped and calls this endpoint from
-  # app/frontend/app/components/ai-disclosure.js:105, and 63 of 64 AiApiLog rows
-  # observed on 2026-08-23 carry article_50_disclosure_shown=true.
+  # app/frontend/app/components/ai-disclosure.js:105. Unit note: 63 of 64 AiApiLog ROWS
+  # carry article_50_disclosure_shown=true, but those come from 2 accounts; at the USER
+  # level only 5 of 34 had acknowledged on 2026-08-23, with 29 of 34 still gated.
   # See docs/legal/2026-08-23_article-50-production-flag-verification.md.
   def mark_article_50_disclosure_shown!(disclosures_version:, source:, ip: nil, user_agent: nil)
     raise ArgumentError, 'invalid_source' unless ARTICLE_50_DISCLOSURE_SOURCES.include?(source)
