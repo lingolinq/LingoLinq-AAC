@@ -2870,7 +2870,12 @@ class Board < ApplicationRecord
             # JSON bundle / migration import — keep exported image
           elsif old_bi && old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
             # puts "SAFE PIC"
-          elsif library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].include?(old_bi.image_library) && library == 'opensybmols'))
+          # `old_bi &&` matches the two guards above: known_button_images only returns
+          # images it can find, so a button whose image_id points at a deleted
+          # ButtonImage leaves old_bi nil, and calling nil.image_library here aborted
+          # the entire swap. A nil now falls through to the lookup below and the
+          # button gets a fresh image, which is the right outcome for a dangling ref.
+          elsif old_bi && library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].include?(old_bi.image_library) && library == 'opensybmols'))
             # puts "ALREADY SWAPPED"
           elsif false
             # TODO: create or find an alternate version of the button_image that

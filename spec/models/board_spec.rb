@@ -5606,6 +5606,44 @@ describe Board, :type => :model do
       res = b1.swap_images('twemoji', u, [], nil)
       expect(res).to eq({done: true, id: b1.global_id, library: 'twemoji', board_ids: [], updated: [b1.global_id, b2.global_id], visited: [b1.global_id, b2.global_id]})
     end
+
+    it "should not raise when a button references a ButtonImage that no longer exists" do
+      # known_button_images only returns images it can actually find, so a button
+      # whose image_id points at a deleted ButtonImage yields old_bi == nil. The
+      # two guards above the @skip_swapped branch both test `old_bi &&`; that branch
+      # did not, so it called nil.image_library and blew up the whole swap. Only
+      # reachable when @skip_swapped is set, i.e. the copy / provisioning path
+      # (User#copy_board_links), which is exactly where a large board set is being
+      # walked and one stale image_id kills the entire run.
+      u = User.create
+      # A real arasaac image so current_library resolves to 'arasaac' and the OUTER
+      # gate opens. With no resolvable images at all the gate stays shut and the
+      # crashing branch is never reached, which is why this needs a mixed board.
+      real = ButtonImage.create(user: u)
+      real.settings['license'] = {
+        'uneditable' => true,
+        'author_name' => 'ARASAAC',
+        'author_url' => 'https://arasaac.org/'
+      }
+      real.save
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => real.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => '1_999999'},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      expect(b.known_button_images.map(&:global_id)).to eq([real.global_id])
+      expect(b.current_library(true)).to eq('arasaac')
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      allow(Uploader).to receive(:default_images).and_return({})
+      allow(Uploader).to receive(:find_images).and_return([])
+      expect {
+        b.swap_images(library, u, [], nil)
+      }.to_not raise_error
+    end
   end
 
   describe "downstream_board_ids" do
