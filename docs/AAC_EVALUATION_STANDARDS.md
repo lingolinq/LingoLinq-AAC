@@ -1255,6 +1255,55 @@ payer with no direct read. MassHealth's medical-necessity *guidelines* page, AZ
 DES/DDD 310-PP and Mercy Care AZ all 403'd. TX TMPPM, CA Medi-Cal, PA DHS, WI
 ForwardHealth and OR OHA were never checked. **Unread is not negative.**
 
+#### 12.9a The term payers actually use: **LCEEA** [VERIFIED]
+
+A separate sweep of ASHA, five vendor sites and the academic chain reached the same
+verdict independently, and supplied the piece §12.9 was missing — **what the payer
+test is actually called.**
+
+**Least Costly Equally Effective Alternative (LCEEA).** This is the standard feature
+matching exists to satisfy, and it is the vocabulary to write in. A representative
+coverage policy (Fallon Health) states it as:
+
+> "…not more costly than an alternative that is at least as likely to produce
+> equivalent therapeutic results… **Documentation must show that all least costly
+> alternatives have been considered and ruled out** before funding of an SGD will be
+> authorized."
+
+That is the same idea as NY's 18 NYCRR 513.4(d) and Medicare's "rationale for
+selection," and it is what §2's least-costly-alternative row should point at.
+
+**Not one of five AAC vendors claims a payer requires feature matching.** Three use
+the term (Forbes AAC heavily, Talk To Me Technologies, PRC-Saltillo); two do not use
+it **at all** — Tobii Dynavox (all 29 funding/eval PDFs clean, including three state
+Medicaid evaluation templates) and Lingraphica (466 pages, zero hits). The single
+vendor page that places feature matching beside a payer test names that test as
+**LCEEA**, and sources the feature-matching link to a **disability-benefits
+attorney**, not to a coverage policy. Given vendors' commercial interest in
+maximising the paperwork burden's apparent authority, their collective silence here
+is meaningful.
+
+**A third ASHA artifact lacks the term**, alongside the two in §12.9: ASHA's own SGD
+Evaluation Template. Its footers are worth knowing — it is authored by *University
+of Michigan*, derived from *"AAC-RERC website… Information obtained on 6/6/08"*, and
+self-disclaims: *"Information included in these templates does not represent
+official ASHA policy."*
+
+**The citation chain is short and self-referential.** Shane & Costello (1994) is
+unrefereed, has no published proceedings, no DOI, and **no retrievable text** — it
+cannot be read today by anyone. Every modern use is a citation-to-a-citation. Two of
+the three authors of the 2011 paper that anchors the term (Costello, Shane) *are the
+two people who gave the 1994 mini-seminar*. And *Perspectives on AAC* is an ASHA
+Special Interest Group periodical — editorially reviewed, **not** the peer-reviewed
+journal *Augmentative and Alternative Communication*, and not peer-reviewed at all
+until 2017.
+
+None of this makes feature matching bad clinical practice — it is a sensible method,
+and §6 already says the honest thing. It does mean the evidentiary base is thinner
+than the field's confidence in it, and that **"required by payers" is not a claim
+anyone can support.** Which edition of Beukelman & Mirenda first uses the literal
+term is **[UNSOURCED]** — do not assert one without checking a copy.
+
 ### 12.10 Primary language is a COVERAGE CRITERION — and our spine has no field for it [VERIFIED]
 
 The most actionable omission found, and the one closest to home for a product that
