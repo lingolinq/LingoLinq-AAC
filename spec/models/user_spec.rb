@@ -235,12 +235,117 @@ describe User, :type => :model do
     end
   end
   
+  describe "display_name" do
+    it "should return a real name unchanged" do
+      u = User.new
+      u.generate_defaults
+      u.user_name = 'ada'
+      u.settings['name'] = 'Ada Lovelace'
+      expect(u.display_name).to eq('Ada Lovelace')
+    end
+
+    it "should fall back to the handle when there is no name" do
+      u = User.new
+      u.generate_defaults
+      u.user_name = 'ada'
+      expect(u.settings['name']).to eq(nil)
+      expect(u.display_name).to eq('ada')
+    end
+
+    # Accounts created before the placeholder was removed keep the string until
+    # `rake extras:clear_no_name_placeholder` runs, so this must not leak.
+    it "should treat the legacy \"No name\" placeholder as absent" do
+      u = User.new
+      u.generate_defaults
+      u.user_name = 'ada'
+      u.settings['name'] = 'No name'
+      expect(u.display_name).to eq('ada')
+    end
+  end
+
   describe "named_email" do
     it "should return a named email" do
       u = User.new
       u.generate_defaults
+      u.settings['name'] = "Bob Smith"
       u.settings['email'] = "bob@yahoo.com"
-      expect(u.named_email).to eq("No name <bob@yahoo.com>")
+      expect(u.named_email).to eq("Bob Smith <bob@yahoo.com>")
+    end
+
+    # Signup collects no name, so this is the common case, not an edge case.
+    # It must be a bare address rather than " <bob@yahoo.com>" with a stray
+    # leading space.
+    it "should return a bare address when there is no name" do
+      u = User.new
+      u.generate_defaults
+      u.settings['email'] = "bob@yahoo.com"
+      expect(u.settings['name']).to eq(nil)
+      expect(u.named_email).to eq("bob@yahoo.com")
+    end
+  end
+
+  describe "prior_named_email" do
+    # Sibling of named_email and the same blank-name branch, but its only other
+    # spec reference (spec/mailers/user_mailer_spec.rb) stubs the method out
+    # entirely, so the branch itself had never been exercised.
+    it "should return a named email for the previous address" do
+      u = User.new
+      u.generate_defaults
+      u.settings['name'] = "Bob Smith"
+      u.settings['old_emails'] = ['old@yahoo.com']
+      expect(u.prior_named_email).to eq("Bob Smith <old@yahoo.com>")
+    end
+
+    it "should return a bare address when there is no name" do
+      u = User.new
+      u.generate_defaults
+      u.settings['old_emails'] = ['old@yahoo.com']
+      expect(u.settings['name']).to eq(nil)
+      expect(u.prior_named_email).to eq("old@yahoo.com")
+    end
+
+    it "should use the most recent prior address" do
+      u = User.new
+      u.generate_defaults
+      u.settings['old_emails'] = ['oldest@yahoo.com', 'newest@yahoo.com']
+      expect(u.prior_named_email).to eq("newest@yahoo.com")
+    end
+  end
+
+  describe "display_name" do
+    it "should return the name when there is a real one" do
+      u = User.new
+      u.generate_defaults
+      u.settings['name'] = 'Ada Lovelace'
+      expect(u.display_name).to eq('Ada Lovelace')
+      expect(u.placeholder_name?).to eq(false)
+    end
+
+    it "should fall back to the handle when there is no name" do
+      u = User.create!
+      expect(u.settings['name']).to eq(nil)
+      expect(u.placeholder_name?).to eq(true)
+      expect(u.display_name).to eq(u.display_user_name)
+    end
+
+    # The seed is gone, but accounts created before that still carry the literal
+    # string until the backfill rake task runs. It is truthy, so it defeats every
+    # `name || user_name` guard -- filtering it is the whole point of this method.
+    it "should treat the legacy \"No name\" placeholder as absent" do
+      u = User.create!
+      u.settings['name'] = 'No name'
+      u.save!
+      expect(u.placeholder_name?).to eq(true)
+      expect(u.display_name).to eq(u.display_user_name)
+      expect(u.display_name).to_not eq('No name')
+    end
+
+    it "should obfuscate the handle for unauthenticated surfaces" do
+      u = User.create!
+      expect(u.obfuscated_display_name).to eq(u.obfuscated_name)
+      expect(u.obfuscated_display_name).to_not eq(u.user_name)
+      u.settings['name'] = 'Ada Lovelace'
+      expect(u.obfuscated_display_name).to eq('Ada Lovelace')
     end
   end
 
@@ -264,7 +369,10 @@ describe User, :type => :model do
     it "should generate expected defaults" do
       u = User.new
       u.generate_defaults
-      expect(u.settings['name']).not_to eq(nil)
+      # Deliberately NOT defaulted. It used to seed the literal "No name",
+      # which is truthy and so defeated every `name || user_name` guard
+      # downstream -- including the SMS a family member receives.
+      expect(u.settings['name']).to eq(nil)
       expect(u.settings['preferences']).not_to eq(nil)
       expect(u.settings['preferences']['devices']['default']).to eq({
         'name' => 'Web browser for Desktop',
@@ -282,7 +390,13 @@ describe User, :type => :model do
       expect(u.settings['preferences']['geo_logging']).to eq(false)
       expect(u.settings['preferences']['auto_home_return']).to eq(false)
       expect(u.settings['preferences']['auto_open_speak_mode']).to eq(true)
-      expect(u.user_name).to match(/\Ano-name(_\d+)?\z/)
+      # Behaviour change from removing the "No name" seed. generate_user_name
+      # derives a handle from settings['name'], so a nameless account used to
+      # become "no-name"; with no name it now falls through to the email prefix
+      # and then to "person" (Processable#generate_user_name:179-183). Only
+      # reachable when name, user_name AND email are all absent -- a real signup
+      # supplies at least one -- and "person_3" reads better than "no-name_3".
+      expect(u.user_name).to match(/\Aperson(_\d+)?\z/)
       expect(u.email_hash).not_to eq(nil)
     end
     
@@ -296,7 +410,7 @@ describe User, :type => :model do
         'auto_home_return' => false
       }}}
       u.generate_defaults
-      expect(u.settings['name']).not_to eq(nil)
+      expect(u.settings['name']).to eq("Bob Miller")
       expect(u.settings['preferences']).not_to eq(nil)
       expect(u.settings['preferences']['devices']['default']).to eq({
         'name' => 'not_browser',
@@ -549,6 +663,75 @@ describe User, :type => :model do
     end
   end
 
+  describe "process_params guided-tour progress" do
+    # PROGRESS_PARAMS is an ALLOWLIST: a key absent from it is silently dropped on
+    # save. `guided_tours_completed` was written by the frontend for months without
+    # being listed, so the "seen" badge never survived a reload -- and none of it
+    # had a spec, which is how it stayed broken. These cover both halves: that the
+    # keys persist at all, and that the client-supplied map is sanitized.
+    def progress_for(params)
+      u = User.new
+      u.process_params({'preferences' => {'progress' => params}}, {})
+      u.settings['preferences']['progress']
+    end
+
+    it "should persist both guided-tour maps (they are on the allowlist)" do
+      progress = progress_for({
+        'guided_tours_completed' => {'home_gentle' => true},
+        'guided_tours_autoshown' => {'board_detail_speak_gentle' => true}
+      })
+      expect(progress['guided_tours_completed']).to eq({'home_gentle' => true})
+      expect(progress['guided_tours_autoshown']).to eq({'board_detail_speak_gentle' => true})
+    end
+
+    it "should drop a progress key that is not on the allowlist" do
+      progress = progress_for({'guided_tours_completed' => {'a' => true}, 'not_a_real_key' => {'x' => true}})
+      expect(progress['guided_tours_completed']).to eq({'a' => true})
+      expect(progress['not_a_real_key']).to eq(nil)
+    end
+
+    it "should normalise every value to true and drop falsy entries" do
+      progress = progress_for({'guided_tours_completed' => {
+        'kept' => 'yes', 'also_kept' => 1, 'dropped' => false, 'also_dropped' => nil
+      }})
+      expect(progress['guided_tours_completed']).to eq({'kept' => true, 'also_kept' => true})
+    end
+
+    it "should discard the value entirely when the client sends a non-Hash" do
+      ['not a hash', 42, ['a', 'b']].each do |junk|
+        progress = progress_for({'guided_tours_completed' => junk})
+        expect(progress['guided_tours_completed']).to eq(nil), "expected #{junk.inspect} to be discarded"
+      end
+    end
+
+    it "should bound the number of keys" do
+      big = {}
+      (User::GUIDED_TOUR_MAX_KEYS + 25).times { |i| big["tour_#{i}"] = true }
+      progress = progress_for({'guided_tours_completed' => big})
+      expect(progress['guided_tours_completed'].size).to eq(User::GUIDED_TOUR_MAX_KEYS)
+    end
+
+    it "should bound the length of each key" do
+      long = 'x' * (User::GUIDED_TOUR_MAX_KEY_LENGTH + 50)
+      progress = progress_for({'guided_tours_completed' => {long => true}})
+      key = progress['guided_tours_completed'].keys.first
+      expect(key.length).to eq(User::GUIDED_TOUR_MAX_KEY_LENGTH)
+      expect(progress['guided_tours_completed'][key]).to eq(true)
+    end
+
+    it "should coerce non-string keys to strings" do
+      progress = progress_for({'guided_tours_completed' => {5 => true, :sym => true}})
+      expect(progress['guided_tours_completed']).to eq({'5' => true, 'sym' => true})
+    end
+
+    it "should survive a round-trip through save" do
+      u = User.create!
+      u.process_params({'preferences' => {'progress' => {'guided_tours_completed' => {'home_gentle' => true}}}}, {})
+      u.save!
+      expect(u.reload.settings['preferences']['progress']['guided_tours_completed']).to eq({'home_gentle' => true})
+    end
+  end
+
   describe "process_params" do
     it "should ignore missing parameters" do
       u = User.new
@@ -707,6 +890,45 @@ describe User, :type => :model do
       ae = AuditEvent.where(event_type: 'parental_consent_revoke', user_key: u.global_id).last
       expect(ae.data['ip']).to eq('203.0.113.8')
       expect(ae.data['user_agent']).to eq('TestAgent/2.0')
+    end
+
+    # Withdrawal of consent has to end access ALREADY granted, not merely block
+    # the next sign-in. This previously called devices.each(&:invalidate_cached_keys),
+    # which only drops the Redis `user_token/...` cache and leaves settings['keys']
+    # populated -- so a token minted before the revocation stayed valid, and
+    # Device#valid_token? refreshes last_timestamp on use so an active session
+    # never aged out either. Verified against a running stack before the fix:
+    # /api/v1/users/self still returned the child's record post-revoke.
+    it "revoke_parental_consent! invalidates issued device tokens, and granting does not" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      u = User.new
+      u.process_params({
+        'name' => 'coppa_kid_tokens',
+        'email' => 'kidtokens@example.com',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parenttokens@example.com'
+      }, {})
+      u.save!
+
+      grant_tok = u.settings['coppa']['parent_consent_token']
+      expect(u.grant_parental_consent!(grant_tok)).to eq(true)
+
+      d = Device.create(:user => u, :device_key => 'default', :developer_key_id => 0)
+      d.generate_token!
+      key = d.reload.settings['keys'].last['value']
+      expect(d.valid_token?(key)).to eq(true)
+
+      # Granting must NOT log the child out -- it busts the permission cache only.
+      expect(u.reload.grant_parental_consent!(grant_tok)).to eq(false) # already granted
+      expect(d.reload.settings['keys'].length).to eq(1)
+      expect(d.valid_token?(key)).to eq(true)
+
+      revoke_tok = u.settings['coppa']['parent_consent_revoke_token']
+      expect(u.revoke_parental_consent!(revoke_tok)).to eq(true)
+
+      expect(d.reload.settings['keys']).to eq([])
+      expect(d.valid_token?(key)).to eq(false)
     end
 
     it "should coerce preferences cookies to boolean" do
@@ -2742,20 +2964,53 @@ describe User, :type => :model do
 
     it "should not re-add sidebar boards the user removed from their saved list" do
       u = User.new
-      social_key = 'mbaud12/senner-baud-greetings'
+      senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
       saved = User.default_sidebar_boards.reject do |b|
-        b['key'] == social_key || b['key'] == SystemBoardSources.board_key('crisis-vocabulary')
+        b['key'] == senner_key || b['key'] == SystemBoardSources.board_key('crisis-vocabulary')
       end
       u.settings = {'preferences' => {'sidebar_boards' => saved}}
       keys = u.sidebar_boards.map { |b| b['key'] || 'alert' }
-      expect(keys).not_to include(social_key)
+      expect(keys).not_to include(senner_key)
       expect(keys).to include(SystemBoardSources.board_key('crisis-vocabulary'))
     end
 
-    it "should leave social in the disabled pool by default" do
+    it "should leave senner-baud in the disabled pool by default" do
+      senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
       keys = User.default_active_sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).not_to include(senner_key)
+      expect(User.default_sidebar_boards.map { |b| b['key'] }).to include(senner_key)
+      expect(User.default_sidebar_boards.map { |b| b['key'] }).not_to include('mbaud12/senner-baud-greetings')
+    end
+
+    it "should not include vocal-flair-84 or senner-baud in the empty-list fallback" do
+      u = User.new
+      keys = u.sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(keys).not_to include(SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
+    end
+
+    it "should include vocal-flair-84 and senner-baud in the signup sidebar list" do
+      keys = User.signup_sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(keys).to include(SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG))
+      expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
       expect(keys).not_to include('mbaud12/senner-baud-greetings')
-      expect(User.default_sidebar_boards.map { |b| b['key'] }).to include('mbaud12/senner-baud-greetings')
+    end
+
+    it "should not auto-add vocal-flair-84 or senner-baud into an older saved sidebar" do
+      u = User.new
+      vf84_key = SystemBoardSources.board_key('vocal-flair-84')
+      senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
+      crisis_key = SystemBoardSources.board_key('crisis-vocabulary')
+      saved = User.default_sidebar_boards.reject do |b|
+        [senner_key, crisis_key].include?(b['key'])
+      end
+      u.settings = {'preferences' => {'sidebar_boards' => saved}}
+      keys = u.sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).not_to include(vf84_key)
+      expect(keys).not_to include(senner_key)
+      expect(keys).to include(crisis_key)
     end
 
     it "should resolve default sidebar entries to user-owned copies except keyboard" do
@@ -2776,6 +3031,30 @@ describe User, :type => :model do
       expect(keys).not_to include(yesno.key)
       expect(keys).not_to include(inflections.key)
       expect(keys).not_to include(crisis.key)
+    end
+
+    it "should resolve signup sidebar entries to user-owned copies except keyboard" do
+      source = User.create(user_name: 'lingolinq')
+      u = User.create(user_name: 'communicator')
+      yesno = Board.process_new({name: 'Yes/No', public: true}, {user: source, key: 'yesno'})
+      inflections = Board.process_new({name: 'Inflections', public: true}, {user: source, key: 'inflections'})
+      crisis = Board.process_new({name: 'Crisis Vocabulary', public: true}, {user: source, key: 'crisis-vocabulary'})
+      vf84 = Board.process_new({name: 'Vocal Flair 84', public: true}, {user: source, key: 'vocal-flair-84'})
+      senner = Board.process_new({name: SystemBoardSources::SENNER_BAUD_NAME, public: true}, {user: source, key: 'senner-baud'})
+      yesno.copy_for(u)
+      inflections.copy_for(u)
+      crisis.copy_for(u)
+      vf84_copy = vf84.copy_for(u)
+      senner_copy = senner.copy_for(u)
+      UserBoardProvisioner.apply_signup_sidebar!(u)
+      u.reload
+
+      keys = u.sidebar_boards.map { |b| b['key'] }.compact
+      expect(keys).to include(vf84_copy.key)
+      expect(keys).to include(senner_copy.key)
+      expect(keys).to include(SystemBoardSources.board_key('keyboard'))
+      expect(keys).not_to include(vf84.key)
+      expect(keys).not_to include(senner.key)
     end
 
     it "should not auto-add crisis when the user's resolved copy key is already stored" do
@@ -2971,7 +3250,7 @@ describe User, :type => :model do
         'message' => 'alternate pantsuit',
         'sharer_id' => u2.global_id,
         'to' => 'u1@example.com',
-        'sharer_name' => u2.settings['name'],
+        'sharer_name' => u2.user_name,
         'reply_url' => nil,
         'recipient_id' => u.global_id,
         'reply_id' => nil,
@@ -4216,6 +4495,29 @@ describe User, :type => :model do
       expect(u.copy_board_to_library({'id' => b1.global_id}, owner.global_id, nil)).to eq(true)
       expect(u.boards.where(parent_board: b1).first.id).to eq(existing.id)
     end
+
+    it "should re-swap an existing library copy in place when swap_incomplete is set" do
+      u = User.create
+      owner = User.create
+      b1 = Board.create(user: owner, public: true)
+      bi = ButtonImage.create(user: owner)
+      b1.process({'buttons' => [
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+      ]}, {})
+      existing = b1.copy_for(u)
+      existing.settings['swapped_library'] = 'opensymbols'
+      existing.settings['swap_incomplete'] = true
+      existing.save
+      expect(u).to_not receive(:copy_board_links)
+      expect(Uploader).to receive(:default_images).and_return({
+        'hat' => {'url' => 'https://www.example.com/hat.png'}
+      })
+      expect(u.copy_board_to_library({'id' => b1.global_id}, owner.global_id, 'opensymbols')).to eq(true)
+      expect(u.boards.where(parent_board: b1).count).to eq(1)
+      existing.reload
+      expect(existing.settings['swap_incomplete']).to eq(nil)
+      expect(existing.buttons[0]['image_id']).to_not eq(bi.global_id)
+    end
   end
 
   describe "copy_to_home_board" do
@@ -4289,6 +4591,31 @@ describe User, :type => :model do
         expect(opts[:swap_library]).to eq('mulberry')
       end
       expect(u.copy_to_home_board({'id' => b1.global_id}, u.global_id, 'mulberry')).to eq(true)
+    end
+
+    it "should re-swap an existing home copy in place when swap_incomplete is set" do
+      u = User.create
+      owner = User.create
+      b1 = Board.create(user: owner, public: true)
+      bi = ButtonImage.create(user: owner)
+      b1.process({'buttons' => [
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+      ]}, {})
+      b2 = b1.copy_for(u)
+      b2.settings['swapped_library'] = 'opensymbols'
+      b2.settings['swap_incomplete'] = true
+      b2.save
+      u.settings['preferences']['home_board'] = {'id' => b2.global_id, 'key' => b2.key}
+      u.save
+      expect(u).to_not receive(:copy_board_links)
+      expect(Uploader).to receive(:default_images).and_return({
+        'hat' => {'url' => 'https://www.example.com/hat.png'}
+      })
+      expect(u.copy_to_home_board({'id' => b1.global_id}, owner.global_id, 'opensymbols')).to eq(true)
+      expect(u.settings['preferences']['home_board']['id']).to eq(b2.global_id)
+      b2.reload
+      expect(b2.settings['swap_incomplete']).to eq(nil)
+      expect(b2.buttons[0]['image_id']).to_not eq(bi.global_id)
     end
 
     it "should create a shallow clone if specified" do

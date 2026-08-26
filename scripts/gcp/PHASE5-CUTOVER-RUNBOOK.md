@@ -5,8 +5,19 @@ procedure for the **production cutover** (tracker Phase 5), built on top of the 
 steps already shipped in `scripts/gcp/PHASE4-CUTOVER-DATA-RUNBOOK.md` (S1 setval + S2 secret
 preservation).
 
-> **Status (2026-07-15): the GCP stack is stood up and healthy on CURRENT `main`; the
-> irreversible cutover actions remain gated on Scot's explicit go.** The clean-DB rehearsal ran
+> **Status: the DNS cutover is DONE** (cut 2026-07-22, re-verified 2026-08-09), **and prod
+> holds no real users yet.** Both points are detailed further down this block. The remaining
+> infrastructure/decommission actions still gated (not yet run) are Cloud Run ingress, the
+> Cloud Armor preview-to-enforce flip, and Render decommission. Those are not the full
+> launch-gate list; credential rotation, Cloud SQL deletion protection, and the unchecked
+> pre-cutover checklist items remain open later in this block. After the snapshot paragraph,
+> the 2026-08-09 no-users status, the launch-gate checklist, and the still-gated actions
+> are current.
+>
+> The remainder of this paragraph is the 2026-07-15 pre-cutover snapshot, kept for history.
+> Read it as a record of what was true then, not as open work. At that point the GCP stack was stood up and
+> healthy on CURRENT `main` and the irreversible cutover actions remained gated on Scot's
+> explicit go. The clean-DB rehearsal ran
 > and passed (schema load + seed + Redis-TLS handshake, 2026-06-29; five-path smoke re-run
 > 2026-07-02/04 - see the checklist), and a fresh deploy from current `main` (image `f7e89fe2d`,
 > the Dockerfile npm-pin fix #594) redeployed `lingolinq-web` + `lingolinq-worker` and re-ran the

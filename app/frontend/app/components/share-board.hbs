@@ -88,7 +88,7 @@
                 <img src={{user.avatar_url}} class="md-modal-avatar" style="width: 40px; height: 40px;" alt="">
                 <div class="md-modal-shared-user__info">
                   <div class="md-modal-shared-user__name">
-                    {{user.name}}
+                    {{display-name user}}
                     {{#if user.pending}}
                       <span class="md-modal-shared-user__badge">{{t "(pending approval)" key="pending_approval"}}</span>
                     {{/if}}

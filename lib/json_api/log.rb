@@ -28,7 +28,14 @@ module JsonApi::Log
     if log.author
       json['author'] = {
         'id' => log.author.global_id,
-        'user_name' => log.author.user_name
+        'user_name' => log.author.user_name,
+        # Five client surfaces render `author.name` (inbox, speak-menu reply
+        # note, the utterance reply heading, and both share-utterance
+        # controllers) and every one of them was blank, because this payload
+        # never carried the key. Resolve it here, with the same precedence
+        # UserMailer#log_message uses for the same value -- an explicit contact
+        # name beats the account name -- so the email and the app agree.
+        'name' => (log.data['author_contact'] || {})['name'].presence || log.author.display_name
       }
       if log.data['author_contact']
         json['author']['contact'] = log.data['author_contact']

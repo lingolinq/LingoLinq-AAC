@@ -527,7 +527,9 @@ describe Api::UsersController, :type => :controller do
       post :update, params: {:id => u.global_id, :reset_token => 'admin', :user => {'name' => 'fred', 'password' => '2345654'}}
       expect(response).to be_successful
       expect(u.reload.valid_password?('2345654')).to eq(true)
-      expect(u.settings['name']).to eq('No name')
+      # The reset path must ignore the other params it was sent, so `name`
+      # stays as it was -- unset, since signup never collected one.
+      expect(u.settings['name']).to eq(nil)
     end
     
     it "should not let non-admins reset passwords for users" do
@@ -844,7 +846,13 @@ describe Api::UsersController, :type => :controller do
       post :create, params: {:user => {'user_name' => ''}}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['user']['name'].length).to be > 5
+      # This asserted on `name` and only ever passed because generate_defaults
+      # seeded the 7-character placeholder "No name" -- an accident, in a test
+      # whose subject is the USER NAME. Assert what it means: a blank user_name
+      # is replaced by a generated handle (see Processable#generate_user_name).
+      expect(json['user']['user_name']).to_not eq(nil)
+      expect(json['user']['user_name']).to_not eq('')
+      expect(json['user']['user_name'].length).to be > 5
     end
 
     it "should include access token information" do

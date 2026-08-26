@@ -16,6 +16,20 @@ module Converters::LingoLinq
     val
   end
 
+  # OBF keyboard / control buttons store the protocol in `action` or `actions`
+  # (`:shift`, `:space`, `+a`). LingoLinq speak mode reads `vocalization`.
+  # A blank `actions` array is truthy in Ruby and must not hide `action`.
+  def self.vocalization_from_obf_button(button)
+    return nil unless button.is_a?(Hash)
+    actions = Array(button['actions']).map { |a| a.to_s.strip }.reject(&:blank?)
+    spoken = button['vocalization'].presence
+    if actions.any?
+      return spoken ? "#{spoken} && #{actions.join(' && ')}" : actions.join(' && ')
+    end
+    return button['action'] if button['action'].present?
+    spoken
+  end
+
   def self.to_obf(board, dest_path, path_hash=nil)
     json = nil
     Progress.as_percent(0, 0.1) do
@@ -437,16 +451,8 @@ module Converters::LingoLinq
         'background_color' => button['background_color'],
         'hidden' => button['hidden']
       }
-      if button['actions']
-        new_button['vocalization'] = button['actions'].join(' && ')
-        if button['vocalization']
-          new_button['vocalization'] = button['vocalization'] + " && " + new_button['vocalization']
-        end
-      elsif button['action']
-        new_button['vocalization'] = button['action']
-      elsif button['vocalization']
-        new_button['vocalization'] = button['vocalization']
-      end
+      voc = vocalization_from_obf_button(button)
+      new_button['vocalization'] = voc if voc
       if button['image_id']
         mapped_image_id = hashes[button['image_id'].to_s]
         new_button['image_id'] = mapped_image_id if mapped_image_id

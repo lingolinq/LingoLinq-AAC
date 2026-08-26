@@ -59,7 +59,10 @@ function runEslintJson() {
 
   const result = spawnSync(
     ESLINT_BIN,
-    ['.', '--format', 'json'],
+    // --ext: `eslint .` walks only .js, which left the committed .mjs QA
+    // harnesses under scripts/ unlinted. Keep in step with the lint:js script
+    // in package.json, or the gate and the developer-facing lint disagree.
+    ['.', '--ext', '.js,.mjs', '--format', 'json'],
     {
       cwd: FRONTEND_ROOT,
       encoding: 'utf8',

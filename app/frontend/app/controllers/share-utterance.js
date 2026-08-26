@@ -10,6 +10,7 @@ import { set as emberSet } from '@ember/object';
 import persistence from '../utils/persistence';
 import { computed, observer } from '@ember/object';
 import stashes from '../utils/_stashes';
+import { display_name_for } from '../utils/display_name';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -55,7 +56,9 @@ export default modal.ModalController.extend({
       }
       if(app_state.get('reply_note.author')) {
         res.unshift({
-          user_name: app_state.get('reply_note.author.name'),
+          // See the sibling in components/share-utterance.js: `name` is absent
+          // from older cached log payloads, so resolve rather than read raw.
+          user_name: display_name_for(app_state.get('reply_note.author')),
           id: app_state.get('reply_note.author.id'),
           avatar_url: app_state.get('reply_note.author.image_url'),
           reply: app_state.get('reply_note')

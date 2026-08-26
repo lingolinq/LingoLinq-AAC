@@ -5,11 +5,10 @@ import app_state from '../utils/app_state';
 import i18n from '../utils/i18n';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
-import { debounce } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import progress_tracker from '../utils/progress_tracker';
-import { filterRootBoards, dedupeByName, sortByNameNatural, boardsPagePreferUserNames } from '../utils/board-roots';
+import { filterRootBoards, dedupeByName, sortByNameNatural, sortBySearchQuery, boardsPagePreferUserNames } from '../utils/board-roots';
 import { groupBoardsByBrand } from '../utils/board-brands';
 
 export default Controller.extend({
@@ -58,8 +57,13 @@ export default Controller.extend({
     var locale = this.get('locale');
     return !!q || (!!locale && locale !== this.get('default_locale'));
   }),
+  /* Header combobox binds `searchString`; `panel_filter` is the optional
+     in-panel narrow. Either one should hide non-matching tiles. */
+  _filter_query: computed('searchString', 'panel_filter', function() {
+    return (this.get('panel_filter') || this.get('searchString') || '').trim();
+  }),
   _filter_boards: function(boards) {
-    var q = (this.get('panel_filter') || '').trim().toLowerCase();
+    var q = (this.get('_filter_query') || '').toLowerCase();
     if(!q || !boards) { return boards || []; }
     return boards.filter(function(b) {
       if(!b) { return false; }
@@ -68,19 +72,21 @@ export default Controller.extend({
       return name.indexOf(q) !== -1 || key.indexOf(q) !== -1;
     });
   },
-  filtered_online_groups: computed('online_groups', 'panel_filter', function() {
+  filtered_online_groups: computed('online_groups', '_filter_query', function() {
     var _this = this;
+    var q = this.get('_filter_query');
     return (this.get('online_groups') || []).map(function(g) {
-      return { id: g.id, label_key: g.label_key, default_label: g.default_label, boards: _this._filter_boards(g.boards || []) };
+      var boards = sortBySearchQuery(_this._filter_boards(g.boards || []), q);
+      return { id: g.id, label_key: g.label_key, default_label: g.default_label, boards: boards };
     }).filter(function(g) { return g.boards.length > 0; });
   }),
-  filtered_my_boards: computed('personal_results.results', 'panel_filter', function() {
+  filtered_my_boards: computed('personal_results.results', '_filter_query', function() {
     // The user_id='self' query returns EVERY owned board, including sub-board
     // copies that rode along inside a copied set. filterRootBoards drops those
     // (keys on copy_id), keeping only the visible root tiles — same cleanup the
     // board-collection drawer and boards page apply to My Boards.
     var boards = filterRootBoards(this.get('personal_results.results') || [], app_state.get('currentUser.id'));
-    return this._filter_boards(boards);
+    return sortBySearchQuery(this._filter_boards(boards), this.get('_filter_query'));
   }),
 
   // ── Board preview (left pane) ────────────────────────────────────
@@ -91,15 +97,15 @@ export default Controller.extend({
   preview_loading: false,
   preview_error: false,
   /* Single "Boards" section for the header jump dropdown
-     (search-board-jump) — the online search results. The dropdown's filter
-     input is the page's live search box, so the boards are the current
-     server results, cleaned up the same way the boards page and the
-     speak-mode "My Board Collection" panel clean theirs:
+     (search-board-jump) — the online catalog, cleaned up the same way the
+     boards page and the speak-mode "My Board Collection" panel clean theirs:
        - filterRootBoards drops copy/sub-board records that rode along
          inside a copied set (keeps the visible root tile),
        - dedupeByName collapses identically-named duplicates (e.g. several
-         owners shipping the same "CommuniKate Top Page"), and
-       - sortByNameNatural orders numerically (Quick Core 84 before 112). */
+         owners shipping the same "CommuniKate Top Page"),
+       - the header query filters to name/key matches, and
+       - sortBySearchQuery puts prefix matches first ("quick" → Quick Core
+         24 before CommuniKate) then natural name order (84 before 112). */
   /* Online search results grouped by brand family (CommuniKate, Quick
      Core, Sequoia, Vocal Flair, then "Other Boards") so the grid separates
      boards by type. `online_results.results` is already deduped + natural-
@@ -117,16 +123,18 @@ export default Controller.extend({
   _search_group_i18n_extractor_no_op: function() {
     i18n.t('other_boards', "Other Boards");
   },
-  jump_sections: computed('online_results', function() {
+  jump_sections: computed('online_results', '_filter_query', function() {
     var userId = app_state.get('currentUser.id');
     var online = this.get('online_results');
     var preferOwners = boardsPagePreferUserNames(app_state);
+    var q = this.get('_filter_query');
+    var boards = this._filter_boards(dedupeByName(filterRootBoards((online && online.results) || [], userId), { preferUserNames: preferOwners }));
     return [{
       id: 'boards',
       label_key: 'boards',
       default_label: 'Boards',
       state: online ? (online.loading ? 'loading' : 'loaded') : 'loading',
-      boards: sortByNameNatural(dedupeByName(filterRootBoards((online && online.results) || [], userId), { preferUserNames: preferOwners }))
+      boards: sortBySearchQuery(boards, q)
     }];
   }),
   // Natural (numeric-aware) sort by display name, so "Quick Core 84" sorts
@@ -148,9 +156,13 @@ export default Controller.extend({
         var locale = (_this.get('locale') || (i18n.langs || {}).preferred || window.navigator.language || 'en').split(/-/)[0];
         // TODO: ensure that search results show up localized
         // for translated boards with a different default locale
-        
+        _this._catalogLocale = locale;
         var query_filter = str + "::" + locale + "::popularity";
-        var params = {q: str, locale: locale, sort: 'popularity'};
+        // Featured catalog (empty q). Typed queries filter that list
+        // client-side by name/key — production BoardLocale text search
+        // (q=quick) currently returns 0, and even when it hits it matches
+        // button labels, so "quick" ranked CommuniKate above Quick Core.
+        var params = {q: '', locale: locale, sort: 'popularity'};
         var search_key = JSON.stringify(params);
         var lookup = null;
         if(_this.get('search_promise.key') == search_key) {
@@ -209,15 +221,59 @@ export default Controller.extend({
     }
     loadBoards();
 
-    persistence.addObserver('online', function() {
-      loadBoards();
-    });
+    /* Refetch when connectivity returns. Registered ONCE per controller, with the
+       current loader held in an instance slot. This used to add a fresh anonymous
+       observer on every load_results call — tolerable when that happened once per
+       page visit, but typing can now re-enter the route, so it accumulated one
+       permanent listener per keystroke, each closing over a stale loader, and
+       every online/offline flip fired all of them. Removed in willDestroy. */
+    this._reloadBoards = loadBoards;
+    if(!this._onlineObserver) {
+      this._onlineObserver = function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(_this._reloadBoards) { _this._reloadBoards(); }
+      };
+      persistence.addObserver('online', this._onlineObserver);
+    }
+  },
 
+  /* "Load the catalog if we do not already have one for this locale."
+     The single owner of that decision — both the typing path (_runAutoSearch)
+     and the route (routes/search.js#setupController) go through here, so a
+     controller-driven transition cannot re-enter the route and trigger a refetch
+     the controller had deliberately skipped. Typing filters the in-memory
+     catalog; only a language change or a cold start needs the server. */
+  ensure_results_loaded: function(str) {
+    var locale = (this.get('locale') || '').split(/-/)[0];
+    if(!this.get('online_results.results') || this._catalogLocale !== locale) {
+      this.load_results(str || '');
+    }
   },
   /** Live filter: re-run the search whenever the query or locale changes (debounced 300ms). */
+  /* Hand-rolled rather than @ember/runloop debounce: ember/no-runloop bans
+     runloop helpers in favour of ember-lifeline, which is not installed. */
   _autoSearch: observer('searchString', 'locale', function() {
-    debounce(this, this._runAutoSearch, 300);
+    if (this._autoSearchTimer) { clearTimeout(this._autoSearchTimer); }
+    var _this = this;
+    this._autoSearchTimer = setTimeout(function() {
+      _this._autoSearchTimer = null;
+      _this._runAutoSearch();
+    }, 300);
   }),
+  willDestroy: function() {
+    this._super.apply(this, arguments);
+    if (this._autoSearchTimer) {
+      clearTimeout(this._autoSearchTimer);
+      this._autoSearchTimer = null;
+    }
+    /* persistence is a module singleton and outlives this controller, so an
+       observer left on it leaks the controller with it. */
+    if (this._onlineObserver) {
+      persistence.removeObserver('online', this._onlineObserver);
+      this._onlineObserver = null;
+    }
+    this._reloadBoards = null;
+  },
   /* Changing the LANGUAGE filter invalidates the current preview — that board is
      in the previous language, and the panel is about to be re-scoped to the new
      one (load_results below re-queries with the new locale). Drop the preview
@@ -233,12 +289,23 @@ export default Controller.extend({
   _runAutoSearch: function() {
     if(this.isDestroyed || this.isDestroying) { return; }
     var str = this.get('searchString') || '';
-    this.load_results(str);
+    var locale = (this.get('locale') || '').split(/-/)[0];
+    /* Typing only filters the in-memory catalog (jump_sections /
+       filtered_online_groups). Re-fetch when the language changes or
+       the catalog has not loaded yet — a keystroke refetch would flash
+       "Loading boards…" and, with q=str, used to wipe the list. */
+    this.ensure_results_loaded(str);
     /* clear_filter resets the language to '' ([Choose a Language]); skip the
        route transition so the route's empty-locale→preferred resolution doesn't
        snap the dropdown back to a concrete language. */
     if(this._suppressTransition) { this._suppressTransition = false; return; }
-    this.router.transitionTo('search', this.get('locale'), encodeURIComponent(str || '_'));
+    /* replaceWith, not transitionTo: this fires on every ~300ms typing pause, so
+       pushing history would put one entry per pause behind the user and Back
+       would walk the query back a character at a time instead of leaving the
+       page. The URL still tracks the typed text; only the history entry is
+       reused. `locale` is read live rather than from the `locale` local above,
+       which is split to its base form for the catalog comparison. */
+    this.router.replaceWith('search', this.get('locale'), encodeURIComponent(str || '_'));
   },
   init() {
     this._super(...arguments);
@@ -266,6 +333,20 @@ export default Controller.extend({
   },
 
   actions: {
+    /* Live search text from the find-boards combobox (SearchBoardJump).
+       Must be a real action, NOT `(mut this.searchString)`: SearchBoardJump is a
+       classic @ember/component, and a mut cell reaches one UNWRAPPED TO ITS
+       VALUE. The component reads `this.get('onQueryChange')` and guards with
+       `typeof fn === 'function'`, so the cell arrived as the string "food" and
+       every keystroke was silently discarded — no error, no console warning.
+       That broke three things at once: typing never filtered, the x clear button
+       did nothing, and Enter re-submitted the PREVIOUS query (searchBoards reads
+       a searchString that had never changed). Verified in-browser by inspecting
+       the live component: onQueryChange was type "string" while the sibling
+       `@onSelect={{this.ctrlAction ...}}` was type "function" and worked. */
+    updateSearchString: function(value) {
+      this.set('searchString', value || '');
+    },
     searchBoards: function() {
       this.load_results(this.get('searchString'));
       this.router.transitionTo('search', this.get('locale'), encodeURIComponent(this.get('searchString') || '_'));

@@ -17,11 +17,16 @@
 > `COMPLIANCE_PROGRAM.md` v1.2 (DOC-b61994933c) · **Source of truth for status:**
 > `audit-reports/FINDINGS.json`
 >
-> **v1.3 scope (2026-08-09 draft).** Aligns Section 5 residuals and Section 12 roadmap with the
-> live register at HEAD `20aab90d3` (0 Critical / 12 High / 30 Medium / 25 Low, publisher
-> convention). Records that LL-6619cc1811 and LL-11db0dc848 are verified-closed; updates
-> infrastructure wording accordingly; adds Article 50(1) enablement, ACR publish, and
-> remediated-unverified verification to the not-yet-complete roadmap. Does not close any finding.
+> **v1.3 scope (2026-08-09 draft, content refreshed 2026-08-20).** Aligns Section 5 residuals and
+> Section 12 roadmap with the live register at staging commit `64cdccba1` (0 Critical / 20 High / 52
+> Medium / 40 Low, publisher convention -- up from 12/30/25 at the 2026-08-09 draft, almost
+> entirely from the 2026-08-12 six-finder full audit run). Records that LL-6619cc1811,
+> LL-11db0dc848, and LL-1b0d78dbe6 are verified-closed; that the Article 50(1) server-side
+> disclosure backstop now covers all 5 AI ingresses (LL-6723438462 remediated-unverified, #829/#831);
+> and that the disclosure-link contrast blocker (LL-a9d6d5a46b) was found already fixed (#694,
+> 2026-07-28) and is now remediated-unverified rather than open. Updates infrastructure wording
+> accordingly; adds Article 50(1) enablement, ACR publish, and remediated-unverified verification to
+> the not-yet-complete roadmap. Does not close any finding.
 
 ---
 
@@ -99,8 +104,8 @@ The gating metric is the count of **open Critical findings**, not a synthetic re
 current authoritative counts are read directly from the register and summarized in
 `docs/legal/COMPLIANCE_POSTURE_REPORT.md` (regenerated per audit run; do not hand-edit).
 
-- **Open Critical findings: 0** (the gate). As of the 2026-08-09 draft refresh, live High /
-  Medium / Low counts (publisher convention at HEAD) are **12 / 30 / 25**. See the register and
+- **Open Critical findings: 0** (the gate). As of the 2026-08-20 content refresh, live High /
+  Medium / Low counts (publisher convention at `64cdccba1`) are **20 / 52 / 40**. See the register and
   `docs/legal/2026-08-09_compliance-posture-report_draft.md` (DRAFT pending re-attest) for the
   authoritative derivation; do not hand-edit counts here.
 - Distribution spans FERPA (student data isolation, access scoping, audit trail), HIPAA (PHI
@@ -126,16 +131,22 @@ These are implemented and operating, not aspirational. Each cites its evidence.
 | Encryption of sensitive fields | Server-side encryption layer for sensitive data | `secure_serialize` concern |
 | Rate limiting | Edge throttling on protected paths including consent endpoints | `config/initializers/throttling.rb` (Rack::Attack); LL-ca38d4d99e verified-closed |
 | Retention enforcement | Scheduled deletion per the retention schedule | `lib/data_policy_enforcer.rb`, `lib/flusher.rb` |
-| Article 50(2) marking | Server-signed provenance markers on in-scope generative paths | `lib/art50_marker.rb` (board generation and word prediction). Article 50(1) disclosure UI is built but flag-gated off (see Section 12). |
+| Article 50(2) marking | Server-signed provenance markers on in-scope generative paths | `lib/art50_marker.rb` (board generation and word prediction). Article 50(1) disclosure UI is built and its server-side backstop now covers all 5 AI ingresses (#829/#831, 2026-08-19); the flag remains AVAILABLE-only, not enabled (see Section 12). |
 
 **Known residuals (tracked, not hidden):** live open Highs that touch product controls include
 word-prediction pre-scrubber cache (LL-16ef84ad9a), masquerade without AuditEvent (LL-522c1a6d13),
 district seat-reclaim consent (LL-f150e0e828), hard-delete media gaps (LL-854b1d3853), terms-agree
-modal a11y/order (LL-104bfa61dc, LL-53cb93fab1), Article 50 disclosure contrast (LL-a9d6d5a46b),
-Bedrock account-binding check (LL-1b0d78dbe6), and audited-console session AuditEvent
-(LL-7f7372e3eb). Free-text named-entity coverage in PiiScrubber remains a residual of closed
-LL-e573a39d2b. LL-11db0dc848 and LL-6619cc1811 are verified-closed and are not open residuals.
-The AiApiLog IP-address scrub is implemented and scheduled (`AiApiLog.redact_old_ip_addresses!`,
+modal a11y/order (LL-104bfa61dc, LL-53cb93fab1), and audited-console session AuditEvent
+(LL-7f7372e3eb). The 2026-08-12 six-finder audit run added several GCP production-access/logging
+Highs not yet reflected in this section's prose (WIF ref-lock LL-1e7b568ef3, no Data Access audit
+logging LL-b7ccc522b9, project-wide admin on a human principal LL-c0b3d59f58, public Cloud Run
+ingress LL-0b5443f43b) -- see the register for the full current list, this paragraph is
+illustrative, not exhaustive. Free-text named-entity coverage in PiiScrubber remains a residual of
+closed LL-e573a39d2b. LL-11db0dc848, LL-6619cc1811, and LL-1b0d78dbe6 (Bedrock account-binding
+check, verified-closed 2026-08-11) are verified-closed and are not open residuals. The Article 50
+disclosure contrast finding (LL-a9d6d5a46b) is remediated-unverified, not open -- fix landed
+2026-07-28 (#694); the register recorded it as open until this refresh caught the drift. The
+AiApiLog IP-address scrub is implemented and scheduled (`AiApiLog.redact_old_ip_addresses!`,
 wired into the daily `scheduler:dispatch` block in `lib/tasks/scheduler.rake` by PR #222).
 None of the above are undiscovered risks; all are register-tracked.
 
@@ -291,9 +302,9 @@ as a false promise. Several of these came from v1.1, where they were incorrectly
 | Multi-state minor/biometric/health law coverage (CCPA-minor, TX CUBI, WA MHMDA, IL BIPA) | Deferred | Apply as the customer footprint reaches those states; not pre-MVP. |
 | Formal SOC 2 program (risk assessments, training cadence, KPIs, internal audit schedule) | In progress / deferred | Enterprise maturity; staged as the team grows. |
 | Render decommission | Pending | Render is superseded as primary host but remains a write-frozen rollback fallback until explicit teardown. Retires accepted-risk LL-aacae48768 path once fallback is gone. |
-| Article 50(1) disclosure enablement | Built, not enabled | `article_50_disclosure` is AVAILABLE-only while `ai_board_generation` is enabled. Obligation date 2026-08-02 has passed. Pre-enable blocker: LL-a9d6d5a46b (and preferably LL-104bfa61dc). Scot decision required: enable for EU users or record a dated non-applicability rationale. |
+| Article 50(1) disclosure enablement | Backstop built and complete, not enabled | `article_50_disclosure` is AVAILABLE-only while `ai_board_generation` is enabled. Obligation date 2026-08-02 has passed. Server-side backstop now covers all 5 AI ingresses (#829/#831, 2026-08-19; LL-6723438462 remediated-unverified). The contrast blocker (LL-a9d6d5a46b) is also remediated-unverified (already fixed via #694). LL-104bfa61dc (terms-agree modal switch scanning, same shared modal component) remains open. Scot decision required: enable for EU users or record a dated non-applicability rationale. |
 | ACR / VPAT publish | Draft | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` and branded Drive mirror remain `draft` awaiting attestation. |
-| Remediated-unverified verification wave | In progress | Five findings (three High) await fresh-context verification before Scot can close: LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-5954bcbbe6, LL-a167848115. |
+| Remediated-unverified verification wave | In progress | Eight findings (five High) await fresh-context verification before Scot can close: LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium). |
 
 ---
 
@@ -340,10 +351,12 @@ evidence-based description of the program; implemented controls in Sections 5 th
 by code, configuration, or signed agreements with accurate citations; aspirational controls remain
 confined to Section 12; known residuals remain tracked rather than hidden; counsel-dependent claims
 remain internal; and no external sharing is authorized until explicitly released. Prior residual
-IDs LL-11db0dc848 and LL-6619cc1811 are now verified-closed in the register. Live residuals as of
-the 2026-08-09 draft include LL-7f7372e3eb, LL-aacae48768 (accepted-risk), and the High set listed
-in Section 5. I additionally attest that, to the best of my knowledge as of 2026-08-04 (v1.2 on
-the predecessor); v1.3 draft updates Section 5/12 only and awaits re-attestation:
+IDs LL-11db0dc848, LL-6619cc1811, and LL-1b0d78dbe6 are now verified-closed in the register. Live
+residuals as of the 2026-08-20 content refresh include LL-7f7372e3eb, LL-aacae48768
+(accepted-risk), the High set listed in Section 5, and the additional GCP production-access/logging
+Highs added by the 2026-08-12 six-finder audit run. I additionally attest that, to the best of my
+knowledge as of 2026-08-20 (content refreshed against the live register; v1.2 on the predecessor
+was attested 2026-08-04):
 
 1. This document is an honest, evidence-based description of the compliance and security program as
    it actually exists after the Gate 1 GCP DNS cutover, not as we aspire for it to be.
@@ -378,13 +391,13 @@ the attestation date. It is not a certification, a legal opinion, or a guarantee
 
 | Field | Value |
 |---|---|
-| Prepared by | Compliance review (Claude, acting as compliance officer), draft; 2026-08-09 v1.3 successor draft |
+| Prepared by | Compliance review (Claude, acting as compliance officer), draft; 2026-08-09 v1.3 successor draft; content refreshed 2026-08-20 |
 | Reviewed by | Predecessor v1.2 post-cutover sweep; v1.3 adversary review pending |
-| Register audited commit | `20953ab3d5a80c3a9cbb249f37a79357b7f1baf1` (auditedDate 2026-07-08); live counts re-derived at HEAD `20aab90d3` for v1.3 draft |
-| Posture at HEAD (v1.3 draft) | 0 open Critical / 12 open High / 30 open Medium / 25 open Low (publisher convention), per `audit-reports/FINDINGS.json` |
-| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render retained as write-frozen rollback fallback pending explicit decommission. LL-6619cc1811 verified-closed. |
+| Register audited commit | last full `/audit-run`: `d67ed76e0a1` (auditedDate 2026-08-12, 40 new findings); monthly light-run restamp `59f502aa4` (auditedDate 2026-08-18); live counts re-derived at staging commit `64cdccba1` (2026-08-20) for this v1.3 draft |
+| Posture at `64cdccba1` (v1.3 draft, refreshed 2026-08-20) | 0 live Critical / 20 live High / 52 live Medium / 40 live Low (publisher convention), per `audit-reports/FINDINGS.json` |
+| Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render retained as write-frozen rollback fallback pending explicit decommission. LL-6619cc1811 verified-closed. Not re-verified against live infrastructure as part of this 2026-08-20 content refresh (register-only pass); re-check before attesting if infrastructure has changed since 2026-07-22. |
 | Attested by | Scot Wahlquist, CEO (v1.0–v1.2 on predecessor); v1.3 pending |
-| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-09 (v1.3 draft, pending) |
+| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-09 (v1.3 draft, content refreshed 2026-08-20, pending) |
 
 _Once attested, the canonical home for this document is the repository at
 `docs/legal/COMPLIANCE_PROGRAM.md`, alongside the evidence it indexes. Moving it there is a

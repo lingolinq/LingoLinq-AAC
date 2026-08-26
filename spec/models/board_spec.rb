@@ -4239,6 +4239,11 @@ describe Board, :type => :model do
       expect(Uploader).to receive(:find_images).with('cats', 'bacon', 'en', u, nil, true, false).and_return([])
       res = b.swap_images('bacon', u, [])
       expect(res).to eq({done: true, id: b.global_id, library: 'bacon', board_ids: [], updated: [b.global_id], visited: [b.global_id]})
+      # Found-nothing must not stamp swap_incomplete. That save (via the root
+      # bubble) is what turned CI red on c89c9f882: save_subtly disabled
+      # PaperTrail, the mock raised, and versions stayed off for later examples.
+      expect(b.settings['swapped_library']).to eq(nil)
+      expect(b.settings['swap_incomplete']).to eq(nil)
     end
 
     it 'should do nothing when asking for premium images but not enabled' do
@@ -5632,6 +5637,354 @@ describe Board, :type => :model do
 
       res = b1.swap_images('twemoji', u, [], nil)
       expect(res).to eq({done: true, id: b1.global_id, library: 'twemoji', board_ids: [], updated: [b1.global_id, b2.global_id], visited: [b1.global_id, b2.global_id]})
+    end
+
+    it "should not raise when a button references a ButtonImage that no longer exists" do
+      # known_button_images only returns images it can actually find, so a button
+      # whose image_id points at a deleted ButtonImage yields old_bi == nil. The
+      # two guards above the @skip_swapped branch both test `old_bi &&`; that branch
+      # did not, so it called nil.image_library and blew up the whole swap. Only
+      # reachable when @skip_swapped is set, i.e. the copy / provisioning path
+      # (User#copy_board_links), which is exactly where a large board set is being
+      # walked and one stale image_id kills the entire run.
+      u = User.create
+      # A real arasaac image so current_library resolves to 'arasaac' and the OUTER
+      # gate opens. With no resolvable images at all the gate stays shut and the
+      # crashing branch is never reached, which is why this needs a mixed board.
+      real = ButtonImage.create(user: u)
+      real.settings['license'] = {
+        'uneditable' => true,
+        'author_name' => 'ARASAAC',
+        'author_url' => 'https://arasaac.org/'
+      }
+      real.save
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => real.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => '1_999999'},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      expect(b.known_button_images.map(&:global_id)).to eq([real.global_id])
+      expect(b.current_library(true)).to eq('arasaac')
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      allow(Uploader).to receive(:default_images).and_return({})
+      allow(Uploader).to receive(:find_images).and_return([])
+      expect {
+        b.swap_images(library, u, [], nil)
+      }.to_not raise_error
+    end
+  end
+
+  describe "swap_images opensymbols aggregation skip" do
+    # Builds a ButtonImage that ButtonImage#image_library will classify as +library+.
+    # image_library reads settings['license'] and only classifies when 'uneditable',
+    # 'author_name' and 'author_url' are all present.
+    def licensed_image(user, author_name, author_url)
+      bi = ButtonImage.create(user: user)
+      bi.settings['license'] = {
+        'uneditable' => true,
+        'author_name' => author_name,
+        'author_url' => author_url
+      }
+      bi.save
+      bi
+    end
+
+    it "should name the aggregate library and its members without a bare literal" do
+      # Regression guard: the member check below was dead for three years because the
+      # sibling literal was misspelled 'opensybmols'. image_library never returns the
+      # aggregate name itself, so a typo here fails silently rather than raising.
+      expect(Board::OPENSYMBOLS_LIBRARY).to eq('opensymbols')
+      expect(Board::OPENSYMBOLS_MEMBER_LIBRARIES).to eq(['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'])
+      expect(Board::OPENSYMBOLS_MEMBER_LIBRARIES).to be_frozen
+      expect(Board::OPENSYMBOLS_MEMBER_LIBRARIES).to_not include(Board::OPENSYMBOLS_LIBRARY)
+    end
+
+    it "should not re-search an image already sourced from a library opensymbols aggregates" do
+      u = User.create
+      bi = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      expect(bi.image_library).to eq('arasaac')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => bi.global_id},
+      ], nil)
+      # current_library downgrades an arasaac-dominant board to 'arasaac', so the outer
+      # gate opens and the per-button skip is what has to hold.
+      expect(b.current_library(true)).to eq('arasaac')
+      # Re-fetch: process_buttons leaves @buttons_changed set on this instance, and
+      # swap_images gates its settings write on that same ivar. Without a clean object
+      # the swapped_library assertion below would pass on stale state, not behavior.
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat'], 'en', u, true, false).and_return({})
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+      expect(b.reload.buttons.map{|btn| btn['image_id'] }).to eq([bi.global_id, bi.global_id])
+      expect(ButtonImage.count).to eq(1)
+      # The swap changed nothing, but it DID run, so the library must still be
+      # recorded. User#copy_to_home_board / #copy_board_to_library key their
+      # "already copied, skip" check off this field; nil would read as 'original'
+      # and make them re-copy the whole board set on every call.
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(nil)
+    end
+
+    it "should record swapped_library so repeat provisioning is idempotent" do
+      u = User.create
+      bi = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).and_return({})
+      b.swap_images(library, u, [], nil)
+      # This is the exact comparison User#copy_to_home_board makes (user.rb ~3088)
+      # and User#copy_board_to_library makes (user.rb ~3065).
+      b.reload
+      expect((b.settings['swapped_library'] || 'original')).to eq(('opensymbols' || 'original'))
+      # And the recorded library makes a REPEAT swap a no-op: current_library now
+      # returns the aggregate, so the outer gate closes and no lookup happens at all.
+      expect(b.current_library).to eq('opensymbols')
+      expect(Uploader).to_not receive(:default_images)
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+    end
+
+    it "should record swapped_library and mark swap_incomplete when a word is in _missing" do
+      # A board with one already-aggregated image AND one word in `_missing` must
+      # still record swapped_library. That field is the copy-idempotency key;
+      # User#copy_to_home_board treats a nil marker as a library mismatch and
+      # copy_for's a second board set (user.rb:3088). Completeness lives on
+      # swap_incomplete so a later copy re-runs swap_images on THIS board.
+      #
+      # `_missing` is not an authoritative "no such symbol" declaration.
+      # find_images caches an EMPTY result as a miss whenever cache_forever is
+      # set (lib/uploader.rb:1015). LibraryCache#find_words returns that entry
+      # with no expiry check (library_cache.rb:208-210). The 6.months.from_now
+      # stamp on added only stops add_missing_word from refreshing.
+      u = User.create
+      member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      plain = ButtonImage.create(user: u)
+      expect(plain.image_library).to eq('unknown')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => member.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => plain.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).and_return({'_missing' => ['cat']})
+      # _missing still suppresses the fallback lookup within this run.
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+      b.reload
+      expect(b.buttons.map{|btn| btn['image_id'] }).to eq([member.global_id, plain.global_id])
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(true)
+    end
+
+    it "should record swapped_library and mark swap_incomplete when the fallback lookup came back empty" do
+      # The other path to "unresolved": the word is absent from `_missing`, so the
+      # find_images fallback actually runs -- and returns []. OpenSymbols.search
+      # returns [] on a 429, on any non-2xx, and on its 10s timeout.
+      #
+      # Same completeness outcome as the spec above, by a different branch: this
+      # one runs the fallback, that one skips it. Both still record swapped_library
+      # so copy stays idempotent.
+      u = User.create
+      member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      plain = ButtonImage.create(user: u)
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => member.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => plain.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).and_return({})
+      expect(Uploader).to receive(:find_images).and_return([])
+      b.swap_images(library, u, [], nil)
+      b.reload
+      expect(b.buttons.map{|btn| btn['image_id'] }).to eq([member.global_id, plain.global_id])
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(true)
+    end
+
+    it "should skip only the member images on a board that mixes libraries" do
+      # The realistic shape: boards are rarely 100% one library. The member image
+      # must be left alone while the non-member one is swapped, and because SOME
+      # button changed, swapped_library goes through the normal @buttons_changed
+      # path rather than the no-op path.
+      u = User.create
+      keep = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      swap = licensed_image(u, 'Tobii Dynavox', 'https://www.tobiidynavox.com/')
+      expect(keep.image_library).to eq('arasaac')
+      expect(swap.image_library).to eq('pcs')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => keep.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => swap.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat'], 'en', u, true, false).and_return({
+        'cat' => {'url' => 'https://www.example.com/cat.png'}
+      })
+      # 'hat' is skipped, so it must never reach the per-word fallback even though
+      # default_images returned nothing for it.
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+      b.reload
+      ids = b.buttons.map{|btn| btn['image_id'] }
+      expect(ids[0]).to eq(keep.global_id)
+      expect(ids[1]).to_not eq(swap.global_id)
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(nil)
+    end
+
+    it "should record swapped_library and swap_incomplete when a member skip, a successful swap, and an empty lookup share a board" do
+      # Both swapped_library writers must honor the same contract. The
+      # @buttons_changed branch used to record the marker with no unresolved
+      # check, which froze the empty-lookup button because current_library then
+      # returned opensymbols and the outer gate skipped the next run.
+      u = User.create
+      keep = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      pcs = licensed_image(u, 'Tobii Dynavox', 'https://www.tobiidynavox.com/')
+      plain = ButtonImage.create(user: u)
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => keep.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => pcs.global_id},
+        {'id' => '1_4', 'label' => 'dog', 'image_id' => plain.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat', 'dog'], 'en', u, true, false).and_return({
+        'cat' => {'url' => 'https://www.example.com/cat.png'}
+      })
+      expect(Uploader).to receive(:find_images).with('dog', 'opensymbols', 'en', u, nil, true, false).and_return([])
+      b.swap_images(library, u, [], nil)
+      b.reload
+      ids = b.buttons.map{|btn| btn['image_id'] }
+      expect(ids[0]).to eq(keep.global_id)
+      expect(ids[1]).to_not eq(pcs.global_id)
+      expect(ids[2]).to eq(plain.global_id)
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(true)
+    end
+
+    it "should re-enter the swap loop when swapped_library matches but swap_incomplete is set" do
+      u = User.create
+      member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      plain = ButtonImage.create(user: u)
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => member.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => plain.global_id},
+      ], nil)
+      b.settings['swapped_library'] = 'opensymbols'
+      b.settings['swap_incomplete'] = true
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat'], 'en', u, true, false).and_return({
+        'cat' => {'url' => 'https://www.example.com/cat.png'}
+      })
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+      b.reload
+      expect(b.buttons[0]['image_id']).to eq(member.global_id)
+      expect(b.buttons[1]['image_id']).to_not eq(plain.global_id)
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+      expect(b.settings['swap_incomplete']).to eq(nil)
+    end
+
+    it "should bubble swap_incomplete onto the root when a descendant is unresolved" do
+      u = User.create
+      member = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      plain = ButtonImage.create(user: u)
+      root = Board.create(user: u)
+      child = Board.create(user: u)
+      root.process({'buttons' => [
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => member.global_id, 'load_board' => {'key' => child.key, 'id' => child.global_id}},
+      ]}, {user: u})
+      child.process({'buttons' => [
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => member.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => plain.global_id},
+      ]}, {user: u})
+      root = Board.find_by_global_id(root.global_id)
+      child = Board.find_by_global_id(child.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      allow(Uploader).to receive(:default_images).and_return({})
+      allow(Uploader).to receive(:find_images).and_return([])
+      root.swap_images(library, u, [], nil)
+      root.reload
+      child.reload
+      expect(child.settings['swapped_library']).to eq('opensymbols')
+      expect(child.settings['swap_incomplete']).to eq(true)
+      expect(root.settings['swapped_library']).to eq('opensymbols')
+      expect(root.settings['swap_incomplete']).to eq(true)
+    end
+
+    it "should still swap an image from a library opensymbols does not aggregate" do
+      u = User.create
+      bi = licensed_image(u, 'Tobii Dynavox', 'https://www.tobiidynavox.com/')
+      expect(bi.image_library).to eq('pcs')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat'], 'en', u, true, false).and_return({
+        'hat' => {'url' => 'https://www.example.com/hat.png'}
+      })
+      b.swap_images(library, u, [], nil)
+      expect(b.reload.buttons.map{|btn| btn['image_id'] }).to_not eq([bi.global_id])
+      expect(b.settings['swapped_library']).to eq('opensymbols')
+    end
+
+    it "should still swap a member-library image when the target is a different member" do
+      u = User.create
+      bi = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+      ], nil)
+      # 'twemoji' is a member of the aggregate but is NOT the aggregate, so an arasaac
+      # image must still be replaced rather than skipped.
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'twemoji'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('twemoji', ['hat'], 'en', u, true, false).and_return({
+        'hat' => {'url' => 'https://www.example.com/hat.png'}
+      })
+      b.swap_images(library, u, [], nil)
+      expect(b.reload.buttons.map{|btn| btn['image_id'] }).to_not eq([bi.global_id])
+      expect(b.settings['swapped_library']).to eq('twemoji')
     end
   end
 

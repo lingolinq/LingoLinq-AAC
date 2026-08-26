@@ -9,7 +9,7 @@
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (104)
+## Open (106)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -114,6 +114,8 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-c95c637f00 |  | low |  | untriaged | audit-run | setup/extra-supervisors.js + .hbs component has zero references anywhere | `app/frontend/app/components/setup/extra-supervisors.js`:3 |
 | LL-bdc3344942 |  | low | SOC2, HIPAA, GDPR, FERPA | untriaged | audit-run | GEMINI_API_KEY is still mounted into every prod web and worker container with no runtime consumer and, unlike ANTHROPIC_API_KEY, no CI guard against a seam starting to read it | `.github/workflows/deploy-cloudrun.yml`:237 |
 | LL-94e57af291 |  | low | SOC2 | untriaged | audit-run | ANTHROPIC_API_KEY was de-scoped from the runtime mount but is still an actively-provisioned app secret in the GCP setup scripts, and nothing in the change revokes or disables it | `scripts/gcp/phase4-seed-app-secrets.sh`:66 |
+| LL-5038e6834e |  | low | HIPAA, SOC2 | untriaged | manual | ai-endpoint-guard.sh is a lexical scan with a stated residual bypass tail: fully dynamic constant resolution, non-ENV credential reads, and injected clients are undetectable, so the control proves lexical absence rather than egress containment | `scripts/ai-endpoint-guard.sh`:548 |
+| LL-23675d9ca4 |  | low | SOC2, HIPAA | untriaged | manual | ruby-openai sits in the Gemfile :default group with no runtime consumer, so Bundler.require makes OpenAI::Client a live constant in every production web and worker process | `Gemfile`:109 |
 | LL-941001ca58 | Dep-eslint-8-eol | low | SOC2 | **accepted** | audit-run | eslint 8.57.1 is EOL (v8 end-of-life); dev toolchain on an unsupported linter | `app/frontend/package.json`:64 |
 | LL-a97357136e | P2-2 | low | SOC2 | **wontfix** | audit-run | params.permit! bypasses Strong Parameters | `app/controllers/api/organizations_controller.rb`:866 |
 | LL-ce00c8d3ad | P2-3 | low |  | **wontfix** | audit-run | License model lacks Processable concern | `app/models/license.rb`:1 |
@@ -206,4 +208,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_170 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_172 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

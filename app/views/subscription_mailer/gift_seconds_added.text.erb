@@ -1,6 +1,6 @@
 This is a notice that you recently redeemed a gift code for the user account "<%= @recipient.user_name %>". This code, "<%= @gift.code %>" include full access to <%= app_name %>, and includes "cloud extras" access for <%= @gift.duration %>. This means you'll have access to the powerful reporting and support tools available within <%= app_name %>. We hope they'll prove beneficial in your communication strategies!
 
-If this gift was redeemed in error or if you have any questions, please contact us (<%= JsonApi::Json.current_host %>/contact) for help or more information.
+If this gift was redeemed in error or if you have any questions, please contact us (<%= JsonApi::Json.absolute_host %>/contact) for help or more information.
 
 Thanks!
 <%= email_signature %>

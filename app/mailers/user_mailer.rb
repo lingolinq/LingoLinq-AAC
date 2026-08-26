@@ -96,7 +96,9 @@ class UserMailer < ActionMailer::Base
     @user = User.find_by_global_id(user_id)
     @log = LogSession.find_by_global_id(log_id)
     @author = @log.author
-    @author_name = (@log.data['author_contact'] || {})['name'] || @author.settings['name']
+    # display_name, not settings['name']: most accounts have no name, and this
+    # opens the email ("X just posted a message...") so a blank reads as broken.
+    @author_name = (@log.data['author_contact'] || {})['name'].presence || @author.display_name
     @target = @log.user
     mail_message(@user, "New Message")
   end
@@ -239,8 +241,10 @@ class UserMailer < ActionMailer::Base
   def utterance_share(opts)
     @user = User.find_by_global_id(opts['sharer_id'])
     @recipient = User.find_by_global_id(opts['recipient_id'])
-    @sender = @user && @user.settings['name']
-    @sender ||= @user && @user.user_name
+    # display_name, not settings['name']: this opens the mail a family member
+    # receives ("X shared a message with you"), and the `||` chain below cannot
+    # filter the legacy "No name" sentinel because it is a non-empty string.
+    @sender = @user && @user.display_name
     @sender ||= opts['sharer_name']
     @sender ||= 'someone'
     @reply_url = opts['reply_url']
@@ -299,12 +303,52 @@ class UserMailer < ActionMailer::Base
     end
 
     esc_tok = CGI.escape(c['parent_consent_token'].to_s)
-    @consent_url = "#{JsonApi::Json.current_host}/parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @consent_url = "#{JsonApi::Json.absolute_host}/parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
+    # absolute_host, not current_host: @decline_url arrived from staging while
+    # this branch was converting every human-facing mail link to the scheme-safe
+    # helper. A decline link is emailed to a parent exactly like the consent one,
+    # so it carries the identical defect -- current_host falls back to the
+    # scheme-less ENV['DEFAULT_HOST'] in a Resque worker, producing a relative
+    # href no mail client can follow.
+    @decline_url = "#{JsonApi::Json.absolute_host}/parental_consent/decline?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @offboarding = !!c['offboarding']
     # COPPA direct-notice: surface our privacy practices to the parent before they consent.
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
-    @child_name = @user.settings['name']
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @child_name = @user.display_name
     @parent_email = c['parent_email']
     @consent_age = JsonApi::Json.coppa_consent_age(@user)
+    from = JsonApi::Json.current_domain['settings']['admin_email']
+    opts = {to: @parent_email, subject: subject}
+    opts[:from] = from if !from.blank?
+    mail(opts)
+  end
+
+  # After offboarding COPPA decline/expiry: tell the parent we exported and will delete.
+  def parental_consent_offboarding_export(user_id)
+    @user = User.find_by_global_id(user_id)
+    c = (@user && @user.settings) ? @user.settings['coppa'] : nil
+    subject = SystemEmailI18n.resolve(
+      'user_mailer/parental_consent_offboarding_export',
+      'parental_consent_offboarding_export_mailer.subject',
+      'app_name' => app_name
+    )
+
+    unless c.is_a?(Hash) && c['parent_email'].present? && c['offboarding_export_scheduled_at'].present?
+      Rails.logger.warn("Skipping parental_consent_offboarding_export for user #{user_id}: missing parent_email or export stamp")
+      message = mail(subject: subject)
+      message.perform_deliveries = false
+      return message
+    end
+
+    @parent_email = c['parent_email']
+    @child_username = @user.display_user_name
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @contact_url = "#{JsonApi::Json.absolute_host}/contact"
+    @export_url = nil
+    if c['offboarding_export_path'].present?
+      @export_url = Uploader.presigned_url_for_uploads(c['offboarding_export_path'])
+    end
+    @deletion_at = @user.schedule_deletion_at && @user.schedule_deletion_at.utc
     from = JsonApi::Json.current_domain['settings']['admin_email']
     opts = {to: @parent_email, subject: subject}
     opts[:from] = from if !from.blank?
@@ -325,10 +369,10 @@ class UserMailer < ActionMailer::Base
     end
 
     esc_tok = CGI.escape(c['parent_consent_revoke_token'].to_s)
-    @revoke_url = "#{JsonApi::Json.current_host}/parental_consent/revoke?user_id=#{@user.global_id}&token=#{esc_tok}"
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
-    @contact_url = "#{JsonApi::Json.current_host}/contact"
-    @child_name = @user.settings['name']
+    @revoke_url = "#{JsonApi::Json.absolute_host}/parental_consent/revoke?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @contact_url = "#{JsonApi::Json.absolute_host}/contact"
+    @child_name = @user.display_name
     @child_username = @user.display_user_name
     @parent_email = c['parent_email']
     @registered_at = @user.created_at && @user.created_at.utc
@@ -356,9 +400,9 @@ class UserMailer < ActionMailer::Base
       return message
     end
 
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
-    @contact_url = "#{JsonApi::Json.current_host}/contact"
-    @child_name = @user.settings['name']
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @contact_url = "#{JsonApi::Json.absolute_host}/contact"
+    @child_name = @user.display_name
     @child_username = @user.display_user_name
     @parent_email = c['parent_email']
     @revoked_at = begin
@@ -387,9 +431,9 @@ class UserMailer < ActionMailer::Base
     end
 
     esc_tok = CGI.escape(c['parent_consent_token'].to_s)
-    @consent_url = "#{JsonApi::Json.current_host}/eu_ai_parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
-    @child_name = @user.settings['name']
+    @consent_url = "#{JsonApi::Json.absolute_host}/eu_ai_parental_consent/complete?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @child_name = @user.display_name
     @parent_email = c['parent_email']
     from = JsonApi::Json.current_domain['settings']['admin_email']
     opts = {to: @parent_email, subject: subject}
@@ -410,10 +454,10 @@ class UserMailer < ActionMailer::Base
     end
 
     esc_tok = CGI.escape(c['parent_consent_revoke_token'].to_s)
-    @revoke_url = "#{JsonApi::Json.current_host}/eu_ai_parental_consent/revoke?user_id=#{@user.global_id}&token=#{esc_tok}"
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
-    @contact_url = "#{JsonApi::Json.current_host}/contact"
-    @child_name = @user.settings['name']
+    @revoke_url = "#{JsonApi::Json.absolute_host}/eu_ai_parental_consent/revoke?user_id=#{@user.global_id}&token=#{esc_tok}"
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @contact_url = "#{JsonApi::Json.absolute_host}/contact"
+    @child_name = @user.display_name
     @child_username = @user.display_user_name
     @parent_email = c['parent_email']
     @granted_at = begin
@@ -439,9 +483,9 @@ class UserMailer < ActionMailer::Base
       return message
     end
 
-    @privacy_url = "#{JsonApi::Json.current_host}/privacy"
-    @contact_url = "#{JsonApi::Json.current_host}/contact"
-    @child_name = @user.settings['name']
+    @privacy_url = "#{JsonApi::Json.absolute_host}/privacy"
+    @contact_url = "#{JsonApi::Json.absolute_host}/contact"
+    @child_name = @user.display_name
     @child_username = @user.display_user_name
     @parent_email = c['parent_email']
     @revoked_at = begin

@@ -1,6 +1,6 @@
-Hello <%= @supervisor.settings['name'] || @supervisor.display_user_name %>,<br/><br/>
+Hello <%= @supervisor.display_name %>,<br/><br/>
 
-Good news! <b><%= @communicator.settings['name'] || @communicator.display_user_name %></b> has approved your request for <b><%= @permission_description %></b> access to their <%= app_name %> account.<br/><br/>
+Good news! <b><%= @communicator.display_name %></b> has approved your request for <b><%= @permission_description %></b> access to their <%= app_name %> account.<br/><br/>
 
 You can now access their account at the approved level from your supervisor dashboard.<br/><br/>
 

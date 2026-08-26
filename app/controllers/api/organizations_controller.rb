@@ -147,6 +147,19 @@ class Api::OrganizationsController < ApplicationController
           image_url: code[:target].is_a?(User) ? code[:target].generated_avatar_url('fallback') : code[:target].settings['image_url'],
           name: code[:target].settings['name']
         }
+        # Signup collects no name, so `name` above is blank for most supervisors
+        # and the client's "Invited By Supervisor - <name>" would render empty.
+        # Resolve the fallback HERE rather than shipping `user_name` for the
+        # client to fall back to: this action is exempt from require_api_token
+        # (see the before_action at the top of this file), so its payload is
+        # readable by anyone holding a forwarded start-code link, and user_name
+        # is accepted as a login credential by session_controller -- emitting it
+        # would hand out a credential-stuffing target. #obfuscated_display_name
+        # returns the real name when there is one and an obfuscated handle
+        # ("j...e") when there is not. Organizations always have a name
+        # (generate_defaults seeds "Unnamed Organization") and no handle, so
+        # this is User-only.
+        json[:name] = code[:target].obfuscated_display_name if code[:target].is_a?(User)
         if include_users && code[:user_ids]
           user_ids = code[:user_ids] || []
           json['overrides'] = code[:overrides]
