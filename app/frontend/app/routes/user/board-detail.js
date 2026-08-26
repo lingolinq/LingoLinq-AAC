@@ -591,6 +591,14 @@ export default Route.extend({
 
   resetController: function(controller, isExiting) {
     if(isExiting) {
+      /* Drop the "Try this Board" marker on ANY exit from board-detail. The Back
+         control it drives is scoped to a single trial, so leaving by the sidebar,
+         the Home button, a browser Back, or anything else ends that trial just as
+         much as pressing Back does -- and a marker that survived would put a
+         stale "Back to picker" on some unrelated board later in the session.
+         Clearing it here rather than in each exit path means new exits get the
+         behaviour for free. */
+      this.appState.set('board_detail_try_origin', null);
       var board_layout = this.appState.get('board_layout_mode');
       controller.set('ordered_buttons', null);
       controller.set('active_category', 'all');

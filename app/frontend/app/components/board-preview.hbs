@@ -94,8 +94,16 @@
             {{t "Back to List" key="back_to_list"}}
           </button>
         {{/if}}
+        {{!-- Try it first: opens the ORIGINAL board in speak mode without copying
+             or assigning anything, so a user can see how it actually feels before
+             committing to it as a home board. Sets the picker-origin marker that
+             puts the large Back control on board-detail (see
+             board-preview-overlay#try_board). --}}
+        <button class='btn btn-lg btn-default md-modal-btn md-modal-btn--secondary md-board-preview__action' {{on "click" (this.ctrlAction "try_board")}}>
+          {{t "Try this Board" key="try_this_board_picker"}}
+        </button>
         <button class='btn btn-lg btn-primary md-modal-btn md-modal-btn--primary md-board-preview__action md-board-preview__action--primary' {{on "click" (this.ctrlAction "pick_for_home")}}>
-          {{t "Pick this Board" key="pick_this_board"}}
+          {{t "Set as Home Board" key="set_as_home_board_cta"}}
         </button>
       {{else if this.return_only}}
         {{!-- Opened from another modal (e.g. button-settings) that stays open

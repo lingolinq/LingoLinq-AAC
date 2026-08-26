@@ -61,7 +61,13 @@ export default Component.extend({
     if(this.get('include_mine')) {
       this.send('set_category', 'mine');
     } else if(this.get('searchAtTop')) {
-      this.send('set_category', 'available_boards');
+      // The picker PAGE (templates/board-picker.hbs -- the only caller passing
+      // searchAtTop) lands on Robust Vocabularies rather than All Available
+      // Boards. Someone arriving here is choosing a home board, and the whole
+      // catalogue is the least useful thing to meet first; the curated robust
+      // sets are what the page is for. All Available Boards is still one click
+      // away, now at the BOTTOM of the category list (see `categories`).
+      this.send('set_category', 'robust');
     } else {
       this.send('set_category', 'robust');
     }
@@ -183,16 +189,6 @@ export default Component.extend({
       res.push(cat);
     }
 
-    if (searchAtTop) {
-      var availableCat = {
-        name: i18n.t('board_picker_available_boards', "All Available Boards"),
-        id: 'available_boards'
-      };
-      if (current === 'available_boards') {
-        availableCat.selected = true;
-      }
-      res.push(availableCat);
-    }
     if (includeMine && !searchAtTop) {
       pushMine();
     }
@@ -203,6 +199,21 @@ export default Component.extend({
       }
       res.push(cat);
     });
+    // All Available Boards goes LAST, after the curated categories. It used to
+    // be pushed first, which put the entire catalogue ahead of the sets the page
+    // exists to recommend. Still present and still selectable -- only its
+    // position changed -- and it remains searchAtTop-only, so the four non-page
+    // callers never rendered it and are unaffected.
+    if (searchAtTop) {
+      var availableCat = {
+        name: i18n.t('board_picker_available_boards', "All Available Boards"),
+        id: 'available_boards'
+      };
+      if (current === 'available_boards') {
+        availableCat.selected = true;
+      }
+      res.push(availableCat);
+    }
     return res;
   }),
   boardSearchActive: computed('boardSearchQuery', function() {

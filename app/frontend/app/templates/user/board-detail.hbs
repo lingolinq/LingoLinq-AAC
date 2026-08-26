@@ -621,6 +621,21 @@
            drops beneath it (styled like the right-side sidebar dropdown
            button) instead of sitting inside the sentence bar, so the row
            reads as symmetric stacked-controls | bar | stacked-controls. --}}
+      {{!-- "Try this Board" return path. Sits to the LEFT of the nav stack (so
+           left of Home) and is deliberately larger than the other nav controls,
+           with a glow: it is a temporary way out of a trial rather than part of
+           the permanent chrome, and should read as the obvious thing to press if
+           the board is not what they wanted. Shows only while the trial marker
+           names THIS board, and is cleared on any exit from board-detail (see
+           routes/user/board-detail#resetController). --}}
+      {{#if this.show_try_back_nav}}
+        <button type="button" class="md-board-detail-try-back" data-bd-action="try_back_to_picker" {{on "click" (this.ctrlAction "try_back_to_picker")}} aria-label={{t "Back to board picker" key="board_detail_try_back_aria"}} title={{t "Back to board picker" key="board_detail_try_back_aria"}}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          <span class="md-board-detail-try-back__label">{{t "Back" key="board_detail_try_back"}}</span>
+        </button>
+      {{/if}}
       <div class="md-board-detail-nav-stack">
         {{!-- Home and the modeling control share one COLUMN so modeling sits
              directly under Home at the same width; Back stays a sibling of the

@@ -211,6 +211,31 @@ export default Controller.extend(prefClasses, {
   show_board_back_nav: computed('board_detail_history.[]', function() {
     return (this.get('board_detail_history') || []).length > 0;
   }),
+
+  /* "Try this Board" from the board picker sets app_state.board_detail_try_origin.
+     While it is set AND names the board actually on screen, board-detail offers a
+     prominent way back to the picker.
+
+     Matched on KEY rather than treated as a bare boolean, deliberately: a user who
+     tries a board and then navigates deeper (into a folder, or to another board
+     entirely) is no longer "trying" the thing they came to try, and a Back button
+     that silently returns them to the picker from three boards away would be a
+     trap. The marker is cleared outright when they leave board-detail -- see the
+     route's resetController. */
+  try_origin_board: computed(
+    'app_state.board_detail_try_origin',
+    'user.user_name',
+    'boardname',
+    function() {
+      var origin = this.get('app_state.board_detail_try_origin');
+      if(!origin || !origin.key) { return null; }
+      var here = (this.get('user.user_name') || '') + '/' + (this.get('boardname') || '');
+      return origin.key === here ? origin : null;
+    }
+  ),
+  show_try_back_nav: computed('try_origin_board', function() {
+    return !!this.get('try_origin_board');
+  }),
   sentence_parts: null,
   recent_phrases: computed('app_state.board_detail_recent_phrases.[]', function() {
     return this.get('app_state.board_detail_recent_phrases') || [];
@@ -6133,6 +6158,18 @@ export default Controller.extend(prefClasses, {
           enterEditNow();
         }
       }, function() { });
+    },
+
+    /* The large Back control shown after "Try this Board". Returns to the picker
+       LIST -- not the preview overlay -- so the user lands where they were
+       browsing rather than back inside the modal they just left.
+
+       Clears the marker first: the button is gone the moment it is used, and the
+       picker route re-arms its own state on entry. */
+    try_back_to_picker: function() {
+      this.set('app_state.board_detail_try_origin', null);
+      this.set('show_options_menu', false);
+      this.get('router').transitionTo('board-picker');
     },
 
     exit_to_home: function() {

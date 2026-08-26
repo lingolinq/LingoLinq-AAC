@@ -71690,6 +71690,91 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   line-height: 1;
   letter-spacing: 0.01em;
 }
+
+/* "Try this Board" return control (board-detail).
+   Deliberately LARGER than the Home/Back pair beside it and carrying a glow: it
+   is temporary chrome for a board the user is only trialling, so it has to read
+   as the way out without being mistaken for the permanent nav. Sits to the LEFT
+   of .md-board-detail-nav-stack, so left of Home.
+   Rendered only while app_state.board_detail_try_origin names this board --
+   see controllers/user/board-detail#show_try_back_nav. */
+.md-board-detail-try-back {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  /* Wider than the 60px nav pair so the size difference is legible rather than
+     looking like a rendering accident. */
+  width: 78px;
+  min-height: 0;
+  padding: 8px 8px;
+  margin-right: 6px;
+  border-radius: 18px;
+  border: 2px solid rgba($brand-verdigris, 0.85);
+  background: rgba($brand-verdigris, 0.22);
+  color: #fff;
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  cursor: pointer;
+  /* HIERARCHICAL GLOW: three stacked shadows, tight to diffuse, so the control
+     reads as lifted above the nav row rather than merely tinted. */
+  box-shadow:
+    0 0 0 3px rgba($brand-verdigris, 0.30),
+    0 0 18px 2px rgba($brand-verdigris, 0.45),
+    0 6px 22px rgba(0, 0, 0, 0.28);
+  animation: md-try-back-glow 2.6s ease-in-out infinite alternate;
+}
+.md-board-detail-try-back svg {
+  flex-shrink: 0;
+  /* Larger than the nav pair's 22px, matching the size step-up above. */
+  width: 30px;
+  height: 30px;
+  stroke-width: 2;
+}
+.md-board-detail-try-back__label {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+.md-board-detail-try-back:hover {
+  background: rgba($brand-verdigris, 0.34);
+}
+.md-board-detail-try-back:active {
+  transform: translateY(1px);
+}
+.md-board-detail-try-back:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+@keyframes md-try-back-glow {
+  from {
+    box-shadow:
+      0 0 0 3px rgba($brand-verdigris, 0.30),
+      0 0 18px 2px rgba($brand-verdigris, 0.45),
+      0 6px 22px rgba(0, 0, 0, 0.28);
+  }
+  to {
+    box-shadow:
+      0 0 0 5px rgba($brand-verdigris, 0.16),
+      0 0 30px 6px rgba($brand-verdigris, 0.60),
+      0 6px 22px rgba(0, 0, 0, 0.28);
+  }
+}
+/* An AAC surface has users who are sensitive to motion, and this control sits in
+   the permanent chrome row. Hold the lit end of the animation rather than
+   dropping the glow entirely -- the emphasis is the point, the movement is not. */
+@media (prefers-reduced-motion: reduce) {
+  .md-board-detail-try-back {
+    animation: none;
+    box-shadow:
+      0 0 0 4px rgba($brand-verdigris, 0.22),
+      0 0 24px 4px rgba($brand-verdigris, 0.52),
+      0 6px 22px rgba(0, 0, 0, 0.28);
+  }
+}
 /* Back button — the secondary control beside the primary (glass) Home. Mirrors
    the right-side sidebar toggle: translucent blue-grey, charcoal icon+label,
    rounded to match Home. Only rendered inside a folder. */
