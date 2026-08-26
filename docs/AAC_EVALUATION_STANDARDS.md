@@ -1141,7 +1141,7 @@ certify** that their recommendation… is not due to any financial incentive."*
   stating *"inclusion… does not imply endorsement from ASHA."* Cite ASHA for what
   feature matching *is*; never for it being evidence-based.
 
-### 12.6 "ASHA CCC #" is not required by any payer we found [VERIFIED]
+### 12.6 "ASHA CCC #" — not Medicare's rule, but Molina's [VERIFIED]
 
 Medicare's statutory definition, 42 U.S.C. 1395x(ll)(4)(A), requires a master's or
 doctoral degree and **state licensure** — not the CCC. L33739 contains `ASHA` **0**
@@ -1402,7 +1402,7 @@ leaves room for coexistence, so the medical framing is "insufficient alone," not
   **not** require a partner-training section — which is why our medical spine lacks
   one.
 
-### 12.8 Still open
+### 12.12 Still open
 
 - ~~Commercial payers unchecked~~ — **closed by §12.9**: 23 documents checked,
   `"feature match"` NOT FOUND in any. Residual holes named there: **UHC commercial**
