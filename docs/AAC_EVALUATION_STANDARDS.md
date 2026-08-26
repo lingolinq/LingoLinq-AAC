@@ -444,11 +444,20 @@ in the same edit; the count is not self-checking.
 **Overstated ★ — required by SOMETHING, but not by L33739:**
 
 - **§14 "manufacturer, product name and number, HCPCS."** These are **A52469's
-  supplier claim-submission requirements** — "when codes E2500–E2599 are billed,
-  the claim must include the manufacturer name, product name and number" — a rule
+  supplier claim-submission requirements** — "When codes **E2511, E2512, E2513,
+  E2599** are billed, the claim must include all of the following information:
+  Description of the item or service · Manufacturer name · Product name and
+  number" — a rule
   on the *supplier's claim*, not an element of the SLP's evaluation under
   criterion 1. The only L33739 hook is criterion 1 bullet 4, "rationale for
   selection of a specific device and any accessories," which §12 already carries.
+  ⚠️ **Corrected 2026-08-25.** This previously read "when codes E2500–E2599 are
+  billed." That range does not appear in A52469 (0 occurrences) — the rule is
+  scoped to the four codes above, i.e. the software/accessory codes, not the whole
+  series. LingoLinq is **E2511**, so the rule does apply to us and nothing about
+  our behaviour changes — but the scope was wrong in a section whose entire point
+  is verbatim accuracy, which is exactly where an error is most costly.
+
   Keep recording them — the supplier needs them and the claim is denied without
   them — but they are not a Medicare requirement *on the evaluation*. This is the
   same error §12 was corrected for, and it survived the first correction pass.
@@ -909,3 +918,188 @@ is in tension with the r=.98 finding, and misreads its own cited theory.
 
 Our five-band progression remains defensible. Neither we nor anyone else should
 claim evidence for masking *or* for resizing — **there is none either way.**
+
+
+---
+
+## 12. Provenance findings, 2026-08-25 — where our rules actually came from
+
+Sourcing pass run because we have no SLP on staff and every requirement in this
+file needed a citable origin. Method and traps: §0a. Each item below records who
+verified it, because that distinction is the point.
+
+### 12.1 The ">=10 messages" rule is a competitor's worksheet [VERIFIED]
+
+The per-trial rule this file attributed to **NY Medicaid and MN DHS** is neither.
+It is from a funding template published by **AAC Funding, which is the funding arm
+of PRC-Saltillo** (Prentke Romich + Saltillo) — a competing AAC device
+manufacturer. Verified verbatim from the retrieved PDF:
+
+> "Provide a minimum of 10 different medically relevant messages the client
+> demonstrated, including the information outlined in chart below."
+
+> "Environments in which the SGD was used. At least one needs to be outside the
+> school setting **if possible** (and 3 different settings if possible)."
+
+<https://aacfunding.com/assets/uploads/Addendum_Sample_for_Recommending_Purchase_following_Device_Trial.pdf>
+
+Confirmed **absent** from every payer document retrieved: L33739, A52469, NY 2012,
+NY current, MassHealth MNG-AAC, MN DHS, North Dakota DHHS, and ASHA. Note the
+vendor's own hedge — *"if possible"* — which we had hardened into a requirement.
+
+Keep the capture fields; they are clinically sensible and they satisfy the
+data-driven-trial language payers do use. But attribute them as **our convention
+informed by a vendor template**, never as a payer mandate. ASHA is directly on
+point: vendor templates *"do not take the place of a comprehensive AAC
+evaluation."*
+
+### 12.2 A real published number, which we did not have [VERIFIED]
+
+**North Dakota HHS**, DME Manual, Speech Generating Device (eff. March 2007, rev.
+December 2025):
+
+> "Assessment of the member on **at least three dedicated speech generating
+> devices, by more than one manufacturer**, and document why the requested devices
+> are more appropriate than the other devices."
+
+<https://www.hhs.nd.gov/sites/default/files/documents/DME/policy-speech-generating-device-exclusion.pdf>
+
+So the published threshold in this space is **three devices across more than one
+manufacturer** — not ten messages. NY's §4(g)(iii) multi-manufacturer rule is the
+same idea. ASHA corroborates the shape while keeping it payer-attributed: *"A payer
+**may** require that an SLP consider multiple SGDs… not from the same manufacturer
+or product line."*
+
+### 12.3 Face-to-face encounter + Written Order Prior to Delivery — MISSING [VERIFIED]
+
+The most consequential gap found, because it denies a claim that satisfies every
+other requirement in this document. From A52469, verbatim:
+
+> "Final Rule 1713 (84 Fed. Reg Vol 217) requires a **face-to-face encounter and a
+> Written Order Prior to Delivery (WOPD)** for specified HCPCS codes… Claims for
+> the specified items… that do not meet the face-to-face encounter and WOPD
+> requirements specified in the LCD-related Standard Documentation Requirements
+> Article (**A55426**) will be denied as not reasonable and necessary. **If the
+> WOPD is not obtained prior to delivery, payment will not be made for that item
+> even if a WOPD is subsequently obtained** by the supplier."
+
+**E2511 is on the Final Rule 1713 code list**, so this binds us. Neither the §3
+spine nor the workbook mentions it anywhere.
+
+One correction to a widely-repeated claim, including on ASHA's own Medicare SGD
+page: the requirement is **not in the LCD**. Grepped `l33739.txt` — `face-to-face`
+**0**, `Written Order Prior` **0**. It lives in A52469 (6 hits) and A55426 (26).
+Cite the articles, not the LCD.
+
+### 12.4 MN DHS is now sourced — and it does not say what we said [VERIFIED, one caveat]
+
+Previously `[UNSOURCED]`. The document is **MHCP Provider Manual → Rehabilitative
+Services → "Augmentative Communication Devices," MN DHS, revised August 10, 2023**,
+<https://www.dhs.state.mn.us/dhs16_156515/>. Statutory authority: Minn. Stat.
+256B.0625 subd. 31/31a; Minn. R. 9505.5010–9505.5030. Companion form: DHS-4535.
+
+| What we claimed for MN | Verdict |
+|---|---|
+| Explicit evaluation of each device tried + effectiveness | **SUPPORTED**, verbatim |
+| Environments | **SUPPORTED** — school, home, community, vocational, work, social |
+| Trial dates | **SUPPORTED** |
+| Speed and accuracy | **SUPPORTED, but mis-scoped** — see below |
+| Communication partners | **NOT FOUND** — "partner" appears once, in site navigation |
+| >=10 distinct messages | **NOT FOUND** — no numeric threshold anywhere |
+| 2-year horizon | **NOT FOUND** |
+
+The speed/accuracy scope caveat matters: MN's text is *"Detailed description of the
+member's ability to use the **proposed** device, including speed and accuracy"* —
+written about the recommended device, **not** as a per-trial metric captured for
+every device tried, which is how this file used it. (DHS-4535 itself contains zero
+occurrences of "speed" or "accura*".)
+
+Also worth knowing: the **statute contains no evaluation requirements at all**.
+256B.0625 subd. 31a is coverage and pricing only. Cite the manual, never the statute.
+
+⚠️ **Retrieval caveat, and it is the weakest link in this section.** dhs.state.mn.us
+sits behind Radware bot protection; direct fetches return a CAPTCHA page. The
+content was retrieved **through a public CORS proxy** and corroborated three ways
+(independent search snippets reproducing identical sentences; internal consistency;
+DHS-4535 pulled directly from edocs.dhs.state.mn.us with no proxy). Treat the MN
+quotes as strong but proxy-sourced, and re-pull from a browser before relying on
+them in anything adversarial.
+
+### 12.5 ASHA — the caveat we dropped changes the meaning [VERIFIED]
+
+The 13 "Typical Components" are cited correctly on count and substance, but the
+lead-in sentence this file omitted is the one that governs them:
+
+> "Many components of the comprehensive assessment may already be documented in an
+> individual's records (i.e., medical or school records). **The components listed
+> below may be completed if not addressed in these records.**"
+
+ASHA says *may*, conditioned on the existing record. Presenting the 13 as a
+mandatory checklist is contradicted by ASHA's own sentence. Also note the Practice
+Portal page is **undated** — ASHA's own recommended citation is `(n.d.)`. A dated,
+citable alternative exists and this file should prefer it: **ASHA (2004), Preferred
+Practice Patterns for the Profession of Speech-Language Pathology, §26 AAC
+Assessment**, doi:10.1044/policy.PP2004-00191 — actual ASHA *policy*, with a
+`Documentation` heading.
+
+**What ASHA does mandate, and it backs our §19:** SLPs *"**must disclose** any
+financial relationships that they have with device manufacturers and **must
+certify** that their recommendation… is not due to any financial incentive."*
+
+**Two claims this file makes that ASHA supports harder than we knew:**
+- *"Medicare does not require a trial or rental period"* — grepped L33739: `rental`
+  **0**; `trial` **1**, and that one is "clinical trial information" in boilerplate
+  about evidence, not a device trial. This claim is solid.
+- *"Feature matching is not empirically validated"* — the Feature-Matching block is
+  the one substantive section on ASHA's page carrying **zero citations** while
+  everything around it is cited, and the chart it links sits under a heading
+  stating *"inclusion… does not imply endorsement from ASHA."* Cite ASHA for what
+  feature matching *is*; never for it being evidence-based.
+
+### 12.6 "ASHA CCC #" is not required by any payer we found [VERIFIED]
+
+Medicare's statutory definition, 42 U.S.C. 1395x(ll)(4)(A), requires a master's or
+doctoral degree and **state licensure** — not the CCC. L33739 contains `ASHA` **0**
+times and `certificate of clinical` **0** times. Current NY requires *"A licensed
+Speech Language Pathologist (SLP) experienced in AAC service delivery."* The CCC
+requirement appears only in **vendor** material.
+
+This touches shipped code: `asha_ccc` is collected in
+[eval_workbook.js:78](app/frontend/app/utils/eval_workbook.js#L78). It should be
+**optional**, not presented as a payer requirement. Not changed here — flagged.
+
+### 12.7 School mode: right citation, three wrong characterisations [VERIFIED]
+
+**34 CFR 300.6(a)** is real but is a **definition, not a mandate** — it defines what
+the term "assistive technology service" *includes*. The operative duty is
+§ 300.105(a), which runs to the public agency. It is also singular — *"the child's
+customary **environment**"* — and the phrase appears nowhere in § 300.304,
+§ 300.320, or § 300.324.
+
+Two school-mode requirements this file omits entirely, both from OSEP's January 2024
+guidance and both real:
+
+- **Parental consent.** *"If an IEP Team determines that an AT evaluation is needed,
+  **consent must be obtained from the parent** prior to conducting the evaluation."*
+- **Language of assessment.** § 300.304(c)(1)(ii) requires assessments be *"provided
+  and administered in the child's native language or other mode of communication"* —
+  directly on point for an AAC evaluation.
+
+On goals, this file is **correct on both halves**: § 300.320(a)(2)(i) requires
+*"measurable annual goals"* and (a)(3)(i) requires describing *how* progress will be
+measured; the words "percent" and "trial" appear nowhere in § 300.320. The 2006
+preamble (71 FR 46540 at 46662–63) reinforces it: *"The Act does not require goals…
+to have outcomes and measures on a specific assessment tool."*
+
+The brand-naming correction is at §2 and in
+[eval-full-report.js](app/frontend/app/components/eval-full-report.js#L113).
+
+### 12.8 Still open
+
+- **Commercial payers unchecked** — Aetna, Cigna, UHC, Anthem. `"feature match"` is
+  NOT FOUND across five payer documents, but commercial policies were never pulled.
+- **MN via browser** — see the proxy caveat at 12.4.
+- **The F2F/WOPD gap** (12.3) is unrepresented in the spine and the workbook. It is
+  the only gap here that costs a real user a real denial.
+- **`asha_ccc`** (12.6) is still presented as a requirement in the workbook.
+
