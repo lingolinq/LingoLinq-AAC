@@ -11,6 +11,7 @@ import { schedule, debounce, cancel } from '@ember/runloop';
 import persistence from '../utils/persistence';
 import {
   filterBoardsPageTopLevelRoots,
+  filterRootBoards,
   dedupeByName,
   boardsPagePreferUserNames,
   sortByNameNatural
@@ -342,11 +343,16 @@ export default Component.extend({
     this.set('public_boards_loading_more', false);
     this._public_boards_next_offset = snap.next_offset;
   },
-  /** Root tiles only, one row per display name, then A–Z (numeric-aware). */
-  _preparePickerBoardList: function(boards) {
+  /* Mine / All Available: root tiles only (brand-set sub-pages dropped), one
+     row per display name, then A–Z. Tagged category tabs skip the brand-root
+     filter so a public home-board keyboard such as `vocal-flair-112-keyboard`
+     can appear in Keyboards even though it is not a brand-set root. */
+  _preparePickerBoardList: function(boards, options) {
     var subjectId = this._subjectBoardUserId();
-    var roots = filterBoardsPageTopLevelRoots(boards || [], subjectId);
-    var deduped = dedupeByName(roots, {
+    var list = (options && options.keepCategoryTagged)
+      ? filterRootBoards(boards || [], subjectId)
+      : filterBoardsPageTopLevelRoots(boards || [], subjectId);
+    var deduped = dedupeByName(list, {
       preferUserNames: boardsPagePreferUserNames(this.appState)
     });
     return sortByNameNatural(deduped);
@@ -398,7 +404,7 @@ export default Component.extend({
       return publicCategorized();
     }).then(function(boards) {
       if (_this._isStaleBoardsLoad(loadId, categoryId) || boards == null) { return; }
-      _this.set('category_boards', _this._preparePickerBoardList(boards));
+      _this.set('category_boards', _this._preparePickerBoardList(boards, { keepCategoryTagged: true }));
     }).catch(function() {
       if (_this._isStaleBoardsLoad(loadId, categoryId)) { return; }
       _this.set('category_boards', { error: true });
@@ -659,7 +665,7 @@ export default Component.extend({
       _this.set('more_category_boards', {loading: true});
       LingoLinq.store.query('board', {public: true, sort: 'home_popularity', per_page: 9, category: categoryId}).then(function(data) {
         if (_this._isStaleBoardsLoad(loadId, categoryId)) { return; }
-        _this.set('more_category_boards', _this._preparePickerBoardList(data));
+        _this.set('more_category_boards', _this._preparePickerBoardList(data, { keepCategoryTagged: true }));
       }, function(err) {
         if (_this._isStaleBoardsLoad(loadId, categoryId)) { return; }
         _this.set('more_category_boards', {error: true});
