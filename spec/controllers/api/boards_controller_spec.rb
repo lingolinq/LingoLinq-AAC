@@ -1568,12 +1568,20 @@ describe Api::BoardsController, :type => :controller do
     end
 
     describe "article_50_disclosure backstop (Phase 3 Plan 03-04, T-03-04-01)" do
-      it "should proceed normally with the flag NOT enabled, regardless of jurisdiction or acknowledgement (primary flag-off no-change regression)" do
+      it "should proceed normally when feature_enabled_for? is false, regardless of jurisdiction or acknowledgement (code-default path, not the production state)" do
         token_user
         expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
-        # article_50_disclosure is not in AVAILABLE_FRONTEND_FEATURES on this branch, so
-        # feature_enabled_for? returns false for real (no stub) -- this is the shipping
-        # state. Any jurisdiction/acknowledgement combination must be unaffected.
+        # Pins the CODE-DEFAULT path. CORRECTED 2026-08-25: this comment said
+        # article_50_disclosure "is not in AVAILABLE_FRONTEND_FEATURES on this branch" and
+        # called that "the shipping state". Both are false -- the flag IS registered in
+        # AVAILABLE_FRONTEND_FEATURES, and production enables it via the
+        # default_enabled_features DB Setting (verified 2026-08-23,
+        # docs/legal/2026-08-23_article-50-production-flag-verification.md). What makes
+        # feature_enabled_for? false here is that the TEST DB carries no such Setting row.
+        # Any jurisdiction/acknowledgement combination must be unaffected on this path.
+        # Guard: pin the code-default explicitly so seeding a default_enabled_features
+        # row in test cannot silently invert this assertion.
+        expect(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).at_least(:once).and_return(false)
         allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
         allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
         allow(AiBoardGenerator).to receive(:generate_words).and_return(
