@@ -1384,13 +1384,18 @@ export default Controller.extend({
   external_device_or_no_home: computed('model.external_device', 'model.preference.home_board', function() {
     return this.get('model.external_device') || this.get('model.preferences.home_board');
   }),
-  /* "Set / Change Home Board" selection mode — mirrors the home-board-
-     selection flow that previously lived on the My Boards modal (now
-     removed; that modal was replaced by a route transition in 2026-05-23).
-     When ON, clicking a board tile sets that board as the currentUser's
-     home board (see open_board_in_user_view) and jumps into speak mode
-     instead of opening the board. */
-  selectingHome: false,
+  /* The label on the "Set / Change Home Board" link (available-boards-section.hbs:621),
+     which routes to the board picker. It reads the VIEWED profile, so a supervisor on a
+     communicator's boards page sees the wording that matches that communicator.
+
+     There is deliberately no tile-click selection mode behind it any more: setting a home
+     board happens in exactly three places — board-detail speak mode ("Set as Home Board"),
+     the board picker, and this link into the picker. The old `selectingHome` mode that set
+     the home board by clicking a board tile was removed on 2026-08-26; nothing had set its
+     flag since the My Boards modal it mirrored was replaced by a route transition on
+     2026-05-23, so the branch had been unreachable, and it wrote `preferences.home_board`
+     straight onto `app_state.currentUser` — the SIGNED-IN user, never the profile being
+     viewed — while this label described the communicator. */
   hasHomeBoard: computed('model.preferences.home_board.key', function() {
     return !!this.get('model.preferences.home_board.key');
   }),
@@ -1590,31 +1595,6 @@ export default Controller.extend({
       if(!board) { return; }
       var key = board.get ? board.get('key') : board.key;
       if(!key) { return; }
-      var _this = this;
-      /* Set-Home selection-mode branch — mirrors the modal's pickBoard
-         branch (see controllers/application.js#pickBoard). Clicking a
-         tile while selecting-home sets the picked board as currentUser's
-         home, saves the user, and home-in-speak-mode lands the user on
-         their new home. Falls through to the standard open flow if the
-         save chain can't proceed. */
-      if(this.get('selectingHome')) {
-        var user = this.appState.get('currentUser');
-        var board_id = board.get ? board.get('id') : board.id;
-        if(user && user.set && user.save) {
-          user.set('preferences.home_board', {
-            key: key,
-            id: board_id,
-            locale: this.appState.get('label_locale')
-          });
-          user.save().then(function() {
-            _this.set('selectingHome', false);
-            _this.appState.home_in_speak_mode({user: user});
-          }, function() {
-            /* Save failed — leave selection mode on so the user can retry. */
-          });
-          return;
-        }
-      }
       var parts = key.split('/');
       if(parts.length !== 2) { return; }
       var pref = this.get('appState.currentUser.preferences.board_view_style');

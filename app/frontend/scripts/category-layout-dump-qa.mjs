@@ -21,6 +21,7 @@ const BOARD = OPTS.arg('--board', null);
 const WIDTHS = (OPTS.arg('--widths', '1280')).split(',').map(Number);
 const SHOT = OPTS.arg('--shot-dir', '');
 const SCROLL = !process.argv.includes('--no-scroll');
+const LABELS = process.argv.includes('--labels');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const DUMP = () => {
@@ -45,7 +46,21 @@ const DUMP = () => {
         btnW: (function() {
           const b = g.querySelector('.md-board-detail-symbol-card');
           return b ? Math.round(b.getBoundingClientRect().width * 10) / 10 : null;
-        })()
+        })(),
+        /* WHICH buttons landed in this category, in DOM order. A count alone cannot answer
+           "why is there a one-button Controls tile on this board" — and the label may be a
+           text-symbol rather than a `__label` span (buttons with no image render that way),
+           so read the card's text, not one known child. */
+        /* The HEADER text and the resolved tint — the category key is not the name a user
+           reads (some names depend on what the category holds), and the tint can be an
+           inline literal rather than the registry variable. */
+        header: (function() {
+          const h = g.querySelector('.md-board-detail-grid__group-header');
+          return h ? (h.textContent || '').trim().slice(0, 20) : '';
+        })(),
+        fill: getComputedStyle(g).getPropertyValue('--bd-group-fill').trim(),
+        labels: [...g.querySelectorAll('.md-board-detail-symbol-card')]
+          .map((b) => (b.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 14))
       };
     })
     .filter((g) => g.w > 0)
@@ -95,6 +110,10 @@ const DUMP = () => {
       d.groups.forEach((g) => {
         console.log(`  ${g.key.padEnd(16)} col=${String(g.col).padEnd(14)} row=${String(g.row).padEnd(12)} ` +
           `${String(g.w).padStart(4)}x${String(g.h).padStart(3)}px  btns=${g.buttons}  btnW=${g.btnW}`);
+        if (LABELS) {
+          console.log(`  ${''.padEnd(16)} header="${g.header}"  fill=${g.fill}`);
+          console.log(`  ${''.padEnd(16)} [${(g.labels || []).join('] [')}]`);
+        }
       });
       const widths = [...new Set(d.groups.filter((g) => g.key !== 'keyboard' && g.btnW).map((g) => g.btnW))];
       console.log(`  --> distinct button widths (excl. keyboard): ${widths.sort((a, b) => a - b).join(', ')}` +

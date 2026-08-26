@@ -149,6 +149,24 @@ export const BOARD_CATEGORIES = [
     own_row: true
   },
   {
+    /* O'CLOCK on its own, beside Predictions.
+
+       It sits at the end of the number row on a keyboard board, so it was swept into the
+       key block with the digits — but it is a WORD, not a key: pressing it says something,
+       where every key around it spells. Given its own category the number row is also the
+       same ten wide as the letter rows, instead of an eleventh column that stood empty on
+       every row but one.
+
+       Membership is the AUTHORED-LABEL rule in `category_for_button`, so the button keeps
+       the colour its author gave it; the swatch here only dresses the tile. */
+    key: 'clock',
+    labelKey: 'board_category_clock',
+    defaultLabel: "Clock",
+    types: [],
+    fillVar: '--fitzgerald-other-blue',
+    textVar: '--fitzgerald-other-blue-text'
+  },
+  {
     /* YES on its own, because an AAC "yes" is not a verb. On a real board it is Fitzgerald
        verb green, so the colour rule filed it in Actions — in the middle of the verbs, the
        one place a user answering a question will not look. Membership is the AUTHORED-LABEL
@@ -166,8 +184,19 @@ export const BOARD_CATEGORIES = [
        It is WHITE on a real board, and white is the Connectors colour, so it sat among
        "the / and / with". Same mechanism as Yes: authored label, colour untouched. */
     key: 'time',
+    /* `key` stays 'time' — it is the value stored in a user's saved category order, and
+       `normalize_order` drops keys it does not recognise, so renaming it would silently
+       drop this category out of any order already saved. Only the LABEL changed.
+
+       `labelKey` stays too. Changing an English default under an existing key normally
+       strands the old translation — every other locale keeps confidently saying the old
+       thing — but VERIFIED that is not the case here: `board_category_time` appears in none
+       of the thirteen `public/locales/*.json` (of this whole registry only
+       `board_category_keyboard` has ever been generated, en.json:8340). There is nothing to
+       strand, so the key is reused rather than orphaned. It does mean this label, like its
+       siblings, is still pending an `i18n_generator.rb --generate --merge` run. */
     labelKey: 'board_category_time',
-    defaultLabel: "Time",
+    defaultLabel: "More Time",
     types: [],
     fillVar: '--fitzgerald-conjunction-white',
     textVar: '--fitzgerald-conjunction-white-text'
@@ -236,9 +265,12 @@ export const BOARD_CATEGORIES = [
  *   i18n.t('board_category_nos_donts', "No's and Dont's");
  *   i18n.t('board_category_connectors', "Connectors");
  *   i18n.t('board_category_keyboard', "Keyboard");
+ *   i18n.t('board_category_full_keyboard', "Full Keyboard");
+ *   i18n.t('board_category_emojis', "Emojis");
  *   i18n.t('board_category_predictions', "Predictions");
+ *   i18n.t('board_category_clock', "Clock");
  *   i18n.t('board_category_yes', "Yes");
- *   i18n.t('board_category_time', "Time");
+ *   i18n.t('board_category_time', "More Time");
  *   i18n.t('board_category_controls', "Controls");
  *   i18n.t('board_category_extra', "Extra");
  *   i18n.t('board_category_things', "Things");
@@ -442,6 +474,53 @@ function nearest_category_for_color(hex) {
   return bestDistance <= COLOR_MATCH_MAX_DISTANCE ? best : null;
 }
 
+/* #RRGGBB, each channel scaled toward black.
+
+   0.9, not the 0.8 the app's palette uses to derive a BORDER from a fill (`darken20`,
+   app.js). A border is a hairline and wants the contrast; this is a large filled panel
+   sitting directly behind the buttons it darkens, and at 0.8 it read as a different, muddier
+   colour rather than as the same one behind them. Half that much keeps the panel visibly a
+   frame while staying recognisably the buttons' own colour. */
+function darken_hex(hex, factor) {
+  const ch = function(i) {
+    const v = Math.round(parseInt(hex.substr(i, 2), 16) * factor);
+    return (v < 16 ? '0' : '') + Math.max(0, Math.min(255, v)).toString(16);
+  };
+  return ('#' + ch(1) + ch(3) + ch(5)).toUpperCase();
+}
+
+/*
+ * The inline custom properties that tint one category's tile.
+ *
+ * Every category but one takes its colour from the registry, and that is right: a category
+ * IS a Fitzgerald colour, so the tile and the buttons in it cannot disagree.
+ *
+ * PREDICTIONS is the exception, and the only one. Its membership is a vocalization rule
+ * (`:suggestion`), not a colour, so its registry swatch is an arbitrary pick — bluish — and
+ * the buttons inside it are whatever the board author tinted them. On a keyboard board they
+ * are Fitzgerald verb-green, which put green buttons in a blue frame. So this category, and
+ * only this category, takes its tint FROM its contents: the colour its buttons agree on,
+ * darkened, which is the same relationship every other tile already has with its own.
+ *
+ * Falls back to the registry swatch when the buttons disagree or carry no readable colour —
+ * a mixed set has no colour to match, and a wrong guess is worse than the neutral one.
+ */
+function group_swatch(key, buttons, cat) {
+  const registry = '--bd-group-fill:var(' + cat.fillVar + ');--bd-group-text:var(' + cat.textVar + ')';
+  if(key !== 'predictions') { return registry; }
+  let hex = null;
+  const agreed = (buttons || []).every(function(b) {
+    const own = normalize_color(b && b.background_color);
+    if(!own) { return false; }
+    if(hex === null) { hex = own; }
+    return own === hex;
+  });
+  if(!agreed || !hex) { return registry; }
+  const by_color = nearest_category_for_color(hex);
+  const text = (by_color && BY_KEY[by_color]) ? BY_KEY[by_color].textVar : cat.textVar;
+  return '--bd-group-fill:' + darken_hex(hex, 0.9) + ';--bd-group-text:var(' + text + ')';
+}
+
 /*
  * The paintable swatch for a category: the actual fill/border/part-of-speech to
  * stamp on a button being MOVED into it.
@@ -499,6 +578,47 @@ const YES_LABELS = [
 /* The "hold the floor" phrase, matched as a prefix: boards word it differently and every
    variant is the same button doing the same job. */
 const TIME_LABEL_PATTERN = /^give me (a )?(time|minute|moment|second)/;
+
+/* The clock word, matched on the AUTHORED label after `normalize_label` has dropped the
+   apostrophe. Its own rule rather than a colour, because on a keyboard board it is painted
+   the same blue as the digits it sits beside. */
+const CLOCK_LABELS = ['oclock', 'o clock', 'clock'];
+
+/*
+ * Auxiliaries that OPEN a question: "do you ...", "is it ...", "can I ...", "will you ...".
+ *
+ * A SAFETY NET, not the route these words normally take. On the boards we ship they are
+ * already painted question-purple and the colour rule claims them -- vocal-flair-112 paints
+ * all four `rgb(226, 207, 255)`, which sits 3.88 from the palette purple and so lands well
+ * inside COLOR_MATCH_MAX_DISTANCE. Nothing on that board reaches this list.
+ *
+ * The net is for the board that paints them verb-GREEN, which is the defensible Fitzgerald
+ * reading of an auxiliary and which drops them into the middle of twenty content verbs --
+ * the one place a user forming a question will not look. Same failure the `yes` rule above
+ * exists to prevent, one category over.
+ *
+ * Applied ONLY to a verdict that would otherwise be Actions, and that restriction is what
+ * makes it safe rather than clever: "can" is also a container and "will" is also a
+ * document, so an orange or a blue one must stay where its author put it. A rule that can
+ * only downgrade an Actions verdict can never reach those.
+ *
+ * English only, deliberately. YES_LABELS carries translations because "yes" is one
+ * high-value word with a clean equivalent in every locale; auxiliaries are a different
+ * problem -- most languages do not open a question with a separate word at all -- so a
+ * translated list would be guesswork. A non-English board matches nothing here and keeps
+ * its colour verdict, which is the safe outcome.
+ */
+const QUESTION_STARTER_LABELS = ['do', 'is', 'can', 'will'];
+
+/*
+ * Turn an Actions verdict for a question-starting auxiliary into a Questions verdict.
+ * Runs against BOTH the colour verdict and the part_of_speech verdict, because a board can
+ * arrive at Actions by either route and the net has to cover both.
+ */
+function redirect_question_starter(key, base) {
+  if(key !== 'actions' || !base) { return key; }
+  return QUESTION_STARTER_LABELS.indexOf(base) >= 0 ? 'questions' : key;
+}
 
 /* Lower-case, strip accents, drop anything that is not a letter, digit or single space. */
 function normalize_label(value) {
@@ -558,16 +678,17 @@ export function category_for_button(btn) {
   if(base) {
     if(YES_LABELS.indexOf(base) >= 0) { return 'yes'; }
     if(TIME_LABEL_PATTERN.test(base)) { return 'time'; }
+    if(CLOCK_LABELS.indexOf(base) >= 0) { return 'clock'; }
   }
 
   const hex = normalize_color(btn.background_color);
   if(hex) {
     const byColor = nearest_category_for_color(hex);
-    if(byColor) { return byColor; }
+    if(byColor) { return redirect_question_starter(byColor, base); }
   }
 
   const type = btn.part_of_speech || btn.painted_part_of_speech || btn.suggested_part_of_speech;
-  if(type && TYPE_TO_KEY[type]) { return TYPE_TO_KEY[type]; }
+  if(type && TYPE_TO_KEY[type]) { return redirect_question_starter(TYPE_TO_KEY[type], base); }
 
   return 'extra';
 }
@@ -714,14 +835,80 @@ export function assign_columns(groups, column_count, inner_columns) {
  * normalize_key_label), so a button labelled "[shift]" or "[ space ]" matches `shift`
  * and `space`.
  */
+/*
+ * The key block, as tokens to look for on the board.
+ *
+ * A slot may be an ARRAY, meaning "whichever of these this board actually carries". The
+ * key right of `space` is the case that needs it: the inline keyboard on a vocabulary
+ * board puts `?` there, while a full keyboard board puts `:`. One slot, two boards, and
+ * only ever one of them present — an array says that without inventing a column that
+ * stands empty on whichever board lacks the other.
+ *
+ * The NUMBER row is part of the block, not a separate category. Filed by colour those
+ * buttons are Fitzgerald blue, so they came out as "Describe" — a row of digits sitting
+ * under the adjectives, away from the keys they belong to, on a board whose whole purpose
+ * is spelling. `o'clock` is NOT one of them: it is a word, not a key, and it has its own
+ * category (see `clock`), which also leaves this row the same ten wide as the letter rows.
+ *
+ * Rows are not all the same width and do not have to be: `qwerty_positions` normalises
+ * whatever it finds (see the end of that function), so a board with no digits keeps
+ * exactly the three-row block it has today rather than gaining an empty row above it.
+ */
 export const QWERTY_LAYOUT = [
+  ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
   ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
   ['.', 'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'],
-  ['shift', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'space', '?']
+  ['shift', 'z', 'x', 'c', 'v', 'b', 'n', 'm', 'space', ['?', ':']]
 ];
 
-/* Tracks in the keyboard panel — the width of a row. */
-export const QWERTY_COLUMNS = QWERTY_LAYOUT[0].length;
+/* Tracks in the keyboard panel — the width of the widest row. Nothing reads this today;
+   kept exported and correct because the panel's real width comes from the placed keys
+   (`kb_w` in pack_category_tiles), and a constant that disagreed with it would be a trap. */
+export const QWERTY_COLUMNS = QWERTY_LAYOUT.reduce(function(w, row) {
+  return Math.max(w, row.length);
+}, 0);
+
+/*
+ * A category's name, where WHAT IT HOLDS changes what to call it.
+ *
+ * Two categories are defined by a rule rather than by a Fitzgerald colour, and on different
+ * boards that rule collects genuinely different things. A fixed registry label then has to
+ * describe both, and ends up describing neither.
+ *
+ *   keyboard -> "Full Keyboard" when the block carries the NUMBER ROW. The inline keyboard
+ *     on a vocabulary board is letters and a little punctuation, for spelling a word the
+ *     board does not have; a full keyboard board adds the digits and is where a user goes to
+ *     type anything at all. Calling both "Keyboard" made the folder that opens the second
+ *     look like a duplicate of the first. Read off the PLACED keys, not the board, so a
+ *     stray "7" elsewhere cannot rename anything.
+ *
+ *   words -> "Emojis" when every button in it is one. This category is Connectors — "to /
+ *     and / that / with" — but its membership is really "grey or white", and a keyboard
+ *     board's emoji rows are white. A panel of nineteen emoji under the heading "Connectors"
+ *     is simply mislabelled. ALL of them, not most: a mixed panel genuinely is connectors
+ *     with some emoji among them, and Connectors is the honest name for that.
+ *
+ * Anything else takes its registry label unchanged.
+ */
+const EMOJI_PATTERN = /^(?:\p{Extended_Pictographic}|\p{Emoji_Component})+$/u;
+
+function group_label(key, buttons) {
+  const list = buttons || [];
+  if(key === 'keyboard') {
+    const full = list.some(function(b) {
+      return b && b.kb_row && /^[0-9]$/.test(normalize_key_label(b.label));
+    });
+    if(full) { return i18n.t('board_category_full_keyboard', "Full Keyboard"); }
+  }
+  if(key === 'words' && list.length) {
+    const all_emoji = list.every(function(b) {
+      const raw = (b && typeof b.label === 'string') ? b.label.trim() : '';
+      return raw && EMOJI_PATTERN.test(raw);
+    });
+    if(all_emoji) { return i18n.t('board_category_emojis', "Emojis"); }
+  }
+  return label_for(key);
+}
 
 /* Letters only; the run gate counts these, not the punctuation. */
 const QWERTY_LETTERS = 'qwertyuiopasdfghjklzxcvbnm'.split('');
@@ -782,6 +969,17 @@ export function qwerty_positions(rows) {
     if(hits && hits.length) { return hits; }
     return loose.get(token) || [];
   };
+  /* A layout slot is a token or a list of alternatives (see QWERTY_LAYOUT). Resolve to the
+     first alternative this board actually carries, so the slot is filled by whichever key
+     is present and stays empty when neither is. */
+  const slot_candidates = function(slot) {
+    if(!Array.isArray(slot)) { return candidates(slot); }
+    for(let i = 0; i < slot.length; i++) {
+      const hits = candidates(slot[i]);
+      if(hits.length) { return hits; }
+    }
+    return [];
+  };
 
   const found = QWERTY_LETTERS.filter(function(ch) { return candidates(ch).length > 0; });
   if(found.length < Math.ceil(QWERTY_LETTERS.length * QWERTY_MIN_RUN)) { return new Map(); }
@@ -797,8 +995,8 @@ export function qwerty_positions(rows) {
   const offsets_r = [];
   const offsets_c = [];
   QWERTY_LAYOUT.forEach(function(layout_row, lr) {
-    layout_row.forEach(function(token, lc) {
-      const hits = candidates(token);
+    layout_row.forEach(function(slot, lc) {
+      const hits = slot_candidates(slot);
       if(hits.length !== 1) { return; }
       offsets_r.push(hits[0].r - lr);
       offsets_c.push(hits[0].c - lc);
@@ -814,8 +1012,8 @@ export function qwerty_positions(rows) {
 
   const out = new Map();
   QWERTY_LAYOUT.forEach(function(layout_row, lr) {
-    layout_row.forEach(function(token, lc) {
-      const hits = candidates(token);
+    layout_row.forEach(function(slot, lc) {
+      const hits = slot_candidates(slot);
       if(!hits.length) { return; }
       let best = null;
       let best_score = null;
@@ -829,6 +1027,31 @@ export function qwerty_positions(rows) {
       if(best) { out.set(best.btn, { row: lr + 1, col: lc + 1 }); }
     });
   });
+
+  /* Normalise to the block that is ACTUALLY there.
+   *
+   * The layout is a superset — the number row, and the punctuation beside space, exist on a
+   * full keyboard board and not on the inline keyboard a vocabulary board carries. Placing
+   * against the raw layout would give that inline keyboard rows 2-4 and leave row 1 empty,
+   * which the panel renders as a blank strip above the keys (and `kb_h` counts, so it also
+   * changes how many board rows the block is given). Sliding everything back to (1,1) means
+   * a board that has no digits keeps exactly the three-row block it has today.
+   *
+   * Both axes, and the minimum is taken across the WHOLE block rather than per row, so the
+   * layout's internal offsets — `.` starting the home row, `shift` starting the bottom one —
+   * survive untouched. */
+  let min_r = null;
+  let min_c = null;
+  out.forEach(function(pos) {
+    if(min_r === null || pos.row < min_r) { min_r = pos.row; }
+    if(min_c === null || pos.col < min_c) { min_c = pos.col; }
+  });
+  if(min_r > 1 || min_c > 1) {
+    out.forEach(function(pos) {
+      pos.row -= (min_r - 1);
+      pos.col -= (min_c - 1);
+    });
+  }
   return out;
 }
 
@@ -906,6 +1129,22 @@ export function compact_order(groups) {
 /* Band heights the search considers. Raised automatically when a single category cannot
    fit the board width at this height. */
 const COMPACT_MAX_BAND_ROWS = 10;
+
+/*
+ * Layout scores are TUPLES, summed component-wise across bands and compared
+ * lexicographically. A tuple rather than a pair of numbers because the two variants rank
+ * on different things and one of them needs three terms; see `score_band` in `plan_bands`.
+ */
+function add_score(a, b) {
+  return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
+function better_score(a, b) {
+  for(let i = 0; i < a.length; i++) {
+    if(a[i] !== b[i]) { return a[i] < b[i]; }
+  }
+  return false;
+}
 
 function tile_count(group) {
   return (group && (group.count || (group.buttons || []).length)) || 0;
@@ -1027,7 +1266,12 @@ function fit_band(counts, h, columns, budget) {
  * leave a category for the next band when that packs better. Order is never reshuffled:
  * `compact_order` put the Fitzgerald lead colours first on purpose.
  */
-function plan_bands(list, columns, budget) {
+/*
+ * `flex` — the SCROLLING variant, whose bands render as flex rows rather than grid-placed
+ * tiles. It changes what the search is allowed to believe about a band, and both changes
+ * are corrections rather than preferences; see `score_band`.
+ */
+function plan_bands(list, columns, budget, flex) {
   const n = list.length;
   if(!n) { return { bands: [], spent: 0 }; }
   const counts = list.map(tile_count);
@@ -1035,27 +1279,61 @@ function plan_bands(list, columns, budget) {
   counts.forEach(function(c) { max_h = Math.max(max_h, Math.ceil(c / columns)); });
   const cap = Math.max(0, Math.floor(budget) || 0);
 
-  /* Scored on the band AFTER close_band_edge has run, not before: that step turns a small
-     ragged edge into spare cells inside the last ring, and a search that scored the
-     unstretched band would be ranking a layout that never renders. */
-  const band_spread = function(h, tiles, used) {
+  /*
+   * One band's contribution to the layout score, as a tuple compared LEXICOGRAPHICALLY and
+   * summed component-wise across bands. The two variants weigh different things because
+   * they render differently, and each term below is a fact about one of them.
+   *
+   * GRID (scrolling off) -- unchanged from what shipped: `[cells, dead^2 + empty^2, -]`.
+   * Tiles are placed on the board's own grid, so a band that does not use every column
+   * really does leave bare board at its end, and rows are `1fr` under a definite height,
+   * so every extra row comes straight out of every button on the board. Fewest cells
+   * first, then the most evenly spread leftovers, is right there.
+   *
+   * FLEX (scrolling on) -- `[empty^2, rows, bands]`. Three differences, all of them things
+   * the grid scorer asserts that are simply not true of a flex row:
+   *
+   *   1. NO `dead` TERM. A band's unused columns are not bare board: the tiles carry
+   *      `flex-grow: w` and share that space out proportionally, so slack renders as
+   *      WIDER BUTTONS in that band. Charging it as waste is what made the search break
+   *      the vocabulary block into thin bands -- a 5-row band using 10 of 14 columns
+   *      scored 20 dead cells (400 squared) against the 4-cell penalty of a 1-row band,
+   *      so People was drawn as a 1x10 strip and Actions/Describe as 7x3.
+   *   2. NO MODELLED STRETCH. `close_band_edge` is skipped for a flex band (see its call
+   *      site) for the same reason -- there is no gap at the end of the row for the last
+   *      tile to close. Modelling one invented spare cells INSIDE that tile's ring, which
+   *      pushed the search to split a band rather than let one category absorb them.
+   *   3. ROWS DEMOTED TO A TIE-BREAK. Scrolling rows are `minmax(--bd-scroll-row-min,
+   *      auto)` and the board simply grows, so a row is nearly free -- the same reasoning
+   *      `lift_column_tiles` already relies on. Minimising cells FIRST is a fixed-height
+   *      objective; here what is actually visible is whether each ring holds exactly its
+   *      own buttons, so squared emptiness leads and rows (then bands, i.e. horizontal
+   *      seams) only separate layouts that tie on it.
+   *
+   * Measured consequence on the 14-column board: every ring comes out exactly full --
+   * People 2x5, Actions 4x5, Describe 4x5, Connectors 11x1, Questions 5x1, How & When
+   * 4x1, Things 3x1 -- and across a sweep of board shapes the flex scorer produced no
+   * one-column slivers at all, where the grid scorer produced them on three of eight.
+   */
+  const score_band = function(h, tiles, used) {
     const slack = columns - used;
-    const stretch = (slack > 0 && slack <= stretch_cap(columns)) ? slack : 0;
-    const dead = (slack - stretch) * h;
-    let spread = dead * dead;
+    const stretch = (!flex && slack > 0 && slack <= stretch_cap(columns)) ? slack : 0;
+    let empty_sq = 0;
     tiles.forEach(function(t, idx) {
       const w = t.w + ((idx === tiles.length - 1) ? stretch : 0);
       const empty = (w * h) - (tile_count(t.group) - t.donate);
-      spread += empty * empty;
+      empty_sq += empty * empty;
     });
-    return spread;
+    if(flex) { return [empty_sq, h, 1]; }
+    const dead = (slack - stretch) * h;
+    return [h * columns, (dead * dead) + empty_sq, 0];
   };
 
   /* best[i][b] = cheapest way to pack categories i..n-1 with b donations still available.
      Filled back to front so every `best[j + 1][...]` a candidate needs is already known. */
   const best = [];
   for(let i = 0; i <= n; i++) { best.push(new Array(cap + 1).fill(null)); }
-  for(let b = 0; b <= cap; b++) { best[n][b] = { cells: 0, spread: 0, bands: [], spent: 0 }; }
+  for(let b = 0; b <= cap; b++) { best[n][b] = { score: [0, 0, 0], bands: [], spent: 0 }; }
 
   for(let i = n - 1; i >= 0; i--) {
     for(let b = 0; b <= cap; b++) {
@@ -1073,12 +1351,10 @@ function plan_bands(list, columns, budget) {
           for(let k = i; k <= j; k++) {
             tiles.push({ group: list[k], w: fit.w[k - i], donate: fit.donate[k - i] });
           }
-          const cells = (h * columns) + rest.cells;
-          const spread = band_spread(h, tiles, fit.used) + rest.spread;
-          if(!choice || cells < choice.cells || (cells === choice.cells && spread < choice.spread)) {
+          const score = add_score(score_band(h, tiles, fit.used), rest.score);
+          if(!choice || better_score(score, choice.score)) {
             choice = {
-              cells: cells,
-              spread: spread,
+              score: score,
               spent: fit.spent + rest.spent,
               bands: [{ h: h, tiles: tiles, used: fit.used }].concat(rest.bands)
             };
@@ -1215,6 +1491,7 @@ function derived_group(group, buttons, suffix, is_keyboard) {
     label: group.label,
     fillVar: group.fillVar,
     textVar: group.textVar,
+    swatch_style: group.swatch_style,
     each_key: (group.each_key || ('cat-' + group.key)) + suffix,
     buttons: buttons,
     count: buttons.length,
@@ -1498,7 +1775,7 @@ function continue_into_lifted_row(bands, notch_groups, donated, notch_w, kb_h, c
  *
  * Stable for everything else: the remaining tiles keep their relative order exactly.
  */
-const NOTCH_TAIL_KEYS = ['social', 'predictions', 'yes', 'no_not', 'time', 'keyboard_extra'];
+const NOTCH_TAIL_KEYS = ['social', 'predictions', 'clock', 'yes', 'no_not', 'time', 'keyboard_extra'];
 
 /*
  * SCROLLING ONLY. The controls row: one full-width row directly above the keyboard, in this
@@ -1515,10 +1792,7 @@ const NOTCH_TAIL_KEYS = ['social', 'predictions', 'yes', 'no_not', 'time', 'keyb
  * it to two rows of fifteen would move every key — the keys are simply shorter, which they
  * can afford: they are the tallest buttons on the board.
  */
-const CONTROL_ROW_KEYS = ['predictions', 'yes', 'no_not', 'social', 'time', 'keyboard_extra'];
-
-/* The two that share whatever the row has left, as evenly as it divides. */
-const CONTROL_ROW_STRETCH = ['time', 'keyboard_extra'];
+const CONTROL_ROW_KEYS = ['predictions', 'clock', 'yes', 'no_not', 'social', 'time', 'keyboard_extra'];
 
 /* Board rows the key block spans in the controls-row layout. */
 const KEYBOARD_BOARD_ROWS = 2;
@@ -1623,9 +1897,13 @@ export function pack_category_tiles(groups, columns, options) {
    * place them outside their own tile.
    */
   if(kb) {
-    const key_rows = QWERTY_LAYOUT.length;
-    const keys = (kb.buttons || []).filter(function(b) { return b && b.kb_row && b.kb_row <= key_rows; });
-    const extras = (kb.buttons || []).filter(function(b) { return b && (!b.kb_row || b.kb_row > key_rows); });
+    /* `kb_extra` is stamped by group_buttons on anything in the keyboard category with no
+       layout position of its own — the folder that OPENS a keyboard board is the real case.
+       Read the flag rather than comparing the row against the layout's length: the layout is
+       a superset of what any one board carries, so that comparison called a real key on a
+       four-row board an extra. */
+    const keys = (kb.buttons || []).filter(function(b) { return b && b.kb_row && !b.kb_extra; });
+    const extras = (kb.buttons || []).filter(function(b) { return b && (!b.kb_row || b.kb_extra); });
     if(extras.length && keys.length) {
       const base = kb;
       kb = {
@@ -1748,7 +2026,7 @@ export function pack_category_tiles(groups, columns, options) {
     ? Math.max(0, (notch_w * kb_h) - notch_groups.reduce(function(sum, g) { return sum + tile_count(g); }, 0))
     : 0;
 
-  let plan = plan_bands(vocab, cols, notch_free);
+  let plan = plan_bands(vocab, cols, notch_free, !!opts.scrolling);
   let donated = collect_donations(plan.bands);
 
   /* Re-pack the notch with the donated tiles in it. Buttons fitting by COUNT does not
@@ -1760,7 +2038,7 @@ export function pack_category_tiles(groups, columns, options) {
     if(repacked.rows <= kb_h) {
       notch = repacked;
     } else {
-      plan = plan_bands(vocab, cols, 0);
+      plan = plan_bands(vocab, cols, 0, !!opts.scrolling);
       donated = [];
     }
   }
@@ -1816,35 +2094,36 @@ export function pack_category_tiles(groups, columns, options) {
      `lift_own_row_tiles` would otherwise SPLIT it around Predictions, which carries
      `own_row` for the band case and must not act here — this row IS its own row.
 
-     Widths are the button counts at a height of one, and whatever the row has left is
-     shared between Time and the Keys folder. Those two are single buttons that would
-     otherwise sit in one-column tiles at the end of a part-empty row; widened they close
-     the row and the two of them stay the same size as each other, which is what stops the
-     end of the row reading as ragged. An odd column goes to the LAST of them so the row
-     ends flush. */
+     Every tile is exactly its own button count wide, and the columns the row does not use
+     are left ALONE for the flex band to share out.
+
+     They used to be handed to Time and the Keys folder, which are single buttons, on the
+     reasoning that a part-empty row reads as ragged. That reasoning belongs to a
+     grid-placed row: this row only ever exists in the scrolling variant (`controls_layout`
+     requires it), so it is always a flex band, and `flex: var(--bd-tile-columns) 0 …`
+     already shares the leftover columns across every tile in PROPORTION to its width. All
+     the stretch did was buy two single-button tiles three and four columns of mostly empty
+     ring — Time 470px and Keys 622px around one 147px button — while the four tiles that
+     hold real buttons stayed at their minimum. Left to the flex band the same slack raises
+     every button in the row instead, and they all come out the same width, which is what
+     stops the row reading as ragged in the first place.
+
+     `used` is recorded so the band reports its true slack like every other band. */
   if(control_row.length) {
     const ctl = control_row.map(function(g) {
       return { group: g, w: Math.max(1, tile_count(g)), donate: 0 };
     });
     let used = ctl.reduce(function(a, t) { return a + t.w; }, 0);
-    const stretch = ctl.filter(function(t) { return CONTROL_ROW_STRETCH.indexOf(t.group.key) >= 0; });
-    let spare = cols - used;
-    if(spare > 0 && stretch.length) {
-      const each = Math.floor(spare / stretch.length);
-      stretch.forEach(function(t) { t.w += each; });
-      let rest = spare - (each * stretch.length);
-      for(let i = stretch.length - 1; i >= 0 && rest > 0; i--) { stretch[i].w += 1; rest -= 1; }
-    } else if(spare < 0) {
-      /* Narrow board: shed from the widest tile down rather than overflowing the row. */
-      while(spare < 0) {
-        let widest = 0;
-        for(let i = 1; i < ctl.length; i++) { if(ctl[i].w > ctl[widest].w) { widest = i; } }
-        if(ctl[widest].w <= 1) { break; }
-        ctl[widest].w -= 1;
-        spare += 1;
-      }
+    /* Narrow board: shed from the widest tile down rather than overflowing the row. There
+       is no flex growth to fall back on when the tiles want MORE than the board has. */
+    while(used > cols) {
+      let widest = 0;
+      for(let i = 1; i < ctl.length; i++) { if(ctl[i].w > ctl[widest].w) { widest = i; } }
+      if(ctl[widest].w <= 1) { break; }
+      ctl[widest].w -= 1;
+      used -= 1;
     }
-    plan.bands.push({ h: 1, tiles: ctl, no_edge_stretch: true });
+    plan.bands.push({ h: 1, tiles: ctl, used: used, no_edge_stretch: true });
   }
 
   const tiles = [];
@@ -1866,8 +2145,17 @@ export function pack_category_tiles(groups, columns, options) {
   let row = 1;
   plan.bands.forEach(function(band) {
     /* `no_edge_stretch` is set only by the lift, on the two bands it disturbed — see the
-       note there for why their leftover columns stay bare instead of being absorbed. */
-    if(!band.no_edge_stretch) { close_band_edge(band, cols); }
+       note there for why their leftover columns stay bare instead of being absorbed.
+
+       Skipped ENTIRELY when scrolling, because the stretch answers a question a flex band
+       does not ask. Its job is to stop a band ending in bare board by widening the last
+       tile into the gap; a flex row has no gap — `flex-grow: w` has already shared those
+       columns across every tile in the band, proportionally, which is both fairer and
+       what makes the band's buttons come out uniform. Running it here only inflated the
+       LAST tile's ring: on the 14-column board it grew Things from 3 buttons in 2x2 to 3
+       buttons in 3x2, three empty cells for no gain. `plan_bands` stops modelling the
+       stretch under the same flag, so the search and the render still agree. */
+    if(!band.no_edge_stretch && !opts.scrolling) { close_band_edge(band, cols); }
     const band_groups = [];
     let col = 1;
     band.tiles.forEach(function(t) {
@@ -1968,13 +2256,14 @@ export function group_buttons(rows, order) {
       if(pos) {
         btn.kb_row = pos.row;
         btn.kb_col = pos.col;
+        btn.kb_extra = false;
         buckets.keyboard = buckets.keyboard || [];
         buckets.keyboard.push(btn);
         return;
       }
       /* Clear any stale stamp: the same button object is reused across regroups, so a
          button that stops qualifying must not keep a keyboard position. */
-      if(btn.kb_row) { btn.kb_row = null; btn.kb_col = null; }
+      if(btn.kb_row) { btn.kb_row = null; btn.kb_col = null; btn.kb_extra = false; }
       const key = category_for_button(btn);
       // category_for_button can only return a registry key, but guard anyway so a
       // future edit to it can never drop buttons on the floor.
@@ -2004,10 +2293,20 @@ export function group_buttons(rows, order) {
        extra item in would shift the letters out of the positions a speller reaches for.
        Unplaced items also auto-flow into the first free cell otherwise, which put the
        "keyboard" folder in the middle of the home row. */
-    const lastRow = QWERTY_LAYOUT.length + 1;
+    /* One row below the last row of KEYS THIS BOARD HAS, not below the layout table.
+       The table is a superset — a board without the number row uses three of its four rows
+       — so `QWERTY_LAYOUT.length + 1` parked the folder two rows under the keys and left an
+       empty strip between them. `kb_extra` then says what the row number used to imply, so
+       nothing downstream has to re-derive "is this a key or the parked folder" from
+       arithmetic that a change to the layout can silently invalidate. */
+    let lastRow = 0;
+    buckets.keyboard.forEach(function(b) {
+      if(b.kb_row && b.kb_row > lastRow) { lastRow = b.kb_row; }
+    });
+    lastRow += 1;
     let tail = 0;
     buckets.keyboard.forEach(function(b) {
-      if(!b.kb_row) { tail += 1; b.kb_row = lastRow; b.kb_col = tail; }
+      if(!b.kb_row) { tail += 1; b.kb_row = lastRow; b.kb_col = tail; b.kb_extra = true; }
     });
     buckets.keyboard.sort(function(a, b) {
       return (a.kb_row - b.kb_row) || (a.kb_col - b.kb_col);
@@ -2020,9 +2319,10 @@ export function group_buttons(rows, order) {
     const cat = BY_KEY[k];
     return {
       key: k,
-      label: label_for(k),
+      label: group_label(k, buckets[k]),
       fillVar: cat.fillVar,
       textVar: cat.textVar,
+      swatch_style: group_swatch(k, buckets[k], cat),
       buttons: buckets[k],
       count: buckets[k].length,
       /* The keyboard panel is laid out on a real keyboard grid and spans the full board

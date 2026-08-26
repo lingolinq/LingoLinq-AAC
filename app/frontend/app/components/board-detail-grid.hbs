@@ -33,7 +33,13 @@
       style={{if column.band_style (safe-style column.band_style)}}>
     {{#each column key="each_key" as |group|}}
     <div class="md-board-detail-grid__group {{if group.key (concat 'md-board-detail-grid__group--' group.key)}}"
-      style={{if group.key (safe-style (concat "--bd-group-fill:var(" group.fillVar ");--bd-group-text:var(" group.textVar ")" (if group.tile_style (concat ";" group.tile_style))))}}
+      {{!-- `swatch_style` is the tint, already resolved by group_buttons: the registry
+           colours for every category, EXCEPT Predictions, whose membership is a
+           vocalization rule rather than a colour and so takes its tint from the buttons it
+           actually holds (board_categories.js#group_swatch). The concat below is the
+           fallback for group lists built outside that path (panel / ungrouped modes),
+           which carry fillVar/textVar and no swatch. --}}
+      style={{if group.key (safe-style (concat (if group.swatch_style group.swatch_style (concat "--bd-group-fill:var(" group.fillVar ");--bd-group-text:var(" group.textVar ")")) (if group.tile_style (concat ";" group.tile_style))))}}
       role={{if group.key "group" "presentation"}}
       aria-label={{if group.key group.label}}>
       {{!-- The category NAME is optional (preferences.board_category_grouping

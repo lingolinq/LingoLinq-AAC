@@ -1234,17 +1234,36 @@ export default Controller.extend(prefClasses, {
   // Also records recent-phrase history for the board-detail UI.
   _speak_current_sentence: function() {
     var list = this.get('app_state.button_list') || [];
+    var parts = this.get('sentence_parts') || [];
     var speakable = false;
+    var counted = 0;
     for(var i = 0; i < list.length; i++) {
       var b = list[i];
       if(!b || emberGet(b, 'ghost') || emberGet(b, 'hint')) { continue; }
+      counted++;
       if(emberGet(b, 'sound') || emberGet(b, 'inline_content') ||
          emberGet(b, 'vocalization') || emberGet(b, 'label')) {
         speakable = true;
-        break;
       }
     }
-    if(speakable) {
+    /*
+     * `vocalize_list` speaks the GLOBAL utterance, and the bar can be showing more than
+     * that. `sentence_parts` is a superset: the mirror from `app_state.button_list` is
+     * add-only (see `_sync_sentence_from_global`), and local-only sources — quick phrases,
+     * completions, Phrase Builder — push straight into it and never reach the global list.
+     *
+     * The all-local case was already handled, via the `speakable` flag falling false and the
+     * TTS fallback below. The MIXED case was not, and it is the one a user hits: tap a board
+     * button, then add a word from Phrase Builder, and the bar reads "Like good" while
+     * `vocalize_list` says only "Like" — measured exactly that. The bar showing one thing and
+     * the device saying another is about the worst failure this app has.
+     *
+     * So the global path is used only when it is COMPLETE — as many real entries as the bar
+     * has chips. Otherwise fall through to TTS of the whole bar, which says everything at the
+     * cost of any per-button sounds for that one utterance. (Counting rather than breaking
+     * early is why the loop above no longer stops at the first speakable entry.)
+     */
+    if(speakable && counted >= parts.length) {
       // Matches application.vocalize → vocalize_list (sounds + TTS + clear_on_vocalize).
       utterance.vocalize_list(null, {});
     } else {
@@ -1645,6 +1664,15 @@ export default Controller.extend(prefClasses, {
         boardDetailCache.set_ordered_buttons(cache_token, result, cache_ctx);
       }
     }
+
+    /* Re-baseline the record's dirty attributes now that the build is done.
+       Building a board WRITES `translations` / `buttons` / `translated_locales` onto the
+       record (above), so it is dirty before the user has touched anything — measured on a
+       freshly opened editor. "Exit to Home" tells a clean edit session from a dirty one by
+       comparing against this, so it has to be taken AFTER the build, not when the edit route
+       sets up: there the record is still clean and the baseline came out empty, which made
+       every session look changed. */
+    _this.capture_edit_baseline();
   },
 
   _translation_entry_from_raw: function(translations, button_id, locale) {
@@ -3384,14 +3412,28 @@ export default Controller.extend(prefClasses, {
    * One resolver, and every consumer below reads it — the switch, the sub-options, the
    * order list and the save all have to agree about which board they are describing.
    */
+  /* Which entry in `boards` describes THIS board.
+     By KEY (`username/board-slug`), because a global_id is stable only within one
+     database — the same seeded board has a different id on local, staging and production,
+     so an id-keyed override silently stopped applying the moment it crossed environments.
+     The id is still read as a FALLBACK for entries written before the switch. */
+  _board_category_ref: function() {
+    var all = this.get('app_state.referenced_user.preferences.board_category_grouping') || {};
+    var boards = all.boards || {};
+    var key = this.get('model.key');
+    if(key && boards[key]) { return { ref: key, entry: boards[key] }; }
+    var id = this.get('model.id');
+    if(id && boards[id]) { return { ref: id, entry: boards[id], legacy: true }; }
+    return { ref: key || id || null, entry: null };
+  },
+
   board_category_settings: computed(
     'model.id',
+    'model.key',
     'app_state.referenced_user.preferences.board_category_grouping',
     function() {
       var all = this.get('app_state.referenced_user.preferences.board_category_grouping') || {};
-      var id = this.get('model.id');
-      var per = (id && all.boards && all.boards[id]) || null;
-      return per || all;
+      return this._board_category_ref().entry || all;
     }
   ),
 
@@ -3596,6 +3638,70 @@ export default Controller.extend(prefClasses, {
   undo_redo_disabled: computed('borders_matched', 'board_recolored', function() {
     return this.get('borders_matched') || this.get('board_recolored');
   }),
+
+  /* Snapshot of which board-record attributes were ALREADY dirty when the edit page opened,
+     as `{attr: JSON of its current value}`. Captured by the edit route's setupController.
+
+     A baseline is needed because the record is dirty before the user does anything: opening
+     the editor leaves `translations`, `buttons` and `translated_locales` changed (measured).
+     Comparing VALUES rather than just key names matters too — `edit-board-details` writes
+     `model.translations`, which is one of the three, so a key-only baseline would mask it. */
+  _edit_dirty_baseline: null,
+
+  capture_edit_baseline: function() {
+    var base = {};
+    try {
+      var model = this.get('model');
+      var changed = (model && model.changedAttributes) ? model.changedAttributes() : {};
+      Object.keys(changed).forEach(function(k) {
+        base[k] = JSON.stringify(changed[k][1]);
+      });
+    } catch(e) {
+      base = null;   // unknown -> `edit_session_has_changes` treats it as "there are changes"
+    }
+    this.set('_edit_dirty_baseline', base);
+  },
+
+  /*
+   * Would leaving edit mode right now LOSE anything?
+   *
+   * A METHOD, not a computed: `changedAttributes()` is not observable, so a computed would
+   * cache a stale answer. It is read on a click, which is cheap.
+   *
+   * Assembled from every vector `cancel_edit` rolls back, because no single flag is that set:
+   *
+   *   noUndo                   - the edit history. `editManager.update_history` writes it onto
+   *                              this controller. Covers button edits (button-settings goes
+   *                              through `editManager.change_button`), grid resizes, swaps and
+   *                              paint — all of which call `save_state`.
+   *   board_recolored          - a recolour does NOT enter the undo stack; that is exactly why
+   *   borders_matched            `undo_redo_disabled` turns undo OFF while either is pending.
+   *   record attributes        - `edit-board-details` sets `model.name` / `translations` /
+   *                              `categories` straight on the record and never saves, so it
+   *                              leaves no undo entry at all. Compared against the baseline
+   *                              above, since the record is dirty from load.
+   *
+   * Every term errs the same way: unsure means "there are changes", which costs a confirm
+   * dialog. The opposite mistake costs the user their work.
+   */
+  edit_session_has_changes: function() {
+    if(!this.get('noUndo')) { return true; }
+    if(this.get('board_recolored') || this.get('borders_matched')) { return true; }
+    var base = this.get('_edit_dirty_baseline');
+    if(!base) { return true; }
+    var changed;
+    try {
+      var model = this.get('model');
+      changed = (model && model.changedAttributes) ? model.changedAttributes() : {};
+    } catch(e) { return true; }
+    var keys = Object.keys(changed);
+    for(var i = 0; i < keys.length; i++) {
+      var now;
+      try { now = JSON.stringify(changed[keys[i]][1]); } catch(e) { return true; }
+      if(base[keys[i]] !== now) { return true; }
+    }
+    return false;
+  },
 
   // Button text preferences from user device settings
   button_text_size_class: computed('app_state.referenced_user.preferences.device.button_text', function() {
@@ -5441,12 +5547,18 @@ export default Controller.extend(prefClasses, {
     var user = this.get('app_state.referenced_user');
     if(!user || !user.set) { return; }
     var all = user.get('preferences.board_category_grouping') || {};
-    var board_id = this.get('model.id');
     /* Read from, and write back to, the SAME place the resolver reads (see
-       board_category_settings): the per-board entry when this board has one, the user
+       `_board_category_ref`): the per-board entry when this board has one, the user
        default otherwise. Without this the panel would describe one board's settings and
        persist them over every board's. */
-    var current = (board_id && all.boards && all.boards[board_id]) || all;
+    var ref = this._board_category_ref();
+    var board_key = this.get('model.key');
+    var board_id = this.get('model.id');
+    /* Write under the KEY, whatever was read. A board whose settings were stored against
+       its id is migrated on its next save — the legacy entry is dropped below so the two
+       cannot drift apart and disagree about the same board. */
+    var write_ref = board_key || board_id;
+    var current = ref.entry || all;
     var next = {
       /* `=== true`, matching groupingEnabled. With `!== false` an ABSENT preference read
          as enabled, so saving an order-only change (a move arrow, or Reset order)
@@ -5478,8 +5590,12 @@ export default Controller.extend(prefClasses, {
     Object.keys(all.boards || {}).forEach(function(k) { boards[k] = all.boards[k]; });
     var previous = user.get('preferences.board_category_grouping');
     var written;
-    if(board_id) {
-      boards[board_id] = next;
+    if(write_ref) {
+      boards[write_ref] = next;
+      /* Retire the id-keyed entry this board used to be stored under, now that the same
+         settings live under its key. Left in place it would be a second description of
+         one board that the resolver never reads again. */
+      if(ref.legacy && ref.ref && ref.ref !== write_ref) { delete boards[ref.ref]; }
       written = {
         enabled: all.enabled === true,
         order: normalizeCategoryOrder(all.order),
@@ -5488,8 +5604,8 @@ export default Controller.extend(prefClasses, {
         boards: boards
       };
     } else {
-      /* No board id (a preview with no model): fall back to the user default so the
-         control still does something rather than silently dropping the change. */
+      /* Neither a key nor an id (a preview with no model): fall back to the user default
+         so the control still does something rather than silently dropping the change. */
       next.boards = boards;
       written = next;
     }
@@ -7771,10 +7887,57 @@ export default Controller.extend(prefClasses, {
           if(local_img) { image_url = local_img; }
         }
       }
+      /*
+       * Route through the SAME global path a tapped board button takes, so a phrase-builder
+       * word is a first-class activation: it lands in `app_state.button_list` (which is what
+       * `_speak_current_sentence` speaks via `utterance.vocalize_list`), and it gets USAGE
+       * LOGGED — `stashes.log` + `sync.send_update` hang off `app_state.activate_button` and
+       * a local push reaches neither. `select_button`'s own comment calls the local push
+       * "divergence-prone"; this was the last place still doing it.
+       *
+       * The button does NOT have to live on the current board. `Button.create` from raw data
+       * plus the current board model is the established shape — `app_state`'s tag activation
+       * does exactly this. An `editManager` button is preferred when the result IS on this
+       * board, because that one carries the real actions, sounds and inflections; a result
+       * from a linked sub-board has only what the buttonset walk collected, which is enough.
+       *
+       * Safe for cross-board results specifically because the walk EXCLUDES folders
+       * (`_phrase_try_upgrade_to_buttonset` skips anything with `load_board` /
+       * `linked_board_*`), so nothing here can trigger board navigation for a board the user
+       * is not on.
+       *
+       * LOGGING NOTE: `options.board` is what the server records as `button.board`
+       * (application.js#_activateButtonWithOptions -> `obj.board`, read by
+       * log_session.rb:462). Passing the CURRENT board attributes the activation to where the
+       * interaction actually happened, which is how every other activation in the app is
+       * logged. For a word taken from a linked sub-board that means the parent board gets the
+       * credit; the true origin is on the result as `board_id` if provenance is ever wanted.
+       * Heat-map data is unaffected either way — `hit_locations` needs `percent_x/percent_y`
+       * (log_session.rb:136) and a phrase-builder pick has no on-screen position.
+       */
+      var appController = this.get('app_state.controller');
+      var board = this.get('model');
+      var em_button = null;
+      if(btn_id && button.board_id && board && String(button.board_id) === String(board.get('id'))) {
+        em_button = editManager.find_button(btn_id);
+      }
+      if(!em_button || !em_button.get) {
+        em_button = Button.create({
+          id: btn_id,
+          label: label,
+          vocalization: vocalization || null,
+          image_url: image_url
+        });
+      }
+      if(appController && appController.activateButton && board) {
+        appController.activateButton(em_button, { board: board, trigger_source: 'phrase_builder' });
+        return;
+      }
+      /* Fallback only if the app controller is not reachable (mid-teardown): keep the old
+         local behaviour so a pick is never silently lost. */
       var parts = (this.get('sentence_parts') || []).slice();
       parts.push({ id: btn_id, label: label, vocalization: vocalization || null, image_url: image_url });
       this.set('sentence_parts', parts);
-      // Speak the button immediately
       speecher.stop('text');
       utterance.speak_button({
         label: label,
@@ -7895,11 +8058,27 @@ export default Controller.extend(prefClasses, {
        data-loss trapdoor sitting right next to Cancel, which does confirm. Reuses
        the SAME confirm-discard-changes modal so both escapes from edit mode behave
        identically, then hands off to the existing exit_to_home for the PIN gate,
-       timer cleanup and nav-history reset. */
+       timer cleanup and nav-history reset.
+
+       UNLESS there is nothing to discard. A confirm that only ever says "you will lose
+       nothing" is noise, and it trains people to click through the one that matters. When
+       `edit_session_has_changes` is false the exit happens immediately — see that computed
+       for why the undo stack alone does not answer the question.
+
+       `copy_on_save` is still cleared on the way out. It is set when edit mode is entered on
+       a board the user does not own, NOT by making a change, so it can be pending on this
+       path; `cancel_edit` clears it for the same reason, and the route's `resetController`
+       does not. Leaving it set would make the next save silently copy a board. */
     exit_to_home_from_edit: function() {
       var _this = this;
+      if(!this.edit_session_has_changes()) {
+        this.get('stashes').persist('copy_on_save', null);
+        this.send('exit_to_home');
+        return;
+      }
       modal.open('confirm-discard-changes', {}).then(function(result) {
         if(result === 'discard') {
+          _this.get('stashes').persist('copy_on_save', null);
           _this.send('exit_to_home');
         }
       }, function() { });

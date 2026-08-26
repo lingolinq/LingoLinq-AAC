@@ -1447,6 +1447,27 @@ class User < ApplicationRecord
         # guard), so a `true` default would silently disable the helpers account-wide
         # for everyone — the same trap board_category_grouping hit.
         'hide_screen_helpers' => false,
+        # Physical-keyboard typing adds to the vocalization box while in speak mode
+        # (raw_events.js, the `keyboard_listen` path). Gated on this preference since the
+        # feature was written in 2018, with no default on either side — so it has only ever
+        # worked for someone who found the checkbox in Preferences, or who enabled the
+        # native on-screen keyboard, which silently switches this on too
+        # (controllers/user/preferences.js#enable_external_keyboard).
+        #
+        # DELIBERATELY true, and note what that means: generate_defaults backfills every
+        # entry of this hash onto EVERY device of EVERY user on save (no new_record? guard —
+        # see the `hide_screen_helpers` note above), so this turns the behaviour ON for
+        # existing users, not just new ones. That is the intent — typing on a keyboard and
+        # having nothing appear is the surprising behaviour, not the reverse — but it is a
+        # behaviour change for every account and belongs in release notes.
+        #
+        # Safe to default only because the typing path is narrow: speak mode only
+        # (buttonTracker.check returns null otherwise), never while scanning or dwelling, not
+        # while a modal is open, and — as of the same change as this default — not while the
+        # user is typing into a text field (raw_events.js#typing_into_a_field). Without that
+        # last guard this default would have made every search box on a speak-mode page
+        # inject into the utterance.
+        'external_keyboard' => true,
         'wakelock' => true
       },
       'any_user' => {
@@ -2707,21 +2728,35 @@ class User < ApplicationRecord
     }
 
     # PER-BOARD overrides. The top-level keys stay the user's default, used by any board
-    # with no entry of its own; `boards` maps a board's global_id to a full settings hash
-    # in the same shape. Sanitized with the SAME lambda so an override cannot smuggle in a
-    # key or a category the top level would have rejected.
+    # with no entry of its own; `boards` maps a board to a full settings hash in the same
+    # shape. Sanitized with the SAME lambda so an override cannot smuggle in a key or a
+    # category the top level would have rejected.
     #
     # This map has to be echoed here for the same reason every other sub-key does: this
     # method REBUILDS the hash, so anything not listed is discarded silently, server-side.
     #
-    # Bounded on both axes — an id shape and a count — because it is client-supplied and
-    # otherwise grows without limit.
+    # KEYED BY BOARD KEY (`username/board-slug`), not by global_id. A global_id is stable
+    # only within one database: the same board seeded on local, staging and production
+    # gets a different id in each, so an id-keyed override silently stopped applying the
+    # moment it crossed environments — there was no way to ship a curated per-board
+    # arrangement with the board it belongs to. A board key survives that, because the
+    # seed produces the same slug everywhere.
+    #
+    # The id shape is STILL ACCEPTED, because entries written before this change are
+    # already stored that way and the frontend resolver still falls back to them (see
+    # controllers/user/board-detail.js#board_category_settings). Dropping them here would
+    # wipe a live preference on the user's next save of any unrelated setting.
+    #
+    # Bounded on both axes — shape and count — because it is client-supplied and otherwise
+    # grows without limit. The length cap is 128 rather than 64 to fit a real key: the
+    # longest in the seeded library run to ~50 characters, and a copy adds a `_<n>` suffix.
     boards = val['boards']
     boards = {} unless boards.is_a?(Hash)
     clean_boards = {}
+    board_ref = /\A[0-9A-Za-z_\-]+(\/[0-9A-Za-z_\-]+)?\z/
     boards.each do |bid, bval|
       break if clean_boards.size >= 500
-      next unless bid.is_a?(String) && bid.length <= 64 && bid.match(/\A[0-9A-Za-z_\-]+\z/)
+      next unless bid.is_a?(String) && bid.length <= 128 && bid.match(board_ref)
       next unless bval.is_a?(Hash)
       clean_boards[bid] = entry.call(bval)
     end

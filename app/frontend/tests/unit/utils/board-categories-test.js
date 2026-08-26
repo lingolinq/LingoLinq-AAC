@@ -207,6 +207,57 @@ module('Unit | Utility | board_categories', function() {
     );
   });
 
+  // Question-starting auxiliaries. The rule only ever DOWNGRADES an Actions verdict, so
+  // these check both that it fires where it should and that it cannot reach anything else.
+  test('a question-starting auxiliary painted verb-green files under Questions', function(assert) {
+    var wrong = [];
+    ['do', 'is', 'can', 'will'].forEach(function(word) {
+      var got = category_for_button({ label: word, background_color: '#CCFFAA' });
+      if(got !== 'questions') { wrong.push(word + ' -> ' + got); }
+    });
+    assert.deepEqual(wrong, [], 'every question-starter painted verb-green lands in Questions');
+  });
+
+  test('the same auxiliaries painted question-purple need no help from the rule', function(assert) {
+    // What vocal-flair-112 actually ships: rgb(226, 207, 255), 3.88 from the palette
+    // purple. The colour rule already claims these; the label rule is the net beneath it.
+    var wrong = [];
+    ['do', 'is', 'can', 'will'].forEach(function(word) {
+      var got = category_for_button({ label: word, background_color: 'rgb(226, 207, 255)' });
+      if(got !== 'questions') { wrong.push(word + ' -> ' + got); }
+    });
+    assert.deepEqual(wrong, [], 'the colour rule alone already files all four in Questions');
+  });
+
+  test('a question-starter falls back to Questions on part_of_speech alone', function(assert) {
+    assert.strictEqual(category_for_button({ label: 'can', part_of_speech: 'verb' }), 'questions');
+    assert.strictEqual(category_for_button({ label: 'will', part_of_speech: 'verb' }), 'questions');
+  });
+
+  test('the rule cannot drag a noun "can" or "will" out of its own category', function(assert) {
+    // "can" is also a container and "will" is also a document. Only an ACTIONS verdict is
+    // eligible, so a button its author coloured or typed as something else is untouched.
+    assert.strictEqual(category_for_button({ label: 'can', background_color: '#FFCCAA' }), 'things');
+    assert.strictEqual(category_for_button({ label: 'will', background_color: '#AACCFF' }), 'describe');
+    assert.strictEqual(category_for_button({ label: 'can', part_of_speech: 'noun' }), 'things');
+  });
+
+  test('an ordinary verb is not swept up by the question-starter rule', function(assert) {
+    assert.strictEqual(category_for_button({ label: 'want', background_color: '#CCFFAA' }), 'actions');
+    assert.strictEqual(category_for_button({ label: 'doing', background_color: '#CCFFAA' }), 'actions');
+    assert.strictEqual(category_for_button({ background_color: '#CCFFAA' }), 'actions');
+  });
+
+  test('the question-starter rule reads the AUTHORED label, and normalises it', function(assert) {
+    // Same reasoning as the Yes rule: a translated board rewrites `label` but not
+    // `base_label`, so the category must not move when the board is translated.
+    assert.strictEqual(
+      category_for_button({ base_label: 'can', label: 'puede', background_color: '#CCFFAA' }),
+      'questions'
+    );
+    assert.strictEqual(category_for_button({ label: ' Do? ', background_color: '#CCFFAA' }), 'questions');
+  });
+
   test('an unclassifiable button lands in extra rather than disappearing', function(assert) {
     assert.strictEqual(category_for_button({}), 'extra');
     assert.strictEqual(category_for_button(null), 'extra');
@@ -400,6 +451,78 @@ module('Unit | Utility | board_categories', function() {
   /* The real vocal-flair-112 grid, rows 6-8 — the keyboard block sits at columns 4-13
      and the Connectors words run down the left. Both "a" buttons live on ROW 7: the
      grey conjunction at column 2 and the white key at column 5, two cells apart. */
+  // A FULL keyboard board carries a number row above the letters and a colon beside space.
+  // The layout table is a superset of both boards, so these check that the extra rows and
+  // the alternative slot reach the board that HAS them without disturbing the one that
+  // does not (covered by the three-rows-of-ten test above, which still passes unchanged).
+  var full_kb_board = function() {
+    var mk = function(l) { return { id: 'b-' + l, label: l, background_color: '#73CCFF' }; };
+    var key = function(l) { return { id: 'b-' + l, label: l, background_color: '#FFFFFF' }; };
+    return [
+      '1234567890'.split('').map(mk),
+      'qwertyuiop'.split('').map(key),
+      ['.'].concat('asdfghjkl'.split('')).map(key),
+      ['shift'].concat('zxcvbnm'.split('')).concat(['space', ':']).map(key)
+    ];
+  };
+
+  test('a full keyboard board puts the number row above q and the colon beside space', function(assert) {
+    var rows = full_kb_board();
+    var pos = qwerty_positions(rows);
+    var at = function(l) { return pos.get(find_btn(rows, l)); };
+    assert.deepEqual(at('1'), { row: 1, col: 1 }, 'the number row opens the block');
+    assert.deepEqual(at('0'), { row: 1, col: 10 }, 'and closes at ten wide, like the letter rows');
+    assert.deepEqual(at('q'), { row: 2, col: 1 }, 'q sits directly under the numbers');
+    assert.deepEqual(at('space'), { row: 4, col: 9 }, 'space keeps its place');
+    assert.deepEqual(at(':'), { row: 4, col: 10 }, 'the colon takes the slot right of space');
+    assert.strictEqual(pos.size, 40, 'all forty keys placed');
+  });
+
+  test('the number row and the colon leave Describe and Controls empty', function(assert) {
+    // Both were categories on the real board purely because the key block did not claim
+    // them: the digits are Fitzgerald blue, so they were filed under Describe.
+    var groups = group_buttons(full_kb_board(), DEFAULT_CATEGORY_ORDER);
+    var byKey = {};
+    groups.forEach(function(g) { byKey[g.key] = g; });
+    assert.strictEqual(byKey.describe, undefined, 'no Describe category is produced');
+    assert.strictEqual(byKey.controls, undefined, 'no Controls category is produced');
+    assert.strictEqual(byKey.keyboard.count, 40, 'every key is in the keyboard instead');
+    assert.strictEqual(byKey.keyboard.label, 'Full Keyboard',
+      'and it is named for what it holds');
+  });
+
+  test('a keyboard WITHOUT a number row is still just "Keyboard"', function(assert) {
+    var groups = group_buttons(kb_board(), DEFAULT_CATEGORY_ORDER);
+    var kb = groups.filter(function(g) { return g.key === 'keyboard'; })[0];
+    assert.strictEqual(kb.count, 30, 'the inline keyboard is unchanged at thirty keys');
+    assert.strictEqual(kb.label, 'Keyboard', 'and keeps its own name');
+  });
+
+  test("o'clock is its own category, not a key and not Describe", function(assert) {
+    var rows = full_kb_board();
+    rows[0].push({ id: 'b-oclock', label: "o'clock", background_color: '#73CCFF' });
+    var groups = group_buttons(rows, DEFAULT_CATEGORY_ORDER);
+    var byKey = {};
+    groups.forEach(function(g) { byKey[g.key] = g; });
+    assert.ok(byKey.clock, 'a Clock category exists');
+    assert.strictEqual(byKey.clock.count, 1, 'holding exactly the one button');
+    assert.strictEqual(byKey.keyboard.count, 40, 'the key block is unchanged at forty');
+    assert.strictEqual(byKey.describe, undefined, 'and it did not fall back to Describe');
+  });
+
+  test('an all-emoji Connectors panel is called Emojis, a mixed one is not', function(assert) {
+    var emoji = ['\u{1F602}', '\u{1F62D}', '\u{2764}\u{FE0F}'].map(function(e, i) {
+      return { id: 'e' + i, label: e, background_color: '#FFFFFF' };
+    });
+    var only = group_buttons([emoji], DEFAULT_CATEGORY_ORDER)
+      .filter(function(g) { return g.key === 'words'; })[0];
+    assert.strictEqual(only.label, 'Emojis', 'every button an emoji -> Emojis');
+
+    var mixed = group_buttons([emoji.concat([{ id: 'w', label: 'and', background_color: '#FFFFFF' }])],
+      DEFAULT_CATEGORY_ORDER).filter(function(g) { return g.key === 'words'; })[0];
+    assert.strictEqual(mixed.label, 'Connectors', 'one real connector among them -> Connectors');
+  });
+
   test('the word "a" two cells from the a KEY is not taken as the key', function(assert) {
     var mk = function(l, id) { return { id: id, label: l }; };
     var rows = [
@@ -717,7 +840,7 @@ module('Unit | Utility | board_categories', function() {
     /* The folder: in the keyboard category, no QWERTY position — group_buttons parks these
        on the row below the layout, which is exactly what makes pack_category_tiles split
        them out as `keyboard_extra`. */
-    kb.buttons.push({ id: 'kb-folder', kb_row: 4, kb_col: 1 });
+    kb.buttons.push({ id: 'kb-folder', kb_row: 4, kb_col: 1, kb_extra: true });
     kb.count = kb.buttons.length;
     var groups = [cat('people', 10), cat('actions', 21), cat('describe', 20),
                   cat('words', 16), cat('questions', 5), cat('how_when', 4),
@@ -749,7 +872,7 @@ module('Unit | Utility | board_categories', function() {
        categories that used to fill the notch beside it get a row of their own, in reading
        order, directly above. The last two share whatever the row has left. */
     var kb = keyboard_group(3, 10);
-    kb.buttons.push({ id: 'kb-folder', kb_row: 4, kb_col: 1 });
+    kb.buttons.push({ id: 'kb-folder', kb_row: 4, kb_col: 1, kb_extra: true });
     kb.count = kb.buttons.length;
     var groups = [cat('people', 13), cat('actions', 13), cat('describe', 12), cat('how_when', 12),
                   cat('places', 8), cat('questions', 5), cat('social', 1), cat('no_not', 2),
@@ -780,15 +903,80 @@ module('Unit | Utility | board_categories', function() {
       ['predictions', 'yes', 'no_not', 'social', 'time', 'keyboard_extra'],
       'the controls row reads predictions, yes, no_not, social, time, keys');
 
-    var width = controls.reduce(function(sum, t) { return sum + t.w; }, 0);
-    assert.strictEqual(width, 14, 'the controls row fills the board width');
+    /* Every tile is exactly its own button count wide, and the row is left SHORT on
+       purpose: this row only exists in the scrolling variant, so it is always a flex band,
+       and `flex: var(--bd-tile-columns) 0 …` shares the unused columns across every tile in
+       proportion to its width. Widening two of them here instead — Time and Keys used to
+       absorb the lot — bought two single-button tiles a mostly empty ring and left the
+       tiles holding real buttons at their minimum. */
+    var wrong = controls.filter(function(t) { return t.w !== t.group.count; })
+      .map(function(t) { return t.group.key + ' is ' + t.w + ' wide for ' + t.group.count + ' buttons'; });
+    assert.deepEqual(wrong, [], 'every controls tile is exactly its own button count wide');
 
-    /* Time and the Keys folder share whatever the row has left, as evenly as it divides. */
+    var width = controls.reduce(function(sum, t) { return sum + t.w; }, 0);
+    assert.ok(width < 14,
+      'the row does not claim the whole width (' + width + ' of 14) — the rest is the flex band\'s to share');
+
     var time = controls.filter(function(t) { return t.group.key === 'time'; })[0];
     var keys = controls.filter(function(t) { return t.group.key === 'keyboard_extra'; })[0];
-    assert.ok(Math.abs(time.w - keys.w) <= 1,
-      'Time (' + time.w + ') and Keys (' + keys.w + ') are within one column of each other');
-    assert.ok(time.w > 1 && keys.w > 1, 'both widened past a single column');
+    assert.strictEqual(time.w, 1, 'Time is one button, so one column');
+    assert.strictEqual(keys.w, 1, 'the Keys folder is one button, so one column');
+  });
+
+  test('scrolling packs every vocabulary ring exactly full, in block shapes', function(assert) {
+    /* The real vocal-flair-112 shape. A flex band shares its unused columns out with
+       `flex-grow: w`, so slack at a band's end is not bare board -- it is width, i.e.
+       bigger buttons. `plan_bands` scores the scrolling variant on that basis (squared
+       spare cells first, rows only as a tie-break), and this is the layout that falls out:
+       every ring holds exactly its own buttons and nothing is drawn as a strip.
+
+       Scored the old way -- cells first, with a penalty for a band's unused columns -- the
+       same board came out People 10x1, Actions 7x3, Describe 7x3, which is one fewer row
+       and four half-empty rings. */
+    var kb = keyboard_group(3, 10);
+    kb.buttons.push({ id: 'kb-folder', kb_row: 4, kb_col: 1, kb_extra: true });
+    kb.count = kb.buttons.length;
+    var groups = [cat('people', 10), cat('actions', 20), cat('describe', 20), cat('words', 11),
+                  cat('questions', 5), cat('how_when', 4), cat('things', 3),
+                  cat('predictions', 3), cat('yes', 1), cat('no_not', 2), cat('social', 1),
+                  cat('time', 1), kb];
+    var packed = pack_category_tiles(groups, 14, { scrolling: true });
+    var shape = {};
+    packed.tiles.forEach(function(t) { shape[t.group.key] = t.w + 'x' + t.h; });
+
+    assert.deepEqual(
+      { people: shape.people, actions: shape.actions, describe: shape.describe },
+      { people: '2x5', actions: '4x5', describe: '4x5' },
+      'the three big vocabulary categories share one five-row band'
+    );
+    assert.deepEqual(
+      { questions: shape.questions, how_when: shape.how_when, things: shape.things },
+      { questions: '5x1', how_when: '4x1', things: '3x1' },
+      'Questions, How & When and Things fit on ONE row'
+    );
+    assert.strictEqual(shape.words, '11x1', 'Connectors keeps its own row');
+
+    var slack = [];
+    ['people', 'actions', 'describe', 'words', 'questions', 'how_when', 'things'].forEach(function(key) {
+      var t = packed.tiles.filter(function(x) { return x.group.key === key; })[0];
+      var spare = (t.w * t.h) - t.group.count;
+      if(spare !== 0) { slack.push(key + ' has ' + spare + ' spare cells'); }
+    });
+    assert.deepEqual(slack, [], 'no vocabulary ring carries a spare cell');
+  });
+
+  test('the non-scrolling variant still leads on total rows, not on ring fullness', function(assert) {
+    /* The scoring change is scoped to the flex bands. With scrolling OFF the tiles are
+       grid-placed and the rows are `1fr` under a definite height, so unused columns really
+       are bare board and an extra row comes out of every button on the board -- fewest
+       cells first is still correct there, and must stay. */
+    var groups = [cat('people', 10), cat('actions', 20), cat('describe', 20), cat('words', 11),
+                  cat('questions', 5), cat('how_when', 4), cat('things', 3)];
+    var fixed = pack_category_tiles(groups, 14);
+    var scrolled = pack_category_tiles(groups, 14, { scrolling: true });
+    assert.ok(fixed.rows < scrolled.rows,
+      'the fixed-height pack is shorter (' + fixed.rows + ' rows vs ' + scrolled.rows + '), ' +
+      'because it is still paying for every row');
   });
 
   test('pack_category_tiles tolerates degenerate input', function(assert) {

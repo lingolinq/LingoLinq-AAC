@@ -395,6 +395,74 @@ describe User, :type => :model do
       expect(User.preference_defaults['device']['hide_screen_helpers']).to eq(false)
     end
 
+    # external_keyboard gates the speak-mode path that turns physical-keyboard keystrokes
+    # into vocalization-box entries (raw_events.js, `keyboard_listen`). It had no default on
+    # either side from 2018 until now, so the feature only ever worked for someone who found
+    # the checkbox. Unlike hide_screen_helpers, `true` IS the intent here: the backfill onto
+    # every existing device hash is what makes typing work for people who already have
+    # accounts. Deliberate, and paired with the text-field guard in raw_events.js — without
+    # that, defaulting this on makes every search box on a speak-mode page feed the utterance.
+    # board_category_grouping.boards is keyed by BOARD KEY so a curated per-board
+    # arrangement survives the trip between local / staging / production — a global_id is
+    # only unique within one database. The id shape still has to be accepted, because
+    # entries written before the switch are stored that way and the frontend resolver
+    # still falls back to them; rejecting them here would wipe a live preference on the
+    # user's next save of any unrelated setting.
+    it "keeps a board-KEY-shaped per-board override" do
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {
+        'enabled' => true,
+        'boards' => {'marcus_williams_slp/vocal-flair-112' => {'enabled' => true, 'vertical_scroll' => false}}
+      }}})
+      boards = u.settings['preferences']['board_category_grouping']['boards']
+      expect(boards.keys).to eq(['marcus_williams_slp/vocal-flair-112'])
+      expect(boards['marcus_williams_slp/vocal-flair-112']['vertical_scroll']).to eq(false)
+    end
+
+    it "still keeps a legacy global_id-shaped per-board override" do
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {
+        'enabled' => true, 'boards' => {'1_5059' => {'enabled' => true}}
+      }}})
+      expect(u.settings['preferences']['board_category_grouping']['boards'].keys).to eq(['1_5059'])
+    end
+
+    it "rejects a board reference that is not a plain id or one-slash key" do
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {
+        'enabled' => true,
+        'boards' => {
+          'a/b/c' => {'enabled' => true},
+          '../../etc' => {'enabled' => true},
+          ('x' * 200) => {'enabled' => true},
+          'ok_board/fine-1' => {'enabled' => true}
+        }
+      }}})
+      expect(u.settings['preferences']['board_category_grouping']['boards'].keys).to eq(['ok_board/fine-1'])
+    end
+
+    it "defaults external_keyboard to true so typing reaches the vocalization box" do
+      expect(User.preference_defaults['device']['external_keyboard']).to eq(true)
+    end
+
+    it "backfills external_keyboard onto an existing device hash that never set it" do
+      u = User.create
+      u.settings['preferences']['devices'] ||= {}
+      u.settings['preferences']['devices']['default'] ||= {}
+      u.settings['preferences']['devices']['default'].delete('external_keyboard')
+      u.save
+      expect(u.reload.settings['preferences']['devices']['default']['external_keyboard']).to eq(true)
+    end
+
+    it "does not override a device that has deliberately turned it off" do
+      u = User.create
+      u.settings['preferences']['devices'] ||= {}
+      u.settings['preferences']['devices']['default'] ||= {}
+      u.settings['preferences']['devices']['default']['external_keyboard'] = false
+      u.save
+      expect(u.reload.settings['preferences']['devices']['default']['external_keyboard']).to eq(false)
+    end
+
     it "backfills hide_screen_helpers as false onto existing device hashes" do
       u = User.create
       u.settings['preferences']['devices'] ||= {}

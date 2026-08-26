@@ -65558,13 +65558,14 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     max-width: 100% !important;
     margin-left: 0 !important;
   }
-  /* Change Home Board lands on its own row beneath the stats and
-     centers via align-self: center. The base `--in-header
-     { margin-left: auto }` is overridden with symmetric auto margins
-     in the ≤768px rule below so it stays centered (a single auto
-     margin would pin it to one edge). */
+  /* Change Home Board lands on its own row beneath the stats, pinned to the RIGHT
+     edge. `align-self: flex-end` is the lever here, not a margin: the header is a
+     column at this width, so the cross axis is horizontal and `margin-left: auto`
+     (the ≤768px rule) has nothing to push against. The two have to agree — a
+     centred `align-self` here would win over the right-pinned margin above and the
+     button would sit centred on this tier only. */
   .ub-boards-page__boards-summary-section > .ub-boards-page__boards-summary-header > .ub-boards-page__set-home-btn {
-    align-self: center !important;
+    align-self: flex-end !important;
   }
   /* Hairline ::before was a row-separator between title and stats
      when they shared a row. Stats now sit in their own row, so
@@ -68012,16 +68013,19 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   &__set-home-btn--in-header {
     margin-left: auto;
   }
-  /* ≤768px — replace the right-pin with symmetric auto margins so the button
-     centers: in the ≤640px column header it sits centered on its own row
-     (with align-self: center above), and in the 641–768px row the equal
-     auto margins center it in the available space rather than pinning it to
-     the far edge. Placed after the base rule so it wins on source order
+  /* ≤768px — the button stays RIGHT-ALIGNED, same as the base rule.
+     It used to be re-centred here with symmetric auto margins (and `align-self:
+     center` in the ≤640px block). Centring made it read as a heading rather than
+     as the action it is, and it no longer lined up with the right-hand edge every
+     other control on the page sits on. `margin-right: 0` is written explicitly
+     rather than dropping the block: the ≤640px rule below still needs a matching
+     `align-self`, and an empty override here would leave the two tiers describing
+     different intents. Placed after the base rule so it wins on source order
      (equal specificity). */
   @media (max-width: 768px) {
     &__set-home-btn--in-header {
       margin-left: auto;
-      margin-right: auto;
+      margin-right: 0;
     }
   }
   &__set-home-btn-icon {
@@ -78939,9 +78943,14 @@ span.md-board-detail-modeling-btn--paused:hover {
 
      `flex-shrink: 0` still: shrinking would scale the basis and the placed tiles' fixed
      trays would overflow. */
-  flex: var(--bd-tile-columns, 1) 0
-        calc(var(--bd-tile-columns, 1) * var(--bd-btn-w)
-             + (var(--bd-tile-columns, 1) - 1) * var(--bd-btn-gap, 4px)
+  /* `--bd-tile-span` is the tile's width in board columns; `--bd-tile-columns` is how many
+     BUTTON tracks sit inside it. They are the same number for every tile except one the
+     stylesheet widens deliberately (see the Time / Keys rule below), where a wider tile with
+     the SAME track count is exactly how the single button inside it is made to fill. Falls
+     back to the track count, so a tile that does not set it is unchanged. */
+  flex: var(--bd-tile-span, var(--bd-tile-columns, 1)) 0
+        calc(var(--bd-tile-span, var(--bd-tile-columns, 1)) * var(--bd-btn-w)
+             + (var(--bd-tile-span, var(--bd-tile-columns, 1)) - 1) * var(--bd-btn-gap, 4px)
              + 2 * var(--bd-tray-pad, 4px) + 2 * var(--bd-tile-pad-x, 6px));
   min-width: 0;
   /* The placed tiles get these from their inline `tile_style`; a band tile has no
@@ -78990,6 +78999,58 @@ span.md-board-detail-modeling-btn--paused:hover {
 .md-board-detail-grid--compact-scroll .md-board-detail-grid__column--band > .md-board-detail-grid__group > .md-board-detail-grid__group-header {
   width: 100%;
 }
+
+/* Time and the Keys folder get TWO board columns each once there is room for it.
+
+   Both are single buttons, so on the controls row they are the narrowest tiles there —
+   one track, the same width as `yes` and `social`. But neither is a vocabulary word: Time
+   holds a whole phrase ("Give me time to answer.") and Keys is the way into the keyboard,
+   and both are reached mid-conversation, which is the worst moment to be aiming at the
+   smallest target in the row.
+
+   The SPAN doubles and the track count does not, which is the entire point: the tray fills
+   its container inside a band (the rule above), the inner grid stays `repeat(1, minmax(0,
+   1fr))`, so the one button STRETCHES across the doubled tile instead of sitting in half of
+   it beside an empty cell. That empty half is exactly what the old `CONTROL_ROW_STRETCH` in
+   the packer produced, which is why the width is spent here — where it can reach the
+   button — rather than by handing the packer a wider tile.
+
+   `min-width: 1025px`, an existing tier in this stylesheet, because the row is a fixed
+   width and the columns these two gain come off the four tiles beside them. Above 1024 the
+   board has them to spare; at or below it the board is already short of horizontal room
+   (the same reasoning as the ≤1024 block below) and every one of those columns is button
+   size on a board an AAC user is aiming at, so there they stay one track wide. */
+@media (min-width: 1025px) {
+  .md-board-detail-grid--compact-scroll .md-board-detail-grid__column--band > .md-board-detail-grid__group--time,
+  .md-board-detail-grid--compact-scroll .md-board-detail-grid__column--band > .md-board-detail-grid__group--keyboard_extra {
+    --bd-tile-span: 2;
+  }
+
+  /* …and their LABEL grows with the tile.
+
+     Doubling the tile on its own made the text look lost: "Give me time to answer." sat at
+     the flat `--bd-button-text-size` (18px at the default step) on one line, using 29px of
+     the 62px label box in a 381px-wide button. The label size is a user PREFERENCE, not a
+     responsive value, so it does not scale with the screen and nothing else was going to
+     pick that room up — `label_fit.js` is shrink-only and had nothing to shrink.
+
+     Declared as a CEILING, not a final size. `applyOne` / `batchedFit` both `clearFont` and
+     then read each label's OWN computed size as the base they fit from
+     (label_fit.js — "Start from what CSS would actually render, not from the raw
+     preference"), so this is the size the fitter starts at and it shrinks from here
+     whenever the text does not fit. That is what makes the multiplier safe to state once:
+     at 2280 the phrase stays on one line and keeps the full 1.6x, at ~1280 the box is
+     narrower and the fitter settles it a couple of px lower, and a longer translation is
+     brought down the same way instead of being ellipsised.
+
+     Both tiles, because both were widened for the same reason. Inside the same query as the
+     span so the two halves of one decision cannot drift apart. */
+  .md-board-detail-grid--compact-scroll .md-board-detail-grid__column--band > .md-board-detail-grid__group--time .md-board-detail-symbol-card__label,
+  .md-board-detail-grid--compact-scroll .md-board-detail-grid__column--band > .md-board-detail-grid__group--keyboard_extra .md-board-detail-symbol-card__label {
+    font-size: calc(var(--bd-button-text-size, 15px) * 1.6);
+  }
+}
+
 
 /* Narrow screens: tighter board, thinner rings.
 

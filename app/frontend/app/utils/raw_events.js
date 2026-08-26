@@ -367,6 +367,26 @@ var eat_events = function(event) {
 };
 // https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key/Key_Values
 // TODO: 
+/*
+ * Is this keystroke going into a TEXT FIELD the user is deliberately typing in?
+ *
+ * The external-keyboard feature turns keystrokes into vocalization-box entries while in
+ * speak mode, and it did not care what had focus — so typing a board name, a search term, or
+ * anything else on a speak-mode page ALSO appended to the utterance. Measured: typing "want"
+ * into the Phrase Builder's search box put "Catwant" in the box.
+ *
+ * `#hidden_input` is exempt: it is the offscreen element `scanner` focuses to receive key
+ * events in the first place (see scanner.listen_for_input), so treating it as a text field
+ * would disable the feature entirely rather than fix it. Same exemption the scanning handler
+ * below has always carried.
+ */
+function typing_into_a_field(el) {
+  if(!el || el.id === 'hidden_input') { return false; }
+  var tag = el.tagName;
+  if(tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') { return true; }
+  return !!(el.isContentEditable);
+}
+
 var special_keys = ["Unidentified", "Dead", "Alt", "AltGraph", "CapsLock", 
     "Control", "Fn", "FnLock", "Hyper", "Meta", "NumLock", "ScrollLock", 
     "Shift", "Super", "Symbol", "SymbolLock", "Tab", "ArrowDown", 
@@ -485,7 +505,7 @@ $(document).on('mousedown touchstart', function(event) {
     focusedMenuBtn.click();
     return;
   }
-  if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open()) {
+  if(buttonTracker.check('keyboard_listen') && !buttonTracker.check('scanning_enabled') && !dwell_key && !modal.is_open() && !typing_into_a_field(event.target)) {
     // add letter to the sentence box
     var key = "+" + event.key;
     var $input = $("#hidden_input");

@@ -23,6 +23,9 @@ file (see [README.md](README.md)).
 - [Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep](#gotcha-the-boot-skeleton-is-ll-skel-progress-not-ll-premium-progress--and-a-shared-component-fix-has-no-siblings-left-to-sweep)
 - [Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`](#pattern-the-board-tile-board_action-is-a-contextual-remove-not-a-delete-button--gate-on-remove_type)
 - [Gotcha: the two categorised board variants do NOT space their categories the same way — one is ring-compensated, one is not](#gotcha-the-two-categorised-board-variants-do-not-space-their-categories-the-same-way--one-is-ring-compensated-one-is-not)
+- [Pattern: board categories are decided by COLOUR before part_of_speech — a label rule must only DOWNGRADE one verdict, never run ahead of colour](#pattern-board-categories-are-decided-by-colour-before-part_of_speech--a-label-rule-must-only-downgrade-one-verdict-never-run-ahead-of-colour)
+- [Gotcha: a layout SEARCH carries its own model of the renderer — change the renderer and the scorer silently starts optimising for a board that no longer exists](#gotcha-a-layout-search-carries-its-own-model-of-the-renderer--change-the-renderer-and-the-scorer-silently-starts-optimising-for-a-board-that-no-longer-exists)
+- [Gotcha: `label_fit` cannot fit a ONE-line box — `scrollHeight` counts the label's padding and the line budget does not](#gotcha-label_fit-cannot-fit-a-one-line-box--scrollheight-counts-the-labels-padding-and-the-line-budget-does-not)
 - [Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing](#gotcha-a-hard-coded-forcegroupingtrue-makes-a-preview-lie-about-the-preference-it-is-previewing)
 - [Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes](#gotcha-single-quoted-i18n-defaults-never-reach-the-locale-files--and-a-ui-control-is-only-fixed-when-the-payload-changes)
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
@@ -170,6 +173,123 @@ file (see [README.md](README.md)).
 - [Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it](#pattern-a-mobile-select-standing-in-for-a-desktop-tab-row-must-mirror-it-optgroup-not-flatten-it)
 
 ---
+
+## Pattern: board categories are decided by COLOUR before part_of_speech — a label rule must only DOWNGRADE one verdict, never run ahead of colour
+
+`category_for_button` (`app/frontend/app/utils/board_categories.js`) resolves a button's
+category from `background_color` FIRST and only reads `part_of_speech` when no palette
+colour is within `COLOR_MATCH_MAX_DISTANCE` (45, in an HSL metric where hue dominates).
+This is deliberate: part_of_speech on imported boards is routinely a stale default, while
+the colour is what the author curated and what the user sees.
+
+**Two consequences that keep catching people out.**
+
+1. **"This word is typed `verb`, so it must be in Actions" is false.** On
+   `vocal-flair-112`, `do` / `is` / `can` / `will` all carry `part_of_speech: 'verb'` and
+   all render under **Questions**, because they are painted `rgb(226, 207, 255)` — 3.88
+   from the palette purple `#CCAAFF` and 171 from verb-green. Their part_of_speech is
+   never read. Same mechanism puts `done` (`#73CCFF`) in Describe. **Before proposing a
+   category change, measure the colour distance; do not reason from the type field.**
+   The board data is only readable through Rails — `boards.settings` is
+   `secure_serialize`d, so `psql` returns ciphertext and you need
+   `DB_USER=tracid bundle exec rails runner`.
+
+2. **A label-based override belongs AFTER the colour verdict, not before it, unless the
+   word has no homograph.** `YES_LABELS` and `TIME_LABEL_PATTERN` legitimately run ahead
+   of colour — nothing else is called "yes". Most words are not like that: "can" is also a
+   container, "will" is also a document. The safe shape is to let colour decide and then
+   redirect exactly ONE verdict:
+
+   ```js
+   function redirect_question_starter(key, base) {
+     if(key !== 'actions' || !base) { return key; }
+     return QUESTION_STARTER_LABELS.indexOf(base) >= 0 ? 'questions' : key;
+   }
+   ```
+
+   Applied to both the colour verdict and the part_of_speech verdict, since a board can
+   reach Actions by either route. An orange "can" keeps Things; only a green one moves.
+
+**Also:** match on `base_label` (the board's source-locale label), never `label` — a
+translated board rewrites `label` only, and a category that moves on translation is a bug.
+And keep such lists English-only unless the word translates cleanly everywhere: auxiliaries
+mostly do not exist as separate words in other languages, so a translated list is guesswork,
+and a non-match safely falls through to the colour verdict.
+
+## Gotcha: a layout SEARCH carries its own model of the renderer — change the renderer and the scorer silently starts optimising for a board that no longer exists
+
+`plan_bands` in `app/frontend/app/utils/board_categories.js` picks the board's bands by
+minimising a score. That score is not neutral arithmetic — every term in it is an assertion
+about how the result will be DRAWN. When the categorised-with-scrolling variant was
+re-architected from grid-placed tiles to flex rows, the renderer changed and the scorer did
+not, so it went on optimising for the old one. Nothing failed; the layout just quietly got
+worse, and it looked like a styling problem.
+
+Three assertions in that scorer that flex rows falsify:
+
+| term | true for a GRID band | false for a FLEX band |
+|---|---|---|
+| `dead` = unused columns x height, squared | unused columns really are bare board | `flex-grow: w` shares them out — slack is WIDTH, i.e. bigger buttons |
+| spare cells measured after `close_band_edge` stretched the last tile | the stretch happens, to close a gap | there is no gap; modelling one invents spare cells inside that ring |
+| `cells` (total rows) as the PRIMARY objective | rows are `1fr` under a definite height, so a row costs every button on the board | rows are `minmax(--bd-scroll-row-min, auto)`; the board just grows |
+
+The `dead` term alone was decisive: a 5-row band using 10 of 14 columns was charged
+**400**, against the **4** a 1-row band pays — so the search drew a 10-button category as a
+1x10 strip rather than the 2x5 block it should be. Fixing all three (flex scores
+`[empty^2, rows, bands]`; grid keeps `[cells, dead^2 + empty^2]`) made every ring come out
+exactly full AND cut 1-2 column "tower" tiles by 94% across a 3000-board sweep.
+
+**It is never just one site.** The same grid-era assumption was hiding a second time in
+`CONTROL_ROW_STRETCH`, which handed all of the controls row's unused columns to Time and the
+Keys folder "so the row does not read as ragged". Both are SINGLE BUTTONS, so on a 14-column
+board they took 3 and 4 columns of mostly empty ring around one 147px button while the four
+tiles holding real buttons stayed at their minimum — and that row is only ever rendered as a
+flex band, which was already willing to share those columns across all six. When you find one
+of these, grep for the others: `close_band_edge`, `CONTROL_ROW_STRETCH` and the scorer's
+`dead` term were three spellings of the same wrong belief.
+
+**Two habits this earns:**
+
+1. **When you change how something RENDERS, grep for whatever CHOSE it.** A search, a
+   packer, a heuristic scorer, an auto-layout — it encodes the old geometry and will keep
+   serving it without erroring.
+2. **Iterate a pure function through the function, not the browser.** The packer is pure;
+   driving it through ~90-second Puppeteer round trips was the previous session's single
+   biggest cost. Build a scratch harness that imports the module with its one non-pure
+   import stubbed (`i18n`), and A/B it against `git show HEAD:<file>` piped through the same
+   stub. That is how "the non-scrolling variant is untouched" became **0 differences across
+   4000 generated board shapes** instead of an assurance — and it runs in a second.
+   Generate REALISTIC inputs for the quality numbers, though: an early sweep of unconstrained
+   random boards (13 categories on an 8-column board) showed a scary 20 -> 32 row blow-up that
+   simply does not occur once totals are sized to the board.
+
+## Gotcha: `label_fit` cannot fit a ONE-line box — `scrollHeight` counts the label's padding and the line budget does not
+
+`fitWrapped` / `batchedFit` in `app/frontend/app/utils/label_fit.js` accept a size when
+
+    naturalPx <= boxLines * lhRatio * size + FIT_TOLERANCE_PX     // tolerance is 1px
+
+`naturalPx` is `el.scrollHeight`, which **includes the label's `padding: 3px 2px 5px`**. The
+right-hand side is pure line height. So every comparison is 8px pessimistic. At the default
+`-webkit-line-clamp: 3` that 8px disappears into the slack of two spare lines and nothing is
+ever noticed. Set the clamp to **1** — a reasonable thing to want for a wide, short button —
+and the test becomes **unsatisfiable at every size**, so the fitter walks the font all the way
+down.
+
+Both failure modes were measured on the same board, from the same rule:
+- at 3440px the loop reached `MIN_FONT_PX` and rendered the label at **9px**;
+- at 2560px the batched path ran out of rounds first (`maxRounds = Math.ceil(basePx) + 2`,
+  and `basePx` is the GRID's `--bd-button-text-size`, not the element's ceiling — so a 54px
+  ceiling gets 20 decrements and never arrives), leaving the ceiling in place and rendering
+  **132px of label inside a 76px card**.
+
+**Before reaching for a bigger font on a board button, work out the CARD's budget.** The
+fitter checks lines and word width; it does not know how tall the card is, so it will happily
+accept a size that overflows. On the categorised scrolling controls row the sum is
+`140px row = 16 group padding + 29 header + 86 body (8 padding)` -> a **76px card**, which is
+`2 * 1.15 * F + 8 <= 76` -> F <= 29.5px for two lines, or ~59px for one. If the wanted size
+does not fit that arithmetic, no amount of CSS on the label will produce it — the row has to
+get taller.
 
 ## Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target
 
