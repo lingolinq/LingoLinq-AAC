@@ -492,7 +492,7 @@ correction conflated them: the STAMP begins writing `'EU'` on the first AI call 
 beta tester starts that). The PURGE begins DELETING only five years after the earliest stamped row,
 because `purge_old_eu_logs!` is `where(jurisdiction: 'EU').where('created_at < ?', 5.years.ago)`
 (`app/models/ai_api_log.rb:244-248`) and the `jurisdiction` column was created 2026-06-21
-(`db/migrate/20260621120000`). So no EU AI log can be deleted by this purge before ~2031-06. See `docs/legal/2026-08-23_article-50-production-flag-verification.md`
+(`db/migrate/20260621120000`). So no EU AI log can be deleted by this purge before ~2031-06 (and the `ai_api_logs` table itself dates from 2026-02-21, so ~2031-02 is the earliest conceivable match at all). The mechanism is not merely assumed: `spec/models/ai_api_log_spec.rb:550-586` drives a real EU user through `EuJurisdiction.retention_stamp` and the purge deletes that row while sparing an `:unknown` row, so "dormant" here means no eligible production data, NOT an unproven or broken control. See `docs/legal/2026-08-23_article-50-production-flag-verification.md`
 section 4 item 1.]** The helper is
 deployed wherever Phase 4 is
 deployed **[CORRECTION 2026-08-25: this read "(staged; effective in production
@@ -687,12 +687,12 @@ ZERO rows today: the stamp fires only for a CONFIRMED `:eu` user and production 
 dormant, not un-inerted. The stamp begins writing on the first AI call logged for a confirmed EU user;
 the purge begins deleting only five years after that earliest stamped row, i.e. not before ~2031-06
 (`purge_old_eu_logs!` filters `created_at < 5.years.ago`; the `jurisdiction` column dates from
-2026-06-21).]** The
+2026-06-21; the table itself dates from 2026-02-21). The mechanism is not merely assumed: `spec/models/ai_api_log_spec.rb:550-586` drives a real EU user through `EuJurisdiction.retention_stamp` and the purge deletes that row while sparing an `:unknown` row, so "dormant" here means no eligible production data, NOT an unproven or broken control.]** The
 `AiApiLog` retention tiers were reconciled to a single wording across the memo, `DATA_RETENTION.md`,
 `AI_DATA_FLOW_CLASSIFICATION.md`, and `scheduler.rake` (EU 5-year and 90-day IP redaction described
 there as enforced **[CORRECTION 2026-08-25: the EU 5-year leg is wired but matches zero rows, per the
-bracket immediately above. `lib/tasks/scheduler.rake:153-158` and `docs/legal/DATA_RETENTION.md:33`
-still describe it as enforced and are listed as declared follow-ups, not corrected here. The 90-day
+bracket immediately above. `docs/legal/DATA_RETENTION.md:33`
+still describes it as enforced; it is attested and Path-A frozen, so it is a declared follow-up, not corrected here. UPDATED 2026-08-25: `lib/tasks/scheduler.rake:153-164` WAS corrected in this same PR and now carries the fullest account of the defect, so it is no longer a follow-up; naming it as one had itself gone stale. The 90-day
 IP redaction leg is unaffected by this correction.]**;
 children 12-month and general 24-month **decided, not yet enforced** pending a per-row
 retention-class marker; HIPAA 6-year floor open). No new external data egress or model routing is

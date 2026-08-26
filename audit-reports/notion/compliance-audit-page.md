@@ -11,13 +11,13 @@
 **Audited commit:** `59f502aa4a967c8c704637cc66a18ff05118c7d8`  
 **Audited ref:** `staging (audited at 59f502aa4; staging tip had advanced to d2bf421f7 -- 7 commits, 43 files, PRs #814/#816/#819/#820/#821/#822/#823 -- by the time this PR was assembled; those 7 commits are NOT scanned by this run, see auditedShaPriorNote)`  
 **Run date:** 2026-08-18  
-**Page generated:** 2026-08-25T22:26:45Z
+**Page generated:** 2026-08-26T17:07:45Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **0** | **21** | 58 | 42 |
+| **0** | **22** | 59 | 42 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -28,6 +28,7 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 | LL-0b5443f43b |  | high | SOC2, HIPAA | Production Cloud Run service is deployed with public ingress, so the direct run.app URL bypasses the load balancer and its attached Cloud Armor policy | `scripts/gcp/phase5-frontend-lb.sh`:490 |
 | LL-104bfa61dc |  | high | WCAG | Terms-agree modal is unreachable by switch scanning (no .modal_targets / .btn, opened without scannable) | `app/frontend/app/components/terms-agree.hbs`:27 |
 | LL-16ef84ad9a |  | high | FERPA, HIPAA, GDPR | Word-prediction cache holds the raw pre-scrubber user utterance in a process-global structure outside the PiiScrubber boundary, and is not tenant-scoped | `lib/ai_word_predictor.rb`:47 |
+| LL-17ec91ff20 |  | high | GDPR, COPPA | Live AI consent disclosure attributes the EU AiApiLog retention window to an "EU AI Act Article 50 record-keeping" duty this record does not establish | `lib/lingo_linq/ai_consent_disclosures.rb`:138 |
 | LL-1e7b568ef3 |  | high | SOC2, HIPAA | Committed WIF provisioning script omits the assertion.ref branch lock the deploy pipeline names as a control, and reconciles (overwrites) the live provider on every re-run | `scripts/gcp/phase1-setup.sh`:329 |
 | LL-522c1a6d13 |  | high | FERPA, HIPAA | Masquerade produces no AuditEvent; the site-admin branch impersonates any user with no disclosure record | `app/controllers/application_controller.rb`:181 |
 | LL-53cb93fab1 |  | high | GDPR, FERPA | Terms-agree modal can be silently replaced by intro before the user agrees | `app/frontend/app/routes/index.js`:132 |
@@ -77,7 +78,7 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 | LL-71f2ba5536 |  | medium |  | stats/parts-of-speech-flow.js + .hbs (Google Charts Sankey component) is orphaned, apparently superseded by stats/parts-of-speech-pie | `app/frontend/app/components/stats/parts-of-speech-flow.js`:1 |
 | LL-7296ada5da |  | medium | SOC2, HIPAA, FERPA | The admin_token cookie that gates the Resque admin console is set without HttpOnly, so any XSS can steal an admin console session | `app/controllers/session_controller.rb`:250 |
 | LL-7314b5a8ea |  | medium | HIPAA | Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews | `render.yaml`:107 |
-| LL-7784f74447 |  | medium | GDPR | Attested AI Governance Memo justifies deferring the Article 50 gate "because prod carries no real EU users (internal/test accounts only)" without a stated basis | `docs/legal/AI_GOVERNANCE_MEMO.md`:274 |
+| LL-7784f74447 |  | medium | GDPR | Attested AI Governance Memo makes an unevidenced population claim ("because prod carries no real EU users") load-bearing for deferring the Article 50 gate -- an EVIDENCE-BASIS defect, not a falsified fact | `docs/legal/AI_GOVERNANCE_MEMO.md`:274 |
 | LL-779490b63e |  | medium | GDPR, FERPA | Thumbnail erasure fallback is bounded/best-effort and cannot reliably distinguish absence, sequence gaps, or transient deletion failure | `lib/uploader.rb`:309 |
 | LL-8990c53bad |  | medium | GDPR, COPPA | AiFocusWordSet retains seed_user_global_id and prompt text after the seeding user's account is erased | `app/models/ai_focus_word_set.rb`:75 |
 | LL-8fab55372e |  | medium | WCAG | Speak-bar remote-modeling (#reply_icon) button has no accessible name | `app/frontend/app/templates/application.hbs`:148 |
@@ -92,8 +93,9 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 | LL-caaf8e20ec |  | medium | SOC2 | lingolinq_admin site-admin account carries a simple, memorable seeded password (deliberate for pre-cutover hands-on testing); must be rotated, disabled, or replaced with a break-glass admin procedure before the GCP environment is customer-facing | (attestation) |
 | LL-caf2528468 |  | medium | GDPR, FERPA | UserExtra/UserLink profile-history caches are not invalidated when the source profile LogSession is deleted | `app/models/user_extra.rb`:58 |
 | LL-cde54765c6 |  | medium | FERPA, HIPAA, SOC2 | Masquerade shows no on-screen indication of whose account is being operated | `app/controllers/application_controller.rb`:182 |
-| LL-ce68ceb1b5 |  | medium | GDPR | Attested AI Governance Memo states the Phase 4 helper "un-inerts the EU log-retention purge" which "now matches jurisdiction = EU rows"; the purge cannot delete any row before 2031-06-21 | `docs/legal/AI_GOVERNANCE_MEMO.md`:283 |
+| LL-ce68ceb1b5 |  | medium | GDPR | Attested AI Governance Memo states the Phase 4 helper "un-inerts the EU log-retention purge" which "now matches jurisdiction = EU rows"; in production it matches none | `docs/legal/AI_GOVERNANCE_MEMO.md`:283 |
 | LL-d3f41e7a67 |  | medium | SOC2, HIPAA, FERPA | Production Cloud SQL instance has deletion protection disabled and is provisioned without it, while automated deploys apply migrations with no pre-migration backup step | `scripts/gcp/phase3-data-layer.sh`:255 |
+| LL-db6bc3e568 |  | medium | GDPR | Attested Data Retention Schedule states the EU AiApiLog purge "matches EU rows wherever Phase 4 is deployed"; in production it matches none | `docs/legal/DATA_RETENTION.md`:33 |
 | LL-e08bd45a9f |  | medium | WCAG | Sentence box / utterance bar vocalize control is an anchor with no button role or accessible name | `app/frontend/app/templates/application.hbs`:86 |
 | LL-e0ea356243 |  | medium |  | Four Ember stats components (stats/num-rows1..4.js) have no template and zero references anywhere | `app/frontend/app/components/stats/num-rows1.js`:7 |
 | LL-ea07a705d1 |  | medium | GDPR | Attested AI Governance Memo states "the whole path is inert until the flag is enabled"; the flag is enabled in production, so the path is not inert | `docs/legal/AI_GOVERNANCE_MEMO.md`:269 |

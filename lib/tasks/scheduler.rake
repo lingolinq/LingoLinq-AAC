@@ -160,7 +160,13 @@ task "scheduler:dispatch" => :environment do
     #     confirmed :eu user, production had none as of the 2026-08-23 audited read,
     #     and the filter is
     #     created_at < 5.years.ago while the jurisdiction column dates from
-    #     2026-06-21 -- so no row can match before ~2031-06. See
+    #     2026-06-21 -- so a write-time-stamped row cannot match before ~2031-06
+    #     (the ai_api_logs table itself dates from 2026-02-21, so ~2031-02 is the
+    #     earliest conceivable match at all). This is an absence of eligible DATA,
+    #     not a broken control: the mechanism is verified end to end by
+    #     spec/models/ai_api_log_spec.rb:550-586, which drives a real EU user
+    #     through EuJurisdiction.retention_stamp and sees the row purged while an
+    #     :unknown row is spared. See
     #     docs/legal/2026-08-23_article-50-production-flag-verification.md.
     #   - 90-day IP redaction (redact_old_ai_api_log_ips above).
     #   - Row-lifecycle deletion when the owning account is deleted (Flusher cascade).

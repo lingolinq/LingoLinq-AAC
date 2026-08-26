@@ -22,11 +22,11 @@
 
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Created:** 2026-07-09 (VPC Phase 2, Task 02-02.4)
-**Status:** Attested by Scot Wahlquist, CEO, 2026-07-09 as a provisional, conservative-default
+**Status (PREDECESSOR versions only -- these bytes are an UNATTESTED draft):** Attested by Scot Wahlquist, CEO, 2026-07-09 as a provisional, conservative-default
 position (Task 02-02.8); **re-attested 2026-08-04**. Formal outside counsel review is deferred
 until the full 5-phase VPC is built and ready for real parents -- see section 9. Not yet reviewed
 by outside counsel.
-**Attestation history:** first attested (provisional) 2026-07-09; re-attested 2026-08-04. The
+**Attestation history (PREDECESSOR versions only):** first attested (provisional) 2026-07-09; re-attested 2026-08-04. The
 **2026-08-04** re-attestation covers the zero-data-retention and training-posture bullets, which
 were narrowed to apply only to the direct `api.anthropic.com` path and now expressly disclaim any
 ZDR guarantee for the AWS Bedrock route that runtime AI actually uses. That narrows a previously
@@ -84,10 +84,10 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   Exactly one logged seam call completed in that window: an internal verification call on 2026-08-04T05:44:42Z
   (`request_type: word_prediction`, no user attached, no user or student data in the payload),
   the first row in `AiApiLog`. **CORRECTED 2026-08-25: it was not the only one.** Credentials were withdrawn on
-  2026-08-04T06:31:46Z (revision `00014-5rw`). **CORRECTED 2026-08-25:** the predecessor continued "; the path is not operational as of that timestamp", which stopped being true 53 minutes later. Credentials were re-mounted on revision `00015-9l9` at 2026-08-04T07:25:08Z and have been continuously mounted since (`docs/legal/2026-08-16_subprocessor-register.md:99`). The path has carried user-attributed traffic since: 63 of 64 `AiApiLog` rows carry a `user_global_id`, verified 2026-08-16 (same source, :96).
+  2026-08-04T06:31:46Z (revision `00014-5rw`). **CORRECTED 2026-08-25:** the predecessor continued "; the path is not operational as of that timestamp", which stopped being true 53 minutes later. Credentials were re-mounted on revision `00015-9l9` at 2026-08-04T07:25:08Z and have been continuously mounted since (`docs/legal/2026-08-16_subprocessor-register.md:99`). The path then carried user-attributed traffic: 63 of 64 `AiApiLog` rows carry a `user_global_id`, verified 2026-08-16 (same source, :96). **Scope of that number:** those 63 rows come from **2 distinct accounts**, not 63 users, and all 64 rows fall between 2026-08-04T05:44:42Z and **2026-08-14T21:13:27Z**, which is the most recent logged AI call. Credentials remain mounted; "carried traffic" is a statement about that window, not about traffic today.
   During the window, `sts:GetCallerIdentity` under the mounted credential returned account
   239044785114 (`user/lingolinq-bedrock-runtime`), satisfying both halves of the verification
-  standard defined in `docs/legal/AWS_BAA_ACCEPTED.md`. This statement is scoped to the Bedrock
+  standard defined in `docs/legal/2026-08-12_aws-baa-acceptance-record.md` (approved successor; `AWS_BAA_ACCEPTED.md` is superseded and its :71-73 still asserts the claim this record corrects). This statement is scoped to the Bedrock
   path only; see the `AiApiLog` coverage note in that document for what a zero-row result does and
   does not establish.
 - **Data-processing basis:** the **AWS account BAA** (2026-02-07, account 2390-4478-5114) governs
@@ -111,7 +111,7 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   models. **Scoped 2026-08-04:** this statement is about the direct Anthropic commercial-API path
   and is narrow to these two models; it is not a claim about the AWS Bedrock route, nor a blanket
   claim about Anthropic or about AI vendors generally. Training and retention posture for the
-  Bedrock route is governed by the AWS terms referenced in `docs/legal/AWS_BAA_ACCEPTED.md`.
+  Bedrock route is governed by the AWS terms referenced in `docs/legal/2026-08-12_aws-baa-acceptance-record.md` (approved successor; `AWS_BAA_ACCEPTED.md` is superseded and its :71-73 still asserts the claim this record corrects).
 - **BAA status:** **Corrected 2026-08-02.** This bullet previously read "Not applicable as a HIPAA
   Business Associate Agreement in the traditional sense", with the PiiScrubber and ZDR posture named
   as the operative HIPAA control, and quoted `AI_GOVERNANCE_MEMO.md` section 3 for
@@ -341,15 +341,15 @@ point, commit `c595f6304a545a6a10de80924edd99951eb41aa5`) by direct inspection o
 | Field | Value |
 |---|---|
 | Prepared by | Claude Code (GSD plan executor), VPC Phase 2 |
-| Status | Attested (provisional) -- outside counsel review deferred |
+| Status | **THIS successor: UNATTESTED DRAFT.** The value below describes the PREDECESSOR: Attested (provisional) -- outside counsel review deferred |
 | Reviewed by | gsd-verifier agent (engineering/factual accuracy, 2026-07-09), not legal review |
-| Attested by | **Scot Wahlquist, CEO** |
-| Attestation date | **2026-08-04** (first attested 2026-07-09) |
+| Attested by (PREDECESSOR only) | **Scot Wahlquist, CEO** -- this successor is NOT attested |
+| Attestation date (PREDECESSOR only) | **2026-08-04** (first attested 2026-07-09) |
 | Attestation scope | Provisional business-risk sign-off on the conservative-default position (section 7) and the government-ID-match consent method (section 8). The 2026-08-04 re-attestation additionally covers the ZDR/training-posture narrowing to the direct `api.anthropic.com` path, with no ZDR guarantee claimed for the AWS Bedrock runtime route. NOT a formal outside-counsel legal opinion. |
 | Deferred to | Formal outside counsel review, once the full 5-phase VPC (Phases 1-5) is built and ready to go live for real parents. |
 
 This document, `AI_DATA_FLOW_CLASSIFICATION.md`, `app/views/ai_consent/disclosures/v1.html.erb`,
-and the `privacy.hbs` edits in this phase reflect Scot's provisional attestation above and may be
+and the `privacy.hbs` edits in this phase reflect Scot's provisional attestation of the PREDECESSOR above and may be
 built upon for Phase 3/4/5 work. They are not yet a formal, counsel-reviewed legal position --
 that review is intentionally deferred (see "Deferred to" above), consistent with how
 `AI_GOVERNANCE_MEMO.md` section 7's open items are already tracked and accepted without blocking
