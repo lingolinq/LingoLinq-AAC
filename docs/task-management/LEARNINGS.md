@@ -12701,4 +12701,3 @@ each one against the retrieved source was not ceremony: one report asserted NY
 requires a four-week SGD trial, and the grep behind it had matched the lymphedema
 section (lesson 3). Another reported a phrase absent from a PDF that contained it
 (lesson 4). Both would have shipped as sourced facts.
-

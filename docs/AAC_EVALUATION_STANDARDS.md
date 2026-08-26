@@ -1447,4 +1447,3 @@ leaves room for coexistence, so the medical framing is "insufficient alone," not
 - **Our spine descends from a 2004 protocol built on the superseded RMRP** (12.11).
   Nothing in it is *wrong* on inspection, but it has never been reconciled against
   L33739 section by section. That reconciliation is the real follow-up.
-
