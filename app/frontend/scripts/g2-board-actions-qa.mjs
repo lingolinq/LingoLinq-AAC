@@ -1,9 +1,22 @@
 #!/usr/bin/env node
 /**
+ * RETIRED 2026-08-26 — READ THIS BEFORE RUNNING.
+ *
+ * The "Board Actions" submenu this probe verifies was REMOVED from the
+ * speak-mode options menu. Every check below will now fail, and that is the
+ * correct outcome, not a regression: board_details, toggle_favorite,
+ * add_to_sidebar and other_board_actions are edit-panel actions and are reached
+ * from there. `a2c-click-tests-qa.mjs` check D guards the removal.
+ *
+ * Kept rather than deleted so the reachability walk it encodes is not lost if
+ * these four ever need a view-mode route again.
+ *
+ * ---- original header ----
+ *
  * G2 — the four board actions that had NO view-mode route at all:
  * board_details, toggle_favorite, add_to_sidebar, other_board_actions.
  *
- * They now live in a "Board Actions" submenu in the view-mode options menu,
+ * They lived in a "Board Actions" submenu in the view-mode options menu,
  * wired to the previously-orphaned `board_submenu_open` / `toggle_board_submenu`.
  * Reachability is the whole finding, so this walks the clicks a user makes
  * rather than querying the DOM for nodes that may be rendered-but-hidden.

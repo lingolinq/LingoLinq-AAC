@@ -61,18 +61,19 @@ const SPEAK_MENU_ITEMS = [
      `preferences.speak_mode_hidden_menu_items` arrays; that's
      harmless — the values are simply no longer referenced. */
   { id: 'board_collection',     section: 'board',     label_key: 'my_board_collection', default_label: 'My Board Collection' },
-  /* The view-mode rows restored in 3812ce5b6 / 72dabfe93. They were added
-     straight to the template, gated only on permission, which quietly made them
-     the only rows on this menu a user cannot hide — the customize panel is built
-     from THIS list, so an unlisted row simply never appears there. Anything added
-     to the options menu belongs here too. `set_as_home` is top-level; the other
-     four live in the Board Actions submenu and are listed individually, matching
-     how the Share & Print rows are handled. */
+  /* Restored to view mode in 3812ce5b6 and listed here because the customize
+     panel is built from THIS list — a row rendered in the options menu but absent
+     here is one the user cannot hide, which is how these shipped at first.
+
+     `set_as_home` is the only one left. The other four — board_details,
+     toggle_favorite, add_to_sidebar, other_board_actions — were added alongside it
+     in a "Board Actions" submenu (72dabfe93) and that submenu has been removed
+     again; they are edit-panel actions and belong there. Their ids are dropped
+     rather than kept: an id listed here with nothing rendering it is a Customize
+     Menu row that toggles the visibility of nothing. A user who had already hidden
+     one keeps the value in `preferences.speak_mode_hidden_menu_items`, which is
+     harmless in the same way the legacy `my_boards` / `find_boards` ids above are. */
   { id: 'set_as_home',          section: 'board',     label_key: 'set_as_home_board', default_label: 'Set as Home Board' },
-  { id: 'board_details',        section: 'board',     label_key: 'board_details', default_label: 'Board Details' },
-  { id: 'toggle_favorite',      section: 'board',     label_key: 'set_as_favorite', default_label: 'Set as Favorite' },
-  { id: 'add_to_sidebar',       section: 'board',     label_key: 'add_to_sidebar', default_label: 'Add to Sidebar' },
-  { id: 'other_board_actions',  section: 'board',     label_key: 'other_actions', default_label: 'Other Actions' },
   { id: 'find_button',          section: 'buttons',   label_key: 'find_a_button', default_label: 'Find a Button' },
   { id: 'focus_words',          section: 'buttons',   label_key: 'focus_words', default_label: 'Focus Words' },
   { id: 'show_hidden_buttons',  section: 'buttons',   label_key: 'show_all_buttons', default_label: 'Show Hidden Buttons' },
@@ -121,10 +122,6 @@ function _customize_menu_i18n_extractor_no_op() {
   // Items (SPEAK_MENU_ITEMS)
   i18n.t('my_board_collection', "My Board Collection");
   i18n.t('set_as_home_board', "Set as Home Board");
-  i18n.t('board_details', "Board Details");
-  i18n.t('set_as_favorite', "Set as Favorite");
-  i18n.t('add_to_sidebar', "Add to Sidebar");
-  i18n.t('other_actions', "Other Actions");
   i18n.t('find_a_button', "Find a Button");
   i18n.t('focus_words', "Focus Words");
   i18n.t('show_all_buttons', "Show Hidden Buttons");
@@ -325,7 +322,6 @@ export default Controller.extend(prefClasses, {
   // Top-level expandable section state inside the options dropdown.
   // Each section starts collapsed; toggled by the matching
   // `toggle_<x>_submenu` action.
-  board_submenu_open: false,
   buttons_submenu_open: false,
   display_submenu_open: false,
   share_print_submenu_open: false,
@@ -3514,23 +3510,12 @@ export default Controller.extend(prefClasses, {
   _close_options_menu: function() {
     this.setProperties({
       show_options_menu: false,
-      board_submenu_open: false,
       share_print_submenu_open: false,
       display_submenu_open: false,
       buttons_submenu_open: false,
       language_submenu_open: false
     });
   },
-
-  /* False once every child of the Board Actions submenu is hidden in Customize
-     Menu, so the disclosure toggle disappears with them rather than opening onto
-     an empty panel. Keep this list in step with the four `{{#unless}}` gates in
-     board-detail.hbs — they are the same four ids. */
-  board_submenu_has_visible_items: computed('speak_menu_hidden_set', function() {
-    var hidden = this.get('speak_menu_hidden_set') || {};
-    return ['board_details', 'toggle_favorite', 'add_to_sidebar', 'other_board_actions']
-      .some(function(id) { return !hidden[id]; });
-  }),
 
   // Pre-shaped list for the right-panel "Customize Menu" template.
   // Walks SPEAK_MENU_ITEMS, groups by section, and returns:
@@ -6004,10 +5989,6 @@ export default Controller.extend(prefClasses, {
       this.toggleProperty('display_submenu_open');
     },
 
-    toggle_board_submenu: function() {
-      this.toggleProperty('board_submenu_open');
-    },
-
     toggle_buttons_submenu: function() {
       this.toggleProperty('buttons_submenu_open');
     },
@@ -7143,10 +7124,8 @@ export default Controller.extend(prefClasses, {
     /* My Board Collection — the inline replacement for the prior
        My Boards + Find Boards rows. Sets `board_collection_open` so
        the options-menu template swaps its section list for the
-       <BoardCollection /> component, and collapses the Board
-       submenu since we're taking over its surface anyway. */
+       <BoardCollection /> component. */
     open_board_collection: function() {
-      this.set('board_submenu_open', false);
       // Close the options dropdown — the collection now PINS as a standalone
       // right-side drawer (decoupled from show_options_menu) so it can persist
       // while the user taps board-to-board and the selected board renders in the

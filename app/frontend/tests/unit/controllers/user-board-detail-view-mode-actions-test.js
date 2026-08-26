@@ -110,17 +110,16 @@ module('Unit | Controller | user/board-detail view-mode actions', function(hooks
   });
 
   test('_close_options_menu clears the menu and every submenu', function(assert) {
-    assert.expect(6);
+    assert.expect(5);
     this.controller.setProperties({
       show_options_menu: true,
-      board_submenu_open: true,
       share_print_submenu_open: true,
       display_submenu_open: true,
       buttons_submenu_open: true,
       language_submenu_open: true
     });
     this.controller._close_options_menu();
-    ['show_options_menu', 'board_submenu_open', 'share_print_submenu_open',
+    ['show_options_menu', 'share_print_submenu_open',
      'display_submenu_open', 'buttons_submenu_open', 'language_submenu_open'].forEach((k) => {
       assert.false(this.controller.get(k), k + ' cleared');
     });
@@ -128,16 +127,14 @@ module('Unit | Controller | user/board-detail view-mode actions', function(hooks
 
   /*
    * Customize Menu gating. Every other row on the options menu can be hidden from
-   * the right panel; these five shipped gated only on permission, which made them
-   * the only rows a user could not turn off. The panel is built from
+   * the right panel; `set_as_home` shipped gated only on permission, which made it
+   * one of the few rows a user could not turn off. The panel is built from
    * SPEAK_MENU_ITEMS, so an id missing there never appears as a toggle.
    */
-  test('the new menu rows are listed in the customize-menu catalog', function(assert) {
-    assert.expect(5);
+  test('the new menu row is listed in the customize-menu catalog', function(assert) {
     const ids = (this.controller.get('speak_menu_sections_list') || [])
       .reduce((acc, group) => acc.concat((group.items || []).map((i) => i.id)), []);
-    ['set_as_home', 'board_details', 'toggle_favorite', 'add_to_sidebar', 'other_board_actions']
-      .forEach((id) => assert.true(ids.indexOf(id) >= 0, id + ' is toggleable in Customize Menu'));
+    assert.true(ids.indexOf('set_as_home') >= 0, 'set_as_home is toggleable in Customize Menu');
   });
 
   /*
@@ -253,17 +250,26 @@ module('Unit | Controller | user/board-detail view-mode actions', function(hooks
       'and no dangling manual flag to make the next AUTO open skip its one-shot');
   });
 
-  test('the Board Actions submenu disappears when all four children are hidden', function(assert) {
-    this.controller.set('speak_menu_hidden_items', []);
-    assert.true(this.controller.get('board_submenu_has_visible_items'), 'shown by default');
-
-    this.controller.set('speak_menu_hidden_items', ['board_details', 'toggle_favorite']);
-    assert.true(this.controller.get('board_submenu_has_visible_items'),
-      'still shown while any child remains');
-
-    this.controller.set('speak_menu_hidden_items',
-      ['board_details', 'toggle_favorite', 'add_to_sidebar', 'other_board_actions']);
-    assert.false(this.controller.get('board_submenu_has_visible_items'),
-      'hidden once every child is — a disclosure onto nothing is worse than none');
+  /*
+   * The Board Actions submenu — board_details / toggle_favorite / add_to_sidebar /
+   * other_board_actions in a disclosure on the speak-mode options menu — was added
+   * in 72dabfe93 and removed again: those are edit-panel actions, and speak mode is
+   * not where a communicator should meet them.
+   *
+   * This test guards the removal rather than the feature. It asserts the two things
+   * that would come back together if someone re-wired it: the catalog ids (without
+   * which the rows exist but cannot be hidden) and the toggle action. The four
+   * ACTIONS themselves stay on the controller — the edit panel still calls all four,
+   * so asserting they are gone would be wrong.
+   */
+  test('the Board Actions submenu is not in the speak-mode options menu', function(assert) {
+    const ids = (this.controller.get('speak_menu_sections_list') || [])
+      .reduce((acc, group) => acc.concat((group.items || []).map((i) => i.id)), []);
+    ['board_details', 'toggle_favorite', 'add_to_sidebar', 'other_board_actions']
+      .forEach((id) => assert.false(ids.indexOf(id) >= 0, id + ' is not a speak-menu row'));
+    assert.strictEqual(typeof (this.controller.actions || {}).toggle_board_submenu, 'undefined',
+      'no submenu toggle to open it with');
+    assert.strictEqual(typeof this.controller.get('board_submenu_has_visible_items'), 'undefined',
+      'and no visibility computed feeding a disclosure');
   });
 });
