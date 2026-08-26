@@ -10407,6 +10407,31 @@ Node 16, which makes it easy to misread a version problem as a broken tool.
 
 **Evidence:** [`2026-08-07-create-board-chooser-primary-secondary.md`](./2026-08-07-create-board-chooser-primary-secondary.md).
 
+## Gotcha: Playwright specs against LingoLinq mutate the signed-in user's persisted prefs
+
+**Surface:** `app/frontend/e2e/` — anything driving the board-detail / create-board-new
+Edit Tools rail.
+
+**Symptom:** A spec passes on first run and fails on every run after. Or worse, a spec that
+has passed for several runs starts failing while an unrelated one is being fixed.
+
+**Root cause:** The rail writes REAL device preferences (`preferences.device.*`) which
+persist server-side. Two failure shapes:
+- Fixed target: `pick("Huge")` is a no-op once Huge is already selected.
+- Fixed stepper direction: repeated `Looser` / `Increase rows` walks the pref to its bound,
+  where the button carries `disabled` and the click silently does nothing.
+
+**Fix recipe:** Make assertions order- and history-independent — select whatever is
+currently *unselected* (`[aria-selected="false"]`, `[aria-checked="false"]`) or click
+whichever stepper half is currently *enabled*, then assert state MOVED (`.not.toBe(before)`)
+rather than that it reached a specific value. Verify by running the suite 3× consecutively;
+a single green run proves nothing here.
+
+**Two Playwright traps found alongside it:**
+- `[aria-checked="false"]` as both click target and assertion target can never pass — the
+  element leaves the selector the moment the click succeeds. Resolve `aria-label` first.
+- `.filter({hasNot: X})` excludes elements that *contain* X, not elements that *are* X.
+
 ## Gotcha: board-detail's light-mode styles are ancestor-scoped — reused surfaces silently miss them
 
 **Surface:** any view that reuses the `md-board-detail-*` classes outside the board-detail
