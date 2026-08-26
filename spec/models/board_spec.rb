@@ -3462,6 +3462,33 @@ describe Board, :type => :model do
   end
   
   describe "translate_set" do
+    it "should never translate away or delete a SPECIAL vocalization" do
+      # ':suggestion' marks a word-prediction slot, '+q' appends a letter, ':space' and
+      # ':shift' do what they say. They are ACTIONS, not words, so no language has a
+      # translation for them -- and the fallback branch used to DELETE any vocalization it
+      # could not translate, stripping every keyboard key and prediction slot from every
+      # board in the set, permanently and with no error.
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['buttons'] = [
+        {'id' => 1, 'label' => 'hat', 'vocalization' => 'hat'},
+        {'id' => 2, 'label' => 'q', 'vocalization' => '+q'},
+        {'id' => 3, 'label' => 'give', 'vocalization' => ':suggestion'},
+        {'id' => 4, 'label' => '[ space ]', 'vocalization' => ':space'}
+      ]
+      b.save
+      b.translate_set({'hat' => 'sombrero'}, {
+        'source' => 'en', 'dest' => 'es', 'board_ids' => [b.global_id],
+        'default' => true, 'allow_fallbacks' => true,
+        'user_key' => u.global_id, 'user_local_id' => u.id
+      })
+      b.reload
+      by_id = b.settings['buttons'].map{|btn| [btn['id'], btn['vocalization']] }.to_h
+      expect(by_id[2]).to eq('+q')
+      expect(by_id[3]).to eq(':suggestion')
+      expect(by_id[4]).to eq(':space')
+    end
+
     it "should return done if user_id doesn't match" do
       u = User.create
       b = Board.create(:user => u)

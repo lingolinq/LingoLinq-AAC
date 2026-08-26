@@ -1627,6 +1627,21 @@ export default Controller.extend(prefClasses, {
     var vocalization_root = vocalization_locale.split(/-|_/)[0];
     var label = btn.label;
     var vocalization = btn.vocalization;
+    /* A vocalization beginning ':' or '+' is an ACTION, not a word — ':suggestion' marks a
+       word-prediction slot, '+q' appends a letter, ':shift' and ':space' do what they say.
+       It has no translation, and NOTHING below may replace it with the label or clear it.
+
+       This is not cosmetic. `edit_manager.process_for_saving` drops a button's vocalization
+       when it equals the label, so a display copy flattened here is SAVED without it — and
+       a board that entered edit mode through the in-app "Edit Board" control (which reuses
+       these copies rather than rebuilding from `contextualized_buttons`) loses every special
+       vocalization on the board the first time it is saved: all thirty-three of them on a
+       core board, keyboard keys included. Measured on `vocal-flair-112_1`, which has 112
+       buttons and 0 vocalizations where its sibling copy has 33.
+
+       `models/board.js#translated_buttons` has always guarded the identical assignment with
+       `has_special_vocalization`; this path did not. */
+    var special_vocalization = /^[:+]/.test(String(btn.vocalization || ''));
     var label_trans = this._translation_entry_from_raw(trans, btn.id, label_locale);
     var vocalization_trans = this._translation_entry_from_raw(trans, btn.id, vocalization_locale);
     if(label_trans && label_trans.label) {
@@ -1634,7 +1649,9 @@ export default Controller.extend(prefClasses, {
         label = label_trans.label;
       }
     }
-    if(vocalization_root !== board_root) {
+    if(special_vocalization) {
+      vocalization = btn.vocalization;
+    } else if(vocalization_root !== board_root) {
       if(vocalization_trans && (vocalization_trans.vocalization || vocalization_trans.label)) {
         vocalization = vocalization_trans.vocalization || vocalization_trans.label;
       } else {
@@ -1647,7 +1664,7 @@ export default Controller.extend(prefClasses, {
         vocalization = label;
       }
     }
-    if(label_locale === vocalization_locale && label && (!vocalization || vocalization === btn.vocalization || vocalization === btn.label)) {
+    if(!special_vocalization && label_locale === vocalization_locale && label && (!vocalization || vocalization === btn.vocalization || vocalization === btn.label)) {
       vocalization = label;
     }
     return {
@@ -4492,7 +4509,14 @@ export default Controller.extend(prefClasses, {
         var orig_trans = btn.translations.find(function(t) { return t.locale == board.get('locale'); });
         orig_trans = orig_trans || ((board.get('translations') || {})[btn.id] || {})[board.get('locale')];
         if(orig_trans) {
-          emberSet(btn, 'vocalization', null);
+          /* NOT a special vocalization. ':suggestion', '+q', ':shift' and ':space' are
+             ACTIONS with no translation, so the source-locale entry below holds a label and
+             no vocalization — nulling first and restoring from it deletes the action. This
+             runs AFTER process_for_saving, so without the check it overwrites that guard and
+             the loss is what gets persisted. */
+          if(!/^[:+]/.test(String(emberGet(btn, 'vocalization') || ''))) {
+            emberSet(btn, 'vocalization', null);
+          }
           emberSet(btn, 'inflections', null);
           for(var key in orig_trans) {
             if(key != 'code' && key != 'locale') {

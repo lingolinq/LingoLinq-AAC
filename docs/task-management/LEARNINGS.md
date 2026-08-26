@@ -12004,3 +12004,224 @@ Deferring `schedule_once` until after commit closes the Redis-vs-Postgres orderi
 ## Gotcha: `audit-artifacts-integrity` green proves renders match JSON, NOT that the register is loadable
 
 Every check in that CI job compares a generated markdown against its JSON source; none of them reads the field *shapes* the register's consumers depend on. A finding whose `source` was written as a bare String instead of an object merged fully green and then hard-crashed `promote-finding.rb` (`Hash#dig': String does not have #dig method (TypeError)`) for the **entire** register weeks later — `citation-check.rb` exited 0 on it too, since it only validates evidence. Closed with two complementary gates: `scripts/register-lint.rb` (predicted shapes, enums, id uniqueness — precise error messages) and `scripts/tests/register-consumer-smoke-test.sh` (runs the real consumers over each committed register with empty input, asserting exit 0 **and** byte-identical output — catches whatever the predicate list failed to anticipate). When adding a validator for a data file, gate on *consumability*, not just on render consistency. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
+
+## board-detail builds display buttons TWICE — speak mode and edit mode take different code (2026-08-25)
+
+`controllers/user/board-detail.js` has two makers, chosen by `use_ember`:
+
+- `_make_btn` — a plain object assembled from a **hand-picked field list** (speak mode). Its
+  own comment warns that anything omitted "silently vanishes on every re-render".
+- `_make_ember_btn` — `editManager.Button.create(display_btn, more_args)` (edit mode).
+
+A field added to one does not appear in the other, and `Button.create` does NOT reliably
+carry a plain field through even though it is handed the whole hash — `text_symbol`,
+`hide_label` and now `suggestion_slot` are all `set()` explicitly right after the create,
+and the `hide_label` line has carried a comment saying so for some time.
+
+- **Any per-button fact the grid needs must be added to BOTH makers**, and the Ember one
+  needs an explicit `set()`, not a property on the create hash.
+- **Verify in the mode the user is in.** A change confirmed in speak mode was reported done
+  and was not: the reporter was working in edit mode, which took the other maker. Predictions
+  also do not run in edit mode, so the very same buttons read differently in the two modes
+  ("give/need/use" authored, "i/you/we" once the predictor has dressed them) — enough to make
+  two correct observations look like a contradiction.
+- Related trap in the same file: `_localized_button_fields` overwrites a button's
+  vocalization with its label when both locales match, `:suggestion` and other special
+  actions included (`board.js#translated_buttons` guards the identical assignment with
+  `has_special_vocalization`; this one does not). Anything keyed on a special vocalization
+  downstream of it — `app-state.js`'s `== ':suggestion'` prediction action included — cannot
+  fire on board-detail. Carry a separate flag rather than reading the vocalization.
+
+## A localized payload can DELETE a special vocalization, and take a feature with it (2026-08-25)
+
+`lib/json_api/board.rb`, inside the `args[:locale]` branch, did
+
+```ruby
+button['vocalization'] = btn_tran[matching]['vocalization']
+```
+
+unconditionally. A translation entry carrying only a `label` therefore set the vocalization to
+**nil** — including on buttons whose vocalization is an ACTION rather than a word: `:suggestion`
+(a word-prediction slot), `+s` (append a letter). It is the only place in `lib/json_api/` that
+writes that field.
+
+The visible damage was not the obvious one. `Board#refresh_suggestions` finds prediction slots
+by `vocalization == ':suggestion'`, so on any session that requested a locale AND had a
+translation row for those buttons, **word prediction silently stopped working** — no error, the
+slots just render as ordinary buttons.
+
+- **A `^[:+]` vocalization is an action, not a string to translate.** Guard every write of it.
+  The client had guarded the identical assignment for years
+  (`board.js#translated_buttons`, `has_special_vocalization`); the server did not, and the two
+  disagreed silently.
+- **When a client-side marker is missing, check whether the SERVER sent it** before adding more
+  client plumbing. Two rounds of frontend fixes here were correct and verified and still did not
+  help, because the field was already nil by the time it reached the browser. One console line
+  reading the raw model (`voc: undefined` where the dev server returned `':suggestion'`) located
+  it immediately — worth asking for before the second speculative fix, not after.
+- **"Verified on my data" is not "verified".** Neither board on the dev server carried the
+  translation entries needed to trigger it, so every probe came back green. The spec that
+  reproduces it had to construct the translation rows by hand — and a spec for a
+  data-conditional bug must be negative-controlled (revert the fix, watch it fail) or it proves
+  nothing.
+
+## `key LIKE '%/board-name'` hides the COPIES, and a copy is what the user is on (2026-08-25)
+
+Eight rounds of "works here, not for me" came down to one SQL predicate. Checking which boards
+existed, I ran
+
+```sql
+select key from boards where key like '%/vocal-flair-112';
+```
+
+got two rows, and told the reporter that only two copies existed and both were correct. The
+board she was actually on was `marcus_williams_slp/vocal-flair-112_1` — copies are
+disambiguated with a trailing `_<n>` (`generate_unique_key`,
+`app/models/concerns/processable.rb`), and an exact-suffix LIKE excludes every one of them.
+`key ~ 'vocal-flair-112(_[0-9]+)?$'` returns three.
+
+- **Match the copy suffix whenever you enumerate boards** — the same trap the keyboard-folder
+  rule in `board_categories.js` already carries a comment about. A copied set is the common
+  case, not an edge one.
+- **The Rails log is the fastest way to find out what the user is actually looking at**:
+  `grep 'Started GET "/api/v1/boards/' log/development.log | tail`. Two minutes of that would
+  have saved several rounds of console ping-pong, and it does not depend on the reporter
+  running anything.
+- **"I could not reproduce it" is a claim about YOUR setup, not theirs.** Before concluding
+  the data is fine, confirm you are querying the same record — a board KEY, not a board name.
+- Corollary worth checking on any board that behaves oddly: count the buttons carrying a
+  vocalization. A board with 112 buttons and 0 vocalizations, where its sibling copy has 33,
+  is not a rendering problem.
+
+## "Vocalization same as label ⇒ drop it" destroys every SPECIAL vocalization on save (2026-08-25)
+
+`edit_manager.process_for_saving` stores a button's vocalization only when it differs from the
+label — reasonable, since "same as the label" means the button has none of its own. But a
+special vocalization (`:suggestion`, `+q`, `:shift`, `:space`) is an ACTION, and board-detail's
+`_localized_button_fields` had a rule that replaced it with the label first. Together:
+
+    +q  --(localizer: "locales match, so vocalization = label")-->  q
+    q   --(save: "vocalization == label, so drop it")-->            (deleted)
+
+One save removed all 33 special vocalizations from a core board: every QWERTY key stopped
+typing, shift and space stopped acting, prediction slots stopped being slots. No error, no
+warning, and unrecoverable without the parent board.
+
+- **A "same as X, so we don't need it" optimisation must exempt values that are not of X's
+  kind.** An action is not a word, and it is not redundant with a label it happens to equal.
+- **Two builders can serve the same mode.** Edit mode is reached either by URL
+  (`process_for_displaying`, from `contextualized_buttons` — guards specials) or by the in-app
+  "Edit Board" control (the controller's `_build_from_raw` → `_make_ember_btn` — did not). The
+  URL is what a probe uses and the control is what a user clicks, so the safe path is the one
+  you test by default. **Reproduce a save bug through the UI control, not the route.**
+- **`process_for_saving()` is a safe dry run** — it builds the payload and persists nothing.
+  Call it from the console and diff the result against `model.buttons` before suspecting a
+  save; that turned a hypothesis into a measurement in one step, with no risk to the board.
+- Guard at the source AND at the destructive step. Here the localizer was fixed and the save
+  still restores a special vocalization the original button had, because the failure mode is
+  silent permanent loss of a user's data.
+
+## Repairing a copied board: fix the OVERRIDE, never rewrite the buttons (2026-08-25)
+
+Copies share a `BoardContent` row — `boards.board_content_id` is the same for the original and
+every copy — and each board stores only `settings['content_overrides']['buttons']`, a
+`{button_id => {field => value}}` map layered on top. In `BoardContent.load_content`, an
+override value of `nil` **deletes** that field.
+
+So a board that has "lost" data has usually not had its buttons rewritten; it has acquired
+override entries nulling them. Repair by deleting those override keys and the shared value
+reappears — surgical, and every other edit on the copy survives untouched. Writing a fresh
+button array instead would detach the board from the shared content and discard the
+difference layer.
+
+- **Check `board.settings['buttons']` before saving a repair.** `check_content_overrides` ->
+  `BoardContent.track_differences` recomputes the whole override map, but only when the board
+  has its OWN `settings['buttons']`. On a fully-shared board it is skipped and your edit
+  saves verbatim; on a partly-detached one it would be rewritten under you.
+- **Scope the repair by a predicate, and count what it matched.** Here: remove the key only
+  when the override value is `nil` AND the base content's button has a `^[:+]` vocalization.
+  33 matched, 0 skipped, override FIELDS 605 -> 572 and ENTRIES unchanged at 112 — the field
+  delta being exactly the expected count is what proves nothing else moved.
+- Verify the SIBLINGS afterwards. Shared content means a careless write reaches every copy and
+  the original.
+
+## One bug in a shared idiom means N copies of it — enumerate the idiom, not the bug (2026-08-25)
+
+Fixing "a special (`^[:+]`) vocalization gets flattened to its label and then deleted" in the
+two places it was found left FOUR more live destroyers, each an independent path to the same
+permanent data loss:
+
+| Layer | Site |
+|---|---|
+| client, board-detail save | non-default-locale branch nulls then restores from a translation entry that has no vocalization |
+| client, CLASSIC editor | byte-for-byte twin of the above |
+| server, `translate_set` | deletes any vocalization it cannot translate, with fallbacks on |
+| server, `relinking#update_default_locale!` | reassigns from the new locale's entry, deletes when nil |
+
+They share one wrong assumption — *"a vocalization is a word, so a translation can replace it
+and its absence means there isn't one"* — expressed four times by different authors.
+
+- **When you find a bug in a shared idiom, grep for the IDIOM and enumerate every instance
+  before declaring it fixed.** Here: every write of `vocalization` across client and server.
+  Two of the four were on the server, which a frontend-shaped search would never have reached.
+- **A "likely safe, not tested" claim about a parallel code path is a guess.** I wrote that
+  about the classic editor; it carried the identical bug. Either test it or say it is unknown.
+- **A guard that restores data must distinguish corruption from intent.** "Restore the
+  original whenever the value looks wrong" also blocks the user from legitimately clearing the
+  field. Key the restore on the corruption's SIGNATURE (here: non-blank AND equal to the
+  label) so a deliberate clear still gets through.
+- Reviewing your own fix adversarially is worth a full round. Four HIGH findings, all
+  confirmed against source, in code I had just told the user was thoroughly fixed.
+
+## A damage scan must enumerate how each destroyer WRITES, not just what it destroys (2026-08-25)
+
+A scan for "boards that lost a special (`^[:+]`) vocalization" was written against the one
+storage shape the first repair had exposed: a `content_overrides['buttons'][id]['vocalization']
+= nil` over an intact shared content row. Two of the six destroyers were confirmed *after* it
+was written, and they do not write that shape at all:
+
+| Destroyer | What it leaves on disk |
+|---|---|
+| board-detail / edit_manager / classic editor | override `=> nil` over intact content |
+| `translate_set` | key **deleted** from the board's OWN `settings['buttons']` |
+| `relinking#update_default_locale!` | key deleted, **original preserved in the translations map** |
+
+Three consequences that a single-shape scan gets wrong, all of them silent:
+
+- **`load_content` PREFERS `board.settings['buttons']`** when non-blank (`board_content.rb:57`)
+  and then skips the override merge entirely. A board can serve damaged buttons while its
+  content row is *perfectly intact* — so "compare board to content" finds nothing.
+- **`track_differences` normalises a deleted key into `override => nil`
+  (`board_content.rb:217`) only for a board that HAS a `board_content`** (`board.rb:627`). On a
+  board without one, the deletion never becomes the shape you are looking for. The old scope
+  `where.not(board_content_id: nil)` skipped 11% of the dev DB, and those were exactly the
+  boards where the un-normalised shapes survive.
+- **The destroyer may have saved the original somewhere.** `update_default_locale!` writes
+  `btn_trans[old_locale]['vocalization'] = btn['vocalization']` at `relinking.rb:176` *before*
+  overwriting it. That makes the translations map both the detector and the repair source —
+  and the only one that works on a board with no content row at all.
+
+Generalise: before trusting a data-loss scan, list every writer, read what each one actually
+persists, and confirm the scan has a probe for each persisted shape. "What the bug destroys"
+is one question; "what the record looks like afterwards" is a different one per code path.
+
+- **A scanner that reports zero is worthless without a positive control.** Extract the
+  classification into pure functions with no DB, then build each damage shape the way the
+  destroyer writes it and assert the detector fires — each with a negative twin (an override
+  nulling a NON-special; a word button whose vocalization legitimately equals its label;
+  reserved translation keys like `default`/`board_name` that are not button ids). 17 fixtures
+  cost minutes and are the only reason a clean 5699-board result means anything.
+- **Edit history is the cheapest discriminator between damage and authorship.** Every
+  destroyer runs through a save, so `versions.count == 0` means a board CANNOT have been
+  damaged by one. Two heuristic hits on the dev DB were imported boards whose letters were
+  never special. Attach the count to the finding rather than suppressing the heuristic —
+  suppression risks hiding a real hit, annotation lets the list triage itself.
+- **A "needs an ancestor" check must walk more than one level, and must accept PARTIAL loss.**
+  Checking only `parent_board_id` misses a board whose parent was damaged by the same sweep,
+  and requiring zero surviving specials misses the shape `update_default_locale!` actually
+  produces (it only rewrites buttons that have an entry for the new locale).
+- **`load_content` memoises decrypted content in `Thread.current[:board_content_cache]` and
+  nothing reaps it inside a `rails runner`.** Clear it per batch or a full-table scan
+  accumulates every content row it touched. `Board#settings` is `secure_serialize`d, so there
+  is no SQL prefilter available — every board is loaded and decrypted, and the memory shape of
+  the scan is the whole cost.

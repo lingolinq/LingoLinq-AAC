@@ -2657,7 +2657,15 @@ class Board < ApplicationRecord
             @buttons_changed = 'translated'
           end
         end
-        if button['vocalization'] && translations[button['vocalization']]
+        # A vocalization beginning ':' or '+' is an ACTION, not a word — ':suggestion' marks a
+        # word-prediction slot, '+q' appends a letter, ':shift'/':space' do what they say. It
+        # has no translation in any language, so it is neither translated nor (the damaging
+        # half) DELETED when no translation is found. Without this guard, translating a set
+        # with fallbacks on stripped every keyboard key and prediction slot from every board
+        # in it, permanently and with no error.
+        if button['vocalization'].to_s.match(/^[:+]/)
+          # leave it exactly as authored
+        elsif button['vocalization'] && translations[button['vocalization']]
           self.settings['translations'][button['id'].to_s] ||= {}
           self.settings['translations'][button['id'].to_s][source_lang] ||= {}
           self.settings['translations'][button['id'].to_s][source_lang]['vocalization'] ||= button['vocalization']
