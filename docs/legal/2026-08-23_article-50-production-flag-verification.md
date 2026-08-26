@@ -368,9 +368,16 @@ testing.
    RESOLVED 2026-08-24 by PR #856. `docs/legal/AI_GOVERNANCE_MEMO.md` (`DOC-39f37f8200`, attested
    by Scot Wahlquist 2026-08-04) stated at `:261` that the modal is "**built and staged, gated
    OFF**, not yet enabled for any user" and at `:426-427` that it is "gated OFF ... the modal is
-   therefore shown to no one". Both were false. Because the document is attested it could not be
+   therefore shown to no one". The flag-OFF / gated-OFF rationale is **false** (the flag IS
+   ENABLED in production via the `default_enabled_features` DB Setting). "Shown to no one" is
+   that same rationale, which the enablement read falsifies; whether the modal was **displayed**
+   is **undetermined**. Acknowledgement state can be written without the UI rendering
+   (`admin_backfill`, or posting `users_controller#article_50_disclosure_ack`), and the
+   2026-08-23 probe did not check acknowledgement `AuditEvent`s or UI telemetry. See the
+   successor memo, Corrections row 3. Because the document is attested it could not be
    edited in place; it was superseded under Path A by
-   `docs/legal/2026-08-24_ai-governance-memo.md` (`DOC-506bbe2039`), which corrects both claims and
+   `docs/legal/2026-08-24_ai-governance-memo.md` (`DOC-506bbe2039`), which corrects the
+   enablement/inertness claims and records the display claim as undetermined, and
    which the same PR as this amendment further reconciles. The predecessor remains frozen and
    byte-identical as the signed record. **This was the highest-value open item in this list and it
    is now discharged**, pending only Scot's attestation of the successor.
