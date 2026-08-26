@@ -37,9 +37,24 @@
           <dd>
             {{this.model.downstream_boards}}
           </dd>
-        <dt>{{t "Available Buttons" key="available_buttons"}}</dt>
+        {{!-- N8: this is `unlinked_buttons` — buttons with no `load_board`, i.e.
+              ones that SPEAK rather than navigate, summed across the whole linked
+              set (board.rb:854). The old label "Available Buttons" read as "how
+              many buttons are on this board", so a 24-cell board showing 10 looked
+              like a bug; it is not, the other 14 are navigation. The number was
+              right and the label was wrong. New key rather than restating
+              `available_buttons`, so existing translations of that string are not
+              silently repurposed to a different meaning. --}}
+        {{!-- The explainer is VISIBLE text, not a `title` tooltip. A <dt> is not
+              focusable and carries no interactive role, so a tooltip on it is
+              mouse-only: unreachable by keyboard, by touch, and unannounced by
+              screen readers (WCAG 1.4.13 / 2.1.1). aria-describedby ties it to
+              the term so it is read as the term's description rather than as a
+              stray sentence. --}}
+        <dt aria-describedby="md-board-preview-word-buttons-help">{{t "Word Buttons" key="word_buttons"}}</dt>
           <dd>
             {{this.model.unlinked_buttons}}
+            <span id="md-board-preview-word-buttons-help" class="md-board-preview__meta-help">{{t "Buttons that speak a word or phrase, across this board and every board it links to. Navigation buttons are not counted." key="word_buttons_explainer"}}</span>
           </dd>
         <dt>{{t "Likes" key="stars"}}</dt>
           <dd>

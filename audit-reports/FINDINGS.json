@@ -4721,10 +4721,10 @@
       },
       "closureEvidence": {
         "sha": "afdfebee7485e8b6ca263f1defb29c2eca8f8f1e",
-        "verifierNote": "Verified 2026-08-19 at staging tip afdfebee7: all 5 AI ingresses now carry the server-side Article 50(1) backstop -- app/controllers/api/boards_controller.rb:584, app/controllers/api/integrations_controller.rb:104, app/controllers/api/word_suggestions_controller.rb:28, app/controllers/api/words_controller.rb:63, and app/controllers/api/eval_sessions_controller.rb:84 each call require_article_50_disclosure!/article_50_disclosure_missing? (app/controllers/application_controller.rb:409,419). Landed via PR #829 (merge e101628ff5ea7cdc80564edbcdb3520ef0691ddf). The regression spec recommended in remediation.options (spec/controllers/article_50_disclosure_backstop_coverage_spec.rb) also landed in #829, but chatgpt-codex-connector flagged it as file-scoped rather than method-scoped (review comment 3815352166, P2): a second unguarded AI action added to an already-covered controller file would still have passed. Fixed in PR #831 (merge afdfebee7485e8b6ca263f1defb29c2eca8f8f1e), which rewrote the scan with RubyVM::AbstractSyntaxTree to assert the guard call inside each AI-calling method's own source span, with a 3-case regression fixture proving the old failure mode is closed. bundle exec rspec on the coverage spec: 9 examples, 0 failures. article_50_disclosure remains AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES), so this is still latent-until-enabled. Awaiting Scot's verified-closed attestation.",
+        "verifierNote": "Verified 2026-08-19 at staging tip afdfebee7: all 5 AI ingresses now carry the server-side Article 50(1) backstop -- app/controllers/api/boards_controller.rb:584, app/controllers/api/integrations_controller.rb:104, app/controllers/api/word_suggestions_controller.rb:28, app/controllers/api/words_controller.rb:63, and app/controllers/api/eval_sessions_controller.rb:84 each call require_article_50_disclosure!/article_50_disclosure_missing? (app/controllers/application_controller.rb:409,419). Landed via PR #829 (merge e101628ff5ea7cdc80564edbcdb3520ef0691ddf). The regression spec recommended in remediation.options (spec/controllers/article_50_disclosure_backstop_coverage_spec.rb) also landed in #829, but chatgpt-codex-connector flagged it as file-scoped rather than method-scoped (review comment 3815352166, P2): a second unguarded AI action added to an already-covered controller file would still have passed. Fixed in PR #831 (merge afdfebee7485e8b6ca263f1defb29c2eca8f8f1e), which rewrote the scan with RubyVM::AbstractSyntaxTree to assert the guard call inside each AI-calling method's own source span, with a 3-case regression fixture proving the old failure mode is closed. bundle exec rspec on the coverage spec: 9 examples, 0 failures. AMENDED 2026-08-23 on Scot's direction -- the prior sentence ('article_50_disclosure remains AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES), so this is still latent-until-enabled.') was FALSE as a runtime claim. AVAILABLE-only describes CODE; production enables the flag via the default_enabled_features DB Setting. Verified 2026-08-23 (unattested evidence record): the guard is LIVE and gates 29 of 34 users (docs/legal/2026-08-23_article-50-production-flag-verification.md). Awaiting Scot's verified-closed attestation.",
         "attestation": ""
       },
-      "notes": "Surfaced by privacy finder on 2026-08-12. Five AI ingresses exist: boards_controller#generate_labels, integrations_controller#focus_generate_words, words_controller#predict, word_suggestions_controller#create, eval_sessions_controller#narrate. Only the first two carry the EuJurisdiction.disclosure_required? / article_50_disclosure_shown? backstop. The COPPA and EU-under-16 consent gates are correctly enforced on all five (they live inside the libs as well as the controllers), so this is a transparency-disclosure gap, not a consent gap. Currently latent because article_50_disclosure is AVAILABLE-only and not in ENABLED_FRONTEND_FEATURES, making all instances of the guard inert today; the defect is that enabling the flag would produce silent partial enforcement. Tagged GDPR because the schema's frameworks enum has no EU AI Act value; the governing instrument is EU AI Act Art. 50(1). | adversary: confirmed -- EuJurisdiction/article_50 guard exists only in boards_controller.rb:590-593 and integrations_controller.rb:107-110. Read word_suggestions_controller, words_controller#predict, and eval_sessions_controller#narrate in full; none carries the backstop. | REMEDIATED 2026-08-19: all 5 ingresses guarded (#829, e101628ff) and the coverage spec's file-level scoping gap (Codex review comment 3815352166 on #829) closed with a method-scoped AST rewrite (#831, afdfebee7). Status moved open -> remediated-unverified; closureEvidence populated; attestation left empty for Scot."
+      "notes": "Surfaced by privacy finder on 2026-08-12. Five AI ingresses exist: boards_controller#generate_labels, integrations_controller#focus_generate_words, words_controller#predict, word_suggestions_controller#create, eval_sessions_controller#narrate. Only the first two carry the EuJurisdiction.disclosure_required? / article_50_disclosure_shown? backstop. The COPPA and EU-under-16 consent gates are correctly enforced on all five (they live inside the libs as well as the controllers), so this is a transparency-disclosure gap, not a consent gap. AMENDED 2026-08-23 on Scot's direction -- the prior text here was FALSE and is replaced. It read: 'Currently latent because article_50_disclosure is AVAILABLE-only and not in ENABLED_FRONTEND_FEATURES, making all instances of the guard inert today; the defect is that enabling the flag would produce silent partial enforcement.' Correction: AVAILABLE-only is a statement about CODE. Production overrides the code constant through the default_enabled_features DB Setting and the flag IS ENABLED there. Verified 2026-08-23 by direct read (docs/legal/2026-08-23_article-50-production-flag-verification.md, DOC-6c023a20a0 -- an UNATTESTED evidence record): EuJurisdiction.status is :unknown for 34 of 34 users, disclosure_required? is true for 34 of 34 (fail-safe open: only an authoritative :non_eu suppresses), and 29 of 34 were gated at all five AI ingresses as of 2026-08-23T23:23:41Z (probe lingolinq-migrate-stnwz). The guard is NOT inert. On whether the silent partial enforcement this finding warned about actually OCCURRED: all 64 AiApiLog rows fall between 2026-08-04T05:44:42Z and 2026-08-14T21:13:27Z, entirely BEFORE five-ingress coverage reached PRODUCTION (merged to staging 2026-08-19; live in production 2026-08-21 via release #842), so every logged AI call was served while only 2 of 5 ingresses carried the backstop. 63 of 64 carry article_50_disclosure_shown=true; the single false row is at 2026-08-04T05:44:42Z and is consistent with the internal verification call already recorded in CAPABILITY-LEDGER.json (art50-1-disclosure-modal). No AI traffic since 2026-08-14T21:13:27Z. Two limits on that evidence, carried forward from the cited sources: those 63 rows come from 2 DISTINCT ACCOUNTS, not 63 users (2026-08-17_ai-data-flow-classification.md:129), and AiApiLog can UNDER-RECORD -- ai_api_log.rb:100-102 rescues a failed save and returns an unsaved record, and Flusher.flush_user_logs destroys rows per user on erasure. It is therefore not a complete ledger of egress. Because enabled-since is unrecoverable (Setting carries no version history), the partial-enforcement question cannot be closed definitively; the log shows no pattern of undisclosed calls. Tagged GDPR because the schema's frameworks enum has no EU AI Act value; the governing instrument is EU AI Act Art. 50(1). | adversary: confirmed -- EuJurisdiction/article_50 guard exists only in boards_controller.rb:590-593 and integrations_controller.rb:107-110. Read word_suggestions_controller, words_controller#predict, and eval_sessions_controller#narrate in full; none carries the backstop. | REMEDIATED 2026-08-19: all 5 ingresses guarded (#829, e101628ff) and the coverage spec's file-level scoping gap (Codex review comment 3815352166 on #829) closed with a method-scoped AST rewrite (#831, afdfebee7). Status moved open -> remediated-unverified; closureEvidence populated; attestation left empty for Scot."
     },
     {
       "id": "LL-1e7b568ef3",
@@ -5929,6 +5929,363 @@
         "attestation": ""
       },
       "notes": "Surfaced by adversary finder on 2026-08-18. This finding emerged while independently red-teaming LL-bdc3344942 and LL-94e57af291 during a monthly light /audit-run over PR #805 (not something either original finder was scoped to check; not a finder-domain output, hence domain:adversary on this row rather than one of the six standard finder domains). NOT a claim that any of the ten referencing documents are currently false -- verified at SHA 59f502aa4 all four existing seams (lib/ai_word_predictor.rb:165, lib/ai_prediction_generator.rb:111, lib/ai_board_generator.rb:532, lib/eval_narrator.rb:330) do gate on AiClient.configured? with no direct-client construction, so every document's claim is accurate as of today. The defect is a silent-drift risk: the guard is an allowlist (scripts/ai-endpoint-guard.sh:28-33) rather than a repo-wide scan, so if a NEW file reading ENV['ANTHROPIC_API_KEY'] or constructing Anthropic::Client.new is added later (a plausible event -- this codebase adds AI seams regularly; eval_narrator.rb itself was presumably a past addition to this same list), CI would pass green on it because the new file is simply absent from SEAMS, and nobody would notice the 'no runtime seam constructs a direct client' claim had silently stopped being true anywhere it is repeated. FULL DOCUMENT SURVEY (verified via `git grep -n 'ai-endpoint-guard' -- docs/legal/` at this SHA, cross-checked against audit-reports/DOCUMENT-REGISTER.json for status/attestation -- corrects an earlier draft of this finding that named only 3 of these 10 and was weighted toward two superseded records): CURRENTLY LIVE (6) -- docs/legal/AI_GOVERNANCE_MEMO.md:469 (published, attested 2026-08-04); docs/legal/2026-08-15_incident-response-breach-runbook.md:344,521 (approved, CEO-attested 2026-08-16); docs/legal/2026-08-16_anthropic-baa-acceptance-record.md:139,334 (approved, attested 2026-08-16); docs/legal/2026-08-12_aws-baa-acceptance-record.md:237 (approved, attested 2026-08-12); docs/legal/CAPABILITY_LEDGER.md:35 (published, CI-anchored artifact, not a signed attestation); docs/legal/2026-08-17_ai-data-flow-classification.md:98 (draft, not yet attested). SUPERSEDED (4) -- docs/legal/ANTHROPIC_BAA_ACCEPTED.md:164; docs/legal/AWS_BAA_ACCEPTED.md:183; docs/legal/2026-08-11_aws-baa-acceptance-record.md:203; docs/legal/AI_DATA_FLOW_CLASSIFICATION.md:86. Severity held at medium (not high): today's enforcement is genuinely correct across all ten, and the underlying compensating control (the AWS Bedrock BAA route, plus the fact the Anthropic BAA also remains executed and valid per several of these docs) means a lapse would not itself be an uncovered-disclosure event -- it would be a control-completeness gap discovered later rather than an active violation today. Distinct from LL-bdc3344942/LL-94e57af291 (dormant Gemini mount + unrevoked Anthropic secret): those are about credentials that already exist and are unused; this is about the enforcement mechanism's blind spot for credentials/seams that do not exist yet. No re-attestation is owed by this finding's existence alone -- see remediation."
+    },
+    {
+      "id": "LL-5038e6834e",
+      "ruleKey": "ai-endpoint-guard-residual-lexical-bypass-tail",
+      "title": "ai-endpoint-guard.sh is a lexical scan with a stated residual bypass tail: fully dynamic constant resolution, non-ENV credential reads, and injected clients are undetectable, so the control proves lexical absence rather than egress containment",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/ai-endpoint-guard.sh",
+        "line": 548,
+        "snippet": "FULLY dynamic constant resolution is NOT detected",
+        "sha": "73c4e7d69a332340c60c6f5b506c813fbf3f85cc"
+      },
+      "firstSeen": "2026-08-20",
+      "lastSeen": "2026-08-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Follow-up to PR #834, which closed LL-1189af1b3c's mechanism half by replacing the four-file SEAMS allowlist with a discovered whole-repo scope. Three residuals remain. Two are documented in the guard's own LIMITATIONS block; the injected-client case (3) is stated here for the first time. (1) FULLY dynamic constant resolution: Object.const_get(%w[Anthropic Client].join('::')).new carries no literal vendor token, so no rule fires and the file is not even classified as a seam. Enforcing it was TRIED AND REJECTED during PR #834 -- adding const_get/constantize to the seam markers flags four files doing ordinary Rails metaprogramming (app/models/progress.rb, app/models/webhook.rb, config/initializers/paper_trail.rb, lib/system_email_template_security.rb), and a guard that cries wolf on routine code gets silenced, which costs more than the gap. The SEMI-dynamic const_get(\"Anthropic::Client\") form IS caught via the literal token. (2) Credentials are detected only as ENV reads; a Rails credentials, encrypted-YAML, or Secret Manager fetch is invisible to the credential rule. (3) An injected or dependency-supplied client is undetectable by construction. The durable options, in rough order of value: replace the lexical grep with a Ruby AST pass (parser/prism) that resolves constant paths and call receivers properly; OR add a runtime egress assertion (a test-env HTTP allowlist that fails any non-Bedrock model host); OR accept the residual explicitly and keep the lexical guard as the drift tripwire it is. A wording change IS owed on the docs/legal/ records that credit this guard with an absolute guarantee: docs/legal/2026-08-12_aws-baa-acceptance-record.md:237, docs/legal/2026-08-16_anthropic-baa-acceptance-record.md:139 and :334, docs/legal/AI_GOVERNANCE_MEMO.md:468-469, and docs/legal/2026-08-17_ai-data-flow-classification.md:108 each credit the guard with enforcing that no runtime seam constructs a direct api.anthropic.com client. That is true at HEAD because the four seams were traced BY HAND -- the trace is recorded in LL-1189af1b3c's own notes -- not because a lexical grep can prove it. The guard's own OK line is careful where those records are not: it says an unapproved endpoint is not NAMED in the runtime scope, and that word must survive into anything that quotes it. All four of those files are CEO-attested (2026-08-04, 2026-08-12, 2026-08-16, 2026-08-19), so correcting them is a supersede rather than an edit, and the disposition is Scot's.",
+        "timeframe": "180 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": 834,
+        "promotedDate": "2026-08-20",
+        "reviewer": "claude-adversary-review"
+      },
+      "notes": "Filed by hand as declared follow-up work at the close of PR #834 (merged to staging as 73c4e7d6), not by a finder run. NOT a claim that the control is failing today: PR #834 took the guard from a four-file allowlist to a 610-file discovered scope, added fail-closed behaviour on the guard's own breakage, and added endpoint (base_url) pinning; nine Codex senior-dev passes plus one Claude adversary pass drove that. This row exists because that review series did NOT converge to zero -- each pass kept finding narrower cases -- which is the expected shape of a lexical CI grep, and the honest place to record an open-ended residual is the register rather than an unbounded review loop or silence. Severity low: every residual requires deliberate authorship rather than ordinary drift, the compensating control (the AWS Bedrock BAA route, plus AiClient as the single sanctioned construction point) is unchanged, and lib/ai_client.rb's endpoint pin is independently asserted by spec/lib/ai_client_spec.rb with a hostile ANTHROPIC_BEDROCK_BASE_URL set. Distinct from LL-1189af1b3c, which is about the allowlist mechanism and whose disposition remains Scot's."
+    },
+    {
+      "id": "LL-23675d9ca4",
+      "ruleKey": "ruby-openai-auto-required-into-every-production-process",
+      "title": "ruby-openai sits in the Gemfile :default group with no runtime consumer, so Bundler.require makes OpenAI::Client a live constant in every production web and worker process",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "Gemfile",
+        "line": 109,
+        "snippet": "gem 'ruby-openai', '~> 7.0'",
+        "sha": "73c4e7d69a332340c60c6f5b506c813fbf3f85cc"
+      },
+      "firstSeen": "2026-08-20",
+      "lastSeen": "2026-08-20",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Remove the gem. Its stated purpose in the inline comment is the Gemini fallback via the OpenAI-compatible endpoint, and that route was DISABLED 2026-07-09; there is no consumer left in app/, lib/ or config/ (the only surviving reference is a comment at app/models/ai_api_log.rb). Deleting the line plus a bundle update is the whole change, and it removes a vendor client class from every web and Resque process without touching any live code path. Two second-order effects worth stating: the Gemfile is the one place a direct vendor route actually enters the runtime and is the one place scripts/ai-endpoint-guard.sh structurally cannot look (it scans Ruby source, not dependency manifests); and the guard's AI_REQUIRE_RE seam marker is close to decorative in a Rails app for the same reason -- nobody writes `require 'openai'`, Bundler does. If the gem is retained for a planned future route, say so in the Gemfile comment so the next reader does not have to re-derive that it is dormant.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": 834,
+        "promotedDate": "2026-08-20",
+        "reviewer": "claude-adversary-review"
+      },
+      "notes": "Surfaced by the Claude adversary pass over PR #834 and independently confirmed against the merged tree at 73c4e7d6. Not an egress finding -- nothing calls it -- but a loaded capability and a small attack-surface item: any code execution in a prod container finds the vendor SDK class already resident. It is resident but UNCONFIGURED, which is a stronger bound than the absence of any particular credential mount: OpenAI::Configuration#initialize defaults access_token to nil, and ruby-openai 7.4.0 contains no ENV reference anywhere in its lib/, so no environment variable can arm this gem at all -- doing so requires new code. Load-path note for anyone re-deriving this: `require 'ruby-openai'` raises LoadError (the gem ships no ruby-openai.rb), and Bundler swallows that and retries the dash-to-slash form `require 'ruby/openai'`, which succeeds. The absence of ruby-openai.rb is therefore not evidence that the gem stays unloaded. This is defence-in-depth rather than a live exposure. Related: LL-bdc3344942 and LL-94e57af291 cover the dormant credentials themselves; this covers the dormant SDK."
+    },
+    {
+      "id": "LL-f29ce6ca22",
+      "ruleKey": "art50-memo-asserts-disclosure-modal-gated-off-while-production-flag-is-enabled",
+      "title": "Attested AI Governance Memo states the Article 50 disclosure modal is \"built and staged, gated OFF, not yet enabled for any user\"; the production flag is in fact ENABLED via the default_enabled_features DB Setting",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 261,
+        "snippet": "**built and staged, gated OFF**, not yet enabled for any user",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change. The record is the defect. Attest the successor, which states the enabled-in-production fact and names the resolution path.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. Falsified by a direct audited production read on 2026-08-23. Membership in AVAILABLE_FRONTEND_FEATURES is a CEILING, not the enabled list: SystemFeatureSettings.effective_enabled_for returns the default_enabled_features DB Setting intersected against AVAILABLE (system_feature_settings.rb:9,11), so the DB Setting REPLACES the ENABLED_FRONTEND_FEATURES code constant. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 1), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-ea07a705d1",
+      "ruleKey": "art50-memo-asserts-whole-article-50-path-is-inert",
+      "title": "Attested AI Governance Memo states \"the whole path is inert until the flag is enabled\"; the flag is enabled in production, so the path is not inert",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 269,
+        "snippet": "whole path is inert** until the flag is enabled",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change. Attest the successor.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. Same root cause as the gated-OFF claim: the memo reasons from the code constant rather than from SystemFeatureSettings.effective_enabled_for. \"Inert\" is the operative word an auditor would rely on. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 2), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-644bcbf48f",
+      "ruleKey": "art50-memo-asserts-modal-shown-to-no-one-in-production",
+      "title": "Attested AI Governance Memo section 8 states the Article 50 modal \"is therefore shown to no one in production\"; the stated rationale (flag off) is false",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 427,
+        "snippet": "the modal is therefore shown to no",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change. The successor asserts the rationale is false WITHOUT asserting the modal was displayed; preserve that distinction on attestation.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. The RATIONALE is falsified: the flag is not off. The DISPLAY claim is separately unproven in both directions. The 2026-08-23 probe counted User#article_50_disclosure_shown? (5 of 34 accounts), a settings bit also writable by admin_backfill (app/models/user.rb:1550) and by the edit-permitted acknowledgement endpoint, so it does not establish that the UI rendered. Acknowledgement AuditEvents and UI telemetry were not checked. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 3), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-7784f74447",
+      "ruleKey": "art50-memo-population-scope-claims-no-real-eu-users-in-production",
+      "title": "Attested AI Governance Memo makes an unevidenced population claim (\"because prod carries no real EU users\") load-bearing for deferring the Article 50 gate -- an EVIDENCE-BASIS defect, not a falsified fact",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 274,
+        "snippet": "**because prod carries no real EU users**",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change. Keep the population fact anchored to its dated read rather than restated as a standing property.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. The predecessor offered this only as a forward-looking deferral rationale, with no population read behind it. A 2026-08-23 read found all 34 production accounts are test/QA accounts, which happens to support the conclusion but was not the evidence the predecessor had. An unevidenced population claim load-bearing for a regulatory deferral is the defect, independent of it turning out true. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 4), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding. CLASSIFICATION, clarified 2026-08-25 after review: this row is the one member of this set that is NOT a falsified assertion. The later production read SUPPORTS the underlying population fact. The defect is that the predecessor had no contemporaneous evidentiary basis for a claim doing regulatory work. Describe it as an evidence/provenance finding; do not cite it as a falsity."
+    },
+    {
+      "id": "LL-5f0a016e2b",
+      "ruleKey": "art50-memo-stale-bedrock-runtime-not-operational-claim",
+      "title": "Attested AI Governance Memo states the Bedrock runtime AI path is \"not operational since\" revision 00014-5rw; credentials were re-mounted 53 minutes later and the path carries user-attributed traffic",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 499,
+        "snippet": "no user or student data), not operational since",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change. Attest the three 2026-08-25 successors plus the memo successor together, so the claim is not left corrected in one record and live in another.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. Credentials were re-mounted on revision 00015-9l9 at 2026-08-04T07:25:08Z and have been continuously mounted since (docs/legal/2026-08-16_subprocessor-register.md:99,268); 63 of 64 AiApiLog rows carry a user_global_id (:96). Revision credential mounts are NOT monotonic, so reading one revision does not establish the next. Highest severity of this set: the error UNDERSTATES live AI egress and the same claim class propagated to COMPLIANCE.md (soc2-evidence bundle, public repo root) and AI_DATA_SHARING_CONSENT.md, each now superseded by a 2026-08-25 Path A successor. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 5), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-ce68ceb1b5",
+      "ruleKey": "art50-memo-claims-phase4-helper-un-inerts-eu-log-retention-purge",
+      "title": "Attested AI Governance Memo states the Phase 4 helper \"un-inerts the EU log-retention purge\" which \"now matches jurisdiction = EU rows\"; in production it matches none",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 283,
+        "snippet": "un-inerts the EU log-retention purge",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change required for compliance. Optionally log the matched-row count so a no-op purge is visible rather than inferred.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248). The jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21. The job runs and matches zero rows. This is an ENFORCEMENT overstatement, not a retention violation. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 6), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding. NOTE ON LEGAL BASIS (added 2026-08-25 after review): the predecessor's \"Basis\" column attributes this tier to \"EU AI Act Article 50 record-keeping\". That attribution is INHERITED, not endorsed here, and is flagged as an open question for counsel: Article 50 is the AI Act's transparency provision and nothing in this record establishes that it imposes a five-year AiApiLog retention duty. This correction is scoped to the ENFORCEMENT claim only and takes no position on the legal basis. WINDOW CLAIM, tightened 2026-08-25 after review: the binding fact is the TABLE's age, not the stamp. ai_api_logs was created 2026-02-21 (db/migrate/20260221000001_create_ai_api_logs.rb), so no row can be five years old before 2031-02-21; write-time-stamped rows cannot qualify before 2031-06-21. A backfill or manual UPDATE stamping older rows could make one eligible sooner; no such backfill exists (no update_all touching jurisdiction). The earlier phrasing \"cannot delete any row before 2031-06-21\" was an overstatement. OPERATIVE REASON, added 2026-08-25 after review: the date is not why it matches nothing. The stamp writes 'EU' only for a confirmed :eu user (lib/eu_jurisdiction.rb; :unknown and :non_eu both map to nil), and as of the 2026-08-23 read EuJurisdiction.status is :unknown for 34 of 34 production accounts with jurisdiction null on all 64 AiApiLog rows. Nothing has ever been stamped, so the control is structurally dormant rather than merely date-gated; it does not start working in 2031 by the passage of time. ACCURATE STATEMENT OF THE CONTROL, settled 2026-08-26 after external review challenged an earlier over-claim: the purge is implemented, scheduled daily, and VERIFIED END TO END. spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through EuJurisdiction.retention_stamp (not a literal 'EU'), the resolver writes 'EU', and purge_old_eu_logs! then deletes that row while correctly sparing an :unknown row under the HIPAA six-year fail-safe. It deletes nothing in PRODUCTION for two DATA reasons, not a defect: production has no confirmed :eu user (34 of 34 :unknown at the 2026-08-23 read, jurisdiction null on all 64 rows), and no row is old enough (ai_api_logs created 2026-02-21, so the earliest conceivable match is ~2031-02; a write-time-stamped row cannot match before ~2031-06). What was FALSE in the predecessors is the claim that it 'matches EU rows' in production today. The control itself is sound, and earlier phrasing here calling it 'structurally dormant' was itself an over-claim and is withdrawn."
+    },
+    {
+      "id": "LL-ad67eecb9c",
+      "ruleKey": "art50-memo-describes-disclosure-gate-as-eu-gated-when-it-is-fail-safe-open",
+      "title": "Attested AI Governance Memo describes the deliverable as the \"EU-gated\" disclosure modal; the gate is fail-safe OPEN, so non-EU and unknown-jurisdiction users are also in scope",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/AI_GOVERNANCE_MEMO.md",
+        "line": 260,
+        "snippet": "**EU-gated AI-interaction disclosure modal**",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-25",
+      "lastSeen": "2026-08-25",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No code change; the fail-safe-open behaviour is the correct design. Fix the description.",
+        "timeframe": "with the 2026-08-24 successor"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. EuJurisdiction.disclosure_required? is status(user) != :non_eu, so UNKNOWN resolves to disclosure-required. \"EU-gated\" reads as an allowlist and understates who sees the modal, which matters for any statement about which populations the disclosure reaches. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 7), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-17ec91ff20",
+      "ruleKey": "ai-consent-disclosure-tells-data-subjects-eu-retention-purge-is-enforced-when-it-deletes-nothing",
+      "title": "Live AI consent disclosure attributes the EU AiApiLog retention window to an \"EU AI Act Article 50 record-keeping\" duty this record does not establish",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/lingo_linq/ai_consent_disclosures.rb",
+        "line": 138,
+        "snippet": "'note' => 'Enforced today for accounts in the EU jurisdiction '",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-26",
+      "lastSeen": "2026-08-26",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "NO code change prescribed. Withdrawn: the earlier prescription of 'enforced' => false, which would have misrepresented a working safeguard in the opposite direction. Remaining question is a legal one for counsel: is 'EU AI Act Article 50 record-keeping' the correct basis for the five-year EU AiApiLog window, in a disclosure shown to a data subject? If counsel confirms it, close this row. If counsel replaces it, the note text changes, which is a substantive change and therefore takes a CURRENT_VERSION bump plus human review per ai_consent_disclosures.rb:44-49 -- not an in-place v1 edit.",
+        "timeframe": "counsel question; no ship gate"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "RESCOPED 2026-08-26 after external review, and the original framing is WITHDRAWN. This row first claimed the disclosure tells parents an UNENFORCED control is enforced. That was wrong, and it was the more dangerous error: acting on it would have shipped a v2 disclosure telling parents a WORKING safeguard is NOT enforced. The purge is implemented, scheduled, and verified end to end (spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through the resolver; the row is deleted, an :unknown row is spared). The disclosure's note is also correctly SCOPED -- 'Enforced today for accounts in the EU jurisdiction' -- and for such an account the control is wired end to end. Zero production deletions reflect an absence of eligible DATA (no confirmed :eu user; no row five years old), which is the normal state of any five-year retention rule in a system younger than five years. 'enforced' => true is therefore defensible and NO code change is prescribed.\n\nWHAT SURVIVES, and it is narrower: the same note attributes the window to '(AiApiLog.purge_old_eu_logs!, EU AI Act Article 50 record-keeping)'. Article 50 is the AI Act's transparency provision, and nothing in this repository establishes that it imposes a five-year AiApiLog retention duty. PR #863/#867 reached exactly that conclusion for the document surfaces and flagged the attribution for counsel; the same attribution is asserted here to a DATA SUBJECT in a live consent disclosure served by app/controllers/ai_consent/disclosures_controller.rb:29. Stating a legal basis to a parent is a stronger act than stating one to an auditor.\n\nSEVERITY IS CONTESTED AND NEEDS SCOT'S TRIAGE. It was set High for the withdrawn claim. On the surviving legal-basis scope it is plausibly Medium or lower, and it may be closed outright if counsel confirms the attribution. Only Scot downgrades or closes, so it is left at High and flagged rather than quietly reduced.\n\nIF a change is eventually made, the mechanism is still governed by the module's own contract (ai_consent_disclosures.rb:44-49: a substantive change 'should prompt a CURRENT_VERSION bump', paired with human review), because a consent record persists disclosures_version as an integer and not content_hash, so an in-place v1 edit would silently rewrite what prior consenters were shown."
+    },
+    {
+      "id": "LL-db6bc3e568",
+      "ruleKey": "attested-data-retention-schedule-describes-eu-purge-as-enforced-and-now-functional",
+      "title": "Attested Data Retention Schedule states the EU AiApiLog purge \"matches EU rows wherever Phase 4 is deployed\"; in production it matches none",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/DATA_RETENTION.md",
+        "line": 33,
+        "snippet": "Up to 5 years, **enforced**",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-26",
+      "lastSeen": "2026-08-26",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No edit possible: DOC-bff9acf51f is attested and Path-A frozen. Its successor docs/legal/2026-08-09_data-retention_draft.md (DOC-e62caf7fb9, unattested draft) WAS corrected in PR #863 and now carries the full account. Closure is Scot attesting that successor. Listed here so the carrier is tracked rather than only named in prose.",
+        "timeframe": "with the attestation of DOC-e62caf7fb9"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-26. Found by adversary review of PR #863 round 5. Low blast radius -- the row is status:superseded with bundles: [], so it does not travel in security-review, school-dpa-package, dsar or soc2-evidence -- but it is an ATTESTED record asserting an enforcement claim that PR #863 registers as false elsewhere, and it appeared in no successor's scope statement and none of the seven round-5 findings. The memo names it at :694; the register did not, until this row. ACCURATE STATEMENT OF THE CONTROL, settled 2026-08-26 after external review challenged an earlier over-claim: the purge is implemented, scheduled daily, and VERIFIED END TO END. spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through EuJurisdiction.retention_stamp (not a literal 'EU'), the resolver writes 'EU', and purge_old_eu_logs! then deletes that row while correctly sparing an :unknown row under the HIPAA six-year fail-safe. It deletes nothing in PRODUCTION for two DATA reasons, not a defect: production has no confirmed :eu user (34 of 34 :unknown at the 2026-08-23 read, jurisdiction null on all 64 rows), and no row is old enough (ai_api_logs created 2026-02-21, so the earliest conceivable match is ~2031-02; a write-time-stamped row cannot match before ~2031-06). What was FALSE in the predecessors is the claim that it 'matches EU rows' in production today. The control itself is sound, and earlier phrasing here calling it 'structurally dormant' was itself an over-claim and is withdrawn."
     }
   ]
 }

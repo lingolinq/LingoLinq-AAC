@@ -11,6 +11,7 @@ import { schedule, debounce, cancel } from '@ember/runloop';
 import persistence from '../utils/persistence';
 import {
   filterBoardsPageTopLevelRoots,
+  filterRootBoards,
   dedupeByName,
   boardsPagePreferUserNames,
   sortByNameNatural
@@ -56,18 +57,6 @@ export default Component.extend({
   // Each holds { state: 'loading' | 'loaded' | 'error', boards: [...] }.
   quick_core_group: null,
   vocal_flair_group: null,
-  // Hardcoded placeholder cards shown in the Keyboards category — an
-  // alphabetic and a QWERTY keyboard preview. Static (no real board yet);
-  // rendered as styled board cards in board-picker.hbs. computed() so i18n is
-  // resolved on first access rather than at class-definition time.
-  keyboard_placeholders: computed(function() {
-    return [
-      { id: 'alphabetic', name: i18n.t('alphabetic_keyboard', "Alphabetic Keyboard"),
-        rows: [['A', 'B', 'C', 'D', 'E'], ['F', 'G', 'H', 'I', 'J'], ['K', 'L', 'M', 'N', 'O']] },
-      { id: 'qwerty', name: i18n.t('qwerty_keyboard', "QWERTY Keyboard"),
-        rows: [['Q', 'W', 'E', 'R', 'T'], ['A', 'S', 'D', 'F', 'G'], ['Z', 'X', 'C', 'V', 'B']] }
-    ];
-  }),
   willInsertElement: function() {
     if(this.get('include_mine')) {
       this.send('set_category', 'mine');
@@ -224,7 +213,7 @@ export default Component.extend({
       return false;
     }
     var category = this.get('category');
-    if (!category || category.keyboards) {
+    if (!category) {
       return false;
     }
     if (this.get('robust_tabbed')) {
@@ -315,11 +304,53 @@ export default Component.extend({
     if (!rec) { return 0; }
     return typeof rec.get === 'function' ? (rec.get('length') || 0) : (rec.length || 0);
   },
-  /** Root tiles only, one row per display name, then A–Z (numeric-aware). */
-  _preparePickerBoardList: function(boards) {
+  /* Category loads share one `category_boards` list. Switching tabs does not
+     cancel in-flight queries, so each async writer must ignore results from a
+     load that is no longer current — otherwise All Available can paint into
+     Cause and Effect (and the reverse). All Available keeps its own load id so
+     the first fetch can finish in the background and be reused when the user
+     returns to that tab. */
+  _nextBoardsLoadId: function() {
+    this._boards_load_id = (this._boards_load_id || 0) + 1;
+    return this._boards_load_id;
+  },
+  _isStaleBoardsLoad: function(loadId, expectedCategory) {
+    if (this.isDestroyed || this.isDestroying) { return true; }
+    if (loadId !== this._boards_load_id) { return true; }
+    if (expectedCategory && this.get('current_category') !== expectedCategory) { return true; }
+    return false;
+  },
+  _isStaleAvailableLoad: function(loadId) {
+    if (this.isDestroyed || this.isDestroying) { return true; }
+    return loadId !== this._available_load_id;
+  },
+  _availableSnapshotForCurrentUser: function() {
+    var snap = this._available_snapshot;
+    if (!snap || !snap.boards || snap.boards.loading || snap.boards.error) { return null; }
+    if (snap.userId !== this._subjectBoardUserId()) { return null; }
+    return snap;
+  },
+  _availableLoadInFlight: function() {
+    if (this._availableSnapshotForCurrentUser()) { return false; }
+    if (!this._available_load_id) { return false; }
+    return !this._available_mine_done || !this._available_public_initial_done;
+  },
+  _restoreAvailableSnapshot: function(snap) {
+    this.set('category_boards', snap.boards);
+    this.set('public_boards_has_more', !!snap.has_more);
+    this.set('public_boards_loading_more', false);
+    this._public_boards_next_offset = snap.next_offset;
+  },
+  /* Mine / All Available: root tiles only (brand-set sub-pages dropped), one
+     row per display name, then A–Z. Tagged category tabs skip the brand-root
+     filter so a public home-board keyboard such as `vocal-flair-112-keyboard`
+     can appear in Keyboards even though it is not a brand-set root. */
+  _preparePickerBoardList: function(boards, options) {
     var subjectId = this._subjectBoardUserId();
-    var roots = filterBoardsPageTopLevelRoots(boards || [], subjectId);
-    var deduped = dedupeByName(roots, {
+    var list = (options && options.keepCategoryTagged)
+      ? filterRootBoards(boards || [], subjectId)
+      : filterBoardsPageTopLevelRoots(boards || [], subjectId);
+    var deduped = dedupeByName(list, {
       preferUserNames: boardsPagePreferUserNames(this.appState)
     });
     return sortByNameNatural(deduped);
@@ -329,8 +360,9 @@ export default Component.extend({
    * Order: subject’s starred public in category → supervisor’s starred public in category (if different user)
    * → popular public boards tagged with that category. Empty categories show "None found".
    */
-  _resolveCategoryBoards: function(categoryId) {
+  _resolveCategoryBoards: function(categoryId, loadId) {
     var _this = this;
+    if (loadId == null) { loadId = _this._boards_load_id; }
     var subjectId = _this._subjectBoardUserId();
     var supervisorId = _this.appState.get('currentUser.id');
 
@@ -354,11 +386,13 @@ export default Component.extend({
     }
 
     return starredQuery(subjectId).then(function(data) {
+      if (_this._isStaleBoardsLoad(loadId, categoryId)) { return null; }
       if (_this._recordLength(data) > 0) {
         return data;
       }
       if (supervisorId && subjectId !== supervisorId) {
         return starredQuery(supervisorId).then(function(data2) {
+          if (_this._isStaleBoardsLoad(loadId, categoryId)) { return null; }
           if (_this._recordLength(data2) > 0) {
             return data2;
           }
@@ -367,12 +401,15 @@ export default Component.extend({
       }
       return publicCategorized();
     }).then(function(boards) {
-      _this.set('category_boards', _this._preparePickerBoardList(boards));
+      if (_this._isStaleBoardsLoad(loadId, categoryId) || boards == null) { return; }
+      _this.set('category_boards', _this._preparePickerBoardList(boards, { keepCategoryTagged: true }));
     }).catch(function() {
+      if (_this._isStaleBoardsLoad(loadId, categoryId)) { return; }
       _this.set('category_boards', { error: true });
     });
   },
-  _refreshAvailableBoardsDisplay: function() {
+  _refreshAvailableBoardsDisplay: function(loadId) {
+    if (this._isStaleAvailableLoad(loadId)) { return; }
     if (!this._available_mine_done || !this._available_public_initial_done) {
       return;
     }
@@ -380,33 +417,46 @@ export default Component.extend({
     var pub = this._available_public_accumulated || [];
     var combined = mine.slice();
     pub.forEach(function(b) { if (b) { combined.push(b); } });
-    this.set('category_boards', this._preparePickerBoardList(combined));
+    var boards = this._preparePickerBoardList(combined);
+    this._available_snapshot = {
+      userId: this._subjectBoardUserId(),
+      boards: boards,
+      has_more: !!this.get('public_boards_has_more'),
+      next_offset: this._public_boards_next_offset
+    };
+    if (this.get('current_category') === 'available_boards') {
+      this.set('category_boards', boards);
+    }
   },
-  _loadAvailableBoards: function() {
+  _loadAvailableBoards: function(loadId) {
     var _this = this;
+    if (loadId == null) { loadId = _this._available_load_id; }
     this.set('public_boards_has_more', false);
     this.set('public_boards_loading_more', false);
     this._public_boards_next_offset = null;
+    this._available_snapshot = null;
     this._available_mine_accumulated = [];
     this._available_public_accumulated = [];
     this._available_mine_done = false;
     this._available_public_initial_done = false;
-    this._loadAvailableMinePages();
-    this._loadAvailablePublicPage(null);
+    this._loadAvailableMinePages(null, null, null, loadId);
+    this._loadAvailablePublicPage(null, loadId);
   },
-  _loadAvailableMinePages: function(userId, offset, accumulated) {
+  _loadAvailableMinePages: function(userId, offset, accumulated, loadId) {
     var _this = this;
+    if (loadId == null) { loadId = _this._available_load_id; }
+    if (_this._isStaleAvailableLoad(loadId)) { return; }
     userId = userId || _this._subjectBoardUserId();
     if (!userId) {
       _this._available_mine_done = true;
-      _this._refreshAvailableBoardsDisplay();
+      _this._refreshAvailableBoardsDisplay(loadId);
       return;
     }
     var nextAcc = accumulated ? accumulated.slice() : [];
     var args = { user_id: userId, include_shared: 1, sort: 'home_popularity', per_page: 50 };
     if (offset != null) { args.offset = offset; }
     LingoLinq.store.query('board', args).then(function(data) {
-      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if (_this._isStaleAvailableLoad(loadId)) { return; }
       if (data && data.forEach) {
         data.forEach(function(b) { if (b) { nextAcc.push(b); } });
       }
@@ -414,27 +464,29 @@ export default Component.extend({
       var meta = null;
       try { meta = persistence.meta('board', data); } catch (e) { meta = null; }
       if (meta && meta.more) {
-        _this._loadAvailableMinePages(userId, meta.next_offset, nextAcc);
+        _this._loadAvailableMinePages(userId, meta.next_offset, nextAcc, loadId);
       } else {
         _this._available_mine_done = true;
-        _this._refreshAvailableBoardsDisplay();
+        _this._refreshAvailableBoardsDisplay(loadId);
       }
     }).catch(function() {
-      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if (_this._isStaleAvailableLoad(loadId)) { return; }
       _this._available_mine_accumulated = nextAcc;
       _this._available_mine_done = true;
-      _this._refreshAvailableBoardsDisplay();
+      _this._refreshAvailableBoardsDisplay(loadId);
     });
   },
-  _loadAvailablePublicPage: function(offset) {
+  _loadAvailablePublicPage: function(offset, loadId) {
     var _this = this;
+    if (loadId == null) { loadId = _this._available_load_id; }
+    if (_this._isStaleAvailableLoad(loadId)) { return; }
     var args = { public: true, sort: 'home_popularity', per_page: 24 };
     if (offset != null) { args.offset = offset; }
     if (offset != null) {
       _this.set('public_boards_loading_more', true);
     }
     LingoLinq.store.query('board', args).then(function(data) {
-      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if (_this._isStaleAvailableLoad(loadId)) { return; }
       var next = (_this._available_public_accumulated || []).slice();
       if (data && data.forEach) {
         data.forEach(function(b) { if (b) { next.push(b); } });
@@ -443,35 +495,39 @@ export default Component.extend({
       if (offset == null) {
         _this._available_public_initial_done = true;
       }
-      _this._refreshAvailableBoardsDisplay();
       _this.set('public_boards_loading_more', false);
       var meta = null;
       try { meta = persistence.meta('board', data); } catch (e) { meta = null; }
       _this.set('public_boards_has_more', !!(meta && meta.more));
       _this._public_boards_next_offset = (meta && meta.more) ? meta.next_offset : null;
+      _this._refreshAvailableBoardsDisplay(loadId);
     }).catch(function() {
-      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if (_this._isStaleAvailableLoad(loadId)) { return; }
       _this.set('public_boards_loading_more', false);
       if (offset == null) {
         _this._available_public_initial_done = true;
       }
-      _this._refreshAvailableBoardsDisplay();
+      _this._refreshAvailableBoardsDisplay(loadId);
     });
   },
-  _loadMyBoardRoots: function() {
+  _loadMyBoardRoots: function(loadId) {
+    if (loadId == null) { loadId = this._boards_load_id; }
+    if (this._isStaleBoardsLoad(loadId, 'mine')) { return; }
     var userId = this._subjectBoardUserId();
     if (!userId) {
       this.set('category_boards', { error: true });
       return;
     }
-    this._loadMyBoardRootsPage(userId, null, []);
+    this._loadMyBoardRootsPage(userId, null, [], loadId);
   },
-  _loadMyBoardRootsPage: function(userId, offset, accumulated) {
+  _loadMyBoardRootsPage: function(userId, offset, accumulated, loadId) {
     var _this = this;
+    if (loadId == null) { loadId = _this._boards_load_id; }
+    if (_this._isStaleBoardsLoad(loadId, 'mine')) { return; }
     var args = { user_id: userId, include_shared: 1, sort: 'home_popularity', per_page: 50 };
     if (offset != null) { args.offset = offset; }
     LingoLinq.store.query('board', args).then(function(data) {
-      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if (_this._isStaleBoardsLoad(loadId, 'mine')) { return; }
       var next = accumulated.slice();
       if (data && data.forEach) {
         data.forEach(function(b) { if (b) { next.push(b); } });
@@ -480,10 +536,10 @@ export default Component.extend({
       var meta = null;
       try { meta = persistence.meta('board', data); } catch (e) { meta = null; }
       if (meta && meta.more) {
-        _this._loadMyBoardRootsPage(userId, meta.next_offset, next);
+        _this._loadMyBoardRootsPage(userId, meta.next_offset, next, loadId);
       }
     }).catch(function() {
-      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if (_this._isStaleBoardsLoad(loadId, 'mine')) { return; }
       if (accumulated && accumulated.length) {
         _this.set('category_boards', _this._preparePickerBoardList(accumulated));
       } else {
@@ -524,27 +580,49 @@ export default Component.extend({
       this.set('compact_boards', !!compact);
     },
     set_category: function(str) {
+      var alreadyShowing = this.get('current_category') === str;
+      var shown = this.get('category_boards');
+      if (alreadyShowing && shown && !shown.loading && !shown.error) {
+        return;
+      }
       var res = {};
       res[str] = true;
       this.set('current_category', str);
       this.set('category', res);
       this.set('show_category_explainer', false);
       this.set('boardSearchQuery', '');
-      this.set('public_boards_has_more', false);
-      this.set('public_boards_loading_more', false);
-      this.set('category_boards', {loading: true});
       this._scheduleExplainOverflowCheck();
       var _this = this;
       if(str == 'available_boards') {
-        _this._loadAvailableBoards();
-      } else if(str == 'mine') {
-        _this._loadMyBoardRoots();
+        var snap = _this._availableSnapshotForCurrentUser();
+        if (snap) {
+          _this._restoreAvailableSnapshot(snap);
+          _this._nextBoardsLoadId();
+          return;
+        }
+        _this.set('public_boards_has_more', false);
+        _this.set('public_boards_loading_more', false);
+        _this.set('category_boards', {loading: true});
+        _this._nextBoardsLoadId();
+        if (_this._availableLoadInFlight()) {
+          return;
+        }
+        _this._available_load_id = (_this._available_load_id || 0) + 1;
+        _this._loadAvailableBoards(_this._available_load_id);
+        return;
+      }
+      _this.set('public_boards_has_more', false);
+      _this.set('public_boards_loading_more', false);
+      _this.set('category_boards', {loading: true});
+      var loadId = _this._nextBoardsLoadId();
+      if(str == 'mine') {
+        _this._loadMyBoardRoots(loadId);
       } else if(_this.get('tabbed') && str == 'robust') {
         // Setup Robust Vocabularies renders the Quick Core / Vocal Flair
         // brand cards instead of the flat category grid.
         _this._loadBrandGroups();
       } else {
-        _this._resolveCategoryBoards(str);
+        _this._resolveCategoryBoards(str, loadId);
       }
     },
     load_more_public_boards: function(ev) {
@@ -554,7 +632,7 @@ export default Component.extend({
       if (!this.get('public_boards_has_more') || this.get('public_boards_loading_more')) {
         return;
       }
-      this._loadAvailablePublicPage(this._public_boards_next_offset);
+      this._loadAvailablePublicPage(this._public_boards_next_offset, this._available_load_id);
     },
     clear_board_search: function(ev) {
       if (ev && ev.preventDefault) {
@@ -580,10 +658,14 @@ export default Component.extend({
     },
     more_for_category: function() {
       var _this = this;
+      var loadId = _this._boards_load_id;
+      var categoryId = _this.get('current_category');
       _this.set('more_category_boards', {loading: true});
-      LingoLinq.store.query('board', {public: true, sort: 'home_popularity', per_page: 9, category: this.get('current_category')}).then(function(data) {
-        _this.set('more_category_boards', _this._preparePickerBoardList(data));
+      LingoLinq.store.query('board', {public: true, sort: 'home_popularity', per_page: 9, category: categoryId}).then(function(data) {
+        if (_this._isStaleBoardsLoad(loadId, categoryId)) { return; }
+        _this.set('more_category_boards', _this._preparePickerBoardList(data, { keepCategoryTagged: true }));
       }, function(err) {
+        if (_this._isStaleBoardsLoad(loadId, categoryId)) { return; }
         _this.set('more_category_boards', {error: true});
       });
     },

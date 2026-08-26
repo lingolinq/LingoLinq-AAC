@@ -359,7 +359,7 @@ describe JsonApi::User do
           'org_sponsored' => true
         })
         
-        o.remove_user(u.user_name)
+        o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
         u.reload
         u.settings['subscription']['started'] = 6.months.ago.iso8601
         u.settings['subscription']['plan_id'] = 'monthly_6'
@@ -810,7 +810,7 @@ describe JsonApi::User do
         hash = JsonApi::User.build_json(u, permissions: u)
         expect(hash['organizations'].length).to eq(1)
         
-        o.remove_user(u.user_name)
+        o.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
         Worker.process_queues
         u.reload
         hash = JsonApi::User.build_json(u, permissions: u)
@@ -824,7 +824,7 @@ describe JsonApi::User do
         o2.add_user(u.user_name, true)
         o2.reload
         u.reload
-        o2.remove_user(u.user_name)
+        o2.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
         Worker.process_queues
         u.reload
         hash = JsonApi::User.build_json(u, permissions: u)

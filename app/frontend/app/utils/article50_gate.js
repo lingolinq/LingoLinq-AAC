@@ -11,9 +11,14 @@ import i18n from './i18n';
  *
  * FEATURE FLAG SCOPE (important): this module only READS
  * feature_flags.article_50_disclosure. Registering that flag in
- * AVAILABLE_FRONTEND_FEATURES is Phase 5 (RLL-01), out of scope here. Because
- * the flag is not registered yet on this branch, needsAcknowledgement returns
- * false everywhere -- the intended inert state until the 2026-08-02 enable gate.
+ * AVAILABLE_FRONTEND_FEATURES was Phase 5 (RLL-01). CORRECTED 2026-08-25: that
+ * registration HAS landed (lib/feature_flags.rb), and production additionally
+ * enables the flag through the default_enabled_features DB Setting, verified by
+ * direct read 2026-08-23. So needsAcknowledgement does NOT return false
+ * everywhere -- it is live. An earlier version of this comment said the flag
+ * "is not registered yet on this branch" and described an "intended inert
+ * state"; both were false of the running system. See
+ * docs/legal/2026-08-23_article-50-production-flag-verification.md.
  */
 
 /**

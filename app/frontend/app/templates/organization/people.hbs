@@ -129,7 +129,7 @@
                 <img src={{user.avatar_url}} class="md-org-user-row__avatar" alt="">
                 <span class="md-org-user-row__name">
                   {{user.user_name}}
-                  {{#if this.model.permissions.manage}}<em class="md-org-user-row__real-name">{{user.name}}</em>{{/if}}
+                  {{#if this.model.permissions.manage}}<em class="md-org-user-row__real-name">{{display-name user}}</em>{{/if}}
                 </span>
                 {{#if user.org_pending}}
                   <span class="md-chip md-chip--soft">{{t "(pending)" key="pending_paren"}}</span>

@@ -181,8 +181,14 @@ module Relinking
         if btn_trans[new_default_locale]
           anything_translated = true
           btn['label'] = btn_trans[new_default_locale]['label']
-          btn['vocalization'] = btn_trans[new_default_locale]['vocalization']
-          btn.delete('vocalization') if !btn['vocalization']
+          # ':suggestion', '+q', ':shift', ':space' are ACTIONS, not words. They have no
+          # translation, so the new locale's entry never carries one and this assignment
+          # would delete the action — a locale switch on a copied set would leave every
+          # keyboard key and prediction slot inert. Left as authored instead.
+          unless btn['vocalization'].to_s.match(/^[:+]/)
+            btn['vocalization'] = btn_trans[new_default_locale]['vocalization']
+            btn.delete('vocalization') if !btn['vocalization']
+          end
           btn['inflections'] = btn_trans[new_default_locale]['inflections']
           btn.delete('inflections') if !btn['inflections']
         end

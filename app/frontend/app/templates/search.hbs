@@ -25,7 +25,7 @@
           </nav>
           <SearchBoardJump
             @query={{this.searchString}}
-            @onQueryChange={{mut this.searchString}}
+            @onQueryChange={{this.ctrlAction "updateSearchString"}}
             @sections={{this.jump_sections}}
             @onSelect={{this.ctrlAction "select_preview_board"}} />
           <div class="ub-search-page__locale-wrap">

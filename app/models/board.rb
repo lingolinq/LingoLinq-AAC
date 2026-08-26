@@ -23,6 +23,14 @@ class Board < ApplicationRecord
   # When a board used as home/sidebar by more users than this, cleanup runs in a background job
   # to avoid blocking board destruction and request timeouts on popular public boards.
   HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD = 25
+  # Symbol libraries that opensymbols AGGREGATES. An image already sourced from one of
+  # these is effectively an opensymbols image, so a swap whose target is 'opensymbols'
+  # should leave it in place rather than spending a per-word remote lookup to fetch a
+  # near-identical replacement. Named (not inlined) because this list is used in two
+  # places and a typo in the sibling 'opensymbols' literal silently disabled the
+  # swap_images skip below for three years.
+  OPENSYMBOLS_LIBRARY = 'opensymbols'
+  OPENSYMBOLS_MEMBER_LIBRARIES = ['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].freeze
   include Processable
   include Permissions
   include Async
@@ -1128,6 +1136,7 @@ class Board < ApplicationRecord
   def save_without_post_processing
     @skip_post_process = true
     self.save
+  ensure
     @skip_post_process = false
   end
 
@@ -2657,7 +2666,15 @@ class Board < ApplicationRecord
             @buttons_changed = 'translated'
           end
         end
-        if button['vocalization'] && translations[button['vocalization']]
+        # A vocalization beginning ':' or '+' is an ACTION, not a word — ':suggestion' marks a
+        # word-prediction slot, '+q' appends a letter, ':shift'/':space' do what they say. It
+        # has no translation in any language, so it is neither translated nor (the damaging
+        # half) DELETED when no translation is found. Without this guard, translating a set
+        # with fallbacks on stripped every keyboard key and prediction slot from every board
+        # in it, permanently and with no error.
+        if button['vocalization'].to_s.match(/^[:+]/)
+          # leave it exactly as authored
+        elsif button['vocalization'] && translations[button['vocalization']]
           self.settings['translations'][button['id'].to_s] ||= {}
           self.settings['translations'][button['id'].to_s][source_lang] ||= {}
           self.settings['translations'][button['id'].to_s][source_lang]['vocalization'] ||= button['vocalization']
@@ -2788,8 +2805,8 @@ class Board < ApplicationRecord
         res = 'opensymbols'
         self.known_button_images.each do |bi|
           lib = bi.image_library || 'unknown'
-          if ['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].include?(lib)
-            votes['opensymbols'] = (votes['opensymbols'] || 0) + 1
+          if OPENSYMBOLS_MEMBER_LIBRARIES.include?(lib)
+            votes[OPENSYMBOLS_LIBRARY] = (votes[OPENSYMBOLS_LIBRARY] || 0) + 1
           end            
           if lib != 'unknown'
             votes[lib] = (votes[lib] || 0) + 1
@@ -2813,6 +2830,20 @@ class Board < ApplicationRecord
     end
     'opensymbols'
   end
+
+  # Completeness flag, NOT the copy-idempotency key. swapped_library tells
+  # User#copy_to_home_board / copy_board_to_library "this copy already targeted
+  # that library, do not copy_for again". swap_incomplete tells the same
+  # methods to re-run swap_images on THIS board. Do not withhold
+  # swapped_library to mean "retry": a nil marker is a library mismatch and
+  # mints a second board set.
+  def assign_swap_incomplete!(unresolved)
+    if unresolved
+      self.settings['swap_incomplete'] = true
+    else
+      self.settings.delete('swap_incomplete')
+    end
+  end
   
   def swap_images(library, author, board_ids, user_local_id=nil, visited_board_ids=[], updated_board_ids=[])
     author = User.find_by_global_id(author) if author && author.is_a?(String)
@@ -2833,6 +2864,7 @@ class Board < ApplicationRecord
       swap_board = self.copy_for(@sub_global, skip_save: true, skip_user_update: true)
     end
     is_root = visited_board_ids.blank?
+    library.instance_variable_set('@had_unresolved', false) if is_root
     # puts "SWAPPING FOR #{self.key} #{is_root}"
     cache = library.instance_variable_get('@library_cache')
     cache ||= LibraryCache.find_or_create_by(library: library, locale: swap_board.settings['locale'] || 'en')
@@ -2840,7 +2872,9 @@ class Board < ApplicationRecord
     cache.instance_variable_set('@ease_saving', true) if is_root
     if (board_ids.blank? || board_ids.include?(swap_board_id) || (copy_id && swap_board.settings['copy_id'] == copy_id))
       updated_board_ids << swap_board_id
-      if !library.instance_variable_get('@skip_swapped') || swap_board.current_library(true) != library
+      already_in_library = false
+      unresolved = false
+      if !library.instance_variable_get('@skip_swapped') || swap_board.current_library(true) != library || swap_board.settings['swap_incomplete']
         # puts " checking if important"
         words = swap_board.buttons.map{|b| [b['label'], b['vocalization']] }.flatten.compact.uniq
         # Important boards (i.e. boards that show up in the suggested list), should
@@ -2870,8 +2904,14 @@ class Board < ApplicationRecord
             # JSON bundle / migration import — keep exported image
           elsif old_bi && old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
             # puts "SAFE PIC"
-          elsif library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (['arasaac', 'twemoji', 'noun-project', 'sclera', 'mulberry', 'tawasol'].include?(old_bi.image_library) && library == 'opensybmols'))
+          # `old_bi &&` matches the two guards above: known_button_images only returns
+          # images it can find, so a button whose image_id points at a deleted
+          # ButtonImage leaves old_bi nil, and calling nil.image_library here aborted
+          # the entire swap. A nil now falls through to the lookup below and the
+          # button gets a fresh image, which is the right outcome for a dangling ref.
+          elsif old_bi && library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (OPENSYMBOLS_MEMBER_LIBRARIES.include?(old_bi.image_library) && library == OPENSYMBOLS_LIBRARY))
             # puts "ALREADY SWAPPED"
+            already_in_library = true
           elsif false
             # TODO: create or find an alternate version of the button_image that
             # uses the library_alternates version as the fault and puts the current default
@@ -2894,6 +2934,18 @@ class Board < ApplicationRecord
               new_bi.assert_fallback(old_bi)
               button['image_id'] = new_bi.global_id
               @buttons_changed = 'swapped images'
+            else
+              # Nothing resolved for this button. OpenSymbols.search returns [] on a
+              # 429, on any non-2xx, and on its 10s timeout. find_images caches that
+              # empty result as a miss when cache_forever is set (uploader.rb:1015),
+              # and LibraryCache#find_words returns it with no expiry check
+              # (library_cache.rb:208-210). The 6.months.from_now stamp on added only
+              # stops add_missing_word from refreshing; it does not age the miss out.
+              # Flag the board so copy consumers re-run swap_images in place. Still
+              # record swapped_library: withholding it is a library mismatch and
+              # mints a new board set (user.rb:3065, 3088, 3095).
+              unresolved = true
+              library.instance_variable_set('@had_unresolved', true)
             end
           end
           button
@@ -2905,8 +2957,24 @@ class Board < ApplicationRecord
       if @buttons_changed
         swap_board.settings['buttons'] = buttons
         swap_board.settings['swapped_library'] = library
+        swap_board.assign_swap_incomplete!(unresolved)
         @map_later = true
-        swap_board.save 
+        swap_board.save
+      elsif already_in_library
+        # No-op because eligible buttons were already in the target library (the
+        # OPENSYMBOLS_MEMBER_LIBRARIES skip above). Always record swapped_library:
+        # that field is the copy-idempotency key, not a completeness flag.
+        # swap_incomplete (set when unresolved) is what lets a later
+        # copy_to_home_board re-run swap_images on THIS board. save_subtly because
+        # no button content changed: this must not read as an edit or trigger a
+        # buttonset / image reprocess.
+        library_changed = swap_board.settings['swapped_library'] != library
+        incomplete_changed = !!swap_board.settings['swap_incomplete'] != unresolved
+        if library_changed || incomplete_changed
+          swap_board.settings['swapped_library'] = library
+          swap_board.assign_swap_incomplete!(unresolved)
+          swap_board.save_subtly
+        end
       end
       PaperTrail.request.whodunnit = whodunnit
     else
@@ -2926,7 +2994,19 @@ class Board < ApplicationRecord
     end
     if is_root
       cache.instance_variable_set('@ease_saving', false)
-      cache.save_if_added 
+      cache.save_if_added
+      # Root is saved before children run. Bubble descendant unresolved so
+      # copy_to_home_board, which only inspects the home root, still retries.
+      # Only persist when this board already recorded swapped_library: a
+      # found-nothing swap must remain a no-op (board_spec "should do nothing
+      # when no images found"). Stamping swap_incomplete alone would also
+      # call save_subtly, and a raise inside that window used to leave
+      # PaperTrail disabled for the rest of the process.
+      tree_incomplete = !!library.instance_variable_get('@had_unresolved')
+      if swap_board.settings['swapped_library'] == library && (!!swap_board.settings['swap_incomplete'] != tree_incomplete)
+        swap_board.assign_swap_incomplete!(tree_incomplete)
+        swap_board.save_subtly
+      end
     end
     {done: true, id: swap_board.global_id, library: library, board_ids: board_ids, visited: visited_board_ids.uniq, updated: updated_board_ids.uniq}
   end  

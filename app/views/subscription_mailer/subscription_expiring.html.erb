@@ -4,11 +4,11 @@ the card failed multiple times or the account was manually canceled, or somethin
 unexpected occurred.<br/><br/>
 
 To address this problem please 
-<a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">update your billing settings in <%= app_name %></a>.<br/><br/>
+<a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">update your billing settings in <%= app_name %></a>.<br/><br/>
 
 If you need more time on your trial or think this message was sent in error, please let us know
 and we'll help get to the bottom of things. Just 
-<a href="<%= JsonApi::Json.current_host %>/contact">contact us</a>
+<a href="<%= JsonApi::Json.absolute_host %>/contact">contact us</a>
 to make a request.<br/><br/>
 
 Thanks!<br/>

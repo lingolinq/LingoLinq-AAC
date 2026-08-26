@@ -44196,7 +44196,32 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 
   max-width: 100% !important;
 
+  /* `clip`, not `hidden` — this governs whether `position: sticky` works ANYWHERE
+     inside the shell. Per CSS spec an `overflow` of `hidden` on one axis makes the
+     other compute to `auto`, so `overflow-x: hidden` silently turned .md-shell into
+     a scrolling box on Y (verified in-browser: computed overflowY "auto", with
+     scrollHeight === clientHeight === 2138 — it never actually scrolls). Sticky
+     binds to the nearest scrolling box, so every sticky element on a shell page was
+     pinned inside a scrollport that never moves, and rendered at its natural offset:
+     inert. `clip` still prevents horizontal overflow but does NOT establish a scroll
+     container, so overflow-y stays `visible` and sticky resolves against the real
+     scroller (#content).
+
+     Two declarations on purpose: `clip` is unsupported before Safari 16, where the
+     second line is dropped as invalid and the first still contains horizontal
+     overflow. Those browsers keep the old (sticky-inert) behaviour rather than
+     losing containment and gaining a horizontal scrollbar.
+
+     Was previously scoped to `#content:has(.md-preferences) .md-shell--user` while
+     the global change awaited a regression pass; the narrow override is removed.
+     `scripts/md-shell-sticky-qa.mjs` covers 7 routes across 5 viewports. That is
+     NOT every `.md-shell--*` variant — there are ~25 — so read it as the routes
+     actually exercised, not as a whole-app clearance. The first version of that
+     harness ran a single 1280x800 viewport and reported this green while it was
+     cancelled outright below 1024px (see the companion `clip` in the ≤1024
+     scroll-guard block, ~60656); one viewport could not see it. */
   overflow-x: hidden !important;
+  overflow-x: clip !important;
 
   padding-top: 3rem !important;
 
@@ -44251,6 +44276,9 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      against #content's top padding and overflow. */
   min-height: 0 !important;
 }
+/* (The preferences-only `overflow-x: clip` override that used to live here is
+   gone — the fix is now on `.md-shell` itself, with a `hidden` fallback for
+   pre-16 Safari. See the comment on that rule.) */
 
 .md-workspace {
   max-width: min(1200px, calc(100% - 24px)) !important;
@@ -49268,7 +49296,18 @@ a.md-goal-nav-action:hover,
    open and the parent grows to fit. */
 .md-preferences .bound-select__list,
 .md-preferences .modern-select__list {
-  position: static;
+  /* `relative`, not `static`. Static was chosen to keep the list IN FLOW so it
+     pushes siblings down and the card grows — that part is right and is kept
+     (relative does not remove an element from flow). But a static element cannot
+     take a z-index, so an open dropdown whose options reach the bottom of the
+     scrollport painted BEHIND the pinned Save bar (`.md-preferences__actions`,
+     `z-index: 2`). Recoverable by scrolling, but on the page where voice,
+     language and scanning are configured, options you cannot see are options you
+     do not know exist. Relative keeps the flow behaviour and lets the list win
+     the stacking order. No clipping risk from the accordion cards' `overflow:
+     hidden`: the card grows to fit an in-flow list, so there is nothing to clip. */
+  position: relative;
+  z-index: 3;
 }
 .md-preferences__header {
   display: flex;
@@ -49562,13 +49601,54 @@ a.md-goal-nav-action:hover,
   color: $brand-teal;
   font-weight: 600;
 }
+/* Pinned to the bottom of the viewport while the form scrolls. With only the
+   Basics section expanded the form runs ~2,025px, so a statically-placed bar
+   puts Save two and a half screens below the fold and a user cannot tell their
+   edits were ever committed. Mirrors the board editor's always-visible
+   Cancel/Save toolbar. NOTE: this declaration alone is inert — `.md-shell`'s
+   `overflow-x: hidden` makes the shell a scrolling box that never scrolls, and
+   sticky binds to that. See the `overflow-x: clip` rule under
+   `.md-shell.md-shell--user` (~43833); both are required. */
 .md-preferences__actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   justify-content: center;
   gap: 12px;
   padding-top: 20px;
+  padding-bottom: 20px;
   margin-top: 24px;
+  /* Flat `--md-bg` is the FALLBACK, not the intent. It was chosen to stop form
+     content ghosting through a translucent bar, which it does — but this page's
+     shell is `background: transparent !important` (~43836) over the multi-radial
+     mesh painted on `#content:has(.md-shell--user)` with
+     `background-attachment: fixed` (~43815). A flat #eef1f6 band matches neither
+     the mesh nor the stone gradient under it, so it reads as a rectangle pasted
+     across the bottom of Settings that does not move with the background.
+     Frosted glass solves both: the blur makes scrolling content unreadable
+     rather than ghosted, and the translucency lets the mesh through so the bar
+     belongs to the page. Same treatment as the rest of the md-* surfaces. */
+  background: var(--md-bg, #eef1f6);
   border-top: 1.5px solid rgba($brand-blue-black, 0.12);
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background: var(--md-surface, rgba(255, 255, 255, 0.76));
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+  }
+}
+/* Unpin on short viewports. The bar costs ~88px of scrollport (20+20 padding,
+   a 48px-min-height button, 24px margin), on top of a fixed 70px topbar and the
+   page footer. On a landscape phone (~360px CSS height) or at 200% zoom — WCAG
+   1.4.4 — that leaves almost no form to scroll, and the fix for "Save is below
+   the fold" turns into "there is no room for anything else". Below this
+   threshold the form is short enough that Save is reachable by scrolling
+   normally, which is what it did before D-series. */
+@media (max-height: 560px) {
+  .md-preferences__actions {
+    position: static;
+  }
 }
 /* Modern select dropdowns in preferences */
 .md-preferences__form select.form-control {
@@ -62369,7 +62449,32 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   .md-user-layout,
   .md-pillnav,
   .md-pillnav--user {
+    /* `clip` companion, same reasoning as the base `.md-shell` rule (~43788):
+       `overflow-x: hidden` makes the other axis compute to `auto`, turning every
+       one of these into a scrolling box, and `position: sticky` binds to the
+       NEAREST such box. None of these has a height constraint, so none of them
+       can ever actually scroll — a sticky element bound to one renders at its
+       natural offset, i.e. inert.
+
+       This block is the whole ancestor chain above `.md-shell`, and it sits
+       ~17,000 lines below the base rule at identical (0,1,0) `!important`
+       specificity, so without this line it silently re-broke the base fix at
+       every viewport ≤1024px — tablets, phones, and desktop at ≥125% zoom,
+       which is exactly where WCAG 1.4.10 Reflow / 1.4.4 Resize text apply.
+       Keep BOTH declarations: `clip` is unsupported before Safari 16, where the
+       second line is dropped as invalid and the first still contains horizontal
+       overflow (those browsers keep the old, sticky-inert behaviour rather than
+       gaining a horizontal scrollbar).
+
+       Safe to apply to the whole list, including `#content`, because the change
+       is self-limiting by spec: when one axis is `auto`/`scroll`, a `clip` on
+       the other computes back to `hidden`. `#content` is the app's intentional
+       and only scroll container (`overflow-y: auto !important` at ~890, with the
+       flex/min-height chain above it), so it keeps `hidden` and keeps scrolling.
+       The line only bites on the boxes whose overflow-y is `visible` — which is
+       precisely the set that was capturing sticky by accident. */
     overflow-x: hidden !important;
+    overflow-x: clip !important;
   }
   /* Dashboard card glow "cut off on the right": the real clipper is .md-main,
      not the workspace. At ≤1024 the scroll guard puts overflow-x:hidden on
@@ -62468,7 +62573,18 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
     box-sizing: border-box !important;
 
+    /* `clip` companion — see the base `.md-shell` rule (~43788) and the ≤1024
+       scroll-guard block. The intent here is CLIPPING (it pairs with the
+       border-radius above to round off the full-bleed workspace), not scrolling,
+       but `overflow: hidden` also makes this a scroll container, and
+       `position: sticky` binds to the nearest one. Measured 2026-08-24: at 768px
+       and 390px wide the Preferences Save bar rendered at its natural offset
+       (y=1936 in a 1024px viewport) because THIS rule captured it, while 1024px
+       — where only the ≤1024 block applies — pinned correctly at y=685..768.
+       `overflow: clip` clips both axes exactly as before and establishes no
+       scroll container. `hidden` stays first as the pre-Safari-16 fallback. */
     overflow: hidden !important;
+    overflow: clip !important;
 
   }
   /* …but the Extras page keeps its DESKTOP workspace treatment at ≤950px so
@@ -62789,7 +62905,18 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
 
     box-sizing: border-box !important;
 
+    /* `clip` companion — see the base `.md-shell` rule (~43788) and the ≤1024
+       scroll-guard block. The intent here is CLIPPING (it pairs with the
+       border-radius above to round off the full-bleed workspace), not scrolling,
+       but `overflow: hidden` also makes this a scroll container, and
+       `position: sticky` binds to the nearest one. Measured 2026-08-24: at 768px
+       and 390px wide the Preferences Save bar rendered at its natural offset
+       (y=1936 in a 1024px viewport) because THIS rule captured it, while 1024px
+       — where only the ≤1024 block applies — pinned correctly at y=685..768.
+       `overflow: clip` clips both axes exactly as before and establishes no
+       scroll container. `hidden` stays first as the pre-Safari-16 fallback. */
     overflow: hidden !important;
+    overflow: clip !important;
 
   }
   .md-grid {
@@ -70244,7 +70371,12 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     margin-right: 0 !important;
     max-width: 100% !important;
 
+    /* `clip` companion — see the base `.md-shell` rule (~43788) and the ≤1024
+       scroll-guard block above. `hidden` alone makes the workspace a scrolling
+       box on Y that can never scroll, which captures every `position: sticky`
+       inside it. */
     overflow-x: hidden !important;
+    overflow-x: clip !important;
 
   }
 }
@@ -86939,6 +87071,26 @@ span.md-board-detail-modeling-btn--paused:hover {
   font-size: 16px;
   letter-spacing: 0.005em;
 }
+/* Explainer under "Setting up your board...". The copy step takes 30-40s and a
+   bare spinner reads as a hang, so this says what is happening and why. Quieter
+   than the label above it, and width-capped so it wraps to 2-3 short lines
+   rather than one long one. */
+.md-board-details-modal__overlay-subtext {
+  display: block;
+  margin-top: 6px;
+  max-width: 28em;
+  /* 0.70, not 0.65. Composited over the card's white background, 0.65 gives
+     #6B7C96 = 4.23:1, which fails WCAG 1.4.3 for normal-size text (needs 4.5:1).
+     0.70 gives #5F728E = 4.89:1. It matters more here than the
+     ratio alone suggests: this is the only explanation on screen during a 30-40s
+     blocking copy, so it is exactly the text a low-vision user needs to read.
+     Kept in step with the sibling __overlay-count below, which had the same
+     failure at the same value. */
+  color: rgba($la-navy, 0.7);
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.45;
+}
 /* Per-image "N / total" count under the loading label. Block so it sits on its
    own line; tabular-nums so the width doesn't jitter as the count ticks up. */
 .md-board-details-modal__overlay-count {
@@ -86947,7 +87099,9 @@ span.md-board-detail-modeling-btn--paused:hover {
   font-weight: 600;
   font-size: 15px;
   font-variant-numeric: tabular-nums;
-  color: rgba($la-navy, 0.65);
+  /* 4.5:1 applies here too — 15px/600 is below the 18.66px large-text
+     threshold, so this is normal-size text. See __overlay-subtext above. */
+  color: rgba($la-navy, 0.7);
 }
 @keyframes md-board-details-modal__overlay-fade {
   from { opacity: 0; }
@@ -87014,6 +87168,56 @@ span.md-board-detail-modeling-btn--paused:hover {
   /* Guaranteed breathing room between the bottom of the preview canvas and the
      buttons, independent of the flex/auto-margin sizing above. */
   padding-top: 24px;
+
+  /* D7: pin the CTA row to the bottom of the scrolling modal body. At short
+     viewport heights the primary action ("Pick this Board" in picker/recommend
+     mode, "Try This Board" otherwise) sits below the fold — the modal DOES
+     scroll, so it was reachable but easy to miss at the exact moment someone
+     chooses a home board.
+
+     `bottom: 0` is the pinned-footer case, not the fragile one: the element is
+     the last child of a TALL containing block (.md-board-preview__canvas-col,
+     which holds the canvas), so sticky has the full column height to pull it
+     UP into view. The scrollport it binds to is
+     .md-board-details-modal__body (`overflow: auto`); neither
+     .md-board-preview nor __canvas-col declares overflow, so nothing
+     intermediate captures it — checked, because an ancestor with `overflow`
+     hidden on either axis silently becomes the scrollport (the bug behind the
+     .md-shell sticky fix).
+
+     Negative inline margins cancel the gutters and are re-added as padding.
+     Precisely, because an earlier version of this comment claimed more than the
+     geometry delivers ("spans the full width... content does not show through
+     beside it"): the RIGHT edge does land exactly on the modal body's border box
+     (body padding-right 28 → row margin -15 → col padding-right 15 → +28 = 0), so
+     nothing shows through on that side. The LEFT does not, because this element
+     lives inside `.md-board-preview__canvas-col`, which is bootstrap `col-sm-8`
+     and therefore starts a third of the way across the row at ≥768px — the -28px
+     only pulls it into the inter-column gutter, not to the body's left edge.
+     Above 768px the info column (`col-sm-4`) scrolls BESIDE the bar rather than
+     under it. That is cosmetic and mostly invisible, since
+     .md-board-details-modal__content is also white, and it is left alone: making
+     the bar genuinely full-width means lifting it out of the column, which
+     changes the layout this modal was designed around. Below 768px col-sm-8 goes
+     full width and the geometry is exact. Background matches
+     .md-board-details-modal__content.
+
+     `bottom: -28px` rather than 0 because sticky resolves against the
+     scrollport's CONTENT box: at `bottom: 0` the bar floats 28px up from the
+     body's edge (measured) and scrolled content shows through the body's
+     28px bottom padding beneath it. Pushing it down by that padding and adding
+     the same 28px to its own padding-bottom keeps the buttons visually where
+     they were while the background covers the gutter. */
+  position: sticky;
+  bottom: -28px;
+  z-index: 2;
+  margin-left: -28px;
+  margin-right: -28px;
+  padding-right: 28px;
+  padding-left: 28px;
+  padding-bottom: 44px;
+  background: #fff;
+  border-top: 1px solid rgba($la-navy, 0.08);
 }
 /* Modern button override — beats the legacy `.btn` / `.btn-lg`
    bootstrap rules that were on these elements (we keep the bootstrap
@@ -87134,7 +87338,11 @@ span.md-board-detail-modeling-btn--paused:hover {
     text-align: left;
     text-overflow: clip;
     white-space: normal;
-    color: rgba($la-navy, 0.6);
+    /* 0.70, not 0.60. These are 13px labels on a white card: 0.60 composites to
+       #76869E = 3.69:1, below the 4.5:1 WCAG 1.4.3 needs for
+       normal-size text. 0.70 = #5F728E = 4.89:1, matching the loading-overlay
+       text above. */
+    color: rgba($la-navy, 0.7);
     font-weight: 600;
     letter-spacing: 0.01em;
   }
@@ -87143,6 +87351,18 @@ span.md-board-detail-modeling-btn--paused:hover {
     color: $brand-charcoal-blue;
     font-weight: 500;
     word-break: break-word;
+  }
+  /* Visible description for a metric whose label alone is ambiguous, tied to its
+     <dt> with aria-describedby (see components/board-preview.hbs). Smaller and
+     lighter than the value it follows, but still at the 4.5:1 floor — it is the
+     text that stops the number reading like a bug, so it cannot be decorative. */
+  .md-board-preview__meta-help {
+    display: block;
+    margin-top: 2px;
+    color: rgba($la-navy, 0.7);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
   }
 }
 
@@ -87386,6 +87606,8 @@ span.md-board-detail-modeling-btn--paused:hover {
 .md-modal-expander__body {
   padding: 10px 14px 12px;
   border-top: 1px solid #e2e6ea;
+  max-height: 40vh;
+  overflow-y: auto;
 }
 /* board-hierarchy selectable toolbar (Select All / Deselect All / Expand / Collapse). */
 .md-hierarchy-toolbar {
@@ -93342,6 +93564,16 @@ blockquote small {
 .beta-feedback-drawer-tab {
   position: fixed;
   top: var(--topbar-height, 70px);
+  /* Centred on the base rule. The corner anchor D10 asked for belongs to the
+     --navbar variant ONLY and is declared there; do not hoist it back up here.
+     D10's whole argument — a fixed tap target in the middle of the TOP edge is a
+     mis-tap risk and can sit over modal headers — is about a tab hanging DOWN
+     from the navbar. --speak hangs UP from the BOTTOM edge over the board grid,
+     where the trade is the opposite: at right:16px the tab covers the
+     bottom-RIGHT communication cell of the board and the foot of the
+     board-detail edit rail. On an AAC app an opaque overlay on a communication
+     button is worse than a centred one, and bottom-centre is where this tab has
+     always sat. */
   left: 50%;
   z-index: 1078;
   transform: translateX(-50%);
@@ -93363,8 +93595,72 @@ blockquote small {
   overflow: visible !important;
 }
 .beta-feedback-drawer-tab--navbar {
+  /* Absolute + top:100% seats the tab immediately BELOW the navbar, and
+     right/left/transform corner-anchor it so it lands clear of everything.
+     This is D10's fix and it is scoped HERE rather than on the base rule
+     because --speak hangs off the bottom edge over the board grid, where the
+     same anchor would cover a communication button (see the base rule).
+
+     The offset parent is `.app-navbar__inner`, not `.app-navbar` — the tab is a
+     direct child of the inner wrapper (components/app-navbar.hbs:77) and
+     `.app-navbar .app-navbar__inner` is `position: relative !important` (~3440).
+     On authenticated pages that resolves to the same place, because
+     #inner_header / .app-navbar / .app-navbar__inner are all pinned to
+     `height: 70px !important` (~19944) with the navbar's 2rem padding zeroed —
+     so `top: 100%` does land on the navbar's bottom edge. But `right: 16px`
+     resolves inside the inner, whose right edge is already 16px in from
+     `.app-navbar { padding-right: 16px !important }` (~19864), so the tab sits
+     ~32px from the viewport, not 16. The media-query note below is written
+     against that. `.app-navbar__inner { overflow: visible !important }` above is
+     what lets the tab escape the navbar box — and now that this is `absolute`
+     rather than `fixed`, that declaration is load-bearing: any ancestor
+     `overflow` in this chain would clip the tab away entirely.
+
+     Do NOT re-add `left: 50%; right: auto; transform: translateX(-50%)` here.
+     That was tried on 2026-08-23 to "restore" centring for this variant, on the
+     premise that it sits inside the navbar where centring is correct. At the
+     time a `#within_ember…` rule was also forcing `position: fixed; top: 0`, so
+     the centring applied to a PAGE-LEVEL tab and re-created the exact mis-tap
+     target D10 reported — measured dead centre, 720px of a 1440px viewport.
+     That override has since been removed (see the note further down). Two
+     traps if this is revisited: at top:0 the corner is NOT free — the tab
+     covers Settings / Support / the online-status control; and under
+     `position: fixed` this rule's own `top: 100%` resolves against the VIEWPORT,
+     dropping the tab to y=900, off-screen. */
   position: absolute;
   top: 100%;
+  right: 16px;
+  left: auto;
+  transform: none;
+}
+/* Compact sizing through the 721-820 band as well as below 720 (that narrower
+   breakpoint lives in the @media block further down and keeps its other rules).
+   Reason is geometric, not cosmetic: from ~700 to ~820 the gap between the
+   navbar (bottom 70) and the home page's secondary nav row beneath it (top 97)
+   is only 28px, while the full-size tab is 36px tall — so a tab seated below
+   the navbar necessarily clips that row. There is no vertical fix; no 36px gap
+   exists. Narrowing the tab (141px vs 172px) clears the row HORIZONTALLY
+   instead, because the row's right edge scales with the viewport while the
+   tab's left edge is `100vw - 16 - width`.
+
+   Measured at height 1138, this clears 760-820 (e.g. at 760 the tab's left edge
+   is 603px and the row's rightmost control ends at 578px) and shrinks the
+   overlap at 721 from 41px to 10px. It does NOT fully clear ~700-740, where a
+   ~10-20px horizontal by 6px vertical clip of one control remains — see
+   CLAIM-CHECK-BACKLOG.md A1. Above ~820 the gap opens to 72px+ and the
+   full-size tab is clear regardless.
+
+   Scoped to --navbar: the collision is with a row that only exists beneath the
+   navbar, so there is no reason to shrink the --speak tab (which hangs off the
+   bottom edge) below the 36px it already sits at — 36px is under the 44px
+   recommended target as it is. Kept as its own block rather than widening the
+   `@media (max-width: 720px)` block further down, which sets the same two values
+   but also carries panel sizing that must stay at 720. */
+@media (min-width: 721px) and (max-width: 820px) {
+  .beta-feedback-drawer-tab--navbar {
+    font-size: 0.95rem;
+    min-height: 34px;
+  }
 }
 .beta-feedback-drawer-tab--speak {
   /* Speak mode: the drawer lives at the BOTTOM of the page, so the tab hangs
@@ -93442,10 +93738,16 @@ blockquote small {
 #within_ember:not(.board-alt-view):not(.board-detail-view) .beta-feedback-drawer:not(.beta-feedback-drawer--speak) {
   top: 0;
 }
-#within_ember:not(.board-alt-view):not(.board-detail-view) .beta-feedback-drawer-tab--navbar {
-  position: fixed;
-  top: 0;
-}
+/* NOTE: the TAB deliberately has no override here any more — it uses the
+   `.beta-feedback-drawer-tab--navbar` rule's own `position: absolute; top: 100%`,
+   which seats it directly beneath the navbar (position: relative, height 70).
+   It previously forced `position: fixed; top: 0` so the tab could float over the
+   navbar at top-CENTRE, where nothing sits. Corner-anchored that is wrong twice
+   over: at top:0 the tab covers Settings / Support / the online-status control
+   (measured at 1440px), and `position: fixed` also breaks the variant's own
+   `top: 100%`, which then resolves against the VIEWPORT and drops the tab to
+   y=900, off-screen. Absolute + top:100% + the base `right: 16px` collides with
+   nothing. The drawer panel above still pins to top: 0 — only the tab changed. */
 /* Hide the Beta Feedback drawer + tab entirely while a Shepherd tour is
    running, so the tour chrome owns the screen. Shepherd portals an active
    step's popover (`.shepherd-element.shepherd-enabled`) into <body>; the

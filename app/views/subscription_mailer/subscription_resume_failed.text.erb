@@ -2,9 +2,9 @@ This is a notice that the user account "<%= @user.user_name %>" needs updated su
 
 To address this problem please update your subscription settings in <%= app_name %>:
 
-<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>
+<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>
 
-If you need help or think this message was sent in error , please let us know and we'll help get to the bottom of things. Just contact us (<%= JsonApi::Json.current_host %>) to make a request.
+If you need help or think this message was sent in error , please let us know and we'll help get to the bottom of things. Just contact us (<%= JsonApi::Json.absolute_host %>/contact) to make a request.
 
 Thanks!
 <%= email_signature %>

@@ -2171,8 +2171,29 @@ var editManager = EmberObject.extend({
         if(emberGet(currentButton, 'label') || emberGet(currentButton, 'image_id')) {
           newButton.label = emberGet(currentButton, 'label');
           var vocalization = emberGet(currentButton, 'vocalization');
+          /* "Same as the label" means the button has no vocalization of its own, so it is
+             dropped rather than stored twice. A SPECIAL vocalization (':suggestion', '+q',
+             ':shift', ':space') can never mean that — it is an action, and it is not a word
+             the label could be equal to. If one has gone missing from the display copy the
+             right answer is the ORIGINAL, not deletion.
+
+             The second line is the load-bearing one. A display copy that reached here
+             flattened (board-detail's localizer used to replace a special vocalization with
+             the label — see `_localized_button_fields`) made this branch delete every one of
+             them, and the save persisted a board whose keyboard keys no longer type. Fixed
+             at the source; this stays as the guard, because the cost of getting it wrong
+             again is silent permanent data loss on a user's board. */
+          var original_special = /^[:+]/.test(String((originalButton || {}).vocalization || ''));
           if(vocalization && vocalization != newButton.label) {
             newButton.vocalization = vocalization;
+          } else if(original_special && vocalization) {
+            /* `vocalization` is non-blank and EQUAL to the label — the signature of a display
+               copy that was flattened upstream, never of a user's intent (nobody types '+q'
+               into a field that already reads '+q' and gets 'q'). Restore the action.
+               A BLANK vocalization is the other case: the user cleared the field, which is a
+               deliberate "this button has no vocalization of its own", and it falls through
+               to the delete below so a special button can still be un-specialed. */
+            newButton.vocalization = originalButton.vocalization;
           } else {
             delete newButton['vocalization'];
           }

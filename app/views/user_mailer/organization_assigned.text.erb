@@ -4,7 +4,7 @@ Organization managers will be able to access your usage reports and logs to help
 
 If this organization ever removes sponsorship, we'll immediately let you know and there will be a grace period that you can use to find a different sponsoring organization or set up a different payment plan.<% end %>
 
-To finalize this process, you will need to approve the organization from your account profile (<%= JsonApi::Json.current_host %>/<%= @user.user_name %>).
+To finalize this process, you will need to approve the organization from your account profile (<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>).
 
 Thanks!
 <%= email_signature %>

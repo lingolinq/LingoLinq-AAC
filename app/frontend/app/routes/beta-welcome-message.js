@@ -31,8 +31,10 @@ export default Route.extend({
   setupController(controller) {
     this._super(...arguments);
     var user = this.appState.get('currentUser') || this.store.peekRecord('user', 'self');
-    var name = user && (user.get('name') || user.get('user_name'));
-    controller.set('displayName', (name || '').trim() || 'Friend');
+    /* `display_name` already resolves the server's "No name" placeholder to the
+       handle (models/user.js), so this only has to cover a missing record. */
+    var name = user && user.get('display_name');
+    controller.set('displayName', (name || '').trim());
     controller.set('agreementAccepted', false);
   },
   actions: {

@@ -252,23 +252,14 @@
             </svg>
             <span class="md-board-edit-panel__label">{{t "Add to Sidebar" key="add_to_sidebar"}}</span>
           </button>
-          {{!-- Board Ideas info-circle. --}}
-          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Board Ideas" key="board_ideas"}} data-bd-action="suggestions" {{on "click" (this.ctrlAction "suggestions")}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10" stroke="#2A9D8F"/>
-              <line x1="12" y1="16" x2="12" y2="12" stroke="currentColor"/>
-              <line x1="12" y1="8" x2="12.01" y2="8" stroke="currentColor"/>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Board Ideas" key="board_ideas"}}</span>
-          </button>
-          {{!-- Button Stash — two stacked cards. --}}
-          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Button Stash" key="button_stash"}} data-bd-action="open_button_stash" {{on "click" (this.ctrlAction "open_button_stash")}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor"/>
-              <rect x="7" y="7" width="14" height="14" rx="2" stroke="#2A9D8F"/>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Button Stash" key="button_stash"}}</span>
-          </button>
+          {{!-- Board Ideas, Button Stash and Set as Home Board were relocated
+               2026-08-24 into the Board Actions modal (components/board-actions.hbs),
+               just above View Style, which came from this panel earlier. This group
+               had grown to seven rows. `suggestions` and `open_button_stash` had NO
+               other render site anywhere in the app, so they were MOVED, not deleted --
+               dropping the rows alone would have made Button Stash unreachable. The
+               modal opens from this same panel via "Other Actions" below, so the
+               edit-mode path is unchanged. --}}
           <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Edit Board Details" key="edit_board_details"}} data-bd-action="board_details" {{on "click" (this.ctrlAction "board_details")}}>
             {{!-- Pencil-on-paper edit mark — page = charcoal,
                  pencil = verdigris. --}}
@@ -291,13 +282,6 @@
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
             </svg>
             <span class="md-board-edit-panel__label">{{t "Set as Favorite" key="set_as_favorite"}}</span>
-          </button>
-          <button type="button" class="md-board-edit-panel__row" data-tooltip={{t "Set as Home Board" key="set_as_home_board"}} data-bd-action="set_as_home" {{on "click" (this.ctrlAction "set_as_home")}}>
-            <svg class="md-board-edit-panel__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="#2A9D8F"/>
-              <polyline points="9 22 9 12 15 12 15 22" stroke="currentColor"/>
-            </svg>
-            <span class="md-board-edit-panel__label">{{t "Set as Home Board" key="set_as_home_board"}}</span>
           </button>
           {{!-- (Word Prediction moved to its own expandable section under
                BOARD SETTINGS in the right panel — see below.) --}}
@@ -952,6 +936,105 @@
                 </div>
               {{/if}}
 
+              {{!-- Set as Home — the one action from the edit panel that had NO
+                    view-mode route at all. Copy already had one (Share & Print ->
+                    Copy, below); this did not, which is why "unreachable outside
+                    edit mode" was reported for both. Sits beside Edit Board rather
+                    than in Share & Print because it is a "make this mine" action,
+                    not an export one — and it is the step that makes a board work
+                    offline, so it belongs at the top level, not two menus deep. --}}
+              {{#if (and this.can_set_as_home (not (get this.speak_menu_hidden_set "set_as_home")))}}
+                <div class="md-board-detail-actions-menu__section">
+                  <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="set_as_home" {{on "click" (this.ctrlAction "set_as_home")}}
+                    title={{t "Make this the board you start on, and available offline" key="board_detail_set_as_home_tooltip"}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                      <polyline points="9 22 9 12 15 12 15 22"/>
+                    </svg>
+                    <span>{{t "Set as Home Board" key="set_as_home_board"}}</span>
+                  </button>
+                </div>
+              {{/if}}
+
+              {{!-- Board Actions — the remaining four actions that had no
+                    view-mode route at all. board-detail.hbs:1533-1539 records
+                    the migration that removed them: nine actions moved to the
+                    left edit panel, which renders only under
+                    {{#if this.edit_mode}}. Set as Home and Make a Copy were
+                    restored first (see above / Share & Print); share, print and
+                    download already had a home here. These four were the
+                    remainder.
+
+                    A submenu rather than four more top-level rows: the menu is
+                    already long, and these are secondary to Edit / Set as Home.
+                    `board_submenu_open` + `toggle_board_submenu` already existed
+                    in the controller with NO template referencing them — an
+                    orphaned control of exactly the kind the migration left
+                    behind. This wires them up rather than adding new state.
+
+                    All four are safe outside edit mode: board_details passes
+                    `edit_mode: this.get('edit_mode')` so the modal renders
+                    read-only, and other_board_actions opens modals/board-actions,
+                    which already tells a user which items their permissions
+                    withhold. Gated on a signed-in user because favouriting and
+                    the sidebar write to that user's own account. --}}
+              {{!-- Hidden entirely when the user has hidden all four children in
+                    Customize Menu — a disclosure that opens onto nothing is worse
+                    than no disclosure. `aria-controls` + a matching id on the
+                    submenu completes the disclosure pattern for screen readers;
+                    `aria-expanded` alone says a control expands something without
+                    saying what. --}}
+              {{#if (and this.app_state.sessionUser this.board_submenu_has_visible_items)}}
+                <div class="md-board-detail-actions-menu__section">
+                  <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.board_submenu_open "true" "false"}} aria-controls="md-board-detail-board-submenu" data-bd-action="toggle_board_submenu" {{on "click" (this.ctrlAction "toggle_board_submenu")}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="3" y1="9" x2="21" y2="9"/>
+                    </svg>
+                    <span>{{t "Board Actions" key="board_actions"}}</span>
+                    <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  {{#if this.board_submenu_open}}
+                    <div class="md-board-detail-actions-menu__submenu" id="md-board-detail-board-submenu">
+                      {{#unless (get this.speak_menu_hidden_set "board_details")}}
+                        <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="board_details" {{on "click" (this.ctrlAction "board_details")}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                          </svg>
+                          <span>{{t "Board Details" key="board_details"}}</span>
+                        </button>
+                      {{/unless}}
+                      {{#unless (get this.speak_menu_hidden_set "toggle_favorite")}}
+                        <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="toggle_favorite" {{on "click" (this.ctrlAction "toggle_favorite")}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill={{if this.model.starred "currentColor" "none"}} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                          </svg>
+                          {{!-- Label tracks state: a toggle that always reads "Set as
+                                Favorite" gives no feedback that the first tap worked. --}}
+                          <span>{{#if this.model.starred}}{{t "Remove Favorite" key="remove_favorite"}}{{else}}{{t "Set as Favorite" key="set_as_favorite"}}{{/if}}</span>
+                        </button>
+                      {{/unless}}
+                      {{#unless (get this.speak_menu_hidden_set "add_to_sidebar")}}
+                        <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="add_to_sidebar" {{on "click" (this.ctrlAction "add_to_sidebar")}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+                          </svg>
+                          <span>{{t "Add to Sidebar" key="add_to_sidebar"}}</span>
+                        </button>
+                      {{/unless}}
+                      {{#unless (get this.speak_menu_hidden_set "other_board_actions")}}
+                        <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="other_board_actions" {{on "click" (this.ctrlAction "other_board_actions")}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                            <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+                          </svg>
+                          <span>{{t "Other Actions" key="other_actions"}}</span>
+                        </button>
+                      {{/unless}}
+                    </div>
+                  {{/if}}
+                </div>
+              {{/if}}
+
               {{!-- Board Section — flattened to a single row that
                    opens the inline My Board Collection panel. The
                    prior expandable Board → (My Boards / Find Boards)
@@ -1066,14 +1149,25 @@
                 </button>
                 {{#if this.share_print_submenu_open}}
                   <div class="md-board-detail-actions-menu__submenu">
+                    {{!-- "Make a Copy", not "Copy": under a Share & Print heading a
+                          bare "Copy" reads as copy-to-clipboard / export, which is
+                          why two usability reviews reported this action as missing
+                          when it was here all along. Own key — `copy` is shared
+                          with the utterance clipboard button and a button-settings
+                          form label, which must stay "Copy".
+                          Also gated on can_copy_board now, so an uncopyable or
+                          for-sale board no longer offers a copy that cannot happen. --}}
                     {{#unless (get this.speak_menu_hidden_set "copy")}}
-                      <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="make_a_copy" {{on "click" (this.ctrlAction "make_a_copy")}}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                        </svg>
-                        <span>{{t "Copy" key="copy"}}</span>
-                      </button>
+                      {{#if this.can_copy_board}}
+                        <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="make_a_copy" {{on "click" (this.ctrlAction "make_a_copy")}}
+                          title={{t "Make your own copy of this board set" key="board_detail_copy_board_tooltip"}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                          </svg>
+                          <span>{{t "Make a Copy" key="board_detail_copy_board"}}</span>
+                        </button>
+                      {{/if}}
                     {{/unless}}
                     {{#unless (get this.speak_menu_hidden_set "download")}}
                       <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="download_board" {{on "click" (this.ctrlAction "download_board")}}>
@@ -1640,6 +1734,17 @@
                 <span class="md-board-detail-color-legend-toggle__icon" aria-hidden="true">&#x1F3A8;</span>
                 <span class="md-board-detail-color-legend-toggle__label">{{t "Color Key" key="board_detail_color_key"}}</span>
               </button>
+              {{!-- Set as Home / Make a Copy are NOT here. They were added to this
+                    header on 2026-08-23 and browser-verification showed they never
+                    rendered: this header is inside .md-board-detail-header, which
+                    .md-shell--board-collapsed hides outright (app.scss:76138), and
+                    `board_collapsed` defaults to true in view mode
+                    (controllers/user/board-detail.js:267) — it is set false ONLY on
+                    entering edit mode. The one control that expands it,
+                    toggle_board_collapsed, sits inside the hidden header itself, so
+                    a view-mode user cannot reveal it. Putting view-mode actions here
+                    just swaps a Handlebars edit-mode gate for a CSS one. They now
+                    live in the options menu, which stays visible in view mode. --}}
               {{#if this.can_edit_or_copy_board}}
                 <button type="button" class="md-board-detail-edit-btn" data-bd-action="enter_edit_mode" {{on "click" (this.ctrlAction "enter_edit_mode")}}>
                   <svg class="md-board-detail-edit-btn__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

@@ -99,8 +99,30 @@ export default Component.extend({
     return vocalFlairButtonsForGrid(grid);
   }),
 
-  // Medical mode names the product (required by LCD L33739 / A52469);
-  // school mode must not, so the card is withheld there.
+  // Medical mode names the product; school mode must not, so the card is withheld
+  // there.
+  //
+  // Corrected 2026-08-25: this said "required by LCD L33739 / A52469". L33739 does
+  // NOT require it — naming the manufacturer, product name/number and HCPCS is
+  // A52469's SUPPLIER CLAIM rule, binding on the claim the supplier submits, not an
+  // element of the SLP's evaluation. The evaluation mandate is criterion 1 bullet 4,
+  // "rationale for selection of a specific device and any accessories". Still name
+  // the product in medical mode — the supplier's claim is denied without it — just
+  // not on the grounds that the LCD demands it of us.
+  //
+  // The school-mode withholding stands, but its justification was also wrong and is
+  // corrected here too. It said "naming a brand in an IEP obligates the district to
+  // that product" as though federal law forbade it. It does not: ED's current
+  // guidance (Myths and Facts Surrounding Assistive Technology Devices and Services,
+  // OSEP/OET, Jan 2024) never uses the words "brand", "manufacturer" or "obligate",
+  // and its Myth 6 says the opposite -- specific AT "must be included in the IEP".
+  //
+  // The real reason to withhold it is a different rule and a weaker one: 34 CFR
+  // 300.323(d)/300.324 require the district to implement the IEP AS WRITTEN and
+  // forbid unilateral change, so naming a product does bind them to it. Describing
+  // by feature keeps the team's options open. That is a sound default and a
+  // widespread state/district convention -- it is not a legal prohibition, and we
+  // should not tell an SLP it is. See docs/AAC_EVALUATION_STANDARDS.md §2.
   showPageSetCard: computed('isSchoolMode', 'vocalFlairButtons', function() {
     return !this.get('isSchoolMode') && !!this.get('vocalFlairButtons');
   }),

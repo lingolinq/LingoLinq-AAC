@@ -629,6 +629,29 @@ describe SessionController, :type => :controller do
       expect(json['coppa_parental_consent_revoked']).to eq(true)
       expect(json['access_token']).to eq(nil)
     end
+
+    it "rejects password token when COPPA parental consent was declined" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      token = GoSecure.browser_token
+      u = User.process_new({
+        'user_name' => 'coppa_declined_kid',
+        'name' => 'COPPA Declined Kid',
+        'email' => 'child_coppa_declined@example.com',
+        'password' => 'seashell',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_coppa_declined@example.com'
+      }, {:pending => true})
+      expect(u.decline_parental_consent!(u.settings['coppa']['parent_consent_token'])).to eq(true)
+
+      post :token, params: {:grant_type => 'password', :client_id => 'browser', :client_secret => token, :username => 'coppa_declined_kid', :password => 'seashell'}
+      expect(response.status).to eq(400)
+      json = JSON.parse(response.body)
+      expect(json['error']).to eq('parental consent declined')
+      expect(json['coppa_parental_consent_declined']).to eq(true)
+      expect(json['access_token']).to eq(nil)
+    end
     
 #     it "should not respect expired browser token" do
 #       token = 15.days.ago.strftime('%Y%j')
@@ -2605,6 +2628,37 @@ describe SessionController, :type => :controller do
         terms_agree: 'false'
       }
       expect(response).to redirect_to('http://localhost:8184/register?google_error=terms_required')
+    end
+
+    it "redirects declined-consent Google login to /login?coppa_declined=1" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      declined = User.process_new({
+        'user_name' => "declined_google_#{SecureRandom.hex(4)}",
+        'name' => 'Declined Google Kid',
+        'email' => 'google@example.com',
+        'password' => 'secret123',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_declined_google@example.com'
+      }, { pending: true })
+      declined.link_google!(google_profile[:sub], email: google_profile[:email], name: google_profile[:name])
+      expect(declined.decline_parental_consent!(declined.settings['coppa']['parent_consent_token'])).to eq(true)
+      allow(GoogleOAuth).to receive(:fetch_state).and_return({
+        'flow' => 'login',
+        'device_id' => 'dev1',
+        'return_origin' => 'http://localhost:8184'
+      })
+      allow(GoogleOAuth).to receive(:clear_state)
+      allow(GoogleOAuth).to receive(:exchange_code).and_return({
+        'sub' => google_profile[:sub],
+        'email' => google_profile[:email],
+        'email_verified' => true,
+        'name' => google_profile[:name]
+      })
+      allow(User).to receive(:find_all_by_google_sub).with(google_profile[:sub]).and_return([declined])
+      get :google_callback, params: { state: 'abc', code: 'xyz' }
+      expect(response.location).to include('/login?coppa_declined=1')
     end
   end
 

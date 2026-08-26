@@ -121,8 +121,11 @@ class User < ApplicationRecord
     res
   end
   
+  # A bare address when there is no name. Mail::Address happily normalizes
+  # " <a@b.com>" to "a@b.com", but building the string that way puts a stray
+  # leading space into logs and any code that treats this as a display label.
   def named_email
-    "#{self.settings['name']} <#{self.settings['email']}>"
+    self.settings['name'].blank? ? self.settings['email'] : "#{self.settings['name']} <#{self.settings['email']}>"
   end
 
   def external_email_allowed?
@@ -133,7 +136,7 @@ class User < ApplicationRecord
   
   def prior_named_email
     email = self.settings['old_emails'][-1]
-    "#{self.settings['name']} <#{email}>"
+    self.settings['name'].blank? ? email : "#{self.settings['name']} <#{email}>"
   end
   
   def registration_type
@@ -397,14 +400,24 @@ class User < ApplicationRecord
     c['parent_consent_revoked_at'].present?
   end
 
+  def coppa_parental_consent_declined?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash)
+    c['parent_consent_declined_at'].present?
+  end
+
   def coppa_parental_consent_active?
     c = self.settings && self.settings['coppa']
     return false unless c.is_a?(Hash)
-    c['parent_consent_granted_at'].present? && c['parent_consent_revoked_at'].blank?
+    c['parent_consent_granted_at'].present? &&
+      c['parent_consent_revoked_at'].blank? &&
+      c['parent_consent_declined_at'].blank?
   end
 
   def coppa_parental_consent_blocks_access?
-    coppa_parental_consent_pending? || coppa_parental_consent_revoked?
+    coppa_parental_consent_pending? ||
+      coppa_parental_consent_revoked? ||
+      coppa_parental_consent_declined?
   end
 
   # Compliance Kernel profile for this user (nil when flag OFF).
@@ -520,10 +533,13 @@ class User < ApplicationRecord
   # under-13 → COPPA pending (optional parent email);
   # under-16 → AI prefs off; EU org also sets eu_under_16 for parental re-consent
   # when they re-enable AI in preferences.
-  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil)
+  # force_under_13: automated license expiry (no manager attestation) when
+  # school_authorization is still on file.
+  def begin_family_offboarding_consents!(org: nil, parent_email: nil, actor: nil, birth_month: nil, birth_year: nil, force_under_13: false)
     attested_under_13 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 13
     )
+    attested_under_13 = true if force_under_13 && attested_under_13.nil?
     attested_under_16 = self.class.age_under_threshold?(
       birth_month: birth_month, birth_year: birth_year, age: 16
     )
@@ -567,9 +583,13 @@ class User < ApplicationRecord
           self.settings.delete('school_authorization')
         end
         parent = parent_email.to_s.strip
+        started_at = Time.now.utc.iso8601
+        deadline_at = 14.days.from_now.utc.iso8601
         blob = {
           'pending_parent_consent' => true,
-          'offboarding' => true
+          'offboarding' => true,
+          'offboarding_started_at' => started_at,
+          'offboarding_deadline_at' => deadline_at
         }
         if parent.present?
           parent = self.class.validate_parent_consent_email!(
@@ -578,7 +598,7 @@ class User < ApplicationRecord
           )
           blob['parent_email'] = process_string(parent)
           blob['parent_consent_token'] = GoSecure.nonce('parent_consent')
-          blob['parent_consent_expires_at'] = 14.days.from_now.utc.iso8601
+          blob['parent_consent_expires_at'] = deadline_at
           blob['needs_parent_email'] = false
           send_coppa_email = true
         else
@@ -656,14 +676,20 @@ class User < ApplicationRecord
       self.settings ||= {}
       prior = self.settings['coppa']
       offboarding = prior.is_a?(Hash) && !!prior['offboarding']
-      self.settings['coppa'] = {
+      deadline = 14.days.from_now.utc.iso8601
+      blob = {
         'pending_parent_consent' => true,
         'offboarding' => offboarding,
         'parent_email' => process_string(parent),
         'parent_consent_token' => GoSecure.nonce('parent_consent'),
-        'parent_consent_expires_at' => 14.days.from_now.utc.iso8601,
+        'parent_consent_expires_at' => deadline,
         'needs_parent_email' => false
       }
+      if offboarding && prior.is_a?(Hash)
+        blob['offboarding_started_at'] = prior['offboarding_started_at'] || Time.now.utc.iso8601
+        blob['offboarding_deadline_at'] = prior['offboarding_deadline_at'] || deadline
+      end
+      self.settings['coppa'] = blob
       self.save!
       record_id = SecureRandom.uuid
       AuditEvent.create!(
@@ -681,6 +707,191 @@ class User < ApplicationRecord
     devices.each(&:invalidate_cached_keys)
     UserMailer.schedule_parent_consent_delivery(:parental_consent_request, self.global_id)
     true
+  end
+
+  # True when an offboarded minor's pending COPPA window has ended (token /
+  # deadline expiry) or the guardian explicitly declined — ready for
+  # export-then-delete. Already-scheduled rows are skipped. An in-flight
+  # claim (offboarding_export_started_at) also blocks until it goes stale so
+  # concurrent callers cannot each run Exporter.export_user.
+  OFFBOARDING_EXPORT_CLAIM_STALE = 6.hours
+
+  def coppa_offboarding_export_due?
+    c = self.settings && self.settings['coppa']
+    return false unless c.is_a?(Hash) && c['offboarding']
+    return false if c['offboarding_export_scheduled_at'].present?
+    started = c['offboarding_export_started_at']
+    if started.present?
+      begin
+        return false if Time.iso8601(started) > OFFBOARDING_EXPORT_CLAIM_STALE.ago.utc
+      rescue ArgumentError
+        # Bad stamp should not permanently block; fall through to due checks.
+      end
+    end
+    return true if c['parent_consent_declined_at'].present?
+    return false unless c['pending_parent_consent']
+    deadline = c['parent_consent_expires_at'].presence || c['offboarding_deadline_at']
+    return false if deadline.blank?
+    Time.iso8601(deadline) < Time.now.utc
+  rescue ArgumentError
+    false
+  end
+
+  # Parent declines the pending consent link (same token as grant). Offboarding
+  # accounts are queued for export-then-delete; signup declines mark declined
+  # and schedule deletion without the offboarding export mailer path.
+  def decline_parental_consent!(token, ip: nil, user_agent: nil)
+    return false if token.blank?
+    res = false
+    offboarding = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      next unless c['pending_parent_consent']
+      next if c['parent_consent_granted_at'].present?
+      next if c['parent_consent_declined_at'].present?
+      stored = c['parent_consent_token'].to_s
+      tok = token.to_s
+      next if stored.blank?
+      next if stored.bytesize != tok.bytesize
+      next unless ActiveSupport::SecurityUtils.secure_compare(stored, tok)
+      exp = c['parent_consent_expires_at']
+      if exp.present?
+        begin
+          next if Time.iso8601(exp) < Time.now.utc
+        rescue ArgumentError
+          next
+        end
+      end
+      declined_at = Time.now.utc.iso8601
+      record_id = SecureRandom.uuid
+      offboarding = !!c['offboarding']
+      c['parent_consent_declined_at'] = declined_at
+      c.delete('pending_parent_consent')
+      c.delete('parent_consent_expires_at')
+      # Keep parent_consent_token so the decline link stays idempotent on revisit
+      # (same pattern as grant retaining the grant token).
+      self.settings['coppa'] = c
+      self.save!
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_decline',
+          'method' => 'email_token_link',
+          'offboarding' => offboarding,
+          'ip' => ip,
+          'user_agent' => user_agent,
+          'declined_at' => declined_at,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_decline',
+        record_id: record_id
+      )
+      res = true
+    end
+    devices.each(&:invalidate_cached_keys) if res
+    if res
+      if offboarding
+        schedule_offboarding_export_then_delete!(reason: 'declined')
+      else
+        self.schedule_deletion_at ||= 36.hours.from_now
+        self.save
+      end
+    end
+    res
+  end
+
+  # Export account data (when possible), notify parent, schedule hard delete.
+  # Idempotent via settings['coppa']['offboarding_export_scheduled_at'].
+  # Claims under lock (offboarding_export_started_at) before the expensive
+  # Exporter.export_user call so concurrent workers/manual declines cannot
+  # each generate a full export for the same user.
+  def schedule_offboarding_export_then_delete!(reason:)
+    claimed = false
+    self.with_lock(requires_new: true) do
+      next unless coppa_offboarding_export_due?
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      c['offboarding_export_started_at'] = Time.now.utc.iso8601
+      self.settings['coppa'] = c
+      self.save!
+      claimed = true
+    end
+    return false unless claimed
+
+    upload = nil
+    begin
+      upload = Exporter.export_user(self.global_id)
+    rescue StandardError => e
+      Rails.logger.error("[COPPA offboarding export] user=#{global_id} #{e.class}: #{e.message}")
+    end
+
+    scheduled = false
+    mailed = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash) && c['offboarding']
+      # Claim owns the work; skip if another finisher already recorded scheduled_at.
+      next if c['offboarding_export_scheduled_at'].present?
+      now = Time.now.utc.iso8601
+      c['offboarding_export_scheduled_at'] = now
+      c['offboarding_export_reason'] = reason.to_s
+      c.delete('offboarding_export_started_at')
+      if upload.is_a?(Hash) && upload[:path].present?
+        c['offboarding_export_path'] = upload[:path]
+      end
+      self.settings['coppa'] = c
+      self.schedule_deletion_at = 36.hours.from_now
+      self.save!
+      record_id = SecureRandom.uuid
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_offboarding_export_scheduled',
+          'reason' => reason.to_s,
+          'export_path_present' => c['offboarding_export_path'].present?,
+          'scheduled_deletion_at' => self.schedule_deletion_at&.iso8601,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_offboarding_export_scheduled',
+        record_id: record_id
+      )
+      mailed = c['parent_email'].present?
+      scheduled = true
+    end
+
+    if scheduled && mailed
+      UserMailer.schedule_parent_consent_delivery(
+        :parental_consent_offboarding_export,
+        self.global_id
+      )
+    end
+    scheduled
+  end
+
+  # Daily sweep: offboarding COPPA pending past deadline / declined → export-then-delete.
+  # Candidate discovery via AuditEvent (user.settings is encrypted).
+  def self.process_expired_offboarding_consents!
+    return 0 unless JsonApi::Json.coppa_parental_consent_enabled?
+    count = 0
+    user_keys = AuditEvent.where(event_type: 'parental_consent_offboarding_started')
+      .where('created_at > ?', 90.days.ago)
+      .distinct
+      .pluck(:user_key)
+    user_keys.each do |key|
+      user = User.find_by_global_id(key)
+      next unless user && user.coppa_offboarding_export_due?
+      reason = if user.settings.dig('coppa', 'parent_consent_declined_at').present?
+        'declined'
+      else
+        'expired'
+      end
+      count += 1 if user.schedule_offboarding_export_then_delete!(reason: reason)
+    end
+    count
   end
 
   # Validates the grant link token from the parental consent request email.
@@ -816,7 +1027,20 @@ class User < ApplicationRecord
       )
       res = true
     end
-    devices.each(&:invalidate_cached_keys) if res
+    # invalidate_keys!, NOT invalidate_cached_keys. The latter only deletes the
+    # Redis `user_token/...` cache entries and leaves settings['keys'] intact, so
+    # every token issued before the revocation stayed VALID -- verified: a bearer
+    # token minted pre-revoke still returned the child's record from
+    # /api/v1/users/self afterwards. Device#valid_token? checks only `disabled?`
+    # and key membership (no consent check) and refreshes last_timestamp on use,
+    # so an actively-used session would never age out either. Withdrawal of
+    # consent is the one control COPPA guarantees a parent; it has to end access
+    # already granted, not just block the next sign-in.
+    #
+    # The sibling call sites deliberately keep invalidate_cached_keys: granting
+    # (grant_parental_consent!), submitting a parent email, and family
+    # offboarding all want fresh permissions WITHOUT logging the user out.
+    devices.each(&:invalidate_keys!) if res
     res
   end
 
@@ -1319,8 +1543,14 @@ class User < ApplicationRecord
   # It is versioned against Article50Disclosures::CURRENT_VERSION (its OWN version
   # source, not the ai_consent one, PN-02) so an Art.50 copy change re-prompts
   # without forcing an ai_consent re-consent. Defaults to false for a nil/missing
-  # key: nothing flips shown=true until the Phase 3/5 modal acknowledge ships, so in
-  # production every AiApiLog row carries article_50_disclosure_shown=false until then.
+  # key. CORRECTED 2026-08-25: an earlier version of this comment said "nothing flips
+  # shown=true until the Phase 3/5 modal acknowledge ships, so in production every
+  # AiApiLog row carries article_50_disclosure_shown=false until then". That modal HAS
+  # shipped and the flag enabling it IS on in production, so the claim is false. Note the
+  # unit: this predicate is per-USER, and on 2026-08-23 it was true for 5 of 34 accounts,
+  # with 29 of 34 still gated. (The often-quoted "63 of 64 true" is a per-ROW AiApiLog
+  # figure from 2 accounts; do not read it as a user-level acknowledgement rate.)
+  # See docs/legal/2026-08-23_article-50-production-flag-verification.md.
   def article_50_disclosure_shown?(disclosures_version: LingoLinq::Article50Disclosures::CURRENT_VERSION)
     c = self.settings && self.settings['ai_transparency']
     return false unless c.is_a?(Hash)
@@ -1347,10 +1577,14 @@ class User < ApplicationRecord
   # grant_ai_consent! code -- NOT GoSecure.nonce, which had low entropy under bulk
   # backfill. Raises ArgumentError 'invalid_source' for a non-allowlisted source.
   #
-  # WRITE TRIGGER: the Phase 3/5 modal acknowledge is the writer. Phase 4 ships this
-  # API only; nothing calls it in production yet, so article_50_disclosure_shown?
-  # stays false on every row until the modal ships (that is expected -- the plumbing
-  # is the deliverable).
+  # WRITE TRIGGER: the Phase 3/5 modal acknowledge is the writer. CORRECTED 2026-08-25:
+  # an earlier version of this comment said "nothing calls it in production yet, so
+  # article_50_disclosure_shown? stays false on every row until the modal ships". Both
+  # halves are now false. The modal shipped and calls this endpoint from
+  # app/frontend/app/components/ai-disclosure.js:105. Unit note: 63 of 64 AiApiLog ROWS
+  # carry article_50_disclosure_shown=true, but those come from 2 accounts; at the USER
+  # level only 5 of 34 had acknowledged on 2026-08-23, with 29 of 34 still gated.
+  # See docs/legal/2026-08-23_article-50-production-flag-verification.md.
   def mark_article_50_disclosure_shown!(disclosures_version:, source:, ip: nil, user_agent: nil)
     raise ArgumentError, 'invalid_source' unless ARTICLE_50_DISCLOSURE_SOURCES.include?(source)
     disclosures_version = ai_consent_normalize_version!(disclosures_version)
@@ -1573,7 +1807,16 @@ class User < ApplicationRecord
 
   def generate_defaults
     self.settings ||= {}
-    self.settings['name'] ||= "No name"
+    # NOTE: settings['name'] is deliberately NOT defaulted. Signup collects no
+    # name, and this used to seed the literal string "No name", which is not a
+    # null value -- every `name || user_name` guard in the codebase silently
+    # failed because a non-empty string is truthy. It reached users as
+    # "Hi No name", "Choose No name's home board", and worst, as an SMS to a
+    # family member reading "from No name - <message>" (see #share_with, where
+    # the guard is written correctly and only ever failed because of this line).
+    # Leaving it nil lets those guards work as written. Anything DISPLAYING a
+    # name should still go through the client-side helper
+    # (app/frontend/app/utils/display_name.js) or fall back to user_name.
     self.settings['preferences'] ||= {}
     self.settings['preferences']['progress'] ||= {}
     if self.settings['preferences']['home_board']
@@ -2079,10 +2322,21 @@ class User < ApplicationRecord
   CONFIRMATION_PREFERENCE_PARAMS = ['logging', 'private_logging', 'geo_logging', 'allow_log_reports',
       'allow_log_publishing', 'cookies', 'never_delete', 'logging_cutoff', 'logging_permissions', 'logging_code']
   RESEARCH_PREFERENCE_PARAMS = ['research_primary_use', 'research_age', 'research_experience_level']
-  PROGRESS_PARAMS = ['setup_done', 'intro_watched', 'profile_edited', 'preferences_edited', 
+  # NOTE: this is an ALLOWLIST — a progress key absent here is silently dropped on
+  # save. `guided_tours_completed` was written by the frontend for months without
+  # being listed, so the guided-tour "seen" badge never survived a reload and
+  # `tourSeen` was permanently false. Both tour maps are listed now; anything new
+  # under preferences.progress must be added here or it will not persist.
+  PROGRESS_PARAMS = ['setup_done', 'intro_watched', 'profile_edited', 'preferences_edited',
       'home_board_set', 'app_added', 'skipped_subscribe_modal', 'speak_mode_intro_done',
       'modeling_intro_done', 'modeling_ideas_viewed', 'modeling_ideas_target_words_reviewed',
-      'board_intros']
+      'board_intros', 'guided_tours_completed', 'guided_tours_autoshown']
+  # Progress keys that hold a {<tour_key> => true} map from the client. Sanitized
+  # on write (see process_params) so a malformed or hostile client cannot stash
+  # arbitrary JSON in the user record.
+  GUIDED_TOUR_PROGRESS_PARAMS = ['guided_tours_completed', 'guided_tours_autoshown']
+  GUIDED_TOUR_MAX_KEYS = 50
+  GUIDED_TOUR_MAX_KEY_LENGTH = 64
   def process_params(params, non_user_params)
     # Defensive guard: `settings['admin']` may only be set via
     # non_user_params['admin'] (see ~line 1485 below). Strip any
@@ -2546,6 +2800,25 @@ class User < ApplicationRecord
       if self.settings['preferences']['progress']['board_intros']
         self.settings['preferences']['progress']['board_intros'] = self.settings['preferences']['progress']['board_intros'].uniq
       end
+      # Guided-tour maps are client-supplied JSON. Keep only truthy entries,
+      # normalise every value to `true`, bound the key length and the map size,
+      # and discard the value entirely if it is not a Hash — so the stored shape
+      # is always {String => true} regardless of what the client sent.
+      GUIDED_TOUR_PROGRESS_PARAMS.each do |tour_attr|
+        val = self.settings['preferences']['progress'][tour_attr]
+        next if val.nil?
+        if val.is_a?(Hash)
+          cleaned = {}
+          val.each do |k, v|
+            next unless v
+            break if cleaned.size >= GUIDED_TOUR_MAX_KEYS
+            cleaned[k.to_s[0, GUIDED_TOUR_MAX_KEY_LENGTH]] = true
+          end
+          self.settings['preferences']['progress'][tour_attr] = cleaned
+        else
+          self.settings['preferences']['progress'].delete(tour_attr)
+        end
+      end
     end
     if params['preferences'] && params['preferences']['requested_phrase_changes']
       (params['preferences']['requested_phrase_changes'] || []).each do |change|
@@ -2943,6 +3216,42 @@ class User < ApplicationRecord
     (self.settings && self.settings['display_user_name']) || self.user_name
   end
 
+  # The literal string generate_defaults used to seed into settings['name'].
+  # It is truthy, so it defeated every `name || user_name` guard in the codebase.
+  # The seed is gone; accounts created before that still carry the string until
+  # `rake extras:clear_no_name_placeholder` runs, so every DISPLAY path has to
+  # keep filtering it. Mirrored client-side as SERVER_PLACEHOLDER_NAME in
+  # app/frontend/app/utils/display_name.js.
+  PLACEHOLDER_NAME = 'No name'
+
+  # True when settings['name'] holds nothing a human should be shown.
+  def placeholder_name?
+    name = self.settings && self.settings['name']
+    name.blank? || name == PLACEHOLDER_NAME
+  end
+
+  # The name a human should see. Server-side mirror of the client's
+  # app/frontend/app/utils/display_name.js, for the places JS cannot reach --
+  # mailer views, Open Graph tags, the SMS body of a shared utterance.
+  #
+  # Signup collects no name, so settings['name'] is absent for most accounts and
+  # every DISPLAY has to fall back to the handle.
+  # Use `settings['name']` directly only when round-tripping, never to display.
+  def display_name
+    return self.display_user_name if placeholder_name?
+    self.settings['name']
+  end
+
+  # #display_name for UNAUTHENTICATED surfaces: same resolution, but the handle
+  # fallback is obfuscated. `user_name` is accepted as a login credential by
+  # session_controller, so any endpoint that skips require_api_token must never
+  # emit it -- see api/organizations_controller#start_code_lookup, which is
+  # reachable by anyone holding a forwarded start-code link.
+  def obfuscated_display_name
+    return obfuscated_name if placeholder_name?
+    self.settings['name']
+  end
+
   def obfuscated_name
     name = display_user_name
     return name if name.length < 3
@@ -3030,6 +3339,7 @@ class User < ApplicationRecord
 
     existing = self.boards.where(parent_board: original).order('id DESC').first
     if existing && ((existing.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
+      retry_incomplete_library_swap(existing, symbol_library)
       return true
     end
 
@@ -3053,6 +3363,7 @@ class User < ApplicationRecord
     # First, if the user already has a copy as their home board, then stop
     current_home = self.settings['preferences']['home_board'] && Board.find_by_path(self.settings['preferences']['home_board']['id'])
     if current_home && current_home.parent_board == original && ((current_home.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
+      retry_incomplete_library_swap(current_home, symbol_library)
       return true
     elsif current_home && current_home.global_id(true) == original.global_id
       return true
@@ -3060,6 +3371,7 @@ class User < ApplicationRecord
     # Second, if the user already has a copy not as their home bord, then set that
     home = self.boards.where(parent_board: original).order('id DESC').first
     if home && ((home.settings['swapped_library'] || 'original') == (symbol_library || 'original'))
+      retry_incomplete_library_swap(home, symbol_library)
       self.settings['preferences']['home_board'] = {
         'id' => home.global_id,
         'key' => home.key
@@ -3105,6 +3417,21 @@ class User < ApplicationRecord
     return true
   end
 
+  # swapped_library matching is "do not copy_for again". swap_incomplete is
+  # "the last swap left buttons unresolved, run swap_images on THIS copy".
+  # Callers must already have confirmed the library marker matches.
+  def retry_incomplete_library_swap(board, symbol_library)
+    return unless board && symbol_library.present? && symbol_library != 'default' && symbol_library != 'original'
+    board = Board.find_by_global_id(board.global_id) || board
+    return unless board.settings && board.settings['swap_incomplete']
+    ids = [board.global_id]
+    ids += (board.downstream_board_ids || [])
+    ids.instance_variable_set('@skip_keyboard', true)
+    swap_library = symbol_library.dup
+    swap_library.instance_variable_set('@skip_swapped', true)
+    board.swap_images(swap_library, self, ids)
+  end
+  
   def schedule_audit_protected_sources
     ra_cnt = RemoteAction.where(path: "#{self.global_id}", action: 'audit_protected_sources').count
     RemoteAction.create(path: "#{self.global_id}", act_at: 10.minutes.from_now, action: 'audit_protected_sources') if ra_cnt == 0
@@ -3457,11 +3784,39 @@ class User < ApplicationRecord
   end
 
   def self.inactive_by_default_sidebar_keys
-    ['mbaud12/senner-baud-greetings']
+    [SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)]
   end
 
   def self.default_active_sidebar_boards
     default_sidebar_boards.reject { |b| inactive_by_default_sidebar_keys.include?(b['key']) }
+  end
+
+  # Written onto the user at signup only. Existing accounts with an empty stored
+  # sidebar keep default_active_sidebar_boards (no VF84 / Senner) so a deploy
+  # does not change live speak-mode sidebars or enqueue those trees as sync roots.
+  def self.signup_sidebar_boards
+    vf84 = {
+      'name' => "Vocal Flair 84",
+      'key' => SystemBoardSources.board_key('vocal-flair-84'),
+      'image' => '/images/vocal-flair-84.png',
+      'home_lock' => false
+    }
+    senner_key = SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG)
+    result = []
+    default_sidebar_boards.each do |entry|
+      key = entry['key']
+      if key == SystemBoardSources.board_key('keyboard')
+        result << entry
+        result << vf84
+      elsif key == senner_key
+        result << entry
+      elsif inactive_by_default_sidebar_keys.include?(key)
+        next
+      else
+        result << entry
+      end
+    end
+    result
   end
   
   def admin?
@@ -3473,7 +3828,7 @@ class User < ApplicationRecord
       {'name' => "Yes/No", 'key' => 'lingolinq/yesno', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/yes_2.png', 'home_lock' => false},
       {'name' => "Inflections", 'key' => SystemBoardSources.board_key('inflections'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/verb.png', 'home_lock' => false},
       {'name' => "Keyboard", 'key' => SystemBoardSources.board_key('keyboard'), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/noun-project/Computer%20Keyboard-19d40c3f5a.svg', 'home_lock' => false},
-      {'name' => 'Social', 'key' => 'mbaud12/senner-baud-greetings', 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/greet_2.png', 'home_lock' => false},
+      {'name' => SystemBoardSources::SENNER_BAUD_NAME, 'key' => SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG), 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/greet_2.png', 'home_lock' => false},
       {'name' => "Crisis Vocabulary", 'key' => SystemBoardSources.board_key(SystemBoardSources::CRISIS_VOCABULARY_SLUG), 'image' => 'https://cdn-icons-png.flaticon.com/512/7373/7373323.png', 'home_lock' => false},
       {'name' => "Alert", 'special' => true, 'alert' => true, 'image' => 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/to%20sound.png'}
     ]

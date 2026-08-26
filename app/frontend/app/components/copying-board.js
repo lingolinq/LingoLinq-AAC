@@ -99,6 +99,8 @@ export default Component.extend({
     }
     if (this.get('model.action') === 'keep_links' || this.get('model.action') === 'remove_links') {
       _this.start_copying();
+    } else if (this.get('model.skip_hierarchy_picker')) {
+      _this.start_copying();
     } else {
       loadHierarchyForCopyModal(board, {
         skipBoardReloadForCopyModal: true,
@@ -147,15 +149,18 @@ export default Component.extend({
     this.set('loading', false);
     let board_ids_to_include = null;
     const include_missing = this.get('includeMissing') || this.get('hierarchy.include_missing');
+    const live_links_incomplete = this.get('hierarchy.live_links_incomplete') || this.get('model.expand_selected_board_ids_to_copy');
     if (include_missing) {
       board_ids_to_include = null;
       this.set('hierarchy', null);
     } else if (this.get('hierarchy') && this.get('hierarchy').selected_board_ids) {
       board_ids_to_include = this.get('hierarchy').selected_board_ids();
       this.set('hierarchy', null);
+    } else if (this.get('model.board_ids_to_copy')) {
+      board_ids_to_include = this.get('model.board_ids_to_copy');
     }
     board.set('downstream_board_ids_to_copy', board_ids_to_include);
-    board.set('expand_selected_board_ids_to_copy', !include_missing && this.get('hierarchy.live_links_incomplete'));
+    board.set('expand_selected_board_ids_to_copy', !include_missing && live_links_incomplete);
     const _this = this;
     const model = this.get('model') || {};
     const modalSvc = this.get('modal');
