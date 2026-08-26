@@ -1249,11 +1249,35 @@ Independently reinforces §6.
 > instead require the "rationale for selection of a specific device and any
 > accessories," which is the documentation feature matching produces.
 
-Residual holes, which are real: **UnitedHealthcare's commercial SGD policy** could
+**A second sweep extended this to state Medicaid**, closing the five states listed
+as unchecked in an earlier revision. Sixteen documents re-verified here directly —
+each sanity-checked for a plausible "speech" count before its zero was accepted:
+
+| State | Document | `feature.?match` |
+|---|---|---|
+| TX | Medicaid Provider Procedures Manual, DME Handbook §2.2.5 (105,630 words) | **0** |
+| WA | Medical Equipment & Supplies Billing Guide, eff. 2026-01-01 · 2020 ed. · form HCA 13-0127 · WAC 182-543-3400 | **0** |
+| NC | Clinical Coverage Policy 5A-1 §5.3.16, amended 2025-07-15 (42,528 words) | **0** |
+| CO | DMEPOS Billing Manual (25,992 words) | **0** |
+| CA | Medi-Cal Provider Manual Pt 2, "dura spe" | **0** |
+| PA | 54 Pa.B. 947 · MA Bulletin 35-22-02 | **0** |
+| WI | Updates 2004-25 · 99-43 | **0** |
+| SC · MA · NV · OR | DME manual · 130 CMR 409.428 · ch. 1300 · OAR ch. 410 div. 122 | **0** |
+
+Oregon is a structural negative worth noting: **div. 122 has no SGD/AAC-specific
+rule at all**, and PA has no device-level AAC medical-necessity guideline — its AAC
+policy is an Exceptional DME notice plus the fee schedule.
+
+**Residual holes, which are real.** **UnitedHealthcare's commercial SGD policy** could
 not be read (the Oxford PDF 404s; that library was retired 2026-01-01) — a top-3
-payer with no direct read. MassHealth's medical-necessity *guidelines* page, AZ
-DES/DDD 310-PP and Mercy Care AZ all 403'd. TX TMPPM, CA Medi-Cal, PA DHS, WI
-ForwardHealth and OR OHA were never checked. **Unread is not negative.**
+payer with no direct read. **MassHealth's medical-necessity guidelines** are the one
+document most likely to contain the phrase and remain **unresolved**: mass.gov
+returns 403 site-wide (an Akamai bot block, not a per-file issue), and ~40 Wayback
+attempts across nine URL variants returned 503. A search engine's *paraphrase*
+claims the guidelines require that a device "matches the cognitive and physical
+capabilities of the member" — that is a summariser's wording, not a retrieved
+quote, and not the literal phrase either. **Do not cite it.** AZ DES/DDD 310-PP and
+Mercy Care AZ also 403'd. **Unread is not negative.**
 
 #### 12.9a The term payers actually use: **LCEEA** [VERIFIED]
 
