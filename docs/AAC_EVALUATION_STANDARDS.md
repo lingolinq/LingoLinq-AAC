@@ -1149,6 +1149,28 @@ times and `certificate of clinical` **0** times. Current NY requires *"A license
 Speech Language Pathologist (SLP) experienced in AAC service delivery."* The CCC
 requirement appears only in **vendor** material.
 
+⚠️ **Corrected 2026-08-25, same day — the claim above is too strong as written.**
+"Not required by any payer" is right for **Medicare** and wrong in general. Two
+counter-examples, both verified verbatim:
+
+- **Molina Clinical Policy 445** requires it outright: *"A speech evaluation is
+  conducted by a speech language pathologist who is licensed in the state where the
+  services are being performed **and who is certified by the American
+  Speech-Language-Hearing Association**."*
+- **42 CFR 440.110(c)(2)**, the *Medicaid* definition, lists the CCC as **one of
+  three** qualifying paths (the others being equivalent education + work experience,
+  or completing the academic program while acquiring supervised experience).
+
+The precise statement: Medicare routes to 42 CFR 484.115(n), which requires a
+master's/doctoral degree **plus state licensure** and never mentions the CCC; some
+Medicaid and MCO policies do require or accept it. In every case it is a **provider
+-qualification** rule, not a report field — but a report that omits it can still
+strand an SLP against Molina.
+
+**So keep the field.** The original conclusion (make it optional) survives for the
+right reason: it is not universally required, not that no one requires it. Do not
+present it as mandatory, and do not remove it.
+
 This touches shipped code: `asha_ccc` is collected in
 [eval_workbook.js:78](app/frontend/app/utils/eval_workbook.js#L78). It should be
 **optional**, not presented as a payer requirement. Not changed here — flagged.
@@ -1179,10 +1201,93 @@ to have outcomes and measures on a specific assessment tool."*
 The brand-naming correction is at §2 and in
 [eval-full-report.js](app/frontend/app/components/eval-full-report.js#L113).
 
+### 12.9 "Feature match": no payer names it — 23 documents checked [VERIFIED]
+
+The commercial-payer gap is **closed**. The literal string `feature match` /
+`feature matching` appears **zero times** across 23 retrieved payer and regulatory
+documents: Medicare (L33739, A52469), ten commercial policies, and eleven
+Medicaid/MCO policies — Aetna CPB 0437, Cigna 0049, Anthem CG-DME-07, Molina 445,
+BCBS NC/TX/SC, Premera, Kaiser NCAL, UHC Community Plan AZ, CareSource OH, Superior
+HealthPlan TX, Oklahoma OHCA, Colorado HCPF, WA HCA (including its own 14-page SLP
+evaluation **form**, HCA 13-0127), AHCCCS, and 130 CMR 409.428.
+
+**What payers say instead.** Five copy Medicare's sentence nearly verbatim.
+Spot-checked directly against Aetna CPB 0437 (147 hits for "speech", so extraction
+is sound; `feature.?match` = **0**):
+
+> "…Rationale for selection of a specific device and accessories; and A copy of the
+> SLP's written evaluation and recommendation have been forwarded…"
+
+**The concept survives; only the vocabulary differs.** UHC Community Plan AZ
+requires that *"the recommended device or software **matches the cognitive and
+physical capabilities** of the member"*; CareSource OH requires an itemised feature
+checklist (symbols, encoding, access techniques, keyboard organisation, outputs,
+portability); Colorado HCPF requires the SLP determine *"the AACD **features**
+necessary"* and trial *"a **minimum of three (3) devices**"* — another entry for the
+numeric table above.
+
+**The sharpest evidence is ASHA's own behaviour.** ASHA names feature matching
+three times in the clinical Practice Portal, including as a section heading, then
+**drops the term from both of its payer-facing documents** — the Medicare SGD page,
+and the *Speech-Language Pathology Medical Review Guidelines*, which ASHA writes
+**for payers**. Verified directly: **512** occurrences of "speech" in that PDF,
+**0** of feature matching. ASHA does not treat it as a payer requirement either.
+
+**Its origin is weaker than the field's usage implies:** Shane & Costello (1994) is
+a **conference mini-seminar**, not a peer-reviewed publication, and ASHA's own
+Practice Portal reference list does not cite it despite using the term as a
+heading. Gosnell, Costello & Shane (2011) — the usual modern citation — describes
+itself as offering *"a clinical framework"* and explicitly disclaims being a
+comprehensive review; *Perspectives* was not peer-reviewed until 2017.
+Independently reinforces §6.
+
+**The defensible sentence**, for anyone writing this claim again:
+
+> Feature matching is a clinical best-practice term originating in a 1994 ASHA
+> conference mini-seminar and codified in ASHA's Practice Portal. No payer policy
+> reviewed — Medicare, ten commercial, eleven Medicaid/MCO — uses the term. Payers
+> instead require the "rationale for selection of a specific device and any
+> accessories," which is the documentation feature matching produces.
+
+Residual holes, which are real: **UnitedHealthcare's commercial SGD policy** could
+not be read (the Oxford PDF 404s; that library was retired 2026-01-01) — a top-3
+payer with no direct read. MassHealth's medical-necessity *guidelines* page, AZ
+DES/DDD 310-PP and Mercy Care AZ all 403'd. TX TMPPM, CA Medi-Cal, PA DHS, WI
+ForwardHealth and OR OHA were never checked. **Unread is not negative.**
+
+### 12.10 Primary language is a COVERAGE CRITERION — and our spine has no field for it [VERIFIED]
+
+The most actionable omission found, and the one closest to home for a product that
+ships in multiple locales. Two payers make the user's language a condition of
+coverage, both verified verbatim:
+
+> **Molina Clinical Policy 445**, criterion 5: *"A SGD is **available in the
+> Member's primary language** and is being requested as a dedicated device…"*
+
+> **Cigna Coverage Policy 0049** (eff. 2026-01-15): *"A speech evaluation, conducted
+> by a speech-language pathologist, has documented the severity of the individual's
+> disability, **specific to their primary language**."*
+
+ASHA agrees on the clinical side — *"The assessment should be conducted in the
+language(s) needed by the AAC user"* — and warns that *"if the AAC system does not
+support all of the individual's language(s), they may be unable to communicate in
+the home, and carryover will be limited."* Its SGD template carries a header field,
+**"Primary languages spoken:"**. IDEA independently requires assessment *"in the
+child's native language or other mode of communication"* (§ 300.304(c)(1)(ii)).
+
+**The §3 spine has no language field anywhere.** A report built from it can satisfy
+Medicare completely and be **denied by Molina or Cigna**. This is the second
+denial-causing gap in this section, alongside F2F/WOPD (§12.3), and unlike that one
+it is trivially cheap to close: one field, captured once.
+
 ### 12.8 Still open
 
-- **Commercial payers unchecked** — Aetna, Cigna, UHC, Anthem. `"feature match"` is
-  NOT FOUND across five payer documents, but commercial policies were never pulled.
+- ~~Commercial payers unchecked~~ — **closed by §12.9**: 23 documents checked,
+  `"feature match"` NOT FOUND in any. Residual holes named there: **UHC commercial**
+  (404, a top-3 payer), MassHealth guidelines, AZ 310-PP, Mercy Care AZ, and five
+  states never checked (TX, CA, PA, WI, OR). Unread ≠ negative.
+- **No primary-language field in the spine** (§12.10) — a coverage criterion for
+  Molina and Cigna. Cheapest denial-causing gap here to close.
 - **MN via browser** — see the proxy caveat at 12.4.
 - **The F2F/WOPD gap** (12.3) is unrepresented in the spine and the workbook. It is
   the only gap here that costs a real user a real denial.
