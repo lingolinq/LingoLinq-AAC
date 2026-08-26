@@ -1,12 +1,102 @@
 # AAC Evaluation Standards — research findings
 
-Compiled 2026-08-14 from primary sources (ASHA Practice Portal, CMS LCD L33739 +
-Policy Article A52469, NY State Medicaid SGD Guidelines, MN DHS, 34 CFR 300.6 /
-300.320, Zabala, Beukelman & Mirenda, Light 1989/2014, Rowland).
+Compiled 2026-08-14; payer sources re-verified and re-cited **2026-08-25** (see
+§0 Sources).
+
+**How to read this document.** There is no SLP on staff. That means nothing here
+is safe on anyone's professional recollection — a requirement is only as good as
+the source next to it. Every payer requirement below is now marked:
+
+- **[VERIFIED]** — retrieved from the issuing body's current published document,
+  cited in §0 with a URL and an effective date, quoted where it matters.
+- **[UNSOURCED]** — we assert it, we could not find a published source. Treat as
+  clinical convention, NOT as a payer mandate. Do not tell an SLP it is required.
+- **[SUPERSEDED]** — was true, the issuing body has since changed it. Kept only
+  where the history explains something.
+
+If you add a requirement, add its citation in the same edit. An uncited
+requirement in this document is a defect, not a to-do: an SLP cannot tell it
+apart from a real one, and the failure mode is a denied funding claim for a
+disabled person's communication device.
 
 Purpose: ground the Quick Eval / Targeted / Comprehensive eval reports in what an
 SLP expects and what a funder or IEP team will accept. **Read the licensing
 section before naming any framework in shipped UI.**
+
+---
+
+## 0. SOURCES
+
+Every payer claim in this document traces to one of these. Retrieved 2026-08-25
+unless noted. `cms.gov` and `emedny.org` both 403 a browser-style fetch but return
+200 to plain `curl`; PDFs extract with
+`gs -q -dNOPAUSE -dBATCH -sDEVICE=txtwrite -sOutputFile=out.txt in.pdf`.
+
+**Medicare — the only source that makes something *federally* required**
+
+- **LCD L33739, *Speech Generating Devices*.** CGS Administrators (J-B 17013,
+  J-C 18003); Noridian Healthcare Solutions (J-A 16013, J-D 19003). Original
+  effective 2015-10-01; revision effective 2024-10-01 (R8); no retirement date.
+  <https://www.cms.gov/medicare-coverage-database/view/lcd.aspx?lcdId=33739>
+  Verbatim criteria quoted at §4a.
+- **Article A52469, *Speech Generating Devices — Policy Article*.**
+  <https://www.cms.gov/medicare-coverage-database/view/article.aspx?articleId=52469>
+  Contains the SUPPLIER CLAIM rules (manufacturer / product name and number), which
+  are **not** requirements on the SLP's evaluation — see §14 and §4a.
+
+**New York Medicaid — CURRENT**
+
+- ***Durable Medical Equipment, Prosthetics, and Orthotics: Procedure Codes and
+  Coverage Guidelines.*** NYS Dept. of Health, Office of Health Insurance Programs,
+  via eMedNY. Doc Control No. **DME 2026**, v1.0, effective **2026-07-01**. SGD
+  section from **p. 82**; evaluation elements at **§4(g)**.
+  <https://www.emedny.org/ProviderManuals/DME/PDFS/DME_Procedure_Codes.pdf>
+  That URL rolls forward at each revision — pin a snapshot when quoting:
+  <https://www.emedny.org/ProviderManuals/DME/archive.aspx>
+  SGD language is unchanged in substance since the 2019-1 edition.
+
+**New York Medicaid — SUPERSEDED. Do not cite as current.**
+
+- ***Speech Generating Device And Related Accessories Guidelines***, NYS DOH OHIP,
+  **August 2012**. Twelve pages, 16-section evaluation outline.
+  <https://www.emedny.org/providermanuals/dme/PDFS/SGD_Coverage_Guidelines_final.10-08-12.pdf>
+  **Retired effective 2019-08-01**, per NYS DOH's own notice: *"Revised guidelines
+  for Speech Generating Devices were published in the latest revision of the
+  Durable Medical Equipment, Prosthetics, Orthotics and Supplies Manual, effective
+  August 1, 2019."*
+  <https://www.emedny.org/ProviderManuals/DME/PDFS/Revised_Speech_Generating_Device_Guidelines_-_6-26-19.pdf>
+
+  **This is the document the 2026-08-14 draft of this file was written from**, which
+  is why its NY section numbers (§3, §6, §9, §10) do not exist in current policy.
+  Corrected 2026-08-25. If you find a NY claim here citing a bare section number,
+  it is probably still pointing at the retired outline.
+
+**Massachusetts MassHealth — CURRENT. This is where the per-trial spec came from.**
+
+- ***Guidelines for Medical Necessity Determination for Augmentative and
+  Alternative Communication Devices, Including Speech-Generating Devices.***
+  MassHealth (MA EOHHS / Office of Medicaid), **MNG-AAC (Rev. 3/23)**. Original
+  effective 2017-03-01; policy revision effective **2023-03-09**. See also
+  130 CMR 409.428. Per-device trial spec at **III.A.3.c**.
+  <https://www.mass.gov/doc/guidelines-for-medical-necessity-determination-for-augmentative-and-alternative-communication-devices-including-speech-generating-devices/download>
+
+  Found 2026-08-25 while trying to source the "MN DHS" attribution. MassHealth is
+  the **only** payer located that requires a **communication partner per trial**,
+  and the only one applying the full spec to *every device tried* rather than just
+  the recommended one — verbatim, III.A.3.c.vi: *"Data sheets, including messages
+  communicated, frequency, level of cueing, and communication partner."* The list
+  this document carried was substantially MassHealth's all along, attributed to the
+  wrong states.
+
+**Minnesota DHS — NO SOURCE LOCATED**
+
+- The 2026-08-14 draft attributed several requirements to "MN DHS," including the
+  only appearance anywhere of a **speed/accuracy** requirement. Searched
+  2026-08-25: **no issuing document, URL or date was found.** The quoted fragment
+  ("explicit evaluation of each AC device or method… and information on the
+  effectiveness") uses *AC device* rather than *AAC*, which reads as pre-2000s.
+  Every MN DHS claim is marked **[UNSOURCED]** until someone retrieves the actual
+  MHCP Provider Manual entry. Do not present them to an SLP as requirements.
 
 ---
 
@@ -90,7 +180,7 @@ producing.
 > The ★ markers below were assigned from ASHA/USSAAC summaries. Now that the primary
 > text has been retrieved, **four** of them are not Medicare requirements — §10's
 > environment/partner breakdown, §12 feature match and §13 per-trial data are
-> **NY Medicaid / MN DHS**, and §14's manufacturer/product/HCPCS trio is
+> **[VERIFIED] current NY Medicaid (DME 2026)**, and §14's manufacturer/product/HCPCS trio is
 > **A52469's supplier CLAIM rule, not an evaluation element**. Two required elements
 > were missing entirely. Marked inline as ★→ⓝ (other payer or other rule) and ★NEW.
 >
@@ -107,10 +197,10 @@ producing.
 8. Access/selection — optimal technique; **alternatives explored with trial length, training, and reason ruled out**
 8b. ★NEW Demonstrated cognitive and physical ability to effectively use **the selected device and its accessories** — criterion 1 bullet 6; distinct from the general cognition (§5) and motor (§7) sections (§4a)
 9. Symbol form, language representation, vocabulary organization, rate enhancement
-10. ★→ⓝ Daily functional communication needs by environment and partner; needs over next 2 years — **Medicare requires only "whether daily needs could be met using other natural modes"; the environment/partner split and 2-year horizon are NY Medicaid (§4a)**
+10. ★→ⓝ Daily functional communication needs by environment and partner; needs **current and reasonably foreseeable** — **Medicare requires only "whether daily needs could be met using other natural modes". The environment/partner split is [VERIFIED] current NY Medicaid, DME 2026 §4(g)(i): "primary communication partners; current and reasonably foreseeable communication environments." The "next 2 years" horizon this line used to carry is [SUPERSEDED] — it was 2012 NY §3, and NY deleted it in the 2019 revision; "two years"/"2 years" appears 0 times in the current SGD section (§0, §4a)**
 11. ★ Non-SGD options considered and ruled out — therapy, sign, writing, boards/PECS, low-tech, **and lower-cost tech incl. software on user-owned hardware**
 12. ★→ⓝ **Feature match** — required features derived from §4–10. **The phrase is absent from L33739; the mandate is "rationale for selection of a specific device and any accessories" (§4a)**
-13. ★→ⓝ Systems trialed — comparison table + per-trial data (see §5). **L33739 requires only "considered and ruled out"; the per-trial rigor is NY Medicaid / MN DHS (§4a)**
+13. ★→ⓝ Systems trialed — comparison table + per-trial data (see §5). **L33739 requires only "considered and ruled out". The rigor is [VERIFIED] NY Medicaid DME 2026 §4(g)(iii)–(vi) — where the data-driven trial is a COVERAGE criterion, not just documentation — and MassHealth MNG-AAC III.A.3.c, which is where the per-trial partner/message spec actually comes from. "≥10 messages" and "speed/accuracy" are [UNSOURCED] (§0, §4a)**
 14. ★→ⓝ Recommendation — device/software + accessories, **manufacturer, product name and number, HCPCS**, per-accessory justification — **the manufacturer/product/HCPCS trio is A52469's SUPPLIER CLAIM rule, not an L33739 evaluation element; the evaluation mandate is the per-accessory rationale (criterion 1 bullet 4, see §12 and §4a)**
 15. ★ Functional communication goals — measurable, time-framed, **set before the trial** and achieved at completion
 16. ★ Treatment/implementation plan **with a training schedule**
@@ -236,17 +326,47 @@ in the same edit; the count is not self-checking.
 
 - **§10 "by environment and partner… needs over next 2 years."** L33739 asks only
   for "an assessment of whether the individual's daily communication needs could
-  be met using other natural modes." The environment/partner breakdown and the
-  two-year horizon are **NY Medicaid §10** (see §5), not Medicare.
+  be met using other natural modes." The environment/partner breakdown is
+  **[VERIFIED] current NY Medicaid, DME 2026 §4(g)(i)** — not Medicare.
+
+  Two corrections to what this bullet used to say. It cited "NY Medicaid §10";
+  even in the retired 2012 outline this was **§3** ("Limitations of Current System
+  and Communication Needs") — §10 was the systems-considered section. And it
+  carried a **two-year horizon**, which is [SUPERSEDED]: that is 2012 §3 language,
+  deleted by NY in the 2019 revision and replaced with "current and reasonably
+  foreseeable." Verified 2026-08-25 — "two years"/"2 years" occurs 0 times in the
+  current SGD section. Do not tell an SLP that NY requires a 2-year projection.
 - **§12 "Feature match."** The phrase does not appear in L33739 at all. The
   requirement is "rationale for selection of a specific device and any
   accessories" — feature matching is *our method* for producing that rationale,
   not the mandate. Consistent with §6: do not call it clinically proven.
 - **§13 "Systems trialed — comparison table + per-trial data."** L33739 requires
-  only that other treatments were "considered and ruled out". The per-trial rigor
-  (dates, environments, partners, ≥10 messages, speed/accuracy) is **NY Medicaid
-  and MN DHS**. Still do it — those payers deny on it — but do not attribute it
-  to Medicare.
+  only that other treatments were "considered and ruled out", so the rigor is not
+  Medicare's. But the rest of what this bullet used to claim did not survive
+  checking, and the parts split three ways:
+
+  **[VERIFIED] current NY Medicaid** (DME 2026 §4(g)(iv), "Data driven AAC device
+  trial"): trial length and dates; time-framed measurable goals and criteria;
+  empirical data **including baseline performance**; environments trialed;
+  **whether communication occurred in both structured and unstructured settings**;
+  sampling of multiple messages with frequency, type and level of cueing; **number
+  of messages expressed in a time period**; communicative intents and functions.
+  Also §4(g)(iii): more than one device by **multiple manufacturers within the same
+  HCPCS category**, and §4(g)(vi) a **cost comparison** across them.
+
+  Note NY raised the stakes in 2019: the data-driven trial is now a **coverage
+  criterion**, not merely a documentation item — §1(g) requires skills
+  "demonstrated repeatedly over time, beyond a single instance or evaluation
+  session."
+
+  **[UNSOURCED] — our convention, not a payer mandate:** the "≥10 distinct
+  messages" threshold and "≥1 environment outside school, ideally 3". Neither
+  appears in the 2012 or current NY text (0 occurrences), nor in L33739.
+
+  **[UNSOURCED] — attribution not verified:** "speed/accuracy". It appears in no
+  Medicare or NY document (0 occurrences in both) and rests entirely on the MN DHS
+  attribution we could not locate (§0). It is the weakest load-bearing claim in
+  this file.
 
 **MISSING from §3 — required and we did not list them:**
 
@@ -266,15 +386,45 @@ complete against §3 is still short of criterion 1.
 
 NY Medicaid §10 requires, for each less-costly alternative: **trial length,
 education/training provided, and the specific reason it was ruled out**, plus
-data collected on the trial device. §6 requires the same rigor for **access
-methods**. MN DHS requires "explicit evaluation of each AC device or method…
-and information on the effectiveness," with **speed and accuracy** data.
+data collected on the trial device.
 
-Per-trial capture: device + language system + accessories · start/end dates ·
-environments (≥1 outside school, ideally 3) · communication partners · ≥10
-distinct medically relevant messages tagged by function/partner/environment ·
-operational skills · intrinsic factors (initiation, persistence, breakdown
-repair) · cost-effectiveness comparison across no-cost / low-cost / tablet options.
+⚠️ **That sentence is [SUPERSEDED].** It paraphrases the retired 2012 NY guidelines
+(§10 and §6). "education/training provided" occurs **0 times** in the current NY
+manual. The [UNSOURCED] MN DHS quotation that used to follow it — "explicit
+evaluation of each AC device or method… and information on the effectiveness,"
+with **speed and accuracy** data — has no locatable issuing document (§0), and
+speed/accuracy appears in no Medicare or NY text.
+
+**[VERIFIED] current NY per-trial requirements** (DME 2026 §4(g)(iv)) — capture
+these, they are what NY actually asks for:
+
+- trial length **and dates**, and time the device was accessed
+- time-framed measurable goals set for the trial, with criteria for measurement
+- empirical data including **baseline performance** and results against those goals
+- environments trialed (home, school, community — NY sets **no numeric minimum**)
+- whether communication occurred in both **structured and unstructured** settings
+- how the device was accessed
+- sampling of multiple messages: frequency, type, and **level of cueing required**
+- **number of messages expressed in a time period**
+- communicative intents and functions expressed
+
+plus §4(g)(iii) more than one device by **multiple manufacturers within the same
+HCPCS category**, and §4(g)(vi) a **cost comparison** across them.
+
+**[VERIFIED] MassHealth adds two things NY does not** (MNG-AAC III.A.3.c) — and
+this is where our per-trial list actually came from. MassHealth applies the spec to
+**every device tried**, not just the recommended one, and III.A.3.c.vi requires
+verbatim: *"Data sheets, including messages communicated, frequency, level of
+cueing, and **communication partner**."* It is the only payer located that requires
+a partner **per trial**.
+
+**[UNSOURCED] — ours, not a payer's.** These are reasonable clinical practice and
+we should keep doing them, but do not present them to an SLP as required:
+device + language system + accessories · **≥1 environment outside school, ideally
+3** · **≥10 distinct medically relevant messages** tagged by
+function/partner/environment · operational skills · intrinsic factors (initiation,
+persistence, breakdown repair) · cost-effectiveness across no-cost / low-cost /
+tablet options.
 
 ---
 
