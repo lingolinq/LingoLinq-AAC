@@ -6191,7 +6191,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248). The jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21. The job runs and matches zero rows. This is an ENFORCEMENT overstatement, not a retention violation. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 6), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding. NOTE ON LEGAL BASIS (added 2026-08-25 after review): the predecessor's \"Basis\" column attributes this tier to \"EU AI Act Article 50 record-keeping\". That attribution is INHERITED, not endorsed here, and is flagged as an open question for counsel: Article 50 is the AI Act's transparency provision and nothing in this record establishes that it imposes a five-year AiApiLog retention duty. This correction is scoped to the ENFORCEMENT claim only and takes no position on the legal basis. WINDOW CLAIM, tightened 2026-08-25 after review: the binding fact is the TABLE's age, not the stamp. ai_api_logs was created 2026-02-21 (db/migrate/20260221000001_create_ai_api_logs.rb), so no row can be five years old before 2031-02-21; write-time-stamped rows cannot qualify before 2031-06-21. A backfill or manual UPDATE stamping older rows could make one eligible sooner; no such backfill exists (no update_all touching jurisdiction). The earlier phrasing \"cannot delete any row before 2031-06-21\" was an overstatement."
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248). The jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21. The job runs and matches zero rows. This is an ENFORCEMENT overstatement, not a retention violation. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 6), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding. NOTE ON LEGAL BASIS (added 2026-08-25 after review): the predecessor's \"Basis\" column attributes this tier to \"EU AI Act Article 50 record-keeping\". That attribution is INHERITED, not endorsed here, and is flagged as an open question for counsel: Article 50 is the AI Act's transparency provision and nothing in this record establishes that it imposes a five-year AiApiLog retention duty. This correction is scoped to the ENFORCEMENT claim only and takes no position on the legal basis. WINDOW CLAIM, tightened 2026-08-25 after review: the binding fact is the TABLE's age, not the stamp. ai_api_logs was created 2026-02-21 (db/migrate/20260221000001_create_ai_api_logs.rb), so no row can be five years old before 2031-02-21; write-time-stamped rows cannot qualify before 2031-06-21. A backfill or manual UPDATE stamping older rows could make one eligible sooner; no such backfill exists (no update_all touching jurisdiction). The earlier phrasing \"cannot delete any row before 2031-06-21\" was an overstatement. OPERATIVE REASON, added 2026-08-25 after review: the date is not why it matches nothing. The stamp writes 'EU' only for a confirmed :eu user (lib/eu_jurisdiction.rb; :unknown and :non_eu both map to nil), and as of the 2026-08-23 read EuJurisdiction.status is :unknown for 34 of 34 production accounts with jurisdiction null on all 64 AiApiLog rows. Nothing has ever been stamped, so the control is structurally dormant rather than merely date-gated; it does not start working in 2031 by the passage of time."
     },
     {
       "id": "LL-ad67eecb9c",
@@ -6223,6 +6223,69 @@
         "attestation": ""
       },
       "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. EuJurisdiction.disclosure_required? is status(user) != :non_eu, so UNKNOWN resolves to disclosure-required. \"EU-gated\" reads as an allowlist and understates who sees the modal, which matters for any statement about which populations the disclosure reaches. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 7), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+    },
+    {
+      "id": "LL-17ec91ff20",
+      "ruleKey": "ai-consent-disclosure-tells-data-subjects-eu-retention-purge-is-enforced-when-it-deletes-nothing",
+      "title": "Live AI consent disclosure tells parents the EU retention purge is `enforced: true` / \"Enforced today\" when it has never deleted a row",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/lingo_linq/ai_consent_disclosures.rb",
+        "line": 138,
+        "snippet": "'note' => 'Enforced today for accounts in the EU jurisdiction '",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-26",
+      "lastSeen": "2026-08-26",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "DECISION REQUIRED BEFORE ANY EDIT -- do not silently change v1. Consent is recorded per disclosures_version (User#ai_consent_granted?(disclosures_version:), app/models/user.rb:1364) and content_hash is derived from the frozen REGISTRY entry (ai_consent_disclosures.rb:176-181), so editing v1 in place retroactively changes what anyone who consented to v1 was shown -- the same freeze problem attestation has. Two options: (a) correct v1 in place, acceptable only if no consent record exists at v1 that matters; (b) add a v2 entry and bump CURRENT_VERSION, which is correct-by-construction but is a product change with re-consent implications. Either way the corrected value is 'enforced' => false with a note matching lib/tasks/scheduler.rake:153-164. Scot's call.",
+        "timeframe": "before any EU-jurisdiction user is onboarded (the Polish beta cohort is currently held)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-26. Found by adversary review of PR #863 round 5. lib/lingo_linq/ai_consent_disclosures.rb:135-139 sets the lingolinq_eu tier to 'enforced' => true with the note 'Enforced today for accounts in the EU jurisdiction (AiApiLog.purge_old_eu_logs!, EU AI Act Article 50 record-keeping)'. The two sibling tiers correctly carry 'enforced' => false (:125, :131). It is served live: app/controllers/ai_consent/disclosures_controller.rb:29 calls metadata(version), rendered by app/views/ai_consent/disclosures/v1.html.erb, whose own header comment designates this metadata the single source of truth that the prose 'must not contradict'. DEFECT CLASS: every other carrier corrected in PR #863 is a record read by auditors; this one is a safeguard representation made to a data subject, and it is a machine-readable boolean with no prose to qualify it. It also carries the exact 'EU AI Act Article 50 record-keeping' legal-basis attribution that PR #863 concluded this company is not competent to assert. CURRENT EXPOSURE: production holds 34 accounts, all test/QA, EuJurisdiction.status :unknown for 34 of 34, and the Polish beta cohort is held, so no real person has been shown this today. That is why it is fixed correctly rather than hastily."
+    },
+    {
+      "id": "LL-db6bc3e568",
+      "ruleKey": "attested-data-retention-schedule-describes-eu-purge-as-enforced-and-now-functional",
+      "title": "Attested Data Retention Schedule describes the EU AiApiLog purge as \"enforced\" and \"Now functional ... matches EU rows\"; it has never matched a row",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/DATA_RETENTION.md",
+        "line": 33,
+        "snippet": "Up to 5 years, **enforced**",
+        "sha": "4e09b461706907b9d1bcc14ca7974fa63144c5ca"
+      },
+      "firstSeen": "2026-08-26",
+      "lastSeen": "2026-08-26",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "No edit possible: DOC-bff9acf51f is attested and Path-A frozen. Its successor docs/legal/2026-08-09_data-retention_draft.md (DOC-e62caf7fb9, unattested draft) WAS corrected in PR #863 and now carries the full account. Closure is Scot attesting that successor. Listed here so the carrier is tracked rather than only named in prose.",
+        "timeframe": "with the attestation of DOC-e62caf7fb9"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-26. Found by adversary review of PR #863 round 5. Low blast radius -- the row is status:superseded with bundles: [], so it does not travel in security-review, school-dpa-package, dsar or soc2-evidence -- but it is an ATTESTED record asserting an enforcement claim that PR #863 registers as false elsewhere, and it appeared in no successor's scope statement and none of the seven round-5 findings. The memo names it at :694; the register did not, until this row."
     }
   ]
 }

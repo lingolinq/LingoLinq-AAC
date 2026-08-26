@@ -546,7 +546,7 @@
     {
       "id": "DOC-f6d26afec8",
       "title": "Compliance & Data Governance (2026-08-25 successor)",
-      "description": "Path A successor to the CEO-attested repo-root COMPLIANCE.md. Corrects two sites stating the Anthropic/Bedrock runtime AI path is NOT OPERATIONAL and that AiClient.configured? is false. Credentials were re-mounted on revision 00015-9l9 at 2026-08-04T07:25:08Z, 53 minutes after the withdrawal the predecessor recorded as the end state, and have been continuously mounted since; the path carries user-attributed traffic (63 of 64 AiApiLog rows have a user_global_id). Also records that AWS Bedrock, not Anthropic, is the receiving processor for runtime prompts; the AWS BAA is the operative instrument.",
+      "description": "Path A successor to the CEO-attested repo-root COMPLIANCE.md. Corrects three sites stating the Anthropic/Bedrock runtime AI path is NOT OPERATIONAL and that AiClient.configured? is false. Credentials were re-mounted on revision 00015-9l9 at 2026-08-04T07:25:08Z, 53 minutes after the withdrawal the predecessor recorded as the end state, and have been continuously mounted since; the path carries user-attributed traffic (63 of 64 AiApiLog rows have a user_global_id).",
       "type": "policy",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -575,8 +575,8 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-9b299a785b",
-      "notes": "Path A successor to DOC-9b299a785b (attested 2026-08-04), created 2026-08-25. Corrects the Bedrock runtime operational-status claim at two sites: the subprocessor table Anthropic row (:130, \"NOT OPERATIONAL as of 2026-08-04 ... Not operational before or since ... Nothing egresses while the path is dormant\") and the architecture-diagram status note (:182-190, \"the model leg of this diagram is NOT OPERATIONAL. No lingolinq-web revision currently carries a Bedrock credential\"). Both were overtaken 53 minutes after the moment they describe by the 00015-9l9 re-mount (evidence: docs/legal/2026-08-16_subprocessor-register.md:99,268; row counts :96). Direction of error is understatement of live AI egress, and the predecessor is in the soc2-evidence bundle, so the claim travels to auditors and prospects. GOVERNANCE NOTE FOR THE ATTESTER: Path A leaves the repo-root COMPLIANCE.md frozen with the false claim and no in-file pointer, in a PUBLIC AGPLv3 repository. If that is unacceptable, Path B (re-pin and re-attest COMPLIANCE.md in place) is the alternative and only Scot can authorise it; this successor is drafted so its corrected text serves either path.",
-      "contentHash": "737321ca9010e9f4dc04145b511d150af77257c930b8e2c55a11a7d5c5b0832c"
+      "notes": "Path A successor to DOC-9b299a785b (attested 2026-08-04), created 2026-08-25. Corrects the Bedrock runtime operational-status claim at THREE sites: the subprocessor table Anthropic row (:130, \"NOT OPERATIONAL as of 2026-08-04 ... Not operational before or since ... Nothing egresses while the path is dormant\") the data-flow table AI APIs (Anthropic) row (:212, \"Not operational as of 2026-08-04\" / \"not operational before or since\", found in round-5 review), and the architecture-diagram status note (:182-190, \"the model leg of this diagram is NOT OPERATIONAL. No lingolinq-web revision currently carries a Bedrock credential\"). Both were overtaken 53 minutes after the moment they describe by the 00015-9l9 re-mount (evidence: docs/legal/2026-08-16_subprocessor-register.md:99,268; row counts :96). Direction of error is understatement of live AI egress, and the predecessor is in the soc2-evidence bundle, so the claim travels to auditors and prospects. GOVERNANCE NOTE FOR THE ATTESTER: Path A leaves the repo-root COMPLIANCE.md frozen with the false claim and no in-file pointer, in a PUBLIC AGPLv3 repository. If that is unacceptable, Path B (re-pin and re-attest COMPLIANCE.md in place) is the alternative and only Scot can authorise it; this successor is drafted so its corrected text serves either path.",
+      "contentHash": "15888bf55b2322296b08827e09bb1fbdf40597349d5422ebff66092c4da05c91"
     },
     {
       "title": "Compliance Program",
@@ -1009,7 +1009,7 @@
       "lastReviewed": "2026-08-09",
       "nextReviewDue": "2027-04-20",
       "attestation": {},
-      "contentHash": "38f8f95a3a20ddb6421d57bfed71c0db37f6906756aac9abea5f443aed82f4df",
+      "contentHash": "9ed6bbde3641c77ad4c750f92abb096e496304c2cd9499fa8c0a05f85aebcf0c",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -1684,7 +1684,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "04172d9984398a6bc63de9b6298bfb957e559e45ce5b953823928850e839a723",
+      "contentHash": "c0f8f285aad74b362ff8aacf45bdb8ba028db87ddd2fe51a89c593d3bf3e5536",
       "bundles": [],
       "mirrors": [
         {
@@ -3101,8 +3101,8 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-6d37a68cf4",
-      "notes": "Path A successor to DOC-6d37a68cf4 (attested 2026-08-19), created 2026-08-25. Corrects an ENFORCEMENT claim, not a compliance one: purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248); the jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21 and the job matches zero rows until then. Two carriers: the attestation-history narrative (:36, PR #656 moved \"the EU tier from inert to functional\") and the section 6 retention table (:293). Article 50 record-keeping requires the logs be KEPT and they are; no data was retained longer than a rule permits. The defect is that a document offered as evidence described a dormant job as an operating control. The same claim was corrected in place in the unattested draft docs/legal/2026-08-09_data-retention_draft.md (DOC-e62caf7fb9), which needed no supersession.",
-      "contentHash": "07182762e414ba430219bdda0135c9d686962abb622748a2dfb7f36cc972c185"
+      "notes": "Path A successor to DOC-6d37a68cf4 (attested 2026-08-19), created 2026-08-25. Corrects an ENFORCEMENT claim, not a compliance one: purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248); the jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21 and the job matches zero rows until then. Two carriers: the attestation-history narrative (:36, PR #656 moved \"the EU tier from inert to functional\") and the section 6 retention table (:293). No data was retained longer than a rule permits; this is an enforcement-description defect, not a retention violation. The defect is that a document offered as evidence described a dormant job as an operating control. The same claim was corrected in place in the unattested draft docs/legal/2026-08-09_data-retention_draft.md (DOC-e62caf7fb9), which needed no supersession. NOTE ON LEGAL BASIS (added 2026-08-25 after review): the predecessor's \"Basis\" column attributes this tier to \"EU AI Act Article 50 record-keeping\". That attribution is INHERITED, not endorsed here, and is flagged as an open question for counsel: Article 50 is the AI Act's transparency provision and nothing in this record establishes that it imposes a five-year AiApiLog retention duty. This correction is scoped to the ENFORCEMENT claim only and takes no position on the legal basis. WINDOW CLAIM, tightened 2026-08-25 after review: the binding fact is the TABLE's age, not the stamp. ai_api_logs was created 2026-02-21 (db/migrate/20260221000001_create_ai_api_logs.rb), so no row can be five years old before 2031-02-21; write-time-stamped rows cannot qualify before 2031-06-21. A backfill or manual UPDATE stamping older rows could make one eligible sooner; no such backfill exists (no update_all touching jurisdiction). The earlier phrasing \"cannot delete any row before 2031-06-21\" was an overstatement. OPERATIVE REASON, added 2026-08-25 after review: the date is not why it matches nothing. The stamp writes 'EU' only for a confirmed :eu user (lib/eu_jurisdiction.rb; :unknown and :non_eu both map to nil), and as of the 2026-08-23 read EuJurisdiction.status is :unknown for 34 of 34 production accounts with jurisdiction null on all 64 AiApiLog rows. Nothing has ever been stamped, so the control is structurally dormant rather than merely date-gated; it does not start working in 2031 by the passage of time.",
+      "contentHash": "2076e801b57d48410044adb32b8173755933fc51878028f74407342cdaae8523"
     },
     {
       "title": "AI Data-Sharing Consent: Rationale and Policy",
@@ -3172,7 +3172,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-2e9fdc06e4",
       "notes": "Path A successor to DOC-2e9fdc06e4 (attested 2026-08-04), created 2026-08-25. Corrects (1) \":66 recorded as the first and only row in AiApiLog\" - it was the first, not the only: 64 rows as of 2026-08-16, 63 carrying a user_global_id (docs/legal/2026-08-16_subprocessor-register.md:96,99); and (2) \":67 the path is not operational as of that timestamp\" - credentials were re-mounted 53 minutes later on 00015-9l9 at 2026-08-04T07:25:08Z and have been continuously mounted since (same source, :99,268). Revision credential mounts are NOT monotonic, so a status read from one revision does not establish a subsequent one. No consent policy, gate, or disclosure text changes; only the operational-status facts. A consent rationale is read to decide what families are told, so an UNDERSTATED egress is the direction of error that matters.",
-      "contentHash": "f82a6f9f3c150407555e99b2066b5d847a3542bcba2a241faece2161dc258fd5"
+      "contentHash": "f21357ace81b52e1520767ddfe3307778cb14fb8c268bcac62a4e19f26d9de28"
     },
     {
       "title": "LingoLinq Security, Privacy & Compliance Overview",
@@ -3295,7 +3295,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "51f6d89df8a82ce0072e27f7744d9a7244849b6433ddb2ea0e410b258099a3a6",
+      "contentHash": "0abe53ff080e825110de70d9cd0a4a5237482e235d8c28c19fc0fbb54ea3d483",
       "bundles": [],
       "mirrors": [
         {
@@ -3780,7 +3780,7 @@
       "mirrors": [],
       "notes": "Evidence record, UNATTESTED DRAFT. Produced by four named audited read-only rails runner executions (lingolinq-migrate-jqpxb at 2026-08-23T21:04:12Z, lingolinq-migrate-4ss8l at 2026-08-23T21:08:00Z, lingolinq-migrate-wxt9x at 2026-08-23T23:14:30Z, lingolinq-migrate-stnwz at 2026-08-23T23:23:41Z) against RAILS_ENV=production on image web:73a8f633, attributed attribution label scot-art50-flag-verification-2026-08-23, supplied via the USER_KEY environment variable. AuditEvent.count moved 245 to 251 (six runner sessions) under that label; two of those six have no retained Cloud Run execution ID in this record and are disclosed as unbound. Resolves the open Article 50(1) enablement question carried by DOC-c5408d90b7, DOC-e5e85eccb1 and DOC-af01c65b10, and corroborates the attested live-production observation at docs/legal/2026-08-17_ai-data-flow-classification.md:132. Does NOT establish an enabled-since date: Setting has no PaperTrail history (0 version rows) and Setting.set overwrites in place, so that question is unanswerable for every Setting-backed control, not only this flag. Surfaces two pre-existing open items: zero organizations carry a jurisdiction stamp, and code/DB disagree on the default feature set.",
       "id": "DOC-6c023a20a0",
-      "contentHash": "761492d309ecfcb9482c1ed0bfb0cfd0923b2acd3a08d31ce9adf42f435ac0e8",
+      "contentHash": "7144c44053904251f270f601b95a671282784bc5702072a9da02127c73eee721",
       "retention": {
         "class": "audit-evidence",
         "rule": "7 years",
@@ -3819,9 +3819,9 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-39f37f8200",
-      "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified the enablement and inertness claims -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). The same read does not establish that the modal was displayed; 'shown to no one because the flag is off' is false, but this record does not claim the UI rendered. (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. Until that is swept the pack is internally inconsistent on this point. Still status:draft with empty attestation; only Scot attests.",
+      "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified the enablement and inertness claims -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). The same read does not establish that the modal was displayed; 'shown to no one because the flag is off' is false, but this record does not claim the UI rendered. (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. CORRECTED 2026-08-25: that file (DOC-59273ae805) is SUPERSEDED by DOC-c5408d90b7 (2026-08-22), which corrects exactly that claim at its own :106. The predecessor is attested and Path-A frozen, so \"until that is swept\" prescribed something impossible. The real residual is that the superseded row retains its bundle membership on this point. Still status:draft with empty attestation; only Scot attests.",
       "id": "DOC-506bbe2039",
-      "contentHash": "f52d9b09414ef024457e27ccddac557e713990dc9684bb9533d8fff70f94958a"
+      "contentHash": "56bb8c393da187eb70e8bea3bb2b878e2e538d6afca01024979496c61c56f65f"
     }
   ]
 }
