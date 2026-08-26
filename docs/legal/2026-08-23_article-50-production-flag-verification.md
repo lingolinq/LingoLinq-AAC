@@ -114,13 +114,13 @@ membership from those lists would be a false positive.
 Precisely: beta falls back to the full AVAILABLE list, and canary falls back to
 `AVAILABLE_FRONTEND_FEATURES - DISABLED_CANARY_FEATURES` (`lib/system_feature_settings.rb:29`). The
 73 = 73 equality and the beta/canary identity above hold **only because
-`DISABLED_CANARY_FEATURES` is currently empty** (`lib/feature_flags.rb:93`); both go silently false
+`DISABLED_CANARY_FEATURES` is currently empty** (`lib/feature_flags.rb:108`); both go silently false
 the first time anything is added to that denylist.
 
 ### 2.4 Per-user resolution — true (confirmation only)
 
 Resolved through the real path, `FeatureFlags.feature_enabled_for?('article_50_disclosure', user)`,
-the same call the server backstop makes at `app/controllers/application_controller.rb:419-422`.
+the same call the server backstop makes at `app/controllers/application_controller.rb:438-442`.
 
 | User (global_id) | Managing org | `feature_enabled_for?` | Effective list contains flag |
 |---|---|---|---|
@@ -161,8 +161,8 @@ country, so the 29 unresolved users are *unknown*, not affirmatively non-EU.
 
 **This is the operationally important layer, and it is not what the organization histogram in 2.2
 suggests.** With the flag on, `article_50_disclosure_missing?`
-(`app/controllers/application_controller.rb:419-422`) is armed at all five AI ingresses:
-`app/controllers/api/boards_controller.rb:584`, `api/eval_sessions_controller.rb:84`,
+(`app/controllers/application_controller.rb:438-442`) is armed at all five AI ingresses:
+`app/controllers/api/boards_controller.rb:592`, `api/eval_sessions_controller.rb:84`,
 `api/integrations_controller.rb:104`, `api/word_suggestions_controller.rb:28`,
 `api/words_controller.rb:63`.
 
@@ -245,31 +245,142 @@ testing.
    control change" is unanswerable for every `Setting`-backed control, not only this one.
 3. **Code and DB disagree on the default feature set.** A reader of `lib/feature_flags.rb` alone
    reaches the wrong conclusion about production. That is what produced the defect corrected here.
-4. **Runtime-code comments shipping in the live image are falsified by this record.**
-   `app/controllers/application_controller.rb:396-397` states that `article_50_disclosure` "is
-   AVAILABLE-only ... so `feature_enabled_for?` returns false and this guard is inert until the flag
-   is enabled", and `app/controllers/api/boards_controller.rb:580` repeats it ("the guard is inert
-   until the flag is enabled") three lines after naming LL-6723438462 by id. The guard is not inert;
-   per 2.6 it is live for 29 of 34 users. Same code-default-mistaken-for-runtime-state class as item
-   3. Neither is corrected here (runtime code is out of scope for a compliance record); both are
-   listed so the carriers are declared rather than merely unfixed.
-6. **An ATTESTED compliance document carries the same falsified claim, and cannot be edited.**
-   `docs/legal/AI_GOVERNANCE_MEMO.md` (DOC-39f37f8200, attested by Scot Wahlquist 2026-08-04, with a
-   pinned `attestedContentHash`) states at `:261` that the modal is "**built and staged, gated OFF**,
-   not yet enabled for any user" and at `:426-427` that it is "gated OFF ... (not enabled for any
-   user); the modal is therefore shown to no" one. Both are now false. Because the document is
-   attested it is frozen: correcting it requires a Path A successor and Scot's re-attestation, not an
-   in-place edit. **This is the highest-value open item in this list** -- it is a customer-facing
-   governance memo asserting that no user sees the disclosure, while production shows it required for
-   34 of 34 and gated for 29.
-5. **Two human-owned fields in the findings SSOT carry the same falsified claim, and they
-   propagate.** `audit-reports/FINDINGS.json` finding LL-6723438462 states in `verifierNote` that
-   the flag "remains AVAILABLE-only ... so this is still latent-until-enabled", and in `notes` that
-   this makes "all instances of the guard inert today". The second is load-bearing and is disproved
-   by 2.6. These are Scot-owned register fields — **deliberately NOT edited here** — but they are
-   inputs to `scripts/render-domain-reports.rb:143` and
-   `scripts/compliance-findings-notion-sync.rb:76`, so the next render republishes them. Amendment
-   and the timing of those renders are Scot's call.
+4. **Runtime-code comments shipping in the live image were falsified by this record.**
+   RESOLVED 2026-08-25 for every EDITABLE carrier. **Scope, stated as scope rather than as a count,
+   with its exclusions named:**
+
+   *Swept and corrected:* a full read of `app/`, `lib/`, `spec/`, `db/`, `lib/tasks/` and `docs/`
+   (including `docs/task-management/`). Nine carriers are listed below as evidence. The count is
+   deliberately NOT the claim -- see the process note, which records that a count has been wrong here
+   six times.
+
+   *NOT swept, and unreachable by edit:* four ATTESTED documents carry this claim and are frozen
+   under Path A governance, which forbids editing attested bytes. They are addressed by supersession,
+   not correction, and are named here so this closure cannot be read as covering them:
+   `docs/legal/AI_GOVERNANCE_MEMO.md` (:18, :269, :427 -- superseded by `DOC-506bbe2039`, this PR),
+   `docs/legal/2026-08-20_compliance-posture-report.md` (:36, :138 -- superseded by `DOC-c5408d90b7`,
+   which is now carried alongside it in all three affected bundles),
+   `docs/legal/2026-08-20_compliance-program.md` (:137, :308 -- superseded by `DOC-e5e85eccb1`), and
+   `docs/legal/COMPLIANCE_STATUS_2026-08-09.md` (:75 -- superseded by `DOC-af01c65b10`). Each
+   successor exists and corrects the claim; none is attested, so until Scot attests them the
+   customer-facing packs contain both the signed-but-false record and its unsigned correction. That
+   residual is deliberate and is recorded on `DOC-506bbe2039` and `DOC-c5408d90b7`.
+
+   The carriers corrected by this record:
+   - `app/controllers/application_controller.rb` -- corrected by PR #853; `:411` now reads "this
+     guard is LIVE in production, not inert".
+   - `app/controllers/api/boards_controller.rb:580` -- "the guard is inert until the flag is
+     enabled". Corrected here.
+   - `lib/feature_flags.rb:57-63` -- "AVAILABLE-only => OFF for everyone by default, so the whole
+     Phase 3/4 disclosure path stays inert", plus a sign-off gate the production `Setting` had
+     already bypassed. This is the same file item 3 below names as the one that makes readers reach
+     the wrong conclusion about production. Corrected here.
+   - `app/frontend/app/utils/article50_gate.js:14-16` -- "the flag is not registered yet on this
+     branch"; "the intended inert state". Both false. Corrected here.
+   - `app/models/user.rb:1531` -- "in production every `AiApiLog` row carries
+     `article_50_disclosure_shown=false`". False: 63 of 64 observed rows carry `true` (section 3).
+     Corrected here.
+   - `app/models/user.rb:1564` -- "nothing calls it in production yet". False:
+     `app/frontend/app/components/ai-disclosure.js:105` calls the acknowledgement endpoint.
+     Corrected here.
+   - `spec/controllers/api/integrations_controller_spec.rb:552,556` -- a GREEN TEST whose NAME
+     asserted the falsified claim as fact: "should proceed on a cache hit with the flag NOT enabled
+     (**AVAILABLE-only shipping state**)", with a comment reading "article_50_disclosure is
+     AVAILABLE-only". It passes only because the test DB carries no `default_enabled_features` row.
+     Worse than a stale comment: an auditor reading the spec suite concludes the flag ships off, and
+     seeding that Setting in test would silently invert the assertion. Renamed and re-commented to
+     pin the code-default path explicitly, not the production state. Corrected here.
+   - `spec/controllers/api/boards_controller_spec.rb:1571,1575` -- a SECOND green test, in a
+     different spec file, named "should proceed normally with the flag NOT enabled ... (primary
+     flag-off no-change regression)" with a comment stating the flag "is not in
+     `AVAILABLE_FRONTEND_FEATURES` on this branch" and calling that "**the shipping state**". Doubly
+     false: the flag IS registered there, and production enables it via the DB Setting. Found only
+     after the seventh was fixed, by a reviewer searching `spec/` a second time. Corrected here.
+   - `docs/task-management/LEARNINGS.md:6371` -- "`article_50_disclosure` is AVAILABLE-only -- do not
+     enable it just to exercise the backstop". A TRACKED in-repo carrier, in the one file `CLAUDE.md`
+     Rule #0 item 8 orders every agent and developer to read BEFORE starting a researched task. It
+     therefore has a higher read rate on this exact decision than any of the eight code carriers, and
+     it carried an operational instruction that is now wrong. No prior sweep looked at `docs/` outside
+     `docs/legal/`. Corrected here.
+   - `app/frontend/tests/components/focus-words-article50-test.js:217` -- a THIRD green test name,
+     "dispatches normally when the flag is off, so the non-EU and **pre-enable** paths are unchanged".
+     "pre-enable" asserts the flag has not been enabled in production. Found inside `app/` -- the
+     first directory the previous version of this scope statement claimed to have read in full.
+     Corrected here.
+
+   **Process note, and it is the useful part of this item.** This item has now been closed on an
+   incomplete sweep FIVE demonstrated times: at two carriers, then four, six, seven, eight, nine --
+   each time in good faith immediately after a search, each time wrong. This is the sixth closure and
+   **it does not certify itself**; the entry below records why no closure of this item should be read
+   as final.
+
+   Each failure had a distinct structural cause, and none was carelessness:
+   - 2 -> 4: keyword-scoped to wording already known (`inert`).
+   - 4 -> 6: read the controllers, skimmed the model layer.
+   - 6 -> 7: searched `app/` and `lib/`, never `spec/`.
+   - 7 -> 8: searched `spec/` once, stopped at the first hit.
+   - 8 -> 9: searched `spec/` twice, never `docs/` outside `docs/legal/` -- missing the file
+     `CLAUDE.md` Rule #0 requires every agent to read first.
+   - 9 -> 10: replaced the count with a claim to have read whole directories -- and the very first
+     directory named (`app/`) still contained an uncorrected carrier in `app/frontend/tests/`.
+
+   **Two counter-measures were tried here and BOTH failed.** First a count, which reads as a verified
+   total when it is only a tally of what the last search reached. Then a scope statement, on the
+   theory that "which directories were read" is auditable where a number is not. It is not: "I read
+   directory X in full" is the same unverifiable self-report, and it broke on its first directory.
+   A grep gate -- the third proposal -- would have found four of the ten, since carriers 7, 8, 9 and
+   10 are not comments at all (three green TEST NAMES and a learnings entry), so no comment- or
+   phrase-scoped mechanism can reach them.
+
+   **What actually worked, every time, was an independent reviewer with a different reading strategy
+   searching somewhere the previous one had not.** That is a property of the process, not of any
+   artifact, and it cannot be asserted by this document.
+
+   **Recommended durable counter-measure, for Scot's decision (NOT implemented here):** track each
+   falsified ASSERTION as its own row in `audit-reports/FINDINGS.json`, closed individually with
+   evidence, rather than as a prose claim in this record about how thoroughly someone read. A row
+   cannot be closed by a sweep that never looked at it; a prose claim can. Creating those rows is a
+   governance act and is deliberately left to Scot.
+
+   **Known carriers NOT corrected, because they are ATTESTED and frozen under Path A** (editing
+   attested bytes is forbidden; each needs a successor, which is separate work):
+   - `COMPLIANCE.md:130,181-190` -- repo ROOT of a public AGPLv3 repo, `DOC-9b299a785b`, status
+     `approved`, in the `soc2-evidence` bundle. Says the Bedrock runtime is "NOT OPERATIONAL ...
+     **not operational before or since**". This is the strongest surviving form of the claim.
+   - `docs/legal/2026-08-17_ai-data-flow-classification.md:293` -- `approved`, attested 2026-08-19,
+     ships in `school-dpa-package`, `security-review` and `dsar`.
+   - `docs/legal/AI_DATA_SHARING_CONSENT.md:66-67` -- `approved`; says the log holds "the first and
+     only row in `AiApiLog`". There are 64.
+   - `docs/legal/DATA_RETENTION.md:33` -- describes the EU purge as "enforced".
+   - The four superseded-and-attested records already named in the scope exclusions above.
+
+5. **Two human-owned fields in the findings SSOT carried the same falsified claim.**
+   RESOLVED 2026-08-24 by PR #850. `audit-reports/FINDINGS.json` finding LL-6723438462 previously
+   stated in `verifierNote` that the flag "remains AVAILABLE-only ... so this is still
+   latent-until-enabled", and in `notes` that this makes "all instances of the guard inert today".
+   Both fields were amended on Scot's direction; each now quotes the prior text and records that it
+   was false, so the falsified wording survives only as quoted-and-corrected history. The render
+   consumers (`scripts/render-domain-reports.rb:143`,
+   `scripts/compliance-findings-notion-sync.rb:76`) therefore republish the correction, not the
+   defect. Retained as history of what propagated.
+
+6. **An ATTESTED compliance document carried the same falsified claim.**
+   RESOLVED 2026-08-24 by PR #856. `docs/legal/AI_GOVERNANCE_MEMO.md` (`DOC-39f37f8200`, attested
+   by Scot Wahlquist 2026-08-04) stated at `:261` that the modal is "**built and staged, gated
+   OFF**, not yet enabled for any user" and at `:426-427` that it is "gated OFF ... the modal is
+   therefore shown to no one". The flag-OFF / gated-OFF rationale is **false** (the flag IS
+   ENABLED in production via the `default_enabled_features` DB Setting). "Shown to no one" is
+   that same rationale, which the enablement read falsifies; whether the modal was **displayed**
+   is **undetermined**. Acknowledgement state can be written without the UI rendering
+   (`admin_backfill`, or posting `users_controller#article_50_disclosure_ack`), and the
+   2026-08-23 probe did not check acknowledgement `AuditEvent`s or UI telemetry. See the
+   successor memo, Corrections row 3. Because the document is attested it could not be
+   edited in place; it was superseded under Path A by
+   `docs/legal/2026-08-24_ai-governance-memo.md` (`DOC-506bbe2039`), which corrects the
+   enablement/inertness claims and records the display claim as undetermined, and
+   which the same PR as this amendment further reconciles. The predecessor remains frozen and
+   byte-identical as the signed record. **This was the highest-value open item in this list and it
+   is now discharged**, pending only Scot's attestation of the successor.
 
 ## Attestation
 

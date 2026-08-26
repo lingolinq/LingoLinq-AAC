@@ -157,8 +157,11 @@ describe Api::WordsController, :type => :controller do
     end
 
     describe "article_50_disclosure backstop (LL-6723438462)" do
-      it "proceeds normally with the flag NOT enabled, regardless of jurisdiction or acknowledgement" do
+      it "proceeds normally when feature_enabled_for? is false, regardless of jurisdiction or acknowledgement (code-default path, not the production state)" do
         token_user
+        # Guard: pin the code-default explicitly so seeding a default_enabled_features
+        # row in test cannot silently invert this assertion.
+        expect(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).at_least(:once).and_return(false)
         allow(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_word_prediction', anything).and_return(true)
         allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
         allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(false)
