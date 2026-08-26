@@ -56,16 +56,16 @@ module('Unit | board-picker category tagged sub-boards', function(hooks) {
       keepCategoryTagged: true
     });
     var keys = categoryList.map(function(b) { return b.get('key'); });
-    assert.ok(keys.indexOf('lingolinq/vocal-flair-112') !== -1, 'brand root stays');
-    assert.ok(keys.indexOf('lingolinq/vocal-flair-112-keyboard') !== -1,
+    assert.true(keys.includes('lingolinq/vocal-flair-112'), 'brand root stays');
+    assert.true(keys.includes('lingolinq/vocal-flair-112-keyboard'),
       'tagged keyboard sub-board stays in the category list');
-    assert.ok(keys.indexOf('lingolinq/keyboard-with-categories') !== -1, 'non-brand keyboard stays');
+    assert.true(keys.includes('lingolinq/keyboard-with-categories'), 'non-brand keyboard stays');
 
     var availableList = c._preparePickerBoardList([root, keyboard, standalone]);
     var availableKeys = availableList.map(function(b) { return b.get('key'); });
-    assert.ok(availableKeys.indexOf('lingolinq/vocal-flair-112') !== -1);
-    assert.ok(availableKeys.indexOf('lingolinq/vocal-flair-112-keyboard') === -1,
+    assert.true(availableKeys.includes('lingolinq/vocal-flair-112'));
+    assert.false(availableKeys.includes('lingolinq/vocal-flair-112-keyboard'),
       'All Available still drops brand-set sub-boards');
-    assert.ok(availableKeys.indexOf('lingolinq/keyboard-with-categories') !== -1);
+    assert.true(availableKeys.includes('lingolinq/keyboard-with-categories'));
   });
 });

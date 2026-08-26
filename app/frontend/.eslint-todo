@@ -49,11 +49,11 @@ app/components/board-icon.js|ember/no-runloop|314|7|2|5addc2170315
 app/components/board-icon.js|ember/require-computed-property-dependencies|171|14|1|768f523c29b2
 app/components/board-icon.js|ember/require-computed-property-dependencies|196|18|1|afe678686c7e
 app/components/board-icon.js|ember/require-super-in-lifecycle-hooks|115|3|1|04fd54f45db7
-app/components/board-picker.js|ember/no-runloop|73|34|2|ab6701509d85
-app/components/board-picker.js|ember/no-runloop|87|7|2|513c0395fe72
-app/components/board-picker.js|ember/no-runloop|94|5|2|9ccbb762d93a
-app/components/board-picker.js|ember/require-super-in-lifecycle-hooks|50|3|1|04fd54f45db7
-app/components/board-picker.js|lingolinq/no-orphaned-action|644|5|1|f6643eed75ea
+app/components/board-picker.js|ember/no-runloop|74|34|2|ab6701509d85
+app/components/board-picker.js|ember/no-runloop|88|7|2|513c0395fe72
+app/components/board-picker.js|ember/no-runloop|95|5|2|9ccbb762d93a
+app/components/board-picker.js|ember/require-super-in-lifecycle-hooks|51|3|1|04fd54f45db7
+app/components/board-picker.js|lingolinq/no-orphaned-action|650|5|1|f6643eed75ea
 app/components/board-preview-canvas.js|ember/no-runloop|1019|36|2|513c0395fe72
 app/components/board-preview-canvas.js|ember/no-runloop|1020|31|2|5addc2170315
 app/components/board-preview-canvas.js|ember/no-runloop|1029|7|2|513c0395fe72
