@@ -1329,6 +1329,79 @@ Medicare completely and be **denied by Molina or Cigna**. This is the second
 denial-causing gap in this section, alongside F2F/WOPD (§12.3), and unlike that one
 it is trivially cheap to close: one field, captured once.
 
+### 12.11 Where our spine came from: an orphaned 2004 protocol [VERIFIED]
+
+The keystone provenance finding. Our §3 spine's medical half is not something we
+composed — it descends, section for section, from one document:
+
+> **"Medicare Funding of AAC Technology — Assessment/Application Protocol"**,
+> Medicare Implementation Team (Lewis Golinker Esq., David Beukelman, Sarah
+> Blackstone, Frank DeRuyter, Melanie Fried-Oken and others), hosted by the
+> **AAC-RERC** (a consortium including Penn State, Nebraska-Lincoln, Duke,
+> Children's Hospital Boston, OHSU, SUNY Buffalo). Footer: **"Updated 11/20/04."**
+
+Its eight sections are our spine: I Demographic · II Current Communication
+Impairment · III Daily Communication Needs · IV Functional Communication Goals ·
+V Rationale for Device Selection · VI Treatment Plan · VII Functional Benefit of
+Upgrade · VIII SLP Assurance of Financial Independence and Signature.
+
+**Three consequences, and each closes a question left open above.**
+
+**1. This is where `asha_ccc` came from.** §VIII's field list, retrieved verbatim
+from the archived page:
+
+> "Evaluating SLP name · **ASHA Certification #** · State License # · Disclaimer
+> statement"
+
+So the field is not invented and not a vendor's — but its source is a 2004
+volunteer-panel protocol, which is a much weaker warrant than "a payer requires
+it." Combined with §12.6 (Molina does require the credential; Medicare wants state
+licensure), the resolution stands: **keep the field, make it optional.**
+
+**2. The protocol is orphaned and predates the current LCD.** `aac-rerc.psu.edu`
+now 301s to a host that 404s every page; it survives only in the Internet Archive.
+It is dated **2004** and built on the **RMRP** — the instrument **superseded by LCD
+L33739 in October 2015**. That is the same superseded RMRP the vendor templates in
+§12.1 cite. So *two independent lineages* in this file — the vendor per-trial rules
+and our own section spine — both trace to policy retired over a decade ago. Golinker
+himself now points readers to the live LCD instead.
+
+**3. It explains the §2 medical/school fork better than §2 currently does.** The
+sharpest divergence between the two traditions is **low-tech backup**, and the two
+sources give opposite instructions. AAC-RERC, because Medicare pays only if nothing
+cheaper suffices, requires you to **rule low-tech out**:
+
+> "The report should state, 'The patient's daily functional communication needs
+> cannot be met using natural communication methods or low-tech/no-tech AAC
+> techniques because of ______ (be specific).' … Show explicitly that other forms of
+> treatment have been considered and ruled out."
+
+WATI (Wisconsin's AT initiative, the school-side authority) requires the opposite:
+
+> "Even when a student has a 'high tech' communication device/system, **a low-tech
+> back-up system should always be in place.** … When a student's device is sent to
+> the company for repairs, it may be unavailable for weeks."
+
+Both are right for their payer. This is a genuine fork, not a style difference, and
+§2 should carry it: **medical mode rules low-tech out; school mode plans for it.**
+Note AAC-RERC's own wording — *"in addition to, or instead of low-tech strategies"* —
+leaves room for coexistence, so the medical framing is "insufficient alone," not
+"must not exist."
+
+**Two smaller corrections from the same sweep:**
+
+- **SETT is "Environments," plural — but only since 2005.** Zabala's original 1995
+  paper (ERIC ED381962) uses singular section headings, *"The Environment"*; the 2005
+  revision states *"SETT is an acronym for Student, **Environments**, Tasks and
+  Tools."* Cite the 2005 form. Zabala is explicit that *"SETT is a FRAMEWORK, not a
+  protocol requiring a specific set of implementation practices for validity"* — so
+  it cannot be cited as a required report format.
+- **Partner training has a real mandate, just not an American one.** RCSLT Guideline
+  14: *"**Ensure that partner training forms part of any AAC intervention plan.**"*
+  WATI makes it a required cell of its AAC Decision Making Guide. AAC-RERC does
+  **not** require a partner-training section — which is why our medical spine lacks
+  one.
+
 ### 12.8 Still open
 
 - ~~Commercial payers unchecked~~ — **closed by §12.9**: 23 documents checked,
@@ -1340,5 +1413,11 @@ it is trivially cheap to close: one field, captured once.
 - **MN via browser** — see the proxy caveat at 12.4.
 - **The F2F/WOPD gap** (12.3) is unrepresented in the spine and the workbook. It is
   the only gap here that costs a real user a real denial.
-- **`asha_ccc`** (12.6) is still presented as a requirement in the workbook.
+- **`asha_ccc`** (12.6, 12.11) is still presented as a requirement in the workbook.
+  Resolution is settled — keep it, make it optional — but the code is unchanged.
+- **§2 does not carry the low-tech fork** (12.11): medical mode must rule low-tech
+  out, school mode must plan for it. Opposite instructions, both correct.
+- **Our spine descends from a 2004 protocol built on the superseded RMRP** (12.11).
+  Nothing in it is *wrong* on inspection, but it has never been reconciled against
+  L33739 section by section. That reconciliation is the real follow-up.
 
