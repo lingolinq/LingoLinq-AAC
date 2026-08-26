@@ -1693,7 +1693,17 @@ export default Controller.extend(prefClasses, {
     }
     return {
       label: label || '',
-      vocalization: vocalization || ''
+      vocalization: vocalization || '',
+      /* The LAST rule above replaces the vocalization with the label whenever the two
+         locales match and nothing else claimed it — which includes a special action like
+         `:suggestion`, so by the time anything downstream reads this button the only mark
+         that it is a word-prediction SLOT is gone. (`board.js#translated_buttons` guards
+         the same assignment with `has_special_vocalization`; this one does not. Left
+         alone here: changing what a button vocalizes changes what it SAYS, which is not
+         this change's business.) Carried as a separate flag so the grid can group these
+         three cells as Predictions instead of filing them by colour with the Connectors,
+         and so nothing about activation moves. */
+      suggestion_slot: btn.vocalization === ':suggestion'
     };
   },
 
@@ -1964,6 +1974,13 @@ export default Controller.extend(prefClasses, {
         return window.tinycolor.mostReadable(btn.background_color, ['#fff', '#000']).toRgbString();
       })(),
       level_modifications: btn.level_modifications,
+      /* A word-prediction SLOT. Carried as a flag of its own because the thing that
+         identifies it does not survive to the grid: by render time the slot has been
+         dressed as the word it is currently offering, so its label is the prediction and
+         the `:suggestion` vocalization is gone. Without this `category_for_button` sees an
+         ordinary white word button and files it by colour, which on the core boards puts
+         three cells that change under the user in the middle of the Connectors. */
+      suggestion_slot: (btn.vocalization === ':suggestion') || !!btn.suggestion_slot,
       empty: !(btn.label || btn.image_id)
     };
   },
@@ -1990,6 +2007,12 @@ export default Controller.extend(prefClasses, {
     // it (Button.create doesn't reliably propagate it — same reason the level path in
     // edit_manager sets it explicitly).
     button.set('hide_label', !!btn.hide_label);
+    /* Set explicitly for exactly the reason `hide_label` above is: `Button.create` does not
+       reliably carry a plain field through. Without it the word-prediction slots group by
+       their (white) colour in EDIT mode and land in Connectors, while the speak-mode copy —
+       which builds a plain object and so keeps the field — puts them in Predictions. Two
+       makers, one rule; both have to say it. */
+    button.set('suggestion_slot', !!btn.suggestion_slot);
     if(btn.background_color && window.tinycolor) {
       button.set('border_color', window.tinycolor(btn.background_color).darken(20).toRgbString());
     }

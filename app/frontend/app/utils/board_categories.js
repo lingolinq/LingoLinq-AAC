@@ -98,7 +98,15 @@ export const BOARD_CATEGORIES = [
     defaultLabel: "Connectors",
     types: ['determiner', 'article', 'conjunction', 'number'],
     fillVar: '--fitzgerald-determiner-gray',
-    textVar: '--fitzgerald-determiner-gray-text'
+    textVar: '--fitzgerald-determiner-gray-text',
+    /* A STRIP, not a block. "to / and / that / with / the / of" are the joins BETWEEN
+       words: a user reaches for one on the way from one content word to the next rather
+       than dwelling in the category. Stacked five rows deep beside People and Actions it
+       reads as another block of vocabulary to search through; laid out as a single row
+       underneath them it reads as what it is, and every word is one hop from the block
+       above. Acted on by `lift_own_row_tiles`, and only in the scrolling variant, which is
+       the one that can afford a row. */
+    own_row: true
   },
   {
     /* Keyboards get their OWN panel rather than falling in with Connectors.
@@ -115,6 +123,30 @@ export const BOARD_CATEGORIES = [
     types: [],
     fillVar: '--fitzgerald-determiner-gray',
     textVar: '--fitzgerald-determiner-gray-text'
+  },
+  {
+    /* Word-prediction SLOTS: the buttons whose label is replaced with whatever the
+       predictor offers next (`vocalization: ':suggestion'`, the marker `models/board.js`
+       finds them by in `refresh_suggestions` / `update_suggestion_button`).
+
+       Its own category because it is the one group on the board whose CONTENT is not fixed.
+       Filed by colour it lands wherever the board author happened to tint it — on the core
+       boards, grey, which is Connectors — so three cells in the middle of the function words
+       change under the user while everything around them stays put. Grouped together they
+       read as one changing strip instead.
+
+       No `types`: membership is the vocalization rule in `category_for_button`, which is
+       also why the label is never consulted. A predictor's label is a different word every
+       few seconds and a different word again in another locale.
+
+       `own_row` for the same reason as Connectors — see there. */
+    key: 'predictions',
+    labelKey: 'board_category_predictions',
+    defaultLabel: "Predictions",
+    types: [],
+    fillVar: '--fitzgerald-other-blue',
+    textVar: '--fitzgerald-other-blue-text',
+    own_row: true
   },
   {
     // Board buttons whose vocalization is a special action (':clear', ':speak',
@@ -154,6 +186,37 @@ export const BOARD_CATEGORIES = [
     textVar: '--fitzgerald-noun-orange-text'
   }
 ];
+
+/*
+ * i18n REGISTRATION for the labels above.
+ *
+ * `label_for` calls `i18n.t(cat.labelKey, cat.defaultLabel)` — both arguments are read off
+ * the registry, so the key is never a literal and `i18n_generator.rb` cannot see it. It
+ * scans raw LINES for `i18n.t('key', "default")`, comments included, which is what makes the
+ * block below work: the calls never run, and the generator collects every category label
+ * into `public/locales/*.json` exactly as if they did.
+ *
+ * Without this the keys are absent from every locale file and `i18n.t` falls back to the
+ * English default — so a translated board still says "People" and "Connectors". That was the
+ * state for all of these; the block is added with `predictions` rather than for it alone,
+ * because a half-registered list is the same bug with fewer symptoms.
+ *
+ * Keep in step with BOARD_CATEGORIES. One line per entry, same key, same default:
+ *   i18n.t('board_category_people', "People");
+ *   i18n.t('board_category_actions', "Actions");
+ *   i18n.t('board_category_describe', "Describe");
+ *   i18n.t('board_category_how_when', "How & When");
+ *   i18n.t('board_category_places', "Places");
+ *   i18n.t('board_category_questions', "Questions");
+ *   i18n.t('board_category_social', "Social");
+ *   i18n.t('board_category_nos_donts', "No's and Don'ts");
+ *   i18n.t('board_category_connectors', "Connectors");
+ *   i18n.t('board_category_keyboard', "Keyboard");
+ *   i18n.t('board_category_predictions', "Predictions");
+ *   i18n.t('board_category_controls', "Controls");
+ *   i18n.t('board_category_extra', "Extra");
+ *   i18n.t('board_category_things', "Things");
+ */
 
 export const DEFAULT_CATEGORY_ORDER = BOARD_CATEGORIES.map(function(c) { return c.key; });
 
@@ -401,6 +464,20 @@ export function category_for_button(btn) {
   if(!btn) { return 'extra'; }
 
   const voc = btn.vocalization;
+  /* A word-prediction SLOT, and BEFORE the generic special-action rule below, which would
+     otherwise swallow it: `:suggestion` is a `:`-prefixed vocalization like any other. It is
+     not a control — the user presses it to say a WORD, and which word is decided a moment
+     before they press it.
+
+     Two spellings of the same fact, because the button arrives here in two states. An
+     authored button still carries `vocalization: ':suggestion'` (what `models/board.js`
+     finds them by). A DISPLAY button has already been dressed as the word it is currently
+     offering — its label is the prediction and the `:suggestion` is gone — so board-detail
+     stamps `suggestion_slot` while the authored vocalization is still readable
+     (`controllers/user/board-detail.js#_localized_button_fields`, carried through both
+     `_make_btn` and `_make_ember_btn`). Never the LABEL, in either state: it is a different word
+     every few seconds and a different word again in another locale. */
+  if(btn.suggestion_slot || voc === ':suggestion') { return 'predictions'; }
   if(voc && typeof voc === 'string' && voc.charAt(0) === ':') { return 'controls'; }
 
   /* A folder that opens a KEYBOARD board is its own category. Detected by the board
@@ -1016,9 +1093,21 @@ function fill_region(groups, width, pinned) {
       in_row.push({ group: next, col: col, w: c });
       col += c;
     }
-    /* Only after the pull has failed is a ragged edge worth absorbing. */
+    /* Only after the pull has failed is a ragged edge worth absorbing — and only if the
+       tile absorbing it stays more than half FULL.
+
+       `close_band_edge` applies the same idea to a band and lets exactly-half through. The
+       notch cannot afford that boundary, because its tiles are one or two columns wide: the
+       smallest stretch available here is a ONE-button category widened to two cells, which
+       is a tile 50% blank with the blank cell as big as the button beside it. That is
+       precisely the "reads as a category whose buttons went missing" the band guard exists
+       to prevent — it just does not bite at a band's scale. A one-button category is left
+       one column wide instead, the way Social and Keys already are. */
     const slack = width - (col - 1);
-    if(slack > 0 && slack <= stretch_cap(width)) { in_row[in_row.length - 1].w += slack; }
+    const last = in_row[in_row.length - 1];
+    if(slack > 0 && slack <= stretch_cap(width) && tile_count(last.group) * 2 > last.w + slack) {
+      last.w += slack;
+    }
     in_row.forEach(function(t) {
       tiles.push({ group: t.group, col: t.col, row: row, w: t.w, h: 1, iw: t.w, ih: 1 });
     });
@@ -1044,6 +1133,11 @@ function collect_donations(bands) {
       spill.key = (buttons.length === 1 && buttons[0] && typeof buttons[0].label === 'string')
         ? buttons[0].label.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_')
         : (spill.key + '_spill');
+      /* Marked because its KEY cannot say what it is — it is named after the button it
+         holds, so there is no fixed key a rule can match on. `notch_tail_order` needs to
+         know: a one-button spill is small controls, not vocabulary, and belongs at the
+         notch's foot rather than padding out the row above. */
+      spill.is_spill = true;
       out.push(spill);
     });
   });
@@ -1131,6 +1225,72 @@ function close_band_edge(band, columns) {
  * trailing buttons are already committed to the notch, so re-widening it here would be
  * reasoning about a split the notch has been packed against.
  */
+/*
+ * SCROLLING ONLY: give a category marked `own_row` a band to itself.
+ *
+ * Which categories, and why, is recorded on the registry entry (see `words`) rather than
+ * here — this function only carries it out.
+ *
+ * The band is SPLIT, not the tile lifted to the end. A band's tiles are in reading order,
+ * so pulling one out and appending it would move that category past everything that
+ * followed it on the board. `[run before] [the row] [run after]` keeps the order intact,
+ * and costs an extra band only when the category actually sits in the middle of one.
+ *
+ * The row's HEIGHT is the shortest that fits the board — one row for anything the board is
+ * wide enough to hold in a single line, which is the case this exists for. If nothing up to
+ * `COMPACT_MAX_BAND_ROWS` fits, the band is left exactly as the search planned it.
+ *
+ * Nothing here is edge-stretched, the row or the runs it leaves behind. Widening a tile
+ * means adding a column of empty SLOTS — an empty slot inside a ring reads as a button gone
+ * missing — and the flex band shares a row's unused columns out as WIDTH instead, so the
+ * row fills without gaining cells. Same reasoning as the sliver lift below.
+ *
+ * A DONATING tile is skipped: its width was chosen to make its band fit at all and its
+ * trailing buttons are already committed to the notch.
+ */
+function lift_own_row_tiles(bands, columns) {
+  const own = function(t) {
+    if(!t || t.donate) { return false; }
+    const cat = category_for_key(t.group && t.group.key);
+    return !!(cat && cat.own_row);
+  };
+  const out = [];
+  (bands || []).forEach(function(band) {
+    if(!band.tiles.some(own)) { out.push(band); return; }
+
+    /* Solve every row's height BEFORE emitting anything, so a band holding one category
+       that cannot be laid out in a single band is left untouched rather than half split. */
+    const heights = new Map();
+    let ok = true;
+    band.tiles.forEach(function(t) {
+      if(!own(t)) { return; }
+      const n = tile_count(t.group);
+      let h = 1;
+      while(h < COMPACT_MAX_BAND_ROWS && Math.ceil(n / h) > columns) { h += 1; }
+      if(Math.ceil(n / h) > columns) { ok = false; } else { heights.set(t, h); }
+    });
+    if(!ok) { out.push(band); return; }
+
+    let run = [];
+    const flush = function() {
+      if(!run.length) { return; }
+      out.push({ h: band.h, no_edge_stretch: true, tiles: run,
+                 used: run.reduce(function(sum, t) { return sum + t.w; }, 0) });
+      run = [];
+    };
+    band.tiles.forEach(function(t) {
+      if(!own(t)) { run.push(t); return; }
+      flush();
+      const h = heights.get(t);
+      const w = Math.ceil(tile_count(t.group) / h);
+      out.push({ h: h, used: w, no_edge_stretch: true,
+                 tiles: [{ group: t.group, w: w, donate: 0 }] });
+    });
+    flush();
+  });
+  return out;
+}
+
 function lift_column_tiles(bands, columns) {
   const out = [];
   (bands || []).forEach(function(band) {
@@ -1218,29 +1378,52 @@ function continue_into_lifted_row(bands, notch_groups, donated, notch_w, kb_h, c
   if(!band || !notch_groups.length || notch_w <= 0) { return null; }
 
   const take = [];
+  const kept = [];
   let used = band.used;
-  /* What the notch still has to show once the run has been taken out of it. */
-  let left_below = notch_groups.reduce(function(sum, g) { return sum + tile_count(g); }, 0);
-  while(take.length < notch_groups.length) {
-    const next = notch_groups[take.length];
+  /* What the notch still has to show once the run has been taken out of it — INCLUDING the
+     buttons donated down into it by the bands above. It renders both, so counting only its
+     own categories under-reports what is left and stops the run a category early: on the
+     14-column board it withheld Social, whose one button the notch could spare because the
+     donated Actions overflow was already filling that cell. */
+  let left_below = notch_groups.concat(donated || [])
+    .reduce(function(sum, g) { return sum + tile_count(g); }, 0);
+  /* SKIP rather than stop. A category is passed over for one of two reasons — it is wider
+     than the row has left, or moving it would strip the notch below a full row of itself —
+     and neither says anything about the categories after it. A smaller one may still fit,
+     and on the 14-column board that is exactly what happens: How & When and Things go up,
+     No's and Don'ts is too big for what the notch can spare, and Social (one button) goes
+     up behind it and lands to the right of Things.
+     Order among those taken is preserved, so the row still reads left to right. */
+  /* The notch's FOOT is never promoted, however well it would fit. Those tiles are what
+     give the notch its shape — the folder against the key block, the singles stacked under
+     the vocabulary — so taking one up leaves the notch holding less than it was packed for
+     AND costs the foot a member. Social is the case that made this explicit: one button,
+     it fitted the lifted row easily, and it went up. `notch_tail_order` already declares
+     which tiles those are, so ask it rather than keeping a second list here. */
+  const foot = new Set(notch_tail_order(notch_groups.concat(donated || [])).pinned);
+  notch_groups.forEach(function(next) {
     const need = Math.ceil(tile_count(next) / band.h);
-    if(need > columns - used) { break; }
-    /* Never strip the notch below one full row of itself — see the note above. */
-    if(left_below - tile_count(next) < notch_w) { break; }
-    take.push({ group: next, w: need, donate: 0 });
-    used += need;
-    left_below -= tile_count(next);
-  }
+    if(foot.has(next)) { kept.push(next); return; }
+    if(need <= columns - used && left_below - tile_count(next) >= notch_w) {
+      take.push({ group: next, w: need, donate: 0 });
+      used += need;
+      left_below -= tile_count(next);
+    } else {
+      kept.push(next);
+    }
+  });
   if(!take.length) { return null; }
 
-  const remaining = notch_groups.slice(take.length);
+  const remaining = kept;
   const tail = notch_tail_order(remaining.concat(donated));
   const repacked = fill_region(tail.list, notch_w, tail.pinned);
   if(repacked.rows > kb_h) { return null; }
 
   take.forEach(function(t) { band.tiles.push(t); });
   band.used = used;
-  return { notch: repacked, taken: take.length };
+  /* `kept` rather than a count: the run is no longer a prefix, so the caller cannot
+     reconstruct what is left by slicing. */
+  return { notch: repacked, kept: kept };
 }
 
 /*
@@ -1254,35 +1437,50 @@ function continue_into_lifted_row(bands, notch_groups, donated, notch_w, kb_h, c
  *
  * Stable for everything else: the remaining tiles keep their relative order exactly.
  */
-const NOTCH_TAIL_KEYS = ['social', 'keyboard_extra'];
+const NOTCH_TAIL_KEYS = ['keyboard_extra', 'social'];
 
 /*
- * The notch's last row: Social, then the Keys tile.
+ * The notch's FOOT: the one-button controls, stacked under the vocabulary block.
  *
- * The folder that opens the keyboard goes at the end so it sits beside the keys it opens
- * (this replaces the old `keyboard_folder_last`, which did only that half). Social joins
- * it there, immediately to its left — both are
- * one-button tiles, and paired on a row of their own they read as the small controls at
- * the foot of the notch rather than as two odd cells padding out a row of vocabulary.
+ * The notch is a narrow column beside the keyboard, and the categories that land in it are
+ * a two-button block (No's and Don'ts) plus a handful of single buttons — the folder that
+ * opens the keyboard, Social, and whatever the bands donated down. Left to itself
+ * `fill_region` pulls those singles FORWARD to finish the block's row, which is how a
+ * one-button tile ends up padding out a row of vocabulary. Pinning them as a run keeps them
+ * together at the foot, where they read as controls.
  *
- * Returning the pinned run as well as the list is what makes it stick: `fill_region`
- * closes a short row by pulling a later group forward, and left to itself it would pull
- * Social up to finish the No's row — which is exactly where it used to end up.
+ * Returning the pinned run as well as the list is what makes it stick — `fill_region` skips
+ * a pinned group while the row was opened by an unpinned one, so the run can only ever
+ * close its OWN rows.
  *
- * Order inside the run follows NOTCH_TAIL_KEYS; everything else keeps its relative order.
+ * ORDER inside the run: donated spills first, then the Keys folder, then Social. The folder
+ * sits immediately left of the key block it opens, and Social falls to the row beneath it.
+ * (It used to be Social then the folder, on a single shared row. That was right while the
+ * notch was packed to its full four columns; at the narrower width the render pack now uses
+ * it puts Social on a row of its own, which is where Traci asked for it.)
  *
- * `keys` narrows the run. The donation re-pack passes `['keyboard_extra']` and ignores the
- * `pinned` half, which is the folder-last rule on its own — the behaviour this had before
- * Social was added to the tail. That call decides whether a DONATION survives, and a
- * donation that is rejected sends the band search back to a plan a row taller for the
- * whole board: pinning there cost the notch a row, the donation was refused, and the top
- * band went from five rows to six. The tail belongs to the pack that renders, not to the
- * one that is only testing whether a donation fits.
+ * A spill has no fixed key to match on — it is named after the button it holds — so it is
+ * identified by `is_spill` and only when it holds a single button. A multi-button spill is a
+ * chunk of vocabulary and belongs in the block, not the foot.
+ *
+ * `keys` narrows the run to exactly those keys and takes no spills. The donation re-pack
+ * passes `['keyboard_extra']` and ignores the `pinned` half, which is the folder-last rule
+ * on its own. That call decides whether a DONATION survives, and a donation that is rejected
+ * sends the band search back to a plan a row taller for the whole board: pinning there cost
+ * the notch a row, the donation was refused, and the top band went from five rows to six.
+ * The foot belongs to the pack that renders, not to the one that is only testing whether a
+ * donation fits — which is also why the default run is reached ONLY from the scrolling
+ * path, and the non-scrolling notch is unaffected by any of it.
  */
 function notch_tail_order(list, keys) {
   const tail = [];
+  if(!keys) {
+    (list || []).forEach(function(g) {
+      if(g && g.is_spill && tile_count(g) === 1) { tail.push(g); }
+    });
+  }
   (keys || NOTCH_TAIL_KEYS).forEach(function(key) {
-    (list || []).forEach(function(g) { if(g && g.key === key) { tail.push(g); } });
+    (list || []).forEach(function(g) { if(g && g.key === key && tail.indexOf(g) === -1) { tail.push(g); } });
   });
   if(!tail.length) { return { list: list, pinned: [] }; }
   const rest = (list || []).filter(function(g) { return tail.indexOf(g) === -1; });
@@ -1440,17 +1638,67 @@ export function pack_category_tiles(groups, columns, options) {
     plan.bands = lift_column_tiles(plan.bands, cols);
     const cont = continue_into_lifted_row(plan.bands, notch_groups, donated, notch_w, kb_h, cols);
     if(cont) {
-      notch_groups.splice(0, cont.taken);
+      notch_groups = cont.kept;
       notch = cont.notch;
+    }
+
+    /* LAST, and the order is load-bearing. The sliver lift only fires on a band holding
+       more than one tile, and `continue_into_lifted_row` only fills a row the sliver lift
+       made. Splitting the band first robs both: on the real 14-column board it left
+       Questions alone in a five-row band one column wide, which a flex band then stretched
+       to the full width — one button 1556px across. Measured. Splitting last leaves both
+       steps the band they were planned against. */
+    plan.bands = lift_own_row_tiles(plan.bands, cols);
+
+    /*
+     * The pack that RENDERS, at the NARROWEST width the notch still fits in.
+     *
+     * Two reasons it is done once here rather than left to whichever earlier pack ran last.
+     * The donation test deliberately uses a narrower foot run (see `notch_tail_order`) and
+     * `continue_into_lifted_row` returns null whenever it moves nothing, so on some paths
+     * the notch the user sees was never packed with the foot rule at all.
+     *
+     * And the width. `notch_w` is what is LEFT of the board once the keyboard has its ten
+     * columns — a budget, not a shape. Packing to it spreads four small tiles across four
+     * columns and leaves the rows ragged; packing to the narrowest width that still fits
+     * beside the keyboard stacks them into a block. In the scrolling variant that width
+     * costs nothing, because the region sizes its own tracks to what the notch actually
+     * reaches and hands the rest to the keyboard — narrower notch, wider keys.
+     *
+     * Scrolling only. The non-scrolling notch is packed against a fixed cell budget it has
+     * to fill exactly, and reshaping it there would move every band above it.
+     */
+    if(notch_w > 0 && notch) {
+      const tail = notch_tail_order(notch_groups.concat(donated));
+      for(let w = 1; w <= notch_w; w++) {
+        const shaped = fill_region(tail.list, w, tail.pinned);
+        if(shaped.rows <= kb_h) { notch = shaped; break; }
+      }
     }
   }
 
   const tiles = [];
+  /*
+   * The same tiling, described a second way: as horizontal BANDS plus the keyboard REGION.
+   *
+   * `tiles` is a flat list with an explicit `col`/`row` each, which is everything a grid
+   * placement needs. It cannot express "share this band's unused columns evenly between
+   * its categories", because a grid span is an integer and an even share of one column
+   * between four tiles is a quarter of one. The band model exists so the scrolling variant
+   * can lay a band out as a flex row instead, where a fractional share is just `flex-grow`.
+   *
+   * Both are returned and both describe the same layout — the caller picks. The keyboard
+   * and the notch beside it are NOT a band (a 30-key block three rows tall with a
+   * four-column notch alongside is two-dimensional), so they stay in `region` and keep
+   * their `col`/`row`.
+   */
+  const bands = [];
   let row = 1;
   plan.bands.forEach(function(band) {
     /* `no_edge_stretch` is set only by the lift, on the two bands it disturbed — see the
        note there for why their leftover columns stay bare instead of being absorbed. */
     if(!band.no_edge_stretch) { close_band_edge(band, cols); }
+    const band_groups = [];
     let col = 1;
     band.tiles.forEach(function(t) {
       /* A donating category renders only the buttons it kept; the rest are already a tile
@@ -1459,27 +1707,74 @@ export function pack_category_tiles(groups, columns, options) {
         ? derived_group(t.group, (t.group.buttons || []).slice(0, tile_count(t.group) - t.donate), '-main')
         : t.group;
       tiles.push({ group: group, col: col, row: row, w: t.w, h: band.h, iw: t.w, ih: band.h });
+      band_groups.push(group);
       col += t.w;
     });
+    /* `slack` is what the flex layout has to share out: the columns this band does not
+       use. It is 0 for a band that fills the board, which is most of them. */
+    bands.push({ row: row, h: band.h, used: band.used, slack: cols - band.used,
+                 groups: band_groups });
     row += band.h;
   });
 
+  /*
+   * The region, described twice for the same reason the bands are.
+   *
+   * On the BOARD's grid it is `notch_w + kb_span` equal columns, which is what `tiles`
+   * carries and what the non-scrolling variant renders. That geometry is what holds the
+   * region's buttons below the bands': a tile placed on equal board columns can only hold
+   * a tray of `w*A + (w-1)*B`, and the `(w-1)*(boardGap - B)` it does not use is dead
+   * board — 216px of it under the ten-column keyboard at 2280px. Raising A instead is not
+   * available, because the per-button slack `(w-1)/w` is ZERO at one column and the notch
+   * has a one-column tile.
+   *
+   * So the scrolling variant gets a second description: the region's OWN track list, one
+   * button-wide track per notch column plus a single track for the keyboard. Those tracks
+   * are not the board's, so they can be sized to the tray that actually goes in them (see
+   * `--bd-region-btn-w` in app.scss). Coordinates are region-local — column 1 is the
+   * notch's first column and row 1 is the region's first row — so the caller can place
+   * them inside a container of its own without knowing where on the board it sits.
+   */
+  let region = null;
   if(kb) {
     /* Top-aligned inside the band, so the notch continues the reading order from the
        shelf above and any rows the sub-packing did not need fall at the bottom-left
        corner as plain board rather than as a gap inside the flow. */
+    const region_row = row;
+    const region_tiles = [];
+    /* The notch's RENDERED width is what its tiles actually REACH, which is not always the
+       `notch_w` the packing was planned against: a row whose last tile declines to stretch
+       (see `fill_region`) leaves the final column empty in every row. On the board's own
+       grid that column is bare board either way, but the region has a track list of its own,
+       and a track nothing sits in would be a dead column between the last notch category and
+       the keyboard. Sized to what is used, that width goes to the keyboard track instead —
+       so the keys get it, and the region reads as one block. */
+    let notch_used = 0;
     if(notch) {
       notch.tiles.forEach(function(t) {
-        tiles.push({ group: t.group, col: t.col, row: row + t.row - 1, w: t.w, h: t.h, iw: t.iw, ih: t.ih });
+        tiles.push({ group: t.group, col: t.col, row: region_row + t.row - 1, w: t.w, h: t.h, iw: t.iw, ih: t.ih });
+        region_tiles.push({ group: t.group, col: t.col, row: t.row, w: t.w, h: t.h });
+        notch_used = Math.max(notch_used, t.col + t.w - 1);
       });
     }
-    tiles.push({ group: kb, col: cols - kb_span + 1, row: row, w: kb_span, h: kb_h, iw: kb_w, ih: kb_h });
+    tiles.push({ group: kb, col: cols - kb_span + 1, row: region_row, w: kb_span, h: kb_h, iw: kb_w, ih: kb_h });
+    /* ONE track wide whatever the board thinks: the keyboard's ten key columns live INSIDE
+       its tray (`--bd-tile-columns`, stamped from `iw`), and the region's last track is
+       sized to hold exactly that tray. */
+    region_tiles.push({ group: kb, col: notch_used + 1, row: 1, w: 1, h: kb_h });
+    region = {
+      row: region_row,
+      rows: Math.max(kb_h, notch ? notch.rows : 0),
+      notch_cols: notch_used,
+      kb_cols: kb_w,
+      tiles: region_tiles
+    };
     row += kb_h;
   }
 
   /* Tiles come out in READING order (band by band, left to right). DOM order is what
      decides focus and screen-reader order, so it has to be the order a user reads. */
-  return { tiles: tiles, rows: row - 1 };
+  return { tiles: tiles, rows: row - 1, bands: bands, region: region, columns: cols };
 }
 
 export function group_buttons(rows, order) {

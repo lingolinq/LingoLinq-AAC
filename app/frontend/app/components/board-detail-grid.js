@@ -330,8 +330,35 @@ export default Component.extend({
      therefore has to re-pack, not just re-style. */
   compactTiles: computed('renderGroups', 'compactCategories', 'boardColumns', 'compactScroll', function() {
     if(!this.get('compactCategories')) { return { groups: [], rows: 0 }; }
+    var scrolling = !!this.get('compactScroll');
     var packed = pack_category_tiles(this.get('renderGroups') || [], this.get('boardColumns'),
-      { scrolling: !!this.get('compactScroll') });
+      { scrolling: scrolling });
+    /* Which groups are laid out by a flex BAND rather than placed on the grid. Only the
+       scrolling variant uses bands (see the band rule in app.scss), and only for the
+       vocabulary shelf — the keyboard and its notch are two-dimensional and stay placed.
+       A band tile must NOT carry a grid-column/grid-row of its own: it is a flex item, and
+       a stale placement on it would fight the band it sits in. */
+    var banded = null;
+    if(scrolling && (packed.bands || []).length) {
+      banded = new Set();
+      packed.bands.forEach(function(b) {
+        (b.groups || []).forEach(function(g) { banded.add(g); });
+      });
+    }
+    /* The keyboard and its notch, laid out on a track list of the region's OWN rather than
+       on the board's equal columns — that is what lets their buttons match the bands'
+       instead of being capped by the narrowest tile in the region (board_categories.js, the
+       `region` comment). Their placement is region-LOCAL, so it replaces the board-level
+       one rather than sitting alongside it. */
+    var region = (scrolling && packed.region) ? packed.region : null;
+    var placed_in_region = null;
+    if(region) {
+      placed_in_region = new Map();
+      region.tiles.forEach(function(t) {
+        placed_in_region.set(t.group,
+          'grid-column:' + t.col + '/span ' + t.w + ';grid-row:' + t.row + '/span ' + t.h + ';');
+      });
+    }
     var groups = (packed.tiles || []).map(function(t) {
       /* Stamped as a STRING rather than as a {col,row,w,h} the template unpacks: the
          group style is already one `concat`, and four more nested `if`s in it would be
@@ -340,13 +367,55 @@ export default Component.extend({
          SPAN (w/h) and inner TRACKS (iw/ih) are separate values, equal for every tile
          except a keyboard on a board narrower than a QWERTY row — there the tile spans
          what the board has while its inner grid keeps all ten key columns. */
-      t.group.tile_style = 'grid-column:' + t.col + '/span ' + t.w +
-                           ';grid-row:' + t.row + '/span ' + t.h +
-                           ';--bd-tile-columns:' + t.iw +
+      var placement;
+      if(banded && banded.has(t.group)) { placement = ''; }
+      else if(placed_in_region && placed_in_region.has(t.group)) { placement = placed_in_region.get(t.group); }
+      else { placement = 'grid-column:' + t.col + '/span ' + t.w + ';grid-row:' + t.row + '/span ' + t.h + ';'; }
+      t.group.tile_style = placement +
+                           '--bd-tile-columns:' + t.iw +
                            ';--bd-tile-rows:' + t.ih;
       return t.group;
     });
-    return { groups: groups, rows: packed.rows };
+
+    /*
+     * The template's outer loop renders one `__column` per entry here. Ungrouped and panel
+     * mode hand it plain arrays of groups; compact hands it the same, EXCEPT in the
+     * scrolling variant, where each entry is one band — or, last, the keyboard region —
+     * and carries the placement for that element itself.
+     *
+     * The extra fields ride ON the array rather than wrapping it in `{groups, style}`,
+     * so the template's inner `{{#each column as |group|}}` is untouched and neither
+     * ungrouped nor panel mode has to know bands exist. A column with neither `is_band`
+     * nor `is_region` renders exactly as it always has.
+     */
+    var columns = [groups];
+    if(banded || region) {
+      columns = (banded ? packed.bands : []).map(function(b) {
+        var arr = (b.groups || []).slice();
+        arr.is_band = true;
+        arr.band_style = 'grid-column:1/-1;grid-row:' + b.row + '/span ' + b.h;
+        return arr;
+      });
+      if(region) {
+        var rest = region.tiles.map(function(t) { return t.group; });
+        rest.is_region = true;
+        /* `grid-template-columns` is stamped here rather than written in the stylesheet
+           because `repeat()` needs a LITERAL count — `repeat(var(--n), …)` is fine but
+           `repeat(0, …)` is invalid, and a board too narrow for a QWERTY row has no notch
+           at all. A different track list, not a different number. The two counts ride
+           along as custom properties because `--bd-region-btn-w` solves for them. */
+        rest.band_style = 'grid-column:1/-1;grid-row:' + region.row + '/span ' + region.rows +
+                          ';--bd-region-notch-cols:' + region.notch_cols +
+                          ';--bd-region-kb-cols:' + region.kb_cols +
+                          ';grid-template-columns:' +
+                          (region.notch_cols
+                            ? 'repeat(' + region.notch_cols + ',var(--bd-region-notch-track)) '
+                            : '') +
+                          'minmax(0,1fr)';
+        columns.push(rest);
+      }
+    }
+    return { groups: groups, rows: packed.rows, columns: columns };
   }),
 
   /* Published into the grid's style attribute as `--bd-compact-rows`. The base grid's
@@ -360,13 +429,13 @@ export default Component.extend({
     return this.get('compactTiles.rows') || 0;
   }),
 
-  renderColumns: computed('renderGroups', 'groupingEnabled', 'columnCount', 'keyboardGroup', 'compactCategories', 'compactTiles.groups', function() {
+  renderColumns: computed('renderGroups', 'groupingEnabled', 'columnCount', 'keyboardGroup', 'compactCategories', 'compactTiles.columns', function() {
     var groups = this.get('renderGroups') || [];
     if(!this.get('groupingEnabled')) { return [groups]; }
     /* Compact: ONE pseudo-column holding every tile, in reading order. The column
        wrapper stays `display: contents` so the tiles are direct items of the board
        grid, which is what lets them be placed on it. */
-    if(this.get('compactCategories')) { return [this.get('compactTiles.groups') || []]; }
+    if(this.get('compactCategories')) { return this.get('compactTiles.columns') || [[]]; }
     /* Packed WITHOUT the keyboard: it is rendered separately below the columns, so
        including it here would reserve column height for a panel that is not there and
        leave a matching hole. */

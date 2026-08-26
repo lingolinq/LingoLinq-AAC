@@ -309,6 +309,25 @@ module('Unit | Utility | board_categories', function() {
   // so before this rule it was filed by COLOUR — and keyboard buttons are grey, which
   // is nearest to Connectors. Detection is by board KEY suffix, matching
   // models/board.js VARIANT_ROOT_SUFFIXES, so it survives a translated label.
+  test('a word-prediction slot is its own category, not a control and not Connectors', function(assert) {
+    /* `:suggestion` is the marker models/board.js finds prediction slots by
+       (refresh_suggestions / update_suggestion_button). It has to be checked BEFORE the
+       generic special-action rule, which claims every `:`-prefixed vocalization. */
+    assert.strictEqual(category_for_button({ vocalization: ':suggestion', label: 'give' }), 'predictions',
+      'a prediction slot');
+    assert.strictEqual(category_for_button({ vocalization: ':suggestion', label: 'need' }), 'predictions',
+      'and the label it happens to be showing makes no difference');
+    /* The colour on the core boards is grey, which is nearest to Connectors — the rule has
+       to beat that too, or three cells in the middle of the function words change under the
+       user while everything around them stays put. */
+    assert.strictEqual(category_for_button({ vocalization: ':suggestion', background_color: '#cccccc' }), 'predictions',
+      'even tinted the grey that files a button under Connectors');
+    assert.strictEqual(category_for_button({ vocalization: ':clear' }), 'controls',
+      'an ordinary special action is still a control');
+    assert.strictEqual(category_for_button({ vocalization: ':backspace' }), 'controls',
+      'and so is backspace');
+  });
+
   test('category_for_button files a keyboard folder under keyboard, not words', function(assert) {
     assert.strictEqual(category_for_button({ load_board: { key: 'someone/vocal-flair-84-keyboard' } }), 'keyboard',
       'a -keyboard sub-board key');

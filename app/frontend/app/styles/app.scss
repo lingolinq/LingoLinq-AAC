@@ -78618,7 +78618,15 @@ span.md-board-detail-modeling-btn--paused:hover {
   --bd-tile-row-gap: 4px;
   --bd-tile-col-gap: 12px;
   grid-template-rows: repeat(var(--bd-compact-rows, var(--board-rows)), minmax(0, 1fr));
-  gap: var(--bd-compact-gap) !important;
+  /* Row gap and column gap are the SAME number here and separable on purpose: the columns
+     carry the board's pitch (and with it every button width), while the rows only carry the
+     space between one shelf of categories and the next. `--bd-compact-row-gap` defaults to
+     the board gap, so this rule is unchanged for anyone who does not set it; the scrolling
+     variant sets it, because a board that scrolls does not have to spend 28px between rows
+     to look right. Written as one declaration rather than a `row-gap` override further down
+     so there stays exactly one authoritative gap rule (the `!important` here would beat a
+     plain override anyway). */
+  gap: var(--bd-compact-row-gap, var(--bd-compact-gap)) var(--bd-compact-gap) !important;
   /* 20px top = the 4px the ring needs to clear the clipped edge, plus the 16px the board
      is shifted down by so it does not sit hard against the chrome above it. Padding, not
      margin: the grid holds a definite height, so padding takes the space out of the rows
@@ -78697,8 +78705,73 @@ span.md-board-detail-modeling-btn--paused:hover {
      8 + 2 x 4 = 16, so the channel a user sees does not move. The board's column gap is
      also what the tray now uses between its buttons, so one number governs both and they
      cannot drift. */
-  --bd-compact-gap: 16px;
+  /* ── How a category reads as separate, given uniform buttons ───────────────
+     Uniform buttons force `g_in = G + 2I` (see the tray rule), and with the tray's own
+     inset at zero that means the gap INSIDE a category is exactly the board gap. So the
+     space between two categories can never exceed the space between two buttons, and the
+     separation has to be carried by the FRAME — the tinted panel edge — rather than by
+     extra air. Both numbers below exist to make that frame substantial:
+
+       board gap  28px  = frame 10 + channel 8 + frame 10
+       frame      10px  drawn in space borrowed from the gap, so it costs no button width
+
+     `2 * inset < gap` is the hard constraint; at equality neighbouring panels touch, which
+     is why the two always move together.
+
+     MEASURED, so nobody tries it again: raising the frame does NOT widen the panel. The
+     panels tile the board, so a band's containers plus its channels are the board width,
+     and holding the channel fixed holds their total fixed. Taking this pair to 52/22 at
+     2280 moved the People panel from 312px to 315px — 3px — while every button went from
+     132px to 109.7px. The frame is bought from the BUTTONS, not from the layout. Real panel
+     width can only come from a band's unused columns (band 1 leaves one). */
+  --bd-compact-gap: 28px;
+  /* The VERTICAL channel between one band of categories and the next. Independent of the
+     horizontal one: 28px of column gap buys the frame each panel borrows back and sets the
+     pitch every button width derives from, whereas 28px of ROW gap buys nothing but air —
+     the tiles already carry 8px of vertical padding, and this variant scrolls, so height it
+     does not spend is height it does not have to scroll past. */
+  --bd-compact-row-gap: 8px;
   --bd-tile-margin: 0px;
+  --bd-tray-inset: 10px;
+  /* ── Button width and the gap between buttons, as free parameters ──────────
+     The placed (non-band) tiles have to run the tray at the board's own pitch, so their
+     inner column gap IS the board gap — 28px between buttons inside a category, which is
+     most of the space left on the board.
+
+     A band tile does not: its tray is given an explicit width, and ANY width of the form
+     `w * A + (w-1) * B` yields `w` tracks of exactly A, for every w. So A (the button) and
+     B (the gap between buttons) are independent, and shrinking B pays straight into A.
+
+     A is capped by the NARROWEST tile in a band having to still fit its content box,
+     `w * pitch - gap`. At w = 2 that gives `A <= pitch - (gap + B)/2`, which is the value
+     below; wider tiles then have room to spare and spend it as frame. A one-column band
+     tile would want more than its box, so the tray width is clamped with `min(..., 100%)`
+     — that tile's buttons come out at the board pitch instead of A, the only case where
+     they do not all match. No band on the core boards has one (the one-column categories
+     are all in the keyboard notch, which is placed, not banded). */
+  --bd-btn-gap: 4px;
+  /* ── The tile's own chrome, the two fixed horizontal insets ────────────────
+     `--bd-tray-pad` is the tray's padding on all four sides. It is a fixed inset, so it has
+     to be added to the tray's WIDTH (box-sizing is border-box here) or it would come off
+     the button tracks and a 2-column category's buttons would stop matching a 4-column
+     one's. `--bd-tile-pad-x` is the group CONTAINER's own left/right padding inside its
+     border; like every other fixed horizontal inset on this board it competes with button
+     width — see the ceiling on `--bd-btn-w`, which subtracts it.
+
+     Declared on the GRID and not on `__group`, where they used to live, because the
+     keyboard region solves for its own button width on the region COLUMN — and a custom
+     property substitutes its own `var()`s at the element it is DECLARED on, so everything
+     `--bd-region-btn-w` references has to be inherited there. Groups still inherit both,
+     unchanged. */
+  --bd-tray-pad: 4px;
+  --bd-tile-pad-x: 6px;
+  /* The outermost panel in every band reaches `--bd-tray-inset` past its grid area, so the
+     grid must reserve at least that much or it clips the frame off the left and right
+     columns. The base `--compact` rule reserves `--bd-ring` (6px), which is sized for the
+     ring the NON-scrolling variant paints — smaller than this frame, and unrelated to it.
+     Tied to the same variable so raising the frame cannot silently start clipping it. */
+  padding-left: var(--bd-tray-inset, 10px);
+  padding-right: var(--bd-tray-inset, 10px);
 }
 
 /* The per-category downward stretch above subtracts 2px from `--bd-tile-margin`, which is
@@ -78707,6 +78780,215 @@ span.md-board-detail-modeling-btn--paused:hover {
    in this variant rows size to their content and there is no such gap to close. */
 .md-board-detail-grid--compact-scroll .md-board-detail-grid__group {
   margin-bottom: 0;
+}
+
+/* ── Category bands as FLEX ROWS (scrolling variant only) ──────────────────────
+   Why this exists. A tile placed with `grid-column: X / span N` can only be an integer
+   number of columns wide, so a band that leaves one column unused cannot share it between
+   its four categories — an even share is a quarter of a column. Laid out as a flex row the
+   share is just `flex-grow`, and fractional widths are free.
+
+   Only the SCROLLING variant, and only the vocabulary bands: the keyboard and the notch
+   beside it are two-dimensional (a 30-key block three rows tall with a four-column notch
+   alongside), which a row cannot express, so those keep their grid placement. The band
+   element itself is still a grid item — it spans every column and its own rows — so the
+   board's vertical rhythm is unchanged.
+
+   THE GEOMETRY, because every number below depends on it. Writing `pitch` for one board
+   column plus one gap, a tile `w` columns wide must be `w*pitch - gap` for its buttons to
+   come out the same width as every other category's:
+
+     band gap     = board gap - 2*inset   so two panels still sit `board gap` apart from
+                                          content edge to content edge
+     tile basis   = w*pitch - gap + 2*inset
+     tile grow    = 1                     the band's unused columns, shared EVENLY
+     tray width   = w*pitch - gap         exact, and centred, so everything the tile gains
+                                          becomes symmetric frame and NONE of it reaches
+                                          the buttons
+
+   With no unused columns the tiles overflow the row by exactly `2*inset`, which the band's
+   negative margin hands back to the grid's own side padding — the same borrow the placed
+   tiles use, so the frame is there either way.
+
+   `pitch` needs the board's content width as a LENGTH. CSS cannot read a grid track, and
+   measuring it in JS would put a write in the render path; a container query gives it for
+   free — `100cqw` is the container's inline size, and the container is the GRID (not the
+   band, whose own width is 2*inset wider than the board because of that negative margin). */
+.md-board-detail-grid--compact-scroll {
+  container-type: inline-size;
+}
+
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__column--band {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  /* `--bd-band-trim` narrows every category in the band by exactly that much.
+     It cannot be done on the tile: the tiles carry `flex-grow: 1`, so shrinking a basis
+     just enlarges the free space and grow hands the same pixels straight back — the width
+     is unchanged. The space has to leave the ROW instead, and it has to leave at `trim`
+     per tile whatever the tile count is. One gap-worth per boundary plus half at each end
+     is exactly `n * trim` for `n` tiles:
+
+       gaps    (n-1) * trim
+       padding 2 * (trim / 2)
+       total   n * trim   ->  grow shares the loss evenly  ->  trim off each tile
+
+     which is why the padding is half the trim and not the whole of it.
+
+     It is 0 now. Trimming a group and widening the space between the frames are the SAME
+     operation seen from two sides — the row is a fixed width, so every pixel taken off a
+     group reappears between the panels. 12px of trim was 12px of extra channel. */
+  --bd-band-trim: 0px;
+  gap: calc(var(--bd-compact-gap, 8px) - 2 * var(--bd-tray-inset, 10px) + var(--bd-band-trim, 0px));
+  padding-left: calc(var(--bd-band-trim, 0px) / 2);
+  padding-right: calc(var(--bd-band-trim, 0px) / 2);
+  margin-left: calc(-1 * var(--bd-tray-inset, 10px));
+  margin-right: calc(-1 * var(--bd-tray-inset, 10px));
+  min-width: 0;
+}
+
+/* ── The keyboard REGION on a track list of its own (scrolling variant only) ───
+   Why this exists. The bands escaped the board's equal columns by becoming flex rows; the
+   region cannot, because a 30-key block three rows tall with a four-column notch beside it
+   is two-dimensional and a row cannot express it. But it does not have to stay on the
+   BOARD's columns either — it only has to stay a grid. So the region column becomes a grid
+   of its own: one button-wide track per notch column, plus a single track for the keyboard.
+
+   What that fixes. On the board's equal columns a placed tile holds a tray of
+   `w*A + (w-1)*B` inside a grid area of `w*colW + (w-1)*boardGap`, and the difference —
+   `(w-1) * (boardGap - B)`, 216px under the ten-column keyboard at 2280 — is dead board.
+   It could not be spent on a wider button either: the per-button slack is `(w-1)/w` of it,
+   which is ZERO at one column, and the notch has a one-column tile, so the narrowest tile
+   in the region capped `--bd-btn-w` for all of them at 133.7 against the bands' 162.8.
+   MEASURED, both, before the change (`scripts/category-layout-dump-qa.mjs`).
+
+   With tracks of its own the region charges the tile chrome once per TRACK instead of once
+   per board column, and the surplus goes to the buttons instead of to the right-hand edge
+   of the keyboard.
+
+   `grid-template-columns` arrives INLINE from the component: `repeat()` needs a literal
+   count and `repeat(0, …)` is invalid, so a board too narrow for a QWERTY row (no notch)
+   needs a different track LIST, not a different number. Same reason as the band's placement.
+
+   This rule is (0,2,0) — the same as `.md-board-detail-grid--compact
+   .md-board-detail-grid__column { display: contents }` further up, which it has to beat,
+   and a media query would not help. It is declared BELOW that rule and must stay there
+   (LEARNINGS: two modifier classes on one element). */
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__column--region {
+  /* A — the button width every tile in the region gets. Solved, not tuned: it is the width
+     at which the region's tracks add up to exactly the row it has.
+
+       row       = 100cqw + 2*inset          the same borrow a band takes
+       notch trk = A + P                     P = 2*trayPad + 2*tilePad, the tile's chrome
+       kb  trk   = kb_cols*A + (kb_cols-1)*B + P
+       row       = notch_cols*(A + P) + notch_cols*g + kb_trk        g = the band gap
+
+     -> A = (row - (notch_cols+1)*P - notch_cols*g - (kb_cols-1)*B) / (notch_cols + kb_cols)
+
+     `P` is charged once per notch TRACK, which is what a ONE-column tile needs; a wider
+     notch tile therefore gets `P + g - B` more track than its tray uses and centres in it,
+     the same trade a band tile makes with its share of the band's spare columns.
+
+     Declared HERE and not on the grid: `100cqw` needs an ancestor container and the grid IS
+     the container, so on the grid itself it would resolve against the viewport instead —
+     the trap the `--bd-col-pitch` comment records. Everything it references is declared on
+     the grid root above, because a custom property substitutes its own `var()`s at the
+     element it is declared on.
+
+     The region still lands short of the bands (151 against 163 at 2280) and that is
+     geometry, not a missing term: it uses all 14 board columns while each band uses 13 of
+     14, and no track sizing recovers a column that is not there. */
+  --bd-region-btn-w: calc(
+    (100cqw + 2 * var(--bd-tray-inset, 10px)
+     - (var(--bd-region-notch-cols, 0) + 1) * (2 * var(--bd-tray-pad, 4px) + 2 * var(--bd-tile-pad-x, 6px))
+     - var(--bd-region-notch-cols, 0) * (var(--bd-compact-gap, 8px) - 2 * var(--bd-tray-inset, 10px))
+     - (var(--bd-region-kb-cols, 1) - 1) * var(--bd-btn-gap, 4px))
+    / (var(--bd-region-notch-cols, 0) + var(--bd-region-kb-cols, 1)));
+  --bd-region-notch-track: calc(var(--bd-region-btn-w)
+    + 2 * var(--bd-tray-pad, 4px) + 2 * var(--bd-tile-pad-x, 6px));
+  display: grid;
+  /* Rows are the board's own sizing, so the region keeps the vertical rhythm it had while
+     it was placed directly on the board grid: a floor, and `auto` above it. Implicit rather
+     than declared — the keyboard tile spans every one of them, so they all exist. */
+  grid-auto-rows: minmax(var(--bd-scroll-row-min, 76px), auto);
+  column-gap: calc(var(--bd-compact-gap, 8px) - 2 * var(--bd-tray-inset, 10px));
+  row-gap: var(--bd-compact-row-gap, var(--bd-compact-gap, 8px));
+  margin-left: calc(-1 * var(--bd-tray-inset, 10px));
+  margin-right: calc(-1 * var(--bd-tray-inset, 10px));
+  min-width: 0;
+}
+
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__column--band > .md-board-detail-grid__group {
+  /* Grows in proportion to its SPAN, not equally, and the basis is written in button terms.
+     Both are needed for the tray to fill the tile while the buttons in a band still match.
+
+     With basis `w*A0 + (w-1)*B + 2*trayPad + 2*tilePad` and grow `w`, a tile ends up
+
+       content = w*A0 + (w-1)*B + 2*trayPad + F*w/SUM(w)          (F = the band's slack)
+       tracks  = (content - 2*trayPad - (w-1)*B) / w = A0 + F/SUM(w)
+
+     — no `1/w` term left, so every category in the band lands on the same button width and
+     the row is used up exactly. Equal `flex-grow: 1` does NOT do this: it hands a 2-column
+     and a 4-column category the same pixels, which is fine while the tray is a fixed width
+     (it becomes frame) and wrong the moment the tray fills.
+
+     F differs per band — band 1 leaves one board column spare here, band 2 leaves two — so
+     the button width differs BETWEEN bands. That is the deliberate trade for the tray
+     filling its container; a single width across every band cannot also use up two
+     different amounts of slack.
+
+     `flex-shrink: 0` still: shrinking would scale the basis and the placed tiles' fixed
+     trays would overflow. */
+  flex: var(--bd-tile-columns, 1) 0
+        calc(var(--bd-tile-columns, 1) * var(--bd-btn-w)
+             + (var(--bd-tile-columns, 1) - 1) * var(--bd-btn-gap, 4px)
+             + 2 * var(--bd-tray-pad, 4px) + 2 * var(--bd-tile-pad-x, 6px));
+  min-width: 0;
+  /* The placed tiles get these from their inline `tile_style`; a band tile has no
+     placement of its own, so the frame is declared here instead. */
+  padding: 8px var(--bd-tray-inset, 10px);
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* The tray keeps the EXACT width its column span is worth and centres itself, so every
+   pixel the tile gained from the band's spare columns lands as frame on both sides and the
+   button tracks never move. This is the whole reason the leftover can be shared evenly
+   without the buttons changing size. */
+/* `w * A + (w-1) * B` gives `w` tracks of exactly A for every w, so the tray is sized from
+   the BUTTON rather than from the board pitch, and the tile's spare width never reaches the
+   buttons.
+
+   The BODY carries `2 * --bd-tray-pad` on top, because box-sizing is border-box and its
+   padding would otherwise come off the tracks — at `2 * pad / w`, which is per-span drift:
+   measured 135.7 / 139.7 / 141.7 for w = 1 / 2 / 4 when this width was declared at (0,2,0)
+   and lost to the rule it was meant to override. Both selectors below are (0,3,0), the same
+   as the group rules around them, so nothing here depends on source order.
+
+   The header keeps the bare width so its label lines up with the first button. */
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__group > .md-board-detail-grid__group-header {
+  width: calc(var(--bd-tile-columns, 1) * var(--bd-btn-w)
+              + (var(--bd-tile-columns, 1) - 1) * var(--bd-btn-gap, 8px));
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__group > .md-board-detail-grid__group-body {
+  width: calc(var(--bd-tile-columns, 1) * var(--bd-btn-w)
+              + (var(--bd-tile-columns, 1) - 1) * var(--bd-btn-gap, 4px)
+              + 2 * var(--bd-tray-pad, 4px));
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Inside a band the tray FILLS its container — the tile is already sized so that filling it
+   yields uniform tracks (see the flex rule). (0,4,0), so it beats the (0,3,0) rule above
+   without depending on source order. The PLACED tiles keep that fixed width: their
+   containers are real grid areas of differing spans, and a tray that filled them would give
+   a one-column notch tile and the ten-column keyboard different button sizes. */
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__column--band > .md-board-detail-grid__group > .md-board-detail-grid__group-body,
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__column--band > .md-board-detail-grid__group > .md-board-detail-grid__group-header {
+  width: 100%;
 }
 
 /* Narrow screens: tighter board, thinner rings.
@@ -78791,8 +79073,14 @@ span.md-board-detail-modeling-btn--paused:hover {
     /* The whole channel in one number, for the same reason as the base rule above: the
        tile margin has to stay 0 or it reopens the per-span button-width difference. 8px
        here against the base 16px. */
-    --bd-compact-gap: 8px;
+    /* Both scale down together — the frame is spent from the gap, so shrinking one without
+       the other closes the channel (and past `2 * inset = gap` the panels overlap). Scaled
+       further than the frame alone would need: every pixel of gap comes off the board's 14
+       columns, and at this width that is button size on a board an AAC user is aiming at.
+       18 = frame 6 + channel 6 + frame 6. */
+    --bd-compact-gap: 18px;
     --bd-tile-margin: 0px;
+    --bd-tray-inset: 6px;
   }
 }
 
@@ -79025,6 +79313,51 @@ span.md-board-detail-modeling-btn--paused:hover {
    `grid-auto-rows: min-content` simply won — the tile came out 3 columns wide with
    2px-tall buttons. Measured. */
 .md-board-detail-grid--compact-scroll .md-board-detail-grid__group {
+  /* DESIGN DECISION (2026-08-25, Traci): categorised boards keep "each row fills". Button
+     widths therefore VARY BY ROW — at 1600 they measure 147.2 / 126 / 102.3 / 122 — because a
+     row using fewer columns grows its buttons to fill its own width. This is intended, not
+     drift. Solving one width from the most-constrained row and applying it board-wide was
+     considered and rejected: it buys uniformity by leaving trailing dead space on every row
+     that does not use all its columns, which is precisely what the flex bands exist to
+     remove. Do not "normalise" these widths.
+
+     One board column plus one gap, and the button width derived from it. Declared on the
+     GROUP so both kinds of tile have them — the banded ones, whose width the flex row sets,
+     and the placed ones beside the keyboard. Not on the grid: a custom property resolves
+     the `var()`s in its own value at the element it is DECLARED on, and `100cqw` needs an
+     ancestor container, which the grid is. Put on the grid, `--bd-btn-w` computed to the
+     guaranteed-invalid value and every button collapsed to 2px. */
+  --bd-col-pitch: calc((100cqw + var(--bd-compact-gap, 8px)) / var(--board-columns, 14));
+  /* `--bd-btn-boost` is how the space BETWEEN categories is tuned, which is not obvious
+     enough to leave uncommented. That space is frame, not gap: a band's spare columns are
+     handed to its tiles by `flex-grow`, and since the tray inside has a fixed width every
+     one of those pixels lands as padding around it. Shrinking the band's gap does not help
+     — the freed pixels go straight back to the tiles as more frame. The only thing that
+     converts frame into something useful is a wider button, so the boost adds directly to A
+     and the frames give way by the same amount.
+
+     Ceiling: the PLACED tiles (keyboard and its notch) still have to fit real grid areas,
+     and the keyboard is the tightest at ten columns — `10A + 9B <= 1609` at 2280px, so
+     A <= ~153.7. Past that the key block overflows its own tile. */
+  --bd-btn-boost: 0px;
+  /* Two ceilings, whichever binds first.
+
+     1. A band tile has to fit its own content box, tightest at two columns:
+        `2A + B <= 2*pitch - gap`  ->  `A <= pitch - (gap + B)/2`.
+     2. A PLACED tile beside the keyboard has a real grid area — one board column per span
+        plus the borrow — and the tray it holds is `A + 2 * tray-pad` wide. At one column
+        that is `A <= colW + 2*inset - 2*tray-pad`, with `colW = pitch - gap`.
+
+     (2) only binds on the narrow tier, where the borrow is smaller: at 1024px it came out
+     1px under and the one-button notch tiles hung their tray through the side of the panel.
+     Written as a `min()` rather than tuned per breakpoint so a future change to the gap, the
+     borrow or the tray padding cannot quietly reintroduce it at some width nobody tested. */
+  --bd-btn-w: min(
+    calc(var(--bd-col-pitch) - (var(--bd-compact-gap, 8px) + var(--bd-btn-gap, 8px)) / 2
+         + var(--bd-btn-boost, 0px)),
+    calc(var(--bd-col-pitch) - var(--bd-compact-gap, 8px)
+         + 2 * var(--bd-tray-inset, 6px)
+         - 2 * var(--bd-tray-pad, 4px) - 2 * var(--bd-tile-pad-x, 6px)));
   display: flex;
   flex-direction: column;
   box-shadow: none;
@@ -79056,13 +79389,70 @@ span.md-board-detail-modeling-btn--paused:hover {
      buttons stop sitting flush against the panel edge and the tint reads as a frame on all
      four sides again.
 
-     6px against a 16px board gap: two neighbouring panels each reach 6px into it and stop
-     4px apart. Do NOT raise it past half the gap or adjacent categories touch. The grid's
-     own 6px side padding is what the outermost panels reach into, so nothing overflows the
-     scroll container. */
-  padding: 8px 6px;
-  margin-left: -6px;
-  margin-right: -6px;
+     `--bd-tray-inset` against `--bd-compact-gap`: two neighbouring panels each reach the
+     inset into the gap, leaving `gap - 2*inset` of board between them — 28 and 10 give an
+     8px channel. Do NOT raise the inset past half the gap or adjacent categories touch.
+     The grid's own `--bd-ring` side padding is what the outermost panels reach into, so
+     nothing overflows the scroll container. */
+  /* Horizontal padding is ZERO here, and the frame comes from the negative margin alone.
+     A placed tile's box is its grid area plus `2 * inset` (the borrow); padding would take
+     that back off the CONTENT box, and the content box is the ceiling on how wide a button
+     may be. The one-column notch tiles are the tightest on the board, so their padding was
+     what capped `--bd-btn-w` for every category — with it, an 8px boost pushed their
+     buttons straight out through the side of their own panel. Without it the tray can use
+     the full borrowed width and the frame is what the centring leaves over. */
+  /* Horizontal padding is 0; the frame on this axis is the negative margin alone, and the
+     buttons get their inset from the TRAY's own 4px instead. A placed tile's box is its
+     grid area plus `2 * inset`, and its content box is therefore exactly one board column
+     per span — so a one-column notch tile has `colW` to hold a tray of `A + 2 * tray-pad`.
+     Charging it tile padding as well leaves 8px too little and the tray hangs out through
+     the side of the panel, which is what it did. Vertical padding is unaffected: nothing
+     competes for height here. */
+  padding: 8px var(--bd-tile-pad-x, 6px);
+  margin-left: calc(-1 * var(--bd-tray-inset, 6px));
+  margin-right: calc(-1 * var(--bd-tray-inset, 6px));
+}
+
+/* ...but NOT on a band tile. That borrow exists so a PLACED tile can widen past the grid
+   area it was assigned; a band tile has no grid area — the flex row positions it — so the
+   negative margin simply pulled each band `--bd-tray-inset` to the left of its own row,
+   put the first and last category outside the grid's padding box and raised a horizontal
+   scrollbar on a container whose whole purpose is to scroll vertically.
+
+   This has to sit AFTER the rule above: both selectors are (0,3,0) — three classes each,
+   `:has()` contributing its argument's specificity — so nothing but source order separates
+   them, and the band block itself is declared earlier in the file. The frame on a band tile
+   comes from its padding plus the share the row hands it, so nothing is lost here. */
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__column--band > .md-board-detail-grid__group {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* A region tile takes the width the REGION solved for rather than the board-column ceiling
+   every other placed tile is held to, and no borrow: the region column has already reached
+   `--bd-tray-inset` past the grid on both sides, and each of its tracks is sized to hold
+   the tray that goes in it.
+
+   Same source-order requirement as the band rule above — (0,3,0) against the `:has(…-header)`
+   rule, which is where the negative margin comes from. `--bd-btn-w` would win from anywhere
+   (that one is declared at (0,2,0)); the margins would not. */
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__column--region > .md-board-detail-grid__group {
+  --bd-btn-w: var(--bd-region-btn-w);
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* A notch tile spanning more than one column has more track than its tray needs — the
+   tracks charge the tile chrome once each, and a wider tile pays it once — so the tray
+   CENTRES and the surplus lands as symmetric frame. The keyboard's track is solved to fit
+   its tray exactly, so nothing moves there. Without this the tray sits at the flex column's
+   cross-axis start and the whole surplus piles up on the right, which is what the
+   ten-column keyboard used to do with 216px of it.
+   (0,4,0), so it beats the width rules above without depending on source order. */
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__column--region > .md-board-detail-grid__group > .md-board-detail-grid__group-body,
+.md-board-detail-grid--compact-scroll .md-board-detail-grid__column--region > .md-board-detail-grid__group > .md-board-detail-grid__group-header {
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .md-board-detail-grid--compact-scroll .md-board-detail-grid__group-body {
@@ -79082,7 +79472,11 @@ span.md-board-detail-modeling-btn--paused:hover {
   grid-template-columns: repeat(var(--bd-tile-columns, 1), minmax(0, 1fr));
   grid-template-rows: repeat(var(--bd-tile-rows, 1), minmax(var(--bd-scroll-row-min, 76px), auto));
   grid-auto-rows: auto;
-  row-gap: var(--bd-tile-row-gap, 4px);
+  /* Both axes take the SAME value in this variant — `--bd-btn-gap` is the gap between
+     buttons, whichever way they sit. It is also the `B` in the tray-width formula, so the
+     column gap has to come from here; giving the rows their own value would just be a
+     second number to keep in step for no gain. */
+  row-gap: var(--bd-btn-gap, 4px);
   /* ── Uniform button width ──────────────────────────────────────────────────
      A tile spans `w` board columns, so its box is `w*colW + (w-1)*boardGap`. Its `w`
      tracks come out `colW` wide — the same as every other category's — only when the two
@@ -79104,9 +79498,31 @@ span.md-board-detail-modeling-btn--paused:hover {
 
      This is also why `--bd-tile-col-gap` is not simply re-declared smaller: the gap has to
      BE the board gap, not merely be closer to it. */
-  column-gap: var(--bd-compact-gap, 8px);
-  padding-left: 0;
-  padding-right: 0;
+  /* ── Uniform button width ──────────────────────────────────────────────────
+     A tile spans `w` board columns, so its content box is `w*colW + (w-1)*G` and its
+     tracks come out
+
+       track = colW + (G - g_in) - [(G - g_in) + 2I] / w
+
+     for a horizontal inset `I` (padding + border) and inner gap `g_in`. That still depends
+     on `w` — a 2-column category's buttons narrower than a 4-column one's — unless the
+     bracketed term vanishes, and there are only two ways to make it vanish:
+
+       I = 0 and g_in = G   ->  track = colW          (this rule)
+       g_in = G + 2I        ->  track = colW - 2I     (pays for the frame out of the
+                                                       buttons, and runs the gaps INSIDE a
+                                                       category 2I wider than the ones
+                                                       between them)
+
+     The frame is worth having but not at the buttons' expense, so the inset here is zero —
+     padding AND the shared `--grouped` rule's 1px side border, which is just as fixed a
+     cost — and the category's frame is bought a third way: the TILE is expanded past its
+     content box (see the tile rule), which costs neither. */
+  column-gap: var(--bd-btn-gap, 8px);
+  padding: var(--bd-tray-pad, 4px);
+  /* Side borders stay off: a 1px border is another fixed inset, and under border-box it
+     would take 2px off the tracks divided by `w` — the same per-span drift the padding is
+     compensated for above. Top and bottom keep theirs. */
   border-left-width: 0;
   border-right-width: 0;
 }

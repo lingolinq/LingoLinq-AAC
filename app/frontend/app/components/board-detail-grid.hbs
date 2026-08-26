@@ -24,7 +24,13 @@
        surface so the AAC user gets a contrast edge between group and board. Compact
        yields one TILE per category, placed on the board grid by `group.tile_style`. --}}
   {{#each this.renderColumns key="@index" as |column|}}
-    <div class="md-board-detail-grid__column">
+    {{!-- One per entry from `renderColumns`. In the scrolling compact variant each entry is
+         a BAND — or, last, the keyboard REGION — and carries its own grid placement, so this
+         element becomes the flex row the band's categories sit in, or the grid the region's
+         own tracks are declared on; every other mode leaves the fields undefined and the
+         element stays the `display: contents` wrapper it has always been. --}}
+    <div class="md-board-detail-grid__column {{if column.is_band 'md-board-detail-grid__column--band'}} {{if column.is_region 'md-board-detail-grid__column--region'}}"
+      style={{if column.band_style (safe-style column.band_style)}}>
     {{#each column key="each_key" as |group|}}
     <div class="md-board-detail-grid__group {{if group.key (concat 'md-board-detail-grid__group--' group.key)}}"
       style={{if group.key (safe-style (concat "--bd-group-fill:var(" group.fillVar ");--bd-group-text:var(" group.textVar ")" (if group.tile_style (concat ";" group.tile_style))))}}

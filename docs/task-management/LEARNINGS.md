@@ -14216,3 +14216,117 @@ Two further constraints, both load-bearing:
 the smallest edge-to-edge distance between any two rendered
 `.md-board-detail-grid__group` boxes at a list of widths, and takes `--no-scroll` to run the
 other variant as a regression control.
+
+## A grid-PLACED tile's button width is capped by the NARROWEST tile sharing its columns (2026-08-25)
+
+**Surface:** `.md-board-detail-grid--compact-scroll`, the keyboard region (the 30-key block
+plus the notch of small categories beside it). Its buttons measured 133.7px against the
+vocabulary bands' 162.8px at 2280, and the keyboard's tray left 216px of dead board — all of
+it on the RIGHT.
+
+Both come from one fact. A placed tile holds a tray of `w*A + (w-1)*B` (A = button, B = the
+4px gap inside a category) inside a grid area of `w*colW + (w-1)*boardGap`, and `boardGap` is
+28px. The tray is short by `(w-1)*(boardGap - B)` — which grows with the span, so the
+ten-column keyboard pays nine helpings of it.
+
+The trap is the fix that looks obvious: spend the shortfall on a wider button. Per BUTTON it
+is `(w-1)/w` of it — **zero at one column**. One one-column tile anywhere in the region
+(here the "Keys" folder) therefore pins `--bd-btn-w` for every tile that shares those
+columns, keyboard included. Verified both directions: raising A to the bands' value overflows
+the 2-column notch tiles by 19px and the keyboard by 55px.
+
+- **Uniform buttons + trays that fill + equal columns: pick two.** The fixed per-tile chrome
+  (`2*trayPad + 2*tilePad`) cannot be divided by the span, so on EQUAL tracks a filling tray
+  gives `A + chrome*(w-1)/w` — per-span drift. Fixing the tray width instead buys uniformity
+  and pays for it in dead board.
+- **The third option is to stop using the board's columns.** Give the sub-layout its own
+  track list — one button-wide track per small column plus one track for the wide tile —
+  and charge the chrome once per TRACK. Then solve for the A at which the tracks add up to
+  the row rather than tuning it. Here: `A = (row - (n+1)*P - n*g - (kb-1)*B) / (n + kb)`.
+  It stays a grid, so a genuinely 2D sub-layout (a key block with a notch alongside) survives
+  where a flex row cannot express it.
+- **A fixed-width tray in a flex COLUMN is left-aligned, not centred** — `align-items:
+  stretch` does nothing to an item with an explicit width, and the cross-axis start is the
+  left edge. A comment claiming the tray "centres itself" was describing an intent no
+  declaration implemented; 216px piled up on one side for as long as nobody measured it.
+- **A layout dump cannot see this class of bug.** It reports the TILE box, and the tile was
+  the right size — it was the tray inside that was not. Probe the inner box and the slack on
+  each side separately (`scripts/category-region-qa.mjs` prints `slack L/R` per tile for
+  exactly this reason).
+- **`repeat(var(--n), …)` is fine; `repeat(0, …)` is invalid** and takes the whole
+  declaration with it. If the count can be zero — here, a board too narrow for a QWERTY row
+  has no notch — emit a different track LIST from JS, not a different number.
+- A custom property substitutes its own `var()`s at the element it is DECLARED on, so
+  anything a solved-in-CSS width references has to be inherited THERE. Moving
+  `--bd-tray-pad` / `--bd-tile-pad-x` from `__group` up to the grid root was the whole cost
+  of putting the solve on the region column — check the move is a no-op by measuring an
+  untouched consumer, not by reading the declaration.
+
+## Two ragged-edge guards for the same idea must not share a threshold across scales (2026-08-25)
+
+`close_band_edge` (vocabulary bands) and `fill_region` (the keyboard notch) both close a
+row's ragged edge by widening its last tile. The band guard refuses when the tile would end
+up MORE than half empty; the notch had no guard at all, and inherited the same threshold when
+one was added.
+
+Exactly-half is the boundary, and where it falls depends on the scale of the tiles:
+
+- A band tile is 3-5 columns wide, so half-empty is a stretch nobody makes and the boundary
+  is never reached.
+- A notch tile is one or two columns, so the ONLY stretch available is a one-button category
+  widened to two cells — always exactly 50% blank, with the blank cell as big as the button
+  beside it. It reads as a category whose buttons went missing, which is the very thing the
+  band guard exists to prevent.
+
+The two variants had already disagreed about the same tile without anyone noticing: the
+non-scrolling notch row happened to fill exactly with three tiles, so `yes` was one column
+there and two columns in the scrolling view, from one shared function.
+
+- **When one policy serves two scales, check where its boundary case lands in each.** A
+  threshold that is unreachable in the large case is the ONLY case in the small one.
+- **Fix the caller that is wrong, not the shared predicate** — moving `close_band_edge`'s
+  threshold would have re-laid every band to fix a notch tile.
+- **A refused stretch leaves a dead track, and a sub-layout with its OWN track list must
+  size to what is USED, not to what was planned.** On the parent grid the unused column is
+  bare board either way; in a private track list it is a gap in the middle of the block.
+  Sizing to `max(col + w - 1)` handed that width to the wide tile instead — and, because it
+  put the region on the same 13 of 14 columns the bands use, it closed the last 8% of the
+  button-width difference as a side effect. Worth checking for: removing wasted space can
+  beat a constraint you had already written off as geometry.
+
+## Gotcha: a QA probe's assertions age with the layout it was written for (2026-08-25)
+
+`edit-grid-bleed-qa.mjs` reported 5/7 on the scrolling categorised board and it looked like a
+regression. Run against the variant the change did not touch it reported **4/7** — the
+assertions had gone stale for the whole edit page, not for the new code.
+
+- **Before attributing a probe FAIL, run it against a surface your change cannot reach.** A
+  probe that fails on the control is not an oracle for the experiment. Same discipline as
+  reconciling a test suite against a baseline (LEARNINGS 2026-08-23) — probes need it too.
+- When the working tree already holds ANOTHER session's uncommitted work, reverting your own
+  change does not give you a baseline. Say the attribution is reasoned from the declarations
+  rather than measured, and name which is which.
+
+## A layout post-pass that RESHAPES bands must run after the passes that READ them (2026-08-25)
+
+`pack_category_tiles` runs three post-passes over the band plan, and they are not
+commutative:
+
+1. `lift_column_tiles` — only fires on a band holding MORE THAN ONE tile (a one-column tile
+   alone in a band is already a row).
+2. `continue_into_lifted_row` — only fills a row that step 1 created.
+3. `lift_own_row_tiles` — splits a band around a category marked `own_row`.
+
+Adding (3) at the FRONT looked harmless and broke the board. Splitting band 1 first left
+Questions alone in a five-row band one column wide; step 1 then skipped it (single tile) and
+step 2 had no lifted row to fill. The flex band stretched that lone tile to the full width —
+**one button 1556px across**, measured.
+
+- **A pass with a "only if the band has company" guard is a READER of band shape.** Anything
+  that changes the shape has to run after it, or the guard silently stops matching.
+- **A band that uses far fewer columns than the board is the failure mode to watch for** in
+  any fills-the-row layout: `flex-grow` divides the whole row between however few tracks
+  the tile has. One column in a 14-column row is a 1500px button. Any new pass that can
+  leave a short band needs to say what fills it.
+- The tell in a layout dump is a `btnW` an order of magnitude off the others — not a missing
+  tile, not an overflow. Sort the distinct button widths and look at the outlier.
