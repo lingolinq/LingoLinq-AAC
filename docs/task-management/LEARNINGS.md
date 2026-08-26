@@ -72,6 +72,8 @@ file (see [README.md](README.md)).
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
 - [Pattern: boards-page Mine list — cache-first paint, atomic background refresh](#pattern-boards-page-mine-list--cache-first-paint-atomic-background-refresh)
 - [Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint](#gotcha-board-picker-category-tabs-share-one-category_boards-list--stale-loads-must-not-paint)
+- [Gotcha: board-picker category tabs must not drop brand-set sub-boards](#gotcha-board-picker-category-tabs-must-not-drop-brand-set-sub-boards)
+- [Gotcha: label click plus input change double-toggles a checkbox](#gotcha-label-click-plus-input-change-double-toggles-a-checkbox)
 - [Gotcha: Android “classic board” error may be stale packaged board-detail](#gotcha-android-classic-board-error-may-be-stale-packaged-board-detail)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
@@ -413,6 +415,26 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 **Fix:** All Available uses its own `_available_load_id` so the first fetch can finish in the background. Results are snapshotted and reused when the user returns to the tab; they only paint `category_boards` while that tab is selected. Tagged categories still bump `_boards_load_id` so a late Cause and Effect response cannot overwrite All Available. Tests in `tests/unit/components/board-picker-category-race-test.js`.
 
 **First seen in:** [2026-08-20-board-picker-category-race.md](./2026-08-20-board-picker-category-race.md)
+
+## Gotcha: board-picker category tabs must not drop brand-set sub-boards
+
+**Surface:** `/board-picker` Keyboards (and other tagged categories) via [`_preparePickerBoardList`](../../app/frontend/app/components/board-picker.js).
+
+**Gotcha:** Mine and All Available correctly keep only brand-set *roots* (`filterBoardsPageTopLevelRoots` → `isBrandSetRoot`). That same helper used to run on tagged category results. The Keyboards API already returns boards such as `lingolinq/vocal-flair-112-keyboard`; the client then dropped them because the key matches Vocal Flair's `test()` but not `root_re` (`vocal-flair-\d+` or `-with-keyboard`, not `-keyboard`). Category tagging is an explicit "show this board here" opt-in, including keyboard pages inside a set.
+
+**Fix:** Pass `{ keepCategoryTagged: true }` for `_resolveCategoryBoards` and `more_for_category` so those lists use `filterRootBoards` (copies) but not the brand-root filter. Mine / All Available are unchanged. Tests in `tests/unit/components/board-picker-category-subboards-test.js`.
+
+**First seen in:** [2026-08-26-board-picker-category-subboards.md](./2026-08-26-board-picker-category-subboards.md)
+
+## Gotcha: label click plus input change double-toggles a checkbox
+
+**Surface:** Edit Board Details category checkboxes ([`edit-board-details.hbs`](../../app/frontend/app/components/edit-board-details.hbs)).
+
+**Gotcha:** Wrapping a checkbox in `<label>` already toggles it. Adding `{{on "click" toggle_category}}` on the label *and* `{{on "change" (set-field … "checkbox")}}` on the input means a click on the box fires both: `set-field` then `toggle_category` flips it back (looks dead). A click on the text `preventDefault`s the native toggle, so only `toggle_category` runs (looks like "only the words work").
+
+**Fix:** Same pattern as the other checkboxes in that modal and in `new-board.hbs`: `<label>` wrapping the input, bind only `change` via `set-field`. Do not add a label click handler.
+
+**First seen in:** [2026-08-26-board-picker-category-subboards.md](./2026-08-26-board-picker-category-subboards.md)
 
 ## Gotcha: Android “classic board” error may be stale packaged board-detail
 
