@@ -9017,5 +9017,9 @@
   "wb_hint_upgrade": "*** Only when replacing a device already issued. Required in that case: the functional benefit of the upgrade compared with the existing device.",
   "wb_upgrade_notes": "*** Functional benefit compared with the current device",
   "wb_attest_forwarded": "*** Date forwarded to treating practitioner",
-  "wb_attest_supplier_rel": "*** Relationship to the SGD supplier (criterion 7 — state \"none\" if there is none)"
+  "wb_attest_supplier_rel": "*** Relationship to the SGD supplier (criterion 7 — state \"none\" if there is none)",
+  "board_detail_try_back_aria": "*** Back to board picker",
+  "board_detail_try_back": "*** Back",
+  "try_this_board_picker": "*** Try this Board",
+  "set_as_home_board_cta": "*** Set as Home Board"
 }
