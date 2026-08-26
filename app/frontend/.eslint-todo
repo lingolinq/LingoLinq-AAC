@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-25T02:24:10.501Z
+# Generated: 2026-08-26T18:21:54.243Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -48,11 +48,11 @@ app/components/board-icon.js|ember/no-runloop|314|7|2|5addc2170315
 app/components/board-icon.js|ember/require-computed-property-dependencies|171|14|1|768f523c29b2
 app/components/board-icon.js|ember/require-computed-property-dependencies|196|18|1|afe678686c7e
 app/components/board-icon.js|ember/require-super-in-lifecycle-hooks|115|3|1|04fd54f45db7
-app/components/board-picker.js|ember/no-runloop|73|34|2|ab6701509d85
-app/components/board-picker.js|ember/no-runloop|87|7|2|513c0395fe72
-app/components/board-picker.js|ember/no-runloop|94|5|2|9ccbb762d93a
+app/components/board-picker.js|ember/no-runloop|100|5|2|9ccbb762d93a
+app/components/board-picker.js|ember/no-runloop|79|34|2|ab6701509d85
+app/components/board-picker.js|ember/no-runloop|93|7|2|513c0395fe72
 app/components/board-picker.js|ember/require-super-in-lifecycle-hooks|50|3|1|04fd54f45db7
-app/components/board-picker.js|lingolinq/no-orphaned-action|644|5|1|f6643eed75ea
+app/components/board-picker.js|lingolinq/no-orphaned-action|655|5|1|f6643eed75ea
 app/components/board-preview-canvas.js|ember/no-runloop|1019|36|2|513c0395fe72
 app/components/board-preview-canvas.js|ember/no-runloop|1020|31|2|5addc2170315
 app/components/board-preview-canvas.js|ember/no-runloop|1029|7|2|513c0395fe72
