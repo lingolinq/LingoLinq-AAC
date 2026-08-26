@@ -114,6 +114,27 @@ module.exports = {
       extends: ['plugin:n/recommended'],
     },
     {
+      // The Playwright e2e suite and its config (CommonJS -- `require()`, not
+      // `import`, so the `scripts/**/*.mjs` block below does not match them, and
+      // the node block above is not enough on its own).
+      //
+      // Needs BOTH envs, for the same reason the .mjs harnesses do: the file body
+      // runs in node, but every `page.evaluate(...)` / `locator.evaluate(...)`
+      // callback is serialized and executed IN THE BROWSER, where
+      // `getComputedStyle` and `document` are the globals. Declaring only `node`
+      // leaves six `getComputedStyle` no-undefs; only `browser` leaves `require`,
+      // `module` and `process`. Without both, the suite puts 20 findings on the
+      // gate -- which CI runs (ci.yml:129), so it would fail the build.
+      files: ['playwright.config.js', 'e2e/**/*.js'],
+      parserOptions: {
+        sourceType: 'script'
+      },
+      env: {
+        browser: true,
+        node: true
+      },
+    },
+    {
       // The Playwright/Puppeteer QA harnesses. These are ESM (top-level `import`),
       // so they need sourceType: module -- the `scripts/**/*.js` override above is
       // CommonJS and does not match .mjs anyway. They were outside every lint gate

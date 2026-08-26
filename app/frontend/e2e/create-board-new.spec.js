@@ -51,11 +51,43 @@ test.describe('create-board-new / create-method chooser', () => {
     await expect(page.locator(sel.rail)).toBeVisible();
   });
 
-  test('"Generate with AI" enters AI mode', async ({ page }) => {
+  test('"Generate with AI" enters AI mode, or stops at the AI gate', async ({ page }) => {
+    // This USED to assert that AI mode always opened. It does not any more, and
+    // the spec was failing against correct code: `choose_ai` now routes through
+    // `_requestEnterAiMode` -> `aiFeatureGate.boardGenerationEntry()`
+    // (utils/ai_feature_gate.js:125), which returns 'allowed' only when the user
+    // has EXPLICITLY opted in -- `prefs.ai_features_enabled === true` AND
+    // `prefs.ai_board_generation === true`. A freshly seeded `example` user has
+    // neither, so it returns 'needs_opt_in' and a modal opens instead.
+    //
+    // So both outcomes below are CORRECT product behaviour, and which one you get
+    // depends on the seeded user's prefs, the `ai_board_generation` feature flag,
+    // COPPA status, and EU consent state. Asserting only the first made a
+    // consent gate working properly look like a regression.
     await page.locator(sel.chooserAi).click();
+
+    // The chooser closing proves nothing on its own: create-board-new.js:347
+    // hides it BEFORE opening any system modal, precisely so the modal is not
+    // painted behind the z-index 6000 overlay. It closes on both paths.
     await expect(page.locator(sel.chooser)).toBeHidden();
-    // AI mode swaps the header intro for the checklist and retitles the page.
-    await expect(page.locator('.nb-create-header__intro .la-checklist')).toBeVisible();
+
+    const aiMode = page.locator('.nb-create-header__intro .la-checklist');
+    const gate = page.locator('.md-modal-title');
+    await expect(
+      aiMode.or(gate).first(),
+      'clicking Generate with AI neither entered AI mode nor raised the AI gate modal'
+    ).toBeVisible();
+
+    // Say which path ran, so a failure elsewhere is diagnosable rather than a
+    // mystery about how the dev stack happens to be configured.
+    if (await aiMode.isVisible()) {
+      await expect(page.locator(sel.previewStage)).toBeVisible();
+    } else {
+      // Gated: the modal must be dismissible and must restore the chooser,
+      // otherwise the user is stranded on a page with no way back.
+      await page.locator('.la-modal-close').first().click();
+      await expect(page.locator(sel.chooser)).toBeVisible();
+    }
   });
 
   test('close returns the user off the create page', async ({ page }) => {
