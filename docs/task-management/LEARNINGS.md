@@ -162,6 +162,7 @@ file (see [README.md](README.md)).
 - [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 - [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
 - [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
+- [Sourcing external requirements (payer/clinical/legal) — 2026-08-25](#sourcing-external-requirements-payerclinicallegal--2026-08-25)
 
 ---
 
@@ -12867,3 +12868,56 @@ is one question; "what the record looks like afterwards" is a different one per 
   accumulates every content row it touched. `Board#settings` is `secure_serialize`d, so there
   is no SQL prefilter available — every board is loaded and decrypted, and the memory shape of
   the scan is the whole cost.
+
+---
+
+## Sourcing external requirements (payer/clinical/legal) — 2026-08-25
+
+From verifying every claim in `docs/AAC_EVALUATION_STANDARDS.md` against published
+sources. All four lessons are about *retrieval*, and each one produced a confidently
+wrong answer before it was caught.
+
+**1. Never cite an external requirement from a vendor's "reprint."** Both
+misattributions in that file arrived through documents that looked authoritative.
+Tobii Dynavox publishes a PDF headed *"Reprinted from Minnesota Medicaid Provider
+Manual Chapter 17"* in which genuine state text and **vendor commentary** sit
+adjacent, separated only by a leading `**` that is lost on copy-paste — and the
+commentary recommends the publisher's own product by name. Separately, our
+">=10 messages" rule turned out to be PRC-Saltillo's funding template. In both
+cases the vendor's own hedge ("if possible", "preferred, but not always necessary")
+had been hardened into a mandate on the way in. Retrieve from the issuing body's
+own domain, or mark the claim `[UNSOURCED]`.
+
+**2. Verify the quote exists before trusting the section number.** New York
+renumbered its SGD guidance in 2019. Our "§10 / §6" citations pointed at a document
+retired seven years earlier and stayed plausible the whole time, because a section
+number is unfalsifiable on its face. Match on the sentence, then record the number —
+and record the document's effective date next to it.
+
+**3. Grep the section, not the document.** NY's DME manual is ~773k characters
+covering every category of durable medical equipment. A whole-file search for
+`four-week` "confirmed" a four-week SGD trial that is actually in the **lymphedema**
+section. Slice to the relevant block first, by searching for a distinctive nearby
+phrase, then count.
+
+**4. Normalise whitespace before matching a multi-word phrase.** Searching an
+extracted PDF for the literal `speed and accuracy` returned NOT FOUND while the
+phrase was plainly present — the extracted text had a line break between the words.
+Use `' '.join(text.split())` before matching, or a real quote reads as absent. This
+is the same failure family as the ad-hoc shell-loop misreports recorded above:
+**the tool said "absent" and the tool was wrong.** A "0 occurrences" result is a
+claim about your regex at least as much as about the document.
+
+**Retrieval notes.** macOS has no `pdftotext`; Ghostscript is already a repo
+dependency and works: `gs -q -dNOPAUSE -dBATCH -sDEVICE=txtwrite -sOutputFile=out.txt in.pdf`.
+Several payer sites (eMedNY, mass.gov, ED) return 403 to a browser-style fetch but
+**200 to a plain `curl` with no UA override** — the block keys on the client's
+fingerprint, not the user-agent string, so swapping UAs in a blocked client is
+wasted effort. A prior revision of the standards doc asserted the opposite and would
+have sent the next person down that path.
+
+**On subagent reports.** Per rule 9 these are evidence, not findings. Re-verifying
+each one against the retrieved source was not ceremony: one report asserted NY
+requires a four-week SGD trial, and the grep behind it had matched the lymphedema
+section (lesson 3). Another reported a phrase absent from a PDF that contained it
+(lesson 4). Both would have shipped as sourced facts.
