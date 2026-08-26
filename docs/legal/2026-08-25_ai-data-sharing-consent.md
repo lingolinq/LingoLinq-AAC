@@ -87,7 +87,7 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   2026-08-04T06:31:46Z (revision `00014-5rw`). **CORRECTED 2026-08-25:** the predecessor continued "; the path is not operational as of that timestamp", which stopped being true 53 minutes later. Credentials were re-mounted on revision `00015-9l9` at 2026-08-04T07:25:08Z and have been continuously mounted since (`docs/legal/2026-08-16_subprocessor-register.md:99`). The path then carried user-attributed traffic: 63 of 64 `AiApiLog` rows carry a `user_global_id`, verified 2026-08-16 (same source, :96). **Scope of that number:** those 63 rows come from **2 distinct accounts**, not 63 users, and all 64 rows fall between 2026-08-04T05:44:42Z and **2026-08-14T21:13:27Z**, which is the most recent logged AI call. Credentials remain mounted; "carried traffic" is a statement about that window, not about traffic today.
   During the window, `sts:GetCallerIdentity` under the mounted credential returned account
   239044785114 (`user/lingolinq-bedrock-runtime`), satisfying both halves of the verification
-  standard defined in `docs/legal/AWS_BAA_ACCEPTED.md`. This statement is scoped to the Bedrock
+  standard defined in `docs/legal/2026-08-12_aws-baa-acceptance-record.md` (approved successor; `AWS_BAA_ACCEPTED.md` is superseded and its :71-73 still asserts the claim this record corrects). This statement is scoped to the Bedrock
   path only; see the `AiApiLog` coverage note in that document for what a zero-row result does and
   does not establish.
 - **Data-processing basis:** the **AWS account BAA** (2026-02-07, account 2390-4478-5114) governs
@@ -111,7 +111,7 @@ company-wide subprocessor register, maintained by the Privacy Office on its own 
   models. **Scoped 2026-08-04:** this statement is about the direct Anthropic commercial-API path
   and is narrow to these two models; it is not a claim about the AWS Bedrock route, nor a blanket
   claim about Anthropic or about AI vendors generally. Training and retention posture for the
-  Bedrock route is governed by the AWS terms referenced in `docs/legal/AWS_BAA_ACCEPTED.md`.
+  Bedrock route is governed by the AWS terms referenced in `docs/legal/2026-08-12_aws-baa-acceptance-record.md` (approved successor; `AWS_BAA_ACCEPTED.md` is superseded and its :71-73 still asserts the claim this record corrects).
 - **BAA status:** **Corrected 2026-08-02.** This bullet previously read "Not applicable as a HIPAA
   Business Associate Agreement in the traditional sense", with the PiiScrubber and ZDR posture named
   as the operative HIPAA control, and quoted `AI_GOVERNANCE_MEMO.md` section 3 for

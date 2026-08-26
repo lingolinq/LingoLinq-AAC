@@ -3172,7 +3172,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-2e9fdc06e4",
       "notes": "Path A successor to DOC-2e9fdc06e4 (attested 2026-08-04), created 2026-08-25. Corrects (1) \":66 recorded as the first and only row in AiApiLog\" - it was the first, not the only: 64 rows as of 2026-08-16, 63 carrying a user_global_id (docs/legal/2026-08-16_subprocessor-register.md:96,99); and (2) \":67 the path is not operational as of that timestamp\" - credentials were re-mounted 53 minutes later on 00015-9l9 at 2026-08-04T07:25:08Z and have been continuously mounted since (same source, :99,268). Revision credential mounts are NOT monotonic, so a status read from one revision does not establish a subsequent one. No consent policy, gate, or disclosure text changes; only the operational-status facts. A consent rationale is read to decide what families are told, so an UNDERSTATED egress is the direction of error that matters.",
-      "contentHash": "f21357ace81b52e1520767ddfe3307778cb14fb8c268bcac62a4e19f26d9de28"
+      "contentHash": "09d637ed88896da0deefe1f819b3697823b8454b1908064198897d3e556a83ea"
     },
     {
       "title": "LingoLinq Security, Privacy & Compliance Overview",
