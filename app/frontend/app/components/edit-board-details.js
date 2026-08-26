@@ -200,10 +200,6 @@ export default Component.extend({
       sections = sections.filter(function(s) { return s !== section; });
       this.set('model.intro.sections', sections);
     },
-    toggle_category(category, event) {
-      if (event && event.preventDefault) { event.preventDefault(); }
-      emberSet(category, 'selected', !category.selected);
-    },
     update_license_type(value) {
       this.set('model.license.type', value);
     },
