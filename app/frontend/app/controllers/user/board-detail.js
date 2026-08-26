@@ -3545,7 +3545,19 @@ export default Controller.extend(prefClasses, {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.light_dark_mode;
   }),
-  speak_section_visible_share: computed('speak_menu_hidden_set', function() {
+  speak_section_visible_share: computed('speak_menu_hidden_set', 'is_communicator_only_account', function() {
+    // Share & Print holds authoring/export tools: Copy, Download, Print, Share. Every one
+    // of them acts on the BOARD as a document — duplicating it, handing it to another
+    // account, putting it on paper — and none of them says anything. Hidden on a
+    // communicator-only account (see is_communicator_only_account), the same gate the
+    // Board and Session sections already carry, so the whole options menu treats
+    // "supervisor-oriented" the one way.
+    //
+    // The SECTION, not a row or two: the four are one idea, and leaving Copy and Download
+    // under a header that reads "Share & Print" would be a section named after the two
+    // things it no longer offers. Shown as before for supporters and while a supervisor
+    // is actively modeling.
+    if(this.get('is_communicator_only_account')) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.copy || !s.download || !s.print || !s.share;
   }),
