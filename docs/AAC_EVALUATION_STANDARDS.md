@@ -665,10 +665,13 @@ relatedness) rather than *transparency* (naive guessing by potential users).
 4. ~~**CMS LCD L33739 criteria 1–7 verbatim** — cms.gov 403'd; corroborated via
    ASHA and USSAAC. Verify against CMS directly before encoding.~~
    **CLOSED 2026-08-17 — retrieved verbatim from CMS. See §4a.** The earlier 403
-   was a **user-agent block, not an access restriction**: the same URL returns
-   HTTP 200 with an ordinary browser UA. Anything else in this document blocked
-   "because cms.gov 403s" should be retried the same way before being recorded as
-   unavailable.
+   was not an access restriction; the document is public and retrievable.
+   ⚠️ **Corrected 2026-08-25:** this used to say the 403 was "a user-agent block"
+   and told the next person to retry "with an ordinary browser UA." **That advice
+   is wrong and would waste the attempt** — plain `curl` with **no** UA override
+   also returns 200, so the block keys on the fetching client's fingerprint, not on
+   the UA string. Anything blocked "because the site 403s" should be retried per
+   §0a, not by swapping user agents.
 5. **Closed except access methods.** Symbol systems / iconic encoding → §8.
    Motor planning / grid-size → §9. Symbol assessment, colour, CVI → §10. Still
    **no research gathered** on **access-method assessment protocols** (scanning
