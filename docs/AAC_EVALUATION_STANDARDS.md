@@ -947,6 +947,32 @@ Confirmed **absent** from every payer document retrieved: L33739, A52469, NY 201
 NY current, MassHealth MNG-AAC, MN DHS, North Dakota DHHS, and ASHA. Note the
 vendor's own hedge — *"if possible"* — which we had hardened into a requirement.
 
+**Important refinement — the FIELDS are payer-required; only the FLOOR is not.**
+Current NY explicitly requires the message data be reported, under 4(g)(iv):
+
+> "8) Sampling of multiple messages communicated including the frequency, type
+> (e.g. verbal, physical, gesture), and level of cueing required.
+> 9) **Number of messages expressed in a time period** including the type and level
+> of cueing required.
+> 10) Communicative intents and functions expressed."
+
+So NY wants the count, the functions, the cueing level and the environments
+**reported** — it simply sets **no minimum**. That is the defensible framing, and it
+means our capture fields are well-founded even though ">=10" is not. Report the
+number; do not assert a threshold.
+
+**What payers DO put numbers on** — duration and alternatives, never messages:
+
+| Payer | Published number |
+|---|---|
+| Oklahoma OHCA | "At least three different devices/systems must be tried and discussed" |
+| North Dakota HHS | "at least three dedicated speech generating devices, by more than one manufacturer" |
+| Superior HealthPlan (TX Medicaid MCO) | trial period ">= 30 days" |
+| MassHealth (130 CMR 409.428) | "A trial-use period of **not more than** two months" |
+
+Note MassHealth's is a **ceiling**, not a floor — the opposite of how a minimum
+reads. Do not collapse these into "payers require a trial of N."
+
 Keep the capture fields; they are clinically sensible and they satisfy the
 data-driven-trial language payers do use. But attribute them as **our convention
 informed by a vendor template**, never as a payer mandate. ASHA is directly on
@@ -1017,13 +1043,72 @@ occurrences of "speed" or "accura*".)
 Also worth knowing: the **statute contains no evaluation requirements at all**.
 256B.0625 subd. 31a is coverage and pricing only. Cite the manual, never the statute.
 
-⚠️ **Retrieval caveat, and it is the weakest link in this section.** dhs.state.mn.us
-sits behind Radware bot protection; direct fetches return a CAPTCHA page. The
-content was retrieved **through a public CORS proxy** and corroborated three ways
-(independent search snippets reproducing identical sentences; internal consistency;
-DHS-4535 pulled directly from edocs.dhs.state.mn.us with no proxy). Treat the MN
-quotes as strong but proxy-sourced, and re-pull from a browser before relying on
-them in anything adversarial.
+✅ **Proxy caveat RESOLVED 2026-08-25.** An earlier pass could only reach MN through
+a public CORS proxy (dhs.state.mn.us sits behind Radware bot protection) and this
+section carried a warning to re-pull before relying on it. A **direct primary** was
+then located and retrieved successfully — HTTP 200, a real 29-page PDF, no proxy:
+
+> MHCP Provider Manual, Rehabilitative Services, **Chapter 17**, MN DHS
+> <https://www.dhs.state.mn.us/main/groups/manuals/documents/pub/dhs_id_009046~12.pdf>
+
+Both MN quotes are confirmed against it verbatim:
+
+> "An explicit evaluation of each augmentative communication device or method of
+> communication tried by the recipient and information on the effectiveness of each
+> device."
+
+> "A detailed description of the recipient's ability to use the **proposed** device,
+> including **speed and accuracy**."
+
+`communication partner` = **0** in the direct PDF, so the partner requirement is
+confirmed *not* MN's against a primary source rather than a proxied one.
+
+⚠️ One more grep trap, same family as §0a's. Searching this PDF for the literal
+string `speed and accuracy` returns **NOT FOUND**, while searching `speed` and
+printing the surrounding text shows the phrase plainly. The extracted text carries
+a line break or non-breaking space between the words. **Normalise whitespace before
+matching a multi-word phrase** (`' '.join(text.split())`), or a real quote will read
+as absent.
+
+### 12.4a How the misattribution happened — the contamination vector [VERIFIED]
+
+Worth recording, because it explains the whole failure and it will happen again to
+whoever writes the next version of this file.
+
+**Tobii Dynavox** — an AAC device manufacturer — publishes a PDF whose header reads:
+
+> "MINNESOTA MEDICAL ASSISTANCE CRITERIA FOR AUTHORIZATION — **Reprinted from
+> Minnesota Medicaid Provider Manual Chapter 17** — Updated 5/2020"
+
+<https://download.mytobiidynavox.com/Funding%20Documents/MN%20MA%20Criteria%20for%20Authorization.pdf>
+
+It presents as a reprint of state policy. Genuine MN bullets sit directly adjacent
+to **vendor commentary**, distinguished only by a leading `**` that is easy to miss
+and trivially lost on copy-paste. Retrieved and verified 2026-08-25:
+
+> "\*\*Device use trialed in **various environments with various partners** are
+> **preferred, but not always necessary**, and the client's situation is taken into
+> account."
+
+> "For children, they can trial **snap+core** on an iPad…"
+
+`snap+core` is a Tobii Dynavox product. So a document that looks like a state
+manual recommends the publisher's own software by name.
+
+Two things follow, and both describe errors this file actually made:
+
+1. **The environments-and-partners requirement we attributed to MN DHS is the
+   vendor's gloss, not the state's** — the state text lists only situational
+   contexts (school, home, community, vocational, work, social) and never uses
+   "communication partner" at all.
+2. **The vendor's own sentence says "preferred, but not always necessary."** We
+   promoted a vendor's soft preference into a state mandate — the same hardening
+   that happened to PRC-Saltillo's "if possible" in §12.1.
+
+**Rule going forward: never cite a payer requirement from a device manufacturer's
+"reprint."** Both misattributions in this file came through vendor documents that
+looked authoritative. Retrieve the payer's own document, from the payer's own
+domain, or mark the claim `[UNSOURCED]`.
 
 ### 12.5 ASHA — the caveat we dropped changes the meaning [VERIFIED]
 
