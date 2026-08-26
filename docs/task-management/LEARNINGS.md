@@ -14330,3 +14330,49 @@ step 2 had no lifted row to fill. The flex band stretched that lone tile to the 
   leave a short band needs to say what fills it.
 - The tell in a layout dump is a `btnW` an order of magnitude off the others — not a missing
   tile, not an overflow. Sort the distinct button widths and look at the outlier.
+
+## A fixture that does not FAIL without the fix is not a test (2026-08-25)
+
+Pinning the prediction slots to the end of the notch's foot run was a one-line change, and
+the first test written for it asserted exactly the right thing — "Predictions sits below
+Social" — on a fixture reused from a neighbouring test. It passed. It also passed with the
+change reverted: at those category sizes `fill_region` placed Predictions last anyway, so the
+assertion was measuring arithmetic, not the rule.
+
+A sweep over fixture variants found 16 combinations that DO distinguish the two orders. The
+one now in the suite (`predictions=2, social=1, no_not=2, questions=4`) puts Predictions at
+the top of the notch when unpinned, with Social two rows below it.
+
+- **Run every new layout test against the reverted code before believing it.** In a packer,
+  the same assertion can be satisfied by the packing arithmetic or by the rule under test,
+  and only the negative control tells you which. Reusing a nearby test's fixture makes this
+  MORE likely, not less — it was chosen to exercise some other rule.
+- **When a fixture does not discriminate, search for one that does rather than weakening the
+  assertion.** Sweeping a few counts over the categories that shape the notch took one
+  script and turned a decorative test into a real one.
+- **A module whose only import is a leaf can be driven under plain node.** `board_categories.js`
+  imports `./i18n` and nothing else, so stubbing that one file makes the whole packer
+  scriptable — before/after layouts, width sweeps, and fixture searches, with no Ember, no
+  browser, and no `ember test` cycle. Worth checking the import list before assuming a UI
+  module needs the full harness.
+
+## The notch-level equivalent of a band flag is the FOOT RUN, not another pass (2026-08-25)
+
+`own_row` gives a category a band to itself. It is acted on by `lift_own_row_tiles`, which
+splits a BAND — so it is inert for any category that never reaches band planning.
+`pack_category_tiles` splices the trailing categories into `notch_groups` BEFORE planning
+(`board_categories.js:1598`), which means a notch member can never claim a row that way.
+
+Inside the notch, order is decided by `notch_tail_order`: it pins a foot run named by
+`NOTCH_TAIL_KEYS` and hands it to `fill_region` as `pinned`, and a pinned group may only
+close its OWN rows. Everything else opens the next free row. So "put this last in the notch"
+is already expressible — add the key to the foot run — and adding a third post-pass to say
+it would have been a second mechanism for a decision one mechanism already owns.
+
+- **Before adding a pass, check whether the structure already has a slot for the decision.**
+  The tell here was that the notch had a concept named "foot", with an explicit ORDER
+  documented in its comment.
+- **Measure what a reorder costs before assuming it is free.** The render pack picks the
+  narrowest notch width that still fits in `kb_h`, so a reorder CAN cost the keyboard a
+  column. Here it did not — width 3, 3 rows, 11 keyboard columns, before and after — but that
+  is a measurement, not a property of reordering.

@@ -742,6 +742,49 @@ module('Unit | Utility | board_categories', function() {
       ' vs donated at ' + donated.col + ',' + donated.row + ')');
   });
 
+  test('the prediction slots CLOSE the notch, below Social, rather than heading it', function(assert) {
+    /* Predictions is a trailing category, so it lands in the notch beside the keyboard.
+       Unpinned it opened the notch's first free row and pushed the whole foot run down,
+       which read as the prediction slots heading the controls instead of closing them.
+       `own_row` cannot express "put this last" here: that flag is acted on by
+       `lift_own_row_tiles`, which splits a BAND, and a notch member never reaches band
+       planning — so Predictions is pinned at the end of the notch's foot run instead.
+
+       This fixture is chosen because it DISTINGUISHES the two orders: with Predictions
+       unpinned it packs at the top of the notch and Social two rows below it. A fixture
+       where the sizes happen to place it last either way proves nothing. */
+    var kb = keyboard_group(3, 10);
+    kb.buttons.push({ id: 'kb-folder', kb_row: 4, kb_col: 1 });
+    kb.count = kb.buttons.length;
+    var groups = [cat('people', 10), cat('actions', 21), cat('describe', 20),
+                  cat('words', 16), cat('questions', 4), cat('how_when', 4),
+                  cat('places', 3), cat('no_not', 2), cat('social', 1),
+                  cat('predictions', 2), kb];
+    var packed = pack_category_tiles(groups, 14, { scrolling: true });
+
+    var find = function(key) {
+      return packed.tiles.filter(function(t) { return t.group.key === key; })[0];
+    };
+    var keyboard = packed.tiles.filter(function(t) { return t.group.is_keyboard; })[0];
+    var predictions = find('predictions');
+    var social = find('social');
+    assert.ok(keyboard, 'the keyboard is placed');
+    assert.ok(predictions, 'the prediction slots get a tile');
+    assert.ok(social, 'Social gets a tile');
+
+    assert.ok(predictions.col < keyboard.col, 'the prediction slots are in the notch');
+    assert.ok(predictions.row > social.row,
+      'the prediction slots sit BELOW Social (predictions row ' + predictions.row +
+      ' vs social row ' + social.row + ')');
+
+    // Nothing in the notch may come after them.
+    var below = packed.tiles.filter(function(t) {
+      return !t.group.is_keyboard && t.col < keyboard.col && t.row > predictions.row;
+    });
+    assert.strictEqual(below.length, 0,
+      'the prediction slots close the notch — nothing sits below them');
+  });
+
   test('pack_category_tiles tolerates degenerate input', function(assert) {
     assert.deepEqual(pack_category_tiles([], 14), { tiles: [], rows: 0 });
     assert.deepEqual(pack_category_tiles(null, 14), { tiles: [], rows: 0 });

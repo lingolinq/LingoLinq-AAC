@@ -1437,7 +1437,7 @@ function continue_into_lifted_row(bands, notch_groups, donated, notch_w, kb_h, c
  *
  * Stable for everything else: the remaining tiles keep their relative order exactly.
  */
-const NOTCH_TAIL_KEYS = ['keyboard_extra', 'social'];
+const NOTCH_TAIL_KEYS = ['keyboard_extra', 'social', 'predictions'];
 
 /*
  * The notch's FOOT: the one-button controls, stacked under the vocabulary block.
@@ -1453,11 +1453,24 @@ const NOTCH_TAIL_KEYS = ['keyboard_extra', 'social'];
  * a pinned group while the row was opened by an unpinned one, so the run can only ever
  * close its OWN rows.
  *
- * ORDER inside the run: donated spills first, then the Keys folder, then Social. The folder
- * sits immediately left of the key block it opens, and Social falls to the row beneath it.
+ * ORDER inside the run: donated spills first, then the Keys folder, then Social, then
+ * Predictions. The folder sits immediately left of the key block it opens, and Social falls
+ * to the row beneath it.
  * (It used to be Social then the folder, on a single shared row. That was right while the
  * notch was packed to its full four columns; at the narrower width the render pack now uses
  * it puts Social on a row of its own, which is where Traci asked for it.)
+ *
+ * Predictions is LAST because it was asked to sit underneath Social. It is a trailing
+ * category, so it lands in the notch on its own — but unpinned it opens the notch's second
+ * row and pushes the whole foot run down, which read as the prediction slots heading the
+ * controls rather than closing them. `own_row` cannot express this: that flag is acted on
+ * by `lift_own_row_tiles`, which splits a BAND, and a notch member never reaches band
+ * planning. Pinning it at the end of the foot is the notch-level equivalent, and it is free
+ * — measured against the same notch (No's and Don'ts, a spill, the folder, Social,
+ * Predictions), the render pack still chooses width 3 at 3 rows and the keyboard still gets
+ * 11 columns; only the order changes:
+ *     before   [No's and Don'ts] / [Predictions]        / [yes][Keys][Social]
+ *     after    [No's and Don'ts] / [yes][Keys][Social]  / [Predictions]
  *
  * A spill has no fixed key to match on — it is named after the button it holds — so it is
  * identified by `is_spill` and only when it holds a single button. A multi-button spill is a
