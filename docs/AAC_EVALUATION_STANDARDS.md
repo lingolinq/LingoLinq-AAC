@@ -25,6 +25,39 @@ section before naming any framework in shipped UI.**
 
 ---
 
+## 0a. HOW THIS WAS VERIFIED (method, so it can be redone)
+
+Everything in §0 was retrieved and grepped on **2026-08-25**. Repeat it this way:
+
+```
+# All three payer sites 403 a browser-style fetch but answer plain curl.
+curl -sL "https://www.emedny.org/ProviderManuals/DME/PDFS/DME_Procedure_Codes.pdf" -o ny.pdf
+curl -sL "https://www.mass.gov/doc/guidelines-for-medical-necessity-determination-for-augmentative-and-alternative-communication-devices-including-speech-generating-devices/download" -o mh.pdf
+curl -sL "https://sites.ed.gov/idea/files/Myths-and-Facts-Surrounding-Assistive-Technology-Devices-01-22-2024.pdf" -o osep.pdf
+
+# macOS has no pdftotext; Ghostscript is already a dependency of this repo.
+gs -q -dNOPAUSE -dBATCH -sDEVICE=txtwrite -sOutputFile=ny.txt ny.pdf
+```
+
+Three traps, each of which produced a wrong answer here before being caught:
+
+1. **The 403 is NOT a user-agent block.** A previous revision of this file said it
+   was and told the next person to retry with a browser UA. Plain `curl` with **no**
+   UA override also returns 200 — it is the fetching client's fingerprint. Swapping
+   the UA in a blocked client will not help and will look like the page is gone.
+2. **Grep the SECTION, not the manual.** NY's DME manual is ~773,000 characters
+   covering every category of durable medical equipment. A whole-file grep for
+   "2 years" or "four-week" returns hits from wheelchairs and lymphedema. The SGD
+   coverage-guidelines block sits around offset 418,000–436,000; locate it by
+   searching for a distinctive phrase (`reasonably foreseeable`, `Length and dates
+   of trial`) and slice a window before counting anything.
+3. **Verify a quote exists before citing a section number.** Section numbering
+   changed completely between the 2012 and current NY documents. A cite like
+   "NY §10" that looked right for six years pointed at a document that had been
+   retired. Match on the sentence, then record the number.
+
+---
+
 ## 0. SOURCES
 
 Every payer claim in this document traces to one of these. Retrieved 2026-08-25
@@ -70,6 +103,43 @@ unless noted. `cms.gov` and `emedny.org` both 403 a browser-style fetch but retu
   is why its NY section numbers (§3, §6, §9, §10) do not exist in current policy.
   Corrected 2026-08-25. If you find a NY claim here citing a bare section number,
   it is probably still pointing at the retired outline.
+
+**What current NY requires that this document did not list** — all [VERIFIED] against
+DME 2026, retrieved and grepped 2026-08-25. Add these to the §3 spine when someone
+next touches it:
+
+- **Baseline performance.** §4(g)(iv)(3): *"Empirical data including baseline
+  performance and results of trial period goals."*
+- **Structured AND unstructured settings.** §4(g)(iv)(5): *"Whether communication
+  occurred in both structured and unstructured settings."*
+- **Multiple manufacturers, same HCPCS category.** §4(g)(iii): *"consideration of
+  more than one device by multiple manufacturers within the same HCPCS category…"*
+  This is a denial trigger — trialling two devices from one vendor does not satisfy it.
+- **A financial-relationship attestation, in writing.** §4(i): *"A signed and dated
+  attestation by the SLP that the licensed/certified medical professional (LCMP) has
+  no financial relationship with the Medicaid provider or SGD manufacturer."* This is
+  NY's analogue of Medicare criterion 7 — and unlike Medicare, NY names it as a
+  document that must be signed and dated. (Our workbook captures this as
+  `attestations.supplier_relationship`.)
+- **An IEP for school-aged members.** Documentation item 3.
+- **"Not fully dependent on prompting."** §1(d) — the member must demonstrate use
+  *"without being fully dependent on prompting or assistance in producing the
+  communication."* ASHA formally opposed this language in 2018 and did not prevail
+  (<https://www.asha.org/siteassets/uploadedfiles/advocacy/comments/asha-comments-on-ny-medicaid-proposed-sgd-requirement-082718.pdf>).
+  Worth knowing, because it is the criterion most likely to deny a young child.
+
+**Trial LENGTH — no primary source sets one.** [UNSOURCED in primary.] Neither
+L33739, A52469, NY DME 2026, nor MassHealth MNG-AAC states a required trial
+duration. Two secondary sources say four weeks for NY specifically: PRC-Saltillo's
+*"Read Me First — New York Funding Sources"* (aacfunding.com, stamped RMNY 10/24/23)
+— *"Results from a four-week trial of the SGD must be documented… Start and end
+dates of the trial MUST be noted"* — and the ASHA 2018 comment letter above, which
+argues against the consequences of *"a 4-week trial period."* Both are secondary,
+and PRC-Saltillo is an AAC vendor.
+
+⚠️ **Do not "verify" this by grepping the NY manual for "four-week".** It occurs
+there, but in the **lymphedema** section — a false positive that cost a check here
+on 2026-08-25. The SGD section sets no duration.
 
 **Massachusetts MassHealth — CURRENT. This is where the per-trial spec came from.**
 
