@@ -10,7 +10,15 @@ export default Route.extend({
     var q = params.q;
     if(q == '_') { q = ''; }
     this.set('q', q);
-    this.set('queryString', decodeURIComponent(q));
+    /* route-recognizer already decodes dynamic segments, so this is a second
+       decode and throws URIError on any lone `%` the user types (e.g. "50%").
+       Harmless before typing replaced the URL per keystroke; now it is on the
+       hot path, so fall back to the raw segment rather than breaking the
+       transition. Kept rather than removed because programmatic replaceWith
+       passes the encoded value straight through without recognizing it. */
+    var decoded = q;
+    try { decoded = decodeURIComponent(q); } catch (e) { decoded = q; }
+    this.set('queryString', decoded);
     var localeParam = params.locale || params.l;
     var locale;
     if (localeParam === 'any' || !localeParam) {
@@ -40,7 +48,15 @@ export default Route.extend({
   setupController: function(controller) {
     controller.set('model', {});
     controller.set('locale', this.get('locale'));
-    controller.load_results(this.get('q'));
+    /* ensure_results_loaded, NOT load_results. Typing in the search box now
+       replaces the URL on every ~300ms pause (controllers/search.js
+       #_runAutoSearch), and a changed dynamic segment re-runs model + this hook.
+       An unconditional load_results here reset online_results to
+       {loading: true, results: []} on every keystroke pause — so the panel
+       flashed "Loading boards…" with no rows, which is exactly what the
+       controller's own guard was written to avoid. Routing both callers through
+       ensure_results_loaded keeps that decision in one place. */
+    controller.ensure_results_loaded(this.get('q'));
     controller.set('searchString', this.get('queryString'));
     this.appState.set('hide_search', true);
   }

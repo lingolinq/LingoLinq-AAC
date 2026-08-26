@@ -54,7 +54,16 @@ RSpec.configure do |config|
   config.order = "defined"
   
   config.before(:each) do
-    ENV['DEFAULT_HOST'] ||= 'http://test.host'  # ensure URL generation is consistent in specs
+    # BARE host, deliberately. .env.example documents DEFAULT_HOST as a bare
+    # hostname ("www.lingolinq.com"), and that is what production actually sets,
+    # so a scheme'd fixture here made JsonApi::Json.absolute_host a no-op in every
+    # spec (it returns any already-absolute host untouched) -- which meant the
+    # whole current_host -> absolute_host sweep could be reverted with the suite
+    # still green, and parents would again get an unfollowable relative consent
+    # link. Keeping it bare is what makes those assertions mean something.
+    # Controller specs are unaffected: they get the host from the request via
+    # application_controller#set_host, which supplies the protocol.
+    ENV['DEFAULT_HOST'] ||= 'test.host'  # ensure URL generation is consistent in specs
     Time.zone = nil
     Worker.flush_queues
     # flush_queues empties the queue lists but leaves two separate Redis size

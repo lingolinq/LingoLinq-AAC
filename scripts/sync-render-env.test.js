@@ -18,6 +18,20 @@
 
 const https = require('https');
 const { EventEmitter } = require('events');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+// The synchronizer normally reads the operator's brain .env file. Tests must
+// never load it: even masked output can disclose secret prefixes in CI logs.
+const testHome = fs.mkdtempSync(path.join(os.tmpdir(), 'sre-home-'));
+const testConfigDir = path.join(testHome, 'ai-company-brain', 'config');
+fs.mkdirSync(testConfigDir, { recursive: true });
+fs.writeFileSync(path.join(testConfigDir, '.env'), [
+  'BEDROCK_AWS_KEY=test-bedrock-key',
+  'BEDROCK_AWS_SECRET=test-bedrock-secret',
+].join('\n'));
+os.homedir = () => testHome;
 
 // --- https mock (patch before exercising the module under test) ------------
 
@@ -47,7 +61,13 @@ process.env.RENDER_API_KEY = 'test-key-never-used-for-real-calls';
 // Keep notifyKeyRotation on its deterministic "skipping" path.
 delete process.env.GOOGLE_CHAT_WEBHOOK_KEY_ROTATION;
 
-const { getRenderEnvVars, sync, syncFailures } = require('./sync-render-env.js');
+const {
+  getRenderEnvVars,
+  sync,
+  syncFailures,
+  KEY_MANIFEST,
+  valuesForRenderEnvironments,
+} = require('./sync-render-env.js');
 
 // --- tiny harness -----------------------------------------------------------
 
@@ -77,6 +97,32 @@ function envVarPage(pairs, withCursor) {
     envVar: { key, value },
     ...(withCursor ? { cursor: `cur-${key}-${i}` } : {}),
   })));
+}
+
+function testBedrockTargetsOnlyDevAndStaging() {
+  const expected = { dev: 'test-value', staging: 'test-value' };
+  for (const key of [
+    'BEDROCK_AWS_KEY',
+    'BEDROCK_AWS_SECRET',
+    'BEDROCK_AWS_REGION',
+    'BEDROCK_EXPECTED_AWS_ACCOUNT',
+  ]) {
+    const values = valuesForRenderEnvironments(KEY_MANIFEST[key], 'test-value');
+    check(`Bedrock Render scope: ${key} targets dev and staging only`,
+      JSON.stringify(values) === JSON.stringify(expected), JSON.stringify(values));
+  }
+  check('Bedrock credential source is environment-specific',
+    KEY_MANIFEST.BEDROCK_AWS_KEY.perEnv === true &&
+      KEY_MANIFEST.BEDROCK_AWS_SECRET.perEnv === true &&
+      !KEY_MANIFEST.BEDROCK_AWS_KEY.vault &&
+      KEY_MANIFEST.BEDROCK_AWS_KEY.item === 'BEDROCK_RUNTIME_AI');
+}
+
+function testDeprecatedDirectProviderKeysAreNotManaged() {
+  check('Gemini direct-provider key is absent from the Render manifest',
+    !Object.prototype.hasOwnProperty.call(KEY_MANIFEST, 'GEMINI_API_KEY'));
+  check('Anthropic direct-provider key is absent from the Render manifest',
+    !Object.prototype.hasOwnProperty.call(KEY_MANIFEST, 'ANTHROPIC_API_KEY'));
 }
 
 // --- tests ------------------------------------------------------------------
@@ -152,6 +198,52 @@ async function testRepeatedCursorThrows() {
 }
 
 const TEST_SERVICE = { prod: { id: 'srv-test-prod', name: 'test-prod', branch: 'main' } };
+const RENDER_SCOPE_SERVICES = {
+  dev: { id: 'srv-test-dev', name: 'test-dev', branch: 'develop' },
+  staging: { id: 'srv-test-staging', name: 'test-staging', branch: 'staging' },
+  prod: { id: 'srv-test-prod', name: 'test-prod', branch: 'main' },
+};
+
+async function testBedrockSyncNeverTargetsRenderProd() {
+  resetState();
+  const defaults = [
+    ['LD_PRELOAD', '/usr/lib/x86_64-linux-gnu/libjemalloc.so.2'],
+    ['MALLOC_CONF', 'background_thread:true,narenas:2,dirty_decay_ms:1000'],
+    ['RAILS_SERVE_STATIC_FILES', 'enabled'],
+    ['UNMANAGED', 'preserve-me'],
+  ];
+  routeHandler = (options) => {
+    if (options.method === 'GET') return { statusCode: 200, body: envVarPage(defaults, true) };
+    return { statusCode: 200, body: '[]' };
+  };
+  await sync(RENDER_SCOPE_SERVICES, 'env', true);
+  const puts = putRequests();
+  const putServices = puts.map(request => request.path.match(/^\/v1\/services\/([^/]+)/)[1]).sort();
+  check('Bedrock sync: applies only to Render dev and staging',
+    JSON.stringify(putServices) === JSON.stringify(['srv-test-dev', 'srv-test-staging']));
+  for (const request of puts) {
+    const keys = new Set(JSON.parse(request.body).map(item => item.key));
+    check(`Bedrock sync: ${request.path} carries all four required settings`,
+      ['BEDROCK_AWS_KEY', 'BEDROCK_AWS_SECRET', 'BEDROCK_AWS_REGION', 'BEDROCK_EXPECTED_AWS_ACCOUNT']
+        .every(key => keys.has(key)));
+  }
+}
+
+async function testMissingRequiredBedrockCredentialsAbortBeforeAnyPut() {
+  resetState();
+  routeHandler = (options) => {
+    if (options.method === 'GET') return { statusCode: 200, body: envVarPage([['UNMANAGED', 'preserve-me']], true) };
+    return { statusCode: 200, body: '[]' };
+  };
+  await sync(RENDER_SCOPE_SERVICES, 'op', true, {
+    isSignedIn: () => true,
+    readSecret: () => null,
+  });
+  check('Bedrock sync: missing required credentials fail the sync',
+    ['dev:BEDROCK_AWS_KEY', 'dev:BEDROCK_AWS_SECRET', 'staging:BEDROCK_AWS_KEY', 'staging:BEDROCK_AWS_SECRET']
+      .every(failure => syncFailures.includes(failure)), JSON.stringify(syncFailures));
+  check('Bedrock sync: missing credentials issue NO partial static-config PUT', putRequests().length === 0);
+}
 
 async function testApplySkipsOnReadFailure() {
   resetState();
@@ -240,9 +332,6 @@ function testMainExitsNonZeroOnReadFailure() {
   // preloaded via --require so no real network is touched, and assert the
   // process-level exit-1 contract the GitHub Actions workflow depends on.
   const { execFileSync } = require('child_process');
-  const fs = require('fs');
-  const os = require('os');
-  const path = require('path');
   const mockPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'sre-test-')), 'https-401-mock.js');
   fs.writeFileSync(mockPath, `
     const https = require('https');
@@ -264,7 +353,11 @@ function testMainExitsNonZeroOnReadFailure() {
     output = execFileSync(
       process.execPath,
       ['--require', mockPath, path.join(__dirname, 'sync-render-env.js'), '--source', 'env'],
-      { encoding: 'utf8', env: { ...process.env, RENDER_API_KEY: 'test-key' }, stdio: 'pipe' }
+      {
+        encoding: 'utf8',
+        env: { ...process.env, HOME: testHome, RENDER_API_KEY: 'test-key' },
+        stdio: 'pipe',
+      }
     );
   } catch (err) {
     exitCode = err.status;
@@ -288,12 +381,16 @@ async function testDryRunNeverPuts() {
 // --- run --------------------------------------------------------------------
 
 (async () => {
+  testBedrockTargetsOnlyDevAndStaging();
+  testDeprecatedDirectProviderKeysAreNotManaged();
   await testReadFailureThrows();
   await testNonArrayResponseThrows();
   await testEmptyOkReadReturnsEmpty();
   await testPaginationFollowsCursor();
   await testShortPageStopsPagination();
   await testRepeatedCursorThrows();
+  await testBedrockSyncNeverTargetsRenderProd();
+  await testMissingRequiredBedrockCredentialsAbortBeforeAnyPut();
   await testApplySkipsOnReadFailure();
   await testApplyRefusesEmptyCurrentList();
   await testApplyPreservesUnmanagedVars();

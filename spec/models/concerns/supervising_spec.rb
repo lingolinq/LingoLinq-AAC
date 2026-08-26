@@ -49,27 +49,64 @@ describe Supervising, :type => :model do
       })
       User.link_supervisor_to_user(u2, u, nil, false)
       expect(u2.modeling_only?).to eq(true)
+      # Modeling-only links lose USAGE DATA and PROFILE DETAIL: they keep only
+      # existence + model (+ set_goals, which the lapsed-billing carve-out
+      # deliberately preserves). Narrowed in user.rb:63-65,85.
       expect(u.permissions_for(u2)).to eq({
         'user_id' => u2.global_id,
         'view_existence' => true,
-        'view_detailed' => true,
-        'view_word_map' => true,
         'model' => true,
         'set_goals' => true,
       })
       User.link_supervisor_to_user(u2, u, nil, true)
 
       expect(u2.edit_permission_for?(u)).to eq(false)
+      # Still modeling-only here (u2 is expired), so the same narrowing applies.
       expect(u.permissions_for(u2)).to eq({
         'user_id' => u2.global_id,
         'view_existence' => true,
-        'view_detailed' => true,
-        'view_word_map' => true,
         'model' => true,
         'set_goals' => true
       })
       expect(u2).to receive(:modeling_only?).and_return(false)
       expect(u2.edit_permission_for?(u)).to eq(true)
+    end
+
+    describe "readable_as_supervisee_by?" do
+      it "is true for a direct supervisor and for self" do
+        child = User.create
+        sup = User.create
+        User.link_supervisor_to_user(sup, child)
+        expect(child.readable_as_supervisee_by?(sup, 'supervise')).to eq(true)
+        expect(child.readable_as_supervisee_by?(child, 'supervise')).to eq(true)
+      end
+
+      it "is false for a stranger and for a supervisor-of-supervisor" do
+        child = User.create
+        therapist = User.create
+        viewer = User.create
+        User.link_supervisor_to_user(therapist, child)
+        User.link_supervisor_to_user(viewer, therapist)
+        expect(child.readable_as_supervisee_by?(nil, 'supervise')).to eq(false)
+        expect(child.readable_as_supervisee_by?(User.create, 'supervise')).to eq(false)
+        expect(child.readable_as_supervisee_by?(viewer, 'supervise')).to eq(false)
+      end
+
+      it "is true for an in-org manager and false for an out-of-org child" do
+        manager = User.create
+        therapist = User.create
+        inside = User.create
+        outside = User.create
+        o = Organization.create(:settings => {'total_licenses' => 4})
+        o.add_manager(manager.user_name, true)
+        o.add_supervisor(therapist.user_name, false)
+        o.add_user(inside.user_name, false)
+        User.link_supervisor_to_user(therapist, inside)
+        User.link_supervisor_to_user(therapist, outside)
+        manager.reload
+        expect(inside.readable_as_supervisee_by?(manager, 'supervise')).to eq(true)
+        expect(outside.readable_as_supervisee_by?(manager, 'supervise')).to eq(false)
+      end
     end
 
     it "treats an approved SupervisorRelationship as supervision for set_goals when UserLink is absent" do
@@ -469,9 +506,11 @@ describe Supervising, :type => :model do
       expect(perms['delete']).to eq(nil)
       expect(perms['supervise']).to eq(nil)
       expect(perms['model']).to eq(true)
-      expect(perms['view_detailed']).to eq(true)
       expect(perms['view_existence']).to eq(true)
-      expect(perms['view_word_map']).to eq(true)
+      # Modeling-only links lose USAGE DATA and PROFILE DETAIL — this link is
+      # explicitly modeling_only (asserted above). Narrowed in user.rb:63-65,85.
+      expect(perms['view_detailed']).to eq(nil)
+      expect(perms['view_word_map']).to eq(nil)
     end
 
     it "should raise an error when supervisor adding fails" do
@@ -961,6 +1000,305 @@ describe Supervising, :type => :model do
       expect(added).to be < (Time.now + 10)
       expect(res[0]['pending']).to eq(false)
       expect(res[0]['sponsored']).to eq(true)
+    end
+  end
+
+  # The supervisor board-cache recompute is an AUTHORIZATION write, not a display
+  # write: update_available_boards persists settings['available_private_board_ids'],
+  # which board.rb:76 reads to grant view/edit/delete/share.
+  #
+  # Both link_supervisor_to_user and unlink_supervisor_from_user enqueue it through
+  # Worker.schedule_for, which pushes to Redis the instant it is called. Redis is
+  # not enrolled in the Postgres transaction, so when these run inside one -- which
+  # SupervisorConsentService does, under `with_lock` -- a worker can dequeue and
+  # recompute from the PRE-COMMIT snapshot. A revoke then gets undone by its own
+  # job, re-granting a removed supervisor real access to a child's private boards,
+  # behind a 30-minute permission cache.
+  #
+  # The consent service's post-commit re-enqueue only made the race CONVERGE; it
+  # could not order the two writes, and schedule_once dedupes against a job still
+  # sitting in the queue, so the corrective enqueue could also be a silent no-op.
+  # Deferring at the source is the actual ordering fix. A RemoteAction in the same
+  # transaction is the durability fix: if the process dies or Redis is down after
+  # commit, the hourly outbox drain still schedules the refresh. These examples
+  # need real commits, so the surrounding transactional fixture is disabled --
+  # with it on, nothing ever commits and the ordering assertions would pass
+  # vacuously.
+  # Model-level denial cases for the roster predicate. The controller specs cover
+  # the happy paths through HTTP; these pin the negatives, which are the half a
+  # future refactor is most likely to lose quietly.
+  describe "listable_as_supervisee_by?" do
+    it "should deny a nil caller" do
+      u = User.create
+      expect(u.listable_as_supervisee_by?(nil)).to eq(false)
+    end
+
+    it "should deny a caller with no relationship" do
+      communicator = User.create
+      stranger = User.create
+      expect(communicator.listable_as_supervisee_by?(stranger)).to eq(false)
+    end
+
+    it "should deny a stranger even when the communicator is public" do
+      communicator = User.create(:settings => {'public' => true})
+      stranger = User.create
+      # The public-account rule grants view_existence/view_detailed but never
+      # 'model', which is what keeps a public profile off a private roster.
+      expect(communicator.listable_as_supervisee_by?(stranger)).to eq(false)
+    end
+
+    it "should allow the communicator themselves" do
+      u = User.create
+      expect(u.listable_as_supervisee_by?(u)).to eq(true)
+    end
+
+    it "should allow an ordinary supervisor" do
+      communicator = User.create
+      supporter = User.create
+      User.link_supervisor_to_user(supporter, communicator)
+      expect(communicator.reload.listable_as_supervisee_by?(supporter.reload)).to eq(true)
+    end
+
+    it "should allow a per-link modeling-only supervisor, who still needs to model" do
+      communicator = User.create
+      supporter = User.create
+      User.link_supervisor_to_user(supporter, communicator, nil, 'modeling_only')
+      expect(supporter.reload.modeling_only_for?(communicator.reload)).to eq(true)
+      expect(communicator.listable_as_supervisee_by?(supporter)).to eq(true)
+    end
+
+    it "should deny a valet session" do
+      communicator = User.create
+      supporter = User.create
+      User.link_supervisor_to_user(supporter, communicator)
+      allow(supporter).to receive(:valet_mode?).and_return(true)
+      expect(communicator.reload.listable_as_supervisee_by?(supporter)).to eq(false)
+    end
+  end
+
+  describe "board-cache enqueue ordering" do
+    self.use_transactional_tests = false
+
+    # Nothing rolls back in this group, so cleanup is manual -- but it must be
+    # SCOPED. `User.delete_all` here also removed rows any other file had
+    # committed, and db/schema.rb declares no foreign keys, so it left orphaned
+    # boards/devices/log_sessions pointing at dead ids. Snapshot first, delete only
+    # what the example added. (Worker.flush_queues stays global: the queue is what
+    # these examples assert on, and the suite does not run examples in parallel.)
+    before(:each) do
+      @pre_user_ids = User.pluck(:id)
+      @pre_link_ids = UserLink.pluck(:id)
+      # Always [] today: spec_helper.rb's global before(:each) already runs an
+      # unscoped RemoteAction.delete_all and outer hooks run first. Kept as a
+      # defence against that hook going away, not as an active protection.
+      @pre_ra_ids = RemoteAction.pluck(:id)
+    end
+
+    after(:each) do
+      # Guarded: if the before hook raised, these are nil, and `where.not(id: nil)`
+      # compiles to `id IS NOT NULL` -- a full-table delete, which is the exact
+      # cross-file destruction this scoping exists to prevent.
+      return unless @pre_user_ids && @pre_link_ids && @pre_ra_ids
+      UserLink.where.not(id: @pre_link_ids).delete_all
+      RemoteAction.where.not(id: @pre_ra_ids).delete_all
+      User.where.not(id: @pre_user_ids).delete_all
+      Worker.flush_queues
+    end
+
+    def queued_board_updates_for(user)
+      found = []
+      Resque.queues.each do |queue|
+        Resque.size(queue).times do |idx|
+          item = Resque.peek(queue, idx)
+          next unless item
+          (item['args'] || []).each do |arg|
+            next unless arg.is_a?(Hash)
+            found << arg if arg['method'] == 'update_available_boards' && arg['id'] == user.id
+          end
+        end
+      end
+      found
+    end
+
+    def board_cache_remote_actions_for(user)
+      RemoteAction.where(path: user.global_id, action: 'update_available_boards')
+    end
+
+    it "should keep the outbox row after the enqueue is merely accepted" do
+      supervisor = User.create
+      user = User.create
+      User.link_supervisor_to_user(supervisor, user)
+
+      # Resque.enqueue returning means Redis took an LPUSH, not that the refresh
+      # ran. Releasing here would drop the only durable guarantee behind a revoke.
+      expect(queued_board_updates_for(supervisor)).to_not eq([])
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(1)
+    end
+
+    it "should release the outbox row when the refresh actually completes" do
+      supervisor = User.create
+      user = User.create
+      User.link_supervisor_to_user(supervisor, user)
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(1)
+
+      # This is what stops hourly remote_remove_batch running a second full
+      # recompute for every supervision change.
+      supervisor.reload.update_available_boards
+
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(0)
+    end
+
+    it "should not release a row written while the refresh was in flight" do
+      supervisor = User.create
+      user = User.create
+      User.link_supervisor_to_user(supervisor, user)
+      RemoteAction.where(path: supervisor.global_id, action: 'update_available_boards').delete_all
+      # A change the in-flight pass cannot have seen, so its row must survive it.
+      RemoteAction.create(path: supervisor.global_id, action: 'update_available_boards', act_at: 1.minute.from_now)
+
+      supervisor.reload.update_available_boards
+
+      expect(board_cache_remote_actions_for(supervisor).count).to eq(1)
+    end
+
+    it "should not drag a debounced outbox row forward when linking" do
+      supervisor = User.create
+      user = User.create
+      # board_caching.rb:22-25 parks this row deliberately for >500-board accounts.
+      later = 30.minutes.from_now
+      RemoteAction.create(path: supervisor.global_id, action: 'update_available_boards', act_at: later)
+      allow_any_instance_of(User).to receive(:schedule_once).with(:update_available_boards).and_return(false)
+
+      User.link_supervisor_to_user(supervisor, user)
+
+      rows = board_cache_remote_actions_for(supervisor)
+      expect(rows.count).to eq(1)
+      expect(rows.first.act_at).to be > 20.minutes.from_now
+    end
+
+    it "should drag a debounced outbox row forward when revoking" do
+      supervisor = User.create
+      user = User.create
+      User.link_supervisor_to_user(supervisor, user)
+      RemoteAction.where(path: supervisor.global_id, action: 'update_available_boards').delete_all
+      RemoteAction.create(path: supervisor.global_id, action: 'update_available_boards', act_at: 30.minutes.from_now)
+      allow_any_instance_of(User).to receive(:schedule_once).with(:update_available_boards).and_return(false)
+
+      # A revoked supervisor keeps real access to private boards until this runs,
+      # so it must not wait behind the debounce the link path respects.
+      User.unlink_supervisor_from_user(supervisor.reload, user.reload)
+
+      rows = board_cache_remote_actions_for(supervisor)
+      expect(rows.count).to eq(1)
+      expect(rows.first.act_at).to be <= Time.now
+    end
+
+    it "should defer remove_supervisors! past commit for a grace-period supervisor" do
+      supervisor = User.create
+      user = User.create
+      allow_any_instance_of(User).to receive(:grace_period?).and_return(true)
+      during = nil
+
+      # remove_supervisors! (:157) unlinks EVERY supervisor of this user. Enqueued
+      # inside the transaction, a rollback left the link undone but the job live.
+      User.transaction do
+        User.link_supervisor_to_user(supervisor, user)
+        during = Resque.queues.flat_map { |q|
+          Resque.size(q).times.map { |i| Resque.peek(q, i) }
+        }.compact.flat_map { |item| item['args'] || [] }
+          .select { |a| a.is_a?(Hash) && a['method'] == 'remove_supervisors!' }
+      end
+
+      after_commit = Resque.queues.flat_map { |q|
+        Resque.size(q).times.map { |i| Resque.peek(q, i) }
+      }.compact.flat_map { |item| item['args'] || [] }
+        .select { |a| a.is_a?(Hash) && a['method'] == 'remove_supervisors!' }
+
+      expect(during).to eq([])
+      expect(after_commit).to_not eq([])
+    end
+
+    it "should defer the supervisor board-cache recompute past commit when linking" do
+      sup = User.create
+      com = User.create
+      Worker.flush_queues
+
+      during_jobs = nil
+      during_ra = nil
+      ActiveRecord::Base.transaction do
+        User.link_supervisor_to_user(sup, com)
+        during_jobs = queued_board_updates_for(sup)
+        during_ra = board_cache_remote_actions_for(sup).count
+      end
+
+      expect(during_jobs).to eq([]), "board-cache recompute was queued while the transaction was still open"
+      expect(during_ra).to eq(1), "durable outbox row must be written inside the same transaction as the link"
+      expect(queued_board_updates_for(sup).length).to be > 0
+      # Still 1: the row outlives the ENQUEUE on purpose and is released by the
+      # worker on completion. Enqueue acceptance is not proof the refresh happened.
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+    end
+
+    it "should defer the supervisor board-cache recompute past commit when unlinking" do
+      sup = User.create
+      com = User.create
+      User.link_supervisor_to_user(sup, com)
+      Worker.flush_queues
+      RemoteAction.delete_all
+
+      during_jobs = nil
+      during_ra = nil
+      ActiveRecord::Base.transaction do
+        User.unlink_supervisor_from_user(sup, com)
+        during_jobs = queued_board_updates_for(sup)
+        during_ra = board_cache_remote_actions_for(sup).count
+      end
+
+      expect(during_jobs).to eq([]), "board-cache recompute was queued while the transaction was still open"
+      expect(during_ra).to eq(1), "durable outbox row must be written inside the same transaction as the unlink"
+      expect(queued_board_updates_for(sup).length).to be > 0
+      # Still 1: the row outlives the ENQUEUE on purpose and is released by the
+      # worker on completion. Enqueue acceptance is not proof the refresh happened.
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+    end
+
+    it "should roll the board-cache outbox back with the supervision change" do
+      sup = User.create
+      com = User.create
+      Worker.flush_queues
+
+      ActiveRecord::Base.transaction do
+        User.link_supervisor_to_user(sup, com)
+        expect(board_cache_remote_actions_for(sup).count).to eq(1)
+        raise ActiveRecord::Rollback
+      end
+
+      expect(board_cache_remote_actions_for(sup).count).to eq(0)
+      expect(queued_board_updates_for(sup)).to eq([])
+    end
+
+    it "should keep the board-cache outbox when the post-commit enqueue fails" do
+      sup = User.create
+      com = User.create
+      Worker.flush_queues
+      allow(sup).to receive(:schedule_once).and_raise(RuntimeError, "redis down")
+
+      expect { User.link_supervisor_to_user(sup, com) }.not_to raise_error
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+    end
+
+    it "should pull a delayed board-cache RemoteAction forward on revoke" do
+      sup = User.create
+      com = User.create
+      User.link_supervisor_to_user(sup, com)
+      Worker.flush_queues
+      RemoteAction.delete_all
+      ra = RemoteAction.create(path: sup.global_id, action: 'update_available_boards', act_at: 30.minutes.from_now)
+
+      User.unlink_supervisor_from_user(sup, com)
+
+      expect(board_cache_remote_actions_for(sup).count).to eq(1)
+      expect(ra.reload.act_at).to be <= Time.now + 1
     end
   end
 end

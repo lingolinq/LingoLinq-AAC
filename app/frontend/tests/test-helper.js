@@ -56,10 +56,19 @@ QUnit.on('runEnd', function(runEnd) {
 // auto-loader above misses modules due to AMD registration timing on this Ember
 // version; importing them here guarantees they're pulled into the bundle and
 // their `module()`/`test()` calls fire before `start()` below.
+//
+// ember/no-test-import-export guards against test files importing each other,
+// which double-registers modules. That is not what these are: this is the test
+// ENTRY POINT deliberately pulling modules the auto-loader drops, and removing
+// any line silently stops that suite running. Disabled for the block, with the
+// reason at the site, rather than left as a dozen anonymous baseline rows.
+/* eslint-disable ember/no-test-import-export */
 import 'frontend/tests/acceptance/board-detail-empty-state-test';
+import 'frontend/tests/acceptance/board-lock-test';
 import 'frontend/tests/acceptance/lesson_expired_test';
 import 'frontend/tests/unit/controllers/board-index-word-prediction-locale-test';
 import 'frontend/tests/unit/controllers/copying-board-test';
+import 'frontend/tests/unit/components/copy-board-hierarchy-test';
 import 'frontend/tests/unit/controllers/user-board-detail-image-cache-test';
 import 'frontend/tests/unit/utils/board-detail-cache-test';
 import 'frontend/tests/unit/utils/board-prefetch-planner-test';
@@ -69,6 +78,7 @@ import 'frontend/tests/unit/utils/raw-events-test';
 import 'frontend/tests/unit/models/board-reload-if-lite-test';
 import 'frontend/tests/unit/models/buttonset-cache-fallback-test';
 import 'frontend/tests/unit/components/share-board-guard-test';
+/* eslint-enable ember/no-test-import-export */
 
 // loadTests: false — we already pre-loaded all test modules above
 // setupTestIsolationValidation: enable per-module once tests use ember-qunit setupTest

@@ -50,8 +50,8 @@
              have their own handlers and call stopPropagation so they
              win when the drop lands on them specifically. --}}
         <div class="ub-boards-page__folders-section {{if this.foldersExpanded 'ub-boards-page__folders-section--open'}}"
-          {{on "dragover" (fn this.sendAction "emptyFolderDragOver")}}
-          {{on "drop" (fn this.sendAction "emptyFolderDrop")}}>
+          {{on "dragover" (this.selfEventAction "emptyFolderDragOver")}}
+          {{on "drop" (this.selfEventAction "emptyFolderDrop")}}>
           {{!-- Header row: split into three click targets so the action
                buttons (+ New folder / Tag a board) can sit visually
                between the title and the chevron without nesting
@@ -66,7 +66,7 @@
               class="ub-boards-page__folders-toggle"
               aria-expanded={{if this.foldersExpanded "true" "false"}}
               aria-controls="ub-boards-page__folders-body"
-              {{on "click" (fn this.sendAction "toggleFoldersExpanded")}}
+              {{on "click" (this.sendAction "toggleFoldersExpanded")}}
             >
               <span class="ub-boards-page__folders-title">
                 <span class="ub-boards-page__section-icon" aria-hidden="true">
@@ -99,7 +99,7 @@
               type="button"
               class="ub-boards-page__folders-chevron-btn"
               aria-label={{if this.foldersExpanded (t "Collapse folders" key="folders_collapse") (t "Expand folders" key="folders_expand")}}
-              {{on "click" (fn this.sendAction "toggleFoldersExpanded")}}
+              {{on "click" (this.sendAction "toggleFoldersExpanded")}}
             >
               <svg class="ub-boards-page__folders-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <polyline points="6 9 12 15 18 9"/>
@@ -131,10 +131,10 @@
                     autocomplete="off"
                     placeholder={{t "Search folders and boards..." key="filter_folders"}}
                     value={{this.folderFilterString}}
-                    {{on "input" (fn this.sendAction "updateFolderFilter")}}
+                    {{on "input" (this.selfEventAction "updateFolderFilter")}}
                   />
                   {{#if this.folderFilterString}}
-                    <button type="button" class="ub-boards-page__folder-filter-clear" {{on "click" (fn this.sendAction "clearFolderFilter")}} aria-label={{t "Clear filter" key="clear_filter"}}>
+                    <button type="button" class="ub-boards-page__folder-filter-clear" {{on "click" (this.sendAction "clearFolderFilter")}} aria-label={{t "Clear filter" key="clear_filter"}}>
                       {{t "Clear" key="clear"}}
                     </button>
                   {{/if}}
@@ -147,8 +147,8 @@
                      a user can drag a board onto it to create the
                      first folder via emptyFolderDrop. --}}
                 <div class="ub-boards-page__folders-empty" role="status"
-                  {{on "dragover" (fn this.sendAction "emptyFolderDragOver")}}
-                  {{on "drop" (fn this.sendAction "emptyFolderDrop")}}
+                  {{on "dragover" (this.selfEventAction "emptyFolderDragOver")}}
+                  {{on "drop" (this.selfEventAction "emptyFolderDrop")}}
                 >
                   <span class="ub-boards-page__folders-empty-icon" aria-hidden="true">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -209,7 +209,7 @@
                         <button type="submit" class="ub-boards-page__folder-rename-save" aria-label={{t "Save" key="save"}}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                         </button>
-                        <button type="button" class="ub-boards-page__folder-rename-cancel" {{on "click" (fn this.sendAction "cancelFolderRename")}} aria-label={{t "Cancel" key="cancel"}}>
+                        <button type="button" class="ub-boards-page__folder-rename-cancel" {{on "click" (this.sendAction "cancelFolderRename")}} aria-label={{t "Cancel" key="cancel"}}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                         </button>
                       </form>
@@ -274,7 +274,7 @@
                             placeholder={{t "Search boards..." key="folder_menu_search_placeholder"}}
                             aria-label={{t "Search boards in this folder" key="folder_menu_search_label"}}
                             value={{this.folderBoardsSearch}}
-                            {{on "input" (fn this.sendAction "updateFolderBoardsSearch")}}
+                            {{on "input" (this.selfEventAction "updateFolderBoardsSearch")}}
                           />
                           {{#if this.folderBoardsSearch}}
                             <button type="button"
@@ -294,7 +294,7 @@
                                  so it doesn't double-fire the open action. --}}
                             <button type="button"
                               class="ub-boards-page__folder-context-boards-menu-row-open"
-                              {{on "click" (fn this.sendAction "openBoardFromMenu" entry.board)}}
+                              {{on "click" (this.sendAction "openBoardFromMenu" entry.board)}}
                               title={{entry.name}}>
                               {{entry.name}}
                             </button>
@@ -324,18 +324,18 @@
                      pencil icon next to the folder name (above). --}}
                 {{#unless this.editingFolderName}}
                   <div class="ub-boards-page__folder-context-actions">
-                    <button type="button" class="ub-boards-page__folder-context-action ub-boards-page__folder-context-action--delete" {{on "click" (fn this.sendAction "startDeleteFolder")}}>
+                    <button type="button" class="ub-boards-page__folder-context-action ub-boards-page__folder-context-action--delete" {{on "click" (this.sendAction "startDeleteFolder")}}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                       <span>{{t "Delete" key="delete"}}</span>
                     </button>
                   </div>
                 {{/unless}}
                 {{#if this.confirmingFolderDelete}}
-                  <div class="la-delete-folder-backdrop" {{on "click" (fn this.sendAction "cancelDeleteFolder")}}></div>
+                  <div class="la-delete-folder-backdrop" {{on "click" (this.sendAction "cancelDeleteFolder")}}></div>
                   <div class="la-delete-folder-modal la-delete-folder-modal--inline">
                     <div class="la-modal-header">
                       <span class="la-modal-header-label">{{t "Delete folder" key="delete_folder"}}</span>
-                      <button type="button" class="la-modal-close" {{on "click" (fn this.sendAction "cancelDeleteFolder")}} aria-label={{t "Close" key="close"}}>✕</button>
+                      <button type="button" class="la-modal-close" {{on "click" (this.sendAction "cancelDeleteFolder")}} aria-label={{t "Close" key="close"}}>✕</button>
                     </div>
                     <div class="la-delete-folder-modal-body">
                       <div class="la-delete-folder-modal-icon" aria-hidden="true">
@@ -345,11 +345,11 @@
                       <p class="la-delete-folder-modal-desc">{{t "The boards in this folder won't be deleted. They will be moved back to the main boards view where you can reorganize them." key="delete_folder_explainer"}}</p>
                     </div>
                     <div class="la-delete-folder-modal-actions">
-                      <button type="button" class="la-delete-folder-modal-delete" {{on "click" (fn this.sendAction "confirmDeleteFolder")}} disabled={{this.deletingFolder}}>
+                      <button type="button" class="la-delete-folder-modal-delete" {{on "click" (this.sendAction "confirmDeleteFolder")}} disabled={{this.deletingFolder}}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         {{t "Delete folder" key="delete_folder"}}
                       </button>
-                      <button type="button" class="la-delete-folder-modal-cancel" {{on "click" (fn this.sendAction "cancelDeleteFolder")}}>{{t "Cancel" key="cancel"}}</button>
+                      <button type="button" class="la-delete-folder-modal-cancel" {{on "click" (this.sendAction "cancelDeleteFolder")}}>{{t "Cancel" key="cancel"}}</button>
                     </div>
                   </div>
                 {{/if}}
@@ -368,11 +368,11 @@
                       {{#if board.board.key}}
                         {{#unless board.board.removed}}
                           <div
-                            class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
+                            class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
                             draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "true" "false"}}
-                            {{on "dragstart" (fn this.sendAction "boardDragStart" board.board)}}
+                            {{on "dragstart" (this.selfEventAction "boardDragStart" board.board)}}
                           >
-                            {{#if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key)}}
+                            {{#if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key)}}
                               <span class="ub-boards-page__board-item-home-badge">{{t "Home Board" key="home_board"}}</span>
                             {{/if}}
                             {{#if board.board.starred_for_current_user}}
@@ -419,8 +419,8 @@
                    least one folder AND is not drilled into one. --}}
               {{#if this.boardsCtrl.mineTagFolderSummaries.length}}
                 <div class="ub-boards-page__folder-strip" role="list" aria-label={{t "Board folders" key="mine_board_folders_label"}}
-                  {{on "dragover" (fn this.sendAction "emptyFolderDragOver")}}
-                  {{on "drop" (fn this.sendAction "emptyFolderDrop")}}
+                  {{on "dragover" (this.selfEventAction "emptyFolderDragOver")}}
+                  {{on "drop" (this.selfEventAction "emptyFolderDrop")}}
                 >
                   {{#each this.filteredFolderSummaries as |folder|}}
                     <button
@@ -428,10 +428,10 @@
                       class="ub-boards-page__tag-folder"
                       role="listitem"
                       {{on "click" (this.ctrlAction "enterMineFolderTag" folder.tag)}}
-                      {{on "dragover" (fn this.sendAction "folderDragOver" folder.tag)}}
-                      {{on "dragenter" (fn this.sendAction "folderDragEnter" folder.tag)}}
-                      {{on "dragleave" (fn this.sendAction "folderDragLeave" folder.tag)}}
-                      {{on "drop" (fn this.sendAction "folderDrop" folder.tag)}}
+                      {{on "dragover" (this.selfEventAction "folderDragOver" folder.tag)}}
+                      {{on "dragenter" (this.selfEventAction "folderDragEnter" folder.tag)}}
+                      {{on "dragleave" (this.selfEventAction "folderDragLeave" folder.tag)}}
+                      {{on "drop" (this.selfEventAction "folderDrop" folder.tag)}}
                     >
                       <span class="ub-boards-page__tag-folder-back">
                         <span class="ub-boards-page__tag-folder-tab"></span>
@@ -541,15 +541,13 @@
                 {{/if}}
               </span>
             {{/if}}
-          <button type="button"
-            class="ub-boards-page__set-home-btn ub-boards-page__set-home-btn--in-header {{if this.boardsCtrl.selectingHome 'ub-boards-page__set-home-btn--active'}}"
-            {{on "click" (this.ctrlAction "toggleSetHomeMode")}}
-            aria-pressed={{if this.boardsCtrl.selectingHome "true" "false"}}>
+          <LinkTo @route="board-picker" @query={{this.boardPickerQuery}}
+            class="ub-boards-page__set-home-btn ub-boards-page__set-home-btn--in-header">
             <svg class="ub-boards-page__set-home-btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" stroke="none" width="16" height="16" aria-hidden="true">
               <path d="M12 3L2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/>
             </svg>
             {{this.boardsCtrl.setHomeButtonLabel}}
-          </button>
+          </LinkTo>
         </div>
         <div class="ub-boards-page__boards-summary-body">
 
@@ -583,6 +581,9 @@
             </button>
           {{/if}}
         </form>
+        {{#if this.boardsCtrl.boards_page_search_incomplete}}
+          <p class="ub-boards-page__filter-truncated-hint" role="status">{{t "Still loading your library. Some boards may not appear in results yet." key="boards_filter_library_loading"}}</p>
+        {{/if}}
         </div>
         {{!-- Tabs row — tabs on the left, "+ New Board" button
              pinned right on the same baseline. The wrapper hosts the
@@ -678,11 +679,11 @@
           {{#if board.board.key}}
             {{#unless board.board.removed}}
               <div
-                class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
+                class="ub-boards-page__board-item board_with_action simple_board_holder {{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "ub-boards-page__board-item--draggable"}} {{if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key) 'ub-boards-page__board-item--home'}} {{if board.board.starred_for_current_user 'ub-boards-page__board-item--liked'}}"
                 draggable={{if (and this.boardsCtrl.mine_selected this.boardsCtrl.model.permissions.edit) "true" "false"}}
-                {{on "dragstart" (fn this.sendAction "boardDragStart" board.board)}}
+                {{on "dragstart" (this.selfEventAction "boardDragStart" board.board)}}
               >
-                {{#if (is-equal board.board.key this.appState.referenced_user.preferences.home_board.key)}}
+                {{#if (is-equal board.board.key this.boardsCtrl.model.preferences.home_board.key)}}
                   <span class="ub-boards-page__board-item-home-badge">{{t "Home Board" key="home_board"}}</span>
                 {{/if}}
                 {{#if board.board.starred_for_current_user}}

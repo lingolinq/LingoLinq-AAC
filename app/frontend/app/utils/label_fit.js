@@ -9,16 +9,6 @@
 // is SHRINK-ONLY, never grows text past the user's preference, and
 // never rescales every label on the board uniformly.
 //
-// This used to be gated behind the user's "Shrink labels to fit"
-// preference (Text Settings, board-detail edit page). It no longer is:
-// with the toggle off, long words were ellipsised ("color/visual" →
-// "color/…", "keyboard" → "keyb…") and text-symbol buttons were clipped
-// outright. A truncated word on an AAC button is not a styling choice —
-// it's a button whose meaning can no longer be read. Smaller text still
-// communicates; a cut-off word does not.
-// FOLLOW-UP: the preference now controls nothing and should be removed
-// from Text Settings (or repurposed) so it doesn't read as a broken switch.
-//
 // Spans (.md-board-detail-symbol-card__label, speak / view mode) are
 // fitted via DOM measurement so word-boundary wrap inside the existing
 // 3.45em box is respected. Inputs (.md-board-detail-symbol-card__label-input,
@@ -81,8 +71,7 @@ function getCanvasCtx() {
 // declaration. Without the priority, two things broke together — the measure
 // loop below read the CSS-forced size on every iteration instead of the trial
 // size, so it never found a fit and always bottomed out at MIN_FONT_PX, and the
-// value it finally wrote was ignored anyway. That is why "Shrink labels to fit"
-// appeared to do nothing on any viewport under 1200px.
+// value it finally wrote was ignored anyway.
 function setFontPx(el, px) {
   el.style.setProperty('font-size', px + 'px', 'important');
 }
@@ -109,14 +98,6 @@ function isTextSymbol(el) {
     el.classList.contains('md-board-detail-symbol-card__text-symbol'));
 }
 
-// Matches .md-board-detail-symbol-card__text-symbol font-size clamp in
-// app.scss: clamp(16px, calc(var(--bd-button-text-size) * 1.45), 32px).
-function textSymbolBasePx(prefPx) {
-  var scaled = (prefPx || 15) * 1.45;
-  if(scaled < 16) { return 16; }
-  if(scaled > 32) { return 32; }
-  return scaled;
-}
 
 // Single-line labels are fitted by WIDTH, not by wrapped height. Inputs are
 // intrinsically single-line; folder-tab labels (Show-Labels-on-Tab mode) are
@@ -333,9 +314,38 @@ function applyOne(el, basePx) {
   var text = labelText(el);
   if(!text) {
     clearFont(el);
+    el._lf_sig = null;
     return;
   }
-  var effectiveBase = isTextSymbol(el) ? textSymbolBasePx(basePx) : basePx;
+
+  // Skip the measure loop when nothing that could change the answer has changed.
+  // This runs from didRender for EVERY label, and each fit is an iterative
+  // write-then-read of scrollHeight — a forced synchronous layout per step, up to
+  // ~26 steps per label. On a 112-button board that is thousands of reflows per
+  // render pass, and it now runs unconditionally (it used to be opt-in behind the
+  // "Shrink labels to fit" preference). Keyed on the CARD's box, not the label's:
+  // the label's own height is an OUTPUT of the fit, so using it would make the
+  // signature self-invalidating.
+  // Cell as well as card: folder-tab labels sit in .md-folder-back, a SIBLING of
+  // the card, so a card-only lookup returns null for them and the signature would
+  // be a constant — never re-fitting when the tab resizes.
+  var card = el.closest && (el.closest('.md-board-detail-symbol-card') ||
+                            el.closest('.md-board-detail-grid__cell'));
+  var cardW = card ? card.clientWidth : 0;
+  var cardH = card ? card.clientHeight : 0;
+  var sig = text + '|' + cardW + 'x' + cardH + '|' + basePx;
+  if(el._lf_sig === sig) { return; }
+  el._lf_sig = sig;
+
+  // Start from what CSS would actually render, not from the raw preference.
+  // The responsive rules clamp the label well below `--bd-button-text-size` on
+  // small screens, and since these fits are applied !important, seeding the loop
+  // with the raw preference let a fitted label come out LARGER than the
+  // responsive design intends. Clear first so the reading isn't our own previous
+  // inline value. Falls back to the old behavior if the size can't be read.
+  clearFont(el);
+  var cssPx = parseFloat(window.getComputedStyle(el).fontSize);
+  var effectiveBase = (isFinite(cssPx) && cssPx > 0) ? cssPx : basePx;
   var size;
   if(isTextSymbol(el)) {
     size = fitFullCard(el, effectiveBase);
@@ -380,6 +390,9 @@ export default {
     var labels = selectLabels(gridEl);
     for(var i = 0; i < labels.length; i++) {
       clearFont(labels[i]);
+      // Reset the fit cache too — otherwise a later apply() sees an unchanged
+      // signature and skips a label whose inline size we just removed.
+      labels[i]._lf_sig = null;
     }
   },
 

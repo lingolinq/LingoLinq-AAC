@@ -58,6 +58,34 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board'][0]['id']).to eq(b.global_id)
     end
 
+    # List tiles only need metadata; shipping buttons/grid for every owned
+    # sub-board dominates Mine-tab payload/CPU. Show keeps the full shape.
+    # See docs/task-management/2026-08-10-boards-page-load-perf.md.
+    it "should omit buttons and board content blobs from index list payloads" do
+      token_user
+      b = Board.create(:user => @user)
+      b.settings['name'] = 'List Tile'
+      b.settings['buttons'] = [{'id' => 1, 'label' => 'hi'}]
+      b.settings['grid'] = {'rows' => 2, 'columns' => 2, 'order' => [[1, nil], [nil, nil]]}
+      b.save
+      get :index, params: {:user_id => @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      row = json['board'].detect { |r| r['id'] == b.global_id }
+      expect(row).to be_present
+      expect(row['name']).to eq('List Tile')
+      expect(row).not_to have_key('buttons')
+      expect(row).not_to have_key('grid')
+      expect(row).not_to have_key('intro')
+      expect(row).not_to have_key('background')
+
+      get :show, params: {:id => b.global_id}
+      expect(response).to be_successful
+      show_json = JSON.parse(response.body)
+      expect(show_json['board']['buttons']).to be_present
+      expect(show_json['board']['grid']).to be_present
+    end
+
     it "should not 500 on custom_order sort when a starred board has nil settings" do
       token_user
       u = @user
@@ -1323,6 +1351,29 @@ describe Api::BoardsController, :type => :controller do
       assert_unauthorized
     end
 
+    # The board-picker home-board flow (models/board.js create_copy) posts create
+    # with parent_board_id, so a supervise-only supervisor must be able to COPY a
+    # board for a communicatee. The spec above pins the other half: without a
+    # parent_board_id it is authoring a brand-new board, which stays edit-only.
+    it "should allow a supervise-only supervisor to copy a board for a supervisee" do
+      token_user
+      com = User.create
+      b = Board.create(:user => @user, :public => true)
+      User.link_supervisor_to_user(@user, com, nil, false)
+      post :create, params: {:board => {:name => "my board", :for_user_id => com.global_id, :parent_board_id => b.global_id}}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['user_name']).to eq(com.user_name)
+    end
+
+    it "should not allow a supervise-only supervisor to copy a board for a non-supervisee" do
+      token_user
+      com = User.create
+      b = Board.create(:user => @user, :public => true)
+      post :create, params: {:board => {:name => "my board", :for_user_id => com.global_id, :parent_board_id => b.global_id}}
+      assert_unauthorized
+    end
+
     it "should preserve grid order" do
       token_user
       request.headers['Content-Type'] = 'application/json'
@@ -1517,12 +1568,20 @@ describe Api::BoardsController, :type => :controller do
     end
 
     describe "article_50_disclosure backstop (Phase 3 Plan 03-04, T-03-04-01)" do
-      it "should proceed normally with the flag NOT enabled, regardless of jurisdiction or acknowledgement (primary flag-off no-change regression)" do
+      it "should proceed normally when feature_enabled_for? is false, regardless of jurisdiction or acknowledgement (code-default path, not the production state)" do
         token_user
         expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
-        # article_50_disclosure is not in AVAILABLE_FRONTEND_FEATURES on this branch, so
-        # feature_enabled_for? returns false for real (no stub) -- this is the shipping
-        # state. Any jurisdiction/acknowledgement combination must be unaffected.
+        # Pins the CODE-DEFAULT path. CORRECTED 2026-08-25: this comment said
+        # article_50_disclosure "is not in AVAILABLE_FRONTEND_FEATURES on this branch" and
+        # called that "the shipping state". Both are false -- the flag IS registered in
+        # AVAILABLE_FRONTEND_FEATURES, and production enables it via the
+        # default_enabled_features DB Setting (verified 2026-08-23,
+        # docs/legal/2026-08-23_article-50-production-flag-verification.md). What makes
+        # feature_enabled_for? false here is that the TEST DB carries no such Setting row.
+        # Any jurisdiction/acknowledgement combination must be unaffected on this path.
+        # Guard: pin the code-default explicitly so seeding a default_enabled_features
+        # row in test cannot silently invert this assertion.
+        expect(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).at_least(:once).and_return(false)
         allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
         allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
         allow(AiBoardGenerator).to receive(:generate_words).and_return(
@@ -1998,8 +2057,79 @@ describe Api::BoardsController, :type => :controller do
       expect(json['board']['name']).to eq("best board")
       expect(json['board']['buttons'].map{|b| b['label']}).to eq(['fred', 'fred'])
     end
+
+    # See the sibling "should preserve grid order" spec in `describe "create"` for
+    # the same reasoning: `params:` in a controller spec stringifies scalars, so
+    # every other spec in this block exercises the OLD form-encoded shape rather
+    # than the JSON one the adapter sends now (6df5b1bbc). Boards carry the most
+    # type-sensitive payload in the app — an integer grid, boolean button flags —
+    # so the update path is pinned here explicitly.
+    describe "update with a raw JSON body" do
+      it "should keep grid dimensions and button ids as numbers" do
+        token_user
+        b = Board.create(:user => @user)
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => b.global_id}, body: {
+          :board => {
+            :name => "typed board",
+            :buttons => [{'id' => 1, 'label' => 'can'}, {'id' => 2, 'label' => 'span'}],
+            :grid => {'rows' => 1, 'columns' => 3, 'order' => [[1, nil, 2]]}
+          }
+        }.to_json
+        json = assert_success_json
+        expect(json['board']['name']).to eq("typed board")
+        expect(json['board']['grid']['rows']).to eq(1)
+        expect(json['board']['grid']['columns']).to eq(3)
+        # Integer ids and the nil hole both survive; a form-encoded body would
+        # deliver [["1", "", "2"]] and an index-keyed Hash instead of the Array.
+        expect(json['board']['grid']['order']).to eq([[1, nil, 2]])
+        expect(b.reload.buttons.map{|btn| btn['id'] }).to eq([1, 2])
+      end
+
+      it "should keep false button flags false rather than the truthy string 'false'" do
+        # board.rb normalizes hidden/link_disabled/hide_label/text_only precisely
+        # because a form-encoded "false" is truthy. That normalization must not
+        # invert a real boolean on the way through.
+        token_user
+        b = Board.create(:user => @user)
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => b.global_id}, body: {
+          :board => {
+            :name => "flag board",
+            # Both buttons carry a url: board.rb:2313 deletes link_disabled from
+            # any button with no link at all, so an unlinked button could not
+            # exercise that flag.
+            :buttons => [
+              {'id' => 1, 'label' => 'shown',  'url' => 'https://example.com/a', 'hidden' => false, 'link_disabled' => false, 'text_only' => false},
+              {'id' => 2, 'label' => 'hidden', 'url' => 'https://example.com/b', 'hidden' => true,  'link_disabled' => true,  'text_only' => true}
+            ],
+            :grid => {'rows' => 1, 'columns' => 2, 'order' => [[1, 2]]}
+          }
+        }.to_json
+        assert_success_json
+        buttons = b.reload.buttons
+        expect(buttons[0]['hidden']).to eq(false)
+        expect(buttons[0]['link_disabled']).to eq(false)
+        expect(buttons[0]['text_only']).to eq(false)
+        expect(buttons[1]['hidden']).to eq(true)
+        expect(buttons[1]['link_disabled']).to eq(true)
+        expect(buttons[1]['text_only']).to eq(true)
+      end
+
+      it "should keep a boolean public flag as a boolean" do
+        token_user
+        b = Board.create(:user => @user)
+        expect(b.public).to eq(false)
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => b.global_id}, body: {
+          :board => {:name => "pub board", :public => true}
+        }.to_json
+        assert_success_json
+        expect(b.reload.public).to eq(true)
+      end
+    end
   end
-  
+
   describe "star" do
     it "should require api token" do
       post :star, params: {:board_id => "1_1"}

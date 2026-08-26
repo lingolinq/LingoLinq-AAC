@@ -1136,7 +1136,7 @@
           {{/if}}
           {{#unless this.app_state.limited_speak_mode_options}}
             {{#if this.isSessionAuthenticated}}
-              <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
+              <li class="dropdown-header">{{this.app_state.currentUser.display_name}}</li>
               {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
                   <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
@@ -1372,7 +1372,7 @@
         <span class="caret"></span>
       </a>
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
-        <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
+        <li class="dropdown-header">{{this.app_state.currentUser.display_name}}</li>
         {{!-- Exit Boards (identity dropdown, board-alt ≤1024px) — gives
              the user a way out when they're on board-alt normal mode and
              the dropdown is the only menu surface visible. Class
@@ -1503,6 +1503,13 @@
   {{/unless}}{{!-- TEMPORARY (2026-07-27) — remove with the {{#unless}} above --}}
 {{/if}}
 <div id="content" class="{{this.content_class}} {{if this.hide_header "content--no-top-padding"}}">
+  {{!-- Supervising context pill. It lives INSIDE #content on purpose: #content is
+       the app's scroll container (#within_ember is fixed/overflow:hidden on the
+       page-footer layout), so a pill rendered outside it would hover over the
+       page as you scroll. Its own wrapper is zero-height and the pill is
+       absolutely positioned, so it adds nothing to this flex column. Self-
+       suppressing — renders nothing on your own pages or with the flag off. --}}
+  <SupervisingContextPill />
   {{ outlet }}
 </div>
 {{#if this.app_state.eval_paused}}

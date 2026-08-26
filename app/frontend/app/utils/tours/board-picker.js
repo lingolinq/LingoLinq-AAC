@@ -103,7 +103,7 @@ function interiorSteps() {
     },
     {
       id: 'board_picker_tour_tabs',
-      sel: '.md-home-boards-picker__tabs',
+      sel: '.md-home-boards-picker__nav',
       on: 'bottom',
       // Container-type target (a square-cornered region, not a single rounded
       // control) — use a stylized padded + rounded cutout instead of the tight

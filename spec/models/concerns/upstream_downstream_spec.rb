@@ -410,5 +410,17 @@ describe UpstreamDownstream, :type => :model do
     end
     
     it "should remove itself from immediately downstream boards when a button link is removed" 
-  end  
+  end
+
+  describe "save_subtly" do
+    it "should restore PaperTrail.enabled if save raises" do
+      u = User.create
+      b = Board.create(:user => u)
+      expect(PaperTrail.enabled?).to eq(true)
+      allow(b).to receive(:save).and_raise(RuntimeError, 'save failed')
+      expect { b.save_subtly }.to raise_error(RuntimeError, 'save failed')
+      expect(PaperTrail.enabled?).to eq(true)
+      expect(b.instance_variable_get('@skip_post_process')).to eq(false)
+    end
+  end
 end

@@ -323,7 +323,8 @@ describe 'User org offboarding parental consent', type: :model do
       o = Organization.create(settings: {'total_licenses' => 1})
       u = eu_under16_with_ai!(suffix: 'rmeu')
       o.add_user(u.user_name, false, true)
-      o.remove_user(u.user_name)
+      b = under16_over13_birth
+      o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
       u.reload
       expect(u.eu_ai_parental_consent_active?).to eq(false)
       expect(FeatureFlags.ai_feature_enabled_for?('ai_board_generation', u)).to eq(false)
@@ -337,6 +338,130 @@ describe 'User org offboarding parental consent', type: :model do
       o.remove_user(u.user_name, birth_month: b[:month], birth_year: b[:year])
       u.reload
       expect(u.settings['coppa']).to be_nil
+    end
+
+    it 'requires birth month/year when COPPA is enabled' do
+      o = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'nobirth')
+      o.add_user(u.user_name, false, true)
+      expect {
+        o.remove_user(u.user_name)
+      }.to raise_error(ArgumentError, /offboarding birth month and year required/)
+    end
+  end
+
+  describe 'License.expire_stale_licenses! offboarding' do
+    it 'stamps COPPA for school-authorized users when a seat expires' do
+      o = Organization.create(settings: {'total_licenses' => 1})
+      u = school_authorized_user!(suffix: 'licexp')
+      lic = License.create!(organization: o, seat_type: 'student', status: 'active', user: u, expires_at: 1.day.ago)
+      u.update!(managing_organization_id: o.id)
+      expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
+      expect(License.expire_stale_licenses!).to be >= 1
+      u.reload
+      expect(u.coppa_parental_consent_pending?).to eq(true)
+      expect(u.settings['coppa']['offboarding']).to eq(true)
+      expect(u.settings['school_authorization']).to be_nil
+      expect(lic.reload.user_id).to eq(nil)
+      expect(lic.status).to eq('expired')
+    end
+  end
+
+  describe '#decline_parental_consent! and export-then-delete' do
+    it 'declines pending offboarding consent and schedules export-then-delete' do
+      u = school_authorized_user!(suffix: 'decl')
+      o = Organization.create(settings: {'total_licenses' => 1})
+      b = under13_birth
+      u.begin_family_offboarding_consents!(
+        org: o,
+        parent_email: 'decl_parent@example.com',
+        birth_month: b[:month],
+        birth_year: b[:year]
+      )
+      u.reload
+      tok = u.settings['coppa']['parent_consent_token']
+      expect(Exporter).to receive(:export_user).with(u.global_id).and_return({path: 'downloads/users/x/lingolinq-export.zip', url: 'https://example.test/x.zip'})
+      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_offboarding_export, u.global_id)
+      expect(u.decline_parental_consent!(tok)).to eq(true)
+      u.reload
+      expect(u.settings['coppa']['parent_consent_declined_at']).to be_present
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_present
+      expect(u.schedule_deletion_at).to be_present
+      expect(u.coppa_parental_consent_pending?).to eq(false)
+      expect(u.coppa_parental_consent_declined?).to eq(true)
+      expect(u.coppa_parental_consent_blocks_access?).to eq(true)
+    end
+
+    it 'signup decline schedules deletion without export' do
+      u = User.process_new({
+        'name' => 'signup_decl_model',
+        'email' => "signup_decl_model_#{SecureRandom.hex(4)}@example.com",
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'signup_decl_model_parent@example.com'
+      }, {:pending => true})
+      tok = u.settings['coppa']['parent_consent_token']
+      expect(Exporter).not_to receive(:export_user)
+      expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
+      expect(u.decline_parental_consent!(tok)).to eq(true)
+      u.reload
+      expect(u.settings['coppa']['parent_consent_declined_at']).to be_present
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+      expect(u.schedule_deletion_at).to be_present
+    end
+
+    it 'process_expired_offboarding_consents! schedules delete after deadline' do
+      u = school_authorized_user!(suffix: 'expdue')
+      o = Organization.create(settings: {'total_licenses' => 1})
+      b = under13_birth
+      u.begin_family_offboarding_consents!(org: o, birth_month: b[:month], birth_year: b[:year])
+      u.reload
+      c = u.settings['coppa']
+      c['offboarding_deadline_at'] = 1.day.ago.utc.iso8601
+      u.settings['coppa'] = c
+      u.save!
+      expect(Exporter).to receive(:export_user).with(u.global_id).and_return(nil)
+      expect(User.process_expired_offboarding_consents!).to be >= 1
+      u.reload
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_present
+      expect(u.settings['coppa']['offboarding_export_reason']).to eq('expired')
+      expect(u.schedule_deletion_at).to be_present
+    end
+
+    it 'claims under lock so a concurrent schedule_offboarding_export_then_delete! does not re-export' do
+      u = school_authorized_user!(suffix: 'race')
+      o = Organization.create(settings: {'total_licenses' => 1})
+      b = under13_birth
+      u.begin_family_offboarding_consents!(
+        org: o,
+        parent_email: 'race_parent@example.com',
+        birth_month: b[:month],
+        birth_year: b[:year]
+      )
+      u.reload
+      c = u.settings['coppa']
+      c['parent_consent_declined_at'] = Time.now.utc.iso8601
+      c.delete('pending_parent_consent')
+      u.settings['coppa'] = c
+      u.save!
+
+      export_calls = 0
+      allow(Exporter).to receive(:export_user) do |gid|
+        expect(gid).to eq(u.global_id)
+        export_calls += 1
+        # Simulate a second caller racing while the first holds the claim mid-export.
+        expect(u.reload.settings['coppa']['offboarding_export_started_at']).to be_present
+        expect(u.schedule_offboarding_export_then_delete!(reason: 'declined')).to eq(false)
+        {path: 'downloads/users/race/lingolinq-export.zip', url: 'https://example.test/race.zip'}
+      end
+      allow(UserMailer).to receive(:schedule_parent_consent_delivery)
+
+      expect(u.schedule_offboarding_export_then_delete!(reason: 'declined')).to eq(true)
+      expect(export_calls).to eq(1)
+      u.reload
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_present
+      expect(u.settings['coppa']['offboarding_export_started_at']).to be_nil
     end
   end
 end

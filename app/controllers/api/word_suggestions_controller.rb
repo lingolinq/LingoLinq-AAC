@@ -19,6 +19,15 @@ class Api::WordSuggestionsController < ApplicationController
     if FeatureFlags.eu_under16_blocks_ai_for?(@api_user)
       return render json: { error: 'parental consent required', words: [] }, status: 403
     end
+    # EU AI Act Article 50(1) server-side backstop (shared helper LL-6723438462):
+    # a client that skips the ai-disclosure modal and calls this endpoint directly
+    # must still be refused. See ApplicationController#article_50_disclosure_missing?.
+    # Rendered locally (not via require_article_50_disclosure!) to keep this
+    # controller's `words: []` response shape on every refusal, matching its siblings
+    # above.
+    if article_50_disclosure_missing?
+      return render json: { error: 'article_50_disclosure_required', words: [] }, status: 403
+    end
 
     token_words = Array.wrap(word_suggestion_params[:words]).map(&:to_s).map(&:strip).reject(&:blank?).first(12)
     if token_words.empty?

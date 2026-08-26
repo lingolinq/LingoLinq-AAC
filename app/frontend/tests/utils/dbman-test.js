@@ -84,12 +84,17 @@ describe('dbman', function() {
     });
 
     it("should find by specified index if provided", function() {
+      // Distinct ids on purpose. Both records previously used id '1' and relied
+      // on two concurrent stores racing so that neither removed the other, which
+      // is not how the real dbman behaves: IndexedDB put() replaces on keyPath
+      // and the sqlite path does UPDATE-if-exists, so a repeated id yields one
+      // record. Two ids is what actually exercises find_all-by-index.
       var result1 = null, result2 = null;
       capabilities.dbman.store('hat', {id: '1', name: 'top hat', color: 'black'}, function(res) {
         result1 = res;
       }, function() {
       });
-      capabilities.dbman.store('hat', {id: '1', name: 'ugly hat', color: 'black'}, function(res) {
+      capabilities.dbman.store('hat', {id: '2', name: 'ugly hat', color: 'black'}, function(res) {
         result2 = res;
       }, function() {
       });

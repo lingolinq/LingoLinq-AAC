@@ -7,7 +7,7 @@ Here are the details for this lesson:
 Title: <b><%= @lesson.settings['title'] %></b><br/>
 Instructions: <b><%= @lesson.settings['description'] %></b><br/>
 <% if @lesson.settings['time_estimate'] %>Time: about <%= @lesson.settings['time_estimate'] %> minutes<br/><% end %>
-Link: <a href="<%= JsonApi::Json.current_host %>/lessons/<%= @lesson.global_id %>/<%= @lesson.nonce %>/<%= @user.lesson_share_token %>">Start the Lesson Here for <%= @user.user_name %></a><br/>
+Link: <a href="<%= JsonApi::Json.absolute_host %>/lessons/<%= @lesson.global_id %>/<%= @lesson.nonce %>/<%= @user.lesson_share_token %>">Start the Lesson Here for <%= @user.user_name %></a><br/>
 <br/>
 Thanks!<br/>
 <%= email_signature %>

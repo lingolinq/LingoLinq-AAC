@@ -24,9 +24,28 @@
       </div>
     {{else}}
       {{#if this.model.retrying}}
-        {{t "Trying again..." key="trying_again"}}
+        <p class="board-load-error__retrying">{{t "Trying again..." key="trying_again"}}</p>
       {{else}}
-        <a href="#" {{on "click" (this.ctrlAction "re_transition")}}>{{t "Try Again" key="try_again"}}</a>
+        <div class="board-load-error__actions">
+          {{#if this.error_show_home}}
+            <button type="button" class="btn btn-primary btn-lg board-load-error__action" {{on "click" (this.ctrlAction "error_go_home")}}>
+              {{t "Go to Home Board" key="error_go_to_home_board"}}
+            </button>
+          {{/if}}
+          {{#if this.error_show_back}}
+            <button type="button" class="btn btn-default btn-lg board-load-error__action" {{on "click" (this.ctrlAction "error_go_back")}}>
+              {{t "Go Back" key="error_go_back"}}
+            </button>
+          {{/if}}
+          {{#if this.error_show_exit_speak}}
+            <button type="button" class="btn btn-default btn-lg board-load-error__action" {{on "click" (this.ctrlAction "error_exit_speak_mode")}}>
+              {{t "Exit Speak Mode" key="exit_speak_mode"}}
+            </button>
+          {{/if}}
+        </div>
+        <button type="button" class="board-load-error__retry-link" {{on "click" (this.ctrlAction "re_transition")}}>
+          {{t "Try Again" key="try_again"}}
+        </button>
       {{/if}}
     {{/unless}}
   </div>

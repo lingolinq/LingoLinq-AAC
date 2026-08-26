@@ -1065,6 +1065,18 @@ class Organization < ApplicationRecord
     user = User.find_by_path(user_key)
     raise "invalid user, #{user_key}" unless user
 
+    # Match the org-remove UI: birth month/year drives COPPA + under-16 AI reset.
+    # Without this server check, an API caller can reclaim a seat and leave a
+    # school-authorized minor on a consumer trial with no re-consent.
+    if JsonApi::Json.coppa_parental_consent_enabled?
+      classified = User.age_under_threshold?(
+        birth_month: birth_month, birth_year: birth_year, age: 13
+      )
+      if classified.nil?
+        raise ArgumentError, 'offboarding birth month and year required'
+      end
+    end
+
     # Validate optional offboarding parent email before detaching the seat so a
     # typo does not leave the user org-less without a recoverable consent path.
     if parent_email.present?

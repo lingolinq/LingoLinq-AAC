@@ -66,12 +66,12 @@ export default class LabelFieldComponent extends Component {
     var el = event.target;
     var id = this._getButtonId(el);
     editManager.lucky_symbol(id);
-    // Re-fit this one label if it's a board-detail symbol-card label input AND the
-    // grid has shrink-to-fit enabled. Guards against refitting label-fields used
-    // elsewhere (button stash, classic board, folder-tab inputs).
+    // Re-fit this one label when it's a board-detail symbol-card label input.
+    // Guards against refitting label-fields used elsewhere (button stash,
+    // classic board, folder-tab inputs).
     if (el && el.classList && el.classList.contains('md-board-detail-symbol-card__label-input')) {
       var gridEl = el.closest && el.closest('.md-board-detail-grid');
-      if (gridEl && gridEl.classList.contains('md-board-detail-grid--shrink-labels')) {
+      if (gridEl) {
         labelFit.fit_one(el, gridEl);
       }
     }

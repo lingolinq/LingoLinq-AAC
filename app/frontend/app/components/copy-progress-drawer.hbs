@@ -1,5 +1,12 @@
 {{#if this.copy_progress.status}}
-  <div class="ll-copy-drawer ll-copy-drawer--{{this.copy_progress.status}}" role="status" aria-live="polite">
+  {{!-- --above-toast lifts this clear of <AppToast />. Both are position:fixed at
+        z-index 10000 and, at <=480px, both span the full width at bottom:12px — the
+        identical rectangle — so a toast raised during a background copy was painted
+        over by this drawer (it renders later in application.hbs) and never seen.
+        They also overlap on mid-width desktops (~144px at a 900px viewport). Only
+        applied while a toast is actually on screen, so the resting position is
+        unchanged. --}}
+  <div class="ll-copy-drawer ll-copy-drawer--{{this.copy_progress.status}} {{if this.app_state.toast 'll-copy-drawer--above-toast'}}" role="status" aria-live="polite">
     {{#if this.copy_progress.is_copying}}
       <div class="ll-copy-drawer__spinner md-loading-spinner" aria-hidden="true"></div>
       <div class="ll-copy-drawer__body">

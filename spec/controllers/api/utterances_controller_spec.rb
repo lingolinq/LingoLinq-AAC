@@ -164,7 +164,7 @@ describe Api::UtterancesController, :type => :controller do
           'share_index' => 0,
           'text_only' => nil
         }]})).to eq(true)
-        expect(Pusher).to receive(:sms).with("12345", "from #{@user.settings['name']} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", nil).and_return(true)
+        expect(Pusher).to receive(:sms).with("12345", "from #{@user.user_name} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", nil).and_return(true)
         Worker.process_queues
         Worker.process_queues
 
@@ -198,7 +198,7 @@ describe Api::UtterancesController, :type => :controller do
           'share_index' => 0,
           'text_only' => nil
         }]})).to eq(true)
-        expect(Pusher).to receive(:sms).with("12345", "from #{@user.settings['name']} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", nil).and_return(true)
+        expect(Pusher).to receive(:sms).with("12345", "from #{@user.user_name} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", nil).and_return(true)
         Worker.process_queues
         Worker.process_queues
 
@@ -414,7 +414,7 @@ describe Api::UtterancesController, :type => :controller do
           'share_index' => 0,
           'text_only' => nil
         }]})).to eq(true)
-        expect(Pusher).to receive(:sms).with("12345", "from #{@user.settings['name']} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", '+15551234567').and_return(true)
+        expect(Pusher).to receive(:sms).with("12345", "from #{@user.user_name} - howdy\n\nreply: #{JsonApi::Json.current_host}/u/#{utterance.reply_nonce}A", '+15551234567').and_return(true)
         Worker.process_queues
         Worker.process_queues
       end
@@ -476,6 +476,48 @@ describe Api::UtterancesController, :type => :controller do
       
       get :show, params: {:id => "#{u.global_id}x#{u.reply_nonce}A"}
       json = assert_success_json
+    end
+  end
+
+  # See the matching blocks in goals_/images_/badges_controller_spec.rb.
+  # Utterance#process_params:332 reads `private_only` through `!!params[...]` with
+  # no string coercion, so the form-encoded string "false" becomes TRUE — i.e. an
+  # utterance the user un-marked as private stayed private. Only a raw `body:`
+  # distinguishes that from a real `false`.
+  describe "update with a raw JSON body" do
+    it "should let private_only be turned OFF" do
+      token_user
+      u = Utterance.create(:user => @user, :data => {'private_only' => true})
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => u.global_id}, body: {
+        :utterance => {:private_only => false}
+      }.to_json
+      expect(response).to be_successful
+      expect(u.reload.data['private_only']).to eq(false)
+      expect(u.data['private_only']).to be_a(FalseClass)
+    end
+
+    it "should keep private_only true when sent as a real boolean" do
+      token_user
+      u = Utterance.create(:user => @user, :data => {'private_only' => false})
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => u.global_id}, body: {
+        :utterance => {:private_only => true}
+      }.to_json
+      expect(response).to be_successful
+      expect(u.reload.data['private_only']).to eq(true)
+    end
+
+    it "should not clobber private_only when the client omits it" do
+      token_user
+      u = Utterance.create(:user => @user, :data => {'private_only' => false})
+      request.headers['Content-Type'] = 'application/json'
+      put :update, params: {:id => u.global_id}, body: {
+        :utterance => {:sentence => 'hello there', :private_only => nil}
+      }.to_json
+      expect(response).to be_successful
+      expect(u.reload.data['private_only']).to eq(false)
+      expect(u.data['sentence']).to eq('hello there')
     end
   end
 end

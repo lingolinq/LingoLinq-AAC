@@ -16,6 +16,9 @@ import { inject as service } from '@ember/service';
 export default Component.extend({
   copy_progress: service('copy-progress'),
   appState: service('app-state'),
+  // Same service as appState, under the name the template reads for the toast
+  // collision check (`app_state.toast` → the --above-toast modifier).
+  app_state: service('app-state'),
   router: service('router'),
   tagName: '',
 

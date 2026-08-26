@@ -47,7 +47,7 @@ class Api::UsersController < ApplicationController
     nonce = GoSecure.nonce('valet_hash_password')[0, 5]
     password = user.valet_temp_password(nonce)
     credentials = "model-#{user.global_id}:#{password.gsub(/\?:\#/, '-')}"
-    url = "#{JsonApi::Json.current_host}/login?#{credentials}"
+    url = "#{JsonApi::Json.absolute_host}/login?#{credentials}"
     render json: {user_name: "model@#{user.global_id.sub(/_/, '.')}", password: password, url: url}
   end
   
@@ -137,7 +137,10 @@ class Api::UsersController < ApplicationController
     code = GoSecure.sha512("#{res[:ws_user_id]}:#{res[:my_device_id]}:#{ts}", "room_join_verifier", ENV['LLWEBSOCKET_SHARED_VERIFIER'])[0, 30]
     res[:verifier] = "#{code}:#{ts}"
     if user.supporter_role?
-      sups = user.supervisees
+      # Same fan-out as users#supervisees: the gate above authorizes the list
+      # owner, not the children inside. Filter before emitting ids (and, on
+      # self, room-join verifiers).
+      sups = user.supervisees.select { |s| supervisee_listable?(s) }
       if sups.length < 20
         res[:supervisees] = sups.map do |sup|
           ws_user_id = sup.global_id
@@ -210,6 +213,12 @@ class Api::UsersController < ApplicationController
       user.used_reset_token!(params['reset_token'])
     elsif user.allows?(@api_user, 'manage_supervision') && !user.allows?(@api_user, 'edit')
       user_data = user_data.slice('supervisor_key')
+    # Scopes passed explicitly — a bare `allows?` uses the RAW permission_scopes
+    # and skips api_permission_scopes' normalization (blank / legacy '*' -> full),
+    # which would deny integration and dev-key devices. (The adjacent branches
+    # predate this branch and are left as-is rather than widened here.)
+    elsif user.allows?(@api_user, 'supervise', api_permission_scopes) && !user.allows?(@api_user, 'edit', api_permission_scopes) && supervise_home_board_update?(user_data)
+      user_data = supervise_home_board_update_slice(user_data)
     else
       return unless allowed?(user, 'edit')
     end
@@ -591,7 +600,29 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'supervise')
-    supervisees = user.supervisees
+    # Third instance of the fan-out defect fixed in badges#index and logs#index:
+    # the gate above authorizes the caller against `user`, and then every account
+    # in `user.supervisees` was serialized regardless of the caller's standing
+    # with THOSE accounts. Reachable when an org manager holds `supervise` over a
+    # supporter (user.rb:87) who also supervises communicators outside that org --
+    # a contracting SLP with a private caseload -- and equally when a supporter
+    # asks about themselves, where the gate passes unconditionally.
+    #
+    # `limited_identity` is not a redaction: json_api/user.rb:327 emits the child's
+    # real name, avatar, unread message and alert counts, external device,
+    # preferred symbols, and (with :supervisor set) org_status. Name plus org
+    # affiliation across a district boundary is the FERPA disclosure, and the
+    # unread counts are activity metadata about a child the caller has no
+    # relationship with.
+    #
+    # This is ROSTER identity, so the check is supervisee_listable? ('model'), not
+    # supervisee_readable? ('supervise'). 'supervise' carries a modeling_only
+    # conjunct that fails for a BILLING-lapsed supporter against their own
+    # caseload, which emptied the list for that whole tier; 'model' is granted to
+    # any supervisor_for? (user.rb:68) and to an org manager (user.rb:87) but to
+    # no stranger, so a manager reviewing a therapist's in-org caseload is
+    # unaffected and only the out-of-org rows drop out.
+    supervisees = user.supervisees.select{|s| supervisee_listable?(s) }
     render json: JsonApi::User.paginate(params, supervisees, limited_identity: true, supervisor: user, prefix: "/users/#{user.global_id}/supervisees")
   end
   
@@ -682,7 +713,16 @@ class Api::UsersController < ApplicationController
     old_board = Board.find_by_path(params['old_board_id'])
     new_board = Board.find_by_path(params['new_board_id'])
     return unless exists?(user, params['user_id']) && exists?(old_board, params['old_board_id']) && exists?(new_board, params['new_board_id'])
-    return unless allowed?(user, 'edit') && allowed?(old_board, 'view') && allowed?(new_board, 'view')
+    # Supervise-only supervisors reach this via the board-picker home-board flow.
+    # `allows?` is the PURE predicate and must come first: `allowed?` renders a
+    # 400 as a side effect before returning false, so `allowed?(a) || allowed?(b)`
+    # renders on the first failure regardless of the second and then double-renders
+    # (500). At most one `allowed?(user, …)` call may run here.
+    # The next line still requires the destination board to be owned by the user.
+    # Scopes are passed explicitly: a bare `allows?` falls back to the RAW
+    # user.permission_scopes (permissable.rb:72) and skips the normalization
+    # api_permission_scopes does, which would deny integration / dev-key devices.
+    return unless (user.allows?(@api_user, 'supervise', api_permission_scopes) || allowed?(user, 'edit')) && allowed?(old_board, 'view') && allowed?(new_board, 'view')
     return allowed?(user, 'never_allow') unless new_board.user == user
     
     make_public = params['make_public'] && params['make_public'] == '1' || params['make_public'] == 'true' || params['make_public'] == true
@@ -763,6 +803,9 @@ class Api::UsersController < ApplicationController
       if params['code'] && user && params['code'] == user.registration_code
         if user.coppa_parental_consent_revoked?
           return api_error 400, {error: 'parental consent revoked', coppa_parental_consent_revoked: true}
+        end
+        if user.coppa_parental_consent_declined?
+          return api_error 400, {error: 'parental consent declined', coppa_parental_consent_declined: true}
         end
         if user.coppa_needs_parent_email?
           return api_error 400, {error: 'parent email required', coppa_parent_email_required: true}
@@ -1225,5 +1268,40 @@ class Api::UsersController < ApplicationController
       res = Typhoeus.get(URI.escape(res.headers['Location']), timeout: 3)
     end
     res
+  end
+
+  # Supervise-only supervisors may set a communicatee's home board.
+  #
+  # Do NOT require the payload to contain only `preferences`. Ember's `user.save()`
+  # serializes the WHOLE record — verified against the running app, a real pick sends
+  # user[user_name], user[user_token], user[link], user[name], user[email],
+  # user[description] and ~20 more alongside preferences. An earlier version of this
+  # check required `(top_keys - ['preferences']).empty?`, which no real client request
+  # can satisfy, so every supervise-only pick fell through to `allowed?(user, 'edit')`
+  # and 400'd. Its spec passed only because the spec sent a payload shape the app
+  # never produces.
+  #
+  # Safety comes from DISCARDING rather than from inspecting: whatever else the client
+  # sent, supervise_home_board_update_slice throws it all away and keeps home_board
+  # alone, and User#process_home_board still requires the board to be viewable by the
+  # communicatee or shareable by the updater.
+  def supervise_home_board_update?(data)
+    return false unless data.is_a?(Hash)
+
+    prefs = data['preferences'] || data[:preferences]
+    return false unless prefs.is_a?(Hash)
+
+    home_board = prefs['home_board'] || prefs[:home_board]
+    # Require a real board reference. `!!home_board` also accepted `{}`, which sliced
+    # to an empty home_board and persisted `preferences.home_board = {}` — leaving the
+    # communicatee worse off than the nil they started with, since User#process_home_board
+    # (user.rb:2467) only runs when an id is present and so never cleaned it up.
+    home_board.is_a?(Hash) && (home_board['id'] || home_board[:id]).present?
+  end
+
+  def supervise_home_board_update_slice(data)
+    prefs = data['preferences'] || data[:preferences]
+    home_board = prefs['home_board'] || prefs[:home_board]
+    { 'preferences' => { 'home_board' => home_board } }
   end
 end

@@ -27,6 +27,8 @@ import LingoLinq from '../app';
 import editManager from '../utils/edit_manager';
 import word_suggestions from '../utils/word_suggestions';
 import boardDetailCache from '../utils/board_detail_cache';
+import sessionHistory from '../utils/session_history';
+import { supervising_context_for } from '../utils/supervising_context';
 import boardsPageListCache from '../utils/boards_page_list_cache';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
@@ -164,7 +166,12 @@ export default Service.extend({
   willDestroy() {
     this._super(...arguments);
     if (this.refreshing_user) {
-      runCancel(this.refreshing_user);
+      // clearTimeout, NOT runCancel: refresh_user's reschedule is a native
+      // setTimeout (see the comment at its call site), and Ember's cancel() looks
+      // the token up in Backburner's own registry, so on a native id it silently
+      // does nothing. The other two call sites (:626, :630) already use
+      // clearTimeout on this same field.
+      clearTimeout(this.refreshing_user);
       this.refreshing_user = null;
     }
     if (this.check_for_board_readiness && this.check_for_board_readiness.timer) {
@@ -623,12 +630,24 @@ export default Service.extend({
   refresh_user: function() {
     var _this = this;
     if (_this.isDestroyed || _this.isDestroying) { return; }
-    runCancel(_this.refreshing_user);
+    clearTimeout(_this.refreshing_user);
 
     function refresh() {
       if (_this.isDestroyed || _this.isDestroying) { return; }
-      runCancel(_this.refreshing_user);
-      _this.refreshing_user = runLater(function() {
+      clearTimeout(_this.refreshing_user);
+      // A NATIVE setTimeout, deliberately — not `runLater`. This callback
+      // re-arms ITSELF every 15 minutes, and Ember's test waiters track runloop
+      // timers, so as a `runLater` the app carried a permanently pending timer
+      // and `await visit(...)` could never reach a settled state. That is the
+      // real reason every acceptance test on an authenticated route was skipped
+      // as "hangs on visit()" — not the session/auth bootstrap it was blamed on.
+      //
+      // A quarter-hour background poll has no business in the runloop queue
+      // anyway; the other periodic work in this service (sync, brightness,
+      // auth-sync) already uses native timers for the same reason. Behavior is
+      // unchanged in production — same interval, same reschedule, and
+      // `refreshing_user` still holds a cancellable token.
+      _this.refreshing_user = setTimeout(function() {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         _this.refresh_user();
       }, 60000 * 15);
@@ -693,7 +712,9 @@ export default Service.extend({
     }, controller && controller.updateTitle ? 0 : 500);
     
     modal.close();
-    modal.close_board_preview();
+    if (!this.get('board_picker_pick_in_progress')) {
+      modal.close_board_preview();
+    }
     // Navigating away from a board while editing leaves edit mode. But NOT when the
     // destination is the board-detail edit route itself — edit→edit navigation
     // (previewing a board from the edit-mode Board Collections drawer, and the
@@ -725,11 +746,12 @@ export default Service.extend({
   finish_global_transition: function() {
     var _this = this;
     this.set('already_homed', true);
+    this.record_session_location();
     runNext(function() {
       var target = _this.get('current_route');
       _this.set('index_view', target == 'index');
       // footer is now a computed on application controller (from currentBoardState)
-      if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards') {
+      if(_this.get('to_target') && _this.get('to_target') != 'setup' && _this.get('to_target') != 'home-boards' && _this.get('to_target') != 'board-picker') {
         try {
           _this.controller.set('setup_footer', false);
           _this.controller.set('simple_board_header', false);
@@ -744,6 +766,35 @@ export default Service.extend({
       }
     }
   },
+  // Remember, per user and per device, the page this session is currently on so
+  // routes/index.js can return the user here on their next login. Called from
+  // finish_global_transition (routes/application.js#didTransition), which is the
+  // only point where router.currentURL is the settled post-transition URL —
+  // global_transition runs on routeWillChange, where it is still the OLD url.
+  // Recording is unconditional; the `session_resume` feature flag gates the
+  // RESTORE, so flipping the flag on takes effect immediately instead of waiting
+  // for users to build up new history.
+  record_session_location: function() {
+    /* sessionUser FIRST — it is the identity the READER uses. routes/index.js
+       resolves `findRecord('user','self')` and calls
+       `sessionHistory.last_location(model.user_name)`, i.e. the logged-in
+       account. `currentUser` is NOT that account in speak mode: set_current_user
+       (:2417) points it at `speakModeUser` whenever one is set, so a supporter
+       speaking as a communicator filed every location under the COMMUNICATOR's
+       key while their own resume point stayed frozen at whatever preceded speak
+       mode — and the communicator's slot is skipped by the login path anyway,
+       so the writes were simply orphaned. currentUser remains the fallback for
+       the pre-session-record window where sessionUser is not yet assigned. */
+    var user_name = this.get('sessionUser.user_name') || this.get('currentUser.user_name');
+    if(!user_name || !this.session.get('isAuthenticated')) { return; }
+    var route = null, url = null;
+    try {
+      var router = this.get('router') || this.router;
+      route = (router && router.get('currentRouteName')) || this.get('current_route');
+      url = router && router.get('currentURL');
+    } catch(e) { return; }
+    sessionHistory.record_location(user_name, route, url);
+  },
   check_for_protected_usage: observer('currentUser.preferences.protected_usage', function() {
     var protect_user = !!this.get('currentUser.preferences.protected_usage');
     if(window._trackJs) {
@@ -753,21 +804,12 @@ export default Service.extend({
     this.stashes.persist('protected_user', protect_user);
   }),
   _persist_last_board_for_user: observer('stashes.root_board_state', function() {
-    var state = this.stashes.get('root_board_state');
-    var userName = this.get('currentUser.user_name') || this.get('sessionUser.user_name');
-    // Skip synthetic OBF boards (eval intro screens, emergency, stars, etc.).
-    // Their keys live under `obf/...` and their records are minted in
-    // `utils/obf.js` with throwaway ids like `b123b<timestamp>x<rand>`.
-    // Persisting them as the user's "last board" surfaces a board card
-    // on the dashboard with a useless synthetic name.
-    if(state && state.key && /^obf\//.test(state.key)) {
-      return;
-    }
-    if(state && state.name && userName) {
-      try {
-        localStorage['ll_last_board_' + userName] = JSON.stringify({name: state.name, key: state.key});
-      } catch(e) { }
-    }
+    // Per-user continuity storage (which keys, what gets skipped, why it isn't
+    // stashed) lives in utils/session_history.js.
+    sessionHistory.record_board(
+      this.get('currentUser.user_name') || this.get('sessionUser.user_name'),
+      this.stashes.get('root_board_state')
+    );
   }),
   set_root_board_state: observer('set_as_root_board_state', 'currentBoardState', function() {
     // When browsing boards from the "select a home board" interface,
@@ -1145,8 +1187,22 @@ export default Service.extend({
   // `speak_mode` → `modeling_for_user`). The badge needs a session-level
   // signal that survives that transition so the supervisor still sees
   // "modeling paused" while editing a supervisee's board.
-  modeling_session_active: computed('manual_modeling', 'modeling_for_user', 'modeling_for_self', 'referenced_speak_mode_user', 'modeling_ts', function() {
-    return !!(this.get('manual_modeling') || this.get('modeling_for_user') || this.get('modeling_for_self') || this.get('referenced_speak_mode_user'));
+  modeling_session_active: computed('manual_modeling', 'modeling_for_user', 'modeling_for_self', 'referenced_speak_mode_user', 'speakModeUser.id', 'modeling_ts', function() {
+    // `referenced_speak_mode_user` alone is NOT proof of a modeling session.
+    // set_speak_mode_user() sets it in both of its branches — modeling FOR a
+    // communicator (keep_as_self = true, speakModeUser stays null) and speaking
+    // AS one (keep_as_self = false, speakModeUser becomes that communicator).
+    // The second is a supporter borrowing the communicator's own voice, e.g.
+    // when the communicator is without their device; treating it as modeling put
+    // a "Modeling" badge on a session that is not modeling, and `modeling`
+    // itself correctly reports false there.
+    // The two cases are told apart by whether the supporter BECAME the
+    // referenced user: if speakModeUser is that same user, it is speak-as.
+    var referenced = this.get('referenced_speak_mode_user');
+    var speaking_as_referenced = !!(referenced && this.get('speakModeUser') &&
+      this.get('speakModeUser.id') === referenced.get('id'));
+    return !!(this.get('manual_modeling') || this.get('modeling_for_user') ||
+      this.get('modeling_for_self') || (referenced && !speaking_as_referenced));
   }),
   modeling_for_user: computed('speak_mode', 'currentUser', 'referenced_speak_mode_user', 'modeling_for_self', function() {
     var res = this.get('speak_mode') && this.get('currentUser') && this.get('referenced_speak_mode_user') && this.get('currentUser.id') != this.get('referenced_speak_mode_user.id');
@@ -2069,6 +2125,14 @@ export default Service.extend({
     this.set('already_homed', false);
     this.set('already_scrolled', false);
     this.set('setup_user', null);
+    /* Sibling of setup_user, and cleared for the same reason: it holds the user
+       record whose page is being viewed, which the supervising-context pill
+       reads. Today the omission is masked — SPA logout transitions to `index`
+       before this runs, and routes/user#resetController clears it on the way out
+       — but that masking is incidental to hook ordering, and on a shared device
+       a previous account's record surviving a logout is exactly what this method
+       exists to prevent. */
+    this.set('page_user', null);
     this.set('pairing', null);
 
     // Per-user route memory (next route transition would overwrite anyway,
@@ -2920,9 +2984,16 @@ export default Service.extend({
           var _controller = editManager.controller;
           var doProcessButtons = function() {
             runNext(function() {
-              if(_controller && !_controller.isDestroyed && typeof _controller.processButtons === 'function') {
-                _controller.processButtons();
+              if(!_controller || _controller.isDestroyed || typeof _controller.processButtons !== 'function') {
+                return;
               }
+              /* Board may have been deleted while speak mode was open;
+                 processButtons/_build_from_raw must not set attrs on it. */
+              var board = _controller.get && _controller.get('model');
+              if(board && typeof board.get === 'function' && board.get('isDeleted')) {
+                return;
+              }
+              _controller.processButtons();
             });
           };
           if(fullscreenPromise && typeof fullscreenPromise.then === 'function') {
@@ -3615,6 +3686,58 @@ export default Service.extend({
     'effective_quick_sidebar',
     function() {
       return this.get('speak_mode') && this.get('effective_quick_sidebar');
+    }
+  ),
+  /* The user record whose account the CURRENT PAGE belongs to — set by
+     routes/user.js for every `/:user_id/...` page and cleared on the way out.
+     Distinct from `currentUser` (the session account) and from `referenced_user`
+     below (a speak-mode concept): this answers "whose page am I looking at". */
+  page_user: null,
+  /* Non-null when a supporter is on a communicator's page rather than their own.
+     `setup_user` covers flows that address a communicator without being under the
+     /:user_id route (the standalone board-picker). Detection rules and the data
+     they read live in utils/supervising_context.js. The classic `/*key` board
+     route contributes neither input and is deliberately not covered. */
+  supervising_context: computed(
+    'page_user',
+    'page_user.permissions',
+    'setup_user',
+    'setup_user.permissions',
+    'current_route',
+    'currentUser.id',
+    'currentUser.user_name',
+    'feature_flags.supervising_context_banner',
+    function() {
+      if(!this.get('feature_flags.supervising_context_banner')) { return null; }
+      /* Board-detail is a communication surface, not an account page: the board
+         fills the viewport and every pixel over it competes with the buttons the
+         communicator is using. The supporter already knows whose board they
+         opened, so the pill is suppressed on the whole board-detail subtree
+         (.index = speak, .edit = editing). */
+      var route = this.get('current_route') || '';
+      /* BOTH full-viewport board routes. `user.board-alt` (router.js:150,
+         `/:user_id/board/:boardname`) is where anyone with
+         `preferences.board_view_style === 'classic'` is sent (app-state.js:965-976),
+         so testing only `board-detail` left the pill floating over a live
+         classic board — pointer-events:none, so it could not steal a tap, but it
+         still occluded buttons on a communication surface. */
+      if(route.indexOf('user.board-detail') === 0 || route.indexOf('user.board-alt') === 0) { return null; }
+      var context = supervising_context_for(this.get('page_user')) ||
+                    supervising_context_for(this.get('setup_user'));
+      if(!context) { return null; }
+      /* NEVER on your own account. utils/supervising_context.js answers this from
+         `permissions.user_id` — the viewer the permissions were computed FOR —
+         which is correct for a fresh payload but not for a cached one: a user
+         record stored while a DIFFERENT account was signed in still carries that
+         account's permissions, so your own page can come back looking supervised.
+         Whose session this is, is knowable locally, so check it here rather than
+         trusting the record. user_name as well as id because a stale record can
+         disagree on id format but never on the handle. */
+      var self_id = this.get('currentUser.id');
+      var self_name = this.get('currentUser.user_name');
+      if(self_id && context.id === self_id) { return null; }
+      if(self_name && context.user_name === self_name) { return null; }
+      return context;
     }
   ),
   referenced_user: computed(

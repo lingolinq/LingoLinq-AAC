@@ -5,7 +5,7 @@ Here are the details for this lesson:
 Title: <%= @lesson.settings['title'] %>
 Instructions: <%= @lesson.settings['description'] %>
 <% if @lesson.settings['time_estimate'] %>Time: about <%= @lesson.settings['time_estimate'] %> minutes<% end %>
-Link: <%= JsonApi::Json.current_host %>/lessons/<%= @lesson.global_id %>/<%= @lesson.nonce %>/<%= @user.lesson_share_token %>
+Link: <%= JsonApi::Json.absolute_host %>/lessons/<%= @lesson.global_id %>/<%= @lesson.nonce %>/<%= @user.lesson_share_token %>
 
 Thanks!
 <%= email_signature %>

@@ -1,7 +1,7 @@
-<%= @author_name %> just posted a message to the log of <%= @target.settings['name'] %><br/><br/>
+<%= @author_name %> just posted a message to the log of <%= @target.display_name %><br/><br/>
 Message:<br/>
 <div style="white-space: pre-line;"><%= (@log.data['note'] && @log.data['note']['text']) || "no message" %></div>
-<a href="<%= JsonApi::Json.current_host %>/<%= @target.user_name %>/logs?type=note">View the full user's log</a>
+<a href="<%= JsonApi::Json.absolute_host %>/<%= @target.user_name %>/logs?type=note">View the full user's log</a>
 <br/><br/>
 <% if @log.data['include_status_footer'] %>
 <br/>
@@ -10,22 +10,22 @@ Message:<br/>
 <table style='border: 0; padding: 5px; margin-left: -10px;'>
   <tbody><tr>
     <td>
-      <a href="<%= JsonApi::Json.current_host %>/goal_status/summary-#{@target.global_id}/<%= UserGoal.goal_code('summary', @user) %>?status=1" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
+      <a href="<%= JsonApi::Json.absolute_host %>/goal_status/summary-<%= @target.global_id %>/<%= UserGoal.goal_code('summary', @user) %>?status=1" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
         <span style="display: block; font-size: 30px; writing-mode: vertical-rl; text-orientation: sideways; width: 50px; padding-top: 1px; padding-bottom: 6px; height: 43px; border-radius: 100px; text-align: center; border: 2px solid #888; color: #444; background-color: #feffa9; margin: auto auto 10px;">:-(</span>
         Going poorly
       </a>
     </td><td>
-      <a href="<%= JsonApi::Json.current_host %>/goal_status/summary-#{@target.global_id}/<%= UserGoal.goal_code('summary', @user) %>?status=2" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
+      <a href="<%= JsonApi::Json.absolute_host %>/goal_status/summary-<%= @target.global_id %>/<%= UserGoal.goal_code('summary', @user) %>?status=2" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
         <span style="display: block; font-size: 30px; writing-mode: vertical-rl; text-orientation: sideways; width: 50px; padding-top: 1px; padding-bottom: 6px; height: 43px; border-radius: 100px; text-align: center; border: 2px solid #888; color: #444; background-color: #feffa9; margin: auto auto 10px;">:-/</span>
         Just OK
       </a>
     </td><td>
-      <a href="<%= JsonApi::Json.current_host %>/goal_status/summary-#{@target.global_id}/<%= UserGoal.goal_code('summary', @user) %>?status=3" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
+      <a href="<%= JsonApi::Json.absolute_host %>/goal_status/summary-<%= @target.global_id %>/<%= UserGoal.goal_code('summary', @user) %>?status=3" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
         <span style="display: block; font-size: 30px; writing-mode: vertical-rl; text-orientation: sideways; width: 50px; padding-top: 1px; padding-bottom: 6px; height: 43px; border-radius: 100px; text-align: center; border: 2px solid #888; color: #444; background-color: #feffa9; margin: auto auto 10px;">:-)</span>
         No Complaints
       </a>
     </td><td>
-      <a href="<%= JsonApi::Json.current_host %>/goal_status/summary-#{@target.global_id}/<%= UserGoal.goal_code('summary', @user) %>?status=4" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
+      <a href="<%= JsonApi::Json.absolute_host %>/goal_status/summary-<%= @target.global_id %>/<%= UserGoal.goal_code('summary', @user) %>?status=4" style="display: block; background: #fff; border: 1px solid #ccc; border-radius: 10px; min-width: 100px; text-align: center; padding: 10px 5px; text-decoration: none; color: #444;">
         <span style="display: block; font-size: 30px; writing-mode: vertical-rl; text-orientation: sideways; width: 50px; padding-top: 1px; padding-bottom: 6px; height: 43px; border-radius: 100px; text-align: center; border: 2px solid #888; color: #444; background-color: #feffa9; margin: auto auto 10px;">:-D</span>
         Great Progress!
       </a>

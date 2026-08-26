@@ -28,7 +28,30 @@ module Transcoder
       new_record['filename'] = job.outputs[0].key
       new_record['duration'] = job.outputs[0].duration
       new_record['content_type'] = 'video/mp4'
-      new_record['thumbnail_filename'] = job.outputs[0].key + '.0000.png'
+      # thumbnail_filename only ever needs to seed MediaObject#thumbnail_stem
+      # (media_object.rb) with the record-owned prefix -- the destroy-time
+      # sweep discovers whatever AWS actually created under that prefix via
+      # live S3 listing, so this is a best-effort FIRST-thumbnail guess, not
+      # an authoritative key. A wrong guess (wrong digit, wrong extension,
+      # or thumbnails genuinely disabled for this job) costs nothing: the
+      # sweep just finds zero or different matches. That's why, unlike an
+      # authoritative value, it's safe to always set one rather than skip
+      # when the job's echoed thumbnail_pattern is blank -- a blank pattern
+      # in this one SNS notification isn't reliable proof no thumbnail
+      # exists (preset config isn't independently verifiable from this
+      # environment; ETS is deprecated, no live API access here), and
+      # skipping would silently orphan a real thumbnail with no log at all.
+      # Prefer the job's own echoed pattern (AWS's documented {count} ->
+      # five-digit sequence starting at 00001) when present; job.outputs[0].key
+      # IS the same stem the pattern would have produced, so the fallback is
+      # exact, not an extra guess. The .png extension is a carried-over
+      # assumption either way (not independently confirmed against the
+      # preset's Thumbnails.format), but thumbnail_stem strips whichever of
+      # .jpg/.png actually matches, so a wrong extension guess still recovers
+      # the correct stem.
+      pattern = job.outputs[0].thumbnail_pattern
+      stem = pattern.present? ? pattern.sub('{count}', '00001') : "#{job.outputs[0].key}.00001"
+      new_record['thumbnail_filename'] = "#{stem}.png"
     else
       return false
     end

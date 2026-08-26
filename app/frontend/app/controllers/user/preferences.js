@@ -76,7 +76,7 @@ function sidebarBoardIdentity(board) {
 function defaultActiveSidebarBoards(defaults) {
   defaults = defaults || (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_active_sidebar_boards) || [];
   if(defaults.length) { return defaults.slice(); }
-  var inactive = {'mbaud12/senner-baud-greetings': true};
+  var inactive = {'lingolinq/senner-baud': true};
   return (window.user_preferences && window.user_preferences.any_user && window.user_preferences.any_user.default_sidebar_boards || []).filter(function(b) {
     return !inactive[b.key];
   });

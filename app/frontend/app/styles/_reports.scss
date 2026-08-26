@@ -1,0 +1,1406 @@
+// =============================================================================
+// Reports — "Communication progress" summary
+// =============================================================================
+// The value-first summary at the top of /u/:user/stats: one primary takeaway,
+// three KPIs, a trend chart, up to three observations, and an action into the
+// detail sections below. Everything further down the Reports page (Communication
+// Usage, Vocabulary Analysis, Time of Day, Geo, Heat Map, Devices) keeps its
+// existing `.md-stats-*` styling and is NOT touched here.
+//
+// EMISSION ORDER: this partial is `@use`d from the top of app.scss, so its rules
+// are emitted BEFORE app.scss's body. It therefore has to win on SPECIFICITY,
+// never on source order (see LEARNINGS.md — "`!important` does not beat source
+// order at equal specificity"). Two global rules reach into this markup and are
+// beaten by compound selectors below:
+//   • `h1 { display: inline-block; height: 60px; font-size: 18px }` (app.scss)
+//   • `h2 { margin-top: 0 !important; font-size: 25px !important }` (app.scss)
+//     — beaten by `.communication-report ... h2` (0,1,1) + `!important`, which
+//       outranks the bare `h2` (0,0,1) regardless of order.
+//
+// TYPE SCALE: sizes here run larger than typical web defaults — an AAC
+// accessibility requirement for this app. Nothing in this file drops below 14px.
+
+@use "variables" as *;
+// For $caseload-ideas-champagne only — the Utterances card deliberately wears
+// the same tint as the Caseload page's Modeling Ideas tile, and referencing
+// that token beats copying its hex (Sass loads each module once, so this adds
+// no CSS).
+@use "caseload";
+
+// Shared page-panel geometry. The summary (`.communication-report`) and the
+// detail block beneath it (`.report-details`) both carry this, so the two line
+// up on the same gutter and max width instead of drifting apart whenever one
+// side's padding changes.
+.report-panel {
+  // Sourced from the shared brand tokens in _variables.scss — no new globals.
+  // The -aa variants are the contrast-safe pair used for text and small marks.
+  --report-navy: #{$la-navy};
+  --report-ink: #10182f;
+  --report-muted: #53627d;
+  --report-verdigris: #{$brand-verdigris};
+  --report-verdigris-aa: #{$brand-verdigris-aa};
+  --report-denim: #{$brand-dusty-denim};
+  --report-denim-aa: #{$brand-dusty-denim-aa};
+  // Coral is reserved for negative / attention-required information only.
+  --report-coral: #d84d32;
+  --report-positive: #167866;
+  --report-negative: #b33a2b;
+  // De-emphasis slate: the "everything else" half of a proportion, meant to read
+  // as neutral against the accent rather than as a second category.
+  --report-neutral: #8593ad;
+  --report-border: rgba(76, 134, 216, 0.2);
+  --report-surface: rgba(255, 255, 255, 0.78);
+  --report-surface-strong: rgba(255, 255, 255, 0.92);
+  // Every chart card in a row is exactly this tall, so the row ends on one line
+  // regardless of whether a card's heading wraps. The bodies absorb the
+  // difference; the Google chart redraws to whatever height it is given.
+  --report-chart-card-height: 443px;
+
+  width: 100%;
+  max-width: 1792px;
+  // No bottom gutter: the detail block sits directly under the summary.
+  margin: 0 auto;
+  padding: clamp(18px, 2vw, 32px);
+}
+
+// The detail block is pulled up under the summary — 4rem (64px) closer than it
+// sat before. That total comes from three places rather than one blunt offset,
+// so nothing overlaps: the panel's bottom gutter (24px, removed above), the
+// first section head's own top margin (32px, below), and an 8px lift here. All
+// three are fixed px, so the lift is the same at every width; what remains of
+// the gap is twice the panel padding, which stays positive down to 390px.
+// Left/right padding on both panels is untouched, so their gutters still line up.
+.report-details {
+  margin-top: -8px;
+  margin-bottom: 0;
+}
+
+// Scoped to the FIRST head: the margin between the detail sections further down
+// (Vocabulary Analysis and the rest) is left alone.
+.report-details > .md-stats-section-head:first-child {
+  margin-top: 0;
+}
+
+
+.communication-report {
+
+  // Geometry (width / max-width / margin / padding) comes from `.report-panel`.
+  position: relative;
+  color: var(--report-ink);
+  isolation: isolate;
+}
+
+// Fully transparent. This pseudo-element used to carry the report's glass
+// surface; that treatment now lives on `.md-workspace .md-stats-page` (app.scss)
+// so the page reads as ONE card rather than a card inside a card. Kept as an
+// empty layer rather than deleted so the surface can be moved back here in one
+// edit — every paint property is explicitly cleared, including the backdrop
+// blur, which would otherwise still smear the panel behind it.
+.communication-report::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  border: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+// -----------------------------------------------------------------------------
+// Header — title, selected range, and the preserved period picker
+// -----------------------------------------------------------------------------
+
+.communication-report__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 16px;
+}
+
+// Takes the space the controls don't, so the title only wraps when it truly
+// has to (the controls are a fixed-size cluster, the heading is the flexible one).
+.communication-report__heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.communication-report__heading h1 {
+  // Beats the global `h1` (inline-block / fixed 60px height / 18px).
+  display: block;
+  height: auto;
+  margin: 0;
+  color: var(--report-ink);
+  // 28px at desktop, scaling down to 22px on narrow screens.
+  font-size: clamp(22px, 2.6vw, 28px);
+  font-weight: 750;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+}
+
+.communication-report__date-range {
+  margin: 6px 0 0;
+  color: var(--report-muted);
+  font-size: 17px;
+  font-weight: 550;
+}
+
+.communication-report__controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+}
+
+// The period picker + "Compare with another period" action keep the appearance
+// they already have (`.md-stats-filter*` in app.scss); only their alignment
+// changes now that they live in the report header rather than a centered row.
+.communication-report__controls .md-stats-filter {
+  padding: 0;
+}
+
+// `Stats::DataFilter` is a classic component, so Ember wraps the filter in its
+// own `div.ember-view` — a flex item of the controls row, and therefore one with
+// `min-width: auto`. That resolves to the min-content width of the whole period
+// row (label + select + compare on one line, ~381px), which is wider than the
+// column on a phone and pushed the header off-screen. Zeroing it lets the row
+// shrink to the column and the compare caption wrap inside its own button.
+.communication-report__controls > .ember-view {
+  min-width: 0;
+}
+
+.communication-report__controls .md-stats-filter__form {
+  justify-content: flex-end;
+}
+
+.communication-report__controls .md-stats-filter__period-bar {
+  align-items: flex-end;
+}
+
+// -----------------------------------------------------------------------------
+// Shared glass surface
+// -----------------------------------------------------------------------------
+
+.progress-highlight,
+.report-kpi,
+.report-trend,
+.report-insights,
+.report-secondary,
+.communication-report__empty {
+  border: 1px solid var(--report-border);
+  background: var(--report-surface);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 13px 29px rgba(27, 54, 93, 0.08);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+}
+
+// -----------------------------------------------------------------------------
+// Primary takeaway
+// -----------------------------------------------------------------------------
+
+.progress-highlight {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 112px;
+  padding: clamp(16px, 1.8vw, 24px);
+  overflow: hidden;
+  border-radius: 24px;
+  background:
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.9),
+      rgba(232, 247, 245, 0.72) 58%,
+      rgba(237, 243, 255, 0.78)
+    );
+}
+
+// Each tone gets chrome of its own, so an increase reads as positive rather than
+// merely not-negative. Colour is never the ONLY signal — the headline wording and
+// the icon glyph (rising arrow / activity pulse / falling arrow) carry it too.
+//
+// A rising period leans decisively verdigris.
+.progress-highlight--positive {
+  background:
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.92),
+      rgba(222, 244, 240, 0.82) 58%,
+      rgba(236, 249, 246, 0.8)
+    );
+  border-color: rgba(42, 157, 143, 0.34);
+}
+
+// A steady period is deliberately calm: denim, not verdigris, so "no meaningful
+// change" is never mistaken for progress.
+.progress-highlight--neutral {
+  background:
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.92),
+      rgba(238, 243, 252, 0.8) 58%,
+      rgba(244, 248, 255, 0.78)
+    );
+  border-color: rgba(76, 134, 216, 0.26);
+}
+
+.progress-highlight--neutral .progress-highlight__icon {
+  color: var(--report-denim-aa);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(226, 236, 250, 0.9));
+  border-color: rgba(76, 134, 216, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 8px 18px rgba(40, 96, 201, 0.12);
+}
+
+// A declining period is flagged with coral chrome as well as its wording, so the
+// tone never rests on color alone.
+.progress-highlight--negative {
+  background:
+    linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.92),
+      rgba(255, 240, 236, 0.78) 58%,
+      rgba(255, 246, 242, 0.8)
+    );
+  border-color: rgba(216, 77, 50, 0.28);
+}
+
+.progress-highlight__icon,
+.report-kpi__icon,
+.report-insight__icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--report-verdigris-aa);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(218, 242, 238, 0.88));
+  border: 1px solid rgba(42, 157, 143, 0.2);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 8px 18px rgba(26, 123, 122, 0.14);
+}
+
+.progress-highlight--negative .progress-highlight__icon {
+  color: var(--report-negative);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(250, 228, 222, 0.9));
+  border-color: rgba(216, 77, 50, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 1),
+    0 8px 18px rgba(179, 58, 43, 0.14);
+}
+
+// The glyphs come from Stats::ReportIcon, which emits a bare viewBox'd <svg>;
+// each well sizes its own icon so one icon set serves all three scales.
+.progress-highlight__icon {
+  width: 76px;
+  height: 76px;
+}
+
+.progress-highlight__icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.report-kpi__icon svg {
+  width: 29px;
+  height: 29px;
+}
+
+.report-insight__icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.progress-highlight__content {
+  min-width: 0;
+}
+
+// The panel eyebrows ("Activity", "Highlights"). The primary takeaway carries no
+// eyebrow — its compared range is named in the description and under the KPI row.
+.report-panel-heading__eyebrow {
+  margin: 0 0 6px;
+  color: var(--report-muted);
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.communication-report .progress-highlight h2 {
+  // Beats the global `h2 { font-size: 25px !important }`.
+  margin: 0 !important;
+  color: var(--report-ink);
+  // 22px at desktop, scaling down to 18px on narrow screens.
+  font-size: clamp(18px, 1.9vw, 22px) !important;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.progress-highlight__description {
+  margin: 8px 0 0;
+  color: var(--report-navy);
+  font-size: clamp(17px, 1.4vw, 19px);
+  line-height: 1.5;
+}
+
+// -----------------------------------------------------------------------------
+// KPIs
+// -----------------------------------------------------------------------------
+
+.report-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.report-kpi {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  min-height: 100px;
+  padding: 16px 18px;
+  border-radius: 22px;
+}
+
+.report-kpi__icon {
+  width: 56px;
+  height: 56px;
+}
+
+// Per-metric icon tints, borrowed from the Caseload page's row-action palette so
+// the two pages read as one system. Same hues, same 0.16→0.26 ramp under the same
+// white gloss sweep as `.md-caseload__quick-action--*` (_caseload.scss:1554).
+//
+// Each metric appears under two keys: the summary's (`sessions`) and the compare
+// grid's (`total-sessions`). Metrics not listed keep the default verdigris well.
+//
+// The glyph goes navy on every tinted well rather than a per-hue ink: these
+// ramps are light (~1.3:1 against white), and navy is the one ink measured to
+// clear contrast on all four — which is exactly how the Caseload tiles handle it.
+// The compare grid is two columns, and `comparePanelMetrics()` emits the eight
+// metrics in the order below — so each PAIR here is one row of that grid, and
+// both members share a tint. Read down the left column for the row bands:
+//
+//   row 1  Total Sessions        Total Words           light teal
+//   row 2  Total utterances      Total Buttons         Speak denim
+//   row 3  Words per utterance   Words per minute      Reports sage
+//   row 4  Utterances per minute Buttons per minute    Ideas champagne
+//
+// The single-period summary reuses the same keys (`sessions`, `utterances`,
+// `words-per-utterance`), so its three KPIs stay individually coloured.
+$report-icon-tints: (
+  // Sessions is the one hue NOT taken from the Caseload row actions: a light
+  // teal ($teal-light, _variables.scss:38) rather than Model's azure, which sat
+  // too close to Utterances' denim to tell apart at a glance.
+  'sessions': $teal-light,
+  'total-sessions': $teal-light,
+  'total-words': $teal-light,
+
+  'utterances': caseload.$caseload-speak-denim,
+  'total-utterances': caseload.$caseload-speak-denim,
+  'total-buttons': caseload.$caseload-speak-denim,
+
+  'words-per-utterance': caseload.$caseload-reports-sage,
+  'words-per-minute': caseload.$caseload-reports-sage,
+
+  'utterances-per-minute': caseload.$caseload-ideas-champagne,
+  'buttons-per-minute': caseload.$caseload-ideas-champagne
+);
+
+@each $metric, $tint in $report-icon-tints {
+  .report-kpi--#{$metric} .report-kpi__icon {
+    color: $la-navy;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.55) 0%,
+        rgba(255, 255, 255, 0.2) 30%,
+        rgba(255, 255, 255, 0) 58%
+      ),
+      linear-gradient(160deg, rgba($tint, 0.16) 0%, rgba($tint, 0.26) 100%);
+    background-color: rgba(255, 255, 255, 0.3);
+    border-color: rgba($tint, 0.4);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.95),
+      0 8px 18px rgba($la-navy, 0.1);
+  }
+}
+
+.report-kpi__content {
+  min-width: 0;
+}
+
+.report-kpi__value {
+  margin: 0;
+  color: var(--report-ink);
+  // 32px at desktop, scaling down to 25px on narrow screens.
+  font-size: clamp(25px, 2.6vw, 32px);
+  font-weight: 780;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+// Unscoped: the same card is used by the compare-mode grids, which live outside
+// `.communication-report`. Class specificity (0,1,0) already beats the bootstrap
+// `h1..h6` reset (0,0,1), so no extra scoping is needed to win.
+.report-kpi__label {
+  margin: 6px 0 0;
+  color: var(--report-muted);
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+// Two lines: the signed change, then the caption naming what it is measured
+// against. `align-self: start` keeps it pinned to the top of the card rather
+// than drifting as the caption wraps.
+.report-kpi__change {
+  align-self: start;
+  justify-self: end;
+  margin: 0;
+  text-align: right;
+}
+
+.report-kpi__change-value {
+  display: block;
+  font-size: 16px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+// "Increase" / "Decrease" / "No change" — the direction in words, right-aligned
+// under the figure it labels.
+.report-kpi__change-caption {
+  display: block;
+  margin-top: 2px;
+  color: var(--report-muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: right;
+  white-space: nowrap;
+}
+
+// The one-line statement of what every change on the page is measuring. Sits
+// directly under the KPI row so no arrow is ever unexplained.
+.report-kpis__basis {
+  margin: 8px 2px 0;
+  color: var(--report-muted);
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.report-kpi__change--positive {
+  color: var(--report-positive);
+}
+
+.report-kpi__change--negative {
+  color: var(--report-negative);
+}
+
+.report-kpi__change--neutral {
+  color: var(--report-denim-aa);
+}
+
+// -----------------------------------------------------------------------------
+// Compare mode — same KPI card, compact
+// -----------------------------------------------------------------------------
+// Eight figures per period, two side-by-side columns, so the card steps down a
+// size rather than growing a second style. Tokens are inherited from the
+// `.communication-report` scope where present and defaulted here, because these
+// grids render outside that container.
+
+.report-kpis--compare {
+  --report-ink: #10182f;
+  --report-muted: #53627d;
+  --report-verdigris-aa: #1a7b7a;
+  --report-border: rgba(76, 134, 216, 0.2);
+  --report-surface: rgba(255, 255, 255, 0.78);
+
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.report-kpi--compact {
+  min-height: 76px;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.report-kpi--compact .report-kpi__icon {
+  width: 40px;
+  height: 40px;
+}
+
+.report-kpi--compact .report-kpi__icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.report-kpi--compact .report-kpi__value {
+  font-size: clamp(20px, 1.9vw, 24px);
+}
+
+.report-kpi--compact .report-kpi__label {
+  margin-top: 3px;
+  font-size: 14px;
+}
+
+@media (max-width: 576px) {
+  .report-kpis--compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Trend + observations
+// -----------------------------------------------------------------------------
+
+.report-analysis {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(288px, 0.95fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.report-trend,
+.report-insights {
+  min-width: 0;
+  border-radius: 24px;
+}
+
+.report-trend {
+  padding: clamp(20px, 2vw, 28px);
+}
+
+.report-insights {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(20px, 2vw, 24px);
+}
+
+.report-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+// Same flexible-title rule as the report header: the legend is fixed-size, the
+// title block absorbs the remaining width instead of being squeezed into a wrap.
+.report-panel-heading > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.communication-report .report-panel-heading h2 {
+  // Beats the global `h2 { font-size: 25px !important }`.
+  margin: 0 !important;
+  color: var(--report-ink);
+  font-size: 21px !important;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.report-trend__legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  color: var(--report-muted);
+  font-size: 15px;
+  font-weight: 650;
+  list-style: none;
+}
+
+.report-trend__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.report-trend__legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 5px;
+}
+
+.report-trend__legend-swatch--primary {
+  background: var(--report-denim-aa);
+}
+
+.report-trend__legend-swatch--secondary {
+  background: var(--report-verdigris-aa);
+}
+
+.report-trend__chart {
+  width: 100%;
+  min-height: 288px;
+}
+
+.report-trend__unavailable {
+  display: grid;
+  place-items: center;
+  min-height: 192px;
+  margin: 0;
+  padding: 24px;
+  color: var(--report-muted);
+  text-align: center;
+  border: 1px dashed var(--report-border);
+  border-radius: 16px;
+  font-size: 16px;
+}
+
+// Keyboard- and screen-reader-accessible route to every plotted value — the
+// chart library's own tooltips are pointer-only.
+.report-trend__data {
+  // Sits directly under the chart — no extra gap of its own.
+  margin-top: 0;
+}
+
+.report-trend__data-summary {
+  // 44px minimum target, kept as list-item so the disclosure marker survives —
+  // `list-style-position: inside` brings that marker along to the right edge
+  // instead of stranding it alone on the left.
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 12px 0;
+  color: var(--report-denim-aa);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: right;
+  list-style-position: inside;
+}
+
+.report-trend__data-scroll {
+  max-height: 288px;
+  overflow: auto;
+}
+
+.report-trend__data table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.report-trend__data caption {
+  padding-bottom: 8px;
+  color: var(--report-muted);
+  font-size: 15px;
+  text-align: left;
+}
+
+.report-trend__data th,
+.report-trend__data td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--report-border);
+  color: var(--report-navy);
+  text-align: right;
+}
+
+.report-trend__data th:first-child,
+.report-trend__data td:first-child {
+  text-align: left;
+}
+
+.report-trend__data thead th {
+  position: sticky;
+  top: 0;
+  background: var(--report-surface-strong);
+  color: var(--report-ink);
+}
+
+.report-insights__list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-insight {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(76, 134, 216, 0.16);
+}
+
+.report-insight:first-child {
+  padding-top: 4px;
+}
+
+.report-insight:last-child {
+  border-bottom: 0;
+}
+
+.report-insight__icon {
+  width: 44px;
+  height: 44px;
+}
+
+.communication-report .report-insight__content h3 {
+  margin: 0;
+  color: var(--report-ink);
+  font-size: 17px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.report-insight__content p,
+.report-insights__empty {
+  margin: 5px 0 0;
+  color: var(--report-muted);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+// -----------------------------------------------------------------------------
+// Detail-section chart card
+// -----------------------------------------------------------------------------
+// The Communication Usage charts sit in bare Bootstrap columns whose padding is
+// the gutter between them, so the card is an INNER wrapper — putting the surface
+// on the column itself would butt adjacent cards together with no space.
+// Same glass language as the summary panels above.
+
+.report-chart-card {
+  display: flex;
+  flex-direction: column;
+  height: var(--report-chart-card-height);
+  padding: 16px 18px 18px;
+  border: 1px solid var(--report-border);
+  border-radius: 20px;
+  background: var(--report-surface);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    0 13px 29px rgba(27, 54, 93, 0.08);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+}
+
+.report-chart-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.report-chart-card .report-chart-card__title {
+  // Beats the bootstrap `h1..h6` reset; matches the summary's panel headings.
+  margin: 0;
+  color: var(--report-ink);
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+// Stacked head: the title takes the card's full width and the actions sit on the
+// row beneath it. Used where a single line cannot hold both without the title
+// wrapping mid-phrase and the actions spilling past the card edge.
+.report-chart-card__head--stacked {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+.report-chart-card__head--stacked .report-chart-card__title,
+.report-chart-card__head--stacked .report-chart-card__actions {
+  flex: 1 0 100%;
+}
+
+.report-chart-card__head--stacked .report-chart-card__actions {
+  justify-content: flex-start;
+}
+
+// A card can carry more than one action (the core list has "modify list" as well
+// as "word cloud"), so they wrap as a group rather than each fighting the title
+// for the head's free space.
+.report-chart-card__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  column-gap: 18px;
+  row-gap: 6px;
+}
+
+// The card actions read as inline text links, not chrome — they are secondary to
+// the chart. The button element stays (they fire actions, they do not navigate);
+// `.md-link-btn` in the markup supplies the shared reset, and only the scale and
+// colour are set here. That reset lives in app.scss, which is emitted AFTER this
+// partial, so these rules are compound (0,2,0) to outrank it rather than relying
+// on order. Per the shared convention, hover drops the underline and only the
+// colour is restated — `.md-link-btn:hover` already zeroes `text-decoration`.
+.report-chart-card .report-chart-card__action {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--report-denim-aa);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.report-chart-card .report-chart-card__action:hover {
+  color: var(--report-navy);
+}
+
+.report-chart-card__body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+// Equalising via a flex row does NOT work here — the row's direct children are
+// Ember component wrappers, not the col-* divs, so the columns never stretch and
+// the percentage widths lose their containing block. Matching the body heights
+// directly is what keeps the cards level.
+.report-chart-card__body--scroll {
+  overflow-y: auto;
+}
+
+.report-chart-card .md-stats-chart--word-usage {
+  height: 100%;
+}
+
+// -----------------------------------------------------------------------------
+// Proportion bar — one whole split in two (Core vs. Fringe)
+// -----------------------------------------------------------------------------
+// Two parts of one total do not need a chart: the reader's question is "how much
+// of it is core?", so the headline percentage answers it and the track shows the
+// split. Core wears the page accent and fringe a neutral slate — emphasis, not
+// two competing categories. Validated as a categorical pair against the light
+// surface: CVD ΔE 18.3, normal-vision ΔE 19.8, both steps ≥ 3:1 on the card.
+
+.report-proportion {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 6px;
+}
+
+.report-proportion__figure {
+  margin: 0;
+  line-height: 1.1;
+}
+
+.report-proportion__value {
+  display: block;
+  color: var(--report-ink);
+  font-size: clamp(30px, 3.2vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.report-proportion__unit {
+  display: block;
+  margin-top: 4px;
+  color: var(--report-muted);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.report-proportion__track {
+  display: flex;
+  width: 100%;
+  height: 16px;
+  border-radius: 999px;
+  background: rgba(76, 134, 216, 0.12);
+  overflow: hidden;
+}
+
+.report-proportion__segment {
+  height: 100%;
+}
+
+// The 2px sliver of card surface between the two fills, painted over the
+// neighbour rather than taken out of either width — a margin here would make
+// each segment narrower than the percentage it stands for.
+.report-proportion__segment--core {
+  background: var(--report-denim-aa);
+  box-shadow: 2px 0 0 0 #fff;
+}
+
+.report-proportion__segment--fringe {
+  background: var(--report-neutral);
+}
+
+.report-proportion__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+}
+
+.report-proportion__legend-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.report-proportion__legend dt {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--report-muted);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.report-proportion__legend dd {
+  margin: 0;
+  color: var(--report-navy);
+  font-size: 15px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-proportion__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.report-proportion__swatch--core {
+  background: var(--report-denim-aa);
+}
+
+.report-proportion__swatch--fringe {
+  background: var(--report-neutral);
+}
+
+// -----------------------------------------------------------------------------
+// Bar list — many parts of one whole (Parts of Speech)
+// -----------------------------------------------------------------------------
+// Nine categories that all carry meaning. Sorted rows, each naming itself and
+// printing its own share, so nothing depends on telling nine hues apart; one
+// hue is all the colour the form needs. The label and the value share the top
+// line and the bar spans the full row beneath, which is what keeps long names
+// ("Interjection") from squeezing the track at 212px card width.
+
+.report-bar-list {
+  display: flex;
+  flex-direction: column;
+  // Rows are read one at a time, so they get real air between them rather than
+  // being packed to the shortest possible list — the card is sized to this
+  // spacing (see `.md-stats-vocab-row`), not the spacing squeezed to fit a card.
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.report-bar-list__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 10px;
+  row-gap: 5px;
+  align-items: baseline;
+}
+
+.report-bar-list__label {
+  color: var(--report-navy);
+  font-size: 15px;
+  font-weight: 650;
+  // Pinned rather than inherited: the row height is what sizes the card (see
+  // `.md-stats-vocab-row` below), so the label must not silently take the app's
+  // body leading and drift away from the arithmetic stated there.
+  line-height: 1.35;
+}
+
+.report-bar-list__value {
+  color: var(--report-muted);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+.report-bar-list__track {
+  grid-column: 1 / -1;
+  display: block;
+  width: 100%;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(76, 134, 216, 0.12);
+}
+
+// Width is set inline to the row's own percentage of the total, so the mark can
+// never disagree with the number printed beside it.
+// No `min-width` floor. One was here to keep a tiny share visible, but it made
+// the mark disagree with its own label — in a ~300px track a row printed as
+// 0.2% drew at ~1%, and every sub-1% category drew identically whatever it
+// said. The row already names itself and prints its exact share, so a hairline
+// bar is honest where a floored one is not.
+.report-bar-list__bar {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--report-verdigris-aa);
+}
+
+// Vocabulary Analysis band: the three cards are sized to the Parts of Speech
+// list, which is the tallest fixed-content card of the three, instead of
+// inheriting the taller height the Communication Usage charts above need.
+// Cards cannot equalise via flex here (the row's direct children are Ember
+// component wrappers, not the col-* divs — see the note on the card body), so
+// the height is stated once for the band and the arithmetic is spelled out:
+//
+//   bar row     20.25px label (15px x 1.35) + 5px row-gap + 9px track = 34.25px
+//   list        9 rows x 34.25px + 8 gaps x 10px                      = 388.25px
+//   card head   34px title line + 12px margin-bottom                  = 46px
+//   card pad    16px top + 18px bottom                                = 34px
+//                                                                      --------
+//                                                                       468.25px
+//
+// Rounded up to 472px so a label that wraps to a second line at the narrowest
+// column still has somewhere to go before the list starts scrolling.
+.md-stats-vocab-row {
+  --report-chart-card-height: 472px;
+}
+
+.report-chart-card__empty {
+  color: var(--report-muted);
+  font-size: 15px;
+}
+
+.report-chart-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.report-chart-table th,
+.report-chart-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--report-border);
+  color: var(--report-navy);
+  text-align: right;
+  font-weight: 600;
+}
+
+.report-chart-table th:first-child,
+.report-chart-table td:first-child {
+  text-align: left;
+}
+
+.report-chart-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--report-surface-strong);
+  color: var(--report-muted);
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.report-chart-table tbody tr:last-child th,
+.report-chart-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+// The word links were anchors with `href="#"` — real buttons now, since they run
+// an action rather than navigating.
+.report-chart-table__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--report-navy);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.report-chart-table__link:hover {
+  color: var(--report-denim-aa);
+  text-decoration: underline;
+}
+
+// -----------------------------------------------------------------------------
+// Core word chips
+// -----------------------------------------------------------------------------
+// The core list is a flat run of words whose emphasis encodes how much each one
+// was used. The buckets come from `utils/stats.js` as `weighted_word weight_N`
+// (N = 0..10) and are styled globally at app.scss:18515 as bare text of varying
+// grey. Those class names stay on the markup — the word cloud and
+// `Stats::WeightedWords` share the vocabulary — and the chip skin hangs off them.
+//
+// SPECIFICITY: this partial is emitted before app.scss, so each rule has to
+// outrank its app.scss counterpart. Base `.report-chart-card .report-word-chip`
+// is (0,2,0) against `.weighted_word` (0,1,0); every bucket that app.scss styles
+// as a compound `.weighted_word.weight_N` (0,2,0) is answered here at (0,3,0).
+// weight_1 / weight_2 have no compound rule there, so they fall to the base.
+
+.report-word-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+
+.report-chart-card .report-word-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 13px;
+  border: 1px solid var(--report-border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  color: var(--report-navy);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+// Lightly used — the first tint step.
+.report-chart-card .report-word-chip.weight_3,
+.report-chart-card .report-word-chip.weight_4,
+.report-chart-card .report-word-chip.weight_5 {
+  border-color: rgba(76, 134, 216, 0.3);
+  background: rgba(76, 134, 216, 0.12);
+  color: var(--report-navy);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+// Regularly used.
+.report-chart-card .report-word-chip.weight_6,
+.report-chart-card .report-word-chip.weight_7,
+.report-chart-card .report-word-chip.weight_8 {
+  border-color: rgba(40, 96, 201, 0.36);
+  background: rgba(76, 134, 216, 0.2);
+  color: var(--report-navy);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+// Most used in the period.
+.report-chart-card .report-word-chip.weight_9,
+.report-chart-card .report-word-chip.weight_10 {
+  border-color: rgba(40, 96, 201, 0.46);
+  background: rgba(76, 134, 216, 0.28);
+  color: var(--report-navy);
+  font-size: 17px;
+  font-weight: 750;
+}
+
+// weight_0 is not "unused" — it is a core word the user cannot reach on their
+// boards at all (`core-list.js:33-37`). It used to be near-invisible (#eee, which
+// is unreadable); a dashed outline says "missing" without hiding the word.
+.report-chart-card .report-word-chip.weight_0 {
+  border-style: dashed;
+  border-color: rgba(83, 98, 125, 0.42);
+  background: none;
+  color: var(--report-muted);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.report-chart-card .report-word-chip:hover {
+  border-color: rgba(40, 96, 201, 0.55);
+  background: rgba(76, 134, 216, 0.34);
+  color: var(--report-navy);
+}
+
+.report-chart-card :is(button, a, select):focus-visible {
+  outline: 3px solid rgba(40, 96, 201, 0.48);
+  outline-offset: 3px;
+}
+
+// -----------------------------------------------------------------------------
+// Secondary metrics — demoted, not dropped
+// -----------------------------------------------------------------------------
+// Total words / total buttons / the per-minute rates used to sit in the summary
+// grid at equal weight. They keep their exact values and stay on the page, just
+// at the foot of the summary rather than competing with the three KPIs.
+
+// Equal columns rather than a left-packed flex row, so the five values span the
+// full width of the panel. `auto-fit` keeps them evenly spread as the row drops
+// to fewer columns on narrow screens.
+.report-secondary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 24px;
+  margin: 16px 0 0;
+  padding: 16px clamp(16px, 2vw, 24px);
+  border-radius: 20px;
+}
+
+.report-secondary__item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.report-secondary__label {
+  margin: 0;
+  color: var(--report-muted);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.report-secondary__value {
+  margin: 0;
+  color: var(--report-navy);
+  font-size: 18px;
+  font-weight: 750;
+}
+
+// -----------------------------------------------------------------------------
+// Empty state
+// -----------------------------------------------------------------------------
+
+.communication-report__empty {
+  padding: 48px 24px;
+  border-radius: 24px;
+  text-align: center;
+}
+
+.communication-report .communication-report__empty h2 {
+  // Beats the global `h2 { font-size: 25px !important }`.
+  margin: 0 !important;
+  color: var(--report-ink);
+  font-size: 23px !important;
+}
+
+.communication-report__empty p {
+  max-width: 576px;
+  margin: 10px auto 0;
+  color: var(--report-muted);
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+// -----------------------------------------------------------------------------
+// Focus
+// -----------------------------------------------------------------------------
+
+.communication-report :is(button, select, a, summary, [role="button"]):focus-visible {
+  outline: 3px solid rgba(40, 96, 201, 0.48);
+  outline-offset: 3px;
+}
+
+// -----------------------------------------------------------------------------
+// Responsive
+// -----------------------------------------------------------------------------
+
+@media (max-width: 1120px) {
+  .report-analysis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 864px) {
+  .communication-report__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .communication-report__controls {
+    justify-content: flex-start;
+  }
+
+  .communication-report__controls .md-stats-filter__form {
+    justify-content: flex-start;
+  }
+
+  .communication-report__controls .md-stats-filter__period-bar {
+    align-items: flex-start;
+  }
+
+  /* `:not()`-guarded because compare mode carries BOTH classes. A media query
+     adds no specificity, and these sit later in the file than
+     `.report-kpis--compare` / `.report-kpi--compact`, so an unguarded rule at
+     equal specificity silently won: compare mode lost its two-column grid from
+     864px down (not 576px as authored, which made the 576px compare block below
+     dead code) and every compact card grew 28px — ~224px per column over eight. */
+  .report-kpis:not(.report-kpis--compare) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .report-kpi:not(.report-kpi--compact) {
+    min-height: 104px;
+  }
+}
+
+@media (max-width: 576px) {
+  // On `.report-panel`, not `.communication-report`: the summary and the detail
+  // block share this geometry, and overriding only one of them left their
+  // content off by 2px on phones.
+  .report-panel {
+    padding: 16px;
+  }
+
+  .communication-report::before {
+    border-radius: 24px;
+  }
+
+  .progress-highlight {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .progress-highlight__icon {
+    width: 64px;
+    height: 64px;
+  }
+
+  .report-kpi {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .report-kpi__change {
+    grid-column: 2;
+  }
+
+  .report-panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .report-trend__legend {
+    justify-content: flex-start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .communication-report *,
+  .communication-report *::before,
+  .communication-report *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

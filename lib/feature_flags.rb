@@ -28,9 +28,22 @@ module FeatureFlags
               'background_board_prefetch',
               'portrait_orientation_overlay', 'signup_default_library_boards',
               'english_first_board_generation', 'signup_spanish_library_boards',
+              'eval_single_library',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
               'sentence_bar_editing',
               'text_symbol_fallback',
+              # Per-user session resume: return a user to the page they were last
+              # on when they log back in. Communicator-only accounts are exempt by
+              # design (they always land on their board). Read by
+              # app/frontend/app/routes/index.js#afterModel; the recording side
+              # (utils/session_history.js) runs regardless so flipping this on
+              # takes effect immediately.
+              'session_resume',
+              # Supporter-facing "Viewing <communicator>'s account" pill, fixed to
+              # the upper-left of any page that isn't the supporter's own. Read by
+              # app-state#supervising_context; with it OFF the computed returns
+              # null and the component renders nothing at all.
+              'supervising_context_banner',
               # EU launch (GDPR Art. 8): make the registration parental-consent
               # age gate jurisdiction-aware (EU under-16 vs default under-13).
               # AVAILABLE-only => OFF for everyone by default; with it OFF the
@@ -41,12 +54,27 @@ module FeatureFlags
               # RLL-01). Reaches the client via frontend_flags_for(user) ->
               # appState.feature_flags.article_50_disclosure, which is the ONLY input
               # utils/article50_gate.js#needsAcknowledgement reads before it will show
-              # the modal. AVAILABLE-only => OFF for everyone by default, so the whole
-              # Phase 3/4 disclosure path stays inert (the intended pre-2026-08-02
-              # state). Enabling it is a HARD release gate for the 2026-08-02 Article 50
-              # deadline: add to ENABLED_FRONTEND_FEATURES (or opt individual EU orgs in
-              # via per-user beta flag) ONLY on Scot's explicit sign-off, and only after
-              # the production deploy of Phases 3-5. Do NOT blanket-enable here.
+              # the modal. CAUTION, corrected 2026-08-25: AVAILABLE-only describes the
+              # ENABLED_FRONTEND_FEATURES default, not production. Production resolves the
+              # effective list through SystemFeatureSettings.effective_enabled_for, where a
+              # default_enabled_features DB Setting REPLACES ENABLED_FRONTEND_FEATURES
+              # (system_feature_settings.rb:11). Membership in THIS constant
+              # (AVAILABLE_FRONTEND_FEATURES) is a hard CEILING the Setting is intersected
+              # against (`stored & AVAILABLE_FRONTEND_FEATURES`, system_feature_settings.rb:9):
+              # removing 'article_50_disclosure' from this list would silently TURN OFF the
+              # live production disclosure. Do not treat this list as inert against production. A direct
+              # audited read on 2026-08-23 found article_50_disclosure PRESENT in that
+              # Setting and feature_enabled_for? true for all 34 then-existing accounts.
+              # So the Phase 3/4 disclosure path is LIVE in production, NOT inert -- an
+              # earlier version of this comment said it "stays inert", which was true of
+              # this file and false of the running system. An org's
+              # settings['enabled_features'] still wins over the default row (even when
+              # empty), so a district override can disable it for that org's users.
+              # The 2026-08-02 release gate's OUTCOME is satisfied in the current
+              # production Setting; whether it was discharged by the explicit sign-off
+              # the gate required is unrecoverable, since Setting carries no version
+              # history. Do NOT blanket-enable here; change the Setting deliberately.
+              # See docs/legal/2026-08-23_article-50-production-flag-verification.md.
               'article_50_disclosure',
               # Privacy Compliance Kernel (lib/compliance/): segment + jurisdiction +
               # digital-consent-age profile. AVAILABLE-only => OFF by default so
@@ -62,7 +90,8 @@ module FeatureFlags
               'find_multiple_buttons', 'new_speak_menu', 'swipe_pages', 'inflections_overlay',
               'ios_head_tracking', 'emergency_boards', 'evaluations',
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
-              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation',
+              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation', 'ai_word_prediction',
+              'eval_single_library',
               'google_sso', 'quick_screen_eval', 'multi_user_board_import',
               'customize_menu', # TEMPORARY: forced ON for everyone during testing. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON (see the rollout policy above AVAILABLE_FRONTEND_FEATURES).
               'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
@@ -72,7 +101,10 @@ module FeatureFlags
               'dashboard_drag_layout', # TEMPORARY (2026-06-09): forced ON for everyone pre-production to validate the Getting Started drag-to-swap home layout. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'edit_sidebar', # TEMPORARY (2026-06-25): forced ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'text_symbol_fallback'] # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
+              'supervisor_consent_flow', # TEMPORARY (2026-08-12): forced ON for everyone to validate supervisor→communicator consent invites (request by username/email + approve). Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
+              'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'session_resume'] # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',

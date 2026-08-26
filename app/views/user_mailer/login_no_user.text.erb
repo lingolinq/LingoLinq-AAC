@@ -2,7 +2,7 @@ You requested help logging in to <%= app_name %> with the email address, "<%= @e
 
 We couldn't find any logins tied to this email address. 
 <%if @full_domain %>
-But don't worry! You're welcome to sign up for a free trial of <%= app_name %> (<%= JsonApi::Json.current_host %>/register) and see it in action for yourself. We think you'll like what you see.
+But don't worry! You're welcome to sign up for a free trial of <%= app_name %> (<%= JsonApi::Json.absolute_host %>/register) and see it in action for yourself. We think you'll like what you see.
 <% else %>
 You may need to contact your site administrator for help tracking down your account.
 <% end %>

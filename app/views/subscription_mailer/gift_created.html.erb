@@ -17,7 +17,7 @@ code will provide one user license, and includes "cloud extras" access
 for <b><%= @gift.duration %></b>.<br/><br/>
 
 The gift code is <b><%= @gift.code %></b>, and is also available by
-<a href="<%= JsonApi::Json.current_host %>/redeem/<%= @gift.code %>::<%= @gift.code_verifier %>">
+<a href="<%= JsonApi::Json.absolute_host %>/redeem/<%= @gift.code %>::<%= @gift.code_verifier %>">
 accessing this link</a>.<br/><br/>
 
 To share this gift, just forward this email to someone, or copy the

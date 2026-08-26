@@ -6,6 +6,7 @@ import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
+import boardsPageListCache from '../utils/boards_page_list_cache';
 
 // Best-effort human-readable form of whatever the copy chain rejected with, for
 // the background drawer (which renders a plain string, unlike the modal's error
@@ -85,6 +86,8 @@ export default Component.extend({
     }
     if (this.get('model.action') === 'keep_links' || this.get('model.action') === 'remove_links') {
       _this.start_copying();
+    } else if (this.get('model.skip_hierarchy_picker')) {
+      _this.start_copying();
     } else {
       loadHierarchyForCopyModal(board, {
         skipBoardReloadForCopyModal: true,
@@ -133,15 +136,18 @@ export default Component.extend({
     this.set('loading', false);
     let board_ids_to_include = null;
     const include_missing = this.get('includeMissing') || this.get('hierarchy.include_missing');
+    const live_links_incomplete = this.get('hierarchy.live_links_incomplete') || this.get('model.expand_selected_board_ids_to_copy');
     if (include_missing) {
       board_ids_to_include = null;
       this.set('hierarchy', null);
     } else if (this.get('hierarchy') && this.get('hierarchy').selected_board_ids) {
       board_ids_to_include = this.get('hierarchy').selected_board_ids();
       this.set('hierarchy', null);
+    } else if (this.get('model.board_ids_to_copy')) {
+      board_ids_to_include = this.get('model.board_ids_to_copy');
     }
     board.set('downstream_board_ids_to_copy', board_ids_to_include);
-    board.set('expand_selected_board_ids_to_copy', !include_missing && this.get('hierarchy.live_links_incomplete'));
+    board.set('expand_selected_board_ids_to_copy', !include_missing && live_links_incomplete);
     const _this = this;
     const model = this.get('model') || {};
     const modalSvc = this.get('modal');
@@ -215,6 +221,13 @@ export default Component.extend({
       });
       next.then(function(res) {
         _this.clear_copying();
+        /* Invalidate Mine-list snapshot for the copy destination user so
+           /boards does not keep serving a pre-copy list within TTL. */
+        try {
+          var destUser = model.user;
+          var destId = destUser && (destUser.get ? destUser.get('id') : destUser.id);
+          if (destId) { boardsPageListCache.clear(destId); }
+        } catch (e) { /* non-critical */ }
         // Backgrounded copy: the user is off doing something else, so OFFER the
         // new board rather than navigating to it. The foreground branch below
         // jumps / transitions outright, and model.copy_finished transitions too

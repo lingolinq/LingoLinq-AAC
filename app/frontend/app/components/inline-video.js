@@ -48,7 +48,7 @@ export default Component.extend({
   didInsertElement() {
     this._super(...arguments);
     const _this = this;
-    const host = window.default_host || capabilities.fallback_host;
+    const host = capabilities.video_player_host();
     let url = null;
     const opts = [];
     if (this.get('model.video.id') && this.get('model.video.type')) {

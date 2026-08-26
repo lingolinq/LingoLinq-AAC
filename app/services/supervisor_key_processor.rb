@@ -132,31 +132,41 @@ class SupervisorKeyProcessor
     true
   end
 
+  # Both consent transitions delegate to SupervisorConsentService rather than
+  # reimplementing them.
+  #
+  # These were a complete second copy of the transition -- find_by(token),
+  # token_valid?, update!, link_supervisor_to_user -- with no lock, no
+  # transaction, and no in-lock recheck. That made this a live bypass of the
+  # serialization the service provides: a supervisor_key approve issued while the
+  # guardian clicks the emailed deny link performs a plain SELECT that
+  # SELECT ... FOR UPDATE does not block, passes token_valid? on the pre-commit
+  # snapshot, then blocks on its own UPDATE (which carries no status predicate)
+  # and overwrites 'denied' with 'approved' plus a live supervisor link. Exactly
+  # the defect the service was written to eliminate, reachable through
+  # PUT /api/v1/users/:id with user[supervisor_key].
+  #
+  # Delegating also means these transitions now emit the consent_approved mail
+  # and participate in the same after-commit ordering; previously this path
+  # produced an approval with no mail and no accounting record at all.
+  #
+  # approve_as_party / deny_as_party (not the token-only entry points) because
+  # this path has an authenticated actor, and the party methods enforce that the
+  # actor IS the communicator -- preserving the two identity checks these methods
+  # made, rather than treating token possession as sufficient.
   def process_approve_consent
-    rel = SupervisorRelationship.find_by(consent_response_token: @key)
-    return false unless rel && rel.token_valid?
-    return false if rel.supervisor_user_id == user.id
-    return false unless rel.communicator_user_id == user.id
-    rel.update!(
-      status: 'approved',
-      consent_responded_at: Time.current,
-      activated_at: Time.current,
-      consent_response_token: nil
-    )
-    User.link_supervisor_to_user(rel.supervisor_user, rel.communicator_user, nil, rel.user_link_type)
-    true
+    consent_transition(:approve_as_party)
   end
 
   def process_deny_consent
+    consent_transition(:deny_as_party)
+  end
+
+  def consent_transition(method)
     rel = SupervisorRelationship.find_by(consent_response_token: @key)
     return false unless rel && rel.token_valid?
-    return false if rel.supervisor_user_id == user.id
-    return false unless rel.communicator_user_id == user.id
-    rel.update!(
-      status: 'denied',
-      consent_responded_at: Time.current,
-      consent_response_token: nil
-    )
-    true
+
+    result = SupervisorConsentService.new.send(method, relationship: rel, actor: user)
+    result[:error].nil?
   end
 end

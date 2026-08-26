@@ -145,6 +145,19 @@ If citation-check is red, a promoted snippet does not resolve at its sha (usuall
 fetched locally, or the snippet was not copied verbatim). Fix the evidence and re-run; do not
 commit a red register.
 
+### If `document-register-render --check` fails with contentHash drift
+
+Read the FAIL line carefully — after #766 it tells you which case you are in:
+
+| Message says | Meaning | What to do |
+|---|---|---|
+| `contentHash drift for "…"` and **`(run render)`** / unattested | File changed; register row hash is stale | `scripts/regenerate-register.sh`, commit JSON + `.md` |
+| `contentHash drift on the ATTESTED row` / points at `/re-attest-record` | Scot signed those bytes; fingerprint must not be overwritten | **Stop. Do not run render.** Revert the file edit, or ping Scot / `/re-attest-record` |
+
+Attested = the register row has `attestation.attestedBy` (and a pinned `attestedContentHash`). Empty
+`attestation: {}` means unattested — regenerate is fine. Full triage table:
+`docs/legal/COMPLIANCE_DOCS_GUIDE.md` ("When CI is red").
+
 <details><summary>Underlying commands (if you need to run one render in isolation)</summary>
 
 ```
@@ -173,4 +186,8 @@ ruby scripts/compliance-publication-status.rb                      # publication
 - Code/path evidence only; PII/secret-bearing findings are refused, never redacted-in.
 - Compliance content is Tier 2 (PII-free output): any approved reviewer is permitted; the data-bearing-path guard is the boundary.
 - Promotion does not change `meta.auditedSha` (these findings are anchored to their own PR sha,
-  not the last /audit-run tree).
+  not the last /audit-run tree). If you instead file a finding through `audit-merge.rb` outside a
+  full `/audit-run`, pass `--no-restamp` to get the same guarantee; never pass the register's
+  existing `auditedSha` to dodge the restamp, which silently anchors the evidence to a commit it
+  was never verified against (see `audit-reports/README.md`, "The audit pointer vs. the evidence
+  anchor").

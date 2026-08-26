@@ -270,6 +270,27 @@ function modalDialogClickRelease(event) {
   ].join(','));
   if (!el || el.disabled) { return false; }
 
+  // Do NOT synthesize when the browser is already going to deliver a real click
+  // to this same element — a `mouseup` whose target is the element or a
+  // descendant. Otherwise the handler runs TWICE: once for the synthetic click
+  // and once for the native one that follows (preventDefault on a mouseup does
+  // not suppress the subsequent click event).
+  //
+  // Verified in the board-picker preview: one physical click on "Pick this Board"
+  // produced click #1 {isTrusted:false, pass_through:true} then click #2
+  // {isTrusted:true, pass_through:false}, so pick_for_home ran twice, copied the
+  // board twice, and the second POST /boards failed "board key already in use" —
+  // surfacing an error to the user AFTER a copy had already been made.
+  //
+  // Same reasoning (and same shape) as passThroughUnresolvedChromeClick's
+  // `native_click_coming` guard above; that one is scoped to .md-board-collection
+  // because that was the only surface confirmed at the time. Touch, dwell,
+  // eye-gaze and scanning produce no native click and still get the pass-through,
+  // which is what classic {{action}} modal components rely on.
+  var native_click_coming = event.type === 'mouseup' && event.target &&
+                            el.contains && el.contains(event.target);
+  if (native_click_coming) { return false; }
+
   if (event.cancelable) { event.preventDefault(); }
   if (event.stopPropagation) { event.stopPropagation(); }
   buttonTracker.ignoreUp = true;
@@ -1291,8 +1312,36 @@ var buttonTracker = EmberObject.extend({
 
 
     var selectable_wrap = buttonTracker.find_selectable_under_event(event);
+    // A CANCELLED release is not a selection. This handler is bound to
+    // `mouseup touchend touchcancel blur`, and everything below treats whatever
+    // arrives as a completed interaction — so a touch the SYSTEM cancelled (palm
+    // rejection, an incoming call, the browser taking the gesture over for a
+    // scroll) or a window that lost focus mid-press was activating the control
+    // under the finger. Verified on board-detail chrome: touchStart on the
+    // options-menu toggle followed by touchCancel — or by a blur — opened the
+    // menu, exactly as a real tap does. On an AAC device that is an action the
+    // user explicitly did NOT complete.
+    //
+    // Skipping the whole chain (not just the element_release branch) is
+    // deliberate: `boardDetailGridEditActionRelease`, `boardDetailChromeRelease-
+    // FromEvent` and `modalDialogClickRelease` are activation paths too, a
+    // cancelled swipe should not page, and a cancelled DRAG should not complete
+    // its drop. The teardown below this chain — release_stroke / stop_dragging /
+    // initialTarget / clear_touched — runs unconditionally, so cancelling still
+    // cleans up fully; only the activation is dropped.
+    //
+    // Non-pointer input is unaffected: dwell, eye-gaze, scanning and long-press
+    // reach element_release through their own call sites with their own
+    // trigger_source ('switch' / 'expression' / 'longpress' / 'keyboard_control'),
+    // never through this handler.
+    var release_cancelled = (event.type === 'touchcancel' || event.type === 'blur');
     // if dragging a button, behavior is very different than otherwise
-    if(swipe_page) {
+    if(release_cancelled) {
+      // No activation — but an in-progress drag still has to be torn down, or its
+      // clone, the source button's opacity and the `drag` handle all survive the
+      // cancelled gesture. See cancel_drag.
+      buttonTracker.cancel_drag();
+    } else if(swipe_page) {
       buttonTracker.appState.jump_to_next(swipe_page == 'e' || swipe_page == 's');
 
     } else if(buttonTracker.drag) {
@@ -2957,6 +3006,28 @@ var buttonTracker = EmberObject.extend({
     this.buttonAdjustY = this.initialButtonY - event.pageY;
     this.measureAdjustX = (this.initialButtonX + (width / 2)) - event.pageX;
     this.measureAdjustY = (this.initialButtonY + (height / 2)) - event.pageY;
+  },
+  // Tear down an in-progress drag WITHOUT dropping. Mirrors the cleanup half of the
+  // drag branch in element_release — the over-clone, the source button's opacity, the
+  // drag-source class, the floating clone and the `drag` handle itself — but skips
+  // find_button_under_event/'rearrange', because a touchcancel or blur is an abandoned
+  // gesture, not a placement.
+  //
+  // Without this, a cancelled edit-mode drag left the clone in <body>, the source
+  // button at opacity 0, and `buttonTracker.drag` still set — and a non-null `drag`
+  // makes the `else if(buttonTracker.drag)` branch swallow the NEXT release, so the
+  // user's following tap anywhere on the board completed the stale drop.
+  cancel_drag: function() {
+    if(!buttonTracker.drag) { return; }
+    var overClone = buttonTracker.drag.data('overClone');
+    if(overClone) {
+      $(overClone).remove();
+      buttonTracker.drag.data('overClone', null);
+    }
+    $(buttonTracker.drag.data('elem')).css('opacity', 1.0).show();
+    $('.md-board-detail-grid__cell--drag-source').removeClass('md-board-detail-grid__cell--drag-source');
+    buttonTracker.drag.remove();
+    buttonTracker.drag = null;
   },
   stop_dragging: function() {
     $('.md-board-detail-grid__cell--drag-source').removeClass('md-board-detail-grid__cell--drag-source');

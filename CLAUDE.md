@@ -19,6 +19,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 6. **Keep the code modular and organized — never write spaghetti.** Each change should live in the smallest sensible unit (component, helper, service, partial, mixin) with a single, clear responsibility. Reuse existing primitives instead of duplicating logic; extract a shared unit when the same idea appears in two places. Name things for what they are, group related code together, and don't bolt new behavior onto an already-overloaded file or function just because it's convenient. If a change would tangle responsibilities, stop and propose the split first.
 7. **When changing a styling rule, edit the original — do not stack a new one on top.** Locate the existing selector that governs the element (in `app.scss` or the relevant partial) and modify it in place so each component has one authoritative rule. Do not introduce a new selector with higher specificity, an override block at the bottom of the file, or an `!important` patch just to win the cascade. Only add a new rule when the element genuinely has no existing style; if uncertain whether a rule already exists, search first.
 8. **Track every researched task in a markdown log; distill durable lessons to a shared learnings doc.** As soon as a task requires research (diagnosis, multi-file exploration, multiple iterations), create `docs/task-management/YYYY-MM-DD-<kebab-task-name>.md` and use it as a live working log: goal, hypotheses, attempts, what worked, what failed, evidence (file:line), decisions. Update it as you go, not at the end. **Before** starting a task, skim `docs/task-management/LEARNINGS.md` for prior findings that apply. **On** successful completion, distill any durable patterns — root-cause patterns, reusable techniques, codebase gotchas — into that same `LEARNINGS.md` so future tasks benefit. Skip the per-task file only for truly trivial edits (one-line/typo) that need no investigation.
+9. **If it makes a task more efficient, always spawn subagents — don't ask first.** Any task that splits into independent slices (multi-file code review, audits, broad searches, migrations, verification across many routes) should be fanned out to parallel subagents rather than worked through serially. Launch them in a single message so they run concurrently, and give each one an explicit file list, the repo-specific traps to check, and a rule to label every finding CONFIRMED (traced in code) vs PLAUSIBLE (needs a runtime check). This is standing authorization: do not wait to be asked, and do not sit single-threaded through work that parallelizes. It does not relax rules 1-4 — a subagent's report is evidence to verify, not a verified finding, and anything acted on still needs its own root-cause confirmation.
+
+10. **A red test run is not a regression until you have confirmed the run COMPLETED.** A truncated run is indistinguishable from a failing one at a glance — it prints a `# fail` line, names a test, and exits non-zero. Check the shape of the run before reporting anything:
+    - **`ember test`: check `# skip` first.** The skip count is near-constant (38 as of 2026-08-16) while the total drifts as tests are added, which makes skips the reliable tell. A complete run reports `# tests 2005 / # skip 38`; a truncated one reports the same `# skip` line with a much smaller number (0, 14 and 26 were all seen in one session) and a total well short of the baseline. The usual cause is `Browser timeout exceeded: 120s` — testem's `browser_disconnect_timeout` reaping a headless browser that went SILENT under machine load, not a slow test. The tell is that the named test differs every run and passes in isolation (`npx ember test --filter "<name>"`).
+    - **Do not run a full suite while `ember serve` or browser probes are running.** That contention is the cause, and it wasted four runs in one session. Stop them, or accept the truncations.
+    - **Do not "fix" it by raising `browser_disconnect_timeout` in `testem.js`.** The 120s is deliberate (`.github/workflows/ci.yml:126-129` wants a wedged runner to fail fast rather than burn the Actions ceiling), and CI is not affected — the Ember step has failed 0 of the last 30 `ci.yml` runs. If you need a patient run locally, wrap the repo config in a temp file outside the repo and pass `--config-file`; never commit the change.
+    - Same discipline for any suite: reconcile the totals against a known-good baseline before claiming a delta. If you cannot say why the count moved, you do not yet know whether it passed.
+
+11. **Do not assert anything about a system you have not just checked — especially to justify a change.** Saying "CI hits this too", "this is covered by specs", "that path is unused", or "this is pre-existing" is a claim, and each one is cheap to verify: query the Actions API for real run outcomes, grep for the call site, diff the linter against `git show HEAD:<file>`. Inference from plausible reasoning is not evidence, and a wrong claim is worse when it is the argument FOR editing shared config or shipping a fix. If a check is impractical, say the claim is unverified rather than stating it flatly — and when a claim you already made turns out wrong, correct the durable artifacts (docs, learnings, PR body), not just the chat.
 
 ## Branching (mandatory before ANY code change)
 
@@ -327,6 +336,12 @@ New user-facing features MUST be added behind a feature flag (`lib/feature_flags
 - Some users/orgs are opted into beta features for testing
 - Add to `AVAILABLE_FRONTEND_FEATURES` and conditionally to `ENABLED_FRONTEND_FEATURES`
 
+**This applies to NEW features only.** A small change to a feature that already ships does
+not need a flag — including one that is user-visible, and including one that makes a
+destructive control newly reachable. Bug fixes that restore intended-but-broken behavior
+are never new features. Do not raise the flag question for these; just ship them. When a
+change is large, or genuinely introduces a new capability, ask.
+
 ### Security
 
 - Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
@@ -362,14 +377,16 @@ Any path not covered is listed under "Not covered", not omitted.
 
 ### P3. Generated Artifacts + Git Metadata (compliance/register PRs)
 Run before every push (these mirror the CI job `audit-artifacts-integrity`, so a
-green preflight means that job will not block the PR):
-  ruby scripts/compliance-notion-publish.rb            # regenerates the Notion page on disk
-  ruby scripts/compliance-notion-publish.rb --check     # exit 1 if the page drifts from FINDINGS
-  ruby scripts/document-register-render.rb --check       # exit 1 on register / hash / bundle drift
-  ruby scripts/compliance-calendar-render.rb --check     # exit 1 if calendar render drifts
-  ruby scripts/compliance-publication-status.rb --check  # exit 1 if publication-status report drifts
-  ruby scripts/capability-check.rb --check               # exit 1 if capability-ledger currentEvidence fails to resolve at HEAD / negativeEvidence scoping drifts
-  git diff --check                                       # whitespace / conflict markers
+green preflight means that job will not block the PR). Prefer the one wrapper:
+  scripts/regenerate-register.sh --check   # verify only (or omit --check to regenerate)
+Or the individual checks:
+  ruby scripts/compliance-notion-publish.rb --check
+  ruby scripts/document-register-render.rb --check
+  ruby scripts/compliance-calendar-render.rb --check
+  ruby scripts/compliance-publication-status.rb --check
+  ruby scripts/capability-check.rb --check
+  ruby scripts/register-lint.rb audit-reports/FINDINGS.json audit-reports/ember-upgrade/FINDINGS-EMBER.json  # exit 1 on a malformed register row (field shape, enum, duplicate id)
+  git diff --check
   # exec-bit: only for CHANGED scripts that a doc/skill invokes DIRECTLY (./script),
   # not every non-exec file in scripts/ (most .rb/.py run via `ruby`/`python` and are
   # correctly 100644). List the directly-invoked ones explicitly, e.g.:
@@ -378,6 +395,11 @@ green preflight means that job will not block the PR):
   #   done
 If a doc instructs running a script directly (./script, no interpreter prefix), the
 executable bit is part of the PR. If a check fails, fix it in THIS PR before pushing.
+
+**contentHash drift triage (after #766):** read whether the FAIL names an **ATTESTED**
+row. Unattested → `scripts/regenerate-register.sh` and commit. Attested → stop, do
+**not** run render; revert the file or ping Scot (`/re-attest-record`). See
+`docs/legal/COMPLIANCE_DOCS_GUIDE.md` ("When CI is red").
 
 ### P4. Cross-Doc Consistency Sweep (touching docs/legal/** or audit-reports/**)
 When changing any claim in one compliance doc:
@@ -498,10 +520,11 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 | `.claude/hooks/audit-readonly-guard.sh` | PreToolUse write-blocker wired into each finder |
 | `audit-reports/FINDINGS.json` + `FINDINGS.md` | The findings register: single source of truth |
 | `scripts/citation-check.rb` | Mechanical evidence validator (snippet exists at SHA) |
+| `scripts/register-lint.rb` | Structural validator (field shapes, enums, id uniqueness); CI-gated |
 | `scripts/audit-merge.rb` | Deterministic register reconciler (never auto-closes) |
 
 ### Running a Full Audit
-1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the five
+1. Invoke `/audit-run` (user-only skill). It stamps the audited SHA, fans out the six
    read-only finders in parallel, reconciles results into `audit-reports/FINDINGS.json` via
    `scripts/audit-merge.rb`, runs the `adversary` agent as verifier, and validates with
    `scripts/citation-check.rb`.
@@ -516,6 +539,7 @@ Phase 2; their content was migrated into the `.claude/` layout below.
 | `api-auditor` | Ember<->Rails API contract | `api-contract-audit` |
 | `dependency-auditor` | Dependency freshness + CVEs | `dependency-audit` |
 | `accessibility-auditor` | WCAG 2.1 AA / EN 301 549 (static markup/SCSS) | `accessibility-audit` |
+| `code-hygiene-auditor` | Dead code + AI-slop patterns (static Rails/Ember) | `code-hygiene-audit` |
 
 Retired from the fan-out: `ember-stabilization` and `rails-upgrade` (migration-era, shipped)
 and the `mvp-readiness` 0-100 score (replaced by open Critical/High counts).
@@ -537,6 +561,15 @@ using the same `audit-merge.rb`/`citation-check.rb` machinery and the same gover
   PreToolUse hook that blocks mutating Bash. They report; they never fix.
 - The register (`audit-reports/FINDINGS.json`) is the single source of truth. `audit-merge.rb`
   only ever ADDS findings or marks them `open`; it never closes or downgrades.
+- **Restamping `meta.auditedSha` is a governance act, not a side effect of adding a finding.** The
+  pointer means "/audit-run audited the WHOLE tree at this SHA" and moving it needs Scot's sign-off
+  plus an analysis of the intervening commits (see `meta.auditedShaPriorNote`). Only a real
+  whole-tree `/audit-run` passes `--sha` bare. Any other addition uses
+  `audit-merge.rb --sha <trueCommit> --no-restamp`, which anchors `evidence.sha` at the real commit
+  while leaving `meta` untouched; `promote-finding.rb` never touches the pointer at all. Never
+  pass the register's existing `auditedSha` just to dodge the restamp - that silently anchors the
+  new evidence to a commit it was never verified against, and passes citation-check green whenever
+  the snippet happens to sit on the same line in both commits.
 - No student/patient data ever appears in findings; evidence snippets are code only.
 - Compliance content is **Tier 2**: the register is PII-free (code evidence only), so any approved reviewer is permitted; the data-bearing-path guard (`codex-review-guard.sh`), not a Claude-only rule, is the boundary.
 - All findings include file paths and line numbers, anchored to the audited commit SHA.

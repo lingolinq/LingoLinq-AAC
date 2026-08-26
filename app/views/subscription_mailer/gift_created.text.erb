@@ -9,7 +9,7 @@ Licenses: <%= @gift.settings['licenses'] %>
 Thank you for purchasing <%= app_name %> as a gift for someone else! <%= app_name %> is a powerful communication tool that we hope can make a difference in the lives of  struggling communicators. Below you will find the redemption code you can share with anyone to give them free access to a premium <%= app_name %> account. This gift code will one user license, and includes "cloud extras" access for <%= @gift.duration %>.
 
 The gift code is "<%= @gift.code %>" and is also available as a link:
-<%= JsonApi::Json.current_host %>/redeem/<%= @gift.code %>::<%= @gift.code_verifier %>
+<%= JsonApi::Json.absolute_host %>/redeem/<%= @gift.code %>::<%= @gift.code_verifier %>
 
 To share this gift, just forward this email to someone, or copy the gift code and share that with them. You will receive an email when the gift code is redeemed.
 <% end %>

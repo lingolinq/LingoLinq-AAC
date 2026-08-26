@@ -704,6 +704,30 @@ describe Converters::LingoLinq do
     it "should find and connect to an existing image if matching by data_url"
     
     it "should find and connect to an existing sound if matching my data_url"
+
+    it "marks .obf button images with preserve_source_image" do
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+      u = User.create
+      shell = OBF::Utils.obf_shell
+      shell['id'] = 'obf-preserve-1'
+      shell['name'] = 'Preserve Obf'
+      shell['buttons'] = [{
+        'id' => '1',
+        'label' => 'Custom Photo',
+        'image_id' => 'img1'
+      }]
+      shell['images'] = [{
+        'id' => 'img1',
+        'url' => 'https://s3.amazonaws.com/coughdrop-usercontent/images/custom-photo.png',
+        'content_type' => 'image/png'
+      }]
+      board = Converters::LingoLinq.from_obf(shell, {'user' => u})
+      image = ButtonImage.find_by_global_id(board.settings['buttons'][0]['image_id'])
+      expect(image).to be_present
+      expect(image.settings['preserve_source_image']).to eq(true)
+      expect(image.needs_library_url_enrichment?).to eq(false)
+      expect(image.settings['library_url_for_skin']).to eq(nil)
+    end
     
     it "should import external url links" do
       u = User.create
@@ -1309,6 +1333,71 @@ describe Converters::LingoLinq do
       expect(boards[1].id).not_to eq(b2.id)
       expect(boards[1].key).to eq("#{u.user_name}/susan")
     end
+
+    it "keeps action-only keyboard controls when importing an .obz" do
+      u = User.create
+      content = {
+        'id' => 'kb-controls',
+        'name' => 'Keyboard',
+        'locale' => 'en',
+        'buttons' => [
+          {'id' => 36, 'label' => 'shift', 'action' => ':shift'},
+          {'id' => 44, 'label' => 'space', 'action' => ':space'},
+          {'id' => 27, 'label' => 'a', 'action' => '+a'}
+        ],
+        'grid' => {'rows' => 1, 'columns' => 3, 'order' => [[36, 44, 27]]},
+        'images' => [],
+        'sounds' => []
+      }
+      path = OBF::Utils.temp_path('keyboard-controls')
+      OBF::External.to_obz({'boards' => [content], 'images' => [], 'sounds' => []}, path, {})
+      boards = Converters::LingoLinq.from_obz(path, {'user' => u})
+      imported = boards.first
+      by_id = imported.buttons.index_by { |b| b['id'] }
+      expect(by_id[36]['vocalization']).to eq(':shift')
+      expect(by_id[44]['vocalization']).to eq(':space')
+      expect(by_id[27]['vocalization']).to eq('+a')
+    end
+
+    it "marks .obz button images with preserve_source_image" do
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true))
+      allow(Typhoeus).to receive(:get).and_return(
+        OpenStruct.new(success?: true, code: 200, body: 'fakepng', headers: { 'Content-Type' => 'image/png' })
+      )
+      u = User.create
+      bi = ButtonImage.create(
+        :user => u,
+        :url => 'https://s3.amazonaws.com/coughdrop-usercontent/images/obz-photo.png',
+        :settings => { 'content_type' => 'image/png' }
+      )
+      b = Board.new(:user => u, :settings => { 'name' => 'Obz Photo' })
+      b.settings['buttons'] = [{
+        'id' => '1',
+        'label' => 'Photo',
+        'image_id' => bi.global_id
+      }]
+      b.settings['grid'] = {
+        'rows' => 1,
+        'columns' => 1,
+        'order' => [['1']]
+      }
+      b.instance_variable_set('@buttons_changed', true)
+      b.save!
+      expect(b.known_button_images.count).to eq(1)
+      path = OBF::Utils.temp_path("stash")
+      Converters::LingoLinq.to_obz(b.reload, path, {'user' => u})
+
+      boards = Converters::LingoLinq.from_obz(path, {'user' => u})
+      imported = boards.find { |board| board.settings['buttons'].any? { |btn| btn['image_id'] } }
+      expect(imported).to be_present
+      image = ButtonImage.find_by_global_id(imported.settings['buttons'][0]['image_id'])
+      expect(image).to be_present
+      # Same-user .obz round-trips reuse ButtonImage via data_url; either a
+      # reused or newly-created record must carry preserve_source_image.
+      expect(image.settings['preserve_source_image']).to eq(true)
+      expect(image.needs_library_url_enrichment?).to eq(false)
+    end
+
   end
   
   describe "from_external" do
@@ -1334,6 +1423,29 @@ describe Converters::LingoLinq do
       expect(board.settings['buttons'][1]['vocalization']).to eq(nil)
     end
 
+    it "uploads embedded audio data URIs so joke sound buttons keep a playable ButtonSound" do
+      u = User.create
+      audio = "data:audio/mpeg;base64,#{Base64.strict_encode64('ID3fake')}"
+      json = {
+        'id' => 'jokes-root',
+        'name' => 'Jokes',
+        'buttons' => [
+          {'id' => '26', 'label' => 'rimshot', 'sound_id' => 'snd-rim'}
+        ],
+        'sounds' => [
+          {'id' => 'snd-rim', 'content_type' => 'audio/mpeg', 'data' => audio}
+        ]
+      }
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
+      btn = board.settings['buttons'].detect { |b| b['label'] == 'rimshot' }
+      expect(btn['sound_id']).to be_present
+      sound = ButtonSound.find_by_global_id(btn['sound_id'])
+      expect(sound).to be_present
+      expect(sound.url).to be_present
+      expect(sound.settings['pending']).to eq(false)
+      expect(sound.settings['content_type']).to eq('audio/mpeg')
+    end
+
     it "should process a single action" do
       u = User.create
       json = {
@@ -1347,6 +1459,35 @@ describe Converters::LingoLinq do
       expect(board.settings['buttons'].length).to eq(1)
       expect(board.settings['buttons'][0]['label']).to eq('asdf')
       expect(board.settings['buttons'][0]['vocalization']).to eq(':bacon')
+    end
+
+    it "should keep Vocal Flair keyboard control actions as vocalizations" do
+      u = User.create
+      json = {
+        'id' => 'vocal-flair-keyboard',
+        'buttons' => [
+          {'id' => 36, 'label' => 'shift', 'action' => ':shift', 'ext_coughdrop_add_vocalization' => true},
+          {'id' => 44, 'label' => 'space', 'action' => ':space', 'ext_coughdrop_add_vocalization' => true},
+          {'id' => 27, 'label' => 'a', 'action' => '+a', 'ext_coughdrop_add_vocalization' => true}
+        ]
+      }
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
+      by_id = board.settings['buttons'].index_by { |b| b['id'] }
+      expect(by_id[36]['vocalization']).to eq(':shift')
+      expect(by_id[44]['vocalization']).to eq(':space')
+      expect(by_id[27]['vocalization']).to eq('+a')
+    end
+
+    it "should not let a blank actions array hide a control action" do
+      u = User.create
+      json = {
+        'id' => 'empty-actions',
+        'buttons' => [
+          {'id' => 36, 'label' => 'shift', 'action' => ':shift', 'actions' => []}
+        ]
+      }
+      board = Converters::LingoLinq.from_external(json, {'user' => u})
+      expect(board.settings['buttons'][0]['vocalization']).to eq(':shift')
     end
 
     it "should process multiple actions" do

@@ -47,7 +47,34 @@ class Api::LogsController < ApplicationController
     for_self = true
     user_ids = [] if params['supervisees']
     if params['supervisees']
-      sups = user.supervisees.select{|u| !u.private_logging? }
+      # Each supervisee needs its own authorization check against the CALLER.
+      # The gate above evaluates `user.allows?(@api_user, 'supervise')` against
+      # `user` ONLY, and this branch then fans out to a third party's supervisee
+      # list, so without a per-supervisee check the caller receives logs for
+      # communicators they have no relationship with. `private_logging?` is a
+      # per-user preference, not an authorization decision, and was carrying that
+      # weight alone.
+      #
+      # Reachable today: an org manager holds `supervise` over a supporter S
+      # (user.rb:87, via Organization.manager_for?), while S also supervises
+      # communicators outside that org -- a contracting SLP with a private
+      # caseload. `?user_id=<S>&supervisees=true` returned those children's logs.
+      #
+      # The payload is not a summary: lib/json_api/log.rb serializes
+      # journal.vocalization / journal.sentence (actual utterance text), the
+      # tiered_eval block (intake, SLP notes, SETT, AI narrative), geo
+      # latitude/longitude, and readable_ip_address. FERPA education records plus
+      # HIPAA-class clinical content plus child geolocation, across the district
+      # isolation boundary.
+      #
+      # `supervise` is the same bar this controller already applies to `user` at
+      # the gate above, so this makes the per-supervisee standard identical to
+      # the per-user one rather than inventing a new one. The check itself is the
+      # shared ApplicationController#supervisee_readable?, which is where the
+      # identical defect in badges#index and users#supervisees also resolves;
+      # `private_logging?` stays alongside it because that is a communicator
+      # PREFERENCE, not an authorization, and the two are not interchangeable.
+      sups = user.supervisees.select{|u| !u.private_logging? && supervisee_readable?(u, 'supervise') }
       sups.each do |sup|
         user_ids << sup.id
         cutoff = sup.effective_logging_cutoff_for(@api_user, logging_code_for(sup))
@@ -169,8 +196,7 @@ class Api::LogsController < ApplicationController
     log = LogSession.find_by_global_id(params['id'])
     return unless exists?(log, params['id'])
     user = log && log.user
-    # Check self first so we don't trigger "Not authorized" from supervise when log owner is in valet mode (they have view_detailed/model but not supervise).
-    return unless user && ((user == @api_user && (allowed?(user, 'view_detailed') || allowed?(user, 'model'))) || allowed?(user, 'supervise'))
+    return unless log_viewable?(user)
     if user.private_logging? && (@true_user || @api_user) != user
       return unless allowed?(user, 'never_allow')
     end
@@ -183,7 +209,16 @@ class Api::LogsController < ApplicationController
 
   def create
     ip = request.remote_ip
-    user_id = params['user_id'] || (params['log'] && params['log']['user_id'])
+    # `.presence`, not a bare truthiness check: the Ember client form-encodes the
+    # WHOLE Log model on every push, so an unset `user_id` arrives as the empty
+    # string rather than being omitted. "" is truthy in Ruby, so the old check
+    # sent it to find_by_path, got nil back, and rejected the request with
+    # `Not authorized (permission: model)` — which is what silently blocked EVERY
+    # log push from the web app (usage logs, evals, assessments alike), while
+    # looking like a permission problem.
+    #
+    # Blank means "no user specified", which is the @api_user's own log.
+    user_id = params['user_id'].presence || (params['log'] && params['log']['user_id'].presence)
     user = user_id ? User.find_by_path(user_id) : @api_user
     return unless allowed?(user, 'model')
     
@@ -272,7 +307,7 @@ class Api::LogsController < ApplicationController
     log = LogSession.find_by_global_id(params['log_id'])
     return unless exists?(log, params['log_id'])
     user = log && log.user
-    return unless user && ((user == @api_user && (allowed?(user, 'view_detailed') || allowed?(user, 'model'))) || allowed?(user, 'supervise'))
+    return unless log_viewable?(user)
     if user.private_logging? && (@true_user || @api_user) != user
       return unless allowed?(user, 'never_allow')
     end
@@ -417,5 +452,30 @@ class Api::LogsController < ApplicationController
   end
   
   protected
+
+  # A log's owner reads their own log via view_detailed/model; anyone else needs
+  # supervise. Self is checked FIRST so a log owner in valet mode — who has
+  # view_detailed/model but not supervise — isn't rejected by the supervise rule.
+  #
+  # `allows?` is the PURE predicate. `allowed?` renders a 400 as a side effect
+  # before returning false, so two of them in one boolean expression render twice:
+  # a DoubleRenderError (500) both when the later check passes and when it fails.
+  # Exactly ONE `allowed?` may remain, and it must be last so it renders the error.
+  #
+  # Scopes are passed explicitly because a bare `allows?` falls back to the RAW
+  # `user.permission_scopes` (permissable.rb:72) and so skips the normalization
+  # `api_permission_scopes` performs — blank (integration / dev-key devices) and a
+  # legacy lone '*' both normalize to 'full', and without that neither intersects
+  # the 'full' that supervision rules require, denying legitimate callers.
+  #
+  # The authorization DECISION here is identical to the expression this replaced;
+  # only which calls render changed.
+  def log_viewable?(user)
+    return false unless user
+    scopes = api_permission_scopes
+    self_access = user == @api_user &&
+                  (user.allows?(@api_user, 'view_detailed', scopes) || user.allows?(@api_user, 'model', scopes))
+    self_access || allowed?(user, 'supervise')
+  end
 
 end

@@ -10,6 +10,9 @@ module SystemBoardSources
   # the public prod bucket for local/dev (whose own static bucket is private).
   SENNER_BAUD_OBZ_KEY = 'system-boards/senner-baud.obz'.freeze
   SENNER_BAUD_OBZ_FALLBACK_BUCKET = 'lingolinq-prod-static'.freeze
+  # Local/dev fallback when STATIC_S3 is unreachable. Prefer SENNER_BAUD_OBZ_PATH,
+  # else the curated export under tmp/seed-boards/ (gitignored — never commit OBZs).
+  SENNER_BAUD_LOCAL_OBZ = Rails.root.join('tmp/seed-boards/SennerBaudSocialPages60ll.obz').freeze
   SENNER_BAUD_NAME = 'Senner-Baud Social Pages'.freeze
   SIGNUP_LIBRARY_SLUGS = %w[quick-core-60 vocal-flair-60 vocal-flair-84 crisis-vocabulary senner-baud].freeze
   # Intentionally empty: an in-request sync copy of vocal-flair-84 exceeds Rack::Timeout
@@ -113,10 +116,105 @@ module SystemBoardSources
     nil
   end
 
+  # Local path for Senner-Baud when S3 is unavailable (WSL/dev). ENV override first.
+  def self.local_senner_baud_obz_path
+    env_path = ENV['SENNER_BAUD_OBZ_PATH'].to_s.strip.presence
+    return env_path if env_path && File.exist?(env_path)
+    return SENNER_BAUD_LOCAL_OBZ.to_s if File.exist?(SENNER_BAUD_LOCAL_OBZ)
+    nil
+  end
+
+  # After from_obz, button load_board.key can lag the resolved board key (suffix
+  # collisions leave id pointing at keyboard while key still says keyboard_7).
+  # Rewrite key to match the board found by id whenever they disagree.
+  def self.sync_load_board_keys!(boards)
+    Array(boards).each do |board|
+      buttons = board.settings && board.settings['buttons']
+      next if buttons.blank?
+
+      changed = false
+      buttons.each do |btn|
+        lb = btn['load_board']
+        next unless lb.is_a?(Hash) && lb['id'].present?
+
+        target = Board.find_by_global_id(lb['id']) rescue nil
+        next unless target
+        next if lb['key'] == target.key
+
+        lb['key'] = target.key
+        changed = true
+      end
+      next unless changed
+
+      board.settings['buttons'] = buttons
+      board.generate_stats
+      board.save_without_post_processing
+    end
+  end
+
+  # Signup / library slug for an OpenAAC quick-core-N.obz filename, or nil.
+  def self.quick_core_root_slug_for_filename(filename)
+    m = filename.to_s.match(/\Aquick-core-(\d+)\.obz\z/i)
+    m ? "quick-core-#{m[1]}" : nil
+  end
+
+  # Assign board.key when the target path is free (or already this board).
+  # Returns true if the board now has new_key.
+  def self.rekey_board!(board, new_key)
+    return true if board.key == new_key
+
+    occupied = Board.find_by_path(new_key)
+    if occupied && occupied.id != board.id
+      Rails.logger.warn("[SystemBoardSources] Cannot re-key #{board.key} -> #{new_key}; target occupied by board #{occupied.global_id}")
+      return false
+    end
+
+    board.key = new_key
+    board.generate_stats
+    board.save_without_post_processing
+    true
+  end
+
+  # Senner OBZ boards often use bare keys like lingolinq/core-60 (no "-child" suffix).
+  # That is the same slot OpenAAC Quick Core uses for its product root before we
+  # re-key to quick-core-60. Move bare core-N roots onto senner-baud-core-N so
+  # db:seed can place Quick Core at lingolinq/quick-core-N without colliding.
+  # Child keys (core-60-when, etc.) are left alone so shared Core pages can be reused.
+  def self.relinquish_bare_core_roots!(boards, owner)
+    Array(boards).each do |board|
+      next unless board && board.user_id == owner.id
+      m = board.key.to_s.match(%r{\A[^/]+/(core-\d+)\z})
+      next unless m
+
+      new_key = board_key("senner-baud-#{m[1]}")
+      next if board.key == new_key
+
+      if rekey_board!(board, new_key)
+        Rails.logger.info("[SystemBoardSources] Relinquished bare core root #{m[1]} -> #{new_key}")
+      end
+    end
+  end
+
+  # OpenAAC quick-core-N.obz roots import as core-N; signup expects quick-core-N.
+  def self.rekey_quick_core_root!(root, filename, owner)
+    slug = quick_core_root_slug_for_filename(filename)
+    return nil unless slug && root && root.user_id == owner.id
+
+    new_key = board_key(slug)
+    return root.key if root.key == new_key
+
+    if rekey_board!(root, new_key)
+      new_key
+    else
+      nil
+    end
+  end
+
   # Idempotent: ensures the system board user has the Senner-Baud social pages set
   # from the OBZ hosted in the static S3 bucket. Mirrors ensure_crisis_vocabulary!,
-  # but sources the (large) OBZ from S3 rather than the repo. The export's root is
-  # the "greetings" page; we re-key it to <user>/senner-baud and give it the set's
+  # but sources the (large) OBZ from S3 rather than the repo. Falls back to a local
+  # tmp/seed-boards export when S3 is unreachable. The export's root is the
+  # "greetings" page; we re-key it to <user>/senner-baud and give it the set's
   # name so it reads cleanly in the signup library.
   def self.ensure_senner_baud!(owner = nil)
     owner ||= self.owner
@@ -133,20 +231,27 @@ module SystemBoardSources
       return existing
     end
 
-    fetched = fetch_senner_baud_obz
-    unless fetched
-      Rails.logger.warn("[SystemBoardSources] Could not fetch Senner-Baud OBZ from S3 (#{senner_baud_obz_urls.join(', ')}) — skipping import")
-      return nil
-    end
-
     require Rails.root.join('lib', 'converters', 'lingo_linq')
     require 'tempfile'
     boards = nil
-    Tempfile.create(['senner_baud_', '.obz']) do |tmp|
-      tmp.binmode
-      tmp.write(fetched.last)
-      tmp.close
-      boards = Converters::LingoLinq.from_obz(tmp.path, 'user' => owner, 'boards' => {})
+
+    fetched = fetch_senner_baud_obz
+    if fetched
+      Tempfile.create(['senner_baud_', '.obz']) do |tmp|
+        tmp.binmode
+        tmp.write(fetched.last)
+        tmp.close
+        boards = Converters::LingoLinq.from_obz(tmp.path, 'user' => owner, 'boards' => {})
+      end
+    else
+      local_path = local_senner_baud_obz_path
+      if local_path
+        Rails.logger.info("[SystemBoardSources] Senner-Baud OBZ using local fallback #{local_path}")
+        boards = Converters::LingoLinq.from_obz(local_path, 'user' => owner, 'boards' => {})
+      else
+        Rails.logger.warn("[SystemBoardSources] Could not fetch Senner-Baud OBZ from S3 (#{senner_baud_obz_urls.join(', ')}) and no local file — skipping import")
+        return nil
+      end
     end
     return nil if boards.blank?
 
@@ -164,6 +269,10 @@ module SystemBoardSources
       board.generate_stats
       board.save_without_post_processing
     end
+
+    # Free bare core-N keys before OpenAAC Quick Core import (seed order: Senner then OpenAAC).
+    relinquish_bare_core_roots!(boards, owner)
+    sync_load_board_keys!(boards)
 
     root.instance_variable_set(:@buttons_changed, 'import')
     root.instance_variable_set(:@brand_new, true)

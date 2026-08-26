@@ -1,0 +1,16 @@
+{{!-- Recommended page set: the Vocal Flair whose button count matches the
+     recommended grid. Opens the shared board-preview modal so the SLP can
+     choose it for the communicator being evaluated. --}}
+<span class="evq-card__label">{{t "Recommended page set" key="report_page_set"}}</span>
+<strong class="evq-card__value">{{this.boardLabel}}</strong>
+{{#if this.canAssign}}
+  <button type="button" class="evq-card__link" {{on "click" (this.ctrlAction "open")}} disabled={{this.loading}}>
+    {{#if this.loading}}
+      {{t "Opening preview…" key="report_page_set_loading"}}
+    {{else}}
+      {{t "Preview & choose for %{user}" key="report_page_set_open_for" user=this.forLabel}}
+    {{/if}}
+  </button>
+{{else}}
+  <small class="evq-card__hint">{{t "Start this eval from a communicator's account to assign their board." key="report_page_set_no_user"}}</small>
+{{/if}}

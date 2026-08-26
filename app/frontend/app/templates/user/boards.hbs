@@ -7,8 +7,10 @@
      continuous loading state from page refresh through my_boards
      resolution (no separate spinner card flashes in afterward). Lives
      OUTSIDE the page wrapper so it sits above the navbar and any
-     other in-page content (z-index 10054). --}}
-{{#unless this.model.my_boards.done}}
+     other in-page content (z-index 10054). Overlay drops after the
+     first Mine page (`mineListPaintReady`); full-library `.done` still
+     arrives later for search and copy-cluster. --}}
+{{#unless this.mineListPaintReady}}
   <div class="ll-premium-progress" role="status" aria-live="polite" aria-busy="true">
     <div class="ll-premium-progress__card">
       <h2 class="ll-premium-progress__title">{{t "Preparing your workspace" key="preparing_your_workspace"}}</h2>
@@ -26,14 +28,14 @@
            on "Communicate" only starts when the letters first mount
            in the DOM. If we render them while the loading overlay is
            up, the animation plays unseen and the user misses it.
-           Gating on `my_boards.done` defers the mount until the
+           Gating on `mineListPaintReady` defers the mount until the
            overlay drops, so the user sees the animation play fresh.
            The {{else}} branch renders an invisible placeholder with
            identical text + sizing so the wrap reserves the exact
            same vertical space during the loading phase — without
            it, the content below jumps up while loading and shifts
            back down when the real title mounts. --}}
-      {{#if this.model.my_boards.done}}
+      {{#if this.mineListPaintReady}}
         <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="ub-communicate" aria-label={{t "Communicate" key="communicate_word"}}><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">C</span><span class="ub-letter" style="animation-delay:0.31s" aria-hidden="true">o</span><span class="ub-letter" style="animation-delay:0.37s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.43s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.49s" aria-hidden="true">u</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.61s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.67s" aria-hidden="true">c</span><span class="ub-letter" style="animation-delay:0.73s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.79s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.85s" aria-hidden="true">e</span></span></h1>
       {{else}}
         <h1 class="la-hero-title la-hero-title--placeholder" aria-hidden="true">{{t "Let's Communicate" key="lets_communicate_placeholder"}}</h1>
@@ -88,7 +90,13 @@
       </div>
 
       <div class="ub-boards-page__getting-started-actions">
-        <LinkTo @route="home-boards" class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
+        {{!-- Goes to the standalone board picker, not /search/home. `user_id`
+             carries whose home board is being chosen: it is null on your own
+             page (Ember omits a query param at its default, so the URL stays
+             /board-picker and the picker runs its self flow) and the page
+             user's id when a supporter is on a communicator's Boards page —
+             see controllers/user/index#homeBoardPickerUserId. --}}
+        <LinkTo @route="board-picker" @query={{hash user_id=this.homeBoardPickerUserId}} class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
       </div>
     </section>
   </div>

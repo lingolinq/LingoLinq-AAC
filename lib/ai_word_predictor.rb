@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'digest'
 require_relative 'pii_scrubber'
 require_relative 'ai_client'
 require_relative 'lingo_linq/article50_call_context'
@@ -13,10 +14,36 @@ module AiWordPredictor
   # data). Runtime AI now egresses to Claude on AWS Bedrock (BAA/HIPAA path), not the direct
   # api.anthropic.com endpoint -- there is no direct-Anthropic fallback.
 
-  # In-memory LRU cache: { "context_key" => { words: [...], ts: Time } }
+  # In-memory response cache: { opaque_digest => { words: [...], ts: monotonic } }
+  #
+  # The KEY IS A DIGEST OF SCRUBBED, TENANT-SCOPED INPUT and must stay that way
+  # (finding LL-16ef84ad9a). It previously interpolated the raw user sentence:
+  #
+  #   cache_key = "#{locale}:#{sentence.strip.downcase}:..."
+  #
+  # built BEFORE PiiScrubber ran, so verbatim AAC utterances -- health, needs,
+  # relationships, plausibly GDPR special-category and frequently a COPPA-covered
+  # child's -- sat in a process-global hash outside the redaction boundary that
+  # the compliance corpus says protects them, with no organization discriminator
+  # and no expiry until capacity eviction at CACHE_MAX. On a low-traffic worker
+  # that meant the process lifetime.
+  #
+  # Three properties now hold, and each has a spec:
+  #   1. Nothing the user typed is recoverable from the key. It is a SHA-256 of
+  #      the POST-scrub text, so anything PiiScrubber redacts never reaches it.
+  #   2. Entries are scoped per organization, so one district's process-shared
+  #      entries are unreachable from another's.
+  #   3. Expired entries are swept on write rather than lingering until the cache
+  #      fills, so a quiet worker does not retain them indefinitely.
+  #
+  # Timestamps are monotonic, not wall-clock: an NTP step must not silently
+  # extend an entry's life past CACHE_TTL.
   CACHE = {}
   CACHE_MAX = 500
   CACHE_TTL = 1800 # 30 minutes -- aggressive caching for free-tier rate limits
+  # CACHE is mutated from every Puma worker thread; a bare Hash is not safe under
+  # concurrent write + rehash. Never hold this across an AI call.
+  CACHE_MUTEX = Mutex.new
 
   class << self
     # Returns an array of predicted next-word strings (up to `count`).
@@ -44,11 +71,6 @@ module AiWordPredictor
       return [] if FeatureFlags.eu_under16_blocks_ai_for?(user)
 
       ctx = normalize_context(context)
-      cache_key = "#{locale}:#{sentence.strip.downcase}:#{ctx[:time_of_day]}:#{ctx[:topic]}"
-      cached = CACHE[cache_key]
-      if cached && (Time.now - cached[:ts]) < CACHE_TTL
-        return cached[:words]
-      end
 
       # Configure blocklist with the user's name so it cannot leak verbatim.
       if user
@@ -60,11 +82,35 @@ module AiWordPredictor
         PiiScrubber.configure_blocklist(names)
       end
 
-      # Last-line-of-defense PII scrub on the user-typed sentence.
+      # The scrub now runs BEFORE the cache lookup, not after. That ordering is
+      # what keeps the raw utterance out of the cache key (LL-16ef84ad9a), and it
+      # is affordable: PiiScrubber.redact_for_ai costs 6-15 microseconds on
+      # representative AAC sentences (measured 2026-08-11; COMMON_FIRST_NAMES is a
+      # frozen Set, so name detection is a hash lookup per word, not a scan), and
+      # the digest another 5. That is imperceptible against the instant-feel budget
+      # the cache exists to protect.
+      # context.topic is interpolated into the Bedrock system prompt, so it is
+      # the same egress surface as the sentence and must be scrubbed here too
+      # (before the cache key is built), not only in system_prompt.
       scrub_result = PiiScrubber.redact_for_ai(sentence.strip)
       scrubbed_sentence = scrub_result[:payload]
       pii_detected = scrub_result[:pii_found]
-      pii_findings = scrub_result[:findings]
+      pii_findings = Array(scrub_result[:findings])
+      ctx, topic_pii, topic_findings = scrub_context(ctx)
+      pii_detected ||= topic_pii
+      pii_findings.concat(topic_findings)
+
+      cache_key = cache_key_for(scrubbed_sentence, locale, ctx, user)
+      cached_words = cache_fetch(cache_key)
+      return cached_words if cached_words
+
+      # Past the cache, so this request may actually egress. Verify the Bedrock
+      # credential belongs to the BAA'd AWS account before doing anything else
+      # (finding LL-1b0d78dbe6). Deliberately here rather than in
+      # resolve_api_config above: see the note on that method. Serving a cache hit
+      # without this check is safe because an entry can only have been written by a
+      # call that already passed it.
+      return [] unless AiClient.available?
 
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       provider = api_config[:provider]
@@ -127,12 +173,7 @@ module AiWordPredictor
         error_message: error_message
       )
 
-      # Store in cache, evict oldest if full
-      if CACHE.size >= CACHE_MAX
-        oldest_key = CACHE.min_by { |_k, v| v[:ts] }&.first
-        CACHE.delete(oldest_key) if oldest_key
-      end
-      CACHE[cache_key] = { words: words, ts: Time.now }
+      cache_store(cache_key, words)
 
       words
     end
@@ -161,6 +202,133 @@ module AiWordPredictor
       }
     end
 
+    # Same redaction boundary as the sentence. Leaving topic raw reopened the
+    # LL-16ef84ad9a class of leak on a second user-derived field.
+    def scrub_context(ctx)
+      result = PiiScrubber.redact_for_ai(ctx[:topic].to_s)
+      [
+        ctx.merge(topic: result[:payload].to_s),
+        result[:pii_found],
+        Array(result[:findings])
+      ]
+    end
+
+    def monotonic_now
+      Process.clock_gettime(Process::CLOCK_MONOTONIC)
+    end
+
+    # An opaque digest, never a readable sentence. `scrubbed` and `ctx[:topic]`
+    # must both be POST-PiiScrubber text; passing the raw sentence or topic here
+    # would reintroduce LL-16ef84ad9a, so the only caller derives them from
+    # redact_for_ai.
+    #
+    # Downcasing matches the previous behaviour: two casings of the same sentence
+    # share an entry. The prompt still sends the original casing.
+    def cache_key_for(scrubbed, locale, ctx, user)
+      Digest::SHA256.hexdigest(
+        [
+          cache_scope(user),
+          locale.to_s,
+          scrubbed.to_s.strip.downcase,
+          ctx[:time_of_day].to_s,
+          ctx[:topic].to_s
+        ].join("\x00")
+      )
+    end
+
+    # Tenant discriminator. Organization first, because sharing predictions inside
+    # one district is the intended cost saving; falling back to the user's own id
+    # means a user with no sponsoring org shares with nobody, which is the safe
+    # direction.
+    #
+    # This reads the `managing_organization_id` COLUMN and deliberately does not
+    # call `User#managing_organization` (app/models/concerns/supervising.rb:74).
+    # That method runs Organization.attached_orgs plus a find_by_global_id, i.e. at
+    # least one database round trip -- and cache_scope runs on every predict call,
+    # including hits. Putting a query in front of the response cache would be a far
+    # worse latency regression than the scrub this reordering already accounts for.
+    # TelemetryEvent.organization_id_for takes the same column-first approach.
+    #
+    # Consequence worth knowing: a user attached to an org but not sponsored by it
+    # has a nil column and lands in a private per-user scope. That costs hit rate
+    # and leaks nothing, which is the correct way for this to be wrong.
+    #
+    # A nil user shares one 'anon' bucket. That is reserved for offline callers
+    # that supply no user data by contract (the n-gram seed generator). It is not
+    # a hole: the key is built from scrubbed text either way, so even this bucket
+    # holds no raw utterance. The broader nil-user concern -- that `predict` skips
+    # the feature-flag gate when user is nil (see the guard at the top of that
+    # method) -- is a separate, pre-existing issue and is not fixed here.
+    def cache_scope(user)
+      return 'anon' unless user
+
+      org_id = user.respond_to?(:managing_organization_id) ? user.managing_organization_id : nil
+      return "org:#{org_id}" if org_id.present?
+
+      user_id = user.respond_to?(:global_id) ? user.global_id : nil
+      return "user:#{user_id}" if user_id.present?
+
+      # An unsaved or id-less user must not join the shared bucket.
+      "user-object:#{user.object_id}"
+    rescue StandardError => e
+      # A scope we cannot resolve must not silently collapse into a shared bucket.
+      # Fail to a per-object private scope instead: worst case is a cache miss.
+      Rails.logger.warn("[AiWordPredictor] cache scope resolution failed: #{e.class}: #{e.message}")
+      "unresolved:#{user.object_id}"
+    end
+
+    def cache_fetch(key)
+      CACHE_MUTEX.synchronize do
+        entry = CACHE[key]
+        next nil unless entry
+        if (monotonic_now - entry[:ts]) < CACHE_TTL
+          entry[:words]
+        else
+          CACHE.delete(key)
+          nil
+        end
+      end
+    end
+
+    # Sweeps expired entries before considering eviction, so a quiet worker drops
+    # them on schedule instead of holding them until the cache fills. The sweep is
+    # O(CACHE_MAX) and only runs on the miss path, which has just made a network
+    # call, so its cost is not observable.
+    def cache_store(key, words)
+      CACHE_MUTEX.synchronize do
+        now = monotonic_now
+        CACHE.delete_if { |_k, v| (now - v[:ts]) >= CACHE_TTL }
+
+        if CACHE.size >= CACHE_MAX
+          oldest_key = CACHE.min_by { |_k, v| v[:ts] }&.first
+          CACHE.delete(oldest_key) if oldest_key
+        end
+
+        CACHE[key] = { words: words, ts: now }
+      end
+    end
+
+    # NOTE: this seam gates on `configured?` (a pure ENV read), NOT on `available?`
+    # like the other three. That difference is deliberate and load-bearing.
+    #
+    # `available?` performs the sts:GetCallerIdentity account assertion, and while
+    # the result is cached, a FAILED check re-probes every 60s and holds a
+    # process-global mutex for up to 5s while it does. This method runs before the
+    # response cache in `predict`, so gating it on `available?` would put that stall
+    # in front of requests that were about to return instantly from CACHE -- once a
+    # minute, for every thread in the worker. Word prediction is typing assistance
+    # for AAC users; a 5-second wait to be told "no suggestions" is worse than an
+    # instant empty list.
+    #
+    # The account assertion is NOT skipped, only moved: `predict` calls
+    # `AiClient.available?` immediately after the cache lookup, before any prompt
+    # build or egress. Cache hits never probe; anything that could actually call is
+    # still fully gated.
+    #
+    # The PII scrub does now run before the cache lookup (it has to, so the key can
+    # be built from scrubbed text -- LL-16ef84ad9a), but that is a few microseconds
+    # of local regex work, not a network probe behind a mutex, so it does not
+    # reintroduce the stall this ordering exists to avoid.
     def resolve_api_config
       return nil unless AiClient.configured?
 
@@ -174,7 +342,7 @@ module AiWordPredictor
     end
 
     def call_anthropic(config, sentence, locale, count, context)
-      client = AiClient.build
+      client = AiClient.build!
       client.messages.create(
         model: config[:model],
         max_tokens: 60,

@@ -65,14 +65,35 @@ describe UserBoardProvisioner do
       ).ordered
 
       described_class.provision_for(user)
+      user.reload
+      sidebar_keys = (user.settings['preferences']['sidebar_boards'] || []).map { |b| b['key'] }
+      expect(sidebar_keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(sidebar_keys).to include(SystemBoardSources.board_key('senner-baud'))
+      expect(sidebar_keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
     end
 
-    it "does nothing when the feature is disabled" do
+    it "writes the signup sidebar even when library copies are disabled" do
       user = User.create
       allow(FeatureFlags).to receive(:signup_default_library_boards_enabled?).and_return(false)
       expect(Progress).to_not receive(:schedule)
       expect(user).to_not receive(:copy_board_to_library)
       expect(described_class.provision_for(user)).to eq([])
+      user.reload
+      sidebar_keys = (user.settings['preferences']['sidebar_boards'] || []).map { |b| b['key'] }
+      expect(sidebar_keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
+      expect(sidebar_keys).to include(SystemBoardSources.board_key('senner-baud'))
+    end
+
+    it "does not copy boards when the feature is disabled" do
+      user = User.create
+      user.settings['preferences']['sidebar_boards'] = [{'key' => 'already/set'}]
+      user.save
+      allow(FeatureFlags).to receive(:signup_default_library_boards_enabled?).and_return(false)
+      expect(Progress).to_not receive(:schedule)
+      expect(user).to_not receive(:copy_board_to_library)
+      expect(described_class.provision_for(user)).to eq([])
+      user.reload
+      expect(user.settings['preferences']['sidebar_boards']).to eq([{'key' => 'already/set'}])
     end
 
     it "skips missing boards without raising" do

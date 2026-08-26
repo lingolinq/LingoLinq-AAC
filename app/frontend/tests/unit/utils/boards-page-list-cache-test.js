@@ -99,4 +99,45 @@ module('Unit | Utility | boards-page-list-cache', function(hooks) {
     assert.equal(window.localStorage.getItem('unrelated_key'), 'keep');
     window.localStorage.removeItem('unrelated_key');
   });
+
+  test('hasFreshSnapshot tracks unexpired Mine snapshots', function(assert) {
+    assert.notOk(boardsPageListCache.hasFreshSnapshot('1_77'));
+    boardsPageListCache.write('1_77', [{ id: '1_8', key: 'u/b', name: 'B' }]);
+    assert.ok(boardsPageListCache.hasFreshSnapshot('1_77'));
+    boardsPageListCache.clear('1_77');
+    assert.notOk(boardsPageListCache.hasFreshSnapshot('1_77'));
+  });
+
+  test('setMineListBusy / isMineListBusy gate for catalog prefetch deferral', function(assert) {
+    boardsPageListCache.setMineListBusy(false);
+    assert.notOk(boardsPageListCache.isMineListBusy());
+    boardsPageListCache.setMineListBusy(true);
+    assert.ok(boardsPageListCache.isMineListBusy());
+    boardsPageListCache.clearAll();
+    assert.notOk(boardsPageListCache.isMineListBusy(), 'clearAll clears busy flag');
+  });
+
+  test('setBoardsPageActive / isBoardsPageActive gate for phase 3/4 pause', function(assert) {
+    boardsPageListCache.setBoardsPageActive(false);
+    assert.notOk(boardsPageListCache.isBoardsPageActive());
+    boardsPageListCache.setBoardsPageActive(true);
+    assert.ok(boardsPageListCache.isBoardsPageActive());
+    boardsPageListCache.clearAll();
+    assert.notOk(boardsPageListCache.isBoardsPageActive(), 'clearAll clears boards-page flag');
+  });
+
+  test('isPaintReady accepts first-page paint_ready or completed lists', function(assert) {
+    assert.notOk(boardsPageListCache.isPaintReady(null));
+    assert.notOk(boardsPageListCache.isPaintReady({ loading: true }));
+    var firstPage = [{ id: '1_1' }];
+    assert.notOk(boardsPageListCache.isPaintReady(firstPage), 'array without paint_ready is not ready');
+    firstPage.paint_ready = true;
+    assert.ok(boardsPageListCache.isPaintReady(firstPage), 'first page with paint_ready is ready');
+    var emptyDone = [];
+    emptyDone.done = true;
+    assert.ok(boardsPageListCache.isPaintReady(emptyDone), 'empty completed list is ready');
+    var emptyPaint = [];
+    emptyPaint.paint_ready = true;
+    assert.notOk(boardsPageListCache.isPaintReady(emptyPaint), 'empty first page without done is not ready');
+  });
 });

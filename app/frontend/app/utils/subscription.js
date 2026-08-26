@@ -11,6 +11,7 @@ import capabilities from './capabilities';
 import progress_tracker from './progress_tracker';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
+import { display_name_for } from './display_name';
 
 var types = ['communicator_type', 'supporter_type', 'monthly_subscription', 'long_term_subscription',
   'communicator_monthly_subscription', 'communicator_long_term_subscription',
@@ -106,7 +107,15 @@ var Subscription = EmberObject.extend({
       var plan = u.get('subscription.plan_id');
 
       this.set('email', u.get('email'));
-      this.set('name', u.get('name'));
+      /* Raw `name`, NOT display_name_for. This seeds the "Purchaser's Name"
+         input (templates/gift_purchase.hbs), which the user submits — a WRITE
+         binding, and display_name_for's own contract says not to use it for one.
+         Signup collects no name, so it would prefill the login handle
+         ("aiden_parker") as somebody's purchaser name and most people would not
+         notice before submitting. Blank is the honest default: the field asks
+         for a name, so let them type one. Same reasoning as
+         templates/user/edit.hbs, which is commented at the site. */
+      this.set('name', u.get('name') || '');
 
       if(u.get('preferences.role') == 'supporter') {
         this.set('user_type', 'supporter');
@@ -797,7 +806,7 @@ Subscription.reopenClass({
       if(Subscription.handler.defer) {
       }
       Subscription.handler.open({
-        name: subscription.get('name') || subscription.get('user.name') || LingoLinq.app_name,
+        name: subscription.get('name') || display_name_for(subscription.get('user')) || LingoLinq.app_name,
         description: subscription.get('description'),
         amount: amount,
         panelLabel: subscription.get('purchase_description'),

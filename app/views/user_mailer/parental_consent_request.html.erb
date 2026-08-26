@@ -1,11 +1,26 @@
 <p><%= mailer_t('parental_consent_mailer.greeting') %></p>
+<% if @offboarding %>
+<p><%= mailer_t('parental_consent_mailer.offboarding_intro', app_name: app_name, consent_age: @consent_age) %></p>
+<% else %>
 <p><%= mailer_t('parental_consent_mailer.intro', app_name: app_name, consent_age: @consent_age) %></p>
+<% end %>
 <p><%= mailer_t('parental_consent_mailer.safety_notice') %></p>
 <p><strong><%= mailer_t('parental_consent_mailer.ready_heading') %></strong></p>
 <p><%= mailer_t('parental_consent_mailer.action_prompt') %></p>
 <p><a href="<%= @consent_url %>"><%= mailer_t('parental_consent_mailer.cta_label') %></a></p>
 <p><%= mailer_t('parental_consent_mailer.privacy_notice') %></p>
 <p><a href="<%= @privacy_url %>"><%= mailer_t('parental_consent_mailer.privacy_link_label') %></a></p>
+<p><strong><%= mailer_t('parental_consent_mailer.decline_heading') %></strong></p>
+<% if @offboarding %>
+<p><%= mailer_t('parental_consent_mailer.offboarding_decline_prompt') %></p>
+<% else %>
+<p><%= mailer_t('parental_consent_mailer.decline_prompt') %></p>
+<% end %>
+<p><a href="<%= @decline_url %>"><%= mailer_t('parental_consent_mailer.decline_cta_label') %></a></p>
 <p><strong><%= mailer_t('parental_consent_mailer.unexpected_heading') %></strong></p>
+<% if @offboarding %>
+<p><%= mailer_t('parental_consent_mailer.offboarding_footer') %></p>
+<% else %>
 <p><%= mailer_t('parental_consent_mailer.footer') %></p>
+<% end %>
 <p><%= email_signature %></p>

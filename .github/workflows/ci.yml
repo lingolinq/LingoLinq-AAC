@@ -59,8 +59,25 @@ jobs:
         run: |
           bundle exec rails db:create db:schema:load
 
+      # Parse-check the guard BEFORE trusting its verdict. The guard had no `set -e`,
+      # so a single broken line (a comment banner that lost its '#') printed to stderr,
+      # ran on to the OK block, and exited 0 -- observed live during review. The guard
+      # now traps ERR and fails closed, and this step is the belt to that braces: a
+      # syntax error is caught before the control is asked for an answer at all.
+      - name: Parse-check the AI endpoint guard and its test harness
+        run: bash -n scripts/ai-endpoint-guard.sh && bash -n scripts/tests/ai-endpoint-guard-test.sh
+
       - name: AI endpoint guard (runtime AI must route via AWS Bedrock, not api.anthropic.com)
         run: bash scripts/ai-endpoint-guard.sh
+
+      # The guard above scans a scope DISCOVERED from the whole repo (minus stated
+      # exclusions) rather than a hardcoded seam list, so a newly added runtime AI file
+      # cannot pass simply by not being listed (finding LL-1189af1b3c). A discovered scope is only worth
+      # what its discovery is worth, so the guard is tested rather than trusted:
+      # fixtures assert every rule fires, and that reviewer-only scripts, specs and
+      # prose comments do not false-positive. Bash-only, offline, no credentials.
+      - name: Verify the AI endpoint guard actually fires
+        run: scripts/tests/ai-endpoint-guard-test.sh
 
       - name: Run RSpec
         run: bundle exec rspec
@@ -104,6 +121,13 @@ jobs:
         working-directory: app/frontend
         run: npm run lint:hbs
 
+      # JS lint gate: fails on any NEW ESLint finding (error or warning).
+      # Pre-existing findings are grandfathered in app/frontend/.eslint-todo;
+      # this only blocks newly-introduced ones. Not the same as disabling rules.
+      - name: Lint Ember JS
+        working-directory: app/frontend
+        run: npm run lint:js:ci
+
       # Puppeteer downloads Chrome under ~/.cache/puppeteer, not inside node_modules.
       # Restoring only node_modules leaves executablePath() pointing at a missing binary.
       - name: Ensure Puppeteer Chrome is present
@@ -123,11 +147,15 @@ jobs:
         run: npx ember test
 
   # Blocking gate for the audit/compliance system's own generated artifacts. These
-  # are deterministic, stdlib-only render checks (no gems, no network, no git
-  # history) that fail ONLY if a generated markdown drifts from its JSON source of
-  # truth - so making them blocking is low-friction and keeps the register's
-  # human-readable mirrors honest. (citation-check.rb is intentionally NOT gated
-  # here: a repo-wide blocking citation check is a broader policy decision.)
+  # are deterministic, stdlib-only render checks (no gems, no network) that fail ONLY
+  # if a generated markdown drifts from its JSON source of truth - so making them
+  # blocking is low-friction and keeps the register's human-readable mirrors honest.
+  # (citation-check.rb is intentionally NOT gated here: a repo-wide blocking citation
+  # check is a broader policy decision.)
+  #
+  # ONE EXCEPTION to "no git history": legal-naming-check.rb reads the register at the
+  # base revision, because its grandfather allowlist cannot be allowed to certify
+  # itself. That is why a base-branch fetch step appears below.
   audit-artifacts-integrity:
     runs-on: ubuntu-latest
 
@@ -157,6 +185,61 @@ jobs:
 
       - name: Verify capability ledger (currentEvidence resolves at HEAD; negativeEvidence scoping)
         run: ruby scripts/capability-check.rb --check
+
+      # legal-naming-check verifies meta.legalNamingGrandfathered against the BASE revision,
+      # so unlike the render checks above it does need a little git history.
+      #
+      # The baseline is the EVENT'S EXACT SHA, not a branch name, and that distinction is a
+      # fix. Resolving `origin/<branch>` meant a push run compared the branch against
+      # itself: self-comparing, trivially satisfied, and bypassable by pushing directly to
+      # a protected branch. Pull requests use the base commit the PR actually forked from;
+      # pushes use the pre-push SHA, so the comparison spans what the push introduced.
+      #
+      # Fails closed if neither is available, because "I could not verify the allowlist" is
+      # not the same claim as "the allowlist is fine". Push triggers here are limited to
+      # main/develop/staging, which always have a real predecessor, so the all-zeros
+      # new-branch case cannot arise on this workflow.
+      - name: Resolve and fetch the naming allowlist baseline
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          BASE_SHA="${PR_BASE_SHA:-$PUSH_BEFORE_SHA}"
+          if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            echo "::error::No usable base SHA for the docs/legal naming allowlist baseline." >&2
+            echo "Refusing rather than skipping: an unverifiable allowlist is exactly what an" >&2
+            echo "allowlist-laundering change would produce." >&2
+            exit 1
+          fi
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          echo "NAMING_BASE_SHA=$BASE_SHA" >> "$GITHUB_ENV"
+
+      - name: Verify docs/legal naming rule (attested rows carry no status token)
+        run: ruby scripts/legal-naming-check.rb --base-ref "$NAMING_BASE_SHA" --check
+
+      # The rule above is unfixable once violated, because attestation freezes the
+      # filename permanently. So the guard itself is tested here rather than trusted:
+      # a check only ever seen passing on clean data proves the data is clean, not that
+      # the check works.
+      - name: Verify the docs/legal naming guards actually fire
+        run: scripts/tests/legal-naming-check-test.sh
+
+      # Structural gate on the registers themselves. The render checks above only compare a
+      # generated markdown to its JSON source; none of them reads the field SHAPES the register's
+      # consumers depend on, so a malformed row (observed: `source` written as a bare String
+      # instead of an object) merged green here and then hard-crashed promote-finding.rb for the
+      # entire register weeks later. This validates shapes, enum membership, and id uniqueness.
+      # Stdlib-only and git-free, like the checks above, so it is equally low-friction to gate on.
+      - name: Verify findings registers are structurally valid
+        run: ruby scripts/register-lint.rb audit-reports/FINDINGS.json audit-reports/ember-upgrade/FINDINGS-EMBER.json
+
+      # Belt and braces to the lint above: register-lint checks the shapes we PREDICTED the
+      # consumers need; this runs the real consumers (promote-finding.rb, audit-merge.rb) over each
+      # committed register with empty input and asserts they exit 0 AND leave the file
+      # byte-identical. It catches whatever the predicate list failed to anticipate.
+      - name: Verify registers are consumable by promote-finding / audit-merge (no-op run)
+        run: scripts/tests/register-consumer-smoke-test.sh
 
   codex-review-tests:
     runs-on: ubuntu-latest

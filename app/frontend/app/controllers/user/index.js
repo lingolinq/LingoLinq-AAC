@@ -61,6 +61,26 @@ export default Controller.extend({
   app_state: alias('appState'),
   persistence: service('persistence'),
 
+  /* "Help me Choose" on the Boards page hands the board-picker the account it is
+     picking for. The picker keys its whole supervisor flow off this `user_id`
+     query param (controllers/board-picker#_resolve_setup_user → setup_user →
+     for_self → the "Choose <name>'s home board" title and the back link), so a
+     supporter on a communicator's Boards page has to arrive with it or the
+     picker will run the SELF flow and offer to set THEIR own home board.
+
+     Null on your own page — Ember drops a query param that equals the
+     controller's default, so the URL stays a clean /board-picker and the picker
+     resolves setup_user to currentUser on its own.
+
+     Global id, not user_name: _resolve_setup_user both does
+     `store.findRecord('user', user_id)` and compares the param against
+     `setup_user.id`, so a handle would re-resolve on every recompute. */
+  homeBoardPickerUserId: computed('model.id', 'appState.currentUser.id', function() {
+    var page_user_id = this.get('model.id');
+    if(!page_user_id || page_user_id === this.get('appState.currentUser.id')) { return null; }
+    return page_user_id;
+  }),
+
   init() {
     this._super(...arguments);
     var self = this;
@@ -126,6 +146,19 @@ export default Controller.extend({
   // controller (line 172, 196, 237) — `@each.public` on a non-array
   // value (e.g. Promise during initial render) can throw and break
   // the whole boards page below.
+  /* Overlay / hero gate: first Mine page or a completed list (including
+     empty). Distinct from my_boards.done, which still waits for the last
+     pagination page so copy-cluster and the library-complete hint can
+     use the full list. Search itself runs on pages loaded so far. */
+  mineListPaintReady: computed(
+    'model.my_boards.done',
+    'model.my_boards.paint_ready',
+    'model.my_boards.loading',
+    'model.my_boards.length',
+    function() {
+      return boardsPageListCache.isPaintReady(this.get('model.my_boards'));
+    }
+  ),
   public_boards_count: computed('model.my_boards.[]', function() {
     var boards = this.get('model.my_boards');
     if(!boards) { return 0; }
@@ -154,6 +187,7 @@ export default Controller.extend({
     return (now - lastSync) > (7 * 24 * 60 * 60 * 1000);
   }),
   check_daily_use: observer('model.user_name', 'model.id', 'model.permissions', 'appState.sessionUser.id', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     var current_user_name = this.get('daily_use.user_name');
     var user_name = this.get('model.user_name');
     // Don't make request if user_name is undefined or empty
@@ -505,20 +539,26 @@ export default Controller.extend({
     'boardsPageSearchRows.[]',
     'parent_object',
     'mineTagFolderDrillIn',
+    'boards_page_raw_list',
+    'boards_page_raw_list.done',
+    'model.my_boards.done',
+    'model.public_boards.done',
     function() {
       /* Folder drill-in hides the Boards Filter UI but keeps any
          prior filterStringDebounced — show the folder grid only. */
       if (this.get('mineTagFolderDrillIn')) {
-        return { results: this.get('filtered_results') || [], truncated: false };
+        return { results: this.get('filtered_results') || [], truncated: false, incomplete: false };
       }
       var filter = (this.get('filterStringDebounced') || '').trim();
       if (!filter) {
-        return { results: this.get('filtered_results') || [], truncated: false };
+        return { results: this.get('filtered_results') || [], truncated: false, incomplete: false };
       }
       var q = filter.toLowerCase();
       var rows = this.get('boardsPageSearchRows') || [];
       var matches = [];
       var truncated = false;
+      var sourceList = this.get('boards_page_raw_list') || [];
+      var incomplete = !sourceList.done;
       if (rows.length) {
         for (var i = 0; i < rows.length; i++) {
           if (rows[i].haystack.indexOf(q) === -1) { continue; }
@@ -528,7 +568,7 @@ export default Controller.extend({
           }
           matches.push({ board: rows[i].board, children: [] });
         }
-        return { results: matches, truncated: truncated };
+        return { results: matches, truncated: truncated, incomplete: incomplete };
       }
       var fallbackRows = this.get('filtered_results') || [];
       for (var j = 0; j < fallbackRows.length; j++) {
@@ -542,7 +582,7 @@ export default Controller.extend({
         }
         matches.push({ board: row.board, children: row.children || [] });
       }
-      return { results: matches, truncated: truncated };
+      return { results: matches, truncated: truncated, incomplete: incomplete };
     }
   ),
   boards_page_visible_results: computed('boardsPageSearchState', function() {
@@ -552,6 +592,10 @@ export default Controller.extend({
   boards_page_search_truncated: computed('boardsPageSearchState', function() {
     var state = this.get('boardsPageSearchState');
     return !!(state && state.truncated);
+  }),
+  boards_page_search_incomplete: computed('boardsPageSearchState', function() {
+    var state = this.get('boardsPageSearchState');
+    return !!(state && state.incomplete);
   }),
   boards_page_search_limit: computed(function() {
     return BOARDS_PAGE_SEARCH_LIMIT;
@@ -952,6 +996,7 @@ export default Controller.extend({
   },
   reload_logs: observer('persistence.online', 'model.permissions', function() {
     if(!this || typeof this.get !== 'function') { return; }
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     var _this = this;
     var persistenceService = this.get('persistence') || this.persistence;
     if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
@@ -985,6 +1030,7 @@ export default Controller.extend({
     });
   }),
   load_badges: observer('model.permissions', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     if(this.get('model.permissions')) {
       var _this = this;
       if(!(_this.get('model.badges') || {}).length) {
@@ -1000,6 +1046,7 @@ export default Controller.extend({
     }
   }),
   load_goals: observer('model.permissions', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     if(this.get('model.permissions')) {
       var _this = this;
       if(!(_this.get('model.goals') || {}).length) {
@@ -1042,6 +1089,14 @@ export default Controller.extend({
        `.done` and re-trigger the boards-page overlay. */
     var backgroundRefresh = boardsPageListCache.isUsableList(prior);
     var bufferKey = list_name + ':' + list_id;
+    var isMineList = list_name === 'model.my_boards';
+    /* Within TTL, a usable on-screen Mine list + fresh localStorage
+       snapshot means skip the full-library re-download. Mutations clear
+       the snapshot so the next update_selected still refreshes. */
+    if(isMineList && !append && backgroundRefresh && boardsPageListCache.hasFreshSnapshot(_this.get('model.id'))) {
+      boardsPageListCache.setMineListBusy(false);
+      return;
+    }
     /* Do not clobber a usable empty list (`[].done`) with {loading:true}. */
     if(!append && !backgroundRefresh && !prior.length) {
       _this.set(list_name, {loading: true});
@@ -1050,7 +1105,12 @@ export default Controller.extend({
       _this._boards_list_refresh_buffers = _this._boards_list_refresh_buffers || {};
       _this._boards_list_refresh_buffers[bufferKey] = [];
     }
+    if(isMineList && !append) {
+      boardsPageListCache.setMineListBusy(true);
+    }
     _this.store.query('board', args).then(function(boards) {
+      /* Stale page for a superseded list_id: do not clear Mine busy —
+         a newer Mine fetch may own the flag. */
       if(_this.get('list_id') != list_id) { return; }
 
       var chunk = boards.slice();
@@ -1080,8 +1140,9 @@ export default Controller.extend({
           if(_this._boards_list_refresh_buffers) {
             delete _this._boards_list_refresh_buffers[bufferKey];
           }
-          if(list_name === 'model.my_boards') {
+          if(isMineList) {
             boardsPageListCache.write(_this.get('model.id'), buf);
+            boardsPageListCache.setMineListBusy(false);
           }
         }
         return;
@@ -1097,6 +1158,9 @@ export default Controller.extend({
         prior = chunk;
       }
       prior.user_id = _this.get('model.id');
+      if(isMineList) {
+        prior.paint_ready = true;
+      }
       _this.set(list_name, prior);
       if(meta && meta.more) {
         args.per_page = meta.per_page;
@@ -1116,11 +1180,16 @@ export default Controller.extend({
         }, 200);
       } else {
         _this.set(list_name + '.done', true);
-        if(list_name === 'model.my_boards') {
+        if(isMineList) {
+          _this.set(list_name + '.paint_ready', true);
           boardsPageListCache.write(_this.get('model.id'), _this.get(list_name));
+          boardsPageListCache.setMineListBusy(false);
         }
       }
     }, function() {
+      if(isMineList && _this.get('list_id') == list_id) {
+        boardsPageListCache.setMineListBusy(false);
+      }
       if(backgroundRefresh) {
         if(_this._boards_list_refresh_buffers) {
           delete _this._boards_list_refresh_buffers[bufferKey];
@@ -1247,13 +1316,10 @@ export default Controller.extend({
      home board (see open_board_in_user_view) and jumps into speak mode
      instead of opening the board. */
   selectingHome: false,
-  hasHomeBoard: computed('appState.referenced_user.preferences.home_board.key', function() {
-    return !!this.appState.get('referenced_user.preferences.home_board.key');
+  hasHomeBoard: computed('model.preferences.home_board.key', function() {
+    return !!this.get('model.preferences.home_board.key');
   }),
-  setHomeButtonLabel: computed('hasHomeBoard', 'selectingHome', function() {
-    if(this.get('selectingHome')) {
-      return i18n.t('cancel_set_home_board', "Cancel");
-    }
+  setHomeButtonLabel: computed('hasHomeBoard', function() {
     return this.get('hasHomeBoard')
       ? i18n.t('change_home_board', "Change Home Board")
       : i18n.t('set_home_board', "Set Home Board");
@@ -1490,10 +1556,17 @@ export default Controller.extend({
         transition.catch(function() { _appState.hide_loading_overlay(); });
       }
     },
-    /* Toggle the "Set / Change Home Board" selection mode. Mirrors the
-       modal's `toggleSetHomeMode` (see controllers/application.js). */
+    /* Legacy entry point — boards page now links to /board-picker instead
+       of inline selection mode. Kept so any stale callers still land on
+       the dedicated picker. */
     toggleSetHomeMode: function() {
-      this.toggleProperty('selectingHome');
+      var modelId = this.get('model.id');
+      var currentId = this.appState.get('currentUser.id');
+      if (modelId && currentId && modelId != currentId) {
+        this.get('router').transitionTo('board-picker', { queryParams: { user_id: modelId } });
+      } else {
+        this.get('router').transitionTo('board-picker');
+      }
     },
     nothing: function() {
     },
@@ -1509,23 +1582,29 @@ export default Controller.extend({
     },
     remove_board: function(action, board) {
       var _this = this;
+      var refreshMine = function() {
+        /* Drop the TTL snapshot so update_selected re-queries instead of
+           treating the pre-mutation list as still fresh. */
+        boardsPageListCache.clear(_this.get('model.id'));
+        _this.update_selected();
+      };
       if(action == 'delete') {
         modal.open('confirm-delete-board', {board: board, redirect: false}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       } else if(action == 'delete_orphans') {
         board.name = board.board.name;
         modal.open('confirm-delete-board', {board: board, redirect: false, orphans: true}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       } else {
         modal.open('confirm-remove-board', {action: action, tag: _this.get('current_tag'), board: board, user: this.get('model')}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       }

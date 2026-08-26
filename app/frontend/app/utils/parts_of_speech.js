@@ -137,6 +137,143 @@ export function color_for_type(type, palette) {
   return null;
 }
 
+// ── Shared label → part-of-speech resolution ────────────────────────────
+//
+// Both the live board (controllers/user/board-detail.js#resolve_unknown_buttons)
+// and the board preview canvas need the SAME answer for "what colour is this
+// uncoloured button", or the preview shows a different board than the one the
+// user lands on. That answer comes from /api/v1/search/batch_parts_of_speech,
+// so the lookup lives here once, with a session-lifetime word cache in front of
+// it: a word is fetched at most once per page load no matter how many boards or
+// previews ask for it.
+//
+// `word_types` maps a raw word to its `types` array, or to `null` when the
+// server had no entry — caching the miss matters as much as caching the hit,
+// since AAC boards repeat the same closed-class words on every board.
+var word_types = {};
+var MAX_WORDS_PER_REQUEST = 100;
+
+// Highest-value type for a single word when several are listed. Distinct from
+// pick_aac_type: this runs over the types of the LAST meaningful word in a
+// multi-word label, where AAC override words don't apply.
+var MULTIWORD_PRIORITY = [
+  'verb', 'noun', 'nominative',
+  'negation', 'expletive',
+  'question',
+  'adjective', 'adverb',
+  'pronoun',
+  'social', 'interjection',
+  'preposition',
+  'conjunction', 'number', 'article', 'determiner'
+];
+
+// Types too weak to characterize a multi-word label ("in the box" is about the
+// box, not about "the").
+var WEAK_TYPES = ['article', 'determiner', 'preposition', 'conjunction'];
+
+export function best_type(types) {
+  if(!types || !types.length) { return null; }
+  for(var i = 0; i < MULTIWORD_PRIORITY.length; i++) {
+    if(types.indexOf(MULTIWORD_PRIORITY[i]) >= 0) { return MULTIWORD_PRIORITY[i]; }
+  }
+  return types[0];
+}
+
+// Split a label into the words we look up. Exported so callers can collect the
+// full word set for one batched request before resolving any label.
+export function words_for_label(label) {
+  if(!label) { return []; }
+  return String(label).split(/\s+/).filter(function(w) { return !!w; });
+}
+
+// The part of speech for a whole label, given a word -> types lookup.
+// Single word: the AAC-preferred type (honours the override map).
+// Multi word: a leading verb wins; otherwise the last non-weak word decides.
+export function pos_for_label(label, lookup) {
+  var words = words_for_label(label);
+  if(!words.length) { return null; }
+  var types_for = function(w) { return (lookup && lookup[w]) || []; };
+  if(words.length === 1) {
+    return pick_aac_type(types_for(words[0]), words[0]);
+  }
+  var first = types_for(words[0]);
+  if(first.length > 0 && first[0] === 'verb') { return 'verb'; }
+  for(var i = words.length - 1; i >= 0; i--) {
+    var picked = best_type(types_for(words[i]));
+    if(picked && WEAK_TYPES.indexOf(picked) < 0) { return picked; }
+  }
+  return best_type(types_for(words[words.length - 1]));
+}
+
+// Synchronous view of the cache — the POS for a label whose words have all been
+// fetched already, or null if anything is still unknown. Lets a caller paint
+// immediately on a warm cache and skip the request entirely.
+export function cached_pos_for_label(label) {
+  var words = words_for_label(label);
+  if(!words.length) { return null; }
+  for(var i = 0; i < words.length; i++) {
+    if(!Object.prototype.hasOwnProperty.call(word_types, words[i])) { return null; }
+  }
+  return pos_for_label(label, word_types);
+}
+
+export function words_needing_lookup(labels) {
+  var missing = [], seen = {};
+  (labels || []).forEach(function(label) {
+    words_for_label(label).forEach(function(w) {
+      if(seen[w]) { return; }
+      seen[w] = true;
+      if(!Object.prototype.hasOwnProperty.call(word_types, w)) { missing.push(w); }
+    });
+  });
+  return missing;
+}
+
+// Fetch every not-yet-known word behind `labels` and resolve with a
+// label -> part-of-speech map (labels with no determinable type are omitted).
+// `ajax` is the caller's persistence.ajax — passed in rather than imported so
+// this module stays a pure utility. A failed chunk resolves rather than
+// rejects: a partial answer beats no colours at all.
+export function resolve_labels_pos(labels, ajax, RSVP) {
+  var list = (labels || []).filter(function(l) { return !!l; });
+  var build = function() {
+    var res = {};
+    list.forEach(function(label) {
+      var pos = pos_for_label(label, word_types);
+      if(pos) { res[label] = pos; }
+    });
+    return res;
+  };
+  var missing = words_needing_lookup(list);
+  if(!missing.length || !ajax) { return RSVP.resolve(build()); }
+  var fetch_chunk = function(start) {
+    var chunk = missing.slice(start, start + MAX_WORDS_PER_REQUEST);
+    if(!chunk.length) { return RSVP.resolve(build()); }
+    return ajax('/api/v1/search/batch_parts_of_speech', {
+      type: 'GET',
+      data: { words: chunk.join(',') }
+    }).then(function(res) {
+      var results = (res && res.results) || {};
+      chunk.forEach(function(w) {
+        var entry = results[w];
+        // Cache misses too — an unknown word must not be re-requested by the
+        // next board that happens to use it.
+        word_types[w] = (entry && entry.types) || null;
+      });
+      return fetch_chunk(start + MAX_WORDS_PER_REQUEST);
+    }, function() {
+      chunk.forEach(function(w) { word_types[w] = null; });
+      return fetch_chunk(start + MAX_WORDS_PER_REQUEST);
+    });
+  };
+  return fetch_chunk(0);
+}
+
+// Test seam — drops the session word cache.
+export function reset_pos_cache() {
+  word_types = {};
+}
+
 // Combined: pick the AAC-preferred type AND its matching Fitzgerald color
 // from the given palette. Returns { type, color } or null. If `word` is
 // provided, the AAC override map is consulted first. If the picked type

@@ -14,10 +14,22 @@ export default Component.extend({
                     (modalService && modalService.settingsFor && modalService.settingsFor[template]) ||
                     this.get('model') || {};
     this.set('model', options);
+    this._bindHandlers();
   },
 
-  didInsertElement() {
-    this._super(...arguments);
+  /*
+   * init(), NOT didInsertElement(): every one of these is passed to the template
+   * as an argument that is read DURING render —
+   * `<BetaFeedbackPanel @onClose={{this.onClose}} @onCancel={{this.onCancel}}
+   * @onSubmitSuccess={{this.onSubmitSuccess}} />` — and the panel gates its close
+   * button on `{{#if @onClose}}` (beta-feedback-panel.hbs:46).
+   *
+   * Assigned in didInsertElement they were all `undefined` at render, so the
+   * close button was never RENDERED at all (not merely dead), and the form's
+   * cancel / submit-success callbacks were dead too. Found by
+   * scripts/modal-audit-qa.mjs reporting hasCloseButton:false.
+   */
+  _bindHandlers() {
     var self = this;
     this.onClose = function() {
       self.send('close');
