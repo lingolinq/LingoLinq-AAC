@@ -6102,7 +6102,7 @@
     {
       "id": "LL-7784f74447",
       "ruleKey": "art50-memo-population-scope-claims-no-real-eu-users-in-production",
-      "title": "Attested AI Governance Memo justifies deferring the Article 50 gate \"because prod carries no real EU users (internal/test accounts only)\" without a stated basis",
+      "title": "Attested AI Governance Memo makes an unevidenced population claim (\"because prod carries no real EU users\") load-bearing for deferring the Article 50 gate -- an EVIDENCE-BASIS defect, not a falsified fact",
       "severity": "medium",
       "confidence": "high",
       "frameworks": [
@@ -6128,7 +6128,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. The predecessor offered this only as a forward-looking deferral rationale, with no population read behind it. A 2026-08-23 read found all 34 production accounts are test/QA accounts, which happens to support the conclusion but was not the evidence the predecessor had. An unevidenced population claim load-bearing for a regulatory deferral is the defect, independent of it turning out true. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 4), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. The predecessor offered this only as a forward-looking deferral rationale, with no population read behind it. A 2026-08-23 read found all 34 production accounts are test/QA accounts, which happens to support the conclusion but was not the evidence the predecessor had. An unevidenced population claim load-bearing for a regulatory deferral is the defect, independent of it turning out true. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 4), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding. CLASSIFICATION, clarified 2026-08-25 after review: this row is the one member of this set that is NOT a falsified assertion. The later production read SUPPORTS the underlying population fact. The defect is that the predecessor had no contemporaneous evidentiary basis for a claim doing regulatory work. Describe it as an evidence/provenance finding; do not cite it as a falsity."
     },
     {
       "id": "LL-5f0a016e2b",
@@ -6191,7 +6191,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248). The jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21. The job runs and matches zero rows. This is an ENFORCEMENT overstatement, not a retention violation: Article 50 requires the logs be kept, and they are. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 6), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding."
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-25. purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248). The jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21. The job runs and matches zero rows. This is an ENFORCEMENT overstatement, not a retention violation. Corrected in the Path A successor docs/legal/2026-08-24_ai-governance-memo.md (DOC-506bbe2039, corrections row 6), which is a DRAFT and carries no attestation. This row stays OPEN until Scot attests that successor; only Scot closes a finding. NOTE ON LEGAL BASIS (added 2026-08-25 after review): the predecessor's \"Basis\" column attributes this tier to \"EU AI Act Article 50 record-keeping\". That attribution is INHERITED, not endorsed here, and is flagged as an open question for counsel: Article 50 is the AI Act's transparency provision and nothing in this record establishes that it imposes a five-year AiApiLog retention duty. This correction is scoped to the ENFORCEMENT claim only and takes no position on the legal basis. WINDOW CLAIM, tightened 2026-08-25 after review: the binding fact is the TABLE's age, not the stamp. ai_api_logs was created 2026-02-21 (db/migrate/20260221000001_create_ai_api_logs.rb), so no row can be five years old before 2031-02-21; write-time-stamped rows cannot qualify before 2031-06-21. A backfill or manual UPDATE stamping older rows could make one eligible sooner; no such backfill exists (no update_all touching jurisdiction). The earlier phrasing \"cannot delete any row before 2031-06-21\" was an overstatement."
     },
     {
       "id": "LL-ad67eecb9c",
