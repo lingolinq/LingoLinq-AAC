@@ -214,7 +214,7 @@ describe('focus-words Article 50 gate', function() {
       });
     });
 
-    it('dispatches normally when the flag is off, so the non-EU and pre-enable paths are unchanged', function() {
+    it('dispatches normally when the flag resolves off for this user, so the non-EU and flag-off paths are unchanged (code-default path, not the production state)', function() {
       stub(persistence, 'ajax', function(url) {
         ajaxCalls.push(url);
         return RSVP.resolve({words: 'a,b,c'});

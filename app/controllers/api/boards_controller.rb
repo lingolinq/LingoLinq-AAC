@@ -576,11 +576,19 @@ class Api::BoardsController < ApplicationController
     # EU AI Act Article 50(1) server-side backstop (Phase 3 Plan 03-04, T-03-04-01;
     # shared helper LL-6723438462): a client that skips the ai-disclosure modal and
     # calls this endpoint directly must still be refused. The feature-flag check
-    # inside the helper is load-bearing (T-03-04-02): 'article_50_disclosure' is
-    # AVAILABLE-only as of this writing, so the guard is inert until the flag is
-    # enabled -- shipping an active backstop before the modal is enabled would lock
-    # EU and unknown-jurisdiction users out of board generation with no way to
-    # unblock themselves.
+    # inside the helper is load-bearing (T-03-04-02). NOTE: 'article_50_disclosure'
+    # is registered AVAILABLE-only in lib/feature_flags.rb, but that describes CODE,
+    # not production. Production serves it from the default_enabled_features DB
+    # Setting, which overrides the code constant, and a direct read on 2026-08-23
+    # found the flag ENABLED for all 34 then-existing accounts. So this guard is
+    # LIVE in production, not inert. Two limits, per the sibling comment: an org's
+    # settings['enabled_features'] wins over the default row even when empty, so a
+    # district override can put this guard back to inert for that org's users; and
+    # the 2026-08-23 figure is a dated snapshot, not a guarantee that every future
+    # user or org inherits it. An earlier version of this comment said it was
+    # "inert until the flag is enabled"; that was true of the code and false of the
+    # running system. See docs/legal/2026-08-23_article-50-production-flag-verification.md
+    # and application_controller.rb#article_50_disclosure_missing? for the same note.
     return unless require_article_50_disclosure!
 
     processed_params, json_body_source = board_json_body_params_source

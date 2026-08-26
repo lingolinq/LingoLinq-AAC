@@ -39,6 +39,9 @@ file (see [README.md](README.md)).
 - [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
 - [Gotcha: the metadata table is not the signed attestation — write the statement, then pin](#gotcha-the-metadata-table-is-not-the-signed-attestation--write-the-statement-then-pin)
 - [Gotcha: a Path A correction must convert leftover present-tense operational bullets, not only the headline claim](#gotcha-a-path-a-correction-must-convert-leftover-present-tense-operational-bullets-not-only-the-headline-claim)
+- [Gotcha: a SHA-pinned citation must use the line numbers at that SHA, not HEAD](#gotcha-a-sha-pinned-citation-must-use-the-line-numbers-at-that-sha-not-head)
+- [Gotcha: flag-enabled is not proof the disclosure modal was shown](#gotcha-flag-enabled-is-not-proof-the-disclosure-modal-was-shown)
+- [Gotcha: appending a ledger correction leaves the heading stale](#gotcha-appending-a-ledger-correction-leaves-the-heading-stale)
 - [Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`](#gotcha-redact_for_ai-on-the-sentence-does-not-automatically-cover-interpolated-contexttopic)
 - [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
@@ -6373,7 +6376,7 @@ flag — no user/org scope) skips every consent check on a cache HIT; the genera
 `ai_feature_enabled_for?` only runs on MISS. Specs that only exercise the miss path pass against
 the broken code. Mutation-test cache-hit 403 examples: revert the controller gate, confirm red
 (200 + cached words), restore, confirm green. Mirror `boards_controller#generate_labels` for the
-gate + Article 50 backstop (`article_50_disclosure` is AVAILABLE-only — do not enable it just to
+gate + Article 50 backstop (`article_50_disclosure` is registered AVAILABLE-only in CODE, but production ENABLES it via the `default_enabled_features` DB Setting -- verified 2026-08-23, see `docs/legal/2026-08-23_article-50-production-flag-verification.md`; do not enable or disable it just to
 exercise the backstop). See `docs/task-management/2026-08-07-focus-words-consent-gate.md`.
 
 ## Pattern: every external-model call site must gate the same way (COPPA + org opt-out + PiiScrubber + AiApiLog)
@@ -12545,6 +12548,35 @@ Override per-run rather than reviewing on the wrong tier:
 #848 within ~5 minutes each, then never reviewed the fourth. Zero inline findings on
 a head are *inconclusive* — a successful clean review also produces none. Check the
 review list's `commit_id` before reading silence as a skip *or* as approval.
+
+## Gotcha: a SHA-pinned citation must use the line numbers at that SHA, not HEAD
+
+On PR #863 Codex flagged `lib/feature_flags.rb:147` / `:170-173` in three 2026-08-22
+successors that explicitly scoped the claim to commit `64cdccba1`. At that commit
+`effective_enabled_for` is on line 132 and `feature_enabled_for?` is at 155-158;
+HEAD had moved because this branch inserted comments above those methods. Updating
+a pinned citation to "wherever it is now" makes the pin a lie. Either keep the
+historical range with the historical SHA, or attach the new range to a new SHA.
+`git show <sha>:path | nl` is the check.
+
+## Gotcha: flag-enabled is not proof the disclosure modal was shown
+
+`User#article_50_disclosure_shown?` is a settings bit
+(`app/models/user.rb:1538-1545`). The allowlisted writers are `modal_ack` and
+`admin_backfill` (`:1550`); `users_controller#article_50_disclosure_ack` (`:957-967`)
+records `modal_ack` with only an edit-permission check. A production read that
+counts that bit, or `AiApiLog.article_50_disclosure_shown`, does not prove the UI
+rendered and does not by itself prove the feature flag was on. Enablement evidence
+is `Setting.get('default_enabled_features')` plus `feature_enabled_for?`. Display
+evidence would be acknowledgement AuditEvents or UI telemetry.
+
+## Gotcha: appending a ledger correction leaves the heading stale
+
+`audit-reports/CAPABILITY-LEDGER.json` `capability` is the row heading in
+`docs/legal/CAPABILITY_LEDGER.md`. An appended `[CORRECTED …]` on `claimLanguage`
+does not change what consumers see first. Rewrite the primary fields
+(`capability`, `claimLanguage`, `antiClaim`) to present-tense dated status; keep
+history in those fields rather than as a contradicting trailer.
 
 ### A source-level fix plus a green unit test is not evidence that a user path works
 

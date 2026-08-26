@@ -395,7 +395,7 @@ class ApplicationController < ActionController::Base
   #
   # DO NOT read the source constants as the flag's runtime state. 'article_50_disclosure'
   # is AVAILABLE-only (not in ENABLED_FRONTEND_FEATURES). FeatureFlags.frontend_flags_for
-  # (lib/feature_flags.rb:130-146) gets the effective list from
+  # (lib/feature_flags.rb:145-147) gets the effective list from
   # SystemFeatureSettings.effective_enabled_for (lib/system_feature_settings.rb:84-88):
   # a managing organization's settings['enabled_features'] wins when present -- even as
   # an empty array -- and only then does the site-wide Setting row
