@@ -1703,7 +1703,11 @@ export default Controller.extend(prefClasses, {
          this change's business.) Carried as a separate flag so the grid can group these
          three cells as Predictions instead of filing them by colour with the Connectors,
          and so nothing about activation moves. */
-      suggestion_slot: btn.vocalization === ':suggestion'
+      suggestion_slot: btn.vocalization === ':suggestion',
+      /* The button's label in the board's OWN source locale — `label` above is already
+         localized. `category_for_button` files YES and TIME off this, so translating a
+         board cannot move a button between categories. */
+      base_label: btn.label
     };
   },
 
@@ -1981,6 +1985,7 @@ export default Controller.extend(prefClasses, {
          ordinary white word button and files it by colour, which on the core boards puts
          three cells that change under the user in the middle of the Connectors. */
       suggestion_slot: (btn.vocalization === ':suggestion') || !!btn.suggestion_slot,
+      base_label: btn.base_label != null ? btn.base_label : btn.label,
       empty: !(btn.label || btn.image_id)
     };
   },
@@ -2013,6 +2018,7 @@ export default Controller.extend(prefClasses, {
        which builds a plain object and so keeps the field — puts them in Predictions. Two
        makers, one rule; both have to say it. */
     button.set('suggestion_slot', !!btn.suggestion_slot);
+    button.set('base_label', btn.base_label != null ? btn.base_label : btn.label);
     if(btn.background_color && window.tinycolor) {
       button.set('border_color', window.tinycolor(btn.background_color).darken(20).toRgbString());
     }
@@ -5590,7 +5596,17 @@ export default Controller.extend(prefClasses, {
          that reaches the action directly — the template gate is the UX, this is the
          invariant (see LEARNINGS: gated actions need both a template and a JS gate). */
       if(!this.get('categorize_enabled')) { return; }
-      this.set('category_move_button', btn);
+      /* TEMPORARILY DISABLED. Clicking a button in the Categorize panel used to open the
+         move picker; the move itself is being reworked (it repaints the button with the
+         target category's swatch, which is the wrong mechanism for categories that are not
+         defined by colour). Left as a single commented line rather than removing the
+         action, so the gates above, `cancel_category_move`, `move_button_to_category` and
+         the picker markup all stay wired and this is a one-line restore.
+
+         While this is commented out `category_move_button` stays null, so the picker
+         template (`{{#if this.category_move_button}}`) never renders and a click on a
+         button in the panel does nothing. */
+      // this.set('category_move_button', btn);
     },
 
     cancel_category_move: function() {

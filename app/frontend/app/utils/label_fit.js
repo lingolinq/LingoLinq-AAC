@@ -598,6 +598,40 @@ function batchedFit(items, basePx) {
     }
   }
 
+  /* Category headers are sized as a SET, not one at a time.
+     `fitSingleLineFrom` shrinks each label until it fits its own box, and it only ever
+     shrinks — `it.base` (the CSS 16px) is a ceiling, never a target. Left per-label that
+     makes header size a function of word length: SOCIAL, six characters in a one-column
+     tile, came out smaller than KEYS and TIME beside it, and YES came out larger than
+     NO'S AND DONT'S. The headers are a system — they are what makes a group identifiable
+     at a glance — so a row of them at four different sizes reads as a mistake.
+
+     Grouped by COLUMN rather than board-wide: the notch and each band are laid out
+     independently, and one very long name in one of them should not shrink every header
+     on the board. Smallest wins within the column, because the smallest is the only size
+     known to fit every box in it. */
+  var byColumn = [];
+  for(i = 0; i < items.length; i++) {
+    it = items[i];
+    if(!isGroupName(it.el)) { continue; }
+    var column = (it.el.closest && it.el.closest('.md-board-detail-grid__column')) || null;
+    var slot = null;
+    for(var c = 0; c < byColumn.length; c++) {
+      if(byColumn[c].column === column) { slot = byColumn[c]; break; }
+    }
+    if(!slot) { slot = { column: column, items: [] }; byColumn.push(slot); }
+    slot.items.push(it);
+  }
+  for(var b = 0; b < byColumn.length; b++) {
+    var group = byColumn[b].items;
+    if(group.length < 2) { continue; }
+    var smallest = group[0].chosen;
+    for(i = 1; i < group.length; i++) {
+      if(group[i].chosen < smallest) { smallest = group[i].chosen; }
+    }
+    for(i = 0; i < group.length; i++) { group[i].chosen = smallest; }
+  }
+
   /* WRITE: the final value — or nothing, when the label fits at its CSS size. */
   for(i = 0; i < items.length; i++) {
     it = items[i];
@@ -650,6 +684,31 @@ export default {
       if(el._lf_sig === sig) { continue; }
       work.push({ el: el, sig: sig });
     }
+    /* The header set above is only consistent if the whole set is in the batch. `apply`
+       normally skips a label whose signature is unchanged, which on a re-fit could leave
+       one header out and size the rest against a minimum it never contributed to — the
+       headers would then disagree until something re-rendered them all. So if ANY header
+       is being fitted, fit all of them. */
+    var refit_headers = false;
+    for(var h = 0; h < work.length; h++) {
+      if(!work[h].empty && isGroupName(work[h].el)) { refit_headers = true; break; }
+    }
+    if(refit_headers) {
+      for(var q = 0; q < labels.length; q++) {
+        var hel = labels[q];
+        if(!hel || !isGroupName(hel)) { continue; }
+        var already = false;
+        for(var r = 0; r < work.length; r++) {
+          if(work[r].el === hel) { already = true; break; }
+        }
+        if(already) { continue; }
+        var htext = labelText(hel);
+        if(!htext) { continue; }
+        hel._lf_sig = null;
+        work.push({ el: hel, sig: null });
+      }
+    }
+
     var items = [];
     for(var j = 0; j < work.length; j++) {
       if(work[j].empty) {

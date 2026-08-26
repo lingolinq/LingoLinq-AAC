@@ -79442,17 +79442,27 @@ span.md-board-detail-modeling-btn--paused:hover {
   margin-right: 0;
 }
 
-/* A notch tile spanning more than one column has more track than its tray needs — the
-   tracks charge the tile chrome once each, and a wider tile pays it once — so the tray
-   CENTRES and the surplus lands as symmetric frame. The keyboard's track is solved to fit
-   its tray exactly, so nothing moves there. Without this the tray sits at the flex column's
-   cross-axis start and the whole surplus piles up on the right, which is what the
-   ten-column keyboard used to do with 216px of it.
+/* A notch tile spanning more than one column has more track than a fixed-width tray needs —
+   the tracks charge the tile chrome once each, and a wider tile pays it once. That surplus
+   used to be CENTRED as symmetric frame, which left Predictions and No's and Dont's sitting
+   inside their own tiles with a margin either side while every band tile filled its row.
+
+   They FILL instead, which is the same rule the rest of the categorised board follows: each
+   row fills its own width, so a tile using fewer columns grows its buttons rather than
+   leaving dead board (see the DESIGN DECISION note at the `--bd-btn-w` site). `width: 100%`
+   overrides the tray-width calc above; the margins go to 0 so nothing is left to centre.
+
+   The keyboard is unaffected either way: its track is solved to hold its tray exactly, so
+   100% and the calculated width are the same number. What this must NOT reintroduce is the
+   old failure where a fixed-width tray sat at the flex column's cross-axis start and piled
+   the whole surplus on the right — filling the track removes the surplus rather than
+   redistributing it, so there is none to pile up.
    (0,4,0), so it beats the width rules above without depending on source order. */
 .md-board-detail-grid--compact-scroll .md-board-detail-grid__column--region > .md-board-detail-grid__group > .md-board-detail-grid__group-body,
 .md-board-detail-grid--compact-scroll .md-board-detail-grid__column--region > .md-board-detail-grid__group > .md-board-detail-grid__group-header {
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .md-board-detail-grid--compact-scroll .md-board-detail-grid__group-body {

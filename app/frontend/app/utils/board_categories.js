@@ -83,7 +83,7 @@ export const BOARD_CATEGORIES = [
     // it would drop this category out of any order already saved. Label only.
     key: 'no_not',
     labelKey: 'board_category_nos_donts',
-    defaultLabel: "No's and Don'ts",
+    defaultLabel: "No's and Dont's",
     types: ['negation', 'expletive'],
     fillVar: '--fitzgerald-negation-red',
     textVar: '--fitzgerald-negation-red-text'
@@ -149,6 +149,30 @@ export const BOARD_CATEGORIES = [
     own_row: true
   },
   {
+    /* YES on its own, because an AAC "yes" is not a verb. On a real board it is Fitzgerald
+       verb green, so the colour rule filed it in Actions — in the middle of the verbs, the
+       one place a user answering a question will not look. Membership is the AUTHORED-LABEL
+       rule in `category_for_button`, so the button KEEPS its green and nothing about the
+       Fitzgerald key changes; the swatch here only dresses the tile's header and ring. */
+    key: 'yes',
+    labelKey: 'board_category_yes',
+    defaultLabel: "Yes",
+    types: [],
+    fillVar: '--fitzgerald-verb-green',
+    textVar: '--fitzgerald-verb-green-text'
+  },
+  {
+    /* TIME: the "give me time to answer" phrase — a conversational control, not vocabulary.
+       It is WHITE on a real board, and white is the Connectors colour, so it sat among
+       "the / and / with". Same mechanism as Yes: authored label, colour untouched. */
+    key: 'time',
+    labelKey: 'board_category_time',
+    defaultLabel: "Time",
+    types: [],
+    fillVar: '--fitzgerald-conjunction-white',
+    textVar: '--fitzgerald-conjunction-white-text'
+  },
+  {
     // Board buttons whose vocalization is a special action (':clear', ':speak',
     // ':backspace', ':beep' -- see LingoLinq.special_actions, utils/button.js:1489).
     // These are BOARD CONTENT, not the sentence bar: the sentence bar and sidebar
@@ -209,10 +233,12 @@ export const BOARD_CATEGORIES = [
  *   i18n.t('board_category_places', "Places");
  *   i18n.t('board_category_questions', "Questions");
  *   i18n.t('board_category_social', "Social");
- *   i18n.t('board_category_nos_donts', "No's and Don'ts");
+ *   i18n.t('board_category_nos_donts', "No's and Dont's");
  *   i18n.t('board_category_connectors', "Connectors");
  *   i18n.t('board_category_keyboard', "Keyboard");
  *   i18n.t('board_category_predictions', "Predictions");
+ *   i18n.t('board_category_yes', "Yes");
+ *   i18n.t('board_category_time', "Time");
  *   i18n.t('board_category_controls', "Controls");
  *   i18n.t('board_category_extra', "Extra");
  *   i18n.t('board_category_things', "Things");
@@ -460,6 +486,28 @@ export function swatch_for_category(key) {
  * and what a therapist points at. Grouping by anything else puts a yellow button
  * in an orange panel, which is worse than not grouping at all.
  */
+/*
+ * Affirmations in the locales this app ships, plus the English spoken variants. Compared
+ * against the AUTHORED label, lower-cased with accents and punctuation stripped.
+ */
+const YES_LABELS = [
+  'yes', 'yeah', 'yep', 'yup', 'yes please',
+  'si', 'oui', 'ja', 'sim', 'tak', 'da',
+  'naam', 'hai', 'shi', 'dui', 'ta', 'seadh'
+];
+
+/* The "hold the floor" phrase, matched as a prefix: boards word it differently and every
+   variant is the same button doing the same job. */
+const TIME_LABEL_PATTERN = /^give me (a )?(time|minute|moment|second)/;
+
+/* Lower-case, strip accents, drop anything that is not a letter, digit or single space. */
+function normalize_label(value) {
+  if(value == null) { return ''; }
+  let text = String(value).toLowerCase();
+  if(text.normalize) { text = text.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  return text.replace(/[^\p{L}\p{N} ]/gu, '').replace(/\s+/g, ' ').trim();
+}
+
 export function category_for_button(btn) {
   if(!btn) { return 'extra'; }
 
@@ -497,6 +545,19 @@ export function category_for_button(btn) {
   if(btn.load_board) {
     const lb_key = btn.load_board.key || btn.load_board.id || '';
     if(typeof lb_key === 'string' && /(^|[-_/])keyboard(_\d+)?$/i.test(lb_key)) { return 'keyboard'; }
+  }
+
+  /* YES and TIME, on the AUTHORED label and therefore BEFORE the colour rule — both are
+     mis-filed by colour, and neither has a part of speech that separates it.
+
+     The authored label, never the displayed one: `base_label` is the button's label in the
+     board's own source locale, stamped by board-detail while the raw button is still
+     readable. Translating a board rewrites `label` but not `base_label`, so a Spanish board
+     keeps `yes` in Yes instead of scattering it back into Actions. */
+  const base = normalize_label(btn.base_label != null ? btn.base_label : btn.label);
+  if(base) {
+    if(YES_LABELS.indexOf(base) >= 0) { return 'yes'; }
+    if(TIME_LABEL_PATTERN.test(base)) { return 'time'; }
   }
 
   const hex = normalize_color(btn.background_color);
@@ -1437,7 +1498,30 @@ function continue_into_lifted_row(bands, notch_groups, donated, notch_w, kb_h, c
  *
  * Stable for everything else: the remaining tiles keep their relative order exactly.
  */
-const NOTCH_TAIL_KEYS = ['keyboard_extra', 'social', 'predictions'];
+const NOTCH_TAIL_KEYS = ['social', 'predictions', 'yes', 'no_not', 'time', 'keyboard_extra'];
+
+/*
+ * SCROLLING ONLY. The controls row: one full-width row directly above the keyboard, in this
+ * order, replacing the notch beside it.
+ *
+ * The notch existed because the keyboard was ten columns of a fourteen-column board and
+ * something had to fill the four beside it. Giving the key block the FULL width removes that
+ * problem rather than solving it — the keys get wider, the controls get a row of their own
+ * where they read left to right like everything else, and the two-dimensional
+ * notch-plus-keyboard shape disappears.
+ *
+ * The keyboard pays for the row by spanning two board rows instead of three. Its inner grid
+ * still has all three QWERTY rows — a speller navigates that block by POSITION, so reflowing
+ * it to two rows of fifteen would move every key — the keys are simply shorter, which they
+ * can afford: they are the tallest buttons on the board.
+ */
+const CONTROL_ROW_KEYS = ['predictions', 'yes', 'no_not', 'social', 'time', 'keyboard_extra'];
+
+/* The two that share whatever the row has left, as evenly as it divides. */
+const CONTROL_ROW_STRETCH = ['time', 'keyboard_extra'];
+
+/* Board rows the key block spans in the controls-row layout. */
+const KEYBOARD_BOARD_ROWS = 2;
 
 /*
  * The notch's FOOT: the one-button controls, stacked under the vocabulary block.
@@ -1453,9 +1537,14 @@ const NOTCH_TAIL_KEYS = ['keyboard_extra', 'social', 'predictions'];
  * a pinned group while the row was opened by an unpinned one, so the run can only ever
  * close its OWN rows.
  *
- * ORDER inside the run: donated spills first, then the Keys folder, then Social, then
- * Predictions. The folder sits immediately left of the key block it opens, and Social falls
- * to the row beneath it.
+ * ORDER inside the run: donated spills first, then Social, then the Keys folder, then Time,
+ * then Predictions, then Yes, then No's and Dont's. Time sits immediately LEFT of the Keys
+ * folder (consecutive one-wide tiles share a row while the row has width for them); Yes and
+ * No's and Dont's close the notch on the bottom row, in that order.
+ *
+ * No's and Dont's is in the run even though it is a two-button block rather than a control.
+ * Unpinned it opened the notch's FIRST row and everything else stacked beneath it; pinned at
+ * the end it falls to the bottom row beside Yes, which is where it was asked for.
  * (It used to be Social then the folder, on a single shared row. That was right while the
  * notch was packed to its full four columns; at the narrower width the render pack now uses
  * it puts Social on a row of its own, which is where Traci asked for it.)
@@ -1579,7 +1668,24 @@ export function pack_category_tiles(groups, columns, options) {
      tracks — the keys come out smaller than the vocabulary buttons, but the layout a
      speller navigates by position survives, which is the whole reason the keyboard is
      placed rather than flowed. Every other tile has inner tracks == span. */
-  const kb_span = Math.min(cols, kb_w);
+  /* A KEY BLOCK, not merely a keyboard category. `is_keyboard` is also carried by a board
+     whose only keyboard button is the FOLDER that opens a keyboard elsewhere — the common
+     case on a vocabulary board — and that group is one button with no QWERTY position, so
+     `kb_w` and `kb_h` are both 1.
+
+     Everything below this line reshapes the board around a real 10x3 block: the full width,
+     the two-row span, and pulling the controls out of the band planning. Applied to a folder
+     it stretched a single button across all fourteen columns and re-planned every band
+     underneath it — measured on a real board, five vocabulary tiles moved. So the new layout
+     is gated on there actually being keys to lay out; a folder-only board keeps exactly the
+     geometry it had. */
+  const has_key_block = !!kb && kb_h > 1 && kb_w > 1;
+  const controls_layout = !!(opts.scrolling && has_key_block);
+
+  /* Scrolling takes the whole width for the key block (see CONTROL_ROW_KEYS): with no
+     columns left beside it there is no notch, and `notch_w` below falls to 0 on its own. */
+  const kb_span = controls_layout ? cols : Math.min(cols, kb_w);
+  const kb_rows = controls_layout ? Math.min(KEYBOARD_BOARD_ROWS, kb_h) : kb_h;
 
   /* Fill the notch to the LEFT of the keyboard from the tail of the order. Without this
      the bottom band is a keyboard with a hole beside it.
@@ -1590,6 +1696,22 @@ export function pack_category_tiles(groups, columns, options) {
      The recursion terminates because the sub-list never contains the keyboard.
 
      Take as many trailing categories as still pack within the keyboard's height. */
+  /* Taken out before `plan_bands` sees them: they are a fixed row, not something the band
+     search may reshape, and leaving them in would let the search spend them on filling a
+     vocabulary band. Everything else the bottom of the board used to carry — donation
+     spills, Controls, Extra — stays in `vocab` and packs into the bands above. */
+  const control_row = [];
+  if(controls_layout) {
+    CONTROL_ROW_KEYS.forEach(function(key) {
+      for(let i = 0; i < vocab.length; i++) {
+        if(vocab[i] && vocab[i].key === key) {
+          control_row.push(vocab.splice(i, 1)[0]);
+          break;
+        }
+      }
+    });
+  }
+
   const notch_w = kb ? (cols - kb_span) : 0;
   let notch_groups = [];
   let notch = null;
@@ -1690,6 +1812,41 @@ export function pack_category_tiles(groups, columns, options) {
     }
   }
 
+  /* The controls row, appended after every post-pass so none of them can reshape it:
+     `lift_own_row_tiles` would otherwise SPLIT it around Predictions, which carries
+     `own_row` for the band case and must not act here — this row IS its own row.
+
+     Widths are the button counts at a height of one, and whatever the row has left is
+     shared between Time and the Keys folder. Those two are single buttons that would
+     otherwise sit in one-column tiles at the end of a part-empty row; widened they close
+     the row and the two of them stay the same size as each other, which is what stops the
+     end of the row reading as ragged. An odd column goes to the LAST of them so the row
+     ends flush. */
+  if(control_row.length) {
+    const ctl = control_row.map(function(g) {
+      return { group: g, w: Math.max(1, tile_count(g)), donate: 0 };
+    });
+    let used = ctl.reduce(function(a, t) { return a + t.w; }, 0);
+    const stretch = ctl.filter(function(t) { return CONTROL_ROW_STRETCH.indexOf(t.group.key) >= 0; });
+    let spare = cols - used;
+    if(spare > 0 && stretch.length) {
+      const each = Math.floor(spare / stretch.length);
+      stretch.forEach(function(t) { t.w += each; });
+      let rest = spare - (each * stretch.length);
+      for(let i = stretch.length - 1; i >= 0 && rest > 0; i--) { stretch[i].w += 1; rest -= 1; }
+    } else if(spare < 0) {
+      /* Narrow board: shed from the widest tile down rather than overflowing the row. */
+      while(spare < 0) {
+        let widest = 0;
+        for(let i = 1; i < ctl.length; i++) { if(ctl[i].w > ctl[widest].w) { widest = i; } }
+        if(ctl[widest].w <= 1) { break; }
+        ctl[widest].w -= 1;
+        spare += 1;
+      }
+    }
+    plan.bands.push({ h: 1, tiles: ctl, no_edge_stretch: true });
+  }
+
   const tiles = [];
   /*
    * The same tiling, described a second way: as horizontal BANDS plus the keyboard REGION.
@@ -1770,19 +1927,22 @@ export function pack_category_tiles(groups, columns, options) {
         notch_used = Math.max(notch_used, t.col + t.w - 1);
       });
     }
-    tiles.push({ group: kb, col: cols - kb_span + 1, row: region_row, w: kb_span, h: kb_h, iw: kb_w, ih: kb_h });
+    /* `h` is board rows, `ih` is the key rows INSIDE. They were the same number until the
+       controls row took one: the block now spans `kb_rows` rows of the board while its inner
+       grid still has every QWERTY row, so the keys get shorter rather than moving. */
+    tiles.push({ group: kb, col: cols - kb_span + 1, row: region_row, w: kb_span, h: kb_rows, iw: kb_w, ih: kb_h });
     /* ONE track wide whatever the board thinks: the keyboard's ten key columns live INSIDE
        its tray (`--bd-tile-columns`, stamped from `iw`), and the region's last track is
        sized to hold exactly that tray. */
-    region_tiles.push({ group: kb, col: notch_used + 1, row: 1, w: 1, h: kb_h });
+    region_tiles.push({ group: kb, col: notch_used + 1, row: 1, w: 1, h: kb_rows });
     region = {
       row: region_row,
-      rows: Math.max(kb_h, notch ? notch.rows : 0),
+      rows: Math.max(kb_rows, notch ? notch.rows : 0),
       notch_cols: notch_used,
       kb_cols: kb_w,
       tiles: region_tiles
     };
-    row += kb_h;
+    row += kb_rows;
   }
 
   /* Tiles come out in READING order (band by band, left to right). DOM order is what

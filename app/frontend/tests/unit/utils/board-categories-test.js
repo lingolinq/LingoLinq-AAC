@@ -742,47 +742,53 @@ module('Unit | Utility | board_categories', function() {
       ' vs donated at ' + donated.col + ',' + donated.row + ')');
   });
 
-  test('the prediction slots CLOSE the notch, below Social, rather than heading it', function(assert) {
-    /* Predictions is a trailing category, so it lands in the notch beside the keyboard.
-       Unpinned it opened the notch's first free row and pushed the whole foot run down,
-       which read as the prediction slots heading the controls instead of closing them.
-       `own_row` cannot express "put this last" here: that flag is acted on by
-       `lift_own_row_tiles`, which splits a BAND, and a notch member never reaches band
-       planning — so Predictions is pinned at the end of the notch's foot run instead.
-
-       This fixture is chosen because it DISTINGUISHES the two orders: with Predictions
-       unpinned it packs at the top of the notch and Social two rows below it. A fixture
-       where the sizes happen to place it last either way proves nothing. */
+  test('scrolling puts the controls on one full-width row above a full-width keyboard', function(assert) {
+    /* The notch is gone in the scrolling variant. The keyboard takes the whole board width
+       and pays for it by spanning fewer board rows than it has key rows — its inner grid
+       still holds every QWERTY row, so the keys get shorter rather than moving — and the
+       categories that used to fill the notch beside it get a row of their own, in reading
+       order, directly above. The last two share whatever the row has left. */
     var kb = keyboard_group(3, 10);
     kb.buttons.push({ id: 'kb-folder', kb_row: 4, kb_col: 1 });
     kb.count = kb.buttons.length;
-    var groups = [cat('people', 10), cat('actions', 21), cat('describe', 20),
-                  cat('words', 16), cat('questions', 4), cat('how_when', 4),
-                  cat('places', 3), cat('no_not', 2), cat('social', 1),
-                  cat('predictions', 2), kb];
+    var groups = [cat('people', 13), cat('actions', 13), cat('describe', 12), cat('how_when', 12),
+                  cat('places', 8), cat('questions', 5), cat('social', 1), cat('no_not', 2),
+                  cat('words', 14), kb, cat('predictions', 3), cat('yes', 1), cat('time', 1),
+                  cat('things', 9)];
     var packed = pack_category_tiles(groups, 14, { scrolling: true });
 
-    var find = function(key) {
-      return packed.tiles.filter(function(t) { return t.group.key === key; })[0];
-    };
     var keyboard = packed.tiles.filter(function(t) { return t.group.is_keyboard; })[0];
-    var predictions = find('predictions');
-    var social = find('social');
     assert.ok(keyboard, 'the keyboard is placed');
-    assert.ok(predictions, 'the prediction slots get a tile');
-    assert.ok(social, 'Social gets a tile');
+    assert.strictEqual(keyboard.col, 1, 'the keyboard starts at the first column');
+    assert.strictEqual(keyboard.w, 14, 'the keyboard spans the whole board width');
+    assert.ok(keyboard.h < keyboard.ih,
+      'the key block spans fewer board rows (' + keyboard.h + ') than it has key rows (' +
+      keyboard.ih + '), so the keys are shorter rather than moved');
+    assert.strictEqual(keyboard.ih, 3, 'all three QWERTY rows survive inside the block');
 
-    assert.ok(predictions.col < keyboard.col, 'the prediction slots are in the notch');
-    assert.ok(predictions.row > social.row,
-      'the prediction slots sit BELOW Social (predictions row ' + predictions.row +
-      ' vs social row ' + social.row + ')');
-
-    // Nothing in the notch may come after them.
-    var below = packed.tiles.filter(function(t) {
-      return !t.group.is_keyboard && t.col < keyboard.col && t.row > predictions.row;
+    /* Nothing sits beside the keyboard — that is what "no notch" means. */
+    var beside = packed.tiles.filter(function(t) {
+      return !t.group.is_keyboard &&
+        t.row < keyboard.row + keyboard.h && t.row + t.h > keyboard.row;
     });
-    assert.strictEqual(below.length, 0,
-      'the prediction slots close the notch — nothing sits below them');
+    assert.strictEqual(beside.length, 0, 'no tile shares the keyboard rows');
+
+    /* The controls row, immediately above, in the order it was asked for. */
+    var controls = packed.tiles.filter(function(t) { return t.row === keyboard.row - 1; })
+      .sort(function(a, b) { return a.col - b.col; });
+    assert.deepEqual(controls.map(function(t) { return t.group.key; }),
+      ['predictions', 'yes', 'no_not', 'social', 'time', 'keyboard_extra'],
+      'the controls row reads predictions, yes, no_not, social, time, keys');
+
+    var width = controls.reduce(function(sum, t) { return sum + t.w; }, 0);
+    assert.strictEqual(width, 14, 'the controls row fills the board width');
+
+    /* Time and the Keys folder share whatever the row has left, as evenly as it divides. */
+    var time = controls.filter(function(t) { return t.group.key === 'time'; })[0];
+    var keys = controls.filter(function(t) { return t.group.key === 'keyboard_extra'; })[0];
+    assert.ok(Math.abs(time.w - keys.w) <= 1,
+      'Time (' + time.w + ') and Keys (' + keys.w + ') are within one column of each other');
+    assert.ok(time.w > 1 && keys.w > 1, 'both widened past a single column');
   });
 
   test('pack_category_tiles tolerates degenerate input', function(assert) {
