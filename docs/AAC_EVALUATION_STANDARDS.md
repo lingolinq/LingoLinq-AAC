@@ -88,6 +88,35 @@ unless noted. `cms.gov` and `emedny.org` both 403 a browser-style fetch but retu
   this document carried was substantially MassHealth's all along, attributed to the
   wrong states.
 
+**Federal — IDEA / school-mode (school reports only)**
+
+- **34 CFR Part 300** — binding regulation. §300.6 defines an AT service to include
+  *"a functional evaluation of the child in the child's customary environment"*;
+  §300.320(a)(4) requires the IEP to state the services provided; §300.324(a)(2)(v)
+  and (b)(2) require the IEP Team to **consider whether the child needs AT** at every
+  development, review and revision; §300.105(b) allows school-purchased AT to go home
+  where the Team says FAPE requires it. <https://www.ecfr.gov/current/title-34/part-300>
+- ***Myths and Facts Surrounding Assistive Technology Devices and Services.***
+  US Dept. of Education, OSEP + Office of Educational Technology, **January 2024**.
+  **NON-BINDING guidance**, 28 myth/fact pairs.
+  <https://sites.ed.gov/idea/files/Myths-and-Facts-Surrounding-Assistive-Technology-Devices-01-22-2024.pdf>
+  Accompanying Dear Colleague Letter, 2024-01-22, which names AAC devices explicitly:
+  <https://sites.ed.gov/idea/files/DCL-on-Myths-and-Facts-Surrounding-Assistive-Technology-Devices-01-22-2024.pdf>
+  Checked 2026-08-25: **"brand", "trade name", "manufacturer", "product name" and
+  "obligate" each appear 0 times.** See §2 — our "must not name a brand" rule was
+  never federal.
+- **IDEA Part B final regulations preamble, 71 FR 46540** (2006-08-14) — agency
+  interpretation, non-binding. At 46665: specificity in an IEP is *"an IEP Team's
+  decision"*. <https://www.govinfo.gov/content/pkg/FR-2006-08-14/pdf/06-6656.pdf>
+
+**Field convention — NOT law, cite as convention if you cite it at all**
+
+- The "describe by feature, not brand" practice is published by state and district
+  AT programs (Hawaii DOE; Wayne RESA, MI; Boulder Valley SD, CO) and is absent from
+  QIAT Indicator 3, the national quality-indicator set. At least one (Hill County
+  SSA, TX) states a specific model **may** be named where the team determines only
+  that model will meet the need.
+
 **Minnesota DHS — NO SOURCE LOCATED**
 
 - The 2026-08-14 draft attributed several requirements to "MN DHS," including the
@@ -163,12 +192,42 @@ producing.
 | Author | SLP (+ OT/PT input); SLP signs | Multidisciplinary team; IEP team decides |
 | Setting | Clinic + reported environments | **Customary environments required** (34 CFR 300.6(a)) |
 | Cost | Least-costly-alternative analysis **mandatory** | Absent |
-| Device naming | **Must** name make/model + HCPCS + accessories | **Must NOT name a brand** — naming a product in an IEP obligates the district to it |
+| Device naming | **Must** name make/model + HCPCS + accessories | **Convention: describe by feature, not brand** — see the correction below. This is NOT a federal rule |
 | Signatures | SLP license #, ASHA CCC #, physician | Team; no physician |
 
-> ⚠️ **This affects the Vocal Flair card we added to the report.** Putting
-> "Vocal Flair 84" in a school/IEP report is the exact anti-pattern above. It
-> should be gated to medical mode, and described by *feature* in school mode.
+> ⚠️ **This affects the Vocal Flair card we added to the report.** Gate it to
+> medical mode and describe by *feature* in school mode.
+>
+> **[UNSOURCED as federal law — corrected 2026-08-25.]** This row used to read
+> "Must NOT name a brand — naming a product in an IEP obligates the district to
+> it", stated as a rule. It is not one. Searched ED's current guidance,
+> *Myths and Facts Surrounding Assistive Technology Devices and Services*
+> (OSEP/OET, January 2024) — **"brand" appears 0 times**, as do "trade name",
+> "manufacturer", "product name" and "obligate". None of its 28 myth/fact pairs
+> concerns brand naming. Nor does 34 CFR Part 300 or the 2006 Part B preamble.
+> <https://sites.ed.gov/idea/files/Myths-and-Facts-Surrounding-Assistive-Technology-Devices-01-22-2024.pdf>
+>
+> Federal guidance in fact runs the OTHER way. **Myth 6**, verbatim: *"MYTH:
+> Specific AT decisions do not need to be included in the written IEP document.
+> FACT: IDEA requires the IEP to include a statement about a child's special
+> education, related services, and supplementary aids and services. If AT devices
+> and services are being made available … they must be included in the IEP."*
+> And the 2006 preamble (71 FR 46665) makes specificity **an IEP Team decision**,
+> not something forbidden.
+>
+> So why keep the convention? Because the *consequence* the field fears is real,
+> it just comes from a different rule: 34 CFR 300.323(d)/300.324 require the
+> district to implement the IEP **as written** and forbid unilateral change. Name
+> a product and the district is bound to that product. That is a good reason to
+> describe by feature — and a bad reason to tell an SLP that federal law forbids
+> naming one. Several states and districts publish the feature-not-brand
+> convention (Hawaii DOE, Wayne RESA, Boulder Valley), and at least one is
+> explicit that a specific model **may** be named where the team determines only
+> that model will do. QIAT Indicator 3, the national quality-indicator set,
+> contains no brand prohibition either.
+>
+> **Product consequence:** withholding the product card in school mode is still
+> the right default. Just do not defend it as a legal requirement.
 
 ---
 
