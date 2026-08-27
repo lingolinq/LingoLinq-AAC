@@ -188,6 +188,17 @@ def lint_register(path)
         # raises there instead of failing the finding cleanly.
         errors << "#{where}: evidence.line must be a number or null, got #{line.inspect}"
       end
+
+      # evidence.sha must be a FULL 40-hex commit id, never an abbreviation. citation-check
+      # resolves a prefix happily (`git show <prefix>:<path>` works), so a short sha passes
+      # today and silently becomes ambiguous as the repo grows -- the register is the audit
+      # SSOT, and "it resolved when I wrote it" is not the same guarantee as "it names one
+      # commit forever". audit-merge.rb writes whatever --sha it is handed, so the abbreviation
+      # enters here, not in the merger.
+      sha = f['evidence']['sha']
+      unless sha.nil? || sha.to_s.empty? || sha.to_s.match?(/\A[0-9a-f]{40}\z/)
+        errors << "#{where}: evidence.sha must be a full 40-character lowercase hex commit id, got #{sha.inspect}"
+      end
     end
   end
 
