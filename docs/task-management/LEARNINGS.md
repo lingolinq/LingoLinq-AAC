@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
 - [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
 - [Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one](#gotcha-source_part_of_speech-is-not-a-locale--process_buttons-500s-if-treated-as-one)
 - [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
@@ -3954,6 +3955,12 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 **Fix recipe:** Keep English Quick Core / Vocal Flair as canonical on `lingolinq/*`; `copy_for` → `WordData.translate_batch` → `translate_set` into `*-es` slugs so `image_id` is preserved. Provision with `rake lingolinq:provision_spanish_library_boards`; gate signup copies with `FeatureFlags.signup_spanish_library_boards_enabled?`.
 
 **Evidence:** `lib/spanish_library_boards.rb`, `lib/system_board_sources.rb`, `lib/user_board_provisioner.rb`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Gotcha: long-press overlay reads Language-tab inflections from the button translations array
+
+Language-tab 3×3 edits write `trans.inflections` on the **button.translations array**. `grid_for` used to read only `board.translations[id][locale]` (often label-only until save) and `button.inflections` (Rails deletes that when translation inflections exist). A filled Spanish grid then returned null, the overlay never opened, and `return true` swallowed the tap. Hold tracking also cancelled when `event.target` moved between nested img/label and the card. Fix: prefer the slot that actually has inflections; cancel the hold only when leaving the same `.button`. Tests: `edit_manager-test.js` `grid_for`. Task log: `2026-08-27-inflections-long-press.md`.
 
 ---
 

@@ -550,6 +550,67 @@ describe('editManager', function() {
     it("should open the pin confirmation dialog if protected", null);
   });
 
+  describe("grid_for", function() {
+    function localeAppState(label, vocalization) {
+      var app = editManager.appState || LingoLinq.appState;
+      if(app && typeof app.set === 'function') {
+        app.set('label_locale', label);
+        app.set('vocalization_locale', vocalization);
+      }
+    }
+
+    it("should build overlay slots from Language-tab translations when the board hash is empty", function() {
+      var button = editButton(board, 9, {
+        label: 'say',
+        vocalization: 'say',
+        part_of_speech: 'verb',
+        translations: [{
+          locale: 'es',
+          code: 'es',
+          label: 'decir',
+          inflections: ['digo', 'dices', 'dice', 'decimos', 'dicen', 'dije', 'diciendo', 'dicho']
+        }]
+      });
+      board.set('locale', 'en');
+      board.set('translations', { '9': { en: { label: 'say' }, es: { label: 'decir' } } });
+      setupEditBoard(board, [[button]]);
+      localeAppState('es', 'es');
+      var grid = editManager.grid_for(9);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.nw).toEqual('digo');
+      expect(byLoc.n).toEqual('dices');
+      expect(byLoc.ne).toEqual('dice');
+      expect(byLoc.w).toEqual('decimos');
+      expect(byLoc.e).toEqual('dicen');
+      expect(byLoc.sw).toEqual('dije');
+      expect(byLoc.s).toEqual('diciendo');
+      expect(byLoc.se).toEqual('dicho');
+      expect(byLoc.c).toEqual('decir');
+    });
+
+    it("should still use button.inflections for the current locale", function() {
+      var button = editButton(board, 4, {
+        label: 'walk',
+        part_of_speech: 'verb',
+        inflections: ['walked', 'walks', 'will walk', 'walking']
+      });
+      board.set('locale', 'en');
+      board.set('translations', {});
+      setupEditBoard(board, [[button]]);
+      localeAppState('en', 'en');
+      var grid = editManager.grid_for(4);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.nw).toEqual('walked');
+      expect(byLoc.n).toEqual('walks');
+      expect(byLoc.ne).toEqual('will walk');
+      expect(byLoc.w).toEqual('walking');
+    });
+  });
+
   describe("change_button", function() {
     it("should allow clearing known attributes on buttons", function() {
       var button = editButton(board, 123, { label: 'happen', chicken: true });

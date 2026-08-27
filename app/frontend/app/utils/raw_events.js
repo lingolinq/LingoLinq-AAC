@@ -1191,7 +1191,18 @@ var buttonTracker = EmberObject.extend({
     } else if(buttonTracker.buttonDown) {
       var elem_wrap = buttonTracker.track_drag(event);
       if(event.type != 'touchstart' && event.type != 'mousedown') {
-        if(event.type == 'touchend' || event.type == 'mouseup' || !buttonTracker.longPressEvent || event.target != buttonTracker.longPressEvent.long_press_target) {
+        // Cancel the hold only when the pointer leaves the same .button, not when
+        // mousemove/touchmove retargets from img/label onto the card (or vice versa).
+        // Identity on event.target was cancelling board-detail holds before 1500ms.
+        var ended = event.type == 'touchend' || event.type == 'mouseup';
+        var left_button = false;
+        if(buttonTracker.longPressEvent) {
+          var orig_target = buttonTracker.longPressEvent.long_press_target;
+          var orig_button = orig_target && (orig_target.closest ? orig_target.closest('.board .button') : $(orig_target).closest('.board .button')[0]);
+          var now_button = event.target && (event.target.closest ? event.target.closest('.board .button') : $(event.target).closest('.board .button')[0]);
+          left_button = !now_button || (orig_button && now_button !== orig_button);
+        }
+        if(ended || !buttonTracker.longPressEvent || left_button) {
           buttonTracker.longPressEvent = null;
           buttonTracker.shortPressEvent = null;
         } else if(!buttonTracker.appState.get('currentBoardState.id') || $(event.target).closest('.board .button').length == 0) {
