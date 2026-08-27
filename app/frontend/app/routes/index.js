@@ -9,7 +9,7 @@ import LingoLinq from '../app';
 import session from '../utils/session';
 import i18n from '../utils/i18n';
 import progress_tracker from '../utils/progress_tracker';
-import { onlyIfGenuinelyResolved, maybeShowSessionEntryGate } from '../utils/article50_gate';
+import { onlyIfGenuinelyResolved, maybeShowSessionEntryGate, sessionEntryGatePending } from '../utils/article50_gate';
 import sessionHistory from '../utils/session_history';
 
 export default Route.extend({
@@ -53,7 +53,42 @@ export default Route.extend({
       return RSVP.resolve(null);
     }
   },
+  // Where a user lands when there is no remembered page to resume (below).
+  // Supporters — SLPs/therapists/parents/teachers, all of whom the backend
+  // collapses to `preferences.role == 'supporter'` at signup (User#process_params)
+  // — work out of their caseload, so that is their default page; everyone else
+  // gets the dashboard as before.
+  //
+  // Gated on `_index_login_entry` (see beforeModel) so this is genuinely a
+  // "page you log in to": an in-app return to index (Exit Speak Mode from
+  // board-detail, EXIT BOARDS -> return_to_index) still lands on the dashboard.
+  //
+  // `supporter_role` is deliberately the same gate the Caseload pill uses
+  // (components/user-pill-nav.hbs, utils/dashboard_sections.js), so the default
+  // page is always one the user can see a pill for, and it is a strict subset of
+  // the caseload route's own access guard (routes/caseload.js) — no bounce loop.
+  _land_on_default: function(model) {
+    if (this.appState.get('_index_login_entry') && model.get('supporter_role') &&
+        !this._session_entry_gate_pending(model)) {
+      this.router.replaceWith('caseload');
+    } else {
+      this.router.replaceWith('user.home', model.get('user_name'));
+    }
+  },
+  // This route's setupController is the ONLY host for the session-entry gates —
+  // the terms-agree modal and the EU AI Act Art.50 disclosure (routes/bento.js is
+  // the one other host; the caseload route has neither). Redirecting a supporter
+  // straight to /caseload therefore skips whichever gate is still outstanding, so
+  // while one is pending they keep landing on the dashboard exactly as they do
+  // today and pick up the caseload default from the next login onward. A landing
+  // preference must never cost a compliance gate.
+  _session_entry_gate_pending: function(model) {
+    // Same predicate setupController uses below to decide to open terms-agree.
+    if (model.get('id') && model.get('user_name') && !model.get('terms_agree')) { return true; }
+    return sessionEntryGatePending(model);
+  },
   afterModel: function(model) {
+    var _this = this;
     if (model && model.get('user_name') && session.get('access_token')) {
       try {
         if (window.sessionStorage && sessionStorage.getItem('ll_pending_beta_welcome') === '1') {
@@ -91,30 +126,33 @@ export default Route.extend({
         this.appState.set('already_homed', true);
         return;
       }
-      // Everyone else resumes where they left off last session. A
-      // communicator-only user who reaches here has no home board yet (first
-      // login / mid-onboarding) and needs the dashboard to pick one, so they are
-      // excluded here too. Storage + eligible routes: utils/session_history.js.
+      // Everyone else resumes where they left off last session — the remembered
+      // page always wins over the default landing page below, so a supporter who
+      // has used the app before returns to whatever they were last on rather than
+      // being forced back to their caseload. A communicator-only user who reaches
+      // here has no home board yet (first login / mid-onboarding) and needs the
+      // dashboard to pick one, so they are excluded here too. Storage + eligible
+      // routes: utils/session_history.js.
       if (this.appState.get('_index_login_entry') && !communicator_only && !model.get('eval_ended') &&
           this.appState.get('feature_flags.session_resume')) {
         var last = sessionHistory.last_location(model.get('user_name'));
         if (last && last.url) {
-          var fallback = this.router;
           var user_name = model.get('user_name');
           var resume = this.router.replaceWith(last.url);
           // The remembered page can have gone away since last session (a deleted
           // board, a supervisee relationship that ended, a renamed org). Drop the
-          // stale record and land on the dashboard rather than an error page.
+          // stale record and fall back to the default landing page rather than an
+          // error page.
           if (resume && resume.then) {
             resume.then(null, function() {
               sessionHistory.clear_location(user_name);
-              fallback.replaceWith('user.home', user_name);
+              _this._land_on_default(model);
             });
           }
           return;
         }
       }
-      this.router.replaceWith('user.home', model.get('user_name'));
+      this._land_on_default(model);
     }
   },
   setupController: function(controller, model) {

@@ -41,7 +41,13 @@ function makeUser(overrides) {
         return val;
       }
       return attrs[key];
-    }
+    },
+    /* Lets a test simulate the acknowledgement actually being RECORDED, which is what
+       the real disclosure flow does before its modal resolves. presentBlockingGate
+       re-checks needsAcknowledgement() after the modal settles (article50_gate.js:108)
+       and rejects if it is still true, so a stub that only resolves a value can never
+       exercise the success path. */
+    set: function(key, val) { attrs[key] = val; }
   };
 }
 
@@ -103,11 +109,18 @@ module('Unit | Utility | article50 gate', function(hooks) {
     test('opens ai-disclosure with scannable true when needsAcknowledgement is true, and resolves after a genuine resolution', function(assert) {
       var done = assert.async();
       var openArgs = null;
+      var user = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
       modal.open = function(template, options) {
         openArgs = [template, options];
+        /* A GENUINE resolution — the name of this test — means the acknowledgement was
+           recorded, not merely that the modal closed with a truthy value. Without this
+           line needsAcknowledgement() is still true when the gate re-checks it, the gate
+           rejects with GATE_NOT_ACKNOWLEDGED (correctly — that re-check is the fix that
+           stops a stray modal.close() satisfying the gate for an EU user), the success
+           handler below never runs, and the test hangs until QUnit's 15s timeout. */
+        user.set('article_50_disclosure_shown', true);
         return RSVP.resolve({ok: true});
       };
-      var user = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
       var appState = makeAppState(true, user);
       presentBlockingGate(appState).then(function(result) {
         assert.deepEqual(openArgs[0], 'ai-disclosure');

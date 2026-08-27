@@ -236,6 +236,14 @@ export default Component.extend({
         this.onPickForHome();
       }
     },
+    // Picker "Try this Board": delegate to the overlay, which opens the ORIGINAL
+    // board in speak mode -- no copy, nothing assigned -- and marks where the
+    // user came from so board-detail can offer a way back.
+    try_board: function() {
+      if (this.onTryBoard && typeof this.onTryBoard === 'function') {
+        this.onTryBoard();
+      }
+    },
     close: function() {
       modal.close_board_preview();
     },

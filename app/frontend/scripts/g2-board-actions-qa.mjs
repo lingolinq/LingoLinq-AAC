@@ -1,9 +1,26 @@
 #!/usr/bin/env node
 /**
+ * RETIRED 2026-08-26 — READ THIS BEFORE RUNNING.
+ *
+ * The "Board Actions" submenu this probe verifies was REMOVED from the
+ * speak-mode options menu. Every check below will now fail, and that is the
+ * correct outcome, not a regression: board_details, toggle_favorite,
+ * add_to_sidebar and other_board_actions are edit-panel actions and are reached
+ * from there. `a2c-click-tests-qa.mjs` check D guards the removal.
+ *
+ * Kept rather than deleted so the reachability walk it encodes is not lost if
+ * these four ever need a view-mode route again. It REFUSES TO RUN by default and
+ * exits 0: a probe that always fails is a landmine in a QA sweep — the next person
+ * either wastes a session diagnosing it or, worse, "fixes" the removal to make it
+ * green. Pass --run-retired to execute the walk anyway, which is only meaningful if
+ * the submenu has actually been restored.
+ *
+ * ---- original header ----
+ *
  * G2 — the four board actions that had NO view-mode route at all:
  * board_details, toggle_favorite, add_to_sidebar, other_board_actions.
  *
- * They now live in a "Board Actions" submenu in the view-mode options menu,
+ * They lived in a "Board Actions" submenu in the view-mode options menu,
  * wired to the previously-orphaned `board_submenu_open` / `toggle_board_submenu`.
  * Reachability is the whole finding, so this walks the clicks a user makes
  * rather than querying the DOM for nodes that may be rendered-but-hidden.
@@ -57,7 +74,26 @@ async function openBoardAndMenu(page) {
   return false;
 }
 
+const RUN_RETIRED = process.argv.includes('--run-retired');
+
 (async () => {
+  if (!RUN_RETIRED) {
+    console.log('g2-board-actions-qa: RETIRED 2026-08-26 — not run.');
+    console.log('');
+    console.log('  The "Board Actions" submenu this probe walks was removed from the');
+    console.log('  speak-mode options menu. board_details, toggle_favorite, add_to_sidebar');
+    console.log('  and other_board_actions are edit-panel actions and are reached there.');
+    console.log('');
+    console.log('  The REMOVAL is guarded by a2c-click-tests-qa.mjs check D, which fails if');
+    console.log('  the submenu comes back:  node scripts/a2c-click-tests-qa.mjs --only D');
+    console.log('');
+    console.log('  To run this walk anyway (only meaningful if the submenu was restored):');
+    console.log('    node scripts/g2-board-actions-qa.mjs --run-retired');
+    /* Exit 0. Skipping is not a failure, and a retired probe must not colour a sweep red. */
+    process.exit(0);
+  }
+  console.log('g2-board-actions-qa: running a RETIRED probe (--run-retired).');
+  console.log('Expect every check to FAIL unless the Board Actions submenu has been restored.\n');
   const browser = await chromium.launch({ headless: !HEADED });
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   page.on('pageerror', (e) => console.log(`  [js error] ${String(e).slice(0, 140)}`));

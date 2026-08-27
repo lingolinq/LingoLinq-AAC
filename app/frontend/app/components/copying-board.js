@@ -61,6 +61,19 @@ export default Component.extend({
     this.onBackdropClose = function() {
       self.send('backdrop_close');
     };
+    /*
+     * Same reason, same render: <ModalDialog> reads @action/@opening/@closing on
+     * its FIRST render, and didInsertElement runs after that, so these were
+     * undefined on the pass that matters -- the bind-before-assign class fixed for
+     * three other modals in 650d30685. @action stayed undefined in practice, and
+     * modal-dialog's fallback (utils/modal.close) is the only reason the Escape
+     * key behaved correctly. That makes this change load-bearing on the close()
+     * fix above: defining onClose without it would hand Escape the same stale-flag
+     * navigation the X had.
+     */
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
 
     const modalService = this.get('modal');
     const template = 'copying-board';
@@ -347,8 +360,19 @@ export default Component.extend({
   },
 
   actions: {
+    /*
+     * utils/modal.close, NOT the service's -- the same reason minimize() gives
+     * above. The service close leaves utils/modal._component_based_template set,
+     * so modal.is_open('copying-board') keeps reporting true; a copy still running
+     * when the user dismissed then takes the FOREGROUND branch of start_copying's
+     * settle handler and navigates. Measured before this fix: dismissing an
+     * in-flight copy with the X moved the user /caseload ->
+     * /<user>/board-detail/one_4. Dismiss has to mean dismiss. The settle
+     * handler's else-branch already handles a dismissed copy properly -- it calls
+     * model.copy_finished, or reports "Copy created!" as a notice.
+     */
     close() {
-      this.get('modal').close();
+      modal.close();
     },
     // Clicking outside the modal while the copy is actually running minimizes it
     // instead of dismissing it. Every other state (hierarchy load, board picker,
@@ -382,13 +406,5 @@ export default Component.extend({
       this.toggleProperty('show_board_picker');
     }
   },
-
-  didInsertElement() {
-  this._super(...arguments);
-  var self = this;
-    this.onClose = function() { self.send('close'); };
-    this.onOpening = function() { self.send('opening'); };
-    this.onClosing = function() { self.send('closing'); };
-},
 
 });

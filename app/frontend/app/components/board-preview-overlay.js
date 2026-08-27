@@ -266,6 +266,52 @@ export default Component.extend({
         preview.callback();
       }
     },
+    /* Board-picker "Try this Board": open the board the user is looking at, in
+       speak mode, WITHOUT copying it or assigning anything. Nothing is created,
+       so backing out leaves no trace -- which is the whole point of a trial and
+       the difference from pick_for_home directly below.
+
+       Routes to `user.board-detail` explicitly rather than through
+       board_view_route(user), matching _finishPickForHome. Two reasons: the
+       picker's own flows already land everyone on board-detail, and the Back
+       control this sets up lives in board-detail's nav stack, so honouring a
+       'classic' preference here would strand the user with no way back.
+
+       The marker below is what board-detail reads to show that control. It is
+       scoped to a board key, not a bare boolean, so a stale flag cannot put a
+       Back button on some unrelated board the user reaches later. */
+    try_board() {
+      var preview = this.get('modal.boardPreview');
+      var board = preview && preview.board;
+      var key = board && (board.get ? board.get('key') : board.key);
+      var parts = key ? key.split('/') : [];
+      if (parts.length < 2) { return; }
+
+      var routerSvc = this.get('router');
+      var locale = (preview && preview.locale) || app_state.get('label_locale');
+      if (locale) { app_state.set('label_locale', locale); }
+
+      // Leaving the picker page clears this in routes/board-picker.js, but the
+      // transition below is what triggers that -- clear it here so the preview
+      // cannot repaint its picker CTAs during the hand-off.
+      app_state.set('tour_board_picker_active', false);
+      app_state.set('board_detail_try_origin', { key: key, from: 'board_picker' });
+
+      modal.close_board_preview();
+
+      var isDark = true;
+      var themeMode = app_state.get('themeMode');
+      if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
+      paint_view_switch_overlay({
+        routerSvc: routerSvc,
+        isDark: isDark,
+        accentLight: false,
+        transition: function() {
+          // Speak (use) mode = the board-detail INDEX route.
+          return routerSvc.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+        }
+      });
+    },
     // Board-picker "Pick this Board": get the user an OWNED copy of the picked
     // (public catalog) board set as their home board, then open it in board-detail
     // SPEAK mode and auto-start the speak-mode tour. If the user already has a copy

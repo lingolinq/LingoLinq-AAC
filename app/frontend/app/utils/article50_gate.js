@@ -106,12 +106,22 @@ export function presentBlockingGate(appState) {
   }
   return new RSVP.Promise(function(resolve, reject) {
     modal.open('ai-disclosure', { scannable: true }).then(function(result) {
-      if (!result || !result.replaced) {
-        resolve(result);
-      } else {
+      if (result && result.replaced) {
         // Bumped by another modal, not a genuine acknowledgement. The caller's
         // gated action must not proceed, but it DOES need to know why.
         reject({ art50_gate: GATE_NOT_ACKNOWLEDGED });
+      } else if (needsAcknowledgement(appState)) {
+        /* Resolved WITHOUT an acknowledgement being recorded. This branch used to
+           resolve positively on any non-`replaced` result, including `resolve(null)` —
+           and utils/modal.js#close resolves the pending promise with its `success`
+           argument, so a bare `modal.close()` anywhere (e.g. app-state#check_scanning,
+           which closes whatever modal is open) satisfied the gate and let an AI request
+           proceed for an EU user with no Art.50(1) acknowledgement on record.
+           Only `@uncloseable` on the disclosure template was holding that shut; the gate
+           now verifies the outcome itself, against the same predicate it entered on. */
+        reject({ art50_gate: GATE_NOT_ACKNOWLEDGED });
+      } else {
+        resolve(result);
       }
     }, function(err) {
       reject(err);
@@ -120,24 +130,44 @@ export function presentBlockingGate(appState) {
 }
 
 /**
- * Session-entry presentation opportunity (03-UI-SPEC.md 7.1). Opens the modal
- * only when the model is really_fresh AND acknowledgement is genuinely needed;
- * no-ops on a stale model (safety for the offline/stale case, 7.1 Case 2).
- * Reuses needsAcknowledgement (D-02: one shared implementation) by wrapping
- * `model` itself as the appState-shaped argument: article_50_disclosure_* and
- * feature_flags both live directly on the user model, so this is not a
- * parallel/forked check, just a different caller shape.
+ * Wraps a user model as the appState-shaped argument needsAcknowledgement wants
+ * (D-02: one shared implementation). article_50_disclosure_* and feature_flags
+ * both live directly on the user model, so this is not a parallel/forked check,
+ * just a different caller shape.
  */
-export function maybeShowSessionEntryGate(model) {
-  if (!model || typeof model.get !== 'function') { return; }
-  if (!model.get('really_fresh')) { return; }
-  var pseudoAppState = {
+function asAppState(model) {
+  return {
     get: function(key) {
       if (key === 'currentUser') { return model; }
       return model.get(key);
     }
   };
-  if (!needsAcknowledgement(pseudoAppState)) { return; }
+}
+
+/**
+ * True when maybeShowSessionEntryGate() below would actually open the modal:
+ * the model is really_fresh AND acknowledgement is genuinely needed.
+ *
+ * Exported as a read-only companion so a caller that is about to redirect AWAY
+ * from one of the two gate-hosting routes (routes/index.js, routes/bento.js) can
+ * tell whether doing so would silently skip a pending disclosure — see
+ * routes/index.js#_land_on_default, which defers a supporter's caseload landing
+ * while a gate is outstanding. Shares this module's single implementation rather
+ * than forking the predicate at the call site.
+ */
+export function sessionEntryGatePending(model) {
+  if (!model || typeof model.get !== 'function') { return false; }
+  if (!model.get('really_fresh')) { return false; }
+  return needsAcknowledgement(asAppState(model));
+}
+
+/**
+ * Session-entry presentation opportunity (03-UI-SPEC.md 7.1). Opens the modal
+ * only when the model is really_fresh AND acknowledgement is genuinely needed;
+ * no-ops on a stale model (safety for the offline/stale case, 7.1 Case 2).
+ */
+export function maybeShowSessionEntryGate(model) {
+  if (!sessionEntryGatePending(model)) { return; }
   modal.open('ai-disclosure', { scannable: true });
 }
 
@@ -162,6 +192,7 @@ export default {
   GATE_NOT_ACKNOWLEDGED: GATE_NOT_ACKNOWLEDGED,
   needsAcknowledgement: needsAcknowledgement,
   presentBlockingGate: presentBlockingGate,
+  sessionEntryGatePending: sessionEntryGatePending,
   maybeShowSessionEntryGate: maybeShowSessionEntryGate,
   onlyIfGenuinelyResolved: onlyIfGenuinelyResolved
 };

@@ -12,6 +12,7 @@ import { filterBrandRoots } from '../utils/board-brands';
    Array order drives the rendered section order. */
 import { BRAND_FAMILIES } from '../utils/board-brands';
 import buildEventAction from '../utils/event_action';
+import { subjectHomeBoardKey, SUBJECT_HOME_BOARD_DEPS } from '../utils/subject_home_board';
 
 /* Static i18n declarations — the section headers render via dynamic
    `{{t section.default_label key=section.label_key}}` in the template,
@@ -219,13 +220,10 @@ export default Component.extend({
   /* The subject's home board key (currentUser or the supervisee under
      setup). Used both to mark the row visually AND to anchor it at
      the top of the My Boards list. Returns '' (falsy) when no home
-     board is set so callers can short-circuit. */
+     board is set so callers can short-circuit. Shared with the board
+     picker — see utils/subject_home_board. */
   _subjectHomeKey: function() {
-    var su = this.appState.get('setup_user');
-    if (su && su.get('id')) {
-      return su.get('preferences.home_board.key') || '';
-    }
-    return this.appState.get('currentUser.preferences.home_board.key') || '';
+    return subjectHomeBoardKey(this.appState);
   },
 
   /* My Boards ordering: home board → favorites (starred) → everyone
@@ -345,8 +343,7 @@ export default Component.extend({
      no home board is set; the template's `(is_equal board.key '')` then
      never matches a real row. */
   home_key: computed(
-    'appState.currentUser.preferences.home_board.key',
-    'appState.setup_user.preferences.home_board.key',
+    ...SUBJECT_HOME_BOARD_DEPS,
     function() {
       return this._subjectHomeKey();
     }

@@ -195,6 +195,30 @@ export default Route.extend({
         });
       };
 
+      // Both board fetches were single-shot: `/tree?root_only=1` falls back to
+      // `/boards/<key>`, and if THAT also fails the model resolves straight to the
+      // error POJO — the "This board is not currently available." page. On a login
+      // entry these fire inside a burst (findRecord('user','self') + the parent
+      // user queryRecord + this pair + prime_caches), so a single transient 5xx or
+      // dropped connection is enough to dead-end a user whose board is perfectly
+      // fine. That matches the reported symptom: intermittent, and "Go to Home
+      // Board" (which re-requests the SAME key) then works.
+      //
+      // So retry ONCE before giving up. This is deliberately NOT a guess at which
+      // transient cause fires — it closes the structural gap (no retry at all)
+      // that makes every one of them fatal.
+      //
+      // Not retried: a definitive answer from the server (404/403/401 — the board
+      // is gone or not ours, and a retry would only delay a correct error), and
+      // the offline short-circuit (persistence.ajax rejects instantly with
+      // `short_circuit` when offline; there is no request to repeat, and
+      // reload_on_connect already refreshes when connectivity returns).
+      var fallbackAttempted = false;
+      var isDefinitive = function(err) {
+        if (!err) { return false; }
+        if (err.short_circuit || err.offline) { return true; }
+        return err.status === 404 || err.status === 403 || err.status === 401;
+      };
       var fallbackSingleBoard = function() {
         boardCacheDiag.mark('model:tree_fallback_show', { board_key: board_key });
         persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
@@ -206,7 +230,22 @@ export default Route.extend({
             resolved = true;
             resolve({ error: true, boardname: params.boardname });
           }
-        }, function() {
+        }, function(err) {
+          if (!resolved && !fallbackAttempted && !isDefinitive(err)) {
+            fallbackAttempted = true;
+            boardCacheDiag.mark('model:fallback_retry', { board_key: board_key });
+            // Short pause so the retry lands after the login burst rather than
+            // adding to it. Guarded again on `resolved` because the background
+            // tree warm can resolve the model while this is pending.
+            // `setTimeout`, not `runLater`, on purpose: the callback only re-fires
+            // an ajax and touches promise-local state (no route/component
+            // mutation), so it needs none of the run-loop scheduling guarantees —
+            // and a new `runLater` here would add an `ember/no-runloop` violation
+            // beyond the file's grandfathered baseline. Same pattern as the
+            // debounced save timer in components/display-style.js.
+            setTimeout(function() { if (!resolved) { fallbackSingleBoard(); } }, 600);
+            return;
+          }
           if (!resolved) {
             resolved = true;
             resolve({ error: true, boardname: params.boardname });
@@ -552,6 +591,14 @@ export default Route.extend({
 
   resetController: function(controller, isExiting) {
     if(isExiting) {
+      /* Drop the "Try this Board" marker on ANY exit from board-detail. The Back
+         control it drives is scoped to a single trial, so leaving by the sidebar,
+         the Home button, a browser Back, or anything else ends that trial just as
+         much as pressing Back does -- and a marker that survived would put a
+         stale "Back to picker" on some unrelated board later in the session.
+         Clearing it here rather than in each exit path means new exits get the
+         behaviour for free. */
+      this.appState.set('board_detail_try_origin', null);
       var board_layout = this.appState.get('board_layout_mode');
       controller.set('ordered_buttons', null);
       controller.set('active_category', 'all');
