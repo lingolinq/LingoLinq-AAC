@@ -15623,3 +15623,40 @@ gate and the local citation check. The linter allowlists `evidence.type` against
 `code|doc|runtime|attestation` before applying the blank-sha exemption, and treats a blank
 type the same as a missing one (derive `code` if a file is present). That strictness
 matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
+
+## Pattern: a setting resolved in two places will disagree — and a parked UI hides which one is wrong
+
+`board-detail-grid.js` states this rule on its own dependent keys: the per-board resolution is
+passed IN from the controller "rather than re-derived here … two places resolving the same
+setting is how the switch ends up describing a board the grid is not drawing." Three of the four
+category settings (`enabled`, `show_category_names`, `vertical_scroll`) obeyed it via
+`@categoryEnabled` / `@showCategoryNames` / `@categoryScrollEnabled`. `order` did not: the grid
+re-derived it from `preferences.board_category_grouping.order` (account-wide) while the Categorize
+panel read `board_category_settings.order` (per-board). There was no `@categoryOrder` arg at
+either call site, so a per-board order could not reach `group_buttons` at all.
+
+Two things generalise.
+
+**A "cosmetic" mismatch between two surfaces is often a silent data-loss bug on a third path.**
+The reorder UI was parked (`category_ordering_available: false` gates both the Reset button and
+the move arrows), so no user could see the disagreement — which made it look harmless. But the
+seeding path was live: `rake lingolinq:seed_board_category_grouping ORDER=…` writes a per-board
+order and `User#sanitize_board_category_grouping!` validates and stores it, so the value persisted
+correctly and the renderer then ignored it with no error. Before dismissing a
+read-mismatch as UI-only, enumerate every WRITER of the value, not just the visible reader. A
+rake task, a seeder, or an importer is a writer whose output nobody watches.
+
+**When auditing a settings group, tabulate resolve-site vs read-site per field rather than
+spot-checking one.** The three correct fields made the fourth look correct by association; the
+defect was only visible as a row in a table where every other row agreed. The same table is the
+cheapest way to spot the inverse defect — a value serialized but never read (`hide_empty` has an
+Ember attr and no `json_api/board.rb` entry, so it reads back `undefined` forever) or read but
+never written (`settings['board_style']` is serialized and consumed client-side but written
+nowhere in Rails).
+
+Mechanically: prefer arg-name ≠ computed-name when a component both accepts and derives a value
+(`categoryOrder` in, `effectiveCategoryOrder` out, mirroring the existing `categoryEnabled` ->
+`groupingEnabled`). A computed and an arg of the same name collide. And when the fix is a
+fallback, prove the test catches the defect by neutering the fallback and confirming the
+*positive control* still passes — in this harness `app_state` is set on the instance rather than
+registered, so an unwired harness makes every negative assertion pass for the wrong reason.
