@@ -291,6 +291,74 @@ module('Unit | Utility | board_categories', function() {
     assert.strictEqual(groups[2].buttons[0].id, 1);
   });
 
+  /* PER-BUTTON OVERRIDES. `category_for_button` is a classifier -- colour, then part of
+   * speech, then a handful of label rules -- so it is a good guess and sometimes a wrong
+   * one. These let the BOARD's author correct it for individual buttons, and they are the
+   * half of a curated layout that ordering alone cannot express.
+   *
+   * Keyed by button ID, deliberately: the id is what `grid.order[row][col]` already
+   * references, so it is structurally stable across a copy (the cloner carries `buttons`
+   * and `grid` together and renumbering would break the board). A label key would not
+   * survive translation.
+   */
+  test('group_buttons: an override beats the classifier', function(assert) {
+    var rows = [[{ id: 1, part_of_speech: 'noun' }, { id: 2, part_of_speech: 'verb' }]];
+    var groups = group_buttons(rows, ['people', 'actions', 'things'], { '1': 'people' });
+    var people = groups.filter(function(g) { return g.key === 'people'; })[0];
+    var things = groups.filter(function(g) { return g.key === 'things'; })[0];
+    assert.strictEqual(people.buttons[0].id, 1, 'the noun was forced into people');
+    assert.strictEqual(things, undefined, 'and things is now empty, so it is omitted');
+  });
+
+  test('group_buttons: override keys are read as strings, ids may be numbers', function(assert) {
+    var rows = [[{ id: 7, part_of_speech: 'noun' }]];
+    // JSON object keys are always strings; btn.id is a number. The lookup must bridge that.
+    var groups = group_buttons(rows, ['people', 'things'], { '7': 'people' });
+    assert.strictEqual(groups[0].key, 'people');
+    assert.strictEqual(groups[0].buttons[0].id, 7);
+  });
+
+  test('group_buttons: an override naming an unrendered category is ignored', function(assert) {
+    var rows = [[{ id: 1, part_of_speech: 'noun' }]];
+    /* `order` is normalized, so every registry key ends up rendered -- the case that bites
+       is an override naming a key that is not in the registry at all. It must fall through
+       to the classifier rather than dropping the button into a bucket nothing draws. */
+    var groups = group_buttons(rows, ['things'], { '1': 'not_a_real_category' });
+    var things = groups.filter(function(g) { return g.key === 'things'; })[0];
+    assert.strictEqual(things.buttons[0].id, 1, 'the button is still classified normally');
+  });
+
+  test('group_buttons: no overrides argument behaves exactly as before', function(assert) {
+    var rows = [[{ id: 1, part_of_speech: 'noun' }, { id: 2, part_of_speech: 'verb' }]];
+    var a = group_buttons(rows, ['actions', 'things']);
+    var b = group_buttons(rows, ['actions', 'things'], null);
+    var c = group_buttons(rows, ['actions', 'things'], {});
+    assert.deepEqual(a.map(function(g) { return g.key; }), b.map(function(g) { return g.key; }));
+    assert.deepEqual(a.map(function(g) { return g.key; }), c.map(function(g) { return g.key; }));
+    assert.strictEqual(a[0].buttons[0].id, 2, 'verb still lands in actions');
+  });
+
+  /* The keyboard case, and the reason the override is checked BEFORE the QWERTY pass.
+     `qwerty_positions` claims a run of letters once ~70% of the alphabet is present, which
+     is a heuristic an author must be able to correct: vocal-flair-112 carries both the KEY
+     `a` and the WORD "a". Pulling a key out leaves a gap in a positional layout -- the
+     author's call to make. */
+  test('group_buttons: an override pulls a button OUT of the detected keyboard', function(assert) {
+    var letters = 'qwertyuiopasdfghjklzxcvbnm'.split('');
+    var rows = [letters.map(function(ch, i) { return { id: i + 1, label: ch }; })];
+    var plain = group_buttons(rows, ['keyboard', 'words']);
+    var kb = plain.filter(function(g) { return g.key === 'keyboard'; })[0];
+    assert.ok(kb, 'PRECONDITION: a keyboard category exists');
+    assert.true(kb.buttons.length > 20, 'PRECONDITION: the keyboard was detected');
+
+    var forced = group_buttons(rows, ['keyboard', 'words'], { '1': 'words' });
+    var kb2 = forced.filter(function(g) { return g.key === 'keyboard'; })[0];
+    var words = forced.filter(function(g) { return g.key === 'words'; })[0];
+    assert.strictEqual(kb2.buttons.length, kb.buttons.length - 1, 'the key left the keyboard');
+    assert.strictEqual(words.buttons[0].id, 1, 'and landed where the author put it');
+    assert.notOk(words.buttons[0].kb_row, 'its stale keyboard position was cleared');
+  });
+
   test('group_buttons omits empty categories and drops empty cells', function(assert) {
     var rows = [[{ id: 1, part_of_speech: 'verb' }, { id: 2, empty: true }, null]];
     var groups = group_buttons(rows, DEFAULT_CATEGORY_ORDER);

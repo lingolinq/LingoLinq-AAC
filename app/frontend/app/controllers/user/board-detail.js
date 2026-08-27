@@ -3482,15 +3482,23 @@ export default Controller.extend(prefClasses, {
   category_vertical_scroll: computed('board_category_settings', function() {
     return (this.get('board_category_settings') || {}).vertical_scroll !== false;
   }),
-  /* The category order the grid renders. Constant for now, and deliberately so: `order`
-     has left the user preference (it is a property of the BOARD, not of the person reading
-     it) and the board-side field does not exist yet, so every board gets the registry
-     default — `normalize_order` returns DEFAULT_CATEGORY_ORDER for a null argument.
-     This stays a computed rather than collapsing into the grid because it is the seam the
-     board-side layout plugs into: when the Board carries its own arrangement, only the
-     body of this function changes, and the `@categoryOrder` wiring stays as it is. */
-  category_order: computed(function() {
-    return normalizeCategoryOrder(null);
+  /* THE BOARD's category layout — its curated arrangement, authored on the board and
+     carried to every copy of it. `order` is the category sequence; `buttons` maps a button
+     id to a category, overriding the classifier for the ones it guesses wrong.
+     A board with no layout resolves to `{}` here and the grid falls back to the registry
+     default, so nothing changes for the boards nobody has curated. */
+  board_category_layout: computed('model.category_layout', function() {
+    var layout = this.get('model.category_layout');
+    return (layout && typeof layout === 'object') ? layout : {};
+  }),
+  /* Normalized here so the grid and the panel are fed from one place; `normalize_order`
+     drops unknown keys and appends missing ones, so it is never empty or partial. */
+  category_order: computed('board_category_layout', function() {
+    return normalizeCategoryOrder(this.get('board_category_layout').order);
+  }),
+  category_button_overrides: computed('board_category_layout', function() {
+    var b = this.get('board_category_layout').buttons;
+    return (b && typeof b === 'object') ? b : {};
   }),
 
   /* What the GRID is told. Both only mean anything while grouping is in force, so they

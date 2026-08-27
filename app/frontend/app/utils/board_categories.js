@@ -2238,8 +2238,18 @@ export function pack_category_tiles(groups, columns, options) {
   return { tiles: tiles, rows: row - 1, bands: bands, region: region, columns: cols };
 }
 
-export function group_buttons(rows, order) {
+export function group_buttons(rows, order, button_overrides) {
   const keys = normalize_order(order);
+  /* Per-button category assignments authored on the BOARD, keyed by button id. Wins over
+     `category_for_button`, which is a classifier and therefore a guess: colour and part of
+     speech get most buttons right, and the board author overrides the ones they do not.
+     Keyed by ID rather than label because the id is what the GRID already references
+     (`grid.order[row][col] = button.id`, board.rb:1122) and is therefore structurally
+     stable across a copy — the cloner carries `buttons` and `grid` together, so renumbering
+     would break the board itself. A label-keyed override would not survive translation.
+     Ids are read as STRINGS: they arrive as JSON object keys, which are always strings,
+     while `btn.id` is a number. */
+  const overrides = (button_overrides && typeof button_overrides === 'object') ? button_overrides : {};
   const buckets = {};
   keys.forEach(function(k) { buckets[k] = []; });
 
@@ -2252,7 +2262,19 @@ export function group_buttons(rows, order) {
   (rows || []).forEach(function(row) {
     (row || []).forEach(function(btn) {
       if(!btn || btn.empty) { return; }
-      const pos = qwerty.get(btn);
+      /* An override only counts if it names a category the board is actually rendering.
+         `keys` is the normalized order, so an override pointing at a key that was dropped
+         (unknown, or removed from the registry) falls through to the classifier rather
+         than putting the button in a bucket nothing draws. */
+      const forced_raw = (btn.id === undefined || btn.id === null) ? null : overrides[String(btn.id)];
+      const forced = (forced_raw && buckets[forced_raw]) ? forced_raw : null;
+      /* Checked BEFORE the QWERTY pass, so an explicit assignment beats it. `qwerty_positions`
+         is itself a heuristic — it claims a run of letters once ~70% of the alphabet is
+         present — and it is exactly the kind of guess an author needs to be able to correct:
+         `vocal-flair-112` carries both the KEY `a` and the WORD "a", and only position tells
+         them apart. Overriding a key OUT of the keyboard leaves a gap in the keyboard's
+         positional layout, which is the author's call to make and not ours to refuse. */
+      const pos = forced ? null : qwerty.get(btn);
       if(pos) {
         btn.kb_row = pos.row;
         btn.kb_col = pos.col;
@@ -2262,9 +2284,10 @@ export function group_buttons(rows, order) {
         return;
       }
       /* Clear any stale stamp: the same button object is reused across regroups, so a
-         button that stops qualifying must not keep a keyboard position. */
+         button that stops qualifying — including one an override has just pulled out of
+         the keyboard — must not keep a keyboard position. */
       if(btn.kb_row) { btn.kb_row = null; btn.kb_col = null; btn.kb_extra = false; }
-      const key = category_for_button(btn);
+      const key = forced || category_for_button(btn);
       // category_for_button can only return a registry key, but guard anyway so a
       // future edit to it can never drop buttons on the floor.
       (buckets[key] || buckets.extra).push(btn);

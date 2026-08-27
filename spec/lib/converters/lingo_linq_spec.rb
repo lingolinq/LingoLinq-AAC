@@ -26,6 +26,7 @@ describe Converters::LingoLinq do
         'protected' => false,
         'word_suggestions' => false,
         'categories' => nil,
+        'category_layout' => nil,
         'hide_empty' => nil,
         'text_only' => nil,
         'home_board' => nil
@@ -430,6 +431,7 @@ describe Converters::LingoLinq do
         'protected_user_id' => u.global_id,
         'word_suggestions' => false,
         'categories' => nil,
+        'category_layout' => nil,
         'home_board' => nil,
         'hide_empty' => nil,
         'text_only' => nil

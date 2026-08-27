@@ -186,6 +186,11 @@ LingoLinq.Board = BaseModel.extend({
   intro: attr('raw'),
   style: attr('raw'),
   categories: attr('raw'),
+  /* The board's Fitzgerald category layout: {order: [...], buttons: {<id>: <category>}}.
+     `raw` because it is a nested hash the client only ever passes through. Without this
+     attr the payload key is silently dropped by the serializer and the board reads back
+     `undefined` forever -- the failure `hide_empty` already has. */
+  category_layout: attr('raw'),
   home_board: attr('boolean'),
   has_fallbacks: attr('boolean'),
   // EU AI Act Article 50(2) signed provenance marker, set from the AI label-generation
@@ -1036,6 +1041,11 @@ LingoLinq.Board = BaseModel.extend({
       buttons: this.get('buttons'),
       grid: this.get('grid'),
       categories: this.get('categories'),
+      /* Carried on the CLIENT copy path too. The server-side BoardCloner is only one of
+         the two ways a board gets copied: this one re-sends attributes as create params,
+         so a key omitted here is lost on any copy made from the UI while server-side set
+         copies keep it. */
+      category_layout: this.get('category_layout'),
       intro: this.get('intro'),
       locale: this.get('locale'),
       translated_locales: this.get('locales'),

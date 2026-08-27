@@ -113,6 +113,14 @@ class BoardCloner < Clowne::Cloner
     # Remaining settings (relinking.rb:117-121)
     record.settings['word_suggestions'] = source.settings['word_suggestions']
     record.settings['categories'] = source.settings['categories']
+    # The curated category arrangement travels WITH the board. This is the whole point of
+    # keeping it on the board rather than in a user preference: a copy inherits the layout
+    # its author designed, and the person who copied it can then edit it as their own.
+    # The cloner is an allowlist by construction -- it starts from `settings: {}` -- so an
+    # unlisted key is silently dropped on copy, which is exactly the failure this line
+    # exists to prevent. Button ids are carried unchanged alongside `buttons` and `grid`,
+    # so the per-button overrides keyed by id stay pointing at the same buttons.
+    record.settings['category_layout'] = source.settings['category_layout']
     record.settings['license'] = source.settings['license']
     # EU AI Act Article 50(2): carry the AI-generation provenance marker onto copies.
     # The marker is provenance-bound (it attests the content originated from AI

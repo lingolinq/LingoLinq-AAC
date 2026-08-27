@@ -26,7 +26,7 @@ module JsonApi::Board
         json[key] = BoardContent.load_content(board, key)
       end
     end
-    ['name', 'prefix', 'description', 'image_url', 'stars', 'forks', 'word_suggestions', 'locale', 'home_board', 'categories', 'dim_header', 'small_header'].each do |key|
+    ['name', 'prefix', 'description', 'image_url', 'stars', 'forks', 'word_suggestions', 'locale', 'home_board', 'categories', 'category_layout', 'dim_header', 'small_header'].each do |key|
       json[key] = board.settings[key]
     end
     # EU AI Act Article 50(2): expose the marking as a non-secret provenance view

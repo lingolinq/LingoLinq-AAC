@@ -87,6 +87,10 @@ module Converters::LingoLinq
         'protected' => board.protected_material?,
         'home_board' => board.settings['home_board'],
         'categories' => board.settings['categories'],
+        # The curated category arrangement is part of the board, so it belongs in the
+        # export alongside it — an OBZ that loses it produces a board that looks right
+        # and groups wrong on import.
+        'category_layout' => board.settings['category_layout'],
         'text_only' => board.settings['text_only'],
         'hide_empty' => board.settings['hide_empty']
       }
@@ -524,6 +528,9 @@ module Converters::LingoLinq
     params['public'] = !ext_settings['private']
     params['home_board'] = ext_settings['home_board'] || false
     params['categories'] = ext_settings['categories'] || []
+    # Passed through process_params, which sanitizes it — an imported layout is as
+    # untrusted as one posted by a client.
+    params['category_layout'] = ext_settings['category_layout'] if ext_settings['category_layout']
     params['word_suggestions'] = ext_settings['word_suggestions']
     params['text_only'] = ext_settings['text_only'] || false
     params['hide_empty'] = ext_settings['hide_empty'] || false

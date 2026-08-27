@@ -217,9 +217,13 @@ export default Component.extend({
    * ungrouped grid renders -- grouping is a re-presentation of the existing
    * array, never a second source of buttons. Empty categories are omitted.
    */
-  categoryGroups: computed('orderedButtons', 'effectiveCategoryOrder', 'groupingEnabled', function() {
+  categoryGroups: computed('orderedButtons', 'effectiveCategoryOrder', 'categoryButtonOverrides', 'groupingEnabled', function() {
     if(!this.get('groupingEnabled')) { return []; }
-    var groups = group_buttons(this.get('orderedButtons') || [], this.get('effectiveCategoryOrder')) || [];
+    var groups = group_buttons(
+      this.get('orderedButtons') || [],
+      this.get('effectiveCategoryOrder'),
+      this.get('categoryButtonOverrides')
+    ) || [];
     /* `each_key` is the {{#each}} key for the group loop — see the note on renderGroups.
        Category keys are already unique within a board (they come from normalize_order),
        so prefixing is only to keep them in one namespace with the ungrouped rows. */

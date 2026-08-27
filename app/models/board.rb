@@ -1799,6 +1799,49 @@ class Board < ApplicationRecord
     end
   end
   
+  # The board's Fitzgerald category layout: which categories it shows, in what sequence,
+  # and any per-button assignments that override the classifier.
+  #
+  #   {'order' => ['people', 'actions', ...],
+  #    'buttons' => {'<button id>' => '<category key>'}}
+  #
+  # ON THE BOARD, not on the user, because a curated arrangement is a property of the board
+  # it was designed for: it has to ship with that board, survive being copied, and reach a
+  # user who has never opened the Categorize panel. A user preference could do none of those
+  # -- it is per-account, so it never followed a copy and never reached a new user.
+  # The three things that ARE about the reader -- whether categorization is on, whether it
+  # may scroll, whether labels show -- stay in User#sanitize_board_category_grouping!.
+  #
+  # Keyed by BUTTON ID because that is what `settings['grid']['order'][row][col]` already
+  # references, so ids are structurally stable across a copy (BoardCloner carries `buttons`
+  # and `grid` together; renumbering would break the board itself). A label key would not
+  # survive translation.
+  #
+  # Bounded on every axis because it is client-supplied: unknown category keys dropped
+  # against the shared registry, ids must look like ids, and both collections are capped so
+  # a malicious or buggy client cannot grow the row without limit. Returning a bare hash for
+  # junk input rather than raising keeps a bad payload from taking down an otherwise valid
+  # board save -- the layout is presentation, and losing it must not cost the edit.
+  MAX_CATEGORY_BUTTON_OVERRIDES = 2000
+  def sanitized_category_layout(val)
+    return {} unless val.is_a?(Hash)
+    order = val['order']
+    order = [] unless order.is_a?(Array)
+    order = order.select { |k| User::BOARD_CATEGORY_KEYS.include?(k) }.uniq
+    buttons = val['buttons']
+    buttons = {} unless buttons.is_a?(Hash)
+    clean = {}
+    buttons.each do |bid, cat|
+      break if clean.size >= MAX_CATEGORY_BUTTON_OVERRIDES
+      next unless bid.is_a?(String) || bid.is_a?(Integer)
+      key = bid.to_s
+      next unless key.match(/\A\d{1,12}\z/)
+      next unless cat.is_a?(String) && User::BOARD_CATEGORY_KEYS.include?(cat)
+      clean[key] = cat
+    end
+    {'order' => order, 'buttons' => clean}
+  end
+
   def process_params(params, non_user_params)
     raise "user required as board author" unless self.user_id || non_user_params[:user]
     @edit_notes = []
@@ -1912,6 +1955,7 @@ class Board < ApplicationRecord
     end
     self.settings['home_board'] = params['home_board'] if params['home_board'] != nil
     self.settings['categories'] = params['categories'] if params['categories']
+    self.settings['category_layout'] = sanitized_category_layout(params['category_layout']) if params['category_layout'] != nil
     self.settings['hide_empty'] = params['hide_empty'] if params['hide_empty'] != nil
     self.settings['text_only'] = params['text_only'] if params['text_only'] != nil
     self.settings['dim_header'] = params['dim_header'] if params['dim_header'] != nil
