@@ -34,10 +34,19 @@
 >
 > **2026-08-04 re-attestation (rev. 2026-08-04-a).** Recorded the runtime AI operational status as
 > a closed window rather than an open capability claim: the AI features named in this document ran
-> on Anthropic Claude (Haiku 4.5) over AWS Bedrock, were not operational from 2026-07-30 until
-> 2026-08-03, were briefly operational from 2026-08-03 to 2026-08-04 for a single internal
-> verification call carrying no user or student data, and are **not operational as of 2026-08-04**.
-> No customer, user, or student data has been sent to a model provider on this path. The
+> on Anthropic Claude (Haiku 4.5) over AWS Bedrock. **Corrected 2026-08-19:** this passage read
+> that those features "were not operational from 2026-07-30 until 2026-08-03, were briefly
+> operational from 2026-08-03 to 2026-08-04 for a single internal verification call carrying no user
+> or student data, and are **not operational as of 2026-08-04**. No customer, user, or student data
+> has been sent to a model provider on this path." **Both sentences are now false.** Credentials
+> withdrawn on revision `00014-5rw` (2026-08-04T06:31:46Z) were restored on `00015-9l9` 53 minutes
+> later, and the 2026-08-12 production deploy of PR #734 put the path into user-attributed use:
+> production `AiApiLog` holds 64 rows, **63 of which carry a `user_global_id`**
+> (`docs/legal/2026-08-16_subprocessor-register.md:99`). Scrubbed user content therefore HAS reached
+> the processing plane. The prompts are redacted by `lib/pii_scrubber.rb` before egress, which is
+> pseudonymization and not de-identification, so they remain personal data under GDPR/UK-GDPR. The
+> operative statements of the flow are `docs/legal/2026-08-17_ai-data-flow-classification.md` and
+> `docs/legal/2026-08-16_subprocessor-register.md`. The
 > "everything in this section is live" framing was qualified to except controls explicitly marked
 > not operational. That is the last attested, externally authorized cut (DOC-03cb9fe91f).
 >
@@ -128,10 +137,14 @@ explicitly marked not operational.
 **AI and PII handling**
 - LingoLinq uses AI for word prediction and communication-board generation. The designated model is
   Anthropic Claude (Haiku 4.5) on AWS Bedrock. There is no Google (Gemini) fallback; that path was
-  removed on 2026-07-09. These AI features were not operational from 2026-07-30 until 2026-08-03,
-  were briefly operational from 2026-08-03 to 2026-08-04 for internal verification only, and are
-  **not operational as of 2026-08-04**. During that window a single internal test call was made,
-  carrying no user or student data; no customer, user, or student data has been sent to a model
+  removed on 2026-07-09. **Corrected 2026-08-19: the runtime AI path IS operational and carries
+  user-attributed traffic.** This passage read that these features "were not operational from
+  2026-07-30 until 2026-08-03, were briefly operational from 2026-08-03 to 2026-08-04 for internal
+  verification only, and are **not operational as of 2026-08-04**", and that no user or student data
+  had been sent. Credentials withdrawn on `00014-5rw` were restored 53 minutes later on `00015-9l9`
+  (2026-08-04T07:25:08Z), and since the 2026-08-12 production deploy of PR #734 production
+  `AiApiLog` holds 64 rows of which **63 carry a `user_global_id`**
+  (`docs/legal/2026-08-16_subprocessor-register.md:99`). Scrubbed user content HAS reached a model
   provider on this path.
 - Before text is sent to our external LLM providers for word prediction, board generation, or eval
   narration, our PII scrubber removes identifiers. This is **pseudonymization (scrubbing)**, and we
