@@ -15459,3 +15459,50 @@ each one against the retrieved source was not ceremony: one report asserted NY
 requires a four-week SGD trial, and the grep behind it had matched the lymphedema
 section (lesson 3). Another reported a phrase absent from a PDF that contained it
 (lesson 4). Both would have shipped as sourced facts.
+
+## A "modern restyle" that leaves the legacy block in place never actually lands (2026-08-27)
+
+`app.scss` had both the new `.la-share-text__action-img { width: 24px; height: 24px }`
+(0,1,0) **and** the legacy `.share_buttons .btn img { height: 60px; width: 100% }`
+(0,2,1) it was meant to replace. The descendant selector wins on specificity no matter
+where it sits in the file, so the Share Text modal shipped with 60px full-width logos
+next to 22px inline `<svg>` siblings — the SVGs looked right only because `img` doesn't
+match `<svg>`, which is exactly the kind of half-applied result that reads as "a spacing
+bug" rather than "the restyle never took".
+
+**Rule:** when a BEM block is introduced to replace legacy styling, grep for *descendant*
+selectors over the same subtree (`.<legacy-wrapper> .btn img`, `.<wrapper> .glyphicon`,
+etc.) before believing the new single-class rules. If the legacy wrapper has exactly one
+consumer (verify with a full-repo grep, not just `app/`), delete the legacy block and the
+now-dead class from the markup — do not raise the new rules' specificity to out-shout it,
+which just leaves two authorities for one element (CLAUDE.md Rule #0.6/#0.7).
+
+## Per-modal header/footer padding is a no-op unless you qualify it with `.modal` (2026-08-27)
+
+The universal block at the very END of `app.scss` (`.modal .la-modal-header`,
+`.modal .modal-header`, `.modal .md-modal-header`, … plus the `*-modal-footer` twin) sets
+`padding-top/bottom: 28px` at (0,2,0). Every per-modal rule of the form
+`.la-<x>-modal-wrap .la-modal-header` is ALSO (0,2,0) and sits earlier, so its declared
+vertical padding never applies. Editing it in place looks like a correct fix and changes
+nothing on screen.
+
+**Rule:** to change one modal's header/footer padding, edit that modal's existing rule
+*in place* but raise it to `.modal .la-<x>-modal-wrap .la-modal-header` (0,3,0). Never
+edit the universal block for one modal — it governs every modal in the app. Extends
+`docs/styling-recurring-problems.md` #7.
+
+Corollary: many modals have **no footer element at all** (`modal-dialog.hbs` yields
+straight into `.modal-content`). For those, "footer padding" is the body rule's bottom
+padding; the universal `*-modal-footer` selectors match nothing. Check the template
+before hunting for a footer rule that doesn't exist.
+
+## Reusing an existing `id` in new markup silently imports its global styling (2026-08-27)
+
+`share-utterance.hbs` gave a contact badge `id='reply_icon'`, an id already used (several
+times over) by the header indicators in `templates/application.hbs`. `#reply_icon` in
+`app.scss` is (0,1,0,0) and forced `width/height: 25px; color: #000` onto the badge,
+beating its own `.la-share-text__contact-reply` class rule. Nothing in JS referenced it.
+
+**Rule:** before copying an `id` into new markup, grep the stylesheets as well as the JS.
+An id selector outranks every class rule you will write, and a duplicated id is invalid
+HTML regardless. If no JS/test reads it, drop the id and let the BEM class govern.

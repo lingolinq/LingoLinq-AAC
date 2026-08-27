@@ -234,6 +234,21 @@ standalone usage isn't affected:
 .modal .la-modal-header { ... }
 ```
 
+**Corollary (2026-08-27) — changing ONE modal's header/footer padding.**
+That universal block lives at the very end of `app.scss` and sets
+`padding-top/bottom: 28px` at specificity (0,2,0). A per-modal rule
+`.la-<x>-modal-wrap .la-modal-header` is also (0,2,0) and sits earlier,
+so its vertical padding **never applies** — editing it in place looks
+correct and changes nothing on screen. Fix: edit that modal's existing
+rule in place but qualify it, `.modal .la-<x>-modal-wrap .la-modal-header`
+(0,3,0). Never edit the universal block for a single modal.
+
+Also check whether the modal even *has* a footer: `modal-dialog.hbs`
+yields straight into `.modal-content`, so many modals render only a
+header and a body. For those the "footer padding" is the body rule's
+bottom padding, and the universal `*-modal-footer` selectors match
+nothing.
+
 ---
 
 ## 8. Empty array rendered as broken / blank state

@@ -18720,28 +18720,12 @@ form.row.subscription-form-with-cards {
     }
   }
 }
-.share_buttons {
-  .btn {
-    font-size: 14px;
-    width: 100%;
-    margin-bottom: 10px;
-    .glyphicon {
-      font-size: 60px;
-      display: block;
-      margin-bottom: 5px;
-      margin-top: -3px;
-    }
-    img {
-      height: 60px;
-      width: 100%;
-      display: block;
-      margin-bottom: 5px;
-      margin-top: -3px;
-      object-fit: contain;
-      object-position: center;
-    }
-  }
-}
+/* The legacy `.share_buttons` block that used to live here (60px full-width
+   `img` / 60px `.glyphicon` inside `.btn`) was removed 2026-08-27. Its only
+   consumer was the Share Text modal, and at (0,2,1) it silently outranked every
+   single-class `.la-share-text__*` rule below -- which is why the Facebook and
+   Twitter tiles rendered a 60px logo while their SVG siblings rendered at 22px.
+   The `.la-share-text__*` block is now the single authority for that modal. */
 .repair_buttons {
   .btn {
     font-size: 14px;
@@ -39101,15 +39085,19 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   border-radius: 18px;
   overflow: hidden;
 }
-.la-share-text-modal-wrap .la-modal-header {
+/* `.modal` qualifier is load-bearing: the universal end-of-file rule
+   `.modal .la-modal-header` (0,2,0) forces 28px top/bottom on every modal and
+   beats an unqualified `.la-share-text-modal-wrap .la-modal-header` on source
+   order. (0,3,0) here makes this the authoritative header rule for the modal. */
+.modal .la-share-text-modal-wrap .la-modal-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 20px 24px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--md-line);
   background: rgba(255, 255, 255, 0.6);
 }
-.la-share-text-modal-wrap .la-modal-header-label {
+.modal .la-share-text-modal-wrap .la-modal-header-label {
   margin: 0;
   font-weight: 900;
   font-size: 20px;
@@ -39118,7 +39106,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   flex: 1 1 auto;
   min-width: 0;
 }
-.la-share-text-modal-wrap .la-modal-close {
+.modal .la-share-text-modal-wrap .la-modal-close {
   background: none;
   border: none;
   font-size: 28px;
@@ -39129,7 +39117,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   flex-shrink: 0;
   transition: color 0.15s ease;
 }
-.la-share-text-modal-wrap .la-modal-close:hover {
+.modal .la-share-text-modal-wrap .la-modal-close:hover {
   color: var(--md-ink);
 }
 .la-modal-header-icon--share {
@@ -39142,15 +39130,18 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   border: 1px solid var(--md-line);
   flex-shrink: 0;
 }
+/* This modal has no footer element (see modal-dialog.hbs -- the component
+   yields straight into .modal-content), so the body's bottom padding IS the
+   modal's foot. Halved with the header: 20/24 -> 10/12. */
 .la-share-text-modal-body {
-  padding: 20px 24px 24px;
+  padding: 10px 24px 12px;
 }
 .la-share-text__quote {
   display: flex;
   align-items: flex-start;
   gap: 6px;
-  margin: 0 0 18px;
-  padding: 16px 20px;
+  margin: 0 0 12px;
+  padding: 12px 18px;
   background: $surface-100;
   border: 1px solid rgba($brand-blue-black, 0.10);
   border-left: 4px solid rgba($brand-verdigris, 0.55);
@@ -39171,9 +39162,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   word-break: break-word;
   align-self: center;
 }
+/* Sole occupant of the body in the empty state (share-utterance.hbs gates
+   everything else behind `{{#if this.sentence}}`), so no trailing margin. */
 .la-share-text__empty {
-  margin: 0 0 18px;
-  padding: 16px 20px;
+  margin: 0;
+  padding: 14px 18px;
   background: rgba($brand-blue-black, 0.03);
   border: 1px dashed rgba($brand-blue-black, 0.18);
   border-radius: 12px;
@@ -39191,7 +39184,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   clear: both;
   width: 100%;
   border-top: 1px solid rgba($brand-blue-black, 0.10);
-  margin: 14px 0 18px;
+  margin: 8px 0 12px;
 }
 .la-share-text__grid {
   margin: 0;
@@ -39202,11 +39195,11 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   width: 100%;
-  min-height: 86px;
-  padding: 12px 8px;
-  margin-bottom: 14px;
+  min-height: 72px;
+  padding: 10px 8px;
+  margin-bottom: 10px;
   border: 1px solid rgba($brand-blue-black, 0.12);
   border-radius: 12px;
   background: #ffffff;
@@ -39244,20 +39237,23 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   line-height: 1.2;
 }
 .la-share-text-modal-wrap .btn.la-share-text__contact-btn {
-  position: relative;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 6px;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 10px;
   width: 100%;
-  min-height: 86px;
-  padding: 10px 8px;
-  margin-bottom: 14px;
+  padding: 7px 12px;
+  margin-bottom: 8px;
   border: 1px solid rgba($brand-blue-black, 0.12);
   border-radius: 12px;
   background: #ffffff;
   color: $brand-charcoal-blue;
-  font-size: 13px;
+  /* Bootstrap's `.btn` is `white-space: nowrap`; the row layout is narrower than
+     the old stacked tile, so a long contact name has to be allowed to wrap. */
+  white-space: normal;
+  font-size: 14px;
   font-weight: 700;
   box-shadow: 0 1px 3px rgba($brand-blue-black, 0.05);
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
@@ -39268,32 +39264,36 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   transform: translateY(-2px);
 }
 .la-share-text__contact-avatar {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
   border-radius: 50%;
   object-fit: cover;
 }
 .la-share-text__contact-name {
-  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
   line-height: 1.2;
   word-break: break-word;
 }
+/* Trailing badge on the one contact that is a reply target. Sits at the end of
+   the row rather than as an absolute overlay, so it can never sit on top of a
+   name that wrapped to two lines. */
 .la-share-text__contact-reply {
-  position: absolute;
-  top: 6px;
-  right: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
   color: $brand-verdigris;
-  font-size: 13px;
+  font-size: 15px;
 }
 .la-share-text__textonly {
-  margin: 18px 0 0;
-  padding: 12px 16px;
+  margin: 12px 0 0;
+  padding: 9px 14px;
   background: rgba($brand-blue-black, 0.03);
   border: 1px solid rgba($brand-blue-black, 0.08);
   border-radius: 10px;
 }
 .la-share-text__status {
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   font-size: 14px;
   font-weight: 700;
 }

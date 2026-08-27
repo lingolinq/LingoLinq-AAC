@@ -8,131 +8,137 @@
       <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>&times;</button>
     </div>
     <div class="la-share-text-modal-body">
+      {{!-- With nothing in the sentence box there is nothing any of these controls can
+            act on, so the body collapses to the empty notice alone. `sentence` is '' in
+            that state (components/share-utterance.js), so this gate is safe. --}}
       {{#if this.sentence}}
         <div class="la-share-text__quote">
           <span class="la-share-text__quote-mark" aria-hidden="true">&ldquo;</span>
           <span class="la-share-text__quote-text">{{this.sentence}}</span>
           <span class="la-share-text__quote-mark" aria-hidden="true">&rdquo;</span>
         </div>
+        {{!-- Off-screen, aria-hidden, tabindex=-1 clipboard mirror (JS does .focus().select().val()
+             in share-utterance.js) — not a user-facing control, so it needs no accessible name.
+             The ancestor aria-hidden already removes it from the a11y tree; the rule checks the
+             element in isolation and can't see that, hence the scoped disable. --}}
+        {{! template-lint-disable require-input-accessible-name }}
+        <div style='position: absolute; left: -1000px;' aria-hidden="true"><input type="text" value={{this.sentence}} id="utterance_sentence" readonly tabindex="-1" /></div>
+        {{! template-lint-enable require-input-accessible-name }}
+
+        {{!-- `modal_targets` is what makes this modal SCANNABLE: modal.js#scannable_targets
+             selects `.modal-dialog .modal_targets .btn, … a, …`, so every contact and share
+             button below has to stay inside this container. --}}
+        <div class="row modal_targets advanced_selection la-share-text__grid">
+          {{#if this.appState.sessionUser.any_limited_supervisor}}
+            <p class='la-share-text__note'>
+              {{t "In addition to sharing using the device's built-in tools, %app_name% can be set up for two-way text or email to custom contacts and supervisors. You can add contacts on a user's profile under My Account!" key="two_way_communication_on_profile"}}
+              {{#if this.appState.sessionUser.modeling_only}}
+                  {{t "Please consider purchasing %app_name% to gain access to this feature when working with paid communicators." key="consider_buying_for_contacts"}}
+              {{else}}
+                  {{t "This feature is limited to those working with paid communicator accounts." key="consider_communicator_buying_for_contacts"}}
+              {{/if}}
+            </p>
+          {{else if this.appState.referenced_user.currently_premium}}
+            {{#if this.contacts}}
+              {{#each this.contacts as |sup|}}
+                <div class='col-md-3 col-sm-4 col-xs-6'>
+                  <button class='btn btn-default la-share-text__contact-btn' {{on "click" (this.ctrlAction "message" sup)}}>
+                    <img src={{sup.avatar_url}} alt="" class="la-share-text__contact-avatar">
+                    <span class="la-share-text__contact-name">{{sup.user_name}}</span>
+                    {{#if sup.reply}}
+                      <span class='la-share-text__contact-reply' aria-hidden="true"><span class='glyphicon glyphicon-envelope'></span></span>
+                    {{/if}}
+                  </button>
+                </div>
+              {{/each}}
+            {{else}}
+              <p class='la-share-text__note'>{{t "In addition to sharing using the device's built-in tools, %app_name% can be set up for two-way text or email to custom contacts and supervisors. You can add contacts on a user's profile under My Account!" key="two_way_communication_on_profile"}}</p>
+            {{/if}}
+          {{else}}
+            <p class='la-share-text__note'>
+              {{t "In addition to sharing using the device's built-in tools, %app_name% can be set up for two-way text or email to custom contacts and supervisors. You can add contacts on a user's profile under My Account!" key="two_way_communication_on_profile"}}
+              {{t "This feature is limited to communicators with a currently-active premium account" key="currently_premium_required"}}
+            </p>
+          {{/if}}
+
+          <div class="la-share-text__divider"></div>
+
+          {{#if this.shares.clipboard}}
+          <div class='col-md-2 col-sm-3 col-xs-4'>
+            <button class="{{this.clipboard_class}} la-share-text__action" {{on "click" (this.ctrlAction "share_via" "clipboard")}}>
+              <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span class="la-share-text__action-label">{{t "Copy" key="copy"}}</span>
+            </button>
+          </div>
+          {{/if}}
+          <div class='col-md-2 col-sm-3 col-xs-4'>
+            <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "big_text")}}>
+              <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              <span class="la-share-text__action-label">{{t "Button" key="button"}}</span>
+            </button>
+          </div>
+          {{#if this.shares.email}}
+            <div class='col-md-2 col-sm-3 col-xs-4'>
+              <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "email")}}>
+                <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <span class="la-share-text__action-label">{{t "Email" key="email"}}</span>
+              </button>
+            </div>
+          {{/if}}
+          {{#if this.utterance_record.link}}
+            <div class='col-md-2 col-sm-3 col-xs-4'>
+              <a href="#" class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "link")}} target="_blank" rel="noopener">
+                <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span class="la-share-text__action-label">{{t "Link" key="link"}}</span>
+              </a>
+            </div>
+          {{/if}}
+          {{#if this.shares.facebook}}
+            <div class='col-md-2 col-sm-3 col-xs-4'>
+              <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "facebook")}}>
+                <img src={{path "images/logos/facebook.png"}} alt="" class="la-share-text__action-img">
+                <span class="la-share-text__action-label">{{t "Facebook" key="facebook"}}</span>
+              </button>
+            </div>
+          {{/if}}
+          {{#if this.shares.twitter}}
+            <div class='col-md-2 col-sm-3 col-xs-4'>
+              <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "twitter")}}>
+                <img src={{path "images/logos/twitter.png"}} alt="" class="la-share-text__action-img">
+                <span class="la-share-text__action-label">{{t "Twitter" key="twitter"}}</span>
+              </button>
+            </div>
+          {{/if}}
+          {{#if this.shares.instagram}}
+            <div class='col-md-2 col-sm-3 col-xs-4'>
+              <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "instagram")}}>
+                <img src={{path "images/logos/instagram.png"}} alt="" class="la-share-text__action-img">
+                <span class="la-share-text__action-label">{{t "Instagram" key="instagram"}}</span>
+              </button>
+            </div>
+          {{/if}}
+          {{#if this.shares.generic}}
+            <div class='col-md-2 col-sm-3 col-xs-4'>
+              <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "generic")}}>
+                <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                <span class="la-share-text__action-label">{{t "Other" key="other"}}</span>
+              </button>
+            </div>
+          {{/if}}
+        </div>
+
+        <label class="md-modal-checkbox-label la-share-text__textonly">
+          <input type="checkbox" checked={{this.text_only}} class="md-modal-checkbox" {{on "change" (set-field this "text_only" "checkbox")}} />
+          {{t "Share only text, with no images or explanations, for generic shares" key="share_only_text"}}
+        </label>
+
+        {{#if this.copy_result.succeeded}}
+          <p class='la-share-text__status la-share-text__status--ok'>{{t "Text copied to the clipboard!" key="copied_to_clipboard"}}</p>
+        {{else if this.copy_result.failed}}
+          <p class='la-share-text__status la-share-text__status--err'>{{t "Copying to the clipboard failed." key="copy_failed"}}</p>
+        {{/if}}
       {{else}}
         <p class="la-share-text__empty">{{t "There's no message to share yet — add some words to your sentence first." key="nothing_to_share_yet"}}</p>
-      {{/if}}
-      {{!-- Off-screen, aria-hidden, tabindex=-1 clipboard mirror (JS does .focus().select().val()
-           in share-utterance.js) — not a user-facing control, so it needs no accessible name.
-           The ancestor aria-hidden already removes it from the a11y tree; the rule checks the
-           element in isolation and can't see that, hence the scoped disable. --}}
-      {{! template-lint-disable require-input-accessible-name }}
-      <div style='position: absolute; left: -1000px;' aria-hidden="true"><input type="text" value={{this.sentence}} id="utterance_sentence" readonly tabindex="-1" /></div>
-      {{! template-lint-enable require-input-accessible-name }}
-
-      <div class="row share_buttons modal_targets advanced_selection la-share-text__grid">
-        {{#if this.appState.sessionUser.any_limited_supervisor}}
-          <p class='la-share-text__note'>
-            {{t "In addition to sharing using the device's built-in tools, %app_name% can be set up for two-way text or email to custom contacts and supervisors. You can add contacts on a user's profile under My Account!" key="two_way_communication_on_profile"}}
-            {{#if this.appState.sessionUser.modeling_only}}
-                {{t "Please consider purchasing %app_name% to gain access to this feature when working with paid communicators." key="consider_buying_for_contacts"}}
-            {{else}}
-                {{t "This feature is limited to those working with paid communicator accounts." key="consider_communicator_buying_for_contacts"}}
-            {{/if}}
-          </p>
-        {{else if this.appState.referenced_user.currently_premium}}
-          {{#if this.contacts}}
-            {{#each this.contacts as |sup|}}
-              <div class='col-sm-2 col-xs-4'>
-                <button class='btn btn-default la-share-text__contact-btn' {{on "click" (this.ctrlAction "message" sup)}}>
-                  {{#if sup.reply}}
-                    <span id='reply_icon' class='la-share-text__contact-reply' aria-hidden="true"><span class='glyphicon glyphicon-envelope'></span></span>
-                  {{/if}}
-                  <img src={{sup.avatar_url}} alt="" class="la-share-text__contact-avatar">
-                  <span class="la-share-text__contact-name">{{sup.user_name}}</span>
-                </button>
-              </div>
-            {{/each}}
-          {{else}}
-            <p class='la-share-text__note'>{{t "In addition to sharing using the device's built-in tools, %app_name% can be set up for two-way text or email to custom contacts and supervisors. You can add contacts on a user's profile under My Account!" key="two_way_communication_on_profile"}}</p>
-          {{/if}}
-        {{else}}
-          <p class='la-share-text__note'>
-            {{t "In addition to sharing using the device's built-in tools, %app_name% can be set up for two-way text or email to custom contacts and supervisors. You can add contacts on a user's profile under My Account!" key="two_way_communication_on_profile"}}
-            {{t "This feature is limited to communicators with a currently-active premium account" key="currently_premium_required"}}
-          </p>
-        {{/if}}
-
-        <div class="la-share-text__divider"></div>
-
-        {{#if this.shares.clipboard}}
-        <div class='col-md-2 col-sm-3 col-xs-4'>
-          <button class="{{this.clipboard_class}} la-share-text__action" {{on "click" (this.ctrlAction "share_via" "clipboard")}}>
-            <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            <span class="la-share-text__action-label">{{t "Copy" key="copy"}}</span>
-          </button>
-        </div>
-        {{/if}}
-        <div class='col-md-2 col-sm-3 col-xs-4'>
-          <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "big_text")}}>
-            <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-            <span class="la-share-text__action-label">{{t "Button" key="button"}}</span>
-          </button>
-        </div>
-        {{#if this.shares.email}}
-          <div class='col-md-2 col-sm-3 col-xs-4'>
-            <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "email")}}>
-              <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-              <span class="la-share-text__action-label">{{t "Email" key="email"}}</span>
-            </button>
-          </div>
-        {{/if}}
-        {{#if this.utterance_record.link}}
-          <div class='col-md-2 col-sm-3 col-xs-4'>
-            <a href="#" class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "link")}} target="_blank" rel="noopener">
-              <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              <span class="la-share-text__action-label">{{t "Link" key="link"}}</span>
-            </a>
-          </div>
-        {{/if}}
-        {{#if this.shares.facebook}}
-          <div class='col-md-2 col-sm-3 col-xs-4'>
-            <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "facebook")}}>
-              <img src={{path "images/logos/facebook.png"}} alt="" class="la-share-text__action-img">
-              <span class="la-share-text__action-label">{{t "Facebook" key="facebook"}}</span>
-            </button>
-          </div>
-        {{/if}}
-        {{#if this.shares.twitter}}
-          <div class='col-md-2 col-sm-3 col-xs-4'>
-            <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "twitter")}}>
-              <img src={{path "images/logos/twitter.png"}} alt="" class="la-share-text__action-img">
-              <span class="la-share-text__action-label">{{t "Twitter" key="twitter"}}</span>
-            </button>
-          </div>
-        {{/if}}
-        {{#if this.shares.instagram}}
-          <div class='col-md-2 col-sm-3 col-xs-4'>
-            <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "instagram")}}>
-              <img src={{path "images/logos/instagram.png"}} alt="" class="la-share-text__action-img">
-              <span class="la-share-text__action-label">{{t "Instagram" key="instagram"}}</span>
-            </button>
-          </div>
-        {{/if}}
-        {{#if this.shares.generic}}
-          <div class='col-md-2 col-sm-3 col-xs-4'>
-            <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "generic")}}>
-              <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-              <span class="la-share-text__action-label">{{t "Other" key="other"}}</span>
-            </button>
-          </div>
-        {{/if}}
-      </div>
-
-      <label class="md-modal-checkbox-label la-share-text__textonly">
-        <input type="checkbox" checked={{this.text_only}} class="md-modal-checkbox" {{on "change" (set-field this "text_only" "checkbox")}} />
-        {{t "Share only text, with no images or explanations, for generic shares" key="share_only_text"}}
-      </label>
-
-      {{#if this.copy_result.succeeded}}
-        <p class='la-share-text__status la-share-text__status--ok'>{{t "Text copied to the clipboard!" key="copied_to_clipboard"}}</p>
-      {{else if this.copy_result.failed}}
-        <p class='la-share-text__status la-share-text__status--err'>{{t "Copying to the clipboard failed." key="copy_failed"}}</p>
       {{/if}}
     </div>
   </div>
