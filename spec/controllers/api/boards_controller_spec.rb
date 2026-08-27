@@ -2953,6 +2953,46 @@ describe Api::BoardsController, :type => :controller do
       expect(Worker.scheduled_for?('priority', Progress, :perform_action, progress.id)).to eq(true)
       expect(progress.settings['method']).to eq('translate_set')
     end
+
+    it "should schedule a translation from a JSON body" do
+      token_user
+      b = Board.create(:user => @user)
+      request.headers['Content-Type'] = 'application/json'
+      post 'translate', params: {:board_id => b.global_id}, body: {
+        'translations' => {'hat' => 'sombrero'},
+        'source_lang' => 'en',
+        'destination_lang' => 'es',
+        'board_ids_to_translate' => []
+      }.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['progress']).to_not eq(nil)
+      progress = Progress.find_by_global_id(json['progress']['id'])
+      expect(progress.settings['method']).to eq('translate_set')
+      expect(progress.settings['arguments'][0]).to eq({'hat' => 'sombrero'})
+      expect(progress.settings['arguments'][1]['source']).to eq('en')
+      expect(progress.settings['arguments'][1]['dest']).to eq('es')
+    end
+
+    it "should accept a JSON translation map larger than Rack's form-param cap" do
+      token_user
+      b = Board.create(:user => @user)
+      translations = {}
+      4100.times { |i| translations["w#{i.to_s.rjust(4, '0')}"] = 'x' }
+      request.headers['Content-Type'] = 'application/json'
+      post 'translate', params: {:board_id => b.global_id}, body: {
+        'translations' => translations,
+        'source_lang' => 'en',
+        'destination_lang' => 'es',
+        'board_ids_to_translate' => []
+      }.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      progress = Progress.find_by_global_id(json['progress']['id'])
+      expect(progress.settings['arguments'][0].length).to eq(4100)
+      expect(progress.settings['arguments'][0]['w0000']).to eq('x')
+      expect(progress.settings['arguments'][0]['w4099']).to eq('x')
+    end
   end
   
   describe "update_privacy" do
