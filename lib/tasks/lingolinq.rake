@@ -1,4 +1,31 @@
 namespace :lingolinq do
+  desc 'Store dest-locale translations on English lingolinq library boards (default LANG=es). ' \
+       'Does not change the English default. DEST_LANG wins over LANG; shell locales like ' \
+       'en_US.UTF-8 are ignored. SLUGS=quick-core-60 limits the run. SCOPE=seed translates ' \
+       'every listed public content-user root (reindex inventory). DRY_RUN=1 lists roots. ' \
+       'Production (including Render staging) needs ALLOW_PROD_TRANSLATE=1; SCOPE=seed also ' \
+       'needs TRANSLATE_CONFIRM=1. CSV written to tmp/.'
+  task translate_library_boards: :environment do
+    dest_lang = LibraryBoardTranslator.parse_dest_lang(
+      ENV['DEST_LANG'].presence || ENV['BOARD_LANG'].presence || ENV['LANG']
+    )
+    slugs = ENV['SLUGS'].to_s.split(',').map(&:strip).reject(&:blank?)
+    scope = ENV['SCOPE'].to_s.strip.presence
+    dry_run = ENV['DRY_RUN'].to_s =~ /^(1|true|yes)$/i
+    db = ActiveRecord::Base.connection_db_config.configuration_hash
+    db_desc = "#{db[:database]}@#{db[:host] || 'local'}"
+    puts "#{dry_run ? '[DRY RUN] ' : ''}Translating library boards on #{SystemBoardSources::USER_NAME} to #{dest_lang}" \
+         "#{slugs.any? ? " (#{slugs.join(', ')})" : scope ? " (scope=#{scope})" : ''}..."
+    puts "  Target: user '#{SystemBoardSources::USER_NAME}' on DB #{db_desc}"
+    LibraryBoardTranslator.translate_library!(
+      dest_lang: dest_lang,
+      slugs: slugs.presence,
+      scope: scope,
+      dry_run: dry_run
+    )
+    puts 'Done.'
+  end
+
   desc 'Copy and translate Quick Core / Vocal Flair library boards to Spanish on the lingolinq account'
   task provision_spanish_library_boards: :environment do
     force = ENV['FORCE'].to_s =~ /^(1|true|yes)$/i
