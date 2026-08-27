@@ -1440,7 +1440,7 @@
                 </button>
                 {{#if this.icon_picker_open}}
                   <div id="nb-icon-picker-panel" class="nb-icon-disclosure__panel">
-                    <IconSelect @selection={{this.model.image_url}} @action={{mut this.model.image_url}} />
+                    <IconSelect @selection={{this.model.image_url}} @action={{fn (mut this.model.image_url)}} />
                   </div>
                 {{/if}}
               </div>
