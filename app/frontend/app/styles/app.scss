@@ -301,19 +301,32 @@
   box-shadow: 0 0 0 3px $la-navy !important;
   border-radius: 6px;
 }
-/* On dark backgrounds, use a light focus ring for contrast */
+/* On dark backgrounds, use a light focus ring for contrast.
+
+   EVERY selector here must carry BOTH the `#within_ember` scope AND the same
+   `:not(.md-board-detail-edit-toolbar__search-input)` the global rule above uses — for
+   exactly the reason spelled out in the forced-colors block below. The global navy rule is
+   `#within_ember *:focus-visible:not(…)` = (1,2,0) and is `!important`; `!important` does
+   NOT beat `!important`, so specificity alone decides. Written without the scope, 7 of the
+   9 selectors below were (0,2,0) or (1,1,1) and silently LOST — including
+   `.md-board-category-order`, which is why the Categorize takeover (which paints
+   $brand-charcoal-dark unconditionally, regardless of the board's dark_mode, and that
+   defaults false) shipped with a navy #1B365D ring on #374151 at 1.17:1 against the 3:1
+   WCAG 1.4.11 minimum. With the scope every selector here is at least (1,3,0) and wins
+   outright rather than by source order.
+
+   The search-input carve-out is not just specificity padding — that input styles its own
+   :focus-visible (see .md-board-detail-edit-toolbar__search-input:focus-visible), so it
+   opts out of the global ring treatment in both light and dark contexts. */
 #within_ember.board-detail-view:has(.md-board-detail--dark) *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
-.md-board-detail--dark *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
-/* The Categorize takeover paints $brand-charcoal-dark unconditionally, so it needs the
-   light ring regardless of the board's dark_mode — which defaults false, leaving Reset,
-   Close and every category up/down arrow with a navy-on-charcoal ring at 1.17:1. */
-.md-board-category-order *:focus-visible,
-header:has(#speak) *:focus-visible,
-#inner_header:has(#speak) *:focus-visible,
-.md-board-detail-sentence-bar *:focus-visible,
-.md-board-detail-header *:focus-visible,
-.md-board-detail-board-actions *:focus-visible,
-.md-board-detail-board-actions__btn:focus-visible {
+#within_ember .md-board-detail--dark *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+#within_ember .md-board-category-order *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+#within_ember header:has(#speak) *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+#within_ember #inner_header:has(#speak) *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+#within_ember .md-board-detail-sentence-bar *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+#within_ember .md-board-detail-header *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+#within_ember .md-board-detail-board-actions *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+#within_ember .md-board-detail-board-actions__btn:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85) !important;
   border-radius: 6px;
 }
@@ -78487,7 +78500,21 @@ span.md-board-detail-modeling-btn--paused:hover {
    ~200-line cell block in board-detail-grid.hbs is written once instead of
    duplicated into a grouped branch. Ungrouped it is `display: contents`, so it
    generates NO box and the base grid above lays out exactly as it did before
-   this feature existed. Only .md-board-detail-grid--grouped gives it a box. */
+   this feature existed. Only .md-board-detail-grid--grouped gives it a box.
+
+   ⚠ DORMANT, NOT DEAD — read before "cleaning up" anything below.
+   `.md-board-detail-grid--grouped` is emitted by `{{if this.panelLayout ...}}`
+   (board-detail-grid.hbs), and `panelLayout` is a hardcoded `false`
+   (board-detail-grid.js) — the PANEL presentation is parked as a future feature,
+   the same way `category_ordering_available` is. So every
+   `.md-board-detail-grid--grouped ...` rule in this section currently matches
+   NOTHING. That is intentional: bringing the panel layout back is one `true`, and
+   deleting these rules would mean re-authoring them.
+   What grouping actually paints today is `--compact` / `--compact-scroll`
+   (`compactCategories` / `compactScroll`, both derived from `groupingEnabled`).
+   NOTE the near-miss: `--grouped-no-scroll` IS live — it hangs off
+   `groupingEnabled` + `unless categoryScrollEnabled`, not off `panelLayout`.
+   Do not sweep it up with the others. */
 .md-board-detail-grid__group {
   display: contents;
 }

@@ -100,8 +100,14 @@ const OWNER_SETUP = () => {
 };
 
 const stubLabelFit = () => {
-  /* The app's AMD loader is the only way in — testem cannot launch in this
-     environment (vendored execa is ESM while testem require()s it). */
+  /* The app's AMD loader is the only way in from a plain node script.
+     CORRECTED 2026-08-26: this used to say "testem cannot launch in this environment
+     (vendored execa is ESM while testem require()s it)". That is FALSE, and CLAUDE.md
+     rule 10 documents it as such — the `require() of ES Module .../execa` error is the
+     symptom of running on the WRONG NODE, not of a broken toolchain. The suite needs
+     Node 22; `nvm use 22 && ./node_modules/.bin/ember test` runs it fine. Leaving the
+     old claim here re-seeds exactly the wrong conclusion, which rule 10 says was already
+     rediscovered the hard way once. */
   const m = window.require('frontend/utils/label_fit').default;
   if (!m.__orig_apply) { m.__orig_apply = m.apply; }
   m.apply = function () {};

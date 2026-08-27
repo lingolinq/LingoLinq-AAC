@@ -211,6 +211,115 @@ describe FeatureFlags do
     end
   end
 
+  describe "TEMPORARY forced-ON flags" do
+    # THE GO-LIVE CHECKLIST, as a test rather than as memory.
+    #
+    # A flag in ENABLED_FRONTEND_FEATURES is forced ON for EVERY user, bypassing the
+    # per-user beta opt-in that AVAILABLE_FRONTEND_FEATURES exists to provide. Several are
+    # annotated TEMPORARY: they were switched on to evaluate a feature in the browser and
+    # are meant to return to AVAILABLE-only before production go-live.
+    #
+    # The failure mode this guards is silence. Nothing forces anyone to revisit these, and
+    # they accumulate — an AAC user finding the UI changed under them is disruptive, which
+    # is the whole reason the rollout policy exists. So the inventory is asserted:
+    #   * adding a TEMPORARY forced-ON flag without listing it here FAILS, so the decision
+    #     is made deliberately and is visible in one place;
+    #   * removing one at go-live also FAILS, which is the prompt to strike it off the list
+    #     here and confirm the feature still behaves with the flag off.
+    #
+    # This is an INVENTORY, not an endorsement. Shrinking it is the goal.
+    TEMPORARY_FORCED_ON = [
+      'board_category_grouping',
+      'boards_side_by_side_layout',
+      'customize_menu',
+      'dashboard_drag_layout',
+      'edit_sidebar',
+      'portrait_orientation_overlay',
+      'sentence_bar_editing',
+      'session_resume',
+      'supervising_context_banner',
+      'supervisor_consent_flow'
+    ].freeze
+
+    # Parsed from the source rather than hand-listed a second time: a hand-copied mirror is
+    # exactly what drifted in User::BOARD_CATEGORY_KEYS.
+    def temporary_entries
+      src = File.read(Rails.root.join('lib/feature_flags.rb'))
+      body = src[/ENABLED_FRONTEND_FEATURES\s*=\s*\[(.*?)DISABLED_CANARY_FEATURES/m, 1]
+      raise "could not locate ENABLED_FRONTEND_FEATURES in feature_flags.rb" if body.nil?
+      body.scan(/'([a-z_0-9]+)'\]?,?\s*#\s*TEMPORARY/).flatten
+    end
+
+    it "extracts a plausible set from the source" do
+      # Guards the regex itself, so a formatting change fails HERE with a clear cause
+      # rather than as a confusing inventory mismatch below.
+      expect(temporary_entries.length).to be >= 5,
+        "only found #{temporary_entries.inspect} — the TEMPORARY scan no longer matches the file's shape"
+    end
+
+    it "matches the recorded inventory — update this list when you gate one for go-live" do
+      expect(temporary_entries.sort).to eq(TEMPORARY_FORCED_ON.sort),
+        "TEMPORARY forced-ON flags changed.\n" \
+        "  newly TEMPORARY, not in the inventory: #{(temporary_entries - TEMPORARY_FORCED_ON).inspect}\n" \
+        "  in the inventory but no longer TEMPORARY: #{(TEMPORARY_FORCED_ON - temporary_entries).inspect}\n" \
+        "If you just gated one for production, remove it from TEMPORARY_FORCED_ON here and confirm " \
+        "the feature degrades correctly with the flag off."
+    end
+
+    it "every one of them is also registered as available, so removal returns it to beta opt-in" do
+      unregistered = TEMPORARY_FORCED_ON - FeatureFlags::AVAILABLE_FRONTEND_FEATURES
+      expect(unregistered).to eq([]),
+        "forced ON but not registered as available, so removing it from ENABLED deletes the feature " \
+        "outright instead of returning it to per-user opt-in: #{unregistered.inspect}"
+    end
+
+    # home_tour is deliberately NOT in the inventory above — it is permanently ON now that
+    # it is the onboarding path. See its own describe block below.
+    it "does not list home_tour, which is permanent rather than temporary" do
+      expect(TEMPORARY_FORCED_ON).not_to include('home_tour')
+      expect(temporary_entries).not_to include('home_tour'),
+        "home_tour was re-annotated TEMPORARY — it is the onboarding path now; see the home_tour specs"
+    end
+  end
+
+  describe "home_tour" do
+    # INVERTED TRIPWIRE. boards_side_by_side_layout and board_category_grouping below are
+    # pinned so that REMOVING them from ENABLED fails and reminds you to gate the rollout.
+    # This one is the opposite: the guided tour is the ONBOARDING PATH now, so removing it
+    # from ENABLED is the breaking change.
+    #
+    # The chain: the setup wizard was retired (routes/setup.js blanket-redirects; the Extras
+    # card, the org-People "Run Setup Wizard" toast and the user-index `setup` action are all
+    # gone), so the self-serve branch of dashboard/authenticated-view#intro sets
+    # `auto_open_home_tour`. Only <GuidedTour /> consumes that flag, and
+    # app-navbar-authenticated-inner.hbs renders <GuidedTour /> only when THIS feature flag is
+    # on. Drop it and "Learn about LingoLinq" in Getting Started bounces the user to the
+    # dashboard with nothing.
+    it "is registered as available" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('home_tour')
+    end
+
+    it "must stay ON for everyone — it is the onboarding path now that the setup wizard is retired" do
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).to include('home_tour'),
+        "home_tour was removed from ENABLED_FRONTEND_FEATURES. That is not a rollout gate here -- " \
+        "the setup wizard is retired, so this flag is the only thing rendering <GuidedTour />, and " \
+        "new users would land on the dashboard with no onboarding. Re-add it, or restore a non-tour " \
+        "onboarding path first."
+    end
+
+    it "no longer carries the retired 'remove before merging' instruction" do
+      # The comment used to say to strip this flag before merging the spike. Following that
+      # would now break onboarding; this pins the correction so it cannot silently come back.
+      src = File.read(Rails.root.join('lib/feature_flags.rb'))
+      home_tour_line = src.lines.find { |l| l.include?("'home_tour',") && l.include?('#') }
+      expect(home_tour_line).not_to be_nil, "expected an annotated 'home_tour' entry in feature_flags.rb"
+      # Matched narrowly on the STALE DIRECTIVE's own wording, not on the word "remove" --
+      # the replacement comment legitimately contains "do NOT remove from this list".
+      expect(home_tour_line).not_to match(/REMOVE from this list before merging/i),
+        "the home_tour entry still tells a future reader to remove the flag before merging -- that instruction is stale and would break onboarding"
+    end
+  end
+
   describe "boards_side_by_side_layout" do
     # TRIPWIRE, not a preference. This flag is TEMPORARILY forced on for everyone
     # (2026-08-16) so the Boards-page layout selector is visible for design comparison
@@ -269,8 +378,13 @@ describe FeatureFlags do
       stored = u.settings['preferences']['board_category_grouping']
       # The sanitizer deletes the bad value; generate_defaults then backfills the safe
       # default. The guarantee that matters is that the client string never persists AND
-      # the fallback is OFF — not that the key is absent.
-      expect(stored).to eq({'enabled' => false, 'order' => []})
+      # the fallback is OFF — not that the key is absent, and NOT the exact shape of the
+      # default hash. Asserting the whole hash coupled this spec to preference_defaults,
+      # which is how adding show_category_names/vertical_scroll turned it red without any
+      # behaviour actually changing. Pin the two guarantees, not the shape.
+      expect(stored).to be_a(Hash)
+      expect(stored['enabled']).to eq(false)
+      expect(stored['order']).to eq([])
     end
   end
 end

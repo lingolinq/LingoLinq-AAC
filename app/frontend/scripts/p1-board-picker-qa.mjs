@@ -234,9 +234,16 @@ async function runPreviewPickCheck(page) {
   if (await firstBoard.isVisible({ timeout: 3000 }).catch(() => false)) {
     await firstBoard.click();
     await page.waitForTimeout(3000);
-    const pickBtn = page.locator('button').filter({ hasText: /Pick this Board/i }).first();
+  /* The picker CTA was RENAMED on this branch: board-preview.hbs now emits
+     {{t "Set as Home Board" key="set_as_home_board_cta"}}. "Pick this Board" survives only
+     in comments and SCSS comments — zero rendered text — so every locator filtering on the
+     old label matched nothing and failed on every run (and the one at :281 `return`ed,
+     killing the 8 checks below it as dead code). try-this-board-qa.mjs:59 asserts the old
+     label is gone, so the two probes on this same branch contradicted each other.
+     Matched permissively so a further rename does not silently re-break this. */
+    const pickBtn = page.locator('button').filter({ hasText: /Set as Home Board|Pick this Board/i }).first();
     const pickVisible = await pickBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    record('supervisee-pick-cta', pickVisible, pickVisible ? 'Pick this Board CTA visible in preview' : 'Preview/pick CTA not found');
+    record('supervisee-pick-cta', pickVisible, pickVisible ? 'Set as Home Board CTA visible in preview' : 'Preview/pick CTA not found');
   } else {
     record('supervisee-pick-cta', false, 'No board card to click');
   }
@@ -278,9 +285,9 @@ async function runFullPickE2E(page, supervisee) {
   }
   record('full-pick-preview', true, 'Board preview loaded');
 
-  const pickBtn = page.getByRole('button', { name: /Pick this Board/i });
+  const pickBtn = page.getByRole('button', { name: /Set as Home Board|Pick this Board/i });
   if (!(await pickBtn.isVisible({ timeout: 10000 }).catch(() => false))) {
-    record('full-pick-cta', false, 'Pick this Board not visible in preview');
+    record('full-pick-cta', false, 'Set as Home Board CTA not visible in preview');
     return;
   }
 
@@ -292,7 +299,10 @@ async function runFullPickE2E(page, supervisee) {
   };
   page.on('response', onResponse);
 
-  record('full-pick-cta', true, `Clicking Pick this Board (target: ${PICK_BOARD})`);
+  /* Not a check — the real assertion is the `record('full-pick-cta', false, ...)` guard
+     above, which returns when the CTA is missing. A hardcoded `true` here only inflated the
+     pass count, so this is a plain log line now. */
+  console.log(`  → clicking Set as Home Board (target: ${PICK_BOARD})`);
   await pickBtn.click();
 
   const pickStarted = await page.locator('text=/Setting up your board|Preparing your Board/i').first()

@@ -82,6 +82,65 @@ module('Unit | Component | boards-layout-toggle', function(hooks) {
     assert.strictEqual(toggle.get('layoutMode'), TOP_DOWN, 'the toggle still works');
   });
 
+  /* ARROW KEYS. These call the handler the way `{{on}}` actually calls it: detached from
+     the component, with `this` set to the element the listener sits on. That is the whole
+     bug this pins -- the handler was a bare class-body method, so `this` was the
+     <span role="radiogroup">, `this.get(...)` threw, and because preventDefault() had
+     already run the arrow was swallowed with nothing happening. With the roving tabindex
+     only the CHECKED radio is tabbable, so that left NO keyboard or switch route to the
+     other option at all (WCAG 2.1.1).
+
+     Calling `toggle.onGroupKeydown(...)` directly would NOT catch it -- that binds `this`
+     for free and passes against the broken code. Detaching is the point. */
+  function fakeGroupEl() {
+    return {
+      querySelector: function() { return { focus: function() {} }; }
+    };
+  }
+
+  function keydown(key) {
+    var prevented = false;
+    return {
+      key: key,
+      currentTarget: fakeGroupEl(),
+      preventDefault: function() { prevented = true; },
+      wasPrevented: function() { return prevented; }
+    };
+  }
+
+  ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].forEach(function(key) {
+    test(key + ' moves the selection when dispatched the way {{on}} dispatches it',
+      function(assert) {
+        stubStorage({});
+        var toggle = this.owner.factoryFor('component:boards-layout-toggle').create();
+        assert.strictEqual(toggle.get('layoutMode'), SIDE_BY_SIDE, 'starts on the default');
+
+        // Detached reference + element `this`, exactly as addEventListener invokes it.
+        var handler = toggle.onGroupKeydown;
+        var ev = keydown(key);
+        handler.call(fakeGroupEl(), ev);
+
+        assert.true(ev.wasPrevented(), 'the arrow key is consumed');
+        assert.strictEqual(toggle.get('layoutMode'), TOP_DOWN, key + ' selected the other option');
+
+        // ...and back again, so the group is genuinely two-way by keyboard.
+        var back = keydown(key);
+        toggle.onGroupKeydown.call(fakeGroupEl(), back);
+        assert.strictEqual(toggle.get('layoutMode'), SIDE_BY_SIDE, key + ' selected the first option again');
+      });
+  });
+
+  test('a non-arrow key is left alone for the browser to handle', function(assert) {
+    stubStorage({});
+    var toggle = this.owner.factoryFor('component:boards-layout-toggle').create();
+
+    var ev = keydown('Tab');
+    toggle.onGroupKeydown.call(fakeGroupEl(), ev);
+
+    assert.false(ev.wasPrevented(), 'Tab is not swallowed');
+    assert.strictEqual(toggle.get('layoutMode'), SIDE_BY_SIDE, 'and nothing changed');
+  });
+
   test('choose() reflects the mode onto <body> and persists it', function(assert) {
     var store = {};
     stubStorage(store);

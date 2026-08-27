@@ -30,6 +30,8 @@ import boardDetailCache from '../utils/board_detail_cache';
 import sessionHistory from '../utils/session_history';
 import { supervising_context_for } from '../utils/supervising_context';
 import boardsPageListCache from '../utils/boards_page_list_cache';
+import { clearStoredLayout } from '../utils/boards_layout_state';
+import { clearFoldersExpanded } from '../utils/folders_panel_state';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
 import scanner from '../utils/scanner';
@@ -2169,6 +2171,15 @@ export default Service.extend({
     // Boards-page Mine list snapshots are per-user localStorage; drop them
     // on sign-out so a shared device never shows another user's tiles.
     try { boardsPageListCache.clearAll(); } catch(e) { /* non-critical */ }
+    /* The boards-page layout mirror and the folders-panel state are per-DEVICE by
+       necessity — both are read on the FIRST frame, before the user record hydrates, so
+       neither can be keyed by user id at read time. That makes sign-out the only place
+       they can be scoped. Without this, the next person to sign in on a shared
+       school/clinic device inherits the previous user's arrangement: they have no
+       `boards_layout` preference of their own, so the resolver falls through to the
+       mirror and never adopts anything else for the whole session. */
+    try { clearStoredLayout(); } catch(e) { /* non-critical */ }
+    try { clearFoldersExpanded(); } catch(e) { /* non-critical */ }
     this.set('last_keepalive', null);
     this.set('refresh_stamp', null);
     this.set('short_refresh_stamp', null);

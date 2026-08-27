@@ -8652,7 +8652,7 @@
   "ai_focus_words_disclosure_unavailable": "*** AI focus words need the AI transparency notice acknowledged first. You can review it in your Preferences.",
   "ai_focus_words_disclosure_refresh_failed": "*** We could not check your AI transparency settings. Check your connection, then try again.",
   "coppa_login_blocked_parent_consent_declined": "*** A parent or guardian declined consent for this account. It is scheduled for deletion and cannot be used.",
-  "setting_up_your_board_explainer": "*** Copying the full board set to this account. This can take up to a minute, and it's what makes the board work offline.",
+  "setting_up_your_board_explainer": "*** Copying the full board set to this account. This can take several minutes, and it's what makes the board work offline.",
   "word_buttons_explainer": "*** Buttons that speak a word or phrase, across this board and every board it links to. Navigation buttons are not counted.",
   "word_buttons": "*** Word Buttons",
   "enable_ai_features_blocked_title": "*** AI features are not available",

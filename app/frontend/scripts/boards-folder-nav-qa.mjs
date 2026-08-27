@@ -109,6 +109,29 @@ const SNAP = () => {
     await login(page, OPTS);
     await page.setViewport({ width: 1920, height: 1000 });
     await page.goto(`${OPTS.BASE}/${OPTS.USER}/boards`, { waitUntil: 'networkidle2' });
+
+    /* EXPAND THE FOLDERS PANEL FIRST. Every selector this probe drives lives inside
+       `{{#if this.foldersExpanded}}` (available-boards-section.hbs), and that now defaults
+       to COLLAPSED and only ever changes when the user toggles it — the viewport/layout
+       auto-expand that used to open it on entering side-by-side was removed on 2026-08-26
+       (the panel stays where the user left it, and a state change that skipped the stored
+       preference was what let this component and controllers/user/index drift apart).
+       Puppeteer gets a fresh profile per run via qa-helpers#launch, so localStorage is
+       always empty and the panel is always closed on arrival. Without this the wait below
+       times out at 45s and the probe exits 1 on every run, having tested nothing.
+       Same pattern as folders-caret-qa.mjs. */
+    const foldersExpanded = await page.evaluate(() => {
+      const t = document.querySelector('.ub-boards-page__folders-toggle');
+      return t ? t.getAttribute('aria-expanded') : null;
+    });
+    if (foldersExpanded === null) {
+      throw new Error('folders toggle not found — is the Folders panel rendered on this account?');
+    }
+    if (foldersExpanded === 'false') {
+      await page.click('.ub-boards-page__folders-toggle');
+      await new Promise((r) => setTimeout(r, 600));
+    }
+
     await page.waitForSelector('.ub-boards-page__folder-row', { timeout: 45000 });
 
     const before = await page.evaluate(SNAP);

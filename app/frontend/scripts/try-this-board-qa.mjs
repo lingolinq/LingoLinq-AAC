@@ -93,13 +93,28 @@ try {
   await back.first().click();
   await page.waitForTimeout(5000);
   record('Back returns to the picker LIST', /board-picker/.test(page.url()), page.url().replace(BASE, ''));
-  const overlayUp = await page.locator('.md-board-preview__actions').first().isVisible().catch(() => false);
+  /* `.catch(() => true)`, NOT `() => false`. This is a NEGATIVE assertion — it passes when
+     the overlay is absent — so an error path that yields `false` becomes `!false` = PASS,
+     and any detached element, in-flight navigation or zero-match silently reports success.
+     Failing closed means a probe error surfaces as a FAIL rather than a green run. */
+  const overlayUp = await page.locator('.md-board-preview__actions').first().isVisible().catch(() => true);
   record('and not back inside the preview overlay', !overlayUp);
 } catch (e) {
+  /* Record it, do not just print it. With only a console.error here, a throw before the
+     first record() left `results` EMPTY, so `failed === 0` and the script exited 0 printing
+     "0 passed / 0 failed" — a totally broken run was indistinguishable from a green one.
+     (boards-instant-paint-qa.mjs already does this correctly.) */
   console.error('  harness error:', e && e.message);
+  results.push({ name: 'harness', pass: false, detail: (e && e.message) || String(e) });
 } finally {
   await browser.close();
 }
 const failed = results.filter(r => !r.pass).length;
 console.log(`\n${results.length - failed} passed / ${failed} failed`);
+/* Zero checks is a failed run, not a clean one — it means the probe never got far enough
+   to assert anything. */
+if (!results.length) {
+  console.log('NO CHECKS RAN — treating as a failure; the probe never reached its first assertion.');
+  process.exit(1);
+}
 process.exit(failed ? 1 : 0);

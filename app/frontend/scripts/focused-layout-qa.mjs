@@ -200,7 +200,14 @@ const ROUTES = [
     console.log('page'.padEnd(22) + WIDTHS.map((w) => String(w).padStart(6)).join(''));
     for (const r of ok.slice(1)) {
       console.log(r.name.padEnd(22) + WIDTHS.map((w) => {
-        const d = (r.byWidth[w] ?? 0) - (base[w] ?? 0);
+        /* A MISSING measurement is not a zero delta. `byWidth[w]` is set to `null` whenever the
+       pill-nav or topbar was not found, and `?? 0` turned that into 0 — printing "." for
+       "aligned" on a route where the nav had VANISHED. WIDTHS includes 375/500/600, exactly
+       the range where pillnav-narrow-qa.mjs exists because the nav disappears. The table one
+       row up already prints "-" for the same cell (`?? '-'`), so the two disagreed. */
+    const missing = r.byWidth[w] == null || base[w] == null;
+    const d = missing ? null : r.byWidth[w] - base[w];
+        if (missing) { return String('-').padStart(6); }   // not measured, NOT "aligned"
         return String(d === 0 ? '.' : (d > 0 ? '+' + d : d)).padStart(6);
       }).join(''));
     }

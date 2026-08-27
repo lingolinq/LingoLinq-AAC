@@ -83,7 +83,11 @@ const clickByText = async (page, sel, text) => {
 
 const clearMineCache = (page) => page.evaluate(() => {
   try {
-    Object.keys(localStorage).filter((k) => /boards_page_list|mine_list/i.test(k))
+    /* The real prefix is `ll_boards_page_mine_v1:` (app/utils/boards_page_list_cache.js).
+         The previous pattern, /boards_page_list|mine_list/i, matches NEITHER of those
+         substrings, so this cleared nothing and every run hydrated from the snapshot it
+         believed it had just dropped. */
+      Object.keys(localStorage).filter((k) => k.indexOf('ll_boards_page_mine_v1:') === 0)
       .forEach((k) => localStorage.removeItem(k));
   } catch (e) { /* nothing to clear */ }
 });

@@ -98,7 +98,23 @@ function audit() {
       }
       const bc = parse(cs.backgroundColor);
       if (bc && bc.a > 0) {
-        acc = acc === null ? bc : { rgb: blend(acc, bc.rgb), a: 1 };
+        /* SOURCE-OVER, keeping the real resulting alpha. This used to hardcode `a: 1`,
+           which claimed a 2+-layer translucent stack was fully opaque — so the final
+           composite against the canvas below (`acc.a < 1 ? blend(acc, WHITE)`) could never
+           run for exactly the stacked-wash case this probe was written for, and the ratio
+           came out too favourable. Under-reporting a contrast failure is the worst
+           direction for an accessibility tool to be wrong in.
+           a_out = a_fg + a_bg(1 - a_fg); rgb weighted by each layer's contribution. */
+        if (acc === null) {
+          acc = bc;
+        } else {
+          const aOut = acc.a + bc.a * (1 - acc.a);
+          acc = {
+            rgb: aOut === 0 ? bc.rgb : acc.rgb.map((c, i) =>
+              (c * acc.a + bc.rgb[i] * bc.a * (1 - acc.a)) / aOut),
+            a: aOut
+          };
+        }
         if (bc.a === 1) { return { base: acc.rgb, layers: layers }; }
       }
       node = node.parentElement;
@@ -109,7 +125,10 @@ function audit() {
 
   const SCOPE = '.md-shell--caseload';
   const root = document.querySelector(SCOPE);
-  if (!root) { return { err: 'no ' + SCOPE + ' — is this the caseload in Focused View?' }; }
+  /* NOTE: this only proves we are on the caseload — `.md-shell--caseload` is emitted
+     UNCONDITIONALLY by templates/caseload.hbs, in Gentle View too, so it is NOT a
+     Focused-View check. The layout is asserted by the caller before audit() is called. */
+  if (!root) { return { err: 'no ' + SCOPE + ' — is this the caseload page at all?' }; }
 
   const rows = [];
   const seen = new Set();
@@ -174,16 +193,47 @@ function audit() {
   const { browser, page } = await launch(opts);
   try {
     await login(page, opts);
-    await forceFocused(page);
-    await new Promise((r) => setTimeout(r, 1200));
+    /* The pre-goto call that used to be here was pointless: `page.goto` is a full document
+       load, and the preference was only ever set in memory. Focused View is now forced ONCE,
+       after the shell has rendered (i.e. after Ember has booted), and the result is CHECKED. */
     /* `domcontentloaded`, NOT `networkidle2`. This probe hung for 20+ minutes on a run
        taken right after an SCSS edit: ember-cli-live-reload holds a socket open and the
        app polls, so "two idle connections" can simply never happen and the wait outlives
        its own timeout. The selector wait below is the real readiness signal. */
     await page.goto(opts.BASE + '/caseload', { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await forceFocused(page);
-    await page.waitForSelector('.md-shell--caseload', { timeout: 30000 }).catch(() => {});
+    /* Wait for the shell BEFORE forcing the layout. `forceFocused` reads `window.appState`,
+       which services/app-state.js only assigns during boot — called right after
+       `domcontentloaded` it returned 'window.appState missing' (or threw on an unresolved
+       sessionUser), and BOTH call sites discarded the return value. The audit then ran
+       against whatever layout was live, while printing "Focused View". */
+    await page.waitForSelector('.md-shell--caseload', { timeout: 30000 });
+    const forced = await forceFocused(page);
+    if (forced !== true) {
+      console.error(`\nABORT: could not switch to Focused View (${forced}).`);
+      console.error('Auditing Gentle View while reporting Focused View is worse than not auditing:');
+      console.error('_focused-view.scss exists precisely to REPLACE the Gentle values this would measure.');
+      process.exitCode = 2;
+      return;
+    }
     await new Promise((r) => setTimeout(r, 2500));
+
+    /* And prove it took. `.md-shell--caseload` is NOT evidence — templates/caseload.hbs
+       emits it unconditionally, in both layouts, so the guard inside audit() that keys off
+       it never fired. `ll-layout-focused` on <body> is the real marker (app.js
+       set_layout_scope, mirrored by app-state#sync_layout_scope). */
+    const layoutOk = await page.evaluate(() => ({
+      focused: document.body.classList.contains('ll-layout-focused'),
+      pref: (function() {
+        try { return window.appState.get('sessionUser.preferences.dashboard_layout'); }
+        catch (e) { return '(unreadable)'; }
+      })()
+    }));
+    if (!layoutOk.focused) {
+      console.error(`\nABORT: Focused View did not take (body.ll-layout-focused absent, pref=${layoutOk.pref}).`);
+      process.exitCode = 2;
+      return;
+    }
+    console.log(`  layout confirmed: body.ll-layout-focused=true, dashboard_layout=${layoutOk.pref}`);
 
     const res = await page.evaluate(audit);
     if (res.err) { console.log('ERROR: ' + res.err); process.exitCode = 2; return; }

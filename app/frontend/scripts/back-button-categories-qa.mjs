@@ -54,7 +54,9 @@ const STATE = () => {
     headerBack: box(document.querySelector('.md-board-detail-nav-btns .md-board-detail-nav-btn')),
     home: box(document.querySelector('.md-board-detail-nav-stack .md-board-detail-home-btn')),
     row: box(row),
-    grouped: !!(grid && grid.classList.contains('md-board-detail-grid--grouped')),
+    /* --compact is the live grouping marker; --grouped is keyed on the hardcoded-false
+       `panelLayout` and is emitted by nothing. */
+    grouped: !!(grid && grid.classList.contains('md-board-detail-grid--compact')),
     compact: !!(grid && grid.classList.contains('md-board-detail-grid--compact')),
     compactScroll: !!(grid && grid.classList.contains('md-board-detail-grid--compact-scroll')),
     folders: document.querySelectorAll('.md-board-detail-grid__cell--folder').length

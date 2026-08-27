@@ -4231,7 +4231,7 @@
   "loading_preview": "Loading preview...",
   "grid_size_suggestion_prompt": "This board style has multiple grid sizes. As you choose a grid size, try to focus on the smallest buttons that the user can reliably hit, rather than worrying about showing too many buttons. A many-button grid can be \"turned down\" to show fewer buttons more easily than a few-button grid can be adjusted to add more buttons later.",
   "setting_up_your_board": "Setting up your board...",
-  "setting_up_your_board_explainer": "Copying the full board set to this account. This can take up to a minute, and it's what makes the board work offline.",
+  "setting_up_your_board_explainer": "Copying the full board set to this account. This can take several minutes, and it's what makes the board work offline.",
   "loading_board_images": "Loading board images...",
   "loading_board_preview_overlay": "Loading board preview...",
   "full_name": "Full Name",

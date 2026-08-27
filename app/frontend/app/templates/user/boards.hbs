@@ -32,7 +32,12 @@
            The overlay is gone and the page paints immediately, so the
            animation is visible from the first frame and both the gate and
            its placeholder are unnecessary. --}}
-      <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="ub-communicate" aria-label={{t "Communicate" key="communicate_word"}}>{{letter-stagger (t "Communicate" key="communicate_word") start=0.25 step=0.06}}</span></h1>
+      {{!-- The staggered word is DECORATIVE to assistive tech: `letter-stagger` marks every
+           span it emits aria-hidden, and aria-label is name-prohibited on role=generic, so the
+           previous aria-label on this <span> contributed nothing and the heading announced as
+           just "Let's". Carry the word in a visually-hidden node instead -- `.sr-only` is
+           position:absolute so it costs no layout. --}}
+      <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="sr-only">{{t "Communicate" key="communicate_word"}}</span><span class="ub-communicate" aria-hidden="true">{{letter-stagger (t "Communicate" key="communicate_word") start=0.25 step=0.06}}</span></h1>
     </div>
     <p class="la-pricing-hero-subtitle">{{t "Manage your vocabularies and page-sets," key="ub_boards_subtitle_pre"}}<br>{{t "or create" key="ub_boards_subtitle_mid"}} <em><a href="#" class="ub-boards-page__subtitle-link" {{on "click" (this.ctrlAction "newBoard")}}>{{t "something new..." key="ub_boards_subtitle_em"}}</a></em></p>
   </div>

@@ -18,9 +18,22 @@ import { cliArgs, launch, login } from './qa-helpers.mjs';
 
 const OPTS = cliArgs(process.argv);
 const BOARDS = (OPTS.arg('--boards', '')).split(',').filter(Boolean);
+/* ABORT rather than exiting 0 having done nothing. With no --boards the loop body never
+   ran, so the script printed NOTHING and exited 0 — indistinguishable from a clean pass to
+   anyone who wired it into a sweep. */
+if (!BOARDS.length) {
+  console.error('category-pref-scope-qa: --boards is required.');
+  console.error('  Usage: node scripts/category-pref-scope-qa.mjs --boards user/slug-a,user/slug-b');
+  console.error('  It compares the per-board preference REF against each board key, to prove the');
+  console.error('  override is keyed by `username/board-slug` and not by global_id.');
+  process.exit(2);
+}
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const READ = () => {
+  /* NOTE: the grid emits `data-id` and `data-filter` only — there is no `data-key`
+     (board-detail-grid.hbs). Read the key from the ROUTE instead, which is where the board
+     slug actually lives. */
   const grid = document.querySelector('.md-board-detail-grid');
   let pref = null;
   try {

@@ -15459,3 +15459,69 @@ each one against the retrieved source was not ceremony: one report asserted NY
 requires a four-week SGD trial, and the grep behind it had matched the lymphedema
 section (lesson 3). Another reported a phrase absent from a PDF that contained it
 (lesson 4). Both would have shipped as sourced facts.
+
+## Gotcha: `{{on "evt" this.someMethod}}` does NOT bind `this` — the repo's idiom is a factory bound in `init`
+
+`{{on}}` hands the raw function to `addEventListener`, so inside a bare class-body method
+`this` is the DOM element, not the component. The first `this.get(...)` throws
+`TypeError: this.get is not a function` — and if the handler already called
+`event.preventDefault()`, the key is swallowed AND the action never runs, which reads as
+"the control is dead" rather than as an error.
+
+Every other `{{on "keydown"}}` in this codebase goes through a binding factory —
+`this.eventAction`, `this.ctrlAction`, `this.invokeAttr` — or an `init`-bound closure:
+
+```js
+init() {
+  this._super(...arguments);
+  var self = this;
+  this.onGridKeydown = function(ev) { self.send('grid_keydown', ev); };  // components/grid-size-picker.js:56
+}
+```
+
+Found the hard way: `components/boards-layout-toggle.hbs:14` bound `this.onGroupKeydown`
+bare (2026-08-26 review). Combined with a roving tabindex — where only the CHECKED radio has
+`tabindex="0"` — it made the control completely keyboard-inoperable, because Tab+Enter only
+ever re-selects the value that is already selected. Unit tests were green: they called the
+component's methods directly and never dispatched a DOM event.
+
+**Check before shipping any `{{on}}`:** grep the component JS for the handler name and confirm
+it is assigned in `init`. If it appears only as an object-literal method, it is unbound.
+A unit test that calls the method directly will NOT catch this — it needs a rendering test
+that dispatches the real event.
+
+## Gotcha: a guard added to ONE handler does not cover keys another handler claims first
+
+`raw_events.js` has TWO `keydown` handlers. The first returns early for everything in
+`special_keys` — which includes `Backspace`, `Escape`, `Delete`, `Tab` and the arrows — so a
+guard added inside that handler *structurally cannot* apply to those keys; the second handler
+is where they are actually processed.
+
+`typing_into_a_field()` was added in 2026-08 to stop physical-keyboard typing from leaking into
+the vocalization box, and was used as the justification for defaulting
+`preferences.device.external_keyboard` to `true` for every existing account. It was applied at
+one call site. Escape (`:clear`) and Backspace (`:backspace`) in the second handler were left
+unguarded, so typing in a speak-mode text field (the Phrase Builder search box) could delete
+from — or wipe — a communicator's composed utterance.
+
+**Rule:** when you add a predicate to make a default safe, enumerate every handler that can
+observe the event, not just the one you were reading. For `raw_events.js` specifically:
+grep `check('keyboard_listen')` and confirm the guard appears at EVERY hit.
+
+## Technique: prove a "new lint/suppression regression" with a per-file+rule NET delta, never the raw `+` count
+
+`.eslint-todo` is keyed `file|rule|line|col|hash`, so ANY line shift in an existing file
+produces a remove+add pair. A branch that merely grew some files showed **+224** added app-code
+entries — which looks like 224 newly-grandfathered violations and is not.
+
+Compute the net instead:
+
+```bash
+git show <base>:app/frontend/.eslint-todo | grep -v '^#' | cut -d'|' -f1,2 | sort | uniq -c > /tmp/old
+grep -v '^#' app/frontend/.eslint-todo      | cut -d'|' -f1,2 | sort | uniq -c > /tmp/new
+# then diff the counts per file|rule key
+```
+
+Real answer for that branch: net **+75**, of which 73 were qunit style rules in NEW TEST files
+and 2 were `ember/no-runloop` in one component. Same discipline as the baseline rule for test
+runs (rule 10) — reconcile against a baseline before claiming a delta.
