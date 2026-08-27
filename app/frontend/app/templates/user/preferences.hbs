@@ -130,7 +130,7 @@
     <div class="form-group">
       <label for="locale" class="col-sm-3 control-label">{{t "Preferred Language" key='preferred_language'}}</label>
       <div class="col-sm-5">
-        <BoundSelect @select_class="form-control" @select_id="locale" @content={{readonly this.localeList}} @selection={{this.pending_preferences.locale}} @action={{mut this.pending_preferences.locale}} />
+        <BoundSelect @select_class="form-control" @select_id="locale" @content={{readonly this.localeList}} @selection={{this.pending_preferences.locale}} @action={{mut this.pending_preferences.locale}} @searchable={{true}} @search_placeholder={{t "Search languages..." key="search_languages"}} />
       </div>
     </div>
     <div class="form-group">
