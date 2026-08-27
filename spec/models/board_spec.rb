@@ -1698,6 +1698,48 @@ describe Board, :type => :model do
       })
     end
 
+    it "should keep source_part_of_speech and save locale inflections without treating POS as a locale" do
+      b = Board.new
+      b.settings = {
+        'locale' => 'en',
+        'translations' => {
+          '1_2' => {
+            'en' => { 'label' => 'say' },
+            'es' => { 'label' => 'decir' },
+            'source_part_of_speech' => 'verb'
+          }
+        }
+      }
+      expect {
+        b.process_buttons([
+          {'id' => '1_2', 'label' => 'say', 'translations' => [
+            {'locale' => 'en', 'label' => 'say'},
+            {'locale' => 'es', 'label' => 'decir', 'inflections' => ['digo', 'dices', 'dice'], 'rules' => [['yo', 'digo'], ['tú', 'dices']]},
+            {'locale' => 'source_part_of_speech', 'label' => 'decir', 'inflections' => ['digo']}
+          ]}
+        ], nil)
+      }.not_to raise_error
+      trans = b.settings['translations']['1_2']
+      expect(trans['source_part_of_speech']).to eq('verb')
+      expect(trans['es']['label']).to eq('decir')
+      expect(trans['es']['inflections'][0]).to eq('digo')
+      expect(trans['es']['rules']).to eq([['yo', 'digo'], ['tú', 'dices']])
+    end
+
+    it "should not raise when translation rules is a string" do
+      b = Board.new
+      b.settings ||= {}
+      expect {
+        b.process_buttons([
+          {'id' => '1', 'label' => 'say', 'translations' => [
+            {'locale' => 'es', 'label' => 'decir', 'rules' => "yo=digo\ntú=dices"}
+          ]}
+        ], nil)
+      }.not_to raise_error
+      expect(b.settings['translations']['1']['es']['label']).to eq('decir')
+      expect(b.settings['translations']['1']['es']['rules']).to eq(nil)
+    end
+
     it "should process translations from the translations hash" do
       b = Board.new
       b.settings ||= {}

@@ -851,6 +851,23 @@ context('Button', function() {
         translationEntry('es', 'tac', 'stac')
       ]);
     });
+
+    it('should skip source_part_of_speech when building the translations list', function() {
+      var b = Button.create();
+      b.set('translations_hash', {
+        'en': {
+          'label': 'say'
+        },
+        'es': {
+          'label': 'decir'
+        },
+        source_part_of_speech: 'verb'
+      });
+      expect(b.get('translations')).toEqual([
+        translationEntry('en', 'say', undefined),
+        translationEntry('es', 'decir', undefined)
+      ]);
+    });
   });
 
   context('update_settings_from_translations', function() {

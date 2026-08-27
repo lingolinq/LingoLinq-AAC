@@ -714,13 +714,16 @@ var Button = EmberObject.extend({
     var hash = _this.get('translations_hash') || {};
     var idx = 0;
     for(var code in hash) {
-      if(Object.keys(hash[code]).length > 0 || !code.match(/-|_/) || code == label_locale) {
-        var label = hash[code].label || this.get('label');
+      var entry = hash[code];
+      if(!entry || typeof entry !== 'object' || Array.isArray(entry)) { continue; }
+      if(!String(code).match(/^[a-z]{2,3}([_-][A-Za-z0-9]+)?$/i)) { continue; }
+      if(Object.keys(entry).length > 0 || !code.match(/-|_/) || code == label_locale) {
+        var label = entry.label || this.get('label');
         if(label_locale == code) { label = _this.get('label'); }
-        var vocalization = hash[code].vocalization;
+        var vocalization = entry.vocalization;
         if(vocalization_locale == code) { vocalization = _this.get('vocalization'); }
-        var inflections = hash[code].inflections;
-        var rules = hash[code].rules;
+        var inflections = entry.inflections;
+        var rules = entry.rules;
         if(res[idx]) {
           emberSet(res[idx], 'label', label);
           emberSet(res[idx], 'vocalization', vocalization);

@@ -21,6 +21,7 @@ file (see [README.md](README.md)).
 ## Index
 
 - [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
+- [Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one](#gotcha-source_part_of_speech-is-not-a-locale--process_buttons-500s-if-treated-as-one)
 - [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
 - [Gotcha: dotenv leaves op:// refs in ENV — present? is not injected](#gotcha-dotenv-leaves-op-refs-in-env--present-is-not-injected)
 - [Gotcha: library translate must walk load_board links, not only downstream_board_ids](#gotcha-library-translate-must-walk-load_board-links-not-only-downstream_board_ids)
@@ -3965,6 +3966,18 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 **Evidence:** `lib/library_board_translator.rb`, `lib/board_translation_words.rb`; task log `2026-08-26-library-board-translations.md`.
 
 **Extension (2026-08-27) — SCOPE=seed for a reindex inventory:** A library rebuild seeds starter + sidebar + crisis + Senner + curated S3 + OpenAAC (~32 listed public roots; children are `unlisted`). `SCOPE=seed` discovers those listed public `lingolinq` roots instead of signup slugs only. Skip `*-es` copies and boards whose default locale is not English (local leftover `quick-core-24` was already `locale=es`). Staging apply is a Render **one-off job** on `lingolinq-staging` (same pattern as rebuild_library): creating the job starts it; do not add a Blueprint cron. The job inherits web-service env, so `GOOGLE_TRANSLATE_TOKEN` must already be set. Missing token raises outside test. Production (including Render staging) requires `ALLOW_PROD_TRANSLATE=1`; `SCOPE=seed` also requires `TRANSLATE_CONFIRM=1`. Do not share `BoardTranslationWords.board_ids` with `SpanishLibraryBoards`: that rake `copy_for`s only the root and calls `translate_set(default: true)`, so a tree walk would overwrite shared English children. The bilingual walk is owner-scoped and skips non-English locales before Google. The attested Subprocessor Register still names the older Translate callers; adding `lib/library_board_translator.rb` needs a Scot re-attest of `docs/legal/2026-08-16_subprocessor-register.md`, not an in-place edit of the pinned hash. Ref: `docs/ops/staging-translate-library-job.md`.
+
+---
+
+## Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one
+
+**Symptom:** Saving inflections on a translated library board (e.g. `lingolinq/core-40-tell` button "say"/decir) returns HTTP 500. Console shows `Error: error`. Local log: `IndexError (string not matched)` at `Board#process_buttons` `String#[]=`.
+
+**Root cause:** `Board#translate_set` writes `settings['translations'][button_id]['source_part_of_speech'] = 'verb'` as a **string sibling** of `en`/`es` hashes. The Ember Language tab iterates every key as a locale. `Object.keys("verb")` is truthy, so the client sends `{locale: 'source_part_of_speech', label: '...'}`. Rails then does `translations[id][loc] ||= {}` which does **not** replace the existing string, then `string['label'] =` raises.
+
+**Fix:** Skip non-locale keys in `process_buttons` and `JsonApi::Board` `translated_locales`. Ember: omit `source_part_of_speech` from `locales`, `translations_for_button`, and `update_translations`. Guard `rules.compact` so a leftover string does not 500 either.
+
+**Evidence:** `app/models/board.rb` (`translation_locale_key?`, `process_buttons`); `lib/json_api/board.rb`; `app/frontend/app/utils/button.js#update_translations`; task log `2026-08-27-board-save-500-inflection-rules.md`.
 
 ---
 

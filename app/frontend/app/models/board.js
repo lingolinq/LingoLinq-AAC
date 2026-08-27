@@ -486,25 +486,26 @@ LingoLinq.Board = BaseModel.extend({
     return res;
   }),
   locales: computed('translations', 'translated_locales', function() {
-    var res = this.get('translated_locales') || [];
+    var res = [];
+    var localeRe = /^[a-z]{2,3}([_-][A-Za-z0-9]+)?$/i;
+    var addLang = function(lang) {
+      if(!lang || !String(lang).match(localeRe)) { return; }
+      if(res.indexOf(lang) == -1) { res.push(lang); }
+    };
+    (this.get('translated_locales') || []).forEach(addLang);
     var button_ids = (this.get('translations') || {});
-    var all_langs = [];
     for(var button_id in button_ids) {
       if(typeof button_ids[button_id] !== 'string') {
-        var keys = Object.keys(button_ids[button_id] || {});
-        all_langs = all_langs.concat(keys);
+        Object.keys(button_ids[button_id] || {}).forEach(addLang);
       }
     }
-    all_langs.forEach(function(lang) {
-      if(res.indexOf(lang) == -1) {
-        res.push(lang);
-      }
-    });
     return res;
   }),
   translations_for_button: function(button_id) {
     // necessary otherwise button that wasn't translated at first will never be translatable
-    var trans = (this.get('translations') || {})[button_id] || {};
+    // Copy so source_part_of_speech (a string sibling of en/es) is not treated as a locale
+    var trans = Object.assign({}, (this.get('translations') || {})[button_id] || {});
+    delete trans.source_part_of_speech;
     (this.get('locales') || []).forEach(function(locale) {
       trans[locale] = trans[locale] || {};
     });
