@@ -1,0 +1,54 @@
+{{!-- Layout selector for the Boards page: SIDE-BY-SIDE vs TOP-DOWN.
+      A radio GROUP rather than two independent buttons — the two options are
+      mutually exclusive, so `role="radiogroup"` + `aria-checked` is what tells a
+      screen reader that picking one clears the other. `aria-pressed` on separate
+      toggle buttons would announce two independent on/off controls instead. --}}
+{{!-- The visible "LAYOUT" caption was removed, but the group still needs an accessible
+      NAME — without one the radiogroup announces as an unlabelled set of two radios. The
+      same i18n key now supplies it via `aria-label` instead of a visible `aria-labelledby`
+      target, so the string stays in use and translated. --}}
+{{!-- Roving tabindex + arrow keys: a `radiogroup` is ONE tab stop whose selection moves
+      with the arrows. Without this it behaved as two independent tab stops, so a
+      keyboard user pressing Right/Down on "Side by side" got nothing, and a switch
+      scanner spent two steps on what is one control. --}}
+<span class="ub-boards-page__layout-toggle-options" role="radiogroup" aria-label={{t "Layout" key="boards_layout_label"}} {{on "keydown" this.onGroupKeydown}}>
+  <button
+    type="button"
+    role="radio"
+    aria-checked={{if this.isSideBySide "true" "false"}}
+    tabindex={{if this.isSideBySide "0" "-1"}}
+    class="ub-boards-page__layout-toggle-btn {{if this.isSideBySide 'ub-boards-page__layout-toggle-btn--active'}}"
+    title={{t "Folders beside the boards — folders take a quarter of the width on the left" key="boards_layout_side_by_side_hint"}}
+    {{on "click" (this.sendAction "choose" "side-by-side")}}
+  >
+    {{!-- Two unequal columns, matching the 1fr / 3fr split the layout actually uses. --}}
+    <svg class="ub-boards-page__layout-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="5" height="16" rx="1"/>
+      <rect x="11" y="4" width="10" height="16" rx="1"/>
+    </svg>
+    {{t "Side by side" key="boards_layout_side_by_side"}}
+  </button>
+  <button
+    type="button"
+    role="radio"
+    aria-checked={{if this.isSideBySide "false" "true"}}
+    tabindex={{unless this.isSideBySide "0" "-1"}}
+    class="ub-boards-page__layout-toggle-btn {{unless this.isSideBySide 'ub-boards-page__layout-toggle-btn--active'}}"
+    title={{t "Folders stacked above the boards, each at full width" key="boards_layout_top_down_hint"}}
+    {{on "click" (this.sendAction "choose" "top-down")}}
+  >
+    {{!-- Two stacked full-width bands — the original arrangement. --}}
+    <svg class="ub-boards-page__layout-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="6" rx="1"/>
+      <rect x="3" y="14" width="18" height="6" rx="1"/>
+    </svg>
+    {{!-- LABEL ONLY. The stored value stays `top-down` (TOP_DOWN in the .js, the
+         `data-boards-layout` attribute, ~6 selectors in app.scss and the server-side
+         preference constraint) — renaming that would invalidate every saved preference and
+         silently drop users back to the default layout.
+         NEW KEY, not a re-worded `boards_layout_top_down`: that key is already translated
+         as "Top down" in the other locale files, so reusing it would show the old wording
+         everywhere except English. --}}
+    {{t "Stacked view" key="boards_layout_stacked_view"}}
+  </button>
+</span>

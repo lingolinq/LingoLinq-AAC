@@ -61,6 +61,38 @@ describe('focus-words Article 50 gate', function() {
     });
   }
 
+
+  /*
+   * `modal.open` stub for the tests that expect the gate to RESOLVE — i.e. the
+   * ones that assert focus-words is re-opened with its art50_resume payload.
+   *
+   * It has to record the acknowledgement on the user, because that is what a
+   * genuine one does: ai-disclosure.js POSTs the ack, then sets
+   * `article_50_disclosure_shown` on the user, and only THEN closes the modal —
+   * so by the time the promise settles, needsAcknowledgement() is already false.
+   *
+   * A stub that resolves without setting it is not a lighter version of that
+   * flow, it is a DIFFERENT one: a modal that closed with nothing recorded.
+   * article50_gate#presentBlockingGate rejects that case on purpose — utils/modal#close
+   * resolves the pending promise with its `success` argument, so a bare
+   * `modal.close()` anywhere (app_state#check_scanning closes whatever is open)
+   * used to satisfy the gate and let an AI request through for an EU user with no
+   * Art.50(1) acknowledgement on record. Only `@uncloseable` on the template was
+   * holding that shut.
+   *
+   * Scoped to the 'ai-disclosure' template so the re-opened 'modals/focus-words'
+   * is recorded without being treated as another acknowledgement.
+   */
+  function stubModalOpenWithGenuineAck(opened, user) {
+    stub(modal, 'open', function(template, opts) {
+      opened.push({template: template, opts: opts});
+      if(template === 'ai-disclosure') {
+        user.set('article_50_disclosure_shown', true);
+      }
+      return RSVP.resolve({});
+    });
+  }
+
   beforeEach(function() {
     ajaxCalls = [];
     component = this.owner.factoryFor('component:focus-words').create();
@@ -112,15 +144,14 @@ describe('focus-words Article 50 gate', function() {
         ajaxCalls.push(url);
         return RSVP.resolve({});
       });
-      stub(modal, 'open', function(template, opts) {
-        opened.push({template: template, opts: opts});
-        // ai-disclosure resolves with no `replaced` marker on a genuine ack.
-        return RSVP.resolve({});
-      });
-      setAppState(true, makeUser({
+      // ai-disclosure resolves with no `replaced` marker on a genuine ack, AND
+      // with the acknowledgement recorded — see stubModalOpenWithGenuineAck.
+      var user = makeUser({
         article_50_disclosure_required: true,
         article_50_disclosure_shown: false
-      }));
+      });
+      stubModalOpenWithGenuineAck(opened, user);
+      setAppState(true, user);
       component.set('model', {board: 'b1'});
       component.set('ai_prompt', 'fractions lesson');
       component.set('ai_word_count', 30);
@@ -145,14 +176,12 @@ describe('focus-words Article 50 gate', function() {
         ajaxCalls.push(url);
         return RSVP.resolve({});
       });
-      stub(modal, 'open', function(template, opts) {
-        opened.push({template: template, opts: opts});
-        return RSVP.resolve({});
-      });
-      setAppState(true, makeUser({
+      var user = makeUser({
         article_50_disclosure_required: true,
         article_50_disclosure_shown: false
-      }));
+      });
+      stubModalOpenWithGenuineAck(opened, user);
+      setAppState(true, user);
       component.set('model', {board: 'b1'});
       component.set('ai_prompt', 'fractions lesson');
       component.set('ai_word_count', 30);

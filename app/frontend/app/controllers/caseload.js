@@ -1,6 +1,6 @@
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { computed } from '@ember/object';
+import { computed, observer } from '@ember/object';
 import { scheduleOnce } from '@ember/runloop';
 import RSVP from 'rsvp';
 import modal from '../utils/modal';
@@ -128,6 +128,73 @@ export default Controller.extend({
   // only, no card showing).
   selectedSupervisee: null,
 
+  // Deep-link target: the user_name of one communicator to focus on arrival, used
+  // by the dashboard "Communicators Need Attention" card. A query param rather than
+  // a dynamic segment so /caseload stays the URL for all eight existing entry points
+  // (pill nav, dashboard cards, org page) and none of them need updating.
+  queryParams: ['supervisee'],
+  supervisee: null,
+
+  // user_name of a row to HIGHLIGHT without expanding it. Set only by the deep-link
+  // path, for a communicator this supporter is linked to as modeling-only: the
+  // expanded panel's actions (reports, goals, badges, modeling ideas) are gated on
+  // that link, so we point at the person rather than opening a panel of locked
+  // controls. Distinct from selectedSupervisee, which exclusively means "expanded".
+  highlightedSupervisee: null,
+
+  // Applied once, when BOTH the query param and the supervisee list are available —
+  // the param is read during setup but `supervisees` resolves from
+  // model.known_supervisees, which arrives later (load_all_connections is set in
+  // routes/caseload.js#afterModel). Hence an observer on both rather than a one-shot
+  // in setupController. `_deepLinkAppliedFor` keeps the URL shareable (the param is left
+  // in place) while ensuring a later list refresh can't yank the supporter's manual
+  // selection back to the deep-linked row.
+  _deepLinkAppliedFor: null,
+  _superviseeDeepLink: observer('supervisee', 'supervisees.[]', function() {
+    this._applySuperviseeDeepLink();
+  }),
+  _applySuperviseeDeepLink: function() {
+    var name = this.get('supervisee');
+    if (!name) { return; }
+    /* Keyed to the NAME that was applied, not a boolean. As a one-way latch this also
+       swallowed a genuinely NEW deep link: arriving from the attention card for Bob and
+       then for Alice left Alice's URL rendering BOB's expanded panel — his goals, badge
+       progress and org status. The original intent still holds, because a later
+       `supervisees` refresh re-fires the observer with the SAME name and returns here. */
+    if (this.get('_deepLinkAppliedFor') === name) { return; }
+    var list = this.get('supervisees') || [];
+    var match = list.find(function(s) { return s && s.user_name === name; });
+    // Not loaded yet, or not on this caseload at all — leave the page alone and let
+    // a later list update re-run this. Never invent a selection for an unknown name.
+    if (!match) { return; }
+    this.set('_deepLinkAppliedFor', name);
+    /* A stale roster filter can hide the very row we are deep-linking to, which made the
+       arrival silently do nothing for the rest of the session. */
+    if (this.get('superviseeFilter')) { this.set('superviseeFilter', ''); }
+    if (match.modeling_only) {
+      this.set('highlightedSupervisee', name);
+      this.set('selectedSupervisee', null);
+    } else {
+      this.set('highlightedSupervisee', null);
+      this.set('selectedSupervisee', name);
+      this._loadBadgeForSupervisee(match);
+    }
+    // Deferred so the row has actually rendered with its --active/--highlighted
+    // class before we look for it. requestAnimationFrame rather than the runloop's
+    // scheduleOnce (used by selectSupervisee below) purely to avoid adding another
+    // `ember/no-runloop` violation to this file — the project has no ember-lifeline
+    // dependency to migrate to. The callback is best-effort: it re-checks isDestroyed
+    // and _scrollExpandedIntoView is itself try/caught and no-ops when the row is
+    // absent, so a teardown mid-frame is harmless.
+    var _this = this;
+    if (typeof window !== 'undefined' && window.requestAnimationFrame) {
+      window.requestAnimationFrame(function() {
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        _this._scrollExpandedIntoView();
+      });
+    }
+  },
+
   supervisees: computed('model.known_supervisees.[]', 'model.supervisees.[]', function() {
     var list = this.get('model.known_supervisees') || [];
     return list.map(decorateSuperviseeForCaseload);
@@ -245,7 +312,9 @@ export default Controller.extend({
   // actually extends past the viewport, so already-visible rows don't jump.
   _scrollExpandedIntoView: function() {
     try {
-      var row = document.querySelector('.md-caseload__list-row--active');
+      // Also matches the deep-link highlight, which is NOT expanded and so carries
+      // no --active class; both states want the identical top-aligned scroll.
+      var row = document.querySelector('.md-caseload__list-row--active, .md-caseload__list-row--highlighted');
       if (!row || typeof row.scrollIntoView !== 'function') { return; }
       // ALWAYS top-align the opened card, and always scroll.
       //
@@ -403,12 +472,20 @@ export default Controller.extend({
       // controls handle their own click without also toggling the
       // card.
       if (event && event.target && event.target.closest) {
-        if (event.target.closest('.md-caseload__list-quick button, .md-caseload__list-quick a')) {
+        /* `--more` is EXCLUDED: it deliberately carries no handler of its own and relies
+           on this click bubbling to the row header, but it is itself a
+           `.md-caseload__list-quick button`, so this guard swallowed it — the button did
+           nothing and aria-expanded never flipped. The tour now points at it, so a dead
+           control is the first thing a new supporter is shown. */
+        if (event.target.closest('.md-caseload__list-quick button:not(.md-caseload__quick-action--more), .md-caseload__list-quick a')) {
           return;
         }
       }
       var name = supervisee && supervisee.user_name;
       if (!name) { return; }
+      // Any manual row interaction retires the deep-link highlight — it exists only
+      // to point out the person you arrived for, not as a persistent state.
+      this.set('highlightedSupervisee', null);
       if (this.get('selectedSupervisee') === name) {
         this.set('selectedSupervisee', null);
         this.set('selectedBadge', null);

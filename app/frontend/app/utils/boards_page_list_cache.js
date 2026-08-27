@@ -5,9 +5,18 @@
 // hard refresh within TTL while a background store.query refreshes the list.
 
 import { get as emberGet } from '@ember/object';
+import { isBrandSetRootBoard } from './board-roots';
 
 var TTL_MS = 10 * 60 * 1000;
+/* Budget of TOP-LEVEL boards a snapshot may hold. Brand SUB-BOARD pages (Quick Core
+   prefix pages, CommuniKate topic pages) do NOT count against it — see write(). */
 var MAX_BOARDS = 500;
+/* Absolute row backstop so an account with a very large sub-board tail cannot grow the
+   snapshot past what localStorage will take. Exceeding the quota makes setItem throw,
+   which drops the snapshot entirely and costs every later visit a full query — a worse
+   outcome than storing a partial tail. Generous on purpose: it should never bind for a
+   real library, and MAX_BOARDS is the limit that actually shapes the snapshot. */
+var MAX_SNAPSHOT_ROWS = 4000;
 var KEY_PREFIX = 'll_boards_page_mine_v1:';
 
 /* Foreground Mine-list load gate for board_detail_cache phase-4 deferral.
@@ -27,6 +36,13 @@ var SNAPSHOT_ATTRS = [
   'user_name',
   'public',
   'copy_id',
+  /* REQUIRED for brand-root classification, not decoration. board-brands#brandRootMatchKey
+     matches a board against its PARENT's key first, falling back to the board's own key —
+     that fallback is what lets a RENAMED copy still register as a brand root. Dropping the
+     field here made every renamed copy of a Quick Core / Sequoia / CommuniKate / Vocal
+     Flair board read as a sub-board on a cache-hydrated visit and vanish from the grid,
+     while showing correctly on the first (uncached) visit. */
+  'parent_board_key',
   'image_url',
   'locale',
   'translated_locales',
@@ -81,11 +97,25 @@ function write(userId, boards) {
   var storage = _storage();
   var key = _storage_key(userId);
   if (!storage || !key || !boards || !Array.isArray(boards)) { return false; }
+  /* MAX_BOARDS counts TOP-LEVEL boards ONLY. Brand sub-board pages ride along without
+     consuming the budget: they are never tiles on the Boards page, they exist so the
+     hydrated list can classify and group the tiles that ARE shown. Slicing the first
+     MAX_BOARDS rows in server order spent the budget on whichever boards happened to
+     come back first, so an account with a large sub-board tail could exhaust all 500
+     slots before its top boards were stored — and a top board that missed the cut simply
+     never appeared on a cached visit, with has_more reporting false. */
   var serialized = [];
-  var limit = Math.min(boards.length, MAX_BOARDS);
-  for (var i = 0; i < limit; i++) {
-    var row = serializeBoard(boards[i]);
-    if (row) { serialized.push(row); }
+  var topCount = 0;
+  for (var i = 0; i < boards.length; i++) {
+    if (serialized.length >= MAX_SNAPSHOT_ROWS) { break; }
+    var board = boards[i];
+    if (!board) { continue; }
+    var isTop = isBrandSetRootBoard(board);
+    if (isTop && topCount >= MAX_BOARDS) { continue; }
+    var row = serializeBoard(board);
+    if (!row) { continue; }
+    if (isTop) { topCount++; }
+    serialized.push(row);
   }
   try {
     storage.setItem(key, JSON.stringify({
@@ -132,9 +162,17 @@ function clear(userId) {
   try { storage.removeItem(key); } catch (e) { /* ignore */ }
 }
 
-function clearAll() {
-  _mineListBusy = false;
-  _boardsPageActive = false;
+/* Drop EVERY user's snapshot on this device, leaving the in-flight load flags alone.
+   For a mutation whose owner cannot be resolved to a user id — `rename` is the case: an
+   existing Board record carries `user_name` but not reliably a `for_user_id`, and the
+   snapshots are keyed by id — this is the honest invalidation. A rename is rare and the
+   cost is one re-query per user on this device, which is much cheaper than serving a tile
+   that links to a key the server no longer knows (a 404 for the user).
+
+   Separate from clearAll() because clearAll also resets `_mineListBusy` /
+   `_boardsPageActive`, and clearing those mid-session would disturb the prefetch gate for
+   a load that is still running. */
+function clearSnapshots() {
   var storage = _storage();
   if (!storage) { return; }
   var toRemove = [];
@@ -149,6 +187,12 @@ function clearAll() {
   toRemove.forEach(function(k) {
     try { storage.removeItem(k); } catch (e2) { /* ignore */ }
   });
+}
+
+function clearAll() {
+  _mineListBusy = false;
+  _boardsPageActive = false;
+  clearSnapshots();
 }
 
 function hydrate(store, boards) {
@@ -217,6 +261,7 @@ function isBoardsPageActive() {
 export default {
   TTL_MS: TTL_MS,
   MAX_BOARDS: MAX_BOARDS,
+  MAX_SNAPSHOT_ROWS: MAX_SNAPSHOT_ROWS,
   KEY_PREFIX: KEY_PREFIX,
   SNAPSHOT_ATTRS: SNAPSHOT_ATTRS,
   serializeBoard: serializeBoard,
@@ -224,6 +269,7 @@ export default {
   read: read,
   clear: clear,
   clearAll: clearAll,
+  clearSnapshots: clearSnapshots,
   hydrate: hydrate,
   isUsableList: isUsableList,
   isPaintReady: isPaintReady,

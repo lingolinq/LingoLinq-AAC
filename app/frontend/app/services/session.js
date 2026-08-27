@@ -40,6 +40,13 @@ export default Service.extend({
     } catch (e) { /* localStorage unavailable */ }
   },
 
+  // RUNTIME-ONLY proof that the server accepted our token in THIS page session. Set by
+  // check_token(); deliberately NOT persisted and NOT restored, unlike `access_token`,
+  // `user_name` and `isAuthenticated`, all of which survive a reload and therefore say
+  // nothing about whether the token is still good. The sign-in route reads this to decide
+  // whether redirecting away from the form is safe — see routes/login.js#beforeModel.
+  token_validated: false,
+
   persist: function(data) {
     this.set('auth_settings_fallback_data', data);
     var res = this.stashes.persist_object('auth_settings', data, true);
@@ -257,7 +264,19 @@ export default Service.extend({
     return this.persistence.ajax(url, {
       type: 'GET'
     }).then(function(data) {
-      if(!_this) { return RSVP.resolve({ success: false }); }
+      /* `!_this` alone never fired — `_this` is the service, always truthy. The case that
+         actually happens is the service being DESTROYED while this token-check request is
+         still in flight: the response lands, every `_this.set(...)` below runs against a
+         torn-down object, and Ember throws
+             "calling set on destroyed object: <service:session>.token_validated = false"
+         In tests that surfaces as a GLOBAL failure charged to whichever test happened to be
+         running when the orphaned request resolved — so the suite failed 6-7 tests whose
+         names changed every run (593ms/594ms each, the same orphaned op). Guarding here
+         rather than at each `set` covers all six writes in this callback plus the
+         force_logout/persistence calls, which a destroyed service must not make either.
+         Same idiom as `invalidate()` below (:653). See LEARNINGS, "The `token_validated`
+         async leak". */
+      if(!_this || _this.isDestroyed || _this.isDestroying) { return RSVP.resolve({ success: false }); }
       var _vb = (window.LingoLinq || {}).verboseDebug;
       if (_vb) {
         console.log('[check_token] Token check succeeded', {
@@ -277,15 +296,18 @@ export default Service.extend({
         // When access_token is undefined/'none', we're simply not logged in, not "expired".
         if(store_data.access_token && store_data.access_token !== 'none') {
           _this.set('invalid_token', true);
+          _this.set('token_validated', false);
           if(allow_invalidate) {
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: true};
           }
         } else {
           _this.set('invalid_token', false);
+          _this.set('token_validated', false);
         }
       } else {
         _this.set('invalid_token', false);
+        _this.set('token_validated', true);
       }
       if(data.user_name) {
         _this.set('user_name', data.user_name);
@@ -327,7 +349,19 @@ export default Service.extend({
       
       return RSVP.resolve({success: true, browserToken: browserToken});
     }, function(data) {
-      if(!_this) { return RSVP.resolve({ success: false }); }
+      /* `!_this` alone never fired — `_this` is the service, always truthy. The case that
+         actually happens is the service being DESTROYED while this token-check request is
+         still in flight: the response lands, every `_this.set(...)` below runs against a
+         torn-down object, and Ember throws
+             "calling set on destroyed object: <service:session>.token_validated = false"
+         In tests that surfaces as a GLOBAL failure charged to whichever test happened to be
+         running when the orphaned request resolved — so the suite failed 6-7 tests whose
+         names changed every run (593ms/594ms each, the same orphaned op). Guarding here
+         rather than at each `set` covers all six writes in this callback plus the
+         force_logout/persistence calls, which a destroyed service must not make either.
+         Same idiom as `invalidate()` below (:653). See LEARNINGS, "The `token_validated`
+         async leak". */
+      if(!_this || _this.isDestroyed || _this.isDestroying) { return RSVP.resolve({ success: false }); }
       var onlineStatus = _this.persistence ? _this.persistence.get('online') : false;
       var _vb = (window.LingoLinq || {}).verboseDebug;
       
@@ -345,6 +379,12 @@ export default Service.extend({
       
       if(!onlineStatus) {
         if (_vb) { console.log('[check_token] Already marked as offline, returning success: false'); }
+        /* `token_validated` must mean "the server said yes, just now" — nothing weaker.
+           Leaving a previous true here made it a one-way latch: with a server-revoked
+           token and a dropped connection, routes/login.js:29 still bounced the user to
+           index, index failed to resolve the user, and they landed back on the landing
+           page with no route to the sign-in form. */
+        _this.set('token_validated', false);
         return {success: false};
       }
       
@@ -363,6 +403,7 @@ export default Service.extend({
             });
           }
           _this.set('invalid_token', true);
+          _this.set('token_validated', false);
           if(allow_invalidate) {
             _this.force_logout(i18n.t('session_token_invalid', "This session has expired, please log back in"));
             return {success: false, needsReauth: true};
@@ -370,6 +411,7 @@ export default Service.extend({
         } else if(result.error === 'Token needs refresh') {
           if (_vb) { console.warn('[check_token] Token needs refresh'); }
           _this.set('invalid_token', true);
+          _this.set('token_validated', false);
           // Could implement token refresh logic here in the future
         }
       }
@@ -421,6 +463,8 @@ export default Service.extend({
       
       var result = {success: false, browserToken: browserTokenForResult, networkError: isNetworkError};
       if (_vb) { console.log('[check_token] Returning result:', result); }
+      // Not a validation — see the note on the offline return above.
+      _this.set('token_validated', false);
       return RSVP.resolve(result);
     });
   },
@@ -632,6 +676,9 @@ export default Service.extend({
     if (this.isDestroyed || this.isDestroying) {
       return;
     }
+    // Signing out is not a validation. Without this the flag survived logout and
+    // routes/login.js:29 could bounce the next visitor away from the sign-in form.
+    this.set('token_validated', false);
     var full_invalidate = force || !!(this.appState.get('currentUser') || this.stashes.get_object('auth_settings', true) || this.auth_settings_fallback());
     if(full_invalidate) {
       // Purge any in-progress eval snapshot (partially-answered clinical data)

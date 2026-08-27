@@ -20,6 +20,14 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep](#gotcha-the-boot-skeleton-is-ll-skel-progress-not-ll-premium-progress--and-a-shared-component-fix-has-no-siblings-left-to-sweep)
+- [Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`](#pattern-the-board-tile-board_action-is-a-contextual-remove-not-a-delete-button--gate-on-remove_type)
+- [Gotcha: the two categorised board variants do NOT space their categories the same way — one is ring-compensated, one is not](#gotcha-the-two-categorised-board-variants-do-not-space-their-categories-the-same-way--one-is-ring-compensated-one-is-not)
+- [Pattern: board categories are decided by COLOUR before part_of_speech — a label rule must only DOWNGRADE one verdict, never run ahead of colour](#pattern-board-categories-are-decided-by-colour-before-part_of_speech--a-label-rule-must-only-downgrade-one-verdict-never-run-ahead-of-colour)
+- [Gotcha: a layout SEARCH carries its own model of the renderer — change the renderer and the scorer silently starts optimising for a board that no longer exists](#gotcha-a-layout-search-carries-its-own-model-of-the-renderer--change-the-renderer-and-the-scorer-silently-starts-optimising-for-a-board-that-no-longer-exists)
+- [Gotcha: `label_fit` cannot fit a ONE-line box — `scrollHeight` counts the label's padding and the line budget does not](#gotcha-label_fit-cannot-fit-a-one-line-box--scrollheight-counts-the-labels-padding-and-the-line-budget-does-not)
+- [Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing](#gotcha-a-hard-coded-forcegroupingtrue-makes-a-preview-lie-about-the-preference-it-is-previewing)
+- [Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes](#gotcha-single-quoted-i18n-defaults-never-reach-the-locale-files--and-a-ui-control-is-only-fixed-when-the-payload-changes)
 - [Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`](#gotcha-extrasjs-wraps-string-ajax-bodies-as-text-meta--html-fetchers-must-unwrap-text)
 - [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
@@ -165,9 +173,144 @@ file (see [README.md](README.md)).
 - [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 - [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
 - [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
+- [Gotcha: an underscore is NOT a line-break opportunity — wrap identifiers with `<wbr>`, never `overflow-wrap: anywhere`](#gotcha-an-underscore-is-not-a-line-break-opportunity--wrap-identifiers-with-wbr-never-overflow-wrap-anywhere)
+- [Gotcha: styling an `<img>`'s own background paints it BEFORE the image — the loading flash is self-inflicted](#gotcha-styling-an-imgs-own-background-paints-it-before-the-image--the-loading-flash-is-self-inflicted)
+- [Gotcha: ember-shepherd passes a TYPELESS button straight through — that is how a custom `action` works](#gotcha-ember-shepherd-passes-a-typeless-button-straight-through--that-is-how-a-custom-action-works)
+- [Gotcha: `body.ll-layout-focused` scoping makes side-by-side layout comparison impossible in a clone](#gotcha-bodyll-layout-focused-scoping-makes-side-by-side-layout-comparison-impossible-in-a-clone)
+- [Pattern: a class the JS emits is not a class the CSS consumes — grep the stylesheet before trusting a "hook"](#pattern-a-class-the-js-emits-is-not-a-class-the-css-consumes--grep-the-stylesheet-before-trusting-a-hook)
+- [Gotcha: redirecting away from `routes/index.js` silently skips the session-entry compliance gates](#gotcha-redirecting-away-from-routesindexjs-silently-skips-the-session-entry-compliance-gates)
+- [Fact: "SLP" is not a distinguishable role on the frontend — `supporter_role` is the only gate](#fact-slp-is-not-a-distinguishable-role-on-the-frontend--supporter_role-is-the-only-gate)
+- [Fact: pill-nav order is plain template source order — unlike the dashboard card grid](#fact-pill-nav-order-is-plain-template-source-order--unlike-the-dashboard-card-grid)
+- [Gotcha: Focused View's hero is a bespoke ELEMENT, not hero styling applied to a card](#gotcha-focused-views-hero-is-a-bespoke-element-not-hero-styling-applied-to-a-card)
+- [Gotcha: `md-grid--hero-<key>` is only on the HOME tab — scope with `:not()`, not a positive match](#gotcha-md-grid--hero-key-is-only-on-the-home-tab--scope-with-not-not-a-positive-match)
+- [Gotcha: `ERR_REQUIRE_ESM` from `sass`/`ember test` means your shell is on the WRONG NODE, not that the tool is broken](#gotcha-err_require_esm-from-sassember-test-means-your-shell-is-on-the-wrong-node-not-that-the-tool-is-broken)
+- [Gotcha: "This board is not currently available." is board-detail's INLINE error, and it swallows every cause](#gotcha-this-board-is-not-currently-available-is-board-details-inline-error-and-it-swallows-every-cause)
+- [Pattern: an "already loaded?" cache key must include WHO/WHAT is being viewed, not just the filters](#pattern-an-already-loaded-cache-key-must-include-whowhat-is-being-viewed-not-just-the-filters)
+- [Gotcha: a deleted SURFACE leaves its BEM block behind in app.scss — grep for an orphan before authoring a "new" component style](#gotcha-a-deleted-surface-leaves-its-bem-block-behind-in-appscss--grep-for-an-orphan-before-authoring-a-new-component-style)
+- [Gotcha: a `parent > *` stretch rule silently defeats an absolutely-positioned badge's centering](#gotcha-a-parent---stretch-rule-silently-defeats-an-absolutely-positioned-badges-centering)
+- [Pattern: the subject of a board pick is `setup_user || currentUser` — surfaces that MARK it must resolve it the same way as the surface that WRITES it](#pattern-the-subject-of-a-board-pick-is-setup_user--currentuser--surfaces-that-mark-it-must-resolve-it-the-same-way-as-the-surface-that-writes-it)
+- [Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller](#pattern-a-body-attribute-published-by-a-self-contained-component-is-the-cross-component-channel--observe-it-dont-widen-a-shared-controller)
+- [Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it](#pattern-a-mobile-select-standing-in-for-a-desktop-tab-row-must-mirror-it-optgroup-not-flatten-it)
 - [Sourcing external requirements (payer/clinical/legal) — 2026-08-25](#sourcing-external-requirements-payerclinicallegal--2026-08-25)
 
 ---
+
+## Pattern: board categories are decided by COLOUR before part_of_speech — a label rule must only DOWNGRADE one verdict, never run ahead of colour
+
+`category_for_button` (`app/frontend/app/utils/board_categories.js`) resolves a button's
+category from `background_color` FIRST and only reads `part_of_speech` when no palette
+colour is within `COLOR_MATCH_MAX_DISTANCE` (45, in an HSL metric where hue dominates).
+This is deliberate: part_of_speech on imported boards is routinely a stale default, while
+the colour is what the author curated and what the user sees.
+
+**Two consequences that keep catching people out.**
+
+1. **"This word is typed `verb`, so it must be in Actions" is false.** On
+   `vocal-flair-112`, `do` / `is` / `can` / `will` all carry `part_of_speech: 'verb'` and
+   all render under **Questions**, because they are painted `rgb(226, 207, 255)` — 3.88
+   from the palette purple `#CCAAFF` and 171 from verb-green. Their part_of_speech is
+   never read. Same mechanism puts `done` (`#73CCFF`) in Describe. **Before proposing a
+   category change, measure the colour distance; do not reason from the type field.**
+   The board data is only readable through Rails — `boards.settings` is
+   `secure_serialize`d, so `psql` returns ciphertext and you need
+   `DB_USER=tracid bundle exec rails runner`.
+
+2. **A label-based override belongs AFTER the colour verdict, not before it, unless the
+   word has no homograph.** `YES_LABELS` and `TIME_LABEL_PATTERN` legitimately run ahead
+   of colour — nothing else is called "yes". Most words are not like that: "can" is also a
+   container, "will" is also a document. The safe shape is to let colour decide and then
+   redirect exactly ONE verdict:
+
+   ```js
+   function redirect_question_starter(key, base) {
+     if(key !== 'actions' || !base) { return key; }
+     return QUESTION_STARTER_LABELS.indexOf(base) >= 0 ? 'questions' : key;
+   }
+   ```
+
+   Applied to both the colour verdict and the part_of_speech verdict, since a board can
+   reach Actions by either route. An orange "can" keeps Things; only a green one moves.
+
+**Also:** match on `base_label` (the board's source-locale label), never `label` — a
+translated board rewrites `label` only, and a category that moves on translation is a bug.
+And keep such lists English-only unless the word translates cleanly everywhere: auxiliaries
+mostly do not exist as separate words in other languages, so a translated list is guesswork,
+and a non-match safely falls through to the colour verdict.
+
+## Gotcha: a layout SEARCH carries its own model of the renderer — change the renderer and the scorer silently starts optimising for a board that no longer exists
+
+`plan_bands` in `app/frontend/app/utils/board_categories.js` picks the board's bands by
+minimising a score. That score is not neutral arithmetic — every term in it is an assertion
+about how the result will be DRAWN. When the categorised-with-scrolling variant was
+re-architected from grid-placed tiles to flex rows, the renderer changed and the scorer did
+not, so it went on optimising for the old one. Nothing failed; the layout just quietly got
+worse, and it looked like a styling problem.
+
+Three assertions in that scorer that flex rows falsify:
+
+| term | true for a GRID band | false for a FLEX band |
+|---|---|---|
+| `dead` = unused columns x height, squared | unused columns really are bare board | `flex-grow: w` shares them out — slack is WIDTH, i.e. bigger buttons |
+| spare cells measured after `close_band_edge` stretched the last tile | the stretch happens, to close a gap | there is no gap; modelling one invents spare cells inside that ring |
+| `cells` (total rows) as the PRIMARY objective | rows are `1fr` under a definite height, so a row costs every button on the board | rows are `minmax(--bd-scroll-row-min, auto)`; the board just grows |
+
+The `dead` term alone was decisive: a 5-row band using 10 of 14 columns was charged
+**400**, against the **4** a 1-row band pays — so the search drew a 10-button category as a
+1x10 strip rather than the 2x5 block it should be. Fixing all three (flex scores
+`[empty^2, rows, bands]`; grid keeps `[cells, dead^2 + empty^2]`) made every ring come out
+exactly full AND cut 1-2 column "tower" tiles by 94% across a 3000-board sweep.
+
+**It is never just one site.** The same grid-era assumption was hiding a second time in
+`CONTROL_ROW_STRETCH`, which handed all of the controls row's unused columns to Time and the
+Keys folder "so the row does not read as ragged". Both are SINGLE BUTTONS, so on a 14-column
+board they took 3 and 4 columns of mostly empty ring around one 147px button while the four
+tiles holding real buttons stayed at their minimum — and that row is only ever rendered as a
+flex band, which was already willing to share those columns across all six. When you find one
+of these, grep for the others: `close_band_edge`, `CONTROL_ROW_STRETCH` and the scorer's
+`dead` term were three spellings of the same wrong belief.
+
+**Two habits this earns:**
+
+1. **When you change how something RENDERS, grep for whatever CHOSE it.** A search, a
+   packer, a heuristic scorer, an auto-layout — it encodes the old geometry and will keep
+   serving it without erroring.
+2. **Iterate a pure function through the function, not the browser.** The packer is pure;
+   driving it through ~90-second Puppeteer round trips was the previous session's single
+   biggest cost. Build a scratch harness that imports the module with its one non-pure
+   import stubbed (`i18n`), and A/B it against `git show HEAD:<file>` piped through the same
+   stub. That is how "the non-scrolling variant is untouched" became **0 differences across
+   4000 generated board shapes** instead of an assurance — and it runs in a second.
+   Generate REALISTIC inputs for the quality numbers, though: an early sweep of unconstrained
+   random boards (13 categories on an 8-column board) showed a scary 20 -> 32 row blow-up that
+   simply does not occur once totals are sized to the board.
+
+## Gotcha: `label_fit` cannot fit a ONE-line box — `scrollHeight` counts the label's padding and the line budget does not
+
+`fitWrapped` / `batchedFit` in `app/frontend/app/utils/label_fit.js` accept a size when
+
+    naturalPx <= boxLines * lhRatio * size + FIT_TOLERANCE_PX     // tolerance is 1px
+
+`naturalPx` is `el.scrollHeight`, which **includes the label's `padding: 3px 2px 5px`**. The
+right-hand side is pure line height. So every comparison is 8px pessimistic. At the default
+`-webkit-line-clamp: 3` that 8px disappears into the slack of two spare lines and nothing is
+ever noticed. Set the clamp to **1** — a reasonable thing to want for a wide, short button —
+and the test becomes **unsatisfiable at every size**, so the fitter walks the font all the way
+down.
+
+Both failure modes were measured on the same board, from the same rule:
+- at 3440px the loop reached `MIN_FONT_PX` and rendered the label at **9px**;
+- at 2560px the batched path ran out of rounds first (`maxRounds = Math.ceil(basePx) + 2`,
+  and `basePx` is the GRID's `--bd-button-text-size`, not the element's ceiling — so a 54px
+  ceiling gets 20 decrements and never arrives), leaving the ceiling in place and rendering
+  **132px of label inside a 76px card**.
+
+**Before reaching for a bigger font on a board button, work out the CARD's budget.** The
+fitter checks lines and word width; it does not know how tall the card is, so it will happily
+accept a size that overflows. On the categorised scrolling controls row the sum is
+`140px row = 16 group padding + 29 header + 86 body (8 padding)` -> a **76px card**, which is
+`2 * 1.15 * F + 8 <= 76` -> F <= 29.5px for two lines, or ~59px for one. If the wanted size
+does not fit that arithmetic, no amount of CSS on the label will produce it — the row has to
+get taller.
 
 ## Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target
 
@@ -266,6 +409,34 @@ places — miss one and it silently fails:
    mutating a nested key does not reliably mark the attr dirty, so without it
    ember-data may not send the change. Canonical example: `set_board_view_style`
    in controllers/board/index.js.
+
+   > **`set('preferences.device.updated', …)` THROWS when `device` is absent** —
+   > *"Property set failed: object in path 'preferences.device' could not be found"*.
+   > Every existing call site assumes the key exists; on a record whose preferences carry
+   > no `device` it raises **from inside the click handler**, i.e. after the optimistic
+   > `set()` has already updated the UI — so the change appears to work and then silently
+   > never persists, with only a console error. Create the container first:
+   > `if(!user.get('preferences.device')) { user.set('preferences.device', {}); }`
+   > (Found 2026-08-16 by a unit test whose stub happened to omit `device`.)
+
+4. **Constrain the value server-side** when the preference drives markup — a CSS class,
+   a `data-` attribute, an inline style. `dashboard_layout` and `boards_layout` both get a
+   sanitizer that DROPS an unrecognised value (`sanitize_boards_layout_preference!`,
+   user.rb) rather than persisting arbitrary client JSON; dropping makes the client fall
+   back to its own default, which is the behaviour you want anyway.
+
+**On step 2 — a server default is optional, and sometimes wrong.** `boards_layout`
+deliberately has NONE: absent means "never chosen" and the frontend constant
+(`SIDE_BY_SIDE`) is the single source of truth. Add a server default only when the server
+itself needs to reason about the value; otherwise it is a second copy that can drift from
+the client's — the exact hazard the `dashboard_layout` default carries a comment about.
+
+**Device-scoped vs user-scoped is a real decision.** localStorage alone means the choice
+does not follow the user to a new login or device; a user preference does. When both are
+used, make the PREFERENCE authoritative and localStorage a first-paint cache only —
+otherwise a stale device value beats the user's real choice. Re-resolve when the user
+record hydrates (it can arrive after the component renders), and serialize the saves if
+the control can be clicked twice quickly.
 
 For UI driven off the value, default in JS too (`|| 'dynamic'` + validate against a
 known set) so nil/unknown never breaks render before the backend backfills. Applied
@@ -5040,6 +5211,16 @@ never loads. Two consequences: (1) `ember test --filter` matches **test NAMES**,
 util logic, verify by **exhaustive manual trace + eslint + `ember build`** (which still compiles
 SCSS/templates/JS), not by trying to run the QUnit file. Still write the `-test.js` — it documents
 intent and will run if/when the unit suite is wired into CI — just don't expect it to gate here.
+
+> **UPDATE 2026-08-16 — partly superseded, and the workaround is now the convention.**
+> Unit tests DO execute, but **only when explicitly imported in `tests/test-helper.js`**
+> (the `/* eslint-disable ember/no-test-import-export */` block near the bottom). The
+> requirejs auto-loader still drops them, so an unregistered `tests/unit/**-test.js` is
+> lint-checked and **never run** — exactly as described above. Add the import line in the
+> same commit as the test file, then confirm with
+> `npx ember test --filter="<module name>"`: registered modules match by test NAME and
+> report real assertion counts, while an unregistered one still reports *"No tests
+> matched"*. Verified by adding three suites (17 tests) that run green.
 
 ## Pattern: dashboard "fill the row" needs an inline grid-template-columns = visible-item count
 
@@ -10811,6 +10992,14 @@ invisible in the SCSS — only measuring the rendered page exposes it.
    returning `10px` is the tell, and a quick Puppeteer pass over
    `getBoundingClientRect()` catches undersized targets that the stylesheet looks fine about.
 
+**Recurrence (2026-08-15) — it also hides in blocks you are already editing.** The
+board-detail error page shipped `font-size: 1.05rem` on its action buttons and `1rem` on its
+retry link — **10.5px and 10px rendered**. These were pre-existing and survived a full restyle
+of that block, because a `rem` value reads as plausible and the surrounding declarations were
+in px. Rule 5: **when you touch a rule block, convert any `rem` you find in it to px in the
+same pass** — you will not get a second look at it, and a "1rem" sitting next to "font-size:
+19px" two lines up is exactly how a sub-14px control survives a redesign.
+
 **Evidence:** [`2026-08-12-reports-summary-redesign.md`](./2026-08-12-reports-summary-redesign.md).
 
 ## Pattern: derive report narrative in a pure util, never in the template or from absent data
@@ -12236,6 +12425,1347 @@ Correcting a superseded claim in place (e.g. "gated OFF" → "ENABLED IN PRODUCT
 register `correctionNote` text that says "§11 vendor contacts" sends responders to the wrong
 procedure. When correcting Anthropic/OpenAI/Google contact rows, cite §7.
 
+---
+
+## Gotcha: redirecting away from `routes/index.js` silently skips the session-entry compliance gates
+
+**Surface:** any change that lands a user somewhere other than the dashboard on
+login — a "default landing page", a role-specific home, a deep-link resume.
+
+`routes/index.js#setupController` is the **only** host, besides
+`routes/bento.js`, for the two session-entry gates: the **terms-agree** modal
+(`index.js:189, 207`) and the **EU AI Act Art.50** disclosure
+(`maybeShowSessionEntryGate`, `index.js:195, 271`). `grep -rn
+"maybeShowSessionEntryGate" app/frontend/app` returns those two routes and
+nothing else.
+
+The trap is that this is invisible from `afterModel`. `replaceWith(...)` there
+aborts the transition, so index's `setupController` never runs — and the reason
+the historical `replaceWith('user.home', ...)` fallback was safe is a
+non-obvious inheritance detail: **`routes/user/home.js` extends `IndexRoute`**
+and inherits its `setupController` (it overrides `model`/`afterModel` only, with
+no `_super`, which is also why it does not re-trigger index's `afterModel` and
+loop). Redirect anywhere *else* — `caseload`, a board, an org page — and the
+gates are gone with no error, no test failure, and no visible symptom.
+
+**Note the hole pre-exists** on the session-resume path (`replaceWith(last.url)`,
+`index.js:98-115`, resumes to arbitrary routes). Finding a pre-existing bypass is
+not licence to widen it: converting "gate fires on first login" into "gate never
+fires for this population" is a real regression, and first-login users are
+exactly who terms-agree exists for.
+
+**How to apply:** before adding any new post-login destination, check whether a
+session-entry gate is pending and defer to the dashboard while one is — the user
+satisfies the gate once and gets the new destination from the next login onward.
+Check the gate with the shared predicate, never a forked copy:
+
+```js
+import { sessionEntryGatePending } from '../utils/article50_gate';
+// terms-agree uses index.js's own predicate; Art.50 uses the shared one
+if (model.get('id') && model.get('user_name') && !model.get('terms_agree')) { return true; }
+return sessionEntryGatePending(model);
+```
+
+`utils/article50_gate.js` states its own design rule — *"D-02: ONE shared source
+of gate logic"* — so when you need a *read-only* version of a gate check, add an
+exported predicate to that module and have the existing opener call it, rather
+than re-deriving `needsAcknowledgement`'s appState-shaped wrapper at the call
+site.
+
+**Related trap in the same file:** auto-open-speak-mode
+(`index.js:190`) is gated on `!supporter_view`, and `supporter_role` implies
+`supporter_view` (`models/user.js:513`). So supporters have *never* auto-spoken —
+worth confirming before assuming a supporter-facing landing change breaks it.
+
+**First seen in:** [2026-08-14-slp-caseload-default-and-pill-order.md](./2026-08-14-slp-caseload-default-and-pill-order.md)
+
+---
+
+## Fact: "SLP" is not a distinguishable role on the frontend — `supporter_role` is the only gate
+
+`preferences.role` is a **two-value** enum, `communicator` | `supporter`
+(picker source of truth: `controllers/user/preferences.js:481-484`), exposed as
+`supporter_role` (`models/user.js:507-509`).
+
+"Therapist / SLP" exists **only** as a signup-time `registration_type`
+(`app.js:265-285`). The backend collapses `therapist|parent|teacher|other|
+manually-added-supervisor` → `role = 'supporter'` on first save
+(`app/models/user.rb:2307-2314`). `registration_type` *is* retained in
+preferences (`user.rb:139-143`, whitelisted at `user.rb:1959`) and the backend
+reads it via `supporter_registration?`, but **no frontend code reads it as a UI
+predicate** — so the Ember app cannot tell an SLP from a parent or a teacher.
+
+This is not a gap to work around; it is the existing convention. Every
+SLP-flavored surface already gates on `supporter_role`: the Caseload pill
+(`user-pill-nav.hbs`), the Caseload card
+(`utils/dashboard_sections.js:29`), and the component literally named the **"SLP
+hero"** (`authenticated-view.hbs`, `authenticated-view.js:56-89` —
+whose `roleName` resolves to Admin / Manager / Supervisor, never "Therapist").
+
+**How to apply:** when a request says "for SLP users", implement it as
+`supporter_role` and say so. Do **not** add an `slp`/`therapist` boolean or start
+reading `registration_type` on the frontend — that would split one population
+into two inconsistent ones (e.g. a Caseload pill that is visible for parents but
+ordered differently for therapists) for no user-visible benefit. Companion to
+[the `!supporter_role` communicator-gate pattern](#pattern-supporter_role-is-the-canonical-communicator-gate--never-invent-a-communicator_role-boolean).
+
+**First seen in:** [2026-08-14-slp-caseload-default-and-pill-order.md](./2026-08-14-slp-caseload-default-and-pill-order.md)
+
+---
+
+## Fact: pill-nav order is plain template source order — unlike the dashboard card grid
+
+Two different ordering mechanisms live one file apart; do not apply the wrong rule.
+
+- **Dashboard cards** (`.md-grid`) are placed by named `grid-template-areas` per
+  breakpoint × variant — reorder in SCSS, never in the DOM (see [that
+  pattern](#pattern-dashboard-card-order-is-driven-by-grid-template-areas-per-breakpoint--variant--reorder-there-never-the-dom)).
+- **Pill-nav** (`.md-pillnav`) is a plain flex `<nav>` whose order **is** DOM
+  order. Nothing data-driven feeds it: `sectionOrder` /
+  `preferences.dashboard_order` reorder *cards* only. To move a pill, move the
+  block in the template.
+
+There are **three** render sites that must stay in sync, and missing one makes
+the order silently revert at narrow widths:
+1. `components/user-pill-nav.hbs` — shared nav for the user-level pages
+   (consumed by `organizations.hbs`, `user/stats.hbs`, `caseload.hbs`,
+   `user/boards.hbs`).
+2. `components/dashboard/authenticated-view.hbs` — the desktop `<nav>`.
+3. `components/dashboard/authenticated-view.hbs` — the
+   `.md-pillnav-dropdown` `<ul role="listbox">` responsive mirror of #2.
+
+Also note the two navs use **different gate expressions for the same pill**:
+`user-pill-nav.hbs` reads `currentUser.supporter_role` directly, while
+`authenticated-view.hbs` reads `sectionAvailable.caseload` (availability, which
+ignores the user's hide preference) — both bottom out at `supporter_role` today,
+but they are not interchangeable, and the card uses `sectionVisibility` instead.
+
+**Free win when reordering a conditionally-rendered pill:** if the pill only
+renders for a subset of users (Caseload → supporters), moving it to the front is
+automatically a no-op for everyone else — no new conditional, no duplicated
+markup.
+
+**First seen in:** [2026-08-14-slp-caseload-default-and-pill-order.md](./2026-08-14-slp-caseload-default-and-pill-order.md)
+
+---
+
+## Gotcha: Focused View's hero is a bespoke ELEMENT, not hero styling applied to a card
+
+**Surface:** the home dashboard Focused View (`.md-grid--layout-focused`).
+
+The obvious mental model — "one card gets promoted to hero" — is wrong. Focused
+View's hero is a **separate, always-rendered element** with its own markup:
+`.md-card--speak-focused` (a "Hey \<name\>" greeting bar that IS the Speak button,
+`authenticated-view.hbs`), shown by `app.scss` only under
+`.md-grid--layout-focused`, which simultaneously sets
+`.md-card--speak-as-button { display: none }`. The card and its hero are two
+different DOM nodes that swap.
+
+Consequences that will mislead you:
+- The generic `md-grid--fullspan-speak` showcase rules look like the hero, but are
+  **inert in Focused** — their only target (`--speak-as-button`) is hidden.
+  Diagnosing "speak is the hero" by finding those rules gives the wrong cause.
+- `md-grid--fullspan-caseload` is deliberately scoped `.md-grid--layout-gentle`
+  (explicit comment in app.scss: *"so Focused keeps its existing caseload treatment
+  until its own supervisor view is built"*). A supervisor's Caseload had **no**
+  Focused hero — nothing was overriding it, the view had never been built.
+- **`md-grid--fullspan-*` is a GENTLE-View concept.** In Focused every non-action
+  card is full-width by construction, so emitting fullspan hands the showcase to
+  whatever happens to stack. It is now suppressed for `layout === 'focused'` in
+  `gridLayoutState`.
+
+**How to add a Focused hero for another section:** add a `md-card--<key>-focused`
+element next to the card, comma-append its selectors to the EXISTING
+`--speak-focused` rule blocks (one authoritative rule per visual, per Rule #0.7),
+and swap on `md-grid--hero-<key>`.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: `md-grid--hero-<key>` is only on the HOME tab — scope with `:not()`, not a positive match
+
+`gridLayoutState` emits `md-grid--hero-<key>` (focusedHeroKey: caseload/org/speak),
+but the template applies the two class sources **asymmetrically**
+(`authenticated-view.hbs`, the `.md-grid` element):
+
+```hbs
+class="md-grid … {{this.dashboardLayoutClass}} … {{if (is-equal this.activeTab "home") this.gridClassString}}"
+```
+
+`dashboardLayoutClass` (`md-grid--layout-focused`) is applied **always**;
+`gridClassString` — which carries `md-grid--hero-*`, `md-grid--fullspan-*`,
+`md-grid--boards-full` — only when `activeTab == "home"`. The inline `gridStyle`
+(grid-template-areas) is gated the same way.
+
+So on the Boards / Reports / Extras tabs the grid is `layout-focused` with **no hero
+class at all**. Re-scoping an existing focused rule to a positive
+`.md-grid--hero-speak` therefore silently drops it on every non-home tab. Use
+`:not(.md-grid--hero-<other>)` instead: the match set stays identical everywhere
+except the genuinely new case, and specificity rises rather than falls.
+
+Same reasoning applies to any future per-hero or per-fullspan CSS.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: `ERR_REQUIRE_ESM` from `sass`/`ember test` means your shell is on the WRONG NODE, not that the tool is broken
+
+**CORRECTED 2026-08-17.** This entry previously said the `sass` CLI "is broken in this
+repo". It is not — the shell was on the wrong Node version. Verified both ways:
+
+```
+node -v → v16.20.2   npx sass … → ERR_REQUIRE_ESM        (sass.js require()s ESM-only chokidar)
+                     npx ember test → ERR_REQUIRE_ESM    (testem require()s ESM-only execa)
+node -v → v22.23.2   npx sass … → exit 0, 3.7MB of CSS
+                     npx ember test → 2027 tests, runs clean
+```
+
+`.nvmrc` (both root and `app/frontend/`) pins **Node 22**; `require()` of an ESM module
+is only supported from Node 22.12. A shell that has not run `nvm use` lands on whatever
+is default and every ESM-importing dev tool fails identically, which reads as "the repo's
+tooling is broken" rather than "wrong interpreter". Check `node -v` FIRST when a JS tool
+dies this way. `bin/ember-server` already wraps nvm for this reason; ad-hoc `npx`
+invocations do not, so prefix them:
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v22.23.2/bin:$PATH"
+```
+
+The JS API below is still the better choice for **syntax-checking and inspecting output
+specificity** (and it works on any Node), but note the CLI's other trap: on the
+`ERR_REQUIRE_ESM` crash it exits **0**, so a CI-style `&& echo ok` reports success while
+having compiled nothing.
+
+Use the JS API instead — this is the fastest way to prove an `app.scss` edit compiles
+and, more usefully, to check **real** specificity/source order in the OUTPUT rather
+than eyeballing nesting:
+
+```bash
+cd app/frontend && node -e "
+const sass=require('sass');
+const r=sass.compile('app/styles/app.scss',{loadPaths:['app/styles'],style:'expanded'});
+require('fs').writeFileSync('/tmp/out.css', r.css); console.log('OK', r.css.length);
+"
+grep -n '^\.md-grid \.md-card\.md-card--caseload {' /tmp/out.css   # then compare line numbers
+```
+
+Comparing compiled line numbers is the only reliable way to settle the recurring
+[equal-specificity-source-order](#pattern-important-does-not-beat-source-order-at-equal-specificity--bump-specificity-with-a-compound-selector-instead)
+question in this 60k-line stylesheet. Note dart-sass is not the production compiler
+(SassC), so treat it as a syntax/ordering check, not a byte-for-byte guarantee.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: "This board is not currently available." is board-detail's INLINE error, and it swallows every cause
+
+The string `error_not_available` has one live producer/renderer pair:
+`controllers/user/board-detail.js#error_message` → `templates/user/board-detail.hbs`
+(route `user.board-detail`). It is **not** a page of its own — only `<main>` is
+replaced by `div.md-board-detail-error`, so the board chrome stays.
+
+The three look-alike sites are dead ends: `templates/board.hbs` renders different
+messages (`board_deleted` / `board_doesnt_exist` / `no_permissions` /
+`board_not_synced`); `templates/user/board-alt/index.hbs` is **shadowed** (its route
+sets `templateName: 'board/index'`); and the `error_message` computeds in
+`routes/board/index.js` / `routes/user/board-alt/index.js` live on the **Route** and
+are never aliased onto the controller, so the template renders them empty. Don't waste
+a debugging pass on them.
+
+**Why it is a bad error:** the route tries `/boards/<key>/tree?root_only=1` then falls
+back to `/boards/<key>`; if both fail the model resolves to `{error: true}`. There is
+**no status discrimination, no retry, and no timeout** — 401/403/404/5xx/network abort
+and the offline short-circuit (`services/persistence.js`, `{offline: true,
+short_circuit: true}`) all render the same sentence. Worse, the message picks its
+wording from `persistence.online` at RENDER time while the request was short-circuited
+at MODEL time, so an offline cause can display the online wording.
+
+**Two traps worth remembering:** `board_key` is built from
+`modelFor('user').user_name`, **not** `params.user_id` — and `routes/user.js` documents
+that the API may return the current user for a different requested path, so a boot race
+can produce a wrong-owner key. And `session_history`'s SKIP_ROUTES excludes
+`user.board-detail.edit` but **not** `user.board-detail`, so a supporter can be resumed
+onto a dead board; the resume-failure fallback never fires because the model always
+*resolves* (with the error POJO) rather than rejecting.
+
+**Diagnose with:** `localStorage.ll_board_cache_diag = 1` → `utils/board_cache_diag.js`
+emits `model:cache_miss` / `model:root_only_response` / `model:tree_fallback_show` /
+`model:background_tree_fail`.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: an underscore is NOT a line-break opportunity — wrap identifiers with `<wbr>`, never `overflow-wrap: anywhere`
+
+**Surface:** any place a username/identifier is displayed in a narrow box — the
+`user_select` cards (`app.scss` ~92600 / ~92762), the caseload roster name
+(`_caseload.scss` `.md-caseload__list-name`).
+
+**Symptom:** `aiden_parker` wraps as `aiden_parke` / `r` — split mid-word, one
+character onto the second line.
+
+**Why it happens:** per the Unicode line-breaking algorithm (UAX #14) `_` is class
+**AL — an ordinary letter**. So are `.`, `@` and `+` mid-token. Only hyphens are real
+break opportunities. `aiden_parker` is therefore ONE unbreakable run: it either
+overflows its box, or — with `overflow-wrap: anywhere` — the browser fills the line
+greedily and breaks wherever it happens to run out. `anywhere` is what produces the
+mid-word split; it is not a fix, it is the cause of the ugly break.
+
+A comment in `app.scss` asserted the opposite ("modern browsers honor underscores /
+hyphens as break candidates") — that claim was wrong and had been load-bearing for the
+`anywhere` value. Don't trust it if you see it restated elsewhere.
+
+**Fix recipe:** CSS cannot express "prefer the underscore", so put the break
+opportunity in the MARKUP and let CSS prefer it:
+
+1. Emit `<wbr>` after each separator run — `helpers/break-on-separators.js` does this
+   (`{{break-on-separators supervisee.user_name}}`). `<wbr>` renders nothing and does
+   **not** land in the clipboard, unlike a zero-width space (U+200B), which is a real
+   character that pollutes copy/paste and search.
+2. Set `overflow-wrap: break-word` — **not** `anywhere`. `break-word` splits a token
+   mid-word only when it has no break opportunity at all, so a real `<wbr>` wins;
+   `anywhere` would still break greedily before reaching one.
+3. Set `hyphens: manual`. `auto` will render `aiden_par-ker`, inventing a character
+   that is not in the name — actively wrong for an identifier.
+
+**Escape before inserting.** The helper HTML-escapes first, then inserts only literal
+`<wbr>` tags, so a hostile username cannot inject markup. Pick a separator set that
+shares no characters with the escaped entities (`&amp;` `&lt;` `&gt;` `&quot;` `&#39;`)
+or escaping can manufacture a false break.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Gotcha: styling an `<img>`'s own background paints it BEFORE the image — the loading flash is self-inflicted
+
+**Surface:** the caseload roster avatar (`_focused-view.scss`
+`.md-shell--caseload .md-caseload__list-avatar`), and any avatar/thumbnail where a
+photo branch and a placeholder branch share one class.
+
+**Symptom:** a bold coloured disc appears first and the avatar pops in on top of it a
+moment later. Reported as "the badge renders before the image".
+
+**Root cause:** an `<img>` paints its **background and border at layout time**, but its
+bitmap only paints after the network fetch *and* decode. So any `background` you put on
+the `<img>` element itself is guaranteed to be visible alone for the whole load. Give it
+a loud gradient and you have built a conspicuous two-stage render.
+
+This bites specifically when a rule targets a class shared by BOTH branches — here the
+photo `<img>` and the placeholder `<span>` both carry `.md-caseload__list-avatar`. The
+placeholder wants a filled disc (it is inline SVG, paints in one go, never flashes); the
+`<img>` must not have one. The original comment even anticipated the fill showing
+"through transparency or a failed load" — it just never considered the *loading* state.
+
+**Fix recipe:** put the decorative fill on the **placeholder** branch only, and give the
+`<img>` branch a quiet near-neutral fill (here `$surface-100`, the Gentle baseline,
+whose loading window nobody had ever complained about). Trade-off to state out loud: an
+avatar *with transparency* then shows the neutral colour behind it rather than the
+accent.
+
+**Then check the asset, not just the CSS** — see the companion finding: those avatars
+were 256×256 / ~41.8KB PNGs with 1,689 unique colours, quantised to 256 colours for
+**7.9KB (−81%)** at 2.8% RMSE. Verify the LARGEST render before resizing (here 132px at
+`.md-hero--user__avatar`, so 256×256 had to stay — only the compression changed). And
+check `app/frontend/public/` actually has the directory: `avatars/` was missing there
+entirely, so the Ember dev server never served it and `dist/` shipped without it.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Gotcha: ember-shepherd passes a TYPELESS button straight through — that is how a custom `action` works
+
+**Surface:** any Shepherd step in this repo whose footer needs a button that is not a
+plain next/back/cancel — e.g. the display-style modal's "Done" (completes from a
+non-final step) and its "Customize your dashboard" link.
+
+**The mechanism (`node_modules/ember-shepherd/dist/utils/buttons.js`):**
+
+```js
+function makeButton(button) {
+  const { classes, disabled, label, secondary, text, type } = button;
+  if (!type) { return button; }            // <-- passed through untouched
+  assert(`'type' must be one of 'back', 'cancel', or 'next'`, …);
+  const action = bind(this, function () { this[type](); });
+  return { action, classes, … };
+}
+```
+
+So: **omit `type`** and your `action` survives to Shepherd verbatim. Supplying both is
+pointless — `type` overwrites `action`.
+
+**Drive the tour through the SERVICE, not `this`.** The ember-shepherd tour service
+exposes `next()`, `back()`, `cancel()` and `complete()` (each forwarding to
+`tourObject`). Capture the component in a closure (`var component = this;` at the top of
+the steps builder) and call `component.get('tour').complete()`. That avoids depending on
+how Shepherd binds button callbacks — the same `_this`-capture convention CLAUDE.md
+already mandates for promise executors and plain-object methods.
+
+**Two traps when you change a step's primary button:**
+1. Gates usually key off the **class**, not the type — here `refreshGate` finds
+   `.shepherd-footer .md-tour__btn--primary`. Keep that class on whatever becomes the
+   primary or the disabled-until-valid gate silently stops working.
+2. Any NEW button that advances the flow needs the **same gate applied to it**, or it
+   becomes a way around the disabled primary.
+
+**Steps are built per tour-open** (`_startDisplayStyle` → `_buildSteps()`), so a DOM
+check inside the builder legitimately reflects the current page — that is how the modal
+collapses to a single step when opened off the dashboard.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Gotcha: `body.ll-layout-focused` scoping makes side-by-side layout comparison impossible in a clone
+
+**Surface:** any "show the user Gentle vs Focused next to each other" idea — e.g.
+previewing the CURRENT page in both styles inside the display-style modal.
+
+**The constraint:** Focused View is applied app-wide by a **body class**
+(`sync_layout_scope` in `services/app-state.js` → `LingoLinq.set_layout_scope`), and
+every per-page focused rule is written `body.ll-layout-focused .md-shell--caseload …`
+(see the scoping contract at the top of `styles/_focused-view.scss`). A clone rendered
+inside the modal is still inside that same `<body>`, so it inherits whichever state the
+body is currently in. **Two clones would render identically** — you would show the user
+their current view twice and call it a comparison.
+
+**Where it DOES work:** the home dashboard, because the grid's variant is a class on the
+grid element itself (`md-grid--layout-gentle` / `--layout-focused`), which the preview
+already toggles per clone (`display-style.js` `gridEl.classList.toggle('md-grid--layout-'
++ name, …)`). Element-scoped variants can be compared; body-scoped ones cannot.
+
+**Options when this comes up:** (a) restrict the comparison to the dashboard;
+(b) always preview the dashboard regardless of page, accepting that it is not "this
+page"; (c) refactor the focused overlay from `body.ll-layout-focused` to a container
+class — real work across a 40KB partial, and it risks the "Gentle View is the UNTOUCHED
+baseline" guarantee that partial is built on. Do not promise (a)+(b) semantics without
+saying which one you built.
+
+**Generalisation:** before designing any side-by-side variant preview, check whether the
+variant is toggled by an **ancestor/body** class or an **element** class. Only the latter
+can appear twice on one page.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Pattern: a class the JS emits is not a class the CSS consumes — grep the stylesheet before trusting a "hook"
+
+**Surface:** `gridLayoutState` (`utils/dashboard_sections.js`) emits
+`md-grid--hero-<key>` for the Focused View hero, and `authenticated-view.js` documents
+it as driving "which section gets the full-width hero showcase".
+
+**The finding:** `grep -rn "md-grid--hero" app/frontend/app/styles/` returned **nothing**.
+The class had been emitted, commented as load-bearing, and consumed by no rule at all —
+so the "hero" was actually produced by a completely different mechanism (a purpose-built
+`.md-card--speak-focused` element plus `display:none` on the normal Speak card). Reading
+only the JS and its comments would have produced a confidently wrong diagnosis.
+
+**Why it matters twice over:** an inert class is not just dead weight, it is a *decoy* —
+it makes the next person believe there is a supported hook. It is also an opportunity:
+wiring it up is often the cleanest fix, because the emit side and the naming already
+exist (that is exactly how the caseload hero was implemented, by finally giving
+`md-grid--hero-caseload` rules rather than inventing a new mechanism).
+
+**Rule:** when a comment says a class "drives" something, verify BOTH ends —
+`grep` the emit site *and* the stylesheet — before building on it or explaining it to
+someone. Same discipline as the "same-named computeds diverge" entry above: the name is
+not the contract.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Pattern: deleting a route in this app does NOT 404 — `/:user_id` swallows the URL
+
+**Surface:** a proposed removal of the retired onboarding wizard would have deleted
+`this.route('setup', { path: '/setup'})` from `app/frontend/app/router.js`. (The deletion
+itself was **reverted** — see the entry below — but the routing fact stands and applies to
+any future retirement.)
+
+**The trap:** `this.route('user', { resetNamespace: true, path: '/:user_id' })` is a
+single-segment **catch-all**. Delete any top-level route above it and that path stops
+404-ing and starts resolving as *a user whose id is the route name* — the page renders
+"Error loading user, please make sure you have permission to support this user" instead
+of erroring or redirecting. The router file even documents the ordering requirement
+inline ("Setup must come before user so /setup matches the wizard, not user with id
+'setup'"), which is easy to read as a note about ordering and miss as a note about
+deletion.
+
+**Rule:** when retiring a top-level route whose path is a single segment, keep the route
+entry and reduce it to a **redirect-only stub** (`beforeModel` → `appState.return_to_index()`
++ `RSVP.reject`). Delete the controller, template and components; keep the 20-line guard.
+The same applies to `intro`, `eval`, `board-picker`, `speech`, `demo` — anything declared
+before the `user` route.
+
+**Generalisation:** in any router with a greedy dynamic segment, "delete the route" and
+"make the URL stop working" are different operations. Check what the URL falls through
+*to* before removing an entry.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Pattern: "retire the access points" ≠ "delete the pages" — confirm which one before removing files
+
+**Surface:** a session handoff recorded that Traci had "confirmed the wizard AND the
+symbol-layout editor are both being deleted." Acting on it removed 41 files
+(`controllers/setup.js`, `templates/setup.hbs`, all 18 `app/components/setup/**`). Traci's
+actual position: *"We shouldn't have a setup deletion → only comments so there are no
+access points. We're not ready to delete the setup pages yet."* Everything was reverted.
+
+**The distinction that got flattened:** closing off a feature has two very different
+end-states, and the code looked identical from the inside —
+* **Access points closed** (what was wanted): route guard refuses every mode, entry points
+  commented out, files stay on disk so the flow can be revived or reworked.
+* **Pages deleted** (what was done): the implementation is gone and reconstructing it means
+  going back through git history.
+
+Comments left in the code by the earlier pass genuinely read as deletion authorisation —
+`routes/setup.js` said *"When the setup pages are finally deleted, this route … go
+together"* and `board-actions.js` said *"Delete this block outright in the same change that
+removes routes/setup.js."* Those were a **plan**, not a decision, and a second-hand handoff
+note is not consent.
+
+**Rule:** a deletion recorded only in a handoff or a code comment is a hypothesis. Re-confirm
+irreversible removals with the person directly, at the time, before running `rm`. Cheap to
+ask; the revert here cost two builds and a careful file-by-file classification.
+
+**What made the revert safe** (worth copying): before any `git checkout`, classify every
+changed file into *"I alone made this dirty"* (safe to `git checkout HEAD --`) vs *"this
+already contained the user's uncommitted work"* (hand-revert only). On a branch with 40+
+uncommitted files a blanket checkout would have destroyed real work. Diff the current
+`git status` against the session-start status to build that split mechanically — and count
+the entries afterwards to prove you landed back on the original shape.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Pattern: prove "pre-existing failure" with a baseline build — never by reasoning alone
+
+**Surface:** deleting the wizard touched `routes/user/board-detail.js`, where two
+always-true `if (!board_layout_mode)` guards were unwrapped. The legacy `app_state`
+suite then reported 4 failures, three reading
+`calling set on destroyed object: <…user/board-detail::ember353>.paint_mode = false`.
+`paint_mode` was literally on the touched lines.
+
+**Why reasoning was not enough:** the static case was strong — the `= false` setter is
+`utils/edit_manager.js:1679`, `board_layout_mode` appears nowhere in `tests/`, and the
+unwrapped branches were provably always taken. All true, and still only an argument.
+
+**The technique (cheap, ~8 min, no git writes):**
+1. `cp` every file you edited to the scratchpad.
+2. Restore the ones that were **clean at HEAD** with `git show HEAD:<path> > <path>`;
+   hand-revert edits in files that were already dirty in the working tree.
+3. Build to a *separate* output dir (`--output-path .../build-baseline`) and re-run the
+   same filter against it.
+4. Restore from the scratchpad copies, then re-grep for every removed symbol to confirm.
+
+Result here: 86 tests / 4 failed / 246-of-250 assertions, same four test names, same
+assertion text — **byte-identical**, so pre-existing. Note step 2's split: `git show HEAD`
+is only the pre-edit state for files that were clean before you started; on a branch with
+30+ uncommitted files that is a real distinction.
+
+**Rule:** a failure that names a symbol you touched is not pre-existing until a baseline
+build says so. Never `git stash` to get one — this repo requires explicit approval for
+every git write, and a stash mid-task risks the other uncommitted work.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Gotcha: a zero-match QUnit filter reports "1 tests … 1 failed"
+
+**Surface:** with `ember test` broken here (`require() of ES Module … execa` in testem),
+suites are driven by a Puppeteer harness that takes a QUnit filter string.
+
+**The trap:** filtering on a string that matches **no** test does not report "0 tests" —
+it reports `1 tests completed … with 1 failed`, `0 assertions of 1 passed`. That looks
+exactly like a real regression. Filtering `"dashboard-sections"` (the *filename*) produced
+this; the module is `Unit | Utility | dashboard sections` — **spaces, not hyphens**.
+
+**How to tell in one step:** re-run with a deliberately impossible filter
+(`"zzz-no-such-test"`). Identical output ⇒ your filter matched nothing. Then get the real
+name from the source: `grep -n "module(" <test-file>`.
+
+**Related:** killing a Puppeteer run leaves Chrome processes behind that make every
+*subsequent* run hang to timeout. Run one filter per invocation on its own port rather
+than looping several in one `for` loop, and `pkill` stray chrome after any interrupted run.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Pattern: to preview a body-scoped style variant, render it in an iframe — not a clone
+
+**Surface:** the Display Style modal had to show the CURRENT page rendered in both Gentle
+and Focused View, side by side. Focused View's rules live in `styles/_focused-view.scss`
+scoped under **`body.ll-layout-focused`**, so two clones inside the same `<body>` inherit
+the same state and render identically. That is why the modal previously showed only ONE
+preview, swapped on selection.
+
+**The fix:** give each preview its own `<iframe>` — its own document, its own `<body>`,
+its own class. Copy the parent's `link[rel=stylesheet]` + `<style>` tags (same URLs ⇒
+cache-served, so it costs a parse, not a download) and `document.write` the markup in.
+`_focused-view.scss` is not touched at all, so its "Gentle View is the UNTOUCHED baseline"
+guarantee stays structurally safe.
+
+**Rejected alternative, and why it matters:** adding a `.ll-scope--focused` container
+scope to that file looks cheaper (~9 top-level selectors). It fails on two counts —
+(1) **specificity**: the file is `@use`d so it emits FIRST and must win by specificity;
+`body.ll-layout-focused` is (0,2,0) and a bare container class is (0,1,0), so it would
+LOSE to base rules; (2) ~24 of its rules key off document-level ancestors such as
+`#within_ember #content.modern-dashboard:has(.md-shell--caseload)`, which cannot resolve
+inside a container — and those are precisely the rules that restyle the caseload page.
+
+**Three traps the iframe approach has of its own — all found by RUNNING it:**
+1. **Do not copy the whole `body.className` blindly.** It contains transient modal state.
+   `md-ds-active` (added while this very modal runs) carries
+   `body.md-ds-active .md-workspace {visibility:hidden}`, which blanked every preview to
+   a bare gradient. Filter out `md-ds-active`, `shepherd-*`, `md-tour-*`.
+2. **Rebuild the ANCESTOR CHAIN, not just the element.** Shallow-clone each ancestor up to
+   `<body>` (ids/classes intact) and nest the deep-cloned shell inside, or every rule that
+   reaches for `#within_ember` / `#content` / `:has()` silently stops matching.
+3. **Body class is not the whole variant.** Element-level classes bound to the saved
+   preference (`md-shell--layout-focused`, `md-grid--layout-gentle|focused`) come along
+   from the clone unchanged, so both frames render the SAME layout. Re-point them per
+   preview. Note a swap alone cannot add a modifier that has no counterpart — the shell
+   only ever gains `--layout-focused` — so toggle that one explicitly.
+
+**Scale to WIDTH and crop, don't fit.** Fit-to-both letterboxes badly when the slot is far
+wider than tall (two previews stacked in a modal): the page rendered at 0.27 with a third
+of the slot blank. Width-scale + crop keeps the top of the page, which is where the
+variants differ. Render the iframe at true viewport width, too — a narrow iframe trips the
+app's width breakpoints and previews the MOBILE layout.
+
+**Honest limitation to state:** this previews CSS only. Anything computed in JS
+(`gridLayoutState` card ordering, `md-grid--hero-<key>`) is not reflected.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: `!important` does not beat `!important` — specificity still decides
+
+**Surface:** making a cloned page expand inside a preview iframe needed the app's
+viewport-pinned scroller to release its height. `#content{height:auto !important}` was
+injected last in the document and still lost — the element kept `css-height: 950px` with
+2071px of content inside it.
+
+**Why:** the app's own rule is *also* `!important`, at higher specificity. Between two
+`!important` declarations the normal cascade resumes: specificity first, source order
+only as the tie-break. A bare `#content` (1,0,0) loses to anything like
+`#within_ember #content` (2,0,0) regardless of who is later in the file.
+`html body #within_ember #content` (2,0,2) wins.
+
+**The tell:** when one property from an injected block applies and another does not
+(here `overflow` took effect but `height` did not), it is not "my CSS isn't loading" — it
+is a per-property fight, and only the contested property has a higher-specificity rival.
+That is a much faster diagnosis than re-checking whether the stylesheet is present.
+
+**Related trap in the same fix:** an injected `html,body{overflow:hidden}` (added to hide
+scrollbars, which an iframe's `scrolling="no"` already handles) silently **capped
+`documentElement.scrollHeight` at the frame height**, so every page-height measurement
+read exactly one viewport. If a scroll measurement suspiciously equals the container
+height, look for an overflow rule you added yourself.
+
+**When ancestors are pinned, stop asking them how tall they are.** Even after relaxing
+overflow, `#within_ember` / `#content` / `body` all still laid out at one viewport while
+their content spilled visibly — so `documentElement.scrollHeight`, `body.scrollHeight`
+and the root child's bounding box ALL under-read. Measuring the **lowest bottom edge of
+any element** (`max(rect.bottom)` over `body.querySelectorAll('*')`) is the one
+measurement a constrained ancestor cannot distort.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: `margin: … auto …` on a FLEX ITEM shrink-wraps it
+
+**Surface:** `.md-ds-options` carries `margin: 8px auto 0` — harmless centring while it
+was a block. Once its parent became a flex column, both preview rows collapsed to their
+content width and the previews rendered narrow and portrait-shaped inside a full-bleed
+modal.
+
+**Why:** `auto` side margins on a flex item absorb the free space *and* stop the item
+stretching, so `align-self: stretch` never applies. The item ends up shrink-wrapped and
+centred — which looks like "my width rule isn't working".
+
+**Rule:** when converting a container to flex, audit its children for `margin: … auto`
+and `max-width` first. Neutralise them on the variant (`margin-inline: 0; width: 100%;
+align-self: stretch`) rather than fighting it with `!important` widths.
+
+**Related, same fix:** `height: 100%` on a child of a flex-grown parent resolves against
+*nothing* — the parent's height comes from growing, not from a definite value. Use
+`flex: 1 1 auto` on the child (and `min-height: 0`, or it refuses to shrink below its
+content and overflows the container).
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: `animation: none` hides anything revealed by an entrance animation
+
+**Surface:** the display-style preview injects motion-suppressing CSS into its iframe.
+`*{animation:none !important}` looked obviously safe. It made the caseload page's header
+and subheader vanish from the preview entirely.
+
+**Why:** this codebase reveals hero text with an entrance animation over an initially
+hidden element —
+
+```scss
+.md-hero--dashboard .md-hero__title .md-hero__title--from-left {
+  opacity: 0;
+  animation: la-hero-title-from-left 1s … forwards;   /* `forwards` supplies opacity 1 */
+}
+```
+
+The resting state is `opacity: 0`; the *animation* is what makes it visible. Removing the
+animation removes the only thing that ever set opacity to 1. Same trap for anything using
+`transform: translateX(-100%)` + `forwards`.
+
+**The fix — suppress the motion, keep the result:**
+```css
+*{animation-duration:0s !important; animation-delay:0s !important;}
+```
+Each animation still runs, completes immediately, and applies its `forwards` fill. Use
+this anywhere motion is being stripped (previews, print styles, screenshot harnesses,
+reduced-motion handling) rather than `animation: none`.
+
+**Symptom to recognise:** an element is present in the DOM, has a sensible computed size,
+and reserves layout space — but renders blank. Check `getComputedStyle(el).opacity` before
+suspecting fonts, colour, or a failed clone.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Technique: measure a page's "ink box" from LEAF elements, not containers
+
+**Surface:** scaling a cloned page into a preview panel needs its true content extent.
+Container-based measurements gave two visible defects at once — a white band above the
+content, and a tall blank tail below it.
+
+**Why containers lie at both ends:**
+* **Top** — `.md-shell` / `.md-workspace` / `#content` all start at `y = 0`, so any
+  container measurement reports a content top of 0 and no gap to crop. But the layout
+  still reserves space for a fixed app header that the clone does not include, so the
+  first thing actually *visible* is well below 0.
+* **Bottom** — the shell keeps running to full page height past the last visible row, so
+  a short layout measures just as tall as a long one.
+
+**The measurement that works** — walk elements with no element children, take the
+topmost `rect.top` and lowest `rect.bottom`:
+
+```js
+Array.prototype.forEach.call(doc.body.querySelectorAll('*'), function(n) {
+  if (n.firstElementChild) { return; }        // containers via their leaves
+  var r = n.getBoundingClientRect();
+  if (!r.height || !r.width) { return; }
+  if (r.top < top) { top = r.top; }
+  if (r.bottom > bottom) { bottom = r.bottom; }
+});
+```
+
+Add a few px of bleed (≈8 top / 16 bottom) so a card's border, shadow or padding just
+past its last leaf is not shaved. Then shift the frame by `-top × scale` and size the
+box to `(bottom - top) × scale`.
+
+**Keep ONE scale across sibling previews, but let each box take its own height.** Shared
+scale keeps the two pictures comparable (different zooms would defeat a side-by-side
+comparison); per-box height removes the blank tail under the shorter one. Those are
+independent decisions — it is tempting to conflate them.
+
+**Feedback-loop guard:** measure available space from an ancestor the fit function never
+writes to. Once the routine sets both `width` and `height` on the box, reading either back
+next pass feeds the calculation its own output and the size drifts.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: a component arg that reads like STYLING can carry behaviour — `@compactRow` hijacked the click
+
+**Surface:** the Boards page reused `<BoardIcon @compactRow={{…}}>` to get the picker's
+compact row look. Every card on the page then stopped opening its board — clicking one
+opened a preview instead. Found only because Traci noticed one odd row.
+
+**Why:** `compactRow` was doing double duty. It gated the compact markup *and* a branch in
+`board-icon.js` that turned the click into a preview — behaviour that only ever made sense
+inside the board **picker**, where picking a board is the point. Importing the look
+imported the behaviour.
+
+**Fix shape:** split the flag by responsibility rather than special-casing the new caller —
+`compactRow` = the compact LOOK, `pickOpensPreview` = the picker's click behaviour
+([board-icon.js:366-374](../../app/frontend/app/components/board-icon.js#L366-L374)). The
+picker passes both ([board-picker.hbs:197](../../app/frontend/app/components/board-picker.hbs#L197));
+the Boards page passes only `compactRow`.
+
+**The general check:** before reusing a component flag for its appearance, grep the
+component's **JS** for that flag, not just its template. A flag with hits in both files is
+two features wearing one name. And when a shared component is reused on a new page,
+click-test the *unchanged* mode too — the regression here was in the default (detailed)
+path, which nobody thought to re-test.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Gotcha: a `%`-positioned background moves when CONTENT height changes — and a `background:` shorthand `!important` blocks the longhand fix
+
+**Surface:** the board-picker page background visibly changed when toggling Compact ↔
+Detailed. The background declaration is byte-identical in both states.
+
+**Why:** `.md-shell`'s mesh is six radial-gradients positioned in **percentages**, and the
+shell's height is content-driven (measured 1269px compact vs 2550px detailed). Percentage
+positions resolve against the painting area, so the whole mesh re-positions and re-stretches
+when the list gets shorter. `background-attachment: fixed` resolves it against the viewport
+instead. Scope it to the page that flips content height in place — fixed attachment is
+expensive to repaint while scrolling on some mobile browsers.
+
+**Two traps in landing that one-line fix**
+([`_board_picker.scss:55-80`](../../app/frontend/app/styles/_board_picker.scss#L55-L80)):
+1. **A `background:` shorthand resets every sub-property.** `.md-shell`'s background is an
+   `!important` shorthand, so it also sets `background-attachment: scroll !important` — a
+   plain longhand loses silently. The flag is required, not decoration.
+2. **`!important` alone still was not enough.** The partial is `@use`d, so it emits before
+   app.scss; at an equal (0,1,0) tie with both sides `!important`, source order decided and
+   app.scss won. `.md-shell.md-shell--board-picker` (0,2,0) wins outright. Same family as
+   [the `@use`d-partial gotcha](#gotcha-a-rule-in-an-used-partial-loses-to-an-equal-specificity-rule-in-appscss--the-partial-is-emitted-first),
+   which bit **three** times in this one session.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Technique: when a COLUMN is narrow but the viewport is wide, media queries are inert — use `@container`
+
+Splitting the Boards page into a 1/4 folders column and a 3/4 boards column put content into
+a ~300px column on a 1400px screen. Every `@media (max-width: …)` rule written for it was
+dead: the viewport was never narrow. `container-type: inline-size` on the column plus
+`@container <name> (max-width: …)` is the tool, and it is **already used in `app.scss`**
+(e.g. [`app.scss:51002`](../../app/frontend/app/styles/app.scss#L51002)) — no new dependency,
+no polyfill question.
+
+**The tell:** a breakpoint rule that "does nothing" while the element is visibly narrow.
+Check what the rule is measuring — the viewport, or the box.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Technique: diff eslint against a HEAD baseline — this repo has grandfathered errors
+
+`npx eslint <file>` on a touched frontend file returns errors that were already there. A
+clean run is not the bar; **no new errors** is. Compare against the same file at HEAD:
+
+```bash
+git show HEAD:app/frontend/app/components/board-icon.js \
+  | npx eslint --stdin --stdin-filename app/frontend/app/components/board-icon.js
+```
+
+Baselines measured 2026-08-16: `available-boards-section.js` 5, `board-picker.js` 6,
+`board-icon.js` 6. Same discipline as
+[proving a pre-existing failure with a baseline build](#pattern-prove-pre-existing-failure-with-a-baseline-build--never-by-reasoning-alone).
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Gotcha: two asset bundles exist — check WHICH one loaded before believing a change is absent
+
+A live browser session loads the Ember dev output (`/assets/frontend.js` + `.css`). A plain
+request can instead be served Sprockets-fingerprinted `application.debug-<hash>` assets,
+which can be **stale**. "My CSS/JS change isn't showing" is as often the wrong bundle as a
+wrong rule. Confirm first, from the console:
+
+```js
+[...document.scripts].map(s => s.src).filter(s => /assets/.test(s))
+```
+
+**Related:** static assets returning 500 means the backend is down or restarting — images
+cannot fail for application reasons, so don't debug the app for it.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Fact: "Orphan Boards id:…" rows are a SYNTHETIC record, not a board
+
+[`controllers/user/index.js:770`](../../app/frontend/app/controllers/user/index.js#L770)
+does `createRecord('board', {name: "Orphan Boards id:" + id})` to cluster boards whose
+parent is missing. It has no key, no real record behind it, and its label is a raw
+untranslated string. Treat it as a UI grouping artifact: do not chase it as a data bug, do
+not assume clicking it can work, and remember that **hiding those rows removes the only
+entry point to the boards inside them** — flatten the children or give the row a real
+i18n'd label + action if that access matters.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Technique: layout offsets across breakpoints are MEASURED, not derived — use a per-width QA probe
+
+Aligning the pill-nav across five pages and splitting the Boards page into columns both
+produced values that cannot be reasoned out of the stylesheet: the contributing padding is
+non-monotonic (Gentle view runs 40 → 52 → 40 across widths), and the winning rule is often
+in a different file from the one being edited. Both were settled by sweeping real widths in
+a headless browser and reading computed values.
+
+Two committed probes now exist — run from `app/frontend` on Node 22:
+
+```bash
+node scripts/focused-layout-qa.mjs   # pill-nav offsets + page backgrounds, per width/view
+node scripts/boards-columns-qa.mjs   # boards 1/4-3/4 split, per width/view
+```
+
+**Re-measure after any change to the surrounding padding; do not carry the numbers forward
+by assumption.** Six defects in one session were caught only by measuring — including a
+*false-pass* pixel test that sampled dead space, so also assert the probe is sampling a
+node that actually has ink (see
+[measure a page's "ink box" from LEAF elements](#technique-measure-a-pages-ink-box-from-leaf-elements-not-containers)).
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Gotcha: a fixed sleep in a click probe manufactures BOTH false passes and false failures
+
+**Surface:** a Puppeteer sweep clicking every Boards-page card sampled the outcome 1.8s
+after each click. It reported most cards as broken — `url` unchanged, no preview — while
+two cards in the same sweep passed. Nothing was wrong with the app.
+
+**Why:** opening a board raises the "preparing workspace" overlay *before* the route
+transitions. At a fixed sample a slow card is indistinguishable from a dead one. The tell
+was the inconsistency: the gate under test is a per-component flag, so it **cannot** vary
+card to card — when a per-component behaviour appears to differ per item, suspect the
+harness, not the code.
+
+**Fix shape:** poll for the outcome instead of sampling for it, and report what was on
+screen when the deadline expired.
+
+```js
+async function outcome(page, startUrl) {
+  const deadline = Date.now() + 15000;
+  for (;;) {
+    const s = await snapshot(page);                      // url + previewOpen + working
+    if (s.url !== startUrl || s.previewOpen) { return s; }
+    if (Date.now() > deadline) { return Object.assign(s, { timedOut: true }); }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+```
+
+A fixed delay fails in both directions: too short and the right outcome hasn't happened
+yet (false failure); too long and a *wrong* fast outcome has already been replaced by a
+right slow one (false pass). Related: indices into a list go stale across a round trip —
+re-count each iteration rather than trusting a count taken before the first click.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Pattern: every NEGATIVE assertion needs a positive control proving the detector still fires
+
+**Surface:** a click sweep asserted, per card, "the route changed **and** no preview modal
+opened". The second clause is a negative — it passes when a selector matches nothing.
+If `.md-board-details-modal` were ever renamed, every card would still pass, and the probe
+would look green while testing half of what it claimed.
+
+**The guard:** exercise the same detector on a surface where the thing is *supposed* to
+happen, and fail loudly if it doesn't. Here the board-PICKER is the surface that opens a
+preview on card click, so it doubles as the control:
+
+```js
+check(res.previewOpen,
+  'CONTROL: clicking a PICKER card opens a preview (detector verified live)',
+  'if this fails, every "no preview" result above is unproven');
+```
+
+It earned its place immediately: the first run failed the control (the picker grid paints
+a "Loading boards…" message before its cards, so waiting on the grid raced the data) —
+which correctly reported the negatives as *unproven* rather than passing them. Wait for
+the **cards**, not the container.
+
+**Generalises:** any "X did not happen" assertion — no error toast, no console error, no
+modal, no request — needs a companion test that makes X happen.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: a self-reverting command must anchor its paths to the REPO ROOT
+
+Proving a regression test actually fails means reintroducing the bug, running, and
+reverting — ideally in one command so the revert cannot be forgotten:
+
+```bash
+sed -i 's/&&/||/' app/frontend/app/components/board-icon.js
+cd app/frontend && npx ember test --filter="…"
+git checkout app/frontend/app/components/board-icon.js     # <-- FAILS: wrong cwd
+```
+
+The `cd` earlier in the chain made the checkout path resolve against `app/frontend`, so it
+exited 128 (`pathspec … did not match`) and **left the deliberate bug in the working
+tree**. The test output looked like a clean negative control while the repo was dirty.
+
+Use `git -C "$REPO_ROOT" checkout -- <path>`, or a path relative to wherever the command
+actually runs — and verify with `git status --short` in the same breath rather than
+assuming the revert took.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: a card with no name in `grid-template-areas` invents COLUMNS and squashes the whole grid
+
+**Surface:** the Focused dashboard rendered "squished into two weird columns" for one account
+and was perfect for another. The inline style was correct in both cases —
+`grid-template-columns: repeat(4, 1fr)` with four tokens per area row — yet the computed
+columns came back as **six**: `97.7px 97.7px 97.7px 97.7px 0px 493.1px`.
+
+**Why:** `utils/dashboard_sections.js` builds the areas string from the account's VISIBLE
+section list, but the template renders every AVAILABLE card. A card that is rendered while
+unnamed in the areas is placed outside the explicit grid, so the browser creates implicit
+tracks to hold it — and every named card is then squeezed into what's left. Here the Speak
+hero took a 493px invented column and Extras a 0px one.
+
+**The tell:** the computed `grid-template-columns` has MORE tracks than the inline/authored
+value. If those disagree, look for a grid item that isn't in the areas — not for a broken
+column rule. Cards that render at `w=0` beside a card that renders far too wide is the same
+signal.
+
+**Two fixes, and they are different:**
+* *Cause* — give the card an area (for org dashboards, Speak now shares a bottom row with
+  Caseload via the `orgPair` branch in `focusedLayout`).
+* *Resilience* — `grid-column: 1 / -1` on the cards most likely to be unnamed. `1 / -1`
+  resolves to the explicit grid's own first and last lines, so it cannot itself create a
+  track. Keep it scoped OFF any layout where the card now has a real area, or it overrides
+  the placement.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: `align-items: stretch` absorbs a negative margin by GROWING the item
+
+Giving a grid item `margin-top: -10px` to lift it 10px made it 10px TALLER instead —
+measured 170px against its row-mate's 160px, tops offset by exactly the margin.
+
+A stretched grid item is sized so its **margin box** fills the row, so
+`height = row − margin-top − margin-bottom`. A negative top margin therefore *adds* to the
+height rather than moving the box.
+
+Three ways out, and the choice matters:
+
+| Want | Do |
+|---|---|
+| move it, keep the row's spacing | `margin-top: -10px` **+** `margin-bottom: 10px` (they cancel) |
+| move it, keep it the same height as its row-mate | `align-self: start` + `height: 100%` |
+| move it and let it grow | the negative margin alone — which is what you get by accident |
+
+`height: 100%` on a start-aligned grid item resolves against the grid AREA, so the item
+tracks whichever sibling sizes the row without hard-coding a pixel height.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: a later `gap` SHORTHAND silently resets an earlier `row-gap` at equal specificity
+
+`.md-grid.md-grid--hero-org { row-gap: 38px !important }` measured as **14px** on the page —
+the rule was completely inert. Two compounding reasons, both invisible in the source:
+
+1. `.md-grid.md-grid--layout-focused { gap: 14px !important }` has the SAME specificity
+   (0,2,0) and is emitted **~260k characters later** in the compiled sheet, so it wins on
+   source order — the same "equal specificity, decided by emit order" trap this file already
+   records for `@use`d partials, arriving from the other direction.
+2. It sets the `gap` SHORTHAND, which resets `row-gap` and `column-gap` together. Even a
+   winning `row-gap` elsewhere is wiped by a later shorthand.
+
+Also note the base was **not** the value it appeared to be: `.md-grid { gap: 28px }` is
+overridden to 14px for this view, so an increment computed from 28 was wrong twice over.
+
+**Rule:** before adjusting one axis of a gap, compile and find EVERY rule that sets `gap` or
+`row-gap` for that element, and check which is last. Then out-specify it rather than matching
+it — here, chaining `.md-grid--layout-focused` into the selector took it to (0,3,0) and it
+applied. Verify on the page: a computed value that equals the untouched base is the tell.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: the dashboard has TWO order resolvers — the live grid does not use `defaultOrderFor`
+
+Adding a new role-based card order to `gentleDefaultOrder()` reordered the dashboard's
+EDIT/PREVIEW surfaces and left the real page unchanged.
+
+`utils/dashboard_sections.js` resolves the default card order in two independent places:
+
+| Function | Serves | Chooses its base by |
+|---|---|---|
+| `gentleDefaultOrder` → `defaultOrderFor(user, layout)` | display-style.js — the drag preview and the style chooser | takes a `user`, calls `availableHomeSections` / `sectionHidden` |
+| `dashboardLayout(vis, order)` | **the live grid** | its own `supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER` line — it never calls the other two |
+
+`focusedLayout` has the same local `var base = supervisor ? … : …`. So a new order must be
+added in **every** place that picks a base, or the dashboard and its own editor disagree —
+and the editor is what the user is looking at while deciding, which makes the disagreement
+especially confusing.
+
+**The packers take `vis`, not `user`**, so a role test there has to be expressible in
+visibility terms. That is usually fine because a section's availability gate IS the role
+test: `vis.org` is true exactly when `hasOrgManagement(user)` is (HOME_SECTIONS entry for
+`org`), so keying off `vis.org` in `dashboardLayout` matches `hasOrgManagement` in
+`gentleDefaultOrder` without threading a user through. Check the section's `available:`
+function before assuming a `vis` flag is a safe proxy.
+
+**Order the branches most-specific-first.** An org manager satisfies the generic supervisor
+test too (`vis.org` is one of its terms), so the org branch has to be evaluated before it or
+it can never be reached.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+## Pattern: a preview of "the other state" is a DERIVATION, not a copy — give it one source
+
+The Display Style chooser shows two thumbnails; one of them necessarily depicts the layout
+the user is *not* in. That thumbnail cannot be a clone, because every input derived from the
+saved preference is wrong in the clone. We fixed it five times — body class, element classes,
+inline `grid-template-*`, engine state classes, card visibility — each fix a real bug, each
+found by a user looking at a wrong picture.
+
+**The fix that ends the series is structural:** one function that answers "what does layout
+L look like for this user" (`dashboard_sections#layoutPresentation`), called by the live page
+AND by every preview surface. Callers pass only what they alone know (which user; whether a
+feature flag is on; live UI state the preview is editing). Anything that varies by the thing
+being previewed belongs in that function — a caller deriving it privately is the bug.
+
+**How to know you have this problem:** count the surfaces that re-derive the same state. Here
+it was three (live page, modal clone, preview iframes), and consolidating them exposed two
+bugs nobody had reported yet — a missing feature-flag gate on the saved drag order, and a
+stale-class sweep whose regex was missing one prefix that the other copy had.
+
+**Corollary — passing live UI state through the shared function needs an "unset" channel.**
+The modal's checkboxes are live state, not preferences. Returning a preference-derived value
+for a toggle the caller's UI doesn't render would silently override that UI; returning
+`undefined` lets the caller skip it. Encode "my UI doesn't offer this" distinctly from "off".
+
+## Gotcha: layout is DOCUMENT-scoped here — 68 rules hang off `body.ll-layout-focused`
+
+Before proposing "just render the other variant off-screen and screenshot it", check what the
+variant is keyed on. `_focused-view.scss` documents `body.ll-layout-focused .foo` as the
+DEFAULT convention and relies on its specificity to beat the gentle base; `grep -c` finds 68
+such rules. Two layouts therefore cannot coexist in one document at all — the preview needs
+its own document (an iframe), which is why the existing design already used one.
+
+**And check what a second app instance would drag along before "just booting the real app"
+in that iframe.** For this repo that is a second `stashes`/`persistence` pair —
+`services/stashes.js:631` pushes logs on startup and persistence opens the offline DB. On an
+AAC app, a decorative modal that writes usage logs and contends for the local DB is a worse
+bug than the one being fixed. "Authoritative by construction" is only better if its side
+effects are acceptable.
+
+## Technique: when a new invariant test fails, verify the behaviour before "fixing" it
+
+A new test asserting "no section is visible but unplaced in the grid" failed on
+`supervisor / focused: speak`. The tempting read is a sixth preview bug. The code says
+otherwise: `app.scss` full-spans an unplaced Speak/Extras card with `grid-column: 1 / -1`
+(which resolves to the explicit grid's existing lines and so cannot create a track), and the
+comment states that a supervisor's dashboard drops Speak from the areas deliberately.
+
+The *invariant* was wrong, not the code. Narrowed it to a named exception set
+(`FULLSPAN_SAFETY_NET`) and asserted the genuinely-broken half separately (Extras must never
+be visible on Focused). A too-strong invariant that gets "fixed" in the source is how a
+working behaviour gets regressed by its own test suite.
+
+**First seen in:** [2026-08-16-display-style-preview-single-source.md](./2026-08-16-display-style-preview-single-source.md)
+
+---
+
+## Gotcha: a deleted SURFACE leaves its BEM block behind in app.scss — grep for an orphan before authoring a "new" component style
+
+When a feature's markup is removed, its stylesheet block usually is not. `26b4b4426`
+("Replace My Boards modal with route transition to user.boards") deleted ~165 lines of
+modal markup and ~500 lines of controller state, and left the entire `.board-picker__*`
+block — `__item`, `__item--home`, `__home-badge`, `__current-badge`, `__thumb`, `__name` —
+sitting in `app.scss` with **zero** template references. Its stale comment still described
+"the My Boards picker", a surface that no longer exists.
+
+The cost is silent duplication: the same "HOME BOARD" pill had already been re-authored as
+`.ub-boards-page__board-item-home-badge` and `.md-strip__home-badge`, so a fourth was one
+"just add a badge" away. Before writing a new component style, grep the SCSS for a block
+that already does it:
+
+```bash
+grep -rn "home-badge" app/frontend/app/styles/
+grep -rn "board-picker__item" app/frontend/app --include=*.hbs --include=*.js   # → orphan if empty
+```
+
+Reviving an orphan is usually better than a fresh variant — but attach only the MODIFIER
+you need, not the base block. `.board-picker__item` sets `display: block`, which would have
+overridden the live wrapper's `display: flex; flex-direction: column`;
+`.board-picker__item--home` is `position: relative` alone, which is inert everywhere else.
+Deleting the orphan instead is a separate decision and needs its own consent — see the
+`:not()`/selector-list text-surgery entry near the top of this file.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Gotcha: a `parent > *` stretch rule silently defeats an absolutely-positioned badge's centering
+
+Grid/flex tile wrappers in this codebase often carry a "stretch every child" rule so the
+card fills its cell:
+
+```scss
+.md-shell--board-picker .md-home-boards-picker__board > * {   /* 0,3,0 */
+  flex: 1 1 auto; width: 100%; …
+}
+```
+
+Add an absolutely-positioned badge as a sibling of the tile and it matches `> *` too. The
+flex properties are correctly ignored (abspos children are out of flow) — but `width: 100%`
+is **not**, and it resolves against the wrapper, so `left: 50% / transform: translateX(-50%)`
+centers a full-width bar instead of a pill. The badge's own rule
+(`.board-picker__home-badge`, 0,1,0) cannot win.
+
+Fix by narrowing the ORIGINAL selector rather than stacking a `width: auto` override on the
+badge (Rule #0.7):
+
+```scss
+.md-shell--board-picker .md-home-boards-picker__board > *:not(.board-picker__home-badge) {
+```
+
+Check for this whenever you add an absolutely-positioned child to an existing tile: grep
+the SCSS for `<wrapper-class> > *` first. It is invisible in review and only shows up in a
+browser at the one breakpoint where the rule applies.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Pattern: the subject of a board pick is `setup_user || currentUser` — surfaces that MARK it must resolve it the same way as the surface that WRITES it
+
+Every board-picking surface is either choosing for YOU or, when a supporter arrives via
+`?user_id=X`, for a communicator. `appState.setup_user` is set only in the second case, so
+"setup_user (with a real id), else currentUser" is the standing rule. It is what
+`board-preview-overlay#pick_for_home` (`:266`) uses when the pick is actually persisted,
+and what `board-selection-tool` and `tour-board-picker` use.
+
+The trap is asymmetry: a surface that MARKS state (a "Home Board" badge, a preselected
+row) must resolve the subject identically to the surface that WRITES it, or the badge
+points at the supporter's own home board while the pick sets the communicator's — a wrong
+answer that looks completely plausible on screen.
+
+Now shared, so the two cannot drift:
+[`utils/subject_home_board.js`](../../app/frontend/app/utils/subject_home_board.js) —
+`subjectHomeBoardKey(appState)` plus `SUBJECT_HOME_BOARD_DEPS` for the computed's dependent
+keys. Require a real `setup_user.id`: the controller briefly holds a
+`{loading: true}` placeholder while the record resolves.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller
+
+`boards-layout-toggle` deliberately keeps its state off `controllers/user/index` (shared
+with the account page, already overloaded) and publishes the choice as
+`data-boards-layout` on `<body>` — the same pattern `app-state#sync_layout_scope` uses for
+`body.ll-layout-focused`. That makes the attribute the contract, and consumers should read
+it rather than reach for the controller.
+
+For a consumer that must REACT (not just read once), `resize` is not enough: the layout also
+changes on a toggle click and when a late-hydrating user record supplies a stored
+preference. All such paths funnel through the toggle's `_reflect()`, so one observer catches
+every one:
+
+```js
+new MutationObserver(fn).observe(document.body, {
+  attributes: true, attributeFilter: ['data-boards-layout']
+});
+```
+
+Two repo-specific constraints: disconnect it in `willDestroyElement`, and call your handler
+**bare, not wrapped in `run()`** — `ember/no-runloop` is enforced, and the neighbouring
+resize handler already sets component properties from a plain `setTimeout`.
+
+Also worth copying: the "default, not a lock" shape that
+`available-boards-section#_syncNarrowFoldersCollapse` / `#_syncSideBySideFoldersExpand`
+share. Act ONCE per transition behind a re-armable flag, and never write the user's stored
+preference — an automatic adjustment must not overwrite a deliberate choice, or a narrow
+visit silently destroys what they set on a desktop.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it
+
+The boards page swaps `.ub-boards-page__tabs` for a native `<select>` at ≤640px. The desktop
+row is two pills plus a `[More ▾]` dropdown; the select had been written as one flat list of
+every section — two different information architectures for one control depending on
+viewport width. Use `<optgroup>` so the collapsed form keeps the same shape, same order,
+same permission gates.
+
+Flattening also hides divergence. Because the two lists were maintained separately, the
+select had silently lost the user's `board_tags` (present in the desktop dropdown), making
+tagged views **unreachable** on a phone, and its group members had no `selected` attribute,
+so opening the picker while viewing e.g. Liked showed the wrong current value.
+
+Two mechanics worth reusing:
+- The `<optgroup label>` must be a STATIC string (`more_ellipsis`), not the `more_label`
+  computed — that computed swaps to whichever item is currently selected, which is right for
+  a dropdown TRIGGER and wrong for a group heading.
+- When the row's items dispatch to two different actions (sections → `set_selected`, tags →
+  `set_tag`), namespace the values (`tag:<name>`) and unwrap in the change handler. Safe as a
+  sentinel because every non-tag value is a fixed key written in the template, never user
+  input — and a tag literally named `tag:x` still round-trips correctly.
+
+Keep it a NATIVE select. `.modern-select` exists but is a custom trigger/list widget; at
+phone width the OS picker sheet is better, and native stays a single accessible source of
+truth with no toggle JS. "Modernise" it by restyling the native element to match
+`.md-add-supervisor__select` / `.md-stats-filter__select` — and set the chevron via
+`background-image`, never the `background` shorthand, so hover/focus rules cannot wipe it.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+
+---
+
+## Pattern: an "already loaded?" cache key must include WHO/WHAT is being viewed, not just the filters
+
+`controllers/user/stats.js#already_loaded` short-circuits `load_charts` when the
+report is deemed current. Its key was `['device_id', 'location_id', 'snapshot_id',
+'start', 'end']` — every FILTER, but not the **subject**. Switching communicator from
+the Reports page (same route, same filters, different `model`) therefore looked
+"already loaded", and the page redrew the PREVIOUS communicator's charts.
+
+**The tell, and why it misleads:** it works when you arrive from another route and
+fails only when you switch subject IN PLACE. That asymmetry sends you hunting the
+navigation/picker code, which is fine — Ember's `resetController(controller,
+isExiting)` runs `reset_params` only when LEAVING the route, so arriving fresh always
+has a nulled cache and refetches. Switching subject never exits, so the stale cache
+survives. **A "works from over there, not from here" bug on a route that can navigate
+to ITSELF is a cache-invalidation smell, not a routing smell.**
+
+**Second lesson — grep for READS, not just writes.** The fix was already half-built:
+`load_charts` recorded `this.set('last_model_id', ...)` for exactly this purpose, and
+`model_id` was a real computed. But `last_model_id` was never read anywhere. Seeing
+the value recorded makes the guard look present; only
+`grep -rn "last_model_id" | grep -v "set("` shows it is dead. Whenever a guard
+"exists" but does not fire, check that its stored value is actually consulted.
+
+**Related:** this is the same family as the eslint/baseline discipline elsewhere in
+this file — the code LOOKS like it handles the case, so verify the behaviour rather
+than the presence of the code.
+
+**First seen in:** Reports not reloading on communicator switch, 2026-08-17.
 ## Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction
 
 Deferring `schedule_once` until after commit closes the Redis-vs-Postgres ordering race (a worker must not recompute `available_private_board_ids` from the pre-commit snapshot). It does not close the crash/Redis-down window after commit: the relationship change is already durable, the callback cannot roll it back, and a missed enqueue leaves a revoked supervisor's persisted board-id list stale until some unrelated refresh. `RemoteAction` with `action: 'update_available_boards'` is this app's outbox (`board_caching.rb`, `organization.rb`); write it in the same transaction as the link change, keep post-commit `schedule_once` as the fast path, and let hourly `Uploader.remote_remove_batch` drain the fallback. Pull an existing delayed row's `act_at` forward on revoke so a prior 30-minute RA cannot outlive the unlink. Ref: `app/models/concerns/supervising.rb` `schedule_board_cache_refresh`.
@@ -12254,6 +13784,967 @@ Deferring `schedule_once` until after commit closes the Redis-vs-Postgres orderi
 
 Every check in that CI job compares a generated markdown against its JSON source; none of them reads the field *shapes* the register's consumers depend on. A finding whose `source` was written as a bare String instead of an object merged fully green and then hard-crashed `promote-finding.rb` (`Hash#dig': String does not have #dig method (TypeError)`) for the **entire** register weeks later — `citation-check.rb` exited 0 on it too, since it only validates evidence. Closed with two complementary gates: `scripts/register-lint.rb` (predicted shapes, enums, id uniqueness — precise error messages) and `scripts/tests/register-consumer-smoke-test.sh` (runs the real consumers over each committed register with empty input, asserting exit 0 **and** byte-identical output — catches whatever the predicate list failed to anticipate). When adding a validator for a data file, gate on *consumability*, not just on render consistency. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
 
+## A silently-null accessor turns a negative control into a false bug report (2026-08-17)
+
+From click-testing the copy-board minimize-to-drawer feature. The first run of the
+probe reported **3 of 4 checks failing**, and every one of them was the probe's fault.
+Had it been believed, it would have filed three defects against working code.
+
+One root cause: the probe read app state through
+`window.LingoLinq.__container__.lookup('service:copy-progress')`, wrapped in
+`try/catch` returning `null`. **`window.LingoLinq` exposes no usable owner in this
+app** — `utils/modal.js#_getService` gets one via `getOwner(this.route)`, which is
+not reachable from page context. So the lookup silently yielded `null`, and:
+
+* the status assertion failed against a drawer that was *visibly on screen*, i.e. the
+  probe contradicted itself and still reported the app as broken;
+* `clearDrawer()` used the SAME accessor, so it never cleared anything — the drawer
+  from phase A survived into phases B and C, and both then "failed" by observing it.
+
+**Rules that fall out of this:**
+
+1. **A `try/catch` that returns `null` is not an accessor, it is a lie generator.**
+   If a probe's read path can silently yield nothing, a failure means "could not
+   observe", never "the app is wrong". Make it throw, or assert reachability once up
+   front and abort.
+2. **When the probe contradicts itself, suspect the probe.** "Drawer visible, status
+   null" is impossible — `copy-progress-drawer.hbs` is gated `{{#if
+   this.copy_progress.status}}`. That contradiction WAS the diagnosis, and reading it
+   as an app defect was one step away.
+3. **Read state from the DOM the app actually rendered.** The template writes
+   `ll-copy-drawer--{{status}}`, so the service's status is legible off the element's
+   own class list — no container access, no owner, nothing to go stale.
+4. **Teardown between phases must be verified, not fired and forgotten.** `clearDrawer`
+   now returns a boolean and the run aborts if it is false, and every phase asserts
+   "no drawer on screen" BEFORE acting. A leftover artifact from phase N is otherwise
+   indistinguishable from phase N+1's own result.
+5. **Prefer a real app state as the negative control over neutering a binding.** The
+   first attempt stripped `@backdropAction` off the live `ModalDialog` with
+   `component.set(...)`; a named arg is re-supplied on the next re-render, so the
+   control silently did nothing. Clicking the *same backdrop* in a state where the
+   feature is not armed (the hierarchy step) is a genuine control that cannot be
+   undone by a re-render — and it doubled as the answer to the user's report.
+
+**Evidence:** [`2026-08-17-copy-minimize-drawer-click-test.md`](./2026-08-17-copy-minimize-drawer-click-test.md).
+
+## Two adjacent modal states that look identical to the user, and one that moves them (2026-08-17)
+
+`copying-board` arms its minimize-to-drawer only while `copying && !error`
+(`copying-board.js:351`), and `copying` is set exclusively inside `start_copying()`.
+For a board with linked boards the modal OPENS on the board-picker step, where the
+flag is still false. So "click outside the copy modal" does two different things
+depending on a state the UI does not distinguish — plain dismiss before the copy
+starts, minimize-to-drawer after — and a user testing the feature at the first screen
+concludes it is broken. Verified both ways in a browser.
+
+Worth generalising: **when a behaviour is gated on an internal flag, check what the
+user can see of that flag.** If two states render nearly the same chrome and respond
+differently to the same gesture, the bug report you get will be "it doesn't work",
+not "it works only in state B".
+
+Same feature, related: the modal's **X button is not the backdrop path**. It calls the
+modal SERVICE close, which leaves `utils/modal._component_based_template` set, so
+`modal.is_open('copying-board')` still reports true and the settled copy takes the
+FOREGROUND branch — measured live, it navigated `/caseload ->
+/marcus_williams_slp/board-detail/one_4`. A user who dismisses an in-flight copy
+expecting to keep working gets moved to the new board instead.
+
+**Evidence:** [`2026-08-17-copy-minimize-drawer-click-test.md`](./2026-08-17-copy-minimize-drawer-click-test.md).
+
+## One bug can MASK another, so fixing it alone ships a regression (2026-08-17)
+
+Fixing the copy-board modal turned up a pair that had to land together, and the
+order of reasoning is the reusable part.
+
+`components/copying-board.js` had two independent defects:
+
+1. `actions.close()` called the modal **service** close, which leaves
+   `utils/modal._component_based_template` set. `modal.is_open('copying-board')`
+   therefore kept reporting true, and a copy still running when the user dismissed
+   took the FOREGROUND branch of the settle handler — measured live, dismissing an
+   in-flight copy with the X navigated the user `/caseload -> /<user>/board-detail/one_4`.
+2. `onClose` / `onOpening` / `onClosing` were assigned in `didInsertElement`, i.e.
+   AFTER `<ModalDialog>`'s first render, so `@action` was `undefined` — the same
+   bind-before-assign class fixed for three other modals in `650d30685`.
+
+The trap: **defect 2 was hiding defect 1 on the Escape path.** With `@action`
+undefined, modal-dialog falls back to `utils/modal.close()` — which is precisely the
+call that clears the flag — so Escape behaved correctly *by accident*. Fixing the
+binding alone would have made `@action` resolve, routed Escape into the broken
+`close()`, and given Escape a navigation bug it never had. A tidy-looking
+"bind the handlers properly" commit would have been a regression.
+
+**Generalisation.** When a fix makes a previously-dead code path live, that path's
+correctness has never been exercised — treat it as new code, not as existing
+behaviour. Ask "what was running *instead* of this, and was it doing something the
+new path does not?" before landing the binding fix. Here the answer was a fallback
+that was strictly more correct than the handler it was standing in for.
+
+**Also worth keeping:** the X and the backdrop are deliberately different gestures
+here (backdrop minimizes to the drawer, X dismisses). The fix preserved that split
+rather than collapsing them — the defect was that dismissal did not *stick*, not that
+the X failed to minimize. Check the original design intent before "unifying" two
+paths that look redundant; `539a3d9b3`'s message states the split explicitly.
+
+**Evidence:** [`2026-08-17-copy-minimize-drawer-click-test.md`](./2026-08-17-copy-minimize-drawer-click-test.md).
+
+
+## Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep
+
+Two traps, both hit while checking whether the account page and dashboard boards card
+needed the same "Preparing your workspace" fix the boards page got.
+
+**1. There are two unrelated progress-card classes.** `.ll-premium-progress` is the
+EMBER chrome (`app-loading-overlay.hbs`, `index-loading.hbs`, `board-icon.hbs`).
+`.ll-skel-progress`, inside `#loading_box`, is the PRE-EMBER shell skeleton in
+`app/frontend/app/index.html` and `app/views/boards/index.html.erb`. They render an
+identical-looking full-screen card with identical copy. A probe that queries only
+`.ll-premium-progress` reports "no overlay in any frame" for frames where a
+full-screen "Preparing your workspace" is plainly on screen. Always detect
+`#loading_box` separately and classify those frames as pre-Ember rather than blank —
+otherwise every hard-load measurement is wrong in one direction or the other.
+
+**2. Fixing a shared component fixes every host at once.** The 2026-08-17 boards-page
+work made two changes: it deleted a route-local overlay in `templates/user/boards.hbs`,
+and it widened the loading branch in `components/available-boards-section.hbs`. Only
+the first was route-specific. The handoff then listed the account page and dashboard
+card as "the natural next two, since they share `<AvailableBoardsSection>`" — but
+sharing the component is exactly why there was nothing left to do: both were verified
+already correct, 10/10, without a line changed.
+
+**Generalisation.** Before sweeping "the other surfaces with this bug", write down the
+two sets explicitly — surfaces with the SYMPTOM, and surfaces sharing the FIXED CODE —
+and check the intersection is non-empty. "It shares the component" argues against a
+follow-up sweep, not for one.
+
+**Probe preconditions this cost.** The dashboard boards card only exists when
+`activeTab == 'boards'` (`components/dashboard/authenticated-view.hbs:91`); landing on
+`/:user/home` and recording "the section never rendered" measures the Home tab, not a
+defect. And "no loading window observed" is the IDEAL result when the grid is already
+painted from cache — a probe must tell that apart from "observed nothing at all", or
+a cache-first paint reads as a failure.
+
+**Evidence:** [`2026-08-18-account-dashboard-workspace-loading.md`](./2026-08-18-account-dashboard-workspace-loading.md),
+probe `app/frontend/scripts/workspace-overlay-qa.mjs`.
+
+
+## Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`
+
+The hover button on a board tile in `components/available-boards-section.hbs` looks like
+a delete button on the Boards page, but its icon, label and action are all supplied by
+`board_list.remove_type` (`controllers/user/index.js:650-687`), which varies by tab:
+`delete` (Mine / Public / Private / Root / Prior home), `unstar` (Liked), `unlink`
+(Shared with Me), `untag` (a board tag). Deleting the button to "remove the trash can"
+silently removes three non-destructive actions on other tabs. Gate the variant:
+
+```hbs
+{{#if (and board.board.id (not (is-equal this.boardsCtrl.board_list.remove_type "delete")))}}
+```
+
+**Three related traps in the same area:**
+
+1. **There are two byte-identical tile blocks** — the main grid and the folder drill-in
+   grid. Fixing the one you found first leaves the other live. `grep -n board_action`
+   before editing; a third site (the orphan-cluster row) is behind
+   `showOrphanClusters: false` and never renders.
+2. **`@removeCallback` is load-bearing beyond the tile.** `board-icon.js:330-340` turns it
+   into `board.preview_remove`, which is what renders the touch-reachable remove inside
+   the board-preview modal (`board-preview.hbs:97-107`). Remove the hover button but KEEP
+   the callback, or the delete path disappears from touch devices entirely.
+3. **Board tiles default to compact, and compact suppresses both preview triggers**
+   (`compactBoards: true`, `available-boards-section.js:24`; `board-icon.hbs:63,88` gate
+   on `compactRow`). Any probe that looks for `button.info` or `.board-icon__info` must
+   flip the density segmented control first, or it reports a false absence — this cost
+   two runs.
+
+**And a reporting trap:** a modal component having a `delete()` action does not mean the
+modal can delete. `components/board-details.js:107` has one; `board-details.hbs` wires
+nothing to it. Same for `routes/application.js:205 confirmDeleteBoard`, which no template
+references. Before naming an entry point in an answer, grep the TEMPLATE for the trigger,
+not just the JS for the action (CLAUDE.md 0.11).
+
+**Evidence:** [`2026-08-18-remove-board-tile-hover-trash.md`](./2026-08-18-remove-board-tile-hover-trash.md),
+probe `app/frontend/scripts/boards-tile-delete-removed-qa.mjs`.
+
+
+## Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing
+
+The Categorize panel renders its live preview with the SAME `BoardDetailGrid` the real
+board uses — good, because what is previewed cannot drift from what ships — but it
+passed `@forceGrouping={{true}}`. `BoardDetailGrid#groupingEnabled` short-circuits on
+that flag *before* it consults `preferences.board_category_grouping.enabled`, so
+unchecking the panel's own Categorize box persisted the preference, changed the real
+board, and left the preview grouped. The control read as broken while the thing it
+controlled was working perfectly.
+
+**The general shape:** when a preview reuses the production component, any `force*` /
+`override*` argument you pass to make the preview render is a BYPASS of the exact state
+the preview is supposed to be showing. Bind it to that state
+(`@forceGrouping={{this.categorize_enabled}}`) instead of pinning it true, and check
+what the computed falls through to when it is false — here `editMode` is already false
+for the preview, so it lands on the preference, which is the answer you want.
+
+**Two smaller things from the same change:**
+
+- A control that gates other controls has to hide them. With grouping off, the category
+  ORDER list and "Reset order" have nothing to act on — gate them in the template, not
+  in CSS, so they leave the tab order instead of becoming invisible tab stops. And check
+  the hint copy: the ON text said "use the arrows", which described a control that was
+  no longer rendered.
+- To make a checkbox prominent, repaint it — never replace it. Keep the
+  `<input type="checkbox">` inside its `<label>` and hide it with `opacity: 0` (never
+  `display: none`, which drops it from the tab order), draw a track/knob beside it, and
+  move the focus ring onto the track with `input:focus-visible + .track`. Drive the
+  off-state paint from an Ember-set class rather than `:not(:checked)`: `checked={{…}}`
+  sets the DOM property, and one source of truth keeps paint and state together across
+  re-render as well as user input.
+
+**Evidence:** [`2026-08-18-categorize-switch-prominence-and-off-state.md`](./2026-08-18-categorize-switch-prominence-and-off-state.md),
+probe `app/frontend/scripts/board-categorize-toggle-qa.mjs` (6/6).
+
+
+## Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes
+
+Two independent lessons from adding the Core Words switch to the Create Board AI page.
+
+**1. The string-quoting convention is load-bearing, and breaking it fails SILENTLY.**
+`generate-board.js` wrote `i18n.t('core_words_tooltip_checked', 'Include 40-60%…')` with
+a SINGLE-quoted default. `i18n_generator.rb` is a static parser that only registers keys
+whose default is double-quoted, so both tooltip keys were missing from all 13 locale
+files — for as long as that modal has shipped. Nothing breaks visibly: `i18n.t` falls
+back to the inline default, so English looks perfect and every other locale silently
+shows English. When reusing an existing key, CHECK IT IS ACTUALLY REGISTERED
+(`grep '"key"' public/locales/en.json`) rather than assuming a live `i18n.t` call means
+a live key.
+
+**2. For a control that changes a request, the assertion is the request body.** A toggle
+that flips `aria-checked` while the payload still sends the old value is exactly the bug
+being fixed, and every DOM-level assertion passes anyway. Intercept the request, read the
+body, and ABORT it — aborting keeps the check deterministic and, when the endpoint calls
+a model, avoids spending on every run:
+
+```js
+page.on('request', (req) => {
+  if (req.method() === 'POST' && /generate_labels/.test(req.url())) {
+    captured = JSON.parse(req.postData() || '{}');
+    req.abort();            // payload is all we need
+    return;
+  }
+  req.continue();
+});
+```
+
+**Reaching the AI flows at all** (cost four probe runs):
+- `.nb-generate-ai-btn` is MODAL-only — `{{#unless this.standalone}}`. The standalone
+  `/create-board-new` page enters AI mode via the create chooser
+  (`.nb-create-chooser__btn--ai`).
+- `choose_ai` does not enter AI mode by itself: `boardGenerationEntry` returns
+  `needs_opt_in` unless `preferences.ai_board_generation` is explicitly true, and the app
+  opens the enable-ai-features modal first. A probe must complete that modal.
+- Account choice is a precondition. `marcus_williams_slp` has `ai_features_enabled: ""`,
+  which the gate fails CLOSED on by design (unrecognized = blocked). `sarah_chen_slp` has
+  it absent, which is grandfathered. If a probe opts an account in, DELETE the keys
+  afterwards to leave dev data as found.
+
+**Restarting the dev stack without 1Password:** `bin/fresh_start_op` requires `op run`,
+and `op whoami` fails with no active session. Machine-local start works —
+`PORT=5000 DB_USER=tracid PGPASSWORD=password bundle exec puma -C config/puma.rb` plus
+`bin/ember-server` — but `PORT=5000` is mandatory: `config/puma.rb:9` defaults to 3000
+while `app/frontend/.ember-cli:15` proxies to 5000, so without it the frontend has no
+API and every probe dies at login. Also: never pipe a long-running server through
+`| tail -N` — output buffers until exit, so the log looks empty while the server is fine.
+
+**Evidence:** [`2026-08-20-create-board-core-words-control.md`](./2026-08-20-create-board-core-words-control.md),
+probe `app/frontend/scripts/create-board-core-words-qa.mjs` (5/5).
+
+## Changing a component's markup idiom? Grep the component JS for the OLD class names first
+**Surface:** swapping one presentation for another in a component (tiles → rows, cards → list)
+where the old markup had interactive states.
+
+**Trap:** state classes are frequently applied IMPERATIVELY from the component JS via
+`classList.add/remove` and `document.querySelector`, so they are invisible when you read the
+template. Replacing the markup leaves the JS writing classes onto elements that no longer
+exist — a silent no-op with no console error and no lint failure.
+
+**Concrete case (folders tiles → rows, `available-boards-section`):** 12 references across 6
+class names would have broken drag-hover feedback and the post-drop folder animation:
+`ub-boards-page__tag-folder--dropping`, `--animating`, `-name`, and
+`ub-boards-page__folder-strip--no-hover` / `.ub-boards-page__folder-strip`.
+
+**Recipe:** before swapping markup, `grep -rn '<old-block-class>' app/frontend --include=*.js
+--include=*.mjs --include=*.hbs` and classify every hit: template, imperative JS state, or QA
+probe selector. Port the state styles to the new block (a row has no layered card, so the
+tile's lift/flash becomes a border + tint), then repoint the JS and the probes in the same
+change. Verify with a compile (`sass.compile`) asserting the NEW modifiers are present and the
+dead ones absent.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## A batched commit makes file-level revert unsafe — classify hunks with `git diff -w` first
+**Surface:** "revert feature X" when X shipped inside a large batched commit alongside
+unrelated fixes to the SAME files.
+
+**Trap:** `git checkout <commit>^ -- <file>` looks like a clean revert and silently discards
+every unrelated fix that rode along in that file. In one case this would have reverted a
+blank-page guard AND re-introduced a factually wrong code comment that a review had just
+corrected — in a file whose diff *looked* like one contiguous restructure.
+
+**Recipe:** diff the file with `-w` (kills reindent noise, leaves genuine edits), list the
+hunks with `grep '^@@'`, and classify each as feature-under-revert vs keep. Rebuild the file
+from the parent version and RE-APPLY the keepers programmatically with assertions on the
+match count (`assert patched == 2`) so a silent miss fails loudly. Then diff the result back
+against the parent: the remaining hunk count must equal the number of keepers, exactly.
+
+**Corollary:** before attributing any probe/test failure to your change, run the same probe
+against a stashed HEAD. In this task 2 of 2 "new" failures were already red at baseline, and
+the change actually fixed a third.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## Boards-page QA probe gotchas (`app/frontend/scripts/*-qa.mjs`)
+- Run them from `app/frontend`, not the repo root.
+- `qa-helpers.mjs` exposes **`OPTS.BASE` / `OPTS.USER` (uppercase)**. Using `OPTS.user`
+  yields `undefined` in the URL and the failure surfaces as a misleading
+  `waitForSelector ... failed` timeout that reads like a broken component.
+- **`await page.setViewport({width: 1920, height: 1000})` before waiting on any folders
+  selector.** The folders section auto-collapses at narrow widths (`_collapsedForNarrow`),
+  and puppeteer's 800x600 default trips it — again surfacing as a selector timeout.
+- Write screenshots to the scratchpad, never into `app/frontend/` (untracked repo litter).
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## Never sync component state onto a controller during render — it blanks the component
+**Surface:** a component owns UI state (a panel's expanded flag, a density toggle) that a
+controller's computed property also needs.
+
+**Trap:** the obvious fix — mirror it from `didReceiveAttrs` (or `init`, or a `didInsertElement`
+write) — runs DURING render. Setting a property that a rendered computed depends on, after the
+template already consumed that computed in the same pass, makes Ember discard the component's
+entire output. The page renders BLANK, with **no `pageerror`** to point at it, so it reads like
+a data-loading failure rather than a reactivity violation.
+
+**Worse, it is intermittent by construction.** It only fires when the pushed value actually
+DIFFERS from the controller's default, so it passes in a fresh browser (empty localStorage,
+values agree) and fails only once a stored preference diverges. Four states can look correct
+and the fifth is blank.
+
+**Recipe:** do not write across the boundary at startup at all. Give both sides the SAME source
+of truth and have each READ its own initial value (a small util wrapping the storage key +
+guarded try/catch), so they already agree on first paint. Keep an observer for LATER changes
+only — user toggles and auto-collapse fire outside render and are safe. As a bonus this kills
+the duplicated localStorage try/catch.
+
+**Detection:** if a component renders nothing while its gating properties all read TRUE
+(`foldersEnabled:true` but `section:false`), suspect a render-time invalidation, not the data.
+Check whether the outer template has an `{{#if (or (not x) x.loading)}}` branch it is now stuck
+in.
+
+**Evidence:** `app/frontend/app/utils/folders_panel_state.js`; task log
+`2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## Folders on the boards page are a MOVE, not a label
+`controllers/user/index.js#board_list` (~909) deliberately removes tagged boards from the main
+Mine grid — filing a board into a folder is a move, and the home board is the one exemption.
+Before "fixing" a board that seems missing from the grid, check `model.board_tag_map`.
+
+**Two things mask this and will mislead a diagnosis:** a same-name UNTAGGED duplicate copy can
+occupy the grid slot (so a tagged board looks present when what you see is its twin), and the
+home board is exempt. Only a tagged board with no twin that is not the home board actually
+disappears — which is why it looks like an intermittent bug affecting some folders and not
+others. Dump `{name, global_id, folder}` for every board before concluding anything.
+
+The exclusion is now scoped to `mineFoldersEnabled && mineFoldersPanelExpanded`: when the
+folders panel is collapsed the grid is the only view, so it shows everything.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## A cache snapshot must carry every field its CONSUMERS classify on, not just what renders
+**Surface:** a compact list snapshot persisted to localStorage to paint a page fast, storing an
+explicit attribute allow-list.
+
+**Trap:** the allow-list gets chosen from "what does the tile DISPLAY" — id, key, name, image.
+But downstream code CLASSIFIES those records (is this a root or a sub-board? does it belong to a
+brand set?), and classification reads fields the tile never shows. Drop one and the hydrated
+record silently classifies differently from the live one, so the page is correct on the first
+visit and wrong on every cached visit inside the TTL.
+
+**Concrete case:** `boards_page_list_cache.js#SNAPSHOT_ATTRS` omitted `parent_board_key`.
+`board-brands#brandRootMatchKey` matches a board against its PARENT's key first and falls back to
+the board's own key — that fallback is exactly what lets a RENAMED copy still register as a brand
+root. Without the field every renamed copy of a Quick Core / Sequoia / CommuniKate / Vocal Flair
+board read as a sub-board and vanished from the owner's grid on visit 2+.
+
+**The failure mode is what makes it expensive:** the fallback is silent and plausible, so there is
+no error — just a board that is there, then isn't. It also looks like a *different* bug depending
+on which page you were on when you noticed (it was first reported, and first mis-diagnosed by me,
+as "exiting a folder loses a board").
+
+**Recipe:** when adding or reviewing a snapshot allow-list, grep every consumer of the hydrated
+records for `get('...')` and reconcile against the list — display fields are the minority. Then
+prove it by loading twice: first visit is the live query, second is the cache, and the two must
+produce identical rows. Diffing every field of ONE record across those two visits is what located
+this in minutes after inference had failed.
+
+**Related:** a cap on such a snapshot should count the units the page actually renders. `MAX_BOARDS`
+sliced the first N rows in server order, letting sub-board pages (never tiles) crowd out top-level
+boards (always tiles). It now budgets top-level boards only, with an absolute row backstop — a
+snapshot that overruns the localStorage quota throws on `setItem` and is lost entirely, which is
+worse than storing a partial tail.
+
+**Evidence:** task log `2026-08-20-boards-renamed-brand-copy-vanishes-on-second-visit.md`.
+
+## Test doubles for board classification MUST have a `get` shim
+Family matchers in `utils/board-brands.js` read a board's key only via `board.get('key')` (unlike
+`brandRootMatchKey`, which also accepts plain properties). A plain-object fixture therefore has no
+key from the matcher's point of view, matches NO brand family, and falls through to "not a known
+brand — treat as root". Every fixture classifies as top-level and any sub-board branch silently
+never executes — the test passes for the wrong reason.
+
+Use `Object.assign({}, attrs, { get(k) { return this[k]; } })` for board fixtures.
+
+**Also:** `ember test` cannot launch in this environment (`testem`'s vendored `execa` is ESM while
+testem `require()`s it — same class of breakage as the `sass` CLI). Do NOT patch shared config to
+work around it. Run the real module in the browser instead via the app's AMD loader against the
+running dev server: `window.require('frontend/utils/<module>').default`. That executes the actual
+shipped code, and it is what caught the wrong-reason pass above.
+
+**Evidence:** task log `2026-08-20-boards-renamed-brand-copy-vanishes-on-second-visit.md`.
+
+## Renaming a container class? Grep the LAYOUT rules that size it, not just the ones that paint it
+**Surface:** swapping a component's container element/class (tile strip -> rows list, grid -> flex
+column) while other rules elsewhere in the stylesheet size or stretch that container by name.
+
+**Trap:** the visible styling gets ported because it is obvious when it is missing — colours,
+padding, borders. What silently does not get ported is the *structural* rule authored far away:
+a `flex: 1 1 auto; min-height: 0` in a LAYOUT block that made the panel fill its card. Nothing
+looks broken; the panel just stops growing, and the card floats above a band of dead space that
+reads as a spacing bug rather than a stale selector.
+
+**Concrete case:** `.ub-boards-page__folder-strip` was replaced in the DOM by
+`.ub-boards-page__folder-list`, but the side-by-side fill rule still named the strip. Result:
+183px of empty card at 1920px, and a QA check red across multiple sessions while looking like a
+pre-existing layout quirk.
+
+**Detection:** when a "dead space" / "does not fill" symptom appears, read the computed
+`flex-grow` on the inner element. `flexGrow: 0` where a rule claims to set `flex: 1 1 auto` means
+the rule is not matching — the selector is stale, not the value wrong. Then
+`grep -n '<old-class>' app/frontend/app/styles/` and check every hit for a rule that SIZES rather
+than paints.
+
+**Recipe:** at rename time, grep the old class across the whole stylesheet and triage each hit as
+paint (port or drop) vs layout/sizing (must port). Keep the old selector alongside the new one if
+the dead CSS removal is a separate decision — an extra selector is inert, a missing one is a bug.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md` section 5b.
+
+## Batch DOM writes and reads ACROSS items, not within one — the per-item loop is the trap
+**Surface:** any pass that measures-then-sizes many elements (shrink-to-fit labels, autosizing
+inputs, canvas-free text fitting) written as "for each element: write a style, read a layout".
+
+**The trap is that the obvious optimisations all miss.** On `utils/label_fit.js`, a full pass
+over 96 labels cost 4776ms and SIX attempts to speed it up delivered nothing:
+
+| attempt | result |
+|---|---|
+| bisection: ~26 size probes -> ~5 | 1/96 labels changed size — reverted |
+| batch the signature reads | no change |
+| fit only on-screen labels, defer the rest | no change (whole grid was on screen) |
+| memoise results by signature | 7/96 labels changed — reverted |
+| hoist the width read above the style writes *within* the function | 4776 -> 4093ms only |
+| batch `clearFont` + base-size reads across labels | no change |
+
+**Why:** the cost was never the algorithm. Profiling showed ~1.2 probes per label — 89 of 96
+labels fit at their base size and stop on the first try. Every millisecond was a layout READ
+that follows a style WRITE, each flush ~23ms on a complex (grouped) grid. Relocating or
+removing one read just moves which read pays for the flush; the flush is unavoidable while
+writes and reads alternate per element.
+
+**The fix that worked (14.8x on the pass, 41x on the interaction it dominated):** restructure
+into rounds ACROSS all elements —
+```
+WRITE clear/prepare every element
+READ  every element's geometry            <- one layout total
+LOOP  round N: WRITE candidate to all unresolved
+               READ  all measurements      <- one layout per round
+               decide in pure JS
+WRITE apply final values
+```
+Same per-element candidate sequence and predicate, so output is identical; only the
+interleaving changes. ~200 forced layouts became ~5.
+
+**Gate any attempt on OUTPUT EQUALITY, not on the probe passing.** Capture every element's
+computed result before and after and diff them. That gate caught three separate wrong
+answers here, including one where the "faster" version produced a label that overflowed its
+box, and one where a refactor silently stopped fitting anything (the caller stamped the cache
+key, then the callee re-checked that same key and returned early).
+
+**And profile before optimising.** Three of the six failures were aimed at a search loop that
+runs 1.2 times per element.
+
+**Evidence:** task log `2026-08-21-categorize-toggle-perceived-unresponsive.md`.
+
+## Gotcha: `npm ci --dry-run` DELETES `node_modules` before it validates anything (2026-08-23)
+
+**Symptom:** you run `--dry-run` to check whether `npm ci` is safe. It fails at a postinstall
+(`sh: 1: patch-package: not found`) and leaves `node_modules` **empty** — 0 packages. The dev
+environment is now broken by the command you ran to avoid breaking it.
+
+**Cause:** `npm ci` removes the tree as its FIRST step. `--dry-run` does not make that step
+inert. There is no "check only" mode for `npm ci`.
+
+**Fix / avoidance:**
+- To compare the installed tree against the lockfile, READ both — never invoke `npm ci` to find out:
+  `node -e "console.log(require('./node_modules/<pkg>/package.json').version)"` vs the
+  `packages['node_modules/<pkg>'].version` entry in `package-lock.json`.
+- Recovery is `npm install` (see the next entry for which one this repo actually wants).
+
+**Related and equally important — this repo's CI runs `npm install`, NOT `npm ci`**
+(`.github/workflows/ci.yml:97`). So a tree that differs from `package-lock.json` is **expected**,
+not corruption. Do not "fix" drift you have not proven harmful: `testem@3.20.1` with a nested
+ESM `execa@9.6.1` is what CI installs too, and it works there because CI is on **Node 22**.
+
+**Cost when this was learned:** two failed installs and a destroyed `node_modules`, chasing a
+"lockfile drift" theory that was wrong in its premise.
+
+## Gotcha: reinstalling on Node 22 needs a `python` shim for `sqlite3` (2026-08-23)
+
+`sqlite3@4.2.0` (a **dev** transitive of `websql`) has no prebuilt for Node 22's ABI (`node-v127`),
+so npm compiles it from source. The build's own makefile invokes bare `python`, and this box has
+only `python3`:
+
+```
+/bin/sh: 1: python: not found
+make: *** [deps/action_before_build.target.mk:13: ...sqlite3.c] Error 127
+```
+
+Machine-local fix, no repo changes:
+
+```sh
+mkdir -p /tmp/pyshim && ln -sf /usr/bin/python3 /tmp/pyshim/python
+export PATH="/tmp/pyshim:$PATH" npm_config_python=/usr/bin/python3
+npm install
+```
+
+A tree installed under Node 16 keeps a `node-v93` binding, which is the WRONG ABI for Node 22 —
+CI's cache key carries the Node major for exactly this reason (`ci.yml:81-84`).
+
+## The `token_validated` async leak: phantom suite failures attributed to random tests (2026-08-23)
+
+**Symptom:** `ember test` fails 6-7 tests, and the NAMES change between identical runs. The
+assertion is never about the test's own subject:
+
+```
+Error: Assertion Failed: calling set on destroyed object:
+  <frontend@service:session::ember1753>.token_validated = false
+```
+
+Timings cluster tightly (593ms, 594ms) because it is the same orphaned operation each time.
+
+**Cause:** every write to `token_validated` in `app/frontend/app/services/session.js`
+(`:287 :294 :298 :363 :382 :390`) is inside an async token-check promise handler. When one
+resolves after its test container is torn down, Ember throws, and QUnit charges the **global
+failure to whichever test is running at that moment**.
+
+**How to tell it from a real regression — run a BASELINE, do not reason about it.** Revert your
+change in the working tree (a one-token edit like `if(cond)` -> `if(true)` is enough; no git
+needed) and run the full suite again:
+
+| | with change | with change reverted |
+|---|---|---|
+| pass | 2111 | 2111 |
+| fail | 7 | 7 |
+| victims | `set_speak_mode_user` x2 | `toggle_mode`, `boards-layout-toggle` |
+
+**Identical counts, different victims = flaky, not a regression.** A real regression fails the
+SAME tests deterministically. Five failures (setup-guard x4, article50 gate) appeared in both and
+are the genuinely deterministic ones.
+
+Corollary: **you cannot attribute a suite failure without a baseline.** Two runs at the same
+commit tell you nothing about what your change did.
+
+## Process failure worth more than any of the above (2026-08-23)
+
+The Node-16/`ERR_REQUIRE_ESM` gotcha above was written on **2026-08-10** and already contained
+the exact fix. On 2026-08-23 a handoff nonetheless asserted "testem cannot launch in this
+environment at all", and the next session believed it, skipped the suite twice, and then burned
+an hour rediscovering it — including the two wasted moves that entry explicitly warns about.
+
+**The entry was not the problem. Not reading it was.** `Rule #0.8` says to skim LEARNINGS
+**before** diagnosing. Skimming for the topic you expect ("perf") is not skimming it; grep it for
+the ERROR TEXT you are actually looking at:
+
+```sh
+grep -n -i "<the exact error string>" docs/task-management/LEARNINGS.md
+```
+
+And when a handoff and LEARNINGS disagree, **LEARNINGS wins** — handoffs are one session's
+snapshot, are gitignored, and are never reviewed.
+
+## `display: contents` makes a group's region a STAIRCASE — you cannot ring it, only its cells
+
+If a wrapper is `display: contents` so its children join the parent grid, the wrapper has no
+box: it cannot take a border, background, outline, padding or placement. A category whose
+buttons flow across row boundaries therefore occupies a staircase, and the only ring available
+is one per CELL — which reads as N outlined buttons, not as one group. To ring the group you
+must give it a real box, which means giving it a RECTANGLE, which means packing.
+
+Two corollaries that bit on `board-detail-grid` (2026-08-24):
+
+1. **Inline `grid-row`/`grid-column` on a child escapes into whatever grid is actually above
+   it.** The QWERTY keys carry `grid-row: 1..3; grid-column: 1..10` from `qwerty_positions`.
+   In panel mode those resolved against the keyboard's `__group-body`; in compact mode that
+   container was `display: contents`, so the same values resolved against the BOARD grid and
+   pinned the whole keyboard to the board's top-left corner. The bug looks like a placement
+   bug and is really a *containing-block* bug — check which box the placement lands on.
+2. **A tile that re-creates board cells must have ZERO padding.** For a tile spanning `w`
+   columns, buttons stay board-sized only if the inner grid is `repeat(w, 1fr)` at the SAME
+   gap with no padding: with padding `p`, button width becomes `colW - 2p/w`, i.e. a function
+   of the span, so buttons change size with the category they landed in. Draw the group's ring
+   with `outline` (no layout cost) in the gap, and reserve grid padding for it — a
+   `--grouped-no-scroll` grid sets `overflow-y: hidden`, which makes overflow-x compute to
+   `auto`, so an unpadded outward ring both clips and can raise a horizontal scrollbar.
+
+Cost to know up front: rectangles waste cells a free flow does not, so a tiled board needs
+more rows than the board authored. That is only affordable because the grid holds a definite
+height with `minmax(0, 1fr)` rows — extra rows spend button HEIGHT, never scrolling.
+
+## Stretching a tile to close a ragged edge inverts past ~25% of the width
+
+Absorbing leftover columns into the last tile of a band is tidier than leaving a notch in the
+board — until the leftover is large. A 5-button category stretched across a 14-column board is
+a ring that is two-thirds empty, which reads as buttons having gone missing, not as a category
+with room. Cap the stretch (`columns / 4` worked) and leave a bigger gap as plain board.
+Same rule applies to filling a reserved region: pack it RECURSIVELY with the same packer
+against the narrower width instead of giving each category a full-height column, or a
+one-button category ends up inside a four-cell ring.
+
+## A "staggered columns" probe must exclude a column CSS deliberately spans full-width
+
+`category-bottoms-qa` reported a 158px stagger across four columns. Three were the vocabulary
+columns (flush at 1501px); the fourth was the keyboard panel, which
+`--has-keyboard-panel .__column:last-child { grid-column: 1 / -1 }` puts BELOW them on
+purpose. The probe predated the keyboard panel. Before calling a geometry probe's red a
+regression, dump what the outlier element actually IS — here `getComputedStyle(c).gridColumn`
+named it immediately. Filter by the property that makes it different (it spans), never by index.
+
+## Two modifier classes on ONE element = a source-order bug waiting to happen (2026-08-24)
+
+`board-detail-grid.hbs` puts BOTH `--compact` and `--compact-scroll` on the grid root
+(`compactCategories` is `groupingEnabled`; `compactScroll` is `groupingEnabled &&
+categoryScrollEnabled`). The two root rules are the same specificity (0,1,0), so the LATER one
+won `height` and `grid-template-rows` — and it was the wrong one. The scrolling board kept the
+non-scrolling geometry (definite height, `minmax(0, 1fr)` rows), every tile came out
+`k x height/rows` tall while its `__group-body` held a 76px row floor, and the buttons painted
+46px below their own tinted background.
+
+The author had already hit this one level down — the `__group` / `__group-body` pair carries a
+comment saying the scroll rules are "placed AFTER those shared rules deliberately". The ROOT pair
+was simply missed.
+
+- **When a component can emit two modifiers together, order their rules by specialisation**
+  (general first, specialised second) and say so in a comment at the specialised rule. Grep the
+  template for `{{if …'--a'}} {{if …'--b'}}` on one element before trusting either rule.
+- The tell in a probe: `getComputedStyle(grid).gridTemplateRows` with a SPREAD of 0 across N
+  tracks means `1fr`; content-sized tracks vary.
+
+## A definite height collapses `minmax(floor, auto)` rows onto the floor (2026-08-24)
+
+Corollary of the above, and the reason the same bug survived in EDIT mode after the root rules
+were reordered: `.md-shell--board-detail-edit … .md-board-detail-grid { height: … !important }`
+is (0,3,0), so a mode root at (0,1,0) cannot answer it.
+
+Why the rows collapse rather than grow: the category tiles carry `min-height: 0`, so a track's
+BASE size is the declared floor and only the `auto` MAX can grow it — and an auto max grows only
+into an INDEFINITE height. Under a definite height smaller than the content, every track sits at
+exactly the floor and the content overflows. Measured: 9 x 76px tracks in a 637px grid.
+
+- A scrolling mode and a fixed-height mode cannot share a height rule. Exempt the scrolling one
+  explicitly (`.a.b { height: auto !important }` as a separate state rule, or `:not(.b)` on the
+  clamp) and check what the exemption's specificity now beats — a `:not(.class)` costs a class,
+  which here would have made the clamp outrank a deliberately tighter short-viewport rule.
+- Look for EVERY clamp, not just the one you found: the same collapse was latent in the two
+  `@media (max-height: …)` speak rules.
+
+## `display: block` on a header turns its label into an inline box — and kills every fix for it (2026-08-24)
+
+A category name would neither ellipsise nor shrink: it ran out of its tile and was sheared by the
+grid's clip ("QUESTIO"). The name span had `white-space: nowrap; overflow: hidden; text-overflow:
+ellipsis; min-width: 0` — all correct, all INERT, because a mode rule re-showing the header used
+`display: block` where the shared rule sets `display: flex`. On a non-replaced INLINE box
+`overflow`, `text-overflow` and `min-width` do nothing, and `clientWidth` reads 0 — which also
+made `utils/label_fit.js` bail (it treats a 0 box as "not laid out").
+
+- When a rule undoes a `display: none`, restore the value the base rule sets, not a plausible one.
+- Symptom to recognise: text overflowing with NO ellipsis, despite an ellipsis rule. Check
+  `getComputedStyle(el).display` on the label AND its parent before touching the fitter.
+
+## A shrink-to-fit flex item's `clientWidth` is its TEXT width, not its room (2026-08-24)
+
+`utils/label_fit.js` fits by comparing measured text against `el.clientWidth`. That is right for
+an input or a stretched label, and wrong for a flex item that shrink-wraps: its clientWidth IS the
+text, so the fit shrinks exactly one step and then "fits" the smaller self it just produced —
+every category header came out 15px, including ones with 230px of room. The budget has to come
+from the PARENT's content box less its other children (`availableWidth`).
+
+Two more canvas-measurement blind spots fixed alongside it, both of which report a label as
+fitting when it does not: `ctx.measureText` applies neither `text-transform` (a user PREFERENCE
+here — `--bd-button-text-transform`) nor `letter-spacing`. Resolve the transform on the string and
+add `spacing x length` before comparing.
+
+## Bleeding a box outside its container: three things must agree (2026-08-24)
+
+To let the board run past `<main>` on the edit page:
+1. the ancestor that clips has to stop clipping — `<main>` is `overflow-x: hidden`, which shears
+   the bleed off. `overflow-x: clip` + `overflow-clip-margin` is the only value that allows a
+   measured amount of paint outside the padding box, and unlike `hidden` it does not make the box
+   a scroll container (so no horizontal scrollbar);
+2. the bleeding element's own clip has to allow whatever it paints outside its padding box — here
+   the category rings, which are spread-only box-shadows drawn `--bd-ring` past the tile;
+3. the negative margin must go on a box whose margins you actually own. The grid's belong to
+   `#within_ember.board-detail-view .md-board-detail-grid.board { margin: 0 }` — an ID selector at
+   (1,2,0) — so the margin went on the WRAP instead. Check for an ID rule before assuming a class
+   rule can move something.
+
+And size the bleed from a STRUCTURAL number, not a measured one: 12px here is the edit layout's
+own column gap, so the board lands on the rail's edge at any rail width. A first pass used the
+layout's 20px side padding and put the outer categories 4px under each rail.
+
+## Probe the RIGHT rail — speak-mode and edit-mode chrome share a naming family (2026-08-24)
+
+`.md-board-detail-sidebar` / `.md-board-detail-right-panel` are the SPEAK rails and render at 0
+width on the edit page; the edit rails are `.md-board-edit-panel` /
+`.md-board-edit-right-panel`. A probe measuring the first pair reports every board as clear of
+the rails while the board is visibly running under them. Confirm a probe's selector matches a
+NON-ZERO box before trusting a green "no overlap" result.
+
+## A board key suffix rule must tolerate the copy suffix `_<n>` (2026-08-24)
+
+`category_for_button` identified a keyboard folder with `/(^|[-_/])keyboard$/i`, matching how the
+rest of the app spots these boards. It worked on the library original and failed on every COPY:
+`generate_unique_key` (app/models/concerns/processable.rb:147-150) disambiguates board keys with a
+trailing `_<n>`, so a copied set turns `…-keyboard` into `…-keyboard_1`. The folder fell through to
+the colour rule, and grey files under Connectors — the exact bug the rule existed to prevent, back
+again for anyone who copied the board rather than opened the original.
+
+- Any `key$`-anchored rule on a Board key needs `(_\d+)?` before the anchor. Keep it digits-only so
+  it stays a suffix rule (`keyboard_notes` must not match).
+- Test the COPY, not just the original: a fixture keyed `…-keyboard` proves nothing about what real
+  users have.
+- Evidence beat inference here: `psql -U <you> -d lingolinq-development` over a UNIX SOCKET (peer
+  auth — the TCP password in the docs does not work) answered in one query what reading the
+  categoriser could only have guessed at. Board `settings` are `secure_serialize`d and unreadable
+  from SQL, but the `boards.key` column is plaintext and was enough.
+
+## A memoised fit must key on the box that decides the answer (2026-08-24)
+
+`utils/label_fit.js` skips a label whose signature (`text | cardW x cardH | basePx`) is unchanged.
+The signature looked up `closest('.md-board-detail-symbol-card') || closest('…__cell')` — and a
+CATEGORY HEADER is inside neither, so its signature was `text|0x0|basePx`: a constant. The fit ran
+once and never again, so a name shrunk on a narrow board stayed shrunk after the board widened.
+
+The fitter was already capable of growing it back — it clears the inline size and re-measures from
+the CSS size on every run — which is the point: "it doesn't grow back" was a CACHE bug, not a
+sizing one. When a fit refuses to re-run, check what its cache key resolves to for THAT element
+before touching the measurement code. The same trap had already been hit once for folder-tab
+labels (they sit in a sibling of the card), and the comment recording it was two lines above the
+lookup that missed the header.
+
+## Gotcha: the two categorised board variants do NOT space their categories the same way — one is ring-compensated, one is not
+
+**Surface:** `.md-board-detail-grid--compact` (Categorize ON, scrolling OFF) and
+`.md-board-detail-grid--compact-scroll` (Categorize ON, scrolling ON). The grid root
+carries BOTH classes when scrolling is on.
+
+**The trap:** the space between two categories is `--bd-compact-gap + 2 x --bd-tile-margin`,
+not the gap alone — each tile also carries `margin: var(--bd-tile-margin)`. What FILLS that
+space then differs by variant:
+
+- `--compact` paints the category ring as a spread-only `box-shadow` `--bd-ring` OUTSIDE
+  the tile, so two neighbouring rings MEET in the channel. The clear space is
+  `gap + 2 x margin - 2 x ring`, and the gap cannot drop below `2 x ring` without the
+  rings overlapping. That is why the `@media (max-width: 950px)` block moves
+  `--bd-compact-gap` and `--bd-ring` TOGETHER and the clear channel stays 4px.
+- `--compact-scroll` sets `box-shadow: none` and uses the tinted tray as the boundary.
+  There is no ring, so the whole `gap + 2 x margin` is dead space and the 950px block
+  barely changes what a user sees.
+
+Measured on `vocal-flair-84` with scrolling ON: 16px horizontal / 14px vertical between
+categories at every width down to 1024px, with nothing drawn in any of it.
+
+**Fix recipe:** to change category spacing, decide which variant you mean and scope to it.
+Two further constraints, both load-bearing:
+
+1. A scroll-scoped block must be declared **BELOW** the `@media (max-width: 950px)` block.
+   Both selectors are (0,1,0) and a media query adds no specificity, so at =<950px source
+   order alone decides which wins the variables (styling-recurring-problems #4).
+2. `--bd-tile-margin` has a floor of **2px**, not 0: the per-category downward stretch sets
+   `margin-bottom: calc(var(--bd-tile-margin) - 2px)`, so a 0 margin computes to -2px and
+   pulls eight categories 2px INTO the one below.
+
+**Verify by MEASURING, not by reading declarations.** `scripts/category-gap-qa.mjs` reports
+the smallest edge-to-edge distance between any two rendered
+`.md-board-detail-grid__group` boxes at a list of widths, and takes `--no-scroll` to run the
+other variant as a regression control.
+
+## A grid-PLACED tile's button width is capped by the NARROWEST tile sharing its columns (2026-08-25)
+
+**Surface:** `.md-board-detail-grid--compact-scroll`, the keyboard region (the 30-key block
+plus the notch of small categories beside it). Its buttons measured 133.7px against the
+vocabulary bands' 162.8px at 2280, and the keyboard's tray left 216px of dead board — all of
+it on the RIGHT.
+
+Both come from one fact. A placed tile holds a tray of `w*A + (w-1)*B` (A = button, B = the
+4px gap inside a category) inside a grid area of `w*colW + (w-1)*boardGap`, and `boardGap` is
+28px. The tray is short by `(w-1)*(boardGap - B)` — which grows with the span, so the
+ten-column keyboard pays nine helpings of it.
+
+The trap is the fix that looks obvious: spend the shortfall on a wider button. Per BUTTON it
+is `(w-1)/w` of it — **zero at one column**. One one-column tile anywhere in the region
+(here the "Keys" folder) therefore pins `--bd-btn-w` for every tile that shares those
+columns, keyboard included. Verified both directions: raising A to the bands' value overflows
+the 2-column notch tiles by 19px and the keyboard by 55px.
+
+- **Uniform buttons + trays that fill + equal columns: pick two.** The fixed per-tile chrome
+  (`2*trayPad + 2*tilePad`) cannot be divided by the span, so on EQUAL tracks a filling tray
+  gives `A + chrome*(w-1)/w` — per-span drift. Fixing the tray width instead buys uniformity
+  and pays for it in dead board.
+- **The third option is to stop using the board's columns.** Give the sub-layout its own
+  track list — one button-wide track per small column plus one track for the wide tile —
+  and charge the chrome once per TRACK. Then solve for the A at which the tracks add up to
+  the row rather than tuning it. Here: `A = (row - (n+1)*P - n*g - (kb-1)*B) / (n + kb)`.
+  It stays a grid, so a genuinely 2D sub-layout (a key block with a notch alongside) survives
+  where a flex row cannot express it.
+- **A fixed-width tray in a flex COLUMN is left-aligned, not centred** — `align-items:
+  stretch` does nothing to an item with an explicit width, and the cross-axis start is the
+  left edge. A comment claiming the tray "centres itself" was describing an intent no
+  declaration implemented; 216px piled up on one side for as long as nobody measured it.
+- **A layout dump cannot see this class of bug.** It reports the TILE box, and the tile was
+  the right size — it was the tray inside that was not. Probe the inner box and the slack on
+  each side separately (`scripts/category-region-qa.mjs` prints `slack L/R` per tile for
+  exactly this reason).
+- **`repeat(var(--n), …)` is fine; `repeat(0, …)` is invalid** and takes the whole
+  declaration with it. If the count can be zero — here, a board too narrow for a QWERTY row
+  has no notch — emit a different track LIST from JS, not a different number.
+- A custom property substitutes its own `var()`s at the element it is DECLARED on, so
+  anything a solved-in-CSS width references has to be inherited THERE. Moving
+  `--bd-tray-pad` / `--bd-tile-pad-x` from `__group` up to the grid root was the whole cost
+  of putting the solve on the region column — check the move is a no-op by measuring an
+  untouched consumer, not by reading the declaration.
+
+## Two ragged-edge guards for the same idea must not share a threshold across scales (2026-08-25)
+
+`close_band_edge` (vocabulary bands) and `fill_region` (the keyboard notch) both close a
+row's ragged edge by widening its last tile. The band guard refuses when the tile would end
+up MORE than half empty; the notch had no guard at all, and inherited the same threshold when
+one was added.
+
+Exactly-half is the boundary, and where it falls depends on the scale of the tiles:
+
+- A band tile is 3-5 columns wide, so half-empty is a stretch nobody makes and the boundary
+  is never reached.
+- A notch tile is one or two columns, so the ONLY stretch available is a one-button category
+  widened to two cells — always exactly 50% blank, with the blank cell as big as the button
+  beside it. It reads as a category whose buttons went missing, which is the very thing the
+  band guard exists to prevent.
+
+The two variants had already disagreed about the same tile without anyone noticing: the
+non-scrolling notch row happened to fill exactly with three tiles, so `yes` was one column
+there and two columns in the scrolling view, from one shared function.
+
+- **When one policy serves two scales, check where its boundary case lands in each.** A
+  threshold that is unreachable in the large case is the ONLY case in the small one.
+- **Fix the caller that is wrong, not the shared predicate** — moving `close_band_edge`'s
+  threshold would have re-laid every band to fix a notch tile.
+- **A refused stretch leaves a dead track, and a sub-layout with its OWN track list must
+  size to what is USED, not to what was planned.** On the parent grid the unused column is
+  bare board either way; in a private track list it is a gap in the middle of the block.
+  Sizing to `max(col + w - 1)` handed that width to the wide tile instead — and, because it
+  put the region on the same 13 of 14 columns the bands use, it closed the last 8% of the
+  button-width difference as a side effect. Worth checking for: removing wasted space can
+  beat a constraint you had already written off as geometry.
+
+## Gotcha: a QA probe's assertions age with the layout it was written for (2026-08-25)
+
+`edit-grid-bleed-qa.mjs` reported 5/7 on the scrolling categorised board and it looked like a
+regression. Run against the variant the change did not touch it reported **4/7** — the
+assertions had gone stale for the whole edit page, not for the new code.
+
+- **Before attributing a probe FAIL, run it against a surface your change cannot reach.** A
+  probe that fails on the control is not an oracle for the experiment. Same discipline as
+  reconciling a test suite against a baseline (LEARNINGS 2026-08-23) — probes need it too.
+- When the working tree already holds ANOTHER session's uncommitted work, reverting your own
+  change does not give you a baseline. Say the attribution is reasoned from the declarations
+  rather than measured, and name which is which.
+
+## A layout post-pass that RESHAPES bands must run after the passes that READ them (2026-08-25)
+
+`pack_category_tiles` runs three post-passes over the band plan, and they are not
+commutative:
+
+1. `lift_column_tiles` — only fires on a band holding MORE THAN ONE tile (a one-column tile
+   alone in a band is already a row).
+2. `continue_into_lifted_row` — only fills a row that step 1 created.
+3. `lift_own_row_tiles` — splits a band around a category marked `own_row`.
+
+Adding (3) at the FRONT looked harmless and broke the board. Splitting band 1 first left
+Questions alone in a five-row band one column wide; step 1 then skipped it (single tile) and
+step 2 had no lifted row to fill. The flex band stretched that lone tile to the full width —
+**one button 1556px across**, measured.
+
+- **A pass with a "only if the band has company" guard is a READER of band shape.** Anything
+  that changes the shape has to run after it, or the guard silently stops matching.
+- **A band that uses far fewer columns than the board is the failure mode to watch for** in
+  any fills-the-row layout: `flex-grow` divides the whole row between however few tracks
+  the tile has. One column in a 14-column row is a 1500px button. Any new pass that can
+  leave a short band needs to say what fills it.
+- The tell in a layout dump is a `btnW` an order of magnitude off the others — not a missing
+  tile, not an overflow. Sort the distinct button widths and look at the outlier.
+
+## A fixture that does not FAIL without the fix is not a test (2026-08-25)
+
+Pinning the prediction slots to the end of the notch's foot run was a one-line change, and
+the first test written for it asserted exactly the right thing — "Predictions sits below
+Social" — on a fixture reused from a neighbouring test. It passed. It also passed with the
+change reverted: at those category sizes `fill_region` placed Predictions last anyway, so the
+assertion was measuring arithmetic, not the rule.
+
+A sweep over fixture variants found 16 combinations that DO distinguish the two orders. The
+one now in the suite (`predictions=2, social=1, no_not=2, questions=4`) puts Predictions at
+the top of the notch when unpinned, with Social two rows below it.
+
+- **Run every new layout test against the reverted code before believing it.** In a packer,
+  the same assertion can be satisfied by the packing arithmetic or by the rule under test,
+  and only the negative control tells you which. Reusing a nearby test's fixture makes this
+  MORE likely, not less — it was chosen to exercise some other rule.
+- **When a fixture does not discriminate, search for one that does rather than weakening the
+  assertion.** Sweeping a few counts over the categories that shape the notch took one
+  script and turned a decorative test into a real one.
+- **A module whose only import is a leaf can be driven under plain node.** `board_categories.js`
+  imports `./i18n` and nothing else, so stubbing that one file makes the whole packer
+  scriptable — before/after layouts, width sweeps, and fixture searches, with no Ember, no
+  browser, and no `ember test` cycle. Worth checking the import list before assuming a UI
+  module needs the full harness.
+
+## The notch-level equivalent of a band flag is the FOOT RUN, not another pass (2026-08-25)
+
+`own_row` gives a category a band to itself. It is acted on by `lift_own_row_tiles`, which
+splits a BAND — so it is inert for any category that never reaches band planning.
+`pack_category_tiles` splices the trailing categories into `notch_groups` BEFORE planning
+(`board_categories.js:1598`), which means a notch member can never claim a row that way.
+
+Inside the notch, order is decided by `notch_tail_order`: it pins a foot run named by
+`NOTCH_TAIL_KEYS` and hands it to `fill_region` as `pinned`, and a pinned group may only
+close its OWN rows. Everything else opens the next free row. So "put this last in the notch"
+is already expressible — add the key to the foot run — and adding a third post-pass to say
+it would have been a second mechanism for a decision one mechanism already owns.
+
+- **Before adding a pass, check whether the structure already has a slot for the decision.**
+  The tell here was that the notch had a concept named "foot", with an explicit ORDER
+  documented in its comment.
+- **Measure what a reorder costs before assuming it is free.** The render pack picks the
+  narrowest notch width that still fits in `kb_h`, so a reorder CAN cost the keyboard a
+  column. Here it did not — width 3, 3 rows, 11 keyboard columns, before and after — but that
+  is a measurement, not a property of reordering.
 ## Gotcha: `overflow-x: hidden` silently makes the OTHER axis a scroll box — and kills descendant `position: sticky` (2026-08-23)
 
 `.md-shell` (`app.scss:43771`) declares only `overflow-x: hidden !important` and never mentions `overflow-y`. Per CSS spec a `visible` value computes to `auto` when its partner is `hidden`, so the shell becomes a **scrolling box on Y** that never actually scrolls. `position: sticky` resolves against the nearest scrolling box, so a sticky bar inside it is pinned to a scrollport that cannot move — the declaration applies and does nothing. Verified live on `/u/:id/preferences`: computed `overflowY: "auto"` with `scrollHeight === clientHeight === 2138`, the real scroller two levels up (`div.with_user.new_index`, 2184 → 800), and the "sticky" bar rendering at its natural `y=2026` in an 800px viewport. Fix is `overflow-x: clip`, which still prevents horizontal overflow but establishes **no** scroll container, so `overflow-y` stays `visible`. When sticky "doesn't work," walk the ancestor chain for any `overflow` value — including one declared on the *other* axis. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
@@ -12970,6 +15461,71 @@ requires a four-week SGD trial, and the grep behind it had matched the lymphedem
 section (lesson 3). Another reported a phrase absent from a PDF that contained it
 (lesson 4). Both would have shipped as sourced facts.
 
+## Gotcha: `{{on "evt" this.someMethod}}` does NOT bind `this` — the repo's idiom is a factory bound in `init`
+
+`{{on}}` hands the raw function to `addEventListener`, so inside a bare class-body method
+`this` is the DOM element, not the component. The first `this.get(...)` throws
+`TypeError: this.get is not a function` — and if the handler already called
+`event.preventDefault()`, the key is swallowed AND the action never runs, which reads as
+"the control is dead" rather than as an error.
+
+Every other `{{on "keydown"}}` in this codebase goes through a binding factory —
+`this.eventAction`, `this.ctrlAction`, `this.invokeAttr` — or an `init`-bound closure:
+
+```js
+init() {
+  this._super(...arguments);
+  var self = this;
+  this.onGridKeydown = function(ev) { self.send('grid_keydown', ev); };  // components/grid-size-picker.js:56
+}
+```
+
+Found the hard way: `components/boards-layout-toggle.hbs:14` bound `this.onGroupKeydown`
+bare (2026-08-26 review). Combined with a roving tabindex — where only the CHECKED radio has
+`tabindex="0"` — it made the control completely keyboard-inoperable, because Tab+Enter only
+ever re-selects the value that is already selected. Unit tests were green: they called the
+component's methods directly and never dispatched a DOM event.
+
+**Check before shipping any `{{on}}`:** grep the component JS for the handler name and confirm
+it is assigned in `init`. If it appears only as an object-literal method, it is unbound.
+A unit test that calls the method directly will NOT catch this — it needs a rendering test
+that dispatches the real event.
+
+## Gotcha: a guard added to ONE handler does not cover keys another handler claims first
+
+`raw_events.js` has TWO `keydown` handlers. The first returns early for everything in
+`special_keys` — which includes `Backspace`, `Escape`, `Delete`, `Tab` and the arrows — so a
+guard added inside that handler *structurally cannot* apply to those keys; the second handler
+is where they are actually processed.
+
+`typing_into_a_field()` was added in 2026-08 to stop physical-keyboard typing from leaking into
+the vocalization box, and was used as the justification for defaulting
+`preferences.device.external_keyboard` to `true` for every existing account. It was applied at
+one call site. Escape (`:clear`) and Backspace (`:backspace`) in the second handler were left
+unguarded, so typing in a speak-mode text field (the Phrase Builder search box) could delete
+from — or wipe — a communicator's composed utterance.
+
+**Rule:** when you add a predicate to make a default safe, enumerate every handler that can
+observe the event, not just the one you were reading. For `raw_events.js` specifically:
+grep `check('keyboard_listen')` and confirm the guard appears at EVERY hit.
+
+## Technique: prove a "new lint/suppression regression" with a per-file+rule NET delta, never the raw `+` count
+
+`.eslint-todo` is keyed `file|rule|line|col|hash`, so ANY line shift in an existing file
+produces a remove+add pair. A branch that merely grew some files showed **+224** added app-code
+entries — which looks like 224 newly-grandfathered violations and is not.
+
+Compute the net instead:
+
+```bash
+git show <base>:app/frontend/.eslint-todo | grep -v '^#' | cut -d'|' -f1,2 | sort | uniq -c > /tmp/old
+grep -v '^#' app/frontend/.eslint-todo      | cut -d'|' -f1,2 | sort | uniq -c > /tmp/new
+# then diff the counts per file|rule key
+```
+
+Real answer for that branch: net **+75**, of which 73 were qunit style rules in NEW TEST files
+and 2 were `ember/no-runloop` in one component. Same discipline as the baseline rule for test
+runs (rule 10) — reconcile against a baseline before claiming a delta.
 ## Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`
 
 `app/frontend/app/utils/extras.js` patches `$.ajax` and, on success, turns a

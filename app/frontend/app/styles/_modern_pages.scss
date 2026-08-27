@@ -135,3 +135,97 @@
   font-size: 12px;
   padding: 4px 10px;
 }
+
+/* ---- Feature-unavailable notice -------------------------------------------
+   Rendered INSTEAD of a page's content when the signed-in account cannot use
+   that feature (components/modeling-only-notice.hbs, shown on Reports, Logs,
+   Recordings, Goals and Badges for modeling-only accounts).
+
+   Centred and card-framed because it stands in for the whole page body — the
+   previous bare <h2> + <p> sat flush left at the top of an otherwise empty
+   page and read like a rendering failure rather than an explanation. */
+.md-feature-unavailable {
+  max-width: 620px;
+  margin: 48px auto;
+  padding: 32px 30px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 20px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    0 8px 24px rgba($la-navy, 0.10);
+}
+.md-feature-unavailable__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 14px;
+  border-radius: 50%;
+  background: rgba($brand-verdigris, 0.12);
+  color: $brand-verdigris-aa;
+}
+.md-feature-unavailable__title {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 700;
+  color: $la-navy;
+}
+.md-feature-unavailable__lead {
+  margin: 0 auto 22px;
+  max-width: 52ch;
+  font-size: 16px;
+  line-height: 1.55;
+  color: rgba($la-navy, 0.78);
+}
+/* Two columns on desktop, stacked on narrow. The lists themselves are LEFT
+   aligned inside the centred card — centred list items are hard to scan. */
+.md-feature-unavailable__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 22px;
+  text-align: left;
+}
+@media (min-width: 560px) {
+  .md-feature-unavailable__cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.md-feature-unavailable__col {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba($la-navy, 0.04);
+}
+.md-feature-unavailable__col-title {
+  margin: 0 0 8px;
+  /* Was 12px at rgba($la-navy, 0.55) — about 3.14:1 on the #F5F6F8 panel, under AA for
+     normal text, and below this product's legibility floor. These are the headings that
+     tell a user WHY a feature is unavailable. */
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba($la-navy, 0.75);
+}
+.md-feature-unavailable__list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba($la-navy, 0.8);
+}
+.md-feature-unavailable__list li + li {
+  margin-top: 4px;
+}
+.md-feature-unavailable__list--included {
+  color: $brand-verdigris-aa;
+}
+.md-feature-unavailable__cta {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
+  color: rgba($la-navy, 0.8);
+}

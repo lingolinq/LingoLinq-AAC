@@ -18,7 +18,8 @@ import sync from '../../utils/sync';
 import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
 import sessionHistory from '../../utils/session_history';
-import { availableHomeSections, sectionHidden, gridLayoutState, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
+import { availableHomeSections, sectionHidden, layoutPresentation, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
+import { homePillLabel } from '../../helpers/home-pill-label';
 
 export default Component.extend({
   tagName: '',
@@ -151,18 +152,12 @@ export default Component.extend({
     'appState.currentUser.managing_supervision_orgs',
     'appState.currentUser.supervisees',
     function() {
-      var user = this.get('appState.currentUser');
-      var vis = {};
-      availableHomeSections(user).forEach(function(s) {
-        vis[s.key] = !sectionHidden(user, s.key);
-      });
-      // The Focused View layout never shows the Extras card — Speak takes the focal
-      // full-width hero slot instead. Force it hidden so the grid matrix and the
-      // per-card cardHideStyle agree (no orphaned Extras card overflowing the grid).
-      if (this.get('effectiveLayout') === 'focused') {
-        vis.extras = false;
-      }
-      return vis;
+      // Derived by the shared layout description, which the two preview surfaces
+      // also call — so a section the previews hide is a section this page hides.
+      // (That includes Focused View's forced-off Extras: Speak takes the focal
+      // full-width hero slot, and a visible-but-unplaced card would land in an
+      // implicit grid row of its own.)
+      return layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout')).vis;
     }
   ),
 
@@ -182,8 +177,17 @@ export default Component.extend({
   // the computed grid-template-areas/rows. The layout is applied as an inline
   // style (gridStyle) from the shared layout matrix, so the home grid and the
   // Getting Started preview reflow identically with no CSS-specificity juggling.
-  dashboardGrid: computed('sectionVisibility', 'sectionOrder', 'effectiveLayout', 'heroKey', function() {
-    return gridLayoutState(this.get('sectionVisibility'), this.get('sectionOrder'), this.get('effectiveLayout'), this.get('heroKey'));
+  dashboardGrid: computed('sectionVisibility', 'sectionOrder', 'effectiveLayout', 'heroKey',
+    'appState.currentUser', 'appState.feature_flags.dashboard_drag_layout', function() {
+    // Same call the Dashboard Design clone and the Display Style preview iframes
+    // make. `vis`/`order` are passed explicitly because this component resolved
+    // them already (sectionOrder applies the drag-flag gate); `dragEnabled` is
+    // passed too so the gate is applied identically no matter which surface asks.
+    return layoutPresentation(this.get('appState.currentUser'), this.get('effectiveLayout'), {
+      vis: this.get('sectionVisibility'),
+      order: this.get('sectionOrder'),
+      dragEnabled: !!this.get('appState.feature_flags.dashboard_drag_layout')
+    }).grid;
   }),
 
   // The user's saved drag-to-reorder arrangement: an ordered array of section
@@ -901,9 +905,19 @@ export default Component.extend({
   // 'off' | 'thin' | 'thick' – cycle: first toggle = thin, second = thick, third = off
   sectionBorderMode: 'off',
 
-  activeTabLabel: computed('activeTab', function() {
+  // Feeds the responsive .md-pillnav-dropdown trigger, so the label it shows for
+  // the home tab has to match the pill itself — supporters read "Dashboard" —
+  // hence the shared homePillLabel rather than a second copy of that rule.
+  // (Defaults are double-quoted per the i18n convention: a single-quoted default
+  // is silently DELETED by the next i18n_generator.rb run.)
+  // `has_management_responsibility` is READ below and must be a dependent key, or the
+  // dropdown trigger keeps a stale label when org-manager status resolves after first
+  // render (late org payload, or a role change in-session) — the pill row beside it
+  // would say "Home" while this said "Dashboard", the exact disagreement homePillLabel
+  // exists to prevent.
+  activeTabLabel: computed('activeTab', 'appState.currentUser.supporter_role', 'appState.currentUser.has_management_responsibility', function() {
     var tab = this.get('activeTab');
-    var labels = { home: i18n.t('home', 'Home'), boards: i18n.t('boards', 'Boards'), reports: i18n.t('reports', 'Reports'), extras: i18n.t('extras', 'Extras'), supervisors: i18n.t('supervisors', 'Supervisors') };
+    var labels = { home: homePillLabel(this.get('appState.currentUser.supporter_role'), this.get('appState.currentUser.has_management_responsibility')), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
     return labels[tab] || labels.home;
   }),
   /** Index route @model is the logged-in user; @user is registration placeholder — use model for boards embed */
@@ -1185,8 +1199,11 @@ export default Component.extend({
     var showReports = !supporterRole;
     var lessons = appState.get('feature_flags.lessons') && user && user.get('currently_premium_or_fully_purchased');
     var emergencyBoards = appState.get('feature_flags.emergency_boards');
+    // NOTE: there is deliberately no Setup/Getting-Started card here. The `setup`
+    // route still exists and is still reachable by its own means, but the Extras
+    // page no longer advertises it to ANY user (the matching 'intro' branches in
+    // `extraAction` and the card-icon switch were removed with it).
     return [
-      { title_key: 'learn_and_setup_card', title_default: 'Setup', subtitle_key: 'get_started_subtitle', subtitle_default: 'Get started', image: 'images/pastel-getting-started.svg', action: 'intro', btn_key: 'learn_action', btn_default: 'Learn', show: !modelingOnly },
       { title_key: 'sync', title_default: 'Sync', subtitle_key: 'sync_subtitle', subtitle_default: 'Sync your data', image: 'images/pastel-logging.png', action: 'sync_details', btn_key: 'sync', btn_default: 'Sync', show: !externalDevice },
       { title_key: 'goals', title_default: 'Goals', subtitle_key: 'goals_subtitle', subtitle_default: 'Track progress', image: 'images/pastel-reports2.png', action: 'goals', btn_key: 'view', btn_default: 'View', show: !!perms },
       // Reports — surfaced here for users who don't have it in the pill-nav.
@@ -1476,9 +1493,7 @@ export default Component.extend({
           active.blur();
         }
       } catch(e) { }
-      if (name === 'intro') {
-        this.get('router').transitionTo('setup', { queryParams: { user_id: null, page: null } });
-      } else if (name === 'newBoard') {
+      if (name === 'newBoard') {
         var go = function() { _this.get('router').transitionTo('create-board-new'); };
         if (this.appState.check_for_needing_purchase) {
           this.appState.check_for_needing_purchase().then(go, go);
@@ -1661,19 +1676,30 @@ export default Component.extend({
       }
       modal.open('inline-video', {video: {type: 'youtube', id: id}, hide_overlay: true});
     },
+    // Onboarding, with the wizard replaced by two destinations depending on WHO is
+    // being set up — the split the wizard used to blur:
+    //   • a specific OTHER user  -> the standalone board picker for them
+    //   • a supervisor with no target -> pick the user first, then that picker
+    //   • yourself -> the home page's guided tour
+    // The tour is inherently about the current user's own home page, so it is only
+    // right for the self case; "set up that communicator" means their board picker,
+    // which mirrors setup's user_id/setup_user resolution
+    // (controllers/board-picker.js:10) and is the screen the wizard's board step
+    // used to show for that person.
+    // NOTE: no template dispatches this action today (the Extras card that did was
+    // removed), so it is retained for correctness rather than active use.
     intro: function(user_id) {
       if(window.ga) {
-        window.ga('send', 'event', 'Setup', 'start', 'Setup started');
+        window.ga('send', 'event', 'Onboarding', 'start', 'Onboarding started');
       }
-      this.appState.set('auto_setup', false);
-
       if(user_id) {
-        this.get('router').transitionTo('setup', {queryParams: {user_id: user_id, page: null}});
+        this.get('router').transitionTo('board-picker', {queryParams: {user_id: user_id}});
       } else if(this.appState.get('currentUser.permissions.delete') && (this.appState.get('currentUser.supervisees') || []).length > 0) {
         var prompt = i18n.t('setup_which_user', "Select User to Run Setup");
         this.appState.get('controller').send('switch_communicators', {stay: true, modeling: false, setup: true, skip_me: false, header: prompt});
       } else {
-        this.get('router').transitionTo('setup', {queryParams: {user_id: null, page: null}});
+        this.appState.set('auto_open_home_tour', true);
+        this.appState.return_to_index();
       }
     },
     opening_index: function() {

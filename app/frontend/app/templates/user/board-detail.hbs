@@ -186,10 +186,36 @@
              paints them. Left intentionally as a comment for easy
              rollback / future re-introduction. --}}
 
-        {{!-- BOARD ACTIONS — moved to sit directly under the
-             Discard / Save tiles. Expandable, mirrors the Filter by
-             Category control: outlined toggle surface + chevron, body
-             shown when open. --}}
+        {{!-- CATEGORIZE — opens the full-width category-order panel below. Sits
+             ABOVE Board Actions: categorising is a board-shaping decision the
+             user makes before reaching for the destructive/one-off actions in the
+             gear menu. Gated on the grouping flag so the rail is unchanged when
+             the feature is off. --}}
+        {{#if this.app_state.feature_flags.board_category_grouping}}
+        <div class="md-board-edit-panel__group md-board-edit-panel__group--categorize">
+          <button type="button"
+            class="md-board-edit-panel__row md-board-edit-panel__row--categorize {{if this.category_order_open 'md-board-edit-panel__row--active'}}"
+            aria-expanded={{if this.category_order_open "true" "false"}}
+            aria-controls="board-category-order-panel"
+            data-bd-action="toggle_category_order"
+            {{on "click" (this.ctrlAction "toggle_category_order")}}>
+            <svg class="md-board-edit-panel__row-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+              <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+              <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+              <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+            </svg>
+            <span class="md-board-edit-panel__label">{{t "Categorize" key="board_categorize"}}</span>
+          </button>
+        </div>
+        {{/if}}
+
+        {{!-- BOARD ACTIONS — sits below Categorize (which was moved above it
+             2026-08-23). Expandable, mirrors the Filter by Category control:
+             outlined toggle surface + chevron, body shown when open. Its
+             `__filter-toggle` surface is the shared reference the Categorize and
+             Board Collections rows now match — see `__row--categorize` and
+             `__row--collection` in app.scss. --}}
         <div class="md-board-edit-panel__filter md-board-edit-panel__filter--actions {{unless this.board_actions_collapsed 'md-board-edit-panel__filter--open'}}">
           <button type="button"
             class="md-board-edit-panel__filter-toggle"
@@ -520,9 +546,27 @@
     <main class="md-board-detail-main">
       {{#if this.model.error}}
         <div class="md-board-detail-error" role="alert">
-          <p class="md-board-detail-error__message">{{this.error_message}}</p>
+          <div class="md-board-detail-error__card">
+            {{!-- Board frame with a slash — names the thing that failed (a board)
+                 rather than a generic warning triangle, which reads as an app
+                 fault. Decorative: the heading below carries the meaning. --}}
+            <span class="md-board-detail-error__icon" aria-hidden="true">
+              {{!-- The slash is NOT drawn here: it spans the whole badge, which is
+                   larger than this 24x24 viewBox, so it is a ::after bar on the
+                   disc itself (see .md-board-detail-error__icon in app.scss). --}}
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="16" rx="3"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="9" y1="9" x2="9" y2="20"/>
+              </svg>
+            </span>
+            <h2 class="md-board-detail-error__title">{{this.error_message}}</h2>
+            <p class="md-board-detail-error__message">{{this.error_detail}}</p>
           {{#if this.retrying}}
-            <p class="md-board-detail-error__retrying">{{t "Trying again..." key="trying_again"}}</p>
+            <p class="md-board-detail-error__retrying">
+              <span class="md-board-detail-error__spinner" aria-hidden="true"></span>
+              {{t "Trying again..." key="trying_again"}}
+            </p>
           {{else}}
             {{!-- Broken links rarely recover with retry. Offer Home / Back
                  for everyone; supervisors also get Exit Speak Mode. --}}
@@ -547,6 +591,7 @@
               {{t "Try Again" key="try_again"}}
             </button>
           {{/if}}
+          </div>
         </div>
       {{else if this.model.integration}}
         {{#unless this.app_state.sessionUser.currently_premium_or_premium_supporter}}
@@ -576,7 +621,29 @@
            drops beneath it (styled like the right-side sidebar dropdown
            button) instead of sitting inside the sentence bar, so the row
            reads as symmetric stacked-controls | bar | stacked-controls. --}}
+      {{!-- "Try this Board" return path. Sits to the LEFT of the nav stack (so
+           left of Home) and is deliberately larger than the other nav controls,
+           with a glow: it is a temporary way out of a trial rather than part of
+           the permanent chrome, and should read as the obvious thing to press if
+           the board is not what they wanted. Shows only while the trial marker
+           names THIS board, and is cleared on any exit from board-detail (see
+           routes/user/board-detail#resetController). --}}
+      {{#if this.show_try_back_nav}}
+        <button type="button" class="md-board-detail-try-back" data-bd-action="try_back_to_picker" {{on "click" (this.ctrlAction "try_back_to_picker")}} aria-label={{t "Back to board picker" key="board_detail_try_back_aria"}} title={{t "Back to board picker" key="board_detail_try_back_aria"}}>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+          <span class="md-board-detail-try-back__label">{{t "Back" key="board_detail_try_back"}}</span>
+        </button>
+      {{/if}}
       <div class="md-board-detail-nav-stack">
+        {{!-- Home and the modeling control share one COLUMN so modeling sits
+             directly under Home at the same width; Back stays a sibling of the
+             column, keeping the row's Home|Back pairing. The column is a flex
+             column and Home is the flexible child, so Home shrinks by exactly
+             the modeling button's height when modeling is active and takes the
+             full height when it is not — no separate "shrink" rule needed. --}}
+        <div class="md-board-detail-nav-stack__home-col">
         <button type="button" class="md-board-detail-home-btn" data-bd-action="go_home" {{on "click" (this.ctrlAction "go_home")}} aria-label={{t "Home" key="board_detail_home"}} title={{t "Home" key="board_detail_home"}}>
           <svg width="33" height="33" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 12 12 3l9 9"/>
@@ -584,6 +651,37 @@
           </svg>
           <span class="md-board-detail-nav-btn__label">{{t "Home" key="board_detail_home"}}</span>
         </button>
+        {{!-- Modeling control — was a pill inside the sentence bar; it now reads as
+             a third nav button under Home. The long "Modeling is paused" caption
+             the pill carried is dropped: it cannot fit a 60px button, and each
+             state's aria-label already says it in full for screen readers, with
+             the play/pause icon and colour carrying it visually. --}}
+        {{#if this.app_state.modeling_session_active}}
+          {{#if this.edit_mode}}
+            <span class="md-board-detail-modeling-btn md-board-detail-modeling-btn--paused" role="status" aria-label={{t "Modeling paused while editing — will resume on exit" key="board_detail_modeling_paused_edit"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                <path d="M8 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5A1 1 0 0 1 8 18.5v-13z"/>
+              </svg>
+              <span class="md-board-detail-nav-btn__label">{{t "Modeling" key="board_detail_modeling_label"}}</span>
+            </span>
+          {{else if this.app_state.modeling_paused}}
+            <button type="button" class="md-board-detail-modeling-btn md-board-detail-modeling-btn--paused" data-bd-action="toggle_modeling_pause" {{on "click" (this.ctrlAction "toggle_modeling_pause")}} aria-label={{t "Modeling paused — click to resume" key="board_detail_modeling_paused_resume"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                <path d="M8 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5A1 1 0 0 1 8 18.5v-13z"/>
+              </svg>
+              <span class="md-board-detail-nav-btn__label">{{t "Modeling" key="board_detail_modeling_label"}}</span>
+            </button>
+          {{else}}
+            <button type="button" class="md-board-detail-modeling-btn" data-bd-action="toggle_modeling_pause" {{on "click" (this.ctrlAction "toggle_modeling_pause")}} aria-label={{t "Modeling mode is active — click to pause" key="board_detail_modeling_active_pause"}}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                <rect x="6" y="5" width="4" height="14" rx="1.5"/>
+                <rect x="14" y="5" width="4" height="14" rx="1.5"/>
+              </svg>
+              <span class="md-board-detail-nav-btn__label">{{t "Modeling" key="board_detail_modeling_label"}}</span>
+            </button>
+          {{/if}}
+        {{/if}}
+        </div>
         {{#if this.show_board_back_nav}}
           <button type="button" class="md-board-detail-nav-stack__back" data-bd-action="go_back" {{on "click" (this.ctrlAction "go_back")}} aria-label={{t "Go back to previous board" key="board_detail_go_back"}}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -594,37 +692,6 @@
         {{/if}}
       </div>
       <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
-        {{#if this.app_state.modeling_session_active}}
-          {{#if this.edit_mode}}
-            <span class="md-board-detail-sentence-bar__modeling-badge md-board-detail-sentence-bar__modeling-badge--paused" role="status" aria-label={{t "Modeling paused while editing — will resume on exit" key="board_detail_modeling_paused_edit"}}>
-              <span class="md-board-detail-sentence-bar__modeling-badge__row">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                  <path d="M8 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5A1 1 0 0 1 8 18.5v-13z"/>
-                </svg>
-                {{t "Modeling" key="board_detail_modeling_label"}}
-              </span>
-              <span class="md-board-detail-sentence-bar__modeling-badge__caption">{{t "Modeling is paused" key="board_detail_modeling_paused_caption"}}</span>
-            </span>
-          {{else if this.app_state.modeling_paused}}
-            <button type="button" class="md-board-detail-sentence-bar__modeling-badge md-board-detail-sentence-bar__modeling-badge--paused" data-bd-action="toggle_modeling_pause" {{on "click" (this.ctrlAction "toggle_modeling_pause")}} aria-label={{t "Modeling paused — click to resume" key="board_detail_modeling_paused_resume"}}>
-              <span class="md-board-detail-sentence-bar__modeling-badge__row">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                  <path d="M8 5.5a1 1 0 0 1 1.5-.87l9 6.5a1 1 0 0 1 0 1.74l-9 6.5A1 1 0 0 1 8 18.5v-13z"/>
-                </svg>
-                {{t "Modeling" key="board_detail_modeling_label"}}
-              </span>
-              <span class="md-board-detail-sentence-bar__modeling-badge__caption">{{t "Modeling is paused" key="board_detail_modeling_paused_caption"}}</span>
-            </button>
-          {{else}}
-            <button type="button" class="md-board-detail-sentence-bar__modeling-badge" data-bd-action="toggle_modeling_pause" {{on "click" (this.ctrlAction "toggle_modeling_pause")}} aria-label={{t "Modeling mode is active — click to pause" key="board_detail_modeling_active_pause"}}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                <rect x="6" y="5" width="4" height="14" rx="1.5"/>
-                <rect x="14" y="5" width="4" height="14" rx="1.5"/>
-              </svg>
-              {{t "Modeling" key="board_detail_modeling_label"}}
-            </button>
-          {{/if}}
-        {{/if}}
         {{!-- Tapping the composed message also speaks it (mouse/touch bonus —
              the inline mic below is the keyboard/SR speak control, so this
              stays a plain click target with no tabindex/role to avoid a
@@ -901,85 +968,6 @@
                     </svg>
                     <span>{{t "Set as Home Board" key="set_as_home_board"}}</span>
                   </button>
-                </div>
-              {{/if}}
-
-              {{!-- Board Actions — the remaining four actions that had no
-                    view-mode route at all. board-detail.hbs:1533-1539 records
-                    the migration that removed them: nine actions moved to the
-                    left edit panel, which renders only under
-                    {{#if this.edit_mode}}. Set as Home and Make a Copy were
-                    restored first (see above / Share & Print); share, print and
-                    download already had a home here. These four were the
-                    remainder.
-
-                    A submenu rather than four more top-level rows: the menu is
-                    already long, and these are secondary to Edit / Set as Home.
-                    `board_submenu_open` + `toggle_board_submenu` already existed
-                    in the controller with NO template referencing them — an
-                    orphaned control of exactly the kind the migration left
-                    behind. This wires them up rather than adding new state.
-
-                    All four are safe outside edit mode: board_details passes
-                    `edit_mode: this.get('edit_mode')` so the modal renders
-                    read-only, and other_board_actions opens modals/board-actions,
-                    which already tells a user which items their permissions
-                    withhold. Gated on a signed-in user because favouriting and
-                    the sidebar write to that user's own account. --}}
-              {{!-- Hidden entirely when the user has hidden all four children in
-                    Customize Menu — a disclosure that opens onto nothing is worse
-                    than no disclosure. `aria-controls` + a matching id on the
-                    submenu completes the disclosure pattern for screen readers;
-                    `aria-expanded` alone says a control expands something without
-                    saying what. --}}
-              {{#if (and this.app_state.sessionUser this.board_submenu_has_visible_items)}}
-                <div class="md-board-detail-actions-menu__section">
-                  <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.board_submenu_open "true" "false"}} aria-controls="md-board-detail-board-submenu" data-bd-action="toggle_board_submenu" {{on "click" (this.ctrlAction "toggle_board_submenu")}}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                      <line x1="3" y1="9" x2="21" y2="9"/>
-                    </svg>
-                    <span>{{t "Board Actions" key="board_actions"}}</span>
-                    <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
-                  </button>
-                  {{#if this.board_submenu_open}}
-                    <div class="md-board-detail-actions-menu__submenu" id="md-board-detail-board-submenu">
-                      {{#unless (get this.speak_menu_hidden_set "board_details")}}
-                        <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="board_details" {{on "click" (this.ctrlAction "board_details")}}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-                          </svg>
-                          <span>{{t "Board Details" key="board_details"}}</span>
-                        </button>
-                      {{/unless}}
-                      {{#unless (get this.speak_menu_hidden_set "toggle_favorite")}}
-                        <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="toggle_favorite" {{on "click" (this.ctrlAction "toggle_favorite")}}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill={{if this.model.starred "currentColor" "none"}} stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                          </svg>
-                          {{!-- Label tracks state: a toggle that always reads "Set as
-                                Favorite" gives no feedback that the first tap worked. --}}
-                          <span>{{#if this.model.starred}}{{t "Remove Favorite" key="remove_favorite"}}{{else}}{{t "Set as Favorite" key="set_as_favorite"}}{{/if}}</span>
-                        </button>
-                      {{/unless}}
-                      {{#unless (get this.speak_menu_hidden_set "add_to_sidebar")}}
-                        <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="add_to_sidebar" {{on "click" (this.ctrlAction "add_to_sidebar")}}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
-                          </svg>
-                          <span>{{t "Add to Sidebar" key="add_to_sidebar"}}</span>
-                        </button>
-                      {{/unless}}
-                      {{#unless (get this.speak_menu_hidden_set "other_board_actions")}}
-                        <button type="button" class="md-board-detail-actions-menu__item" data-bd-action="other_board_actions" {{on "click" (this.ctrlAction "other_board_actions")}}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                            <circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
-                          </svg>
-                          <span>{{t "Other Actions" key="other_actions"}}</span>
-                        </button>
-                      {{/unless}}
-                    </div>
-                  {{/if}}
                 </div>
               {{/if}}
 
@@ -1493,6 +1481,26 @@
                     {{/if}}
                   </span>
                   <div class="md-board-edit-session__actions">
+                    {{!-- Exit to Home — a quiet text link, not a third button, so it
+                         reads as a way OUT of editing rather than a competing
+                         completion action beside Cancel/Save. Routes through
+                         exit_to_home_from_edit (not exit_to_home) so it confirms
+                         discard first, exactly like Cancel — see the controller. --}}
+                    <button type="button"
+                      class="md-board-edit-session__exit-link"
+                      disabled={{this.board_saving}}
+                      data-bd-action="exit_to_home_from_edit" {{on "click" (this.ctrlAction "exit_to_home_from_edit")}}>
+                      {{!-- Two-tone in the house pair used everywhere else for this
+                           glyph (slate roof, verdigris body) — see the getting-started
+                           home icon in create-board-new.hbs and the pencil/report icons
+                           in this file. Explicit strokes, NOT currentColor, so the icon
+                           keeps both tones while the label alone follows the link colour. --}}
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 12 12 3l9 9" stroke="#46505F"/>
+                        <path d="M5 10v10a1 1 0 0 0 1 1h3v-6h6v6h3a1 1 0 0 0 1-1V10" stroke="#2A9D8F"/>
+                      </svg>
+                      <span class="md-board-edit-session__exit-link-label">{{t "Exit to Home" key="board_detail_exit_to_home"}}</span>
+                    </button>
                     <button type="button"
                       class="md-board-edit-session__btn md-board-edit-session__btn--discard"
                       disabled={{this.board_saving}}
@@ -1953,6 +1961,11 @@
         @folderLabelsOnTab={{this.folder_labels_on_tab}}
         @folderColoredCorner={{this.folder_colored_corner}}
         @folderColoredFace={{this.folder_colored_face}}
+        {{!-- Both are already ANDed with grouping_active in the controller, so they are
+             inert on an ungrouped board. --}}
+        @categoryEnabled={{this.categorize_enabled}}
+        @showCategoryNames={{this.show_category_names}}
+        @categoryScrollEnabled={{this.category_scroll_enabled}}
         @softBorders={{this.soft_borders}}
         @buttonTextSizeClass={{this.button_text_size_class}}
         @buttonTextPositionClass={{this.button_text_position_class}}
@@ -3008,10 +3021,18 @@
                      user.preferences.folder_colored_face. --}}
                 <div class="md-board-edit-right-panel__section-body">
                   <span class="md-board-edit-right-panel__row-pair-label" style="display: block; margin-bottom: 8px;">{{t "Display Style" key="board_detail_folder_display_style_label"}}</span>
-                  <div class="md-folder-style-list" role="radiogroup" aria-label={{t "Folder display style" key="board_detail_folder_style"}}>
+                  {{#if this.grouping_active}}
+                    {{!-- Succinct, and it names the control that unlocks this. Rendered
+                         ABOVE the options so the reason precedes the disabled buttons
+                         rather than explaining them after the fact. --}}
+                    <p class="md-folder-style-locked-note" id="folder-style-locked-note">{{t "Grouping by category sets folders to Colored Corner. Turn off Categorize above to choose another style." key="board_detail_folder_style_locked_by_grouping"}}</p>
+                  {{/if}}
+                  <div class="md-folder-style-list" role="radiogroup" aria-label={{t "Folder display style" key="board_detail_folder_style"}} aria-describedby={{if this.grouping_active "folder-style-locked-note"}}>
                     <button type="button" role="radio"
-                      aria-checked={{if (is-equal this.folder_display_style "default") "true" "false"}}
-                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'default') 'md-folder-style-option--active'}}"
+                      aria-checked={{if (is-equal this.effective_folder_display_style "default") "true" "false"}}
+                      disabled={{this.grouping_active}}
+                      aria-disabled={{if this.grouping_active "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.effective_folder_display_style 'default') 'md-folder-style-option--active'}} {{if this.grouping_active 'md-folder-style-option--locked'}}"
                       {{on "click" (this.ctrlAction "set_folder_style" "default")}}>
                       <span class="md-folder-style-option__icon" aria-hidden="true">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>
@@ -3022,8 +3043,10 @@
                       </span>
                     </button>
                     <button type="button" role="radio"
-                      aria-checked={{if (is-equal this.folder_display_style "colored_corner") "true" "false"}}
-                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'colored_corner') 'md-folder-style-option--active'}}"
+                      aria-checked={{if (is-equal this.effective_folder_display_style "colored_corner") "true" "false"}}
+                      disabled={{this.grouping_active}}
+                      aria-disabled={{if this.grouping_active "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.effective_folder_display_style 'colored_corner') 'md-folder-style-option--active'}} {{if this.grouping_active 'md-folder-style-option--locked'}}"
                       {{on "click" (this.ctrlAction "set_folder_style" "colored_corner")}}>
                       <span class="md-folder-style-option__icon" aria-hidden="true">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 3l-6 6" stroke-width="3"/></svg>
@@ -3034,8 +3057,10 @@
                       </span>
                     </button>
                     <button type="button" role="radio"
-                      aria-checked={{if (is-equal this.folder_display_style "tab_labels") "true" "false"}}
-                      class="md-folder-style-option {{if (is-equal this.folder_display_style 'tab_labels') 'md-folder-style-option--active'}}"
+                      aria-checked={{if (is-equal this.effective_folder_display_style "tab_labels") "true" "false"}}
+                      disabled={{this.grouping_active}}
+                      aria-disabled={{if this.grouping_active "true" "false"}}
+                      class="md-folder-style-option {{if (is-equal this.effective_folder_display_style 'tab_labels') 'md-folder-style-option--active'}} {{if this.grouping_active 'md-folder-style-option--locked'}}"
                       {{on "click" (this.ctrlAction "set_folder_style" "tab_labels")}}>
                       <span class="md-folder-style-option__icon" aria-hidden="true">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
@@ -3516,6 +3541,314 @@
         <SidebarEditor @onBack={{this.onCloseSidebarEditor}} />
       </div>
     {{/if}}
+  {{/if}}
+
+  {{!-- CATEGORY ORDER PANEL — full-width takeover.
+        Rendered last in the shell and positioned over the layout, so opening it
+        needs no surgery on the edit page's three-column grid. The preview uses
+        the SAME BoardDetailGrid the live board uses, with @forceGrouping, so what
+        is previewed cannot drift from what ships; @editMode is deliberately false
+        so the preview is not draggable and the real board's drag/swap/paint
+        behaviour is untouched. --}}
+  {{!-- GATED ON edit_mode. This block sits at shell level, so without the gate the
+       Categorize takeover — position:absolute, inset:0, opaque — kept rendering over the
+       SPEAK board after leaving edit mode by any path other than its own Done button,
+       and its live preview would repaint real board buttons outside an edit session,
+       with no Save, Cancel or undo. --}}
+  {{#if (and this.edit_mode this.category_order_open)}}
+    <div class="md-board-category-order" id="board-category-order-panel" role="region" aria-label={{t "Categorize board" key="board_categorize_panel"}}>
+      {{!-- HEADER + two option cards, not one horizontal row.
+           The row treated the primary switch, two sub-options, an explanatory
+           paragraph, an accessibility note and both page-level actions as six peers on
+           one line, which is what made it read as clutter. Now: a titled header that
+           owns Reset/Done, then one card per setting, with a setting's own sub-option
+           NESTED inside its card so hierarchy is carried by structure rather than by
+           reading order.
+           The cards sit SIDE BY SIDE and wrap, rather than stacking as drawn: this bar
+           is `flex: 0 0 auto` above the order list and the live preview, so every pixel
+           it takes comes out of the preview. Side-by-side keeps the grouping without
+           halving the thing the panel exists to show. --}}
+      <div class="md-board-category-order__bar">
+        {{!-- The header IS the grouping setting. It used to carry a panel title and a
+             subtitle ("Button organization" / "Control how buttons are grouped and
+             navigated.") that only restated what the panel obviously is, and the setting that
+             decides whether ANY of it applies sat below in a strip beside two sub-settings of
+             its own. Grouping now owns the header — heading, description and switch — and the
+             strip holds only the two settings that depend on it. --}}
+        <div class="md-board-category-order__head">
+          <div class="md-board-category-order__head-text">
+            <h2 class="md-board-category-order__title" id="bd-cat-group-title">{{t "Group by category" key="board_categorize_group_title"}}</h2>
+            <p class="md-board-category-order__subtitle" id="bd-cat-group-desc">{{t "Organize buttons into category groups." key="board_categorize_group_desc"}}</p>
+          </div>
+          {{!-- The long explanation, same disclosure the strip settings use. --}}
+          <details class="md-board-category-order__info">
+            <summary class="md-board-category-order__info-btn" aria-label={{t "More information about grouping by category" key="board_categorize_group_info_label"}}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            </summary>
+            <p class="md-board-category-order__info-body">
+              {{#if this.categorize_enabled}}
+                {{t "Organize this board's buttons into ordered category groups. Use the arrows below to change the order." key="board_categorize_group_hint"}}
+              {{else}}
+                {{t "Grouping is off. This board's buttons are shown in their original order." key="board_categorize_group_hint_off"}}
+              {{/if}}
+            </p>
+          </details>
+          <label class="md-board-category-order__onoff md-board-category-order__onoff--master" for="bd-cat-group">
+            <span class="md-board-category-order__onoff-word {{unless this.categorize_switch_on "md-board-category-order__onoff-word--active"}}" aria-hidden="true">{{t "Off" key="off"}}</span>
+            <span class="md-board-category-order__switch-wrap md-board-category-order__switch-wrap--master">
+              <input id="bd-cat-group" type="checkbox" data-bd-control="categorize" checked={{this.categorize_switch_on}} {{on "change" (this.ctrlAction "toggle_categorize")}} aria-describedby="bd-cat-group-desc">
+              <span class="md-board-category-order__switch {{unless this.categorize_switch_on "md-board-category-order__switch--off"}}" aria-hidden="true"><span class="md-board-category-order__switch-knob"></span></span>
+            </span>
+            <span class="md-board-category-order__onoff-word {{if this.categorize_switch_on "md-board-category-order__onoff-word--active"}}" aria-hidden="true">{{t "On" key="on"}}</span>
+          </label>
+          {{!-- Page-level actions live in the header, where they are expected — beside
+               the panel title rather than at the end of a settings row. --}}
+          <div class="md-board-category-order__bar-actions">
+            {{!-- Nested, not `(and …)`: Reset needs BOTH. The order list it resets is only
+                 rendered while grouping is on, so offering it with grouping off is a
+                 button pointing at nothing; and offering it on an order nobody has
+                 changed is a button that does nothing. --}}
+            {{!-- Reset order rides with the ordering list below: both are gated on
+                 `category_ordering_available`, which is off while category ORDERING is
+                 parked as a future feature. Resetting an order the user cannot see or
+                 change is a button pointing at nothing. --}}
+            {{#if this.category_ordering_available}}
+            {{#if this.categorize_enabled}}
+            {{#if this.category_order_changed}}
+              <button type="button" class="md-board-category-order__reset" data-bd-action="reset_category_order" {{on "click" (this.ctrlAction "reset_category_order")}}>{{t "Reset order" key="board_categorize_reset"}}</button>
+            {{/if}}
+            {{/if}}
+            {{/if}}
+            {{!-- Done wears the edit bar's SAVE styling, classes and all, rather than a
+                 lookalike: same pill, same raised slate, same two-tone check in its badge.
+                 Reusing `md-board-edit-session__btn--save` means the two cannot drift.
+                 `md-board-category-order__close` stays as the behaviour hook (probes and the
+                 focus rule key off it) but no longer carries any paint of its own. --}}
+            <button type="button" class="md-board-category-order__close md-board-edit-session__btn md-board-edit-session__btn--save" data-bd-action="toggle_category_order" {{on "click" (this.ctrlAction "toggle_category_order")}}>
+              <span class="md-board-edit-session__btn-badge" aria-hidden="true">
+                <svg class="md-board-edit-session__btn-icon" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17.5" stroke="#cdd6e3"/><path d="M10 17.5 19 7" stroke="#8fe4df"/></svg>
+              </span>
+              <span class="md-board-edit-session__btn-label">{{t "Done" key="done"}}</span>
+            </button>
+          </div>
+        </div>
+
+        {{!-- ONE settings strip, not a card per setting. The three settings were two glass
+             cards holding a switch, a paragraph of body copy, a nested sub-option and a
+             permanent amber advisory — ~250px of chrome above the thing the panel exists to
+             show. They are three peer decisions, so they get three equal columns of one
+             strip: title, one-line description, switch. The long explanations moved into the
+             per-setting disclosures below, and the advisory now appears only in the state it
+             is advising about. --}}
+          {{!-- The switch paints `categorize_switch_on` (the user's INTENT), NOT
+               `categorize_enabled` (the stored value that drives the regroup). Flipping
+               grouping re-renders the whole board grid, which blocks the main thread long
+               enough on a tablet that nothing repainted — including this control — and the
+               click read as ignored. Intent paints in the current frame; the regroup is
+               applied one frame later (controller#toggle_categorize).
+               OFF/ON words either side of the track, unlike the two switches in the strip:
+               this one governs the whole panel, so it states its value in words as well as by
+               knob position. `aria-hidden` on both — the checkbox already announces its own
+               checked state, and reading "Off Group by category On" would be worse, not
+               better. --}}
+        {{!-- The two settings that only mean something while grouping is on. Both are
+             DISABLED rather than removed when it is off: removing them silently changed the
+             strip's height and read as the settings having been taken away. `disabled` keeps
+             them in the accessibility tree, announced as unavailable; the dimming says the
+             same thing visually. The stored preferences are untouched either way. --}}
+        <div class="md-board-category-order__strip">
+          {{!-- Scrolling. Also gated on grouping: `category_scroll_enabled` is ANDed with
+               `grouping_active` in the controller, so with grouping off this preference
+               changes nothing about how the board draws. --}}
+          <div class="md-board-category-order__setting {{unless this.categorize_enabled "md-board-category-order__inactive"}}">
+            <div class="md-board-category-order__row">
+              <span class="md-board-category-order__row-text">
+                <label class="md-board-category-order__row-label" for="bd-cat-scroll">{{t "Board scrolling" key="board_categorize_scroll_title"}}</label>
+                <span class="md-board-category-order__row-desc" id="bd-cat-scroll-desc">{{t "Allow page scrolling for larger boards." key="board_categorize_scroll_desc"}}</span>
+              </span>
+              <details class="md-board-category-order__info">
+                <summary class="md-board-category-order__info-btn" aria-label={{t "More information about board scrolling" key="board_categorize_scroll_info_label"}}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                </summary>
+                <p class="md-board-category-order__info-body">
+                  {{t "Allow the board to scroll vertically. With it off, the board is sized to fit the current view." key="board_categorize_scroll_hint_full"}}
+                </p>
+              </details>
+              <span class="md-board-category-order__switch-wrap">
+                <input id="bd-cat-scroll" type="checkbox" data-bd-control="category_scroll" checked={{this.category_vertical_scroll}} disabled={{not this.categorize_enabled}} {{on "change" (this.ctrlAction "toggle_category_scroll")}} aria-describedby="bd-cat-scroll-desc{{if this.category_vertical_scroll " bd-cat-scroll-note"}}">
+                <span class="md-board-category-order__switch {{unless this.category_vertical_scroll "md-board-category-order__switch--off"}}" aria-hidden="true"><span class="md-board-category-order__switch-knob"></span></span>
+              </span>
+            </div>
+            {{!-- Only in the state it is advising ABOUT. A permanent advisory reserved a line
+                 of height in every state and read as a live warning even beside a switch that
+                 was already off. Icon AND wording carry the meaning, so it does not rest on
+                 the amber alone.
+                 BELOW the row rather than inside the text block, which is where it started:
+                 in the text block it shares the column with the info button and the switch,
+                 which is ~100px narrower, and the sentence wrapped to two lines — measured at
+                 106px of strip against 92px out here. Only this column grows either way
+                 (`align-self: start` on the setting). --}}
+            {{#if this.category_vertical_scroll}}
+              <p class="md-board-category-order__advisory" id="bd-cat-scroll-note">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <span>{{t "Not recommended for switch, dwell, or head-pointer access." key="board_categorize_scroll_warning_on"}}</span>
+              </p>
+            {{/if}}
+          </div>
+
+          {{!-- Category labels only exist while the board SCROLLS. With scrolling off the
+               board is tiled to fit the screen and the tiles carry no headers at all (the
+               `--compact` rule hides them), so the setting would be a switch with nothing to
+               switch. Gated in the template rather than dimmed, so it leaves the tab order
+               too — and the strip drops to one column with it, which takes its left divider
+               with it. --}}
+          {{#if this.category_vertical_scroll}}
+          <div class="md-board-category-order__setting {{unless this.categorize_enabled "md-board-category-order__inactive"}}">
+            <div class="md-board-category-order__row">
+              <span class="md-board-category-order__row-text">
+                <label class="md-board-category-order__row-label" for="bd-cat-labels">{{t "Show category labels" key="board_categorize_show_labels"}}</label>
+                <span class="md-board-category-order__row-desc" id="bd-cat-labels-desc">{{t "Display a heading above each group." key="board_categorize_show_labels_desc"}}</span>
+              </span>
+              <span class="md-board-category-order__switch-wrap">
+                <input id="bd-cat-labels" type="checkbox" data-bd-control="category_names" checked={{this.category_names_visible}} disabled={{not this.categorize_enabled}} {{on "change" (this.ctrlAction "toggle_category_names")}} aria-describedby="bd-cat-labels-desc">
+                <span class="md-board-category-order__switch {{unless this.category_names_visible "md-board-category-order__switch--off"}}" aria-hidden="true"><span class="md-board-category-order__switch-knob"></span></span>
+              </span>
+            </div>
+          </div>
+          {{/if}}
+        </div>
+      </div>
+
+      <div class="md-board-category-order__body">
+        {{!-- Order list only while categorizing is on: with it off the board is not
+             grouped, so a category SEQUENCE has nothing to sequence. Gated in the
+             template rather than hidden in CSS so it leaves the accessibility tree
+             and the tab order too, instead of being invisible tab stops.
+             ALSO gated on `category_ordering_available` — category ordering is parked as a
+             future feature, so the list and its Reset button are not rendered at all. The
+             live preview beside it stays: it shows the board the two settings above act on,
+             which is useful with or without ordering. --}}
+        {{#if (and this.category_ordering_available this.categorize_enabled)}}
+        <ol class="md-board-category-order__list" aria-label={{t "Category order" key="board_category_order"}}>
+          {{#each this.category_order_list as |cat|}}
+            <li class="md-board-category-order__item" style={{safe-style (concat "--bd-group-fill:var(" cat.fillVar ");--bd-group-text:var(" cat.textVar ")")}}>
+              <span class="md-board-category-order__swatch" aria-hidden="true"></span>
+              <span class="md-board-category-order__name">{{cat.label}}</span>
+              <span class="md-board-category-order__controls">
+                <button type="button" class="md-board-category-order__move" disabled={{cat.first}}
+                  aria-label={{concat (t "Move up" key="move_up") " " cat.label}}
+                  {{on "click" (this.ctrlAction "move_category" cat.key "up")}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                </button>
+                <button type="button" class="md-board-category-order__move" disabled={{cat.last}}
+                  aria-label={{concat (t "Move down" key="move_down") " " cat.label}}
+                  {{on "click" (this.ctrlAction "move_category" cat.key "down")}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+              </span>
+            </li>
+          {{/each}}
+        </ol>
+        {{/if}}
+
+        <div class="md-board-category-order__preview {{if this.categorize_preview_loading 'md-board-category-order__preview--loading'}}">
+          {{!-- Shown for the one frame (or the few seconds, on a slow device) between the
+               switch painting and the regrouped board being ready. The grid below is
+               HIDDEN BY CSS while this shows (`--loading`), deliberately NOT unmounted:
+               an `{{#if}}` around it destroyed and rebuilt all ~84 button components on
+               every toggle, which added render work to the very transition this change
+               exists to speed up — measured as a regression in the Categorize probe at
+               6x CPU throttle. Hiding keeps the components alive, so only the CSS
+               changes and the user still never sees the stale arrangement.
+               role=status + aria-live=polite so it is announced without stealing focus;
+               the switch itself already announced the state change. --}}
+          {{!-- selectButton is wired to the move picker rather than to activation:
+                inside this panel, tapping a button means "move this one", not
+                "speak this one".
+                GATED ON THE SWITCH: with categorizing off the preview is the plain,
+                ungrouped board and there are no categories on screen, so offering to
+                "move this button to a category" has nothing to point at. Passing no
+                handler is enough — BoardDetailGrid#invokeAttr no-ops when the action
+                is falsy (board-detail-grid.js:169-177) — and the action itself also
+                guards, so neither path can open the picker on its own. --}}
+          {{#if this.categorize_preview_loading}}
+            <p class="md-board-category-order__preview-loading" role="status" aria-live="polite">{{t "Updating categories..." key="board_categorize_loading"}}</p>
+          {{/if}}
+          <BoardDetailGrid
+            @board={{this.model}}
+            @orderedButtons={{this.ordered_buttons}}
+            {{!-- Follows the switch. Hard-coding this to `true` made the preview
+                  lie: unchecking Categorize saved the preference but the preview
+                  stayed grouped, because `forceGrouping` short-circuits
+                  BoardDetailGrid#groupingEnabled before it consults the
+                  preference. Bound, the off state falls through to the preference
+                  (editMode is false here) and renders the original board. --}}
+            @forceGrouping={{this.categorize_enabled}}
+            @selectButton={{if this.categorize_enabled (this.ctrlAction "begin_category_move")}}
+            @editMode={{false}}
+            {{!-- Folder treatment MUST be passed here or the preview lies. While grouping
+                 is on, `effective_folder_display_style` (controller :3314) pins the style
+                 to colored_corner — DERIVED, so the user's stored `folder_display_style`
+                 is never rewritten and returns the moment grouping goes off. The real
+                 board passes these three; the preview did not, so it rendered the DEFAULT
+                 folder treatment instead of the colored corners that actually ship.
+                 It also fitted LOOSER than the real board: the folder-tab top reserve
+                 (app.scss:83604) is skipped for `--folder-colored-corner`, so without the
+                 class the preview kept a reserve the shipped board drops — every cell
+                 padded down by `--bd-cell-min * 0.14` for tabs that are not there. --}}
+            @folderLabelsOnTab={{this.folder_labels_on_tab}}
+            @folderColoredCorner={{this.folder_colored_corner}}
+            @folderColoredFace={{this.folder_colored_face}}
+            {{!-- The preview must show what SHIPS, including whether category names
+                 render — that is the whole point of a live preview. --}}
+            @categoryEnabled={{this.categorize_enabled}}
+            @showCategoryNames={{this.show_category_names}}
+            @categoryScrollEnabled={{this.category_scroll_enabled}}
+            @softBorders={{this.soft_borders}}
+            @buttonTextSizeClass={{this.button_text_size_class}}
+            @buttonTextPositionClass={{this.button_text_position_class}}
+            @hiddenButtonsClass={{this.hidden_buttons_class}}
+            @symbolBackgroundClass={{this.symbol_background_class}}
+            @highContrastClass={{this.high_contrast_class}}
+            @buttonShapeClass={{this.button_shape_class}}
+            @gridStyle={{this.grid_style}}
+            @buttonTextSizePx={{this.button_text_size_px}}
+            @buttonSpacingPx={{this.button_spacing_px}}
+            @buttonBorderPx={{this.button_border_px}}
+            @buttonFontStyle={{this.button_font_style}} />
+        </div>
+      </div>
+
+      {{!-- MOVE-TO-CATEGORY PICKER. Moving a button between categories RECOLOURS
+            it on the real board — the category is derived from the colour — so
+            the swatch beside each name is the colour the button will become, not
+            decoration. This is a board edit and follows the board's Save/Cancel,
+            unlike the category order above it. --}}
+      {{#if this.category_move_button}}
+        <div class="md-board-category-order__picker-backdrop" data-bd-action="cancel_category_move" {{on "click" (this.ctrlAction "cancel_category_move")}}></div>
+        <div class="md-board-category-order__picker" role="dialog" aria-modal="true" aria-label={{t "Move button to a category" key="board_move_button_category"}}>
+          <div class="md-board-category-order__picker-head">
+            <span class="md-board-category-order__picker-title">
+              {{t "Move" key="move"}} “{{or this.category_move_button.label this.category_move_button.vocalization}}”
+            </span>
+            <button type="button" class="md-board-category-order__picker-close" data-bd-action="cancel_category_move" {{on "click" (this.ctrlAction "cancel_category_move")}} aria-label={{t "Cancel" key="cancel"}}>×</button>
+          </div>
+          <p class="md-board-category-order__picker-note">{{t "This changes the button's color on the board." key="board_move_button_recolors"}}</p>
+          <div class="md-board-category-order__picker-list">
+            {{!-- category_move_targets, not category_order_list: two registry categories
+                 have no paintable colour and silently no-op as destinations. --}}
+            {{#each this.category_move_targets as |cat|}}
+              <button type="button" class="md-board-category-order__picker-item"
+                style={{safe-style (concat "--bd-group-fill:var(" cat.fillVar ")")}}
+                {{on "click" (this.ctrlAction "move_button_to_category" cat.key)}}>
+                <span class="md-board-category-order__swatch" aria-hidden="true"></span>
+                <span class="md-board-category-order__name">{{cat.label}}</span>
+              </button>
+            {{/each}}
+          </div>
+        </div>
+      {{/if}}
+    </div>
   {{/if}}
 </div>
 

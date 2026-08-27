@@ -1,10 +1,50 @@
-<h2>{{t "Premium Membership Required" key="premium_required"}}</h2>
-<p>
-  {{t "%app_name% is a powerful, flexible communication tool with lots of great features. Some features, including this one, are not available for modeling-only accounts. Please " key="purchase_subscription_1b"}}
-  {{#if this.app_state.feature_flags.subscriptions}}
-    <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
-  {{else}}
-    {{t "purchase a premium account" key="purchase_subscription_2"}}
-  {{/if}}
-  {{t "to support this good cause and to unlock this feature." key="purchase_subscription_3"}}
-</p>
+{{!-- Shown INSTEAD of a whole page's content (Reports, Logs, Recordings, Goals,
+     Badges) when the signed-in account is modeling-only. Centred on the page —
+     see .md-feature-unavailable in app.scss — because it replaces the page body
+     rather than annotating it.
+
+     The copy deliberately says "modeling-only ACCOUNTS" rather than "your free
+     plan": `modeling_only` is true both for the free supporter plans
+     (subscription.billing_state == 'modeling_only') AND for a temporary remote
+     modeling session (models/user.js#modeling_only), and calling the latter a
+     plan would be wrong. The excluded/included lists come from the authoritative
+     comment at models/user.js:403-405. --}}
+<div class="md-feature-unavailable">
+  <span class="md-feature-unavailable__icon" aria-hidden="true">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="10" width="16" height="10" rx="2"/>
+      <path d="M8 10V7a4 4 0 0 1 8 0v3"/>
+    </svg>
+  </span>
+  <h2 class="md-feature-unavailable__title">{{t "Premium Membership Required" key="premium_required"}}</h2>
+  <p class="md-feature-unavailable__lead">
+    {{t "Modeling-only accounts are built for one thing: modeling language on the boards of the people you support. They don't carry the reporting, editing and cloud features this page depends on, which is why it's unavailable here rather than empty." key="modeling_only_why"}}
+  </p>
+  <div class="md-feature-unavailable__cols">
+    <div class="md-feature-unavailable__col">
+      <h3 class="md-feature-unavailable__col-title">{{t "Not included" key="modeling_only_excluded_title"}}</h3>
+      <ul class="md-feature-unavailable__list">
+        <li>{{t "Reports, logs and recordings" key="modeling_only_excl_reports"}}</li>
+        <li>{{t "Goals and badges" key="modeling_only_excl_goals"}}</li>
+        <li>{{t "Board editing and cloud extras" key="modeling_only_excl_editing"}}</li>
+        <li>{{t "A personal home board" key="modeling_only_excl_home_board"}}</li>
+      </ul>
+    </div>
+    <div class="md-feature-unavailable__col">
+      <h3 class="md-feature-unavailable__col-title">{{t "Still yours" key="modeling_only_included_title"}}</h3>
+      <ul class="md-feature-unavailable__list md-feature-unavailable__list--included">
+        <li>{{t "Modeling with everyone you support" key="modeling_only_incl_modeling"}}</li>
+        <li>{{t "Modeling ideas for each communicator" key="modeling_only_incl_ideas"}}</li>
+      </ul>
+    </div>
+  </div>
+  <p class="md-feature-unavailable__cta">
+    {{t "Want these features? Please " key="modeling_only_cta_prefix"}}
+    {{#if this.app_state.feature_flags.subscriptions}}
+      <LinkTo @route="user.subscription" @model={{this.app_state.currentUser.user_name}}>{{t "purchase a premium account" key="purchase_subscription_2"}}</LinkTo>
+    {{else}}
+      {{t "purchase a premium account" key="purchase_subscription_2"}}
+    {{/if}}
+    {{t "to support this good cause and to unlock this feature." key="purchase_subscription_3"}}
+  </p>
+</div>

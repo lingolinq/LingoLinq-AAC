@@ -98,6 +98,13 @@ function _scrollHighlightIntoView(step) {
   }
   var block = (step.options && step.options.scrollBlock) || 'center';
   var force = !!(step.options && step.options.scrollBlock);
+  // `scrollBlock: 'none'` — DO NOT MOVE THE PAGE for this step. For a target that is both
+  // tall and already on screen (the caseload roster), any scroll is a loss: centring it
+  // drags the view down past the first rows, and even aligning its top nudges the page for
+  // no gain. The spotlight and the popover work perfectly well where the user already is.
+  // Distinct from omitting scrollBlock, which still centre-scrolls when the target is not
+  // judged "in view" — this skips the scroll outright and reveals immediately.
+  if (block === 'none') { reveal(); return; }
   scrollIntoViewSettled(target, block, force).then(reveal);
 }
 
@@ -576,6 +583,18 @@ export default Component.extend({
     // Belt-and-suspenders: never attach the board-picker handoff from a
     // board-detail host (see _autoOpenWatcher).
     if (this.get('speakHost') || this.get('editHost')) { return; }
+    // SUPPORTERS (SLPs/therapists/teachers/parents — all collapse to
+    // `supporter_role`) tour their CASELOAD, not the dashboard. That page is where
+    // routes/index.js `_land_on_default` already sends them on every subsequent
+    // login; the only reason they are sitting on the dashboard right now is that
+    // the terms-agree session gate had to run there first (see
+    // `_session_entry_gate_pending` in that route). They also get NO board-picker
+    // handoff — that exists so a newly-registered COMMUNICATOR still completes the
+    // must-have home-board pick, and a supporter has no board of their own to pick.
+    if (this.get('appState.currentUser.supporter_role')) {
+      this._startCaseloadAutoOpen();
+      return;
+    }
     scheduleOnce('afterRender', this, function() {
       // After the home tour ends (any way it ends), hand the user off to the
       // standalone board-picker so the remaining must-have step (home board pick)
@@ -591,6 +610,37 @@ export default Component.extend({
       if (!_this.get('tourBuilder')) { handoff(); return; }
       _this._startTour({ afterComplete: handoff });
     });
+  },
+
+  // Route a supporter to their caseload and start the CASELOAD tour there.
+  // The route hop means this instance's `tourBuilder`/`tourKey` recompute from
+  // `appState.current_route`, which settles a microtask or two AFTER the
+  // transition promise resolves — so poll for the caseload tour to become current
+  // rather than firing at a single afterRender (LEARNINGS.md: "a guided-tour
+  // auto-open flag consumed at a single afterRender misses when the gating state
+  // resolves on a promise microtask — poll the condition"). Same bound as the
+  // board-detail consumers: ~3s (20 x 150ms). If it never becomes current we
+  // simply don't fire — the user is left on their caseload with the "Take a tour"
+  // trigger right there, which is a safe outcome rather than a wrong tour.
+  // The navbar GuidedTour instance is persistent across in-app transitions, so
+  // `this` survives the hop; the isDestroyed guard covers a logout mid-poll.
+  _startCaseloadAutoOpen: function() {
+    var _this = this;
+    var attempts = 0;
+    var tryStart = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if ((_this.get('tourKey') || '').indexOf('caseload') === 0) {
+        _this._startTour();
+        return;
+      }
+      if (attempts++ < 20) { runLater(_this, tryStart, 150); }
+    };
+    var go = function() { scheduleOnce('afterRender', _this, tryStart); };
+    if (this.get('appState.current_route') === 'caseload') { go(); return; }
+    // Route errors resolve to the same poll: if the transition is superseded the
+    // poll just times out harmlessly rather than leaving a dangling promise.
+    var t = this.router.transitionTo('caseload');
+    if (t && t.then) { t.then(go, go); } else { go(); }
   },
 
   // Set true when the home-tour "I'd like to start speaking" button takes over the

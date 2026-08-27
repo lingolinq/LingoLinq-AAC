@@ -1,9 +1,9 @@
 <ButtonListener @buttonEvent={{this.invokeAttr0 "buttonEvent"}}>
 {{!-- Do NOT add advanced_selection here: raw_events delegates click on .advanced_selection and preventDefault/stopPropagation, which blocks Ember actions on symbol cards. Classic board uses raw_events-only selection; board-detail relies on {{on "click"}} on symbol cards for taps. Long-press inflections use .board / .button and board-detail route checks in raw_events + edit_manager. --}}
-<div class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.paintMode 'md-board-detail-grid--paint-mode'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.hasFolders 'md-board-detail-grid--has-folders'}} {{if this.softBorders 'md-board-detail-grid--soft-borders'}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
+<div id={{this.gridElementId}} class="md-board-detail-grid board {{if this.app_state.speak_mode 'speak'}} {{if this.boardSaving 'md-board-detail-grid--hidden'}} {{if this.previewLevelsMode 'md-board-detail-grid--preview-levels'}} {{if this.paintMode 'md-board-detail-grid--paint-mode'}} {{if this.folderLabelsOnTab 'md-board-detail-grid--folder-tab-labels'}} {{if this.folderColoredCorner 'md-board-detail-grid--folder-colored-corner'}} {{if this.folderColoredFace 'md-board-detail-grid--folder-colored-face'}} {{if this.hasFolders 'md-board-detail-grid--has-folders'}} {{if this.softBorders 'md-board-detail-grid--soft-borders'}} {{if this.panelLayout 'md-board-detail-grid--grouped'}} {{if this.compactCategories 'md-board-detail-grid--compact'}} {{if this.compactScroll 'md-board-detail-grid--compact-scroll'}} {{if this.keyboardPanel 'md-board-detail-grid--has-keyboard-panel'}} {{if this.groupingEnabled (unless this.categoryScrollEnabled 'md-board-detail-grid--grouped-no-scroll')}} {{this.buttonTextSizeClass}} {{this.buttonTextPositionClass}} {{this.hiddenButtonsClass}} {{this.symbolBackgroundClass}} {{this.highContrastClass}} {{this.buttonShapeClass}}" role="grid" aria-label={{t "Symbol board" key="board_detail_symbol_board"}}
   data-id={{this.board.id}}
   data-filter={{this.activeCategory}}
-  style={{safe-style (concat this.gridStyle ";--bd-button-text-size:" this.buttonTextSizePx "px" ";--bd-button-gap:" this.buttonSpacingPx "px" ";--bd-button-border:" this.buttonBorderPx "px" (if this.buttonFontStyle.family (concat ";--bd-button-font:" this.buttonFontStyle.family)) (if this.buttonFontStyle.transform (concat ";--bd-button-text-transform:" this.buttonFontStyle.transform)))}}>
+  style={{safe-style (concat this.gridStyle ";--bd-button-text-size:" this.buttonTextSizePx "px" ";--bd-button-gap:" this.buttonSpacingPx "px" ";--bd-button-border:" this.buttonBorderPx "px" (if this.buttonFontStyle.family (concat ";--bd-button-font:" this.buttonFontStyle.family)) (if this.buttonFontStyle.transform (concat ";--bd-button-text-transform:" this.buttonFontStyle.transform)) (if this.compactRows (concat ";--bd-compact-rows:" this.compactRows)))}}>
   {{#if this.board.has_background}}
     <div style={{this.bgStyle}} id='board_bg' class={{this.bgClass}}>
       {{#if this.board.background.text}}
@@ -17,11 +17,79 @@
       {{/if}}
     </div>
   {{/if}}
-  {{#each this.orderedButtons as |row|}}
-    {{#each row as |btn|}}
+  {{!-- ONE iteration serves all three modes. Ungrouped yields one group per row with a
+       null key, and .md-board-detail-grid__group is `display: contents` unless the
+       grid carries --grouped or --compact, so today's layout is untouched. Grouped
+       yields the category panels, each an inner surface matching the outer board
+       surface so the AAC user gets a contrast edge between group and board. Compact
+       yields one TILE per category, placed on the board grid by `group.tile_style`. --}}
+  {{#each this.renderColumns key="@index" as |column|}}
+    {{!-- One per entry from `renderColumns`. In the scrolling compact variant each entry is
+         a BAND — or, last, the keyboard REGION — and carries its own grid placement, so this
+         element becomes the flex row the band's categories sit in, or the grid the region's
+         own tracks are declared on; every other mode leaves the fields undefined and the
+         element stays the `display: contents` wrapper it has always been. --}}
+    <div class="md-board-detail-grid__column {{if column.is_band 'md-board-detail-grid__column--band'}} {{if column.is_region 'md-board-detail-grid__column--region'}}"
+      style={{if column.band_style (safe-style column.band_style)}}>
+    {{#each column key="each_key" as |group|}}
+    <div class="md-board-detail-grid__group {{if group.key (concat 'md-board-detail-grid__group--' group.key)}}"
+      {{!-- `swatch_style` is the tint, already resolved by group_buttons: the registry
+           colours for every category, EXCEPT Predictions, whose membership is a
+           vocalization rule rather than a colour and so takes its tint from the buttons it
+           actually holds (board_categories.js#group_swatch). The concat below is the
+           fallback for group lists built outside that path (panel / ungrouped modes),
+           which carry fillVar/textVar and no swatch. --}}
+      style={{if group.key (safe-style (concat (if group.swatch_style group.swatch_style (concat "--bd-group-fill:var(" group.fillVar ");--bd-group-text:var(" group.textVar ")")) (if group.tile_style (concat ";" group.tile_style))))}}
+      role={{if group.key "group" "presentation"}}
+      aria-label={{if group.key group.label}}>
+      {{!-- The category NAME is optional (preferences.board_category_grouping
+           .show_category_names). The panel's tint and grouping already convey the
+           category, so some users prefer the names off to buy vertical space back.
+           `aria-label` on the group above still carries `group.label` either way, so
+           hiding the header is a VISUAL change only — a screen-reader user keeps the
+           category announced. That is why this gates the header and not the label. --}}
+      {{!-- The header is ALWAYS rendered, and merely made invisible when the preference is
+           off. Removing it from the DOM changed the board underneath it: the scrolling
+           variant's frame padding keys off `:has(.md-board-detail-grid__group-header)`, and
+           the header's own height comes out of the tray, so turning names off re-laid out
+           every category and resized every button. Now only the label and its divider go —
+           `visibility: hidden` keeps the box, so the board is identical in both states.
+           `aria-hidden` on the header either way: the group already carries role="group" +
+           aria-label, so a screen-reader user hears the category name regardless. --}}
+      {{#if group.label}}
+        <div class="md-board-detail-grid__group-header {{unless this.showCategoryNames "md-board-detail-grid__group-header--hidden"}}" aria-hidden="true">
+          <span class="md-board-detail-grid__group-name">{{group.label}}</span>
+        </div>
+      {{/if}}
+      {{!-- Inner container holding just the buttons. Carries the board surface
+           colour so each category reads as a window onto the board sitting
+           inside its tinted frame. `display: contents` unless --grouped, so the
+           ungrouped grid is unaffected. --}}
+      <div class="md-board-detail-grid__group-body">
+    {{#each group.buttons key="@index" as |btn|}}
+    {{!-- QWERTY keys are PLACED, not flowed: kb_row/kb_col come from
+         utils/board_categories.js#qwerty_positions, so q..p, a..l and z..m each land on
+         their own row of the keyboard panel regardless of how many keys are present.
+         Letting them auto-flow would put "z" at the end of the a..l row.
+         These resolve against the KEYBOARD's own grid, which means the container has to
+         be one. It is `__group-body` in panel mode and `__group` (the tile) in compact.
+         When compact left both as `display: contents` these same values resolved against
+         the BOARD grid instead and placed the keys at board rows 1-3 / columns 1-10 —
+         the whole keyboard pinned to the top-left corner.
+         Gated on `group.is_keyboard`: a keyboard-category button that is NOT a key (the
+         folder that opens a keyboard board) is split into a tile of its own by
+         pack_category_tiles, and it still carries the kb_row group_buttons parked it on —
+         applying that inside a one-row tile would place it outside its own tile. --}}
     <div class="md-board-detail-grid__cell {{if btn.load_board 'md-board-detail-grid__cell--folder'}} {{if btn._filtered_out 'md-board-detail-grid__cell--filtered-out'}}"
+      style={{if group.is_keyboard (if btn.kb_row (safe-style (concat "grid-row:" btn.kb_row ";grid-column:" btn.kb_col)))}}
       data-id={{btn.id}}
-      draggable={{if this.editMode "true" "false"}}>
+      {{!-- Emitted ONLY when draggable, never as `draggable="false"`. `draggable` is an
+           IDL-reflected attribute: setting it to the STRING "false" sets the property to
+           a truthy value, and the DOM reflects it straight back as draggable="true".
+           Verified — with the old `{{if this.editMode "true" "false"}}` every cell
+           reported draggable="true" in speak mode and in grouped edit mode alike. An
+           omitted attribute is the only way to actually say "no". --}}
+      draggable={{if this.editDraggable "true"}}>
       {{#if btn.load_board}}
         {{!-- Folder back + tab are visual decoration; the front card
              below is the actionable element. Skip keyboard nav for
@@ -228,6 +296,10 @@
       {{/if}}
     </div>
     {{/each}}
+      </div>
+    </div>
+    {{/each}}
+    </div>
   {{/each}}
   {{#unless this.orderedButtons.length}}
     <div class="md-board-detail-grid__empty">
