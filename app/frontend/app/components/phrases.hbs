@@ -67,8 +67,22 @@
             {{else}}
               <p>{{t "Journal entries remain private for the user and are not accessible to supervisors" key="journal_for_students_only"}}</p>
             {{/if}}
+          {{else if this.recent_category}}
+            {{!-- The Recent tab lists `stashes.prior_utterances` from the last 24 hours
+                  (phrases.js#category_phrases), not saved phrases, and its `{{#unless
+                  this.recent_category}}` hides the Add Phrase row below — so the
+                  saved-phrases copy was wrong on both counts here. --}}
+            <p>{{t "No messages from the last 24 hours." key="no_recent_messages"}}</p>
           {{else}}
-            <p>{{t "No phrases have been saved. You can save phrases by hitting \"Remember This\" in the sentence box dropdown." key="no_phrases"}}</p>
+            {{!-- NEW KEY, not an edit to `no_phrases`. That string told the user to hit
+                  "Remember This" in the sentence box DROPDOWN, which no longer exists --
+                  the control is a bottom-bar button in the Speak Options modal now -- and
+                  it sent them out of this modal to do something the row directly below
+                  already does (opening() pre-fills that input from the current message,
+                  phrases.js:141). Changing the English under the old key would have left
+                  all twelve other locales confidently describing the dropdown, since a
+                  translated value wins over the default. --}}
+            <p>{{t "No phrases have been saved yet. Add one using the box below." key="no_phrases_add_below"}}</p>
           {{/if}}
         </div>
       {{/if}}
@@ -85,6 +99,34 @@
         </div>
       {{/unless}}
     </div>
+    {{!-- Clear all phrases. Hidden on Recent (that list is prior utterances, not saved
+          phrases, and has its own per-row remove) and on Journal (journal entries are not
+          phrases and app_state#clear_phrases deliberately spares them), and hidden when
+          there is nothing to clear.
+
+          A two-step confirm IN PLACE rather than a confirm modal: utils/modal holds one
+          modal at a time, so opening one from here would replace the Phrases modal and
+          the user would confirm into an empty screen. The count is named in the prompt so
+          "all" is never a guess, and the destructive button is the second tap, never the
+          first — this deletes an AAC user's saved phrases and there is no undo. --}}
+    {{#unless this.recent_category}}
+      {{#unless this.journaling}}
+        {{#if this.clearable_phrase_count}}
+          <div class="la-phrases-clear-row">
+            {{#if this.confirming_clear}}
+              <span class="la-phrases-clear-prompt">{{t "Delete all %{n} saved phrases? This cannot be undone." n=this.clearable_phrase_count key="confirm_clear_phrases"}}</span>
+              <button type="button" class="la-phrases-clear-btn la-phrases-clear-btn--cancel" {{on "click" (this.ctrlAction "cancel_clear")}}>{{t "Cancel" key="cancel"}}</button>
+              <button type="button" class="la-phrases-clear-btn la-phrases-clear-btn--confirm" {{on "click" (this.ctrlAction "confirm_clear")}}>{{t "Yes, delete them" key="yes_delete"}}</button>
+            {{else}}
+              <button type="button" class="la-phrases-clear-btn" {{on "click" (this.ctrlAction "start_clear")}}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                {{t "Clear all phrases" key="clear_all_phrases"}}
+              </button>
+            {{/if}}
+          </div>
+        {{/if}}
+      {{/unless}}
+    {{/unless}}
     <div class="la-phrases-modal-footer">
       <button type="button" class="la-phrases-close-btn" {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
     </div>

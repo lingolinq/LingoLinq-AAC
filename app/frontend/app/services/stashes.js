@@ -471,10 +471,20 @@ export default Service.extend({
     if(voc.length === 0) { return; }
     var obj = {
       vocalizations: voc,
-      stash: !!opts.stash
+      stash: !!opts.stash,
+      /* Was this parked BY THE USER (Hold Thought) or bumped here to make room when they
+         resumed/said something else? Only the label depends on it — "Resume:" is a promise
+         the user made to themselves, "Swap back:" is the app saying where their sentence
+         went. Absent on everything written before this, which reads as user-parked, and
+         that is the right default: it is what Hold Thought produces. */
+      swapped: !!opts.swapped
     };
     obj.sentence = obj.vocalizations.map((v) => v.label).join(" ");
-    if(!list.find((v) => v.sentence == obj.sentence)) {
+    /* Match on the sentence AND on stash-ness. Matching the sentence alone meant a held
+       thought was silently dropped whenever its wording happened to equal a SAVED PHRASE
+       already in this list — the user hit Hold Thought, nothing errored, and the thought
+       was simply never parked. They are two different things that merely read the same. */
+    if(!list.find((v) => v.sentence == obj.sentence && !!v.stash == obj.stash)) {
       list.push(obj);
     }
     this.persist('remembered_vocalizations', list);

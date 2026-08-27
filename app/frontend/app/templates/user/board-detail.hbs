@@ -691,6 +691,16 @@
           </button>
         {{/if}}
       </div>
+      {{!-- Non-transformed wrapper. It exists ONLY so the quick-actions popover below
+            can escape the sentence bar, which is a STACKING CONTEXT of its own: the bar
+            carries backdrop-filter plus a transform/will-change GPU layer, and any one of
+            those traps its descendants. A popover rendered inside it could never paint
+            above the board however high its z-index went — measured at 640/480/375px, the
+            panel lost 2 of 5 hit-tests to board buttons carrying a mere `z-index: 1`
+            (scripts/speak-header-narrow-qa.mjs). `position: fixed` would not have escaped
+            either; a transformed ancestor captures that too. Moving the markup OUT is the
+            only fix that does not mean stripping the frosted bar of its own styling. --}}
+      <div class="md-board-detail-sentence-bar-wrap">
       <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
         {{!-- Tapping the composed message also speaks it (mouse/touch bonus —
              the inline mic below is the keyboard/SR speak control, so this
@@ -840,45 +850,46 @@
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
             </button>
-            {{#if this.quick_actions_open}}
-              <div class="md-board-detail-sentence-bar__quick-actions" role="menu" aria-label={{t "Sentence actions" key="board_detail_sentence_actions"}}>
-                <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                    <line x1="12" y1="19" x2="12" y2="23"/>
-                    <line x1="8" y1="23" x2="16" y2="23"/>
-                  </svg>
-                  <span>{{t "Speak" key="board_detail_speak"}}</span>
-                </button>
-                <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="backspace_sentence" {{on "click" (this.ctrlAction "backspace_sentence")}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
-                    <line x1="18" y1="9" x2="12" y2="15"/>
-                    <line x1="12" y1="9" x2="18" y2="15"/>
-                  </svg>
-                  <span>{{t "Backspace" key="backspace_lower"}}</span>
-                </button>
-                <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="clear_sentence" {{on "click" (this.ctrlAction "clear_sentence")}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    <line x1="10" y1="11" x2="10" y2="17"/>
-                    <line x1="14" y1="11" x2="14" y2="17"/>
-                  </svg>
-                  <span>{{t "Clear" key="board_detail_clear"}}</span>
-                </button>
-                <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action md-board-detail-sentence-bar__quick-action--more" data-bd-action="open_speak_menu" {{on "click" (this.ctrlAction "open_speak_menu")}}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                  </svg>
-                  <span>{{t "More" key="board_detail_more"}}</span>
-                </button>
-              </div>
-            {{/if}}
             {{/unless}}
           </div>
         </div>
+      </div>
+        {{#if this.quick_actions_open}}
+          <div class="md-board-detail-sentence-bar__quick-actions" role="menu" aria-label={{t "Sentence actions" key="board_detail_sentence_actions"}}>
+            <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            <span>{{t "Speak" key="board_detail_speak"}}</span>
+          </button>
+        <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="backspace_sentence" {{on "click" (this.ctrlAction "backspace_sentence")}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+            <line x1="18" y1="9" x2="12" y2="15"/>
+            <line x1="12" y1="9" x2="18" y2="15"/>
+          </svg>
+        <span>{{t "Backspace" key="backspace_lower"}}</span>
+        </button>
+        <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action" data-bd-action="clear_sentence" {{on "click" (this.ctrlAction "clear_sentence")}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        <line x1="10" y1="11" x2="10" y2="17"/>
+        <line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+        <span>{{t "Clear" key="board_detail_clear"}}</span>
+        </button>
+        <button type="button" role="menuitem" class="md-board-detail-sentence-bar__quick-action md-board-detail-sentence-bar__quick-action--more" data-bd-action="open_speak_menu" {{on "click" (this.ctrlAction "open_speak_menu")}}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+        </svg>
+        <span>{{t "More" key="board_detail_more"}}</span>
+        </button>
+        </div>
+        {{/if}}
       </div>
       <div class="md-board-detail-sentence-bar__actions-wrap md-board-detail-sentence-bar__actions-wrap--stacked">
         <button type="button"

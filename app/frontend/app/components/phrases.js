@@ -131,6 +131,24 @@ export default Component.extend({
     return this.get('current_category') === 'journal';
   }),
 
+  /* Two-step state for "Clear all phrases": the row swaps to a confirm prompt in place
+     rather than opening a nested modal. Opening one from here would REPLACE this modal
+     (utils/modal only holds one), so the user would confirm and land nowhere. */
+  confirming_clear: false,
+
+  /* How many phrases the clear would actually delete — journal entries excluded, matching
+     app_state#clear_phrases. Shown in the prompt so "all" is never ambiguous, and used as
+     the gate: with nothing to clear the control does not render at all. */
+  clearable_phrase_count: computed(
+    'phrases.length',
+    'user.vocalizations.length',
+    function() {
+      return (this.get('phrases') || []).filter(function(p) {
+        return p && p.category !== 'journal';
+      }).length;
+    }
+  ),
+
   actions: {
     close() {
       this.get('modal').close();
@@ -142,25 +160,69 @@ export default Component.extend({
       this.set('user', this.get('model.user') || app_state.get('referenced_user'));
       this.set('current_category', 'default');
       this.set('recent_category', null);
+      this.set('confirming_clear', false);
       this.update_list();
     },
     closing() {},
+    /*
+     * Picking a phrase or a held thought out of the list.
+     *
+     * PRESERVES WHAT IS IN THE SENTENCE BAR, which this surface did not used to do. The
+     * Speak Options menu has swapped since it was written — its own comment: "If there is
+     * a working vocalization, swap it into the stash when you swap this one out" — while
+     * this modal simply overwrote the bar. Same word, same icon, two different outcomes
+     * for the user's unsaved sentence depending on which surface they happened to open.
+     * Neither was drift from the component migration; the two originals differed too.
+     *
+     * The swap is the behaviour worth keeping: an AAC user may have spent minutes
+     * assembling that sentence one button at a time, and discarding it to make room for
+     * something they can already retrieve is the wrong way round.
+     *
+     * `swapped: true` because this is a bump, not a deliberate park — it is what lets the
+     * row read "Swap back:" rather than claiming the user chose to hold it.
+     */
     select(button) {
+      const existing = [].concat(stashes.get('working_vocalization') || []);
+      const has_stash = (stashes.get('remembered_vocalizations') || []).some(function(v) { return v && v.stash; });
       if (button.stash) {
         utterance.set('rawButtonList', button.vocalizations);
         utterance.set('list_vocalized', false);
         const list = (stashes.get('remembered_vocalizations') || []).filter(function(v) { return !v.stash || v.sentence !== button.sentence; });
         stashes.persist('remembered_vocalizations', list);
+        if (existing.length > 0) {
+          stashes.remember({ override: existing, stash: true, swapped: true });
+        }
       } else {
+        /* Only when the slot is free. Saying a saved phrase should not evict a held
+           thought the user is still counting on — matching speak-menu.js. */
+        if (existing.length > 0 && !has_stash) {
+          stashes.remember({ override: existing, stash: true, swapped: true });
+        }
         app_state.set_and_say_buttons(button.vocalizations);
       }
       this.get('modal').close();
     },
+    start_clear() {
+      this.set('confirming_clear', true);
+    },
+    cancel_clear() {
+      this.set('confirming_clear', false);
+    },
+    confirm_clear() {
+      app_state.clear_phrases();
+      this.set('confirming_clear', false);
+      this.update_list();
+    },
     set_recent() {
+      this.set('confirming_clear', false);
       this.set('current_category', null);
       this.set('recent_category', true);
     },
     set_category(cat) {
+      /* Disarm the clear confirm on any tab change — otherwise a prompt armed on one
+         category is still sitting there after switching to another, aimed at a list the
+         user is no longer looking at. */
+      this.set('confirming_clear', false);
       this.set('current_category', cat.id);
       this.set('recent_category', null);
     },

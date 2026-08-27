@@ -18,6 +18,21 @@ import i18n from '../utils/i18n';
  * Converted from speak-menu template/controller to component for the
  * service-based modal system. Avoids route.render() so main content stays visible.
  */
+/* Distance from the top of the viewport to the top of the Speak Options modal. Clamped at
+   0 by the caller — see the note in `place()`.
+
+   Whatever this is, .md-speak-menu's `max-height` subtracts it (via the --sm-menu-top
+   custom property this publishes), so the panel's BOTTOM stays on screen as the top moves
+   down. The two must not be set independently. */
+const SPEAK_MENU_TOP_PX = 4;
+
+/* Backstop on the shortcut phrase list. Its composition already bounds it — at most two
+   parked entries plus the single most recent saved phrase, see `opening()` — so this never
+   bites today. It is here so a future change to that composition cannot quietly hand a
+   SWITCH user an unbounded list to walk, since scanning visits every button in the menu one
+   at a time and anything after the list would be buried behind it. */
+const PHRASE_LIST_MAX = 6;
+
 export default Component.extend({
   modal: service('modal'),
   appState: service('app-state'),
@@ -39,6 +54,26 @@ export default Component.extend({
         }
         self.send.apply(self, [actionName].concat(args));
       };
+    };
+    /*
+     * ButtonListener's handler, deliberately NOT `ctrlAction`.
+     *
+     * `ctrlAction` looks at the LAST argument and, if it smells like a DOM event, calls
+     * preventDefault and POPS it. That is right for `{{on "click"}}`, where the event is
+     * trailing noise. It is wrong here: ButtonListener calls
+     * `buttonEvent('speakMenuSelect', button_id, event)` and the event IS the third
+     * parameter — `button_event(event, button, full_event)`. So ctrlAction ate `full_event`
+     * on every single speak-menu tap, and any handler that read it got `undefined`:
+     * `menu_repair_button` and `menu_repeat_button` both do, and both threw
+     * "Cannot read properties of undefined (reading 'swipe_direction')" before doing
+     * anything at all. Repairs and Repeats were dead controls.
+     *
+     * Passing the arguments through also revives the swipe gestures those two read off
+     * `full_event.swipe_direction` (raw_events.js sets it on the CustomEvent) — they had
+     * been silently unreachable for as long as the event was being popped.
+     */
+    this.handleButtonEvent = function() {
+      self.send.apply(self, ['button_event'].concat(Array.prototype.slice.call(arguments)));
     };
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
@@ -138,29 +173,89 @@ export default Component.extend({
   actions: {
     opening() {
       this.get('modal').setComponent(this);
-      var utterances = this.stashes.get('remembered_vocalizations') || [];
+      /*
+       * What the front of the menu shows: everything PARKED, and one saved phrase.
+       *
+       * The parked entries earn their place — a held thought (Resume:) or a sentence the
+       * app bumped to make room (Swap back:) exists in exactly one slot, is not saved
+       * anywhere, and is lost if the user does not pick it up. There is nowhere else to
+       * find it.
+       *
+       * Saved phrases are the opposite: they are a library, they persist, and the Phrases
+       * button directly above opens all of them with filtering and categories. Listing the
+       * whole library here made the menu long and buried the parked entries at the top of
+       * it. Only the MOST RECENT is shown, as a shortcut to the thing most likely wanted
+       * again; the rest are one tap away, and the note under the list says so.
+       *
+       * `vocalizations` is newest-first — app_state#save_phrase unshifts — so element 0 is
+       * genuinely the most recent, not merely the first stored.
+       */
+      var all_remembered = this.stashes.get('remembered_vocalizations') || [];
+      var parked = all_remembered.filter(function(u) { return u.stash; }).slice(0, 2);
+      var saved = [];
       if (this.appState.get('currentUser')) {
-        utterances = utterances.filter(function(u) { return u.stash; }).slice(0, 2);
-        (this.appState.get('currentUser.vocalizations') || []).filter(function(v) { return !v.category || v.category === 'default'; }).forEach(function(u) {
-          utterances.push({
-            sentence: u.list.map(function(v) { return v.label; }).join(' '),
-            vocalizations: u.list,
-            stash: false
+        saved = (this.appState.get('currentUser.vocalizations') || [])
+          .filter(function(v) { return v && v.list && (!v.category || v.category === 'default'); })
+          .map(function(u) {
+            return {
+              sentence: u.list.map(function(v) { return v.label; }).join(' '),
+              vocalizations: u.list,
+              stash: false
+            };
           });
-        });
+      } else {
+        /* Signed out, saved phrases live in the same stash array as the parked ones,
+           told apart by the flag — see app_state#save_phrase's fallback branch. */
+        saved = all_remembered.filter(function(u) { return u && !u.stash; });
       }
       this.set('model', {});
       this.set('repeat_menu', false);
-      this.set('rememberedUtterances', utterances.slice(0, 7));
-      var height = this.appState.get('header_height');
-      runLater(() => {
+      this.set('rememberedUtterances', parked.concat(saved.slice(0, 1)).slice(0, PHRASE_LIST_MAX));
+      /* Everything the shortcut above does NOT show. 0 hides the note entirely — pointing
+         someone at a fuller list that is not fuller is worse than saying nothing. */
+      this.set('hidden_phrase_count', Math.max(0, saved.length - 1));
+      /*
+       * Sit the menu just under the sentence bar.
+       *
+       * `header_height` is NOT a measurement of the rendered header -- it is the
+       * VOCALIZATION SIZE preference, 90/100/150/200 straight out of
+       * display_prefs#vocalizationHeightPx. So the old `height - 40` spent up to 160px of
+       * offset on a viewport it had never looked at, and .md-speak-menu carries
+       * `overflow: hidden` with no max-height, so whatever fell past the bottom was
+       * CLIPPED rather than scrollable. On a short or narrow screen that hid the end of
+       * the menu outright, and it got worse as the menu gained sections.
+       *
+       * Clamped to a quarter of the viewport, and never less than 8px. The preference
+       * still leads on a normal screen (100 -> 60px, unchanged); it only stops mattering
+       * where there is no room for it to matter.
+       *
+       * The value is also published as a custom property so the stylesheet can size the
+       * menu against the space actually left below it -- see the `max-height` on
+       * .md-speak-menu, which reads --sm-menu-top. Keeping the number in one place is the
+       * point: a CSS-side guess at this offset would drift the moment this line changed.
+       */
+      /* Pinned to the TOP of the page, 4px down.
+         It used to be offset by `header_height - 40`, and `header_height` is the
+         VOCALIZATION SIZE preference (90/100/150/200 from display_prefs) — not a
+         measurement of anything on screen and nothing to do with the viewport. On the
+         larger settings that pushed the menu 160px down for no reason anyone could see,
+         and on a short screen it cost the panel most of its room.
+
+         A constant, because the intent is a constant: sit at the very top of the page.
+         `Math.max(0, …)` is the part that matters — the offset must never go negative,
+         since a modal whose header is above the viewport cannot be closed or read, and
+         nothing scrolls up to reach it. */
+      var place = () => {
         var $el = $('#speak_menu').closest('.modal-dialog');
-        if ($el.length) { $el.css('top', (height - 40) + 'px'); }
-      }, 0);
-      runLater(() => {
-        var $el = $('#speak_menu').closest('.modal-dialog');
-        if ($el.length) { $el.css('top', (height - 40) + 'px'); }
-      }, 100);
+        if (!$el.length) { return; }
+        var top = Math.max(0, SPEAK_MENU_TOP_PX);
+        $el.css('top', top + 'px');
+        /* Published so the stylesheet can size the panel against the space actually left
+           below it — see the max-height on .md-speak-menu, which reads --sm-menu-top. */
+        if ($el[0] && $el[0].style) { $el[0].style.setProperty('--sm-menu-top', top + 'px'); }
+      };
+      runLater(place, 0);
+      runLater(place, 100);
     },
     closing() {},
     selectButton(button) {
@@ -182,14 +277,25 @@ export default Component.extend({
         if (button.stash) {
           utterance.set('rawButtonList', button.vocalizations);
           utterance.set('list_vocalized', false);
-          var list = (this.stashes.get('remembered_vocalizations') || []).filter(function(v) { return !v.stash && v.sentence !== button.sentence; });
+          /* `||`, not `&&`. Keep everything that is not a stash, plus any stash that is not
+             the one being resumed. With `&&` this also dropped any NON-stash entry whose
+             wording matched — i.e. it deleted one of the user's SAVED PHRASES as a side
+             effect of resuming a held thought. Inert for a signed-in user, whose saved
+             phrases live on `user.vocalizations` and never enter this array; real for a
+             signed-out one, where app_state#save_phrase falls back to stashes#remember and
+             they do. components/phrases.js has always had the `||` version. */
+          var list = (this.stashes.get('remembered_vocalizations') || []).filter(function(v) { return !v.stash || v.sentence !== button.sentence; });
           this.stashes.persist('remembered_vocalizations', list);
           if (existing.length > 0 && !already_there) {
-            this.stashes.remember({ override: existing, stash: true });
+            /* The swap the original comment describes: what was in the bar takes the slot
+               the resumed thought just left. `swapped` marks it as bumped rather than
+               parked, so the row can say so instead of claiming the user chose it. */
+            this.stashes.remember({ override: existing, stash: true, swapped: true });
           }
         } else {
           if (existing.length > 0 && !(this.stashes.get('remembered_vocalizations') || []).find(function(v) { return v.stash; })) {
-            this.stashes.remember({ override: existing, stash: true });
+            // Also a bump, not a deliberate park — the user asked to say a saved phrase.
+            this.stashes.remember({ override: existing, stash: true, swapped: true });
           }
           this.appState.set_and_say_buttons(button.vocalizations);
         }
@@ -216,6 +322,10 @@ export default Component.extend({
       this.get('modal').close();
     },
     button_event(event, button, full_event) {
+      /* Defaulted, not assumed. The swipe branches below read `full_event.swipe_direction`
+         directly, so a caller that passes only two arguments used to take the whole handler
+         down with a TypeError before any button ran. */
+      full_event = full_event || {};
       if (event === 'speakMenuSelect') {
         var _this = this;
         var click = function() {

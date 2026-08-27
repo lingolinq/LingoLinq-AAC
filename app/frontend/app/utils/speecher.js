@@ -16,6 +16,10 @@ import capabilities from './capabilities';
 import i18n from './i18n';
 // import stashes from './_stashes';
 import Utils from './misc';
+/* Imported so `get_tts_voices()` below always has something to return. Safe: tts_voices
+   pulls in only @ember/object, capabilities, i18n and rsvp — and this module already
+   imports capabilities and i18n itself, so it introduces no cycle that was not here. */
+import tts_voices from './tts_voices';
 import LingoLinq from '../app';
 import { computed } from '@ember/object';
 
@@ -1017,8 +1021,14 @@ var speecher = EmberObject.extend({
     }
   },
   oops: function() {
-    var oopses = speecher.get_tts_voices().get('oops');
-    var loc = (speecher.get_app_state().get('vocalization_locale') || 'en').split(/-|_/)[0];
+    /* Defensive on both lookups. The point of this control is to make a sound so the
+       listener knows a correction is coming — failing to find a localised string is a
+       reason to say "Oops" in English, never a reason to say nothing at all. */
+    var voices = speecher.get_tts_voices();
+    var oopses = (voices && voices.get && voices.get('oops')) || {};
+    var app_state = speecher.get_app_state();
+    var raw = (app_state && app_state.get && app_state.get('vocalization_locale')) || 'en';
+    var loc = raw.split(/-|_/)[0];
     var str = oopses[loc] || oopses['en'] || "Oops";
     speecher.speak_text(str, 'oops', {});
   },
@@ -1404,8 +1414,28 @@ speecher.get_stashes = function() {
   return speecher._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
 };
 
+/*
+ * The voice table. Falls back to the IMPORTED module, which is the fix for this returning
+ * `undefined` in every running app.
+ *
+ * Neither of the first two sources was ever populated. `speecher.register_services` takes a
+ * fourth `ttsVoicesService` argument and NOTHING IN THE CODEBASE CALLS IT — the other utils
+ * that use this pattern (utterance, obf, extras) are all registered from
+ * routes/application.js; speecher never is. And `window.tts_voices` is not set either:
+ * tts_voices.js publishes itself as `window.acapela_voices`, a different name.
+ *
+ * So this returned undefined always, and every caller paid differently. Guarded callers
+ * (`if(!ttsService || typeof ttsService.get !== 'function') { return; }` around line 231)
+ * silently skipped their work — that is the voice-upgrade check quietly never running.
+ * Unguarded ones threw: `speecher.oops()` does `get_tts_voices().get('oops')` on its first
+ * line, so the "Oops" button in the Modify and Repair Message modal raised
+ * "Cannot read properties of undefined (reading 'get')" and played nothing, every time.
+ *
+ * The two service-locator sources are kept ahead of the import so an app that DOES register
+ * one still wins.
+ */
 speecher.get_tts_voices = function() {
-  return speecher._services.tts_voices || window.tts_voices;
+  return speecher._services.tts_voices || window.tts_voices || tts_voices;
 };
 
 // Service registration method

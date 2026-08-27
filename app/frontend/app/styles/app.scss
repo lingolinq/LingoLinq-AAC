@@ -14155,6 +14155,132 @@ video.button_image {
 
 /* ── Modern board-actions modal restyle ───────────────── */
 
+/* Modify and Repair Message — modern modal.
+   Same shape as .la-board-actions-wrap below: tinted gradient header, round close, pill
+   buttons, matching footer. The template carried six inline style= attributes and plain
+   bootstrap buttons, so it was the one modal in this flow still wearing the old app. */
+.modal-dialog:has(.la-repairs-wrap) {
+  width: 850px;
+  max-width: 94vw;
+  margin-left: auto;
+  margin-right: auto;
+}
+.la-repairs-wrap {
+  color: $brand-charcoal-dark;
+}
+.la-repairs-wrap > .modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background:
+    linear-gradient(135deg, rgba($brand-verdigris, 0.08), rgba($brand-dusty-denim, 0.08), rgba(123, 107, 173, 0.05)),
+    $surface-100;
+  border-bottom: 1px solid rgba($la-navy, 0.08);
+  padding: 18px 24px;
+  padding-right: 56px;
+  position: relative;
+}
+.la-repairs-wrap > .modal-header h3 {
+  margin: 0;
+  margin-right: auto;
+  font-size: 20px;
+  font-weight: 700;
+  color: $la-navy;
+  letter-spacing: -0.3px;
+}
+
+/* The "Oops" control. Deliberately NOT red: it is something the user CHOOSES to do — it
+   plays the correction sound so a listener knows a repair is coming — not a warning that
+   something failed. The maroon border it used to carry, plus a float and a negative top
+   margin, is the entire reason every reviewer read it as the modal reporting an error. */
+.la-repairs-oops {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.18);
+  background: rgba(255, 255, 255, 0.75);
+  color: $brand-charcoal-dark;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.la-repairs-oops:hover {
+  background: rgba($brand-verdigris, 0.1);
+  border-color: rgba($brand-verdigris, 0.45);
+  color: $brand-verdigris-aa;
+}
+.la-repairs-oops:focus-visible {
+  outline: 2px solid $brand-verdigris;
+  outline-offset: 2px;
+}
+
+/* Pill buttons for the cursor nav, the action row and the footer's Cancel. Layered ON TOP
+   of the existing .btn.btn-lg.btn-default rather than replacing them: #repairs' own layout
+   rules and the button-listener scanning selectors both key off those class names, so
+   swapping them out would be a far wider change than a restyle. */
+.la-repairs-wrap .la-repairs-btn.btn {
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: #fff;
+  color: $brand-charcoal-dark;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(27, 54, 93, 0.05);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.la-repairs-wrap .la-repairs-btn.btn:hover {
+  background: rgba($brand-verdigris, 0.08);
+  border-color: rgba($brand-verdigris, 0.4);
+}
+.la-repairs-wrap .la-repairs-btn.btn:focus-visible {
+  outline: 2px solid $brand-verdigris;
+  outline-offset: 2px;
+}
+
+/* The replace/insert row. Was two inline-block divs at a hard-coded 515px and 120px, which
+   overflowed as soon as the dialog narrowed under max-width: 94vw. */
+.la-repairs-insert-row {
+  margin-top: 10px;
+}
+.la-repairs-insert-row > [class^="col-"] {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.la-repairs-insert-field {
+  flex: 1;
+  min-width: 0;
+}
+.la-repairs-insert-field .form-control {
+  height: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba($la-navy, 0.16);
+  font-size: 15px;
+}
+.la-repairs-insert-action {
+  flex-shrink: 0;
+}
+
+.la-repairs-wrap > .modal-footer {
+  background:
+    linear-gradient(135deg, rgba($brand-verdigris, 0.05), rgba($brand-dusty-denim, 0.05)),
+    $surface-100;
+  border-top: 1px solid rgba($la-navy, 0.08);
+  padding: 14px 24px;
+}
+.la-repairs-wrap > .modal-footer .btn-primary {
+  border-radius: 10px;
+  padding: 10px 22px;
+  background: $brand-charcoal-blue;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+}
+
 .modal-dialog:has(.la-board-actions-wrap) {
   width: 680px;
   max-width: 94vw;
@@ -18066,7 +18192,26 @@ form.row.subscription-form-with-cards {
   font-size: 16px;
   background: #ffffff;
   border-radius: 20px;
-  overflow: hidden;
+  /* Never taller than the room left below the sentence bar, and SCROLLS rather than
+     clipping when it would be.
+
+     This used to be a bare `overflow: hidden` with no max-height, which meant the menu
+     grew to whatever its content needed and everything past the bottom of the screen was
+     simply cut off — unreachable, with nothing on screen to say so. Short viewports and
+     the larger vocalization-size settings (which push the menu down by up to 160px, see
+     --sm-menu-top) hit it first.
+
+     `--sm-menu-top` is set by speak-menu.js#opening when it positions the dialog, so this
+     subtracts the real offset rather than a second guess at it; the fallback matches the
+     default 100px vocalization height. The x axis stays clipped for the 20px radius —
+     `hidden` first so Safari < 16 keeps the old behaviour, then `clip`, because `hidden`
+     on one axis computes the other to `auto` and would make this a scroll container in
+     both directions. */
+  max-height: calc(100vh - var(--sm-menu-top, 4px) - 16px);
+  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Header */
@@ -18079,7 +18224,16 @@ form.row.subscription-form-with-cards {
   border-bottom: 1px solid rgba($la-navy, 0.15);
 }
 .md-speak-menu__title {
-  font-size: 1.25rem; /* 20px — meets AAC ~30% larger than web default */
+  /* 22px. Was `1.25rem` with a comment claiming 20px — but the root font-size in this
+     codebase is 10px, set by bootstrap on the html element and measured in the browser, so
+     it rendered at 12.5px: a modal title smaller than the body text under it. px, so the
+     number in the rule is the number on screen.
+
+     NOTE — no braces in this comment, deliberately. A `{ }` pair inside a comment here
+     silently swallowed the whole declaration block: the rule reached the served CSS intact
+     and the browser applied none of it, leaving the h2 at its 25px user-agent default.
+     Verified by removing them. Keep brace-free. */
+  font-size: 22px;
   font-weight: 700;
   color: $la-navy;
 }
@@ -18113,7 +18267,13 @@ form.row.subscription-form-with-cards {
   padding-bottom: 16px;
 }
 .md-speak-menu__section-label {
-  font-size: 1rem; /* 16px — large enough with uppercase treatment */
+  /* 14px FLOOR, and nothing in this file reduces it — no responsive rule targets this
+     selector, so 14px is what every viewport gets.
+
+     Was `1rem` with a comment claiming 16px; at this codebase's 10px root that rendered
+     at 10px, uppercase and letter-spaced, which is where a section heading stops being
+     legible for the people this product is built for. Same trap as the title above. */
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -18130,12 +18290,26 @@ form.row.subscription-form-with-cards {
 .md-speak-menu__row--1 { grid-template-columns: 1fr; }
 .md-speak-menu__row--2 { grid-template-columns: repeat(2, 1fr); }
 .md-speak-menu__row--3 { grid-template-columns: repeat(3, 1fr); }
+/* Actions: Share, Repeats, Repairs, Alerts, Hold Thought. Wraps to 3 across on a
+   phone in the media block below — 5 across is not a reliable touch target at that
+   width, the same judgement --3 and --7 already carry. */
 .md-speak-menu__row--5 { grid-template-columns: repeat(5, 1fr); }
 /* Full punctuation set in one row (single-tap reach, no "More" submenu). 7 across
    only while the targets stay comfortably hittable — see the narrow-screen wrap below. */
 .md-speak-menu__row--7 { grid-template-columns: repeat(7, 1fr); }
 .md-speak-menu__row--locale {
   grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+}
+
+/* Unread-alerts count on the Tools > Alerts button.
+
+   Same two signals the navbar's speak-options badge uses
+   (templates/application.hbs — `referenced_user.unread_alerts`, then
+   `request_alert` as a bare `*`), so the two cannot disagree about whether there
+   is something waiting. Written as a class here rather than the inline `style=`
+   that one carries; the button is `position: relative` for it to anchor to. */
+.md-speak-menu__btn--badged {
+  position: relative;
 }
 
 /* Speak menu: board tools (speak mode + languages) above main actions */
@@ -18203,15 +18377,35 @@ form.row.subscription-form-with-cards {
   stroke: $brand-verdigris-aa;
 }
 .md-speak-menu__btn-label {
-  font-size: 1.125rem; /* 18px — AAC requirement */
+  /* 14px FLOOR — the label under every button in this modal: Actions (Share, Repeats,
+     Repairs, Alerts, Hold Thought) and Phrases.
+
+     Was `1.125rem` with a comment claiming "18px — AAC requirement". At this codebase's
+     10px root that rendered at 11.25px, so the requirement the comment names was never
+     actually met by the rule that names it. 14px, in px, is met.
+
+     Not 18px, tempting as the old comment is: at 480px the punctuation row is still 7
+     across and its buttons are 47px wide, and an 18px label does not fit one. If 18px is
+     wanted, the 460px wrap has to move up to ~520px first — a separate decision about
+     where the columns break, not a font change. */
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.35;
   color: $brand-charcoal-dark;
 }
+/* Unread-alerts count on the Alerts button, and the `*` for a pending request. Reads the
+   same two signals as the navbar's speak-options badge (templates/application.hbs) so the
+   two cannot disagree about whether something is waiting.
+
+   `min-width` + `text-align` so a two-digit count and a single `*` are the same shape
+   rather than one being a disc and the other a stripe. White on #C0392B is 5.44:1, which
+   clears WCAG 1.4.3 AA for normal-size text — the bar 14px bold has to meet, being below
+   the 18.66px where the large-text 3:1 allowance starts. */
 .md-speak-menu__badge {
   position: absolute;
   top: 4px;
   right: 6px;
+  min-width: 22px;
   background: $brand-danger;
   color: #fff;
   font-size: 14px;
@@ -18219,6 +18413,7 @@ form.row.subscription-form-with-cards {
   padding: 2px 6px;
   border-radius: 10px;
   line-height: 1;
+  text-align: center;
 }
 .md-speak-menu__punctuation {
   font-size: 42px;
@@ -18271,9 +18466,133 @@ form.row.subscription-form-with-cards {
   color: $brand-dusty-denim-aa;
   font-weight: 600;
 }
+/* The saved/stashed phrase rows, listed INSIDE the Phrases section rather than loose in
+   the bottom bar. The indent and hairline are what say "these belong to the button above";
+   without them the rows sat flush with the modal edge and read as a separate, unlabelled
+   list.
+
+   HEIGHT-CAPPED as a backstop. The list is composed to hold at most three rows — the
+   parked entries plus one saved phrase, see speak-menu.js#opening — so this never bites
+   today; it is here so the panel cannot grow without limit if that composition changes.
+   `--sm-phrase-row` is the row height, matching the min-height the rows carry below.
+
+   The gradients are the classic background-attachment: local scroll shadow: the white pair
+   are painted with the CONTENT so they slide away at the top and bottom of the scroll,
+   while the grey pair are painted against the SCROLLPORT so they stay put — the net effect
+   is a shadow that appears only on the edge you can still scroll towards. No listener, and
+   nothing to tear down. It is a supplement to the text hint below the list, never the only
+   cue: an eye-gaze or switch user may never resolve a soft gradient at all. */
+.md-speak-menu__phrase-list {
+  --sm-phrase-rows: 4;
+  --sm-phrase-row: 44px;
+  margin-top: 8px;
+  padding-left: 12px;
+  /* Room on the right for the scrollbar AND for the rows' own border and shadow. The rows
+     are `width: 100%`, so with no right padding they ran to the content edge and the
+     scrollbar sat on top of them — the cards looked sliced off down that side.
+     `scrollbar-gutter: stable` reserves the channel even when the list is short enough not
+     to scroll, so the rows do not change width the moment a sixth phrase is added; a list
+     that reflows as it grows is disorienting on a surface someone scans. */
+  padding-right: 10px;
+  scrollbar-gutter: stable;
+  border-left: 2px solid rgba($la-navy, 0.12);
+  max-height: calc(var(--sm-phrase-rows) * var(--sm-phrase-row));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background:
+    linear-gradient(#fff 30%, rgba(255, 255, 255, 0)) top / 100% 20px no-repeat local,
+    linear-gradient(rgba(255, 255, 255, 0), #fff 70%) bottom / 100% 20px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(27, 54, 93, 0.13), rgba(27, 54, 93, 0)) top / 100% 8px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(27, 54, 93, 0.13), rgba(27, 54, 93, 0)) bottom / 100% 8px no-repeat scroll;
+}
+
+/* Each phrase reads as its own pressable card rather than a line of text. The base
+   .md-speak-menu__bottom-btn is a flat transparent row, which was right when these sat in
+   the bottom bar among Send Reply and Un-Flip Text; inside a list of things you TAP TO SAY
+   they need an edge, a surface and a press.
+
+   `min-height: 44px` is the WCAG 2.5.5 AAA target size, and it is what makes five rows a
+   predictable 220px — worth having on a control an AAC user aims at with a head pointer. */
 .md-speak-menu__bottom-btn--remembered {
+  min-height: 44px;
+  margin-bottom: 6px;
+  padding: 9px 14px;
   font-size: 14px;
   color: $brand-charcoal-dark;
+  text-align: left;
+  background: #fff;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(27, 54, 93, 0.06);
+  transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.md-speak-menu__bottom-btn--remembered:last-child {
+  margin-bottom: 0;
+}
+.md-speak-menu__bottom-btn--remembered:hover {
+  background: rgba($brand-verdigris, 0.07);
+  border-color: rgba($brand-verdigris, 0.4);
+}
+/* The press itself. Kept to colour and shadow rather than a transform — this list is used
+   by people driving a pointer they cannot hold perfectly still, and a row that moves under
+   the cursor is a row that can slip out from under it. */
+.md-speak-menu__bottom-btn--remembered:active {
+  background: rgba($brand-verdigris, 0.14);
+  box-shadow: none;
+}
+.md-speak-menu__bottom-btn--remembered:focus-visible {
+  outline: 2px solid $brand-verdigris;
+  outline-offset: 2px;
+}
+
+/* RESUME — the parked Hold Thought, one step up the hierarchy from the saved phrases it
+   sits above. It is the row with something at stake: unfinished, and gone if not picked up.
+   Verdigris accent edge + tint rather than a bigger font, so it reads as a different KIND
+   of row at a glance without making the list ragged. */
+.md-speak-menu__bottom-btn--resume {
+  border-color: rgba($brand-verdigris, 0.55);
+  border-left: 4px solid $brand-verdigris;
+  background: rgba($brand-verdigris, 0.06);
+  box-shadow: 0 1px 3px rgba($brand-verdigris, 0.18);
+}
+.md-speak-menu__bottom-btn--resume:hover {
+  background: rgba($brand-verdigris, 0.13);
+  border-color: rgba($brand-verdigris, 0.7);
+  border-left-color: $brand-verdigris;
+}
+.md-speak-menu__bottom-btn--resume svg {
+  opacity: 1;
+  color: $brand-verdigris-aa;
+}
+/* The "Resume:" / "Say:" label. Was bare text between the icon and the phrase; naming it
+   lets Resume carry the weight without touching the phrase itself, which stays the loudest
+   thing in the row in both cases — it is what the user is actually choosing between. */
+.md-speak-menu__remembered-kind {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+.md-speak-menu__bottom-btn--resume .md-speak-menu__remembered-kind {
+  color: $brand-verdigris-aa;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* "3 more — scroll to see them", under the scroller. */
+.md-speak-menu__phrase-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 6px;
+  padding-left: 12px;
+  /* 14px, matching the phrase rows it sits under (--remembered is 14px too). It was
+     13px — small enough to read as a caption when it is in fact the only thing telling
+     the user there is more of their own vocabulary below the fold. Written in px, not
+     rem, to match the sibling rules in this block rather than mix units mid-component. */
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba($la-navy, 0.7);
 }
 .md-speak-menu__bottom-btn--remembered .md-speak-menu__remembered-text {
   font-size: 16px;
@@ -18312,12 +18631,65 @@ form.row.subscription-form-with-cards {
   color: rgba(75, 78, 92, 0.55);
 }
 
-@media (max-width: 768px) {
+/* NO ROW RE-WRAPPING AT 768px. There used to be a `@media (max-width: 768px)` block here
+   dropping --3 to 2 columns, --5 to 3 and --7 to 4, on the reasoning that narrow screens
+   need bigger touch targets.
+
+   It did the opposite of helping. The modal is a FIXED 600px wide, so re-wrapping did not
+   make the modal fit the screen — it made the BUTTONS BIGGER inside the same box and the
+   box taller. Measured at 768px: punctuation went 7 columns x 72px to 4 columns x 134px,
+   Actions 5 x 106px to 3 x 181px, and the menu grew from 705px to 834px and ran off the
+   bottom of a 900px viewport. Wider buttons the user cannot reach because the panel they
+   sit in has left the screen are not an accessibility win.
+
+   The width rule below handles narrow screens the right way round: the MODAL takes a
+   larger share of the viewport as the viewport shrinks, and the columns stay put. */
+
+/* Speak menu dialog width. Same shape as every other modal in this file
+   (`.modal-dialog:has(.la-…-wrap) { width: …; max-width: 94vw; }`) — a design width that
+   yields to the viewport rather than a fixed one that overflows it. At 900px the menu uses
+   67% of the screen, at 768px 78%, and below ~640px it is 94% throughout. */
+.modal-dialog:has(#speak_menu) {
+  width: 600px;
+  max-width: 94vw;
+  /* Bootstrap's `margin: 30px auto` is dropped on the vertical axis. speak-menu.js sets
+     `top` on this element and the stylesheet sizes .md-speak-menu with
+     `100vh - var(--sm-menu-top)` — a margin the JS does not know about is a second,
+     invisible offset stacked on top of the one being compensated for, and the panel then
+     hangs off the bottom by exactly that much. Measured at a 640px viewport: dialog
+     starting at y=30 with a 624px max-height, so the last 14px sat below the fold with the
+     Save Phrase row in it. The horizontal `auto` is kept below — that is what centres it. */
+  margin-top: 0;
+  margin-bottom: 0;
+  /* Centred at EVERY width. Bootstrap only supplies `margin: 30px auto` from 768px up;
+     below that its rule is a flat `margin: 10px`, which was harmless while the dialog was
+     `width: auto` and filled the space, and is not once a width is declared here — the
+     panel would sit hard against the left with all the slack on the right. Stated on both
+     sides rather than relying on the shorthand a breakpoint away. */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* WRAP AT 460px, not 768. Below this the modal has run out of room to widen — it is
+   already at its 94vw ceiling, so ~432px of dialog — and 7 punctuation targets across that
+   is ~55px each, genuinely too small to hit with the motor accuracy this product is for.
+   Here, and only here, re-wrapping is the right trade: the buttons that remain get wider
+   because there is nowhere left for the PANEL to grow.
+
+   460px is this codebase's existing narrow breakpoint (`viewport_very_narrow` in
+   controllers/user/board-detail.js, and other @media blocks in this file already key off
+   it) rather than a number invented for this rule.
+
+   Note the direction of the trade compared with the 768px block this replaces: there, the
+   modal had 168px of unused viewport and re-wrapping just inflated the buttons and pushed
+   the panel off-screen. Here there is no unused viewport left. */
+@media (max-width: 460px) {
   .md-speak-menu__row--3 {
     grid-template-columns: repeat(2, 1fr);
   }
-  /* 7 punctuation targets across is too small to hit reliably on a phone --
-     wrap to 4+3 so each stays a comfortable touch target (AAC motor accuracy). */
+  .md-speak-menu__row--5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
   .md-speak-menu__row--7 {
     grid-template-columns: repeat(4, 1fr);
   }
@@ -38599,6 +38971,61 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   background: $surface-200;
   border-color: rgba($brand-teal, 0.3);
 }
+/* "Clear all phrases" and its in-place confirm, sitting just above the modal footer.
+
+   Deliberately quiet in its resting state — a text-weight button, not a red one. It is a
+   housekeeping control that lives permanently on screen next to a list an AAC user reads
+   often, and a standing red button invites the tap it is trying to guard. The DESTRUCTIVE
+   colour appears only on the second step, on the button that actually deletes. */
+.la-phrases-clear-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  /* Bottom padding, not 0. The footer below carries its own `border-top`, and with no gap
+     the button sat right on that line — reading as part of the footer's button group
+     rather than as an action on the list above it. 16px separates the two without
+     needing a divider of its own. */
+  padding: 10px 24px 16px;
+}
+.la-phrases-clear-prompt {
+  flex: 1 1 220px;
+  /* 15px in px, not `0.9375rem` — see the badge note above: the root is 10px here, so
+     that would have rendered this confirmation at 9.4px, which is precisely the wrong
+     place to be hard to read. */
+  font-size: 15px;
+  color: $la-navy;
+}
+.la-phrases-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-charcoal-blue, 0.3);
+  background: transparent;
+  color: $brand-charcoal-dark;
+  font-size: 15px;
+  cursor: pointer;
+}
+.la-phrases-clear-btn:hover {
+  background: rgba($brand-charcoal-blue, 0.06);
+}
+.la-phrases-clear-btn svg {
+  opacity: 0.7;
+}
+/* White on #C0392B is 5.44:1 — passes WCAG 1.4.3 AA for normal-size text. */
+.la-phrases-clear-btn--confirm {
+  border-color: $brand-danger;
+  background: $brand-danger;
+  color: #fff;
+  font-weight: 600;
+}
+.la-phrases-clear-btn--confirm:hover {
+  background: darken($brand-danger, 6%);
+}
+
 .la-phrases-modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -73064,9 +73491,44 @@ span.md-board-detail-modeling-btn--paused:hover {
   color: $brand-verdigris;
   border-color: rgba($brand-verdigris, 0.35);
 }
+/* Anchor for the quick-actions popover. Deliberately plain — no transform, no filter, no
+   backdrop-filter — because the whole point of this element is to be a positioning parent
+   that does NOT create a stacking context. Adding any of those here would re-trap the
+   popover and silently undo the fix; see the note in board-detail.hbs. */
+.md-board-detail-sentence-bar-wrap {
+  position: relative;
+  /* Carries the sizing the sentence bar used to do itself. The bar declares
+     `flex: 1; min-width: 0` so it fills the header row — but this wrapper is now the flex
+     CHILD of that row, so without these the wrapper sized to its content and the bar
+     filled the wrapper: a bar that shrank to fit whatever phrase was in it instead of
+     spanning the header. Introduced by the wrapper, so it is fixed on the wrapper.
+     `display: flex` + `min-width: 0` so the bar inside can still shrink below its
+     content's intrinsic width, which is what keeps a long sentence from pushing the
+     tools off the row. */
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.md-board-detail-sentence-bar-wrap > .md-board-detail-sentence-bar {
+  flex: 1;
+  min-width: 0;
+}
+
 .md-board-detail-sentence-bar__quick-actions {
   position: absolute;
-  bottom: calc(100% + 8px);
+  /* OPENS DOWNWARD. This was `bottom: calc(100% + 8px)` — anchored above its trigger —
+     and the sentence bar lives at the TOP of board-detail, so the popover rendered off the
+     top of the screen and everything in it was unreachable. Measured at 640px:
+     top = -184px, i.e. the whole 210px panel sat above the viewport with nothing to scroll
+     to it (scripts/speak-header-narrow-qa.mjs).
+     
+     That is the worst version of this bug rather than a cosmetic one: the popover only
+     exists at ≤640px, where `immersive_tools` has already folded Backspace, Clear and
+     Speak options into this one chevron — so an AAC user on a narrow screen had no way to
+     backspace or clear at all. `top` is correct unconditionally here, because the trigger
+     is in a bar pinned to the top of the page; there is no arrangement of this screen where
+     the space above it is the roomier side. */
+  top: calc(100% + 8px);
   right: 0;
   z-index: $aac-z-dropdown;
   display: flex;
@@ -73081,8 +73543,11 @@ span.md-board-detail-modeling-btn--paused:hover {
     0 2px 8px rgba($la-navy, 0.10);
   animation: md-quick-actions-pop 0.14s ease-out;
 }
+/* Slides DOWN into place, matching the direction the popover now opens. It used to start
+   6px BELOW its resting position and rise, which was right while the panel was anchored
+   above its trigger and reads backwards now. */
 @keyframes md-quick-actions-pop {
-  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 .md-board-detail-sentence-bar__quick-action {

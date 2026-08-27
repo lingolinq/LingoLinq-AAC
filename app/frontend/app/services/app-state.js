@@ -2339,6 +2339,32 @@ export default Service.extend({
     if(user) {
       // TODO: needs to peresist locally if offline
       var vocs = user.get('vocalizations') || []
+      /* Already saved? Do nothing.
+       *
+       * The signed-OUT branch below has always de-duplicated — stashes#remember skips a
+       * push whose `sentence` matches one already in the list — so without this the two
+       * halves of the same method disagreed: save the same message twice signed out and
+       * you have one phrase, signed in and you have two. Tapping "Save Phrase from
+       * Sentence Bar" twice is easy to do, and the duplicates are indistinguishable in the
+       * list, so the second is pure clutter for someone who has to scan the list to use it.
+       *
+       * Matched on the rendered sentence and WITHIN a category, the same shape phrases.js
+       * uses to bucket the list. Categories are compared normalised because this method
+       * stores `category` verbatim and the speak-menu caller passes nothing, so an older
+       * default-category phrase can be sitting there as `undefined` while a newer one says
+       * 'default' — a raw `===` would call those two different buckets and let the
+       * duplicate through.
+       *
+       * Silent, and returns false so a caller that wants to say something can. There is
+       * nothing to report: the phrase the user asked for IS in their list. */
+      var sentence = (voc || []).map(function(v) { return v && v.label; }).join(' ');
+      var cat = category || 'default';
+      var dupe = vocs.find(function(v) {
+        if(!v || !v.list) { return false; }
+        if((v.category || 'default') !== cat) { return false; }
+        return v.list.map(function(b) { return b && b.label; }).join(' ') === sentence;
+      });
+      if(dupe) { return false; }
       var id = Math.round(Math.random() * 9999).toString() + ((new Date()).getTime() % 1000).toString() + vocs.length;
       user.add_action({
         action: 'add_vocalization',
@@ -2350,9 +2376,57 @@ export default Service.extend({
       vocs.unshift({list: voc, category: category, id: id, ts: Math.round((new Date()).getTime() / 1000)});
       user.set('vocalizations', vocs);
       user.save().then(function() { user.set('offline_actions', null); }, function() { });
+      return true;
     } else {
       this.stashes.remember({override: voc});
+      return true;
     }
+  },
+  /*
+   * Delete EVERY saved phrase in one pass, for the Phrases modal's "Clear all phrases".
+   *
+   * JOURNAL ENTRIES ARE NOT PHRASES and are deliberately kept. They share one array --
+   * `user.vocalizations` holds the default category, any user-defined categories, AND
+   * anything tagged `category: 'journal'` (components/phrases.js#update_list sorts them
+   * apart by that field alone) -- so a naive `set('vocalizations', [])` here would wipe a
+   * user's journal, which the modal itself describes as private to them. Filtering rather
+   * than emptying is the whole reason this is a method and not two lines at the call site.
+   *
+   * One save, not one per phrase: remove_phrase above writes the user on every call, which
+   * is fine for a single tap and is a request storm for thirty. The per-phrase
+   * `remove_vocalization` actions still have to be queued individually, because that is
+   * what the server consumes.
+   *
+   * Held thoughts survive too. A signed-OUT user's saved phrases live in the same
+   * `remembered_vocalizations` stash as Hold Thought's parked messages, told apart by
+   * `stash: true` -- so the filter keeps the parked ones and drops the saved ones,
+   * matching what a signed-in user gets.
+   *
+   * Returns the number of phrases removed so the caller can report it.
+   */
+  clear_phrases: function() {
+    var removed = 0;
+    var u = this.get('currentUser');
+    if(u) {
+      var kept = [];
+      var doomed = [];
+      (u.get('vocalizations') || []).forEach(function(v) {
+        if(v && v.category === 'journal') { kept.push(v); }
+        else if(v) { doomed.push(v); }
+      });
+      if(doomed.length) {
+        doomed.forEach(function(v) {
+          if(v.id) { u.add_action({action: 'remove_vocalization', value: v.id}); }
+        });
+        removed = doomed.length;
+        u.set('vocalizations', kept);
+        u.save().then(function() { u.set('offline_actions', null); }, function() { });
+      }
+    }
+    var stash = this.stashes.get('remembered_vocalizations') || [];
+    removed += stash.filter(function(v) { return v && !v.stash; }).length;
+    this.stashes.persist('remembered_vocalizations', stash.filter(function(v) { return v && v.stash; }));
+    return removed;
   },
   remove_phrase: function(phrase) {
     var voc = this.get('currentUser.vocalizations') || [];
