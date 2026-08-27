@@ -6227,7 +6227,7 @@
     {
       "id": "LL-17ec91ff20",
       "ruleKey": "ai-consent-disclosure-tells-data-subjects-eu-retention-purge-is-enforced-when-it-deletes-nothing",
-      "title": "Live AI consent disclosure attributes the EU AiApiLog retention window to an \"EU AI Act Article 50 record-keeping\" duty this record does not establish",
+      "title": "WITHDRAWN after review: the claim that the live AI consent disclosure represents an UNENFORCED EU retention purge as enforced. The purge is a working, end-to-end-verified control; awaiting Scot to close this row as a false positive",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
@@ -6246,15 +6246,15 @@
       "lastSeen": "2026-08-26",
       "owner": "unassigned",
       "remediation": {
-        "options": "NO code change prescribed. Withdrawn: the earlier prescription of 'enforced' => false, which would have misrepresented a working safeguard in the opposite direction. Remaining question is a legal one for counsel: is 'EU AI Act Article 50 record-keeping' the correct basis for the five-year EU AiApiLog window, in a disclosure shown to a data subject? If counsel confirms it, close this row. If counsel replaces it, the note text changes, which is a substantive change and therefore takes a CURRENT_VERSION bump plus human review per ai_consent_disclosures.rb:44-49 -- not an in-place v1 edit.",
-        "timeframe": "counsel question; no ship gate"
+        "options": "No code change. Recommend closing as dismissed-false-positive at triage. The surviving legal-basis question lives in LL-b3e3a0b99c.",
+        "timeframe": "next triage"
       },
       "closureEvidence": {
         "sha": "",
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "RESCOPED 2026-08-26 after external review, and the original framing is WITHDRAWN. This row first claimed the disclosure tells parents an UNENFORCED control is enforced. That was wrong, and it was the more dangerous error: acting on it would have shipped a v2 disclosure telling parents a WORKING safeguard is NOT enforced. The purge is implemented, scheduled, and verified end to end (spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through the resolver; the row is deleted, an :unknown row is spared). The disclosure's note is also correctly SCOPED -- 'Enforced today for accounts in the EU jurisdiction' -- and for such an account the control is wired end to end. Zero production deletions reflect an absence of eligible DATA (no confirmed :eu user; no row five years old), which is the normal state of any five-year retention rule in a system younger than five years. 'enforced' => true is therefore defensible and NO code change is prescribed.\n\nWHAT SURVIVES, and it is narrower: the same note attributes the window to '(AiApiLog.purge_old_eu_logs!, EU AI Act Article 50 record-keeping)'. Article 50 is the AI Act's transparency provision, and nothing in this repository establishes that it imposes a five-year AiApiLog retention duty. PR #863/#867 reached exactly that conclusion for the document surfaces and flagged the attribution for counsel; the same attribution is asserted here to a DATA SUBJECT in a live consent disclosure served by app/controllers/ai_consent/disclosures_controller.rb:29. Stating a legal basis to a parent is a stronger act than stating one to an auditor.\n\nSEVERITY IS CONTESTED AND NEEDS SCOT'S TRIAGE. It was set High for the withdrawn claim. On the surviving legal-basis scope it is plausibly Medium or lower, and it may be closed outright if counsel confirms the attribution. Only Scot downgrades or closes, so it is left at High and flagged rather than quietly reduced.\n\nIF a change is eventually made, the mechanism is still governed by the module's own contract (ai_consent_disclosures.rb:44-49: a substantive change 'should prompt a CURRENT_VERSION bump', paired with human review), because a consent record persists disclosures_version as an integer and not content_hash, so an in-place v1 edit would silently rewrite what prior consenters were shown."
+      "notes": "IDENTITY RESTORED 2026-08-26. This row had been rescoped in flight to cover an Article 50 legal-basis question while KEEPING this ruleKey, which describes the \"enforced when it deletes nothing\" claim. Because audit-merge.rb derives the id as SHA256(ruleKey|path) (scripts/audit-merge.rb:151-153), a row whose key and content disagree is a live merge hazard: a finder re-emitting THIS key would merge into a row about a different subject, and a correctly keyed legal-basis finding would land as a separate duplicate. Reported by external review of PR #867 at head 334ce2aa6. The rescoped content has been moved to its own correctly keyed row, LL-b3e3a0b99c, anchored at ai_consent_disclosures.rb:139 where the Article 50 attribution actually appears (this row was anchored at :138, the note's first line).\n\nTHE SUBSTANCE OF THIS ROW IS WITHDRAWN. The purge is implemented, scheduled daily, and verified end to end: spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through EuJurisdiction.retention_stamp, the resolver writes 'EU', purge_old_eu_logs! deletes that row, and an :unknown row is correctly spared under the HIPAA six-year fail-safe. The disclosure note is also correctly scoped (\"Enforced today for accounts in the EU jurisdiction\"). Zero production deletions reflect an absence of eligible DATA (no confirmed :eu user; no row five years old), the normal state of any five-year retention rule in a system younger than five years. 'enforced' => true is defensible and no code change is prescribed. Acting on the original claim would have shipped a v2 disclosure telling parents a WORKING safeguard is not enforced.\n\nRECOMMENDED DISPOSITION: dismissed-false-positive. Not applied here: only Scot closes a finding, downgrades severity, or accepts risk, and this row merged to staging in PR #867 so it is no longer a provisional in-PR draft that could simply be replaced. Severity is left at High for the same reason."
     },
     {
       "id": "LL-db6bc3e568",
@@ -6286,6 +6286,38 @@
         "attestation": ""
       },
       "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-26. Found by adversary review of PR #863 round 5. Low blast radius -- the row is status:superseded with bundles: [], so it does not travel in security-review, school-dpa-package, dsar or soc2-evidence -- but it is an ATTESTED record asserting an enforcement claim that PR #863 registers as false elsewhere, and it appeared in no successor's scope statement and none of the seven round-5 findings. The memo names it at :694; the register did not, until this row. ACCURATE STATEMENT OF THE CONTROL, settled 2026-08-26 after external review challenged an earlier over-claim: the purge is implemented, scheduled daily, and VERIFIED END TO END. spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through EuJurisdiction.retention_stamp (not a literal 'EU'), the resolver writes 'EU', and purge_old_eu_logs! then deletes that row while correctly sparing an :unknown row under the HIPAA six-year fail-safe. It deletes nothing in PRODUCTION for two DATA reasons, not a defect: production has no confirmed :eu user (34 of 34 :unknown at the 2026-08-23 read, jurisdiction null on all 64 rows), and no row is old enough (ai_api_logs created 2026-02-21, so the earliest conceivable match is ~2031-02; a write-time-stamped row cannot match before ~2031-06). What was FALSE in the predecessors is the claim that it 'matches EU rows' in production today. The control itself is sound, and earlier phrasing here calling it 'structurally dormant' was itself an over-claim and is withdrawn."
+    },
+    {
+      "id": "LL-b3e3a0b99c",
+      "ruleKey": "ai-consent-disclosure-asserts-article-50-as-the-legal-basis-for-eu-ai-api-log-retention",
+      "title": "Live AI consent disclosure asserts \"EU AI Act Article 50 record-keeping\" as the legal basis for the five-year AiApiLog retention window, to a data subject",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/lingo_linq/ai_consent_disclosures.rb",
+        "line": 139,
+        "snippet": "EU AI Act Article 50 record-keeping).",
+        "sha": "4a0c0ea03"
+      },
+      "firstSeen": "2026-08-26",
+      "lastSeen": "2026-08-26",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Counsel question, not a ship gate. Confirm whether EU AI Act Article 50 is the correct basis for a five-year AiApiLog retention window. Article 50 is the AI Act's transparency provision; the record-keeping and logging duties for high-risk systems sit elsewhere in the Act. If counsel confirms the attribution, close this row with their sign-off as closure evidence. If counsel replaces it, the note text changes, which is a SUBSTANTIVE change and therefore takes a CURRENT_VERSION bump plus human review per ai_consent_disclosures.rb:44-49 -- NOT an in-place v1 edit, because a consent record persists disclosures_version as an integer and not content_hash (app/models/user.rb grant_ai_consent!), so editing v1 would silently rewrite what prior consenters were shown. Explicitly NOT part of this finding: the 'enforced' => true value, which is defensible (see LL-17ec91ff20, withdrawn).",
+        "timeframe": "counsel question; no ship gate"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-26. Correctly keyed successor to the withdrawn LL-17ec91ff20, created 2026-08-26 after external review of PR #867 flagged that the rescoped row had kept a ruleKey describing a different claim (audit-merge.rb derives the id as SHA256(ruleKey|path), so key/content drift is a merge hazard). Anchored at :139, where the attribution appears, rather than :138. SCOPE: this row is ONLY about the legal-basis attribution, not about whether the purge works -- it does. PR #863 and #867 reached the same conclusion for the DOCUMENT surfaces and flagged the Article 50 attribution as an open counsel question there; the same attribution is asserted here to a DATA SUBJECT in a live consent disclosure served by app/controllers/ai_consent/disclosures_controller.rb:29 and rendered by app/views/ai_consent/disclosures/v1.html.erb. Stating a legal basis to a parent is a stronger act than stating one to an auditor, which is why this is tracked rather than left to the document-side flag. Severity set to medium rather than high: nothing here misstates what data is kept or for how long, and no safeguard is misrepresented; the defect is an unverified statutory citation."
     }
   ]
 }
