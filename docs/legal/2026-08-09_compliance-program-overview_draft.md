@@ -56,10 +56,30 @@
 >
 > **Evidence limit.** `AiApiLog` is an application-observed floor, not a ledger: `log_ai_call`
 > rescues `ActiveRecord::ActiveRecordError` and returns an unsaved record, and `Flusher` destroys
-> rows on erasure, so the counts above are a lower bound. No vendor-side confirmation (CloudWatch
-> `AWS/Bedrock Invocations` or CloudTrail `bedrock:InvokeModel`) has been obtained, and credential
-> mounts are not monotonic, so these statements are true as of their stated dates and do not
-> establish continuous operation since.
+> rows on erasure, so the application-observed counts above are a lower bound.
+>
+> **Vendor-side confirmation obtained 2026-08-26.** An earlier draft of this correction stated that
+> no vendor-side confirmation had been obtained. That is no longer true. CloudWatch `AWS/Bedrock`
+> `Invocations` and CloudTrail `InvokeModel` were queried against account `239044785114` for
+> 2026-07-01 to 2026-08-27 UTC. They establish three things the application log could not.
+> First, the window this passage originally asserted was closed (2026-07-30 to 2026-08-03) contains
+> **28 attributed invocations**: 27 on 2026-08-01 UTC and 1 on 2026-08-02 UTC. 26 were issued by
+> `lingolinq-bedrock-runtime` and 2 directly by an administrator principal.
+> Second, the window described as carrying "a single internal verification call" (2026-08-03 to
+> 2026-08-06) carries **8, every one of them the runtime credential**. The only human-issued calls
+> anywhere in the range fall on 2026-08-01, two days before that window opens, so the verification
+> event this passage describes is recorded on the wrong dates.
+> Third, four principals invoke Bedrock, not one: `lingolinq-bedrock-runtime` (121),
+> `lingolinq-bedrock-staging` (67), `lingolinq-bedrock-dev` (27), and an administrator (2). Only the
+> first writes to production `AiApiLog`, so any figure that pools environments describes a different
+> population than the application log does.
+>
+> Vendor telemetry and the application log therefore cannot be reconciled into a single number, and
+> **no ratio between them should be quoted.** The two sources also do not agree with each other
+> exactly: CloudWatch reports 222 invocations across the range against 217 attributed by CloudTrail,
+> a 5-event variance that is unexplained and does not affect any per-window figure above, all of
+> which come from CloudTrail directly. Credential mounts are not monotonic, so these statements are
+> true as of their stated dates and do not by themselves establish continuous operation.
 >
 > The prompts are redacted by `lib/pii_scrubber.rb` before egress, which is
 > pseudonymization and not de-identification, so they remain personal data under GDPR/UK-GDPR. The
@@ -155,7 +175,15 @@ explicitly marked not operational.
 **AI and PII handling**
 - LingoLinq uses AI for word prediction and communication-board generation. The designated model is
   Anthropic Claude (Haiku 4.5) on AWS Bedrock. There is no Google (Gemini) fallback; that path was
-  removed on 2026-07-09. **Corrected 2026-08-26: the runtime AI path was operational and carrying
+  removed on 2026-07-09. **Corrected 2026-08-26: before 2026-08-02 the runtime path was not
+  restricted to the designated model.** CloudTrail records 9 invocations of
+  `us.anthropic.claude-opus-4-5-20251101-v1:0` and 1 of
+  `us.anthropic.claude-sonnet-4-5-20250929-v1:0` by `lingolinq-bedrock-runtime` on 2026-08-01. Both
+  are Anthropic models served by Amazon Bedrock under the same AWS BAA, so no processor outside the
+  BAA received the payload, but neither was a designated model. The `ALLOWED_RUNTIME_MODELS` gate in
+  `lib/ai_client.rb` that now restricts the runtime seams to Haiku 4.5 did not exist until commit
+  `5dbc4e478` (2026-08-02T17:03:04-0600). Every invocation after that commit resolves to Haiku 4.5,
+  which vendor telemetry independently confirms. **Corrected 2026-08-26: the runtime AI path was operational and carrying
   user-attributed traffic when last verified (application logs through 2026-08-14T21:13:27Z,
   serving-revision sweep 2026-08-16).** This passage read that these features "were not operational from
   2026-07-30 until 2026-08-03, were briefly operational from 2026-08-03 to 2026-08-04 for internal
@@ -169,8 +197,10 @@ explicitly marked not operational.
   Anthropic supplies the model and does not receive the payload). The 63 attributed calls resolve to
   two accounts, and all 34 production accounts were confirmed internal test/QA rather than real
   users (Scot Wahlquist, 2026-08-24), so no real person is known to have had data sent on this path.
-  `AiApiLog` is an application-observed floor, not a ledger, and no vendor-side confirmation has
-  been obtained.
+  `AiApiLog` is an application-observed floor, not a ledger. Vendor-side confirmation was obtained
+  on 2026-08-26 from CloudWatch `AWS/Bedrock` `Invocations` and CloudTrail `InvokeModel`, and it
+  places 26 runtime invocations inside the window this passage originally called closed and 8 in the
+  window it described as a single verification call. See the re-attestation note above.
 - Before text is sent to our external LLM providers for word prediction, board generation, or eval
   narration, our PII scrubber removes identifiers. This is **pseudonymization (scrubbing)**, and we
   describe it accurately: the result is scrubbed data that we still treat as personal data. We do
