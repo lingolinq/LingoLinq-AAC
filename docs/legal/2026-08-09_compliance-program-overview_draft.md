@@ -34,18 +34,36 @@
 >
 > **2026-08-04 re-attestation (rev. 2026-08-04-a).** Recorded the runtime AI operational status as
 > a closed window rather than an open capability claim: the AI features named in this document ran
-> on Anthropic Claude (Haiku 4.5) over AWS Bedrock. **Corrected 2026-08-19:** this passage read
+> on Anthropic Claude (Haiku 4.5) over AWS Bedrock. **Corrected 2026-08-26** (the substance was first
+> drafted 2026-08-19 in PR #827 and is carried forward here): this passage read
 > that those features "were not operational from 2026-07-30 until 2026-08-03, were briefly
 > operational from 2026-08-03 to 2026-08-04 for a single internal verification call carrying no user
 > or student data, and are **not operational as of 2026-08-04**. No customer, user, or student data
-> has been sent to a model provider on this path." **Both sentences are now false.** Credentials
-> withdrawn on revision `00014-5rw` (2026-08-04T06:31:46Z) were restored on `00015-9l9` 53 minutes
-> later, and the 2026-08-12 production deploy of PR #734 put the path into user-attributed use:
-> production `AiApiLog` holds 64 rows, **63 of which carry a `user_global_id`**
-> (`docs/legal/2026-08-16_subprocessor-register.md:99`). Scrubbed user content therefore HAS reached
-> the processing plane. The prompts are redacted by `lib/pii_scrubber.rb` before egress, which is
+> has been sent to a model provider on this path." **The operational-status claim is false.**
+> Credentials withdrawn on revision `00014-5rw` (2026-08-04T06:31:46Z) were restored on `00015-9l9`
+> 53 minutes later, and the 2026-08-12 production deploy of PR #734 put the path into
+> user-attributed use: production `AiApiLog` held **64 application-observed rows through 2026-08-14T21:13:27Z,
+> 63 of which carry a `user_global_id`** (`docs/legal/2026-08-16_subprocessor-register.md:99`;
+> path verified live and serving revision swept 2026-08-16).
+>
+> **The second sentence is narrower than it looks and is not simply reversed.** Those 63
+> user-attributed calls resolve to two accounts, and all 34 production accounts were confirmed to be
+> internal test/QA accounts rather than real users (Scot Wahlquist, 2026-08-24;
+> `docs/legal/2026-08-24_ai-governance-memo.md:134`). So scrubbed content HAS reached the processing
+> plane, and **no real person is known to have had data sent on this path.** The receiving processor
+> is **AWS**: prompts are delivered to Amazon Bedrock under the AWS BAA, and Anthropic supplies the
+> model without receiving the payload (`docs/legal/2026-08-16_subprocessor-register.md:99`).
+>
+> **Evidence limit.** `AiApiLog` is an application-observed floor, not a ledger: `log_ai_call`
+> rescues `ActiveRecord::ActiveRecordError` and returns an unsaved record, and `Flusher` destroys
+> rows on erasure, so the counts above are a lower bound. No vendor-side confirmation (CloudWatch
+> `AWS/Bedrock Invocations` or CloudTrail `bedrock:InvokeModel`) has been obtained, and credential
+> mounts are not monotonic, so these statements are true as of their stated dates and do not
+> establish continuous operation since.
+>
+> The prompts are redacted by `lib/pii_scrubber.rb` before egress, which is
 > pseudonymization and not de-identification, so they remain personal data under GDPR/UK-GDPR. The
-> operative statements of the flow are `docs/legal/2026-08-17_ai-data-flow-classification.md` and
+> operative statements of the flow are `docs/legal/2026-08-25_ai-data-flow-classification.md` and
 > `docs/legal/2026-08-16_subprocessor-register.md`. The
 > "everything in this section is live" framing was qualified to except controls explicitly marked
 > not operational. That is the last attested, externally authorized cut (DOC-03cb9fe91f).
@@ -137,15 +155,22 @@ explicitly marked not operational.
 **AI and PII handling**
 - LingoLinq uses AI for word prediction and communication-board generation. The designated model is
   Anthropic Claude (Haiku 4.5) on AWS Bedrock. There is no Google (Gemini) fallback; that path was
-  removed on 2026-07-09. **Corrected 2026-08-19: the runtime AI path IS operational and carries
-  user-attributed traffic.** This passage read that these features "were not operational from
+  removed on 2026-07-09. **Corrected 2026-08-26: the runtime AI path was operational and carrying
+  user-attributed traffic when last verified (application logs through 2026-08-14T21:13:27Z,
+  serving-revision sweep 2026-08-16).** This passage read that these features "were not operational from
   2026-07-30 until 2026-08-03, were briefly operational from 2026-08-03 to 2026-08-04 for internal
   verification only, and are **not operational as of 2026-08-04**", and that no user or student data
   had been sent. Credentials withdrawn on `00014-5rw` were restored 53 minutes later on `00015-9l9`
   (2026-08-04T07:25:08Z), and since the 2026-08-12 production deploy of PR #734 production
-  `AiApiLog` holds 64 rows of which **63 carry a `user_global_id`**
-  (`docs/legal/2026-08-16_subprocessor-register.md:99`). Scrubbed user content HAS reached a model
-  provider on this path.
+  `AiApiLog` held **64 application-observed rows through 2026-08-14T21:13:27Z, 63 carrying a
+  `user_global_id`**
+  (`docs/legal/2026-08-16_subprocessor-register.md:99`). Scrubbed user content HAS reached the
+  processing plane, which is **AWS** (Amazon Bedrock is the receiving processor under the AWS BAA;
+  Anthropic supplies the model and does not receive the payload). The 63 attributed calls resolve to
+  two accounts, and all 34 production accounts were confirmed internal test/QA rather than real
+  users (Scot Wahlquist, 2026-08-24), so no real person is known to have had data sent on this path.
+  `AiApiLog` is an application-observed floor, not a ledger, and no vendor-side confirmation has
+  been obtained.
 - Before text is sent to our external LLM providers for word prediction, board generation, or eval
   narration, our PII scrubber removes identifiers. This is **pseudonymization (scrubbing)**, and we
   describe it accurately: the result is scrubbed data that we still treat as personal data. We do
@@ -157,8 +182,10 @@ explicitly marked not operational.
   the payload.
 - Our production AI vendors operate under Data Processing Agreements. The Anthropic models we use
   are eligible for zero data retention (no ZDR contract is signed today; see Section 3).
-- Every runtime, user-facing AI call (word prediction, board generation, and eval narration) is
-  recorded in an audit log (AiApiLog) with the fields needed for AI-governance reporting. IP
+- Runtime, user-facing AI calls (word prediction, board generation, and eval narration) are
+  recorded in an audit log (AiApiLog) with the fields needed for AI-governance reporting. **Corrected
+  2026-08-26:** this read "Every ... call is recorded". The write is best-effort by design, so the
+  log is an application-observed floor rather than a complete ledger; see the evidence limit above. IP
   addresses in that log are automatically redacted on a scheduled 90-day cycle. (An offline
   vocabulary-seed generator that sends no user data is the one AI path outside this log.)
 - AI consent is versioned per user. The eval and narration AI paths apply the same COPPA gate, PII
@@ -224,15 +251,18 @@ explicitly marked not operational.
 
 **Vendors and subprocessors**
 - We maintain a subprocessor list and sign agreements only with vendors that actually handle our
-  data. These include AWS (storage, BAA signed), Anthropic (AI, HIPAA-ready BAA executed), Google
+  data. These include AWS (storage **and the receiving processor for runtime AI prompts via Amazon
+  Bedrock**, BAA signed), Anthropic (**model provider only; supplies Claude via Bedrock and does not
+  receive the payload**, HIPAA-ready BAA executed), Google
   Cloud Platform (live production hosting on Cloud Run, Cloud SQL, and Memorystore under the
   accepted GCP CDPA / HIPAA BAA / SCCs), Render (superseded primary host, retained temporarily as a
   write-frozen rollback fallback pending decommission), Sentry (error monitoring, configured with
   the child-data scrubber above), and HubSpot (marketing CRM and support, handling customer and
   prospect records only, no student data). When IP geolocation is enabled for registration,
   subscription, or supporter-routing context, iplocate.io receives the IP address for lookup.
-  `docs/legal/SUBPROCESSORS.md` is the authoritative register and is updated as services are enabled
-  or retired.
+  The authoritative register is `docs/legal/2026-08-16_subprocessor-register.md`, which supersedes
+  `docs/legal/SUBPROCESSORS.md`; it is updated as services are enabled or retired. **Corrected
+  2026-08-26:** this named the superseded file as authoritative.
 
 **Breach response**
 - We maintain a breach runbook (`docs/legal/BREACH_RUNBOOK.md`) and notify affected parties and
