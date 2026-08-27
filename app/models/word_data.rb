@@ -609,7 +609,7 @@ class WordData < ApplicationRecord
   end
   
   def self.translate_batch(batch, source_lang, dest_lang)
-    res = {source: source_lang, dest: dest_lang, translations: {}}
+    res = {source: source_lang, dest: dest_lang, translations: {}, origins: {}}
     found = {}
     # Action tokens (':space', '+q', ':shift', ':suggestion', ...) are
     # control protocols, not words. persist_translation already refuses
@@ -628,6 +628,7 @@ class WordData < ApplicationRecord
       end
       if new_text
         res[:translations][text] = new_text
+        res[:origins][text] = 'cache'
         missing = missing.select{|e| e[:text] != text }
       end
     end
@@ -636,6 +637,7 @@ class WordData < ApplicationRecord
     query_translations(missing, source_lang, dest_lang).each do |obj|
       if obj[:translation]
         res[:translations][obj[:text]] = obj[:translation]
+        res[:origins][obj[:text]] = 'google'
         schedule(:persist_translation, obj[:text], obj[:translation], source_lang, dest_lang, obj[:type])
       end
     end

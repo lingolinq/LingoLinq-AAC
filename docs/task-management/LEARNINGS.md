@@ -20,6 +20,11 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
+- [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
+- [Gotcha: dotenv leaves op:// refs in ENV — present? is not injected](#gotcha-dotenv-leaves-op-refs-in-env--present-is-not-injected)
+- [Gotcha: library translate must walk load_board links, not only downstream_board_ids](#gotcha-library-translate-must-walk-load_board-links-not-only-downstream_board_ids)
+- [Gotcha: spelling-key letters must not go to Google](#gotcha-spelling-key-letters-must-not-go-to-google)
 - [Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep](#gotcha-the-boot-skeleton-is-ll-skel-progress-not-ll-premium-progress--and-a-shared-component-fix-has-no-siblings-left-to-sweep)
 - [Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`](#pattern-the-board-tile-board_action-is-a-contextual-remove-not-a-delete-button--gate-on-remove_type)
 - [Gotcha: the two categorised board variants do NOT space their categories the same way — one is ring-compensated, one is not](#gotcha-the-two-categorised-board-variants-do-not-space-their-categories-the-same-way--one-is-ring-compensated-one-is-not)
@@ -3948,6 +3953,50 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 **Fix recipe:** Keep English Quick Core / Vocal Flair as canonical on `lingolinq/*`; `copy_for` → `WordData.translate_batch` → `translate_set` into `*-es` slugs so `image_id` is preserved. Provision with `rake lingolinq:provision_spanish_library_boards`; gate signup copies with `FeatureFlags.signup_spanish_library_boards_enabled?`.
 
 **Evidence:** `lib/spanish_library_boards.rb`, `lib/system_board_sources.rb`, `lib/user_board_provisioner.rb`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Pattern: bilingual library boards store dest hashes with translate_set default false
+
+**Symptom:** Library boards need English plus Spanish (and later languages) without multiplying `*-es` / `*-fr` copies.
+
+**Fix recipe:** Keep English as the visible default on `lingolinq/*`. Collect labels via `BoardTranslationWords` (skip `^[:+]` vocalizations). `WordData.translate_batch` then `Board#translate_set(..., 'default' => false)`. Dest strings live in `settings['translations']`; Switch Languages overlays them. Signup copies inherit the hashes through `BoardCloner`. Rake: `lingolinq:translate_library_boards` with `DEST_LANG=es` (not raw `LANG`). Skip save when the batch is empty so a missing `GOOGLE_TRANSLATE_TOKEN` does not look like success.
+
+**Evidence:** `lib/library_board_translator.rb`, `lib/board_translation_words.rb`; task log `2026-08-26-library-board-translations.md`.
+
+**Extension (2026-08-27) — SCOPE=seed for a reindex inventory:** A library rebuild seeds starter + sidebar + crisis + Senner + curated S3 + OpenAAC (~32 listed public roots; children are `unlisted`). `SCOPE=seed` discovers those listed public `lingolinq` roots instead of signup slugs only. Skip `*-es` copies and boards whose default locale is not English (local leftover `quick-core-24` was already `locale=es`). Staging apply is a Render **one-off job** on `lingolinq-staging` (same pattern as rebuild_library): creating the job starts it; do not add a Blueprint cron. The job inherits web-service env, so `GOOGLE_TRANSLATE_TOKEN` must already be set. Missing token raises outside test. Production (including Render staging) requires `ALLOW_PROD_TRANSLATE=1`; `SCOPE=seed` also requires `TRANSLATE_CONFIRM=1`. Do not share `BoardTranslationWords.board_ids` with `SpanishLibraryBoards`: that rake `copy_for`s only the root and calls `translate_set(default: true)`, so a tree walk would overwrite shared English children. The bilingual walk is owner-scoped and skips non-English locales before Google. The attested Subprocessor Register still names the older Translate callers; adding `lib/library_board_translator.rb` needs a Scot re-attest of `docs/legal/2026-08-16_subprocessor-register.md`, not an in-place edit of the pinned hash. Ref: `docs/ops/staging-translate-library-job.md`.
+
+---
+
+## Gotcha: rake dest locale must not use raw ENV LANG
+
+Linux shells export `LANG=en_US.UTF-8`. A rake task that reads `ENV['LANG']` as the translation target will send `en_US.UTF-8` to Google. Accept `DEST_LANG` first, and treat `LANG` as a dest only when it looks like a language tag (no charset suffix).
+
+**Evidence:** `LibraryBoardTranslator.parse_dest_lang`; task log `2026-08-26-library-board-translations.md`.
+
+---
+
+## Gotcha: dotenv leaves op:// refs in ENV — present? is not injected
+
+Dotenv loads `.env.op.local` `op://` refs as literal strings. `ENV['GOOGLE_TRANSLATE_TOKEN'].present?` is then true, but Google gets a garbage key and `query_translations` returns []. Treat a token starting with `op://` as unset, and run the rake under `rails-dev` / `op run`.
+
+**Evidence:** `LibraryBoardTranslator.google_translate_token_injected?`; task log `2026-08-26-library-board-translations.md`.
+
+---
+
+## Gotcha: library translate must walk load_board links, not only downstream_board_ids
+
+`settings['downstream_board_ids']` is the async `track_downstream_boards!` closure. It can be empty while `load_board` buttons and `immediately_downstream_board_ids` still list children. `Board#translate_set` also skips any board not in the passed `board_ids` list (`reason: 'board not in list'`), so a root-only list translates only the top board. Walk `get_immediately_downstream_board_ids` plus button `load_board` ids (BFS) and pass that full list.
+
+**Evidence:** `lib/board_translation_words.rb#board_ids`; local `lingolinq/quick-core-60` had downstream=0, immediate=30; task log `2026-08-26-library-board-translations.md`.
+
+---
+
+## Gotcha: spelling-key letters must not go to Google
+
+Keyboard letter buttons use vocalization `+e`, `+n`, … to compose spelling. The visible label is still the grapheme `e`. Google Translate has no “this is a letter key” context, so it returns abbreviations and solfege (`e`→`mi`, `c`→`do`, `g`→`gramo`, `n`→`norte`, `m`→`metro`, `p`→`pag`, `u`→`tú`, `x`→`incógnita`). Do not send those labels to `WordData.translate_batch`. Identity-map them (`e`→`e`) so a re-run overwrites the dest hash. Still translate word labels like `space` (`:space` is the action; the label is a word).
+
+**Evidence:** `lib/board_translation_words.rb#letter_compose_key?`; local `lingolinq/keyboard_16`; task log `2026-08-26-library-board-translations.md`.
 
 ---
 
