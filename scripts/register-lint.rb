@@ -189,15 +189,35 @@ def lint_register(path)
         errors << "#{where}: evidence.line must be a number or null, got #{line.inspect}"
       end
 
-      # evidence.sha must be a FULL 40-hex commit id, never an abbreviation. citation-check
-      # resolves a prefix happily (`git show <prefix>:<path>` works), so a short sha passes
-      # today and silently becomes ambiguous as the repo grows -- the register is the audit
-      # SSOT, and "it resolved when I wrote it" is not the same guarantee as "it names one
-      # commit forever". audit-merge.rb writes whatever --sha it is handed, so the abbreviation
-      # enters here, not in the merger.
-      sha = f['evidence']['sha']
-      unless sha.nil? || sha.to_s.empty? || sha.to_s.match?(/\A[0-9a-f]{40}\z/)
-        errors << "#{where}: evidence.sha must be a full 40-character lowercase hex commit id, got #{sha.inspect}"
+      # evidence.sha rules. Two separate guarantees, because this is the ONLY gate that runs
+      # in CI: citation-check.rb re-resolves every snippet at its sha, but ci.yml:153 states it
+      # is deliberately NOT a CI job, so a register that never runs the local
+      # regenerate-register.sh wrapper is checked by this file alone.
+      #
+      #   1. A `code` or `doc` row MUST carry a sha. citation-check's file_at_sha falls back to
+      #      the WORKING TREE when the sha is blank, so a blank-sha finding silently validates
+      #      against whatever happens to be checked out instead of against a pinned commit --
+      #      the evidence stops being anchored to the commit it was proven at.
+      #   2. Any sha that IS present must be a FULL 40-hex id, never an abbreviation.
+      #      citation-check resolves a prefix happily (`git show <prefix>:<path>` works), so a
+      #      short sha passes the day it is written and silently becomes ambiguous as the repo
+      #      grows. audit-merge.rb writes whatever --sha it is handed, so the abbreviation
+      #      enters at the call site, not in the merger.
+      #
+      # Blank is permitted ONLY for non-checkable evidence (runtime, attestation), which has no
+      # file to resolve. The type derivation mirrors audit-merge.rb: an absent type with a file
+      # is a code row.
+      ev = f['evidence']
+      sha = ev['sha']
+      ev_type = ev['type'] || (ev['file'].to_s.empty? ? 'runtime' : 'code')
+      full_sha = sha.to_s.match?(/\A[0-9a-f]{40}\z/)
+      if %w[code doc].include?(ev_type)
+        unless full_sha
+          errors << "#{where}: #{ev_type} evidence must carry a full 40-character lowercase hex evidence.sha " \
+                    "(citation-check falls back to the working tree when it is blank), got #{sha.inspect}"
+        end
+      elsif !(sha.nil? || sha.to_s.empty?) && !full_sha
+        errors << "#{where}: evidence.sha must be a full 40-character lowercase hex commit id when present, got #{sha.inspect}"
       end
     end
   end

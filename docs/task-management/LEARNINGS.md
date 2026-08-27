@@ -12991,7 +12991,11 @@ shape.
 
 `audit-merge.rb` derives a finding id as `SHA256(ruleKey|file)` (`scripts/audit-merge.rb:151-153`),
 and `citation-check.rb:72-96` already re-derives it and hard-FAILS on a mismatch, for every row
-regardless of status. So the *mechanical* identity invariant is gated and CI-blocking today.
+regardless of status. **CORRECTED 2026-08-27: that check is NOT CI-gated.** `ci.yml:153` says so
+explicitly ("citation-check.rb is intentionally NOT gated here"); it runs only locally, via
+`scripts/regenerate-register.sh`. An earlier version of this entry called it "CI-blocking", which
+was wrong and is exactly the kind of unverified gating claim this file exists to stop. The only
+CI-gated structural check on findings rows is `register-lint.rb`, inside `audit-artifacts-integrity`.
 
 That is exactly why rescoping a row in place slips through. On PR #867 a row was rewritten from
 "the disclosure represents an unenforced purge as enforced" to an Article 50 legal-basis question
@@ -13016,4 +13020,6 @@ Related, and this one IS mechanically checkable: `evidence.sha` must be a full 4
 `citation-check` resolves a prefix happily (`git show <prefix>:<path>` works), so a short sha passes
 the day it is written and silently becomes ambiguous as the repo grows. `audit-merge.rb` writes
 whatever `--sha` it is handed, so the abbreviation enters at the call site, not in the merger.
-`register-lint.rb` now rejects a non-40-hex sha.
+`register-lint.rb` now rejects a non-40-hex sha, and REQUIRES one on every `code`/`doc` row --
+blank is permitted only for non-checkable evidence (`runtime`, `attestation`). That strictness
+matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
