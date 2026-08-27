@@ -28,6 +28,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `label_fit` cannot fit a ONE-line box — `scrollHeight` counts the label's padding and the line budget does not](#gotcha-label_fit-cannot-fit-a-one-line-box--scrollheight-counts-the-labels-padding-and-the-line-budget-does-not)
 - [Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing](#gotcha-a-hard-coded-forcegroupingtrue-makes-a-preview-lie-about-the-preference-it-is-previewing)
 - [Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes](#gotcha-single-quoted-i18n-defaults-never-reach-the-locale-files--and-a-ui-control-is-only-fixed-when-the-payload-changes)
+- [Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`](#gotcha-extrasjs-wraps-string-ajax-bodies-as-text-meta--html-fetchers-must-unwrap-text)
 - [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
 - [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
@@ -15525,3 +15526,19 @@ grep -v '^#' app/frontend/.eslint-todo      | cut -d'|' -f1,2 | sort | uniq -c >
 Real answer for that branch: net **+75**, of which 73 were qunit style rules in NEW TEST files
 and 2 were `ember/no-runloop` in one component. Same discipline as the baseline rule for test
 runs (rule 10) — reconcile against a baseline before claiming a delta.
+## Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`
+
+`app/frontend/app/utils/extras.js` patches `$.ajax` and, on success, turns a
+string body into `{text: data}` then attaches `data.meta`. JSON API callers
+already expect an object. An HTML/text fetch that passes the resolved value
+straight into `{{safe}}` / `htmlSafe` stringifies it to `[object Object]`.
+
+The Article 50 modal (`ai-disclosure.js#fetchDisclosure`) hit this: the
+notice HTML was in `.text`, and the template rendered the wrapper object.
+`persistence.remote_json` already reads `data.text`; new `dataType: 'html'`
+or `'text'` callers must do the same. Tests that stub `persistence.ajax` with
+a raw string will not catch this — also resolve the extras.js `{text, meta}`
+shape.
+
+**First seen in:** [2026-08-26-ai-disclosure-object-object.md](./2026-08-26-ai-disclosure-object-object.md)
+
