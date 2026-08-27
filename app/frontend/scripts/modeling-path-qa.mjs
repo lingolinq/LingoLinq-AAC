@@ -133,7 +133,11 @@ const run = async () => {
     check('model-for keeps speakModeUser null (keep_as_self)', !a2.speakModeUser, `got ${a2.speakModeUser}`);
     check('model-for keeps currentUser as the supervisor', a2.currentUser === OPTS.USER, `got ${a2.currentUser}`);
     check('modeling_for_user is true', a2.modeling_for_user === true, `got ${a2.modeling_for_user}`);
-    check('currentUser observers fired during model-for', a2.fires >= b2.fires, `fires ${b2.fires} -> ${a2.fires}`);
+    /* `>`, not `>=`. `OWNER()` resets `window.__fires = 0` and `b2` is read immediately
+       after it runs, so `b2.fires` is ALWAYS 0 and `a2.fires >= 0` was a tautology — this
+       check, the only evidence that model-for propagates the user switch, could not fail.
+       The Case-1 sibling above already uses `>`. */
+    check('currentUser observers fired during model-for', a2.fires > b2.fires, `fires ${b2.fires} -> ${a2.fires}`);
 
     console.log(`\n   ${pass}/${pass + fail} passed`);
     if (fail) { process.exitCode = 1; }

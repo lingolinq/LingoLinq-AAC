@@ -42,7 +42,9 @@ const MEASURE = () => {
   });
   return {
     grid: true,
-    grouped: grid.classList.contains('md-board-detail-grid--grouped'),
+    /* --compact is the live grouping marker; --grouped is keyed on `panelLayout`, a
+       hardcoded false, so nothing emits it and this read was always false. */
+    grouped: grid.classList.contains('md-board-detail-grid--compact'),
     overflowY: cs.overflowY,
     gridHeight: Math.round(gb.height),
     gridBottom: Math.round(gb.bottom),

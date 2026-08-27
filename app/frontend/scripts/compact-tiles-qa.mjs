@@ -77,7 +77,9 @@ const READ = () => {
 
   return {
     compact: grid.classList.contains('md-board-detail-grid--compact'),
-    grouped: grid.classList.contains('md-board-detail-grid--grouped'),
+    /* --compact is the live grouping marker; --grouped is keyed on the hardcoded-false
+       `panelLayout` and is emitted by nothing. */
+    grouped: grid.classList.contains('md-board-detail-grid--compact'),
     hasKeyboardPanelClass: grid.classList.contains('md-board-detail-grid--has-keyboard-panel'),
     compactRows: grid.style.getPropertyValue('--bd-compact-rows').trim(),
     content: { l: gr.left + pad.l, r: gr.right - pad.r, t: gr.top + pad.t, b: gr.bottom - pad.b },

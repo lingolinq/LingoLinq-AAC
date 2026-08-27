@@ -28,6 +28,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `label_fit` cannot fit a ONE-line box — `scrollHeight` counts the label's padding and the line budget does not](#gotcha-label_fit-cannot-fit-a-one-line-box--scrollheight-counts-the-labels-padding-and-the-line-budget-does-not)
 - [Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing](#gotcha-a-hard-coded-forcegroupingtrue-makes-a-preview-lie-about-the-preference-it-is-previewing)
 - [Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes](#gotcha-single-quoted-i18n-defaults-never-reach-the-locale-files--and-a-ui-control-is-only-fixed-when-the-payload-changes)
+- [Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`](#gotcha-extrasjs-wraps-string-ajax-bodies-as-text-meta--html-fetchers-must-unwrap-text)
 - [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
 - [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
@@ -64,6 +65,7 @@ file (see [README.md](README.md)).
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
 - [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
 - [Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set](#gotcha-board-translation-google-egress-is-userstranslate--worddata-not-boardtranslate_set)
+- [Gotcha: Accept Translations as form-urlencoded trips Rack's 4096-param cap](#gotcha-accept-translations-as-form-urlencoded-trips-racks-4096-param-cap)
 - [Pattern: before adding a guard, grep the canonical path for one that already exists — with the exact flag name, in that file alone](#pattern-before-adding-a-guard-grep-the-canonical-path-for-one-that-already-exists--with-the-exact-flag-name-in-that-file-alone)
 - [Pattern: an accurate "this code is missing" grep does NOT prove the problem still exists](#pattern-an-accurate-this-code-is-missing-grep-does-not-prove-the-problem-still-exists)
 - [Pattern: deleting dead CSS is a text-surgery problem — `:not()` and multi-line selector lists are the two ways to silently break live styling](#pattern-deleting-dead-css-is-a-text-surgery-problem---not-and-multi-line-selector-lists-are-the-two-ways-to-silently-break-live-styling)
@@ -353,6 +355,9 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
 - [Pattern: blank username suggestions must be discarded before `clean_path`](#pattern-blank-username-suggestions-must-be-discarded-before-clean_path)
 - [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
+- [Gotcha: Translate Boards must not send action tokens to Google](#gotcha-translate-boards-must-not-send-action-tokens-to-google)
+- [Gotcha: Translate Boards tree is not a labeled button set](#gotcha-translate-boards-tree-is-not-a-labeled-button-set)
+- [Gotcha: BoundSelect search typing is killed by ctrlAction preventDefault](#gotcha-boundselect-search-typing-is-killed-by-ctrlaction-preventdefault)
 - [Pattern: board-detail Speak bar must speak vocalization, not just label](#pattern-board-detail-speak-bar-must-speak-vocalization-not-just-label)
 - [Pattern: board-detail Speak bar must play attached button sounds, not TTS-only](#pattern-board-detail-speak-bar-must-play-attached-button-sounds-not-tts-only)
 - [Pattern: long-running modal work that must survive dismissal belongs in a service + app-level component, not a "hidden" modal](#pattern-long-running-modal-work-that-must-survive-dismissal-belongs-in-a-service--app-level-component-not-a-hidden-modal)
@@ -522,6 +527,24 @@ Keyboard boards use vocalizations as control protocols: `+a` composes spelling, 
 **Import gotcha:** Vocal Flair / Open Board Format files store those protocols on the OBF `action` (or `actions`) field, not `vocalization`. `Converters::LingoLinq.vocalization_from_obf_button` copies them onto `vocalization` during import. A blank `actions` array is truthy in Ruby and used to hide `action`, so only treat `actions` as present when it has values. `SystemSidebarBoards.repair_utility_board` also restores missing `:shift` / `:space` / `+letter` vocalizations from `public/system-boards/keyboard.obz` when the live button has no vocalization (or only repeats the label).
 
 **First seen in:** [2026-06-03-keyboard-shift-space-default-language.md](./2026-06-03-keyboard-shift-space-default-language.md); import-side drop in [2026-08-22-keyboard-import-control-vocalizations.md](./2026-08-22-keyboard-import-control-vocalizations.md)
+
+## Gotcha: Translate Boards must not send action tokens to Google
+
+`Board#translate_set` already refuses to overwrite vocalizations matching `^[:+]`, but the Translate Boards review modal (`components/button-set.js`) was still pushing those vocalizations (`:space`, `:shift`, `+q`, `:suggestion`) into `/api/v1/users/self/translate`. The review UI then showed a second row for the token, and `_build_save_translations_map` could persist `':space' => 'espacio'`. Skip at collect / show / save with `shouldTranslateVocalization`; also drop `^[:+]` in `WordData.translate_batch` so Google never sees them even if a client sends them; and do not mirror a translated **label** onto an action vocalization when label and vocalization are both `:space`. Still translate the visible label (`space`, `[ space ]`).
+
+**First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: Translate Boards tree is not a labeled button set
+
+`BoardHierarchy.load_boards` can paint linked boards from `board.linked_boards` even when `button_set.buttons` is empty (no labels). Skip-reload then has nothing to keep, and a root-only fallback leaves the review list on Quick Core 24 while the red "Linked board labels could not be loaded" warning stays. After `load_buttons` still has no labels, `findRecord` each selected board and collect its `buttons` so linked labels reach review and save.
+
+**First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: BoundSelect search typing is killed by ctrlAction preventDefault
+
+`ctrlAction` always calls `preventDefault()` on the event. The searchable language list puts the filter `<input>` inside the `<ul>`, so a `{{on "keydown" (this.ctrlAction "list_keydown")}}` on that list cancelled every keystroke before the character was inserted. Use dedicated `onListKeydown` / `onSearchKeydown` handlers assigned in `init()` (same pattern as `modern-select`), and only `preventDefault` for Escape / ArrowDown / Enter.
+
+**First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
 
 ## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
 
@@ -7878,9 +7901,11 @@ guards, or tests in a file that already has grandfathered findings (especially l
 new runloop call sites were added. Diagnose before migrating: compare counts of
 `file|ruleId|messageHash` (ignore line/column). Line-only churn → fix any truly new violations,
 then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
-in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new) and
+in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new),
 `feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
-computed dep; the rest were `application.js` line shifts from three payload keys). New unit tests
+computed dep; the rest were `application.js` line shifts from three payload keys), and
+`fix/melissa-translate-action-tokens-and-lang-search` merging staging (`new=7`; 3 `assert.expect`
+on new tests, one `model.board.id` computed dep, 3 line-shifted `runLater`/controller deps). New unit tests
 must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
 `@ember/test-helpers`. See
 [`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),
@@ -8974,6 +8999,10 @@ When a batch helper downloads once and fans out (`self.assert_priority` → `wd.
 ## Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set
 
 `Board#translate_set` only applies a client-supplied translation hash — it does not call Google. The frontend first POSTs words to `/api/v1/users/:id/translate` → `WordData.translate_batch` → `query_translations` (Typhoeus to `translation.googleapis.com`), then posts the result to boards#translate → `translate_set`. An org off-switch that only gates `translate_set` still lets labels leave to Google. Gate the users translate action (and optionally `translate_set` as belt-and-suspenders); do **not** gate `WordData.query_translations` globally because `translate_locale_batch` uses it for library locale files. Org toggles for this live as top-level `settings['external_ai_processing']` (same shape as `default_beta_program_access`), not under `settings['permissions']` (ACL). Check all attached orgs (managers/supervisors), not only `managing_organization` / org_user. Ref: [#691](https://github.com/lingolinq/LingoLinq-AAC/issues/691), [`2026-07-28-org-external-ai-processing-off-switch.md`](./2026-07-28-org-external-ai-processing-off-switch.md).
+
+## Gotcha: Accept Translations as form-urlencoded trips Rack's 4096-param cap
+
+`POST /api/v1/boards/:id/translate` used to send the whole label map as `application/x-www-form-urlencoded` (`translations[hat]=sombrero&…`). Rack 3.2.6 rejects forms over **4096 parameters** (`QueryParser::QueryLimitError` → empty HTML 400, ~10ms, no `api_error` JSON). The Google lookups (`users#translate`, 100 words per POST) stay under the cap; Accept of a full linked set does not. Send that save as `contentType: 'application/json'` + `JSON.stringify` (same pattern as `generate_labels`). Do not raise the global form-param limit. JSON does not speed up the lookup batches. Ref: [`2026-08-26-board-translate-400-empty-body.md`](./2026-08-26-board-translate-400-empty-body.md).
 
 ## Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled
 
@@ -15460,6 +15489,140 @@ requires a four-week SGD trial, and the grep behind it had matched the lymphedem
 section (lesson 3). Another reported a phrase absent from a PDF that contained it
 (lesson 4). Both would have shipped as sourced facts.
 
+## Gotcha: `{{on "evt" this.someMethod}}` does NOT bind `this` — the repo's idiom is a factory bound in `init`
+
+`{{on}}` hands the raw function to `addEventListener`, so inside a bare class-body method
+`this` is the DOM element, not the component. The first `this.get(...)` throws
+`TypeError: this.get is not a function` — and if the handler already called
+`event.preventDefault()`, the key is swallowed AND the action never runs, which reads as
+"the control is dead" rather than as an error.
+
+Every other `{{on "keydown"}}` in this codebase goes through a binding factory —
+`this.eventAction`, `this.ctrlAction`, `this.invokeAttr` — or an `init`-bound closure:
+
+```js
+init() {
+  this._super(...arguments);
+  var self = this;
+  this.onGridKeydown = function(ev) { self.send('grid_keydown', ev); };  // components/grid-size-picker.js:56
+}
+```
+
+Found the hard way: `components/boards-layout-toggle.hbs:14` bound `this.onGroupKeydown`
+bare (2026-08-26 review). Combined with a roving tabindex — where only the CHECKED radio has
+`tabindex="0"` — it made the control completely keyboard-inoperable, because Tab+Enter only
+ever re-selects the value that is already selected. Unit tests were green: they called the
+component's methods directly and never dispatched a DOM event.
+
+**Check before shipping any `{{on}}`:** grep the component JS for the handler name and confirm
+it is assigned in `init`. If it appears only as an object-literal method, it is unbound.
+A unit test that calls the method directly will NOT catch this — it needs a rendering test
+that dispatches the real event.
+
+## Gotcha: a guard added to ONE handler does not cover keys another handler claims first
+
+`raw_events.js` has TWO `keydown` handlers. The first returns early for everything in
+`special_keys` — which includes `Backspace`, `Escape`, `Delete`, `Tab` and the arrows — so a
+guard added inside that handler *structurally cannot* apply to those keys; the second handler
+is where they are actually processed.
+
+`typing_into_a_field()` was added in 2026-08 to stop physical-keyboard typing from leaking into
+the vocalization box, and was used as the justification for defaulting
+`preferences.device.external_keyboard` to `true` for every existing account. It was applied at
+one call site. Escape (`:clear`) and Backspace (`:backspace`) in the second handler were left
+unguarded, so typing in a speak-mode text field (the Phrase Builder search box) could delete
+from — or wipe — a communicator's composed utterance.
+
+**Rule:** when you add a predicate to make a default safe, enumerate every handler that can
+observe the event, not just the one you were reading. For `raw_events.js` specifically:
+grep `check('keyboard_listen')` and confirm the guard appears at EVERY hit.
+
+## Technique: prove a "new lint/suppression regression" with a per-file+rule NET delta, never the raw `+` count
+
+`.eslint-todo` is keyed `file|rule|line|col|hash`, so ANY line shift in an existing file
+produces a remove+add pair. A branch that merely grew some files showed **+224** added app-code
+entries — which looks like 224 newly-grandfathered violations and is not.
+
+Compute the net instead:
+
+```bash
+git show <base>:app/frontend/.eslint-todo | grep -v '^#' | cut -d'|' -f1,2 | sort | uniq -c > /tmp/old
+grep -v '^#' app/frontend/.eslint-todo      | cut -d'|' -f1,2 | sort | uniq -c > /tmp/new
+# then diff the counts per file|rule key
+```
+
+Real answer for that branch: net **+75**, of which 73 were qunit style rules in NEW TEST files
+and 2 were `ember/no-runloop` in one component. Same discipline as the baseline rule for test
+runs (rule 10) — reconcile against a baseline before claiming a delta.
+## Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`
+
+`app/frontend/app/utils/extras.js` patches `$.ajax` and, on success, turns a
+string body into `{text: data}` then attaches `data.meta`. JSON API callers
+already expect an object. An HTML/text fetch that passes the resolved value
+straight into `{{safe}}` / `htmlSafe` stringifies it to `[object Object]`.
+
+The Article 50 modal (`ai-disclosure.js#fetchDisclosure`) hit this: the
+notice HTML was in `.text`, and the template rendered the wrapper object.
+`persistence.remote_json` already reads `data.text`; new `dataType: 'html'`
+or `'text'` callers must do the same. Tests that stub `persistence.ajax` with
+a raw string will not catch this — also resolve the extras.js `{text, meta}`
+shape.
+
+**First seen in:** [2026-08-26-ai-disclosure-object-object.md](./2026-08-26-ai-disclosure-object-object.md)
+
+## Pattern: quoted predecessor date windows must be compared as written
+
+When a correction refutes a predecessor claim with telemetry, use the
+predecessor's own interval. A longer bucket that includes days after the
+claimed window (especially after a documented credential restoration) cannot
+refute the original count, and "the event is on the wrong dates" does not
+follow from that mismatch. Report the queried bucket separately from the
+quoted window; do not silently extend the dates in parentheses.
+
+**First seen in:** [2026-08-27-overview-draft-verification-window.md](./2026-08-27-overview-draft-verification-window.md)
+
+## Gotcha: rescoping a findings row in place is a merge hazard, and no gate can see it
+
+`audit-merge.rb` derives a finding id as `SHA256(ruleKey|file)` (`scripts/audit-merge.rb:151-153`),
+and `citation-check.rb:72-96` already re-derives it and hard-FAILS on a mismatch, for every row
+regardless of status. **CORRECTED 2026-08-27: that check is NOT CI-gated.** `ci.yml:153` says so
+explicitly ("citation-check.rb is intentionally NOT gated here"); it runs only locally, via
+`scripts/regenerate-register.sh`. An earlier version of this entry called it "CI-blocking", which
+was wrong and is exactly the kind of unverified gating claim this file exists to stop. The only
+CI-gated structural check on findings rows is `register-lint.rb`, inside `audit-artifacts-integrity`.
+
+That is exactly why rescoping a row in place slips through. On PR #867 a row was rewritten from
+"the disclosure represents an unenforced purge as enforced" to an Article 50 legal-basis question
+while KEEPING its ruleKey. `id == SHA256(ruleKey|file)` still held, so citation-check stayed green
+-- what drifted was the SEMANTIC relationship: the row's content no longer described what its key
+said. A finder re-emitting the old key would then merge into a row about a different subject, and a
+correctly keyed finding would land as a duplicate.
+
+Two things follow:
+
+1. **When the subject of a finding changes, mint a NEW ruleKey and let the id change.** Editing
+   title/notes in place is only safe while the row still means what its key says. If the row has
+   already merged, you cannot simply delete it either (that is a closure, and only Scot closes) --
+   restore the old row's title to match its key, mark it withdrawn, and open the correctly keyed
+   row alongside it.
+2. **Do not propose an "identity invariant" gate for this.** It exists, it is green, and it would
+   not have caught the defect. Check whether a gate exists before recommending one; a redundant
+   gate that cannot detect the failure it is named for is worse than none, because it reads like
+   coverage.
+
+Related, and this one IS mechanically checkable: `evidence.sha` must be a full 40-hex commit id.
+`citation-check` resolves a prefix happily (`git show <prefix>:<path>` works), so a short sha passes
+the day it is written and silently becomes ambiguous as the repo grows. `audit-merge.rb` writes
+whatever `--sha` it is handed, so the abbreviation enters at the call site, not in the merger.
+`register-lint.rb` now rejects a non-40-hex sha, and REQUIRES one on every `code`/`doc` row --
+blank is permitted only for known non-checkable evidence (`runtime`, `attestation`). Unknown
+types (a mistype like `"cod"`, or an empty string) must not inherit that exemption:
+`citation-check.rb` SKIPs every type other than `code`/`doc`, so a file-backed row with a
+typoed type and a blank sha would otherwise be unanchored and uninspected by both the CI
+gate and the local citation check. The linter allowlists `evidence.type` against
+`code|doc|runtime|attestation` before applying the blank-sha exemption, and treats a blank
+type the same as a missing one (derive `code` if a file is present). That strictness
+matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
 ## A "modern restyle" that leaves the legacy block in place never actually lands (2026-08-27)
 
 `app.scss` had both the new `.la-share-text__action-img { width: 24px; height: 24px }`

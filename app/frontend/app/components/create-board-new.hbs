@@ -231,11 +231,15 @@
           {{#if this.ai_board_generation_enabled}}
             {{!-- Same-row, page-centered Generate with AI button. See
                  .nb-generate-ai-btn positioning rules in app.scss. --}}
-            <button type="button" class="la-btn la-btn--ghost nb-generate-ai-btn" {{on "click" (this.ctrlAction "request_ai_mode")}}>
+            {{!-- aria-label lives on the BUTTON, not on the inner title span. `letter-stagger`
+                 marks every span it emits aria-hidden, and aria-label is name-PROHIBITED on
+                 role=generic (a bare <span>), so hanging the name there left accname with
+                 nothing to recurse into and the button had no accessible name at all. --}}
+            <button type="button" class="la-btn la-btn--ghost nb-generate-ai-btn" aria-label={{t "Generate with AI" key="generate_with_ai"}} {{on "click" (this.ctrlAction "request_ai_mode")}}>
               <span class="nb-ai-sparkle-badge nb-generate-ai-btn__sparkle-badge" aria-hidden="true">
                 <span class="nb-ai-sparkle nb-generate-ai-btn__sparkle"></span>
               </span>
-              <span class="nb-generate-ai-btn__title ub-communicate" aria-label={{t "Generate with AI" key="generate_with_ai"}}>{{letter-stagger (t "Generate with AI" key="generate_with_ai") start=0 step=0.05}}</span>
+              <span class="nb-generate-ai-btn__title ub-communicate" aria-hidden="true">{{letter-stagger (t "Generate with AI" key="generate_with_ai") start=0 step=0.05}}</span>
             </button>
           {{/if}}
         {{/if}}
@@ -1436,7 +1440,7 @@
                 </button>
                 {{#if this.icon_picker_open}}
                   <div id="nb-icon-picker-panel" class="nb-icon-disclosure__panel">
-                    <IconSelect @selection={{this.model.image_url}} @action={{mut this.model.image_url}} />
+                    <IconSelect @selection={{this.model.image_url}} @action={{fn (mut this.model.image_url)}} />
                   </div>
                 {{/if}}
               </div>

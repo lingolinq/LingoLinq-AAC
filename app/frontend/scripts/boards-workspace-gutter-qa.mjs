@@ -89,6 +89,24 @@ async function at(page, width, layout) {
     await page.goto(`${OPTS.BASE}/${OPTS.USER}/boards`, { waitUntil: 'networkidle2' });
     await page.waitForSelector('.ub-boards-page__layout-toggle-btn', { timeout: 45000 });
 
+    /* EXPAND THE FOLDERS PANEL. Check 9 measures `.ub-boards-page__folders-body` and
+       `.ub-boards-page__folder-list`, both of which live inside `{{#if this.foldersExpanded}}`.
+       That now defaults to COLLAPSED and changes only on the user's toggle — the auto-expand
+       on entering side-by-side was removed on 2026-08-26 so the panel stays where the user
+       left it. Puppeteer gets a fresh profile per run, so localStorage is empty and the panel
+       is always closed on arrival; without this, check 9 measured nothing and failed on every
+       run, and check 8's height-parity assertion passed on an EMPTY stretched box. */
+    const foldersExpanded = await page.evaluate(() => {
+      const t = document.querySelector('.ub-boards-page__folders-toggle');
+      return t ? t.getAttribute('aria-expanded') : null;
+    });
+    if (foldersExpanded === 'false') {
+      await page.click('.ub-boards-page__folders-toggle');
+      await new Promise((r) => setTimeout(r, 600));
+    } else if (foldersExpanded === null) {
+      console.log('  NOTE: folders toggle not found — checks 8 and 9 will not have a panel to measure.');
+    }
+
     // ---- WIDE ----
     const topWide = await at(page, WIDE, 'top-down');
     if (!topWide) { throw new Error('.md-workspace not found'); }

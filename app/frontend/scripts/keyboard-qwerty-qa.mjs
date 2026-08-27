@@ -55,7 +55,10 @@ const READ = () => {
     byTop.get(top).push(label.trim());
   });
   return {
-    grouped: grid.classList.contains('md-board-detail-grid--grouped'),
+    /* --compact is the live grouping marker. Reading the dead --grouped made the
+       headline assertion ('the keyboard is NOT regrouped') pass on ANY board, grouped
+       or not — it could not fail even if isKeyboardBoard regressed. */
+    grouped: grid.classList.contains('md-board-detail-grid--compact'),
     rows: [...byTop.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v)
   };
 };

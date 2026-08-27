@@ -48,8 +48,26 @@ import frame_listener from './frame_listener';
 // Ember uses native event dispatch (jquery-integration off). jQuery $.trigger('click')
 // does not reach Ember actions; native MouseEvent does. Custom pass_through must be
 // readable from jQuery's delegated handler (see originalEvent below).
-function dispatchPassThroughClick(dom, clientX, clientY) {
+/* `srcEvent` (optional) is the pointer release that prompted this synthetic click.
+   When it is a MOUSE release whose target is `dom` or a descendant, the browser is
+   CERTAIN to deliver a real click to the same element — preventDefault() on `mouseup`
+   does not cancel it, unlike `touchend`. Synthesizing another one there runs the
+   handler TWICE, and a TOGGLE net-cancels, leaving the control apparently dead.
+
+   Guarded HERE rather than at each call site because that is how this keeps recurring:
+   the guard first landed inside passThroughUnresolvedChromeClick scoped to
+   `.md-board-collection` ("the only surface where this duplication is confirmed"), and
+   the very next toggle to hit it was the sentence-bar chip menu's ⇄ Switch, which
+   reaches element_release through a DIFFERENT, unguarded branch. Traced live: the ⇄
+   received `isTrusted=false` from here and `isTrusted=true` from the browser, so
+   toggle_chip_swap armed then immediately disarmed (swap null -> 0 -> null).
+
+   Callers that pass no `srcEvent` — dwell, eye-gaze, scanning, touch — are unaffected:
+   they produce no native click and still need the pass-through. */
+function dispatchPassThroughClick(dom, clientX, clientY, srcEvent) {
   if (!dom) { return; }
+  if (srcEvent && srcEvent.type === 'mouseup' && srcEvent.target &&
+      dom.contains && dom.contains(srcEvent.target)) { return; }
   var evt = new MouseEvent('click', {
     bubbles: true,
     cancelable: true,
@@ -247,10 +265,26 @@ function passThroughUnresolvedChromeClick(elem_wrap, event) {
   if(!dom) { return; }
   var native_click_coming = event && event.type === 'mouseup' && event.target &&
                             dom.contains && dom.contains(event.target);
-  // Scoped to the co-located BoardCollection panel — the only surface where this
-  // duplication is confirmed. Other chrome keeps its existing behavior.
-  if(native_click_coming && dom.closest && dom.closest('.md-board-collection')) { return; }
-  dispatchPassThroughClick(dom, event.clientX, event.clientY);
+  /* UNSCOPED as of 2026-08-26. This used to be limited to `.md-board-collection`
+     ("the only surface where this duplication is confirmed"), but the condition above is
+     already the precise, general test: if the browser is CERTAIN to deliver a real click
+     to this element — a `mouseup` whose target is the element or a descendant — then a
+     synthetic one is always a duplicate, on every surface, not just that panel.
+
+     Second confirmed instance, which is what forced this: the sentence-bar chip menu's
+     ⇄ Switch button. Traced live — the button received TWO clicks, `isTrusted=false` from
+     dispatchPassThroughClick (touch_release -> element_release) and `isTrusted=true` from
+     the browser — so `toggle_chip_swap` ran twice and net-cancelled:
+         click 1: swap null -> 0   (armed)
+         click 2: swap 0 -> null   (disarmed)
+     leaving the control apparently dead, exactly as LEARNINGS describes for "Show N more
+     boards". Scoping the fix to the one surface it was first seen on guaranteed the next
+     toggle elsewhere would hit it again.
+
+     Touch, dwell, eye-gaze and scanning are unaffected: they produce no native click, so
+     `native_click_coming` is false and they still get the pass-through they depend on. */
+  if(native_click_coming) { return; }
+  dispatchPassThroughClick(dom, event.clientX, event.clientY, event);
 }
 
 // Modals on board-detail (add-to-sidebar, button-settings, etc.): pointer
@@ -294,7 +328,7 @@ function modalDialogClickRelease(event) {
   if (event.cancelable) { event.preventDefault(); }
   if (event.stopPropagation) { event.stopPropagation(); }
   buttonTracker.ignoreUp = true;
-  dispatchPassThroughClick(el, event.clientX, event.clientY);
+  dispatchPassThroughClick(el, event.clientX, event.clientY, event);
   return true;
 }
 
@@ -557,14 +591,16 @@ $(document).on('mousedown touchstart', function(event) {
   } else if(event.keyCode == 27 || event.code == 'Escape') { // esc
     if(modal.is_open() && modal.is_closeable()) {// && (event.target.tagName == 'INPUT' || event.target.tagName == 'BUTTON' || event.target.tagName == 'TEXTAREA' || event.target.tagName == 'A')) {
       modal.close();
+    /* `typing_into_a_field` here as well as on the character-typing handler above.
+       That handler returns early for everything in `special_keys`, and `special_keys`
+       CONTAINS "Escape" and "Backspace" -- so its guard structurally cannot cover these
+       two branches, which are where those keys are actually processed. Without this,
+       Escape pressed to dismiss a speak-mode text field (the Phrase Builder search box,
+       templates/user/board-detail.hbs -- a plain input, not in a modal) wiped the whole
+       composed utterance, and Backspace to fix a typo deleted a chip from it. That became
+       reachable for every existing account when preferences.device.external_keyboard
+       gained a `true` default, which generate_defaults backfills onto every device. */
     } else if(buttonTracker.check('keyboard_listen') && !modal.is_open() && !typing_into_a_field(event.target)) {
-      /* The field guard belongs here as much as on the character keys at :508 — arguably
-         more. Escape in a text field means "give up on what I am typing", and without this
-         it ran `:clear` on the UTTERANCE instead, wiping a sentence the user had built one
-         button at a time. Reachable without any modal being open: the Phrase Builder is an
-         inline view, so `modal.is_open()` is false while its search box has focus. This
-         matters now that `preferences.device.external_keyboard` defaults to true and is
-         backfilled onto every existing account. */
       $("#hidden_input").val("");
       if(buttonTracker.appState) {
         buttonTracker.appState.activate_button({vocalization: ':clear'}, {
@@ -579,10 +615,9 @@ $(document).on('mousedown touchstart', function(event) {
       }
     }
   } else if(event.keyCode == 8 || event.code == 'Backspace') { // backspace
-    /* Same guard, same reason: Backspace in a search box must delete a character there, not
-       a word from the sentence. Both of these sit in the `special_keys` branch, which is a
-       SEPARATE keydown registration from the character handler at :508 — adding the guard
-       there did not cover them. */
+    /* Same field guard as the Escape branch above, and for the same reason -- see the
+       note there. Backspace is in `special_keys`, so the character-handler's guard never
+       sees it. */
     if(buttonTracker.check('keyboard_listen') && !modal.is_open() && !typing_into_a_field(event.target)) {
       var $input = $("#hidden_input");
       if($input.val()) {
@@ -1655,7 +1690,7 @@ var buttonTracker = EmberObject.extend({
               // dwell / scanning (no native click at all): synthesize the pass-through
               // click so the Ember add_digit action still runs.
               event.preventDefault();
-              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY, event);
             }
           } else if(
             elem_wrap.dom.classList.contains('speak_menu_button') ||
@@ -1674,7 +1709,7 @@ var buttonTracker = EmberObject.extend({
               // action runs, the same way the generic non-button speak
               // menu links are handled in the final else below.
               event.preventDefault();
-              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+              dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY, event);
             } else {
               // #menu_* AAC tiles (<div class="md-speak-menu__btn">):
               // route via the speakmenuselect CustomEvent so Ember's
@@ -1697,7 +1732,7 @@ var buttonTracker = EmberObject.extend({
           } else if(elem_wrap.dom.id == 'sidebar_tease' || elem_wrap.dom.id == 'sidebar_close') {
             // Synthetic native click so Ember actions (e.g. toggleSidebar) run
             event.preventDefault();
-            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY, event);
           } else if(event_source === 'click' && elem_wrap.dom.closest && elem_wrap.dom.closest('.md-board-collection')) {
             // Co-located BoardCollection: {{on}} + ctrlAction does not receive clicks
             // (see LEARNINGS.md). Must route via boardDetailChromeRelease, not defer.
@@ -1729,13 +1764,13 @@ var buttonTracker = EmberObject.extend({
               // Touch/dwell: Ember click is suppressed; route to controller.send.
               event.preventDefault();
               if(!boardDetailChromeRelease(elem_wrap)) {
-                dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+                dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY, event);
               }
             }
           } else {
             event.preventDefault();
             // Speak menu links (Un-Flip, Cancel, etc.) and other non-button targets
-            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+            dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY, event);
           }
         }
 

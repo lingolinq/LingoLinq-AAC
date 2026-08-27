@@ -105,6 +105,11 @@ export default Controller.extend({
 
   init() {
     this._super(...arguments);
+    /* Read the stored folders-panel preference HERE rather than in the class body, so it
+       reflects the value at instantiation. `available-boards-section` reads the same
+       function in its own `init`, which is what keeps the two in agreement on first paint
+       without either writing across the boundary. */
+    this.set('mineFoldersPanelExpanded', readFoldersExpanded());
     var self = this;
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
@@ -279,8 +284,13 @@ export default Controller.extend({
 
      Initialised from the SAME stored preference the component restores from, so both
      agree on first paint without anyone writing across the boundary mid-render. The
-     component's observer carries changes after that. */
-  mineFoldersPanelExpanded: readFoldersExpanded(),
+     component's observer carries changes after that.
+
+     Seeded in `init()`, NOT here as a class-body default: a call in the class body runs
+     once at MODULE EVAL, in import order, so it froze whatever localStorage held at app
+     boot rather than what it holds when this controller is instantiated. `null` here means
+     "not yet seeded" and init fills it in. */
+  mineFoldersPanelExpanded: null,
   _scheduleFilterDebounce: observer('filterString', function() {
     var _this = this;
     debounce(this, function() {
@@ -1166,8 +1176,17 @@ export default Controller.extend({
     var bufferKey = list_name + ':' + list_id;
     var isMineList = list_name === 'model.my_boards';
     /* Within TTL, a usable on-screen Mine list + fresh localStorage
-       snapshot means skip the full-library re-download. Mutations clear
-       the snapshot so the next update_selected still refreshes. */
+       snapshot means skip the full-library re-download — the point of the snapshot is to
+       avoid re-fetching a whole library on every visit (a ~250-board account is 5
+       paginated round-trips).
+
+       KNOWN BOUND, stated rather than implied: this skips the query ENTIRELY, so the list
+       is only as fresh as the last thing that invalidated the snapshot. Local mutations do
+       invalidate it — create, delete, copy, remove and now RENAME (which changes a tile's
+       `key`, so a stale tile would 404). A change made on ANOTHER DEVICE does not, and
+       cannot: there is no signal here to notice it. Such a change surfaces after the TTL
+       expires, or after any local mutation. That is the deliberate trade; do not read this
+       branch as "the list is current". */
     if(isMineList && !append && backgroundRefresh && boardsPageListCache.hasFreshSnapshot(_this.get('model.id'))) {
       boardsPageListCache.setMineListBusy(false);
       return;

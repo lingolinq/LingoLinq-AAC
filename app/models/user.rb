@@ -2958,9 +2958,18 @@ class User < ApplicationRecord
   # app/frontend/app/utils/board_categories.js — `order` is filtered against this list,
   # so a category the client knows about but this array does not is silently dropped
   # from the user's saved order.
+  #
+  # LISTED IN THE CLIENT REGISTRY'S OWN ORDER so the two are diffable by eye, and pinned
+  # by "stays in step with the frontend registry" in spec/models/user_spec.rb, which reads
+  # the JS file and compares. That spec exists because this drifted once already:
+  # `predictions`, `clock`, `yes` and `time` were added to the registry and not here, and
+  # because the client writes a FULL normalized order on every Categorize save, those four
+  # were stripped server-side on every save and re-appended at the END of the order by
+  # normalize_order on the next read — permanently pushing them to the back of the board.
   BOARD_CATEGORY_KEYS = ['people', 'actions', 'describe', 'how_when', 'places',
-                         'questions', 'social', 'no_not', 'words', 'controls',
-                         'extra', 'things', 'keyboard']
+                         'questions', 'social', 'no_not', 'words', 'keyboard',
+                         'predictions', 'clock', 'yes', 'time', 'controls',
+                         'extra', 'things']
 
   # `board_category_grouping` is a nested hash written verbatim by the PREFERENCE_PARAMS
   # loop, which coerces only TOP-LEVEL values — so its members were entirely unvalidated:
@@ -3039,9 +3048,59 @@ class User < ApplicationRecord
       clean_boards[bid] = entry.call(bval)
     end
 
-    prefs['board_category_grouping'] = entry.call(
+    written = entry.call(
       val.merge('enabled' => enabled, 'order' => order)
     ).merge('boards' => clean_boards)
+    log_board_category_grouping_enable!(written)
+    prefs['board_category_grouping'] = written
+  end
+
+  # TRIPWIRE (2026-08-26). Categories were observed switching themselves ON account-wide on
+  # an account whose owner never touched the Categorize switch, and the history could not
+  # answer WHY: `settings` is secure_serialize'd, so PaperTrail's `reify` raises
+  # JSON::ParserError and the false -> true transition is unreadable after the fact.
+  #
+  # Why this needs a tripwire rather than more reading: `board_category_grouping` is NOT
+  # specially handled client-side — it rides in the generic `preferences` hash on EVERY
+  # user save. So it never needs a deliberate Categorize save to persist. Any in-memory
+  # `true` (a mistimed toggle, a failed save whose rollback did not stick) gets committed by
+  # the user's next unrelated preference change — voice, dark mode, anything — which puts
+  # the trigger and the persistence arbitrarily far apart and makes it look spontaneous.
+  #
+  # Logs ONLY the false -> true edge, so it is silent in normal operation and cannot become
+  # noise: turning grouping on is rare, and turning it off or re-saving it while already on
+  # says nothing. The `boards` count is the discriminator that pointed at the client-side
+  # no-board fallback in the first place — a deliberate per-board toggle writes an entry,
+  # the buggy path wrote the top level with an EMPTY map.
+  #
+  # Runs in every environment on purpose: beta users are on staging and production, which is
+  # exactly where an unexplained clinical-setting change matters most. One WARN line per
+  # occurrence.
+  def log_board_category_grouping_enable!(written)
+    return unless written.is_a?(Hash) && written['enabled'] == true
+    prior_enabled = nil
+    if !self.new_record? && self.id
+      begin
+        stored = self.class.where(id: self.id).first
+        prior = stored && ((stored.settings || {})['preferences'] || {})['board_category_grouping']
+        prior_enabled = prior.is_a?(Hash) ? (prior['enabled'] == true) : false
+      rescue => e
+        prior_enabled = "unreadable(#{e.class})"
+      end
+    else
+      prior_enabled = false
+    end
+    return if prior_enabled == true   # already on; not an edge
+    # App frames only — the controller/action that carried this write is what identifies the
+    # caller, and the full trace is mostly framework noise.
+    root = Rails.root.to_s
+    frames = caller.select { |l| l.start_with?(root) && !l.include?('/app/models/user.rb') }.first(6)
+    Rails.logger.warn(
+      "[board_category_grouping] ENABLED user=#{self.global_id.inspect} " \
+      "prior_enabled=#{prior_enabled.inspect} boards_entries=#{(written['boards'] || {}).keys.length} " \
+      "order_len=#{(written['order'] || []).length} new_record=#{self.new_record?} " \
+      "caller=#{frames.map { |f| f.sub(root + '/', '') }.inspect}"
+    )
   end
 
   def sanitize_boards_layout_preference!

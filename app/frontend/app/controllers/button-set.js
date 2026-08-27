@@ -11,6 +11,7 @@ import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import LingoLinq from '../app';
+import { shouldTranslateVocalization } from '../utils/special_vocalization';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -52,7 +53,7 @@ export default modal.ModalController.extend({
           if(b.label) {
             words.push(b.label);
           }
-          if(b.vocalization && b.vocalization != b.label) {
+          if(shouldTranslateVocalization(b.vocalization, b.label)) {
             words.push(b.vocalization);
           }
         });
@@ -154,7 +155,7 @@ export default modal.ModalController.extend({
       if(translations[b.label]) {
         emberSet(b, 'translation', translations[b.label]);
       }
-      if(b.vocalization && b.vocalization != b.label && translations[b.vocalization]) {
+      if(shouldTranslateVocalization(b.vocalization, b.label) && translations[b.vocalization]) {
         emberSet(b, 'secondary_translation', translations[b.vocalization]);
       }
     });
@@ -202,13 +203,18 @@ export default modal.ModalController.extend({
         if(emberGet(b, 'translation')) {
           translations[emberGet(b, 'label')] = emberGet(b, 'translation');
         }
-        if(emberGet(b, 'secondary_translation')) {
+        if(shouldTranslateVocalization(emberGet(b, 'vocalization'), emberGet(b, 'label')) && emberGet(b, 'secondary_translation')) {
           translations[emberGet(b, 'vocalization')] = emberGet(b, 'secondary_translation');
         }
       });
+      /* JSON body: a large linked set as form-urlencoded is one param per
+         word and trips Rack's 4096-param cap (empty HTML 400). */
+      var boardIds = _this.get('model.new_board_ids_to_translate');
       persistence.ajax('/api/v1/boards/' + _this.get('model.copy.id') + '/translate', {
         type: 'POST',
-        data: {
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify({
           source_lang: _this.get('model.board.locale'),
           destination_lang: _this.get('model.locale'),
           set_as_default: _this.get('model.default_language'),
@@ -221,8 +227,8 @@ export default modal.ModalController.extend({
              translation-select#translate from the Re-Translate path. */
           force_update_default: _this.get('model.force_update_default') || false,
           translations: translations,
-          board_ids_to_translate: _this.get('model.new_board_ids_to_translate')
-        }
+          board_ids_to_translate: boardIds && boardIds.toArray ? boardIds.toArray() : boardIds
+        })
       }).then(function(res) {
         app_state.set('board_translate_in_progress', true);
         modal.flash(i18n.t('applying_translations', "Applying Translations..."), 'notice', false, true);

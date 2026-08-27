@@ -79,7 +79,15 @@ const MEASURE = () => {
       const p = Object.assign({}, u.get('preferences'));
       const entry = { enabled: true, order: (p.board_category_grouping || {}).order || [],
         show_category_names: true, vertical_scroll: scroll };
-      p.board_category_grouping = Object.assign({}, entry, { boards: { [id]: entry } });
+      /* MERGE into the existing `boards` map, do not replace it. The previous form
+         (`{ boards: { [id]: entry } }`) dropped every OTHER board's curated arrangement on
+         the account each run, with no restore. Its two near-identical siblings —
+         category-region-qa and category-layout-dump-qa — already merge correctly; this one
+         had diverged. */
+      const prevBoards = (p.board_category_grouping || {}).boards;
+      const boards = Object.assign({}, (prevBoards && typeof prevBoards === 'object') ? prevBoards : {});
+      boards[id] = entry;
+      p.board_category_grouping = Object.assign({}, entry, { boards: boards });
       u.set('preferences', p);
       if (!u.get('preferences.device')) { u.set('preferences.device', {}); }
       u.set('preferences.device.updated', true);

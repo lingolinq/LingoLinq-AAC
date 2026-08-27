@@ -79,7 +79,9 @@ class SpanishLibraryBoards
       words << brd.settings['name'] if brd.settings['name'].present?
       brd.buttons.each do |btn|
         words << btn['label'] if btn['label'].present?
-        if btn['vocalization'].present? && btn['vocalization'] != btn['label']
+        # Action vocalizations (':space', '+q', ...) are control protocols.
+        # Translating the token breaks keyboard / prediction buttons.
+        if btn['vocalization'].present? && btn['vocalization'] != btn['label'] && !btn['vocalization'].to_s.match(/^[:+]/)
           words << btn['vocalization']
         end
       end

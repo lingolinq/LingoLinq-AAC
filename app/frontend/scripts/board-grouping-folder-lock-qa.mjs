@@ -68,7 +68,12 @@ const setGrouping = async (page, want) => {
   try {
     await page.waitForFunction((w) => {
       const g = document.querySelector('.md-board-detail-grid');
-      return !!g && g.classList.contains('md-board-detail-grid--grouped') === w;
+      /* `--compact`, NOT `--grouped`. `--grouped` is keyed on `panelLayout`, which is a
+         hardcoded `false` (board-detail-grid.js), so it is emitted by nothing and this
+         predicate could never become true — the wait timed out at 30s on every run and
+         the probe failed its own precondition. The live "grouping is on" marker is
+         `--compact` (`compactCategories = groupingEnabled`). */
+      return !!g && g.classList.contains('md-board-detail-grid--compact') === w;
     }, { timeout: 30000, polling: 150 }, want);
     return true;
   } catch (e) { return false; }
@@ -95,22 +100,28 @@ const setGrouping = async (page, want) => {
        under the OLD permissive test, where an absent preference counted as ON.) */
     const alreadyGrouped = await page.evaluate(() => {
       const g = document.querySelector('.md-board-detail-grid');
-      return !!(g && g.classList.contains('md-board-detail-grid--grouped'));
+      return !!(g && g.classList.contains('md-board-detail-grid--compact'));
     });
     if (!alreadyGrouped) {
-      const ok = await setGrouping(page, true);
-      if (!ok) { fail('precondition — grouping could be switched on', 'grid never gained --grouped'); throw new Error('not grouped'); }
+      /* ARM THE RESTORE *BEFORE* MUTATING, not after. `setGrouping` sends
+         `toggle_categorize`, which writes the preference immediately; only the WAIT can
+         fail. Setting `flipped` after the throw below meant that on every failing run the
+         preference was already flipped and the `finally` restore never ran — leaking
+         `enabled: true` into the dev account, which is exactly the contamination the
+         restore block further down was written to prevent. */
       flipped = true;
+      const ok = await setGrouping(page, true);
+      if (!ok) { fail('precondition — grouping could be switched on', 'grid never gained --compact'); throw new Error('not grouped'); }
       console.log('  (grouping switched ON for this run; will be restored)');
     }
 
     const speak = await page.evaluate(() => {
       const g = document.querySelector('.md-board-detail-grid');
-      return { grouped: !!(g && g.classList.contains('md-board-detail-grid--grouped')),
+      return { grouped: !!(g && g.classList.contains('md-board-detail-grid--compact')),
                coloredCorner: !!(g && g.classList.contains('md-board-detail-grid--folder-colored-corner')) };
     });
     if (!speak.grouped) { fail('precondition — the board renders grouped', JSON.stringify(speak)); throw new Error('not grouped'); }
-    pass('precondition — the board renders grouped', 'grid carries --grouped');
+    pass('precondition — the board renders grouped', 'grid carries --compact');
 
     if (speak.coloredCorner) {
       pass('grouped board renders with the Colored Corner folder treatment', 'grid carries --folder-colored-corner');

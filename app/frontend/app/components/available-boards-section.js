@@ -777,119 +777,35 @@ export default Component.extend({
      so the handler returns early. */
   _folderClickOutside: null,
 
-  /* SIDE-BY-SIDE BELOW 768px: the page falls back to the stacked layout (the toggle hides
-     and every side-by-side folders rule is gated at 769px in app.scss), so the folders card
-     is presented COLLAPSED there — the stacked layout gives the boards list the full width,
-     and an expanded folders accordion pushes it off screen on a phone.
+  /* NO AUTOMATIC EXPAND/COLLAPSE OF THE FOLDERS PANEL — deliberately.
+     There used to be two viewport/layout-driven syncs here: `_syncSideBySideFoldersExpand`
+     (force-expand on entering side-by-side above 768px) and `_syncNarrowFoldersCollapse`
+     (force-collapse below it). Both are gone, for two reasons.
 
-     A DEFAULT, NOT A LOCK. It collapses ONCE on the way down; the user can expand it again
-     immediately and it will stay expanded, because the flag below is only re-armed after
-     the viewport goes back above the breakpoint. Re-collapsing on every resize event would
-     make the control feel broken.
+     PRODUCT (Traci, 2026-08-26): the panel stays where the user left it, so the page never
+     feels like it changed on them.
 
-     The stored preference is deliberately NOT written: `foldersExpanded` persists to
-     localStorage when the user TOGGLES it, and this is not the user toggling it. Writing
-     here would let a narrow visit silently overwrite the choice they made on a desktop.
+     CORRECTNESS: both mutated `foldersExpanded` WITHOUT writing the stored preference, which
+     is what let this component and the SINGLETON `controllers/user/index` drift apart. The
+     controller survives this component; a value the component adopted without persisting was
+     invisible to the next instance, which re-read localStorage and got something else. Once
+     they disagreed, `board_list` withheld foldered boards from the main grid while the panel
+     was NOT presenting them — so a board filed in a folder with no untagged twin vanished
+     from the page entirely (the mirror case rendered every foldered board twice).
 
-     Keyed off the body attribute rather than a component property because that attribute is
-     what boards-layout-toggle publishes and what the CSS keys off — one source for "which
-     layout did the user choose". */
-  _syncNarrowFoldersCollapse: function() {
-    var narrow = (typeof window !== 'undefined') && window.innerWidth <= 768;
-    if (!narrow) {
-      // Back above the breakpoint — re-arm so a later shrink collapses again.
-      this._collapsedForNarrow = false;
-      return;
-    }
-    if (this._collapsedForNarrow) { return; }
-    /* NEVER collapse while drilled into a folder. The drilled-in board grid is rendered
-       INSIDE the `{{#if this.foldersExpanded}}` block, and the main grid is suppressed by
-       `{{#unless mineTagFolderDrillIn}}` — so collapsing here removed every board grid on
-       the page, leaving a lone "Folders" header and no way back. Reachable just by
-       rotating an iPad from landscape to portrait while inside a folder. */
-    if (this.get('boardsCtrl.mineTagFolderDrillIn')) { return; }
-    var sideBySide = false;
-    try {
-      sideBySide = document.body.getAttribute('data-boards-layout') === 'side-by-side';
-    } catch (e) { /* no document (tests) — leave it expanded */ }
-    if (!sideBySide) { return; }
-    this._collapsedForNarrow = true;
-    if (this.get('foldersExpanded')) { this.set('foldersExpanded', false); }
-  },
+     The invariant now: `foldersExpanded` changes ONLY when the user toggles it, and that path
+     always calls `writeFoldersExpanded`. Both sides initialise from `readFoldersExpanded()`,
+     so they agree on first paint with nobody writing across the boundary mid-render, and the
+     observer below carries later changes. Do not reintroduce a state change here that skips
+     the write — persist it, or do not make it.
 
-  /* SIDE-BY-SIDE DEFAULTS TO EXPANDED (>768px): in the side-by-side arrangement the
-     folders card owns its own quarter-width column, so a collapsed accordion just
-     leaves that column empty while the folders it exists to show sit hidden. The
-     stacked layout has the opposite problem (folders push the boards list down), which
-     is why this only applies to side-by-side and only above the breakpoint every
-     side-by-side rule is gated at.
-
-     The exact mirror of `_syncNarrowFoldersCollapse` above, and it obeys the same two
-     rules:
-       - A DEFAULT, NOT A LOCK. It expands ONCE on entering side-by-side; collapse it
-         again and it stays collapsed, because the flag is only re-armed after the
-         layout leaves side-by-side (or the viewport goes narrow).
-       - The stored preference is NOT written. `foldersExpanded` persists only when the
-         USER toggles it, and this is not the user toggling it.
-
-     Keyed off the same `data-boards-layout` body attribute for the same reason: it is
-     what boards-layout-toggle publishes and what the CSS reads — one source for "which
-     layout did the user choose". */
-  _syncSideBySideFoldersExpand: function() {
-    var narrow = (typeof window !== 'undefined') && window.innerWidth <= 768;
-    var sideBySide = false;
-    try {
-      sideBySide = document.body.getAttribute('data-boards-layout') === 'side-by-side';
-    } catch (e) { /* no document (tests) — treat as not side-by-side */ }
-    if (narrow || !sideBySide) {
-      // Not the side-by-side case — re-arm so re-entering it expands again.
-      this._expandedForSideBySide = false;
-      return;
-    }
-    if (this._expandedForSideBySide) { return; }
-    this._expandedForSideBySide = true;
-    if (!this.get('foldersExpanded')) { this.set('foldersExpanded', true); }
-  },
+     TRADE-OFF, recorded so it is a choice and not an oversight: on a phone in the
+     side-by-side arrangement an expanded folders accordion pushes the boards list down. The
+     user collapses it once and, unlike before, that now persists. */
 
   didInsertElement() {
     this._super(...arguments);
     var _this = this;
-
-    // Evaluate once for a page that LOADS narrow, then follow resizes. Throttled with a
-    // timeout rather than a runloop helper: this repo's lint bans @ember/runloop, and a
-    // resize burst would otherwise re-run this on every frame.
-    this._syncSideBySideFoldersExpand();
-    this._syncNarrowFoldersCollapse();
-    var narrowHandler = function() {
-      if (_this._narrowResizeTimer) { clearTimeout(_this._narrowResizeTimer); }
-      _this._narrowResizeTimer = setTimeout(function() {
-        if (_this.isDestroyed || _this.isDestroying) { return; }
-        _this._syncSideBySideFoldersExpand();
-        _this._syncNarrowFoldersCollapse();
-      }, 120);
-    };
-    window.addEventListener('resize', narrowHandler);
-    this.set('_narrowResizeHandler', narrowHandler);
-
-    /* The layout can change WITHOUT a resize — boards-layout-toggle flips it on click,
-       and again when a late-hydrating user record brings a stored preference. Every one
-       of those paths goes through its `_reflect()`, which sets the body attribute, so
-       watching the attribute catches all of them. Watching the attribute (rather than
-       taking state onto the shared `controllers/user/index`) also keeps the toggle's
-       deliberate self-containment intact — see the header note in
-       components/boards-layout-toggle.js. */
-    if (typeof MutationObserver !== 'undefined' && document && document.body) {
-      // Called bare, not wrapped in `run()`, matching the resize handler above —
-      // this repo's lint bans @ember/runloop, and these two syncs only ever set a
-      // plain component property.
-      var layoutObserver = new MutationObserver(function() {
-        if (_this.isDestroyed || _this.isDestroying) { return; }
-        _this._syncSideBySideFoldersExpand();
-        _this._syncNarrowFoldersCollapse();
-      });
-      layoutObserver.observe(document.body, { attributes: true, attributeFilter: ['data-boards-layout'] });
-      this._layoutObserver = layoutObserver;
-    }
 
     var handler = function(ev) {
       if (!ev || !ev.target || !ev.target.closest) { return; }
@@ -931,19 +847,6 @@ export default Component.extend({
   },
 
   willDestroyElement() {
-    var narrowHandler = this.get('_narrowResizeHandler');
-    if (narrowHandler) {
-      window.removeEventListener('resize', narrowHandler);
-      this.set('_narrowResizeHandler', null);
-    }
-    if (this._narrowResizeTimer) {
-      clearTimeout(this._narrowResizeTimer);
-      this._narrowResizeTimer = null;
-    }
-    if (this._layoutObserver) {
-      this._layoutObserver.disconnect();
-      this._layoutObserver = null;
-    }
     var handler = this.get('_folderClickOutside');
     if (handler) {
       document.removeEventListener('click', handler, true);

@@ -5764,10 +5764,27 @@ export default Controller.extend(prefClasses, {
         boards: boards
       };
     } else {
-      /* Neither a key nor an id (a preview with no model): fall back to the user default
-         so the control still does something rather than silently dropping the change. */
-      next.boards = boards;
-      written = next;
+      /* NO BOARD REFERENCE -> WRITE NOTHING. This used to fall back to writing the USER
+         DEFAULT ("so the control still does something"), which is the wrong failure
+         direction and was the actual cause of categories switching themselves on:
+
+           `write_ref` is `board_key || board_id`, and this save runs inside a double
+           requestAnimationFrame (see toggle_categorize). If the model is not resolved at
+           that moment — mid-transition, a board still loading — both are null, so a toggle
+           meant for ONE board silently rewrote `preferences.board_category_grouping.enabled`
+           at the TOP LEVEL. `board_category_settings` falls back to that top level for every
+           board WITHOUT an override, so one mistimed toggle turned grouping on for the whole
+           account: every board the user opened afterwards came up categorised, including
+           boards they had never touched and boards reached via "Try this Board".
+           (Observed: an account with top-level `enabled: true` and an EMPTY `boards` map —
+           the signature of this path rather than a normal per-board write.)
+
+         Grouping MOVES vocabulary out of the cells a communicator has motor memory for, so
+         the account-wide default must only ever change through a deliberate act on a real
+         board. If we cannot tell which board this is, the correct outcome is to do nothing. */
+      console.error('board-detail: ignoring a Categorize change with no board reference — ' +
+                    'refusing to write the account-wide default');
+      return;
     }
     user.set('preferences.board_category_grouping', written);
     /* `preferences.device` may not exist on the record — setting a nested path through a

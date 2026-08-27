@@ -89,6 +89,47 @@ describe('ai-disclosure', function() {
         expect(component.get('disclosure_html')).toEqual('<div class="article50-disclosure">notice</div>');
       });
     });
+
+    it('should unwrap extras.js {text, meta} string wrapping and store the HTML fragment', function() {
+      stub(persistence, 'get', function(key) {
+        if(key === 'online') { return true; }
+        return null;
+      });
+      var resolve = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(innerResolve) {
+          resolve = innerResolve;
+        });
+      });
+      component.fetchDisclosure();
+      resolve({
+        text: '<div class="article50-disclosure">notice</div>',
+        meta: {fakeXHR: {status: 200}}
+      });
+      waitsFor(function() { return component.get('loading') === false; });
+      runs(function() {
+        expect(component.get('disclosure_html')).toEqual('<div class="article50-disclosure">notice</div>');
+      });
+    });
+
+    it('should show the offline fallback when the fetch resolves to a non-string object without text', function() {
+      stub(persistence, 'get', function(key) {
+        if(key === 'online') { return true; }
+        return null;
+      });
+      var resolve = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(innerResolve) {
+          resolve = innerResolve;
+        });
+      });
+      component.fetchDisclosure();
+      resolve({meta: {}});
+      waitsFor(function() { return component.get('loading') === false; });
+      runs(function() {
+        expect(component.get('disclosure_html')).toEqual(null);
+      });
+    });
   });
 
   describe("acknowledge action", function() {

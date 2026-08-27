@@ -25,6 +25,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = [];
 const pass = (n, d) => { results.push(true); console.log(`  PASS  ${n}\n        ${d}`); };
 const fail = (n, d) => { results.push(false); console.log(`  FAIL  ${n}\n        ${d}`); };
+/* A skipped check verified NOTHING, so it must not be counted as a pass — calling pass()
+   with the word "skipped" in the detail (which this file used to do twice) makes a
+   narrow-viewport run report green on assertions it never made. Tracked separately and
+   printed at the end, the way a2c-click-tests-qa.mjs does it. */
+const skipped = [];
+const skip = (n, d) => { skipped.push(n); console.log(`  SKIP  ${n}\n        ${d}`); };
 
 const clickEl = async (page, sel) => {
   const el = await page.$(sel);
@@ -205,8 +211,8 @@ const run = async () => {
     }
 
     if (!desktop) {
-      pass('the whole control area fits the desktop height target',
-        `skipped — ${s.columns}-column layout at ${VW}px wide; the target is the desktop one (bar ${s.bar.h}px here)`);
+      skip('the whole control area fits the desktop height target',
+        `${s.columns}-column layout at ${VW}px wide; the target is the desktop one (bar ${s.bar.h}px here)`);
     } else if (s.bar.h <= 175) {
       pass('the whole control area fits the desktop height target',
         `${s.bar.h}px (target ~150-175, advisory ${s.scrollOn ? 'showing' : 'hidden'})`);
@@ -286,8 +292,8 @@ const run = async () => {
     const heights = `advisory ${beforeAdvisory ? 'on' : 'off'}: strip ${s.strip.h}px / bar ${s.bar.h}px, advisory ${after.advisory ? 'on' : 'off'}: strip ${after.strip.h}px / bar ${after.bar.h}px`;
     const tallest = Math.max(s.bar.h, after.bar.h);
     if (!desktop) {
-      pass('the control area holds the height target in BOTH advisory states',
-        `skipped — ${s.columns}-column layout at ${VW}px wide (${heights})`);
+      skip('the control area holds the height target in BOTH advisory states',
+        `${s.columns}-column layout at ${VW}px wide (${heights})`);
     } else if (tallest <= 175) {
       pass('the control area holds the height target in BOTH advisory states', heights);
     } else {
@@ -350,6 +356,10 @@ const run = async () => {
 
   const failed = results.filter((r) => !r).length;
   console.log(`\n${results.length - failed}/${results.length} passed at ${VW}x${VH}`);
+  if (skipped.length) {
+    console.log(`\nSKIPPED — these are NOT passes; a skipped check verified nothing:`);
+    skipped.forEach((n) => console.log(`  - ${n}`));
+  }
   process.exit(failed ? 1 : 0);
 };
 

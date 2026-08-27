@@ -3,8 +3,17 @@
 // =============================================================================
 //
 // SINGLE HOME for every style that should apply ONLY when the user has selected
-// the "Focused View" dashboard style (`preferences.dashboard_layout === 'focused'`,
-// which is the default). The overlay is gated at runtime by the `ll-layout-focused`
+// the "Focused View" dashboard style (`preferences.dashboard_layout === 'focused'`).
+//
+// NOT THE DEFAULT — this comment used to claim it was, and that claim shaped how risky
+// every rule in this file looks. `User.preference_defaults['any_user']['dashboard_layout']`
+// is `'gentle'` (app/models/user.rb), and `LingoLinq.set_layout_scope` (app/app.js) adds
+// the body class only on a strict `layout === 'focused'`. So an absent or default
+// preference gets NOTHING from this file, and every rule here reaches only users who
+// deliberately chose Focused View. Gentle View is the untouched baseline, exactly as the
+// scoping contract below says.
+//
+// The overlay is gated at runtime by the `ll-layout-focused`
 // class that `sync_layout_scope` (services/app-state.js) mirrors onto <body> on
 // each load — see `LingoLinq.set_layout_scope` in app.js.
 //

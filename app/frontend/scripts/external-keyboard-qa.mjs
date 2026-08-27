@@ -3,10 +3,14 @@
  *
  * The path under test: raw_events.js keydown -> `buttonTracker.check('keyboard_listen')`
  * (speak mode only) -> `appState.activate_button({}, {vocalization: '+<char>'})`. The gate
- * is `preferences.device.external_keyboard`, which has no server-side default, so this
- * reports the SAME typing test twice — with the preference left as the account has it, and
- * again with it forced on — because "it does not work" and "it is switched off" look
- * identical from the outside.
+ * is `preferences.device.external_keyboard`.
+ *
+ * CORRECTED 2026-08-26: this header used to say that preference "has no server-side
+ * default". It has one now — `User.preference_defaults['device']['external_keyboard'] = true`
+ * (app/models/user.rb), and `generate_defaults` backfills it onto EVERY device of EVERY
+ * existing user. The two-pass "as the account has it / forced on" structure below therefore
+ * measures the same thing twice on a default account; it is kept only for an account whose
+ * device hash explicitly turned it OFF.
  *
  * Reads `app_state.button_list` (what the sentence bar renders from) rather than the DOM,
  * so a styling change cannot make a working feature look broken.
@@ -20,6 +24,14 @@ import { cliArgs, launch, login } from './qa-helpers.mjs';
 const OPTS = cliArgs(process.argv);
 const BOARD = OPTS.arg('--board', null);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/* This file was console.log-only, so a total regression of the guarded path exited 0. The
+   field-guard checks below are real assertions and gate the exit code. */
+let passN = 0, failN = 0;
+function check(name, ok, detail) {
+  if (ok) { passN++; console.log(`  [PASS] ${name}${detail ? ' — ' + detail : ''}`); }
+  else { failN++; console.log(`  [FAIL] ${name}${detail ? ' — ' + detail : ''}`); }
+}
 
 const STATE = () => ({
   speak_mode: !!(window.appState && window.appState.get('speak_mode')),
@@ -80,11 +92,15 @@ async function typeAndRead(page, text) {
     s = await typeAndRead(page, 'cat');
     console.log(`  keyboard_listen=${JSON.stringify(s.keyboard_listen)}  check('keyboard_listen')=${JSON.stringify(s.check_says)}`);
     console.log(`  typed "cat" -> sentence box: [${s.sentence}]`);
-    /* RELOAD before testing the other path. The in-memory `external_keyboard` above was
-       never saved, so a reload drops it — and it has to be dropped, because the keydown
-       handler does NOT skip input elements (raw_events.js:452, the guard is commented out),
-       so with it on, typing into the Phrase Builder's search box ALSO appends to the
-       vocalization box and neither result can be trusted. */
+    /* RELOAD before testing the other path, so the in-memory `external_keyboard` set above
+       (never saved) is dropped and the Phrase Builder is exercised in the account's real state.
+
+       CORRECTED 2026-08-26: this used to claim "the keydown handler does NOT skip input
+       elements (raw_events.js:452, the guard is commented out)". That is false. The guard is
+       live — `typing_into_a_field()` is defined at raw_events.js:383 and applied at the
+       character-typing gate (~:508) and, as of today, at the Escape and Backspace gates too
+       (~:569 / ~:587). Line 452 is inside the `special_keys` array literal, not a guard. The
+       reload is still worth doing, but not for the reason previously given. */
     await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
     await page.waitForSelector('.md-board-detail-grid', { timeout: 30000 });
     await sleep(3000);
@@ -147,6 +163,64 @@ async function typeAndRead(page, text) {
         console.log(`  clicked "${picked}" -> sentence BAR: [${after.bar}]`);
         console.log(`  ${''.padEnd(20)}app_state.button_list: [${after.button_list}]`);
       }
+
+        /* THE REGRESSION THIS FILE MOST NEEDS TO COVER, and did not until 2026-08-26.
+           raw_events.js has THREE `check('keyboard_listen')` gates, not one. The
+           character-typing gate returns early for everything in `special_keys` — which
+           CONTAINS "Escape" and "Backspace" — so typing letters proves nothing about the
+           other two gates, which is where those keys are actually processed:
+             Escape    -> activate_button(':clear')     wipes the WHOLE utterance
+             Backspace -> activate_button(':backspace') deletes the last chip
+           Neither carried the `typing_into_a_field` guard, so a communicator fixing a typo
+           in this very search box (a plain <input>, not in a modal) destroyed the sentence
+           they were composing. Assert the utterance is UNCHANGED across both keys. */
+        console.log('\n--- field guard: Escape / Backspace must not reach the utterance ---');
+        await page.evaluate(() => {
+          const el = document.getElementById('bd-phrase-builder-search');
+          if (el) { el.focus(); }
+        });
+        const focused = await page.evaluate(() => document.activeElement && document.activeElement.id);
+        if (focused !== 'bd-phrase-builder-search') {
+          check('precondition — the search input holds focus', false, `activeElement is "${focused}"`);
+        } else {
+          check('precondition — the search input holds focus', true);
+          const before = await page.evaluate(STATE);
+          await page.keyboard.press('Backspace');
+          await sleep(600);
+          const afterBk = await page.evaluate(STATE);
+          check('Backspace in a text field does NOT delete an utterance chip',
+            afterBk.sentence === before.sentence, `[${before.sentence}] -> [${afterBk.sentence}]`);
+
+          await page.keyboard.press('Escape');
+          await sleep(600);
+          const afterEsc = await page.evaluate(STATE);
+          check('Escape in a text field does NOT clear the utterance',
+            afterEsc.sentence === before.sentence, `[${before.sentence}] -> [${afterEsc.sentence}]`);
+
+          /* POSITIVE CONTROL. The two assertions above are negative, so on their own they
+             cannot distinguish "the guard works" from "the utterance was empty" or "the
+             keys never reached the app at all". Blur the field and press Backspace: with
+             focus on the body the guard must NOT apply and the utterance MUST change. If
+             this does not fire, the two passes above mean nothing. */
+          if (before.sentence) {
+            await page.evaluate(() => { document.activeElement && document.activeElement.blur(); });
+            await sleep(300);
+            await page.keyboard.press('Backspace');
+            await sleep(700);
+            const outside = await page.evaluate(STATE);
+            check('POSITIVE CONTROL — Backspace OUTSIDE a field still edits the utterance',
+              outside.sentence !== before.sentence, `[${before.sentence}] -> [${outside.sentence}]`);
+          } else {
+            check('POSITIVE CONTROL — Backspace OUTSIDE a field still edits the utterance',
+              false, 'utterance was empty, so the control could not run — the two passes above are unproven');
+          }
+        }
     }
-  } finally { await browser.close(); }
+  } finally {
+    if (passN + failN) {
+      console.log(`\n${passN} passed, ${failN} failed`);
+    }
+    await browser.close();
+    if (failN) { process.exitCode = 1; }
+  }
 })();

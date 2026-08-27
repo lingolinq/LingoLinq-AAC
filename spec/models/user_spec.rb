@@ -384,6 +384,7 @@ describe User, :type => :model do
         'button_text_position'=> 'top',
         'vocalization_height' => 'small',
         'hide_screen_helpers' => false,
+        'external_keyboard' => true,
         'wakelock' => true
       })
       expect(u.settings['preferences']['activation_location']).to eq('end')
@@ -424,6 +425,7 @@ describe User, :type => :model do
         'button_text_position' => 'top',
         'vocalization_height' => 'small',
         'hide_screen_helpers' => false,
+        'external_keyboard' => true,
         'wakelock' => true
       })
       expect(u.user_name).to eq("bob-miller")
@@ -591,6 +593,33 @@ describe User, :type => :model do
       u.process({'preferences' => {'device' => {'hide_screen_helpers' => true}}}, {})
       u.save
       expect(u.settings['preferences']['devices']['default']['hide_screen_helpers']).to eq(true)
+    end
+  end
+
+  describe "BOARD_CATEGORY_KEYS" do
+    # THE DRIFT GUARD. `sanitize_board_category_grouping!` filters the saved `order`
+    # against this constant, and the client writes a FULL normalized order on every
+    # Categorize save -- so a key the frontend registry has and this constant lacks is
+    # stripped on every save, then re-appended at the END by normalize_order on the next
+    # read, permanently pushing that category to the back of the board. That is exactly
+    # what happened to predictions/clock/yes/time.
+    #
+    # Reading the JS is deliberate: a hand-copied list is what drifted. The extraction is
+    # asserted to have found a plausible registry FIRST, so a formatting change in the JS
+    # fails loudly with "found 0 keys" instead of a confusing mismatch.
+    it "stays in step with the frontend registry in utils/board_categories.js" do
+      js = File.read(Rails.root.join('app/frontend/app/utils/board_categories.js'))
+      registry = js[/BOARD_CATEGORIES\s*=\s*\[(.*?)\n\];/m, 1]
+      expect(registry).not_to be_nil,
+        "could not locate `BOARD_CATEGORIES = [...]` in board_categories.js -- the extraction below is stale, fix it rather than deleting this spec"
+      client_keys = registry.scan(/^\s*key:\s*'([a-z_]+)'/).flatten
+      expect(client_keys.length).to be >= 10,
+        "extracted only #{client_keys.length} keys from board_categories.js (#{client_keys.inspect}) -- the regex no longer matches the file's shape"
+
+      expect(client_keys.sort).to eq(User::BOARD_CATEGORY_KEYS.sort),
+        "frontend registry and User::BOARD_CATEGORY_KEYS disagree.\n" \
+        "  only in board_categories.js: #{(client_keys - User::BOARD_CATEGORY_KEYS).inspect}\n" \
+        "  only in user.rb:             #{(User::BOARD_CATEGORY_KEYS - client_keys).inspect}"
     end
   end
 

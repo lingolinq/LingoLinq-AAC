@@ -60,8 +60,19 @@ export default Component.extend({
     }
     persistence.ajax(this.get('disclosureLinkUrl'), { type: 'GET', dataType: 'html' }).then(function(html) {
       if (_this.isDestroyed || _this.isDestroying) { return; }
-      if (html) {
-        _this.set('disclosure_html', html);
+      // extras.js wraps every string AJAX body as {text: html, meta: ...} so
+      // Ember Data always receives an object. persistence.ajax JSON callers already
+      // expect that shape; this HTML fetch must unwrap .text or {{safe}} stringifies
+      // the object to "[object Object]". A raw string is still accepted for tests
+      // / the unpatched $.ajax path.
+      var htmlString = null;
+      if (typeof html === 'string') {
+        htmlString = html;
+      } else if (html && typeof html.text === 'string') {
+        htmlString = html.text;
+      }
+      if (htmlString) {
+        _this.set('disclosure_html', htmlString);
         _this.set('loading', false);
       } else {
         _this.showOfflineFallback();

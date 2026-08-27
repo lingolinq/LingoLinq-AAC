@@ -162,9 +162,17 @@ function clear(userId) {
   try { storage.removeItem(key); } catch (e) { /* ignore */ }
 }
 
-function clearAll() {
-  _mineListBusy = false;
-  _boardsPageActive = false;
+/* Drop EVERY user's snapshot on this device, leaving the in-flight load flags alone.
+   For a mutation whose owner cannot be resolved to a user id — `rename` is the case: an
+   existing Board record carries `user_name` but not reliably a `for_user_id`, and the
+   snapshots are keyed by id — this is the honest invalidation. A rename is rare and the
+   cost is one re-query per user on this device, which is much cheaper than serving a tile
+   that links to a key the server no longer knows (a 404 for the user).
+
+   Separate from clearAll() because clearAll also resets `_mineListBusy` /
+   `_boardsPageActive`, and clearing those mid-session would disturb the prefetch gate for
+   a load that is still running. */
+function clearSnapshots() {
   var storage = _storage();
   if (!storage) { return; }
   var toRemove = [];
@@ -179,6 +187,12 @@ function clearAll() {
   toRemove.forEach(function(k) {
     try { storage.removeItem(k); } catch (e2) { /* ignore */ }
   });
+}
+
+function clearAll() {
+  _mineListBusy = false;
+  _boardsPageActive = false;
+  clearSnapshots();
 }
 
 function hydrate(store, boards) {
@@ -255,6 +269,7 @@ export default {
   read: read,
   clear: clear,
   clearAll: clearAll,
+  clearSnapshots: clearSnapshots,
   hydrate: hydrate,
   isUsableList: isUsableList,
   isPaintReady: isPaintReady,

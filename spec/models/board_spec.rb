@@ -3489,6 +3489,30 @@ describe Board, :type => :model do
       expect(by_id[4]).to eq(':space')
     end
 
+    it "should keep a SPECIAL vocalization even when the translation hash has a value for that token" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['buttons'] = [
+        {'id' => 1, 'label' => 'space', 'vocalization' => ':space'},
+        {'id' => 2, 'label' => ':space', 'vocalization' => ':space'}
+      ]
+      b.save
+      b.translate_set({
+        'space' => 'espacio',
+        ':space' => 'espacio'
+      }, {
+        'source' => 'en', 'dest' => 'es', 'board_ids' => [b.global_id],
+        'default' => true, 'allow_fallbacks' => false,
+        'user_key' => u.global_id, 'user_local_id' => u.id
+      })
+      b.reload
+      by_id = b.settings['buttons'].index_by { |btn| btn['id'] }
+      expect(by_id[1]['label']).to eq('espacio')
+      expect(by_id[1]['vocalization']).to eq(':space')
+      expect(by_id[2]['label']).to eq('espacio')
+      expect(by_id[2]['vocalization']).to eq(':space')
+    end
+
     it "should return done if user_id doesn't match" do
       u = User.create
       b = Board.create(:user => u)

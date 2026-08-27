@@ -1,6 +1,12 @@
 import Component from '@ember/component';
 import { computed, observer } from '@ember/object';
 import { inject as service } from '@ember/service';
+import {
+  SIDE_BY_SIDE,
+  TOP_DOWN,
+  readStoredLayout,
+  writeStoredLayout
+} from '../utils/boards_layout_state';
 
 /**
  * Boards-page layout selector — SIDE-BY-SIDE (Folders 1/4 left, Boards 3/4 right)
@@ -27,10 +33,12 @@ import { inject as service } from '@ember/service';
  * SIDE_BY_SIDE. A logged-out or offline session still works, just device-locally.
  */
 
-const STORAGE_KEY = 'll_boards_layout';
 const BODY_ATTR = 'data-boards-layout';
-export const SIDE_BY_SIDE = 'side-by-side';
-export const TOP_DOWN = 'top-down';
+/* The storage key and its guarded accessors live in utils/boards_layout_state so they are
+   defined once — app-state must clear the mirror on sign-out, and a service cannot import a
+   component. Re-exported here because this module was the original home of these two
+   constants and importers (including the unit test) still take them from it. */
+export { SIDE_BY_SIDE, TOP_DOWN };
 
 export default Component.extend({
   classNames: ['ub-boards-page__layout-toggle'],
@@ -59,6 +67,17 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
+
+    /* BOUND HERE, not left as a class-body method. `{{on}}` passes the function
+       straight to addEventListener, which sets `this` to the element the listener is
+       on -- so a bare `{{on "keydown" this.onGroupKeydown}}` made `this` the
+       <span role="radiogroup">, and the first `this.get(...)` threw. Because the
+       handler calls preventDefault() before that, the arrow key was swallowed AND the
+       action never ran: with the roving tabindex only the CHECKED radio is tabbable,
+       so Tab+Enter merely re-selects the current value and the layout could not be
+       changed by keyboard or switch at all (WCAG 2.1.1). Same closure idiom as
+       `sendAction` above and components/grid-size-picker.js#onGridKeydown. */
+    this.onGroupKeydown = function(event) { self._handleGroupKeydown(event); };
   },
 
   didInsertElement: function() {
@@ -79,7 +98,7 @@ export default Component.extend({
      With exactly two options every arrow simply moves to the other one, so there is no
      index arithmetic to get wrong. Selection follows focus because choosing is instant
      and reversible — there is no commit step to defer to. */
-  onGroupKeydown: function(event) {
+  _handleGroupKeydown: function(event) {
     var key = event && event.key;
     if(key !== 'ArrowRight' && key !== 'ArrowDown' && key !== 'ArrowLeft' && key !== 'ArrowUp') { return; }
     event.preventDefault();
@@ -124,8 +143,7 @@ export default Component.extend({
      some packaged builds, so every access is guarded rather than assumed. */
   _readStored: function() {
     try {
-      var stored = window.localStorage && window.localStorage[STORAGE_KEY];
-      return stored === TOP_DOWN ? TOP_DOWN : SIDE_BY_SIDE;
+      return readStoredLayout();
     } catch(e) {
       return SIDE_BY_SIDE;
     }
@@ -164,11 +182,7 @@ export default Component.extend({
     if(typeof document !== 'undefined' && document.body) {
       document.body.setAttribute(BODY_ATTR, mode);
     }
-    try {
-      if(window.localStorage) { window.localStorage[STORAGE_KEY] = mode; }
-    } catch(e) {
-      /* Preference simply does not persist; the toggle still works this session. */
-    }
+    writeStoredLayout(mode);
   },
 
   actions: {

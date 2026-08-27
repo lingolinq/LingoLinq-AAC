@@ -34,3 +34,14 @@ export function writeFoldersExpanded(expanded) {
     localStorage.setItem(FOLDERS_EXPANDED_KEY, expanded ? 'true' : 'false');
   } catch (e) { /* localStorage unavailable; in-memory state still updates */ }
 }
+
+/* Cleared on sign-out (app-state's reset, alongside boardsPageListCache.clearAll and
+   clearStoredLayout) so a shared school/clinic device does not hand the next person to
+   sign in the previous user's panel state. This key is per-DEVICE by necessity — both
+   readers seed from it before the user record hydrates, so it cannot be keyed by user id
+   at read time — which is exactly why dropping it at sign-out is the boundary. */
+export function clearFoldersExpanded() {
+  try {
+    localStorage.removeItem(FOLDERS_EXPANDED_KEY);
+  } catch (e) { /* nothing to clear if storage is unavailable */ }
+}
