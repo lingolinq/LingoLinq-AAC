@@ -1697,10 +1697,15 @@ class User < ApplicationRecord
         #
         # Safe to default only because the typing path is narrow: speak mode only
         # (buttonTracker.check returns null otherwise), never while scanning or dwelling, not
-        # while a modal is open, and — as of the same change as this default — not while the
-        # user is typing into a text field (raw_events.js#typing_into_a_field). Without that
-        # last guard this default would have made every search box on a speak-mode page
-        # inject into the utterance.
+        # while a modal is open, and not while the user is typing into a text field
+        # (raw_events.js#typing_into_a_field). Without that last guard this default would
+        # have made every search box on a speak-mode page inject into the utterance.
+        #
+        # That guard covers THREE handlers, and originally covered only one. Escape and
+        # Backspace are serviced by a separate `special_keys` keydown registration, so for a
+        # while this default meant Escape in the Phrase Builder's search box cleared the
+        # user's whole sentence. If another key is ever added to that branch, it needs the
+        # guard too.
         'external_keyboard' => true,
         'wakelock' => true
       },

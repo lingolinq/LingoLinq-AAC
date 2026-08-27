@@ -1,6 +1,12 @@
-<ModalDialog @desired_width={{850}} @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+{{!-- No @desired_width: ModalDialog writes it as an INLINE width on .modal-dialog, which
+      beats the stylesheet, so `.modal-dialog:has(.la-repairs-wrap) { width: 850px;
+      max-width: 94vw }` never bound and the dialog could not yield on a narrow screen. The
+      width lives in the stylesheet with every other modal's. --}}
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="la-repairs-wrap">
-  <div class="modal-header md-modal-header">
+  {{!-- `modal_targets` here too: the Oops control lives in the HEADER, and the scanning
+        query is scoped to descendants of a .modal_targets container. --}}
+  <div class="modal-header md-modal-header modal_targets">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
@@ -11,12 +17,23 @@
           `margin-top: -10px` inline, which put a red-bordered exclamation badge hard
           against the close X — every reviewer read it as the modal reporting a failure.
           Same action, now a normal member of the header row. --}}
-    <button type="button" class="la-repairs-oops" {{on "click" (this.ctrlAction "oops")}}>
+    {{!-- `btn` is kept alongside the styling class purely as a SCANNING HOOK:
+          modal.js#scannable_targets matches `.btn` and `a` and nothing else, and the
+          dwell/eye-gaze selectors in raw_events use the same. Restyling this control
+          without it made it invisible to every non-pointer input. --}}
+    <button type="button" class="btn la-repairs-oops" {{on "click" (this.ctrlAction "oops")}}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
       {{t "Oops" key="oops"}}
     </button>
   </div>
-  <div class="modal-body md-modal-body">
+  {{!-- `modal_targets` is what makes this modal SCANNABLE. modal.js#scannable_targets
+        selects `.modal-dialog .modal_targets .btn, … a, … .md-speak-menu__btn, …`, and
+        modal.js#open stops the scanner unconditionally then restarts it only when that
+        query returns something. Without this class the query returned zero, so opening
+        Modify and Repair Message from the speak menu — which passes `scannable: true` — stopped scanning
+        and never restarted it: a switch user was left in a modal with no reachable rows
+        and no reachable close, stuck until someone else clicked or pressed Escape. --}}
+  <div class="modal-body md-modal-body modal_targets">
     {{#if this.buttons}}
       <div class='cursor_holder'>
         <div class='cursor_navigation repair_buttons'>

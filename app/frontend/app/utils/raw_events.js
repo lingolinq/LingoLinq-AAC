@@ -557,7 +557,14 @@ $(document).on('mousedown touchstart', function(event) {
   } else if(event.keyCode == 27 || event.code == 'Escape') { // esc
     if(modal.is_open() && modal.is_closeable()) {// && (event.target.tagName == 'INPUT' || event.target.tagName == 'BUTTON' || event.target.tagName == 'TEXTAREA' || event.target.tagName == 'A')) {
       modal.close();
-    } else if(buttonTracker.check('keyboard_listen') && !modal.is_open()) {
+    } else if(buttonTracker.check('keyboard_listen') && !modal.is_open() && !typing_into_a_field(event.target)) {
+      /* The field guard belongs here as much as on the character keys at :508 — arguably
+         more. Escape in a text field means "give up on what I am typing", and without this
+         it ran `:clear` on the UTTERANCE instead, wiping a sentence the user had built one
+         button at a time. Reachable without any modal being open: the Phrase Builder is an
+         inline view, so `modal.is_open()` is false while its search box has focus. This
+         matters now that `preferences.device.external_keyboard` defaults to true and is
+         backfilled onto every existing account. */
       $("#hidden_input").val("");
       if(buttonTracker.appState) {
         buttonTracker.appState.activate_button({vocalization: ':clear'}, {
@@ -572,7 +579,11 @@ $(document).on('mousedown touchstart', function(event) {
       }
     }
   } else if(event.keyCode == 8 || event.code == 'Backspace') { // backspace
-    if(buttonTracker.check('keyboard_listen') && !modal.is_open()) {
+    /* Same guard, same reason: Backspace in a search box must delete a character there, not
+       a word from the sentence. Both of these sit in the `special_keys` branch, which is a
+       SEPARATE keydown registration from the character handler at :508 — adding the guard
+       there did not cover them. */
+    if(buttonTracker.check('keyboard_listen') && !modal.is_open() && !typing_into_a_field(event.target)) {
       var $input = $("#hidden_input");
       if($input.val()) {
         $input.val($input.val().slice(0, -1));

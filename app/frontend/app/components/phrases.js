@@ -136,15 +136,34 @@ export default Component.extend({
      (utils/modal only holds one), so the user would confirm and land nowhere. */
   confirming_clear: false,
 
-  /* How many phrases the clear would actually delete — journal entries excluded, matching
-     app_state#clear_phrases. Shown in the prompt so "all" is never ambiguous, and used as
-     the gate: with nothing to clear the control does not render at all. */
+  /* How many phrases the clear would ACTUALLY delete: the ones in the category on screen,
+     belonging to the user this modal is scoped to. Counted off the same source and with the
+     same normalisation app_state#clear_phrases uses, because this number appears in an
+     irreversible prompt and a count that does not match what happens is worse than no
+     count at all.
+
+     Two things it deliberately does NOT count. Held thoughts: they live in the stash, are
+     pushed into `phrases` by update_list with no `category` at all, and clear_phrases
+     spares them — counting them produced "Delete all 1 saved phrases?" over a list reading
+     "No phrases have been saved yet", and confirming removed nothing, so the control armed
+     itself forever. Other categories: they are not on screen and are no longer deleted. */
+  /* The on-screen NAME of the current category, for the clear prompt. Reuses the same
+     `categories` list the tabs render, so the prompt says exactly what the tab says —
+     including 'default' -> "Quick", which is the one place the id and the label differ. */
+  current_category_name: computed('categories', 'current_category', function() {
+    var cat = this.get('current_category') || 'default';
+    var match = (this.get('categories') || []).find(function(c) { return c && c.id === cat; });
+    return (match && match.name) || cat;
+  }),
+
   clearable_phrase_count: computed(
-    'phrases.length',
     'user.vocalizations.length',
+    'user.vocalizations.@each.category',
+    'current_category',
     function() {
-      return (this.get('phrases') || []).filter(function(p) {
-        return p && p.category !== 'journal';
+      var cat = this.get('current_category') || 'default';
+      return (this.get('user.vocalizations') || []).filter(function(v) {
+        return v && v.list && (v.category || 'default') === cat;
       }).length;
     }
   ),
@@ -189,7 +208,14 @@ export default Component.extend({
         utterance.set('list_vocalized', false);
         const list = (stashes.get('remembered_vocalizations') || []).filter(function(v) { return !v.stash || v.sentence !== button.sentence; });
         stashes.persist('remembered_vocalizations', list);
-        if (existing.length > 0) {
+        /* Guarded the way speak-menu.js:291 guards its copy. Without `!has_stash` every
+           pick re-parked the bar on top of the last one: Recent rows reach this branch too
+           (category_phrases stamps `stash: true` on prior utterances), and the filter above
+           removes nothing for those, so entries accumulated in remembered_vocalizations
+           that no surface renders — speak-menu shows `slice(0, 2)`, category_phrases drops
+           anything without a `category`, and nothing caps the array. They were unreachable
+           and undeletable, growing in localStorage. */
+        if (existing.length > 0 && !has_stash) {
           stashes.remember({ override: existing, stash: true, swapped: true });
         }
       } else {
@@ -209,7 +235,10 @@ export default Component.extend({
       this.set('confirming_clear', false);
     },
     confirm_clear() {
-      app_state.clear_phrases();
+      /* Pass the subject and the scope explicitly — `this.user` is whoever this modal was
+         opened FOR (a supervisee, when opened from their preferences), which is not
+         necessarily the signed-in user. */
+      app_state.clear_phrases(this.get('user'), this.get('current_category'));
       this.set('confirming_clear', false);
       this.update_list();
     },

@@ -2334,6 +2334,22 @@ export default Service.extend({
   flip_text: function() {
     this.set('flipped', !this.get('flipped'));
   },
+  /* The write half of save_phrase, shared by the deduped path and the journal path so the
+     two cannot drift in what they persist. */
+  _append_phrase: function(user, vocs, voc, category) {
+    var id = Math.round(Math.random() * 9999).toString() + ((new Date()).getTime() % 1000).toString() + vocs.length;
+    user.add_action({
+      action: 'add_vocalization',
+      value: voc,
+      category: category || 'default',
+      ts: Math.round((new Date()).getTime() / 1000),
+      id: id
+    });
+    vocs.unshift({list: voc, category: category, id: id, ts: Math.round((new Date()).getTime() / 1000)});
+    user.set('vocalizations', vocs);
+    user.save().then(function() { user.set('offline_actions', null); }, function() { });
+    return true;
+  },
   save_phrase: function(voc, category) {
     var user = this.get('currentUser');
     if(user) {
@@ -2359,74 +2375,86 @@ export default Service.extend({
        * nothing to report: the phrase the user asked for IS in their list. */
       var sentence = (voc || []).map(function(v) { return v && v.label; }).join(' ');
       var cat = category || 'default';
+      /* JOURNAL ENTRIES ARE EXEMPT. The dedupe exists because tapping "Save Phrase from
+         Sentence Bar" twice should not give you the same phrase twice — a library of
+         reusable phrases has no use for a duplicate. A journal is the opposite: it is dated
+         (update_list builds each row's `date` from `u.ts`), and writing "had a good day" on
+         Monday and again on Thursday is two entries, not a mistake. Blocking the second one
+         silently discarded it AND skipped its server side — user.rb's add_vocalization
+         handler runs LogSession.process_as_follow_on for journal entries — while phrases.js
+         still flashed "added" and cleared the box, so it read as success. */
+      if(cat === 'journal') { return this._append_phrase(user, vocs, voc, category); }
       var dupe = vocs.find(function(v) {
         if(!v || !v.list) { return false; }
         if((v.category || 'default') !== cat) { return false; }
         return v.list.map(function(b) { return b && b.label; }).join(' ') === sentence;
       });
       if(dupe) { return false; }
-      var id = Math.round(Math.random() * 9999).toString() + ((new Date()).getTime() % 1000).toString() + vocs.length;
-      user.add_action({
-        action: 'add_vocalization',
-        value: voc,
-        category: category || 'default',
-        ts: Math.round((new Date()).getTime() / 1000),
-        id: id
-      });
-      vocs.unshift({list: voc, category: category, id: id, ts: Math.round((new Date()).getTime() / 1000)});
-      user.set('vocalizations', vocs);
-      user.save().then(function() { user.set('offline_actions', null); }, function() { });
-      return true;
+      return this._append_phrase(user, vocs, voc, category);
     } else {
       this.stashes.remember({override: voc});
       return true;
     }
   },
   /*
-   * Delete EVERY saved phrase in one pass, for the Phrases modal's "Clear all phrases".
+   * Delete the saved phrases in ONE category, for ONE user.
    *
-   * JOURNAL ENTRIES ARE NOT PHRASES and are deliberately kept. They share one array --
-   * `user.vocalizations` holds the default category, any user-defined categories, AND
-   * anything tagged `category: 'journal'` (components/phrases.js#update_list sorts them
-   * apart by that field alone) -- so a naive `set('vocalizations', [])` here would wipe a
-   * user's journal, which the modal itself describes as private to them. Filtering rather
-   * than emptying is the whole reason this is a method and not two lines at the call site.
+   * Both parameters are required and neither is inferred, because inferring either one is
+   * how this went wrong:
    *
-   * One save, not one per phrase: remove_phrase above writes the user on every call, which
-   * is fine for a single tap and is a request storm for thirty. The per-phrase
-   * `remove_vocalization` actions still have to be queued individually, because that is
-   * what the server consumes.
+   *   USER — it used to read `currentUser`, while the Phrases modal it is called from
+   *   scopes itself to `model.user || referenced_user` (components/phrases.js). Opened from
+   *   a supervisee's preferences (controllers/user/preferences.js passes `{user: model}`),
+   *   or in speak mode while modeling, those are DIFFERENT PEOPLE: the supervisor read a
+   *   prompt counting the supervisee's phrases, confirmed, and destroyed their own library
+   *   while the supervisee's stayed on screen untouched.
    *
-   * Held thoughts survive too. A signed-OUT user's saved phrases live in the same
-   * `remembered_vocalizations` stash as Hold Thought's parked messages, told apart by
-   * `stash: true` -- so the filter keeps the parked ones and drops the saved ones,
-   * matching what a signed-in user gets.
+   *   CATEGORY — it used to keep only `category === 'journal'` and delete everything else,
+   *   so clearing while looking at one tab took every other tab with it. The modal shows
+   *   one category at a time and the control sits under that list; it deletes what is
+   *   above it and nothing more.
    *
-   * Returns the number of phrases removed so the caller can report it.
+   * Journal entries are still safe, now by the ordinary path rather than a special case:
+   * 'journal' is itself a category, and phrases.hbs does not render this control on that
+   * tab. Held thoughts are untouched — they live in the stash, not in `vocalizations`.
+   *
+   * One save, not one per phrase. remove_phrase below writes the user on every call, which
+   * is right for a single tap and a request storm for thirty.
+   *
+   * Returns the number removed so the caller can report it.
    */
-  clear_phrases: function() {
-    var removed = 0;
-    var u = this.get('currentUser');
-    if(u) {
-      var kept = [];
-      var doomed = [];
-      (u.get('vocalizations') || []).forEach(function(v) {
-        if(v && v.category === 'journal') { kept.push(v); }
-        else if(v) { doomed.push(v); }
+  clear_phrases: function(user, category) {
+    if(!user || !user.get) { return 0; }
+    var cat = category || 'default';
+    var kept = [];
+    var doomed = [];
+    (user.get('vocalizations') || []).forEach(function(v) {
+      if(!v) { return; }
+      /* Normalised on both sides: save_phrase stores `category` verbatim and its
+         speak-menu caller passes nothing, so the same bucket is 'default' on some rows and
+         undefined on older ones. */
+      if((v.category || 'default') === cat) { doomed.push(v); }
+      else { kept.push(v); }
+    });
+    if(doomed.length) {
+      doomed.forEach(function(v) {
+        if(v.id) { user.add_action({action: 'remove_vocalization', value: v.id}); }
       });
-      if(doomed.length) {
-        doomed.forEach(function(v) {
-          if(v.id) { u.add_action({action: 'remove_vocalization', value: v.id}); }
-        });
-        removed = doomed.length;
-        u.set('vocalizations', kept);
-        u.save().then(function() { u.set('offline_actions', null); }, function() { });
-      }
+      user.set('vocalizations', kept);
+      user.save().then(function() { user.set('offline_actions', null); }, function() { });
     }
-    var stash = this.stashes.get('remembered_vocalizations') || [];
-    removed += stash.filter(function(v) { return v && !v.stash; }).length;
-    this.stashes.persist('remembered_vocalizations', stash.filter(function(v) { return v && v.stash; }));
-    return removed;
+    /* The signed-OUT store, and ONLY when signed out. A signed-in user's phrases live on
+       the record above; the non-stash entries here would then be leftovers from a previous
+       signed-out session that the modal never lists and the prompt never counts — deleting
+       those as a side effect is exactly the kind of invisible loss this method is being
+       fixed for. `stash: true` entries are held thoughts and are never touched. */
+    if(!this.get('currentUser')) {
+      var stash = this.stashes.get('remembered_vocalizations') || [];
+      var survivors = stash.filter(function(v) { return v && v.stash; });
+      doomed = doomed.concat(stash.filter(function(v) { return v && !v.stash; }));
+      this.stashes.persist('remembered_vocalizations', survivors);
+    }
+    return doomed.length;
   },
   remove_phrase: function(phrase) {
     var voc = this.get('currentUser.vocalizations') || [];

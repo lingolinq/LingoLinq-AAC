@@ -12,7 +12,7 @@
       {{!-- Punctuation — moved to the TOP (first section of the modal). --}}
       <div class="md-speak-menu__section md-speak-menu__section--punctuation">
         <div class="md-speak-menu__section-label">{{t "Punctuation" key="punctuation"}}</div>
-        <ButtonListener @buttonEvent={{this.handleButtonEvent}}>
+        <ButtonListener @buttonEvent={{this.eventAction "button_event"}}>
           {{!-- All punctuation is shown in ONE row so it's reachable in a single tap.
                This previously showed 5 buttons plus a "More" toggle that swapped in a
                second punctuation submenu (which duplicated , ? ! and hid contraction/
@@ -45,7 +45,7 @@
         </ButtonListener>
       </div>
 
-      <ButtonListener @buttonEvent={{this.handleButtonEvent}}>
+      <ButtonListener @buttonEvent={{this.eventAction "button_event"}}>
         {{#if this.repeat_menu}}
           {{!-- Repeat / Volume group --}}
           <div class="md-speak-menu__section">
@@ -119,7 +119,14 @@
                classes are required for that; a plain button here would silently
                lose four gestures. --}}
           <div class="md-speak-menu__section">
-            <div class="md-speak-menu__section-label">{{t "Actions" key="actions_lower"}}</div>
+            {{!-- Its OWN key. `actions_lower` belongs to the Fitzgerald colour legend —
+                  app.js:377/:450 register it as the green verb-button hint — and the
+                  locales translate it in that sense: es "comportamiento" (behaviour), de
+                  "Aktionen", ru "действия". Borrowing it here headed this section with a
+                  colour description in every non-English locale, and correcting en.json
+                  instead would have rewritten the board legend everywhere. The reuse was
+                  invisible until now only because this whole section was commented out. --}}
+            <div class="md-speak-menu__section-label">{{t "Actions" key='speak_menu_actions'}}</div>
             {{!-- Five across, wrapping to 2 under 768px. All five ACT ON THE CURRENT
                   MESSAGE, which is what makes them one group: share it, repeat it,
                   repair it, park it (Hold Thought), or read what came back (Alerts).
@@ -190,7 +197,7 @@
                   looking fine to a mouse. --}}
             {{#if this.rememberedUtterances}}
               <div class="md-speak-menu__phrase-list">
-                {{#each this.rememberedUtterances as |utterance|}}
+                {{#each this.rememberedUtterances as |utterance index|}}
                   {{!-- RESUME is not one of the saved phrases, and it should not read as
                         one. It is the single message the user parked with Hold Thought —
                         unfinished, theirs, and about to be lost if they do not pick it back
@@ -198,7 +205,12 @@
                         time. Same row, deliberately different weight: an accent edge, a
                         tinted surface, and its own icon (an arrow going back, not a speech
                         bubble). --}}
-                  <button type="button" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--remembered {{if utterance.stash 'md-speak-menu__bottom-btn--resume'}}" {{on "click" (this.ctrlAction "selectButton" utterance)}}>
+                  {{!-- The id is what makes this row reachable by SWITCH SCANNING:
+                        scanner.js reads `dom.attr('id')` off the matched element and fires
+                        speakmenuselect with it, and with no id the selection arrived as
+                        `undefined` and did nothing. Indexed rather than named because two
+                        saved phrases can legitimately hold the same text. --}}
+                  <button type="button" id="menu_remembered_{{index}}" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--remembered {{if utterance.stash 'md-speak-menu__bottom-btn--resume'}}" {{on "click" (this.ctrlAction "selectButton" utterance)}}>
                     {{#if utterance.stash}}
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
                       {{!-- Two different promises, so two different words. "Resume:" is the
@@ -262,17 +274,43 @@
       {{!-- Speak Mode section — sits at the BOTTOM of the modal (it was at the top,
             above Board Languages).
 
-            ENTERING only. The `{{#if this.app_state.speak_mode}}` arm that held "Exit
-            Speak Mode" is gone, so the gate is now speak_mode_possible AND not already
-            in speak mode — the section is about GETTING INTO a speak session, and once
-            you are in one it has nothing left to offer. Dropping just the button would
-            have left the "SPEAK MODE" heading standing over an empty row.
+            EXIT IS BACK, and deliberately so — it was removed and had to be restored.
 
-            Exiting is unaffected: `#exit_speak_mode` in the main navbar dropdown
-            (templates/application.hbs:1069, inside the dropdown-menu opened at :1041,
-            gated on the same `app_state.speak_mode`) is a separate control and is the
-            one that survives. Checked before removing this one — an AAC user who cannot
-            leave speak mode is stuck on the device. --}}
+            The removal was justified on the grounds that `#exit_speak_mode` in the main
+            navbar dropdown (templates/application.hbs:1069) survives. That control exists,
+            but it is NOT REACHABLE on board-detail, which is the surface this modal is
+            opened from:
+
+              * app.scss `#within_ember.board-detail-view > header` is `position: fixed`
+                with `transform: translateY(-100%)` — the whole app header sits off-screen
+                there.
+              * scanner.js:275 adds the `#identity` menu to the scan list only
+                `if(!isBoardDetailSpeak)`, with the comment "On board-detail, the global app
+                header is intentionally skipped".
+              * board-detail has no exit-speak-mode control of its own outside its
+                board-unavailable error state.
+
+            So removing this button left a switch, dwell or eye-gaze user in speak mode on
+            board-detail with no way out of speak mode at all, and everyone else depending
+            on an off-screen header. The button itself IS scannable — it matches
+            `.md-speak-menu__btn` in modal.js#scannable_targets. Verifying that a
+            replacement control exists is not the same as verifying it can be reached, and
+            this is the one control where that distinction strands someone on a device. --}}
+      {{#if this.app_state.speak_mode_possible}}
+        {{#if this.app_state.speak_mode}}
+          <div class="md-speak-menu__section-wrap md-speak-menu__section-wrap--board-tools md-speak-menu__section-wrap--no-divider">
+            <div class="md-speak-menu__section">
+              <div class="md-speak-menu__section-label">{{t "Speak Mode" key="speak_mode"}}</div>
+              <div class="md-speak-menu__row md-speak-menu__row--1">
+                <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{on "click" (this.ctrlAction "speak_mode_toggle")}}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15" stroke="#46505F"/><line x1="17" y1="9" x2="23" y2="15" stroke="#46505F"/></svg>
+                  <span class="md-speak-menu__btn-label">{{t "Exit Speak Mode" key="exit_speak_mode"}}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        {{/if}}
+      {{/if}}
       {{#if (and this.app_state.speak_mode_possible (not this.app_state.speak_mode))}}
         <div class="md-speak-menu__section-wrap md-speak-menu__section-wrap--board-tools md-speak-menu__section-wrap--no-divider">
           <div class="md-speak-menu__section">

@@ -114,7 +114,11 @@
         {{#if this.clearable_phrase_count}}
           <div class="la-phrases-clear-row">
             {{#if this.confirming_clear}}
-              <span class="la-phrases-clear-prompt">{{t "Delete all %{n} saved phrases? This cannot be undone." n=this.clearable_phrase_count key="confirm_clear_phrases"}}</span>
+              {{!-- Names the CATEGORY as well as the count. "Delete all 12 saved phrases?"
+                    read as the whole library while the code deleted one tab's worth — or,
+                    before this, genuinely deleted every tab. The prompt now describes
+                    exactly what confirming does. --}}
+              <span class="la-phrases-clear-prompt">{{t "Delete all %{n} phrases in %{cat}? This cannot be undone." n=this.clearable_phrase_count cat=this.current_category_name key="confirm_clear_phrases_in_category"}}</span>
               <button type="button" class="la-phrases-clear-btn la-phrases-clear-btn--cancel" {{on "click" (this.ctrlAction "cancel_clear")}}>{{t "Cancel" key="cancel"}}</button>
               <button type="button" class="la-phrases-clear-btn la-phrases-clear-btn--confirm" {{on "click" (this.ctrlAction "confirm_clear")}}>{{t "Yes, delete them" key="yes_delete"}}</button>
             {{else}}

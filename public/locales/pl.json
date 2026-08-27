@@ -9193,5 +9193,7 @@
   "clear_all_phrases": "*** Clear all phrases",
   "phrases_scroll_for_more": "*** %{n} more — scroll to see them",
   "swap_back_colon": "*** Swap back: ",
-  "phrases_tap_for_more": "*** %{n} more saved — tap Phrases to see them all"
+  "phrases_tap_for_more": "*** %{n} more saved — tap Phrases to see them all",
+  "confirm_clear_phrases_in_category": "*** Delete all %{n} phrases in %{cat}? This cannot be undone.",
+  "speak_menu_actions": "*** Actions"
 }

@@ -260,7 +260,16 @@ var modal = EmberObject.extend({
   },
   scannable_targets: function() {
     if(modal.is_open()) {
-      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn");
+      /* `.la-modal-close` is included unscoped, and deliberately: it is the close control
+         on every modernised modal, and it is the one thing a switch or eye-gaze user must
+         always be able to reach. Everything else here is scoped to a `.modal_targets`
+         container, which means a modal whose body is EMPTY — an inbox with no alerts, a
+         list with nothing in it — returned zero targets, and modal.js#open only restarts
+         the scanner when this query is non-empty. Scanning therefore stopped on open and
+         never resumed: the user was sealed in a modal with nothing to select and no way
+         out until someone else clicked or pressed Escape. Matching the close button
+         guarantees at least one target for any modal that has one. */
+      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn, .modal-dialog .la-modal-close");
     } else {
       return document.querySelectorAll('nothing'); // Return empty NodeList equivalent
     }

@@ -3787,7 +3787,21 @@ export default Controller.extend(prefClasses, {
      `model.translations`, which is one of the three, so a key-only baseline would mask it. */
   _edit_dirty_baseline: null,
 
-  capture_edit_baseline: function() {
+  /* Marks that the baseline for THIS edit session has already been taken. Cleared when
+     edit mode is entered, so a new session gets a fresh snapshot. */
+  _edit_baseline_captured: false,
+
+  capture_edit_baseline: function(force) {
+    /* ONCE per edit session. `_build_from_raw` is where this is called from, and that runs
+       again on a display-pref change, a regroup, a merge and four other paths — so a
+       re-capture folded the user's UNSAVED work into the baseline it is supposed to be
+       measured against. Rename a board via edit-board-details (which writes straight onto
+       the record and leaves no undo entry), then change any display preference, and
+       `edit_session_has_changes` compared the rename against a baseline that now contained
+       it: exit_to_home_from_edit skipped the discard confirm and the rename was lost with
+       no prompt. */
+    if(!force && this.get('_edit_baseline_captured')) { return; }
+    this.set('_edit_baseline_captured', true);
     var base = {};
     try {
       var model = this.get('model');
@@ -6078,6 +6092,10 @@ export default Controller.extend(prefClasses, {
       }
     },
     enter_edit_mode: function() {
+      /* New session, new baseline — see capture_edit_baseline, which otherwise keeps the
+         first snapshot it ever took for the lifetime of this controller. */
+      this.set('_edit_baseline_captured', false);
+      this.set('_edit_dirty_baseline', null);
       var _this = this;
       var app_state = this.get('app_state');
       // Gate on the speak-mode PIN when configured — same pattern as

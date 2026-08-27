@@ -339,7 +339,37 @@ describe('stashes', function() {
       stashes.remember();
       expect(stashes.get('remembered_vocalizations')[0].sentence).toEqual("ok go");
     });
-    it("should not append to remembered vocalizations more than once");
+    it("should not append the same phrase to remembered vocalizations twice", function() {
+      stashes.set('history_enabled', true);
+      stashes.persist('remembered_vocalizations', []);
+      stashes.remember({override: [{label: 'hi'}, {label: 'there'}]});
+      stashes.remember({override: [{label: 'hi'}, {label: 'there'}]});
+      expect(stashes.get('remembered_vocalizations').length).toEqual(1);
+    });
+
+    /* A held thought and a saved phrase can legitimately read the same, and they are not
+       the same thing — the dedupe matches on (sentence, stash), not sentence alone. It used
+       to match on sentence alone, which meant hitting Hold Thought on a message whose
+       wording matched an existing saved phrase silently parked nothing at all. */
+    it("should keep a stashed and a non-stashed entry with the same sentence", function() {
+      stashes.set('history_enabled', true);
+      stashes.persist('remembered_vocalizations', []);
+      stashes.remember({override: [{label: 'hi'}]});
+      stashes.remember({override: [{label: 'hi'}], stash: true});
+      var list = stashes.get('remembered_vocalizations');
+      expect(list.length).toEqual(2);
+      expect(list.filter(function(v) { return v.stash; }).length).toEqual(1);
+    });
+
+    it("should record whether an entry was parked by the user or swapped in", function() {
+      stashes.set('history_enabled', true);
+      stashes.persist('remembered_vocalizations', []);
+      stashes.remember({override: [{label: 'held'}], stash: true});
+      stashes.remember({override: [{label: 'bumped'}], stash: true, swapped: true});
+      var list = stashes.get('remembered_vocalizations');
+      expect(list.find(function(v) { return v.sentence == 'held'; }).swapped).toEqual(false);
+      expect(list.find(function(v) { return v.sentence == 'bumped'; }).swapped).toEqual(true);
+    });
     it("should not append empty vocalizations", function() {
       stashes.set('history_enabled', true);
       stashes.persist('remembered_vocalizations', asEmberArray([]));

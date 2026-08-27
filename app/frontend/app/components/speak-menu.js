@@ -1,4 +1,5 @@
 import Component from '@ember/component';
+import buildEventAction from '../utils/event_action';
 import { getOwner } from '@ember/application';
 import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
@@ -71,10 +72,12 @@ export default Component.extend({
      * Passing the arguments through also revives the swipe gestures those two read off
      * `full_event.swipe_direction` (raw_events.js sets it on the CustomEvent) — they had
      * been silently unreachable for as long as the event was being popped.
+     *
+     * `buildEventAction` is the existing primitive for exactly this — utils/event_action.js
+     * documents the same ctrlAction-eats-the-event problem for keydown/input/paste/drag —
+     * so this uses it rather than keeping a bespoke copy alongside.
      */
-    this.handleButtonEvent = function() {
-      self.send.apply(self, ['button_event'].concat(Array.prototype.slice.call(arguments)));
-    };
+    this.eventAction = buildEventAction(self);
     this.ctrlActionNoBubble = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function(event) {
@@ -204,9 +207,14 @@ export default Component.extend({
             };
           });
       } else {
-        /* Signed out, saved phrases live in the same stash array as the parked ones,
-           told apart by the flag — see app_state#save_phrase's fallback branch. */
-        saved = all_remembered.filter(function(u) { return u && !u.stash; });
+        /* Signed out, saved phrases live in the same stash array as the parked ones, told
+           apart by the flag — see app_state#save_phrase's fallback branch.
+
+           REVERSED, because the newest-first assumption above holds only for the signed-in
+           record: `vocalizations` is unshifted, but stashes#remember PUSHES, so element 0
+           here is the OLDEST. Without this the shortcut permanently surfaced the user's
+           very first saved phrase and never any of the later ones. */
+        saved = all_remembered.filter(function(u) { return u && !u.stash; }).slice().reverse();
       }
       this.set('model', {});
       this.set('repeat_menu', false);
@@ -336,6 +344,41 @@ export default Component.extend({
             capabilities.vibrate();
           }
         };
+        /* A saved phrase or held thought, selected by SCANNING.
+         *
+         * The rows are <button> elements, so a pointer tap reaches their Ember click
+         * handler directly (raw_events.js dispatches a passthrough click for BUTTON tags)
+         * and never arrives here. The scanner has no such branch: scanner.js:698-700 sees
+         * `.md-speak-menu__bottom-btn`, reads `dom.attr('id')` and fires speakmenuselect
+         * with it. With no id on the row that was `button === undefined`, which fell past
+         * every branch below — after the close above had already run. A switch user
+         * scanned to `Resume: "I need help"`, selected it, and the menu shut with the
+         * sentence bar untouched. Invisible to mouse testing.
+         *
+         * Handled before the close so `selectButton` owns the closing, and indexed rather
+         * than matched on text because two saved phrases may legitimately read the same. */
+        if (button && button.indexOf('menu_remembered_') === 0) {
+          var idx = parseInt(button.slice('menu_remembered_'.length), 10);
+          var picked = (_this.get('rememberedUtterances') || [])[idx];
+          if (picked) {
+            click();
+            _this.send('selectButton', picked);
+          } else {
+            _this.get('modal').close();
+          }
+          return;
+        }
+        /* Do NOT close on an id this menu does not know. Closing first and matching second
+           meant any unrecognised id shut the menu and did nothing — the failure above, and
+           the failure any future unlabelled control would hit. */
+        var known = ['menu_share_button', 'menu_repeat_button', 'menu_repeat_louder',
+          'menu_repeat_quieter', 'menu_repeat_text', 'menu_repeat_flip', 'menu_repeat_gif',
+          'menu_hold_thought_button', 'menu_phrases_button', 'menu_inbox_button',
+          'menu_repair_button', 'menu_contraction_button'];
+        if (button && known.indexOf(button) === -1 && button.indexOf('menu_') === 0 &&
+            !button.match(/^menu_(period|comma|question|exclamation|quote|colon)_button$/)) {
+          return;
+        }
         // menu_repeat_button toggles the repeat/volume group in place, so it must not
         // close the menu. (menu_punctuation_button used to be the other exception; the
         // punctuation submenu it toggled is gone -- all punctuation is one row now.)

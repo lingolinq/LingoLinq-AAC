@@ -25,6 +25,7 @@ import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
 import prefClasses from '../../mixins/pref-classes';
+import buildEventAction from '../../utils/event_action';
 
 var cached_images = {};
 var last_redraw = (new Date()).getTime();
@@ -1417,6 +1418,15 @@ export default Controller.extend(prefClasses, {
   init() {
     this._super(...arguments);
     var self = this;
+    /* For <ButtonListener>, whose `buttonEvent` is called as
+       `buttonEvent('speakMenuSelect'|'buttonSelect', button_id, event)` — the event is a
+       real THIRD PARAMETER, not trailing noise, and `button_event` forwards it on to the
+       action (`this.send(action, a, b)` below). `ctrlAction` inspects the last argument and
+       pops anything event-shaped, which is right for `{{on "click"}}` and wrong here: it
+       left `b` undefined, so controllers/application.js's swipe handling
+       (`options.event.swipe_direction`, :1916) never saw a direction and swipe inflections
+       could not fire from this board view. */
+    this.eventAction = buildEventAction(self);
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
       return function() {

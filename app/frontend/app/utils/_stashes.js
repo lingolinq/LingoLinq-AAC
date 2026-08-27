@@ -417,10 +417,18 @@ var stashes = EmberObject.extend({
     if(voc.length === 0) { return; }
     var obj = {
       vocalizations: voc,
-      stash: !!opts.stash
+      stash: !!opts.stash,
+      /* Kept in step with services/stashes.js#remember, which is what actually runs once
+         the service is registered — this module's export is a Proxy that forwards to
+         `window.stashes`. This copy serves early boot and tests only, so a divergence shows
+         up as behaviour that differs before the app has finished starting. */
+      swapped: !!opts.swapped
     };
     obj.sentence = obj.vocalizations.map(function(v) { return v.label; }).join(" ");
-    if(!list.find(function(v) { return v.sentence == obj.sentence; })) {
+    /* Sentence AND stash-ness: a held thought and a saved phrase reading the same are two
+       different things, and matching the sentence alone silently dropped the one being
+       added. Mirrors the service. */
+    if(!list.find(function(v) { return v.sentence == obj.sentence && !!v.stash == obj.stash; })) {
       if(typeof list.pushObject === 'function') {
         list.pushObject(obj);
       } else {

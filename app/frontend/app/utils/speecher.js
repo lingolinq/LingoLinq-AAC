@@ -1415,27 +1415,28 @@ speecher.get_stashes = function() {
 };
 
 /*
- * The voice table. Falls back to the IMPORTED module, which is the fix for this returning
- * `undefined` in every running app.
+ * The voice table.
  *
- * Neither of the first two sources was ever populated. `speecher.register_services` takes a
- * fourth `ttsVoicesService` argument and NOTHING IN THE CODEBASE CALLS IT — the other utils
- * that use this pattern (utterance, obf, extras) are all registered from
- * routes/application.js; speecher never is. And `window.tts_voices` is not set either:
- * tts_voices.js publishes itself as `window.acapela_voices`, a different name.
+ * `speecher.tts_voices` FIRST, because that is where the app actually puts it:
+ * routes/application.js calls `speecher.setup(appState, persistence, stashes, ttsVoices)`
+ * and setup() stores it as `this.tts_voices` — speecher.js:243 already reads it that way.
+ * An earlier version of this function omitted that source and fell straight through to the
+ * imported module, which worked but silently ignored whatever the app had injected.
  *
- * So this returned undefined always, and every caller paid differently. Guarded callers
- * (`if(!ttsService || typeof ttsService.get !== 'function') { return; }` around line 231)
- * silently skipped their work — that is the voice-upgrade check quietly never running.
- * Unguarded ones threw: `speecher.oops()` does `get_tts_voices().get('oops')` on its first
- * line, so the "Oops" button in the Modify and Repair Message modal raised
- * "Cannot read properties of undefined (reading 'get')" and played nothing, every time.
+ * `_services.tts_voices` is the register_services() slot. Nothing passes a fourth argument
+ * to register_services today; the slot is kept because the sibling utils (utterance, obf,
+ * extras) are wired that way from routes/application.js and this one may be later.
  *
- * The two service-locator sources are kept ahead of the import so an app that DOES register
- * one still wins.
+ * The IMPORT is the backstop, and it is why `speecher.oops()` works at all. `oops()` does
+ * `get_tts_voices().get('oops')` on its first line, so any caller reaching it before
+ * setup() has run — or in a test, or from a non-Ember entry point — got `undefined` and a
+ * TypeError, and the "Oops" control in the Modify and Repair Message modal played nothing.
+ *
+ * Safe to import: tts_voices pulls in only @ember/object, capabilities, i18n and rsvp, two
+ * of which this module already imports, so it adds no cycle.
  */
 speecher.get_tts_voices = function() {
-  return speecher._services.tts_voices || window.tts_voices || tts_voices;
+  return speecher.tts_voices || speecher._services.tts_voices || window.tts_voices || tts_voices;
 };
 
 // Service registration method

@@ -14168,15 +14168,16 @@ video.button_image {
 .la-repairs-wrap {
   color: $brand-charcoal-dark;
 }
+/* Layout ONLY. The gradient, the padding and the footer's chrome all come from the shared
+   `.modal .md-modal-header` / `.md-modal-footer` block near the end of this file — same
+   specificity (0,2,0) and later in source order, so anything repeated here would lose to it
+   anyway and forking one modal's chrome from the rest is not the intent. What is left is
+   what this modal genuinely needs: a flex row so the title and the Oops control sit on one
+   line, and room on the right for the close button. */
 .la-repairs-wrap > .modal-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  background:
-    linear-gradient(135deg, rgba($brand-verdigris, 0.08), rgba($brand-dusty-denim, 0.08), rgba(123, 107, 173, 0.05)),
-    $surface-100;
-  border-bottom: 1px solid rgba($la-navy, 0.08);
-  padding: 18px 24px;
   padding-right: 56px;
   position: relative;
 }
@@ -14193,6 +14194,10 @@ video.button_image {
    plays the correction sound so a listener knows a repair is coming — not a warning that
    something failed. The maroon border it used to carry, plus a float and a negative top
    margin, is the entire reason every reviewer read it as the modal reporting an error. */
+/* `.btn.` in the selector so this wins over bootstrap's own .btn declarations without an
+   !important — the control carries `btn` as a scanning hook (see repairs.hbs), not because
+   it wants bootstrap's look. */
+.la-repairs-oops.btn,
 .la-repairs-oops {
   display: inline-flex;
   align-items: center;
@@ -14255,23 +14260,19 @@ video.button_image {
   flex: 1;
   min-width: 0;
 }
-.la-repairs-insert-field .form-control {
-  height: 100%;
-  border-radius: 12px;
-  border: 1px solid rgba($la-navy, 0.16);
-  font-size: 15px;
-}
+/* No `.form-control` rule here on purpose. `.md-modal-body input.form-control`
+   (app.scss:89272) already styles every modal input — radius, padding, border, 16px — and
+   does it with `!important` on every declaration, so anything written here is dead unless
+   it escalates specificity, which CLAUDE.md rule 7 forbids and which would fork the look of
+   one modal's input from all the others. The `height: 100%` that used to be here was not
+   needed either: that block's `height: auto !important` is precisely what lets the input
+   stretch to the flex row. */
 .la-repairs-insert-action {
   flex-shrink: 0;
 }
 
-.la-repairs-wrap > .modal-footer {
-  background:
-    linear-gradient(135deg, rgba($brand-verdigris, 0.05), rgba($brand-dusty-denim, 0.05)),
-    $surface-100;
-  border-top: 1px solid rgba($la-navy, 0.08);
-  padding: 14px 24px;
-}
+/* Footer chrome likewise comes from the shared block; only the primary button is styled
+   here, and only because bootstrap's own .btn-primary is the thing being replaced. */
 .la-repairs-wrap > .modal-footer .btn-primary {
   border-radius: 10px;
   padding: 10px 22px;

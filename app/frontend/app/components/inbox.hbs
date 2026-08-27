@@ -6,7 +6,14 @@
     <h3>{{t "Messages and Alerts" key="messages_and_alerts"}}
     </h3>
   </div>
-  <div class="modal-body md-modal-body">
+  {{!-- `modal_targets` is what makes this modal SCANNABLE. modal.js#scannable_targets
+        selects `.modal-dialog .modal_targets .btn, … a, … .md-speak-menu__btn, …`, and
+        modal.js#open stops the scanner unconditionally then restarts it only when that
+        query returns something. Without this class the query returned zero, so opening
+        Alerts from the speak menu — which passes `scannable: true` — stopped scanning
+        and never restarted it: a switch user was left in a modal with no reachable rows
+        and no reachable close, stuck until someone else clicked or pressed Escape. --}}
+  <div class="modal-body md-modal-body modal_targets">
     {{#if this.app_state.referenced_user.request_alert}}
       {{#if this.app_state.referenced_user.request_alert.user.avatar_url}}
         <img src={{this.app_state.referenced_user.request_alert.user.avatar_url}} style='float: left; height: 75px; margin-right: 10px;' >
