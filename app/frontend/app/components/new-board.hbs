@@ -315,7 +315,7 @@
             <div class="nb-section__body">
               <div class="nb-field new-board-field--icon">
                 <label for="image_url" class="nb-field__label">{{t "Icon for your Board" key="icon_for_your_board"}}</label>
-                <IconSelect @selection={{this.model.image_url}} @action={{mut this.model.image_url}} />
+                <IconSelect @selection={{this.model.image_url}} @action={{fn (mut this.model.image_url)}} />
               </div>
               <div class="nb-field new-board-field--key">
                 <label for="new_board_key" class="nb-field__label">{{t "Key" key="key"}}</label>
