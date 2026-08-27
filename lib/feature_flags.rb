@@ -30,8 +30,30 @@ module FeatureFlags
               'english_first_board_generation', 'signup_spanish_library_boards',
               'eval_single_library',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
+              # Boards page: offers a selector for SIDE-BY-SIDE (Folders 1/4 left,
+              # Boards 3/4 right) versus TOP-DOWN (the original stacked order), so the
+              # two arrangements can be compared on the real page. CURRENTLY ALSO IN
+              # ENABLED_FRONTEND_FEATURES (forced ON for everyone) so the selector is
+              # visible without a per-user opt-in — see the TEMPORARY note there, and
+              # REMOVE IT FROM THAT LIST BEFORE PRODUCTION GO-LIVE, which returns this
+              # to the canonical AVAILABLE-only / beta-opt-in state. Off, the selector
+              # does not render and the page keeps the TOP-DOWN layout, which is the
+              # pre-existing behaviour. Read by
+              # app/frontend/app/templates/user/boards.hbs and applied by
+              # app/frontend/app/components/boards-layout-toggle.js.
+              'boards_side_by_side_layout',
               'sentence_bar_editing',
               'text_symbol_fallback',
+              # Board-detail Fitzgerald category grouping: renders a board's buttons
+              # inside per-category panels instead of the uniform grid, with a
+              # user-orderable category sequence. Off by default because it MOVES
+              # vocabulary out of the cells a user has built positional motor memory
+              # on -- that is a clinical change, not a cosmetic one, so it stays
+              # opt-in. Preference: preferences.board_category_grouping
+              # ({enabled, order}); registry: app/frontend/app/utils/board_categories.js.
+              # Only board CONTENT is regrouped; the sidebar and sentence bar are
+              # separate DOM outside the grid component and are never affected.
+              'board_category_grouping',
               # Per-user session resume: return a user to the page they were last
               # on when they log back in. Communicator-only accounts are exempt by
               # design (they always land on their board). Read by
@@ -94,7 +116,7 @@ module FeatureFlags
               'eval_single_library',
               'google_sso', 'quick_screen_eval', 'multi_user_board_import',
               'customize_menu', # TEMPORARY: forced ON for everyone during testing. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON (see the rollout policy above AVAILABLE_FRONTEND_FEATURES).
-              'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
+              'home_tour', # Default ON, PERMANENTLY — do NOT remove from this list. This was a temporary spike entry (2026-05-27), but the guided tour is now the ONBOARDING PATH, not a preview: the setup wizard was retired on 2026-08-15 (routes/setup.js blanket-redirects, and the Extras card / org-People toast / user-index action that reached it are gone), and the `intro` action's self-serve branch (components/dashboard/authenticated-view.js#intro) sets `auto_open_home_tour`, which only <GuidedTour /> consumes — and app-navbar-authenticated-inner.hbs gates that component on THIS flag. Removing it would leave a self-managing user who clicks "Learn about LingoLinq" in Getting Started bounced to the dashboard with no onboarding at all. Kept registered so it stays available for rollback through system feature settings, same as text_symbol_fallback below. Pinned by spec/lib/feature_flags_spec.rb.
               'portrait_orientation_overlay', # TEMPORARY (2026-05-29): forced ON for everyone to validate the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'background_board_prefetch',
               'signup_default_library_boards', 'english_first_board_generation',
@@ -103,8 +125,10 @@ module FeatureFlags
               'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'supervisor_consent_flow', # TEMPORARY (2026-08-12): forced ON for everyone to validate supervisor→communicator consent invites (request by username/email + approve). Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
+              'board_category_grouping', # TEMPORARY (2026-08-17): forced ON for everyone so Traci can evaluate the Fitzgerald category-panel board layout in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES. NOTE: grouping MOVES vocabulary out of the cells a user has positional motor memory for, so the opt-in default matters more here than for a cosmetic flag. Flip together with the PRE-PRODUCTION markers in app/models/user.rb (preference_defaults) and components/board-detail-grid.js#groupingEnabled.
               'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
-              'session_resume'] # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'session_resume', # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'boards_side_by_side_layout'] # TEMPORARY (2026-08-16): forced ON for everyone so the Boards-page layout selector (side-by-side vs top-down) is visible for design comparison without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the selector stops rendering and the page falls back to the TOP-DOWN layout, which is the pre-existing behaviour.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',

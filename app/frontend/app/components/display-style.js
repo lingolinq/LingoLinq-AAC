@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { observer } from '@ember/object';
 import i18n from '../utils/i18n';
-import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey } from '../utils/dashboard_sections';
+import { availableHomeSections, sectionHidden, sectionLabel, sectionsMapFor, HOME_SECTIONS, EXTRA_HOME_TOGGLES, layoutPresentation, reorderInsert, reorderForFocused, defaultOrderFor } from '../utils/dashboard_sections';
 
 // Centered-step show hook — toggles the body flag the CSS uses to scope the
 // "paused" backdrop blur to centered (non-anchored) modal steps, mirroring
@@ -309,6 +309,45 @@ function _wirePreviewDrag(liveEl, ctx) {
 // The read-only preview shows what the SELECTED layout looks like by cloning the
 // user's real dashboard grid into a single `.md-ds-preview__page`, swapped
 // wholesale when the layout changes (Gentle View vs Focused View).
+// Scale the preview so the WHOLE cloned page fits the room the modal has left,
+// so the Customize step never needs vertical scrolling to reach a card (you can't
+// easily drag a card you have to scroll to). The stylesheet's 0.8 becomes a CAP
+// rather than a fixed value: roomy screens keep the existing look, and a TALL
+// dashboard — a supervisor with Caseload + Attention + Rooms + Organizations on
+// top of the usual cards — scales down further instead of overflowing.
+// Everything below the frame is MEASURED, not hardcoded, so a future change to the
+// footer or header can't silently reintroduce a scrollbar.
+function _fitPreviewZoom(live) {
+  if (!live) { return; }
+  var page = live.querySelector('.md-ds-preview__page');
+  if (!page) { return; }
+  var MAX_ZOOM = 0.8;   // the stylesheet default — never scale UP past it
+  var MIN_ZOOM = 0.28;  // below this the cards stop being recognisable/draggable
+  try {
+    // Measure unscaled: with zoom neutralised, `natural` is the true content
+    // height. Same tick as the write below, so no intermediate paint.
+    live.style.setProperty('--md-ds-preview-zoom', '1');
+    var natural = page.getBoundingClientRect().height;
+    if (!natural) { live.style.removeProperty('--md-ds-preview-zoom'); return; }
+    var cs = window.getComputedStyle(live);
+    var padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+    var content = live.closest('.shepherd-content');
+    var footer = content && content.querySelector('.shepherd-footer');
+    // + its margin-top/padding-top/border (16 + 16) from the footer rule.
+    var footerH = footer ? footer.getBoundingClientRect().height + 32 : 0;
+    // The frame's own top is set by the content above it and does not depend on
+    // the page's zoom, so it is safe to read while zoom is neutralised.
+    var top = live.getBoundingClientRect().top;
+    var avail = window.innerHeight - top - padY - footerH - 12;
+    var zoom = Math.min(MAX_ZOOM, avail / natural);
+    if (!isFinite(zoom) || zoom <= 0) { zoom = MAX_ZOOM; }
+    live.style.setProperty('--md-ds-preview-zoom', String(Math.max(MIN_ZOOM, zoom)));
+  } catch (e) {
+    // Any measurement failure falls back to the stylesheet default.
+    live.style.removeProperty('--md-ds-preview-zoom');
+  }
+}
+
 function _buildGentleViewClone(live) {
   var src = document.querySelector('.md-grid--dashboard:not(.md-ds-preview__clone)');
   if (!src) { return; }
@@ -343,6 +382,459 @@ function _buildGentleViewClone(live) {
   clone.classList.add('md-ds-preview__clone');
   page.appendChild(clone);
   live.appendChild(page);
+}
+
+// ── Per-style page previews (the `→ preview` beside each style card) ─────────
+// Each style card gets its OWN preview of the page the user is currently on,
+// rendered in that style. Unlike the dashboard preview above, this cannot be done
+// by cloning into the current document: Focused View's rules live in
+// styles/_focused-view.scss scoped under `body.ll-layout-focused`, so two clones
+// inside the same <body> inherit the same state and render IDENTICALLY. Each
+// preview therefore gets its own <iframe> — its own document, its own <body>, its
+// own class — which is what makes the two genuinely differ.
+//
+// This also keeps _focused-view.scss completely untouched. The alternative (adding
+// a `.ll-scope--focused` container scope to that file) would break exactly where it
+// matters most: ~24 of its rules key off document-level ancestors such as
+// `#within_ember #content.modern-dashboard:has(.md-shell--caseload)`, which cannot
+// resolve inside a container, and those are the rules that restyle the caseload page.
+var PREVIEW_SHELL_SELECTOR = '.md-shell:not(.md-ds-preview__clone)';
+
+// The page's own root, e.g. `.md-shell--caseload` or `.md-shell--dashboard`.
+// Excludes anything inside the modal so re-opening never previews a previous preview.
+function _livePageShell() {
+  var shells = document.querySelectorAll(PREVIEW_SHELL_SELECTOR);
+  for (var i = 0; i < shells.length; i++) {
+    if (!shells[i].closest('.shepherd-element')) { return shells[i]; }
+  }
+  return null;
+}
+
+// Rebuild the shell's ANCESTOR CHAIN (shallow clones, ids/classes preserved) with the
+// deep-cloned shell at the bottom. The chain matters: _focused-view.scss reaches for
+// `#within_ember`, `#content.modern-dashboard`, and `:has()` relationships between
+// them, so a bare shell in a bare body would miss the very rules being previewed.
+// Shallow-cloning the ancestors keeps that context without dragging in their other
+// children (open modals, the header, the tour overlay itself).
+// Re-point the clone's ELEMENT-level layout classes at the style being previewed.
+//
+// Necessary because the body class is not the whole story. `_focused-view.scss` is
+// body-scoped (which the iframe handles), but the dashboard ALSO varies by element
+// classes bound to the saved preference: `md-shell--layout-focused` on the shell
+// (authenticated-view.hbs:1) and `md-grid--layout-gentle|focused` on the grid
+// (authenticated-view.js#dashboardLayoutClass). A clone inherits whichever is
+// currently saved, so without this both dashboard previews rendered the SAME layout —
+// caseload happened to work only because its differences are purely body-scoped.
+function _applyLayoutClasses(root, layout) {
+  var focused = layout === 'focused';
+  Array.prototype.forEach.call(root.querySelectorAll('[class*="--layout-"]'), function(n) {
+    n.classList.forEach(function(c) {
+      var m = /^(.*)--layout-(gentle|focused)$/.exec(c);
+      if (m) {
+        n.classList.remove(c);
+        n.classList.add(m[1] + '--layout-' + (focused ? 'focused' : 'gentle'));
+      }
+    });
+  });
+  // The shell's focused modifier has no gentle counterpart — the template only ADDS it
+  // when focused — so a swap alone can never introduce it. Toggle it explicitly.
+  var shellEl = root.matches && root.matches('.md-shell') ? root : root.querySelector('.md-shell');
+  if (shellEl) { shellEl.classList.toggle('md-shell--layout-focused', focused); }
+}
+
+// How many communicator rows the caseload preview keeps. The roster is the one part of
+// the page that grows without bound, and its height is what forces the preview to be
+// scaled down — a 15-person caseload made it so tall that fitting it left a narrow strip.
+// Three rows show what the list looks like in each style while keeping the preview large.
+var PREVIEW_MAX_ROSTER_ROWS = 3;
+// Extra height allowed below the measured ink box when sizing a preview panel. The ink box
+// is measured from LEAF elements, so a trailing border/shadow/padding on the last card sits
+// just outside it; without this the final row renders visibly clipped.
+var PREVIEW_FIT_BLEED = 16;
+// How long to wait before the authoritative fit + reveal. Covers the modal's entrance
+// animation and the iframes' first layout; the existing 60ms settle pass in the show hook
+// still runs before it and is simply invisible.
+var PREVIEW_SETTLE_MS = 320;
+
+// Re-pack a cloned dashboard grid FOR THE LAYOUT UNDER PREVIEW.
+//
+// WHY THIS EXISTS: a clone carries the live grid's INLINE `grid-template-areas` /
+// `-rows` / `-columns`, which authenticated-view#gridStyle computed for whichever layout
+// is currently saved — and it writes them `!important`. `_applyLayoutClasses` above swaps
+// the CSS classes, but a class cannot beat an inline !important, so both style previews
+// rendered the CURRENT layout's packing with only the other layout's colour and chrome.
+// Viewed from Gentle, the "Focused" preview was Focused paint on a Gentle grid; viewed
+// from Focused, the reverse. The previews therefore disagreed with the real page, which
+// makes them useless for exactly the decision they exist to support.
+//
+// A preview can never be a straight copy of the live page: it shows the layout the user
+// is NOT in, so every layout-dependent input must be re-derived. That derivation lives in
+// dashboard_sections#layoutPresentation — ONE description of a layout, called by the live
+// page and by both previews. These two functions only APPLY it to a DOM subtree.
+//
+// Apply a layout presentation's GRID state to a grid element: the layout class, the
+// engine-driven state classes, the inline template, and the reading-order vars.
+//
+// Shared by BOTH preview surfaces (the style-preview iframes and the Dashboard Design
+// live clone) so neither can forget a step the other remembers. It previously mattered:
+// the modal clone's stale-class sweep omitted `md-grid--hero-`, so switching Focused →
+// Gentle left a hero class on the clone that the live page would not have.
+function _applyGridPresentation(gridEl, pres) {
+  if (!gridEl || !pres || !pres.grid) { return; }
+  ['gentle', 'focused'].forEach(function(name) {
+    gridEl.classList.toggle('md-grid--layout-' + name, pres.layout === name);
+  });
+  // Engine-driven state classes are recomputed, not inherited — `md-grid--fullspan-*`,
+  // `--boards-full`, `--with-*` and the hero class all key off the layout, and a stale
+  // one from the live page would style the preview for the wrong arrangement.
+  Array.prototype.slice.call(gridEl.classList).forEach(function(c) {
+    if (/^md-grid--(boards-full|boards-right|with-caseload|with-org-mgmt|fullspan-|hero-)/.test(c)) { gridEl.classList.remove(c); }
+  });
+  pres.grid.classes.forEach(function(c) { gridEl.classList.add(c); });
+  gridEl.style.setProperty('grid-template-areas', pres.grid.areasValue, 'important');
+  gridEl.style.setProperty('grid-template-rows', pres.grid.rows, 'important');
+  // Focused View pins the column count to the visible utility-card count so the utility
+  // row fills evenly; Gentle View hands columns back to the CSS.
+  if (pres.grid.columns) { gridEl.style.setProperty('grid-template-columns', pres.grid.columns, 'important'); }
+  else { gridEl.style.removeProperty('grid-template-columns'); }
+  // Mirror the reading-order vars so the clone's small-screen fallback orders cards the
+  // same as the real grid (inert above 950px).
+  var oi = pres.grid.orderIndices || {};
+  Object.keys(oi).forEach(function(k) { gridEl.style.setProperty('--ord-' + k, oi[k]); });
+}
+
+// HIDE THE CARDS THE LAYOUT DOES NOT INCLUDE. Re-packing the grid is only half the job:
+// a clone still contains every card the live page rendered, and a card that is not named
+// in the areas is placed OUTSIDE the explicit grid, where the browser gives it an implicit
+// row of its own. Focused View drops Extras, so the Focused preview showed an Extras card
+// the real Focused page does not have — stretched full-width by the unplaced-card safety
+// rule in app.scss.
+//
+// `display: none !important` because the speak/caseload wide/narrow variants are toggled
+// by `display: ... !important` media rules, which a plain inline `display:none` loses to.
+function _applyCardVisibility(root, pres) {
+  var apply = function(cardClass, on) {
+    Array.prototype.forEach.call(root.querySelectorAll('.' + cardClass), function(card) {
+      if (on) { card.style.removeProperty('display'); }
+      else { card.style.setProperty('display', 'none', 'important'); }
+    });
+  };
+  HOME_SECTIONS.forEach(function(sec) {
+    if (pres.vis[sec.key] === undefined) { return; }
+    apply(sec.cardClass, pres.vis[sec.key]);
+  });
+  EXTRA_HOME_TOGGLES.forEach(function(t) {
+    if (pres.toggles[t.key] === undefined) { return; }
+    apply(t.cardClass, pres.toggles[t.key]);
+  });
+}
+
+function _applyLayoutGrid(root, layout) {
+  var grid = root.classList && root.classList.contains('md-grid--dashboard')
+    ? root : root.querySelector('.md-grid--dashboard');
+  if (!grid) { return; }
+  try {
+    // Same user the modal's live-clone path resolves: the referenced user when a
+    // supporter is editing someone else's dashboard, otherwise the signed-in user.
+    // Read through window.LingoLinq because this is a module-level helper with no `this`.
+    var app = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
+    var user = app ? (app.get('referenced_user') || app.get('currentUser')) : null;
+    if (!user) { return; }
+    // The drag-flag gate travels WITH the user now. Reading the saved order without it
+    // (which this path did) packed the previews in an order the real page would not use.
+    var pres = layoutPresentation(user, layout, {
+      dragEnabled: !!(app && app.get('feature_flags.dashboard_drag_layout'))
+    });
+    _applyGridPresentation(grid, pres);
+    _applyCardVisibility(root, pres);
+  } catch (e) { /* decorative — a failed re-pack must not break the chooser */ }
+}
+
+function _previewChainHtml(shell, layout) {
+  var deep = shell.cloneNode(true);
+  _applyLayoutClasses(deep, layout);
+  _applyLayoutGrid(deep, layout);
+  // Trim the roster. Done on the CLONE only — the live page is untouched.
+  Array.prototype.forEach.call(deep.querySelectorAll('.md-caseload__list'), function(list) {
+    var rows = list.querySelectorAll(':scope > .md-caseload__list-row');
+    for (var i = PREVIEW_MAX_ROSTER_ROWS; i < rows.length; i++) {
+      if (rows[i].parentNode) { rows[i].parentNode.removeChild(rows[i]); }
+    }
+  });
+  // Inert: the preview is decorative, and a stray focus/click inside an iframe must
+  // never navigate or steal the tab order from the modal.
+  Array.prototype.forEach.call(deep.querySelectorAll('a[href]'), function(n) { n.removeAttribute('href'); });
+  Array.prototype.forEach.call(deep.querySelectorAll('a, button, input, select, textarea, [tabindex]'), function(n) {
+    n.setAttribute('tabindex', '-1');
+  });
+  var node = deep;
+  var parent = shell.parentElement;
+  while (parent && parent.tagName && parent.tagName.toLowerCase() !== 'body') {
+    var wrapper = parent.cloneNode(false);
+    wrapper.appendChild(node);
+    node = wrapper;
+    parent = parent.parentElement;
+  }
+  var holder = document.createElement('div');
+  holder.appendChild(node);
+  return holder.innerHTML;
+}
+
+// Every stylesheet the real page is using, so the iframe renders with the same CSS.
+// Same URLs as the parent document, so the browser serves them from cache rather than
+// refetching — the cost is a second parse, not a second download.
+function _previewHeadHtml() {
+  var out = '';
+  Array.prototype.forEach.call(document.querySelectorAll('link[rel="stylesheet"]'), function(l) {
+    if (l.href) { out += '<link rel="stylesheet" href="' + l.href.replace(/"/g, '&quot;') + '">'; }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('style'), function(s) {
+    out += '<style>' + s.innerHTML + '</style>';
+  });
+  // The preview is a static picture of a page: never let it scroll or show a bar.
+  //
+  // `#content` is the app's INTERNAL scroller — it is viewport-height with its own
+  // overflow, so the document never grows and everything below the fold is clipped
+  // (measured: 2071px of dashboard content inside a 950px box). Letting it expand here
+  // is what makes the preview show every item on the page rather than the first screen.
+  // Scoped to this iframe's document, so the real page is untouched.
+  // NOTE: no `overflow:hidden` on html/body. It suppressed nothing useful (the iframe
+  // carries scrolling="no", and .md-ds-stylepreview__viewport clips) but it DID cap
+  // documentElement.scrollHeight at the frame height, so the page-height measurement in
+  // _fitStylePreviews always read one viewport and the preview stayed cropped.
+  // `html body #…` rather than a bare `#content`: the app pins these to the viewport with
+  // its own !important rules at higher specificity, so a plain `#content{...!important}`
+  // lost and the preview stayed clipped at one screenful (measured: `#content` kept
+  // css-height 950px with 2071px of content inside it). !important alone is not enough
+  // when the loser is also !important — specificity still decides.
+  out += '<style>html,body{margin:0 !important;background:transparent !important;}' +
+         'html body #within_ember,html body #within_ember #content,html body #within_ember #content.index' +
+         '{height:auto !important;max-height:none !important;min-height:0 !important;overflow:visible !important;}' +
+         // NOT `animation: none`. Several elements are laid out at `opacity: 0` and made
+         // visible by an entrance animation with `forwards` fill — the caseload hero's
+         // title and subheader are exactly this (`.md-hero__title--from-left` /
+         // `.md-hero__sub--from-right`, app.scss:32691). Killing the animation outright
+         // stranded them at opacity 0, so the preview lost its header and subheader.
+         // Collapsing duration + delay to zero instead lets each animation complete
+         // instantly and apply its END state, which removes the motion but keeps the
+         // result.
+         '*{animation-duration:0s !important;animation-delay:0s !important;' +
+         'transition:none !important;scroll-behavior:auto !important;}</style>';
+  return out;
+}
+
+// Render one style preview. `layout` is 'gentle' or 'focused' — the ONLY difference
+// between the two documents is whether <body> carries `ll-layout-focused`, which is
+// exactly the switch the real app flips (app-state `sync_layout_scope`).
+function _writeStylePreview(frame, shell, layout) {
+  var doc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
+  if (!doc) { return; }
+  // Start from the REAL body/html classes so theme, speak-mode etc. carry over, then
+  // set the one class under test. Copying rather than hardcoding means a future
+  // body-level class can't silently drop out of the preview.
+  //
+  // But the MODAL'S OWN state classes must be stripped first. `md-ds-active` is added
+  // by _startDisplayStyle to strip the live page back to brand + avatar while the
+  // series runs, and it does that with `body.md-ds-active .md-workspace {visibility:
+  // hidden}` — copying it into the preview blanked every preview to a bare gradient.
+  // The shepherd-*/md-tour-- classes are transient modal state for the same reason.
+  // Only page-level styling state should reach the preview.
+  var bodyClass = (document.body.className || '')
+    .split(/\s+/)
+    .filter(function(c) {
+      return c && c !== 'md-ds-active' && c.indexOf('shepherd-') !== 0 && c.indexOf('md-tour-') !== 0;
+    })
+    .filter(function(c) { return c !== 'll-layout-focused'; })
+    .join(' ');
+  if (layout === 'focused') { bodyClass = (bodyClass + ' ll-layout-focused').trim(); }
+  var htmlClass = (document.documentElement.className || '').replace(/"/g, '&quot;');
+  doc.open();
+  doc.write('<!doctype html><html class="' + htmlClass + '"><head><base href="' + document.baseURI.replace(/"/g, '&quot;') + '">' +
+    _previewHeadHtml() + '</head><body class="' + bodyClass.replace(/"/g, '&quot;') + '">' +
+    _previewChainHtml(shell, layout) + '</body></html>');
+  doc.close();
+}
+
+// Size each frame to the real viewport, then scale it to its slot. Rendering at true
+// viewport width (rather than a narrow frame) is what makes the preview representative:
+// the app's layout is full of width breakpoints, and a 300px-wide iframe would render
+// the MOBILE layout and preview the wrong thing entirely.
+//
+// Fit the WHOLE page into the slot — nothing cropped, so the preview accurately shows
+// every item on the page. This is only affordable because the modal is now full-bleed
+// (100vw × 100vh): an earlier 80vw modal left so little vertical room that fitting
+// entirely rendered the page at ~0.27 with a third of the slot blank, which is why this
+// used to scale-to-width and crop the bottom instead.
+//
+// The BOX is then sized to the scaled page rather than the page being letterboxed inside
+// a fixed box. Fitting both axes always leaves slack on one of them (the row is much
+// wider than the page's ~1.5:1 once two rows share the height), and as a bordered white
+// panel that slack read as large dead margins beside the page. Shrinking the box to
+// `page × scale` removes it entirely, and the box centres itself in the row.
+//
+// No measurement feedback loop: available WIDTH is read from the parent figure (which
+// this function never writes to) and available HEIGHT from the box's flex-allocated
+// height, which setting `width` does not disturb.
+// Fits ALL of the step's previews together, at a SHARED scale. Sharing matters: Gentle
+// and Focused produce different content heights (measured 2071px vs 1822px on the
+// dashboard), and scaling each to its own height would render them at different zooms —
+// making the two pictures incomparable, which defeats the point of showing them side by
+// side. One scale means the shorter layout simply ends higher, which is itself the
+// difference being communicated.
+// Measure a preview document's INK BOX — the top and bottom of its actual content.
+//
+// Ancestor heights are useless here: the app pins `#within_ember` / `#content` to the
+// viewport, so documentElement, body and the root child all report exactly one viewport
+// while the real content (2071px on the dashboard) spills out visibly.
+//
+// Measured over LEAF elements only, which is what makes the box tight at BOTH ends:
+//   • top — the page's containers start at y=0, but the first thing you can actually see
+//     is lower down (the app header is not cloned, yet the layout still reserves its
+//     space). Taking the topmost leaf crops that empty band off.
+//   • bottom — `.md-shell` keeps running to full page height past the last visible row,
+//     so measuring containers left a tall blank tail under a short layout.
+function _measureInkBox(doc) {
+  var top = Infinity;
+  var bottom = 0;
+  Array.prototype.forEach.call(doc.body.querySelectorAll('*'), function(n) {
+    if (n.firstElementChild) { return; }           // containers are measured via their leaves
+    var r = n.getBoundingClientRect();
+    if (!r.height || !r.width) { return; }
+    if (r.top < top) { top = r.top; }
+    if (r.bottom > bottom) { bottom = r.bottom; }
+  });
+  if (!isFinite(top) || bottom <= top) { return null; }
+  // Bleed so a card's border/shadow/padding just past its outermost leaf is not shaved.
+  // The TOP bleed is deliberately generous: cropping tight to the first leaf put the pill
+  // nav flush against the panel edge, which read as the page having been cut off rather
+  // than framed. This keeps a band of the page's own background above it.
+  top = Math.max(0, Math.floor(top) - 32);
+  bottom = Math.ceil(bottom) + 16;
+  return { top: top, bottom: bottom, height: bottom - top };
+}
+
+function _fitStylePreviews(el) {
+  var wraps = Array.prototype.slice.call(el.querySelectorAll('.md-ds-stylepreview__viewport'));
+  if (!wraps.length) { return; }
+  // Rendered at the REAL viewport size so width breakpoints resolve the same way they do
+  // on the live page — a narrow iframe would render the mobile layout instead.
+  var vw = Math.max(window.innerWidth, 1024);
+  var vh = Math.max(window.innerHeight, 700);
+
+  // PASS 1 — give every frame room to lay out, then measure its ink box. The frame is
+  // sized generously first so nothing is still clipped at measuring time, and each pass
+  // re-measures from that same starting point so the value cannot ratchet upward.
+  var boxes = [];
+  wraps.forEach(function(wrap) {
+    var frame = wrap.querySelector('.md-ds-stylepreview__frame');
+    var box = null;
+    if (frame) {
+      frame.style.width = vw + 'px';
+      frame.style.height = (vh * 4) + 'px';
+      try {
+        var doc = frame.contentDocument;
+        if (doc && doc.body) { box = _measureInkBox(doc); }
+      } catch (e) { /* unreadable document — fall back below */ }
+    }
+    if (!box) { box = { top: 0, bottom: vh, height: vh }; }
+    boxes.push(box);
+  });
+
+  // ONE scale for both previews. Scaling each to its own content would render them at
+  // different zooms and make the two pictures incomparable — which is the whole point of
+  // showing them together. At a shared scale the shorter layout simply produces a shorter
+  // box, which is itself the difference being shown.
+  var availW = 0;
+  wraps.forEach(function(wrap) {
+    var fig = wrap.parentElement;
+    if (!fig) { return; }
+    // Measured off the FIGURE, never off `wrap` itself: pass 2 writes wrap's width and
+    // height, so reading them back here would feed this calculation its own output.
+    availW = Math.max(availW, fig.clientWidth);
+  });
+  if (!availW) { return; }
+  // Scaled to fill the available WIDTH — the previews are meant to occupy the whole right
+  // side of the modal. Height is deliberately NOT part of this: constraining to the row's
+  // share of the viewport kept the panels well short of the right edge. Bounding the
+  // roster to PREVIEW_MAX_ROSTER_ROWS is what keeps the resulting height sensible; if the
+  // two rows do exceed the modal, it already scrolls (`overflow-y: auto`).
+  // Never upscale past 1:1 — that would render a blurry, larger-than-life page.
+  var scale = Math.min(1, availW / vw);
+  if (!isFinite(scale) || scale <= 0) { scale = 0.3; }
+
+  // PASS 2 — shift each frame up by its own ink-box top (cropping the reserved-header
+  // band) and size its box to its own ink height (dropping the blank tail).
+  wraps.forEach(function(wrap, i) {
+    var frame = wrap.querySelector('.md-ds-stylepreview__frame');
+    if (!frame) { return; }
+    var box = boxes[i];
+    frame.style.height = (box.bottom + 8) + 'px';
+    frame.style.transform = 'scale(' + scale + ')';
+    frame.style.left = '0px';
+    frame.style.top = '-' + Math.round(box.top * scale) + 'px';
+    var panelW = Math.round(vw * scale);
+    wrap.style.width = panelW + 'px';
+    // BOTTOM BLEED. The frame gets `box.bottom + 8` above, but the visible panel was sized
+    // to the bare ink height — so a card's border, shadow or padding just past its last
+    // measured leaf was shaved, and the last row read as cut off. 16px matches the bleed
+    // the ink-box technique calls for at the bottom (8 top / 16 bottom).
+    wrap.style.height = Math.round((box.height + PREVIEW_FIT_BLEED) * scale) + 'px';
+    // Match the caption to the panel so `text-align: center` centres it under the PANEL
+    // rather than under the wider figure (see the caption rule in app.scss).
+    var cap = wrap.parentElement && wrap.parentElement.querySelector('.md-ds-stylepreview__caption');
+    if (cap) { cap.style.width = panelW + 'px'; }
+  });
+}
+
+// Build both style previews for the step, once. Returns silently when the page has no
+// shell to preview — the preview is decorative and must never block choosing a style.
+function _buildStylePreviews(el) {
+  var shell = _livePageShell();
+  if (!shell) { return; }
+  Array.prototype.forEach.call(el.querySelectorAll('[data-gst-stylepreview]'), function(wrap) {
+    var layout = wrap.getAttribute('data-gst-stylepreview');
+    var viewport = wrap.querySelector('.md-ds-stylepreview__viewport');
+    if (!viewport || viewport.querySelector('iframe')) { return; }
+    var frame = document.createElement('iframe');
+    frame.className = 'md-ds-stylepreview__frame';
+    frame.setAttribute('aria-hidden', 'true');
+    frame.setAttribute('tabindex', '-1');
+    frame.setAttribute('scrolling', 'no');
+    // Same-origin (no src) so we can write into it; `allow-same-origin` only, so the
+    // cloned markup can never run script even if a stray inline handler survived.
+    frame.setAttribute('sandbox', 'allow-same-origin');
+    viewport.appendChild(frame);
+    try {
+      _writeStylePreview(frame, shell, layout);
+    } catch (e) { /* decorative — a failed preview must not break the chooser */ }
+  });
+  // Fit AFTER every frame is written: the shared scale is derived from the tallest of
+  // them, so it cannot be computed one preview at a time.
+  try { _fitStylePreviews(el); } catch (e) { /* decorative */ }
+  // FIT LATE, BUT HIDDEN UNTIL IT LANDS.
+  //
+  // These two requirements pull against each other and both are real:
+  //  - measuring EARLY under-reads the ink box (the frame has not finished laying out
+  //    after `document.write`, and fonts + the re-packed grid arrive a frame or two
+  //    later), which clips the last row;
+  //  - measuring LATE is accurate, but every fit rewrites the frame size, transform and
+  //    panel dimensions — so a pass that lands after the modal has settled is visible, and
+  //    reads as the preview jumping on its own.
+  // Removing the late pass fixed the jump and brought back a WORSE clip, which is the
+  // evidence that the late measurement is the accurate one. So it stays, and the panels
+  // are simply not shown until it has run.
+  //
+  // `visibility`, not `display` or `opacity: 0` + reflow: hidden elements still occupy
+  // their box, so the fit can size them while they are invisible and the modal's layout
+  // does not shift when they appear.
+  var _viewports = function() {
+    return Array.prototype.slice.call(el.querySelectorAll('.md-ds-stylepreview__viewport'));
+  };
+  _viewports().forEach(function(v) { v.style.visibility = 'hidden'; });
+  setTimeout(function() {
+    try { _fitStylePreviews(el); } catch (e) { /* decorative */ }
+    _viewports().forEach(function(v) { v.style.visibility = ''; });
+  }, PREVIEW_SETTLE_MS);
 }
 
 // Swap the preview content. Removes the existing page first so switching styles
@@ -384,6 +876,19 @@ function _onDisplayShow(component) {
     if (saveTimer) { clearTimeout(saveTimer); }
     saveTimer = setTimeout(function() { saveTimer = null; persist(); }, 180);
   };
+  /* The claim above that "the pending timer survives the close (no app navigation)" is
+     only true for close paths that do not navigate. Done/Cancel run
+     _reloadAfterDashboardDesign, and `window.location.reload()` discards a pending
+     timer — so unchecking a card and pressing Done within 180ms silently lost the
+     change and the card came back. (The `hide:` step hooks are NOT a fallback: Shepherd
+     triggers 'hide' only when moving between steps; Done/×/Esc go through
+     Step.destroy(), which triggers 'destroy'.) Expose a synchronous flush for those
+     paths to call before they navigate. */
+  if (component) {
+    component._flushDisplayStyleSave = function() {
+      if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; persist(); }
+    };
+  }
 
   // Build the preview content — a clone of the user's real dashboard (see
   // _buildPreviewContent). The layout-card click handler rebuilds it when the choice
@@ -392,6 +897,35 @@ function _onDisplayShow(component) {
     var live = el.querySelector('.md-ds-preview__live');
     if (live && !live.querySelector('.md-ds-preview__page')) {
       _buildPreviewContent(live);
+    }
+  } catch (e) { /* preview is decorative — never block the step */ }
+
+  // Per-style page previews (the `→ preview` beside each card, display-style step
+  // only). Built once on show; re-fitted on resize/rotate so a tablet turned
+  // mid-modal re-scales instead of cropping. The listener is removed when the step's
+  // element leaves the DOM — Shepherd destroys the step on BOTH Done and close
+  // without a reliable hide hook (see the persist comment above), so an element-
+  // connectivity check is the dependable teardown signal rather than a lifecycle event.
+  try {
+    if (el.querySelector('[data-gst-stylepreview]')) {
+      _buildStylePreviews(el);
+      var refit = function() {
+        if (!el.isConnected) { window.removeEventListener('resize', refit); return; }
+        _fitStylePreviews(el);
+      };
+      window.addEventListener('resize', refit);
+      /* Also tracked for deterministic teardown: the self-detach above only runs on the
+         NEXT resize, and on a fixed-orientation AAC tablet a resize never fires — so
+         each modal open leaked a listener closing over a detached step (two
+         document.write-populated iframes among them). */
+      if (component && component._trackResizeListener) { component._trackResizeListener(refit); }
+      // The modal animates in, so the slot has no final size on the first frame.
+      // Re-fit once it has settled, otherwise every preview scales against a 0-height
+      // slot and falls back to the minimum. setTimeout (not runLater) to match this
+      // file's existing debounce and avoid adding an `ember/no-runloop` error — the
+      // suggested replacement, ember-lifeline, is not a dependency of this app.
+      setTimeout(refit, 60);
+      setTimeout(refit, 320);
     }
   } catch (e) { /* preview is decorative — never block the step */ }
 
@@ -429,7 +963,7 @@ function _onDisplayShow(component) {
       if (_seedUser && liveEl) {
         var _savedLayout = _seedUser.get('preferences.dashboard_layout') || 'gentle';
         if (['gentle', 'focused'].indexOf(_savedLayout) === -1) { _savedLayout = 'gentle'; }
-        Array.prototype.forEach.call(el.querySelectorAll('.md-ds-option'), function(opt) {
+        Array.prototype.forEach.call(el.querySelectorAll('.md-ds-select'), function(opt) {
           var on = opt.getAttribute('data-gst-layout') === _savedLayout;
           opt.classList.toggle('is-selected', on);
           opt.setAttribute('aria-pressed', on ? 'true' : 'false');
@@ -466,8 +1000,12 @@ function _onDisplayShow(component) {
       }
     } catch (e) { flagOn = dragEnabled; }
     var boxes = el.querySelectorAll('.md-ds-section__input');
-    var options = el.querySelectorAll('.md-ds-option');
+    var options = el.querySelectorAll('.md-ds-select');
     var nextBtn = el.querySelector('.shepherd-footer .md-tour__btn--primary');
+    // The optional "Customize your dashboard" link on the display-style page. It
+    // advances the same way the primary used to, so it has to obey the SAME gate —
+    // otherwise it would be a way around a disabled Done. Absent on other pages.
+    var linkBtn = el.querySelector('.shepherd-footer .md-tour__btn--link');
     var cancelBtn = el.querySelector('.shepherd-cancel-icon');
     var overlay = el.querySelector('.md-ds-empty');
     var readVis = function() {
@@ -516,12 +1054,17 @@ function _onDisplayShow(component) {
     var refreshGate = function() {
       var applicable = applicableBoxes();
       var hasSection = (applicable.length === 0) ? true : anyChecked();
-      var hasLayout = (options.length === 0) ? true : !!el.querySelector('.md-ds-option.is-selected');
+      var hasLayout = (options.length === 0) ? true : !!el.querySelector('.md-ds-select.is-selected');
       var disabled = !(hasSection && hasLayout);
       if (nextBtn) {
         nextBtn.disabled = disabled;
         nextBtn.classList.toggle('md-tour__btn--disabled', disabled);
         nextBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+      }
+      if (linkBtn) {
+        linkBtn.disabled = disabled;
+        linkBtn.classList.toggle('md-tour__btn--disabled', disabled);
+        linkBtn.setAttribute('aria-disabled', disabled ? 'true' : 'false');
       }
       // Gate the close (X) the same way — the user must keep at least one element
       // for the chosen layout, so they can't dismiss the modal with an empty
@@ -545,7 +1088,7 @@ function _onDisplayShow(component) {
       });
     };
     var currentLayout = function() {
-      var sel = el.querySelector('.md-ds-option.is-selected');
+      var sel = el.querySelector('.md-ds-select.is-selected');
       if (sel) { return sel.getAttribute('data-gst-layout') || 'gentle'; }
       try {
         var as = (typeof window !== 'undefined' && window.LingoLinq) ? window.LingoLinq.appState : null;
@@ -614,52 +1157,39 @@ function _onDisplayShow(component) {
       // changes, so a captured reference would go stale.
       gridEl = liveEl && liveEl.querySelector('.md-ds-preview__clone');
       var layout = currentLayout();
-      var vis = readVis();
-      // Focused View never shows Extras — Speak becomes the full-width hero instead.
-      // Force it off before card-hide + layout so the clone matches the real page.
-      if (layout === 'focused') { vis.extras = false; }
+      // The shared layout description, given this modal's LIVE state rather than saved
+      // preferences: `vis` comes from the checkboxes the user is toggling right now and
+      // `order` from the drag in progress. Everything else — the forced-off Extras on
+      // Focused View, the drag-flag gate, the hero, the grid matrix — is derived in one
+      // place that the live page and the style-preview iframes also call.
+      var pres = layoutPresentation(previewUser, layout, {
+        vis: readVis(),
+        order: order,
+        dragEnabled: flagOn
+      });
       if (liveEl && gridEl) {
-        // Reflect the selected display style on the clone so layout-scoped CSS
-        // (e.g. the Focused View full-width Speak hero's doubled height) applies to
-        // the preview too — the clone inherits the live grid's layout class, so
-        // it must be re-stamped when the user switches styles.
-        ['gentle', 'focused'].forEach(function(name) {
-          gridEl.classList.toggle('md-grid--layout-' + name, layout === name);
-        });
+        // Reflect the selected display style on the clone so layout-scoped CSS (e.g. the
+        // Focused View full-width Speak hero's doubled height) applies to the preview too.
+        _applyGridPresentation(gridEl, pres);
         HOME_SECTIONS.forEach(function(s) {
-          if (vis[s.key] === undefined) { return; }
-          setCardDisplay(s.cardClass, vis[s.key]);
+          if (pres.vis[s.key] === undefined) { return; }
+          setCardDisplay(s.cardClass, pres.vis[s.key]);
         });
         // Non-grid toggles (welcome hero): gentleOnly ones never show on Focused View.
         EXTRA_HOME_TOGGLES.forEach(function(t) {
-          if (vis[t.key] === undefined) { return; }
-          var on = vis[t.key] && !(t.gentleOnly && layout === 'focused');
-          setCardDisplay(t.cardClass, on);
+          if (pres.toggles[t.key] === undefined) { return; }
+          setCardDisplay(t.cardClass, pres.toggles[t.key]);
         });
-        var state = gridLayoutState(vis, flagOn ? order : null, layout, focusedHeroKey(previewUser));
-        // Reconcile ALL engine-driven state classes (boards-full + the gentle
-        // per-card md-grid--fullspan-<key>) so the preview matches the real grid:
-        // strip the current set, then add the computed one.
-        Array.prototype.slice.call(gridEl.classList).forEach(function(c) {
-          if (/^md-grid--(boards-full|boards-right|with-caseload|with-org-mgmt|fullspan-)/.test(c)) { gridEl.classList.remove(c); }
-        });
-        state.classes.forEach(function(c) { gridEl.classList.add(c); });
-        gridEl.style.setProperty('grid-template-areas', state.areasValue, 'important');
-        gridEl.style.setProperty('grid-template-rows', state.rows, 'important');
-        // Focused View pins the column count to the visible utility-card count so
-        // the utility row fills evenly; Gentle View hands columns back to the CSS.
-        if (state.columns) { gridEl.style.setProperty('grid-template-columns', state.columns, 'important'); }
-        else { gridEl.style.removeProperty('grid-template-columns'); }
-        // Mirror the reading-order vars so the clone's small-screen fallback orders
-        // cards the same as the real grid (inert above 950px).
-        var _oi = state.orderIndices || {};
-        Object.keys(_oi).forEach(function(k) { gridEl.style.setProperty('--ord-' + k, _oi[k]); });
         // Stamp the live order back so the persist step can read it.
         liveEl.setAttribute('data-gst-order', JSON.stringify(order));
       }
       refreshGate();
       // Mirror the new card order into the right-panel checklist.
       reorderSectionList();
+      // Re-fit AFTER the grid is rebuilt: toggling a card on/off or switching
+      // layout changes the preview's height, so the scale has to be recomputed or
+      // the modal starts scrolling again.
+      _fitPreviewZoom(liveEl);
     };
     // A user-initiated change: re-render the preview IMMEDIATELY (the snap stays
     // instant) then queue a DEBOUNCED save (off the animation frame). The initial
@@ -699,6 +1229,22 @@ function _onDisplayShow(component) {
     });
     applyLayoutSections(currentLayout());
     syncState();
+
+    // Re-fit on resize / orientation change — this app runs on tablets, where a
+    // rotate can halve the available height mid-modal. Self-cleaning: the step's
+    // DOM is discarded when the modal closes, so the first callback after that
+    // detaches the listener rather than leaking one per modal open.
+    try {
+      var onPreviewResize = function() {
+        if (!liveEl || !document.body.contains(liveEl)) {
+          window.removeEventListener('resize', onPreviewResize);
+          return;
+        }
+        _fitPreviewZoom(liveEl);
+      };
+      window.addEventListener('resize', onPreviewResize);
+      if (component && component._trackResizeListener) { component._trackResizeListener(onPreviewResize); }
+    } catch (e) { /* fitting is an enhancement — never block the step */ }
     // Drag-to-swap (flagged): let the user rearrange cards by dragging one onto another
     // in the preview. Each swap re-runs syncState (re-rendering the grid + re-stamping the
     // positions for persistence). Wrapped in a function because the preview clone is
@@ -726,29 +1272,40 @@ function _onDisplayShow(component) {
     wireDrag();
   } catch (e) { /* preview + gating are decorative — never block the step */ }
 
-  // Orientation overlay (shown by CSS at ≤640px): Rotate tries a native
-  // landscape lock; Continue Anyway hides it so the step stays usable in
-  // portrait. Rotating to landscape widens past 640px and auto-hides it.
+  // Orientation overlay (shown by CSS at ≤640px): Continue Anyway hides it so the step
+  // stays usable in portrait, and latches the session flag so the same message does not
+  // reappear on another step or another page. Rotating to landscape widens past 640px
+  // and auto-hides it.
+  // The old Rotate Device button and its `screen.orientation.lock('landscape')` handler
+  // were removed with the button — see _orientationOverlayHtml for why.
   try {
-    var orientation = el.querySelector('.md-ds-orientation');
-    var rotateBtn = orientation && orientation.querySelector('[data-gst-rotate]');
-    var dismissBtn = orientation && orientation.querySelector('[data-gst-dismiss]');
-    if (rotateBtn && !rotateBtn._gstWired) {
-      rotateBtn._gstWired = true;
-      rotateBtn.addEventListener('click', function() {
-        try {
-          if (window.screen && window.screen.orientation && window.screen.orientation.lock) {
-            var p = window.screen.orientation.lock('landscape');
-            if (p && p.catch) { p.catch(function() {}); }
-          }
-        } catch (e2) { /* web / unsupported — the width media query handles it */ }
-      });
-    }
-    if (dismissBtn && !dismissBtn._gstWired) {
-      dismissBtn._gstWired = true;
-      dismissBtn.addEventListener('click', function() {
-        if (orientation) { orientation.style.setProperty('display', 'none', 'important'); }
-      });
+    var dismissals = (component && component.get) ? component.get('overlay_dismissals') : null;
+    /* Hide EVERY instance in the document, not just this step's. The overlay is emitted
+       by more than one step, Shepherd portals panels into <body>, and the same message
+       is rendered by create-board-new — "Continue Anyway" is meant to silence the
+       message, not the one node the user happened to click. */
+    var hideAllOrientationOverlays = function() {
+      var all = document.querySelectorAll('.md-ds-orientation');
+      for (var n = 0; n < all.length; n++) {
+        all[n].style.setProperty('display', 'none', 'important');
+      }
+    };
+    /* Already dismissed earlier this session (possibly on another page)? Then this step
+       must not re-show it. Steps render lazily, so this runs per show and covers a step
+       first opened AFTER the dismissal. */
+    if (dismissals && dismissals.hidden('rotate_device')) { hideAllOrientationOverlays(); }
+    var overlays = el.querySelectorAll('.md-ds-orientation');
+    for (var i = 0; i < overlays.length; i++) {
+      var dismissBtn = overlays[i].querySelector('[data-gst-dismiss]');
+      if (dismissBtn && !dismissBtn._gstWired) {
+        dismissBtn._gstWired = true;
+        dismissBtn.addEventListener('click', function() {
+          /* Latch the session flag FIRST so any overlay rendered later is born hidden,
+             then hide the ones already on screen. */
+          if (dismissals) { dismissals.dismiss('rotate_device'); }
+          hideAllOrientationOverlays();
+        });
+      }
     }
   } catch (e) { /* never block the step */ }
 }
@@ -767,6 +1324,9 @@ export default Component.extend({
 
   tour: service('tour'),
   appState: service('app-state'),
+  /* Shared with board-detail and create-board-new so a "Continue Anyway" anywhere
+     silences the rotate-device message everywhere for the session. */
+  overlay_dismissals: service('overlay-dismissals'),
 
   // Register a DIRECT opener on the shared app-state service so any component
   // (e.g. the home "Edit Dashboard" card) can open this tour at a specific step
@@ -785,10 +1345,34 @@ export default Component.extend({
     };
   },
 
+  /* Registry for window listeners registered by the step-show helpers, which live in
+     module scope and cannot see the component's lifecycle on their own. */
+  _trackResizeListener: function(fn) {
+    var list = this._tracked_resize_listeners || [];
+    list.push(fn);
+    this._tracked_resize_listeners = list;
+  },
+
   willDestroy: function() {
+    (this._tracked_resize_listeners || []).forEach(function(fn) {
+      try { window.removeEventListener('resize', fn); } catch (e) { /* already gone */ }
+    });
+    this._tracked_resize_listeners = null;
     if (this.get('appState.dashboard_design_opener')) {
       this.set('appState.dashboard_design_opener', null);
     }
+    /* `md-ds-active` is added to <body> and removed only by _clearCentered() off
+       Shepherd's complete/cancel events — but the modal is portalled to <body>, so a
+       route change that bypasses those (browser Back, Android hardware Back, a
+       session-expiry redirect) destroyed this component with the class still set.
+       `body.md-ds-active .md-workspace { visibility: hidden !important }` then blanked
+       the DESTINATION route, and .md-workspace is on essentially every authenticated
+       page. Cancel the tour too, so its own listeners do not outlive the component. */
+    try {
+      var tour = this.get('tour');
+      if (tour && tour.cancel) { tour.cancel(); }
+    } catch (e) { /* tour already torn down */ }
+    _clearCentered();
     this._super.apply(this, arguments);
   },
 
@@ -824,7 +1408,7 @@ export default Component.extend({
     var changed = false;
 
     // Layout choice
-    var sel = root.querySelector('.md-ds-option.is-selected');
+    var sel = root.querySelector('.md-ds-select.is-selected');
     var layout = sel && sel.getAttribute('data-gst-layout');
     if (layout && prefs.dashboard_layout !== layout) {
       prefs.dashboard_layout = layout;
@@ -889,6 +1473,12 @@ export default Component.extend({
   // unreliable cross-browser and adds motion AAC users don't need. Deferred until
   // the save persists so the reloaded page reflects the chosen layout.
   _reloadAfterDashboardDesign: function() {
+    /* Commit any debounced visibility/position change BEFORE anything here can trigger
+       a reload. Without this, a toggle made within 180ms of pressing Done was discarded
+       with the page. Safe to call unconditionally — it is a no-op when no save is
+       pending, and it runs even on the early return below, which is what the
+       already-settled path needs. */
+    if (this._flushDisplayStyleSave) { this._flushDisplayStyleSave(); }
     if (!this._dashboardDesignChanged) { return; }
     this._dashboardDesignChanged = false;
     var _this = this;
@@ -915,7 +1505,10 @@ export default Component.extend({
   // display-style + customize step titles are reused so the labels match what's
   // next. The footer "Get started" advances the tour.
   _welcomeContentHtml: function() {
-    var lead = i18n.t('display_style_welcome_text', "Design your dashboard in two quick steps: choose a display style, then pick what appears on your dashboard.");
+    // Step 2 is OPTIONAL now (the display-style page carries its own Done button
+    // and only links onward to the customize page), so the lead no longer promises
+    // "two quick steps" — it names the second as a choice.
+    var lead = i18n.t('display_style_welcome_text', "Design your dashboard: choose a display style, then customize what appears on it if you'd like.");
     var t1 = i18n.t('display_style_display_title', "Choose your display style");
     var t2 = i18n.t('display_style_layout_title', "Customize your dashboard");
     // Non-actionable label cards (no mockup, no click-to-jump) — each just names a
@@ -944,7 +1537,12 @@ export default Component.extend({
   // renders `title` via innerHTML, so an HTML string is the supported approach;
   // every piece comes from i18n, never user input.
   _decoratedTitle: function(headingKey, headingDefault) {
-    var eyebrow = i18n.t('display_style_eyebrow', "Dashboard Design");
+    // Deliberately GENERIC — the modal opens from more than one page (home dashboard and
+    // caseload today), so the eyebrow must not name any one of them. Naming the current
+    // page would also mean a phrase per page: `i18n_generator` only extracts LITERAL
+    // keys, so a "<page> + Design" concatenation could not be translated at all, and word
+    // order differs by locale.
+    var eyebrow = i18n.t('display_style_eyebrow', "Display Design");
     var heading = i18n.t(headingKey, headingDefault);
     var spark = '<svg class="md-tour__eyebrow-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.7 5.1 5.1 1.7-5.1 1.7L12 16.1l-1.7-5.1L5.2 9.3l5.1-1.7z"/><path d="M19 13.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" opacity="0.7"/></svg>';
     return '<span class="md-tour__eyebrow">' + spark +
@@ -964,16 +1562,60 @@ export default Component.extend({
     // modal reflects what's stored, not a fixed default.
     var saved = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';
     if (['gentle', 'focused'].indexOf(saved) === -1) { saved = 'gentle'; }
-    var option = function(key, label, desc) {
+    // Each card is paired with a live preview of the CURRENT page rendered in that
+    // style, joined by a `→`. The preview slot is emitted here but filled in by
+    // _buildStylePreviews on show (it needs the rendered page to clone). When there is
+    // no shell to preview the slot stays empty and collapses via :empty in the
+    // stylesheet, so the chooser degrades to the plain cards rather than showing a
+    // broken frame.
+    var withPreview = this._canPreviewPage();
+    // The CARD is presentational (a <div>); the SELECT BUTTON beneath it is the control.
+    // Splitting them means the whole card is no longer one big click target — the choice
+    // is made by a button that says what it does ("Select Gentle View"), which also gives
+    // a screen reader a named action instead of a pressed-state region containing a
+    // heading and a bullet list. `data-gst-layout` + `is-selected` therefore live on the
+    // BUTTON, and the card reflects the choice via `:has()` in the stylesheet.
+    var selectedLabel = i18n.t('display_style_selected', "Selected…");
+    var option = function(key, label, desc, previewLabel, selectLabel) {
       var sel = key === saved;
-      return '<button type="button" class="md-ds-option' + (sel ? ' is-selected' : '') + '" data-gst-layout="' + key + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' +
-        '<span class="md-ds-option__text">' +
-          '<span class="md-ds-option__label">' + label + '</span>' +
-          // desc is a <div> (not a <span>) so it can hold block content — both
-          // cards pass a "may be a good fit if you:" lead + bracketed bullet list.
-          '<div class="md-ds-option__desc">' + desc + '</div>' +
+      // Card and button are SIBLINGS in a `__choice` column — the button sits outside and
+      // below the card, not within it.
+      // Both labels are rendered and swapped by CSS on `.is-selected` rather than having
+      // the click handler rewrite textContent: the handler stays free of copy, and neither
+      // string can drift out of i18n.
+      var card = '<div class="md-ds-optionrow__choice">' +
+        '<div class="md-ds-option">' +
+          '<span class="md-ds-option__text">' +
+            '<span class="md-ds-option__label">' + label + '</span>' +
+            // desc is a <div> (not a <span>) so it can hold block content — both
+            // cards pass a "may be a good fit if you:" lead + bracketed bullet list.
+            '<div class="md-ds-option__desc">' + desc + '</div>' +
+          '</span>' +
+        '</div>' +
+        '<button type="button" class="md-ds-select' + (sel ? ' is-selected' : '') + '" data-gst-layout="' + key + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' +
+          '<span class="md-ds-select__check" aria-hidden="true">' +
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' +
+          '</span>' +
+          '<span class="md-ds-select__label md-ds-select__label--idle">' + selectLabel + '</span>' +
+          '<span class="md-ds-select__label md-ds-select__label--done">' + selectedLabel + '</span>' +
+        '</button>' +
+      '</div>';
+      if (!withPreview) { return card; }
+      return '<div class="md-ds-optionrow">' +
+        card +
+        // Decorative: the preview is captioned, so the arrow adds no information for
+        // a screen reader and is hidden rather than given a redundant label.
+        '<span class="md-ds-optionrow__arrow" aria-hidden="true">' +
+          '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="19" y2="12"/><polyline points="13 6 19 12 13 18"/></svg>' +
         '</span>' +
-      '</button>';
+        // Caption FIRST — it labels the panel before you look at it, at every width.
+        // `<figcaption>` is valid as either the first or last child of `<figure>`, so this
+        // needs no `order`/`column-reverse` workaround.
+        '<figure class="md-ds-stylepreview" data-gst-stylepreview="' + key + '">' +
+          '<figcaption class="md-ds-stylepreview__caption">' + previewLabel + '</figcaption>' +
+          '<div class="md-ds-stylepreview__viewport"></div>' +
+        '</figure>' +
+      '</div>';
     };
     // Each layout card's description is a lead line + a bracketed 3-item bullet
     // list ("May be a good fit if you:"). Kept inline with LITERAL i18n.t calls
@@ -996,18 +1638,37 @@ export default Component.extend({
           '<li>' + i18n.t('display_style_layout_focused_item3', "Prefer a bolder, more direct interface") + '</li>' +
         '</ul>' +
       '</div>';
+    // Preview captions name the style, so each figure stands on its own for a screen
+    // reader (the arrow beside it is decorative). Literal i18n.t calls, per the
+    // generator's static-parse requirement.
+    var gentleCaption = i18n.t('display_style_preview_caption_gentle', "This page in Gentle View");
+    var focusedCaption = i18n.t('display_style_preview_caption_focused', "This page in Focused View");
+    // Full phrases per option, not "Select " + label — i18n_generator only extracts
+    // LITERAL keys, so a concatenation would never be translated, and word order after
+    // the verb differs by locale.
+    var gentleSelect = i18n.t('display_style_select_gentle', "Select Gentle View");
+    var focusedSelect = i18n.t('display_style_select_focused', "Select Focused View");
     return '' +
-      '<div class="md-ds-options">' +
+      '<div class="md-ds-options' + (withPreview ? ' md-ds-options--with-previews' : '') + '">' +
         // Gentle View is listed FIRST (it's the site default), Focused View second.
         // The KEY is 'gentle' — the value persisted in preferences.dashboard_layout
         // (and allow-listed below). The user-facing LABEL is "Gentle View".
-        option('gentle', i18n.t('display_style_layout_gentle', "Gentle View"), gentleDesc) +
+        option('gentle', i18n.t('display_style_layout_gentle', "Gentle View"), gentleDesc, gentleCaption, gentleSelect) +
         '<span class="md-ds-options__or" aria-hidden="true">' + i18n.t('display_style_or_divider', "OR") + '</span>' +
         // The layout KEY is 'focused' — the layout engine selects on
         // `layout === 'focused'` and it's the value persisted in
         // preferences.dashboard_layout. The user-facing LABEL is "Focused View".
-        option('focused', i18n.t('display_style_layout_focused', "Focused View"), focusedDesc) +
+        option('focused', i18n.t('display_style_layout_focused', "Focused View"), focusedDesc, focusedCaption, focusedSelect) +
       '</div>';
+  },
+
+  // Can we show the per-style page previews? Unlike `_onDashboardPage` (which asks the
+  // narrower "is the dashboard GRID here", because the customize page clones that grid
+  // specifically), this only needs a page shell to photograph — which every route has.
+  // That is what lets the caseload page show previews where the old single-preview
+  // panel showed nothing at all.
+  _canPreviewPage: function() {
+    return !!_livePageShell();
   },
 
   // Reuses the board-detail landscape-orientation overlay (same classes +
@@ -1041,8 +1702,16 @@ export default Component.extend({
           '</div>' +
           '<h2 class="md-board-detail-portrait-overlay__title">' + i18n.t('board_detail_landscape_recommended', "Landscape mode recommended") + '</h2>' +
           '<p class="md-board-detail-portrait-overlay__desc">' + i18n.t('display_style_landscape_explanation', "Rotate your device to landscape to see the full preview and choose your home page layout.") + '</p>' +
+          // "Continue Anyway" ONLY. A "Rotate Device" button used to sit here; it was
+          // removed 2026-08-15 because users read it as a control that would rotate the
+          // device for them. It could not: its handler called
+          // `screen.orientation.lock('landscape')`, which is unsupported on iOS Safari
+          // and requires fullscreen on Chrome, so in practice it silently did nothing.
+          // The overlay's own copy already says "Rotate your device to landscape", which
+          // is the instruction — it does not need a button that appears to perform it.
+          // This matches the other two orientation overlays (board-detail.hbs,
+          // create-board-new.hbs), which have only ever offered "Continue Anyway".
           '<div class="md-board-detail-portrait-overlay__actions">' +
-            '<button type="button" class="md-board-detail-portrait-overlay__btn md-board-detail-portrait-overlay__btn--primary" data-gst-rotate>' + i18n.t('board_detail_rotate_device', "Rotate Device") + '</button>' +
             '<button type="button" class="md-board-detail-portrait-overlay__btn md-board-detail-portrait-overlay__btn--secondary" data-gst-dismiss>' + i18n.t('board_detail_continue_anyway', "Continue Anyway") + '</button>' +
           '</div>' +
         '</div>' +
@@ -1073,8 +1742,24 @@ export default Component.extend({
   // `opts.drag` (default true) is ANDed with the feature flag; pass false to force
   // a static preview. Section keys are fixed identifiers, so the JSON is safe in a
   // single-quoted attribute.
+  // Is the live home dashboard grid on screen? This component is mounted on the
+  // caseload page as well as home (app-navbar-authenticated-inner.hbs) so a
+  // supporter can switch view style from either, and everything in this modal that
+  // previews or configures the dashboard works by cloning that grid. The single
+  // authority for "can we show dashboard-dependent UI" — used by both
+  // `_gentlePreviewHtml` and `_buildSteps`, so the preview and the step list can
+  // never disagree about which page we're on. Excludes the modal's own clone.
+  _onDashboardPage: function() {
+    return !!document.querySelector('.md-grid--dashboard:not(.md-ds-preview__clone)');
+  },
+
   _gentlePreviewHtml: function(opts) {
     opts = opts || {};
+    // No grid to clone (see _onDashboardPage) — `_buildGentleViewClone` would bail
+    // and leave an empty preview panel, so render nothing at all. Off-dashboard
+    // _buildSteps also drops the pages that depend on the preview, so in practice
+    // this is the belt to that braces.
+    if (!this._onDashboardPage()) { return ''; }
     var withToggles = opts.toggles !== false;
     var dragOn = (opts.drag !== false) && !!this.get('appState.feature_flags.dashboard_drag_layout');
     var savedLayout = this.get('appState.currentUser.preferences.dashboard_layout') || 'gentle';
@@ -1192,8 +1877,20 @@ export default Component.extend({
   // from the home-tour styling we reuse).
   _buildSteps: function() {
     var component = this;
-    return [
-      // Step 1 — welcome (centered intro)
+    // OFF the dashboard (caseload, boards, reports…) this modal is a single
+    // decision: pick a display style. The "Customize your dashboard" page and the
+    // preview both work by cloning the live `.md-grid--dashboard`, which only
+    // exists on home — off-dashboard that page would render an empty frame with
+    // toggles for cards that aren't on screen. So the flow collapses to the one
+    // meaningful page, whose primary button becomes "Done" (below).
+    // The welcome page goes too: it exists purely to introduce a TWO-step flow
+    // ("Design your dashboard in two quick steps…" + a 1→2 stepper), so keeping it
+    // in front of a single page would advertise a step that never comes.
+    // Steps are built per tour-open (see _startDisplayStyle), so this DOM check
+    // always reflects the page the user is actually on.
+    var onDashboard = this._onDashboardPage();
+    var steps = [
+      // Step 1 — welcome (centered intro). Dashboard only — see above.
       {
         id: 'display_style_welcome',
         title: this._decoratedTitle('display_style_welcome_title', "Customize your dashboard"),
@@ -1223,15 +1920,21 @@ export default Component.extend({
           }
         ]
       },
-      // Step 2 — "Choose your display style": the 3 layout style cards plus a
-      // READ-ONLY preview of the selected style (no content toggles, no drag). The
-      // user only picks a style here; configuring what appears + arranging it happens
-      // on the next page. The same _onDisplayShow hook wires both pages — on this one
-      // there are no toggles and drag is off, so it only wires the style cards + gate.
+      // Step 2 — "Choose your display style": the layout style cards, each paired with
+      // a `→` and its OWN read-only preview of the current page in that style
+      // (_styleCardsHtml + _buildStylePreviews). The user only picks a style here;
+      // configuring what appears + arranging it happens on the next page. The same
+      // _onDisplayShow hook wires both pages — on this one there are no toggles and
+      // drag is off, so it only wires the style cards + gate.
+      //
+      // The old single swapping preview panel (`_gentlePreviewHtml`) is NOT rendered
+      // here any more: it showed one style at a time below the cards, which is what the
+      // per-card previews replace. It still serves the customize step below, where the
+      // preview is interactive (toggles + drag) and only one is wanted.
       {
         id: 'display_style_display',
         title: this._decoratedTitle('display_style_display_title', "Choose your display style"),
-        text: this._styleCardsHtml() + this._gentlePreviewHtml({ toggles: false, drag: false }) + this._orientationOverlayHtml('-display'),
+        text: this._styleCardsHtml() + this._orientationOverlayHtml('-display'),
         when: {
           show: function() { _onDisplayShow.call(this, component); },
           // Persist whenever this step is HIDDEN — Next, Back, OR closing the modal
@@ -1241,20 +1944,40 @@ export default Component.extend({
           hide: function() { try { component._persistDisplaySelection(this.el); } catch (e) { /* never block close */ } }
         },
         classes: 'md-tour__step md-tour__step--intro md-ds-modal md-ds-modal--display',
-        buttons: [
+        // Off-dashboard this is the ONLY step: nowhere to go Back to, and no
+        // customize page to continue to — just Done.
+        buttons: (onDashboard ? [
           {
             text: i18n.t('display_style_back', "Back"),
             type: 'back',
             classes: 'md-tour__btn md-tour__btn--ghost'
           },
           {
-            text: i18n.t('display_style_select', "Select"),
-            // Advance to the home-layout page; the `hide` hook above saves the chosen
-            // style. (Gate: the show hook keeps it disabled until a style is picked.)
-            type: 'next',
+            // Continuing to the customize page is OPTIONAL now that Done lives on
+            // this page, so it reads as a link rather than a second solid button
+            // competing with the primary action. Labelled with that page's own
+            // title, so the link names exactly where it goes.
+            // No `type`: ember-shepherd's makeButton passes a typeless button
+            // straight through (dist/utils/buttons.js), so `action` is what runs.
+            text: i18n.t('display_style_layout_title', "Customize your dashboard"),
+            action: function() { component.get('tour').next(); },
+            classes: 'md-tour__btn md-tour__btn--link'
+          }
+        ] : []).concat([
+          {
+            // Done COMPLETES from this page in both cases, so the user can finish as
+            // soon as they've picked a style instead of being marched through the
+            // customize page. Completing (not cancelling) fires the same end handler
+            // the flow already used, and this step's `hide` hook above still saves
+            // the selection, so the save + reload path is unchanged.
+            // Driven through the tour SERVICE captured in `component` rather than
+            // `this`, so it never depends on how Shepherd binds button callbacks.
+            // (Gate: the show hook keeps it disabled until a style is picked.)
+            text: i18n.t('display_style_done', "Done"),
+            action: function() { component.get('tour').complete(); },
             classes: 'md-tour__btn md-tour__btn--primary'
           }
-        ]
+        ])
       },
       // Step 3 — "Choose your home page layout": NO style cards. Shows the live
       // preview of the style picked on page 2's predecessor, the "Choose what appears
@@ -1284,6 +2007,13 @@ export default Component.extend({
         ]
       }
     ];
+    // Off-dashboard: drop the welcome intro and the "Customize your dashboard"
+    // page, leaving just the style chooser. Filter by id rather than slicing so
+    // the mapping stays readable if the step order ever changes.
+    if (!onDashboard) {
+      steps = steps.filter(function(s) { return s.id === 'display_style_display'; });
+    }
+    return steps;
   },
 
   // Another component can open the Dashboard Design modal at a specific step by

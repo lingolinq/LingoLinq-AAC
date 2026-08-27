@@ -14,6 +14,11 @@
             <div class="md-loading-spinner" aria-hidden="true"></div>
           </div>
           <p class="md-translate-hero__caption">{{t "Loading translations..." key="loading_translations"}}</p>
+        {{else if this.root_only_fallback}}
+          <p class="md-translate-hero__caption md-translate-status--error">{{t "Linked board labels could not be loaded. Try again when online, or translate the root board only." key="linked_board_labels_load_failed"}}</p>
+          <p class="md-translate-hero__caption">
+            {{t "The translations below are auto-generated. Please review them to make sure they are correct for your communicator's language." key="please_review_translations"}}
+          </p>
         {{else if this.translating.error}}
           {{#if this.translating.load_error}}
             <p class="md-translate-hero__caption md-translate-status--error">{{t "Linked board labels could not be loaded. Try again when online, or translate the root board only." key="linked_board_labels_load_failed"}}</p>

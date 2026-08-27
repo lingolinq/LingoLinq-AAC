@@ -383,6 +383,8 @@ describe User, :type => :model do
         'button_text' => 'medium',
         'button_text_position'=> 'top',
         'vocalization_height' => 'small',
+        'hide_screen_helpers' => false,
+        'external_keyboard' => true,
         'wakelock' => true
       })
       expect(u.settings['preferences']['activation_location']).to eq('end')
@@ -422,6 +424,8 @@ describe User, :type => :model do
         'button_text' => 'medium',
         'button_text_position' => 'top',
         'vocalization_height' => 'small',
+        'hide_screen_helpers' => false,
+        'external_keyboard' => true,
         'wakelock' => true
       })
       expect(u.user_name).to eq("bob-miller")
@@ -496,6 +500,170 @@ describe User, :type => :model do
       User.preference_defaults.each do |bucket, defaults|
         expect(defaults).not_to have_key('word_suggestions'), "found word_suggestions in preference_defaults['#{bucket}']"
       end
+    end
+
+    # `hide_screen_helpers` suppresses the "Larger screen recommended" / "Landscape mode
+    # recommended" overlays. It IS in the device bucket, so generate_defaults backfills it
+    # onto every device hash of every existing user on their next save — a `true` here
+    # would silently turn the helpers off account-wide for people who never asked, and
+    # persist an explicit true. Same trap board_category_grouping hit.
+    it "defaults hide_screen_helpers to false so the helper overlays stay visible" do
+      expect(User.preference_defaults['device']['hide_screen_helpers']).to eq(false)
+    end
+
+    # external_keyboard gates the speak-mode path that turns physical-keyboard keystrokes
+    # into vocalization-box entries (raw_events.js, `keyboard_listen`). It had no default on
+    # either side from 2018 until now, so the feature only ever worked for someone who found
+    # the checkbox. Unlike hide_screen_helpers, `true` IS the intent here: the backfill onto
+    # every existing device hash is what makes typing work for people who already have
+    # accounts. Deliberate, and paired with the text-field guard in raw_events.js — without
+    # that, defaulting this on makes every search box on a speak-mode page feed the utterance.
+    # board_category_grouping.boards is keyed by BOARD KEY so a curated per-board
+    # arrangement survives the trip between local / staging / production — a global_id is
+    # only unique within one database. The id shape still has to be accepted, because
+    # entries written before the switch are stored that way and the frontend resolver
+    # still falls back to them; rejecting them here would wipe a live preference on the
+    # user's next save of any unrelated setting.
+    it "keeps a board-KEY-shaped per-board override" do
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {
+        'enabled' => true,
+        'boards' => {'marcus_williams_slp/vocal-flair-112' => {'enabled' => true, 'vertical_scroll' => false}}
+      }}})
+      boards = u.settings['preferences']['board_category_grouping']['boards']
+      expect(boards.keys).to eq(['marcus_williams_slp/vocal-flair-112'])
+      expect(boards['marcus_williams_slp/vocal-flair-112']['vertical_scroll']).to eq(false)
+    end
+
+    it "still keeps a legacy global_id-shaped per-board override" do
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {
+        'enabled' => true, 'boards' => {'1_5059' => {'enabled' => true}}
+      }}})
+      expect(u.settings['preferences']['board_category_grouping']['boards'].keys).to eq(['1_5059'])
+    end
+
+    it "rejects a board reference that is not a plain id or one-slash key" do
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {
+        'enabled' => true,
+        'boards' => {
+          'a/b/c' => {'enabled' => true},
+          '../../etc' => {'enabled' => true},
+          ('x' * 200) => {'enabled' => true},
+          'ok_board/fine-1' => {'enabled' => true}
+        }
+      }}})
+      expect(u.settings['preferences']['board_category_grouping']['boards'].keys).to eq(['ok_board/fine-1'])
+    end
+
+    it "defaults external_keyboard to true so typing reaches the vocalization box" do
+      expect(User.preference_defaults['device']['external_keyboard']).to eq(true)
+    end
+
+    it "backfills external_keyboard onto an existing device hash that never set it" do
+      u = User.create
+      u.settings['preferences']['devices'] ||= {}
+      u.settings['preferences']['devices']['default'] ||= {}
+      u.settings['preferences']['devices']['default'].delete('external_keyboard')
+      u.save
+      expect(u.reload.settings['preferences']['devices']['default']['external_keyboard']).to eq(true)
+    end
+
+    it "does not override a device that has deliberately turned it off" do
+      u = User.create
+      u.settings['preferences']['devices'] ||= {}
+      u.settings['preferences']['devices']['default'] ||= {}
+      u.settings['preferences']['devices']['default']['external_keyboard'] = false
+      u.save
+      expect(u.reload.settings['preferences']['devices']['default']['external_keyboard']).to eq(false)
+    end
+
+    it "backfills hide_screen_helpers as false onto existing device hashes" do
+      u = User.create
+      u.settings['preferences']['devices'] ||= {}
+      u.settings['preferences']['devices']['default'] ||= {}
+      u.settings['preferences']['devices']['default'].delete('hide_screen_helpers')
+      u.save
+      expect(u.settings['preferences']['devices']['default']['hide_screen_helpers']).to eq(false)
+    end
+
+    it "keeps an explicit hide_screen_helpers=true through a save" do
+      u = User.create
+      u.process({'preferences' => {'device' => {'hide_screen_helpers' => true}}}, {})
+      u.save
+      expect(u.settings['preferences']['devices']['default']['hide_screen_helpers']).to eq(true)
+    end
+  end
+
+  describe "BOARD_CATEGORY_KEYS" do
+    # THE DRIFT GUARD. `sanitize_board_category_grouping!` filters the saved `order`
+    # against this constant, and the client writes a FULL normalized order on every
+    # Categorize save -- so a key the frontend registry has and this constant lacks is
+    # stripped on every save, then re-appended at the END by normalize_order on the next
+    # read, permanently pushing that category to the back of the board. That is exactly
+    # what happened to predictions/clock/yes/time.
+    #
+    # Reading the JS is deliberate: a hand-copied list is what drifted. The extraction is
+    # asserted to have found a plausible registry FIRST, so a formatting change in the JS
+    # fails loudly with "found 0 keys" instead of a confusing mismatch.
+    it "stays in step with the frontend registry in utils/board_categories.js" do
+      js = File.read(Rails.root.join('app/frontend/app/utils/board_categories.js'))
+      registry = js[/BOARD_CATEGORIES\s*=\s*\[(.*?)\n\];/m, 1]
+      expect(registry).not_to be_nil,
+        "could not locate `BOARD_CATEGORIES = [...]` in board_categories.js -- the extraction below is stale, fix it rather than deleting this spec"
+      client_keys = registry.scan(/^\s*key:\s*'([a-z_]+)'/).flatten
+      expect(client_keys.length).to be >= 10,
+        "extracted only #{client_keys.length} keys from board_categories.js (#{client_keys.inspect}) -- the regex no longer matches the file's shape"
+
+      expect(client_keys.sort).to eq(User::BOARD_CATEGORY_KEYS.sort),
+        "frontend registry and User::BOARD_CATEGORY_KEYS disagree.\n" \
+        "  only in board_categories.js: #{(client_keys - User::BOARD_CATEGORY_KEYS).inspect}\n" \
+        "  only in user.rb:             #{(User::BOARD_CATEGORY_KEYS - client_keys).inspect}"
+    end
+  end
+
+  describe "sanitize_board_category_grouping!" do
+    # The sanitizer REBUILDS this hash from scratch, so a sub-preference that is not
+    # echoed there is discarded server-side — it appears to save on the client and is
+    # gone on the next read. These lock the two that drive rendering.
+    def grouping_for(pref)
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => pref}}, {})
+      u.save
+      u.reload.settings['preferences']['board_category_grouping']
+    end
+
+    it "defaults show_category_names and vertical_scroll to true" do
+      expect(User.preference_defaults['any_user']['board_category_grouping']['show_category_names']).to eq(true)
+      expect(User.preference_defaults['any_user']['board_category_grouping']['vertical_scroll']).to eq(true)
+    end
+
+    it "preserves both sub-preferences through a save" do
+      g = grouping_for({'enabled' => true, 'show_category_names' => false, 'vertical_scroll' => false})
+      expect(g['show_category_names']).to eq(false)
+      expect(g['vertical_scroll']).to eq(false)
+      expect(g['enabled']).to eq(true)
+    end
+
+    # The regression this guards: a user whose stored hash predates these keys must keep
+    # TODAY's rendering (headers shown, grid scrollable), not silently lose both because
+    # a missing key coerced to false.
+    it "treats an ABSENT sub-preference as true, not false" do
+      g = grouping_for({'enabled' => true, 'order' => []})
+      expect(g['show_category_names']).to eq(true)
+      expect(g['vertical_scroll']).to eq(true)
+    end
+
+    it "coerces string booleans the same way enabled does" do
+      g = grouping_for({'enabled' => 'true', 'show_category_names' => 'true', 'vertical_scroll' => '1'})
+      expect(g['show_category_names']).to eq(true)
+      expect(g['vertical_scroll']).to eq(true)
+    end
+
+    it "still strips unknown category keys from order" do
+      g = grouping_for({'enabled' => true, 'order' => ['people', 'not_a_real_category', 'people']})
+      expect(g['order']).to eq(['people'])
     end
   end
 

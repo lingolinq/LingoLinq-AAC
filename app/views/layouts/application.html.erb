@@ -78,6 +78,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.14.0/dist/chartjs-chart-sankey.min.js" crossorigin="anonymous"></script>
   <% end %>
+  <%# Per-page <head> additions. Inert for every view that doesn't content_for it;
+      boards/index (the Ember shell) uses it for image preloads. %>
+  <%= yield :head %>
 </head>
 <body class="<%= 'pretty_loader' if pretty_loader %>">
 <% if @meta_record && crawler? %>

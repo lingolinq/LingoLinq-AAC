@@ -1674,6 +1674,34 @@ class User < ApplicationRecord
         'button_text_position' => 'top',
         'utterance_text_only' => false,
         'vocalization_height' => 'small',
+        # Suppresses the on-screen "Larger screen recommended" / "Landscape mode
+        # recommended" helper overlays for this device. DEFAULT false = keep showing
+        # them, which is the behaviour every existing user has today: generate_defaults
+        # backfills this onto EVERY device hash of EVERY user on save (no new_record?
+        # guard), so a `true` default would silently disable the helpers account-wide
+        # for everyone — the same trap board_category_grouping hit.
+        'hide_screen_helpers' => false,
+        # Physical-keyboard typing adds to the vocalization box while in speak mode
+        # (raw_events.js, the `keyboard_listen` path). Gated on this preference since the
+        # feature was written in 2018, with no default on either side — so it has only ever
+        # worked for someone who found the checkbox in Preferences, or who enabled the
+        # native on-screen keyboard, which silently switches this on too
+        # (controllers/user/preferences.js#enable_external_keyboard).
+        #
+        # DELIBERATELY true, and note what that means: generate_defaults backfills every
+        # entry of this hash onto EVERY device of EVERY user on save (no new_record? guard —
+        # see the `hide_screen_helpers` note above), so this turns the behaviour ON for
+        # existing users, not just new ones. That is the intent — typing on a keyboard and
+        # having nothing appear is the surprising behaviour, not the reverse — but it is a
+        # behaviour change for every account and belongs in release notes.
+        #
+        # Safe to default only because the typing path is narrow: speak mode only
+        # (buttonTracker.check returns null otherwise), never while scanning or dwelling, not
+        # while a modal is open, and — as of the same change as this default — not while the
+        # user is typing into a text field (raw_events.js#typing_into_a_field). Without that
+        # last guard this default would have made every search box on a speak-mode page
+        # inject into the utterance.
+        'external_keyboard' => true,
         'wakelock' => true
       },
       'any_user' => {
@@ -1704,6 +1732,28 @@ class User < ApplicationRecord
         # the value is authoritative server-side; the client no longer supplies
         # a fallback default for it.
         'folder_display_style' => 'default',
+        # Fitzgerald category grouping on board-detail. Empty order = the frontend
+        # registry supplies the default sequence.
+        #
+        # OFF by default, deliberately. Turning grouping on MOVES vocabulary out of the
+        # cells a user has built positional motor memory on — a clinical change, so it
+        # must be opt-in.
+        #
+        # This default is NOT only for new signups: `generate_defaults` is a before_save
+        # with no new_record? guard covering this loop, so every preference_defaults
+        # entry is backfilled onto EVERY existing user on their next routine save
+        # (login, sync, home-board change). With 'enabled' => true that silently
+        # regrouped every existing communicator's board, and — because the value was
+        # then PERSISTED as an explicit true — removing the feature flag before
+        # production would NOT have undone it.
+        # `show_category_names` and `vertical_scroll` default TRUE because both describe
+        # what the grouped board already does today: the category header always renders
+        # (board-detail-grid.hbs `{{#if group.label}}`) and the grouped grid is always
+        # `overflow-y: auto` (app.scss `.md-board-detail-grid--grouped`). Defaulting
+        # either to false would change the rendering for every user who already turned
+        # grouping on — a silent behaviour change, which is exactly what the `enabled`
+        # note above exists to warn about. They only take effect while `enabled` is true.
+        'board_category_grouping' => {'enabled' => false, 'order' => [], 'show_category_names' => true, 'vertical_scroll' => true},
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,
         'click_buttons' => true,
@@ -2224,6 +2274,11 @@ class User < ApplicationRecord
       'skip_supervisee_sync', 'sync_refresh_interval', 'multi_touch_modeling',
       'goal_notifications', 'word_suggestion_images', 'word_suggestions', 'word_suggestion_position', 'hidden_buttons',
       'speak_on_speak_mode', 'ever_synced', 'folder_icons', 'folder_display_style', 'allow_log_reports', 'allow_log_publishing',
+      # Hash: {'enabled' => bool, 'order' => [category keys]}. process_params stores a
+      # whitelisted key's value verbatim, so the nested hash round-trips like
+      # 'device'/'substitutions' already do. Keys are validated frontend-side against
+      # utils/board_categories.js so an unknown/removed category can never break render.
+      'board_category_grouping',
       'symbol_background', 'disable_button_help', 'click_buttons', 'prevent_hide_buttons',
       'new_index', 'debounce', 'cookies', 'telemetry_opt_in', 'comms_log_opt_in', 'preferred_symbols', 'tag_ids', 'vibrate_buttons',
       'highlighted_buttons', 'never_delete', 'dim_header', 'inflections_overlay',
@@ -2242,6 +2297,16 @@ class User < ApplicationRecord
       # remembered choice across sessions. Unset => each surface applies its own
       # default (board-detail dark, create-board-new light).
       'board_dark_mode',
+      # Boards-page arrangement: 'side-by-side' (Folders 1/4 left, Boards 3/4 right)
+      # or 'top-down' (the original stacked order). Persisted per USER, not per
+      # device, so the choice follows the user to a new login/browser — localStorage
+      # is only a same-device mirror for first paint (components/boards-layout-toggle.js).
+      # DELIBERATELY NO SERVER DEFAULT: absent means "never chosen" and the frontend
+      # constant (SIDE_BY_SIDE) is the single source of truth for the default. A server
+      # default here would be a second copy that can drift out of sync — the exact
+      # failure mode called out on 'dashboard_layout' above.
+      # Values are constrained on write by sanitize_boards_layout_preference!.
+      'boards_layout',
       # AI feature prefs (master + per-feature). Master nil = grandfather (allowed);
       # for EU under-16 without parental consent these are forced false on write.
       'ai_features_enabled', 'ai_board_generation', 'ai_word_prediction',
@@ -2557,6 +2622,10 @@ class User < ApplicationRecord
     # they fall back to client defaults (matching the frontend's own fallback),
     # rather than persisting arbitrary client-supplied JSON.
     sanitize_dashboard_preferences! if params['preferences']
+    # Boards-page arrangement is a separate concern from the dashboard grid, so it
+    # gets its own sanitizer rather than widening the dashboard one.
+    sanitize_boards_layout_preference! if params['preferences']
+    sanitize_board_category_grouping! if params['preferences']
     # On INITIAL registration only, derive preferences.role from the
     # picked registration_type so the canonical app-wide gate
     # (preferences.role == 'supporter' → frontend `supporter_role`)
@@ -2872,6 +2941,171 @@ class User < ApplicationRecord
   # section-key whitelist on write. Unknown/garbage values are dropped, which
   # makes the client fall back to its defaults — matching the frontend's own
   # fallback behavior — instead of persisting arbitrary client JSON.
+  # Boards-page arrangement ('side-by-side' | 'top-down'). The stored value is echoed
+  # back to the client and drives a `data-boards-layout` attribute on <body>, so it is
+  # constrained to the two known variants on write — an unknown value is DROPPED rather
+  # than persisted, which makes the client fall back to its own default (SIDE_BY_SIDE),
+  # matching how dashboard_layout behaves.
+  BOARDS_LAYOUT_VALUES = ['side-by-side', 'top-down']
+  # Mirrors app/frontend/app/utils/board_categories.js BOARD_CATEGORIES. Kept as a
+  # constant here so the SERVER, not the client, decides what may be stored.
+  # MUST stay in step with BOARD_CATEGORIES in
+  # app/frontend/app/utils/board_categories.js — `order` is filtered against this list,
+  # so a category the client knows about but this array does not is silently dropped
+  # from the user's saved order.
+  #
+  # LISTED IN THE CLIENT REGISTRY'S OWN ORDER so the two are diffable by eye, and pinned
+  # by "stays in step with the frontend registry" in spec/models/user_spec.rb, which reads
+  # the JS file and compares. That spec exists because this drifted once already:
+  # `predictions`, `clock`, `yes` and `time` were added to the registry and not here, and
+  # because the client writes a FULL normalized order on every Categorize save, those four
+  # were stripped server-side on every save and re-appended at the END of the order by
+  # normalize_order on the next read — permanently pushing them to the back of the board.
+  BOARD_CATEGORY_KEYS = ['people', 'actions', 'describe', 'how_when', 'places',
+                         'questions', 'social', 'no_not', 'words', 'keyboard',
+                         'predictions', 'clock', 'yes', 'time', 'controls',
+                         'extra', 'things']
+
+  # `board_category_grouping` is a nested hash written verbatim by the PREFERENCE_PARAMS
+  # loop, which coerces only TOP-LEVEL values — so its members were entirely unvalidated:
+  #   * a form-encoded `enabled=false` stored the STRING "false", which every consumer
+  #     read as truthy (they test `=== true` now, so a string reads as off — but storing
+  #     a string at all is a bug, and the opposite coercion would have flipped it ON);
+  #   * `order` and any extra keys were stored unbounded, then echoed back on every user
+  #     load and in every sync payload for that user and their supervisors.
+  # Constrain the shape on write, the same way boards_layout is.
+  def sanitize_board_category_grouping!
+    prefs = self.settings['preferences']
+    return unless prefs.is_a?(Hash)
+    return unless prefs.has_key?('board_category_grouping')
+    val = prefs['board_category_grouping']
+    unless val.is_a?(Hash)
+      prefs.delete('board_category_grouping')
+      return
+    end
+    enabled = val['enabled']
+    order = val['order']
+    order = [] unless order.is_a?(Array)
+    truthy = ->(v) { [true, 'true', 1, '1'].include?(v) }
+    # This method REBUILDS the hash from scratch, so any key not listed here is
+    # discarded — silently, and server-side, which makes it an easy trap. Every
+    # sub-preference of board_category_grouping must be echoed below or it will appear
+    # to save on the client and be gone on the next read.
+    #
+    # `show_category_names` / `vertical_scroll` default to TRUE when ABSENT (rather than
+    # coercing a missing key to false) because both describe what the grouped board
+    # already does. An existing user whose stored hash predates these keys must keep
+    # today's rendering, not lose their category headers and scrolling on next save.
+    entry = lambda { |v|
+      v = {} unless v.is_a?(Hash)
+      ord = v['order']
+      ord = [] unless ord.is_a?(Array)
+      {
+        'enabled' => truthy.call(v['enabled']),
+        # Known keys only, de-duplicated, and bounded by the registry itself.
+        'order' => ord.select { |k| BOARD_CATEGORY_KEYS.include?(k) }.uniq,
+        'show_category_names' => v.has_key?('show_category_names') ? truthy.call(v['show_category_names']) : true,
+        'vertical_scroll' => v.has_key?('vertical_scroll') ? truthy.call(v['vertical_scroll']) : true
+      }
+    }
+
+    # PER-BOARD overrides. The top-level keys stay the user's default, used by any board
+    # with no entry of its own; `boards` maps a board to a full settings hash in the same
+    # shape. Sanitized with the SAME lambda so an override cannot smuggle in a key or a
+    # category the top level would have rejected.
+    #
+    # This map has to be echoed here for the same reason every other sub-key does: this
+    # method REBUILDS the hash, so anything not listed is discarded silently, server-side.
+    #
+    # KEYED BY BOARD KEY (`username/board-slug`), not by global_id. A global_id is stable
+    # only within one database: the same board seeded on local, staging and production
+    # gets a different id in each, so an id-keyed override silently stopped applying the
+    # moment it crossed environments — there was no way to ship a curated per-board
+    # arrangement with the board it belongs to. A board key survives that, because the
+    # seed produces the same slug everywhere.
+    #
+    # The id shape is STILL ACCEPTED, because entries written before this change are
+    # already stored that way and the frontend resolver still falls back to them (see
+    # controllers/user/board-detail.js#board_category_settings). Dropping them here would
+    # wipe a live preference on the user's next save of any unrelated setting.
+    #
+    # Bounded on both axes — shape and count — because it is client-supplied and otherwise
+    # grows without limit. The length cap is 128 rather than 64 to fit a real key: the
+    # longest in the seeded library run to ~50 characters, and a copy adds a `_<n>` suffix.
+    boards = val['boards']
+    boards = {} unless boards.is_a?(Hash)
+    clean_boards = {}
+    board_ref = /\A[0-9A-Za-z_\-]+(\/[0-9A-Za-z_\-]+)?\z/
+    boards.each do |bid, bval|
+      break if clean_boards.size >= 500
+      next unless bid.is_a?(String) && bid.length <= 128 && bid.match(board_ref)
+      next unless bval.is_a?(Hash)
+      clean_boards[bid] = entry.call(bval)
+    end
+
+    written = entry.call(
+      val.merge('enabled' => enabled, 'order' => order)
+    ).merge('boards' => clean_boards)
+    log_board_category_grouping_enable!(written)
+    prefs['board_category_grouping'] = written
+  end
+
+  # TRIPWIRE (2026-08-26). Categories were observed switching themselves ON account-wide on
+  # an account whose owner never touched the Categorize switch, and the history could not
+  # answer WHY: `settings` is secure_serialize'd, so PaperTrail's `reify` raises
+  # JSON::ParserError and the false -> true transition is unreadable after the fact.
+  #
+  # Why this needs a tripwire rather than more reading: `board_category_grouping` is NOT
+  # specially handled client-side — it rides in the generic `preferences` hash on EVERY
+  # user save. So it never needs a deliberate Categorize save to persist. Any in-memory
+  # `true` (a mistimed toggle, a failed save whose rollback did not stick) gets committed by
+  # the user's next unrelated preference change — voice, dark mode, anything — which puts
+  # the trigger and the persistence arbitrarily far apart and makes it look spontaneous.
+  #
+  # Logs ONLY the false -> true edge, so it is silent in normal operation and cannot become
+  # noise: turning grouping on is rare, and turning it off or re-saving it while already on
+  # says nothing. The `boards` count is the discriminator that pointed at the client-side
+  # no-board fallback in the first place — a deliberate per-board toggle writes an entry,
+  # the buggy path wrote the top level with an EMPTY map.
+  #
+  # Runs in every environment on purpose: beta users are on staging and production, which is
+  # exactly where an unexplained clinical-setting change matters most. One WARN line per
+  # occurrence.
+  def log_board_category_grouping_enable!(written)
+    return unless written.is_a?(Hash) && written['enabled'] == true
+    prior_enabled = nil
+    if !self.new_record? && self.id
+      begin
+        stored = self.class.where(id: self.id).first
+        prior = stored && ((stored.settings || {})['preferences'] || {})['board_category_grouping']
+        prior_enabled = prior.is_a?(Hash) ? (prior['enabled'] == true) : false
+      rescue => e
+        prior_enabled = "unreadable(#{e.class})"
+      end
+    else
+      prior_enabled = false
+    end
+    return if prior_enabled == true   # already on; not an edge
+    # App frames only — the controller/action that carried this write is what identifies the
+    # caller, and the full trace is mostly framework noise.
+    root = Rails.root.to_s
+    frames = caller.select { |l| l.start_with?(root) && !l.include?('/app/models/user.rb') }.first(6)
+    Rails.logger.warn(
+      "[board_category_grouping] ENABLED user=#{self.global_id.inspect} " \
+      "prior_enabled=#{prior_enabled.inspect} boards_entries=#{(written['boards'] || {}).keys.length} " \
+      "order_len=#{(written['order'] || []).length} new_record=#{self.new_record?} " \
+      "caller=#{frames.map { |f| f.sub(root + '/', '') }.inspect}"
+    )
+  end
+
+  def sanitize_boards_layout_preference!
+    prefs = self.settings['preferences']
+    return unless prefs.is_a?(Hash)
+    if prefs.has_key?('boards_layout') && !BOARDS_LAYOUT_VALUES.include?(prefs['boards_layout'])
+      prefs.delete('boards_layout')
+    end
+  end
+
   def sanitize_dashboard_preferences!
     prefs = self.settings['preferences']
     return unless prefs.is_a?(Hash)

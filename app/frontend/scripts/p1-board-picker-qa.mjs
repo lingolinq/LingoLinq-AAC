@@ -2,6 +2,12 @@
 /**
  * P1 manual-QA automation for board-picker supervisee context.
  *
+ * NAVIGATION: `domcontentloaded`, never `networkidle`. This app polls in the background,
+ * so the network never goes idle and `networkidle` times out at 60s — it failed here on
+ * the bare /board-picker navigation while other navigations happened to settle, which
+ * reads as a flaky product bug rather than a probe-harness choice. Every Puppeteer probe
+ * in this directory already uses `domcontentloaded` plus an explicit wait.
+ *
  * Run from app/frontend (that is where `playwright` resolves) under Node 22:
  *   node scripts/p1-board-picker-qa.mjs
  *     [--base http://localhost:8184] [--user marcus_williams_slp] [--pass 'demo2025!']
@@ -51,7 +57,7 @@ async function dismissDevicePrompt(page) {
 }
 
 async function login(page) {
-  await page.goto(`${BASE}/login`, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.fill('#identification', USER);
   await page.fill('#password', PASS);
   await page.locator('button.login-btn[type="submit"], form button[type="submit"]').first().click();
@@ -228,9 +234,16 @@ async function runPreviewPickCheck(page) {
   if (await firstBoard.isVisible({ timeout: 3000 }).catch(() => false)) {
     await firstBoard.click();
     await page.waitForTimeout(3000);
-    const pickBtn = page.locator('button').filter({ hasText: /Pick this Board/i }).first();
+  /* The picker CTA was RENAMED on this branch: board-preview.hbs now emits
+     {{t "Set as Home Board" key="set_as_home_board_cta"}}. "Pick this Board" survives only
+     in comments and SCSS comments — zero rendered text — so every locator filtering on the
+     old label matched nothing and failed on every run (and the one at :281 `return`ed,
+     killing the 8 checks below it as dead code). try-this-board-qa.mjs:59 asserts the old
+     label is gone, so the two probes on this same branch contradicted each other.
+     Matched permissively so a further rename does not silently re-break this. */
+    const pickBtn = page.locator('button').filter({ hasText: /Set as Home Board|Pick this Board/i }).first();
     const pickVisible = await pickBtn.isVisible({ timeout: 5000 }).catch(() => false);
-    record('supervisee-pick-cta', pickVisible, pickVisible ? 'Pick this Board CTA visible in preview' : 'Preview/pick CTA not found');
+    record('supervisee-pick-cta', pickVisible, pickVisible ? 'Set as Home Board CTA visible in preview' : 'Preview/pick CTA not found');
   } else {
     record('supervisee-pick-cta', false, 'No board card to click');
   }
@@ -245,7 +258,7 @@ async function runFullPickE2E(page, supervisee) {
     beforeKey ? `home_board.key=${beforeKey} (will assert change after pick)` : 'no home board before pick'
   );
 
-  await page.goto(`${BASE}/board-picker?user_id=${supervisee.id}`, { waitUntil: 'networkidle', timeout: 60000 });
+  await page.goto(`${BASE}/board-picker?user_id=${supervisee.id}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(2000);
 
   try {
@@ -272,9 +285,9 @@ async function runFullPickE2E(page, supervisee) {
   }
   record('full-pick-preview', true, 'Board preview loaded');
 
-  const pickBtn = page.getByRole('button', { name: /Pick this Board/i });
+  const pickBtn = page.getByRole('button', { name: /Set as Home Board|Pick this Board/i });
   if (!(await pickBtn.isVisible({ timeout: 10000 }).catch(() => false))) {
-    record('full-pick-cta', false, 'Pick this Board not visible in preview');
+    record('full-pick-cta', false, 'Set as Home Board CTA not visible in preview');
     return;
   }
 
@@ -286,7 +299,10 @@ async function runFullPickE2E(page, supervisee) {
   };
   page.on('response', onResponse);
 
-  record('full-pick-cta', true, `Clicking Pick this Board (target: ${PICK_BOARD})`);
+  /* Not a check — the real assertion is the `record('full-pick-cta', false, ...)` guard
+     above, which returns when the CTA is missing. A hardcoded `true` here only inflated the
+     pass count, so this is a plain log line now. */
+  console.log(`  → clicking Set as Home Board (target: ${PICK_BOARD})`);
   await pickBtn.click();
 
   const pickStarted = await page.locator('text=/Setting up your board|Preparing your Board/i').first()
@@ -349,14 +365,14 @@ async function runFullPickE2E(page, supervisee) {
   }
 
   if (!appNavigated) {
-    await page.goto(`${BASE}/${supervisee.user_name}/boards`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`${BASE}/${supervisee.user_name}/boards`, { waitUntil: 'domcontentloaded', timeout: 60000 });
   }
 
   await page.waitForTimeout(4000);
   const homeCount = await page.locator('.ub-boards-page__board-item--home').count();
   record('full-pick-home-badge', homeCount >= 1, `${homeCount} tile(s) with --home badge on boards page`);
 
-  await page.reload({ waitUntil: 'networkidle', timeout: 60000 });
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(4000);
   const afterReload = await getUserDetail(page, supervisee.user_name);
   record(
@@ -390,7 +406,7 @@ async function main() {
 
     if (!FULL_PICK_ONLY) {
     // --- Self flow: /board-picker ---
-    await page.goto(`${BASE}/board-picker`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`${BASE}/board-picker`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(3000);
     const selfUrl = page.url();
     record('self-picker-url', !selfUrl.includes('user_id='), selfUrl);
@@ -411,7 +427,7 @@ async function main() {
 
     // --- Supervisee flow ---
     if (!FULL_PICK_ONLY) {
-    await page.goto(`${BASE}/`, { waitUntil: 'networkidle', timeout: 60000 });
+    await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(2000);
     const supervisee = await resolveSupervisee(page, USER);
     if (!supervisee) {
@@ -420,7 +436,7 @@ async function main() {
       record('supervisee-found', true, `${supervisee.user_name} (id=${supervisee.id}, hasHome=${supervisee.hasHome})`);
 
       // Boards page link
-      await page.goto(`${BASE}/${supervisee.user_name}/boards`, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(`${BASE}/${supervisee.user_name}/boards`, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(4000);
       const setHomeBtn = page.locator('.ub-boards-page__set-home-btn').first();
       if (await setHomeBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -437,7 +453,7 @@ async function main() {
       }
 
       // Caseload Choose Board
-      await page.goto(`${BASE}/caseload`, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(`${BASE}/caseload`, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(4000);
       const chooseBoardBtn = page.locator('.md-caseload__list-row').filter({ hasText: supervisee.user_name }).locator('.md-caseload__quick-action--choose-board').first();
       const chooseVisible = await chooseBoardBtn.isVisible({ timeout: 3000 }).catch(() => false);
@@ -451,7 +467,7 @@ async function main() {
       }
 
       // Direct URL permission / resolution
-      await page.goto(`${BASE}/board-picker?user_id=${supervisee.id}`, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(`${BASE}/board-picker?user_id=${supervisee.id}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(4000);
       const directUrl = page.url();
       const directError = await page.locator('.text-danger').first().textContent().catch(() => '');
@@ -464,7 +480,7 @@ async function main() {
       }
 
       // Permission denied with bogus id
-      await page.goto(`${BASE}/board-picker?user_id=999999999`, { waitUntil: 'networkidle', timeout: 60000 });
+      await page.goto(`${BASE}/board-picker?user_id=999999999`, { waitUntil: 'domcontentloaded', timeout: 60000 });
       await page.waitForTimeout(3000);
       const permErr = await page.locator('.text-danger').first().textContent().catch(() => '');
       record('permission-denied', /permission|error loading user/i.test(permErr), permErr.trim() || 'No error shown');

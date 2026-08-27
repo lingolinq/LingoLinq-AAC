@@ -234,6 +234,14 @@ jobs:
       - name: Verify findings registers are structurally valid
         run: ruby scripts/register-lint.rb audit-reports/FINDINGS.json audit-reports/ember-upgrade/FINDINGS-EMBER.json
 
+      # Proves the evidence.sha branch of register-lint actually FIRES. register-lint is the
+      # only structural gate on findings rows that runs here (citation-check.rb is deliberately
+      # not a CI job, see the comment on this workflow above), so if its sha rules silently stop
+      # firing, nothing else catches a findings row whose evidence is unanchored or ambiguously
+      # anchored. Fixtures are built in a temp dir; audit-reports/ is never touched.
+      - name: Verify the register evidence.sha guards actually fire
+        run: scripts/tests/register-lint-sha-test.sh
+
       # Belt and braces to the lint above: register-lint checks the shapes we PREDICTED the
       # consumers need; this runs the real consumers (promote-finding.rb, audit-merge.rb) over each
       # committed register with empty input and asserts they exit 0 AND leave the file

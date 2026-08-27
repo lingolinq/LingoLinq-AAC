@@ -155,6 +155,21 @@ RSpec.describe WordData, :type => :model do
         'forshdeg' => 'milnar'
       })
     end
+
+    it "should not look up or query action tokens like :space or +q" do
+      WordData.create(:word => ":space", :locale => 'en', :data => {'translations' => {'es' => 'espacio'}})
+      expect(WordData).to receive(:query_translations).with([{:text => 'hat'}], 'en', 'es').and_return([{:text => 'hat', :type => nil, :translation => 'sombrero'}])
+      res = WordData.translate_batch([
+        {:text => ':space'},
+        {:text => '+q'},
+        {:text => 'hat'},
+        {:text => ':shift'}
+      ], 'en', 'es')
+      expect(res[:translations]).to eq({'hat' => 'sombrero'})
+      expect(res[:translations]).not_to have_key(':space')
+      expect(res[:translations]).not_to have_key('+q')
+      expect(res[:translations]).not_to have_key(':shift')
+    end
   end
 
   describe "persist_translation" do

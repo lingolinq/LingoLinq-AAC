@@ -6,6 +6,7 @@ import i18n from '../utils/i18n';
 import persistence from '../utils/persistence';
 import modal from '../utils/modal';
 import { computed } from '@ember/object';
+import boardsPageListCache from '../utils/boards_page_list_cache';
 
 export default Component.extend({
   modal: service('modal'),
@@ -92,6 +93,17 @@ export default Component.extend({
           }
         }).then(function(res) {
           var modalSvc = _this.get('modal');
+          /* The Boards-page Mine snapshot stores each tile's `key`, and the boards page
+             skips its background re-query entirely while a fresh snapshot exists (see
+             controllers/user/index#generate_or_append_to_list). A rename CHANGES the key,
+             so without this the tile keeps the old one and clicking it 404s for up to the
+             snapshot TTL — on this device and after a hard refresh, not just in-session.
+
+             clearSnapshots(), not clear(userId): an existing Board record carries
+             `user_name` but not reliably a `for_user_id`, and snapshots are keyed by id,
+             so there is no owner id to target here. A rename is rare; one re-query per
+             user on this device is the right price for not serving a dead link. */
+          try { boardsPageListCache.clearSnapshots(); } catch(e) { /* non-critical */ }
           modalSvc.close();
           // Reload the board model so Board Details shows updated key
           var board = _this.get('model.board');

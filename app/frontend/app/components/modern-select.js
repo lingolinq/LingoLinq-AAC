@@ -58,7 +58,11 @@ export default Component.extend({
     const content = this.get('content') || [];
     const sel = this.get('selection');
     if (sel == null || sel === '') { return null; }
-    return content.find(function(c) { return c.id === sel || c.id === String(sel); }) || null;
+    return content.find(function(c) {
+      // Headings carry a `name` but no `id` and are never selectable.
+      if (!c || c.heading) { return false; }
+      return c.id === sel || c.id === String(sel);
+    }) || null;
   }),
 
   /** Content filtered by `searchString` when searchable; otherwise
@@ -70,11 +74,32 @@ export default Component.extend({
     if (!this.get('searchable')) { return content; }
     const q = (this.get('searchString') || '').trim().toLowerCase();
     if (!q) { return content; }
-    return content.filter(function(item) {
+    const matched = content.filter(function(item) {
       if (!item) { return false; }
+      // Headings are structure, not options — never matched on their own text.
+      // They are re-inserted below, but only where options survived under them.
+      if (item.heading) { return false; }
       const name = item.name != null ? String(item.name) : '';
       const id = item.id != null ? String(item.id) : '';
       return name.toLowerCase().indexOf(q) !== -1 || id.toLowerCase().indexOf(q) !== -1;
+    });
+    if (!content.some(function(item) { return item && item.heading; })) { return matched; }
+    /* Rebuild in source order, dropping any heading whose whole group was
+       filtered away — a lone heading over nothing reads as a broken row. */
+    const kept = new Set(matched);
+    const out = [];
+    content.forEach(function(item) {
+      if (!item) { return; }
+      if (item.heading) {
+        out.push(item);
+      } else if (kept.has(item)) {
+        out.push(item);
+      }
+    });
+    return out.filter(function(item, idx) {
+      if (!item.heading) { return true; }
+      const next = out[idx + 1];
+      return !!next && !next.heading;
     });
   }),
 

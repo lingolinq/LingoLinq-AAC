@@ -611,6 +611,11 @@ class WordData < ApplicationRecord
   def self.translate_batch(batch, source_lang, dest_lang)
     res = {source: source_lang, dest: dest_lang, translations: {}}
     found = {}
+    # Action tokens (':space', '+q', ':shift', ':suggestion', ...) are
+    # control protocols, not words. persist_translation already refuses
+    # to create records for /^[\+\:]/, but we must also skip cache lookup
+    # and Google so a prior cached hit cannot leak back to the client.
+    batch = Array(batch).reject { |obj| (obj[:text] || obj['text']).to_s.match(/^[:+]/) }
     missing = batch
     batch.each do |obj|
       text = obj[:text]

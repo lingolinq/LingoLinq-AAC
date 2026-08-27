@@ -1343,6 +1343,24 @@
         <BoundSelect @select_class="form-control" @select_id="button_spacing" @content={{this.buttonSpacingList}} @selection={{this.pending_preferences.device.button_spacing}} @action={{mut this.pending_preferences.device.button_spacing}} />
       </div>
     </div>
+    {{!-- Turns off the on-screen size/orientation helper overlays ("Larger screen
+         recommended" on a board, "Landscape mode recommended" on Create Board and the
+         Display Style step). Checked = hidden. Lives here rather than under a session
+         dismissal because "Continue Anyway" only lasts until the next reload, and a user
+         on a permanently small or fixed-orientation setup should not have to dismiss the
+         same advice forever. Device-scoped like the rest of this section: the advice is
+         about the screen in front of you, so a phone and a desktop can differ. --}}
+    <div class="form-group">
+      <label for="hide_screen_helpers" class="col-sm-3 control-label">{{t "Screen Helper Messages" key='screen_helper_messages'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <input type="checkbox" checked={{this.pending_preferences.device.hide_screen_helpers}} id="hide_screen_helpers" {{on "change" (set-field this "pending_preferences.device.hide_screen_helpers" "checkbox")}} />
+            {{t "Don't show screen size or rotate-device suggestions" key='hide_screen_helpers'}}
+          </label>
+        </div>
+      </div>
+    </div>
     {{#if this.advanced}}
     <div class="form-group">
       <label for="button_border" class="col-sm-3 control-label">{{t "Button Border Size" key='button_border'}}</label>

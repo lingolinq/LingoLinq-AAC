@@ -14,7 +14,10 @@
  *      cancel it outright
  *   C  Preferences bar is frosted glass, unpins under 560px height, and
  *      dropdown options paint ABOVE it
- *   D  all four Board Actions submenu items are reachable by ArrowDown
+ *   D  RETIRED 2026-08-26 — the Board Actions submenu was removed from the
+ *      speak-mode options menu. Kept as a regression guard in the opposite
+ *      direction: it now reports INFO when the toggle is absent (expected) and
+ *      FAILS if the submenu comes back.
  *
  * Assertions are hit-tests and computed styles, never "is the rule present" --
  * a declaration that applies and does nothing is the bug being tested for.
@@ -301,10 +304,13 @@ async function checkD(page) {
 
   const toggle = page.locator('.md-board-detail-actions-menu button[data-bd-action="toggle_board_submenu"]').first();
   if (!(await toggle.isVisible({ timeout: 4000 }).catch(() => false))) {
-    record('D-submenu-present', false, 'toggle_board_submenu not offered — cannot test keyboard reach');
+    /* EXPECTED since 2026-08-26. The submenu was removed from speak mode — those
+       four are edit-panel actions. Absence is the pass condition now; the rest of
+       this check only has anything to walk if the submenu came back. */
+    record('D-submenu-absent', null, 'Board Actions submenu is gone from speak mode, as intended');
     return;
   }
-  record('D-submenu-present', true, '"Board Actions" toggle is in the view-mode options menu');
+  record('D-submenu-absent', false, 'the Board Actions submenu is back in the speak-mode options menu');
 
   // aria-controls completes the disclosure; aria-expanded alone says a control
   // expands something without saying what.

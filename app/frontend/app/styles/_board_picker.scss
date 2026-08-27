@@ -13,11 +13,17 @@
      bp-*                              NEW page chrome — heading, toolbar,
                                        search, segmented control. Nothing else
                                        in the app uses these names.
-     .md-home-boards-picker__grid--compact …
-                                       COMPACT-ONLY modifiers on the existing
+     .ll-boards-grid--compact …        COMPACT-ONLY modifiers on the existing
                                        card markup. Every one is scoped inside
                                        that modifier, so the detailed view keeps
                                        its current appearance untouched.
+                                       SHARED, not picker-only (2026-08-16): the
+                                       Boards page reuses the identical compact
+                                       rows, so these rules key off the neutral
+                                       `.ll-boards-grid--compact` modifier and the
+                                       `.simple_board_holder` wrapper that BOTH
+                                       pages already put around <BoardIcon>,
+                                       rather than the picker's own class names.
 
    Palette comes from _variables.scss ($la-navy #1B365D, $brand-verdigris
    #2A9D8F, $brand-verdigris-aa #1A7B7A, $brand-dusty-denim-aa #2860C9,
@@ -44,6 +50,34 @@ $bp-shadow-card-hover: 0 8px 20px rgba($la-navy, 0.10);
 /* Minimum interactive target. AAC users include people with significant motor
    differences — this floor is not negotiable at any breakpoint. */
 $bp-target: 44px;
+
+/* --------------------------------------------------------------
+   0. Shell background stability
+   --------------------------------------------------------------
+   The page background visibly CHANGED when switching Compact <-> Detailed. It is not a
+   toggle bug: the background declaration is byte-identical in both states (verified —
+   same image, size and colour). `.md-shell`'s mesh is six radial-gradients positioned in
+   PERCENTAGES, and the shell's height is content-driven — measured 1269px in compact vs
+   2550px in detailed. Percentage positions resolve against the painting area, so the
+   whole mesh re-positions and re-stretches when the list gets shorter.
+   `background-attachment: fixed` resolves that area against the VIEWPORT instead, so the
+   mesh is identical regardless of how tall the content is.
+   SCOPED TO THIS PAGE: fixed attachment is known to be expensive to repaint while
+   scrolling on some mobile browsers, so it is not applied app-wide — only here, where a
+   control flips the content height dramatically in place.
+
+   `!important` IS REQUIRED here, not decoration: `.md-shell`'s background is declared as
+   an `!important` SHORTHAND (app.scss ~44170), and a shorthand resets every sub-property
+   — so it sets `background-attachment: scroll !important` and silently outranked a plain
+   longhand. Verified: without it the computed value stayed `scroll`.
+
+   SPECIFICITY IS ALSO REQUIRED: this partial is `@use`d, so it emits BEFORE app.scss. At
+   equal specificity (0,1,0) with both sides `!important`, source order decided and
+   app.scss still won — verified, the computed value stayed `scroll` even with the flag.
+   `.md-shell.md-shell--board-picker` is (0,2,0) and wins outright. */
+.md-shell.md-shell--board-picker {
+  background-attachment: fixed !important;
+}
 
 /* --------------------------------------------------------------
    1. Page heading
@@ -533,7 +567,13 @@ $bp-target: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: $bp-target;
+  /* SLIM, matching the pill-nav's 32px pills (2026-08-16, requested).
+     NOTE this reverses the deliberate divergence documented above: the control no longer
+     meets this page's 44px `$bp-target` floor, and it is no longer the same height as the
+     search field beside it, so the toolbar reads as two heights rather than one. 32px
+     still clears the WCAG 2.2 AA 24px minimum target size — it is the AAA 44px guidance
+     that is given up. Restore `min-height: $bp-target` to undo. */
+  min-height: 32px;
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
@@ -549,9 +589,25 @@ $bp-target: 44px;
   background: rgba($la-navy, 0.05);
   color: $la-navy;
 }
+/* ACTIVE OPTION — shares the LAYOUT selector's surface (2026-08-16, requested).
+   Same gradient, ink and lift as `.ub-boards-page__layout-toggle-btn--active`
+   (app.scss ~50931), so the two segmented controls on the Boards page read as one
+   component rather than as a dark pill beside a light card.
+   SHAPE AND DIRECTION ARE DELIBERATELY UNCHANGED: this keeps its 999px pill radius,
+   32px height, 16px padding and horizontal run — only the surface is borrowed.
+   The hairline is an INSET RING, not a border: the base rule sets `border: 0`, so a real
+   border would only exist in the active state and each toggle would jump 2px wider when
+   selected.
+   INK: navy, not the white this carried on the old dark fill — white measures 1.29:1 on
+   this ramp. Navy is 11.39:1 on the light stop and 9.38:1 on the dark one.
+   Change both rules together if the surface is ever restyled. */
 .bp-segmented__option--active {
-  background: linear-gradient(135deg, $brand-blue-grey, $brand-charcoal-blue);
-  color: #FFFFFF;
+  background: linear-gradient(135deg, #f6f8fa 0%, #dce3ec 100%);
+  color: $la-navy;
+  box-shadow:
+    inset 0 0 0 1px rgba($la-navy, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 3px rgba($la-navy, 0.14);
 }
 .bp-segmented__option:focus-visible { @include focus-ring($la-navy, 3px, 2px); }
 
@@ -564,10 +620,10 @@ $bp-target: 44px;
    ancestor alone only TIES the page's own grid rule (app.scss ~5259, also
    (0,2,0)) — and that one is emitted later (`@use "board_picker"` is line 13 of
    app.scss), so it was quietly winning and this whole rule was inert. Chaining
-   `.md-home-boards-picker__grid.md-home-boards-picker__grid--compact` makes it
+   `.md-home-boards-picker__grid.ll-boards-grid--compact` makes it
    (0,3,0), which wins on merit rather than on source order.
    -------------------------------------------------------------- */
-.md-shell--board-picker .md-home-boards-picker__grid.md-home-boards-picker__grid--compact {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact {
   /* One column, two from 1024px up (see the media query below). Fixed column
      counts rather than `auto-fit`: auto-fit re-flows at whatever width the
      tracks happen to reach, so the count could change by one between two similar
@@ -584,7 +640,7 @@ $bp-target: 44px;
   align-items: start;
 }
 @media (min-width: 1024px) {
-  .md-shell--board-picker .md-home-boards-picker__grid.md-home-boards-picker__grid--compact {
+  .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -597,7 +653,7 @@ $bp-target: 44px;
    second, invisible gutter stacked on the grid's own 8px — it made the real
    spacing 18px and inset every card from the panel edges by 5px. The grid gap
    is the one thing that should control the rhythm here. */
-.md-shell--board-picker .md-home-boards-picker__grid--compact .md-home-boards-picker__board {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder {
   align-self: start;
   padding: 0;
 }
@@ -626,7 +682,7 @@ $bp-target: 44px;
    specific they are, which is why the compact rows still carried the gallery
    card's 28px radius and 0 8px 20px + 0 24px 48px hover shadow. `height: auto`
    answers the same rule's `height: 100%`. */
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -645,12 +701,12 @@ $bp-target: 44px;
 }
 /* The mixin paints a 2px gradient hairline across the top of every card. On a
    gallery tile it reads as a highlight; on a 72px row it is just noise. */
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon::before {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon::before {
   display: none;
 }
 /* Hover raises the same two layers rather than swapping in a different shadow,
    so the card reads as lifting off the panel instead of changing material. */
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon:hover {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:hover {
   border-color: rgba($brand-verdigris, 0.42) !important;
   box-shadow:
     0 1px 2px rgba(27, 54, 93, 0.08),
@@ -658,18 +714,18 @@ $bp-target: 44px;
   transform: translateY(-1px);
 }
 /* Pressed: back down onto the panel — contact shadow only. */
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon:active {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:active {
   transform: none;
   box-shadow: 0 1px 2px rgba(27, 54, 93, 0.10) !important;
 }
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon:focus-visible {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:focus-visible {
   @include focus-ring($la-navy, 3px, 2px);
 }
 
 /* Standardised thumbnail frame — one size, one padding, never cropped.
    The shared board-card-modern mixin forces width/height/padding with
    !important, so these must answer in kind at (0,5,0). */
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon img {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon img {
   grid-column: 1;
   width: 48px !important;
   height: 48px !important;
@@ -688,7 +744,7 @@ $bp-target: 44px;
 }
 
 /* Title: two intentional lines before clamping, left aligned. */
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .name {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .name {
   grid-column: 2;
   width: 100% !important;
   margin: 0 !important;
@@ -711,12 +767,12 @@ $bp-target: 44px;
    the two-line clamp, so 14px is spent on the names that need it and every
    other row keeps the 16px reading size. `max-height` is in em, so the clamp
    box follows the smaller size automatically. */
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .name.board-icon__name--clamped {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .name.board-icon__name--clamped {
   font-size: 14px !important;
 }
 
 /* Directional affordance — the whole row is the target, this just points. */
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .board-icon__row-chevron {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .board-icon__row-chevron {
   grid-column: 3;
   display: inline-flex;
   align-items: center;
@@ -734,20 +790,184 @@ $bp-target: 44px;
   color: rgba($la-navy, 0.42);
   transition: background-color 0.15s ease, color 0.15s ease;
 }
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon:hover .board-icon__row-chevron {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:hover .board-icon__row-chevron {
   background: rgba($brand-verdigris, 0.12);
   color: $brand-verdigris-aa;
 }
 
 /* Suppressed in compact: size chip, language marker, CC-By credit, byline.
    `.author` needs the full chain — the board-card-modern mixin declares
-   `display: flex !important` for it at (0,4,0). */
-.md-home-boards-picker__grid--compact .board-icon__info,
-.md-home-boards-picker__grid--compact .board-icon__lang-marker,
-.md-home-boards-picker__grid--compact .board-icon__credit {
+   `display: flex !important` for it at (0,4,0).
+
+   The size/info chip is suppressed in compact EVERYWHERE, including the Boards page.
+   It is absolutely-positioned chrome sized for a full tile; a compact ROW has no space
+   for it and it lands on top of the board name. Un-hiding it there to make the preview
+   (and so delete) reachable skewed every compact row — see the note in
+   available-boards-section.hbs about where deleting a board lives instead. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .board-icon__info,
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .board-icon__lang-marker,
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .board-icon__credit {
   display: none !important;
 }
-.md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .author {
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder {
+  align-self: start;
+  padding: 0;
+}
+
+/* Card shell: one border, one restrained shadow — no halo.
+   SINGLE row. The Preview pill is suppressed in compact (board-icon.hbs
+   @compactRow), so the second grid row it used to occupy was empty and only
+   added height. One row also means `align-items: center` centres the title
+   against the icon rather than baseline-ing it to a phantom row.
+   Height: 48px icon + 8px top + 8px bottom = 64px for a single-line title — 8px
+   off the previous 72px. The icon had to come down with it: at 54px it alone set
+   a 72px floor no padding change could get under. A two-line title grows that
+   card and only that card.
+
+   DEPTH. Three surfaces, each a step above the one behind it: the flat panel,
+   the card lifted off it by a two-layer shadow (a tight contact shadow plus a
+   wider ambient one — one blurred shadow alone reads as a smudge), and the
+   thumbnail tile lifted off the card by its own hairline shadow. The card's
+   background is a barely-there vertical gradient rather than flat white, which
+   is what keeps a 64px row from looking like a rectangle of paper.
+
+   !important THROUGHOUT, and not by preference: the shared `board-card-modern`
+   mixin (app.scss ~94, included at `.md-home-boards-picker__board
+   .btn.simple_board_icon`) declares radius / border / background / box-shadow /
+   transition with !important. Plain declarations here lose to it no matter how
+   specific they are, which is why the compact rows still carried the gallery
+   card's 28px radius and 0 8px 20px + 0 24px 48px hover shadow. `height: auto`
+   answers the same rule's `height: 100%`. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: $bp-space-md;
+  min-height: 64px;
+  height: auto;
+  padding: 8px 14px;
+  border: 1px solid rgba($la-navy, 0.09) !important;
+  border-radius: $bp-radius-card !important;
+  background: linear-gradient(180deg, #FFFFFF 0%, #FAFCFD 100%) !important;
+  box-shadow:
+    0 1px 2px rgba(27, 54, 93, 0.07),
+    0 4px 12px rgba(27, 54, 93, 0.08) !important;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease !important;
+}
+/* The mixin paints a 2px gradient hairline across the top of every card. On a
+   gallery tile it reads as a highlight; on a 72px row it is just noise. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon::before {
+  display: none;
+}
+/* Hover raises the same two layers rather than swapping in a different shadow,
+   so the card reads as lifting off the panel instead of changing material. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:hover {
+  border-color: rgba($brand-verdigris, 0.42) !important;
+  box-shadow:
+    0 1px 2px rgba(27, 54, 93, 0.08),
+    0 8px 20px rgba(27, 54, 93, 0.13) !important;
+  transform: translateY(-1px);
+}
+/* Pressed: back down onto the panel — contact shadow only. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:active {
+  transform: none;
+  box-shadow: 0 1px 2px rgba(27, 54, 93, 0.10) !important;
+}
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:focus-visible {
+  @include focus-ring($la-navy, 3px, 2px);
+}
+
+/* Standardised thumbnail frame — one size, one padding, never cropped.
+   The shared board-card-modern mixin forces width/height/padding with
+   !important, so these must answer in kind at (0,5,0). */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon img {
+  grid-column: 1;
+  width: 48px !important;
+  height: 48px !important;
+  max-width: none !important;
+  max-height: none !important;
+  padding: 5px !important;
+  margin: 0 !important;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 10px;
+  background: #FFFFFF;
+  /* Its own hairline shadow — the tile sits ON the card, the card sits on the
+     panel. That third step is most of what "dimension" means at this size. */
+  box-shadow: 0 1px 2px rgba(27, 54, 93, 0.08);
+  object-fit: contain;
+  align-self: center;
+}
+
+/* Title: two intentional lines before clamping, left aligned. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .name {
+  grid-column: 2;
+  width: 100% !important;
+  margin: 0 !important;
+  align-self: center;
+  text-align: left !important;
+  font-size: 16px !important;
+  font-weight: 650 !important;
+  line-height: 1.25 !important;
+  color: $la-navy !important;
+  max-height: 2.5em !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
+}
+
+/* Long names step down a size. Set by measurement, not by CSS — board-icon.js
+   #_syncCompactNameSize adds this class only when the name actually overflows
+   the two-line clamp, so 14px is spent on the names that need it and every
+   other row keeps the 16px reading size. `max-height` is in em, so the clamp
+   box follows the smaller size automatically. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .name.board-icon__name--clamped {
+  font-size: 14px !important;
+}
+
+/* Directional affordance — the whole row is the target, this just points. */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .board-icon__row-chevron {
+  grid-column: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  /* 26px + the grid's 12px column-gap = 38px reserved at the right edge, so a
+     clamped two-line title runs out of room before it reaches the chevron. */
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  /* Third in the card's hierarchy — title, then thumbnail, then this. A shallow
+     well rather than a bare glyph: it gives the right edge a defined affordance
+     without competing with the name. */
+  background: rgba($la-navy, 0.04);
+  color: rgba($la-navy, 0.42);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:hover .board-icon__row-chevron {
+  background: rgba($brand-verdigris, 0.12);
+  color: $brand-verdigris-aa;
+}
+
+/* Suppressed in compact: language marker, CC-By credit, byline.
+   `.author` needs the full chain — the board-card-modern mixin declares
+   `display: flex !important` for it at (0,4,0). */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .board-icon__lang-marker,
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .board-icon__credit {
+  display: none !important;
+}
+/* The "i" + grid-size chip is suppressed only where the WHOLE CARD is the preview
+   target — the picker's compact rows. `ll-boards-grid--compact` is shared with the
+   Boards page grid, whose cards OPEN the board instead, so hiding it there removed the
+   only route to the preview and, with the hover trash gone, the only delete affordance
+   on the page. Excluded by the grid's own class rather than by adding a competing
+   rule (CLAUDE.md 0.7). */
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact:not(.ub-boards-page__board-grid) .board-icon__info {
+  display: none !important;
+}
+.ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .author {
   display: none !important;
 }
 
@@ -756,13 +976,13 @@ $bp-target: 44px;
    -------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   /* !important to match the shell rule, which has to out-shout the mixin. */
-  .md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon {
+  .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon {
     transition: none !important;
   }
-  .md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon:hover {
+  .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon:hover {
     transform: none;
   }
-  .md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon .board-icon__row-chevron {
+  .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon .board-icon__row-chevron {
     transition: none;
   }
   .bp-options__btn {
@@ -795,7 +1015,7 @@ $bp-target: 44px;
   .bp-search { flex: 1 1 100%; width: 100%; }
   .bp-segmented { flex: 1 1 100%; width: 100%; }
   .bp-segmented__option { flex: 1 1 50%; padding: 0 $bp-space-md; }
-  .md-home-boards-picker__grid--compact .md-home-boards-picker__board .btn.simple_board_icon img {
+  .ll-boards-grid--compact.ll-boards-grid--compact.ll-boards-grid--compact .simple_board_holder .btn.simple_board_icon img {
     width: 50px !important;
     height: 50px !important;
   }
