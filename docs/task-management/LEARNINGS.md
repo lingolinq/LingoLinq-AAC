@@ -15577,5 +15577,11 @@ Related, and this one IS mechanically checkable: `evidence.sha` must be a full 4
 the day it is written and silently becomes ambiguous as the repo grows. `audit-merge.rb` writes
 whatever `--sha` it is handed, so the abbreviation enters at the call site, not in the merger.
 `register-lint.rb` now rejects a non-40-hex sha, and REQUIRES one on every `code`/`doc` row --
-blank is permitted only for non-checkable evidence (`runtime`, `attestation`). That strictness
+blank is permitted only for known non-checkable evidence (`runtime`, `attestation`). Unknown
+types (a mistype like `"cod"`, or an empty string) must not inherit that exemption:
+`citation-check.rb` SKIPs every type other than `code`/`doc`, so a file-backed row with a
+typoed type and a blank sha would otherwise be unanchored and uninspected by both the CI
+gate and the local citation check. The linter allowlists `evidence.type` against
+`code|doc|runtime|attestation` before applying the blank-sha exemption, and treats a blank
+type the same as a missing one (derive `code` if a file is present). That strictness
 matters precisely because citation-check is not in CI: register-lint is the only gate that runs.

@@ -42,15 +42,23 @@ require 'optparse'
 DEFAULT_REGISTERS = ['audit-reports/FINDINGS.json'].freeze
 
 # Fallbacks used only when a register's meta omits the enum. The register declares its own enums in
-# meta (statusEnum, severityEnum, frameworkEnum, dispositionEnum, sourceEnum) and those win, so a
-# schema change lands in one place; these keep the linter useful against a meta-less register.
+# meta (statusEnum, severityEnum, frameworkEnum, dispositionEnum, sourceEnum, evidenceTypeEnum) and
+# those win, so a schema change lands in one place; these keep the linter useful against a meta-less
+# register.
 FALLBACK_ENUMS = {
   'statusEnum' => %w[open remediated-unverified verified-closed accepted-risk superseded],
   'severityEnum' => %w[critical high medium low],
   'frameworkEnum' => %w[FERPA COPPA HIPAA GDPR WCAG SOC2],
   'dispositionEnum' => %w[untriaged accepted fixed dismissed-false-positive wontfix],
-  'sourceEnum' => %w[audit-run pr-review manual]
+  'sourceEnum' => %w[audit-run pr-review manual],
+  # Must stay in lockstep with citation-check.rb CHECKABLE_EVIDENCE_TYPES plus the
+  # two non-checkable kinds that script SKIPs. An unknown type is skipped there too,
+  # so the linter is the only CI gate that can reject a mistype.
+  'evidenceTypeEnum' => %w[code doc runtime attestation]
 }.freeze
+
+# Evidence kinds citation-check.rb actually re-resolves. Everything else is SKIP'd.
+CHECKABLE_EVIDENCE_TYPES = %w[code doc].freeze
 
 # Fields every consumer reaches into with Hash accessors (`f.dig('source', 'promotedDate')`,
 # `f['evidence']['file']`, ...). A non-Hash here is the crash class this linter was written for.
@@ -102,6 +110,7 @@ def lint_register(path)
   frameworks = enum.call('frameworkEnum')
   dispositions = enum.call('dispositionEnum')
   sources = enum.call('sourceEnum')
+  evidence_types = enum.call('evidenceTypeEnum')
 
   seen_ids = {}
 
@@ -204,14 +213,27 @@ def lint_register(path)
       #      grows. audit-merge.rb writes whatever --sha it is handed, so the abbreviation
       #      enters at the call site, not in the merger.
       #
-      # Blank is permitted ONLY for non-checkable evidence (runtime, attestation), which has no
-      # file to resolve. The type derivation mirrors audit-merge.rb: an absent type with a file
-      # is a code row.
+      # Blank is permitted ONLY for known non-checkable evidence (runtime, attestation),
+      # which has no file to resolve. Unknown types must not inherit that exemption:
+      # citation-check.rb SKIPs every type other than code/doc, so a mistype like "cod"
+      # with a blank sha would otherwise be unanchored AND uninspected.
+      # Type derivation mirrors audit-merge.rb, except blank/whitespace strings are
+      # treated as absent (`""` is truthy in Ruby, so `ev['type'] || ...` would keep it).
       ev = f['evidence']
       sha = ev['sha']
-      ev_type = ev['type'] || (ev['file'].to_s.empty? ? 'runtime' : 'code')
+      raw_type = ev['type']
+      ev_type = if raw_type.nil? || (raw_type.is_a?(String) && raw_type.strip.empty?)
+                  ev['file'].to_s.empty? ? 'runtime' : 'code'
+                elsif raw_type.is_a?(String)
+                  raw_type.strip
+                else
+                  raw_type
+                end
+      unless evidence_types.include?(ev_type)
+        errors << "#{where}: evidence.type #{ev_type.inspect} not in evidenceTypeEnum #{evidence_types.join('|')}"
+      end
       full_sha = sha.to_s.match?(/\A[0-9a-f]{40}\z/)
-      if %w[code doc].include?(ev_type)
+      if CHECKABLE_EVIDENCE_TYPES.include?(ev_type)
         unless full_sha
           errors << "#{where}: #{ev_type} evidence must carry a full 40-character lowercase hex evidence.sha " \
                     "(citation-check falls back to the working tree when it is blank), got #{sha.inspect}"

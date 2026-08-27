@@ -7,6 +7,10 @@
 #   citation-check.rb re-resolves every snippet at its sha, but ci.yml:153 states it is
 #   deliberately NOT a CI job. So if the sha rules here silently stop firing, nothing else
 #   catches a findings row whose evidence is unanchored or ambiguously anchored.
+#   The same harness also proves unknown evidence.type values are rejected rather
+#   than inheriting the runtime/attestation blank-sha exemption (citation-check
+#   SKIPs every type other than code/doc, so a mistype would otherwise be
+#   unanchored and uninspected).
 #
 #   A rule that has only ever been observed passing on the committed registers is evidence
 #   that those registers are clean, not that the rule works. Each branch of the contract is
@@ -57,7 +61,9 @@ build() {
 JSON
 }
 
-# expect_pass/expect_fail <label> <evidence-json> [must-mention]
+# expect_pass <label> <evidence-json>
+# expect_fail <label> <evidence-json> [must-mention]
+# Default must-mention is the sha rule. Pass a pattern when asserting a different branch.
 expect_pass() {
   build "$TMP/f.json" "$2"
   if ruby "$LINT" "$TMP/f.json" >/dev/null 2>&1; then pass "$1"; else
@@ -67,8 +73,9 @@ expect_fail() {
   build "$TMP/f.json" "$2"
   local out; out="$(ruby "$LINT" "$TMP/f.json" 2>&1)"
   if [ $? -eq 0 ]; then fail "$1 (rule did NOT fire)"; return; fi
-  if ! printf '%s' "$out" | grep -qi 'evidence.sha\|evidence must carry'; then
-    fail "$1 (failed, but not on the sha rule: $(printf '%s' "$out" | tail -1))"; return
+  local needle="${3:-evidence.sha|evidence must carry}"
+  if ! printf '%s' "$out" | grep -qiE "$needle"; then
+    fail "$1 (failed, but not on the expected rule: $(printf '%s' "$out" | tail -1))"; return
   fi
   pass "$1"
 }
@@ -92,6 +99,15 @@ expect_fail "typeless row WITH a file and no sha"    '{"file":"Gemfile","line":1
 expect_fail "code row with an ABBREVIATED sha"       '{"type":"code","file":"Gemfile","line":1,"snippet":"x","sha":"4a0c0ea03"}'
 expect_fail "runtime row with an ABBREVIATED sha"    '{"type":"runtime","sha":"4a0c0ea03"}'
 expect_fail "code row with an UPPERCASE sha"         "{\"type\":\"code\",\"file\":\"Gemfile\",\"line\":1,\"snippet\":\"x\",\"sha\":\"$(printf '%s' "$FULL_SHA" | tr 'a-f' 'A-F')\"}"
+
+# Rule 3: unknown types must not inherit the runtime/attestation blank-sha exemption.
+# citation-check.rb SKIPs every type other than code/doc, so a mistype would otherwise
+# be unanchored and uninspected. Empty-string type with a file derives to code (Ruby
+# treats "" as truthy, so `ev['type'] || ...` would have kept it as unknown).
+expect_fail "unknown type 'cod' with a file and no sha"   '{"type":"cod","file":"Gemfile","line":1,"snippet":"x"}' 'evidence.type'
+expect_fail "unknown type 'cod' with no file and no sha"  '{"type":"cod"}' 'evidence.type'
+expect_fail "unknown type with a full sha still rejected" "{\"type\":\"cod\",\"file\":\"Gemfile\",\"sha\":\"$FULL_SHA\"}" 'evidence.type'
+expect_fail "empty-string type with a file and no sha"    '{"type":"","file":"Gemfile","line":1,"snippet":"x"}'
 
 # The committed registers must satisfy the contract they are gated by.
 for reg in "$REPO_ROOT/audit-reports/FINDINGS.json" "$REPO_ROOT/audit-reports/ember-upgrade/FINDINGS-EMBER.json"; do
