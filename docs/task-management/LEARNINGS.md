@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`](#gotcha-extrasjs-wraps-string-ajax-bodies-as-text-meta--html-fetchers-must-unwrap-text)
 - [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
 - [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
@@ -12968,3 +12969,20 @@ each one against the retrieved source was not ceremony: one report asserted NY
 requires a four-week SGD trial, and the grep behind it had matched the lymphedema
 section (lesson 3). Another reported a phrase absent from a PDF that contained it
 (lesson 4). Both would have shipped as sourced facts.
+
+## Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`
+
+`app/frontend/app/utils/extras.js` patches `$.ajax` and, on success, turns a
+string body into `{text: data}` then attaches `data.meta`. JSON API callers
+already expect an object. An HTML/text fetch that passes the resolved value
+straight into `{{safe}}` / `htmlSafe` stringifies it to `[object Object]`.
+
+The Article 50 modal (`ai-disclosure.js#fetchDisclosure`) hit this: the
+notice HTML was in `.text`, and the template rendered the wrapper object.
+`persistence.remote_json` already reads `data.text`; new `dataType: 'html'`
+or `'text'` callers must do the same. Tests that stub `persistence.ajax` with
+a raw string will not catch this — also resolve the extras.js `{text, meta}`
+shape.
+
+**First seen in:** [2026-08-26-ai-disclosure-object-object.md](./2026-08-26-ai-disclosure-object-object.md)
+
