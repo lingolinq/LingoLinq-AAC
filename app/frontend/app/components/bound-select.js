@@ -219,12 +219,45 @@ export default Component.extend({
         this.close();
         this._focusTrigger();
       }
+    },
+    /** Keyboard on the search input. Letter keys must NOT preventDefault
+     *  (that is what made "Search languages..." untypeable: the <ul>
+     *  keydown used to go through ctrlAction, which always preventDefaults).
+     *  ArrowDown / Enter / Escape match modern-select. */
+    search_keydown(ev) {
+      if (ev && ev.stopPropagation) { ev.stopPropagation(); }
+      if (!ev || !ev.key) { return; }
+      const key = ev.key;
+      if (key === 'ArrowDown') {
+        ev.preventDefault();
+        if (!this.element) { return; }
+        const first = this.element.querySelector('.bound-select__option:not(.bound-select__option--disabled)');
+        if (first && typeof first.focus === 'function') { this._focusWithoutScrolling(first); }
+      } else if (key === 'Enter') {
+        ev.preventDefault();
+        if (!this.element) { return; }
+        const first = this.element.querySelector('.bound-select__option:not(.bound-select__option--disabled)');
+        if (first) { first.click(); }
+      } else if (key === 'Escape') {
+        ev.preventDefault();
+        this.close();
+        this._focusTrigger();
+      }
     }
   },
 
   init() {
     this._super(...arguments);
     var self = this;
+    // List/search keydown must NOT go through ctrlAction: that helper always
+    // calls preventDefault(), which blocks typing in the search input.
+    // Assigned in init (not didInsertElement) so {{on}} binds a real function.
+    this.onListKeydown = function(ev) {
+      self.send('list_keydown', ev);
+    };
+    this.onSearchKeydown = function(ev) {
+      self.send('search_keydown', ev);
+    };
     // Stable handlers (same pattern as modern-select). The old ctrlAction
     // helper called preventDefault then *dropped* the event before send(),
     // so toggle/choose never got stopPropagation — clicks bubbled into

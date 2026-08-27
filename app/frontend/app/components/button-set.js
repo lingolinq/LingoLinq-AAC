@@ -11,6 +11,7 @@ import LingoLinq from '../app';
 import app_state from '../utils/app_state';
 import modal from '../utils/modal';
 import { observer, computed } from '@ember/object';
+import { shouldTranslateVocalization } from '../utils/special_vocalization';
 
 function boardIdStr(id) {
   if (id == null) { return ''; }
@@ -82,40 +83,158 @@ export default Component.extend({
     });
   },
 
+  _source_translate_buttons: function() {
+    var fetched = this.get('fetched_translate_buttons');
+    if (fetched && fetched.length) { return fetched.slice(); }
+    return (this.get('model.button_set.buttons') || []).slice();
+  },
+
+  _has_linked_translate_labels: function() {
+    var root_board_id = this._root_board_id();
+    var alt_board_id = this.get('model.board.id');
+    return this._source_translate_buttons().some(function(b) {
+      return b && b.label && !rootBoardIdMatches(b.board_id, root_board_id, alt_board_id);
+    });
+  },
+
   /* Single source for review rows and /users/self/translate batches. */
   _buttons_for_translate: function() {
     var _this = this;
     var root_board_id = _this._root_board_id();
     var alt_board_id = _this.get('model.board.id');
-    var words = (_this.get('model.button_set.buttons') || []).slice();
+    var words = _this._source_translate_buttons();
     var board_ids = _this._selected_board_ids();
-    var linkedSelected = _this._selection_includes_linked_boards();
+    var has_set_labels = words.some(function(b) { return !!(b && b.label); });
 
-    if (_this.get('model.board.buttons') && words.length === 0) {
-      if (linkedSelected) {
-        return [];
-      }
+    /* Hierarchy can paint a tree from board.linked_boards even when the
+       button set never loaded labels. Previously that returned [] for a
+       linked selection and the review modal died on load_error. Use the
+       root board's own buttons instead (the copy the error already names). */
+    if (!has_set_labels) {
+      words = [];
       (_this.get('model.board.buttons') || []).forEach(function(button) {
-        if (!words.find(function(b) {
-          return rootBoardIdMatches(b.board_id, root_board_id, alt_board_id) && b.id === button.id;
-        })) {
-          words.push($.extend({}, button, {
-            board_id: root_board_id,
-            board_key: _this.get('model.board.key'),
-            depth: 0
-          }));
-        }
+        words.push($.extend({}, button, {
+          board_id: root_board_id,
+          board_key: _this.get('model.board.key'),
+          depth: 0
+        }));
       });
     }
 
-    if (board_ids && board_ids.length) {
-      words = words.filter(function(b) { return boardIdIncluded(board_ids, b.board_id); });
-    } else {
+    if (_this.get('root_only_fallback') || !board_ids || !board_ids.length) {
       words = words.filter(function(b) {
         return rootBoardIdMatches(b.board_id, root_board_id, alt_board_id);
       });
+    } else {
+      words = words.filter(function(b) { return boardIdIncluded(board_ids, b.board_id); });
     }
     return words;
+  },
+
+  _board_ids_for_save: function() {
+    if (this.get('root_only_fallback')) {
+      var id = this._root_board_id();
+      return id ? [id] : this.get('model.new_board_ids_to_translate');
+    }
+    return this.get('model.new_board_ids_to_translate');
+  },
+
+  /* Hierarchy already populated this set with labels. A force reload
+     (`load_buttons(true)`) can wipe `root_url` and leave buttons empty
+     (`root url not available`), which then surfaces as "Linked board
+     labels could not be loaded" even though the Translate Boards tree
+     had just rendered those boards. */
+  _button_set_has_labels: function() {
+    var list = emberGet(this.get('model.button_set'), 'buttons') || [];
+    return list.some(function(b) { return !!(b && b.label); });
+  },
+
+  _board_record_for_id: function(id) {
+    var store = LingoLinq.store;
+    if (!store || !id) { return RSVP.resolve(null); }
+    var peeked = null;
+    if (typeof store.peekRecord === 'function') {
+      try { peeked = store.peekRecord('board', id); } catch(e) { peeked = null; }
+    }
+    var peekedButtons = peeked ? (emberGet(peeked, 'buttons') || []) : [];
+    if (peekedButtons.length) { return RSVP.resolve(peeked); }
+    if (peeked && typeof peeked.reload === 'function') {
+      return peeked.reload().then(null, function() { return peeked; });
+    }
+    if (typeof store.findRecord === 'function') {
+      return store.findRecord('board', id).then(null, function() { return peeked || null; });
+    }
+    return RSVP.resolve(peeked);
+  },
+
+  /* Button-set JSON can be empty while the Translate Boards tree still
+     lists linked boards (from board.linked_boards). Load each selected
+     board record and collect its labeled buttons so review/save are not
+     stuck on the root board. */
+  _load_selected_board_labels: function() {
+    var _this = this;
+    var root_id = _this._root_board_id();
+    var alt_id = _this.get('model.board.id');
+    var ids = (_this._selected_board_ids() || []).slice();
+    var collected = [];
+    var seen = {};
+
+    var push_record = function(record, fallbackId) {
+      if (!record) { return; }
+      var bid = emberGet(record, 'global_id') || emberGet(record, 'id') || fallbackId;
+      var key = emberGet(record, 'key');
+      (emberGet(record, 'buttons') || []).forEach(function(button) {
+        if (!button) { return; }
+        collected.push($.extend({}, button, {
+          board_id: bid,
+          board_key: key
+        }));
+      });
+    };
+
+    var rootBoard = _this.get('model.board');
+    if (rootBoard) {
+      push_record(rootBoard, root_id);
+      seen[boardIdStr(root_id)] = true;
+      if (alt_id) { seen[boardIdStr(alt_id)] = true; }
+    }
+
+    var others = ids.filter(function(id) { return !seen[boardIdStr(id)]; });
+    var finish = function() {
+      if (collected.some(function(b) { return !!(b && b.label); })) {
+        _this.set('fetched_translate_buttons', collected);
+      }
+      return true;
+    };
+
+    if (!others.length) { return RSVP.resolve(finish()); }
+
+    return RSVP.all(others.map(function(id) {
+      return _this._board_record_for_id(id).then(function(record) {
+        push_record(record, id);
+      });
+    })).then(finish, finish);
+  },
+
+  _prep_buttons_for_translate: function() {
+    var _this = this;
+    var after_set_load = function() {
+      if (_this._button_set_has_labels() || _this._has_linked_translate_labels()) {
+        return RSVP.resolve(true);
+      }
+      if (_this._selection_includes_linked_boards()) {
+        return _this._load_selected_board_labels();
+      }
+      return RSVP.resolve(true);
+    };
+    if (this._button_set_has_labels()) {
+      return RSVP.resolve(true);
+    }
+    var buttonSet = this.get('model.button_set');
+    if (persistence.get('online') && buttonSet && typeof buttonSet.load_buttons === 'function') {
+      return buttonSet.load_buttons().then(after_set_load, after_set_load);
+    }
+    return after_set_load();
   },
 
   didInsertElement() {
@@ -129,27 +248,15 @@ export default Component.extend({
     _this.set('error_saving_translations', null);
     _this.set('translating', null);
 
-    var buttonSet = _this.get('model.button_set');
-    var prepButtons = function() {
-      if (persistence.get('online') && buttonSet && typeof buttonSet.load_buttons === 'function') {
-        return buttonSet.load_buttons(true).then(function() { return true; });
-      }
-      return RSVP.resolve(true);
-    };
-
     if (_this.get('model.locale') && _this.get('model.button_set')) {
       _this.set('translating', { loading: true });
-      prepButtons().then(function() {
+      _this._prep_buttons_for_translate().then(function() {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         _this._startTranslating();
       }, function(err) {
         if (_this.isDestroyed || _this.isDestroying) { return; }
         LingoLinq.track_error('button-set load_buttons failed - ' + JSON.stringify(err), err);
-        if (_this._selection_includes_linked_boards()) {
-          _this.set('translating', { error: true, load_error: true });
-        } else {
-          _this._startTranslating();
-        }
+        _this._startTranslating();
       });
     }
   },
@@ -196,8 +303,14 @@ export default Component.extend({
 
     _this.set('translations', {});
 
+    if (_this._selection_includes_linked_boards() && !_this._has_linked_translate_labels()) {
+      _this.set('root_only_fallback', true);
+    } else {
+      _this.set('root_only_fallback', false);
+    }
+
     var words = _this._buttons_for_translate();
-    if (_this._selection_includes_linked_boards() && words.length === 0) {
+    if (words.length === 0) {
       _this.set('translating', { error: true, load_error: true });
       return;
     }
@@ -205,7 +318,7 @@ export default Component.extend({
     words.forEach(function(b) {
       var loc = source_lang_for_button(b);
       if (b.label) { push_word(loc, b.label); }
-      if (b.vocalization && b.vocalization !== b.label) { push_word(loc, b.vocalization); }
+      if (shouldTranslateVocalization(b.vocalization, b.label)) { push_word(loc, b.vocalization); }
     });
 
     var batches = [];
@@ -288,10 +401,12 @@ export default Component.extend({
       }
       var voc = emberGet(b, 'vocalization');
       var vocTrans = emberGet(b, 'secondary_translation');
-      if (vocTrans && voc) {
-        translations[voc] = vocTrans;
-      } else if (voc && auto[voc]) {
-        translations[voc] = auto[voc];
+      if (shouldTranslateVocalization(voc, label)) {
+        if (vocTrans && voc) {
+          translations[voc] = vocTrans;
+        } else if (voc && auto[voc]) {
+          translations[voc] = auto[voc];
+        }
       }
     });
     return translations;
@@ -306,9 +421,12 @@ export default Component.extend({
   sorted_buttons: computed(
     'model.button_set.buttons',
     'model.board.buttons',
+    'model.board.id',
     'model.old_board_ids_to_translate',
     'model.locale',
     'translating',
+    'fetched_translate_buttons',
+    'root_only_fallback',
     function() {
       var words = this._buttons_for_translate();
       var res = [];
@@ -351,7 +469,7 @@ export default Component.extend({
       if (label_trans) {
         emberSet(b, 'translation', label_trans);
       }
-      if (b.vocalization && b.vocalization !== b.label) {
+      if (shouldTranslateVocalization(b.vocalization, b.label)) {
         var voc_trans = translations[b.vocalization] || (b.vocalization && translations[b.vocalization.trim()]);
         if (voc_trans) {
           emberSet(b, 'secondary_translation', voc_trans);
@@ -410,7 +528,7 @@ export default Component.extend({
       }
       /* JSON body: a large linked set as form-urlencoded is one param per
          word and trips Rack's 4096-param cap (empty HTML 400). */
-      var boardIds = _this.get('model.new_board_ids_to_translate');
+      var boardIds = _this._board_ids_for_save();
       persistence.ajax('/api/v1/boards/' + _this.get('model.copy.id') + '/translate', {
         type: 'POST',
         contentType: 'application/json',

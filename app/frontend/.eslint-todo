@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-27T04:25:29.449Z
+# Generated: 2026-08-27T14:36:19.932Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -96,8 +96,7 @@ app/components/button-listener.js|ember/no-runloop|29|7|2|5addc2170315
 app/components/button-listener.js|ember/require-super-in-lifecycle-hooks|25|3|1|04fd54f45db7
 app/components/button-listener.js|ember/require-super-in-lifecycle-hooks|51|3|1|04fd54f45db7
 app/components/button-preview.js|ember/require-super-in-lifecycle-hooks|14|3|1|04fd54f45db7
-app/components/button-set.js|ember/no-runloop|226|9|2|5addc2170315
-app/components/button-set.js|ember/require-computed-property-dependencies|306|19|1|f4e704a7bafe
+app/components/button-set.js|ember/no-runloop|339|9|2|5addc2170315
 app/components/button-settings.js|ember/no-runloop|1167|7|2|5addc2170315
 app/components/button-settings.js|ember/no-runloop|1269|11|2|5addc2170315
 app/components/button-settings.js|ember/no-runloop|1657|9|2|5addc2170315
@@ -411,8 +410,8 @@ app/controllers/board/index.js|lingolinq/no-orphaned-action|1464|5|1|7c8e5ffe34f
 app/controllers/board/index.js|lingolinq/no-orphaned-action|1478|5|1|d72f931b900e
 app/controllers/bulk_purchase.js|ember/no-runloop|46|5|2|5addc2170315
 app/controllers/bulk_purchase.js|ember/no-runloop|56|9|2|5addc2170315
-app/controllers/button-set.js|ember/no-runloop|60|11|2|5addc2170315
-app/controllers/button-set.js|ember/require-computed-property-dependencies|103|19|1|99b85e93bc77
+app/controllers/button-set.js|ember/no-runloop|61|11|2|5addc2170315
+app/controllers/button-set.js|ember/require-computed-property-dependencies|104|19|1|99b85e93bc77
 app/controllers/button-settings.js|ember/no-runloop|1118|9|2|5addc2170315
 app/controllers/button-settings.js|ember/no-runloop|130|9|2|5addc2170315
 app/controllers/button-settings.js|ember/no-runloop|569|5|2|5addc2170315
