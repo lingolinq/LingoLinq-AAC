@@ -3498,6 +3498,19 @@ export default Controller.extend(prefClasses, {
   category_vertical_scroll: computed('board_category_settings', function() {
     return (this.get('board_category_settings') || {}).vertical_scroll !== false;
   }),
+  /* The category order the grid actually renders, resolved per-board off the same
+     `board_category_settings` as the two computeds above rather than left for the grid
+     to re-derive. Unlike them it needs no AND with `grouping_active`: the order is only
+     ever read inside `categoryGroups`, which early-returns when grouping is off.
+     Without this the grid read the account-wide default directly while
+     the Categorize panel read the per-board value, so a per-board `order` — the shape
+     `rake lingolinq:seed_board_category_grouping ORDER=...` writes — was stored and
+     validated correctly and then never reached `group_buttons`. Normalized here so the
+     grid and the panel are fed from one place; `normalize_order` drops unknown keys and
+     appends missing ones, so it is never empty. */
+  category_order: computed('board_category_settings', function() {
+    return normalizeCategoryOrder((this.get('board_category_settings') || {}).order);
+  }),
 
   /* What the GRID is told. Both only mean anything while grouping is in force, so they
      are ANDed with grouping_active here rather than in the template or the component —

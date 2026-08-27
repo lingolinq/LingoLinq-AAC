@@ -197,18 +197,31 @@ export default Component.extend({
     return false;
   }),
 
-  categoryOrder: computed('app_state.referenced_user.preferences.board_category_grouping.order', function() {
-    return normalize_order(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
-  }),
+  /* Same rule as `categoryEnabled` above: the controller resolves this per-board and
+     passes it in, because it is the thing that knows which board this is. Re-deriving it
+     here from the account-wide default is what made a per-board `order` render as the
+     account default while the Categorize panel displayed the per-board one — the value
+     was stored correctly and silently never applied.
+     The fallback keeps a caller that passes nothing behaving exactly as before, the same
+     shape `groupingEnabled` uses. */
+  effectiveCategoryOrder: computed(
+    'categoryOrder',
+    'app_state.referenced_user.preferences.board_category_grouping.order',
+    function() {
+      var passed = this.get('categoryOrder');
+      if(passed && passed.length) { return normalize_order(passed); }
+      return normalize_order(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
+    }
+  ),
 
   /*
    * Panels, in the user's order, built from the SAME `orderedButtons` the
    * ungrouped grid renders -- grouping is a re-presentation of the existing
    * array, never a second source of buttons. Empty categories are omitted.
    */
-  categoryGroups: computed('orderedButtons', 'categoryOrder', 'groupingEnabled', function() {
+  categoryGroups: computed('orderedButtons', 'effectiveCategoryOrder', 'groupingEnabled', function() {
     if(!this.get('groupingEnabled')) { return []; }
-    var groups = group_buttons(this.get('orderedButtons') || [], this.get('categoryOrder')) || [];
+    var groups = group_buttons(this.get('orderedButtons') || [], this.get('effectiveCategoryOrder')) || [];
     /* `each_key` is the {{#each}} key for the group loop — see the note on renderGroups.
        Category keys are already unique within a board (they come from normalize_order),
        so prefixing is only to keep them in one namespace with the ungrouped rows. */
