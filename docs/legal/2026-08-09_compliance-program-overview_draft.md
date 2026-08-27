@@ -65,10 +65,13 @@
 > First, the window this passage originally asserted was closed (2026-07-30 to 2026-08-03) contains
 > **28 attributed invocations**: 27 on 2026-08-01 UTC and 1 on 2026-08-02 UTC. 26 were issued by
 > `lingolinq-bedrock-runtime` and 2 directly by an administrator principal.
-> Second, the window described as carrying "a single internal verification call" (2026-08-03 to
-> 2026-08-06) carries **8, every one of them the runtime credential**. The only human-issued calls
-> anywhere in the range fall on 2026-08-01, two days before that window opens, so the verification
-> event this passage describes is recorded on the wrong dates.
+> Second, the window described as carrying "a single internal verification call" is 2026-08-03 to
+> 2026-08-04. A separately queried longer bucket (2026-08-03 to 2026-08-06) carries **8, every one
+> of them the runtime credential**. Calls after 2026-08-04, including those after the documented
+> credential restoration at 07:25, sit outside the original interval and cannot refute its count.
+> The 2026-08-26 query did not isolate the August 3-4 window, so this telemetry does not establish
+> that window's CloudTrail count and does not establish that the verification event was recorded
+> on the wrong dates. The only human-issued calls anywhere in the queried range fall on 2026-08-01.
 > Third, four principals invoke Bedrock, not one: `lingolinq-bedrock-runtime` (121),
 > `lingolinq-bedrock-staging` (67), `lingolinq-bedrock-dev` (27), and an administrator (2). Only the
 > first writes to production `AiApiLog`, so any figure that pools environments describes a different
@@ -199,8 +202,9 @@ explicitly marked not operational.
   users (Scot Wahlquist, 2026-08-24), so no real person is known to have had data sent on this path.
   `AiApiLog` is an application-observed floor, not a ledger. Vendor-side confirmation was obtained
   on 2026-08-26 from CloudWatch `AWS/Bedrock` `Invocations` and CloudTrail `InvokeModel`, and it
-  places 26 runtime invocations inside the window this passage originally called closed and 8 in the
-  window it described as a single verification call. See the re-attestation note above.
+  places 26 runtime invocations inside the window this passage originally called closed, and 8 in a
+  longer 2026-08-03 to 2026-08-06 bucket that includes the original single-call window of 2026-08-03
+  to 2026-08-04 plus two later days. See the re-attestation note above.
 - Before text is sent to our external LLM providers for word prediction, board generation, or eval
   narration, our PII scrubber removes identifiers. This is **pseudonymization (scrubbing)**, and we
   describe it accurately: the result is scrubbed data that we still treat as personal data. We do

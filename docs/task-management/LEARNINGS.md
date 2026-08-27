@@ -12986,3 +12986,14 @@ shape.
 
 **First seen in:** [2026-08-26-ai-disclosure-object-object.md](./2026-08-26-ai-disclosure-object-object.md)
 
+## Pattern: quoted predecessor date windows must be compared as written
+
+When a correction refutes a predecessor claim with telemetry, use the
+predecessor's own interval. A longer bucket that includes days after the
+claimed window (especially after a documented credential restoration) cannot
+refute the original count, and "the event is on the wrong dates" does not
+follow from that mismatch. Report the queried bucket separately from the
+quoted window; do not silently extend the dates in parentheses.
+
+**First seen in:** [2026-08-27-overview-draft-verification-window.md](./2026-08-27-overview-draft-verification-window.md)
+
