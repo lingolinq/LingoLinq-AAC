@@ -50,7 +50,7 @@
                         reviewer screenshotted twice thinking it had frozen. Say
                         what is happening and why it is worth the wait. --}}
                   <span class="md-board-details-modal__overlay-subtext">
-                    {{t "Copying the full board set to this account. This can take up to a minute, and it's what makes the board work offline." key="setting_up_your_board_explainer"}}
+                    {{t "Copying the full board set to this account. This can take several minutes, and it's what makes the board work offline." key="setting_up_your_board_explainer"}}
                   </span>
                 {{else if this.preview_images_total}}
                   <span class="md-board-details-modal__overlay-text">
@@ -63,7 +63,7 @@
               </div>
             </div>
           {{/if}}
-          <BoardPreview @key={{this.model_key}} @back={{this.back_func}} @option={{this.modal.boardPreview.option}} @recommend={{this.modal.boardPreview.recommend}} @removeContext={{this.modal.boardPreview.remove}} @locale={{this.modal.boardPreview.locale}} @onSelect={{this.ctrlAction "select"}} @onPickForHome={{this.ctrlAction "pick_for_home"}} @onRemove={{this.ctrlAction "remove"}} @dark_mode={{this.board_dark_mode}} @onLoadingChange={{this.ctrlAction "set_preview_loading"}} @onCanvasProgress={{this.ctrlAction "set_preview_progress"}} />
+          <BoardPreview @key={{this.model_key}} @back={{this.back_func}} @option={{this.modal.boardPreview.option}} @recommend={{this.modal.boardPreview.recommend}} @removeContext={{this.modal.boardPreview.remove}} @locale={{this.modal.boardPreview.locale}} @onSelect={{this.ctrlAction "select"}} @onPickForHome={{this.ctrlAction "pick_for_home"}} @onTryBoard={{this.ctrlAction "try_board"}} @onRemove={{this.ctrlAction "remove"}} @dark_mode={{this.board_dark_mode}} @onLoadingChange={{this.ctrlAction "set_preview_loading"}} @onCanvasProgress={{this.ctrlAction "set_preview_progress"}} />
         </div>
       {{/if}}
     </div>

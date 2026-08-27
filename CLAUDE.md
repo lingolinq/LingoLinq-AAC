@@ -22,6 +22,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 9. **If it makes a task more efficient, always spawn subagents — don't ask first.** Any task that splits into independent slices (multi-file code review, audits, broad searches, migrations, verification across many routes) should be fanned out to parallel subagents rather than worked through serially. Launch them in a single message so they run concurrently, and give each one an explicit file list, the repo-specific traps to check, and a rule to label every finding CONFIRMED (traced in code) vs PLAUSIBLE (needs a runtime check). This is standing authorization: do not wait to be asked, and do not sit single-threaded through work that parallelizes. It does not relax rules 1-4 — a subagent's report is evidence to verify, not a verified finding, and anything acted on still needs its own root-cause confirmation.
 
 10. **A red test run is not a regression until you have confirmed the run COMPLETED.** A truncated run is indistinguishable from a failing one at a glance — it prints a `# fail` line, names a test, and exits non-zero. Check the shape of the run before reporting anything:
+    - **`node -v` FIRST — before reading a single line of failure output.** The shell's nvm
+      default here is **16**; this repo requires **22**. On Node 16 the suite builds and then dies
+      with `require() of ES Module .../execa/index.js not supported` — a run that NEVER STARTED,
+      which also exits non-zero and looks exactly like a red suite. `export NVM_DIR="$HOME/.nvm";
+      . "$NVM_DIR/nvm.sh"; nvm use 22`. This is documented in LEARNINGS (2026-08-10) and was still
+      rediscovered the hard way on 2026-08-23 — a handoff claimed "testem cannot launch in this
+      environment", which is false. Also invoke the local binary (`./node_modules/.bin/ember`):
+      under Node 22 `npx ember` resolves to the placeholder `ember` package, not ember-cli.
+    - **You cannot attribute a failure without a BASELINE.** Re-run the full suite with your change
+      reverted in the working tree. Identical pass/fail counts with DIFFERENT failing test names
+      means flaky, not a regression — this repo has a live async leak in `services/session.js`
+      (`token_validated` written after teardown) that charges a global failure to whichever test is
+      running. A real regression fails the SAME tests every time.
     - **`ember test`: check `# skip` first.** The skip count is near-constant (38 as of 2026-08-16) while the total drifts as tests are added, which makes skips the reliable tell. A complete run reports `# tests 2005 / # skip 38`; a truncated one reports the same `# skip` line with a much smaller number (0, 14 and 26 were all seen in one session) and a total well short of the baseline. The usual cause is `Browser timeout exceeded: 120s` — testem's `browser_disconnect_timeout` reaping a headless browser that went SILENT under machine load, not a slow test. The tell is that the named test differs every run and passes in isolation (`npx ember test --filter "<name>"`).
     - **Do not run a full suite while `ember serve` or browser probes are running.** That contention is the cause, and it wasted four runs in one session. Stop them, or accept the truncations.
     - **Do not "fix" it by raising `browser_disconnect_timeout` in `testem.js`.** The 120s is deliberate (`.github/workflows/ci.yml:126-129` wants a wedged runner to fail fast rather than burn the Actions ceiling), and CI is not affected — the Ember step has failed 0 of the last 30 `ci.yml` runs. If you need a patient run locally, wrap the repo config in a temp file outside the repo and pass `--config-file`; never commit the change.

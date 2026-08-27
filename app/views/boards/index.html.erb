@@ -1,3 +1,42 @@
+<%# Image preloads for the Ember shell, rendered into the layout's <head> via
+    `yield :head`. These MIRROR the <link rel="preload"> block in
+    app/frontend/app/index.html, which only ever applies under `ember serve` --
+    in production Rails serves this view, so without these the app shipped with
+    no image preloading at all and each of these images popped in the moment its
+    card first painted. Keep the two lists in sync when adding an image.
+
+    Paths are literal /images/... (not asset_path) because these live in
+    public/images and are served statically, unfingerprinted -- matching the
+    existing /images/LL_Logo_Light_Muted_favicon.png link in the layout.
+    config.action_controller.asset_host is not set, so there is no CDN prefix. %>
+<% content_for :head do %>
+  <%# Focused View hero images. Each card is display:none until Focused View is
+      active (and, for caseload, until it is the resolved hero), so the browser
+      would otherwise fetch + decode only as the card appears -- making the image
+      reveal top-down. Paired with decoding="sync" on the <img>. Only the WebP of
+      each pair is preloaded: any browser falling back to the PNG also ignores
+      this hint's type, and preloading both would double the bytes for one
+      displayed image. %>
+  <link rel="preload" as="image" href="/images/speak-circle-simple-dark.webp" type="image/webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="/images/caseload-dark.webp" type="image/webp" fetchpriority="high" />
+  <%# Focused View My Organizations illustration. A CSS background (not an <img>), so it
+      cannot take decoding="sync" and this preload is the whole fix -- the org card is
+      display:none until Focused View is active, so without it the browser would not start
+      the fetch until the card painted and the illustration would pop in afterwards. %>
+  <link rel="preload" as="image" href="/images/organizations-dark.webp" type="image/webp" fetchpriority="high" />
+  <%# ...and the per-organization TILE illustration inside that same card. %>
+  <link rel="preload" as="image" href="/images/organization-dark.webp" type="image/webp" fetchpriority="high" />
+  <%# Gentle View big-icon caseload card -- a CSS background-image, which cannot
+      take decoding="sync", so the preload fetch is the whole fix. %>
+  <link rel="preload" as="image" href="/images/caseload-light.png" type="image/png" fetchpriority="high" />
+  <%# Guided-tour welcome-card maps: CSS background-images injected into <body>
+      only at tour start. Both variants, because this template cannot branch on
+      the user's dashboard_layout. Not fetchpriority=high -- they are needed at
+      tour start, not first paint. %>
+  <link rel="preload" as="image" href="/images/tour-map-dark.png" type="image/png" />
+  <link rel="preload" as="image" href="/images/tour-map-light.png" type="image/png" />
+<% end %>
+
 <div id="audio"></div>
 
 <div id="ember-application-root"></div>
@@ -29,7 +68,13 @@
     primary/secondary text. Text dynamically switches at 3s for slower
     loads ("Still working… Large board sets…"). When Ember boots,
     app-state.js:586 removes this #loading_box element. %>
-<div id="loading_box" <% if crawler? %>style="display: none;"<% end %>>
+<%# The live region lives HERE, not only on .ll-skel-progress. The `.is-anonymous`
+    branch display:none's that progress card, and it carried the shell's ONLY
+    role="status" — so an anonymous visitor opening a shared board link, a lesson link
+    or /about (all served by boards#index) got a bare gradient and zero screen-reader
+    announcement for the entire bundle load. app/frontend/app/index.html:328 already
+    puts it here; the two shells had drifted. %>
+<div id="loading_box" role="status" aria-live="polite" aria-busy="true" <% if crawler? %>style="display: none;"<% end %>>
   <style>
     /* All inline — the Ember CSS bundle hasn't loaded yet. Brand palette
        hardcoded as hex/rgba so we don't depend on any @import or
@@ -49,7 +94,10 @@
     }
     #loading_box.is-fading { opacity: 0; pointer-events: none; }
 
-    /* Logout context — uses the EXACT compiled values from the
+    /* Signed-out context — applied both when LEAVING (logout) and when
+       arriving with no session at all. Either way there is no dashboard
+       to preview, so the skeleton's app chrome is suppressed in favour of
+       a landing-style backdrop. Uses the EXACT compiled values from the
        landing-alt page styles:
        - Page gradient: `#within_ember:has(#la-main) .la-wrapper`
          compiles to white → white → #F5F5F3 (the first two stones
@@ -58,16 +106,24 @@
          (0.12 honey-bronze, 0.09 teal). Positioned relative to the
          viewport center (where the progress card sits) so they read
          the same way as the hero card's glows on landing-alt. */
-    #loading_box.is-logout-context {
+    #loading_box.is-signed-out-context {
       background:
         radial-gradient(circle 420px at 75% 20%, rgba(242, 185, 90, 0.12) 0%, transparent 55%),
         radial-gradient(circle 360px at 25% 75%, rgba(78, 205, 196, 0.09) 0%, transparent 55%),
         linear-gradient(180deg, #FFFFFF 0%, #FFFFFF 50%, #F5F5F3 100%);
     }
-    #loading_box.is-logout-context .ll-skel-navbar,
-    #loading_box.is-logout-context .ll-skel-pillnav,
-    #loading_box.is-logout-context .ll-skel-hero,
-    #loading_box.is-logout-context .ll-skel-grid {
+    #loading_box.is-signed-out-context .ll-skel-navbar,
+    #loading_box.is-signed-out-context .ll-skel-pillnav,
+    #loading_box.is-signed-out-context .ll-skel-hero,
+    #loading_box.is-signed-out-context .ll-skel-grid {
+      display: none;
+    }
+    /* Anonymous arrival (no session, and not mid-logout): nothing is being
+       prepared for anybody yet, so "Preparing your workspace" is simply
+       untrue — the app is about to show the landing/login page. Drop the
+       progress card entirely and let the backdrop bridge the gap. Logout
+       keeps its card; it has real copy to deliver. */
+    #loading_box.is-anonymous .ll-skel-progress {
       display: none;
     }
 
@@ -459,22 +515,38 @@
 </div>
 
 <%# Context-aware progress card copy + 3s slow-load swap. Runs inline
-    so it executes immediately, before the Ember bundle. The
-    `lingolinq_auth_intent` flag is set by session.invalidate() right
-    before reload — when present, the card shows logout-appropriate
-    copy ("Signing you out…" / "See you soon") instead of the default
-    login copy. Flag is cleared after first read. %>
+    so it executes immediately, before the Ember bundle. Three first-paint
+    contexts:
+      logging out — `lingolinq_auth_intent` is set by session.invalidate()
+                    right before reload; the card shows logout copy
+                    ("Signing you out…" / "See you soon"). Flag is cleared
+                    after first read.
+      anonymous   — no stored session, so the app is heading for the
+                    landing/login page, not a workspace. Backdrop only,
+                    no progress card (see .is-anonymous above).
+      signed in   — the default dashboard skeleton + slow-load swap. %>
 <script>
   (function() {
     var t = document.getElementById('ll-skel-progress-title');
     var s = document.getElementById('ll-skel-progress-sub');
+    var box = document.getElementById('loading_box');
     var loggingOut = false;
+    // Fail SAFE: if storage is unreadable (private mode, a locked-down
+    // webview, a malformed stash) we cannot prove the visitor is
+    // anonymous, so assume a session and keep the existing skeleton.
+    // Mislabelling a signed-in user as anonymous is the worse error.
+    var signedIn = true;
     try {
-      if (window.localStorage && window.localStorage.getItem('lingolinq_auth_intent') === 'logging_out') {
-        loggingOut = true;
-        window.localStorage.removeItem('lingolinq_auth_intent');
+      if (window.localStorage) {
+        if (window.localStorage.getItem('lingolinq_auth_intent') === 'logging_out') {
+          loggingOut = true;
+          window.localStorage.removeItem('lingolinq_auth_intent');
+        }
+        // Same key utils/_stashes.js writes: prefix + 'auth_settings'.
+        var auth = window.localStorage.getItem('lingolinqStash-auth_settings');
+        signedIn = !!(auth && JSON.parse(auth).access_token);
       }
-    } catch (e) {}
+    } catch (e) { signedIn = true; }
 
     if (loggingOut) {
       if (t) { t.textContent = 'Signing you out…'; }
@@ -484,11 +556,19 @@
       // to the dashboard) and replaces it with a landing-alt-style
       // warm stone gradient + radial blobs that signals "leaving the
       // app", not "loading the dashboard".
-      var box = document.getElementById('loading_box');
-      if (box) { box.classList.add('is-logout-context'); }
+      if (box) { box.classList.add('is-signed-out-context'); }
       // No 3s "still working" swap for logout — the flow is fast (no
       // user fetch, no board data) so the initial copy carries the
       // user through to the login page.
+    } else if (!signedIn) {
+      // Anonymous arrival — same suppressed chrome as logout, but the
+      // progress card goes too (.is-anonymous): the app is heading for
+      // the landing/login page, so there is no workspace being prepared.
+      if (box) {
+        box.classList.add('is-signed-out-context');
+        box.classList.add('is-anonymous');
+      }
+      // No slow-load swap: there is no card on screen to swap.
     } else {
       // 3s slow-load swap softens perceived frustration when the
       // login → dashboard chain is taking a while (large board sets,

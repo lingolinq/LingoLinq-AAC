@@ -60,12 +60,18 @@ export default modal.ModalController.extend({
         });
       } else if(this.get('model.eval')) {
         app_state.set_speak_mode_user(board_for_user_id, false, false, 'obf/eval');
+      // "Set up THAT user" now opens the standalone board picker for the chosen
+      // communicator instead of the retired wizard. The picker mirrors setup's
+      // user_id / setup_user resolution (controllers/board-picker.js:10), so it is
+      // the same screen the wizard's board step used to show for that person.
+      // `user_id` stays null for 'self' so a self-selection opens the plain picker
+      // rather than a redundant ?user_id round-trip.
       } else if(this.get('model.setup')) {
-        var params = {page: null, user_id: null};
+        var params = {user_id: null};
         if(board_for_user_id != 'self') {
           params.user_id = board_for_user_id;
         }
-        this.router.transitionTo('setup', {queryParams: params});
+        this.router.transitionTo('board-picker', {queryParams: params});
       } else {
         app_state.set_speak_mode_user(board_for_user_id, jump_home, keep_as_self);
       }

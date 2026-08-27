@@ -16,6 +16,13 @@ import paint_view_switch_overlay from '../../utils/view_switch_overlay';
 import { sync_current_board_state as runBoardStateSync } from '../../utils/board_state_sync';
 import { reload_on_connect as runReloadOnConnect } from '../../utils/reload_on_connect';
 import { bg_class as computeBgClass, bg_style as computeBgStyle, bg_img_style as computeBgImgStyle } from '../../utils/board_background';
+import {
+  DEFAULT_CATEGORY_ORDER,
+  normalize_order as normalizeCategoryOrder,
+  category_for_key as categoryForKey,
+  label_for as categoryLabel,
+  swatch_for_category as swatchForCategory
+} from '../../utils/board_categories';
 import speecher from '../../utils/speecher';
 import utterance from '../../utils/utterance';
 import editManager from '../../utils/edit_manager';
@@ -54,18 +61,19 @@ const SPEAK_MENU_ITEMS = [
      `preferences.speak_mode_hidden_menu_items` arrays; that's
      harmless — the values are simply no longer referenced. */
   { id: 'board_collection',     section: 'board',     label_key: 'my_board_collection', default_label: 'My Board Collection' },
-  /* The view-mode rows restored in 3812ce5b6 / 72dabfe93. They were added
-     straight to the template, gated only on permission, which quietly made them
-     the only rows on this menu a user cannot hide — the customize panel is built
-     from THIS list, so an unlisted row simply never appears there. Anything added
-     to the options menu belongs here too. `set_as_home` is top-level; the other
-     four live in the Board Actions submenu and are listed individually, matching
-     how the Share & Print rows are handled. */
+  /* Restored to view mode in 3812ce5b6 and listed here because the customize
+     panel is built from THIS list — a row rendered in the options menu but absent
+     here is one the user cannot hide, which is how these shipped at first.
+
+     `set_as_home` is the only one left. The other four — board_details,
+     toggle_favorite, add_to_sidebar, other_board_actions — were added alongside it
+     in a "Board Actions" submenu (72dabfe93) and that submenu has been removed
+     again; they are edit-panel actions and belong there. Their ids are dropped
+     rather than kept: an id listed here with nothing rendering it is a Customize
+     Menu row that toggles the visibility of nothing. A user who had already hidden
+     one keeps the value in `preferences.speak_mode_hidden_menu_items`, which is
+     harmless in the same way the legacy `my_boards` / `find_boards` ids above are. */
   { id: 'set_as_home',          section: 'board',     label_key: 'set_as_home_board', default_label: 'Set as Home Board' },
-  { id: 'board_details',        section: 'board',     label_key: 'board_details', default_label: 'Board Details' },
-  { id: 'toggle_favorite',      section: 'board',     label_key: 'set_as_favorite', default_label: 'Set as Favorite' },
-  { id: 'add_to_sidebar',       section: 'board',     label_key: 'add_to_sidebar', default_label: 'Add to Sidebar' },
-  { id: 'other_board_actions',  section: 'board',     label_key: 'other_actions', default_label: 'Other Actions' },
   { id: 'find_button',          section: 'buttons',   label_key: 'find_a_button', default_label: 'Find a Button' },
   { id: 'focus_words',          section: 'buttons',   label_key: 'focus_words', default_label: 'Focus Words' },
   { id: 'show_hidden_buttons',  section: 'buttons',   label_key: 'show_all_buttons', default_label: 'Show Hidden Buttons' },
@@ -114,10 +122,6 @@ function _customize_menu_i18n_extractor_no_op() {
   // Items (SPEAK_MENU_ITEMS)
   i18n.t('my_board_collection', "My Board Collection");
   i18n.t('set_as_home_board', "Set as Home Board");
-  i18n.t('board_details', "Board Details");
-  i18n.t('set_as_favorite', "Set as Favorite");
-  i18n.t('add_to_sidebar', "Add to Sidebar");
-  i18n.t('other_actions', "Other Actions");
   i18n.t('find_a_button', "Find a Button");
   i18n.t('focus_words', "Focus Words");
   i18n.t('show_all_buttons', "Show Hidden Buttons");
@@ -134,6 +138,10 @@ function _customize_menu_i18n_extractor_no_op() {
 
 export default Controller.extend(prefClasses, {
   app_state: service('app-state'),
+  /* Session-wide dismissal of the screen-recommendation overlays, shared with
+     create-board-new and the Display Style step so "Continue Anyway" here silences the
+     same message everywhere for the session. */
+  overlay_dismissals: service('overlay-dismissals'),
   stashes: service('stashes'),
   router: service('router'),
   persistence: service('persistence'),
@@ -192,8 +200,41 @@ export default Controller.extend(prefClasses, {
    *  still falls back to parent_board_key as a safety net if it
    *  ever gets fired without history, but the button itself won't
    *  render in that case. */
+  /* Category ORDERING — the ordered list with the move arrows, and the Reset order button
+     that goes with it — is parked as a future feature: the packing decides placement in
+     compact mode and the ordering UI needs its own pass before it earns the space. Kept as
+     one named flag rather than commenting the markup out, so bringing it back is a single
+     `true` and the template still reads as one arrangement. The stored order itself is
+     untouched and still drives the panel layout when scrolling is on. */
+  category_ordering_available: false,
+
   show_board_back_nav: computed('board_detail_history.[]', function() {
     return (this.get('board_detail_history') || []).length > 0;
+  }),
+
+  /* "Try this Board" from the board picker sets app_state.board_detail_try_origin.
+     While it is set AND names the board actually on screen, board-detail offers a
+     prominent way back to the picker.
+
+     Matched on KEY rather than treated as a bare boolean, deliberately: a user who
+     tries a board and then navigates deeper (into a folder, or to another board
+     entirely) is no longer "trying" the thing they came to try, and a Back button
+     that silently returns them to the picker from three boards away would be a
+     trap. The marker is cleared outright when they leave board-detail -- see the
+     route's resetController. */
+  try_origin_board: computed(
+    'app_state.board_detail_try_origin',
+    'user.user_name',
+    'boardname',
+    function() {
+      var origin = this.get('app_state.board_detail_try_origin');
+      if(!origin || !origin.key) { return null; }
+      var here = (this.get('user.user_name') || '') + '/' + (this.get('boardname') || '');
+      return origin.key === here ? origin : null;
+    }
+  ),
+  show_try_back_nav: computed('try_origin_board', function() {
+    return !!this.get('try_origin_board');
   }),
   sentence_parts: null,
   recent_phrases: computed('app_state.board_detail_recent_phrases.[]', function() {
@@ -306,7 +347,6 @@ export default Controller.extend(prefClasses, {
   // Top-level expandable section state inside the options dropdown.
   // Each section starts collapsed; toggled by the matching
   // `toggle_<x>_submenu` action.
-  board_submenu_open: false,
   buttons_submenu_open: false,
   display_submenu_open: false,
   share_print_submenu_open: false,
@@ -327,6 +367,28 @@ export default Controller.extend(prefClasses, {
      opens. Rendered in the drawer's "Original Selected Board" section so the user can jump
      back to where they started while previewing other boards. Cleared when the drawer closes. */
   edit_collection_original_board: null,
+  /* Edit-mode "Categorize" panel. Opened from the edit rail between Board Actions
+     and Search & Filter. Like the Board Collections drawer it takes the rail's
+     place (CSS via md-shell--category-order), but expands to the FULL page width
+     rather than a fixed drawer, because its whole purpose is to preview the
+     board's buttons grouped into their categories at real size while the order is
+     rearranged. */
+  category_order_open: false,
+  /* Closes the Categorize takeover whenever edit mode ends — Done, Cancel, browser Back,
+     Android Back, a session-expiry redirect, anything. An observer rather than a patch in
+     cancel_edit/save_board because those are two of many exits, and the ones that bit
+     here (Back) go through none of them. The template also gates on edit_mode, so this is
+     belt-and-braces: it clears the STATE, the gate stops the RENDER. */
+  _close_category_panel_on_edit_exit: observer('edit_mode', function() {
+    if(!this.get('edit_mode') && this.get('category_order_open')) {
+      this.set('category_order_open', false);
+      this.set('category_move_button', null);
+    }
+  }),
+  /* The button whose "move to category" picker is open in the Categorize panel,
+     or null. Holding the button (not just its id) keeps its label available for
+     the picker heading without a second lookup. */
+  category_move_button: null,
   sidebar_editor_open: false,
   show_paint_dropdown: false,
   show_options_menu: false,
@@ -1210,17 +1272,36 @@ export default Controller.extend(prefClasses, {
   // Also records recent-phrase history for the board-detail UI.
   _speak_current_sentence: function() {
     var list = this.get('app_state.button_list') || [];
+    var parts = this.get('sentence_parts') || [];
     var speakable = false;
+    var counted = 0;
     for(var i = 0; i < list.length; i++) {
       var b = list[i];
       if(!b || emberGet(b, 'ghost') || emberGet(b, 'hint')) { continue; }
+      counted++;
       if(emberGet(b, 'sound') || emberGet(b, 'inline_content') ||
          emberGet(b, 'vocalization') || emberGet(b, 'label')) {
         speakable = true;
-        break;
       }
     }
-    if(speakable) {
+    /*
+     * `vocalize_list` speaks the GLOBAL utterance, and the bar can be showing more than
+     * that. `sentence_parts` is a superset: the mirror from `app_state.button_list` is
+     * add-only (see `_sync_sentence_from_global`), and local-only sources — quick phrases,
+     * completions, Phrase Builder — push straight into it and never reach the global list.
+     *
+     * The all-local case was already handled, via the `speakable` flag falling false and the
+     * TTS fallback below. The MIXED case was not, and it is the one a user hits: tap a board
+     * button, then add a word from Phrase Builder, and the bar reads "Like good" while
+     * `vocalize_list` says only "Like" — measured exactly that. The bar showing one thing and
+     * the device saying another is about the worst failure this app has.
+     *
+     * So the global path is used only when it is COMPLETE — as many real entries as the bar
+     * has chips. Otherwise fall through to TTS of the whole bar, which says everything at the
+     * cost of any per-button sounds for that one utterance. (Counting rather than breaking
+     * early is why the loop above no longer stops at the first speakable entry.)
+     */
+    if(speakable && counted >= parts.length) {
       // Matches application.vocalize → vocalize_list (sounds + TTS + clear_on_vocalize).
       utterance.vocalize_list(null, {});
     } else {
@@ -1621,6 +1702,15 @@ export default Controller.extend(prefClasses, {
         boardDetailCache.set_ordered_buttons(cache_token, result, cache_ctx);
       }
     }
+
+    /* Re-baseline the record's dirty attributes now that the build is done.
+       Building a board WRITES `translations` / `buttons` / `translated_locales` onto the
+       record (above), so it is dirty before the user has touched anything — measured on a
+       freshly opened editor. "Exit to Home" tells a clean edit session from a dirty one by
+       comparing against this, so it has to be taken AFTER the build, not when the edit route
+       sets up: there the record is still clean and the baseline came out empty, which made
+       every session look changed. */
+    _this.capture_edit_baseline();
   },
 
   _translation_entry_from_raw: function(translations, button_id, locale) {
@@ -1686,7 +1776,21 @@ export default Controller.extend(prefClasses, {
     }
     return {
       label: label || '',
-      vocalization: vocalization || ''
+      vocalization: vocalization || '',
+      /* The LAST rule above replaces the vocalization with the label whenever the two
+         locales match and nothing else claimed it — which includes a special action like
+         `:suggestion`, so by the time anything downstream reads this button the only mark
+         that it is a word-prediction SLOT is gone. (`board.js#translated_buttons` guards
+         the same assignment with `has_special_vocalization`; this one does not. Left
+         alone here: changing what a button vocalizes changes what it SAYS, which is not
+         this change's business.) Carried as a separate flag so the grid can group these
+         three cells as Predictions instead of filing them by colour with the Connectors,
+         and so nothing about activation moves. */
+      suggestion_slot: btn.vocalization === ':suggestion',
+      /* The button's label in the board's OWN source locale — `label` above is already
+         localized. `category_for_button` files YES and TIME off this, so translating a
+         board cannot move a button between categories. */
+      base_label: btn.label
     };
   },
 
@@ -1957,6 +2061,14 @@ export default Controller.extend(prefClasses, {
         return window.tinycolor.mostReadable(btn.background_color, ['#fff', '#000']).toRgbString();
       })(),
       level_modifications: btn.level_modifications,
+      /* A word-prediction SLOT. Carried as a flag of its own because the thing that
+         identifies it does not survive to the grid: by render time the slot has been
+         dressed as the word it is currently offering, so its label is the prediction and
+         the `:suggestion` vocalization is gone. Without this `category_for_button` sees an
+         ordinary white word button and files it by colour, which on the core boards puts
+         three cells that change under the user in the middle of the Connectors. */
+      suggestion_slot: (btn.vocalization === ':suggestion') || !!btn.suggestion_slot,
+      base_label: btn.base_label != null ? btn.base_label : btn.label,
       empty: !(btn.label || btn.image_id)
     };
   },
@@ -1983,6 +2095,13 @@ export default Controller.extend(prefClasses, {
     // it (Button.create doesn't reliably propagate it — same reason the level path in
     // edit_manager sets it explicitly).
     button.set('hide_label', !!btn.hide_label);
+    /* Set explicitly for exactly the reason `hide_label` above is: `Button.create` does not
+       reliably carry a plain field through. Without it the word-prediction slots group by
+       their (white) colour in EDIT mode and land in Connectors, while the speak-mode copy —
+       which builds a plain object and so keeps the field — puts them in Predictions. Two
+       makers, one rule; both have to say it. */
+    button.set('suggestion_slot', !!btn.suggestion_slot);
+    button.set('base_label', btn.base_label != null ? btn.base_label : btn.label);
     if(btn.background_color && window.tinycolor) {
       button.set('border_color', window.tinycolor(btn.background_color).darken(20).toRgbString());
     }
@@ -2389,6 +2508,8 @@ export default Controller.extend(prefClasses, {
   }),
 
   retrying: false,
+  // The error state's HEADING — the plain statement of what happened. Rendered as
+  // the <h2>; `error_detail` below carries the explanation.
   error_message: computed('model.id', 'model.error', 'persistence.online', function() {
     if(this.get('model.id')) { return null; }
     if(this.persistence && this.persistence.get('online')) {
@@ -2396,6 +2517,20 @@ export default Controller.extend(prefClasses, {
     } else {
       return i18n.t('error_no_local', "This board is not available offline.");
     }
+  }),
+  // The explanation under the heading. The route cannot tell these causes apart —
+  // a 404, a permission change and a dropped connection all reject identically —
+  // so this names the realistic possibilities instead of asserting one. The online
+  // copy is deliberately non-alarming: the most common cause is a transient
+  // failure during the login burst (which the route now retries once), and
+  // nothing else about the account is affected. Saying so stops a momentary
+  // network blip reading as "my boards are gone".
+  error_detail: computed('model.id', 'model.error', 'persistence.online', function() {
+    if(this.get('model.id')) { return null; }
+    if(this.persistence && this.persistence.get('online')) {
+      return i18n.t('board_error_detail', "It may have been renamed, moved, or deleted — or the connection dropped while it was loading. Nothing else on your account is affected.");
+    }
+    return i18n.t('board_error_offline_detail', "You are not connected right now, and this board is not saved on this device yet. Reconnect to open it, or choose a board you have already saved.");
   }),
   /* Broken-board recovery: Home when the referenced communicator (or
      current user) has a home board or a session entry board to land on. */
@@ -3283,12 +3418,96 @@ export default Controller.extend(prefClasses, {
     skin:                 'preferences.skin'
   },
 
-  folder_labels_on_tab: computed('folder_display_style', function() {
-    return this.get('folder_display_style') === 'tab_labels';
+  /* Is category grouping actually in force for this user? Flag AND preference — the
+     preference alone is meaningless when the feature is not deployed. */
+  grouping_active: computed('app_state.feature_flags.board_category_grouping', 'categorize_enabled', function() {
+    return !!this.get('app_state.feature_flags.board_category_grouping') && !!this.get('categorize_enabled');
   }),
 
-  folder_colored_corner: computed('folder_display_style', function() {
-    return this.get('folder_display_style') === 'colored_corner';
+  /* Category grouping already communicates a button's category through its PANEL, and
+     the folder treatments (tab labels especially) compete with that — two different
+     colour/label systems on the same cell. So while grouping is on the folder style is
+     pinned to Colored Corner.
+
+     DERIVED, never written: the user's stored `folder_display_style` is left untouched,
+     so turning grouping back off restores whatever they had chosen rather than silently
+     rewriting their preference to a value they never picked. */
+  effective_folder_display_style: computed('folder_display_style', 'grouping_active', function() {
+    if(this.get('grouping_active')) { return 'colored_corner'; }
+    return this.get('folder_display_style');
+  }),
+
+  folder_labels_on_tab: computed('effective_folder_display_style', function() {
+    return this.get('effective_folder_display_style') === 'tab_labels';
+  }),
+
+  folder_colored_corner: computed('effective_folder_display_style', function() {
+    return this.get('effective_folder_display_style') === 'colored_corner';
+  }),
+
+  /* Two sub-preferences of board_category_grouping. Both read `!== false` so an ABSENT
+     key means ON — they describe what the grouped board already did before they existed,
+     so a user whose stored hash predates them keeps today's rendering.
+
+     Read from `referenced_user`, matching grouping_active and _save_category_grouping:
+     when a supervisor models for a communicator these belong to THAT communicator, and
+     read and write must resolve the same account or the panel would describe one user
+     and persist to another. */
+  /*
+   * The grouping settings IN FORCE FOR THIS BOARD.
+   *
+   * `preferences.board_category_grouping` holds the user's default; `….boards[<board id>]`
+   * holds a per-board override in the same shape. A board with no entry uses the default,
+   * so nothing changes for boards nobody has configured.
+   *
+   * Keyed on the board's GLOBAL ID, not its key: a key is `owner/slug` and changes when
+   * the board is renamed or the owner changes username, which would silently orphan the
+   * settings. The id does not move.
+   *
+   * One resolver, and every consumer below reads it — the switch, the sub-options, the
+   * order list and the save all have to agree about which board they are describing.
+   */
+  /* Which entry in `boards` describes THIS board.
+     By KEY (`username/board-slug`), because a global_id is stable only within one
+     database — the same seeded board has a different id on local, staging and production,
+     so an id-keyed override silently stopped applying the moment it crossed environments.
+     The id is still read as a FALLBACK for entries written before the switch. */
+  _board_category_ref: function() {
+    var all = this.get('app_state.referenced_user.preferences.board_category_grouping') || {};
+    var boards = all.boards || {};
+    var key = this.get('model.key');
+    if(key && boards[key]) { return { ref: key, entry: boards[key] }; }
+    var id = this.get('model.id');
+    if(id && boards[id]) { return { ref: id, entry: boards[id], legacy: true }; }
+    return { ref: key || id || null, entry: null };
+  },
+
+  board_category_settings: computed(
+    'model.id',
+    'model.key',
+    'app_state.referenced_user.preferences.board_category_grouping',
+    function() {
+      var all = this.get('app_state.referenced_user.preferences.board_category_grouping') || {};
+      return this._board_category_ref().entry || all;
+    }
+  ),
+
+  category_names_visible: computed('board_category_settings', function() {
+    return (this.get('board_category_settings') || {}).show_category_names !== false;
+  }),
+  category_vertical_scroll: computed('board_category_settings', function() {
+    return (this.get('board_category_settings') || {}).vertical_scroll !== false;
+  }),
+
+  /* What the GRID is told. Both only mean anything while grouping is in force, so they
+     are ANDed with grouping_active here rather than in the template or the component —
+     one place to reason about, and the ungrouped board is provably unaffected (the
+     ungrouped grid has no category headers and no scroll container of its own). */
+  show_category_names: computed('grouping_active', 'category_names_visible', function() {
+    return !!this.get('grouping_active') && this.get('category_names_visible');
+  }),
+  category_scroll_enabled: computed('grouping_active', 'category_vertical_scroll', function() {
+    return !!this.get('grouping_active') && this.get('category_vertical_scroll');
   }),
 
   // Map of speak-menu item id → true for items the user has hidden.
@@ -3316,23 +3535,12 @@ export default Controller.extend(prefClasses, {
   _close_options_menu: function() {
     this.setProperties({
       show_options_menu: false,
-      board_submenu_open: false,
       share_print_submenu_open: false,
       display_submenu_open: false,
       buttons_submenu_open: false,
       language_submenu_open: false
     });
   },
-
-  /* False once every child of the Board Actions submenu is hidden in Customize
-     Menu, so the disclosure toggle disappears with them rather than opening onto
-     an empty panel. Keep this list in step with the four `{{#unless}}` gates in
-     board-detail.hbs — they are the same four ids. */
-  board_submenu_has_visible_items: computed('speak_menu_hidden_set', function() {
-    var hidden = this.get('speak_menu_hidden_set') || {};
-    return ['board_details', 'toggle_favorite', 'add_to_sidebar', 'other_board_actions']
-      .some(function(id) { return !hidden[id]; });
-  }),
 
   // Pre-shaped list for the right-panel "Customize Menu" template.
   // Walks SPEAK_MENU_ITEMS, groups by section, and returns:
@@ -3412,7 +3620,19 @@ export default Controller.extend(prefClasses, {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.light_dark_mode;
   }),
-  speak_section_visible_share: computed('speak_menu_hidden_set', function() {
+  speak_section_visible_share: computed('speak_menu_hidden_set', 'is_communicator_only_account', function() {
+    // Share & Print holds authoring/export tools: Copy, Download, Print, Share. Every one
+    // of them acts on the BOARD as a document — duplicating it, handing it to another
+    // account, putting it on paper — and none of them says anything. Hidden on a
+    // communicator-only account (see is_communicator_only_account), the same gate the
+    // Board and Session sections already carry, so the whole options menu treats
+    // "supervisor-oriented" the one way.
+    //
+    // The SECTION, not a row or two: the four are one idea, and leaving Copy and Download
+    // under a header that reads "Share & Print" would be a section named after the two
+    // things it no longer offers. Shown as before for supporters and while a supervisor
+    // is actively modeling.
+    if(this.get('is_communicator_only_account')) { return false; }
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.copy || !s.download || !s.print || !s.share;
   }),
@@ -3558,6 +3778,70 @@ export default Controller.extend(prefClasses, {
     return this.get('borders_matched') || this.get('board_recolored');
   }),
 
+  /* Snapshot of which board-record attributes were ALREADY dirty when the edit page opened,
+     as `{attr: JSON of its current value}`. Captured by the edit route's setupController.
+
+     A baseline is needed because the record is dirty before the user does anything: opening
+     the editor leaves `translations`, `buttons` and `translated_locales` changed (measured).
+     Comparing VALUES rather than just key names matters too — `edit-board-details` writes
+     `model.translations`, which is one of the three, so a key-only baseline would mask it. */
+  _edit_dirty_baseline: null,
+
+  capture_edit_baseline: function() {
+    var base = {};
+    try {
+      var model = this.get('model');
+      var changed = (model && model.changedAttributes) ? model.changedAttributes() : {};
+      Object.keys(changed).forEach(function(k) {
+        base[k] = JSON.stringify(changed[k][1]);
+      });
+    } catch(e) {
+      base = null;   // unknown -> `edit_session_has_changes` treats it as "there are changes"
+    }
+    this.set('_edit_dirty_baseline', base);
+  },
+
+  /*
+   * Would leaving edit mode right now LOSE anything?
+   *
+   * A METHOD, not a computed: `changedAttributes()` is not observable, so a computed would
+   * cache a stale answer. It is read on a click, which is cheap.
+   *
+   * Assembled from every vector `cancel_edit` rolls back, because no single flag is that set:
+   *
+   *   noUndo                   - the edit history. `editManager.update_history` writes it onto
+   *                              this controller. Covers button edits (button-settings goes
+   *                              through `editManager.change_button`), grid resizes, swaps and
+   *                              paint — all of which call `save_state`.
+   *   board_recolored          - a recolour does NOT enter the undo stack; that is exactly why
+   *   borders_matched            `undo_redo_disabled` turns undo OFF while either is pending.
+   *   record attributes        - `edit-board-details` sets `model.name` / `translations` /
+   *                              `categories` straight on the record and never saves, so it
+   *                              leaves no undo entry at all. Compared against the baseline
+   *                              above, since the record is dirty from load.
+   *
+   * Every term errs the same way: unsure means "there are changes", which costs a confirm
+   * dialog. The opposite mistake costs the user their work.
+   */
+  edit_session_has_changes: function() {
+    if(!this.get('noUndo')) { return true; }
+    if(this.get('board_recolored') || this.get('borders_matched')) { return true; }
+    var base = this.get('_edit_dirty_baseline');
+    if(!base) { return true; }
+    var changed;
+    try {
+      var model = this.get('model');
+      changed = (model && model.changedAttributes) ? model.changedAttributes() : {};
+    } catch(e) { return true; }
+    var keys = Object.keys(changed);
+    for(var i = 0; i < keys.length; i++) {
+      var now;
+      try { now = JSON.stringify(changed[keys[i]][1]); } catch(e) { return true; }
+      if(base[keys[i]] !== now) { return true; }
+    }
+    return false;
+  },
+
   // Button text preferences from user device settings
   button_text_size_class: computed('app_state.referenced_user.preferences.device.button_text', function() {
     var size = this.get('app_state.referenced_user.preferences.device.button_text') || 'medium';
@@ -3700,10 +3984,12 @@ export default Controller.extend(prefClasses, {
   //   • >6 columns → gate at ≤460px
   //   • >4 columns → gate at ≤375px
   portrait_overlay_dismissed: false,
-  // Sticky for the whole session: set once the user chooses "Continue Anyway"
-  // so the rotate-to-landscape prompt is never shown again this session, even
-  // when they navigate to other boards. Only a full app reload clears it.
-  portrait_overlay_session_dismissed: false,
+  // The session-wide latch moved to `service:overlay-dismissals`
+  // (`larger_screen_dismissed`). It used to be a controller property, which made it
+  // sticky across BOARDS but not across PAGES — the same recommendation still appeared
+  // on other routes after the user had already said "Continue Anyway". The service is
+  // shared by every site that shows it. `portrait_overlay_dismissed` below stays local
+  // because it is the PER-BOARD arm-state, which is a different thing.
   quick_actions_open: false,
   // Live-measured rendered button width, published by _sync_prediction_tile_size.
   board_cell_width: 0,
@@ -3734,11 +4020,14 @@ export default Controller.extend(prefClasses, {
     return false;
   }),
 
-  // The actual "show the card now" gate — eligible AND the user hasn't
-  // dismissed it. The first dismissal is scoped to the current board; once
-  // they pick "Continue Anyway", `portrait_overlay_session_dismissed` keeps
-  // `portrait_overlay_dismissed` latched across board changes for the session.
-  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'board_collection_open', 'edit_board_collection_open', function() {
+  // The actual "show the card now" gate — eligible AND the user hasn't dismissed it.
+  // `portrait_overlay_dismissed` is the per-board arm-state; once they pick "Continue
+  // Anyway", the service's `larger_screen_dismissed` suppresses it for the rest of the
+  // session everywhere in the app, and keeps the per-board flag from re-arming.
+  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'overlay_dismissals.larger_screen_hidden', 'board_collection_open', 'edit_board_collection_open', function() {
+    // Hidden because the user turned the helper messages off in Preferences, or because
+    // they chose "Continue Anyway" anywhere in the app this session.
+    if(this.get('overlay_dismissals.larger_screen_hidden')) { return false; }
     // Either Board Collections drawer (speak-mode right / edit-mode left) intentionally
     // shrinks the center board area (layout padding), which drops the live-measured
     // board_cell_width below the 35px signal and FALSE-triggers the larger-screen
@@ -3764,7 +4053,7 @@ export default Controller.extend(prefClasses, {
   // suppressed for the rest of the session. The quick-actions popover always
   // closes on a board change regardless.
   _reset_portrait_overlay_on_board_change: observer('model.id', function() {
-    if(!this.get('portrait_overlay_session_dismissed')) {
+    if(!this.get('overlay_dismissals.larger_screen_hidden')) {
       this.set('portrait_overlay_dismissed', false);
     }
     this.set('quick_actions_open', false);
@@ -5297,7 +5586,361 @@ export default Controller.extend(prefClasses, {
     return true;
   },
 
+  /* The category sequence shown in the Categorize panel, in the user's order.
+     Reads through the shared registry so the panel and the rendered board can
+     never disagree about which categories exist or what they are called
+     (utils/board_categories.js). `first`/`last` drive the disabled state of the
+     move controls — a disabled control is clearer than one that silently no-ops
+     at the ends of the list. */
+  category_order_list: computed(
+    'board_category_settings',
+    function() {
+      var order = normalizeCategoryOrder((this.get('board_category_settings') || {}).order);
+      return order.map(function(key, idx) {
+        var cat = categoryForKey(key);
+        return {
+          key: key,
+          label: categoryLabel(key),
+          fillVar: cat && cat.fillVar,
+          textVar: cat && cat.textVar,
+          position: idx + 1,
+          first: idx === 0,
+          last: idx === order.length - 1
+        };
+      });
+    }
+  ),
+
+  /* Has the user actually reordered anything?
+
+     Reset used to sit beside Done unconditionally, so on a board nobody had reordered it
+     was a prominent button that did nothing — and it competed with Done for the same
+     corner. Compared against DEFAULT_CATEGORY_ORDER through the same normalizer the panel
+     renders from, so a stored order that merely predates a new category key (and is
+     backfilled to the default by normalize_order) still counts as unchanged. */
+  category_order_changed: computed(
+    'board_category_settings',
+    function() {
+      var order = normalizeCategoryOrder((this.get('board_category_settings') || {}).order);
+      if(order.length !== DEFAULT_CATEGORY_ORDER.length) { return true; }
+      for(var i = 0; i < order.length; i++) {
+        if(order[i] !== DEFAULT_CATEGORY_ORDER[i]) { return true; }
+      }
+      return false;
+    }
+  ),
+
+  /* Destinations the move picker may offer. A category is a COLOUR here — the move is
+     performed by painting — so a category with no paintable type (`controls`, `extra`,
+     whose `types: []` makes swatch_for_category return null) cannot be a destination:
+     move_button_to_category bailed and closed the dialog with no change and no message,
+     so two of the twelve offered destinations were dead controls. Ordering still comes
+     from category_order_list, so the picker matches the panel. */
+  category_move_targets: computed('category_order_list.[]', function() {
+    return (this.get('category_order_list') || []).filter(function(cat) {
+      return cat && swatchForCategory(cat.key);
+    });
+  }),
+
+  /* The user's INTENT for the Categorize switch while a toggle is being applied.
+     `null` means nothing is pending and the switch simply mirrors the stored value.
+
+     WHY THIS EXISTS: `categorize_enabled` feeds `grouping_active`, which re-renders the
+     WHOLE board grid — every card's style, layout, paint and symbol <img>. Profiled at
+     ~350ms of blocked main thread on a fast desktop and ~2.4s at 4x CPU throttle, and it
+     scales with board size, so on a real tablet it runs into seconds. Nothing repaints
+     while that runs — INCLUDING the switch — so the control looked broken and users
+     clicked it again. (The click, the action and the save were never the problem: the
+     native checkbox flips instantly and the PUT returns in ~0.2s.)
+
+     An optimistic flag alone would NOT have helped: the pill already updated in the same
+     tick and was blocked by the same render pass. The deferral below is the part that
+     matters. */
+  categorize_intent: null,
+
+  /* What the SWITCH paints: the pending intent if there is one, else the stored value.
+     Only the pill, the state word and the checkbox read this — never `grouping_active`,
+     or we would be right back to painting and regrouping in one pass. */
+  categorize_switch_on: computed('categorize_intent', 'categorize_enabled', function() {
+    var intent = this.get('categorize_intent');
+    if(intent === null || intent === undefined) { return this.get('categorize_enabled'); }
+    return !!intent;
+  }),
+
+  /* True only while the switch is showing something the preview has not caught up to. */
+  categorize_preview_loading: computed('categorize_intent', 'categorize_enabled', function() {
+    var intent = this.get('categorize_intent');
+    if(intent === null || intent === undefined) { return false; }
+    return !!intent !== !!this.get('categorize_enabled');
+  }),
+
+  categorize_enabled: computed('board_category_settings', function() {
+    // Must use the SAME test as BoardDetailGrid#groupingEnabled (`=== true`), or the
+    // Categorize switch reads On while the board it describes is ungrouped.
+    return (this.get('board_category_settings') || {}).enabled === true;
+  }),
+
+  /* Persist the grouping preference. Follows the documented 3-touch idiom: the
+     nested set alone does not reliably mark the raw `preferences` attr dirty, so
+     `preferences.device.updated` is poked before save or ember-data may never
+     ship the change (see LEARNINGS "a new user preference is a 3-touch change").
+     Writes the WHOLE sub-hash so enabled and order always move together. */
+  _save_category_grouping: function(changes) {
+    /* Write to the user the board is FOR — see the note in board-detail-grid.js. A
+       supervisor modelling for a communicator changes THAT communicator's setting; on
+       their own board they change their own. Read and write must resolve the same user
+       or the switch would describe one account and persist to another. */
+    var user = this.get('app_state.referenced_user');
+    if(!user || !user.set) { return; }
+    var all = user.get('preferences.board_category_grouping') || {};
+    /* Read from, and write back to, the SAME place the resolver reads (see
+       `_board_category_ref`): the per-board entry when this board has one, the user
+       default otherwise. Without this the panel would describe one board's settings and
+       persist them over every board's. */
+    var ref = this._board_category_ref();
+    var board_key = this.get('model.key');
+    var board_id = this.get('model.id');
+    /* Write under the KEY, whatever was read. A board whose settings were stored against
+       its id is migrated on its next save — the legacy entry is dropped below so the two
+       cannot drift apart and disagree about the same board. */
+    var write_ref = board_key || board_id;
+    var current = ref.entry || all;
+    var next = {
+      /* `=== true`, matching groupingEnabled. With `!== false` an ABSENT preference read
+         as enabled, so saving an order-only change (a move arrow, or Reset order)
+         silently turned grouping ON for a user who had never opted in. */
+      enabled: changes.enabled === undefined ? (current.enabled === true) : !!changes.enabled,
+      order: changes.order || normalizeCategoryOrder(current.order),
+      /* Sub-preferences MUST be carried through every save. This object REPLACES the
+         stored hash wholesale, so a key omitted here is dropped — toggling Categorize
+         would silently reset the user's category-name and scrolling choices. The server
+         sanitizer rebuilds the hash the same way and has the matching echo
+         (user.rb#sanitize_board_category_grouping!).
+
+         `!== false` here, NOT `=== true`: absent means TRUE for these two, because both
+         describe what the grouped board already does (headers render, grid scrolls). The
+         `enabled` flag above is the opposite — absent means OFF — because turning
+         grouping on for someone who never asked is a clinical change, whereas keeping
+         today's rendering is the safe default. Same reasoning as the Rails defaults. */
+      show_category_names: changes.show_category_names === undefined
+        ? (current.show_category_names !== false)
+        : !!changes.show_category_names,
+      vertical_scroll: changes.vertical_scroll === undefined
+        ? (current.vertical_scroll !== false)
+        : !!changes.vertical_scroll
+    };
+    /* Write into the board's own slot, leaving the user default and every other board's
+       entry untouched. The whole hash is replaced (that is what makes the sub-key echo
+       below necessary), so `boards` has to be rebuilt here rather than mutated in place. */
+    var boards = {};
+    Object.keys(all.boards || {}).forEach(function(k) { boards[k] = all.boards[k]; });
+    var previous = user.get('preferences.board_category_grouping');
+    var written;
+    if(write_ref) {
+      boards[write_ref] = next;
+      /* Retire the id-keyed entry this board used to be stored under, now that the same
+         settings live under its key. Left in place it would be a second description of
+         one board that the resolver never reads again. */
+      if(ref.legacy && ref.ref && ref.ref !== write_ref) { delete boards[ref.ref]; }
+      written = {
+        enabled: all.enabled === true,
+        order: normalizeCategoryOrder(all.order),
+        show_category_names: all.show_category_names !== false,
+        vertical_scroll: all.vertical_scroll !== false,
+        boards: boards
+      };
+    } else {
+      /* NO BOARD REFERENCE -> WRITE NOTHING. This used to fall back to writing the USER
+         DEFAULT ("so the control still does something"), which is the wrong failure
+         direction and was the actual cause of categories switching themselves on:
+
+           `write_ref` is `board_key || board_id`, and this save runs inside a double
+           requestAnimationFrame (see toggle_categorize). If the model is not resolved at
+           that moment — mid-transition, a board still loading — both are null, so a toggle
+           meant for ONE board silently rewrote `preferences.board_category_grouping.enabled`
+           at the TOP LEVEL. `board_category_settings` falls back to that top level for every
+           board WITHOUT an override, so one mistimed toggle turned grouping on for the whole
+           account: every board the user opened afterwards came up categorised, including
+           boards they had never touched and boards reached via "Try this Board".
+           (Observed: an account with top-level `enabled: true` and an EMPTY `boards` map —
+           the signature of this path rather than a normal per-board write.)
+
+         Grouping MOVES vocabulary out of the cells a communicator has motor memory for, so
+         the account-wide default must only ever change through a deliberate act on a real
+         board. If we cannot tell which board this is, the correct outcome is to do nothing. */
+      console.error('board-detail: ignoring a Categorize change with no board reference — ' +
+                    'refusing to write the account-wide default');
+      return;
+    }
+    user.set('preferences.board_category_grouping', written);
+    /* `preferences.device` may not exist on the record — setting a nested path through a
+       missing object throws "object in path could not be found", which would abort this
+       handler AFTER the local set above and leave the UI showing a state that was never
+       persisted. Same guard as components/boards-layout-toggle.js:135. */
+    if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
+    user.set('preferences.device.updated', true);
+    if(user.save) {
+      user.save().then(null, function() {
+        /* Do not swallow this. The switch and preview are bound to the local value, so a
+           silently failed save (offline, 5xx) left the supervisor believing they had
+           changed the communicator's board when nothing reached the server. */
+        if(user.set) { user.set('preferences.board_category_grouping', previous); }
+        modal.error(i18n.t('board_categorize_save_failed', "Couldn't save the Categorize setting. Please try again."));
+      });
+    }
+  },
+
   actions: {
+    toggle_category_order: function() {
+      this.set('category_order_open', !this.get('category_order_open'));
+    },
+
+    /* The "Categorize" checkbox. Saves immediately rather than on board save —
+       it is a preference on the USER, not part of the board being edited, so
+       deferring it to the board's Save button would attach it to the wrong
+       lifecycle and silently discard it if the edit is cancelled. */
+    toggle_categorize: function() {
+      /* Read the SWITCH, not the stored value: with a toggle already in flight the
+         stored value is still the old one, so a quick second click would compute the
+         same target again instead of reversing it. */
+      var next_enabled = !this.get('categorize_switch_on');
+      /* Switching OFF while the move-to-category picker is open would leave a
+         dialog about categories floating over a preview that no longer has any.
+         Close it here rather than only blocking new opens. */
+      if(!next_enabled) { this.set('category_move_button', null); }
+
+      /* Paint the switch and the preview's loading message FIRST, then do the expensive
+         regroup. Two rAFs, not one: the first fires BEFORE the paint that the intent
+         change schedules, so the callback would still land in the same frame and block
+         it. The second runs after that frame has been painted, which is the whole point.
+         Falls back to running inline where rAF is unavailable (tests, SSR) — the
+         behaviour is then exactly what it was before this change. */
+      this.set('categorize_intent', next_enabled);
+      var _this = this;
+      var apply = function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this._save_category_grouping({ enabled: next_enabled });
+        /* Clear in the same tick as the save: `categorize_switch_on` then falls back to
+           the stored value, which now equals the intent, so the switch does not flicker.
+           If the save FAILS, _save_category_grouping restores the previous preference and
+           the switch follows it back — the revert stays honest. */
+        _this.set('categorize_intent', null);
+      };
+      if(typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(function() { requestAnimationFrame(apply); });
+      } else {
+        apply();
+      }
+    },
+
+    /* Move one category earlier/later in the sequence.
+       The order is ONE-DIMENSIONAL: categories flow into columns, and which
+       column one lands in is derived by the packing at the current width, not
+       chosen. So up/down is the whole model — there is no honest meaning for
+       left/right, and it would behave differently at each breakpoint. */
+    move_category: function(key, direction) {
+      var order = normalizeCategoryOrder(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
+      var idx = order.indexOf(key);
+      if(idx === -1) { return; }
+      var target = direction === 'up' ? idx - 1 : idx + 1;
+      if(target < 0 || target >= order.length) { return; }
+      var next = order.slice();
+      next[idx] = order[target];
+      next[target] = key;
+      this._save_category_grouping({ order: next });
+    },
+
+    /* Both write through the SAME path as the switch, so the "carry sub-preferences
+       through" logic in _save_category_grouping is the single place that has to be
+       right. Neither defers behind rAF the way toggle_categorize does: that flip
+       re-renders the whole grid, whereas these two only toggle a class and a header,
+       so there is no long block to paint around. */
+    toggle_category_names: function() {
+      this._save_category_grouping({ show_category_names: !this.get('category_names_visible') });
+    },
+    toggle_category_scroll: function() {
+      this._save_category_grouping({ vertical_scroll: !this.get('category_vertical_scroll') });
+    },
+    reset_category_order: function() {
+      this._save_category_grouping({ order: DEFAULT_CATEGORY_ORDER.slice() });
+    },
+
+    /* Open the "move to category" picker for one previewed button. Clicking a
+       button is the ACCESSIBLE path to moving it: it is keyboard- and
+       touch-operable, which a drag gesture is not (WCAG 2.1 SC 2.1.1). */
+    begin_category_move: function(btn) {
+      if(!btn) { return; }
+      /* Second half of the gate the template already applies to `@selectButton`.
+         Kept as its own check so the picker cannot be opened by any future caller
+         that reaches the action directly — the template gate is the UX, this is the
+         invariant (see LEARNINGS: gated actions need both a template and a JS gate). */
+      if(!this.get('categorize_enabled')) { return; }
+      /* TEMPORARILY DISABLED. Clicking a button in the Categorize panel used to open the
+         move picker; the move itself is being reworked (it repaints the button with the
+         target category's swatch, which is the wrong mechanism for categories that are not
+         defined by colour). Left as a single commented line rather than removing the
+         action, so the gates above, `cancel_category_move`, `move_button_to_category` and
+         the picker markup all stay wired and this is a one-line restore.
+
+         While this is commented out `category_move_button` stays null, so the picker
+         template (`{{#if this.category_move_button}}`) never renders and a click on a
+         button in the panel does nothing. */
+      // this.set('category_move_button', btn);
+    },
+
+    cancel_category_move: function() {
+      this.set('category_move_button', null);
+    },
+
+    /* Move the picked button into a category.
+       A category IS a colour here -- the categoriser reads the button's colour
+       back -- so the move is performed by PAINTING the button with that
+       category's fill/border/part_of_speech. Routed through editManager's paint
+       pathway rather than setting the attributes directly, so it inherits the
+       existing undo entry (paint_button calls save_state({mode:'paint'})) and the
+       level-modification handling that Button.set_attribute does.
+       This is a BOARD edit, so it follows the board's Save/Cancel like every
+       other edit — unlike the category ORDER beside it, which is a user
+       preference and saves immediately. */
+    move_button_to_category: function(key) {
+      var btn = this.get('category_move_button');
+      var swatch = swatchForCategory(key);
+      if(!btn || !swatch) { this.set('category_move_button', null); return; }
+
+      // Use the CONTROLLER's paint_button action, not editManager.paint_button.
+      // They are not interchangeable:
+      //   • editManager.paint_button(id) resolves the button through find_button,
+      //     which REPLACES the entry in `ordered_buttons` with a wrapped Button
+      //     (edit_manager.js:1349). That array is a plain nested JS array, so the
+      //     swap notifies nothing and the already-rendered template keeps the old
+      //     object — the paint lands on a copy and nothing visibly moves.
+      //   • the controller action mutates the button object it is HANDED (the one
+      //     the template is rendering), mirrors the change into `model.buttons` so
+      //     it persists on save, and forces the re-render by rebuilding
+      //     ordered_buttons with fresh row references.
+      // It is also the path the main board's paint mode already uses.
+      var previous_paint = this.get('paint_mode');
+      var previous_em_paint = editManager.paint_mode;
+
+      this.send('set_paint_mode', swatch.fill, swatch.border, swatch.part_of_speech);
+      /* Take the undo snapshot HERE. The controller's paint_button (unlike
+         editManager.paint_button, which opens with save_state) never records one, so a
+         category move pushed no history entry — pressing Undo afterwards popped the
+         snapshot taken before the PREVIOUS edit and reverted both of them in one press,
+         with no way to undo the move on its own and no indication two edits were lost. */
+      try {
+        editManager.save_state({ mode: 'paint', button_id: this._btn_id(btn) });
+      } catch(e) { /* no active edit session — nothing to snapshot */ }
+      this.send('paint_button', btn);
+
+      // Restore whatever paint state was armed before — this borrows the paint
+      // machinery for one button and must not leave the toolbar painting.
+      this.set('paint_mode', previous_paint || false);
+      editManager.paint_mode = previous_em_paint;
+
+      this.set('category_move_button', null);
+    },
+
     re_transition: function() {
       this.set('retrying', true);
       this.router.refresh();
@@ -5386,10 +6029,6 @@ export default Controller.extend(prefClasses, {
 
     toggle_display_submenu: function() {
       this.toggleProperty('display_submenu_open');
-    },
-
-    toggle_board_submenu: function() {
-      this.toggleProperty('board_submenu_open');
     },
 
     toggle_buttons_submenu: function() {
@@ -5536,6 +6175,18 @@ export default Controller.extend(prefClasses, {
           enterEditNow();
         }
       }, function() { });
+    },
+
+    /* The large Back control shown after "Try this Board". Returns to the picker
+       LIST -- not the preview overlay -- so the user lands where they were
+       browsing rather than back inside the modal they just left.
+
+       Clears the marker first: the button is gone the moment it is used, and the
+       picker route re-arms its own state on entry. */
+    try_back_to_picker: function() {
+      this.set('app_state.board_detail_try_origin', null);
+      this.set('show_options_menu', false);
+      this.get('router').transitionTo('board-picker');
     },
 
     exit_to_home: function() {
@@ -6527,10 +7178,8 @@ export default Controller.extend(prefClasses, {
     /* My Board Collection — the inline replacement for the prior
        My Boards + Find Boards rows. Sets `board_collection_open` so
        the options-menu template swaps its section list for the
-       <BoardCollection /> component, and collapses the Board
-       submenu since we're taking over its surface anyway. */
+       <BoardCollection /> component. */
     open_board_collection: function() {
-      this.set('board_submenu_open', false);
       // Close the options dropdown — the collection now PINS as a standalone
       // right-side drawer (decoupled from show_options_menu) so it can persist
       // while the user taps board-to-board and the selected board renders in the
@@ -6730,6 +7379,14 @@ export default Controller.extend(prefClasses, {
           var _em_for_action = _this._em_button_with_current_actions(btn_id, _action_src);
           var _appCtrl = _this.get('app_state.controller');
           if(_em_for_action && _appCtrl && _appCtrl.activateButton) {
+            /* Record the trail BEFORE delegating. This path still navigates board-to-board —
+               activateButton adds the word, applies any temporary-home lock, and transitions
+               back onto board-detail — but it used to skip the history push that every other
+               folder path does, so `show_board_back_nav` stayed false and the Back button did
+               not render on the board it had just opened. The push is the same one the fast
+               paths below make; nothing else writes board_detail_nav_history, so there is no
+               double entry. */
+            _this._push_nav_history();
             _appCtrl.activateButton(_em_for_action, { board: _this.get('model'), trigger_source: 'click' });
             return;
           }
@@ -7117,13 +7774,14 @@ export default Controller.extend(prefClasses, {
 
     // ── Portrait orientation overlay action ──
     // "Continue Anyway" — the overlay's only action: an accessibility-critical
-    // escape hatch for mounted/one-handed/non-rotatable setups. Dismisses the
-    // prompt and latches `portrait_overlay_session_dismissed` so it won't
-    // re-appear on later board changes this session. The board then renders at
-    // its natural scale; CSS grid preserves rows/columns/spacing and never reflows.
+    // escape hatch for mounted/one-handed/non-rotatable setups. Dismisses the prompt and
+    // latches the SHARED session flag so it won't re-appear on later board changes, or
+    // on any other page, this session. The board then renders at its natural scale; CSS
+    // grid preserves rows/columns/spacing and never reflows.
     dismiss_portrait_overlay: function() {
       this.set('portrait_overlay_dismissed', true);
-      this.set('portrait_overlay_session_dismissed', true);
+      // App-wide for the session, not just this controller — see service:overlay-dismissals.
+      this.get('overlay_dismissals').dismiss('larger_screen');
     },
 
     // Down-arrow chevron in the immersive sentence bar toggles the
@@ -7387,10 +8045,57 @@ export default Controller.extend(prefClasses, {
           if(local_img) { image_url = local_img; }
         }
       }
+      /*
+       * Route through the SAME global path a tapped board button takes, so a phrase-builder
+       * word is a first-class activation: it lands in `app_state.button_list` (which is what
+       * `_speak_current_sentence` speaks via `utterance.vocalize_list`), and it gets USAGE
+       * LOGGED — `stashes.log` + `sync.send_update` hang off `app_state.activate_button` and
+       * a local push reaches neither. `select_button`'s own comment calls the local push
+       * "divergence-prone"; this was the last place still doing it.
+       *
+       * The button does NOT have to live on the current board. `Button.create` from raw data
+       * plus the current board model is the established shape — `app_state`'s tag activation
+       * does exactly this. An `editManager` button is preferred when the result IS on this
+       * board, because that one carries the real actions, sounds and inflections; a result
+       * from a linked sub-board has only what the buttonset walk collected, which is enough.
+       *
+       * Safe for cross-board results specifically because the walk EXCLUDES folders
+       * (`_phrase_try_upgrade_to_buttonset` skips anything with `load_board` /
+       * `linked_board_*`), so nothing here can trigger board navigation for a board the user
+       * is not on.
+       *
+       * LOGGING NOTE: `options.board` is what the server records as `button.board`
+       * (application.js#_activateButtonWithOptions -> `obj.board`, read by
+       * log_session.rb:462). Passing the CURRENT board attributes the activation to where the
+       * interaction actually happened, which is how every other activation in the app is
+       * logged. For a word taken from a linked sub-board that means the parent board gets the
+       * credit; the true origin is on the result as `board_id` if provenance is ever wanted.
+       * Heat-map data is unaffected either way — `hit_locations` needs `percent_x/percent_y`
+       * (log_session.rb:136) and a phrase-builder pick has no on-screen position.
+       */
+      var appController = this.get('app_state.controller');
+      var board = this.get('model');
+      var em_button = null;
+      if(btn_id && button.board_id && board && String(button.board_id) === String(board.get('id'))) {
+        em_button = editManager.find_button(btn_id);
+      }
+      if(!em_button || !em_button.get) {
+        em_button = Button.create({
+          id: btn_id,
+          label: label,
+          vocalization: vocalization || null,
+          image_url: image_url
+        });
+      }
+      if(appController && appController.activateButton && board) {
+        appController.activateButton(em_button, { board: board, trigger_source: 'phrase_builder' });
+        return;
+      }
+      /* Fallback only if the app controller is not reachable (mid-teardown): keep the old
+         local behaviour so a pick is never silently lost. */
       var parts = (this.get('sentence_parts') || []).slice();
       parts.push({ id: btn_id, label: label, vocalization: vocalization || null, image_url: image_url });
       this.set('sentence_parts', parts);
-      // Speak the button immediately
       speecher.stop('text');
       utterance.speak_button({
         label: label,
@@ -7505,6 +8210,37 @@ export default Controller.extend(prefClasses, {
       });
     },
 
+    /* "Exit to Home" from the EDIT session bar. Deliberately NOT wired straight to
+       `exit_to_home`: that action navigates immediately (it is used from speak mode,
+       where there is nothing to lose), so on the edit page it would be a silent
+       data-loss trapdoor sitting right next to Cancel, which does confirm. Reuses
+       the SAME confirm-discard-changes modal so both escapes from edit mode behave
+       identically, then hands off to the existing exit_to_home for the PIN gate,
+       timer cleanup and nav-history reset.
+
+       UNLESS there is nothing to discard. A confirm that only ever says "you will lose
+       nothing" is noise, and it trains people to click through the one that matters. When
+       `edit_session_has_changes` is false the exit happens immediately — see that computed
+       for why the undo stack alone does not answer the question.
+
+       `copy_on_save` is still cleared on the way out. It is set when edit mode is entered on
+       a board the user does not own, NOT by making a change, so it can be pending on this
+       path; `cancel_edit` clears it for the same reason, and the route's `resetController`
+       does not. Leaving it set would make the next save silently copy a board. */
+    exit_to_home_from_edit: function() {
+      var _this = this;
+      if(!this.edit_session_has_changes()) {
+        this.get('stashes').persist('copy_on_save', null);
+        this.send('exit_to_home');
+        return;
+      }
+      modal.open('confirm-discard-changes', {}).then(function(result) {
+        if(result === 'discard') {
+          _this.get('stashes').persist('copy_on_save', null);
+          _this.send('exit_to_home');
+        }
+      }, function() { });
+    },
     cancel_edit: function() {
       var _this = this;
       modal.open('confirm-discard-changes', {}).then(function(result) {
@@ -7943,6 +8679,12 @@ export default Controller.extend(prefClasses, {
 
     set_folder_style: function(style) {
       var _this = this;
+      /* Second half of the gate the template already applies (the options are
+         `disabled` while grouping is on). Kept as its own check so no future caller can
+         write a folder style that the grouped board will not honour — the effective
+         style is pinned to colored_corner while grouping is active, so persisting a
+         different one would store a preference the user cannot see taking effect. */
+      if(_this.get('grouping_active')) { return; }
       _this.set('folder_display_style', style);
       _this.set('folder_dropdown_open', false);
       var user = _this.get('app_state.currentUser');

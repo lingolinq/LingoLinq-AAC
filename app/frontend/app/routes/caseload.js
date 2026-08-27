@@ -36,6 +36,25 @@ export default Route.extend({
     model.set('load_all_connections', true);
   },
 
+  /* This route had NO resetController, and the controller is a singleton — so the
+     expanded row, its loaded badge, the per-user badge cache, the roster filter and the
+     deep-link marker all survived leaving the page. On a shared clinic device that
+     outlives a logout (services/session.js#clear_user_state clears app-state and
+     persistence but touches no controller), which means the next supporter could open
+     the caseload and see the previous one's expanded communicator and badge. */
+  resetController: function(controller, isExiting) {
+    this._super.apply(this, arguments);
+    if (isExiting) {
+      controller.set('supervisee', null);
+      controller.set('_deepLinkAppliedFor', null);
+      controller.set('selectedSupervisee', null);
+      controller.set('highlightedSupervisee', null);
+      controller.set('selectedBadge', null);
+      controller.set('_superviseeBadges', null);
+      controller.set('superviseeFilter', '');
+    }
+  },
+
   titleToken() {
     return i18n.t('caseload_page_title', "My Caseload");
   }

@@ -57,7 +57,12 @@
                clickable header, so clicks inside it never toggle the row. --}}
           <ul class="md-caseload__list">
             {{#each this.filteredSupervisees as |supervisee|}}
-              <li class="md-caseload__list-row {{if (is-equal supervisee.user_name this.selectedSupervisee) "md-caseload__list-row--active"}}">
+              {{!-- --highlighted marks a row deep-linked from the dashboard's
+                   "Communicators Need Attention" card when this supporter's link to
+                   that communicator is modeling-only: we point at the person without
+                   opening a panel whose actions are gated. Mutually exclusive with
+                   --active by construction (see controllers/caseload.js). --}}
+              <li class="md-caseload__list-row {{if (is-equal supervisee.user_name this.selectedSupervisee) "md-caseload__list-row--active"}} {{if (is-equal supervisee.user_name this.highlightedSupervisee) "md-caseload__list-row--highlighted"}}">
                 <div class="md-caseload__list-header" {{on "click" (this.ctrlAction "selectSupervisee" supervisee)}}>
                 {{!-- The trigger is a real <button> so keyboard users can focus it
                      and toggle with Enter/Space (the native click bubbles to the
@@ -75,10 +80,17 @@
                   {{/if}}
                   <span class="md-caseload__list-identity">
                     <span class="md-caseload__list-name-row">
-                      <span class="md-caseload__list-name">{{supervisee.user_name}}</span>
-                      {{!-- Badge row: access level, plus the setup-state badge when
-                           one applies. A row so a second badge sits BESIDE the
-                           first rather than starting a third line under the name. --}}
+                      {{!-- Wraps at the username's separators rather than mid-word
+                           (see helpers/break-on-separators.js). --}}
+                      <span class="md-caseload__list-name">{{break-on-separators supervisee.user_name}}</span>
+                      {{!-- ROLE badge only. The STATUS badges ("Board needed" /
+                           "<thing> needed") deliberately do NOT live here — they moved
+                           to .md-caseload__list-status below, which is a full-width
+                           second grid row. Keeping them here made the trigger's
+                           max-content width the sum of every badge, and the flex
+                           algorithm sizes wrap decisions off exactly that — so a third
+                           badge shoved the whole quick-action toolbar onto its own
+                           line. --}}
                       <span class="md-caseload__list-badges">
                         {{#if (is-equal supervisee.edit_permission true)}}
                           <span class="md-caseload__list-access md-caseload__list-access--edit" title={{t "You can view and edit this communicator's boards and settings." key="caseload_access_view_edit_hint"}}>{{t "Editor" key="caseload_access_editor"}}</span>
@@ -87,21 +99,7 @@
                         {{else if (is-equal supervisee.edit_permission false)}}
                           <span class="md-caseload__list-access md-caseload__list-access--view" title={{t "You can view this communicator's profile and boards; editing is limited by their supervision settings." key="caseload_access_view_only_hint"}}>{{t "Viewer" key="caseload_access_viewer"}}</span>
                         {{/if}}
-                        {{!-- Setup-state badge. The condition is deliberately the SAME
-                             pair of checks that decides whether the Choose Board button
-                             renders below (no resolved home board, and not a
-                             modeling-only link) — so the badge and the button can never
-                             disagree, and a row showing Model never shows this.
-                             Label is "Board needed", not "Setup needed": the expanded
-                             panel already has a distinct Setup action (Setup User →
-                             intro), so the generic word would name two different tasks
-                             in one card. --}}
-                        {{#unless supervisee.resolved_home_board_key}}
-                          {{#unless supervisee.modeling_only}}
-                            <span class="md-caseload__list-access md-caseload__list-access--setup" title={{t "This communicator has no home board yet — choose one to finish setting them up." key="caseload_board_needed_hint"}}>{{t "Board needed" key="caseload_board_needed"}}</span>
-                          {{/unless}}
-                        {{/unless}}
-                      </span>
+                        </span>
                     </span>
                     {{!-- No goal caption here: the collapsed row shows identity
                          only. Goals live in the expanded panel's GOALS block
@@ -109,6 +107,50 @@
                          count, status, primary tag and the add/edit affordances.
                          Filtering by goal text still works — the filter reads
                          displayed_goal_summary from the model, not the DOM. --}}
+                  </span>
+                  {{!-- STATUS BADGES — a full-width SECOND ROW of the trigger's grid
+                       (grid-column: 1 / -1), so they start under the AVATAR rather than
+                       indented under the name, and the avatar / name / role line above
+                       keeps its natural width. That is what lets the quick-action
+                       toolbar stay on the first row beside the name no matter how many
+                       status badges apply.
+                       Still INSIDE the trigger button, exactly as before, so the row's
+                       accessible name and its whole-row click target are unchanged.
+                       The wrapper is hidden by CSS when it holds no badges
+                       (:not(:has(...))) rather than by a compound template guard, so
+                       adding a third status badge later needs no condition rewrite. --}}
+                  <span class="md-caseload__list-status">
+                    {{!-- Setup-state badge. The condition is deliberately the SAME
+                         pair of checks that decides whether the Choose Board button
+                         renders below (no resolved home board, and not a
+                         modeling-only link) — so the badge and the button can never
+                         disagree, and a row showing Model never shows this.
+                         Label is "Board needed", not "Setup needed": the expanded
+                         panel already has a distinct Setup action (Setup User →
+                         intro), so the generic word would name two different tasks
+                         in one card. --}}
+                    {{#unless supervisee.resolved_home_board_key}}
+                      {{#unless supervisee.modeling_only}}
+                        <span class="md-caseload__list-access md-caseload__list-access--setup" title={{t "This communicator has no home board yet — choose one to finish setting them up." key="caseload_board_needed_hint"}}>{{t "Board needed" key="caseload_board_needed"}}</span>
+                      {{/unless}}
+                    {{/unless}}
+                    {{!-- ACTION REQUIRED — the row-level counterpart of the home
+                         dashboard's "Communicators Need Attention" card. Both read
+                         the same ATTENTION_STATUS_IDS list via
+                         utils/dashboard_sections, so a communicator listed on that
+                         card is always flagged here too. The helper returns null
+                         for 'no-home-board' because the "Board needed" badge
+                         directly above already says exactly that — the two never
+                         double up on one row. Label is a terse "<thing> needed" to
+                         match that badge; the full sentence lives in `title`. --}}
+                    {{#let (attention-badge supervisee) as |att|}}
+                      {{#if att}}
+                        <span class="md-caseload__list-access md-caseload__list-access--attention" title={{att.hint}}>
+                          <svg class="md-caseload__list-access-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                          {{att.label}}
+                        </span>
+                      {{/if}}
+                    {{/let}}
                   </span>
                 </button>
                 <div class="md-caseload__list-quick" role="group" aria-label={{t "Quick actions" key="quick_actions"}}>
@@ -240,36 +282,48 @@
                   {{!-- Assess took Speak's place here when Speak was promoted to
                        the row's top actions. Unconditional, exactly as it was in
                        the row — it has no access-level gate of its own. --}}
-                  {{!-- ALPHABETICAL by visible label — Account, Assess, Eval
-                       History, Full Eval, Home Board, Quick Screen Eval. This
-                       panel is a flat grid of unrelated tools with no natural
-                       priority order, so A-Z is the ordering a supporter can
-                       predict without learning it. DOM order is the visual order
-                       (the grid does not reorder with CSS), so tab order follows.
+                  {{!-- EXPLICIT ORDER, requested 2026-08-17 — this grid is no longer
+                       alphabetical. `.md-caseload__actions--tiles` is
+                       `repeat(3, 1fr)`, so DOM order IS the visual order (nothing is
+                       reordered in CSS) and tab order follows it:
+
+                         row 1   Account | Note | Eval History
+                         row 2   Assess Tracker | Quick Screen Eval | Full Eval
+
                        Two notes for whoever edits this next:
-                       - The Home Board slot renders "Setup" instead when the
-                         communicator has no home board yet. It stays in the
-                         Home Board position rather than jumping to S — the slot
-                         holds one place in the grid, and a tile that moves when
-                         a communicator's state changes is worse than one letter
-                         out of order.
-                       - Eval History, Full Eval and Quick Screen Eval share the
-                         quick_screen_eval flag, so the flag now appears in two
-                         blocks rather than one. Sorting has to win over grouping
-                         here, otherwise the alphabet breaks whenever the flag is
-                         on. --}}
+                       - Eval History, Quick Screen Eval and Full Eval all sit behind
+                         the quick_screen_eval flag, and the requested arrangement
+                         interleaves them with ungated tiles, so the flag appears in
+                         TWO blocks: one for Eval History (row 1) and one for Quick
+                         Screen Eval + Full Eval (row 2). Merging them would break the
+                         requested layout whenever the flag is on.
+                       - With the flag OFF only Account, Note and Assess Tracker
+                         render, which fills exactly one row of three — so the grid
+                         stays even in both states. --}}
                   <LinkTo @route="user" @model={{supervisee.user_name}} class="md-caseload__action md-caseload__action--tile md-caseload__action--account" aria-label={{concat (t "Account" key="account") " " supervisee.user_name}} title={{t "Account" key="account"}}>
                     <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#2A9D8F"/></svg></span>
                     <span class="md-caseload__action-tile__label">{{t "Account" key="account"}}</span>
                   </LinkTo>
-                  <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--assess" {{on "click" (this.ctrlActionNoBubble "quick_assessment" supervisee)}} aria-label={{concat (t "Quick assessment for" key="quick_assessment_for_lower") " " supervisee.user_name}} title={{t "Quick Assessment" key="quick_assessment"}}>
-                    <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5h6a1 1 0 0 1 1 1V6h2.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-12A1.5 1.5 0 0 1 5.5 6H8v-.5a1 1 0 0 1 1-1z" stroke="#46505F"/><path d="M9 12.5l2.4 2.4L15.5 10" stroke="#2A9D8F" stroke-width="1.8"/></svg></span>
-                    <span class="md-caseload__action-tile__label">{{t "Assess" key="caseload_qa_assess"}}</span>
+                  {{!-- Note has no gate of its own, so it renders unconditionally and
+                       holds the row-1 middle slot in both flag states. --}}
+                  <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--note" {{on "click" (this.ctrlActionNoBubble "record_note" supervisee)}} aria-label={{concat (t "New note for" key="new_note_for_lower") " " supervisee.user_name}} title={{t "New Note" key="new_note"}}>
+                    <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg></span>
+                    <span class="md-caseload__action-tile__label">{{t "Note" key="caseload_qa_note"}}</span>
                   </button>
                   {{#if this.appState.feature_flags.quick_screen_eval}}
                     <LinkTo @route="user.logs" @model={{supervisee.user_name}} @query={{hash type="eval"}} class="md-caseload__action md-caseload__action--tile md-caseload__action--history" aria-label={{concat (t "Eval history for" key="eval_history_for") " " supervisee.user_name}} title={{t "Eval History" key="eval_history_link"}}>
                       <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7" stroke="#46505F"/><polyline points="3 3.5 3 9 8.5 9" stroke="#46505F"/><path d="M12 8v4l3 2" stroke="#2A9D8F"/></svg></span>
                       <span class="md-caseload__action-tile__label">{{t "Eval History" key="eval_history_link"}}</span>
+                    </LinkTo>
+                  {{/if}}
+                  <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--assess" {{on "click" (this.ctrlActionNoBubble "quick_assessment" supervisee)}} aria-label={{concat (t "Quick assessment for" key="quick_assessment_for_lower") " " supervisee.user_name}} title={{t "Quick Assessment" key="quick_assessment"}}>
+                    <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5h6a1 1 0 0 1 1 1V6h2.5a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19.5v-12A1.5 1.5 0 0 1 5.5 6H8v-.5a1 1 0 0 1 1-1z" stroke="#46505F"/><path d="M9 12.5l2.4 2.4L15.5 10" stroke="#2A9D8F" stroke-width="1.8"/></svg></span>
+                    <span class="md-caseload__action-tile__label">{{t "Assess Tracker" key="caseload_qa_assess_tracker"}}</span>
+                  </button>
+                  {{#if this.appState.feature_flags.quick_screen_eval}}
+                    <LinkTo @route="eval.quick" @model={{supervisee.user_name}} class="md-caseload__action md-caseload__action--tile md-caseload__action--eval" aria-label={{concat (t "Quick Screen Eval for" key="quick_screen_eval_for") " " supervisee.user_name}} title={{t "Quick Screen Eval (5 min)" key="quick_screen_eval_link"}}>
+                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="8" stroke="#46505F"/><path d="M12 10v4l2 2" stroke="#2A9D8F"/><path d="M9 2h6" stroke="#46505F"/><path d="M19 5l1-1" stroke="#46505F"/></svg></span>
+                      <span class="md-caseload__action-tile__label">{{t "Quick Screen Eval" key="quick_screen_eval"}}</span>
                     </LinkTo>
                     <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--run-eval" {{on "click" (this.ctrlActionNoBubble "run_eval" supervisee)}} aria-label={{concat (t "Run Evaluation" key="run_evaluation") " " supervisee.user_name}} title={{t "Run Evaluation" key="run_evaluation"}}>
                       <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6" stroke="#2A9D8F"/><path d="M15.5 13l1.5 8-5-3-5 3 1.5-8" stroke="#46505F"/></svg></span>
@@ -282,20 +336,6 @@
                        communicator — so a third tile that opens the same board
                        with no mode attached was the odd one out, not a shortcut.
                        Nothing else linked to `@route="board"` from this panel. --}}
-                  {{!-- Note came down from the row into Setup's old place. It has
-                       no gate of its own, so it renders unconditionally — and it
-                       lands between Home Board and Quick Screen Eval, which is
-                       where the alphabet wants it anyway. --}}
-                  <button type="button" class="md-caseload__action md-caseload__action--tile md-caseload__action--note" {{on "click" (this.ctrlActionNoBubble "record_note" supervisee)}} aria-label={{concat (t "New note for" key="new_note_for_lower") " " supervisee.user_name}} title={{t "New Note" key="new_note"}}>
-                    <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg></span>
-                    <span class="md-caseload__action-tile__label">{{t "Note" key="caseload_qa_note"}}</span>
-                  </button>
-                  {{#if this.appState.feature_flags.quick_screen_eval}}
-                    <LinkTo @route="eval.quick" @model={{supervisee.user_name}} class="md-caseload__action md-caseload__action--tile md-caseload__action--eval" aria-label={{concat (t "Quick Screen Eval for" key="quick_screen_eval_for") " " supervisee.user_name}} title={{t "Quick Screen Eval (5 min)" key="quick_screen_eval_link"}}>
-                      <span class="md-caseload__action-tile__icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="14" r="8" stroke="#46505F"/><path d="M12 10v4l2 2" stroke="#2A9D8F"/><path d="M9 2h6" stroke="#46505F"/><path d="M19 5l1-1" stroke="#46505F"/></svg></span>
-                      <span class="md-caseload__action-tile__label">{{t "Quick Screen Eval" key="quick_screen_eval"}}</span>
-                    </LinkTo>
-                  {{/if}}
                 </div>
                 </div>{{!-- /.md-caseload__panel-actions --}}
 

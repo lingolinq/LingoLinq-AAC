@@ -421,6 +421,7 @@ export default Component.extend({
   sorted_buttons: computed(
     'model.button_set.buttons',
     'model.board.buttons',
+    'model.board.id',
     'model.old_board_ids_to_translate',
     'model.locale',
     'translating',
@@ -525,16 +526,21 @@ export default Component.extend({
         modal.flash(i18n.t('no_translations_to_save', "No button translations to save. Wait for auto-translate to finish or enter translations manually."), 'error');
         return;
       }
+      /* JSON body: a large linked set as form-urlencoded is one param per
+         word and trips Rack's 4096-param cap (empty HTML 400). */
+      var boardIds = _this._board_ids_for_save();
       persistence.ajax('/api/v1/boards/' + _this.get('model.copy.id') + '/translate', {
         type: 'POST',
-        data: {
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify({
           source_lang: _this.get('model.source_locale') || _this.get('model.board.locale'),
           destination_lang: _this.get('model.locale'),
           set_as_default: _this.get('model.default_language'),
           force_update_default: _this.get('model.force_update_default') || false,
           translations: translations,
-          board_ids_to_translate: _this._board_ids_for_save()
-        }
+          board_ids_to_translate: boardIds && boardIds.toArray ? boardIds.toArray() : boardIds
+        })
       }).then(function(res) {
         app_state.set('board_translate_in_progress', true);
         modal.flash(i18n.t('applying_translations', "Applying Translations..."), 'notice', false, true);

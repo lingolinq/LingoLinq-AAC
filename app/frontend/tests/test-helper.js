@@ -81,6 +81,14 @@ import 'frontend/tests/unit/components/share-board-guard-test';
 import 'frontend/tests/unit/utils/special_vocalization-test';
 import 'frontend/tests/unit/components/bound-select-search-test';
 import 'frontend/tests/unit/components/button-set-action-vocalization-test';
+import 'frontend/tests/unit/components/board-icon-pick-behavior-test';
+import 'frontend/tests/unit/components/board-density-defaults-test';
+import 'frontend/tests/unit/components/boards-layout-toggle-test';
+import 'frontend/tests/unit/helpers/break-on-separators-test';
+import 'frontend/tests/unit/helpers/home-pill-label-test';
+import 'frontend/tests/unit/helpers/letter-stagger-test';
+import 'frontend/tests/unit/utils/dashboard-sections-test';
+import 'frontend/tests/unit/routes/setup-retired-test';
 /* eslint-enable ember/no-test-import-export */
 
 // loadTests: false — we already pre-loaded all test modules above

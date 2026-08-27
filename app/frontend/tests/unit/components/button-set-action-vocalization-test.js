@@ -40,6 +40,7 @@ QUnit.module('Unit | Component | button-set action vocalizations', function(hook
   });
 
   QUnit.test('skips load_buttons when the hierarchy already supplied labeled buttons', function(assert) {
+    assert.expect(2);
     var c = this.owner.factoryFor('component:button-set').create();
     var loadCalled = false;
     c.set('model', {
@@ -92,6 +93,7 @@ QUnit.module('Unit | Component | button-set action vocalizations', function(hook
   });
 
   QUnit.test('still calls load_buttons without force when no labels exist', function(assert) {
+    assert.expect(3);
     var c = this.owner.factoryFor('component:button-set').create();
     var loadForce = 'unset';
     var origStore = LingoLinq.store;
@@ -129,6 +131,7 @@ QUnit.module('Unit | Component | button-set action vocalizations', function(hook
   });
 
   QUnit.test('loads labeled buttons from selected linked boards when the button set is empty', function(assert) {
+    assert.expect(4);
     var c = this.owner.factoryFor('component:button-set').create();
     var origStore = LingoLinq.store;
     LingoLinq.store = {
