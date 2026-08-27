@@ -1963,7 +1963,10 @@
         @folderColoredFace={{this.folder_colored_face}}
         {{!-- Both are already ANDed with grouping_active in the controller, so they are
              inert on an ungrouped board. --}}
-        @categoryEnabled={{this.categorize_enabled}}
+        {{!-- grouping_active, not categorize_enabled: the preference AND the flag AND
+             the subject owning this board. A board authored by someone else is not
+             theirs to rearrange, so it renders ungrouped regardless of preference. --}}
+        @categoryEnabled={{this.grouping_active}}
         @showCategoryNames={{this.show_category_names}}
         @categoryScrollEnabled={{this.category_scroll_enabled}}
         @categoryOrder={{this.category_order}}
@@ -3785,7 +3788,11 @@
                   BoardDetailGrid#groupingEnabled before it consults the
                   preference. Bound, the off state falls through to the preference
                   (editMode is false here) and renders the original board. --}}
-            @forceGrouping={{this.categorize_enabled}}
+            {{!-- `grouping_active` for the same reason as @categoryEnabled below:
+                 forceGrouping short-circuits groupingEnabled, so binding it to the raw
+                 preference would make the preview group a board whose live rendering is
+                 ungrouped because the subject does not own it. --}}
+            @forceGrouping={{this.grouping_active}}
             @selectButton={{if this.categorize_enabled (this.ctrlAction "begin_category_move")}}
             @editMode={{false}}
             {{!-- Folder treatment MUST be passed here or the preview lies. While grouping
@@ -3802,8 +3809,12 @@
             @folderColoredCorner={{this.folder_colored_corner}}
             @folderColoredFace={{this.folder_colored_face}}
             {{!-- The preview must show what SHIPS, including whether category names
-                 render — that is the whole point of a live preview. --}}
-            @categoryEnabled={{this.categorize_enabled}}
+                 render — that is the whole point of a live preview. So it takes
+                 `grouping_active` (preference AND flag AND the subject owning the board),
+                 the same value the live grid takes: on a board the subject does not own,
+                 the shipped board is UNGROUPED, and a preview showing panels would be
+                 promising an arrangement that will not appear. --}}
+            @categoryEnabled={{this.grouping_active}}
             @showCategoryNames={{this.show_category_names}}
             @categoryScrollEnabled={{this.category_scroll_enabled}}
             @categoryOrder={{this.category_order}}

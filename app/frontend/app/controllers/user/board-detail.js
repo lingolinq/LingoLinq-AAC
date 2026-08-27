@@ -3418,11 +3418,47 @@ export default Controller.extend(prefClasses, {
     skin:                 'preferences.skin'
   },
 
-  /* Is category grouping actually in force for this user? Flag AND preference — the
-     preference alone is meaningless when the feature is not deployed. */
-  grouping_active: computed('app_state.feature_flags.board_category_grouping', 'categorize_enabled', function() {
-    return !!this.get('app_state.feature_flags.board_category_grouping') && !!this.get('categorize_enabled');
+  /* Does the SUBJECT of this board own it?
+     The subject is `referenced_user` — the communicator when a supervisor is modelling or
+     speaking as them, the user themselves otherwise. Deliberately NOT the viewer and
+     deliberately NOT `permissions.edit`:
+
+       - `permissions` is computed for the API user, so a modelling-only supervisor reads
+         edit:false on a communicator's board. Gating on it would show the supervisor an
+         UNGROUPED board while the communicator sees a grouped one — two people looking at
+         differently-arranged copies of the same vocabulary, which is a clinical problem,
+         not a cosmetic one. Resolving against referenced_user makes the supervisor see
+         what the communicator sees.
+       - Ownership, not edit rights: a board shared with edit rights still belongs to
+         someone else, and regrouping it is a change to THEIR board.
+
+     `user_name` is the board's owner, stamped by the server (json_api/board.rb#130,
+     `cached_user_name`). Verified present on a live payload. */
+  board_owned_by_subject: computed('model.user_name', 'app_state.referenced_user.user_name', function() {
+    var owner = this.get('model.user_name');
+    var subject = this.get('app_state.referenced_user.user_name');
+    return !!owner && !!subject && owner === subject;
   }),
+
+  /* Is category grouping actually in force for this board? Flag AND preference AND the
+     subject owns the board.
+     The ownership term is what keeps grouping to boards the user can actually change. A
+     public library board is authored by someone else, so its arrangement is not theirs to
+     rearrange — and showing a grouping they are stuck with is worse than not grouping.
+     "Try this Board" falls out of this for free rather than needing its own case: it
+     opens the ORIGINAL library board uncopied and on purpose, so the subject does not own
+     it and the trial renders ungrouped. Once the board is picked, the user gets an owned
+     copy (`links_copy_as_home`) and grouping unlocks with their preference. */
+  grouping_active: computed(
+    'app_state.feature_flags.board_category_grouping',
+    'categorize_enabled',
+    'board_owned_by_subject',
+    function() {
+      return !!this.get('app_state.feature_flags.board_category_grouping') &&
+             !!this.get('categorize_enabled') &&
+             !!this.get('board_owned_by_subject');
+    }
+  ),
 
   /* Category grouping already communicates a button's category through its PANEL, and
      the folder treatments (tab labels especially) compete with that — two different
