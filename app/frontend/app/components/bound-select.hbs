@@ -10,10 +10,10 @@
     <span class="bound-select__trigger-text {{if this.showPlaceholder "bound-select__trigger-text--placeholder"}}">{{this.triggerLabel}}</span>
   </button>
   {{#if this.isOpen}}
-    <ul class="bound-select__list" role="listbox" {{on "click" (this.ctrlAction "stopPropagation")}} {{on "keydown" (this.ctrlAction "list_keydown")}}>
+    <ul class="bound-select__list" role="listbox" {{on "click" (this.ctrlAction "stopPropagation")}} {{on "keydown" this.onListKeydown}}>
       {{#if this.searchable}}
         <li class="bound-select__search" role="presentation">
-          <input type="text" value={{this.searchQuery}} class="bound-select__search-input" placeholder={{this.search_placeholder}} aria-label={{this.search_placeholder}} {{on "input" (set-field this "searchQuery")}} />
+          <input type="text" value={{this.searchQuery}} class="bound-select__search-input" placeholder={{this.search_placeholder}} aria-label={{this.search_placeholder}} {{on "keydown" this.onSearchKeydown}} {{on "input" (set-field this "searchQuery")}} />
         </li>
       {{/if}}
       {{#if this.renderContent.length}}

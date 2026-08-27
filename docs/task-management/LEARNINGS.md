@@ -211,6 +211,9 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
 - [Pattern: blank username suggestions must be discarded before `clean_path`](#pattern-blank-username-suggestions-must-be-discarded-before-clean_path)
 - [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
+- [Gotcha: Translate Boards must not send action tokens to Google](#gotcha-translate-boards-must-not-send-action-tokens-to-google)
+- [Gotcha: Translate Boards tree is not a labeled button set](#gotcha-translate-boards-tree-is-not-a-labeled-button-set)
+- [Gotcha: BoundSelect search typing is killed by ctrlAction preventDefault](#gotcha-boundselect-search-typing-is-killed-by-ctrlaction-preventdefault)
 - [Pattern: board-detail Speak bar must speak vocalization, not just label](#pattern-board-detail-speak-bar-must-speak-vocalization-not-just-label)
 - [Pattern: board-detail Speak bar must play attached button sounds, not TTS-only](#pattern-board-detail-speak-bar-must-play-attached-button-sounds-not-tts-only)
 - [Pattern: long-running modal work that must survive dismissal belongs in a service + app-level component, not a "hidden" modal](#pattern-long-running-modal-work-that-must-survive-dismissal-belongs-in-a-service--app-level-component-not-a-hidden-modal)
@@ -352,6 +355,24 @@ Keyboard boards use vocalizations as control protocols: `+a` composes spelling, 
 **Import gotcha:** Vocal Flair / Open Board Format files store those protocols on the OBF `action` (or `actions`) field, not `vocalization`. `Converters::LingoLinq.vocalization_from_obf_button` copies them onto `vocalization` during import. A blank `actions` array is truthy in Ruby and used to hide `action`, so only treat `actions` as present when it has values. `SystemSidebarBoards.repair_utility_board` also restores missing `:shift` / `:space` / `+letter` vocalizations from `public/system-boards/keyboard.obz` when the live button has no vocalization (or only repeats the label).
 
 **First seen in:** [2026-06-03-keyboard-shift-space-default-language.md](./2026-06-03-keyboard-shift-space-default-language.md); import-side drop in [2026-08-22-keyboard-import-control-vocalizations.md](./2026-08-22-keyboard-import-control-vocalizations.md)
+
+## Gotcha: Translate Boards must not send action tokens to Google
+
+`Board#translate_set` already refuses to overwrite vocalizations matching `^[:+]`, but the Translate Boards review modal (`components/button-set.js`) was still pushing those vocalizations (`:space`, `:shift`, `+q`, `:suggestion`) into `/api/v1/users/self/translate`. The review UI then showed a second row for the token, and `_build_save_translations_map` could persist `':space' => 'espacio'`. Skip at collect / show / save with `shouldTranslateVocalization`; also drop `^[:+]` in `WordData.translate_batch` so Google never sees them even if a client sends them; and do not mirror a translated **label** onto an action vocalization when label and vocalization are both `:space`. Still translate the visible label (`space`, `[ space ]`).
+
+**First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: Translate Boards tree is not a labeled button set
+
+`BoardHierarchy.load_boards` can paint linked boards from `board.linked_boards` even when `button_set.buttons` is empty (no labels). Skip-reload then has nothing to keep, and a root-only fallback leaves the review list on Quick Core 24 while the red "Linked board labels could not be loaded" warning stays. After `load_buttons` still has no labels, `findRecord` each selected board and collect its `buttons` so linked labels reach review and save.
+
+**First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: BoundSelect search typing is killed by ctrlAction preventDefault
+
+`ctrlAction` always calls `preventDefault()` on the event. The searchable language list puts the filter `<input>` inside the `<ul>`, so a `{{on "keydown" (this.ctrlAction "list_keydown")}}` on that list cancelled every keystroke before the character was inserted. Use dedicated `onListKeydown` / `onSearchKeydown` handlers assigned in `init()` (same pattern as `modern-select`), and only `preventDefault` for Escape / ArrowDown / Enter.
+
+**First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
 
 ## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
 

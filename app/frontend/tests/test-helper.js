@@ -78,6 +78,9 @@ import 'frontend/tests/unit/utils/raw-events-test';
 import 'frontend/tests/unit/models/board-reload-if-lite-test';
 import 'frontend/tests/unit/models/buttonset-cache-fallback-test';
 import 'frontend/tests/unit/components/share-board-guard-test';
+import 'frontend/tests/unit/utils/special_vocalization-test';
+import 'frontend/tests/unit/components/bound-select-search-test';
+import 'frontend/tests/unit/components/button-set-action-vocalization-test';
 /* eslint-enable ember/no-test-import-export */
 
 // loadTests: false — we already pre-loaded all test modules above

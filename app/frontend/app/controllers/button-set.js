@@ -11,6 +11,7 @@ import app_state from '../utils/app_state';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import LingoLinq from '../app';
+import { shouldTranslateVocalization } from '../utils/special_vocalization';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -52,7 +53,7 @@ export default modal.ModalController.extend({
           if(b.label) {
             words.push(b.label);
           }
-          if(b.vocalization && b.vocalization != b.label) {
+          if(shouldTranslateVocalization(b.vocalization, b.label)) {
             words.push(b.vocalization);
           }
         });
@@ -154,7 +155,7 @@ export default modal.ModalController.extend({
       if(translations[b.label]) {
         emberSet(b, 'translation', translations[b.label]);
       }
-      if(b.vocalization && b.vocalization != b.label && translations[b.vocalization]) {
+      if(shouldTranslateVocalization(b.vocalization, b.label) && translations[b.vocalization]) {
         emberSet(b, 'secondary_translation', translations[b.vocalization]);
       }
     });
@@ -202,7 +203,7 @@ export default modal.ModalController.extend({
         if(emberGet(b, 'translation')) {
           translations[emberGet(b, 'label')] = emberGet(b, 'translation');
         }
-        if(emberGet(b, 'secondary_translation')) {
+        if(shouldTranslateVocalization(emberGet(b, 'vocalization'), emberGet(b, 'label')) && emberGet(b, 'secondary_translation')) {
           translations[emberGet(b, 'vocalization')] = emberGet(b, 'secondary_translation');
         }
       });

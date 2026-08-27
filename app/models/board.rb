@@ -2646,12 +2646,16 @@ class Board < ApplicationRecord
           end
           # Mirror speak text when vocalization is unset or matches the source label
           # so runtime TTS does not fall back to stale English vocalization.
-          if original_vocalization.blank? || original_vocalization == original_label
+          # An ACTION vocalization (':space', '+q', ':shift', ...) is not speak
+          # text — copying the translated label onto it breaks the control.
+          can_mirror_vocalization = original_vocalization.blank? || original_vocalization == original_label
+          can_mirror_vocalization = false if original_vocalization.to_s.match(/^[:+]/)
+          if can_mirror_vocalization
             self.settings['translations'][button['id'].to_s][dest_lang]['vocalization'] = translated_label
           end
           if set_as_default_here
             button['label'] = translated_label
-            if original_vocalization.blank? || original_vocalization == original_label
+            if can_mirror_vocalization
               button['vocalization'] = translated_label
             end
           end
