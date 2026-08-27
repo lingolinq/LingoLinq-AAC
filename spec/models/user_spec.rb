@@ -518,43 +518,48 @@ describe User, :type => :model do
     # every existing device hash is what makes typing work for people who already have
     # accounts. Deliberate, and paired with the text-field guard in raw_events.js — without
     # that, defaulting this on makes every search box on a speak-mode page feed the utterance.
-    # board_category_grouping.boards is keyed by BOARD KEY so a curated per-board
-    # arrangement survives the trip between local / staging / production — a global_id is
-    # only unique within one database. The id shape still has to be accepted, because
-    # entries written before the switch are stored that way and the frontend resolver
-    # still falls back to them; rejecting them here would wipe a live preference on the
-    # user's next save of any unrelated setting.
-    it "keeps a board-KEY-shaped per-board override" do
+    # board_category_grouping is THREE ACCOUNT-WIDE FLAGS. `order` and the per-board
+    # `boards` map both left it: which categories a board shows, and in what sequence, is a
+    # property of the BOARD, not of the person reading it. A user preference could not
+    # express that -- it is per-account, so a curated arrangement never reached a new user
+    # and never followed a copy of the board.
+    #
+    # These pin the DROP, because the sanitizer rebuilds the hash from scratch: a key it
+    # stops echoing is discarded silently and server-side, which is easy to do by accident
+    # and impossible to notice from the client.
+    it "drops the per-board overrides map" do
       u = User.create
       u.process({'preferences' => {'board_category_grouping' => {
         'enabled' => true,
         'boards' => {'marcus_williams_slp/vocal-flair-112' => {'enabled' => true, 'vertical_scroll' => false}}
       }}})
-      boards = u.settings['preferences']['board_category_grouping']['boards']
-      expect(boards.keys).to eq(['marcus_williams_slp/vocal-flair-112'])
-      expect(boards['marcus_williams_slp/vocal-flair-112']['vertical_scroll']).to eq(false)
+      g = u.settings['preferences']['board_category_grouping']
+      expect(g).not_to have_key('boards')
+      expect(g['enabled']).to eq(true)
+      expect(g['vertical_scroll']).to eq(true), 'the dropped override must not leak into the account-wide flag'
     end
 
-    it "still keeps a legacy global_id-shaped per-board override" do
+    # The clinical half of the drop. Someone who had turned Categorize on for ONE board
+    # falls back to their account-wide flag, which is normally off. A per-board `enabled`
+    # is deliberately NOT promoted: grouping moves vocabulary out of cells a communicator
+    # has positional motor memory for, so it must never switch on for boards the user did
+    # not opt into.
+    it "does not promote a per-board enabled up to the account-wide flag" do
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {
+        'boards' => {'someone/a-board' => {'enabled' => true}}
+      }}})
+      g = u.settings['preferences']['board_category_grouping']
+      expect(g['enabled']).to eq(false)
+      expect(g).not_to have_key('boards')
+    end
+
+    it "drops a legacy global_id-shaped per-board override too" do
       u = User.create
       u.process({'preferences' => {'board_category_grouping' => {
         'enabled' => true, 'boards' => {'1_5059' => {'enabled' => true}}
       }}})
-      expect(u.settings['preferences']['board_category_grouping']['boards'].keys).to eq(['1_5059'])
-    end
-
-    it "rejects a board reference that is not a plain id or one-slash key" do
-      u = User.create
-      u.process({'preferences' => {'board_category_grouping' => {
-        'enabled' => true,
-        'boards' => {
-          'a/b/c' => {'enabled' => true},
-          '../../etc' => {'enabled' => true},
-          ('x' * 200) => {'enabled' => true},
-          'ok_board/fine-1' => {'enabled' => true}
-        }
-      }}})
-      expect(u.settings['preferences']['board_category_grouping']['boards'].keys).to eq(['ok_board/fine-1'])
+      expect(u.settings['preferences']['board_category_grouping']).not_to have_key('boards')
     end
 
     it "defaults external_keyboard to true so typing reaches the vocalization box" do
@@ -650,7 +655,7 @@ describe User, :type => :model do
     # TODAY's rendering (headers shown, grid scrollable), not silently lose both because
     # a missing key coerced to false.
     it "treats an ABSENT sub-preference as true, not false" do
-      g = grouping_for({'enabled' => true, 'order' => []})
+      g = grouping_for({'enabled' => true})
       expect(g['show_category_names']).to eq(true)
       expect(g['vertical_scroll']).to eq(true)
     end
@@ -661,9 +666,13 @@ describe User, :type => :model do
       expect(g['vertical_scroll']).to eq(true)
     end
 
-    it "still strips unknown category keys from order" do
-      g = grouping_for({'enabled' => true, 'order' => ['people', 'not_a_real_category', 'people']})
-      expect(g['order']).to eq(['people'])
+    # `order` moved to the board. It is dropped here rather than sanitized, so a client
+    # that still sends one cannot have it silently accepted and then ignored by the
+    # renderer -- which is precisely what the per-board order did before it was removed.
+    it "drops order entirely rather than sanitizing it" do
+      g = grouping_for({'enabled' => true, 'order' => ['people', 'not_a_real_category']})
+      expect(g).not_to have_key('order')
+      expect(g['enabled']).to eq(true)
     end
   end
 

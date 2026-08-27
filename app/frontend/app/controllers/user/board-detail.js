@@ -3454,11 +3454,8 @@ export default Controller.extend(prefClasses, {
      read and write must resolve the same account or the panel would describe one user
      and persist to another. */
   /*
-   * The grouping settings IN FORCE FOR THIS BOARD.
-   *
-   * `preferences.board_category_grouping` holds the user's default; `….boards[<board id>]`
-   * holds a per-board override in the same shape. A board with no entry uses the default,
-   * so nothing changes for boards nobody has configured.
+   * The user's grouping settings. Three flags, account-wide — see the note on the computed
+   * below for what left this hash and why.
    *
    * Keyed on the board's GLOBAL ID, not its key: a key is `owner/slug` and changes when
    * the board is renamed or the owner changes username, which would silently orphan the
@@ -3467,28 +3464,15 @@ export default Controller.extend(prefClasses, {
    * One resolver, and every consumer below reads it — the switch, the sub-options, the
    * order list and the save all have to agree about which board they are describing.
    */
-  /* Which entry in `boards` describes THIS board.
-     By KEY (`username/board-slug`), because a global_id is stable only within one
-     database — the same seeded board has a different id on local, staging and production,
-     so an id-keyed override silently stopped applying the moment it crossed environments.
-     The id is still read as a FALLBACK for entries written before the switch. */
-  _board_category_ref: function() {
-    var all = this.get('app_state.referenced_user.preferences.board_category_grouping') || {};
-    var boards = all.boards || {};
-    var key = this.get('model.key');
-    if(key && boards[key]) { return { ref: key, entry: boards[key] }; }
-    var id = this.get('model.id');
-    if(id && boards[id]) { return { ref: id, entry: boards[id], legacy: true }; }
-    return { ref: key || id || null, entry: null };
-  },
-
+  /* The user's three category flags — does this user want categorization, may it scroll,
+     are the labels shown. ACCOUNT-WIDE: this preference no longer describes a particular
+     board, so there is no per-board lookup and no dependency on `model`.
+     WHICH categories and in what sequence is a property of the BOARD, resolved separately
+     by `category_order` below. */
   board_category_settings: computed(
-    'model.id',
-    'model.key',
     'app_state.referenced_user.preferences.board_category_grouping',
     function() {
-      var all = this.get('app_state.referenced_user.preferences.board_category_grouping') || {};
-      return this._board_category_ref().entry || all;
+      return this.get('app_state.referenced_user.preferences.board_category_grouping') || {};
     }
   ),
 
@@ -3498,18 +3482,15 @@ export default Controller.extend(prefClasses, {
   category_vertical_scroll: computed('board_category_settings', function() {
     return (this.get('board_category_settings') || {}).vertical_scroll !== false;
   }),
-  /* The category order the grid actually renders, resolved per-board off the same
-     `board_category_settings` as the two computeds above rather than left for the grid
-     to re-derive. Unlike them it needs no AND with `grouping_active`: the order is only
-     ever read inside `categoryGroups`, which early-returns when grouping is off.
-     Without this the grid read the account-wide default directly while
-     the Categorize panel read the per-board value, so a per-board `order` — the shape
-     `rake lingolinq:seed_board_category_grouping ORDER=...` writes — was stored and
-     validated correctly and then never reached `group_buttons`. Normalized here so the
-     grid and the panel are fed from one place; `normalize_order` drops unknown keys and
-     appends missing ones, so it is never empty. */
-  category_order: computed('board_category_settings', function() {
-    return normalizeCategoryOrder((this.get('board_category_settings') || {}).order);
+  /* The category order the grid renders. Constant for now, and deliberately so: `order`
+     has left the user preference (it is a property of the BOARD, not of the person reading
+     it) and the board-side field does not exist yet, so every board gets the registry
+     default — `normalize_order` returns DEFAULT_CATEGORY_ORDER for a null argument.
+     This stays a computed rather than collapsing into the grid because it is the seam the
+     board-side layout plugs into: when the Board carries its own arrangement, only the
+     body of this function changes, and the `@categoryOrder` wiring stays as it is. */
+  category_order: computed(function() {
+    return normalizeCategoryOrder(null);
   }),
 
   /* What the GRID is told. Both only mean anything while grouping is in force, so they
@@ -5606,9 +5587,9 @@ export default Controller.extend(prefClasses, {
      move controls — a disabled control is clearer than one that silently no-ops
      at the ends of the list. */
   category_order_list: computed(
-    'board_category_settings',
+    'category_order',
     function() {
-      var order = normalizeCategoryOrder((this.get('board_category_settings') || {}).order);
+      var order = normalizeCategoryOrder(this.get('category_order'));
       return order.map(function(key, idx) {
         var cat = categoryForKey(key);
         return {
@@ -5632,9 +5613,9 @@ export default Controller.extend(prefClasses, {
      renders from, so a stored order that merely predates a new category key (and is
      backfilled to the default by normalize_order) still counts as unchanged. */
   category_order_changed: computed(
-    'board_category_settings',
+    'category_order',
     function() {
-      var order = normalizeCategoryOrder((this.get('board_category_settings') || {}).order);
+      var order = normalizeCategoryOrder(this.get('category_order'));
       if(order.length !== DEFAULT_CATEGORY_ORDER.length) { return true; }
       for(var i = 0; i < order.length; i++) {
         if(order[i] !== DEFAULT_CATEGORY_ORDER[i]) { return true; }
@@ -5697,7 +5678,7 @@ export default Controller.extend(prefClasses, {
      nested set alone does not reliably mark the raw `preferences` attr dirty, so
      `preferences.device.updated` is poked before save or ember-data may never
      ship the change (see LEARNINGS "a new user preference is a 3-touch change").
-     Writes the WHOLE sub-hash so enabled and order always move together. */
+     Writes the WHOLE sub-hash, so every flag has to be echoed on every save. */
   _save_category_grouping: function(changes) {
     /* Write to the user the board is FOR — see the note in board-detail-grid.js. A
        supervisor modelling for a communicator changes THAT communicator's setting; on
@@ -5706,85 +5687,43 @@ export default Controller.extend(prefClasses, {
     var user = this.get('app_state.referenced_user');
     if(!user || !user.set) { return; }
     var all = user.get('preferences.board_category_grouping') || {};
-    /* Read from, and write back to, the SAME place the resolver reads (see
-       `_board_category_ref`): the per-board entry when this board has one, the user
-       default otherwise. Without this the panel would describe one board's settings and
-       persist them over every board's. */
-    var ref = this._board_category_ref();
-    var board_key = this.get('model.key');
-    var board_id = this.get('model.id');
-    /* Write under the KEY, whatever was read. A board whose settings were stored against
-       its id is migrated on its next save — the legacy entry is dropped below so the two
-       cannot drift apart and disagree about the same board. */
-    var write_ref = board_key || board_id;
-    var current = ref.entry || all;
-    var next = {
+    var previous = all;
+    /* ACCOUNT-WIDE, and there is nothing else to resolve. The preference is three flags
+       describing the user, so there is no board reference to look up and no per-board slot
+       to write into — `board_category_settings` reads exactly what is written here.
+
+       This replaces a `write_ref` guard that refused to save when the board could not be
+       identified. That guard existed because a PER-BOARD toggle used to fall back to
+       rewriting the account-wide default: a scope mismatch, where a change meant for one
+       board silently regrouped every board the user owned. The mismatch is what made it a
+       bug, and the flat preference removes it — this switch means the account, writes the
+       account, and reads back the account. The tripwire in
+       user.rb#log_board_category_grouping_enable! stays regardless, because a false -> true
+       edge nobody intended is still worth catching. */
+    var written = {
       /* `=== true`, matching groupingEnabled. With `!== false` an ABSENT preference read
-         as enabled, so saving an order-only change (a move arrow, or Reset order)
-         silently turned grouping ON for a user who had never opted in. */
-      enabled: changes.enabled === undefined ? (current.enabled === true) : !!changes.enabled,
-      order: changes.order || normalizeCategoryOrder(current.order),
-      /* Sub-preferences MUST be carried through every save. This object REPLACES the
-         stored hash wholesale, so a key omitted here is dropped — toggling Categorize
-         would silently reset the user's category-name and scrolling choices. The server
-         sanitizer rebuilds the hash the same way and has the matching echo
+         as enabled, so an unrelated save silently turned grouping ON for a user who had
+         never opted in. */
+      enabled: changes.enabled === undefined ? (all.enabled === true) : !!changes.enabled,
+      /* Both sub-preferences MUST be carried through every save. This object REPLACES the
+         stored hash wholesale, so a key omitted here is dropped — toggling Categorize would
+         otherwise reset the user's label and scrolling choices. The server sanitizer rebuilds
+         the hash the same way and has the matching echo
          (user.rb#sanitize_board_category_grouping!).
 
          `!== false` here, NOT `=== true`: absent means TRUE for these two, because both
-         describe what the grouped board already does (headers render, grid scrolls). The
-         `enabled` flag above is the opposite — absent means OFF — because turning
-         grouping on for someone who never asked is a clinical change, whereas keeping
-         today's rendering is the safe default. Same reasoning as the Rails defaults. */
+         describe what the grouped board already does (labels render, grid scrolls). The
+         `enabled` flag above is the opposite — absent means OFF — because turning grouping
+         on for someone who never asked moves vocabulary out of cells they have motor memory
+         for, whereas keeping today's rendering is the safe default. Same reasoning as the
+         Rails defaults. */
       show_category_names: changes.show_category_names === undefined
-        ? (current.show_category_names !== false)
+        ? (all.show_category_names !== false)
         : !!changes.show_category_names,
       vertical_scroll: changes.vertical_scroll === undefined
-        ? (current.vertical_scroll !== false)
+        ? (all.vertical_scroll !== false)
         : !!changes.vertical_scroll
     };
-    /* Write into the board's own slot, leaving the user default and every other board's
-       entry untouched. The whole hash is replaced (that is what makes the sub-key echo
-       below necessary), so `boards` has to be rebuilt here rather than mutated in place. */
-    var boards = {};
-    Object.keys(all.boards || {}).forEach(function(k) { boards[k] = all.boards[k]; });
-    var previous = user.get('preferences.board_category_grouping');
-    var written;
-    if(write_ref) {
-      boards[write_ref] = next;
-      /* Retire the id-keyed entry this board used to be stored under, now that the same
-         settings live under its key. Left in place it would be a second description of
-         one board that the resolver never reads again. */
-      if(ref.legacy && ref.ref && ref.ref !== write_ref) { delete boards[ref.ref]; }
-      written = {
-        enabled: all.enabled === true,
-        order: normalizeCategoryOrder(all.order),
-        show_category_names: all.show_category_names !== false,
-        vertical_scroll: all.vertical_scroll !== false,
-        boards: boards
-      };
-    } else {
-      /* NO BOARD REFERENCE -> WRITE NOTHING. This used to fall back to writing the USER
-         DEFAULT ("so the control still does something"), which is the wrong failure
-         direction and was the actual cause of categories switching themselves on:
-
-           `write_ref` is `board_key || board_id`, and this save runs inside a double
-           requestAnimationFrame (see toggle_categorize). If the model is not resolved at
-           that moment — mid-transition, a board still loading — both are null, so a toggle
-           meant for ONE board silently rewrote `preferences.board_category_grouping.enabled`
-           at the TOP LEVEL. `board_category_settings` falls back to that top level for every
-           board WITHOUT an override, so one mistimed toggle turned grouping on for the whole
-           account: every board the user opened afterwards came up categorised, including
-           boards they had never touched and boards reached via "Try this Board".
-           (Observed: an account with top-level `enabled: true` and an EMPTY `boards` map —
-           the signature of this path rather than a normal per-board write.)
-
-         Grouping MOVES vocabulary out of the cells a communicator has motor memory for, so
-         the account-wide default must only ever change through a deliberate act on a real
-         board. If we cannot tell which board this is, the correct outcome is to do nothing. */
-      console.error('board-detail: ignoring a Categorize change with no board reference — ' +
-                    'refusing to write the account-wide default');
-      return;
-    }
     user.set('preferences.board_category_grouping', written);
     /* `preferences.device` may not exist on the record — setting a nested path through a
        missing object throws "object in path could not be found", which would abort this
@@ -5851,16 +5790,18 @@ export default Controller.extend(prefClasses, {
        column one lands in is derived by the packing at the current width, not
        chosen. So up/down is the whole model — there is no honest meaning for
        left/right, and it would behave differently at each breakpoint. */
+    /* Category ORDER is a property of the board, not of the user, and the board-side field
+       does not exist yet — so there is nowhere for these two to write. They are reachable
+       only from the reorder UI, which is parked behind `category_ordering_available: false`,
+       so neither can be invoked today.
+       They REFUSE LOUDLY rather than writing `{order: …}` into the user preference: the
+       server sanitizer no longer echoes that key, so such a write would appear to succeed
+       on the client and be gone on the next read — the exact silent-discard failure the
+       per-board order already shipped once (see the note on `category_order`). */
     move_category: function(key, direction) {
-      var order = normalizeCategoryOrder(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
-      var idx = order.indexOf(key);
-      if(idx === -1) { return; }
-      var target = direction === 'up' ? idx - 1 : idx + 1;
-      if(target < 0 || target >= order.length) { return; }
-      var next = order.slice();
-      next[idx] = order[target];
-      next[target] = key;
-      this._save_category_grouping({ order: next });
+      console.error('board-detail: move_category is not wired — category order moved to the ' +
+                    'board and the board-side field does not exist yet (key=' + key +
+                    ', direction=' + direction + ')');
     },
 
     /* Both write through the SAME path as the switch, so the "carry sub-preferences
@@ -5875,7 +5816,7 @@ export default Controller.extend(prefClasses, {
       this._save_category_grouping({ vertical_scroll: !this.get('category_vertical_scroll') });
     },
     reset_category_order: function() {
-      this._save_category_grouping({ order: DEFAULT_CATEGORY_ORDER.slice() });
+      console.error('board-detail: reset_category_order is not wired — see move_category');
     },
 
     /* Open the "move to category" picker for one previewed button. Clicking a

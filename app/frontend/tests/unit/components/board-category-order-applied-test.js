@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import Service from '@ember/service';
 import EmberObject from '@ember/object';
 import { setupTest } from '../../helpers';
+import { DEFAULT_CATEGORY_ORDER } from 'frontend/utils/board_categories';
 
 /* THE ORDER THE GRID RENDERS MUST BE THE ORDER THE CONTROLLER RESOLVED.
  *
@@ -12,21 +13,21 @@ import { setupTest } from '../../helpers';
  * it read `preferences.board_category_grouping.order`, the ACCOUNT-WIDE default, while the
  * Categorize panel read the per-board entry.
  *
- * That was not a cosmetic disagreement. `rake lingolinq:seed_board_category_grouping
- * ORDER=...` writes a per-board order, and `User#sanitize_board_category_grouping!`
- * stores and validates it — so the value persisted correctly and was then silently
- * dropped on the way to `group_buttons`. Seeding a curated order produced no visible
- * change and no error.
+ * `order` has since left the user preference entirely (it describes the BOARD, not the
+ * person reading it), so the fallback is now the registry default rather than an account
+ * value. The invariant these tests pin is unchanged and is the one that matters: what the
+ * controller resolved is what renders.
  *
- * The reorder UI is parked (`category_ordering_available: false`), so the seeding path is
- * the only way to set a per-board order today. That is exactly why this needs a test
- * rather than a click-through.
+ * That was never a cosmetic disagreement: the order persisted correctly and was silently
+ * dropped on the way to `group_buttons`, so a curated order produced no visible change and
+ * no error. The reorder UI is parked (`category_ordering_available: false`), so there is no
+ * click-through that would catch it — which is why it needs a test.
  *
  * HARNESS NOTE: same shape as board-categorization-default-test — `app_state` is set on
- * the INSTANCE, not registered as `service:app-state`. The first test is a positive
- * control proving the account-default path is really being read; without it a bug that
- * made `effectiveCategoryOrder` return the registry default for everything would pass
- * every remaining assertion.
+ * the INSTANCE, not registered as `service:app-state`. That makes it easy for an assertion
+ * to pass for the wrong reason, so two of these are controls rather than cases: the first
+ * proves a default really is produced (not an empty list), and the second proves a stale
+ * account-level `order` is genuinely ignored rather than merely absent from the fixture.
  */
 module('Unit | Component | board category order applied', function(hooks) {
   setupTest(hooks);
@@ -45,34 +46,41 @@ module('Unit | Component | board category order applied', function(hooks) {
     return g;
   }
 
-  test('falls back to the account default when nothing is passed (POSITIVE CONTROL)', function(assert) {
-    var g = grid(this.owner, { board_category_grouping: { enabled: true, order: ['questions', 'people'] } });
+  test('falls back to the registry default when nothing is passed (POSITIVE CONTROL)', function(assert) {
+    var g = grid(this.owner, { board_category_grouping: { enabled: true } });
     var order = g.get('effectiveCategoryOrder');
-    assert.strictEqual(order[0], 'questions', 'the account default leads when no order is passed in');
-    assert.strictEqual(order[1], 'people', 'and its second entry is preserved');
+    assert.true(order.length > 1, 'a full default order is produced, not an empty list');
+    assert.strictEqual(order[0], DEFAULT_CATEGORY_ORDER[0],
+      'and it is the registry default, so an unset board still groups sensibly');
   });
 
-  test('a passed-in per-board order WINS over the account default', function(assert) {
+  test('a stale account-level order is IGNORED — order is not a user preference', function(assert) {
+    var g = grid(this.owner, { board_category_grouping: { enabled: true, order: ['questions', 'people'] } });
+    assert.strictEqual(g.get('effectiveCategoryOrder')[0], DEFAULT_CATEGORY_ORDER[0],
+      'a leftover order in the user hash must not steer the grid; the server drops it too');
+  });
+
+  test('a passed-in order WINS over the default', function(assert) {
     var g = grid(
       this.owner,
-      { board_category_grouping: { enabled: true, order: ['questions', 'people'] } },
+      { board_category_grouping: { enabled: true } },
       { categoryOrder: ['people', 'actions'] }
     );
     var order = g.get('effectiveCategoryOrder');
     assert.strictEqual(order[0], 'people',
-      'the per-board order the controller resolved is what renders');
-    assert.strictEqual(order[1], 'actions',
-      'not the account-wide default, which led with questions');
+      'the order the controller resolved is what renders');
+    assert.strictEqual(order[1], 'actions', 'in the sequence it supplied');
   });
 
-  test('an empty per-board order falls back rather than rendering nothing', function(assert) {
+  test('an empty order falls back rather than rendering nothing', function(assert) {
     var g = grid(
       this.owner,
-      { board_category_grouping: { enabled: true, order: ['questions', 'people'] } },
+      { board_category_grouping: { enabled: true } },
       { categoryOrder: [] }
     );
-    assert.strictEqual(g.get('effectiveCategoryOrder')[0], 'questions',
-      'an empty array means "not set", so the account default still applies');
+    var order = g.get('effectiveCategoryOrder');
+    assert.true(order.length > 1, 'an empty array means "not set", so the default applies');
+    assert.strictEqual(order[0], DEFAULT_CATEGORY_ORDER[0], 'and it is the registry default');
   });
 
   test('the resolved order is normalized — unknown keys dropped, missing ones appended', function(assert) {
@@ -89,10 +97,10 @@ module('Unit | Component | board category order applied', function(hooks) {
       'the categories the caller omitted are appended, so the order is never partial');
   });
 
-  test('categoryGroups reads the resolved order, not the account default', function(assert) {
+  test('categoryGroups reads the resolved order', function(assert) {
     var g = grid(
       this.owner,
-      { board_category_grouping: { enabled: true, order: ['questions'] } },
+      { board_category_grouping: { enabled: true } },
       { categoryOrder: ['people', 'actions'], orderedButtons: [] }
     );
     /* With no buttons the group list is empty either way; what is being pinned is that

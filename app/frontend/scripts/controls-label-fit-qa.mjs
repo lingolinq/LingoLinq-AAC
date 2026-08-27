@@ -124,10 +124,12 @@ const DUMP = () => {
       const u = window.appState.get('referenced_user') || window.appState.get('currentUser');
       const p = Object.assign({}, u.get('preferences'));
       const prev = p.board_category_grouping || {};
-      const entry = { enabled: true, order: prev.order || [],
+      /* ACCOUNT-WIDE, three flags: `board_category_grouping` no longer carries an `order`
+         key or a per-board `boards` map — category order/layout is a property of the BOARD
+         and the server drops both on save. This turns grouping on for EVERY board on the
+         account, not just the one under test, and does not restore it. */
+      p.board_category_grouping = { enabled: true,
         show_category_names: true, vertical_scroll: scroll };
-      p.board_category_grouping = Object.assign({}, prev, entry,
-        { boards: Object.assign({}, prev.boards, { [id]: entry }) });
       u.set('preferences', p);
       if (!u.get('preferences.device')) { u.set('preferences.device', {}); }
       u.set('preferences.device.updated', true);

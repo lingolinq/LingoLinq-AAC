@@ -204,15 +204,13 @@ export default Component.extend({
      was stored correctly and silently never applied.
      The fallback keeps a caller that passes nothing behaving exactly as before, the same
      shape `groupingEnabled` uses. */
-  effectiveCategoryOrder: computed(
-    'categoryOrder',
-    'app_state.referenced_user.preferences.board_category_grouping.order',
-    function() {
-      var passed = this.get('categoryOrder');
-      if(passed && passed.length) { return normalize_order(passed); }
-      return normalize_order(this.get('app_state.referenced_user.preferences.board_category_grouping.order'));
-    }
-  ),
+  effectiveCategoryOrder: computed('categoryOrder', function() {
+    /* The fallback is the REGISTRY DEFAULT, not a user preference: category order describes
+       the board, and `board_category_grouping` is now three account-wide flags with no
+       `order` key at all (user.rb#sanitize_board_category_grouping! drops one if sent).
+       Reading it here would be reading a key nothing writes. */
+    return normalize_order(this.get('categoryOrder'));
+  }),
 
   /*
    * Panels, in the user's order, built from the SAME `orderedButtons` the

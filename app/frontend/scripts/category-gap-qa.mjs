@@ -72,27 +72,25 @@ const MEASURE = () => {
     await page.goto(OPTS.BASE + home, { waitUntil: 'networkidle2', timeout: 60000 });
     await page.waitForSelector('.md-board-detail-grid', { timeout: 30000 });
     await sleep(1500);
-    const boardId = await page.evaluate(() =>
-      document.querySelector('.md-board-detail-grid').getAttribute('data-id'));
-    await page.evaluate(async (id, scroll) => {
+    await page.evaluate(async (scroll) => {
       const u = window.appState.get('referenced_user') || window.appState.get('currentUser');
       const p = Object.assign({}, u.get('preferences'));
-      const entry = { enabled: true, order: (p.board_category_grouping || {}).order || [],
-        show_category_names: true, vertical_scroll: scroll };
-      /* MERGE into the existing `boards` map, do not replace it. The previous form
-         (`{ boards: { [id]: entry } }`) dropped every OTHER board's curated arrangement on
-         the account each run, with no restore. Its two near-identical siblings —
-         category-region-qa and category-layout-dump-qa — already merge correctly; this one
-         had diverged. */
-      const prevBoards = (p.board_category_grouping || {}).boards;
-      const boards = Object.assign({}, (prevBoards && typeof prevBoards === 'object') ? prevBoards : {});
-      boards[id] = entry;
-      p.board_category_grouping = Object.assign({}, entry, { boards: boards });
+      /* ACCOUNT-WIDE, three flags. This used to merge an entry into a per-board `boards`
+         map keyed by the grid's data-id; that map no longer exists (category order/layout
+         is a property of the BOARD, and the server drops a `boards` key on save), so the
+         probe now sets the account flags directly. Note the consequence for anyone running
+         this against a real account: it turns grouping ON for EVERY board, not just the one
+         under test, and does not restore it. */
+      p.board_category_grouping = {
+        enabled: true,
+        show_category_names: true,
+        vertical_scroll: scroll
+      };
       u.set('preferences', p);
       if (!u.get('preferences.device')) { u.set('preferences.device', {}); }
       u.set('preferences.device.updated', true);
       await u.save();
-    }, boardId, SCROLL);
+    }, SCROLL);
     await sleep(2500);
 
     for (const w of WIDTHS) {

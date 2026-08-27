@@ -74,62 +74,6 @@ namespace :lingolinq do
     end
   end
 
-  desc 'Apply category grouping to boards for users, keyed by BOARD KEY so it ports ' \
-       'between environments. BOARDS=key1,key2 USERS=a,b|all [SCROLL=1] [NAMES=1] ' \
-       '[ORDER=people,actions,…] [OFF=1] [DRY_RUN=1]'
-  task seed_board_category_grouping: :environment do
-    # Keyed by board KEY, never global_id: an id is unique to one database, so an id-keyed
-    # override stops applying the moment it crosses environments. See
-    # User#sanitize_board_category_grouping! and board-detail.js#_board_category_ref.
-    board_keys = ENV['BOARDS'].to_s.split(',').map(&:strip).reject(&:empty?)
-    abort 'Usage: BOARDS=user/slug[,user/slug] USERS=name[,name]|all rake lingolinq:seed_board_category_grouping' if board_keys.empty?
-
-    missing = board_keys.reject { |k| Board.find_by_path(k) }
-    abort "Board(s) not found: #{missing.join(', ')}" if missing.any?
-
-    who = ENV['USERS'].to_s.strip
-    abort 'Set USERS=name[,name] or USERS=all' if who.empty?
-    users = who == 'all' ? User.all : who.split(',').map(&:strip).reject(&:empty?).map { |n| User.find_by_path(n) || abort("User not found: #{n}") }
-
-    enabled = ENV['OFF'].to_s !~ /\A(1|true|yes)\z/i
-    entry = {
-      'enabled' => enabled,
-      'order' => ENV['ORDER'].to_s.split(',').map(&:strip).reject(&:empty?),
-      'show_category_names' => ENV['NAMES'].to_s !~ /\A(0|false|no)\z/i,
-      'vertical_scroll' => ENV['SCROLL'].to_s !~ /\A(0|false|no)\z/i
-    }
-    dry = ENV['DRY_RUN'].to_s =~ /\A(1|true|yes)\z/i
-
-    puts "#{dry ? '[DRY RUN] ' : ''}#{enabled ? 'Enabling' : 'Disabling'} category grouping"
-    puts "  boards: #{board_keys.join(', ')}"
-    puts "  entry:  #{entry.inspect}"
-    changed = 0
-    # USERS=all yields a relation (batch it); a name list yields an Array (which has no
-    # find_each — that mismatch made the first run of this task die before updating anyone).
-    roster = users.respond_to?(:find_each) ? users.find_each : users
-    roster.each do |user|
-      prefs = user.settings['preferences'] ||= {}
-      grouping = prefs['board_category_grouping']
-      grouping = {} unless grouping.is_a?(Hash)
-      boards = grouping['boards']
-      boards = {} unless boards.is_a?(Hash)
-      before = boards.dup
-      board_keys.each { |k| boards[k] = entry.dup }
-      next if before == boards   # idempotent: re-running changes nothing
-      changed += 1
-      next if dry
-      grouping['boards'] = boards
-      # The top level is the user's DEFAULT for boards with no entry — left alone on
-      # purpose, so seeding one board cannot silently regroup every other board they own.
-      grouping['enabled'] = grouping['enabled'] == true
-      grouping['order'] = grouping['order'].is_a?(Array) ? grouping['order'] : []
-      prefs['board_category_grouping'] = grouping
-      user.settings['preferences'] = prefs
-      user.save
-    end
-    puts "#{dry ? 'Would update' : 'Updated'} #{changed} user(s) (of #{users.count})."
-  end
-
   desc 'Verify that beta-critical seed records and public source boards exist'
   task verify_beta_seed: :environment do
     require_library_boards = ENV['REQUIRE_LIBRARY_BOARDS'].to_s !~ /^(0|false|no)$/i

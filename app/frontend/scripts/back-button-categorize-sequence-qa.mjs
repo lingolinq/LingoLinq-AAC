@@ -109,23 +109,17 @@ async function goHome(page, home) {
 
     // Baseline: make sure grouping starts OFF on every board this run touches.
     await goHome(page, home);
-    /* PRESERVE `boards`. This used to assign a literal `boards: {}`, which is a wholesale
-       replacement, not a baseline reset — it destroyed every curated per-board category
-       arrangement on the account, with no restore anywhere in this file. That is real data
-       loss on a shared dev/demo account, and it silently invalidated the setup that
-       `category-pref-scope-qa.mjs` tells you to seed first.
-       Only the TOP-LEVEL default needs to start OFF for this probe; the per-board map is
-       carried through untouched. */
+    /* Baseline the account-wide flags to OFF. There is no per-board map to preserve any
+       more: `board_category_grouping` is three flags, and category order/layout belongs to
+       the BOARD. Note this resets the flags for the whole account and does not restore
+       them, which matters on a shared dev/demo login. */
     await page.evaluate(async () => {
       const u = window.appState.get('referenced_user') || window.appState.get('currentUser');
       const p = Object.assign({}, u.get('preferences'));
-      const prev = p.board_category_grouping || {};
       p.board_category_grouping = {
         enabled: false,
-        order: [],
         show_category_names: true,
-        vertical_scroll: true,
-        boards: (prev.boards && typeof prev.boards === 'object') ? prev.boards : {}
+        vertical_scroll: true
       };
       u.set('preferences', p);
       if (!u.get('preferences.device')) { u.set('preferences.device', {}); }

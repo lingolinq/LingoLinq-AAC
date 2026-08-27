@@ -361,14 +361,19 @@ describe FeatureFlags do
       expect(User::PREFERENCE_PARAMS).to include('board_category_grouping')
     end
 
-    it "stores only a boolean enabled and known category keys" do
+    it "stores only the three account-wide flags" do
       u = User.create
       u.process({'preferences' => {'board_category_grouping' => {
-        'enabled' => 'false', 'order' => ['people', 'people', 'bogus_key'], 'junk' => 'x'
+        'enabled' => 'false', 'order' => ['people', 'bogus_key'], 'junk' => 'x'
       }}})
       stored = u.settings['preferences']['board_category_grouping']
       expect(stored['enabled']).to eq(false)
-      expect(stored['order']).to eq(['people'])
+      expect(stored['show_category_names']).to eq(true)
+      expect(stored['vertical_scroll']).to eq(true)
+      # `order` is no longer a user preference at all -- it describes the BOARD. Dropped
+      # rather than sanitized, so a stale client cannot have one accepted and then
+      # silently ignored by the renderer.
+      expect(stored).not_to have_key('order')
       expect(stored['junk']).to eq(nil)
     end
 
@@ -384,7 +389,6 @@ describe FeatureFlags do
       # behaviour actually changing. Pin the two guarantees, not the shape.
       expect(stored).to be_a(Hash)
       expect(stored['enabled']).to eq(false)
-      expect(stored['order']).to eq([])
     end
   end
 end

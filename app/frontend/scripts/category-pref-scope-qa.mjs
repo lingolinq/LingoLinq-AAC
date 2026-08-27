@@ -1,4 +1,24 @@
-/**
+/*
+ * RETIRED 2026-08-27 — READ THIS BEFORE RUNNING.
+ *
+ * This probe verified that `board_category_grouping.boards` was keyed by BOARD KEY
+ * (`username/board-slug`) rather than global_id, so a curated per-board arrangement
+ * would port between local / staging / production.
+ *
+ * That map NO LONGER EXISTS. `board_category_grouping` is now three account-wide flags
+ * (enabled / vertical_scroll / show_category_names); which categories a board shows, and
+ * in what sequence, is a property of the BOARD. The key-vs-id portability problem this
+ * probe guarded is gone because the preference no longer addresses a board at all.
+ *
+ * Refuses to run by default and exits 0, following g2-board-actions-qa.mjs: a probe that
+ * always fails is a landmine in a QA sweep — the next person either wastes a session
+ * diagnosing it or, worse, "fixes" the removal to make it green. The DROP is guarded by
+ * spec/models/user_spec.rb ("drops the per-board overrides map"). Pass --run-retired to
+ * execute the walk anyway, which is only meaningful if the map has been restored.
+ *
+ * ---- original header ----
+ *
+*
  * Does a per-board category override keyed by BOARD KEY actually apply — and only to that
  * board?
  *
@@ -15,6 +35,20 @@
  */
 /* eslint-env node */
 import { cliArgs, launch, login } from './qa-helpers.mjs';
+
+/* Retirement guard runs BEFORE argument validation: this probe is retired, so it must
+   not fail on a missing --boards it no longer needs. */
+if (!process.argv.includes('--run-retired')) {
+  console.log('category-pref-scope-qa: RETIRED 2026-08-27 — not run.');
+  console.log('');
+  console.log('  board_category_grouping.boards no longer exists; the preference is three');
+  console.log('  account-wide flags. Category order/layout belongs to the BOARD now.');
+  console.log('  The drop is guarded by spec/models/user_spec.rb.');
+  console.log('');
+  console.log('  To run this walk anyway (only meaningful if the map was restored):');
+  console.log('    node scripts/category-pref-scope-qa.mjs --run-retired');
+  process.exit(0);
+}
 
 const OPTS = cliArgs(process.argv);
 const BOARDS = (OPTS.arg('--boards', '')).split(',').filter(Boolean);

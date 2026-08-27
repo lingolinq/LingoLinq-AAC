@@ -72,15 +72,15 @@ async function setGrouping(page, on, opts) {
     const as = window.appState;
     const u = as.get('referenced_user') || as.get('currentUser');
     const prefs = Object.assign({}, u.get('preferences'));
-    const all = Object.assign({}, prefs.board_category_grouping);
-    const entry = { enabled: enabled, order: all.order || [],
-      show_category_names: o.names, vertical_scroll: o.scroll };
-    all.enabled = entry.enabled;
-    all.order = entry.order;
-    all.show_category_names = entry.names;
-    all.vertical_scroll = entry.scroll;
-    if (o.boardId) { all.boards = Object.assign({}, all.boards, { [o.boardId]: entry }); }
-    prefs.board_category_grouping = all;
+    /* ACCOUNT-WIDE, three flags. `board_category_grouping` no longer carries an `order`
+       key or a per-board `boards` map — category order/layout is a property of the BOARD,
+       and the server drops both on save. Setting the flags here turns grouping on for
+       EVERY board on the account, not just the one under test, and does not restore it. */
+    prefs.board_category_grouping = {
+      enabled: enabled,
+      show_category_names: o.names,
+      vertical_scroll: o.scroll
+    };
     u.set('preferences', prefs);
     await u.save();
     return JSON.stringify(u.get('preferences.board_category_grouping'));

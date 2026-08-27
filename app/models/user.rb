@@ -1753,7 +1753,7 @@ class User < ApplicationRecord
         # either to false would change the rendering for every user who already turned
         # grouping on — a silent behaviour change, which is exactly what the `enabled`
         # note above exists to warn about. They only take effect while `enabled` is true.
-        'board_category_grouping' => {'enabled' => false, 'order' => [], 'show_category_names' => true, 'vertical_scroll' => true},
+        'board_category_grouping' => {'enabled' => false, 'show_category_names' => true, 'vertical_scroll' => true},
         'symbol_background' => 'clear',
         'utterance_interruptions' => true,
         'click_buttons' => true,
@@ -2958,9 +2958,15 @@ class User < ApplicationRecord
   # by "stays in step with the frontend registry" in spec/models/user_spec.rb, which reads
   # the JS file and compares. That spec exists because this drifted once already:
   # `predictions`, `clock`, `yes` and `time` were added to the registry and not here, and
-  # because the client writes a FULL normalized order on every Categorize save, those four
+  # because the client wrote a FULL normalized order on every Categorize save, those four
   # were stripped server-side on every save and re-appended at the END of the order by
   # normalize_order on the next read — permanently pushing them to the back of the board.
+  #
+  # CURRENTLY UNUSED BY APP CODE, deliberately kept. Category ORDER left this preference
+  # when it became a property of the board rather than of the user, so nothing filters
+  # against this constant today — the board-side layout field will. The drift guard is
+  # worth keeping running in the meantime: it is cheap, and a registry key added while
+  # this list is dormant is exactly the state that produced the bug above.
   BOARD_CATEGORY_KEYS = ['people', 'actions', 'describe', 'how_when', 'places',
                          'questions', 'social', 'no_not', 'words', 'keyboard',
                          'predictions', 'clock', 'yes', 'time', 'controls',
@@ -2984,8 +2990,6 @@ class User < ApplicationRecord
       return
     end
     enabled = val['enabled']
-    order = val['order']
-    order = [] unless order.is_a?(Array)
     truthy = ->(v) { [true, 'true', 1, '1'].include?(v) }
     # This method REBUILDS the hash from scratch, so any key not listed here is
     # discarded — silently, and server-side, which makes it an easy trap. Every
@@ -2998,54 +3002,37 @@ class User < ApplicationRecord
     # today's rendering, not lose their category headers and scrolling on next save.
     entry = lambda { |v|
       v = {} unless v.is_a?(Hash)
-      ord = v['order']
-      ord = [] unless ord.is_a?(Array)
       {
         'enabled' => truthy.call(v['enabled']),
-        # Known keys only, de-duplicated, and bounded by the registry itself.
-        'order' => ord.select { |k| BOARD_CATEGORY_KEYS.include?(k) }.uniq,
         'show_category_names' => v.has_key?('show_category_names') ? truthy.call(v['show_category_names']) : true,
         'vertical_scroll' => v.has_key?('vertical_scroll') ? truthy.call(v['vertical_scroll']) : true
       }
     }
 
-    # PER-BOARD overrides. The top-level keys stay the user's default, used by any board
-    # with no entry of its own; `boards` maps a board to a full settings hash in the same
-    # shape. Sanitized with the SAME lambda so an override cannot smuggle in a key or a
-    # category the top level would have rejected.
+    # THREE FLAGS, ACCOUNT-WIDE. This preference answers only "does this user want
+    # categorization, may it scroll, and are the labels shown" — it no longer describes
+    # any particular board.
     #
-    # This map has to be echoed here for the same reason every other sub-key does: this
-    # method REBUILDS the hash, so anything not listed is discarded silently, server-side.
+    # What used to live here and deliberately does not any more:
     #
-    # KEYED BY BOARD KEY (`username/board-slug`), not by global_id. A global_id is stable
-    # only within one database: the same board seeded on local, staging and production
-    # gets a different id in each, so an id-keyed override silently stopped applying the
-    # moment it crossed environments — there was no way to ship a curated per-board
-    # arrangement with the board it belongs to. A board key survives that, because the
-    # seed produces the same slug everywhere.
+    #   `order`   — WHICH categories, in what sequence, is a property of the BOARD, not of
+    #               the person reading it. A curated arrangement has to ship with the board
+    #               it was designed for and survive being copied, and a user preference can
+    #               do neither: it is per-account, so it never reaches a new user and never
+    #               follows a copy.
+    #   `boards`  — the per-board override map. Same reason. It addressed a board by key
+    #               from inside one user's preferences, which made the arrangement look
+    #               board-scoped while remaining user-scoped; seeding it to N users wrote N
+    #               copies and still missed every copy of the board.
     #
-    # The id shape is STILL ACCEPTED, because entries written before this change are
-    # already stored that way and the frontend resolver still falls back to them (see
-    # controllers/user/board-detail.js#board_category_settings). Dropping them here would
-    # wipe a live preference on the user's next save of any unrelated setting.
-    #
-    # Bounded on both axes — shape and count — because it is client-supplied and otherwise
-    # grows without limit. The length cap is 128 rather than 64 to fit a real key: the
-    # longest in the seeded library run to ~50 characters, and a copy adds a `_<n>` suffix.
-    boards = val['boards']
-    boards = {} unless boards.is_a?(Hash)
-    clean_boards = {}
-    board_ref = /\A[0-9A-Za-z_\-]+(\/[0-9A-Za-z_\-]+)?\z/
-    boards.each do |bid, bval|
-      break if clean_boards.size >= 500
-      next unless bid.is_a?(String) && bid.length <= 128 && bid.match(board_ref)
-      next unless bval.is_a?(Hash)
-      clean_boards[bid] = entry.call(bval)
-    end
-
-    written = entry.call(
-      val.merge('enabled' => enabled, 'order' => order)
-    ).merge('boards' => clean_boards)
+    # Both are REBUILT AWAY here rather than preserved, so a stored entry is dropped on the
+    # user's next save. That is intended — they are superseded, not merely unused — but note
+    # what it means for someone who had turned Categorize on for a single board: the entry
+    # goes and their account-wide flag (normally off) applies. A per-board `enabled` is
+    # deliberately NOT promoted to the top level during that drop. Turning grouping on for
+    # boards a user never opted into would move vocabulary out of cells they have positional
+    # motor memory for, and this file refuses that trade everywhere else it appears.
+    written = entry.call(val.merge('enabled' => enabled))
     log_board_category_grouping_enable!(written)
     prefs['board_category_grouping'] = written
   end
@@ -3064,9 +3051,13 @@ class User < ApplicationRecord
   #
   # Logs ONLY the false -> true edge, so it is silent in normal operation and cannot become
   # noise: turning grouping on is rare, and turning it off or re-saving it while already on
-  # says nothing. The `boards` count is the discriminator that pointed at the client-side
-  # no-board fallback in the first place — a deliberate per-board toggle writes an entry,
-  # the buggy path wrote the top level with an EMPTY map.
+  # says nothing.
+  #
+  # The original discriminator was the `boards` entry count — a deliberate per-board toggle
+  # wrote an entry, the buggy client path wrote the top level with an EMPTY map. That map no
+  # longer exists (the preference is three account-wide flags), so the caller frames are now
+  # the whole signal. Keep them: without the map there is nothing else to tell a deliberate
+  # toggle from a stray one.
   #
   # Runs in every environment on purpose: beta users are on staging and production, which is
   # exactly where an unexplained clinical-setting change matters most. One WARN line per
@@ -3092,8 +3083,9 @@ class User < ApplicationRecord
     frames = caller.select { |l| l.start_with?(root) && !l.include?('/app/models/user.rb') }.first(6)
     Rails.logger.warn(
       "[board_category_grouping] ENABLED user=#{self.global_id.inspect} " \
-      "prior_enabled=#{prior_enabled.inspect} boards_entries=#{(written['boards'] || {}).keys.length} " \
-      "order_len=#{(written['order'] || []).length} new_record=#{self.new_record?} " \
+      "prior_enabled=#{prior_enabled.inspect} " \
+      "scroll=#{written['vertical_scroll'].inspect} labels=#{written['show_category_names'].inspect} " \
+      "new_record=#{self.new_record?} " \
       "caller=#{frames.map { |f| f.sub(root + '/', '') }.inspect}"
     )
   end
