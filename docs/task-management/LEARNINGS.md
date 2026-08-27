@@ -15570,3 +15570,46 @@ shape.
 
 **First seen in:** [2026-08-26-ai-disclosure-object-object.md](./2026-08-26-ai-disclosure-object-object.md)
 
+
+## Gotcha: rescoping a findings row in place is a merge hazard, and no gate can see it
+
+`audit-merge.rb` derives a finding id as `SHA256(ruleKey|file)` (`scripts/audit-merge.rb:151-153`),
+and `citation-check.rb:72-96` already re-derives it and hard-FAILS on a mismatch, for every row
+regardless of status. **CORRECTED 2026-08-27: that check is NOT CI-gated.** `ci.yml:153` says so
+explicitly ("citation-check.rb is intentionally NOT gated here"); it runs only locally, via
+`scripts/regenerate-register.sh`. An earlier version of this entry called it "CI-blocking", which
+was wrong and is exactly the kind of unverified gating claim this file exists to stop. The only
+CI-gated structural check on findings rows is `register-lint.rb`, inside `audit-artifacts-integrity`.
+
+That is exactly why rescoping a row in place slips through. On PR #867 a row was rewritten from
+"the disclosure represents an unenforced purge as enforced" to an Article 50 legal-basis question
+while KEEPING its ruleKey. `id == SHA256(ruleKey|file)` still held, so citation-check stayed green
+-- what drifted was the SEMANTIC relationship: the row's content no longer described what its key
+said. A finder re-emitting the old key would then merge into a row about a different subject, and a
+correctly keyed finding would land as a duplicate.
+
+Two things follow:
+
+1. **When the subject of a finding changes, mint a NEW ruleKey and let the id change.** Editing
+   title/notes in place is only safe while the row still means what its key says. If the row has
+   already merged, you cannot simply delete it either (that is a closure, and only Scot closes) --
+   restore the old row's title to match its key, mark it withdrawn, and open the correctly keyed
+   row alongside it.
+2. **Do not propose an "identity invariant" gate for this.** It exists, it is green, and it would
+   not have caught the defect. Check whether a gate exists before recommending one; a redundant
+   gate that cannot detect the failure it is named for is worse than none, because it reads like
+   coverage.
+
+Related, and this one IS mechanically checkable: `evidence.sha` must be a full 40-hex commit id.
+`citation-check` resolves a prefix happily (`git show <prefix>:<path>` works), so a short sha passes
+the day it is written and silently becomes ambiguous as the repo grows. `audit-merge.rb` writes
+whatever `--sha` it is handed, so the abbreviation enters at the call site, not in the merger.
+`register-lint.rb` now rejects a non-40-hex sha, and REQUIRES one on every `code`/`doc` row --
+blank is permitted only for known non-checkable evidence (`runtime`, `attestation`). Unknown
+types (a mistype like `"cod"`, or an empty string) must not inherit that exemption:
+`citation-check.rb` SKIPs every type other than `code`/`doc`, so a file-backed row with a
+typoed type and a blank sha would otherwise be unanchored and uninspected by both the CI
+gate and the local citation check. The linter allowlists `evidence.type` against
+`code|doc|runtime|attestation` before applying the blank-sha exemption, and treats a blank
+type the same as a missing one (derive `code` if a file is present). That strictness
+matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
