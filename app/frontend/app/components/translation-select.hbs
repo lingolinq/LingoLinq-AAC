@@ -73,6 +73,18 @@
       </div>
     {{/if}}
 
+    <div class="la-translate-board-section">
+      <div class="la-translate-board-copy-card">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <p>
+          <strong>{{t "About board translation" key="translate_google_disclaimer_title"}}</strong><br>
+          {{t "Board translation uses Google Cloud Translation, a machine-translation service. It is not generative AI or a chatbot. Words on this board (button labels, spoken phrases, and the board name) will be sent to Google to translate. If any of those words include personal information, that information will be sent too." key="translate_google_disclaimer_body"}}
+        </p>
+      </div>
+    </div>
+
   </div>
   <div class="modal-footer md-modal-footer">
     {{#if this.cannot_translate}}

@@ -154,6 +154,12 @@ RSpec.describe WordData, :type => :model do
         'runshkable' => 'rushef',
         'forshdeg' => 'milnar'
       })
+      expect(res[:origins]).to eq({
+        'troixlet' => 'cache',
+        'runshkable' => 'cache',
+        'forshdeg' => 'google'
+      })
+      expect(res[:origins]).not_to have_key('wilmerding')
     end
 
     it "should not look up or query action tokens like :space or +q" do
@@ -166,6 +172,7 @@ RSpec.describe WordData, :type => :model do
         {:text => ':shift'}
       ], 'en', 'es')
       expect(res[:translations]).to eq({'hat' => 'sombrero'})
+      expect(res[:origins]).to eq({'hat' => 'google'})
       expect(res[:translations]).not_to have_key(':space')
       expect(res[:translations]).not_to have_key('+q')
       expect(res[:translations]).not_to have_key(':shift')

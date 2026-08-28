@@ -37,6 +37,22 @@ describe JsonApi::Board do
       expect(JsonApi::Board.as_json(b, :permissions => u, :wrapper => true)['board']['translations']).to eq({'a' => 1})
     end
 
+    it "should omit source_part_of_speech from translated_locales" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['locale'] = 'en'
+      b.settings['translations'] = {
+        '9' => {
+          'en' => { 'label' => 'say' },
+          'es' => { 'label' => 'decir' },
+          'source_part_of_speech' => 'verb'
+        },
+        'board_name' => { 'en' => 'tell', 'es' => 'decir' }
+      }
+      json = JsonApi::Board.build_json(b)
+      expect(json['translated_locales']).to eq(['en', 'es'])
+    end
+
     it "should include content retrieved from board_content record" do
       u = User.create
       b = Board.create(user: u)

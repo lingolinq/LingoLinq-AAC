@@ -1554,8 +1554,10 @@
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
               <input class="form-control" value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}} aria-label={{t "Inflection, bottom right" key="inflection_bottom_right"}}  {{on "input" (set-field locale "inflections_hash.se")}}/>
             </div>
-            <div>
-              <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}} aria-label={{t "Inflection overrides" key="inflection_overrides"}}  {{on "input" (set-field locale "rules_string")}}>{{locale.rules_string}}</textarea>
+            <div style='clear: both;'>
+              <label for={{concat "inflection_overrides_" locale.locale}} class="control-label">{{t "Automatic replacements" key="automatic_replacements"}}</label>
+              <p class='form-control-static'>{{t "Optional. When Automatic Inflections is on, words already in the sentence can change this button. One rule per line: previous words = new form." key="automatic_replacements_description"}}</p>
+              <textarea id={{concat "inflection_overrides_" locale.locale}} class="form-control" placeholder={{this.inflection_overrides_placeholder}} {{on "input" (set-field locale "rules_string")}}>{{locale.rules_string}}</textarea>
             </div>
           </div>
         </div>
@@ -1677,8 +1679,10 @@
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
                 <input value={{this.inflections_hash.se}} class="form-control" placeholder={{this.inflections_suggestions.se}} aria-label={{t "Inflection, bottom right" key="inflection_bottom_right"}} {{on "input" (set-field this "inflections_hash.se")}} />
               </div>
-              <div>
-                <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}} aria-label={{t "Inflection overrides" key="inflection_overrides"}} {{on "input" (set-field this "rules_string")}}>{{this.rules_string}}</textarea>
+              <div style='clear: both;'>
+                <label for="inflection_overrides" class="control-label">{{t "Automatic replacements" key="automatic_replacements"}}</label>
+                <p class='form-control-static'>{{t "Optional. When Automatic Inflections is on, words already in the sentence can change this button. One rule per line: previous words = new form." key="automatic_replacements_description"}}</p>
+                <textarea id="inflection_overrides" class="form-control" placeholder={{this.inflection_overrides_placeholder}} {{on "input" (set-field this "rules_string")}}>{{this.rules_string}}</textarea>
               </div>
             {{/if}}
           </div>

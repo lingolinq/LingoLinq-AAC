@@ -55,10 +55,10 @@
       <label class="md-org-settings-field__label">{{t "Third-party AI processing" key="org_external_ai_processing_label"}}</label>
       <label class="md-org-settings-toggle">
         <input type="checkbox" checked={{this.model.external_ai_processing}} class="md-org-settings-toggle__input" {{on "change" (set-field this "model.external_ai_processing" "checkbox")}} />
-        <span class="md-org-settings-toggle__label">{{t "Allow third-party AI processing (translation, voice transcription)" key="org_external_ai_processing_toggle"}}</span>
+        <span class="md-org-settings-toggle__label">{{t "Allow third-party AI processing (voice transcription)" key="org_external_ai_processing_toggle"}}</span>
       </label>
       <span class="md-org-settings-field__hint">
-        {{t "When off, board auto-translation and voice-recording transcription will not send data to Google. Recordings still work without a transcript. Turn this off if your contract forbids third-party processing." key="org_external_ai_processing_hint"}}
+        {{t "When off, voice-recording transcription will not send data to Google. Recordings still work without a transcript. Board translation is separate and uses Google Cloud Translation." key="org_external_ai_processing_hint"}}
       </span>
     </div>
 

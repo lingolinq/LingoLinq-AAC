@@ -65,30 +65,21 @@ class SpanishLibraryBoards
     board
   end
 
+  # copy_for clones only this board. load_board / downstream ids still point at
+  # the shared English children. Passing those ids into translate_set with
+  # default: true would overwrite the English library. Translate the copy root
+  # only.
   def self.translation_board_ids(root)
-    ids = [root.global_id]
-    (root.downstream_board_ids || []).each do |id|
-      ids << id
-    end
-    ids.uniq
+    [root.global_id]
   end
 
   def self.build_translation_map(root, board_ids)
-    words = []
-    Board.find_all_by_path(board_ids).each do |brd|
-      words << brd.settings['name'] if brd.settings['name'].present?
-      brd.buttons.each do |btn|
-        words << btn['label'] if btn['label'].present?
-        # Action vocalizations (':space', '+q', ...) are control protocols.
-        # Translating the token breaks keyboard / prediction buttons.
-        if btn['vocalization'].present? && btn['vocalization'] != btn['label'] && !btn['vocalization'].to_s.match(/^[:+]/)
-          words << btn['vocalization']
-        end
-      end
-    end
-    words.uniq!
+    entries = BoardTranslationWords.collect_entries(board_ids)
+    words = entries.reject { |e| e[:identity] }.map { |e| e[:en] }.uniq
     batch = words.map { |w| { text: w } }
     res = WordData.translate_batch(batch, SOURCE_LANG, DEST_LANG)
-    res[:translations] || {}
+    translations = res[:translations] || {}
+    BoardTranslationWords.apply_identities(translations, {}, entries)
+    translations
   end
 end
