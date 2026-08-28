@@ -32,6 +32,8 @@ import boundClasses from '../../utils/bound_classes';
 import actionLock from '../../utils/action-lock';
 import aiPredictor from '../../utils/ai_word_predictor';
 import wordSuggestionsModule from '../../utils/word_suggestions';
+import scanner from '../../utils/scanner';
+import buttonTracker from '../../utils/raw_events';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx } from '../../utils/display_prefs';
 import boardDetailCache from '../../utils/board_detail_cache';
 import { pick_aac_color, resolve_labels_pos } from '../../utils/parts_of_speech';
@@ -462,8 +464,8 @@ export default Controller.extend(prefClasses, {
     // height (cqh only works on descendants; padding-% is width-based), so this JS var is the
     // reliable source. The cell height is the 1fr grid row height (independent of the padding
     // inside it), so reading it back to drive the padding does NOT feed back.
+    var cellRect = cell.getBoundingClientRect();
     if(grid && cell) {
-      var cellRect = cell.getBoundingClientRect();
       if(cellRect && cellRect.height >= 1) {
         grid.style.setProperty('--bd-cell-h', Math.round(cellRect.height) + 'px');
         // Also publish the SMALLER cell dimension so the folder-tab geometry (tab height +
@@ -495,6 +497,40 @@ export default Controller.extend(prefClasses, {
     main.style.setProperty('--prediction-rail-gap-left', colGap + 'px');
     main.style.setProperty('--prediction-rows', String(parseInt(this.get('current_grid.rows'), 10) || 4));
     main.style.setProperty('--prediction-grid-h', Math.round(grid.getBoundingClientRect().height) + 'px');
+    // The rail's top inset must be the grid's ACTUAL padding-top, not a hardcoded
+    // 4px: the grid uses `padding-top: var(--bd-grid-top, 4px)` and short-viewport
+    // rules set that variable to 0, so a literal 4px pushed the whole rail down a
+    // row-band's worth of a few px there.
+    if(gridStyle && gridStyle.paddingTop) {
+      main.style.setProperty('--prediction-rail-pad-top', gridStyle.paddingTop);
+    }
+    // ...and its MARGIN-top, which is the other half of the grid's origin and was the
+    // reason the rail still sat 6px high after the padding was matched: the rail is
+    // pinned to the grid's HEIGHT (--prediction-grid-h) but is a separate flex item, so
+    // it starts at the flex row's top while the grid starts one margin lower.
+    // `.md-board-detail-grid.board.speak` sets `margin-top: 6px !important`, dropping to
+    // `0 !important` at max-height 820px / max-width 768px — dynamic, so it must be read,
+    // never hardcoded. Not circular: the grid's margin does not depend on the rail.
+    if(gridStyle && gridStyle.marginTop) {
+      main.style.setProperty('--prediction-rail-margin-top', gridStyle.marginTop);
+    }
+    // A board CARD does not fill its CELL: every folder setting reserves a different
+    // amount of cell top space for the tab (default folders 0.14 x --bd-cell-min on
+    // EVERY cell, Show-Labels-on-Tab 8/10px plus a calc(100% - 18px) translated card,
+    // colored-corner 0, folder-less boards none). A rail tile that filled its row band
+    // edge-to-edge therefore floated ABOVE the card beside it by exactly that reserve —
+    // the misalignment that changed with every folder setting. Publish the card's
+    // measured offset within its cell and its measured height so a tile reproduces the
+    // card's box in EVERY mode; getBoundingClientRect sees the tab-labels transform, so
+    // no per-mode CSS branch is needed. These are read FROM the card and applied to the
+    // tile's INNER geometry only — they never feed the rail's width, so they can't
+    // re-enter the flex width distribution (see LEARNINGS "sizing a fixed-width sibling
+    // to a FLEXIBLE element's measured size is circular").
+    if(cellRect && cellRect.height >= 1) {
+      var insetTop = Math.max(0, Math.round(cardRect.top - cellRect.top));
+      main.style.setProperty('--prediction-tile-inset-top', insetTop + 'px');
+      main.style.setProperty('--prediction-tile-h', Math.round(cardRect.height) + 'px');
+    }
     // WIDTH — match the speak-mode sidebar EXACTLY (per request). The rail and the
     // inline sidebar are both fixed-width siblings of the FLEXIBLE board grid (which
     // absorbs the remaining width); the sidebar's width is set by CSS per breakpoint
@@ -552,7 +588,13 @@ export default Controller.extend(prefClasses, {
     var h = board ? board.getBoundingClientRect().height : 0;
     sidebar.style.height = (h && h > 1) ? (Math.round(h) + 'px') : '';
   },
-  _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', 'app_state.window_inner_width', 'app_state.window_inner_height', function() {
+  /* `edit_mode` and `effective_folder_display_style` are dependencies because the
+     folder setting changes the CELL's top reserve (and so the card's box inside it)
+     WITHOUT changing the grid's own box — the grid ResizeObserver therefore never
+     fires for it, and --prediction-tile-inset-top would stay measured against the
+     previous folder style. edit_mode covers the same transition on the way back from
+     the Edit Tools rail, where the style is actually changed. */
+  _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', 'edit_mode', 'effective_folder_display_style', 'app_state.window_inner_width', 'app_state.window_inner_height', function() {
     var _this = this;
     runLater(function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -860,6 +902,14 @@ export default Controller.extend(prefClasses, {
       try { this._predictionGridRO.disconnect(); } catch(e) { /* noop */ }
       this._predictionGridRO = null;
     }
+    if(this._suggestions_cue_timer) {
+      clearTimeout(this._suggestions_cue_timer);
+      this._suggestions_cue_timer = null;
+    }
+    if(this._suggestion_swap_timer) {
+      clearTimeout(this._suggestion_swap_timer);
+      this._suggestion_swap_timer = null;
+    }
     // Flush (don't just drop) any debounced display-pref save: the user's last
     // stepper click must still reach the server when they navigate away inside the
     // debounce window, otherwise the preference they just set is silently lost.
@@ -1015,6 +1065,20 @@ export default Controller.extend(prefClasses, {
     );
   },
 
+  /* Re-publish the current suggestion list so a symbol image that resolved AFTER the
+     words rendered reaches the template (the list objects are mutated in place, so a
+     new array identity is what triggers the re-render). Both image-resolution paths
+     call this instead of repeating the set.
+
+     `loading` is carried through deliberately: an image can resolve while an AI
+     lookup is still running, and dropping the flag would retract the loading cue
+     early and leave the panel claiming to be up to date when it isn't. */
+  _republish_suggestion_list: function() {
+    var current = this.get('suggestions');
+    if(!current || !current.list) { return; }
+    this.set('suggestions', { ready: true, loading: current.loading, list: current.list.slice() });
+  },
+
   _decorate_suggestion_images: function(list) {
     var _this = this;
     if(!list || !list.length) { return list; }
@@ -1038,10 +1102,7 @@ export default Controller.extend(prefClasses, {
       wordSuggestionsModule.attach_image_for_label(item.word, lookup_ids, function(url) {
         if(_this.isDestroyed || _this.isDestroying || !url) { return; }
         item.image = url;
-        var current = _this.get('suggestions');
-        if(current && current.list) {
-          _this.set('suggestions', { ready: true, list: current.list.slice() });
-        }
+        _this._republish_suggestion_list();
       }, ctx);
     });
     return list;
@@ -2685,16 +2746,157 @@ export default Controller.extend(prefClasses, {
     };
   },
 
+  /* Begin a lookup WITHOUT blanking the panel (stale-while-revalidate). The words
+     already on screen stay visible AND stay live — never disabled — until the new
+     set arrives. Two reasons, both AAC-specific: a stale-but-valid word is a far
+     better outcome for someone already reaching for it than an empty panel, and a
+     disabled target that swallows a dwell or a switch hit gives no feedback and
+     forces the user to re-acquire it. `loading` drives nothing but the delayed dim
+     cue below; the words themselves stay fully interactive throughout. */
+  _begin_suggestion_lookup: function() {
+    var current = this.get('suggestions') || {};
+    this.set('suggestions', { ready: current.ready, list: current.list || [], loading: true });
+  },
+
+  /* Delayed loading cue. Most lookups resolve locally in a few milliseconds, and a
+     dim that flashes on and off is MORE disruptive than no cue at all (actively so
+     for users with CVI or attention differences), so the cue only appears if the
+     lookup is still running after the delay. Note this delays the CUE, never the
+     DATA — new predictions still render the instant they arrive. One observer on
+     `suggestions` covers both directions because every resolution path replaces the
+     whole object with one that carries no `loading` flag. */
+  suggestions_loading_visible: false,
+  _suggestions_loading_cue_delay: 400,
+  /* Hand-rolled setTimeout rather than @ember/runloop's runLater: ember/no-runloop
+     bans the runloop helpers in favour of ember-lifeline, which is not installed here
+     — a runLater would add a new lint violation. Matches the same hand-rolled pattern
+     in controllers/search.js and controllers/caseload.js. Cleared in willDestroy. */
+  _suggestions_loading_cue: observer('suggestions', 'suggestions.loading', function() {
+    var _this = this;
+    if(this._suggestions_cue_timer) {
+      clearTimeout(this._suggestions_cue_timer);
+      this._suggestions_cue_timer = null;
+    }
+    if(!this.get('suggestions.loading')) {
+      if(this.get('suggestions_loading_visible')) { this.set('suggestions_loading_visible', false); }
+      return;
+    }
+    if(this.get('suggestions_loading_visible')) { return; }
+    this._suggestions_cue_timer = setTimeout(function() {
+      _this._suggestions_cue_timer = null;
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if(_this.get('suggestions.loading')) { _this.set('suggestions_loading_visible', true); }
+    }, this.get('_suggestions_loading_cue_delay'));
+  }),
+
+  /* The prediction list both placements render from, de-duplicated by word. The
+     in-bar group uses it directly and the rail uses the row-capped computed further
+     down; both key their {{#each}} on `word` so a word that survives a refresh keeps
+     its DOM (and its already-decoded symbol image) instead of being torn down and
+     rebuilt — which is what made the tiles flicker on every lookup. A keyed each
+     needs UNIQUE keys, hence the de-dupe (a repeated prediction was never wanted on
+     screen anyway). Array membership, not an object map: a word like "constructor"
+     is truthy on a bare `{}` and would be silently dropped. */
+  prediction_suggestions: computed('suggestions.list.[]', function() {
+    var list = this.get('suggestions.list') || [];
+    var words = [];
+    return list.filter(function(suggestion) {
+      var word = suggestion && suggestion.word;
+      if(!word || words.indexOf(word) !== -1) { return false; }
+      words.push(word);
+      return true;
+    });
+  }),
+
+  /* Is the prediction panel ITSELF the thing currently being targeted? True while the
+     scanner is highlighting it, or while a dwell linger is in progress over it. Both
+     state reads are advisory — if either subsystem throws or has moved on, the answer
+     is "no" and the commit proceeds, because a stuck panel is worse than a rare
+     mistimed swap. */
+  _prediction_panel_targeted: function() {
+    if(typeof document === 'undefined') { return false; }
+    var selector = '.md-board-detail-prediction-rail, .md-board-detail-sentence-bar__prediction-group';
+    var within = function(node) {
+      if(!node || node.nodeType !== 1 || !node.closest) { return false; }
+      return !!node.closest(selector);
+    };
+    try {
+      if(scanner.actively_scanning()) {
+        var scanned = scanner.current_element && scanner.current_element.dom && scanner.current_element.dom[0];
+        if(within(scanned)) { return true; }
+      }
+    } catch(e) { /* advisory read — never block a commit on it */ }
+    try {
+      /* buttonTracker.last_dwell_linger is the in-flight linger; `.dom` is a wrapped
+         element on some paths and a raw one on others, so unwrap defensively. */
+      var linger = buttonTracker.last_dwell_linger;
+      var lingered = linger && linger.dom && (linger.dom[0] || linger.dom);
+      if(within(lingered)) { return true; }
+    } catch(e) { /* advisory read — never block a commit on it */ }
+    return false;
+  },
+
+  /* Commit a new prediction set — but never WHILE the panel is the live target. If the
+     words change under an active dwell or an active scan OF THE PANEL, the user
+     selects a word they never chose: the tile they were committing to is replaced
+     mid-reach. So hold the new set and commit it once the panel is no longer targeted.
+
+     Three bounds keep the hold from becoming its own bug:
+       - an identical word sequence is never held (nothing can move, so there is
+         nothing to protect against — and this is the common case);
+       - _suggestion_swap_max_hold_ms caps the total hold, so a user who parks their
+         gaze on the rail cannot freeze predictions indefinitely;
+       - the loading cue is retracted as soon as the lookup itself finishes, so a held
+         swap does not leave the panel dimmed for the length of the hold. */
+  _suggestion_swap_retry_ms: 120,
+  _suggestion_swap_max_hold_ms: 2000,
+  _commit_suggestions: function(next) {
+    var _this = this;
+    if(this._suggestion_swap_timer) {
+      clearTimeout(this._suggestion_swap_timer);
+      this._suggestion_swap_timer = null;
+    }
+    var words_of = function(state) {
+      return (((state && state.list) || []).map(function(s) { return (s && s.word) || ''; })).join('\u0000');
+    };
+    if(words_of(this.get('suggestions')) === words_of(next) || !this._prediction_panel_targeted()) {
+      this._pending_suggestions = null;
+      this._suggestion_swap_deadline = null;
+      this.set('suggestions', next);
+      return;
+    }
+    this._pending_suggestions = next;
+    if(!this._suggestion_swap_deadline) {
+      this._suggestion_swap_deadline = (new Date()).getTime() + this.get('_suggestion_swap_max_hold_ms');
+    }
+    /* The lookup HAS finished — retract the cue now even though the words are held.
+       Same words + keyed each, so this re-render moves nothing. */
+    var current = this.get('suggestions');
+    if(current && current.loading) {
+      this.set('suggestions', { ready: current.ready, list: current.list || [] });
+    }
+    this._suggestion_swap_timer = setTimeout(function() {
+      _this._suggestion_swap_timer = null;
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var pending = _this._pending_suggestions;
+      if(!pending) { return; }
+      if((new Date()).getTime() >= _this._suggestion_swap_deadline) {
+        _this._pending_suggestions = null;
+        _this._suggestion_swap_deadline = null;
+        _this.set('suggestions', pending);
+        return;
+      }
+      _this._commit_suggestions(pending);
+    }, this.get('_suggestion_swap_retry_ms'));
+  },
+
   _apply_suggestion_results: function(result, sentence, context) {
     var _this = this;
     if(_this.isDestroyed || _this.isDestroying) { return; }
     (result || []).forEach(function(word) {
       word.image_update = function() {
         if(_this.isDestroyed || _this.isDestroying) { return; }
-        var current = _this.get('suggestions');
-        if(current && current.list) {
-          _this.set('suggestions', { ready: true, list: current.list.slice() });
-        }
+        _this._republish_suggestion_list();
         if(typeof _this.sync_sentence_from_button_list === 'function') {
           _this.sync_sentence_from_button_list();
         }
@@ -2702,28 +2904,28 @@ export default Controller.extend(prefClasses, {
     });
     if(result && result.length > 0) {
       var decorated = _this._decorate_suggestion_images(result);
-      _this.set('suggestions', { ready: true, list: decorated });
+      _this._commit_suggestions({ ready: true, list: decorated });
       return;
     }
     if(!sentence) {
-      _this.set('suggestions', { ready: true, list: [] });
+      _this._commit_suggestions({ ready: true, list: [] });
       return;
     }
     if(context && context.word_in_progress) {
-      _this.set('suggestions', { ready: true, list: [] });
+      _this._commit_suggestions({ ready: true, list: [] });
       return;
     }
-    _this.set('suggestions', { loading: true });
+    _this._begin_suggestion_lookup();
     aiPredictor.predict(sentence, {
       locale: _this._word_prediction_locale(),
       appState: _this.get('app_state')
     }).then(function(words) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       var list = (words || []).map(function(w) { return { word: w }; });
-      _this.set('suggestions', { ready: true, list: _this._decorate_suggestion_images(list) });
+      _this._commit_suggestions({ ready: true, list: _this._decorate_suggestion_images(list) });
     }, function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
-      _this.set('suggestions', { ready: true, list: [] });
+      _this._commit_suggestions({ ready: true, list: [] });
     });
   },
 
@@ -2758,7 +2960,7 @@ export default Controller.extend(prefClasses, {
     }, function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
-      _this.set('suggestions', { ready: true, list: [] });
+      _this._commit_suggestions({ ready: true, list: [] });
     });
   },
 
@@ -3957,8 +4159,8 @@ export default Controller.extend(prefClasses, {
      an extra "column", so it must never show more tiles than a board column has
      buttons — i.e. cap it at the board's row count (5 rows → max 5 predictions,
      3 rows → max 3). Falls back to the full list if the row count isn't known. */
-  prediction_rail_suggestions: computed('suggestions.list.[]', 'current_grid.rows', function() {
-    var list = this.get('suggestions.list') || [];
+  prediction_rail_suggestions: computed('prediction_suggestions.[]', 'current_grid.rows', function() {
+    var list = this.get('prediction_suggestions') || [];
     var rows = parseInt(this.get('current_grid.rows'), 10) || 0;
     return (rows > 0 && list.length > rows) ? list.slice(0, rows) : list;
   }),

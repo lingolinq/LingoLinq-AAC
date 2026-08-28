@@ -327,6 +327,52 @@ var scanner = EmberObject.extend({
 
         rows.push(row);
       }
+
+      /* Board-detail's word-prediction RAIL is a SIBLING of #speak — it sits beside the
+         board grid, not inside the sentence row — so neither the header row's
+         "#speak button:visible" sweep nor the #word_suggestions block above (that id
+         exists only in the classic board UI) reaches it. With the default `side_rail`
+         placement that left a scanning user unable to select a prediction at all.
+         Scanned as its own row here, between the header and the board, mirroring how
+         the classic suggestions row is built.
+
+         `:visible` is load-bearing, not defensive: the rail is `display:none` at
+         >1024px in the `auto` placement (the in-bar group is used there instead, and
+         that one IS inside #speak), and a display:none control is still in the DOM —
+         without the filter the scanner would stop on an invisible row. The rail is also
+         mounted whenever word prediction is on, including while it holds no words, so
+         the row is only pushed when it actually has children to scan. */
+      /* Guarded rather than `.length` straight off the call: find_elem is a seam the
+         scanner specs stub, and some of those stubs answer only the selectors they know
+         about and return undefined for everything else. A new selector must not take
+         the whole of start() down with it. */
+      var $prediction_rail = scanner.find_elem(".md-board-detail-prediction-rail:visible");
+      if($prediction_rail && $prediction_rail.length) {
+        var prediction_row = {
+          children: [],
+          dom: $prediction_rail,
+          header: true,
+          label: i18n.t('suggestions', "Suggestions"),
+          reload_children: function() {
+            var res = [];
+            var $rail = scanner.find_elem(".md-board-detail-prediction-rail:visible");
+            if($rail && $rail.find) {
+              $rail.find(".md-board-detail-sentence-bar__prediction").each(function() {
+                var $elem = scanner.find_elem(this);
+                res.push({
+                  dom: $elem,
+                  label: $elem.text()
+                });
+              });
+            }
+            return res;
+          }
+        };
+        prediction_row.children = prediction_row.reload_children();
+        if(prediction_row.children.length > 0) {
+          rows.push(prediction_row);
+        }
+      }
       var content = scanner.scan_content();
 
       if(options.scan_mode == 'row' || options.scan_mode == 'button') {

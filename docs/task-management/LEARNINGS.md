@@ -202,6 +202,9 @@ file (see [README.md](README.md)).
 - [Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller](#pattern-a-body-attribute-published-by-a-self-contained-component-is-the-cross-component-channel--observe-it-dont-widen-a-shared-controller)
 - [Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it](#pattern-a-mobile-select-standing-in-for-a-desktop-tab-row-must-mirror-it-optgroup-not-flatten-it)
 - [Sourcing external requirements (payer/clinical/legal) — 2026-08-25](#sourcing-external-requirements-payerclinicallegal--2026-08-25)
+- [Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam](#gotcha-a-new-scannerfind_elem-call-in-start-must-be-guarded--the-specs-stub-that-seam)
+- [Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell](#pattern-loading-states-for-an-aac-prediction-panel--never-blank-delay-the-cue-dim-dont-spin-and-dont-swap-under-a-dwell)
+- [Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL](#pattern-to-line-a-sibling-up-with-the-board-grid-mirror-its-origin-margin--padding-not-just-its-height--and-remember-a-card-does-not-fill-its-cell)
 
 ---
 
@@ -15716,3 +15719,115 @@ gate and the local citation check. The linter allowlists `evidence.type` against
 `code|doc|runtime|attestation` before applying the blank-sha exemption, and treats a blank
 type the same as a missing one (derive `code` if a file is present). That strictness
 matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
+
+---
+
+## Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam
+
+**Surface:** adding any new selector lookup to `scanner.start()` (here, scanning the board-detail
+word-prediction rail). Two scanner specs died with
+`TypeError: Cannot read properties of undefined (reading 'length')` thrown from `Class.start`.
+
+**Root cause:** `find_elem` is the seam `tests/utils/scanner-test.js` stubs. The shared
+`scannerFindElemStub` helper has a `domStub(0)` fallback for unknown selectors, but several tests
+hand-roll a stub that answers only the selectors it knows about and returns `undefined` for
+everything else. Copying the shape of the neighbouring `#word_suggestions` block
+(`if(scanner.find_elem("#word_suggestions").length)`) is what leads you into this — that selector IS
+in the shared stub's known list, so the unguarded `.length` is safe there and nowhere else.
+
+**Fix:** `var $x = scanner.find_elem(sel); if($x && $x.length) { … }`, and guard `.find` the same way
+inside any `reload_children`. Fix the code, not the stub — a new selector must never be able to take
+the whole of `start()` down.
+
+**Also worth knowing about scan rows:** `scan_content()` builds the board rows solely from
+`model.grid.order`, and the header row sweeps `#speak button:visible`. Anything that is neither a
+board button nor a descendant of `#speak` is invisible to scanning until it is pushed as its own row
+— which is how board-detail's prediction rail (a SIBLING of `#speak`) shipped unreachable by
+scanning in its default placement. When adding such a row, `:visible` is load-bearing: the JShim
+constructor strips it and filters on `offsetParent`/`offsetWidth`/`offsetHeight`, and without it a
+`display:none` control is still in the DOM and becomes a scan stop on nothing.
+
+---
+
+## Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell
+
+**Surface:** the word-prediction panel (board-detail rail or in-bar group) between word selections,
+especially on deployment where a lookup is slow enough to see.
+
+The panel is a **motor-planning surface**, not a content feed, which inverts several normal web
+loading-state habits. In priority order:
+
+1. **Never blank it.** Keep the previous words visible and live until the new set arrives
+   (stale-while-revalidate). A stale but valid word is a far better outcome for someone already
+   reaching for it than an empty panel — and if the panel is a fixed-width sibling of the flexible
+   board grid, unmounting it also resizes every board button.
+2. **Show no cue below ~400ms.** Most lookups resolve locally in a few ms; a cue that flashes on and
+   off is more disruptive than none, actively so with CVI or attention differences. Delay the CUE,
+   never the DATA.
+3. **Dim, don't spin, never resize.** A spinner inside a targetable tile changes what the target
+   looks like mid-reach. Opacity only.
+4. **Never disable a stale tile.** A dead target that swallows a dwell or switch hit gives no
+   feedback and costs a re-acquisition — worse than inserting a slightly stale word.
+5. **Never swap the words under an active dwell or scan of the panel.** This is the one genuinely
+   dangerous moment: the user selects a word they never chose. Hold the new set while the panel is
+   the live target (`scanner.actively_scanning()` + `scanner.current_element`, and
+   `buttonTracker.last_dwell_linger`), and bound the hold three ways — skip it when the word sequence
+   is unchanged, cap the total hold, and retract the loading cue as soon as the lookup finishes so a
+   held swap does not leave the panel dimmed. Treat both state reads as advisory: if either throws,
+   commit, because a stuck panel is worse than a rare mistimed swap.
+6. **Key the `{{#each}}` on the word.** Without a key, Ember rebuilds every tile (and re-decodes
+   every symbol) on each lookup even for words that carried over. A keyed each needs unique keys, so
+   de-dupe the list — with array membership, not an object map: `seen['constructor']` is truthy on a
+   bare `{}` and silently drops that word.
+
+**Evidence:** `controllers/user/board-detail.js` (`_begin_suggestion_lookup`, `_commit_suggestions`,
+`_prediction_panel_targeted`, `suggestions_loading_visible`, `prediction_suggestions`);
+`app.scss` `.md-board-detail-prediction-rail--is-loading`; task log
+`2026-08-28-prediction-rail-alignment-and-width-stability.md`.
+
+---
+
+## Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL
+
+**Surface:** the word-prediction rail — a fixed-width flex sibling of the board grid — whose tiles are
+supposed to sit exactly beside the board buttons. Reported as "the prediction words don't line up
+with the board buttons on all folder settings".
+
+**Read the deltas before theorising.** Equal `dHeight` with a CONSTANT `dTop` across every row means
+the row math is right and the ORIGIN is wrong — a margin or padding, not a gap or a track count. A
+varying `dTop` would mean the opposite. This one measurement separates the two whole classes of cause.
+
+**Two independent causes, and the second was invisible until measured:**
+
+1. **A card does not fill its cell.** Every folder setting reserves a different slice of cell top
+   space for the tab: default-with-folders `calc(var(--bd-cell-min) * 0.14)` on EVERY cell, Show-
+   Labels-on-Tab 8/10px plus a `calc(100% - 18px)` translated card, colored-corner 0, folder-less
+   boards none. A rail tile that fills its row band edge-to-edge therefore floats above the card
+   beside it by exactly that reserve — and the offset changes with the folder setting, which is what
+   made it look like a folder bug.
+2. **The grid has its own `margin-top`.** `.md-board-detail-grid.board.speak` sets
+   `margin-top: 6px !important` (reset to `0 !important` at `max-height:820px` / `max-width:768px`).
+   Pinning the rail to the grid's HEIGHT and mirroring its PADDING still leaves it starting at the
+   flex row's top while the grid starts one margin lower.
+
+**Fix for both: publish measured values, never constants.** `_sync_prediction_tile_size` already
+measures a representative card, so it also publishes the card's offset within its cell
+(`--prediction-tile-inset-top`), the card's height (`--prediction-tile-h`), and the grid's computed
+`padding-top` and `margin-top` (`--prediction-rail-pad-top`, `--prediction-rail-margin-top`). A
+`getBoundingClientRect` reading captures transforms too, so one rule covers every folder mode with no
+per-mode CSS branch. Every one of these values is dynamic across breakpoints — a hardcoded `4px` top
+inset and an unmirrored `6px` margin were both already-shipped bugs of exactly this kind.
+
+**Not circular** (cf. the sizing-a-flex-sibling entry above): these are read FROM the grid/card and
+applied to the rail's INNER geometry, so they never re-enter the flex width distribution. Note the
+grid's own ResizeObserver does NOT fire when only the cell reserve changes (the grid's box is
+unchanged), so the folder-style property must be an explicit re-measure dependency.
+
+**Verify by measuring, not by looking.** `scripts/prediction-rail-qa.mjs` pairs each tile with the
+card in its row band and asserts `|dTop|` and `|dHeight|` within 2px, per folder style. It caught
+cause 2 on its first run, after cause 1 had already been "fixed" and eyeballed as done.
+
+**Evidence:** `controllers/user/board-detail.js#_sync_prediction_tile_size`; `app.scss`
+`.md-board-detail-prediction-rail` + `.md-board-detail-grid.board.speak` (margin) +
+`.md-board-detail-grid--has-folders …__cell` (reserve); task log
+`2026-08-28-prediction-rail-alignment-and-width-stability.md`.

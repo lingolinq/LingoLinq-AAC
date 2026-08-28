@@ -72699,6 +72699,23 @@ span.md-board-detail-modeling-btn--paused:hover {
   background: rgba(0, 0, 0, 0.55);
 }
 
+/* Delayed loading cue, shared by both prediction placements. The class is applied
+   only once a lookup has been running longer than the cue delay (see
+   suggestions_loading_visible in controllers/user/board-detail.js) — most lookups
+   resolve in a few ms and a dim that flashes on and off is more disruptive than no
+   cue at all.
+
+   It is a DIM, deliberately not a spinner and never a size change: these tiles are
+   motor targets, so nothing may move, resize, or change enough to read as a
+   different control mid-reach. Pointer events are deliberately UNTOUCHED — the
+   stale words stay live, because a dead target that swallows a dwell or a switch
+   hit gives no feedback and costs the user a re-acquisition, which is worse than
+   inserting a slightly stale but perfectly valid word. */
+.md-board-detail-sentence-bar__prediction-group--is-loading .md-board-detail-sentence-bar__prediction,
+.md-board-detail-prediction-rail--is-loading .md-board-detail-sentence-bar__prediction {
+  opacity: 0.55;
+}
+
 /* Word-prediction rail (<=768px). The in-bar predictions overflow on small
    screens, so they relocate into this vertical column between the board grid
    and the inline sidebar (a flex item inside .md-board-detail-grid-sidebar-wrap,
@@ -72715,9 +72732,10 @@ span.md-board-detail-modeling-btn--paused:hover {
   /* Single column that MIRRORS THE BOARD'S ROW STRUCTURE: the same number of rows
      as the board (--prediction-rows) as minmax(0,1fr) tracks, the board's EXACT
      row gap, and the rail pinned to the board grid's height (--prediction-grid-h)
-     with the same 4px top inset the grid has. So each prediction tile lands in the
-     SAME row band as the board button beside it and the two line up 1:1 at every
-     screen size — no per-tile height measurement (all published by
+     with the grid's own measured top inset (--prediction-rail-pad-top). So each
+     prediction tile lands in the SAME row band as the board button beside it; the
+     tile rule below then insets it to the CARD's box within that band so the two
+     line up 1:1 at every screen size and in every folder setting (all published by
      _sync_prediction_tile_size in controllers/user/board-detail.js). A GRID, not a
      flex column: the flex column shrank its tiles to fit a max-height and they
      drifted out of line with the board rows. The suggestion list is capped to the
@@ -72731,9 +72749,18 @@ span.md-board-detail-modeling-btn--paused:hover {
   height: var(--prediction-grid-h, 100%);
   gap: var(--prediction-tile-gap, 8px);
   /* No left/right padding — tiles fill the rail edge-to-edge so a tile matches the
-     board cell width exactly. 4px top inset matches the board grid's padding-top so
-     row 1 aligns; no bottom inset so the last row aligns too. */
-  padding: 4px 0 0;
+     board cell width exactly. The top inset mirrors the board grid's OWN padding-top,
+     copied from its computed style (--prediction-rail-pad-top) rather than hardcoded:
+     the grid uses `padding-top: var(--bd-grid-top, 4px)` and the short-viewport rules
+     set that to 0, so a literal 4px misaligned row 1 there. No bottom inset so the
+     last row aligns too. */
+  padding: var(--prediction-rail-pad-top, 4px) 0 0;
+  /* Top margin mirrors the GRID's own margin-top (`.md-board-detail-grid.board.speak`
+     has 6px, reset to 0 on short/narrow viewports) — without it the rail starts at the
+     flex row's top while the board starts a margin lower, and every row band is off by
+     that much even though the heights match exactly. Measured, not hardcoded, because
+     that margin changes with the viewport. */
+  margin-top: var(--prediction-rail-margin-top, 0px);
   margin-left: var(--prediction-rail-gap-left, 8px);
 }
 /* Tiles match the board button box (measured vars, fixed fallbacks). */
@@ -72752,13 +72779,21 @@ span.md-board-detail-modeling-btn--paused:hover {
      removes the overflow, so nothing is clipped. The image scales with the tile
      (see the rail __prediction-img rule below), so a sub-44px tile stays legible. */
   min-width: 0;
-  /* Fill the grid row: the rail's minmax(0,1fr) tracks mirror the board rows, so
-     height:100% makes each tile fill its row band and match the board button
-     height. REQUIRED to override the base in-bar pill's fixed `height: 78px` — with
-     that leaking through, tiles stayed 78px tall and floated in the (correctly
-     tall) rows, leaving big gaps. min-height:0 lets the image + label shrink to
-     honor the row height on dense boards instead of growing the tile past it. */
-  height: 100%;
+  /* Match the board CARD's box inside the row band — NOT the band itself. The rail's
+     minmax(0,1fr) tracks already mirror the board rows, but a card does not fill its
+     cell: every folder setting reserves a different slice of cell top space for the
+     tab (default folders 0.14 x --bd-cell-min on every cell, Show-Labels-on-Tab
+     8/10px + a calc(100% - 18px) card, colored-corner 0, folder-less boards none), so
+     a band-filling tile floated above the card beside it by exactly that reserve.
+     --prediction-tile-inset-top / --prediction-tile-h are the card's MEASURED offset
+     and height (_sync_prediction_tile_size), which is why one rule covers every
+     folder mode. The calc() fallback keeps the old band-filling behavior until the
+     first measurement lands. Still REQUIRED to override the base in-bar pill's fixed
+     `height: 78px` — with that leaking through, tiles stayed 78px tall and floated in
+     the (correctly tall) rows, leaving big gaps. min-height:0 lets the image + label
+     shrink to honor the height on dense boards instead of growing the tile past it. */
+  margin-top: var(--prediction-tile-inset-top, 0px);
+  height: var(--prediction-tile-h, calc(100% - var(--prediction-tile-inset-top, 0px)));
   min-height: 0;
   /* Give the label breathing room from the image (the base gap:1px read as
      cramped). */
@@ -72887,7 +72922,7 @@ span.md-board-detail-modeling-btn--paused:hover {
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     0 4px 14px rgba(27, 54, 93, 0.18);
   cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease, opacity 0.18s ease;
   flex-shrink: 0;
   position: relative;
 }
