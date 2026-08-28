@@ -20,6 +20,9 @@ class Board < ApplicationRecord
     'ga' => "Irish",
     'ar' => "Arabic"
   }.freeze
+  # Locale tags only. translate_set also stores source_part_of_speech as a
+  # string sibling of en/es; treating that string as a locale 500s in process_buttons.
+  TRANSLATION_LOCALE_KEY = /\A[a-z]{2,3}([_-][A-Za-z0-9]+)?\z/i
   # When a board used as home/sidebar by more users than this, cleanup runs in a background job
   # to avoid blocking board destruction and request timeouts on popular public boards.
   HOME_SIDEBAR_CLEANUP_ASYNC_THRESHOLD = 25
@@ -290,6 +293,10 @@ class Board < ApplicationRecord
   def self.translation_language_label(locale)
     root = locale.to_s.split(/-|_/).first
     TRANSLATION_LANGUAGE_LABELS[root] || root.to_s.capitalize
+  end
+
+  def self.translation_locale_key?(loc)
+    loc.to_s.match?(TRANSLATION_LOCALE_KEY)
   end
 
   def self.find_suggested(locale='en', limit=10)
@@ -2258,7 +2265,7 @@ class Board < ApplicationRecord
       button.delete('level_modifications') if button['level_modifications'] && !button['level_modifications'].is_a?(Hash)
       button.delete('ref_id') if button['ref_id'].blank?
       button.delete('rules') if button['rules'].blank?
-      button['rules'] = button['rules'].compact.select{|r| r.is_a?(Array) } if button['rules']
+      button['rules'] = button['rules'].compact.select{|r| r.is_a?(Array) } if button['rules'].is_a?(Array)
       if button['level_modifications'] && button['level_modifications']['override']
         button['level_modifications']['override'].each do |attr, val|
           button[attr] = val
@@ -2281,7 +2288,9 @@ class Board < ApplicationRecord
             tran = loc
             loc = loc['locale']
           end
-          next unless tran
+          next unless tran.is_a?(Hash)
+          loc = tran['locale'] || loc
+          next unless Board.translation_locale_key?(loc)
           if loc == self.settings['locale']
             orig_button = (self.buttons || []).find{|b| b['id'] == button['id'] }
             # button settings overwrite translation settings for the default locale
@@ -2296,21 +2305,19 @@ class Board < ApplicationRecord
           # then there is a conflict, so remove it on the button
           has_trans_inflections = true if tran['inflections']
 
-          loc = tran['locale'] || loc
-          self.settings['translations'][button['id'].to_s] ||= {}
-          self.settings['translations'][button['id'].to_s][loc] ||= {}
-          self.settings['translations'][button['id'].to_s][loc]['label'] = tran['label'].to_s if tran['label']
-          self.settings['translations'][button['id'].to_s][loc]['vocalization'] = tran['vocalization'].to_s if tran['vocalization'] || tran['label']
-          self.settings['translations'][button['id'].to_s][loc].delete('vocalization') if self.settings['translations'][button['id'].to_s][loc]['vocalization'] == ""
+          slot = translation_locale_slot_for!(button['id'], loc)
+          slot['label'] = tran['label'].to_s if tran['label']
+          slot['vocalization'] = tran['vocalization'].to_s if tran['vocalization'] || tran['label']
+          slot.delete('vocalization') if slot['vocalization'] == ""
           inflections_list = tran['inflections'].is_a?(Array) ? tran['inflections'] : (tran['inflections'].nil? ? [] : [tran['inflections']])
           inflections_list.each_with_index do |str, idx|
-            self.settings['translations'][button['id'].to_s][loc]['inflections'] ||= []
-            self.settings['translations'][button['id'].to_s][loc]['inflections'][idx] = str.to_s if str
+            slot['inflections'] ||= []
+            slot['inflections'][idx] = str.to_s if str
           end
-          if tran['rules'] && tran['rules'].length > 0
-            self.settings['translations'][button['id'].to_s][loc]['rules'] = tran['rules'].compact.select{|r| r.is_a?(Array) }
+          if tran['rules'].is_a?(Array) && tran['rules'].length > 0
+            slot['rules'] = tran['rules'].compact.select{|r| r.is_a?(Array) }
           else
-            self.settings['translations'][button['id'].to_s][loc].delete('rules')
+            slot.delete('rules')
           end
           # ignore inflection_defaults, those should get re-added on their own
         end
@@ -2335,6 +2342,18 @@ class Board < ApplicationRecord
     # and `track_downstream_boards!` may not have refreshed yet.
     @pending_folder_cascades = pending_folder_cascades if pending_folder_cascades && pending_folder_cascades.any?
     self.buttons
+  end
+
+  def translation_locale_slot_for!(button_id, loc)
+    bucket = (self.settings['translations'][button_id.to_s] ||= {})
+    unless bucket.is_a?(Hash)
+      self.settings['translations'][button_id.to_s] = {}
+      bucket = self.settings['translations'][button_id.to_s]
+    end
+    unless bucket[loc].is_a?(Hash)
+      bucket[loc] = {}
+    end
+    bucket[loc]
   end
 
   # Walks the downstream board tree starting at `root_board_id_or_key`

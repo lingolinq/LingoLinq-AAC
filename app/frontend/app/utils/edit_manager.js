@@ -132,8 +132,11 @@ var editManager = EmberObject.extend({
           }
           if(elem && grid && !modal.is_open() && !modal.is_open('highlight') && !modal.is_open('highlight-secondary')) {
             editManager.overlay_grid(grid, elem, opts);
+            return true;
           }
-          return true;
+          // Empty grid: do not swallow the tap. Returning true here used to set
+          // ignoreUp with no overlay, so a 1.5s hold on a filled-looking Spanish
+          // button did nothing.
         } else if(opts.radial_id && opts.radial_dom) {
           // TODO: look for handler for radial, it should return
           // a hash of button labels, images and callbacks to be rendered
@@ -686,9 +689,44 @@ var editManager = EmberObject.extend({
     var voc_locale = this.appState.get('vocalization_locale') || navigator.language;
     var lab_locale = this.appState.get('label_locale') || navigator.language;
     var base_label = button.original_label || button.label;
-    var trans = (board.get('translations') || {})[button_id];
-    var voc = (trans || {})[voc_locale] || (trans || {})[voc_locale.split(/-|_/)[0]];
-    var lab = (trans || {})[lab_locale] || (trans || {})[lab_locale.split(/-|_/)[0]];
+    // Language-tab edits live on button.translations (array of {locale, inflections}).
+    // Rails persist them on board.translations[id][locale] (hash) and then delete
+    // button.inflections. Overlay lookup must accept both, including string vs
+    // numeric button ids, or a filled Spanish grid never opens.
+    var button_key = (button.id != null) ? button.id : button_id;
+    var board_trans_hash = board.get('translations') || {};
+    var trans = board_trans_hash[button_key] || board_trans_hash[String(button_key)];
+    var locale_slot = function(bucket, locale) {
+      if(!bucket || !locale) { return null; }
+      var root = String(locale).split(/-|_/)[0];
+      var first = (typeof bucket.objectAt === 'function') ? bucket.objectAt(0) : bucket[0];
+      var as_list = first && (first.locale || first.code) && typeof bucket.forEach === 'function';
+      if(as_list) {
+        var exact = null;
+        var rooted = null;
+        bucket.forEach(function(entry) {
+          if(!entry) { return; }
+          var loc = entry.locale || entry.code;
+          if(!loc) { return; }
+          if(loc == locale) { exact = entry; }
+          else if(String(loc).split(/-|_/)[0] == root) { rooted = rooted || entry; }
+        });
+        return exact || rooted;
+      }
+      return bucket[locale] || bucket[root] || null;
+    };
+    // Prefer the slot that actually has inflections. board.translations often
+    // already has a label-only hash for the locale, which would otherwise
+    // hide Language-tab forms sitting on button.translations.
+    var prefer_inflections = function(a, b) {
+      var a_has = a && a.inflections && a.inflections.length;
+      var b_has = b && b.inflections && b.inflections.length;
+      if(a_has) { return a; }
+      if(b_has) { return b; }
+      return a || b;
+    };
+    var voc = prefer_inflections(locale_slot(trans, voc_locale), locale_slot(button.translations, voc_locale));
+    var lab = prefer_inflections(locale_slot(trans, lab_locale), locale_slot(button.translations, lab_locale));
     var locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
     var list = [];
     var ignore_defaults = false;
@@ -698,7 +736,7 @@ var editManager = EmberObject.extend({
     if(button.inflection_defaults && button.inflection_defaults.types && button.inflection_defaults.types[0] != button.part_of_speech) {
       ignore_defaults = true;
     }
-    if(button.inflections || trans || button.inflection_defaults) {
+    if(button.inflections || trans || button.inflection_defaults || (button.translations && button.translations.length)) {
       if(button.inflection_defaults) {
         base_label = button.inflection_defaults['base'] || button.inflection_defaults['c'] || button.inflection_defaults['src'] || button.label;
       }
@@ -725,8 +763,8 @@ var editManager = EmberObject.extend({
         if(for_current_locale && button.inflections && button.inflections[idx]) {
           defaults_allowed = false;
           list.push({location: locs[idx], label: button.inflections[idx]});
-        } else if(trans_voc && trans_lab) {
-          list.push({location: locs[idx], label: trans_lab, voc: trans_voc});
+        } else if(trans_voc || trans_lab) {
+          list.push({location: locs[idx], label: trans_lab || trans_voc, voc: trans_voc || trans_lab});
         } else if(for_current_locale && button.inflection_defaults && button.inflection_defaults[locs[idx]]) {
           if(button.inflection_defaults.v != expected_inflections_version) {
             defaults_allowed = false;

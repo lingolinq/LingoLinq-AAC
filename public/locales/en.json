@@ -4555,6 +4555,8 @@
   "inflection_bottom": "Inflection, bottom",
   "inflection_bottom_right": "Inflection, bottom right",
   "inflection_overrides": "Inflection overrides",
+  "automatic_replacements": "Automatic replacements",
+  "automatic_replacements_description": "Optional. When Automatic Inflections is on, words already in the sentence can change this button. One rule per line: previous words = new form.",
   "levels": "Levels",
   "visibility": "Visibility",
   "never_show_button": "Never Show Button",

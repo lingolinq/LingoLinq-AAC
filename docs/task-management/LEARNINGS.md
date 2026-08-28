@@ -20,8 +20,11 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`](#gotcha-merging-two-overlay-prs-is-a-union-of-tests-then-regenerate-eslint-todo)
+- [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
 - [Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`](#pattern-spanish-long-press-defaults-use-spanish_verb_grid-not-english--s-ed-ing)
 - [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
+- [Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one](#gotcha-source_part_of_speech-is-not-a-locale--process_buttons-500s-if-treated-as-one)
 - [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
 - [Gotcha: dotenv leaves op:// refs in ENV — present? is not injected](#gotcha-dotenv-leaves-op-refs-in-env--present-is-not-injected)
 - [Gotcha: library translate must walk load_board links, not only downstream_board_ids](#gotcha-library-translate-must-walk-load_board-links-not-only-downstream_board_ids)
@@ -3957,6 +3960,18 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 
 ---
 
+## Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`
+
+`fix/melissa-inflections-overlay` and staging `#880` (`feat/melissa-spanish-verb-inflections`) both edited `grid_for`, `edit_manager-test.js`, `LEARNINGS.md`, and `.eslint-todo`. Keep both behaviors: Language-tab `button.translations` lookup **and** Spanish empty-grid defaults. Conflicted tests are a union, not ours-or-theirs. `.eslint-todo` line numbers from either side are wrong after the combine; run `npm run lint:js:todo`. Task log: `2026-08-27-merge-staging-inflections-overlay.md`.
+
+---
+
+## Gotcha: long-press overlay reads Language-tab inflections from the button translations array
+
+Language-tab 3×3 edits write `trans.inflections` on the **button.translations array**. `grid_for` used to read only `board.translations[id][locale]` (often label-only until save) and `button.inflections` (Rails deletes that when translation inflections exist). A filled Spanish grid then returned null, the overlay never opened, and `return true` swallowed the tap. Hold tracking also cancelled when `event.target` moved between nested img/label and the card. Fix: prefer the slot that actually has inflections; cancel the hold only when leaving the same `.button`. Tests: `edit_manager-test.js` `grid_for`. Task log: `2026-08-27-inflections-long-press.md`.
+
+---
+
 ## Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`
 
 English empty overlay slots are filled by `i18n.tense` (`-s`/`-ed`/`-ing`) when the locale is `en`. Spanish cannot reuse those suffixes. `grid_for` calls `i18n.spanish_verb_grid` / `spanish_noun_grid` / `spanish_adjective_grid` for `es` when the eight slots are empty (or still on generated defaults). Verbs: regular `-ar/-er/-ir`, boot stem-changers, irregular table. Nouns: plural (`gatos`, `luces`, `canciones`), `-o/-or` gender pair (`gata`, `profesora`; `mano` skipped), `no X`. Adjectives: agreement (`rojo/roja/rojos/rojas`), `más`/`menos`/`-ísimo`. Unset POS still tries the verb infinitive path only. Evidence: `app/frontend/app/utils/i18n.js` `spanishVerbGrid`; `edit_manager.js` `grid_for` Spanish fallback.
@@ -3972,6 +3987,20 @@ English empty overlay slots are filled by `i18n.tense` (`-s`/`-ed`/`-ing`) when 
 **Evidence:** `lib/library_board_translator.rb`, `lib/board_translation_words.rb`; task log `2026-08-26-library-board-translations.md`.
 
 **Extension (2026-08-27) — SCOPE=seed for a reindex inventory:** A library rebuild seeds starter + sidebar + crisis + Senner + curated S3 + OpenAAC (~32 listed public roots; children are `unlisted`). `SCOPE=seed` discovers those listed public `lingolinq` roots instead of signup slugs only. Skip `*-es` copies and boards whose default locale is not English (local leftover `quick-core-24` was already `locale=es`). Staging apply is a Render **one-off job** on `lingolinq-staging` (same pattern as rebuild_library): creating the job starts it; do not add a Blueprint cron. The job inherits web-service env, so `GOOGLE_TRANSLATE_TOKEN` must already be set. Missing token raises outside test. Production (including Render staging) requires `ALLOW_PROD_TRANSLATE=1`; `SCOPE=seed` also requires `TRANSLATE_CONFIRM=1`. Do not share `BoardTranslationWords.board_ids` with `SpanishLibraryBoards`: that rake `copy_for`s only the root and calls `translate_set(default: true)`, so a tree walk would overwrite shared English children. The bilingual walk is owner-scoped and skips non-English locales before Google. The attested Subprocessor Register still names the older Translate callers; adding `lib/library_board_translator.rb` needs a Scot re-attest of `docs/legal/2026-08-16_subprocessor-register.md`, not an in-place edit of the pinned hash. Ref: `docs/ops/staging-translate-library-job.md`.
+
+---
+
+## Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one
+
+**Symptom:** Saving inflections on a translated library board (e.g. `lingolinq/core-40-tell` button "say"/decir) returns HTTP 500. Console shows `Error: error`. Local log: `IndexError (string not matched)` at `Board#process_buttons` `String#[]=`.
+
+**Root cause:** `Board#translate_set` writes `settings['translations'][button_id]['source_part_of_speech'] = 'verb'` as a **string sibling** of `en`/`es` hashes. The Ember Language tab iterates every key as a locale. `Object.keys("verb")` is truthy, so the client sends `{locale: 'source_part_of_speech', label: '...'}`. Rails then does `translations[id][loc] ||= {}` which does **not** replace the existing string, then `string['label'] =` raises.
+
+**Fix:** Skip non-locale keys in `process_buttons` and `JsonApi::Board` `translated_locales`. Ember: omit `source_part_of_speech` from `locales`, `translations_for_button`, and `update_translations`. Guard `rules.compact` so a leftover string does not 500 either.
+
+**Evidence:** `app/models/board.rb` (`translation_locale_key?`, `process_buttons`); `lib/json_api/board.rb`; `app/frontend/app/utils/button.js#update_translations`; task log `2026-08-27-board-save-500-inflection-rules.md`.
+
+**Testing corollary (PR 878 CI):** `update_translations` overwrites the current locale slot (`en` by default) from `button.label`. A skip-`source_part_of_speech` assertion that expects `en.label` from the hash will fail with `undefined` even when the skip is correct (two objects vs two objects; QUnit then diffs the labels). Match the sibling tests: expect `undefined` for the current-locale label unless the test also sets `button.label`.
 
 ---
 
@@ -7961,14 +7990,18 @@ in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly 
 `feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
 computed dep; the rest were `application.js` line shifts from three payload keys),
 `fix/melissa-translate-action-tokens-and-lang-search` merging staging (`new=7`; 3 `assert.expect`
-on new tests, one `model.board.id` computed dep, 3 line-shifted `runLater`/controller deps), and
+on new tests, one `model.board.id` computed dep, 3 line-shifted `runLater`/controller deps),
+`fix/melissa-inflections-overlay` (`new=49`; all line-shifted `runLater`/computed-dep/string-proto
+in `board.js`/`button.js`/`edit_manager.js`/`raw_events.js`; file|rule counts unchanged except
+one stale `icon-select.js|no-dupe-keys` pruned), and
 `feat/melissa-spanish-verb-inflections` (`new=13`; all line-shift: `edit_manager.js` +21,
 `i18n.js` +281; zero truly new). New unit tests
 must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
 `@ember/test-helpers`. See
 [`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),
 [`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md),
-and [`2026-08-21-copy-board-eslint-todo-gate.md`](./2026-08-21-copy-board-eslint-todo-gate.md).
+[`2026-08-21-copy-board-eslint-todo-gate.md`](./2026-08-21-copy-board-eslint-todo-gate.md),
+and [`2026-08-27-eslint-todo-line-shift-inflections-overlay.md`](./2026-08-27-eslint-todo-line-shift-inflections-overlay.md).
 
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 

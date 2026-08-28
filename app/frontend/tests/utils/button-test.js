@@ -851,6 +851,26 @@ context('Button', function() {
         translationEntry('es', 'tac', 'stac')
       ]);
     });
+
+    it('should skip source_part_of_speech when building the translations list', function() {
+      var b = Button.create();
+      b.set('translations_hash', {
+        'en': {
+          'label': 'say'
+        },
+        'es': {
+          'label': 'decir'
+        },
+        source_part_of_speech: 'verb'
+      });
+      // Current locale defaults to en, so update_translations overwrites
+      // the en slot from button.label (unset here), matching sibling tests.
+      expect(b.get('translations')).toEqual([
+        translationEntry('en', undefined, undefined),
+        translationEntry('es', 'decir', undefined)
+      ]);
+      expect(b.get('translations').map(function(entry) { return entry.locale; })).toEqual(['en', 'es']);
+    });
   });
 
   context('update_settings_from_translations', function() {

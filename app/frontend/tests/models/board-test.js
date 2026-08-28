@@ -716,6 +716,19 @@ describe('Board', function() {
       });
       expect(b.get('locales')).toEqual(['en', 'es', 'fr']);
     });
+
+    it('should omit source_part_of_speech from locales', function() {
+      var b = LingoLinq.store.createRecord('board');
+      b.set('translated_locales', ['en', 'source_part_of_speech', 'es']);
+      b.set('translations', {
+        '9': {
+          'en': {label: 'say'},
+          'es': {label: 'decir'},
+          source_part_of_speech: 'verb'
+        }
+      });
+      expect(b.get('locales')).toEqual(['en', 'es']);
+    });
   });
 
   describe("translations_for_button", function() {
@@ -738,6 +751,21 @@ describe('Board', function() {
     it('should return correctly when no button found', function() {
       var b = LingoLinq.store.createRecord('board');
       expect(b.translations_for_button('asdf')).toEqual({});
+    });
+
+    it('should omit source_part_of_speech from the button translation hash', function() {
+      var b = LingoLinq.store.createRecord('board');
+      b.set('translations', {
+        '9': {
+          'en': {label: 'say'},
+          'es': {label: 'decir'},
+          source_part_of_speech: 'verb'
+        }
+      });
+      expect(b.translations_for_button('9')).toEqual({
+        'en': {label: 'say'},
+        'es': {label: 'decir'}
+      });
     });
   });
 

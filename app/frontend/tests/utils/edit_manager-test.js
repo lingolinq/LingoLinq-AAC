@@ -559,6 +559,57 @@ describe('editManager', function() {
       }
     }
 
+    it("should build overlay slots from Language-tab translations when the board hash is empty", function() {
+      var button = editButton(board, 9, {
+        label: 'say',
+        vocalization: 'say',
+        part_of_speech: 'verb',
+        translations: [{
+          locale: 'es',
+          code: 'es',
+          label: 'decir',
+          inflections: ['digo', 'dices', 'dice', 'decimos', 'dicen', 'dije', 'diciendo', 'dicho']
+        }]
+      });
+      board.set('locale', 'en');
+      board.set('translations', { '9': { en: { label: 'say' }, es: { label: 'decir' } } });
+      setupEditBoard(board, [[button]]);
+      localeAppState('es', 'es');
+      var grid = editManager.grid_for(9);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.nw).toEqual('digo');
+      expect(byLoc.n).toEqual('dices');
+      expect(byLoc.ne).toEqual('dice');
+      expect(byLoc.w).toEqual('decimos');
+      expect(byLoc.e).toEqual('dicen');
+      expect(byLoc.sw).toEqual('dije');
+      expect(byLoc.s).toEqual('diciendo');
+      expect(byLoc.se).toEqual('dicho');
+      expect(byLoc.c).toEqual('decir');
+    });
+
+    it("should still use button.inflections for the current locale", function() {
+      var button = editButton(board, 4, {
+        label: 'walk',
+        part_of_speech: 'verb',
+        inflections: ['walked', 'walks', 'will walk', 'walking']
+      });
+      board.set('locale', 'en');
+      board.set('translations', {});
+      setupEditBoard(board, [[button]]);
+      localeAppState('en', 'en');
+      var grid = editManager.grid_for(4);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.nw).toEqual('walked');
+      expect(byLoc.n).toEqual('walks');
+      expect(byLoc.ne).toEqual('will walk');
+      expect(byLoc.w).toEqual('walking');
+    });
+
     it("should fill empty Spanish overlay slots for hablar", function() {
       var button = editButton(board, 11, {
         label: 'hablar',
