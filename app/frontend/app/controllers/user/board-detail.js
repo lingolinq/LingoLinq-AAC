@@ -2753,24 +2753,30 @@ export default Controller.extend(prefClasses, {
      disabled target that swallows a dwell or a switch hit gives no feedback and
      forces the user to re-acquire it. `loading` drives nothing but the delayed dim
      cue below; the words themselves stay fully interactive throughout. */
-  /* Abandon any held swap. REQUIRED on every path that writes `suggestions` outside
-     _commit_suggestions: the hold lives in a bare setTimeout that knows nothing about
+  /* Abandon any held swap. Required on every path that CHANGES THE VISIBLE WORDS outside
+     _commit_suggestions (_republish_suggestion_list rewrites the same list, so it is
+     deliberately not one of them): the hold lives in a bare setTimeout that knows nothing about
      the rest of the pipeline, so without this a set held behind a dwell/scan commits
      120ms after the sentence was cleared and resurrects predictions for a sentence that
      no longer exists (updateSuggestions will not fire again until the next button
      press, so nothing corrects it). Also called when a NEW lookup starts, since anything
      still pending is superseded by it. */
-  _cancel_pending_suggestion_swap: function() {
+  _cancel_pending_suggestion_swap: function(preserve_deadline) {
     if(this._suggestion_swap_timer) {
       clearTimeout(this._suggestion_swap_timer);
       this._suggestion_swap_timer = null;
     }
     this._pending_suggestions = null;
-    this._suggestion_swap_deadline = null;
+    /* The deadline is the total-staleness clock for a RUN of holds, not for one set. A new
+       lookup supersedes the pending set but must not restart that clock: every AI-fallback
+       lookup calls this, so clearing it unconditionally made the cap unbounded again along
+       that path — the same hole the synchronous cap was written to close, through another
+       door. Callers that end the run (the panel blanking) clear it explicitly. */
+    if(!preserve_deadline) { this._suggestion_swap_deadline = null; }
   },
 
   _begin_suggestion_lookup: function() {
-    this._cancel_pending_suggestion_swap();
+    this._cancel_pending_suggestion_swap(true);
     var current = this.get('suggestions') || {};
     this.set('suggestions', { ready: current.ready, list: current.list || [], loading: true });
   },
@@ -2880,6 +2886,21 @@ export default Controller.extend(prefClasses, {
          swap does not leave the panel dimmed for the length of the hold. */
   _suggestion_swap_retry_ms: 120,
   _suggestion_swap_max_hold_ms: 2000,
+  /* dwell_selection 'button'/'expression' is SWITCH-PACED: the dwell never self-completes —
+     the user holds the gaze and presses when ready — so 2s is not a "long dwell", it is an
+     ordinary one for anyone slower than average, and capping there replaces the tile
+     mid-reach. Bound it generously instead of not at all: an unbounded hold froze the panel
+     (the bug the cap exists for), but a wrong selection is the worse of the two failures. */
+  _suggestion_swap_max_hold_switch_ms: 8000,
+  _suggestion_swap_max_hold: function() {
+    try {
+      var mode = buttonTracker.check && buttonTracker.check('dwell_selection');
+      if(mode === 'button' || mode === 'expression') {
+        return this.get('_suggestion_swap_max_hold_switch_ms');
+      }
+    } catch(e) { /* advisory read — fall through to the standard cap */ }
+    return this.get('_suggestion_swap_max_hold_ms');
+  },
   _commit_suggestions: function(next) {
     var _this = this;
     if(this._suggestion_swap_timer) {
@@ -2909,7 +2930,7 @@ export default Controller.extend(prefClasses, {
     }
     this._pending_suggestions = next;
     if(!this._suggestion_swap_deadline) {
-      this._suggestion_swap_deadline = now + this.get('_suggestion_swap_max_hold_ms');
+      this._suggestion_swap_deadline = now + this._suggestion_swap_max_hold();
     }
     /* The lookup HAS finished — retract the cue now even though the words are held.
        Same words + keyed each, so this re-render moves nothing. */
@@ -2922,13 +2943,17 @@ export default Controller.extend(prefClasses, {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       var pending = _this._pending_suggestions;
       if(!pending) { return; }
-      /* The panel has been deliberately blanked while this set was held (prediction turned
-         off, edit mode, or the sentence cleared — the three writers of `suggestions = null`).
-         Committing now would resurrect predictions for a sentence that no longer exists.
-         Those writers also call _cancel_pending_suggestion_swap, but this guard is the one
-         that does not depend on every future writer remembering to: the invariant belongs
-         at the point of USE, not at each call site. */
-      if(_this.get('suggestions') === null) {
+      /* The panel has been blanked while this set was held. Committing now would resurrect
+         predictions for a sentence that no longer exists.
+
+         Test the SHAPE, not one sentinel: `=== null` covered only the three in-controller
+         writers, and edit_manager.process_for_displaying (utils/edit_manager.js, via the
+         editManager.controller binding set in routes/user/board-detail.js) blanks the panel
+         with `{loading: true}` and then `{ready: true}` — no `list` on either — whenever the
+         board level changes or the locale switches. Those are not null, so they slipped
+         straight past the old check. Anything with no `list` is a blanked panel. */
+      var live = _this.get('suggestions');
+      if(!live || !live.list) {
         _this._pending_suggestions = null;
         _this._suggestion_swap_deadline = null;
         return;

@@ -1101,7 +1101,11 @@ var scanner = EmberObject.extend({
     }
   },
   load_children: function(elem, elements, index) {
-    var parent = Object.assign({higher_level: elements, higher_level_index: index}, elem);
+    /* Defaults LAST: with `elem` last, an element that already carried higher_level/
+       higher_level_index (a stub fed back in by next_element's recovery) would override the
+       level we were actually given and level up to the wrong place. Harmless while reaching
+       that code needed a user selection; it fires automatically now, so pin the real values. */
+    var parent = Object.assign({}, elem, {higher_level: elements, higher_level_index: index});
     if(elem.reload_children) {
       elem.children = elem.reload_children();
     }
@@ -1114,11 +1118,22 @@ var scanner = EmberObject.extend({
        zero-box`) levelled up for us. A container that stays in the LAYOUT while empty —
        which the word-prediction rail now deliberately does, to hold the board's width —
        is attached and has a non-zero box, so that recovery never fires. Go back up here
-       instead. Strictly better for every caller: the old path required the user to
-       select the stub to reach the same place. */
-    if((!elem.children || elem.children.length === 0) && parent.higher_level) {
+       instead.
+
+       Scope, stated precisely rather than as "strictly better": the RECOVERY path already
+       handled the empty case (it reaches the `elements.length == 1 && higher_level` check
+       below and levels up), so the behaviour that actually changes is the `pick` path, where
+       the old code left the user on a level holding only its own level-up stub.
+
+       `.length` on higher_level: an empty array is truthy, and level_up would then set
+       scanner.elements = [] and next_element would dereference elements[0].dom and die with
+       no recovery. The old code produced [parent], which was survivable.
+
+       Returns true so next_element's recovery can tell we already levelled up and skip its
+       own `elements.length == 1` level-up, which would otherwise jump two levels at once. */
+    if((!elem.children || elem.children.length === 0) && parent.higher_level && parent.higher_level.length) {
       scanner.level_up(parent);
-      return;
+      return true;
     }
     scanner.elements = elem.children.concat([parent]);
     scanner.elements.reload = elem.children.reload
@@ -1219,7 +1234,11 @@ var scanner = EmberObject.extend({
       var last = this.elements[this.elements.length - 1];
       if(last && last.higher_level) {
         if(last.reload_children) {
-          scanner.load_children(last.higher_level[last.higher_level_index], last.higher_level, last.higher_level_index);
+          /* If load_children levelled up on its own (children came back empty) we are already
+             at the right level — running the single-stub check below would level up again. */
+          if(scanner.load_children(last.higher_level[last.higher_level_index], last.higher_level, last.higher_level_index) === true) {
+            return;
+          }
         } else {
           // if load_children won't work, at least clear empties
           var items = [];
