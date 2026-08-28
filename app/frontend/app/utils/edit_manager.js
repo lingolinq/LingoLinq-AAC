@@ -910,8 +910,8 @@ var editManager = EmberObject.extend({
         {location: 'se', label: i18n.negation(base_label)},
       ]);
     }
-    // Spanish: verbs (person/tense), nouns (plural/gender), adjectives (agreement/degree).
-    // Same empty-grid fallback as English. Manual inflections win.
+    // Spanish: verbs (person/tense), nouns (plural/gender), adjectives (agreement/degree),
+    // pronouns (person table). Same empty-grid fallback as English. Manual inflections win.
     if(lab_locale.match(/^es/i) && lab_locale == voc_locale && (res.length == 0 || defaults_allowed)) {
       var pos = button.part_of_speech;
       var src = ((lab && lab.label) || base_label || '').toString();
@@ -920,6 +920,8 @@ var editManager = EmberObject.extend({
         es_grid = i18n.spanish_noun_grid(src);
       } else if(pos == 'adjective') {
         es_grid = i18n.spanish_adjective_grid(src);
+      } else if(pos == 'pronoun') {
+        es_grid = i18n.spanish_pronoun_grid(src);
       } else if(!pos || pos == 'verb') {
         es_grid = i18n.spanish_verb_grid(src);
       }

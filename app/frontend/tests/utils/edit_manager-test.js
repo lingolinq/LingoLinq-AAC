@@ -747,6 +747,31 @@ describe('editManager', function() {
       expect(byLoc.nw).toEqual('no lugar');
       expect(byLoc.ne).toEqual(undefined);
     });
+
+    it("should fill empty Spanish overlay slots for yo as a pronoun", function() {
+      var button = editButton(board, 17, {
+        label: 'yo',
+        part_of_speech: 'pronoun'
+      });
+      if(board.get('model') && board.get('model').set) {
+        board.get('model').set('locale', 'es');
+        board.get('model').set('translations', {});
+      }
+      setupEditBoard(board, [[button]]);
+      localeAppState('es', 'es');
+      var grid = editManager.grid_for(17);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.c).toEqual('yo');
+      expect(byLoc.n).toEqual('me');
+      expect(byLoc.w).toEqual('mi');
+      expect(byLoc.e).toEqual('mí');
+      expect(byLoc.s).toEqual('mío');
+      expect(byLoc.ne).toEqual('conmigo');
+      expect(byLoc.nw).toEqual('mis');
+      expect(byLoc.se).toEqual('no yo');
+    });
   });
 
   describe("change_button", function() {
