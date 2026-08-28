@@ -3979,9 +3979,24 @@ footer .wide_links .row > .page-footer__right-icons.col-sm-2,
   max-width: none;
   white-space: nowrap;
 }
-footer .icons {
+footer .icons,
+.page-footer .icons {
   padding-left: 10px;
   opacity: 0.7;
+}
+/* Size the footer social icons explicitly.
+   They used to be inline 24x24 base64 PNGs, so their intrinsic size WAS the layout and no
+   rule was needed. They are real assets now (x.svg, facebook.png) and facebook.png is
+   64x64 to match every other logo in that folder — without this it would render at 64px
+   beside 24px siblings. `.icons` appears in exactly these eight footer spans and nowhere
+   else (page-footer.hbs, footer.hbs, brief.hbs and the Rails shared/_footer.html.erb), so
+   this cannot reach anything unintended. Both selectors: the markup is `<footer>` in some
+   of them and `.page-footer` in others. */
+footer .icons img,
+.page-footer .icons img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 footer .skinny_links {
   display: none;
@@ -18203,6 +18218,24 @@ form.row.subscription-form-with-cards {
   border: none;
   overflow: hidden;
   background: #ffffff;
+  /* THIS is the rule that stops the bottom being cut off — not the max-height on
+     .md-speak-menu below.
+
+     modal-dialog.js:97 runs `$(el).find('.modal-content').css('maxHeight',
+     $(window).height() - 50)` for EVERY modal in the app, as an INLINE style. Inline
+     beats any stylesheet rule, so .md-speak-menu's own `100vh - --sm-menu-top - 16px`
+     was being applied inside a parent capped 30px tighter (540 vs 510 at a 560px
+     viewport, measured). The menu was therefore taller than its own container and the
+     overflow was clipped HERE, one level up from every rule that kept being edited to
+     fix it.
+
+     Same override, same reason, as `.modal-content:has(.la-find-button-wrap)` — whose
+     comment names this same line of modal-dialog.js. Neutralising the global cap lets
+     the menu's own max-height govern, which already accounts for the 4px top offset
+     speak-menu.js sets and leaves 16px below the fold.
+
+     Verified with scripts/speak-menu-clip-qa.mjs, not by reading the cascade. */
+  max-height: none !important;
 }
 .md-speak-menu {
   padding: 16px 20px 12px !important;
@@ -18250,7 +18283,22 @@ form.row.subscription-form-with-cards {
      silently swallowed the whole declaration block: the rule reached the served CSS intact
      and the browser applied none of it, leaving the h2 at its 25px user-agent default.
      Verified by removing them. Keep brace-free. */
-  font-size: 22px;
+
+  /* Fluid 16-22px, and `!important` is not a shortcut here — it is the only way to win.
+     The bare element rule `h2` at app.scss:3614 declares `font-size: 25px !important`, so
+     this class rule was losing and the title rendered at 25px, NOT the 22px above it. An
+     important class selector 0,1,0 beats an important element selector 0,0,1; nothing
+     without !important can. Scoping the global h2 rule instead would reach every h2 in the
+     app, which is not this modal's call to make.
+     Bootstrap is not the culprit, despite appearances in devtools: its `.h2, h2 30px` and
+     `body 14px` sit BELOW the app rule in the cascade and were already being overridden.
+
+     No arithmetic inside the clamp, deliberately: dart-sass strips a calc() wrapper inside
+     a range function and emits bare mixed-unit math, which is what the CSS/SCSS guideline
+     says SassC cannot evaluate. Three plain values avoid the question. 2.45vw reaches the
+     22px ceiling at ~900px — the width above which this modal stops filling the screen —
+     and bottoms out at the 16px floor around 655px. */
+  font-size: clamp(16px, 2.45vw, 22px) !important;
   font-weight: 700;
   color: $la-navy;
 }
@@ -18432,16 +18480,25 @@ form.row.subscription-form-with-cards {
   line-height: 1;
   text-align: center;
 }
+/* -20% (2026-08-27, Traci): the marks were visually dominating the modal's first
+   row. 42 -> 33.6 and 36 -> 28.8, rounded to the nearest whole pixel. Line-height is
+   scaled with the size rather than left at 36px, which would have opened a gap under
+   each glyph and undone the size change visually. */
 .md-speak-menu__punctuation {
-  font-size: 42px;
-  line-height: 36px;
+  font-size: 34px;
+  line-height: 29px;
   display: block;
   color: $brand-charcoal-dark;
   font-weight: 700;
 }
+/* The contraction button's WORD label (e.g. "nursing home's"), not a glyph. Same -20%
+   for consistency across the row: 22 -> 17.6 and 28 -> 22.4, rounded. 18px still sits
+   above a typical web default, so the AAC size floor holds — but this is the one value
+   in the row where shrinking costs real legibility, so revert this rule alone if it
+   reads small on a device. */
 .md-speak-menu__punctuation--sm {
-  font-size: 22px;
-  line-height: 28px;
+  font-size: 18px;
+  line-height: 22px;
 }
 #menu_punctuation_button .md-speak-menu__punctuation--sm {
   background: linear-gradient(135deg, $brand-verdigris, $brand-dusty-denim);
@@ -18513,10 +18570,14 @@ form.row.subscription-form-with-cards {
   padding-right: 10px;
   scrollbar-gutter: stable;
   border-left: 2px solid rgba($la-navy, 0.12);
-  max-height: calc(var(--sm-phrase-rows) * var(--sm-phrase-row));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
+  /* PAGED, not scrolled — and therefore NO max-height and NO overflow at all.
+     speak-menu.js slices the list to PHRASE_PAGE_SIZE rows, so the ROW COUNT is what is
+     bounded. An earlier version also capped the height at
+     `--sm-phrase-rows * --sm-phrase-row`, which assumed a fixed 44px row; the rows are
+     `min-height: 44px` and GROW when a phrase wraps, so four long phrases exceeded the cap
+     and were clipped (measured: listScrolls true on three of four pages). Height is bounded
+     instead by the row count plus the two-line clamp on the phrase text below — the same
+     fix the contacts grid needed. --sm-phrase-row is retained only as the row FLOOR. */
   background:
     linear-gradient(#fff 30%, rgba(255, 255, 255, 0)) top / 100% 20px no-repeat local,
     linear-gradient(rgba(255, 255, 255, 0), #fff 70%) bottom / 100% 20px no-repeat local,
@@ -18532,7 +18593,13 @@ form.row.subscription-form-with-cards {
    `min-height: 44px` is the WCAG 2.5.5 AAA target size, and it is what makes five rows a
    predictable 220px — worth having on a control an AAC user aims at with a head pointer. */
 .md-speak-menu__bottom-btn--remembered {
-  min-height: 44px;
+  /* FIXED height, not a min-height. speak-menu.js#recompute_phrase_page_size divides the
+     available space by the row pitch to decide how many phrases fit on screen, and that
+     arithmetic is only exact if every row is the same height. 60px (border-box) leaves a
+     40px content box, which holds the two lines the phrase text is clamped to at
+     16px/1.2 = 38.4px. Change either number and PHRASE_ROW_H in speak-menu.js has to
+     follow — they are two halves of one calculation. */
+  height: 60px;
   margin-bottom: 6px;
   padding: 9px 14px;
   font-size: 14px;
@@ -18596,25 +18663,66 @@ form.row.subscription-form-with-cards {
 }
 
 /* "3 more — scroll to see them", under the scroller. */
-.md-speak-menu__phrase-more {
+/* `.md-speak-menu__phrase-list--expanded` used to drop the row cap here and let the panel
+   grow, falling back on .md-speak-menu's own scroll past the viewport. Removed: the
+   expanded library is PAGED now, so one page is always exactly one page tall and no scroll
+   region is created. See the pager rules below and the comment on `rememberedUtterances`
+   in speak-menu.js. */
+/* Up / Down pager under the phrase list. 44px targets (WCAG 2.5.5) because these are aimed
+   at with a head pointer or eye gaze, not a mouse. */
+.md-speak-menu__phrase-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  padding-left: 12px;
+}
+.md-speak-menu__phrase-page-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  margin-top: 6px;
-  padding-left: 12px;
-  /* 14px, matching the phrase rows it sits under (--remembered is 14px too). It was
-     13px — small enough to read as a caption when it is in fact the only thing telling
-     the user there is more of their own vocabulary below the fold. Written in px, not
-     rem, to match the sibling rules in this block rather than mix units mid-component. */
+  min-height: 44px;
+  padding: 6px 16px;
+  border: 1px solid rgba($la-navy, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  color: $brand-slate-blue;
   font-size: 14px;
-  font-weight: 600;
-  color: rgba($la-navy, 0.7);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
+.md-speak-menu__phrase-page-btn:hover:not([disabled]) {
+  background: #fff;
+  border-color: rgba($brand-verdigris, 0.5);
+  color: $indigo;
+}
+.md-speak-menu__phrase-page-btn[disabled] {
+  opacity: 0.4;
+  cursor: default;
+}
+.md-speak-menu__phrase-pager-status {
+  font-size: 13px;
+  font-weight: 600;
+  color: $brand-slate-blue;
+  white-space: nowrap;
+}
+/* Chevron points DOWN collapsed (there is more below) and flips UP when expanded. */
+/* Two lines max. With the list paged rather than scrolled, the panel's height is
+   row-count x row-height — so a row that can grow without limit puts the height back out of
+   control and, on a short viewport, pushes the panel into a scroll region an eye-gaze user
+   cannot reach. Two lines is ~90 characters at this size, which covers most saved phrases;
+   the full text is still what gets spoken when the row is selected. */
 .md-speak-menu__bottom-btn--remembered .md-speak-menu__remembered-text {
   font-size: 16px;
   font-weight: 600;
   color: $la-navy;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 .md-speak-menu__bottom-btn svg {
   flex-shrink: 0;
@@ -18687,6 +18795,27 @@ form.row.subscription-form-with-cards {
   margin-right: auto;
 }
 
+/* Small screens: fill the width, 4px each side — same treatment as the Share Text modal.
+   The 600px design width plus the 94vw cap left 20px a side at 640 and 11px at 375, and
+   84px a side at 768 where the fixed 600px still wins. On a phone that is space the
+   punctuation row and the phrase list can use.
+   No `!important` needed here, unlike the Share Text modal: this modal passes no
+   `@desired_width`, so modal-dialog.js#stretch takes its else branch and CLEARS the inline
+   width rather than setting one. `width: auto` is .modal-dialog's Bootstrap default and
+   fills the container minus margins — `100vw` would include the scrollbar and overflow.
+   Breakpoint is 900px, not Bootstrap's 767px: at 768 the fixed 600px still won and left
+   84px a side, which is the tablet-portrait case and the one that was reported. Above
+   900px the menu keeps its 600px design width — a 7-column punctuation row stretched
+   across a desktop screen is not an improvement. One number if that balance is wrong. */
+@media (max-width: 900px) {
+  .modal-dialog:has(#speak_menu) {
+    width: auto;
+    max-width: none;
+    margin-left: 4px;
+    margin-right: 4px;
+  }
+}
+
 /* WRAP AT 460px, not 768. Below this the modal has run out of room to widen — it is
    already at its 94vw ceiling, so ~432px of dialog — and 7 punctuation targets across that
    is ~55px each, genuinely too small to hit with the motor accuracy this product is for.
@@ -18740,7 +18869,7 @@ form.row.subscription-form-with-cards {
    `img` / 60px `.glyphicon` inside `.btn`) was removed 2026-08-27. Its only
    consumer was the Share Text modal, and at (0,2,1) it silently outranked every
    single-class `.la-share-text__*` rule below -- which is why the Facebook and
-   Twitter tiles rendered a 60px logo while their SVG siblings rendered at 22px.
+   X tiles rendered a 60px logo while their SVG siblings rendered at 22px.
    The `.la-share-text__*` block is now the single authority for that modal. */
 .repair_buttons {
   .btn {
@@ -38779,16 +38908,26 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 
 /* ── Saved Phrases modal (modern) ── */
+/* Sit 4px from the top instead of Bootstrap's `margin: 30px auto` (measured: dialog top
+   was 30px). Only margin-TOP is overridden, so the `auto` sides still centre it. */
+.modal-dialog:has(.la-phrases-modal-wrap) {
+  margin-top: 4px;
+}
 .la-phrases-modal-wrap {
   color: var(--md-ink);
   border-radius: 18px;
   overflow: hidden;
 }
-.la-phrases-modal-wrap .la-modal-header {
+/* `.modal` qualifier is load-bearing: the universal end-of-file rule
+   `.modal .la-modal-header` forces 28px top/bottom on every modal and is the same
+   specificity (0,2,0) but LATER in source order, so the 20px declared here never applied —
+   measured at 28px in the browser. (0,3,0) makes this authoritative, and 14px is half the
+   28px that was actually in force. Halving the 20px would have changed nothing visible. */
+.modal .la-phrases-modal-wrap .la-modal-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 20px 24px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--md-line);
   background: rgba(255, 255, 255, 0.6);
 }
@@ -39027,10 +39166,14 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   background: darken($brand-danger, 6%);
 }
 
-.la-phrases-modal-footer {
+/* Same story as the header, but it needs the WRAP in the selector too. The universal rule
+   is itself `.modal .la-phrases-modal-footer` — identical specificity (0,2,0) and later in
+   the file, so a `.modal`-qualified copy still loses. Measured: it stayed at 28px until the
+   wrap was added, taking this to (0,3,0). 14px is half the 28px that was in force. */
+.modal .la-phrases-modal-wrap .la-phrases-modal-footer {
   display: flex;
   justify-content: flex-end;
-  padding: 16px 24px;
+  padding: 14px 24px;
   border-top: 1px solid var(--md-line);
 }
 .la-phrases-close-btn {
@@ -39096,10 +39239,52 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   flex-shrink: 0;
 }
 /* ── Share Text modal (share-utterance) — modern restyle ── */
+/* Sit 4px below the top of the viewport instead of Bootstrap's `.modal-dialog`
+   margin (30px auto at >=768px, 10px below it). Only margin-TOP is overridden, so
+   the `auto` side margins still centre the dialog and the bottom margin still gives
+   it clearance when the body is tall enough to scroll. `:has()` matches this modal
+   only and is the same idiom every other per-modal dialog rule in this file uses. */
+.modal-dialog:has(.la-share-text-modal-wrap) {
+  margin-top: 4px;
+}
+/* Small screens: fill the width, 4px each side.
+   Two things had to be overridden, and both need the force:
+     * modal-dialog.js#stretch writes an INLINE `width: min(desired_width, 90vw)`, so at
+       480px the panel was 432px and simply wasting 48px of a screen that has none spare.
+       `width: auto` is .modal-dialog's own Bootstrap default — restoring it lets the block
+       fill its container minus margins, which also sidesteps `100vw` (that would include
+       the scrollbar and overflow).
+     * Bootstrap only supplies `margin: 30px auto` from 768px up; below that its rule is a
+       flat `margin: 10px`. With an inline width declared that is not centring at all —
+       measured at 480px the dialog sat at left 10 / right 442, i.e. 10px one side and 38px
+       the other. Stated on both sides rather than relying on `auto`. */
+@media (max-width: 767px) {
+  .modal-dialog:has(.la-share-text-modal-wrap) {
+    width: auto !important;
+    max-width: none !important;
+    margin-left: 4px;
+    margin-right: 4px;
+  }
+}
+/* modal-dialog.js:97 puts an inline `max-height: window.height - 50` on .modal-content for
+   every modal. With this modal sitting 4px from the top that caps it 46px short of the
+   viewport and starts it scrolling earlier than it needs to (measured at vh=640: content
+   capped 590 against 671 of content, dialog bottom 46px above the fold). Neutralised here
+   and replaced with a cap this modal owns — 4px top + 4px bottom.
+   Same override, same reason, as `.modal-content:has(.la-find-button-wrap)` and
+   `:has(.md-speak-menu)`. */
+.modal-content:has(.la-share-text-modal-wrap) {
+  max-height: none !important;
+}
 .la-share-text-modal-wrap {
   color: var(--md-ink);
   border-radius: 18px;
   overflow: hidden;
+  /* Column so the header stays pinned and only the BODY scrolls — previously the whole
+     modal scrolled, taking the title and close button off-screen with it. */
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 8px);
 }
 /* `.modal` qualifier is load-bearing: the universal end-of-file rule
    `.modal .la-modal-header` (0,2,0) forces 28px top/bottom on every modal and
@@ -39150,7 +39335,17 @@ body.md-ds-active .app-navbar__beta-feedback-link {
    yields straight into .modal-content), so the body's bottom padding IS the
    modal's foot. Halved with the header: 20/24 -> 10/12. */
 .la-share-text-modal-body {
+  /* `min-height: 0` is required: a flex item's default `min-height: auto` refuses to
+     shrink below its content, so without it this never becomes the scroller and the
+     overflow escapes the wrap instead. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   padding: 10px 24px 12px;
+  /* Glass needs a ground. Without a tinted wash behind them the translucent
+     buttons below sit on flat #fff and the blur/refraction has nothing to pick
+     up. Same three brand stops as the universal modal-header gradient. */
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.07), rgba($brand-dusty-denim, 0.07) 45%, rgba(123, 107, 173, 0.05)), $surface-100;
 }
 .la-share-text__quote {
   display: flex;
@@ -39205,52 +39400,285 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 .la-share-text__grid {
   margin: 0;
 }
+/* Glass tiles. Three layers do the work, and all three are needed:
+   1. a white top-to-bottom gradient over a translucent tint  -> the pane itself
+   2. `backdrop-filter` blur + saturate                        -> refracts the body wash
+   3. `inset 0 1px 0` white                                    -> the lit top edge
+   The gloss sweep across the upper half is the ::before below. */
 .la-share-text-modal-wrap .btn.la-share-text__action,
 .la-share-text-modal-wrap a.btn.la-share-text__action {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 72px;
-  padding: 10px 8px;
-  margin-bottom: 10px;
-  border: 1px solid rgba($brand-blue-black, 0.12);
-  border-radius: 12px;
-  background: #ffffff;
+  justify-content: flex-start;
+  gap: 5px;
+  /* Grow AND shrink, capped at 190px. `flex: 0 0 190px` held every tile at exactly 190px
+     at every width, so a narrow modal did not scale its contents — it just wrapped them
+     onto more rows and left slack at the edge. The 150px basis is the floor at which two
+     lines of helper text still read; `justify-content: center` on the parent still centres
+     a short row. */
+  flex: 1 1 150px;
+  max-width: 190px;
+  /* Two lines of helper text is the tall case; pinning the floor here keeps the
+     row even when one tile's helper wraps to two lines and its neighbour's does not. */
+  min-height: 108px;
+  padding: 12px 10px;
+  margin-bottom: 0;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 14px;
+  /* Per-tile colour. The white gradient bottoms out at 0.72 over the tint, which
+     keeps $brand-charcoal-blue label/helper text at >=5.4:1 on EVERY tile below
+     (worst case Instagram) and each icon ink at >=3.7:1 -- AA text, AA non-text.
+     Re-check both if a tint is ever darkened. */
+  --tile-tint: #{$surface-300};
+  --tile-ink: #{$brand-charcoal-blue};
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 45%, rgba(255, 255, 255, 0.72) 100%), var(--tile-tint);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
   color: $brand-charcoal-blue;
   font-size: 13px;
   font-weight: 700;
   text-align: center;
   white-space: normal;
-  box-shadow: 0 1px 3px rgba($brand-blue-black, 0.05);
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.06),
+              0 6px 18px rgba($brand-blue-black, 0.07),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95);
   transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+.la-share-text-modal-wrap .btn.la-share-text__action--copy      { --tile-tint: #{$brand-verdigris};    --tile-ink: #{$brand-verdigris-aa}; }
+.la-share-text-modal-wrap .btn.la-share-text__action--button    { --tile-tint: #{$brand-honey-bronze}; --tile-ink: #9A6B0F; }
+.la-share-text-modal-wrap .btn.la-share-text__action--email     { --tile-tint: #{$brand-dusty-denim};  --tile-ink: #{$brand-dusty-denim-aa}; }
+.la-share-text-modal-wrap a.btn.la-share-text__action--link     { --tile-tint: #{$brand-right-logo};   --tile-ink: #5B4FC7; }
+/* #0866FF is Facebook's current brand blue (refreshed 2023, was #1877F2). Label
+   measures 5.43:1 on the resulting tile — AA. */
+.la-share-text-modal-wrap .btn.la-share-text__action--facebook  { --tile-tint: #0866FF; }
+/* X (formerly Twitter). Its scheme is monochrome, so the tint is X's ink rather
+   than a hue — but pure #0F1419 at the shared 0.72 gradient bottom leaves the
+   $brand-charcoal-blue label at 4.34:1, under AA. This tile therefore lightens its
+   own gradient to 0.80, which measures 5.28:1 for the label and 11.99:1 for the
+   glyph. The mark itself is drawn at full strength via --tile-ink. */
+.la-share-text-modal-wrap .btn.la-share-text__action--x {
+  --tile-tint: #0F1419;
+  --tile-ink: #0F1419;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(255, 255, 255, 0.87) 45%, rgba(255, 255, 255, 0.80) 100%), var(--tile-tint);
+}
+.la-share-text-modal-wrap .btn.la-share-text__action--x:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.93) 0%, rgba(255, 255, 255, 0.80) 45%, rgba(255, 255, 255, 0.72) 100%), var(--tile-tint);
+}
+.la-share-text-modal-wrap .btn.la-share-text__action--instagram { --tile-tint: #E1306C; }
+.la-share-text-modal-wrap .btn.la-share-text__action--other     { --tile-tint: #{$brand-slate-blue};   --tile-ink: #414D63; }
+
+/* Each action group is its own centred row. Row 2 (social) carries no helper text,
+   so it gets a shorter floor rather than inheriting row 1's two-line height. */
+.la-share-text__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 12px;
+  width: 100%;
+  margin: 0 0 12px;
+}
+/* Row 2 sits on its own line, so these are square logo tiles rather than the wide
+   helper-text tiles of row 1. 88x88 — double the 44px WCAG 2.5.5 touch-target
+   minimum, which is the floor they may never go below. Labels are visible: a logo
+   alone is recognisable but not nameable, and the label is also the button's
+   accessible name. `Other` keeps the full-width tile — a generic share glyph needs
+   its word more than a brand mark does. */
+.la-share-text__actions--social {
+  align-items: center;
+}
+.la-share-text__actions--social .la-share-text__action {
+  min-height: 84px;
+}
+.la-share-text-modal-wrap .btn.la-share-text__action--facebook,
+.la-share-text-modal-wrap .btn.la-share-text__action--x,
+.la-share-text-modal-wrap .btn.la-share-text__action--instagram {
+  flex: 0 0 88px;
+  width: 88px;
+  max-width: 88px;
+  height: 88px;
+  min-height: 88px;
+  padding: 10px 6px;
+  gap: 6px;
+  justify-content: center;
+  border-radius: 16px;
+}
+.la-share-text-modal-wrap .btn.la-share-text__action--facebook::before,
+.la-share-text-modal-wrap .btn.la-share-text__action--x::before,
+.la-share-text-modal-wrap .btn.la-share-text__action--instagram::before {
+  border-radius: 16px 16px 50% 50% / 16px 16px 18px 18px;
+}
+/* 14px, not the 15px of row 1: "Instagram" has to fit inside 88px minus padding.
+   `normal` white-space so a longer localised label wraps rather than overflowing —
+   these strings are translated, and several locales are wider than the English. */
+.la-share-text__action--facebook .la-share-text__action-label,
+.la-share-text__action--x .la-share-text__action-label,
+.la-share-text__action--instagram .la-share-text__action-label {
+  font-size: 14px;
+  line-height: 1.15;
+  white-space: normal;
+}
+
+/* The gloss: a highlight over the top of the pane, curved along its lower edge so
+   it reads as a reflection rather than a flat band. Inert to pointer/hit-testing. */
+.la-share-text-modal-wrap .btn.la-share-text__action::before,
+.la-share-text-modal-wrap a.btn.la-share-text__action::before,
+.la-share-text-modal-wrap .btn.la-share-text__contact-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 52%;
+  border-radius: 14px 14px 50% 50% / 14px 14px 22px 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.28) 60%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+.la-share-text-modal-wrap .btn.la-share-text__action > *,
+.la-share-text-modal-wrap a.btn.la-share-text__action > *,
+.la-share-text-modal-wrap .btn.la-share-text__contact-btn > * {
+  position: relative;
+  z-index: 1;
 }
 .la-share-text-modal-wrap .btn.la-share-text__action:hover,
 .la-share-text-modal-wrap a.btn.la-share-text__action:hover {
-  background: $surface-100;
-  border-color: rgba($brand-verdigris, 0.45);
+  /* Hover deepens the tile's OWN tint (less white on top) rather than washing every
+     tile verdigris -- with per-tile colour that would read as a change of identity. */
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.72) 45%, rgba(255, 255, 255, 0.60) 100%), var(--tile-tint);
+  border-color: rgba(255, 255, 255, 0.95);
   color: $indigo;
-  box-shadow: 0 4px 12px rgba($brand-blue-black, 0.10);
+  box-shadow: 0 2px 4px rgba($brand-blue-black, 0.07),
+              0 12px 26px rgba($brand-blue-black, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
   transform: translateY(-2px);
 }
 .la-share-text-modal-wrap .btn.la-share-text__action.btn-success {
-  border-color: rgba(#3c9a5f, 0.5);
+  border-color: rgba(#3c9a5f, 0.55);
+  --tile-tint: #3c9a5f;
   color: #2e7d4f;
 }
 .la-share-text__action-icon {
   display: block;
+  color: var(--tile-ink);
 }
+/* Logos keep their brand colour now that every tile is tinted -- the old
+   `grayscale(0.6)` existed to stop two full-colour logos shouting on an
+   otherwise all-white row, which is no longer the situation. */
 .la-share-text__action-img {
   width: 24px;
   height: 24px;
   object-fit: contain;
-  filter: grayscale(0.6);
 }
 .la-share-text__action-label {
   display: block;
+  font-size: 15px;
   line-height: 1.2;
+}
+/* What the button actually does. $brand-slate-blue is 5.34:1 on this surface —
+   WCAG AA at this size — and 13px keeps it above the AAC legibility floor rather
+   than dropping to a conventional 11-12px caption. */
+.la-share-text__action-help {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: $brand-slate-blue;
+}
+/* One line for the whole contact group: every contact tile does the same thing,
+   so a per-tile helper would be 14 repetitions and would undo the compact row. */
+.la-share-text__section-help {
+  width: 100%;
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: $brand-slate-blue;
+}
+/* ── Contact list: a grid clamped to its first three rows ───────────────────
+   The clamp is a HEIGHT, not a child index. The previous version hid from the
+   13th/10th/7th child per breakpoint, which is only "three rows" if the rendered
+   column count matches what the media query assumed — couple those two and any
+   disagreement silently shows a fourth row. A fixed row height plus
+   `max-height: 3 rows + 2 gaps` is exactly three rows for ANY column count, so
+   the breakpoints below only have to decide how WIDE the tiles are, never how
+   many are visible.
+   The contact tile is therefore a fixed-height row (--contact-row), with its
+   name clamped to two lines so a long username cannot grow the row and break
+   the arithmetic.
+   HOW MANY rows are visible lives in --contact-rows, and that custom property is
+   the SINGLE SOURCE OF TRUTH: the clamp below computes from it, and the component
+   READS it back off the computed style (`measure_contacts_overflow`) to decide
+   whether the toggle is needed. Hardcoding the number in both places is the exact
+   bug that shipped a fourth row earlier today — a layout fact duplicated on both
+   sides of the CSS/JS line will eventually disagree. Change it here only. */
+.la-share-text__contacts {
+  --contact-row: 58px;
+  --contact-gap: 8px;
+  --contact-rows: 3;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--contact-gap);
+  width: 100%;
+  margin: 0 0 10px;
+}
+/* N rows plus the TRAILING gap, not N-1 gaps. The tiles are glass and carry
+   `0 6px 18px` of drop shadow below their border box; clamping to exactly N*row +
+   (N-1)*gap cut that shadow off flush and the last row read as sliced. Adding the
+   trailing gap is exactly right rather than a fudge: row N+1 begins at
+   N*(row + gap), which is what this now equals — so the shadow is revealed and not
+   one pixel of the next row is. */
+.la-share-text__contacts--collapsed {
+  max-height: calc(var(--contact-rows) * (var(--contact-row) + var(--contact-gap)));
+  overflow: hidden;
+}
+@media (max-width: 991px) {
+  .la-share-text__contacts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .la-share-text__contacts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+/* Short viewports: one row, then "More Users". With three rows this modal needs
+   roughly 730px of height (74 header + 60 quote + 190 contacts + 20 divider +
+   108/88 action rows + 40 checkbox + padding); dropping to a single row gives back
+   132px and brings it to about 600px. 820px is therefore a little above where three
+   rows stops fitting, so the list shrinks BEFORE the modal would start scrolling
+   rather than after. Only --contact-rows changes; the clamp and the toggle both
+   follow from it. */
+@media (max-height: 820px) {
+  .la-share-text__contacts { --contact-rows: 1; }
+}
+
+.la-share-text__contacts-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 auto 12px;
+  padding: 7px 18px;
+  border: 1px solid rgba($brand-blue-black, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(8px) saturate(130%);
+  -webkit-backdrop-filter: blur(8px) saturate(130%);
+  color: $brand-slate-blue;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.la-share-text__contacts-more:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba($brand-verdigris, 0.5);
+  color: $indigo;
+}
+.la-share-text__contacts-more-caret {
+  transition: transform 0.15s ease;
+}
+.la-share-text__contacts-more[aria-expanded="true"] .la-share-text__contacts-more-caret {
+  transform: rotate(180deg);
 }
 .la-share-text-modal-wrap .btn.la-share-text__contact-btn {
   display: flex;
@@ -39260,23 +39688,34 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   text-align: left;
   gap: 10px;
   width: 100%;
+  height: var(--contact-row, 58px);
+  --tile-tint: #{$brand-blue-grey};
+  position: relative;
+  overflow: hidden;
   padding: 7px 12px;
-  margin-bottom: 8px;
-  border: 1px solid rgba($brand-blue-black, 0.12);
-  border-radius: 12px;
-  background: #ffffff;
+  margin-bottom: 0;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 45%, rgba(255, 255, 255, 0.72) 100%), var(--tile-tint);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
   color: $brand-charcoal-blue;
   /* Bootstrap's `.btn` is `white-space: nowrap`; the row layout is narrower than
      the old stacked tile, so a long contact name has to be allowed to wrap. */
   white-space: normal;
   font-size: 14px;
   font-weight: 700;
-  box-shadow: 0 1px 3px rgba($brand-blue-black, 0.05);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.06),
+              0 6px 18px rgba($brand-blue-black, 0.07),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .la-share-text-modal-wrap .btn.la-share-text__contact-btn:hover {
-  border-color: rgba($brand-verdigris, 0.45);
-  box-shadow: 0 4px 12px rgba($brand-blue-black, 0.10);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.72) 45%, rgba(255, 255, 255, 0.60) 100%), var(--tile-tint);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 4px rgba($brand-blue-black, 0.07),
+              0 12px 26px rgba($brand-blue-black, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
   transform: translateY(-2px);
 }
 .la-share-text__contact-avatar {
@@ -39286,11 +39725,17 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   border-radius: 50%;
   object-fit: cover;
 }
+/* Two lines max: the tile is a fixed-height grid row now, so a third line would
+   silently break the three-row clamp above rather than just looking cramped. */
 .la-share-text__contact-name {
   flex: 1 1 auto;
   min-width: 0;
   line-height: 1.2;
   word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
 }
 /* Trailing badge on the one contact that is a reply target. Sits at the end of
    the row rather than as an absolute overlay, so it can never sit on top of a
@@ -39318,6 +39763,215 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 .la-share-text__status--err {
   color: #c0392b;
+}
+/* ── Big Button modal (modals/big-button) — modern restyle ───────────────────
+   EVERY rule here is scoped under .la-big-button-modal-wrap on purpose. This
+   template shares `cursor_holder`, `cursor_navigation`, `cursor_area.any_size`,
+   `big_btn` and `repair_buttons` with timer.hbs, gif.hbs and repairs.hbs, so an
+   unscoped restyle of any of them would silently redress three other modals. */
+.modal-dialog:has(.la-big-button-modal-wrap) {
+  margin-top: 4px;
+}
+.la-big-button-modal-wrap {
+  color: var(--md-ink);
+  border-radius: 18px;
+  overflow: hidden;
+}
+/* `.modal` qualifier is load-bearing — see the same note on the Share Text header:
+   the universal end-of-file `.modal .la-modal-header` rule is (0,2,0) and later in
+   source order, so an unqualified wrapper rule loses its vertical padding. This
+   header is deliberately slimmer than the Share Text one (36px icon, 10px padding
+   = 57px total): every pixel here comes off the speak target below. */
+.modal .la-big-button-modal-wrap .la-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+}
+.modal .la-big-button-modal-wrap .la-modal-header-label {
+  margin: 0;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -0.2px;
+  color: var(--md-ink);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.modal .la-big-button-modal-wrap .la-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--md-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+.modal .la-big-button-modal-wrap .la-modal-close:hover {
+  color: var(--md-ink);
+}
+.la-modal-header-icon--big-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: rgba($brand-verdigris, 0.10);
+  border: 1px solid var(--md-line);
+  flex-shrink: 0;
+}
+/* Body wash, so the glass panes below have a ground to refract (same reasoning and
+   the same three brand stops as the Share Text modal). Replaces the inline
+   `style="padding-top:5px;padding-bottom:5px"` that used to sit on this element. */
+.la-big-button-modal-wrap .la-big-button-modal-body {
+  padding: 8px 12px 10px;
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.07), rgba($brand-dusty-denim, 0.07) 45%, rgba(123, 107, 173, 0.05)), $surface-100;
+}
+.la-big-button-modal-wrap .cursor_area.any_size {
+  margin: 0 0 10px;
+  padding: 6px 100px 6px 8px;
+  border: none;
+  border-radius: 16px;
+  background: none;
+}
+/* Sized to FIT, so nothing scrolls. The shared rule this overrides pairs a fixed
+   height with `overflow: auto` and a FIXED type scale (50px base, up to 100px for
+   `huge`) plus a 25vh image — on any normal viewport that combination overflows the
+   box and scrolls INSIDE the button, which is the scrolling being removed here.
+   Three things had to change together: the button became a centred flex column, the
+   image became shrinkable with a vh cap, and the type scale became viewport-relative
+   (both below). `overflow: auto` is deliberately KEPT as a floor for pathological
+   text lengths — `snapScroll()` disables Up/Down whenever nothing actually
+   overflows, so in the normal case those controls simply grey out.
+   NOT a clamp(): `clamp(180px, calc(100vh - 230px), 900px)` compiles here, but
+   dart-sass UNWRAPS the calc and emits `clamp(180px, 100vh - 230px, 900px)` — the
+   bare mixed-unit expression the CSS/SCSS guideline says SassC cannot evaluate. The
+   height/min-height/max-height triple below is exactly equivalent, and a top-level
+   `calc()` that is the whole value is never unwrapped.
+   Scoped: timer.hbs uses the same `.cursor_area.any_size .big_btn` rule and keeps
+   the original fixed sizing. */
+.la-big-button-modal-wrap .cursor_area.any_size .big_btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5vh;
+  height: calc(100vh - 230px);
+  min-height: 180px;
+  max-height: 900px;
+  padding: 2vh 3vw;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97) 0%, rgba(255, 255, 255, 0.90) 45%, rgba(255, 255, 255, 0.86) 100%), $brand-verdigris;
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  color: $brand-blue-black;
+  box-shadow: 0 2px 6px rgba($brand-blue-black, 0.07),
+              0 14px 34px rgba($brand-blue-black, 0.10),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.la-big-button-modal-wrap .cursor_area.any_size .big_btn:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.84) 45%, rgba(255, 255, 255, 0.78) 100%), $brand-verdigris;
+}
+/* Shrinkable: `flex: 0 1 auto` + `min-height: 0` lets the flex algorithm take space
+   back from the artwork when the text needs it, instead of the old fixed 25vh that
+   pushed the text out of the box. */
+.la-big-button__speak-art {
+  flex: 0 1 auto;
+  min-height: 0;
+  height: 20vh;
+  max-height: 150px;
+  width: auto;
+}
+/* Viewport-relative type scale, replacing the shared fixed px steps. `text_class`
+   (big-button.js) still picks the STEP from the text length; each step is now a
+   RANGE rather than one size, so the same step also adapts to the screen. vmin, so
+   a short-but-wide window scales down too and not only a narrow one.
+   Scoped — timer.hbs shares these class names and keeps the fixed px scale. */
+.la-big-button-modal-wrap .cursor_area.any_size .big_btn,
+.la-big-button-modal-wrap .cursor_area.any_size .big_btn span {
+  line-height: 1.15;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+.la-big-button-modal-wrap .cursor_area.any_size .big_btn { font-size: clamp(24px, 6vmin, 50px); }
+.la-big-button-modal-wrap .cursor_area.any_size .big_btn .huge { font-size: clamp(34px, 10vmin, 100px); }
+.la-big-button-modal-wrap .cursor_area.any_size .big_btn .big { font-size: clamp(30px, 8vmin, 80px); }
+.la-big-button-modal-wrap .cursor_area.any_size .big_btn .medium { font-size: clamp(22px, 4.5vmin, 30px); }
+.la-big-button-modal-wrap .cursor_area.any_size .big_btn .small { font-size: clamp(17px, 3vmin, 20px); }
+/* Up / Down stay absolutely positioned against `.cursor_holder` (that is what the
+   100px right padding above reserves room for) — only their skin changes. */
+.la-big-button-modal-wrap .cursor_navigation .btn {
+  width: 84px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 45%, rgba(255, 255, 255, 0.72) 100%), $brand-blue-grey;
+  color: $brand-charcoal-blue;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.06),
+              0 6px 18px rgba($brand-blue-black, 0.07),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+.la-big-button-modal-wrap .cursor_navigation .btn[disabled] {
+  opacity: 0.4;
+}
+.la-big-button__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+/* Replaces `.repair_buttons .btn` for this modal's footer only — that rule is
+   shared with three other templates, so the footer opts out of it entirely rather
+   than fighting it with specificity. */
+.la-big-button-modal-wrap .btn.la-big-button__action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 0 0 116px;
+  min-height: 62px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 14px;
+  --tile-tint: #{$surface-300};
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 45%, rgba(255, 255, 255, 0.72) 100%), var(--tile-tint);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  color: $brand-charcoal-blue;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: normal;
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.06),
+              0 6px 18px rgba($brand-blue-black, 0.07),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.la-big-button-modal-wrap .btn.la-big-button__action--speak {
+  --tile-tint: #{$brand-verdigris};
+}
+.la-big-button-modal-wrap .btn.la-big-button__action .glyphicon {
+  display: block;
+  font-size: 22px;
+}
+.la-big-button-modal-wrap .btn.la-big-button__action:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.72) 45%, rgba(255, 255, 255, 0.60) 100%), var(--tile-tint);
+  border-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 4px rgba($brand-blue-black, 0.07),
+              0 12px 26px rgba($brand-blue-black, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+  transform: translateY(-2px);
+}
+.la-big-button-modal-wrap .btn.la-big-button__action[disabled] {
+  opacity: 0.45;
+  transform: none;
+  box-shadow: none;
 }
 .la-record-note-modal-body {
   padding: 20px 24px;
@@ -75896,7 +76550,15 @@ span.md-board-detail-modeling-btn--paused:hover {
    the user's `vocalization_height` setting is preserved. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-sentence-bar,
 .new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-sentence-bar {
-  padding: 2px 18px;
+  /* LEFT padding quartered, 18px -> 4.5px (2026-08-27, Traci), so chips start closer to
+     the bar's edge. Right stays 18px — only the left was asked for, and the right side
+     holds the tool buttons which want the breathing room.
+     THIS is the rule that governs it, not the `2px 10px 2px 4px` on the base
+     `.md-board-detail-sentence-bar`: this light-mode speak surface overrides the shorthand,
+     and the effective value was measured at 18px in the browser before changing anything.
+     Dark mode is excluded by the `:not()` above and keeps the base 4px; the new-board
+     preview re-declares its own padding-left, so neither follows this number. */
+  padding: 2px 18px 2px 4.5px;
   gap: 18px;
   /* Glassy glossy surface — SHARED with the edit-mode session bar
      (.md-board-edit-session) via the glass-bar-surface mixin so the two always

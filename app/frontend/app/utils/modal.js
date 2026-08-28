@@ -269,7 +269,11 @@ var modal = EmberObject.extend({
          never resumed: the user was sealed in a modal with nothing to select and no way
          out until someone else clicked or pressed Escape. Matching the close button
          guarantees at least one target for any modal that has one. */
-      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn, .modal-dialog .la-modal-close");
+      /* NOTE: services/modal.js#scannableTargets carries a near-copy of this selector.
+         THIS is the live one — scanner.js:210 calls modal.scannable_targets() — and the two
+         have already drifted (only this one matches .la-modal-close). Keep additions here;
+         adding them only to the service is a silent no-op for scanning. */
+      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn, .modal-dialog .modal_targets .md-speak-menu__phrase-page-btn, .modal-dialog .modal_targets .la-share-text__contacts-more, .modal-dialog .la-modal-close");
     } else {
       return document.querySelectorAll('nothing'); // Return empty NodeList equivalent
     }

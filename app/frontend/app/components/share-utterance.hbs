@@ -1,5 +1,12 @@
 <ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}} @desired_width={{900}}>
-  <div class="la-share-text-modal-wrap">
+  {{!-- `advanced_selection modal_targets` on the WRAP, not just the inner row:
+       raw_events#find_selectable_under_event resolves a dwell/gaze hit with
+       `$target.closest(".advanced_selection")` and returns null when there is no such
+       ancestor. With the region on the row only, the header close X and the text-only
+       checkbox were outside it and gaze did nothing at all on them — measured. The
+       inner row keeps its own copy, so tiles still resolve against the nearer region
+       exactly as before. --}}
+  <div class="la-share-text-modal-wrap advanced_selection modal_targets">
     <div class="la-modal-header">
       <div class="la-modal-header-icon la-modal-header-icon--share" aria-hidden="true">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3" stroke="#2A9D8F"/><circle cx="6" cy="12" r="3" stroke="#46505F"/><circle cx="18" cy="19" r="3" stroke="#2A9D8F"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="#46505F"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="#46505F"/></svg>
@@ -40,8 +47,13 @@
             </p>
           {{else if this.appState.referenced_user.currently_premium}}
             {{#if this.contacts}}
-              {{#each this.contacts as |sup|}}
-                <div class='col-md-3 col-sm-4 col-xs-6'>
+              <p class="la-share-text__section-help">{{t "Tap a person to send them this message." key="share_help_contacts"}}</p>
+              {{!-- Clamped to its first three rows until expanded. The clamp is a
+                   max-height in app.scss (3 rows + 2 gaps), so it is exactly three rows
+                   at any column count; `contacts_overflow` says whether the toggle is
+                   even needed, measured off the grid's real computed column count. --}}
+              <div class="la-share-text__contacts {{if this.contacts_expanded "la-share-text__contacts--expanded" "la-share-text__contacts--collapsed"}}">
+                {{#each this.contacts as |sup|}}
                   <button class='btn btn-default la-share-text__contact-btn' {{on "click" (this.ctrlAction "message" sup)}}>
                     <img src={{sup.avatar_url}} alt="" class="la-share-text__contact-avatar">
                     <span class="la-share-text__contact-name">{{sup.user_name}}</span>
@@ -49,8 +61,14 @@
                       <span class='la-share-text__contact-reply' aria-hidden="true"><span class='glyphicon glyphicon-envelope'></span></span>
                     {{/if}}
                   </button>
-                </div>
-              {{/each}}
+                {{/each}}
+              </div>
+              {{#if this.contacts_overflow}}
+              <button type="button" class="la-share-text__contacts-more" {{on "click" (this.ctrlAction "toggle_contacts")}} aria-expanded={{if this.contacts_expanded "true" "false"}}>
+                {{#if this.contacts_expanded}}{{t "Fewer Users" key="fewer_users"}}{{else}}{{t "More Users" key="more_users"}}{{/if}}
+                <svg class="la-share-text__contacts-more-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              {{/if}}
             {{else}}
               <p class='la-share-text__note'>{{t "In addition to sharing using the device's built-in tools, %app_name% can be set up for two-way text or email to custom contacts and supervisors. You can add contacts on a user's profile under My Account!" key="two_way_communication_on_profile"}}</p>
             {{/if}}
@@ -63,66 +81,69 @@
 
           <div class="la-share-text__divider"></div>
 
-          {{#if this.shares.clipboard}}
-          <div class='col-md-2 col-sm-3 col-xs-4'>
-            <button class="{{this.clipboard_class}} la-share-text__action" {{on "click" (this.ctrlAction "share_via" "clipboard")}}>
+          {{!-- Row 1: what the message can become right here. --}}
+          <div class="la-share-text__actions">
+            {{#if this.shares.clipboard}}
+            <button class="{{this.clipboard_class}} la-share-text__action la-share-text__action--copy" {{on "click" (this.ctrlAction "share_via" "clipboard")}}>
               <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               <span class="la-share-text__action-label">{{t "Copy" key="copy"}}</span>
+              <span class="la-share-text__action-help">{{t "Copies the message so you can paste it." key="share_help_copy"}}</span>
             </button>
-          </div>
-          {{/if}}
-          <div class='col-md-2 col-sm-3 col-xs-4'>
-            <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "big_text")}}>
+            {{/if}}
+            <button class="btn btn-default la-share-text__action la-share-text__action--button" {{on "click" (this.ctrlAction "share_via" "big_text")}}>
               <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
               <span class="la-share-text__action-label">{{t "Button" key="button"}}</span>
+              <span class="la-share-text__action-help">{{t "Shows it as one big button that speaks." key="share_help_button"}}</span>
             </button>
+            {{#if this.shares.email}}
+            <button class="btn btn-default la-share-text__action la-share-text__action--email" {{on "click" (this.ctrlAction "share_via" "email")}}>
+              <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <span class="la-share-text__action-label">{{t "Email" key="email"}}</span>
+              <span class="la-share-text__action-help">{{t "Emails it to an address you type in." key="share_help_email"}}</span>
+            </button>
+            {{/if}}
+            {{#if this.utterance_record.link}}
+            <a class="btn btn-default la-share-text__action la-share-text__action--link" href="#" target="_blank" rel="noopener" {{on "click" (this.ctrlAction "share_via" "link")}}>
+              <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              <span class="la-share-text__action-label">{{t "Link" key="link"}}</span>
+              <span class="la-share-text__action-help">{{t "Opens its web page so you can share it." key="share_help_link"}}</span>
+            </a>
+            {{/if}}
           </div>
-          {{#if this.shares.email}}
-            <div class='col-md-2 col-sm-3 col-xs-4'>
-              <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "email")}}>
-                <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                <span class="la-share-text__action-label">{{t "Email" key="email"}}</span>
-              </button>
-            </div>
-          {{/if}}
-          {{#if this.utterance_record.link}}
-            <div class='col-md-2 col-sm-3 col-xs-4'>
-              <a href="#" class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "link")}} target="_blank" rel="noopener">
-                <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                <span class="la-share-text__action-label">{{t "Link" key="link"}}</span>
-              </a>
-            </div>
-          {{/if}}
-          {{#if this.shares.facebook}}
-            <div class='col-md-2 col-sm-3 col-xs-4'>
-              <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "facebook")}}>
+
+          {{!-- Row 2: hand-off to somewhere else. Facebook and X carry no helper
+               line — their logo and label already say exactly where the message goes. --}}
+          {{#if (or this.shares.facebook this.shares.twitter this.shares.instagram this.shares.generic)}}
+            <div class="la-share-text__actions la-share-text__actions--social">
+              {{#if this.shares.facebook}}
+              <button class="btn btn-default la-share-text__action la-share-text__action--facebook" {{on "click" (this.ctrlAction "share_via" "facebook")}}>
                 <img src={{path "images/logos/facebook.png"}} alt="" class="la-share-text__action-img">
                 <span class="la-share-text__action-label">{{t "Facebook" key="facebook"}}</span>
               </button>
-            </div>
-          {{/if}}
-          {{#if this.shares.twitter}}
-            <div class='col-md-2 col-sm-3 col-xs-4'>
-              <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "twitter")}}>
-                <img src={{path "images/logos/twitter.png"}} alt="" class="la-share-text__action-img">
-                <span class="la-share-text__action-label">{{t "Twitter" key="twitter"}}</span>
+              {{/if}}
+              {{#if this.shares.twitter}}
+              {{!-- The medium key stays "twitter": capabilities.sharing.types() maps it to the
+                   iOS activity com.apple.social.twitter, and the Cordova plugin lookup is keyed
+                   on that string. Only the branding changed. --}}
+              <button class="btn btn-default la-share-text__action la-share-text__action--x" {{on "click" (this.ctrlAction "share_via" "twitter")}}>
+                <svg class="la-share-text__action-icon" width="24" height="24" viewBox="0 0 1200 1227" fill="currentColor" aria-hidden="true"><path d="M714.163 519.284 1160.89 0h-105.86L667.137 450.887 357.328 0H0l468.492 681.821L0 1226.37h105.866l409.625-476.152 327.181 476.152H1200L714.137 519.284h.026ZM569.165 687.828l-47.468-67.894-377.686-540.24h162.604l304.797 435.991 47.468 67.894 396.2 566.721H892.476L569.165 687.854v-.026Z"/></svg>
+                <span class="la-share-text__action-label">{{t "X" key="twitter"}}</span>
               </button>
-            </div>
-          {{/if}}
-          {{#if this.shares.instagram}}
-            <div class='col-md-2 col-sm-3 col-xs-4'>
-              <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "instagram")}}>
+              {{/if}}
+              {{#if this.shares.instagram}}
+              <button class="btn btn-default la-share-text__action la-share-text__action--instagram" {{on "click" (this.ctrlAction "share_via" "instagram")}}>
                 <img src={{path "images/logos/instagram.png"}} alt="" class="la-share-text__action-img">
                 <span class="la-share-text__action-label">{{t "Instagram" key="instagram"}}</span>
+                <span class="la-share-text__action-help">{{t "Shares the message to Instagram." key="share_help_instagram"}}</span>
               </button>
-            </div>
-          {{/if}}
-          {{#if this.shares.generic}}
-            <div class='col-md-2 col-sm-3 col-xs-4'>
-              <button class='btn btn-default la-share-text__action' {{on "click" (this.ctrlAction "share_via" "generic")}}>
+              {{/if}}
+              {{#if this.shares.generic}}
+              <button class="btn btn-default la-share-text__action la-share-text__action--other" {{on "click" (this.ctrlAction "share_via" "other")}}>
                 <svg class="la-share-text__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
                 <span class="la-share-text__action-label">{{t "Other" key="other"}}</span>
+                <span class="la-share-text__action-help">{{t "Opens your device's sharing options." key="share_help_other"}}</span>
               </button>
+              {{/if}}
             </div>
           {{/if}}
         </div>

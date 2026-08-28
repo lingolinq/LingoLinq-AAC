@@ -71,6 +71,17 @@ export default Component.extend({
       user_id: app_state.get('referenced_user.id')
     });
     this.set('text_only', !!app_state.get('text_only_shares') || !!stashes.get('text_only_shares'));
+    // Contact list starts clamped to its first three rows (the clamp itself is a
+    // max-height in app.scss, so it is exactly three rows at any column count).
+    this.set('contacts_expanded', false);
+    this._measure_contacts = () => this.measure_contacts_overflow();
+    window.addEventListener('resize', this._measure_contacts);
+    // rAF, not runLater: `contacts_overflow` was already read by the template in
+    // this render pass, so setting it synchronously here trips the backtracking
+    // re-render assertion. rAF defers past the pass without pulling in
+    // @ember/runloop (ember/no-runloop; neither ember-lifeline nor
+    // ember-concurrency is a dependency of this app).
+    this._measure_frame = window.requestAnimationFrame(this._measure_contacts);
     u.assert_remote_urls();
     u.save().then((rec) => {
       this.set('utterance_record', rec);
@@ -78,6 +89,44 @@ export default Component.extend({
       this.set('utterance_record_error', true);
     });
     this.check_native_shares();
+  },
+
+  willDestroyElement() {
+    if (this._measure_frame) {
+      window.cancelAnimationFrame(this._measure_frame);
+      this._measure_frame = null;
+    }
+    if (this._measure_contacts) {
+      window.removeEventListener('resize', this._measure_contacts);
+      this._measure_contacts = null;
+    }
+    this._super(...arguments);
+  },
+
+  /**
+   * Is the contact list taller than the rows the CSS clamp shows?
+   *
+   * Both numbers are READ from the stylesheet rather than restated here:
+   *   - columns come from `grid-template-columns`, which resolves to one <length>
+   *     per column, so it is the authoritative count;
+   *   - the visible row limit comes from the `--contact-rows` custom property,
+   *     which is also what the `--collapsed` max-height is computed from.
+   * That matters because the limit is not constant — it drops to 1 on short
+   * viewports (see the max-height media query in app.scss). Restating either
+   * number here would put the same layout fact on both sides of the CSS/JS line,
+   * which is what previously showed a fourth row.
+   * Works in either state, expanded or collapsed, because it counts rows rather
+   * than measuring rendered height.
+   */
+  measure_contacts_overflow() {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    const grid = document.querySelector('.la-share-text-modal-wrap .la-share-text__contacts');
+    if (!grid) { return; }
+    const style = window.getComputedStyle(grid);
+    const cols = style.gridTemplateColumns.split(' ').filter(Boolean).length;
+    if (!cols) { return; }
+    const rows = parseInt(style.getPropertyValue('--contact-rows'), 10) || 3;
+    this.set('contacts_overflow', Math.ceil(grid.children.length / cols) > rows);
   },
 
   contacts: computed(
@@ -192,7 +241,7 @@ export default Component.extend({
   }),
 
   twitter_url: computed('utterance_record.link', 'sentence', function() {
-    let res = 'https://twitter.com/intent/tweet?url=' + encodeURIComponent(this.get('utterance_record.link')) + '&text=' + encodeURIComponent(this.get('sentence'));
+    let res = 'https://x.com/intent/post?url=' + encodeURIComponent(this.get('utterance_record.link')) + '&text=' + encodeURIComponent(this.get('sentence'));
     if (app_state.get('domain_settings.twitter_handle')) {
       res = res + '&related=' + encodeURIComponent(app_state.get('domain_settings.twitter_handle'));
     }
@@ -224,6 +273,9 @@ export default Component.extend({
       } else {
         this.set('copy_result', { failed: true });
       }
+    },
+    toggle_contacts() {
+      this.set('contacts_expanded', !this.get('contacts_expanded'));
     },
     message(user) {
       modal.open('confirm-notify-user', {

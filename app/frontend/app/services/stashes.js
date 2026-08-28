@@ -484,7 +484,20 @@ export default Service.extend({
        thought was silently dropped whenever its wording happened to equal a SAVED PHRASE
        already in this list — the user hit Hold Thought, nothing errored, and the thought
        was simply never parked. They are two different things that merely read the same. */
-    if(!list.find((v) => v.sentence == obj.sentence && !!v.stash == obj.stash)) {
+    var existing = list.find((v) => v.sentence == obj.sentence && !!v.stash == obj.stash);
+    if(existing) {
+      /* Duplicate: MOVE the original to the newest position rather than dropping it, so the
+         signed-out list behaves like the signed-in one (app_state#save_phrase promotes a
+         duplicate to the top). The direction differs because the storage does: this array is
+         PUSHED, so newest is at the END — speak-menu.js reverses it for display — whereas
+         `user.vocalizations` is unshifted and newest is index 0.
+         Mirrored in utils/_stashes.js#remember, which serves early boot and tests. */
+      var at = list.indexOf(existing);
+      if(at !== -1 && at !== list.length - 1) {
+        list.splice(at, 1);
+        list.push(existing);
+      }
+    } else {
       list.push(obj);
     }
     this.persist('remembered_vocalizations', list);

@@ -2647,7 +2647,18 @@ var buttonTracker = EmberObject.extend({
       } else if((region.className || "").match(/board/) || region.id == 'board_canvas') {
         return buttonTracker.button_from_point(event.clientX, event.clientY);
       } else if(region.classList.contains('modal_targets')) {
-        return buttonTracker.element_wrap($target.closest(".btn,a").filter(":not([disabled])").filter(":not(.unselectable)")[0]);
+        /* `button` and `label` as well as `.btn,a`.
+           A plain <button> in a modal_targets region was NOT dwell-targetable: this branch
+           matched only `.btn` and `a`, so a modal's own close button (e.g.
+           `.la-modal-close`, a bare <button>) returned null and gaze did nothing on it —
+           measured on the Share Text modal. The speak_menu branch a few lines up already
+           lists `button` for exactly this reason; this generalises it to the other modals
+           that use modal_targets rather than leaving each to discover the gap.
+           `label` covers the checkbox rows, where the label is the large, gaze-sized
+           target and clicking it toggles the input.
+           Additive only — it can match MORE elements than before, never fewer, and the
+           existing [disabled] / .unselectable filters still apply. */
+        return buttonTracker.element_wrap($target.closest(".btn,a,button,label").filter(":not([disabled])").filter(":not(.unselectable)")[0]);
       } else if(region.id == 'integration_overlay') {
         return buttonTracker.element_wrap($target.closest(".integration_target")[0]);
       } else if(region.id == 'highlight_box') {

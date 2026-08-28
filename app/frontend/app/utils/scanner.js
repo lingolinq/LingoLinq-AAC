@@ -1112,6 +1112,53 @@ var scanner = EmberObject.extend({
   prev: function() {
     scanner.next(true);
   },
+  /*
+   * Bring the scan target into view when it sits in a modal that is actually scrolling.
+   *
+   * Nothing in this file called scrollIntoView before. Target collection filters on
+   * `offsetParent !== null || offsetWidth > 0 || offsetHeight > 0` (see find_elem) and
+   * next_element rejects only zero-sized elements — all DISPLAY checks. An element
+   * scrolled out of view inside an `overflow: auto` container passes every one of them,
+   * so the scanner would highlight a control the user cannot see. For a switch user the
+   * highlight is off-screen; for an eye-gaze user driving by dwell the control is simply
+   * unreachable, because no modal has any scroll affordance.
+   *
+   * Scoped deliberately, because this function runs on EVERY scan step on every surface
+   * in the app:
+   *   - only inside `.modal-dialog` — boards and the sidebar are unchanged;
+   *   - only when an ancestor genuinely scrolls (scrollHeight > clientHeight), i.e. when
+   *     "vertical scrolling is in play";
+   *   - and it adjusts that container's scrollTop DIRECTLY rather than calling
+   *     `el.scrollIntoView()`, which walks every scrollable ancestor including the
+   *     document and could move the page out from under a board.
+   * A no-op when the target is already fully visible.
+   */
+  scroll_into_view: function($elems) {
+    var el = $elems && $elems[0];
+    if(!el || !el.getBoundingClientRect || !el.closest) { return; }
+    if(!el.closest('.modal-dialog')) { return; }
+    var box = null;
+    var node = el.parentElement;
+    while(node && node !== document.body && node !== document.documentElement) {
+      var style = window.getComputedStyle(node);
+      var flow = style.overflowY;
+      if((flow === 'auto' || flow === 'scroll') && node.scrollHeight > node.clientHeight + 1) {
+        box = node;
+        break;
+      }
+      node = node.parentElement;
+    }
+    if(!box) { return; }
+    // A little slack so the scanning ring is not flush against the edge it scrolled to.
+    var margin = 8;
+    var elem_rect = el.getBoundingClientRect();
+    var box_rect = box.getBoundingClientRect();
+    if(elem_rect.top < box_rect.top + margin) {
+      box.scrollTop -= (box_rect.top + margin) - elem_rect.top;
+    } else if(elem_rect.bottom > box_rect.bottom - margin) {
+      box.scrollTop += elem_rect.bottom - (box_rect.bottom - margin);
+    }
+  },
   measure: function($elems) {
     var minX = null, minY = null, maxX = null, maxY = null;
     if(!$elems.each) { $elems = new JShim($elems); }
@@ -1176,6 +1223,9 @@ var scanner = EmberObject.extend({
       }
     }
     scanner.current_element = elem;
+    /* Before the highlight is drawn, not after: the highlight is positioned from the
+       element's rect, so scrolling afterwards would leave the ring behind. */
+    scanner.scroll_into_view(elem.dom);
     var options = scanner.options || {};
     options.prevent_close = true;
     options.overlay = false;

@@ -2382,8 +2382,23 @@ export default Service.extend({
        * 'default' — a raw `===` would call those two different buckets and let the
        * duplicate through.
        *
-       * Silent, and returns false so a caller that wants to say something can. There is
-       * nothing to report: the phrase the user asked for IS in their list. */
+       * A duplicate is MOVED TO THE TOP rather than dropped. The list is newest-first
+       * (_append_phrase unshifts) and position is what "most recent" means here, so
+       * re-saving a phrase you already have promotes it — which is almost always why
+       * someone saves it again. Silently doing nothing looked like the save had failed.
+       *
+       * Persisted with the existing `reorder_vocalizations` action, the same one
+       * shift_phrase uses, NOT a second `add_vocalization`: the server's add handler
+       * unshifts a new entry (user.rb ~2732), so re-adding would create the duplicate this
+       * branch exists to prevent. `vocalizations` is read-only in the serializer
+       * (lib/json_api/user.rb:49), so the reorder has to go through an action to persist at
+       * all — setting the array client-side alone would be reverted on the next load.
+       *
+       * `ts` is deliberately left alone: the server's reorder handler only reorders, and in
+       * this list recency IS position. Bumping ts client-side would not survive the round
+       * trip and would disagree with the server.
+       *
+       * Still returns false — no NEW phrase was created, which is what the return means. */
       var sentence = (voc || []).map(function(v) { return v && v.label; }).join(' ');
       var cat = category || 'default';
       /* JOURNAL ENTRIES ARE EXEMPT. The dedupe exists because tapping "Save Phrase from
@@ -2400,7 +2415,20 @@ export default Service.extend({
         if((v.category || 'default') !== cat) { return false; }
         return v.list.map(function(b) { return b && b.label; }).join(' ') === sentence;
       });
-      if(dupe) { return false; }
+      if(dupe) {
+        var dupe_idx = vocs.indexOf(dupe);
+        if(dupe_idx > 0) {
+          vocs.splice(dupe_idx, 1);
+          vocs.unshift(dupe);
+          user.set('vocalizations', vocs);
+          user.add_action({
+            action: 'reorder_vocalizations',
+            value: vocs.map(function(v) { return v && v.id; }).join(',')
+          });
+          user.save().then(function() { user.set('offline_actions', null); }, function() { });
+        }
+        return false;
+      }
       return this._append_phrase(user, vocs, voc, category);
     } else {
       this.stashes.remember({override: voc});

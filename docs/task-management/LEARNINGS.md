@@ -15669,3 +15669,162 @@ beating its own `.la-share-text__contact-reply` class rule. Nothing in JS refere
 **Rule:** before copying an `id` into new markup, grep the stylesheets as well as the JS.
 An id selector outranks every class rule you will write, and a duplicated id is invalid
 HTML regardless. If no JS/test reads it, drop the id and let the BEM class govern.
+
+## Grep the CAPABILITY, not one label — and a comment naming "the menu" is not evidence about YOUR menu (2026-08-27)
+
+Two mistakes in one episode, both of which produced a confidently-stated wrong conclusion.
+
+**1. A grep keyed on one i18n key is not a sweep.** "board-detail has no exit-speak-mode
+control outside its error state" came from `git grep 'key="exit_speak_mode"'`. The control
+exists and is called something else: **"Exit Boards / To Home Page"**
+(`user/board-detail.hbs:1349`, key `exit_boards`, `data-bd-action="exit_to_home"`), and
+`exit_to_home` calls `app_state.finish_speak_mode_exit()`. The claim was then repeated as
+justification for reverting a change, and written into a code comment.
+**Rule:** to establish that a CAPABILITY is absent, enumerate the capability — grep the
+state-changing function (`finish_speak_mode_exit`, `speak_mode` setters), not one label.
+A label is one of the ways a capability can be spelled. This repeats
+"a grep keyed on variable NAMES is not a sweep" from 2026-08-23; the same mistake, one
+layer up, in the same repo.
+
+**2. A comment naming "the menu" does not identify a surface.** app.scss:71419 says
+board-detail *"provides its own chrome (… the options menu with Exit Speak Mode)"*. That
+was cited as evidence for keeping an Exit button in the **Speak Options modal**
+(`speak-menu.hbs`). It refers to board-detail's own ⋮ options menu
+(`user/board-detail.hbs:895`), a different surface the same route opens separately.
+**Rule:** resolve "the menu"/"the panel"/"the header" to a file and line before citing it.
+Two menus on one route is the normal case here — board-detail alone has the ⋮ options menu,
+the Speak Options modal, the sentence-bar chip menu and the Board Actions panel.
+
+Corollary that DOES still stand: verifying a replacement control exists is not verifying it
+can be reached. Check both — but identify the right surface first, or the reachability
+analysis is performed on the wrong thing, which is what happened here.
+
+## An inline style written by JS is not in the cascade you are reading (2026-08-27)
+
+The Speak Options modal's bottom was cut off, and was "fixed" several times by editing
+`.md-speak-menu`'s `max-height` / `overflow`. It could never work.
+`components/modal-dialog.js:97` runs, for EVERY modal in the app:
+
+```js
+$(el).find(".modal-content").css('maxHeight', $(window).height() - 50).css('overflow','auto');
+```
+
+So the parent was capped at `100vh - 50` inline while the child's stylesheet max-height
+was `100vh - 20`: the child was 30px taller than its own container, and the parent's
+`overflow: auto` clipped the difference. No amount of reading the stylesheet around the
+child reveals this, because the value is not in the stylesheet — and no non-`!important`
+rule can beat it.
+
+**Rule:** when an element is clipped or mis-sized and the cascade looks correct, check the
+PARENT for an inline style before editing the child again. `el.getAttribute('style')` in a
+browser answers in seconds what an hour of reading SCSS cannot. Grep the JS for
+`.css('max`, `style.setProperty`, `style.height` over the container classes.
+
+**Corollary — the precedent is usually already in the file.**
+`.modal-content:has(.la-find-button-wrap)` had `max-height: none !important` with a comment
+naming that exact line of modal-dialog.js. Before writing a novel fix for a layout symptom,
+grep the stylesheet for other blocks that overrode the SAME property on the SAME container
+class: `max-height: none !important` on `.modal-content:has(...)` appears five times, and
+each one is a modal that hit this.
+
+**And: measure before the third attempt.** This repo has puppeteer plus ~40 committed
+`scripts/*-qa.mjs` probes and a `qa-helpers.mjs` with login built in. Once measured, the
+diagnosis took minutes. A symptom that has survived two fixes is not a CSS puzzle to
+re-read — it is a box to measure.
+
+## Scanning highlights an element it cannot show you (2026-08-27)
+
+`utils/scanner.js` had **no `scrollIntoView` anywhere**. Its target filters are
+`offsetParent !== null || offsetWidth > 0 || offsetHeight > 0` and `width == 0 && height == 0` —
+DISPLAY checks. An element scrolled out of view inside an `overflow: auto` container passes
+all of them, so the scanner would highlight a control that is off-screen: invisible to a
+switch user, and unreachable entirely for an eye-gaze user on dwell, since no modal has any
+scroll affordance.
+
+**Consequence for design, not just code:** on any surface an AAC user scans, "fits without
+scrolling" is a CORRECTNESS requirement, not polish. A scroll container you add is content
+some users cannot reach. Prefer sizing to fit (Big Button), or explicit paging controls
+(its Up/Down), over free scrolling.
+
+Fixed by `scanner.scroll_into_view`, scoped to `.modal-dialog`, to ancestors that genuinely
+scroll, and adjusting that container's `scrollTop` directly — NOT `el.scrollIntoView()`,
+which walks every scrollable ancestor including the document and can move the page out from
+under a board.
+
+**And the testing lesson:** the first negative control asked for the first scan target while
+the container was scrolled to the bottom, where scrolling back is the CORRECT behaviour — it
+would have "passed" while proving nothing. A negative control has to be a case where the
+right answer is genuinely "do nothing".
+
+## The declared padding on the obvious rule was not the effective one (2026-08-27)
+
+Asked to quarter the board-detail sentence bar's left padding. The obvious rule,
+`.md-board-detail-sentence-bar`, declares `padding: 2px 10px 2px 4px` — with a comment
+explaining the "tighter 4px left padding". Editing that 4px would have changed nothing
+visible.
+
+Measured in the browser first: the effective value was **18px**, from
+`.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark)
+.md-board-detail-sentence-bar { padding: 2px 18px }` — a light-mode speak-surface rule
+~3,600 lines further down. Five different rules in this file set padding on that class
+(`2px 10px 2px 4px`, `2px 18px`, `8px 20px`, `8px 12px`, `6px 10px`), each scoped to a
+different mode or surface.
+
+**Rule:** before changing a value, read the COMPUTED style off the element, then find the
+rule that produced it. On a 100k-line stylesheet with mode-scoped variants, the rule whose
+comment describes the thing you are changing is not evidence that it is the rule in force.
+A one-line `getComputedStyle` probe settles it; grepping the property name and picking the
+plausible hit does not.
+
+Corollary worth remembering: the same element inherited DIFFERENT left padding per mode
+(light 18px via the speak surface, dark 4px via the base rule) — so "what is the current
+value" did not even have one answer until the mode was pinned down.
+
+## Measuring a container that sizes to its own content gives a self-fulfilling answer (2026-08-27)
+
+Sizing the speak menu's phrase list to "however many fit on screen" used
+`menu.clientHeight` as the budget. The menu shrinks to fit its content, so with a 4-row page
+already rendered that measured the space 4 rows occupy — and the answer came back 4 at every
+viewport from 640px to 1100px. The fix is to measure what the container is ALLOWED to grow
+to (its computed `max-height`), not what it currently is.
+
+**Rule:** when computing "how much fits", check whether the box you are measuring is sized
+BY the thing you are fitting into it. If it is, the measurement is circular. Measure the
+constraint (max-height, the parent's box, the viewport), not the current rendition.
+
+**And prefer a verified outcome to a tuned constant.** Even against max-height the estimate
+overshot by one row at some heights, because `above`/`below` are measured while the previous
+page is still rendered and margins collapse differently afterwards. Instead of adding a
+fudge factor — wrong at the next viewport — apply the size, then on the next frame ask the
+browser whether it actually overflows and step down if so, bounded. Cheap, self-correcting,
+and right at sizes nobody tested.
+
+## Eye-gaze modal scrolling is an APP-WIDE gap, not a per-modal bug (2026-08-27)
+
+Scoped after fixing it twice in single modals and being asked the right question: is this
+every modal?
+
+**Yes.** `components/modal-dialog.js:97` runs, for every modal in the app:
+`$(el).find('.modal-content').css('maxHeight', $(window).height() - 50).css('overflow','auto')`.
+**146 templates** use `<ModalDialog>`, so every one of them is a potential scroll container
+on a short enough screen. On top of that, **59 modal-related rules in app.scss create their
+own INNER scrollers** (`.la-find-button-body`, `.md-bs-collection__body`,
+`.la-board-details-wrap > .modal-body`, …), which a pager on `.modal-content` would not
+reach.
+
+Nothing scrolls any of them for a gaze user: scanner.js had no scrollIntoView, and the only
+drag-scroll in raw_events is bound to `#sidebar`.
+
+**Therefore the fix is architectural, not per-modal:** render the Up/Down pager once inside
+`<ModalDialog>` (which is also where the scrolling is introduced), and separately audit the
+59 inner scrollers — each either grows a pager or is changed to let `.modal-content` do the
+scrolling. That is a branch of its own, not a rider on a styling branch.
+
+Already landed on `traci/fix/restore-speak-options` and NOT part of that future work:
+`scanner#scroll_into_view` (fixes SWITCH users everywhere), the `modal_targets` dwell branch
+in raw_events matching `button`/`label`, the Speak Options phrase pager, and the Big Button
+modal's pre-existing Up/Down (the design precedent to copy).
+
+A seed implementation of the shared geometry (`container_for` / `state_for` / `page`) was
+written and deliberately NOT committed — an unwired util is dead code. It is preserved at
+`<session scratchpad>/modal_paging.js.seed`.

@@ -10,6 +10,13 @@
 
     {{#if this.app_state.feature_flags.new_speak_menu}}
       {{!-- Punctuation — moved to the TOP (first section of the modal). --}}
+      {{!-- Hidden while the phrase library is open. "Show My Phrases" turns the modal
+           into a phrases-only view: the PHRASES subheader and the list stay, everything
+           else in the body goes. `{{#unless}}` rather than a CSS `display: none` on
+           purpose — modal.js#scannable_targets is a bare querySelectorAll with no
+           visibility filter, so a hidden-by-CSS control would still be handed to the
+           scanner and a switch user would scan onto something invisible. --}}
+      {{#unless this.phrases_expanded}}
       <div class="md-speak-menu__section md-speak-menu__section--punctuation">
         <div class="md-speak-menu__section-label">{{t "Punctuation" key="punctuation"}}</div>
         <ButtonListener @buttonEvent={{this.eventAction "button_event"}}>
@@ -44,6 +51,7 @@
           </div>
         </ButtonListener>
       </div>
+      {{/unless}}
 
       <ButtonListener @buttonEvent={{this.eventAction "button_event"}}>
         {{#if this.repeat_menu}}
@@ -91,6 +99,13 @@
           </div>
 
         {{else}}
+          {{!-- Hidden while the phrase library is open. "Show My Phrases" turns the modal
+               into a phrases-only view: the PHRASES subheader and the list stay, everything
+               else in the body goes. `{{#unless}}` rather than a CSS `display: none` on
+               purpose — modal.js#scannable_targets is a bare querySelectorAll with no
+               visibility filter, so a hidden-by-CSS control would still be handed to the
+               scanner and a switch user would scan onto something invisible. --}}
+          {{#unless this.phrases_expanded}}
           {{!-- Main actions group.
 
                SHARE is live again: it opens the Share Text modal
@@ -170,6 +185,7 @@
             </div>
           </div>
 
+          {{/unless}}
           {{!-- PHRASES on its own. It is not an action on the current message like
                 the five above -- it opens the saved-phrase library (and the Recent
                 tab), so it reads as a destination rather than a verb. Its own section
@@ -177,11 +193,29 @@
                 at five and comfortably hittable. --}}
           <div class="md-speak-menu__section">
             <div class="md-speak-menu__section-label">{{t "Phrases" key='phrases'}}</div>
-            <div class="md-speak-menu__row md-speak-menu__row--1">
+            <div class="md-speak-menu__row {{if this.phrase_total "md-speak-menu__row--2" "md-speak-menu__row--1"}}">
               <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_phrases_button'>
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="8" x2="16" y2="8" stroke="#46505F"/><line x1="8" y1="12" x2="13" y2="12" stroke="#46505F"/></svg>
-                <span class="md-speak-menu__btn-label">{{t "Phrases" key='phrases'}}</span>
+                <span class="md-speak-menu__btn-label">{{t "Create Phrases" key='create_phrases'}}</span>
               </div>
+              {{!-- Peer tile of Create Phrases, deliberately the same `.md-speak-menu__btn`
+                    shape: same size, same 44px+ target, same position in the scan order, and
+                    it inherits the same three input paths for free — the enclosing
+                    <ButtonListener> resolves a click, the `speak_menu` dwell branch in
+                    raw_events matches `.md-speak-menu__btn`, and modal.js's scannable
+                    selector already lists that class. That is also why there is NO
+                    `{{on "click"}}` here: like Create Phrases, activation arrives through
+                    button_event by id, and adding a click handler as well would fire twice.
+                    Rendered only when there is something to show (phrase_total). --}}
+              {{#if this.phrase_total}}
+                <div class='md-speak-menu__btn' role="button" tabindex="0" id='menu_more_phrases_button'
+                     aria-expanded={{if this.phrases_expanded "true" "false"}}>
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h10"/></svg>
+                  <span class="md-speak-menu__btn-label">
+                    {{#if this.phrases_expanded}}{{t "Hide My Phrases" key="hide_my_phrases"}}{{else}}{{t "Show My Phrases" key="show_my_phrases"}}{{/if}}
+                  </span>
+                </div>
+              {{/if}}
             </div>
             {{!-- The saved/stashed phrases themselves, listed under the button that
                   opens the full library. These used to render in the bottom bar below
@@ -233,20 +267,31 @@
                 {{/each}}
               </div>
             {{/if}}
-            {{!-- Where the rest of the library is. This list is a shortcut — the parked
-                  entries, which exist nowhere else, plus the single most recent saved
-                  phrase — so a user with more saved needs to be told, once, that there is
-                  more and where. Rendered only when there genuinely IS more
-                  (hidden_phrase_count), because a standing note that points at nothing
-                  teaches people to stop reading it.
-
-                  Not aria-hidden, unlike the scroll cue it replaces: this is the only
-                  statement that the rest of the phrases exist, so a screen-reader or
-                  switch user needs it as much as anyone. --}}
-            {{#if this.hidden_phrase_count}}
-              <div class="md-speak-menu__phrase-more">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
-                {{t "%{n} more saved — tap Phrases to see them all" n=this.hidden_phrase_count key="phrases_tap_for_more"}}
+            {{!-- Up / Down PAGING, not scrolling. The list is sliced to one page in
+                  speak-menu.js, so it is never taller than the panel and there is no scroll
+                  container — an eye-gaze user on dwell cannot scroll anything, and the
+                  scanner can only bring targets into view for SWITCH users. These are
+                  ordinary buttons, so both groups can reach every phrase. Same approach as
+                  the Big Button modal's Up/Down.
+                  The ids are load-bearing: scanner.js reads dom.attr('id') and
+                  speak-menu.js#button_event routes them WITHOUT closing the menu. --}}
+            {{#if this.phrase_paging}}
+              <div class="md-speak-menu__phrase-pager">
+                <button type="button" class="md-speak-menu__phrase-page-btn" id="menu_phrase_up_button"
+                        disabled={{this.phrase_page_first}}
+                        {{on "click" (this.ctrlAction "phrase_page_move" "up")}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+                  {{t "Up" key="up"}}
+                </button>
+                <span class="md-speak-menu__phrase-pager-status" aria-live="polite">
+                  {{t "Page %{n} of %{t}" n=this.phrase_page_human t=this.phrase_page_count key="phrase_page_status"}}
+                </span>
+                <button type="button" class="md-speak-menu__phrase-page-btn" id="menu_phrase_down_button"
+                        disabled={{this.phrase_page_last}}
+                        {{on "click" (this.ctrlAction "phrase_page_move" "down")}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                  {{t "Down" key="down"}}
+                </button>
               </div>
             {{/if}}
           </div>
@@ -254,6 +299,13 @@
       </ButtonListener>
 
       {{!-- Board Languages — sits below the Punctuation section and above Speak Mode. --}}
+      {{!-- Hidden while the phrase library is open. "Show My Phrases" turns the modal
+           into a phrases-only view: the PHRASES subheader and the list stay, everything
+           else in the body goes. `{{#unless}}` rather than a CSS `display: none` on
+           purpose — modal.js#scannable_targets is a bare querySelectorAll with no
+           visibility filter, so a hidden-by-CSS control would still be handed to the
+           scanner and a switch user would scan onto something invisible. --}}
+      {{#unless this.phrases_expanded}}
       {{#if this.localeBoardModel}}
         {{#if this.app_state.currentBoardState.translatable}}
           <div class="md-speak-menu__section-wrap md-speak-menu__section-wrap--board-tools">
@@ -270,47 +322,35 @@
           </div>
         {{/if}}
       {{/if}}
+      {{/unless}}
 
-      {{!-- Speak Mode section — sits at the BOTTOM of the modal (it was at the top,
-            above Board Languages).
+      {{!-- Speak Mode section. Entry only — there is deliberately NO Exit Speak Mode
+            button here.
 
-            EXIT IS BACK, and deliberately so — it was removed and had to be restored.
+            Exit lives on board-detail's OWN options menu (the ⋮ toggle,
+            user/board-detail.hbs:895): "Exit Boards / To Home Page" at :1349, which runs
+            `exit_to_home` (board-detail.js:6210) -> `app_state.finish_speak_mode_exit()`.
+            That path is better than a bare toggle would be here — it gates on the
+            speak-mode exit PIN via `open_speak_mode_exit_pin` before leaving, so it
+            cannot be used to walk out of a locked session.
 
-            The removal was justified on the grounds that `#exit_speak_mode` in the main
-            navbar dropdown (templates/application.hbs:1069) survives. That control exists,
-            but it is NOT REACHABLE on board-detail, which is the surface this modal is
-            opened from:
+            It is reachable for scanning users too: the ⋮ toggle sits INSIDE `#speak`
+            (the sentence row opens at :619 and closes at :1364), and scanner.js:257
+            collects `button:visible` within `#speak` for board-detail's header row.
 
-              * app.scss `#within_ember.board-detail-view > header` is `position: fixed`
-                with `transform: translateY(-100%)` — the whole app header sits off-screen
-                there.
-              * scanner.js:275 adds the `#identity` menu to the scan list only
-                `if(!isBoardDetailSpeak)`, with the comment "On board-detail, the global app
-                header is intentionally skipped".
-              * board-detail has no exit-speak-mode control of its own outside its
-                board-unavailable error state.
-
-            So removing this button left a switch, dwell or eye-gaze user in speak mode on
-            board-detail with no way out of speak mode at all, and everyone else depending
-            on an off-screen header. The button itself IS scannable — it matches
-            `.md-speak-menu__btn` in modal.js#scannable_targets. Verifying that a
-            replacement control exists is not the same as verifying it can be reached, and
-            this is the one control where that distinction strands someone on a device. --}}
-      {{#if this.app_state.speak_mode_possible}}
-        {{#if this.app_state.speak_mode}}
-          <div class="md-speak-menu__section-wrap md-speak-menu__section-wrap--board-tools md-speak-menu__section-wrap--no-divider">
-            <div class="md-speak-menu__section">
-              <div class="md-speak-menu__section-label">{{t "Speak Mode" key="speak_mode"}}</div>
-              <div class="md-speak-menu__row md-speak-menu__row--1">
-                <button type="button" class="md-speak-menu__btn md-speak-menu__btn--text-row" {{on "click" (this.ctrlAction "speak_mode_toggle")}}>
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15" stroke="#46505F"/><line x1="17" y1="9" x2="23" y2="15" stroke="#46505F"/></svg>
-                  <span class="md-speak-menu__btn-label">{{t "Exit Speak Mode" key="exit_speak_mode"}}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        {{/if}}
-      {{/if}}
+            History, so this does not get "restored" a third time: removed in 562da8070,
+            wrongly restored in 7a16a1a31 on the claim that board-detail had no reachable
+            exit, removed again 2026-08-27. That claim came from grepping
+            `key="exit_speak_mode"`, which does not match this control — it is labelled
+            "Exit Boards" (key `exit_boards`, action `exit_to_home`). Search for the
+            CAPABILITY, not one label. --}}
+      {{!-- Hidden while the phrase library is open. "Show My Phrases" turns the modal
+           into a phrases-only view: the PHRASES subheader and the list stay, everything
+           else in the body goes. `{{#unless}}` rather than a CSS `display: none` on
+           purpose — modal.js#scannable_targets is a bare querySelectorAll with no
+           visibility filter, so a hidden-by-CSS control would still be handed to the
+           scanner and a switch user would scan onto something invisible. --}}
+      {{#unless this.phrases_expanded}}
       {{#if (and this.app_state.speak_mode_possible (not this.app_state.speak_mode))}}
         <div class="md-speak-menu__section-wrap md-speak-menu__section-wrap--board-tools md-speak-menu__section-wrap--no-divider">
           <div class="md-speak-menu__section">
@@ -364,6 +404,7 @@
           </div>
         </div>
       {{/if}}
+      {{/unless}}
 
     {{else}}
       {{!-- Legacy menu --}}

@@ -428,7 +428,19 @@ var stashes = EmberObject.extend({
     /* Sentence AND stash-ness: a held thought and a saved phrase reading the same are two
        different things, and matching the sentence alone silently dropped the one being
        added. Mirrors the service. */
-    if(!list.find(function(v) { return v.sentence == obj.sentence && !!v.stash == obj.stash; })) {
+    var existing = list.find(function(v) { return v.sentence == obj.sentence && !!v.stash == obj.stash; });
+    if(existing) {
+      /* Duplicate: MOVE the original to the newest position rather than dropping it, so the
+         signed-out list behaves like the signed-in one (app_state#save_phrase promotes a
+         duplicate to the top). Note the direction differs because the storage does: this
+         array is PUSHED, so newest is at the END — speak-menu.js reverses it for display —
+         whereas `user.vocalizations` is unshifted and newest is at index 0. */
+      var at = list.indexOf(existing);
+      if(at !== -1 && at !== list.length - 1) {
+        if(typeof list.removeObject === 'function') { list.removeObject(existing); } else { list.splice(at, 1); }
+        if(typeof list.pushObject === 'function') { list.pushObject(existing); } else { list.push(existing); }
+      }
+    } else {
       if(typeof list.pushObject === 'function') {
         list.pushObject(obj);
       } else {

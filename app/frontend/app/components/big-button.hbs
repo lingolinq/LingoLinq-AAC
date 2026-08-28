@@ -1,47 +1,59 @@
 <ModalDialog @desired_width={{850}} @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
-  <div class="modal-body advanced_selection modal_targets" style='padding-top: 5px; padding-bottom: 5px;'>
-    <div class='cursor_holder' style={{if this.flipped "transform: rotate(180deg);"}}>
-      <div class='cursor_navigation repair_buttons'>
-        <button class='btn btn-default btn-lg up' {{on "click" (this.ctrlAction "move" "up")}} disabled={{this.not_scrollable}}>
-          <span class='glyphicon glyphicon-chevron-up'></span>
-          {{t "Up" key="up"}}
-        </button>
-        <button class='btn btn-default btn-lg down' {{on "click" (this.ctrlAction "move" "down")}} disabled={{this.not_scrollable}}>
-          <span class='glyphicon glyphicon-chevron-down'></span>
-          {{t "Down" key="down"}}
-        </button>
+  <div class="la-big-button-modal-wrap">
+    <div class="la-modal-header">
+      <div class="la-modal-header-icon la-modal-header-icon--big-button" aria-hidden="true">
+        {{!-- Same expand glyph as the Share Text modal's "Button" tile, so the control
+             and the surface it opens read as the same thing. --}}
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9" stroke="#2A9D8F"/><polyline points="9 21 3 21 3 15" stroke="#2A9D8F"/><line x1="21" y1="3" x2="14" y2="10" stroke="#46505F"/><line x1="3" y1="21" x2="10" y2="14" stroke="#46505F"/></svg>
       </div>
-      <div class='row cursor_area any_size'>
-        <button class={{if this.holding "btn btn-default big_btn unselectable" "btn btn-default big_btn"}} {{on "click" (this.ctrlAction "speak" true)}} id='full_button'>
-          {{#unless this.model.text_only}}
-            <img src={{path "images/speak.svg"}} style='height: calc(100vh / 4);'><br>
-          {{/unless}}
-          <span class={{this.text_class}}>
-            {{this.model.text}}
-          </span>
-        </button>
-      </div>
+      <h3 class="la-modal-header-label">{{t "Big Button" key="big_button"}}</h3>
+      <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>&times;</button>
     </div>
-    <div class='row repair_buttons'>
-      <div class='col-sm-12'>
-        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "close")}}>
-          <span class='glyphicon glyphicon-remove'></span>
+    {{!-- `modal-body`, `advanced_selection` and `modal_targets` all stay: modal_targets is
+         what makes this modal scannable (services/modal.js#scannable_targets). --}}
+    <div class="modal-body advanced_selection modal_targets la-big-button-modal-body">
+      <div class='cursor_holder' style={{if this.flipped "transform: rotate(180deg);"}}>
+        <div class='cursor_navigation repair_buttons'>
+          <button class='btn btn-default btn-lg up' {{on "click" (this.ctrlAction "move" "up")}} disabled={{this.not_scrollable}}>
+            <span class='glyphicon glyphicon-chevron-up'></span>
+            {{t "Up" key="up"}}
+          </button>
+          <button class='btn btn-default btn-lg down' {{on "click" (this.ctrlAction "move" "down")}} disabled={{this.not_scrollable}}>
+            <span class='glyphicon glyphicon-chevron-down'></span>
+            {{t "Down" key="down"}}
+          </button>
+        </div>
+        {{!-- id=full_button is read by big-button.js (snapScroll, move) — do not rename. --}}
+        <div class='row cursor_area any_size'>
+          <button class={{if this.holding "btn btn-default big_btn unselectable" "btn btn-default big_btn"}} {{on "click" (this.ctrlAction "speak" true)}} id='full_button'>
+            {{#unless this.model.text_only}}
+              <img src={{path "images/speak.svg"}} alt="" class="la-big-button__speak-art">
+            {{/unless}}
+            <span class={{this.text_class}}>
+              {{this.model.text}}
+            </span>
+          </button>
+        </div>
+      </div>
+      <div class="la-big-button__actions">
+        <button class='btn la-big-button__action' {{on "click" (this.ctrlAction "close")}}>
+          <span class='glyphicon glyphicon-remove' aria-hidden="true"></span>
           {{t "Close" key="close"}}
         </button>
-        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "speak")}} disabled={{this.holding}}>
-          <span class='glyphicon glyphicon-volume-up'></span>
+        <button class='btn la-big-button__action la-big-button__action--speak' {{on "click" (this.ctrlAction "speak")}} disabled={{this.holding}}>
+          <span class='glyphicon glyphicon-volume-up' aria-hidden="true"></span>
           {{t "Speak" key="speak"}}
         </button>
-        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "flip")}}>
-          <span class='glyphicon glyphicon-repeat'></span>
+        <button class='btn la-big-button__action' {{on "click" (this.ctrlAction "flip")}}>
+          <span class='glyphicon glyphicon-repeat' aria-hidden="true"></span>
           {{t "Flip Text" key="flip_text"}}
         </button>
-        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "hold")}}>
+        <button class='btn la-big-button__action' {{on "click" (this.ctrlAction "hold")}}>
           {{#if this.holding}}
-            <span class='glyphicon glyphicon-play'></span>
+            <span class='glyphicon glyphicon-play' aria-hidden="true"></span>
             {{t "Release" key="release"}}
           {{else}}
-            <span class='glyphicon glyphicon-pause'></span>
+            <span class='glyphicon glyphicon-pause' aria-hidden="true"></span>
             {{t "Wait" key="wait"}}
           {{/if}}
         </button>
