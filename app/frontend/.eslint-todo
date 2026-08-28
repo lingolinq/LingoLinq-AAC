@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-28T20:23:06.975Z
+# Generated: 2026-08-28T20:36:32.415Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -993,20 +993,20 @@ app/utils/raw_events.js|ember/no-runloop|749|3|2|513c0395fe72
 app/utils/raw_events.js|ember/no-runloop|750|3|2|513c0395fe72
 app/utils/raw_events.js|ember/no-runloop|946|7|2|5addc2170315
 app/utils/raw_events.js|ember/no-runloop|978|7|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|1100|7|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|1148|5|2|513c0395fe72
-app/utils/scanner.js|ember/no-runloop|1149|24|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|1170|11|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|1179|5|2|513c0395fe72
-app/utils/scanner.js|ember/no-runloop|1320|28|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|1112|7|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|1160|5|2|513c0395fe72
+app/utils/scanner.js|ember/no-runloop|1161|24|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|1182|11|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|1191|5|2|513c0395fe72
+app/utils/scanner.js|ember/no-runloop|1332|28|2|5addc2170315
 app/utils/scanner.js|ember/no-runloop|588|5|2|513c0395fe72
 app/utils/scanner.js|ember/no-runloop|600|5|2|513c0395fe72
 app/utils/scanner.js|ember/no-runloop|714|5|2|513c0395fe72
 app/utils/scanner.js|ember/no-runloop|715|24|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|787|5|2|513c0395fe72
-app/utils/scanner.js|ember/no-runloop|794|5|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|820|7|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|976|5|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|799|5|2|513c0395fe72
+app/utils/scanner.js|ember/no-runloop|806|5|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|832|7|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|988|5|2|5addc2170315
 app/utils/speecher.js|ember/no-runloop|1121|7|2|5addc2170315
 app/utils/speecher.js|ember/no-runloop|1164|13|2|5addc2170315
 app/utils/speecher.js|ember/no-runloop|1187|5|2|5addc2170315

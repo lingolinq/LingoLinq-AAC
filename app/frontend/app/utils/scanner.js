@@ -726,11 +726,23 @@ var scanner = EmberObject.extend({
       // Find the trailing parent stub appended by load_children — its
       // `higher_level` array points back to the previous level.
       var parent = els[els.length - 1];
-      /* The prediction rail is a drill-in level in the same sense as the sentence row, so
-         escaping out of it must LEVEL UP too. Without it listed here, escape falls through
-         to scanner.stop() below and quitting the predictions quits scanning altogether. */
-      if(parent && parent.higher_level && parent.dom && parent.dom.hasClass &&
-         (parent.dom.hasClass('md-board-detail-sentence-row') || parent.dom.hasClass('md-board-detail-prediction-rail'))) {
+      /* If we drilled IN, escape goes back OUT. `higher_level` is set in exactly one place
+         (load_children), so its presence means precisely "this is a drill-in level" — which
+         is the question escape is actually asking.
+
+         This replaced a class allow-list naming two containers. That list had drifted into
+         incoherence: of roughly eight drill-in levels, two levelled up (the sentence row and
+         the prediction rail) and six fell through to stop() — including board rows in BOTH
+         UIs, the classic header row, the #identity menu and the classic #word_suggestions
+         row. So the same cancel press meant "go back" one row and "quit scanning entirely"
+         the next, and every level added later silently defaulted to quit. For a switch user
+         a mis-press cost them the highlight and a caregiver's help to restart.
+
+         The trade is that stopping from one level deep now takes two presses instead of one.
+         That is the right way round: cancel is a dedicated back/cancel switch, and stop() is
+         the destructive outcome of the two. `.length` guards an empty higher_level, which
+         would otherwise level_up into an empty level and throw in next_element. */
+      if(parent && parent.higher_level && parent.higher_level.length) {
         scanner.level_up(parent);
         return;
       }

@@ -1481,6 +1481,103 @@ describe('scanner', function() {
     });
   });
 
+  describe('escape', function() {
+    /* escape() had NO test before this. It decides, on a switch user's cancel press, between
+       "go back a level" and "quit scanning entirely" — and quitting costs them the highlight
+       and usually a caregiver's help to restart, so the distinction is not cosmetic. */
+    it('levels up out of ANY drilled-in level, not a hardcoded list of containers', function() {
+      var levelled = null, stopped = false;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+      stub(scanner, 'stop', function() { stopped = true; });
+
+      var top = [{ label: 'row 1' }, { label: 'row 2' }];
+      /* A board row's stub carries no recognisable class — under the old class allow-list
+         this fell through to stop(), while the sentence row beside it levelled up. */
+      var stubElem = { label: 'a board row', higher_level: top, higher_level_index: 1, dom: {} };
+      scanner.elements = [{ label: 'child' }, stubElem];
+
+      scanner.escape();
+      expect(levelled).toEqual(stubElem);
+      expect(stopped).toEqual(false);
+    });
+
+    it('stops when there is nowhere to go back to', function() {
+      var levelled = null, stopped = false;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+      stub(scanner, 'stop', function() { stopped = true; });
+
+      scanner.elements = [{ label: 'row 1' }, { label: 'row 2' }];
+      scanner.escape();
+      expect(levelled).toEqual(null);
+      expect(stopped).toEqual(true);
+    });
+
+    it('stops rather than levelling up into an EMPTY parent level', function() {
+      /* higher_level: [] is truthy. Levelling into it sets scanner.elements = [] and
+         next_element then dereferences elements[0].dom and dies with no recovery. */
+      var levelled = null, stopped = false;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+      stub(scanner, 'stop', function() { stopped = true; });
+
+      scanner.elements = [{ label: 'child' }, { higher_level: [], higher_level_index: 0, dom: {} }];
+      scanner.escape();
+      expect(levelled).toEqual(null);
+      expect(stopped).toEqual(true);
+    });
+  });
+
+  describe('load_children', function() {
+    /* load_children is stubbed out in every other test in this file, so its body was never
+       executed by the suite. */
+    it('levels back up when the reloaded children are all gone', function() {
+      var levelled = null;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+
+      var top = [{ label: 'row 1' }, { label: 'row 2' }];
+      var group = { label: 'predictions', children: [{ label: 'old' }], reload_children: function() { return []; } };
+      var result = scanner.load_children(group, top, 1);
+
+      /* Before this, an emptied group produced a level holding only its own level-up stub —
+         the user cycled an empty box. It self-healed only when the container ALSO left the
+         DOM, which a container kept mounted to hold layout width never does. */
+      expect(!!levelled).toEqual(true);
+      expect(levelled.higher_level).toEqual(top);
+      expect(levelled.higher_level_index).toEqual(1);
+      expect(result).toEqual(true);
+    });
+
+    it('builds the child level normally when children remain', function() {
+      var levelled = null;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+
+      var top = [{ label: 'row 1' }];
+      var group = { label: 'predictions', reload_children: function() { return [{ label: 'a' }, { label: 'b' }]; } };
+      scanner.load_children(group, top, 0);
+
+      expect(levelled).toEqual(null);
+      expect(scanner.elements.length).toEqual(3); // two children plus the level-up stub
+      expect(scanner.elements[2].higher_level).toEqual(top);
+    });
+
+    it('pins higher_level to the level it was PASSED, not one the element already carried', function() {
+      /* Object.assign defaults must come last: with the element last, a stub fed back in
+         would override the level we were given and level up to the wrong place. */
+      var levelled = null;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+
+      var real = [{ label: 'real row' }];
+      var stale = [{ label: 'stale row' }];
+      var group = {
+        label: 'predictions', higher_level: stale, higher_level_index: 99,
+        reload_children: function() { return []; }
+      };
+      scanner.load_children(group, real, 0);
+
+      expect(levelled.higher_level).toEqual(real);
+      expect(levelled.higher_level_index).toEqual(0);
+    });
+  });
+
   describe('axis scanning', function() {
     xit('should have specs', function() {
       expect('test').toEqual('todo');
