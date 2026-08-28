@@ -356,7 +356,7 @@ function indexSpanishPronounLookup() {
     var u = unaccentSpanish(k);
     if(lookup[u] === undefined) { lookup[u] = key; }
   }
-  var i, key, para, loc, extras, j;
+  var i, key, para, extras, j, slotKeys, s;
   // Subjects first so nosotras/vosotras are not stolen as gender-pair slots.
   for(i = 0; i < SPANISH_PRONOUN_ORDER.length; i++) {
     add(SPANISH_PRONOUN_ORDER[i], SPANISH_PRONOUN_ORDER[i]);
@@ -364,8 +364,9 @@ function indexSpanishPronounLookup() {
   for(i = 0; i < SPANISH_PRONOUN_ORDER.length; i++) {
     key = SPANISH_PRONOUN_ORDER[i];
     para = SPANISH_PRONOUN_PARADIGMS[key];
-    for(loc in para) {
-      if(para.hasOwnProperty(loc)) { add(para[loc], key); }
+    slotKeys = Object.keys(para);
+    for(s = 0; s < slotKeys.length; s++) {
+      add(para[slotKeys[s]], key);
     }
     extras = SPANISH_PRONOUN_EXTRA_ALIASES[key] || [];
     for(j = 0; j < extras.length; j++) {
