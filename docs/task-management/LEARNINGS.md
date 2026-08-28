@@ -209,6 +209,7 @@ file (see [README.md](README.md)).
 - [Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL](#pattern-to-line-a-sibling-up-with-the-board-grid-mirror-its-origin-margin--padding-not-just-its-height--and-remember-a-card-does-not-fill-its-cell)
 - [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
 - [Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery](#pattern-a-container-that-stays-in-the-layout-while-empty-defeats-the-scanners-detachedzero-box-recovery)
+- [Decision: scanner `escape()` keeps its class allow-list — generalising it removes the switch user's guaranteed exit](#decision-scanner-escape-keeps-its-class-allow-list--generalising-it-removes-the-switch-users-guaranteed-exit)
 
 ---
 
@@ -15905,3 +15906,45 @@ out of it quits scanning altogether.
 **Wider lesson:** "keep it mounted so the layout doesn't move" is a good fix with a blast radius. Grep
 for everything that reasons about the element's PRESENCE — scanning, dwell hit-testing, `:empty` CSS,
 a11y tree, layout math — before assuming presence is free.
+
+---
+
+## Decision: scanner `escape()` keeps its class allow-list — generalising it removes the switch user's guaranteed exit
+
+**Status:** tried, reverted, do not retry without the two guards below. `utils/scanner.js#escape`
+points here.
+
+`escape()` levels up only for a parent stub whose dom carries `md-board-detail-sentence-row` or
+`md-board-detail-prediction-rail`, and calls `scanner.stop()` for everything else. That IS
+incoherent — of roughly eight drill-in levels, two go back and six quit, including board rows in
+both UIs, the classic header row, the `#identity` menu and the classic `#word_suggestions` row —
+and every level added later silently defaults to quit.
+
+Generalising it to `if(parent && parent.higher_level) { level_up }` looks obviously right and is
+worse. Two confirmed regressions, both hitting switch users specifically:
+
+1. **It revives a STOPPED scanner.** `scanner.stop()` does not clear `scanner.elements`, and
+   `modal.open` calls `scanner.stop()` for every non-scannable modal. So with the general rule a
+   cancel press behind an open modal runs `level_up` -> `next_element` and resumes scanning on the
+   board underneath — with `scanner.scanning` still false — and with `scanning_auto_select` a
+   button the user cannot see can be picked. The allow-list has the same hole, but for two levels
+   instead of eight.
+2. **It makes `stop()` unreachable in bounded presses.** `level_up` sets
+   `element_index = higher_level_index`, i.e. it puts the highlight back on the row just escaped,
+   and `next_element` re-arms auto-select. So escape -> re-drill -> escape -> re-drill: stopping
+   needs two presses INSIDE ONE SCAN INTERVAL, which is exactly what a long interval exists to
+   avoid for a slow-motor user. Under the allow-list, one press from a board row hits `stop()`,
+   terminal and guaranteed.
+
+**The trade to weigh:** the incoherence is a *coherence* problem; these are *"the switch user
+cannot reliably quit"* problems. Coherence loses.
+
+**What a real fix needs first:** a scanning-state guard in `escape()` (`if(!scanner.scanning) {
+scanner.stop(); return; }`, or the modal check `raw_events.js` already applies on the select
+branch), and suppression of the next auto-select after an escape-driven `level_up`. Both want
+their own tests. `tests/utils/scanner-test.js` now has a test named for the guaranteed exit that
+will fail if someone generalises this again without them.
+
+**Evidence:** `utils/scanner.js#stop` (does not clear `elements`), `#level_up`, `#escape`;
+`utils/modal.js:126,188`; `services/app-state.js` (`scanning_auto_select`); task log
+`2026-08-28-prediction-rail-alignment-and-width-stability.md`.

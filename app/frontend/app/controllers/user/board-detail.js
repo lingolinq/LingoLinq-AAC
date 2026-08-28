@@ -2781,14 +2781,33 @@ export default Controller.extend(prefClasses, {
   _prediction_freeze_retry_ms: 120,
 
   _prediction_freeze_watch: observer('suggestions.list.[]', function() {
-    /* Already frozen: the render is not changing, so there is nothing to record and nothing
-       to decide. */
-    if(this.get('_prediction_freeze_list')) { return; }
     var words_of = function(list) {
       return ((list || []).map(function(s) { return (s && s.word) || ''; })).join('\u0000');
     };
-    var showing = this._displayed_prediction_list;
     var incoming = this._deduped_suggestions(this.get('suggestions.list'));
+    /* "Blanked" is ANY empty incoming list, not just `suggestions === null`. Clear does go via
+       null, but `{ready: true, list: []}` is reachable in speak mode from three places — an
+       empty sentence / word-in-progress, an AI-predictor rejection, and a lookup rejection —
+       and must blank the panel the same way. The in-bar group gates on `suggestions.ready` and
+       so empties on the null shape only; testing the LIST keeps both placements agreeing on
+       every shape.
+
+       Deliberate consequence: a lookup that legitimately returns nothing now blanks the rail
+       under a live dwell rather than holding the previous words. That is the same trade the
+       null case already made, and the alternative — offering words for a sentence that no
+       longer exists — is the worse of the two. */
+    var blanking = !incoming.length;
+
+    /* Already frozen: the render is not changing, so there is nothing to record. But a blank
+       must END an in-flight freeze rather than merely fail to start a new one — otherwise the
+       rail keeps offering words for a cleared sentence for the whole bound (up to 8s in
+       switch-paced dwell), and completing a dwell on one speaks it and trains the local model
+       through record_selection. */
+    if(this.get('_prediction_freeze_list')) {
+      if(blanking) { this._release_prediction_freeze(); }
+      return;
+    }
+    var showing = this._displayed_prediction_list;
 
     /* `_displayed_prediction_list` must record what RENDERS, never what merely arrives — so
        it is written only on the branch where `incoming` is actually about to be rendered.
@@ -2797,7 +2816,6 @@ export default Controller.extend(prefClasses, {
        freeze could snap the panel back to a set from two sentences ago. Selecting one of
        those speaks it and trains the local model through record_selection, so this is not
        cosmetic. */
-    var blanking = this.get('suggestions') === null;
     var should_freeze = !blanking &&
       showing && showing.length &&
       /* An identical word sequence cannot move anything, so there is nothing to protect. */
@@ -2822,6 +2840,19 @@ export default Controller.extend(prefClasses, {
   /* Release when the panel stops being the target, or when the bound elapses. Hand-rolled
      setTimeout rather than runLater: ember/no-runloop bans the runloop helpers and
      ember-lifeline is not installed (same pattern as controllers/search.js). */
+  /* One release path, used by both the poll and the observer. The bookkeeping in here was
+     wrong twice when it lived in two places; keeping it in one is the point. */
+  _release_prediction_freeze: function() {
+    if(this._prediction_freeze_timer) {
+      clearTimeout(this._prediction_freeze_timer);
+      this._prediction_freeze_timer = null;
+    }
+    /* Re-record before clearing: releasing changes what renders, and clearing the freeze does
+       not fire the observer, so this is the only place that can keep the bookkeeping true. */
+    this._displayed_prediction_list = this._deduped_suggestions(this.get('suggestions.list'));
+    this.set('_prediction_freeze_list', null);
+  },
+
   _prediction_freeze_tick: function() {
     var _this = this;
     if(this._prediction_freeze_timer) { clearTimeout(this._prediction_freeze_timer); }
@@ -2831,11 +2862,7 @@ export default Controller.extend(prefClasses, {
       if(!_this.get('_prediction_freeze_list')) { return; }
       var elapsed = (new Date()).getTime() - _this._prediction_freeze_started;
       if(elapsed >= _this._suggestion_swap_max_hold() || !_this._prediction_panel_targeted()) {
-        /* Re-record before clearing: releasing changes what renders (from the snapshot to
-           whatever is live now), and clearing the freeze does NOT fire the observer, so this
-           is the only place that can keep the bookkeeping true. */
-        _this._displayed_prediction_list = _this._deduped_suggestions(_this.get('suggestions.list'));
-        _this.set('_prediction_freeze_list', null);
+        _this._release_prediction_freeze();
         return;
       }
       _this._prediction_freeze_tick();

@@ -505,11 +505,17 @@ const setThrottle = async (client, { network, cpu }) => {
         c._commit_suggestions({ ready: true, list: [{ word: 'zzghostword' }] });  // freezes on zzbaseword
         await new Promise((r) => setTimeout(r, 60));
         out.wordsWhileFrozen = words();
-        c.set('suggestions', null);                                              // what "Clear" does
-        window.scanner.actively_scanning = () => false;                          // release the freeze
-        await new Promise((r) => setTimeout(r, 500));
-        out.wordsAfterClear = words();
-        out.ghostReturned = words().indexOf('zzghostword') !== -1 || words().indexOf('zzbaseword') !== -1;
+        /* Clear while STILL TARGETED, and measure before releasing. The previous version
+           cleared and released in the same tick, so it never observed the post-clear /
+           pre-release window — which is exactly where the bug lived. It also asserted only
+           that no word "came back", which stays true with the freeze mechanism deleted
+           entirely. */
+        c.set('suggestions', null);
+        await new Promise((r) => setTimeout(r, 60));
+        out.wordsWhileClearedAndTargeted = words();
+        window.scanner.actively_scanning = () => false;
+        await new Promise((r) => setTimeout(r, 300));
+        out.wordsAfterRelease = words();
 
         /* (b) The freeze must not outlive its cap even while the panel stays targeted. Drive
            it by ageing the freeze start; the poll must release and render whatever is live. */
@@ -534,13 +540,25 @@ const setThrottle = async (client, { network, cpu }) => {
     if (typeof holdRegressions === 'string') {
       fail('hold regressions — cleared sentence stays cleared, and the freeze respects its cap', holdRegressions);
     } else {
-      if (!holdRegressions.ghostReturned) {
-        pass('hold regression — a cleared sentence stays cleared through a freeze',
-          `froze showing "${holdRegressions.wordsWhileFrozen}", and after the clear + release the panel ` +
-          `showed "${holdRegressions.wordsAfterClear}" — no word came back`);
+      if (holdRegressions.wordsWhileFrozen !== 'zzbaseword') {
+        /* Strict engaged-guard, mirroring the cap check below. "non-empty" would NOT do: with
+           the freeze deleted the panel shows zzghostword, which is non-empty, and the check
+           would stay green while testing nothing. */
+        fail('hold regression — a clear ends an in-flight freeze',
+          `the freeze never engaged — panel showed "${holdRegressions.wordsWhileFrozen}" where ` +
+          '"zzbaseword" was expected, so everything below proves nothing');
+      } else if (holdRegressions.wordsWhileClearedAndTargeted !== '') {
+        fail('hold regression — a clear ends an in-flight freeze',
+          `the rail still showed "${holdRegressions.wordsWhileClearedAndTargeted}" after the sentence ` +
+          'was cleared, while the panel was still targeted — it is offering words for a sentence ' +
+          'that no longer exists');
+      } else if (holdRegressions.wordsAfterRelease !== '') {
+        fail('hold regression — a clear ends an in-flight freeze',
+          `the panel showed "${holdRegressions.wordsAfterRelease}" after release, expected empty`);
       } else {
-        fail('hold regression — a cleared sentence stays cleared through a freeze',
-          `words came back after the clear: "${holdRegressions.wordsAfterClear}"`);
+        pass('hold regression — a clear ends an in-flight freeze',
+          `froze on "${holdRegressions.wordsWhileFrozen}", blanked immediately on the clear while ` +
+          'still targeted, and stayed empty through the release');
       }
       if (holdRegressions.frozeOn.indexOf('zzbase2') === -1) {
         /* Without this the check passes vacuously when the freeze never engages at all —

@@ -237,7 +237,50 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
-  test('a cleared sentence blanks the panel instead of freezing dead words', async function(assert) {
+  test('a clear ENDS an in-flight freeze, for both blank shapes', async function(assert) {
+    assert.expect(6);
+    /* The proposal for this fix originally specified a test that passes at HEAD with the bug
+       present: its first write was untargeted, so no freeze ever engaged and there was nothing
+       to release, making both assertions trivially true. The guard below — asserting the freeze
+       actually engaged, while STILL targeted — is what makes it a detector. Fourth instance of
+       that coincidence-pass pattern on this branch. */
+    const tile = railFixture();
+    patch(scanner, 'actively_scanning', function() { return false; });
+    patch(scanner, 'current_element', { dom: [tile] });
+    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker, 'last_dwell_linger', null);
+
+    const controller = buildController();
+    try {
+      // shape 1: the Clear path, which goes via null
+      controller.set('suggestions', { ready: true, list: [{ word: 'A' }] });
+      scanner.actively_scanning = function() { return true; };
+      controller.set('suggestions', { ready: true, list: [{ word: 'B' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'A', 'guard: freeze engaged');
+
+      controller.set('suggestions', null);            // still targeted
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), '',
+        'a clear blanks the rail immediately rather than holding for the bound');
+      assert.notOk(controller.get('_prediction_freeze_list'), 'and the freeze is released');
+
+      // shape 2: {ready:true, list:[]} — reachable from an empty sentence, an AI reject and a
+      // lookup reject, and missed entirely by a `suggestions === null` predicate
+      scanner.actively_scanning = function() { return false; };
+      controller.set('suggestions', { ready: true, list: [{ word: 'C' }] });
+      scanner.actively_scanning = function() { return true; };
+      controller.set('suggestions', { ready: true, list: [{ word: 'D' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'C', 'guard: freeze engaged again');
+
+      controller.set('suggestions', { ready: true, list: [] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), '',
+        'an empty result blanks it too, so both placements agree');
+      assert.notOk(controller.get('_prediction_freeze_list'), 'and that freeze is released');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('a blanking write does not START a freeze', async function(assert) {
     assert.expect(2);
     /* The rail renders from prediction_suggestions while the in-bar group gates on
        suggestions.ready, so freezing a blanking write makes the two disagree and leaves the

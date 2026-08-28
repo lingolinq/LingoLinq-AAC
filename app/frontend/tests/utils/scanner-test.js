@@ -119,6 +119,15 @@ describe('scanner', function() {
   });
 
   afterEach(function() {
+    /* restoreStubs FIRST. Five tests in this file stub `scanner.stop`, and the hook calls
+       scanner.stop() below — so with restore last, those tests silently skipped the real
+       teardown entirely (runCancel(scanner.interval), modal.close_highlight(), the
+       .highlight/.scanning_highlight DOM sweep, scan_axes('clear')). That is the async-leak
+       shape CLAUDE.md rule 10 documents. Restoring first also stops the old trailing
+       restoreStubs() from writing back over the resets below it. Note restoreStubs is GLOBAL
+       (one module-level stash), so do not copy this ordering into a file whose afterEach does
+       more work before its own cleanup. */
+    restoreStubs();
     scanner.stop();
     scanner.last_options = null;
     scanner.current_element = null;
@@ -129,7 +138,6 @@ describe('scanner', function() {
     modal.highlight2_settings = null;
     modal.highlight_controller = null;
     modal.highlight2_controller = null;
-    restoreStubs();
   });
 
   describe("setup", function() {
@@ -1498,8 +1506,8 @@ describe('scanner', function() {
       scanner.elements = [{ label: 'child' }, stubElem];
 
       scanner.escape();
-      expect(levelled).toEqual(stubElem);
-      expect(stopped).toEqual(false);
+      expect(levelled).toBe(stubElem);
+      expect(stopped).toBe(false);
     });
 
     it('STOPS from an unrecognised level — the guaranteed exit switch users depend on', function() {
@@ -1519,8 +1527,8 @@ describe('scanner', function() {
       scanner.elements = [{ label: 'child' }, stubElem];
 
       scanner.escape();
-      expect(levelled).toEqual(null);
-      expect(stopped).toEqual(true);
+      expect(levelled).toBe(null);
+      expect(stopped).toBe(true);
     });
 
     it('stops when there is nowhere to go back to', function() {
@@ -1530,8 +1538,8 @@ describe('scanner', function() {
 
       scanner.elements = [{ label: 'row 1' }, { label: 'row 2' }];
       scanner.escape();
-      expect(levelled).toEqual(null);
-      expect(stopped).toEqual(true);
+      expect(levelled).toBe(null);
+      expect(stopped).toBe(true);
     });
 
     it('stops rather than levelling up into an EMPTY parent level', function() {
@@ -1546,8 +1554,8 @@ describe('scanner', function() {
         dom: { hasClass: function(c) { return c === 'md-board-detail-prediction-rail'; } }
       }];
       scanner.escape();
-      expect(levelled).toEqual(null);
-      expect(stopped).toEqual(true);
+      expect(levelled).toBe(null);
+      expect(stopped).toBe(true);
     });
   });
 
@@ -1565,10 +1573,10 @@ describe('scanner', function() {
       /* Before this, an emptied group produced a level holding only its own level-up stub —
          the user cycled an empty box. It self-healed only when the container ALSO left the
          DOM, which a container kept mounted to hold layout width never does. */
-      expect(!!levelled).toEqual(true);
-      expect(levelled.higher_level).toEqual(top);
-      expect(levelled.higher_level_index).toEqual(1);
-      expect(result).toEqual(true);
+      expect(!!levelled).toBe(true);
+      expect(levelled.higher_level).toBe(top);
+      expect(levelled.higher_level_index).toBe(1);
+      expect(result).toBe(true);
     });
 
     it('builds the child level normally when children remain', function() {
@@ -1579,9 +1587,9 @@ describe('scanner', function() {
       var group = { label: 'predictions', reload_children: function() { return [{ label: 'a' }, { label: 'b' }]; } };
       scanner.load_children(group, top, 0);
 
-      expect(levelled).toEqual(null);
-      expect(scanner.elements.length).toEqual(3); // two children plus the level-up stub
-      expect(scanner.elements[2].higher_level).toEqual(top);
+      expect(levelled).toBe(null);
+      expect(scanner.elements.length).toBe(3); // two children plus the level-up stub
+      expect(scanner.elements[2].higher_level).toBe(top);
     });
 
     it('pins higher_level to the level it was PASSED, not one the element already carried', function() {
@@ -1598,8 +1606,8 @@ describe('scanner', function() {
       };
       scanner.load_children(group, real, 0);
 
-      expect(levelled.higher_level).toEqual(real);
-      expect(levelled.higher_level_index).toEqual(0);
+      expect(levelled.higher_level).toBe(real);
+      expect(levelled.higher_level_index).toBe(0);
     });
   });
 
