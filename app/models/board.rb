@@ -2589,13 +2589,6 @@ class Board < ApplicationRecord
     vocalization_lang = dest_lang
     return {done: true, translated: false, reason: 'mismatched user'} if user_local_id != self.user_id
     raise "can't translate for a shallow clone" if @sub_id
-    # Org off-switch for third-party AI: skip applying translations when the
-    # board owner's org has disabled external processing. (Google egress is
-    # also gated in users#translate; this is the board-side fail-closed check.)
-    unless Organization.external_ai_processing_allowed_for_user?(self.user)
-      Organization.log_external_ai_processing_skip(self.user, 'translation')
-      return {done: true, translated: false, reason: 'external_ai_processing_disabled'}
-    end
     set_as_default_here = !!set_as_default
     # Default behavior: a same-locale re-translation skips reapplying
     # the labels (set_as_default_here = false), preserving any prior

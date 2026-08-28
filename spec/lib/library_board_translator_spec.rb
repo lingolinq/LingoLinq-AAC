@@ -150,16 +150,26 @@ describe LibraryBoardTranslator do
       expect(result[:origins]['hat']).to eq('cache')
     end
 
-    it 'does not call Google when the owner org has disabled external AI processing' do
+    it 'still calls Google when the owner org has disabled external AI processing' do
       u = User.create
+      o = Organization.create(settings: {'total_licenses' => 1, 'external_ai_processing' => false})
+      o.add_user(u.user_name, false, true)
+      u.reload
       b = Board.create(:user => u)
       b.settings['name'] = 'My Board'
       b.settings['locale'] = 'en'
       b.settings['buttons'] = [{'id' => 1, 'label' => 'hat'}]
+      b.public = true
       b.save
-      expect(Organization).to receive(:external_ai_processing_allowed_for_user?).with(u).and_return(false)
-      expect(WordData).to_not receive(:translate_batch)
-      expect { described_class.translate_one!(b, dest_lang: 'es') }.to raise_error(/external AI processing disabled/)
+      expect(Organization).not_to receive(:log_external_ai_processing_skip)
+      expect(WordData).to receive(:translate_batch).and_return({
+        translations: { 'My Board' => 'Mi tablero', 'hat' => 'sombrero' },
+        origins: { 'My Board' => 'google', 'hat' => 'google' }
+      })
+      expect { described_class.translate_one!(b, dest_lang: 'es') }.not_to raise_error
+      b.reload
+      trans = BoardContent.load_content(b, 'translations') || b.settings['translations']
+      expect(trans['1']['es']['label']).to eq('sombrero')
     end
 
     it 'keeps spelling-key letters as themselves and overwrites Google abbreviations' do
