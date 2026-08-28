@@ -20,8 +20,7 @@ import {
   DEFAULT_CATEGORY_ORDER,
   normalize_order as normalizeCategoryOrder,
   category_for_key as categoryForKey,
-  label_for as categoryLabel,
-  swatch_for_category as swatchForCategory
+  label_for as categoryLabel
 } from '../../utils/board_categories';
 import speecher from '../../utils/speecher';
 import utterance from '../../utils/utterance';
@@ -200,13 +199,15 @@ export default Controller.extend(prefClasses, {
    *  still falls back to parent_board_key as a safety net if it
    *  ever gets fired without history, but the button itself won't
    *  render in that case. */
-  /* Category ORDERING — the ordered list with the move arrows, and the Reset order button
-     that goes with it — is parked as a future feature: the packing decides placement in
-     compact mode and the ordering UI needs its own pass before it earns the space. Kept as
-     one named flag rather than commenting the markup out, so bringing it back is a single
-     `true` and the template still reads as one arrangement. The stored order itself is
-     untouched and still drives the panel layout when scrolling is on. */
-  category_ordering_available: false,
+  /* Category ORDERING — the ordered list with the move arrows, and the Reset button that
+     goes with it. Parked while the order had nowhere to be written: it was a user
+     preference the server had stopped echoing, so the arrows could only have discarded the
+     user's work silently. `board.settings['category_layout']` is that home, and the
+     ownership gate means the controls are only ever shown on a board the subject owns —
+     which is exactly the precondition an authoring control needs. Kept as one named flag
+     rather than inlining `true` at the three template sites, so the panel still reads as
+     one arrangement and a future pass can park it again in one place. */
+  category_ordering_available: true,
 
   show_board_back_nav: computed('board_detail_history.[]', function() {
     return (this.get('board_detail_history') || []).length > 0;
@@ -5668,16 +5669,14 @@ export default Controller.extend(prefClasses, {
     }
   ),
 
-  /* Destinations the move picker may offer. A category is a COLOUR here — the move is
-     performed by painting — so a category with no paintable type (`controls`, `extra`,
-     whose `types: []` makes swatch_for_category return null) cannot be a destination:
-     move_button_to_category bailed and closed the dialog with no change and no message,
-     so two of the twelve offered destinations were dead controls. Ordering still comes
-     from category_order_list, so the picker matches the panel. */
-  category_move_targets: computed('category_order_list.[]', function() {
-    return (this.get('category_order_list') || []).filter(function(cat) {
-      return cat && swatchForCategory(cat.key);
-    });
+  /* Does this board carry an arrangement worth resetting? Gates the Reset button, which
+     otherwise sits in the same row as Done doing nothing.
+     BOTH halves are needed now that Reset clears both: a board whose only customization is
+     per-button assignments has an unchanged order, so gating on the order alone would hide
+     the only control that can undo that work. */
+  category_layout_customized: computed('category_order_changed', 'category_button_overrides', function() {
+    if(this.get('category_order_changed')) { return true; }
+    return Object.keys(this.get('category_button_overrides') || {}).length > 0;
   }),
 
   /* The user's INTENT for the Categorize switch while a toggle is being applied.
@@ -5786,6 +5785,45 @@ export default Controller.extend(prefClasses, {
     }
   },
 
+  /* THE one place a category layout is written. The button move, both reorder arrows and
+     Reset all route through here, so the four rules below are stated once instead of four
+     times.
+
+     1. It writes a WHOLE, FRESH object. `board_category_layout` is a computed on
+        `model.category_layout` and `edit_session_has_changes` reads
+        `model.changedAttributes()` (:3864), so an in-place mutation would regroup nothing,
+        leave the board reading as clean, and let Back / Exit to Home discard the edit
+        without ever offering the confirm.
+     2. It snapshots undo state FIRST. `editManager.clone_state` reads the layout off the
+        model, so a snapshot taken after the write would record the state being moved TO
+        and Undo would appear to do nothing.
+     3. `changes` names ONLY the sub-keys being replaced, so a reorder cannot drop the
+        button overrides and a button move cannot drop the order.
+     4. An empty sub-key is DROPPED rather than written. Writing today's `order` onto a
+        board whose author only moved a button would freeze the current default into that
+        board, and it would then stop following the registry if the default ever changes.
+        Absent has to keep meaning "not curated".
+
+     This is a BOARD edit and follows the board's Save/Cancel — unlike the three category
+     FLAGS beside it, which are preferences on the USER and save immediately. Nothing here
+     talks to the server: `saveButtonChanges` ends in `board.save()` and the attribute rides
+     along on the stock RESTSerializer. */
+  _write_category_layout: function(changes, undo_details) {
+    var board = this.get('model');
+    if(!board || !board.set) { return; }
+    try {
+      editManager.save_state(undo_details || { mode: 'category_layout' });
+    } catch(e) { /* no active edit session — nothing to snapshot */ }
+    var current = this.get('board_category_layout') || {};
+    var written = {
+      order: changes.order === undefined ? current.order : changes.order,
+      buttons: changes.buttons === undefined ? current.buttons : changes.buttons
+    };
+    if(!written.order || !written.order.length) { delete written.order; }
+    if(!written.buttons || !Object.keys(written.buttons).length) { delete written.buttons; }
+    board.set('category_layout', written);
+  },
+
   actions: {
     toggle_category_order: function() {
       this.set('category_order_open', !this.get('category_order_open'));
@@ -5834,18 +5872,22 @@ export default Controller.extend(prefClasses, {
        column one lands in is derived by the packing at the current width, not
        chosen. So up/down is the whole model — there is no honest meaning for
        left/right, and it would behave differently at each breakpoint. */
-    /* Category ORDER is a property of the board, not of the user, and the board-side field
-       does not exist yet — so there is nowhere for these two to write. They are reachable
-       only from the reorder UI, which is parked behind `category_ordering_available: false`,
-       so neither can be invoked today.
-       They REFUSE LOUDLY rather than writing `{order: …}` into the user preference: the
-       server sanitizer no longer echoes that key, so such a write would appear to succeed
-       on the client and be gone on the next read — the exact silent-discard failure the
-       per-board order already shipped once (see the note on `category_order`). */
+    /* Writes to the BOARD, never to the user preference. An order written into
+       `preferences.board_category_grouping` is no longer echoed by the server sanitizer, so
+       it would appear to save on the client and be gone on the next read — the exact
+       silent-discard failure the per-board order already shipped once (see the note on
+       `category_order`). */
     move_category: function(key, direction) {
-      console.error('board-detail: move_category is not wired — category order moved to the ' +
-                    'board and the board-side field does not exist yet (key=' + key +
-                    ', direction=' + direction + ')');
+      var order = normalizeCategoryOrder(this.get('category_order')).slice();
+      var idx = order.indexOf(key);
+      if(idx < 0) { return; }
+      var target = (direction === 'up') ? idx - 1 : idx + 1;
+      /* The arrows are already disabled at the ends (`category_order_list#first/last`).
+         This is the invariant behind that UX, so no keyboard or programmatic caller can
+         walk a category off either end and silently truncate the list. */
+      if(target < 0 || target >= order.length) { return; }
+      order.splice(target, 0, order.splice(idx, 1)[0]);
+      this._write_category_layout({ order: order });
     },
 
     /* Both write through the SAME path as the switch, so the "carry sub-preferences
@@ -5859,8 +5901,25 @@ export default Controller.extend(prefClasses, {
     toggle_category_scroll: function() {
       this._save_category_grouping({ vertical_scroll: !this.get('category_vertical_scroll') });
     },
-    reset_category_order: function() {
-      console.error('board-detail: reset_category_order is not wired — see move_category');
+    /* Clear the board's whole category arrangement — the sequence AND every per-button
+       assignment — back to the registry defaults.
+       CONFIRMED FIRST, unlike the arrows: an arrow moves one category one place and is
+       trivially re-done, whereas this discards work that can be hundreds of individual
+       decisions (up to `Board::MAX_CATEGORY_BUTTON_OVERRIDES`), from a button sitting in
+       the same row as Done. Modelled on `confirm-recolor-board`, the other bulk board
+       change reachable from inside the edit session — and, like that one, undoable before
+       save rather than immediately destructive.
+       Writes `{}` rather than clearing the attribute: `process_params` only assigns when
+       the param is non-nil (board.rb:1958), so a null would leave the stored layout in
+       place. `sanitized_category_layout({})` stores an empty order and an empty override
+       map, which is what the defaults read back as. */
+    reset_category_layout: function() {
+      var _this = this;
+      modal.open('confirm-reset-categories', {}).then(function(result) {
+        if(result === 'reset') {
+          _this._write_category_layout({ order: null, buttons: null });
+        }
+      }, function() { });
     },
 
     /* Open the "move to category" picker for one previewed button. Clicking a
@@ -5873,69 +5932,47 @@ export default Controller.extend(prefClasses, {
          that reaches the action directly — the template gate is the UX, this is the
          invariant (see LEARNINGS: gated actions need both a template and a JS gate). */
       if(!this.get('categorize_enabled')) { return; }
-      /* TEMPORARILY DISABLED. Clicking a button in the Categorize panel used to open the
-         move picker; the move itself is being reworked (it repaints the button with the
-         target category's swatch, which is the wrong mechanism for categories that are not
-         defined by colour). Left as a single commented line rather than removing the
-         action, so the gates above, `cancel_category_move`, `move_button_to_category` and
-         the picker markup all stay wired and this is a one-line restore.
-
-         While this is commented out `category_move_button` stays null, so the picker
-         template (`{{#if this.category_move_button}}`) never renders and a click on a
-         button in the panel does nothing. */
-      // this.set('category_move_button', btn);
+      this.set('category_move_button', btn);
     },
 
     cancel_category_move: function() {
       this.set('category_move_button', null);
     },
 
-    /* Move the picked button into a category.
-       A category IS a colour here -- the categoriser reads the button's colour
-       back -- so the move is performed by PAINTING the button with that
-       category's fill/border/part_of_speech. Routed through editManager's paint
-       pathway rather than setting the attributes directly, so it inherits the
-       existing undo entry (paint_button calls save_state({mode:'paint'})) and the
-       level-modification handling that Button.set_attribute does.
-       This is a BOARD edit, so it follows the board's Save/Cancel like every
-       other edit — unlike the category ORDER beside it, which is a user
-       preference and saves immediately. */
+    /* Assign the picked button to a category.
+       DATA, NOT PAINT. This used to recolour the button with the category's swatch, because
+       the categoriser reads a button's category back off its colour. That made a category
+       with no colour unreachable: `swatch_for_category` returns null for a registry entry
+       with no `types` (board_categories.js:537) and SEVEN of the seventeen are exactly that
+       (controls, extra, keyboard, predictions, clock, yes, time), so they were filtered out
+       of the picker entirely and no button could ever be moved into them.
+       Recording the assignment on the BOARD makes every category a valid destination and
+       leaves the button's own appearance alone — moving a word into "Questions" should not
+       repaint it, and on a board whose colours carry meaning the repaint was destroying
+       information to express something the board can now simply store.
+       `group_buttons` gives this map precedence over both the colour classifier and the
+       QWERTY heuristic (board_categories.js:2252-2275), so an explicit assignment beats
+       every guess — which is the point: the classifier is right about most buttons and the
+       author is correcting the rest.
+       Undo still works, and through the same stack as before: `_write_category_layout`
+       snapshots via `editManager.save_state`, and an undo entry now carries the layout
+       (edit_manager.js#clone_state). */
     move_button_to_category: function(key) {
       var btn = this.get('category_move_button');
-      var swatch = swatchForCategory(key);
-      if(!btn || !swatch) { this.set('category_move_button', null); return; }
-
-      // Use the CONTROLLER's paint_button action, not editManager.paint_button.
-      // They are not interchangeable:
-      //   • editManager.paint_button(id) resolves the button through find_button,
-      //     which REPLACES the entry in `ordered_buttons` with a wrapped Button
-      //     (edit_manager.js:1349). That array is a plain nested JS array, so the
-      //     swap notifies nothing and the already-rendered template keeps the old
-      //     object — the paint lands on a copy and nothing visibly moves.
-      //   • the controller action mutates the button object it is HANDED (the one
-      //     the template is rendering), mirrors the change into `model.buttons` so
-      //     it persists on save, and forces the re-render by rebuilding
-      //     ordered_buttons with fresh row references.
-      // It is also the path the main board's paint mode already uses.
-      var previous_paint = this.get('paint_mode');
-      var previous_em_paint = editManager.paint_mode;
-
-      this.send('set_paint_mode', swatch.fill, swatch.border, swatch.part_of_speech);
-      /* Take the undo snapshot HERE. The controller's paint_button (unlike
-         editManager.paint_button, which opens with save_state) never records one, so a
-         category move pushed no history entry — pressing Undo afterwards popped the
-         snapshot taken before the PREVIOUS edit and reverted both of them in one press,
-         with no way to undo the move on its own and no indication two edits were lost. */
-      try {
-        editManager.save_state({ mode: 'paint', button_id: this._btn_id(btn) });
-      } catch(e) { /* no active edit session — nothing to snapshot */ }
-      this.send('paint_button', btn);
-
-      // Restore whatever paint state was armed before — this borrows the paint
-      // machinery for one button and must not leave the toolbar painting.
-      this.set('paint_mode', previous_paint || false);
-      editManager.paint_mode = previous_em_paint;
-
+      var id = btn && this._btn_id(btn);
+      if(!btn || id === undefined || id === null || id === '') {
+        this.set('category_move_button', null);
+        return;
+      }
+      var overrides = Object.assign({}, this.get('category_button_overrides'));
+      /* Keyed as a STRING to match `group_buttons`, which looks up `String(btn.id)`: these
+         come back from the server as JSON object keys, which are always strings, while
+         `btn.id` is a number. */
+      overrides[String(id)] = key;
+      this._write_category_layout(
+        { buttons: overrides },
+        { mode: 'category_layout', button_id: id }
+      );
       this.set('category_move_button', null);
     },
 

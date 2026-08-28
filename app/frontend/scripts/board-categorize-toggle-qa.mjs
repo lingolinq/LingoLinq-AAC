@@ -11,9 +11,9 @@
  * Asserts, on the real board-detail edit page:
  *   1. the switch renders as a switch (track + knob + an On/Off word) and is a
  *      substantially bigger hit target than the 18px checkbox it replaced
- *   2. ON  -> order list present, Reset present, preview grid grouped
+ *   2. ON  -> order list present, preview grid grouped
  *   3. OFF -> order list gone, Reset gone, preview grid NOT grouped
- *   4. back ON -> all three return (so the off state is a toggle, not a one-way door)
+ *   4. back ON -> both return (so the off state is a toggle, not a one-way door)
  *   5. the underlying <input type="checkbox"> is still focusable (the switch is
  *      painted, not replaced)
  *
@@ -205,11 +205,16 @@ const clickEl = async (page, sel) => {
     /* Normalise to ON first — the preference persists between runs. */
     if (!s.checked) { await clickEl(page, '.md-board-category-order__switch'); await settleToggle(page); await sleep(800); s = await page.evaluate(PANEL); }
 
-    if (s.checked && s.list && s.reset && s.grouped) {
-      pass('2. ON — order list, Reset and a GROUPED preview',
-        `${s.listItems} categories listed, Reset visible, preview grouping mode "${s.groupingMode}"`);
+    /* Reset is NO LONGER part of this assertion. It used to render whenever grouping was
+       on; it is now gated on the board actually having an arrangement to clear
+       (`category_layout_customized`), so on an uncurated board its absence is correct.
+       Whether Reset appears at the right time — and what it clears — is covered properly by
+       board-category-authoring-qa.mjs, which arranges a board first. */
+    if (s.checked && s.list && s.grouped) {
+      pass('2. ON — order list and a GROUPED preview',
+        `${s.listItems} categories listed, preview grouping mode "${s.groupingMode}"`);
     } else {
-      fail('2. ON — order list, Reset and a GROUPED preview', JSON.stringify(s));
+      fail('2. ON — order list and a GROUPED preview', JSON.stringify(s));
     }
 
     /* The preview exists to show what will SHIP. Grouping pins folders to colored
@@ -229,6 +234,8 @@ const clickEl = async (page, sel) => {
     await settleToggle(page);
     await sleep(800);
     const off = await page.evaluate(PANEL);
+    /* Reset stays in this one: with grouping OFF it must be gone REGARDLESS of whether the
+       board is arranged, because the list it belongs to is not rendered either. */
     const offOk = !off.checked && !off.list && !off.reset && off.previewGrid && !off.grouped;
     if (offOk) {
       pass('3. OFF — list and Reset gone, preview back to the original board',
@@ -242,8 +249,8 @@ const clickEl = async (page, sel) => {
     await settleToggle(page);
     await sleep(800);
     const back = await page.evaluate(PANEL);
-    if (back.checked && back.list && back.reset && back.grouped) {
-      pass('4. back ON — everything returns', `${back.listItems} categories, Reset visible, preview grouping mode "${back.groupingMode}"`);
+    if (back.checked && back.list && back.grouped) {
+      pass('4. back ON — everything returns', `${back.listItems} categories, preview grouping mode "${back.groupingMode}"`);
     } else {
       fail('4. back ON — everything returns', JSON.stringify(back));
     }

@@ -15709,3 +15709,64 @@ Mechanically: prefer arg-name ≠ computed-name when a component both accepts an
 fallback, prove the test catches the defect by neutering the fallback and confirming the
 *positive control* still passes — in this harness `app_state` is set on the instance rather than
 registered, so an unwired harness makes every negative assertion pass for the wrong reason.
+
+## Gotcha: never pipe a blast-radius grep through `head`
+
+Widening `editManager.clone_state`'s return from a bare 2D array to
+`{buttons, category_layout}` was justified with "all consumers are in-file — grep over `app/`
+and `tests/` finds no external reader." The grep was real; it ended in `| head -30`, and thirty
+lines of `app/` hits pushed every `tests/` hit off the end. `tests/utils/edit_manager-test.js`
+asserts that entry shape in roughly fifteen places (`clone.length`, `clone[0][0]`,
+`history[0].length`, `history[0][0].length`) and also hand-builds old-shape entries
+(`editManager.set('history', [[[{id: 1}]]])`) and feeds them straight to `undo`. The reshape
+would have broken all of them, and the truncation is what made "I checked" mean "I saw the
+first thirty".
+
+The rule generalises: **when a grep's purpose is to bound a blast radius, the COUNT is the
+answer, so never truncate it.** Pipe to `wc -l` first, or to `cut -c1-120` if the lines are
+long — anything but `head`. The same applies to any command whose output you are about to
+turn into a claim ("no other caller", "nothing else reads this"). CLAUDE.md rule 11 already
+bans asserting what you have not checked; a truncated check is the failure mode that gets
+past it, because it feels like checking.
+
+The correction was also the better design. The layout now rides as a PROPERTY on the state
+array rather than in a wrapper object, so `undo` still assigns the entry directly to
+`ordered_buttons` and every existing consumer and assertion is untouched. Two adjacent
+lessons came out of it:
+
+- **A parallel stack that must stay aligned is the wrong shape when the push is conditional.**
+  `save_state` skips the push in two dedupe branches, so a second `layout_history` array could
+  silently desynchronise from `history`. Carrying the value ON the entry makes the class of bug
+  unrepresentable.
+- **Distinguish "absent" from "empty" when restoring.** `restore_category_layout` ignores an
+  entry with no `category_layout` OWN property, because `clone_state` always sets one — to
+  `undefined` on an uncurated board, which is a real value worth restoring. A missing property
+  therefore means the entry was hand-built, and writing `undefined` over a live layout on that
+  basis is data loss. The same distinction matters one layer down: restoring `null` where the
+  attribute was never set would register in `changedAttributes()` and make an untouched board
+  read as dirty, which is exactly what `edit_session_has_changes` uses to decide whether
+  leaving needs a confirm.
+
+## Pattern: when a mechanism constrains the feature, replace the mechanism, not the UI
+
+Moving a button between categories was implemented as a RECOLOUR, because the categoriser
+derives a button's category from its colour. That made the move structurally incapable of
+reaching a category that has no colour: `swatch_for_category` returns null for a registry entry
+with `types: []` (`board_categories.js:537`), and seven of the seventeen are exactly that
+(`controls`, `extra`, `keyboard`, `predictions`, `clock`, `yes`, `time`). The picker filtered
+them out, so the limitation was invisible — it looked like a five-destination feature rather
+than a seventeen-destination feature missing seven.
+
+It had been parked as "the move needs rework", which reads like scheduling. It was not: no
+amount of UI work fixes a move that is defined as a paint. What unblocked it was the board-side
+`category_layout.buttons` map — recording the assignment as DATA instead of expressing it
+through the button's appearance. Every category became a destination, and the button stopped
+losing colour information that may have meant something on a board where colours are
+deliberate.
+
+Two things to carry forward. **When a feature is parked with a vague reason, read the parking
+comment before estimating it** — the reason is often a design constraint wearing a schedule's
+clothes, and the fix may already exist elsewhere in the codebase. And **when the encoding of a
+value doubles as its presentation, expect exactly this**: a value that cannot be expressed
+because the presentation has no way to show it. The fix is a place to store the value, not a
+richer presentation.

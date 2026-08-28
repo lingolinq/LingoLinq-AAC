@@ -1,0 +1,28 @@
+<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
+  <div class="md-modal-header">
+    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h3 class="md-modal-title">{{t "Reset Categories?" key="reset_categories_title"}}</h3>
+  </div>
+  <div class="md-modal-body md-confirm-reset-categories">
+    <div class="md-modal-icon-row">
+      <div class="md-modal-icon-circle" style="background: rgba(192, 57, 43, 0.10); color: #c0392b;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L3 8"/></svg>
+      </div>
+    </div>
+    <p class="md-modal-message">
+      {{t "This will clear the category order and every button you have moved by hand, returning this board to the default arrangement." key="reset_categories_message"}}
+    </p>
+    <p class="md-modal-message" style="font-size: 14px; color: #8896a7;">
+      {{t "Button colors and words are not changed. You can undo this action before saving." key="reset_categories_hint"}}
+    </p>
+  </div>
+  <div class="md-modal-footer">
+    <button class="md-modal-btn md-modal-btn--cancel" {{on "click" (this.ctrlAction "close")}}>{{t "Cancel" key="cancel"}}</button>
+    <button class="md-modal-btn md-modal-btn--danger" {{on "click" (this.ctrlAction "confirm")}}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L3 8"/></svg>
+      {{t "Reset Categories" key="reset_categories"}}
+    </button>
+  </div>
+</ModalDialog>

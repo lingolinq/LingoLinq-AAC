@@ -1231,7 +1231,68 @@ var editManager = EmberObject.extend({
       }
       clone_state.push(arr);
     }
+    /* An undo entry is the whole EDITABLE state of the board, not just its buttons.
+       `category_layout` is a board ATTRIBUTE rather than a button property, so a category
+       move -- which writes that attribute and touches no button -- would otherwise be
+       invisible to undo. The paint-based move this replaces was undoable through this same
+       stack (see the snapshot note in board-detail.js#move_button_to_category), and losing
+       that would be a regression.
+
+       Carried ON the state entry rather than in a parallel stack because `save_state`
+       pushes CONDITIONALLY (its two dedupe branches skip the push), so a second stack could
+       not be kept aligned with this one. One entry cannot desynchronise from itself.
+
+       Attached as a property of the returned ARRAY rather than wrapping it in
+       `{buttons, category_layout}`: an entry IS the button grid to everything that already
+       reads one — `undo` assigns it straight to `ordered_buttons`, and the existing suite
+       asserts `history[0].length` / `history[0][0].length` in a dozen places. Widening the
+       shape would have bought nothing and broken all of them. */
+    clone_state.category_layout = this.clone_category_layout();
     return clone_state;
+  },
+  /* A detached copy of the board's category layout, or the raw value when there is nothing
+     to copy. `undefined` and `null` are preserved EXACTLY rather than normalized to `{}`:
+     restoring `null` onto a board whose attribute was never set would show up in
+     `changedAttributes()` and make an untouched board read as dirty, which is what
+     `edit_session_has_changes` (board-detail.js:3864) uses to decide whether leaving needs
+     a confirm. */
+  clone_category_layout: function() {
+    if(!this.controller) { return null; }
+    var layout = this.controller.get('model.category_layout');
+    if(!layout || typeof layout !== 'object') { return layout; }
+    try {
+      return JSON.parse(JSON.stringify(layout));
+    } catch(e) {
+      return layout;
+    }
+  },
+  /* Put an entry's layout snapshot back on the board. Always a FRESH copy off the entry,
+     never the entry's own object: the same snapshot can be applied more than once (undo,
+     then redo back past it), and handing the model the stored reference would let a later
+     edit mutate history. A fresh object is also what makes the change visible --
+     `board_category_layout` is a computed on `model.category_layout`, so an in-place
+     mutation would notify nothing.
+
+     An entry WITHOUT the property is left alone rather than treated as "no layout".
+     `clone_state` always sets it (to `undefined` on an uncurated board, which is a real
+     value worth restoring), so a missing property means the entry did not come from
+     `clone_state` at all -- and writing `undefined` over a live layout on the strength of
+     that would be data loss. */
+  restore_category_layout: function(state) {
+    if(!this.controller || !state) { return; }
+    if(!Object.prototype.hasOwnProperty.call(state, 'category_layout')) { return; }
+    var board = this.controller.get('model');
+    if(!board || !board.set) { return; }
+    var layout = state.category_layout;
+    if(!layout || typeof layout !== 'object') {
+      board.set('category_layout', layout);
+      return;
+    }
+    try {
+      board.set('category_layout', JSON.parse(JSON.stringify(layout)));
+    } catch(e) {
+      board.set('category_layout', layout);
+    }
   },
   undo: function() {
     if(!this.controller) { return; }
@@ -1242,6 +1303,7 @@ var editManager = EmberObject.extend({
       var currentState = this.clone_state();
       this.set('future', (this.get('future') || []).concat([currentState]));
       this.controller.set('ordered_buttons', lastState);
+      this.restore_category_layout(lastState);
       this.update_color_key_id();
     }
   },
@@ -1254,6 +1316,7 @@ var editManager = EmberObject.extend({
       var currentState = this.clone_state();
       this.set('history', (this.get('history') || []).concat([currentState]));
       this.controller.set('ordered_buttons', state);
+      this.restore_category_layout(state);
       this.update_color_key_id();
     }
   },

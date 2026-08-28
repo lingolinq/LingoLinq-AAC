@@ -3609,18 +3609,17 @@
           {{!-- Page-level actions live in the header, where they are expected — beside
                the panel title rather than at the end of a settings row. --}}
           <div class="md-board-category-order__bar-actions">
-            {{!-- Nested, not `(and …)`: Reset needs BOTH. The order list it resets is only
-                 rendered while grouping is on, so offering it with grouping off is a
-                 button pointing at nothing; and offering it on an order nobody has
-                 changed is a button that does nothing. --}}
-            {{!-- Reset order rides with the ordering list below: both are gated on
-                 `category_ordering_available`, which is off while category ORDERING is
-                 parked as a future feature. Resetting an order the user cannot see or
-                 change is a button pointing at nothing. --}}
+            {{!-- Nested, not `(and …)`: Reset needs ALL THREE. The arrangement it clears is
+                 only rendered while grouping is on, so offering it with grouping off is a
+                 button pointing at nothing; and offering it on a board nobody has arranged
+                 is a button that does nothing.
+                 `category_layout_customized`, not `category_order_changed`: Reset now clears
+                 the per-button assignments too, so a board whose only customization is those
+                 must still be able to reach it. --}}
             {{#if this.category_ordering_available}}
             {{#if this.categorize_enabled}}
-            {{#if this.category_order_changed}}
-              <button type="button" class="md-board-category-order__reset" data-bd-action="reset_category_order" {{on "click" (this.ctrlAction "reset_category_order")}}>{{t "Reset order" key="board_categorize_reset"}}</button>
+            {{#if this.category_layout_customized}}
+              <button type="button" class="md-board-category-order__reset" data-bd-action="reset_category_layout" {{on "click" (this.ctrlAction "reset_category_layout")}}>{{t "Reset categories" key="board_categorize_reset_all"}}</button>
             {{/if}}
             {{/if}}
             {{/if}}
@@ -3729,10 +3728,10 @@
              grouped, so a category SEQUENCE has nothing to sequence. Gated in the
              template rather than hidden in CSS so it leaves the accessibility tree
              and the tab order too, instead of being invisible tab stops.
-             ALSO gated on `category_ordering_available` — category ordering is parked as a
-             future feature, so the list and its Reset button are not rendered at all. The
-             live preview beside it stays: it shows the board the two settings above act on,
-             which is useful with or without ordering. --}}
+             ALSO gated on `category_ordering_available`, the single flag that carries the
+             list, the arrows and Reset together. The live preview beside it is NOT gated on
+             it: it shows the board the two settings above act on, which is useful with or
+             without the ordering controls. --}}
         {{#if (and this.category_ordering_available this.categorize_enabled)}}
         <ol class="md-board-category-order__list" aria-label={{t "Category order" key="board_category_order"}}>
           {{#each this.category_order_list as |cat|}}
@@ -3834,11 +3833,11 @@
         </div>
       </div>
 
-      {{!-- MOVE-TO-CATEGORY PICKER. Moving a button between categories RECOLOURS
-            it on the real board — the category is derived from the colour — so
-            the swatch beside each name is the colour the button will become, not
-            decoration. This is a board edit and follows the board's Save/Cancel,
-            unlike the category order above it. --}}
+      {{!-- MOVE-TO-CATEGORY PICKER. The move RECORDS the assignment on the board rather
+            than recolouring the button, so the swatch beside each name identifies the
+            category — it is not a preview of what the button will become, and a button
+            keeps its own colour after being moved. Like the order above it, this is a board
+            edit and follows the board's Save/Cancel. --}}
       {{#if this.category_move_button}}
         <div class="md-board-category-order__picker-backdrop" data-bd-action="cancel_category_move" {{on "click" (this.ctrlAction "cancel_category_move")}}></div>
         <div class="md-board-category-order__picker" role="dialog" aria-modal="true" aria-label={{t "Move button to a category" key="board_move_button_category"}}>
@@ -3848,12 +3847,19 @@
             </span>
             <button type="button" class="md-board-category-order__picker-close" data-bd-action="cancel_category_move" {{on "click" (this.ctrlAction "cancel_category_move")}} aria-label={{t "Cancel" key="cancel"}}>×</button>
           </div>
-          <p class="md-board-category-order__picker-note">{{t "This changes the button's color on the board." key="board_move_button_recolors"}}</p>
+          <p class="md-board-category-order__picker-note">{{t "This changes how the button is grouped. Its color stays the same." key="board_move_button_groups"}}</p>
           <div class="md-board-category-order__picker-list">
-            {{!-- category_move_targets, not category_order_list: two registry categories
-                 have no paintable colour and silently no-op as destinations. --}}
-            {{#each this.category_move_targets as |cat|}}
+            {{!-- Every category in the panel's order. There used to be a filtered
+                 `category_move_targets` here because the move was a recolour and seven
+                 registry entries have no paintable colour; the move is data now, so a
+                 category needs no colour to be a destination. --}}
+            {{#each this.category_order_list as |cat|}}
+              {{!-- `data-bd-category` mirrors the `data-bd-action` / `data-bd-control` hooks
+                   the QA probes already key off. The label is translated and the swatch is
+                   a colour, so without it a probe cannot name a destination — and it is the
+                   colourless destinations that most need covering. --}}
               <button type="button" class="md-board-category-order__picker-item"
+                data-bd-category={{cat.key}}
                 style={{safe-style (concat "--bd-group-fill:var(" cat.fillVar ")")}}
                 {{on "click" (this.ctrlAction "move_button_to_category" cat.key)}}>
                 <span class="md-board-category-order__swatch" aria-hidden="true"></span>
