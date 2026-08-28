@@ -7974,12 +7974,16 @@ in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly 
 `feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
 computed dep; the rest were `application.js` line shifts from three payload keys), and
 `fix/melissa-translate-action-tokens-and-lang-search` merging staging (`new=7`; 3 `assert.expect`
-on new tests, one `model.board.id` computed dep, 3 line-shifted `runLater`/controller deps). New unit tests
+on new tests, one `model.board.id` computed dep, 3 line-shifted `runLater`/controller deps), and
+`fix/melissa-inflections-overlay` (`new=49`; all line-shifted `runLater`/computed-dep/string-proto
+in `board.js`/`button.js`/`edit_manager.js`/`raw_events.js`; file|rule counts unchanged except
+one stale `icon-select.js|no-dupe-keys` pruned). New unit tests
 must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
 `@ember/test-helpers`. See
 [`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),
 [`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md),
-and [`2026-08-21-copy-board-eslint-todo-gate.md`](./2026-08-21-copy-board-eslint-todo-gate.md).
+[`2026-08-21-copy-board-eslint-todo-gate.md`](./2026-08-21-copy-board-eslint-todo-gate.md),
+and [`2026-08-27-eslint-todo-line-shift-inflections-overlay.md`](./2026-08-27-eslint-todo-line-shift-inflections-overlay.md).
 
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
