@@ -872,6 +872,27 @@ var editManager = EmberObject.extend({
         {location: 'se', label: i18n.negation(base_label)},
       ]);
     }
+    // Spanish: verbs (person/tense), nouns (plural/gender), adjectives (agreement/degree).
+    // Same empty-grid fallback as English. Manual inflections win.
+    if(lab_locale.match(/^es/i) && lab_locale == voc_locale && (res.length == 0 || defaults_allowed)) {
+      var pos = button.part_of_speech;
+      var src = ((lab && lab.label) || base_label || '').toString();
+      var es_grid = null;
+      if(pos == 'noun') {
+        es_grid = i18n.spanish_noun_grid(src);
+      } else if(pos == 'adjective') {
+        es_grid = i18n.spanish_adjective_grid(src);
+      } else if(!pos || pos == 'verb') {
+        es_grid = i18n.spanish_verb_grid(src);
+      }
+      if(es_grid) {
+        ['nw', 'n', 'ne', 'w', 'c', 'e', 'sw', 's', 'se'].forEach(function(loc) {
+          if(es_grid[loc]) {
+            res.push({location: loc, label: es_grid[loc]});
+          }
+        });
+      }
+    }
     var final = [];
     var seen_locations = {};
     res.forEach(function(i) { 
