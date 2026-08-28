@@ -2781,26 +2781,42 @@ export default Controller.extend(prefClasses, {
   _prediction_freeze_retry_ms: 120,
 
   _prediction_freeze_watch: observer('suggestions.list.[]', function() {
+    /* Already frozen: the render is not changing, so there is nothing to record and nothing
+       to decide. */
+    if(this.get('_prediction_freeze_list')) { return; }
     var words_of = function(list) {
       return ((list || []).map(function(s) { return (s && s.word) || ''; })).join('\u0000');
     };
     var showing = this._displayed_prediction_list;
     var incoming = this._deduped_suggestions(this.get('suggestions.list'));
-    /* Track what is on screen HERE rather than inside the computed: assigning from a computed
-       is an ember/no-side-effects violation, and a computed that records state stops being
-       true the moment it is cached. */
-    if(!this.get('_prediction_freeze_list')) {
-      this._displayed_prediction_list = incoming;
-    } else {
+
+    /* `_displayed_prediction_list` must record what RENDERS, never what merely arrives — so
+       it is written only on the branch where `incoming` is actually about to be rendered.
+       Recording it before the freeze decision meant the field captured the SUPPRESSED list
+       instead: the freeze would then snapshot words the user had never seen, and a later
+       freeze could snap the panel back to a set from two sentences ago. Selecting one of
+       those speaks it and trains the local model through record_selection, so this is not
+       cosmetic. */
+    var blanking = this.get('suggestions') === null;
+    var should_freeze = !blanking &&
+      showing && showing.length &&
+      /* An identical word sequence cannot move anything, so there is nothing to protect. */
+      words_of(showing) !== words_of(incoming) &&
+      this._prediction_panel_targeted();
+
+    if(should_freeze) {
+      /* Leave _displayed_prediction_list alone: `showing` is still what the panel renders. */
+      this.set('_prediction_freeze_list', showing);
+      this._prediction_freeze_started = (new Date()).getTime();
+      this._prediction_freeze_tick();
       return;
     }
-    if(!showing || !showing.length) { return; }
-    /* An identical word sequence cannot move anything, so there is nothing to protect. */
-    if(words_of(showing) === words_of(incoming)) { return; }
-    if(!this._prediction_panel_targeted()) { return; }
-    this.set('_prediction_freeze_list', showing);
-    this._prediction_freeze_started = (new Date()).getTime();
-    this._prediction_freeze_tick();
+    /* Deliberately NOT frozen on a blanking write. A cleared sentence must blank BOTH
+       placements together: the rail renders from prediction_suggestions and would otherwise
+       hold dead words for the whole bound, while the in-bar group gates on `suggestions.ready`
+       and vanishes instantly regardless — so freezing here makes the two disagree and leaves
+       the rail offering predictions for a sentence that no longer exists. */
+    this._displayed_prediction_list = incoming;
   }),
 
   /* Release when the panel stops being the target, or when the bound elapses. Hand-rolled
@@ -2815,6 +2831,10 @@ export default Controller.extend(prefClasses, {
       if(!_this.get('_prediction_freeze_list')) { return; }
       var elapsed = (new Date()).getTime() - _this._prediction_freeze_started;
       if(elapsed >= _this._suggestion_swap_max_hold() || !_this._prediction_panel_targeted()) {
+        /* Re-record before clearing: releasing changes what renders (from the snapshot to
+           whatever is live now), and clearing the freeze does NOT fire the observer, so this
+           is the only place that can keep the bookkeeping true. */
+        _this._displayed_prediction_list = _this._deduped_suggestions(_this.get('suggestions.list'));
         _this.set('_prediction_freeze_list', null);
         return;
       }

@@ -165,6 +165,103 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
+  function railFixture() {
+    const rail = document.createElement('div');
+    rail.className = 'md-board-detail-prediction-rail qa-pred-fixture';
+    const tile = document.createElement('button');
+    tile.className = 'md-board-detail-sentence-bar__prediction';
+    rail.appendChild(tile);
+    document.body.appendChild(rail);
+    return tile;
+  }
+  const wordsOf = (list) => (list || []).map((s) => s.word).join(',');
+
+  test('the freeze holds the displayed words while the panel is targeted', async function(assert) {
+    assert.expect(2);
+    const tile = railFixture();
+    patch(scanner, 'actively_scanning', function() { return false; });
+    patch(scanner, 'current_element', { dom: [tile] });
+    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker, 'last_dwell_linger', null);
+
+    const controller = buildController();
+    try {
+      controller.set('suggestions', { ready: true, list: [{ word: 'A' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'A', 'renders the live list when untargeted');
+
+      scanner.actively_scanning = function() { return true; };
+      controller.set('suggestions', { ready: true, list: [{ word: 'B' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'A',
+        'a change arriving while targeted does not move the tile under the user');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('after a release, the NEXT freeze snapshots the words that replaced them', async function(assert) {
+    assert.expect(4);
+    /* The bookkeeping used to record what ARRIVED rather than what RENDERED, and was never
+       refreshed on release — so a later freeze snapped the panel back to a set the user had
+       never seen, from two changes ago. Selecting one of those speaks it and trains the local
+       model through record_selection, so this is not cosmetic. */
+    const tile = railFixture();
+    patch(scanner, 'actively_scanning', function() { return false; });
+    patch(scanner, 'current_element', { dom: [tile] });
+    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker, 'last_dwell_linger', null);
+
+    const controller = buildController();
+    try {
+      controller.set('_prediction_hold_standard_ms', 60);
+      controller.set('suggestions', { ready: true, list: [{ word: 'A' }] });
+
+      scanner.actively_scanning = function() { return true; };
+      controller.set('suggestions', { ready: true, list: [{ word: 'B' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'A', 'frozen on A');
+
+      /* TWO writes must land while frozen. With only one, "record on arrival" (the bug) and
+         "refresh on release" (the fix) coincide on the same value and the test passes either
+         way — verified by reverting the fix and watching an earlier version of this test stay
+         green. The divergence needs a second suppressed write. */
+      controller.set('suggestions', { ready: true, list: [{ word: 'C' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'A', 'still frozen on A');
+
+      await new Promise((r) => setTimeout(r, 260));   // bound elapses, poll releases
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'C', 'released to the live list, C');
+
+      controller.set('suggestions', { ready: true, list: [{ word: 'D' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'C',
+        'the next freeze holds C — what was actually on screen — not B, which never rendered');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('a cleared sentence blanks the panel instead of freezing dead words', async function(assert) {
+    assert.expect(2);
+    /* The rail renders from prediction_suggestions while the in-bar group gates on
+       suggestions.ready, so freezing a blanking write makes the two disagree and leaves the
+       rail offering predictions for a sentence that no longer exists. */
+    const tile = railFixture();
+    patch(scanner, 'actively_scanning', function() { return false; });
+    patch(scanner, 'current_element', { dom: [tile] });
+    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker, 'last_dwell_linger', null);
+
+    const controller = buildController();
+    try {
+      controller.set('suggestions', { ready: true, list: [{ word: 'A' }] });
+      scanner.actively_scanning = function() { return true; };
+
+      controller.set('suggestions', null);
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), '',
+        'the panel blanks with the sentence rather than holding its words');
+      assert.notOk(controller.get('_prediction_freeze_list'), 'and no freeze was engaged');
+    } finally {
+      controller.destroy();
+    }
+  });
+
   test('_prediction_panel_targeted covers the IN-BAR group, which is a descendant of the scanned row', function(assert) {
     assert.expect(2);
     /* The scanner sweeps the in-bar prediction buttons into the header row, whose dom IS

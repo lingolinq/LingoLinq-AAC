@@ -726,23 +726,29 @@ var scanner = EmberObject.extend({
       // Find the trailing parent stub appended by load_children — its
       // `higher_level` array points back to the previous level.
       var parent = els[els.length - 1];
-      /* If we drilled IN, escape goes back OUT. `higher_level` is set in exactly one place
-         (load_children), so its presence means precisely "this is a drill-in level" — which
-         is the question escape is actually asking.
+      /* REVERTED to an explicit allow-list. Generalising this to "any level with a
+         higher_level" was tried and backed out, because it cost switch users more than the
+         inconsistency it fixed:
 
-         This replaced a class allow-list naming two containers. That list had drifted into
-         incoherence: of roughly eight drill-in levels, two levelled up (the sentence row and
-         the prediction rail) and six fell through to stop() — including board rows in BOTH
-         UIs, the classic header row, the #identity menu and the classic #word_suggestions
-         row. So the same cancel press meant "go back" one row and "quit scanning entirely"
-         the next, and every level added later silently defaulted to quit. For a switch user
-         a mis-press cost them the highlight and a caregiver's help to restart.
+         1. stop() does NOT clear scanner.elements, and modal.open calls scanner.stop() for
+            every non-scannable modal. With the general rule, a cancel press behind an open
+            modal ran level_up -> next_element and RESUMED scanning on the board underneath —
+            scanner.scanning still false — so with scanning_auto_select a button the user
+            could not see could be picked. The allow-list has the same hole, but for two
+            levels rather than all eight.
+         2. level_up puts the highlight back on the row just escaped, and next_element
+            re-arms auto-select. So for an auto-select user, escape -> re-drill -> escape ->
+            re-drill: stopping needed two presses inside ONE scan interval, which is exactly
+            what a long interval exists to avoid. Previously one press from a board row hit
+            stop(), terminal and guaranteed.
 
-         The trade is that stopping from one level deep now takes two presses instead of one.
-         That is the right way round: cancel is a dedicated back/cancel switch, and stop() is
-         the destructive outcome of the two. `.length` guards an empty higher_level, which
-         would otherwise level_up into an empty level and throw in next_element. */
-      if(parent && parent.higher_level && parent.higher_level.length) {
+         The inconsistency is real and still here — of roughly eight drill-in levels, these
+         two level up and the rest stop — but it is a coherence problem, while the above are
+         "the switch user cannot reliably quit" problems. Fixing it properly needs a
+         scanning-state guard and auto-select suppression, both of which want their own tests;
+         it is not a drive-by. See LEARNINGS. */
+      if(parent && parent.higher_level && parent.higher_level.length && parent.dom && parent.dom.hasClass &&
+         (parent.dom.hasClass('md-board-detail-sentence-row') || parent.dom.hasClass('md-board-detail-prediction-rail'))) {
         scanner.level_up(parent);
         return;
       }

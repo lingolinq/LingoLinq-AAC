@@ -1485,20 +1485,42 @@ describe('scanner', function() {
     /* escape() had NO test before this. It decides, on a switch user's cancel press, between
        "go back a level" and "quit scanning entirely" — and quitting costs them the highlight
        and usually a caregiver's help to restart, so the distinction is not cosmetic. */
-    it('levels up out of ANY drilled-in level, not a hardcoded list of containers', function() {
+    it('levels up out of a recognised drill-in level', function() {
       var levelled = null, stopped = false;
       stub(scanner, 'level_up', function(elem) { levelled = elem; });
       stub(scanner, 'stop', function() { stopped = true; });
 
       var top = [{ label: 'row 1' }, { label: 'row 2' }];
-      /* A board row's stub carries no recognisable class — under the old class allow-list
-         this fell through to stop(), while the sentence row beside it levelled up. */
-      var stubElem = { label: 'a board row', higher_level: top, higher_level_index: 1, dom: {} };
+      var stubElem = {
+        label: 'the prediction rail', higher_level: top, higher_level_index: 1,
+        dom: { hasClass: function(c) { return c === 'md-board-detail-prediction-rail'; } }
+      };
       scanner.elements = [{ label: 'child' }, stubElem];
 
       scanner.escape();
       expect(levelled).toEqual(stubElem);
       expect(stopped).toEqual(false);
+    });
+
+    it('STOPS from an unrecognised level — the guaranteed exit switch users depend on', function() {
+      /* Generalising escape to "any level with a higher_level" was tried and reverted. It
+         removed this guarantee: level_up puts the highlight back on the row just escaped and
+         next_element re-arms auto-select, so an auto-select user had to press twice inside one
+         scan interval to stop — exactly what a long interval exists to avoid. It also revived a
+         STOPPED scanner behind an open modal, because stop() does not clear scanner.elements.
+         This test locks the exit in place; changing it is a deliberate product decision that
+         needs a scanning-state guard and auto-select suppression first. */
+      var levelled = null, stopped = false;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+      stub(scanner, 'stop', function() { stopped = true; });
+
+      var top = [{ label: 'row 1' }, { label: 'row 2' }];
+      var stubElem = { label: 'a board row', higher_level: top, higher_level_index: 1, dom: {} };
+      scanner.elements = [{ label: 'child' }, stubElem];
+
+      scanner.escape();
+      expect(levelled).toEqual(null);
+      expect(stopped).toEqual(true);
     });
 
     it('stops when there is nowhere to go back to', function() {
@@ -1519,7 +1541,10 @@ describe('scanner', function() {
       stub(scanner, 'level_up', function(elem) { levelled = elem; });
       stub(scanner, 'stop', function() { stopped = true; });
 
-      scanner.elements = [{ label: 'child' }, { higher_level: [], higher_level_index: 0, dom: {} }];
+      scanner.elements = [{ label: 'child' }, {
+        higher_level: [], higher_level_index: 0,
+        dom: { hasClass: function(c) { return c === 'md-board-detail-prediction-rail'; } }
+      }];
       scanner.escape();
       expect(levelled).toEqual(null);
       expect(stopped).toEqual(true);
