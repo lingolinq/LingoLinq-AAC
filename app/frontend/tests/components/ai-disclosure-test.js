@@ -186,4 +186,49 @@ describe('ai-disclosure', function() {
       });
     });
   });
+
+  /* The acknowledgement must be RECORDED against the account that read the
+     notice. users_controller#article_50_disclosure_ack marks whatever user
+     params['user_id'] names, gated only by allowed?(user, 'edit') -- which a
+     supporter normally passes over their communicator. So reading currentUser
+     here wrote an audited Article 50 disclosure onto a communicator who never
+     saw it, while the supporter who did stayed unacknowledged and kept
+     collecting 403s from the server backstop. */
+  describe("acknowledge action in speak mode (supporter modeling for a communicator)", function() {
+    var supporter, communicator, modalService, closeCalls;
+
+    beforeEach(function() {
+      closeCalls = 0;
+      supporter = EmberObject.create({id: 'supporter-1', article_50_disclosure_shown: false});
+      communicator = EmberObject.create({id: 'communicator-9', article_50_disclosure_shown: false});
+      modalService = EmberObject.create({
+        close: function() { closeCalls++; }
+      });
+      component.set('appState', {
+        get: function(key) {
+          if(key === 'sessionUser') { return supporter; }
+          if(key === 'currentUser') { return communicator; }
+          return null;
+        }
+      });
+      component.set('modal', modalService);
+    });
+
+    it('POSTs the acknowledgement to the authenticated supporter, not the communicator', function() {
+      var posted_url = null;
+      var resolve = null;
+      stub(persistence, 'ajax', function(url) {
+        posted_url = url;
+        return new RSVP.Promise(function(innerResolve) { resolve = innerResolve; });
+      });
+      component.send('acknowledge');
+      resolve({article_50_disclosure_shown: true, disclosures_version: 1});
+      waitsFor(function() { return closeCalls === 1; });
+      runs(function() {
+        expect(posted_url).toEqual('/api/v1/users/supporter-1/article_50_disclosure_ack');
+        expect(supporter.get('article_50_disclosure_shown')).toEqual(true);
+        expect(communicator.get('article_50_disclosure_shown')).toEqual(false);
+      });
+    });
+  });
 });

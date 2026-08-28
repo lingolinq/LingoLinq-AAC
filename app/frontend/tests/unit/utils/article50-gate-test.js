@@ -9,6 +9,7 @@ import {
   onlyIfGenuinelyResolved,
   GATE_NOT_ACKNOWLEDGED,
   art50DisclosureUrl,
+  art50Subject,
   ART50_DISCLOSURE_URL
 } from 'frontend/utils/article50_gate';
 
@@ -17,6 +18,20 @@ function makeAppState(flagOn, user) {
     get: function(key) {
       if(key === 'feature_flags.article_50_disclosure') { return flagOn; }
       if(key === 'currentUser') { return user; }
+      return null;
+    }
+  };
+}
+
+/* app-state in SPEAK MODE for a supporter: set_current_user has repointed
+   currentUser at speakModeUser (the communicator) while sessionUser is still the
+   authenticated supporter. This is the shape the whole subject fix exists for. */
+function makeSpeakModeAppState(flagOn, sessionUser, currentUser) {
+  return {
+    get: function(key) {
+      if(key === 'feature_flags.article_50_disclosure') { return flagOn; }
+      if(key === 'sessionUser') { return sessionUser; }
+      if(key === 'currentUser') { return currentUser; }
       return null;
     }
   };
@@ -233,6 +248,78 @@ module('Unit | Utility | article50 gate', function(hooks) {
     test('percent-encodes the locale value', function(assert) {
       i18n.langs = {preferred: 'es ES&x=1'};
       assert.strictEqual(art50DisclosureUrl().indexOf('&x=1'), -1);
+    });
+  });
+
+  /* The gate SUBJECT. The server backstop evaluates @api_user, the
+     token-authenticated account, and never follows speak mode; the client must
+     name the same person or the two ends decide about different humans. */
+  module('art50Subject', function() {
+    test('prefers the authenticated sessionUser over currentUser', function(assert) {
+      var supporter = makeUser();
+      var communicator = makeUser();
+      var appState = makeSpeakModeAppState(true, supporter, communicator);
+      assert.strictEqual(art50Subject(appState), supporter);
+    });
+
+    test('falls back to currentUser before sessionUser is assigned', function(assert) {
+      var user = makeUser();
+      assert.strictEqual(art50Subject(makeAppState(true, user)), user);
+    });
+
+    test('returns null for a non-appState argument', function(assert) {
+      assert.strictEqual(art50Subject(null), null);
+      assert.strictEqual(art50Subject({}), null);
+    });
+  });
+
+  module('needsAcknowledgement in speak mode (supporter modeling for a communicator)', function() {
+    test('gates the SUPPORTER who has not acknowledged, even though the communicator has', function(assert) {
+      var supporter = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
+      var communicator = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: true});
+      var appState = makeSpeakModeAppState(true, supporter, communicator);
+      assert.true(needsAcknowledgement(appState),
+        'the supporter is the human interacting with the AI, and the server will refuse THEIR account');
+    });
+
+    test('does NOT gate a supporter who has acknowledged, even though the communicator has not', function(assert) {
+      var supporter = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: true});
+      var communicator = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
+      var appState = makeSpeakModeAppState(true, supporter, communicator);
+      assert.false(needsAcknowledgement(appState),
+        'gating here would ask the supporter to re-acknowledge a notice already on their record');
+    });
+  });
+
+  /* REGRESSION GUARD for the fail-OPEN trap in asAppState. routes/index.js and
+     routes/bento.js hand maybeShowSessionEntryGate a MODEL, not an appState;
+     asAppState shims it. If that shim stops answering the identity key
+     art50Subject asks for, needsAcknowledgement returns false and the
+     session-entry disclosure silently never opens again. No other suite would
+     notice. */
+  module('session-entry gate survives the subject change', function() {
+    // modal.open is saved and restored by the enclosing module's hooks.
+    test('maybeShowSessionEntryGate still opens the modal for a fresh un-acknowledged model', function(assert) {
+      var openCalled = false;
+      modal.open = function() { openCalled = true; return RSVP.resolve(); };
+      maybeShowSessionEntryGate(makeUser({
+        really_fresh: true,
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false
+      }));
+      assert.true(openCalled,
+        'asAppState must resolve BOTH currentUser and sessionUser to the model, or this gate dies silently');
+    });
+
+    test('maybeShowSessionEntryGate still stays shut once the model is acknowledged', function(assert) {
+      var openCalled = false;
+      modal.open = function() { openCalled = true; return RSVP.resolve(); };
+      maybeShowSessionEntryGate(makeUser({
+        really_fresh: true,
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: true
+      }));
+      assert.false(openCalled);
     });
   });
 });

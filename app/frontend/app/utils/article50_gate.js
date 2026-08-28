@@ -55,16 +55,52 @@ export function art50DisclosureUrl() {
 }
 
 /**
+ * The account this gate speaks about: the AUTHENTICATED session user, not
+ * `currentUser`.
+ *
+ * Article 50(1) informs the human INTERACTING with the AI system, and the
+ * server evaluates exactly that account -- ApplicationController's
+ * article_50_disclosure_missing? tests @api_user, the token-authenticated user,
+ * which is only ever swapped for an explicit `as_user` masquerade and never for
+ * speak mode. `currentUser` is NOT that account in speak mode:
+ * app-state.js#set_current_user repoints it at `speakModeUser` whenever one is
+ * set. So a supporter speaking for a communicator had this gate evaluated
+ * against the COMMUNICATOR while the server refused the SUPPORTER, the two ends
+ * deciding about different people; and the acknowledgement POST in
+ * components/ai-disclosure.js then wrote an audited Article 50 disclosure onto a
+ * communicator who never saw the notice, while the supporter's own record stayed
+ * unacknowledged and kept collecting 403s.
+ *
+ * `currentUser` remains the fallback for the pre-session-record window where
+ * sessionUser is not yet assigned, the same ordering and the same reason as
+ * app-state.js#record_session_location. Falling back cannot open a hole: this
+ * gate is the PRESENTATION layer, and all five server-side backstops still
+ * refuse the authenticated account regardless of what the client decided.
+ *
+ * NOT to be confused with utils/ai_feature_gate.js, which reads `currentUser`
+ * deliberately and correctly: it answers "may this data subject's data be
+ * processed by AI at all", where the communicator IS the right subject. Two
+ * different questions about two different people; do not unify them.
+ */
+export function art50Subject(appState) {
+  if (!appState || typeof appState.get !== 'function') { return null; }
+  var user = appState.get('sessionUser');
+  if (user && typeof user.get === 'function') { return user; }
+  return appState.get('currentUser');
+}
+
+/**
  * True only when the article_50_disclosure feature flag is on AND there is a
- * current user AND that user's article_50_disclosure_required is true AND
- * article_50_disclosure_shown is false. Fail-safe direction per D-04: gates on
+ * gate subject (art50Subject above) AND that user's
+ * article_50_disclosure_required is true AND article_50_disclosure_shown is
+ * false. Fail-safe direction per D-04: gates on
  * EuJurisdiction.disclosure_required? (already true for :eu and :unknown), not
  * on the retention-column jurisdiction stamp.
  */
 export function needsAcknowledgement(appState) {
   if (!appState || typeof appState.get !== 'function') { return false; }
   if (!appState.get('feature_flags.article_50_disclosure')) { return false; }
-  var user = appState.get('currentUser');
+  var user = art50Subject(appState);
   if (!user || typeof user.get !== 'function') { return false; }
   if (!user.get('article_50_disclosure_required')) { return false; }
   if (user.get('article_50_disclosure_shown')) { return false; }
@@ -138,7 +174,16 @@ export function presentBlockingGate(appState) {
 function asAppState(model) {
   return {
     get: function(key) {
-      if (key === 'currentUser') { return model; }
+      // BOTH identity keys resolve to the model. The caller has already handed
+      // us the one account it means: routes/index.js and routes/bento.js pass
+      // findRecord('user', 'self'), i.e. the authenticated account, which is
+      // exactly what art50Subject is looking for. Mapping only 'currentUser'
+      // here would make art50Subject read model.get('sessionUser') === undefined
+      // and then fall through to model.get('currentUser') === undefined, so
+      // needsAcknowledgement would return false and the session-entry gate would
+      // silently stop firing. That is a fail-OPEN regression that no other suite
+      // would catch; hence this shim and its dedicated test.
+      if (key === 'currentUser' || key === 'sessionUser') { return model; }
       return model.get(key);
     }
   };
@@ -189,6 +234,7 @@ export default {
   ART50_CURRENT_VERSION: ART50_CURRENT_VERSION,
   ART50_DISCLOSURE_URL: ART50_DISCLOSURE_URL,
   art50DisclosureUrl: art50DisclosureUrl,
+  art50Subject: art50Subject,
   GATE_NOT_ACKNOWLEDGED: GATE_NOT_ACKNOWLEDGED,
   needsAcknowledgement: needsAcknowledgement,
   presentBlockingGate: presentBlockingGate,
