@@ -1097,10 +1097,23 @@ export default Controller.extend(prefClasses, {
         return;
       }
       var key = item.word.toLowerCase();
-      if(lookups[key]) { return; }
+      var seen = lookups[key];
+      if(seen) {
+        /* A RESOLVED url is replayed onto this lookup's item. The latch used to store only
+           `true`, which made it a "we already asked" flag with nothing to show for it: every
+           lookup builds FRESH item objects (word_suggestions#merge_suggestions), so the item
+           that received the url is discarded, and the next lookup for the same word hits this
+           early return and renders with no symbol — permanently, until clear_sentence resets
+           the map. Type "h" and "hello" has its symbol; type "he" and it comes back bare. For a
+           symbol-reliant user that is the word becoming unreadable. Mirrors the fix the
+           sentence-chip pipeline already uses (_resolved_label_images). */
+        if(seen !== true) { item.image = seen; }
+        return;
+      }
       lookups[key] = true;
       wordSuggestionsModule.attach_image_for_label(item.word, lookup_ids, function(url) {
         if(_this.isDestroyed || _this.isDestroying || !url) { return; }
+        lookups[key] = url;
         item.image = url;
         _this._republish_suggestion_list();
       }, ctx);
@@ -2761,22 +2774,28 @@ export default Controller.extend(prefClasses, {
      no longer exists (updateSuggestions will not fire again until the next button
      press, so nothing corrects it). Also called when a NEW lookup starts, since anything
      still pending is superseded by it. */
-  _cancel_pending_suggestion_swap: function(preserve_deadline) {
+  _cancel_pending_suggestion_swap: function() {
     if(this._suggestion_swap_timer) {
       clearTimeout(this._suggestion_swap_timer);
       this._suggestion_swap_timer = null;
     }
     this._pending_suggestions = null;
-    /* The deadline is the total-staleness clock for a RUN of holds, not for one set. A new
-       lookup supersedes the pending set but must not restart that clock: every AI-fallback
-       lookup calls this, so clearing it unconditionally made the cap unbounded again along
-       that path — the same hole the synchronous cap was written to close, through another
-       door. Callers that end the run (the panel blanking) clear it explicitly. */
-    if(!preserve_deadline) { this._suggestion_swap_deadline = null; }
+    /* The deadline is PER PENDING SET and is always cleared with it.
+       A previous revision preserved it across `_begin_suggestion_lookup` on the theory that
+       a stream of AI-fallback lookups could each restart a bounded window and so make the
+       hold unbounded. That was overstated — the original unbounded bug was self-sustaining
+       (the 120ms retry re-entered with no external input), whereas this path needs a fresh
+       user action per cycle, each already bounded. And preserving it was actively harmful:
+       the clock kept burning while NOTHING was held (the AI predict costs a 300ms debounce
+       plus a round trip), so the AI result arrived to an already-spent budget and committed
+       with ZERO hold — replacing the tile under a live dwell, the exact mis-selection the
+       hold exists to prevent. Per-set is the correct scope; the synchronous cap is what
+       actually bounds it. */
+    this._suggestion_swap_deadline = null;
   },
 
   _begin_suggestion_lookup: function() {
-    this._cancel_pending_suggestion_swap(true);
+    this._cancel_pending_suggestion_swap();
     var current = this.get('suggestions') || {};
     this.set('suggestions', { ready: current.ready, list: current.list || [], loading: true });
   },
@@ -2840,8 +2859,15 @@ export default Controller.extend(prefClasses, {
     if(typeof document === 'undefined') { return false; }
     var selector = '.md-board-detail-prediction-rail, .md-board-detail-sentence-bar__prediction-group';
     var within = function(node) {
-      if(!node || node.nodeType !== 1 || !node.closest) { return false; }
-      return !!node.closest(selector);
+      if(!node || node.nodeType !== 1) { return false; }
+      /* Both directions, deliberately. `closest` alone (ancestors only) covers the RAIL, whose
+         scan row carries the rail element itself. It does NOT cover the in-bar group, which is a
+         DESCENDANT of #speak — and the scanner sweeps those buttons into the header row whose
+         dom IS #speak. So while the header row is highlighted, an ancestor-only test reported
+         "not targeted" and the hold never engaged for the `speak_bar` placement, nor for any
+         `auto` user above 1024px where the in-bar group is the active one. */
+      if(node.closest && node.closest(selector)) { return true; }
+      return !!(node.querySelector && node.querySelector(selector));
     };
     try {
       if(scanner.actively_scanning()) {
@@ -2863,7 +2889,13 @@ export default Controller.extend(prefClasses, {
       var linger = buttonTracker.last_dwell_linger;
       var dwell_on = buttonTracker.check && buttonTracker.check('dwell_enabled');
       var stamped = linger && (linger.updated || linger.started);
-      var fresh_for = (buttonTracker.dwell_timeout || 1000) + 500;
+      /* Same reasoning as the cap above: in switch-paced modes there is no dwell timeout, and
+         a mouse/joystick cursor held still emits no further events, so `updated` would age out
+         while the user is still holding position waiting to press. (Gaze trackers keep emitting
+         gazelinger, so this only bites cursor-driven switch users.) Auto dwell self-completes —
+         raw_events schedules the trigger even if the cursor stops — so dwell_timeout+500 covers
+         it. Bounded either way by the cap. */
+      var fresh_for = this._suggestion_swap_max_hold();
       if(dwell_on && stamped && ((new Date()).getTime() - stamped) <= fresh_for) {
         var lingered = linger.dom && (linger.dom[0] || linger.dom);
         if(lingered && document.body.contains(lingered) && within(lingered)) { return true; }
@@ -2886,20 +2918,29 @@ export default Controller.extend(prefClasses, {
          swap does not leave the panel dimmed for the length of the hold. */
   _suggestion_swap_retry_ms: 120,
   _suggestion_swap_max_hold_ms: 2000,
-  /* dwell_selection 'button'/'expression' is SWITCH-PACED: the dwell never self-completes —
-     the user holds the gaze and presses when ready — so 2s is not a "long dwell", it is an
-     ordinary one for anyone slower than average, and capping there replaces the tile
-     mid-reach. Bound it generously instead of not at all: an unbounded hold froze the panel
-     (the bug the cap exists for), but a wrong selection is the worse of the two failures. */
+  /* How long a hold may last, derived from how long the user's own interaction takes.
+     - switch-paced dwell ('button'/'expression') never self-completes: the user holds the
+       gaze and presses when ready, so there is no timeout bounding them and 2s is an
+       ordinary reach, not a long one.
+     - auto dwell completes at `dwell_timeout`, so the cap must clear that or it replaces the
+       tile mid-dwell for anyone whose dwell_duration is set above 2s — which keying off the
+       MODE alone did nothing for.
+     Gated on dwell_enabled because `buttonTracker.dwell_selection` is a sticky singleton:
+     services/app-state.js assigns it only inside the dwell-on branch and resets it nowhere,
+     so a device where dwell was once on would otherwise hand a non-dwell user the long cap
+     — freezing their predictions for 8s, at 4x the intended duration, via the scanner branch. */
   _suggestion_swap_max_hold_switch_ms: 8000,
   _suggestion_swap_max_hold: function() {
+    var standard = this.get('_suggestion_swap_max_hold_ms');
     try {
-      var mode = buttonTracker.check && buttonTracker.check('dwell_selection');
+      if(!(buttonTracker.check && buttonTracker.check('dwell_enabled'))) { return standard; }
+      var mode = buttonTracker.check('dwell_selection');
       if(mode === 'button' || mode === 'expression') {
         return this.get('_suggestion_swap_max_hold_switch_ms');
       }
+      return Math.max(standard, 2 * (buttonTracker.dwell_timeout || 1000));
     } catch(e) { /* advisory read — fall through to the standard cap */ }
-    return this.get('_suggestion_swap_max_hold_ms');
+    return standard;
   },
   _commit_suggestions: function(next) {
     var _this = this;
@@ -2943,17 +2984,19 @@ export default Controller.extend(prefClasses, {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       var pending = _this._pending_suggestions;
       if(!pending) { return; }
-      /* The panel has been blanked while this set was held. Committing now would resurrect
-         predictions for a sentence that no longer exists.
+      /* The panel was deliberately blanked while this set was held — prediction turned off,
+         edit mode, or the sentence cleared. Committing now would resurrect predictions for a
+         sentence that no longer exists.
 
-         Test the SHAPE, not one sentinel: `=== null` covered only the three in-controller
-         writers, and edit_manager.process_for_displaying (utils/edit_manager.js, via the
-         editManager.controller binding set in routes/user/board-detail.js) blanks the panel
-         with `{loading: true}` and then `{ready: true}` — no `list` on either — whenever the
-         board level changes or the locale switches. Those are not null, so they slipped
-         straight past the old check. Anything with no `list` is a blanked panel. */
-      var live = _this.get('suggestions');
-      if(!live || !live.list) {
+         `=== null` is deliberately narrow. A previous revision widened this to "no `list`" to
+         also catch edit_manager.process_for_displaying's `{loading:true}` / `{ready:true}` /
+         `{error:true}` writes — but that block sits BELOW an early return that fires for
+         board-detail speak mode (utils/edit_manager.js, `speak_mode && is_board_detail &&
+         !edit_mode`), so it cannot blank this panel here at all. Widening bought nothing and
+         cost real results: `{error:true}` has no follow-up `updateSuggestions`, so dropping a
+         valid pending set there left the panel blank until the next button press, where
+         committing would have restored the words. Blank means null; nothing else. */
+      if(_this.get('suggestions') === null) {
         _this._pending_suggestions = null;
         _this._suggestion_swap_deadline = null;
         return;

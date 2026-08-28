@@ -72716,7 +72716,7 @@ span.md-board-detail-modeling-btn--paused:hover {
   opacity: 0.55;
 }
 
-/* Word-prediction rail (<=768px). The in-bar predictions overflow on small
+/* Word-prediction rail (<=1024px). The in-bar predictions overflow on small
    screens, so they relocate into this vertical column between the board grid
    and the inline sidebar (a flex item inside .md-board-detail-grid-sidebar-wrap,
    which is a flex row). Hidden on larger screens — the inline in-bar group is
@@ -76367,7 +76367,7 @@ span.md-board-detail-modeling-btn--paused:hover {
   font-size: 15px;
 }
 /* Wider viewports (>1024px): a 125px sidebar. At <=1024px it stays at the
-   base 100px width (and 70px at <=768px). */
+   base 100px width (and 70px at <=1024px). */
 @media (min-width: 1025px) {
   .md-board-detail-inline-sidebar {
     width: 112px;
@@ -76392,7 +76392,7 @@ span.md-board-detail-modeling-btn--paused:hover {
     font-size: 12px;
   }
 }
-/* <=768px: narrow the sidebar to 70px and shrink its buttons ~33% from the
+/* <=1024px: narrow the sidebar to 70px and shrink its buttons ~33% from the
    <=1024px sizes (img 42->28, label/item font 12->8, item padding 7/4->5/3) so the
    board + prediction rail get more room. Side padding dropped too. Pin still
    centers via its own auto margins. */
@@ -80058,7 +80058,7 @@ span.md-board-detail-modeling-btn--paused:hover {
 .md-board-detail-grid__row {
   display: contents;
 }
-/* Narrow screens (<=768px): "colored corner" folders want the buttons extra
+/* Narrow screens (<=1024px): "colored corner" folders want the buttons extra
    close (2px) so the corner indicator reads well — tighter than the general
    proportional cap on the base rule. Other folder styles are already handled by
    the base `gap: min(--bd-button-gap, proportional)` rule above, which scales
@@ -80815,7 +80815,7 @@ span.md-board-detail-modeling-btn--paused:hover {
   padding: 3px 2px 5px;
 }
 /* Tight viewports: drop the bottom padding on button labels. At
-   <=768px the grid compresses cards enough that the 5px bottom
+   <=1024px the grid compresses cards enough that the 5px bottom
    padding eats a noticeable slice of the card height — pushing the
    label visually into the image and leaving a dead-zone between
    text and card bottom. Top + horizontal padding kept so the

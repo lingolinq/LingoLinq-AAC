@@ -1101,14 +1101,17 @@ var scanner = EmberObject.extend({
     }
   },
   load_children: function(elem, elements, index) {
-    /* Defaults LAST: with `elem` last, an element that already carried higher_level/
-       higher_level_index (a stub fed back in by next_element's recovery) would override the
-       level we were actually given and level up to the wrong place. Harmless while reaching
-       that code needed a user selection; it fires automatically now, so pin the real values. */
+    /* Defaults LAST so the level we were handed always wins. I could not construct a path
+       where `elem` already carries higher_level (pick short-circuits such elements to
+       level_up before reaching here, and the recovery passes the drilled element, not the
+       stub) — this is correct-by-construction hygiene, not a fix for an observed bug. */
     var parent = Object.assign({}, elem, {higher_level: elements, higher_level_index: index});
     if(elem.reload_children) {
       elem.children = elem.reload_children();
     }
+    /* Normalise before the checks below: a group with no `children` at all reached
+       `elem.children.concat(...)` and threw. */
+    if(!elem.children) { elem.children = []; }
     /* A group whose children have ALL gone (a word-prediction lookup that came back
        empty, a menu that closed) has nothing left to scan, and building a level that
        holds only the level-up stub strands the user on an empty box.
@@ -1126,12 +1129,15 @@ var scanner = EmberObject.extend({
        the old code left the user on a level holding only its own level-up stub.
 
        `.length` on higher_level: an empty array is truthy, and level_up would then set
-       scanner.elements = [] and next_element would dereference elements[0].dom and die with
-       no recovery. The old code produced [parent], which was survivable.
+       scanner.elements = [] and next_element would dereference elements[0].dom and die. Both
+       real call sites pass a non-empty level, so this is defensive, not a rescue of an
+       observed crash.
 
        Returns true so next_element's recovery can tell we already levelled up and skip its
-       own `elements.length == 1` level-up, which would otherwise jump two levels at once. */
-    if((!elem.children || elem.children.length === 0) && parent.higher_level && parent.higher_level.length) {
+       own `elements.length == 1` level-up. That check is not currently reachable after this
+       branch (this function no longer produces single-stub levels), so the signal is
+       belt-and-braces against a future path that does. */
+    if(elem.children.length === 0 && parent.higher_level && parent.higher_level.length) {
       scanner.level_up(parent);
       return true;
     }
