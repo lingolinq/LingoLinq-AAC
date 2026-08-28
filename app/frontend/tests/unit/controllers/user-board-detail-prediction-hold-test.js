@@ -125,14 +125,18 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       controller.set('_suggestions_loading_cue_delay', 60);
       controller.set('suggestions', { ready: true, list: [{ word: 'hello' }], loading: true });
 
-      // three republishes, each well inside the 60ms delay
-      for (let i = 0; i < 3; i++) {
+      /* Keep republishing THROUGHOUT a window several times the delay, and assert while the
+         burst is still going. An earlier version of this test stopped republishing and then
+         waited, which let the restarted timer fire and passed against the bug it was meant to
+         catch — the failure is "the cue never appears WHILE images keep resolving", so the
+         assertion has to land inside that window. */
+      const deadline = Date.now() + 300;
+      while (Date.now() < deadline) {
         await new Promise((r) => setTimeout(r, 20));
         controller._republish_suggestion_list();
       }
-      await new Promise((r) => setTimeout(r, 120));
       assert.true(controller.get('suggestions_loading_visible'),
-        'the cue still appears despite the republish burst');
+        'the cue appears during a continuous republish burst, not only once it stops');
 
       controller.set('suggestions', { ready: true, list: [{ word: 'hello' }] });
       await new Promise((r) => setTimeout(r, 20));
