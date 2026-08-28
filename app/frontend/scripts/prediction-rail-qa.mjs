@@ -102,6 +102,7 @@ const MEASURE_ALIGNMENT = () => {
 
   return {
     ok: true,
+    tiles: tiles.length,
     hasFolders: grid.classList.contains('md-board-detail-grid--has-folders'),
     tabLabels: grid.classList.contains('md-board-detail-grid--folder-tab-labels'),
     coloredCorner: grid.classList.contains('md-board-detail-grid--folder-colored-corner'),
@@ -159,7 +160,11 @@ const START_SAMPLER = () => {
 };
 
 const READ_SAMPLER = () => {
-  const p = window.__railProbe || {};
+  /* A missing probe object means the page navigated out from under the sampler (a reload,
+     a session bounce). Report that rather than letting `|| 0` below turn every field into
+     a perfect score — 0 spread over 0 frames used to read as PASS. */
+  if (!window.__railProbe) { return { dead: true }; }
+  const p = window.__railProbe;
   p.stop = true;
   return {
     samples: p.samples || 0,
@@ -284,10 +289,30 @@ const setThrottle = async (client, { network, cpu }) => {
       ['colored_corner', 'colored_corner']
     ];
     for (const [label, value] of STYLES) {
-      await setPrefs({ folder_display_style: value === undefined ? null : value });
+      const wrote = await setPrefs({ folder_display_style: value === undefined ? null : value });
+      if (wrote !== true) { fail(`alignment — folder style "${label}"`, `could not write the style: ${wrote}`); continue; }
       await seedSentence();
       const m = await page.evaluate(MEASURE_ALIGNMENT);
       if (!m.ok) { fail(`alignment — folder style "${label}"`, m.why); continue; }
+      /* Assert the style actually APPLIED before trusting the geometry. Without this the
+         three iterations can measure one identical rendered state and print three PASSes —
+         which is exactly what happened before this check existed, since the pref write was
+         unchecked and the grid classes were read and then discarded. */
+      if (m.tabLabels !== (label === 'tab_labels') || m.coloredCorner !== (label === 'colored_corner')) {
+        fail(`alignment — folder style "${label}" is actually applied`,
+          `grid reports tab_labels=${m.tabLabels}, colored_corner=${m.coloredCorner} — the board is not in "${label}"`);
+        continue;
+      }
+      /* Every tile must pair with a board row. prediction_rail_suggestions caps the tile
+         count at the board's row count, so an unpaired tile means the pairing walk is
+         wrong (grouped/keyboard boards place cells by explicit grid-row, so the flat
+         row-major index does not hold) — and an empty rows array would otherwise make
+         `bad.length === 0` and `Math.max(0, ...[])` print a clean PASS on no measurement. */
+      if (m.rows.length === 0 || m.rows.length !== m.tiles) {
+        fail(`alignment — folder style "${label}"`,
+          `paired ${m.rows.length} of ${m.tiles} tile(s) — cannot conclude anything from a partial pairing`);
+        continue;
+      }
       if (!m.hasFolders && label === 'default') {
         info('NOTE: this board carries no folders, so no cell reserve applies — check 1 is not' +
           ' exercised here. Re-run against a board WITH folders to make it meaningful.');
@@ -328,7 +353,9 @@ const setThrottle = async (client, { network, cpu }) => {
 
     const reportSelections = (name, w, extra) => {
       if (!w) { fail(name, 'sampler could not attach — no word card to sample'); return null; }
-      const detail = `${w.samples} frames, card width ${w.min}–${w.max}px (spread ${w.spread}px), ` +
+        if (w.dead) { fail(name, 'the sampler was destroyed mid-run (page navigated?) — no measurement'); return null; }
+      if (!w.samples) { fail(name, 'the sampler recorded 0 frames — nothing was measured'); return null; }
+    const detail = `${w.samples} frames, card width ${w.min}–${w.max}px (spread ${w.spread}px), ` +
         `rail missing on ${w.railGone} frame(s), longest loading window ${w.maxLoadingRun}ms, ` +
         `cue shown=${w.cueSeen}` + (extra ? `; ${extra}` : '');
       if (w.spread <= 1 && w.railGone === 0) { pass(name, detail); } else {
@@ -407,29 +434,113 @@ const setThrottle = async (client, { network, cpu }) => {
 
       const realActively = window.scanner.actively_scanning;
       const realCurrent = window.scanner.current_element;
-      window.scanner.actively_scanning = () => true;
-      window.scanner.current_element = { dom: [tile] };
+      let beforeWords, heldWords, controlWords;
+      try {
+        /* CONTROL first: the same commit with the panel NOT targeted must land immediately.
+           Without it, "held" is indistinguishable from "slow", "debounced" or "dropped" —
+           the observation would be identical and the check would not mean its own name. */
+        const control = [{ word: 'zzcontrolone' }, { word: 'zzcontroltwo' }];
+        c._commit_suggestions({ ready: true, list: control });
+        await new Promise((r) => setTimeout(r, 250));
+        controlWords = words();
 
-      const beforeWords = words();
-      c._commit_suggestions({ ready: true, list: [{ word: 'zzprobealpha' }, { word: 'zzprobebeta' }] });
-      await new Promise((r) => setTimeout(r, 400));
-      const heldWords = words();
-
-      window.scanner.actively_scanning = realActively;
-      window.scanner.current_element = realCurrent;
+        /* Re-query the tile AFTER the control commit. The control replaces the words, and
+           with key="word" that destroys the previous tile nodes — feeding the stale one to
+           current_element makes _prediction_panel_targeted correctly report "not targeted"
+           (a detached node is not a live target), and the check then measures nothing.
+           Verified: targeted=false with the stale node, true with a fresh one. */
+        const liveTile = document.querySelector('.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction');
+        if (!liveTile) { return 'no tile on screen after the control commit'; }
+        window.scanner.actively_scanning = () => true;
+        window.scanner.current_element = { dom: [liveTile] };
+        beforeWords = words();
+        c._commit_suggestions({ ready: true, list: [{ word: 'zzprobealpha' }, { word: 'zzprobebeta' }] });
+        await new Promise((r) => setTimeout(r, 400));
+        heldWords = words();
+      } finally {
+        window.scanner.actively_scanning = realActively;
+        window.scanner.current_element = realCurrent;
+      }
       await new Promise((r) => setTimeout(r, 600));
       const releasedWords = words();
-      return { beforeWords, heldWords, releasedWords };
+      return { beforeWords, heldWords, releasedWords, controlWords };
     });
     if (typeof hold === 'string') {
       fail('swap is held while the panel is the scan target', hold);
+    } else if (hold.controlWords.indexOf('zzcontrolone') === -1) {
+      fail('swap is held while the panel is the scan target',
+        `CONTROL failed: an untargeted commit did not land ("${hold.controlWords}") — the hold ` +
+        'result below would be meaningless, since a commit that never lands looks identical to one held');
     } else if (hold.heldWords === hold.beforeWords && hold.releasedWords.indexOf('zzprobealpha') !== -1) {
       pass('swap is held while the panel is the scan target',
-        `words unchanged during the scan ("${hold.heldWords}"), committed on release ("${hold.releasedWords}")`);
+        `control commit landed immediately ("${hold.controlWords}"), words then unchanged during ` +
+        `the scan ("${hold.heldWords}"), committed on release ("${hold.releasedWords}")`);
     } else {
       fail('swap is held while the panel is the scan target',
-        `before="${hold.beforeWords}" held="${hold.heldWords}" released="${hold.releasedWords}" ` +
-        '— held should equal before, released should contain the probe words');
+        `control="${hold.controlWords}" before="${hold.beforeWords}" held="${hold.heldWords}" ` +
+        `released="${hold.releasedWords}" — held should equal before, released should contain the probe words`);
+    }
+
+    /* ---- 5b. regressions from the adversarial review of this branch ----
+       Neither had any coverage; both were live bugs. Driven whitebox because both are
+       about state transitions inside the hold, which cannot be produced from the outside. */
+    const holdRegressions = await page.evaluate(async () => {
+      const c = window.editManager && window.editManager.controller;
+      if (!c) { return 'no controller'; }
+      const words = () => Array.from(document.querySelectorAll('.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-label')).map((e) => e.textContent.trim()).join(',');
+      const realA = window.scanner.actively_scanning;
+      const realC = window.scanner.current_element;
+      const out = {};
+      try {
+        /* (a) A held set must NOT survive the sentence being cleared. Before the fix, the
+           bare setTimeout committed 120ms after suggestions were blanked and resurrected
+           predictions for a sentence that no longer existed. */
+        let tile = document.querySelector('.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction');
+        if (!tile) { return 'no tile to target'; }
+        window.scanner.actively_scanning = () => true;
+        window.scanner.current_element = { dom: [tile] };
+        c._commit_suggestions({ ready: true, list: [{ word: 'zzghostword' }] });
+        c.set('suggestions', null);              // what "Clear" does
+        await new Promise((r) => setTimeout(r, 500));
+        out.wordsAfterClear = words();
+        out.ghostReturned = words().indexOf('zzghostword') !== -1;
+
+        /* (b) The 2s cap must be enforced even under a commit stream faster than the 120ms
+           retry. Before the fix the deadline was only read inside the timer that every
+           entry cleared, so the hold never expired. Drive it by ageing the deadline. */
+        c.set('suggestions', { ready: true, list: [{ word: 'zzbase' }] });
+        await new Promise((r) => setTimeout(r, 50));
+        tile = document.querySelector('.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction');
+        window.scanner.current_element = { dom: [tile] };
+        c._commit_suggestions({ ready: true, list: [{ word: 'zzheld' }] });   // starts the hold
+        c._suggestion_swap_deadline = (new Date()).getTime() - 1;             // cap has elapsed
+        c._commit_suggestions({ ready: true, list: [{ word: 'zzaftercap' }] });
+        await new Promise((r) => setTimeout(r, 50));
+        out.wordsAfterCap = words();
+        out.capHonoured = words().indexOf('zzaftercap') !== -1;
+      } finally {
+        window.scanner.actively_scanning = realA;
+        window.scanner.current_element = realC;
+      }
+      return out;
+    });
+    if (typeof holdRegressions === 'string') {
+      fail('hold regressions — cleared sentence stays cleared, and the cap is honoured', holdRegressions);
+    } else {
+      if (!holdRegressions.ghostReturned) {
+        pass('hold regression — a held swap does not survive the sentence being cleared',
+          `panel showed "${holdRegressions.wordsAfterClear}" after the clear; the held word never returned`);
+      } else {
+        fail('hold regression — a held swap does not survive the sentence being cleared',
+          `the held word came back after the clear: "${holdRegressions.wordsAfterClear}"`);
+      }
+      if (holdRegressions.capHonoured) {
+        pass('hold regression — the max-hold cap is enforced synchronously',
+          `a commit past the elapsed deadline landed immediately ("${holdRegressions.wordsAfterCap}") despite the panel still being targeted`);
+      } else {
+        fail('hold regression — the max-hold cap is enforced synchronously',
+          `the panel still shows "${holdRegressions.wordsAfterCap}" — the hold outlived its own cap`);
+      }
     }
 
     /* ---- 6. the rail is in the scan order ----
@@ -469,12 +580,20 @@ const setThrottle = async (client, { network, cpu }) => {
       u.set('preferences.device.scanning', priorScanning);
       if (!priorAppState) { s.set('appState', priorAppState); }
       if (!captured) { return 'scan_elements was never called — start() bailed for another reason'; }
-      return captured.map((r) => ({ label: r.label, children: (r.children || []).length }));
+      return captured.map((r) => ({
+        label: r.label,
+        children: (r.children || []).length,
+        /* Identify by DOM, never by label: scanner.js builds TWO rows with the same
+           i18n'd "Suggestions" label (the classic #word_suggestions row and the rail),
+           so a label match could pass while the rail row was missing — and a hardcoded
+           English literal would false-FAIL under any other locale. */
+        isRail: !!(r.dom && r.dom.hasClass && r.dom.hasClass('md-board-detail-prediction-rail'))
+      }));
     });
     if (typeof scanRows === 'string') {
       fail('the prediction rail is reachable by scanning', scanRows);
     } else {
-      const row = scanRows.find((r) => r.label === 'Suggestions' && r.children > 0);
+      const row = scanRows.find((r) => r.isRail && r.children > 0);
       if (row) {
         pass('the prediction rail is reachable by scanning',
           `a Suggestions row with ${row.children} tile(s) is in the scan order: ${JSON.stringify(scanRows)}`);
@@ -538,7 +657,10 @@ const setThrottle = async (client, { network, cpu }) => {
          real render for as long as a bad deployment would sit there. The state written
          here is exactly what _begin_suggestion_lookup writes; what is being measured is
          the layout and the cue, which are the things that were broken. */
-      if (await page.evaluate(START_SAMPLER)) {
+      if (!(await page.evaluate(START_SAMPLER))) {
+        fail('throttled — a 3s loading window moves nothing and shows the cue',
+          'sampler could not attach — no word card present; check SKIPPED, not passed');
+      } else {
         const held = await page.evaluate(async () => {
           const c = window.editManager && window.editManager.controller;
           if (!c) { return 'no controller'; }

@@ -207,6 +207,8 @@ file (see [README.md](README.md)).
 - [Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam](#gotcha-a-new-scannerfind_elem-call-in-start-must-be-guarded--the-specs-stub-that-seam)
 - [Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell](#pattern-loading-states-for-an-aac-prediction-panel--never-blank-delay-the-cue-dim-dont-spin-and-dont-swap-under-a-dwell)
 - [Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL](#pattern-to-line-a-sibling-up-with-the-board-grid-mirror-its-origin-margin--padding-not-just-its-height--and-remember-a-card-does-not-fill-its-cell)
+- [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
+- [Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery](#pattern-a-container-that-stays-in-the-layout-while-empty-defeats-the-scanners-detachedzero-box-recovery)
 
 ---
 
@@ -15847,3 +15849,59 @@ Notion caps `text.content` at 2000 characters **per rich_text object**, not per 
 `artificialintelligenceact.eu` is a third-party reproduction. The authentic OJ text of Regulation (EU) 2024/1689 is https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689. EUR-Lex consolidations (CELEX ids starting with `0`) are editorial and not authentic; cite the original act plus the amending OJ texts (for example Regulation (EU) 2026/1744) instead. A register row that says "verified against primary sources" must link those official texts, not the reproduction.
 
 **First seen in:** [2026-08-27-art50-counsel-pointer-review.md](./2026-08-27-art50-counsel-pointer-review.md)
+
+---
+
+## Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design
+
+**Surface:** any feature that wants to know "is the user dwelling on this right now?" — here, holding a
+word-prediction swap while the panel is the live dwell target.
+
+**The trap:** the name reads like live state. It is not. In `dwell_selection == 'button'` (and
+`'expression'`) mode `last_dwell_linger` is **never nulled**:
+
+- `linger_clear_later` (`raw_events.js` ~:2415) calls `clear_dwell` only `if(!dwell_no_cutoff &&
+  dwell_selection)`, where the LOCAL `dwell_selection` (~:2282) is
+  `buttonTracker.dwell_selection != 'button' && != 'expression'` — i.e. **false** in exactly those modes;
+- and `clear_dwell` itself (~:3053) *deliberately keeps* the linger in `'button'` mode, trimming only
+  its `events`, so the switch press can still release it.
+
+So once a dwell+switch user's gaze has rested on an element, a naive read returns "targeted" forever
+with no further input. Anything gated on it stays gated permanently — for the exact user population
+dwell features exist for.
+
+**How to read it safely:** require the linger to be genuinely live — dwell enabled
+(`buttonTracker.check('dwell_enabled')`), the element still in the document
+(`document.body.contains`), and activity within the dwell window (`linger.updated` is stamped on each
+linger event; `linger.started` is the fallback). A detached node is correctly not a live target.
+
+**General rule:** before gating behaviour on another subsystem's state, read that subsystem's
+lifecycle for where the state is CLEARED, not just where it is set. A field with no clear path is a
+latch, not a signal.
+
+---
+
+## Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery
+
+**Surface:** switch scanning drills into a group (the word-prediction rail) whose children then empty
+out; the scanner cycles a single level-up stub over an empty box, and `escape()` quits scanning
+instead of backing out.
+
+**Root cause:** `scanner.next_element` recovers a vanished level with
+`if(!document.body.contains(elem.dom[0]) || (bounds.width == 0 && bounds.height == 0))` and then
+auto-`level_up()`s. That worked by ACCIDENT for every group so far, because an emptied group's
+container had also left the DOM. A container deliberately kept mounted to hold layout width — which is
+what the prediction rail now does — is attached and has a non-zero box, so the recovery never fires.
+
+**Fix:** handle it where the level is built, not where it is measured. In `scanner.load_children`, if
+the reloaded children are empty and a `higher_level` exists, `level_up(parent)` immediately instead of
+building a level containing only its own stub. Strictly better for every caller: the old path required
+the user to select the stub to reach the same place.
+
+**Also check `escape()`:** it levels up only for containers whose class it recognises, and falls
+through to `scanner.stop()` otherwise — so a new drill-in level must be added there too, or escaping
+out of it quits scanning altogether.
+
+**Wider lesson:** "keep it mounted so the layout doesn't move" is a good fix with a blast radius. Grep
+for everything that reasons about the element's PRESENCE — scanning, dwell hit-testing, `:empty` CSS,
+a11y tree, layout math — before assuming presence is free.

@@ -726,7 +726,11 @@ var scanner = EmberObject.extend({
       // Find the trailing parent stub appended by load_children — its
       // `higher_level` array points back to the previous level.
       var parent = els[els.length - 1];
-      if(parent && parent.higher_level && parent.dom && parent.dom.hasClass && parent.dom.hasClass('md-board-detail-sentence-row')) {
+      /* The prediction rail is a drill-in level in the same sense as the sentence row, so
+         escaping out of it must LEVEL UP too. Without it listed here, escape falls through
+         to scanner.stop() below and quitting the predictions quits scanning altogether. */
+      if(parent && parent.higher_level && parent.dom && parent.dom.hasClass &&
+         (parent.dom.hasClass('md-board-detail-sentence-row') || parent.dom.hasClass('md-board-detail-prediction-rail'))) {
         scanner.level_up(parent);
         return;
       }
@@ -1100,6 +1104,21 @@ var scanner = EmberObject.extend({
     var parent = Object.assign({higher_level: elements, higher_level_index: index}, elem);
     if(elem.reload_children) {
       elem.children = elem.reload_children();
+    }
+    /* A group whose children have ALL gone (a word-prediction lookup that came back
+       empty, a menu that closed) has nothing left to scan, and building a level that
+       holds only the level-up stub strands the user on an empty box.
+
+       This used to self-heal by accident: such a container had usually left the DOM as
+       well, so next_element's recovery (`!document.body.contains(elem.dom[0]) ||
+       zero-box`) levelled up for us. A container that stays in the LAYOUT while empty —
+       which the word-prediction rail now deliberately does, to hold the board's width —
+       is attached and has a non-zero box, so that recovery never fires. Go back up here
+       instead. Strictly better for every caller: the old path required the user to
+       select the stub to reach the same place. */
+    if((!elem.children || elem.children.length === 0) && parent.higher_level) {
+      scanner.level_up(parent);
+      return;
     }
     scanner.elements = elem.children.concat([parent]);
     scanner.elements.reload = elem.children.reload
