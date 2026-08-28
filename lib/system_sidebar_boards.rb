@@ -8,7 +8,8 @@ class SystemSidebarBoards
   # copy and generator remain as fallbacks if the committed file is ever missing.
   UTILITIES = [
     {slug: 'keyboard', obz_source: 'keyboard.obz', legacy_source: 'example/keyboard', generator: :generate_keyboard},
-    {slug: 'inflections', legacy_source: 'example/inflections', generator: :generate_inflections}
+    {slug: 'inflections', legacy_source: 'example/inflections', generator: :generate_inflections},
+    {slug: 'inflections-es', generator: :generate_spanish_inflections}
   ].freeze
 
   def self.ensure_for(user)
@@ -159,5 +160,10 @@ class SystemSidebarBoards
   def self.generate_inflections(user)
     require Rails.root.join('lib', 'templates', 'inflections_board')
     InflectionsBoard.generate(user)
+  end
+
+  def self.generate_spanish_inflections(user)
+    require Rails.root.join('lib', 'templates', 'spanish_inflections_board')
+    SpanishInflectionsBoard.generate(user)
   end
 end

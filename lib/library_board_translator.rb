@@ -139,9 +139,9 @@ class LibraryBoardTranslator
     translations = batch[:translations] || {}
     origins = batch[:origins] || {}
     BoardTranslationWords.apply_identities(translations, origins, entries)
-    matched = words.count { |w| %w[cache google].include?(origins[w]) }
+    matched = words.count { |w| %w[cache google override].include?(origins[w]) }
     missing_n = words.length - matched
-    puts "  origins: cache=#{origins.values.count('cache')} google=#{origins.values.count('google')} identity=#{origins.values.count('identity')} missing=#{missing_n}"
+    puts "  origins: cache=#{origins.values.count('cache')} google=#{origins.values.count('google')} override=#{origins.values.count('override')} identity=#{origins.values.count('identity')} missing=#{missing_n}"
 
     if translations.empty?
       Rails.logger.warn("[LibraryBoardTranslator] No translations for #{board.key}. Check GOOGLE_TRANSLATE_TOKEN (rails-dev / op run).")
@@ -221,7 +221,7 @@ class LibraryBoardTranslator
     return if ENV['ALLOW_PARTIAL_TRANSLATE'].to_s =~ TRUTHY
     words = entries.reject { |e| e[:identity] }.map { |e| e[:en] }.uniq
     return if words.empty?
-    missing = words.count { |w| !%w[cache google].include?(origins[w]) }
+    missing = words.count { |w| !%w[cache google override].include?(origins[w]) }
     ratio = missing.to_f / words.length
     return if ratio <= MISSING_ABORT_RATIO
     raise "Too many missing translations (#{missing}/#{words.length} = #{(ratio * 100).round}%). " \

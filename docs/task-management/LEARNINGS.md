@@ -23,12 +23,14 @@ file (see [README.md](README.md)).
 - [Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`](#gotcha-merging-two-overlay-prs-is-a-union-of-tests-then-regenerate-eslint-todo)
 - [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
 - [Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`](#pattern-spanish-long-press-defaults-use-spanish_verb_grid-not-english--s-ed-ing)
+- [Pattern: Spanish inflections sidebar board uses `:es-*` actions, not translated English suffixes](#pattern-spanish-inflections-sidebar-board-uses-es--actions-not-translated-english-suffixes)
 - [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
 - [Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one](#gotcha-source_part_of_speech-is-not-a-locale--process_buttons-500s-if-treated-as-one)
 - [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
 - [Gotcha: dotenv leaves op:// refs in ENV — present? is not injected](#gotcha-dotenv-leaves-op-refs-in-env--present-is-not-injected)
 - [Gotcha: library translate must walk load_board links, not only downstream_board_ids](#gotcha-library-translate-must-walk-load_board-links-not-only-downstream_board_ids)
 - [Gotcha: spelling-key letters must not go to Google](#gotcha-spelling-key-letters-must-not-go-to-google)
+- [Gotcha: Google Translate maps AAC "who" to OMS, not quién](#gotcha-google-translate-maps-aac-who-to-oms-not-quién)
 - [Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep](#gotcha-the-boot-skeleton-is-ll-skel-progress-not-ll-premium-progress--and-a-shared-component-fix-has-no-siblings-left-to-sweep)
 - [Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`](#pattern-the-board-tile-board_action-is-a-contextual-remove-not-a-delete-button--gate-on-remove_type)
 - [Gotcha: the two categorised board variants do NOT space their categories the same way — one is ring-compensated, one is not](#gotcha-the-two-categorised-board-variants-do-not-space-their-categories-the-same-way--one-is-ring-compensated-one-is-not)
@@ -3980,6 +3982,16 @@ English empty overlay slots are filled by `i18n.tense` (`-s`/`-ed`/`-ing`) when 
 
 ---
 
+## Pattern: Spanish inflections sidebar board uses `:es-*` actions, not translated English suffixes
+
+The English `lingolinq/inflections` board rewrites the last sentence-box word via `:plural` / `:ed` / `:ing`, which call English-only `i18n.pluralize` / `i18n.tense`. Copy-translating that board would still apply English `-s`/`-ed` to Spanish words. `lingolinq/inflections-es` is a generated 4×4 (`Flexiones`) whose vocalizations are `:es-yo`, `:es-plural`, `:es-feminine`, `:es-gerund`, and the other Spanish modifiers; those call `spanish_verb_grid` / `spanishPlural` helpers already used by the overlay. Verb persons (yo/tú/él/nosotros/ellos) are on the board; vosotros is omitted. Spanish-locale signup swaps the Inflections sidebar slot to this board. Do not put `inflections-es` in `SPANISH_SOURCE_MAP` (that path copy-translates English vocalizations). Evidence: `lib/templates/spanish_inflections_board.rb`; `button.js` `:es-*`; task log `2026-08-28-spanish-inflections-board.md`.
+
+**Gotcha (2026-08-28) — sidebar boards stay in their default language and reset QC40:** Add to Sidebar stores `locale` from the current session. A sidebar jump treated that stamp as a language switch: `locale: 'en'` cleared `override_label_locale` and persisted English. Board-detail setup then used each board's default unless Switch Languages was still set *and* `model.locales` listed Spanish. Flexiones often has an empty locales list (no translation hash), so Back to Quick Core 40 fell through to English. Inflections/Keyboard/Yes-No showed English for the same reason.
+
+Fix: every sidebar jump preserves session language. Back/Home restore the Switch Languages override (classic Home already did). Board load keeps the override when the locales list is empty ("unknown", not English). Evidence: `app-state.js` `sidebar_jump_preserves_session_locale` / `restore_session_locale_override`; `board_display_locale.js`.
+
+---
+
 ## Pattern: bilingual library boards store dest hashes with translate_set default false
 
 **Symptom:** Library boards need English plus Spanish (and later languages) without multiplying `*-es` / `*-fr` copies.
@@ -4035,6 +4047,14 @@ Dotenv loads `.env.op.local` `op://` refs as literal strings. `ENV['GOOGLE_TRANS
 Keyboard letter buttons use vocalization `+e`, `+n`, … to compose spelling. The visible label is still the grapheme `e`. Google Translate has no “this is a letter key” context, so it returns abbreviations and solfege (`e`→`mi`, `c`→`do`, `g`→`gramo`, `n`→`norte`, `m`→`metro`, `p`→`pag`, `u`→`tú`, `x`→`incógnita`). Do not send those labels to `WordData.translate_batch`. Identity-map them (`e`→`e`) so a re-run overwrites the dest hash. Still translate word labels like `space` (`:space` is the action; the label is a word).
 
 **Evidence:** `lib/board_translation_words.rb#letter_compose_key?`; local `lingolinq/keyboard_16`; task log `2026-08-26-library-board-translations.md`.
+
+---
+
+## Gotcha: Google Translate maps AAC "who" to OMS, not quién
+
+Bare English **who** on a board is the question word. Google Translate has no AAC context, so it often returns **OMS** (WHO, Organización Mundial de la Salud). `WordData.persist_translation` uses `||=`, so that poisoned cache never overwrites. Force `en→es` `who` → `quién` in `WordData::TRANSLATION_OVERRIDES` **before** cache and Google, persist with assignment (not `||=`), and count origin `override` as a hit in `LibraryBoardTranslator`. Exact stripped downcase only (`who's` is not `who`).
+
+**Evidence:** `app/models/word_data.rb` `TRANSLATION_OVERRIDES`; `lib/library_board_translator.rb`; task log `2026-08-28-spanish-inflections-board.md`.
 
 ---
 

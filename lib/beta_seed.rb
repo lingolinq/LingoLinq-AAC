@@ -5,7 +5,7 @@ module BetaSeed
   ADMIN_ORG_NAME = 'LingoLinq Admin Organization'.freeze
   TRUTHY_PATTERN = /^(1|true|yes)$/i.freeze
   FALSEY_PATTERN = /^(0|false|no)$/i.freeze
-  REQUIRED_STARTER_BOARD_SLUGS = %w[one two three yesno keyboard inflections].freeze
+  REQUIRED_STARTER_BOARD_SLUGS = %w[one two three yesno keyboard inflections inflections-es].freeze
   REQUIRED_SIGNUP_BOARD_SLUGS = SystemBoardSources::SIGNUP_LIBRARY_SLUGS.freeze
   # SEED_* env that ensure_baseline! demands in staging/production (it raises if
   # blank). The rebuild flow pre-flights these BEFORE deleting anything.

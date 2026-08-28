@@ -3853,7 +3853,7 @@ class User < ApplicationRecord
   # Written onto the user at signup only. Existing accounts with an empty stored
   # sidebar keep default_active_sidebar_boards (no VF84 / Senner) so a deploy
   # does not change live speak-mode sidebars or enqueue those trees as sync roots.
-  def self.signup_sidebar_boards
+  def self.signup_sidebar_boards(user = nil)
     vf84 = {
       'name' => "Vocal Flair 84",
       'key' => SystemBoardSources.board_key('vocal-flair-84'),
@@ -3865,17 +3865,33 @@ class User < ApplicationRecord
     default_sidebar_boards.each do |entry|
       key = entry['key']
       if key == SystemBoardSources.board_key('keyboard')
-        result << entry
+        result << localize_signup_sidebar_entry(entry, user)
         result << vf84
       elsif key == senner_key
-        result << entry
+        result << localize_signup_sidebar_entry(entry, user)
       elsif inactive_by_default_sidebar_keys.include?(key)
         next
       else
-        result << entry
+        result << localize_signup_sidebar_entry(entry, user)
       end
     end
     result
+  end
+
+  def self.spanish_preferred_locale?(user)
+    return false unless user
+    prefs = user.settings && user.settings['preferences']
+    locale = (prefs && prefs['locale']) || (user.settings && user.settings['locale'])
+    locale.to_s.match?(/\Aes/i)
+  end
+
+  def self.localize_signup_sidebar_entry(entry, user)
+    return entry unless spanish_preferred_locale?(user)
+    return entry unless entry['key'] == SystemBoardSources.board_key('inflections')
+    entry.merge(
+      'name' => 'Flexiones',
+      'key' => SystemBoardSources.board_key('inflections-es')
+    )
   end
   
   def admin?
