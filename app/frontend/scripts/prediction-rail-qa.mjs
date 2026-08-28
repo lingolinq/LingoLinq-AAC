@@ -492,32 +492,39 @@ const setThrottle = async (client, { network, cpu }) => {
       const realC = window.scanner.current_element;
       const out = {};
       try {
-        /* (a) A held set must NOT survive the sentence being cleared. Before the fix, the
-           bare setTimeout committed 120ms after suggestions were blanked and resurrected
-           predictions for a sentence that no longer existed. */
+        /* (a) A blanked sentence must never come back. Under the render-side freeze there is
+           no queued write to replay, so the property to assert is the outcome: freeze, clear
+           the sentence, release — the panel must end up EMPTY, not showing the words that
+           were live when the freeze started. */
+        c.set('suggestions', { ready: true, list: [{ word: 'zzbaseword' }] });
+        await new Promise((r) => setTimeout(r, 60));
         let tile = document.querySelector('.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction');
         if (!tile) { return 'no tile to target'; }
         window.scanner.actively_scanning = () => true;
         window.scanner.current_element = { dom: [tile] };
-        c._commit_suggestions({ ready: true, list: [{ word: 'zzghostword' }] });
-        c.set('suggestions', null);              // what "Clear" does
+        c._commit_suggestions({ ready: true, list: [{ word: 'zzghostword' }] });  // freezes on zzbaseword
+        await new Promise((r) => setTimeout(r, 60));
+        out.wordsWhileFrozen = words();
+        c.set('suggestions', null);                                              // what "Clear" does
+        window.scanner.actively_scanning = () => false;                          // release the freeze
         await new Promise((r) => setTimeout(r, 500));
         out.wordsAfterClear = words();
-        out.ghostReturned = words().indexOf('zzghostword') !== -1;
+        out.ghostReturned = words().indexOf('zzghostword') !== -1 || words().indexOf('zzbaseword') !== -1;
 
-        /* (b) The 2s cap must be enforced even under a commit stream faster than the 120ms
-           retry. Before the fix the deadline was only read inside the timer that every
-           entry cleared, so the hold never expired. Drive it by ageing the deadline. */
-        c.set('suggestions', { ready: true, list: [{ word: 'zzbase' }] });
-        await new Promise((r) => setTimeout(r, 50));
+        /* (b) The freeze must not outlive its cap even while the panel stays targeted. Drive
+           it by ageing the freeze start; the poll must release and render whatever is live. */
+        window.scanner.actively_scanning = () => true;
+        c.set('suggestions', { ready: true, list: [{ word: 'zzbase2' }] });
+        await new Promise((r) => setTimeout(r, 60));
         tile = document.querySelector('.md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction');
         window.scanner.current_element = { dom: [tile] };
-        c._commit_suggestions({ ready: true, list: [{ word: 'zzheld' }] });   // starts the hold
-        c._suggestion_swap_deadline = (new Date()).getTime() - 1;             // cap has elapsed
-        c._commit_suggestions({ ready: true, list: [{ word: 'zzaftercap' }] });
-        await new Promise((r) => setTimeout(r, 50));
+        c._commit_suggestions({ ready: true, list: [{ word: 'zzheld' }] });       // freezes on zzbase2
+        await new Promise((r) => setTimeout(r, 60));
+        out.frozeOn = words();
+        c._prediction_freeze_started = (new Date()).getTime() - 600000;           // cap elapsed
+        await new Promise((r) => setTimeout(r, 400));
         out.wordsAfterCap = words();
-        out.capHonoured = words().indexOf('zzaftercap') !== -1;
+        out.capHonoured = words().indexOf('zzheld') !== -1;
       } finally {
         window.scanner.actively_scanning = realA;
         window.scanner.current_element = realC;
@@ -525,21 +532,31 @@ const setThrottle = async (client, { network, cpu }) => {
       return out;
     });
     if (typeof holdRegressions === 'string') {
-      fail('hold regressions — cleared sentence stays cleared, and the cap is honoured', holdRegressions);
+      fail('hold regressions — cleared sentence stays cleared, and the freeze respects its cap', holdRegressions);
     } else {
       if (!holdRegressions.ghostReturned) {
-        pass('hold regression — a held swap does not survive the sentence being cleared',
-          `panel showed "${holdRegressions.wordsAfterClear}" after the clear; the held word never returned`);
+        pass('hold regression — a cleared sentence stays cleared through a freeze',
+          `froze showing "${holdRegressions.wordsWhileFrozen}", and after the clear + release the panel ` +
+          `showed "${holdRegressions.wordsAfterClear}" — no word came back`);
       } else {
-        fail('hold regression — a held swap does not survive the sentence being cleared',
-          `the held word came back after the clear: "${holdRegressions.wordsAfterClear}"`);
+        fail('hold regression — a cleared sentence stays cleared through a freeze',
+          `words came back after the clear: "${holdRegressions.wordsAfterClear}"`);
       }
-      if (holdRegressions.capHonoured) {
-        pass('hold regression — the max-hold cap is enforced synchronously',
-          `a commit past the elapsed deadline landed immediately ("${holdRegressions.wordsAfterCap}") despite the panel still being targeted`);
+      if (holdRegressions.frozeOn.indexOf('zzbase2') === -1) {
+        /* Without this the check passes vacuously when the freeze never engages at all —
+           verified by disabling the freeze and watching it stay green. It must first prove a
+           freeze HAPPENED (the panel still showing the pre-commit word) before the release
+           it asserts means anything. */
+        fail('hold regression — the freeze does not outlive its cap',
+          `the freeze never engaged — panel showed "${holdRegressions.frozeOn}" where "zzbase2" was expected, ` +
+          'so the release below proves nothing');
+      } else if (holdRegressions.capHonoured) {
+        pass('hold regression — the freeze does not outlive its cap',
+          `froze on "${holdRegressions.frozeOn}", and once the cap elapsed the panel released to ` +
+          `"${holdRegressions.wordsAfterCap}" despite still being targeted`);
       } else {
-        fail('hold regression — the max-hold cap is enforced synchronously',
-          `the panel still shows "${holdRegressions.wordsAfterCap}" — the hold outlived its own cap`);
+        fail('hold regression — the freeze does not outlive its cap',
+          `the panel still shows "${holdRegressions.wordsAfterCap}" — the freeze outlived its own cap`);
       }
     }
 

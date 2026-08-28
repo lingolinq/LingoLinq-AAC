@@ -906,9 +906,9 @@ export default Controller.extend(prefClasses, {
       clearTimeout(this._suggestions_cue_timer);
       this._suggestions_cue_timer = null;
     }
-    if(this._suggestion_swap_timer) {
-      clearTimeout(this._suggestion_swap_timer);
-      this._suggestion_swap_timer = null;
+    if(this._prediction_freeze_timer) {
+      clearTimeout(this._prediction_freeze_timer);
+      this._prediction_freeze_timer = null;
     }
     // Flush (don't just drop) any debounced display-pref save: the user's last
     // stepper click must still reach the server when they navigate away inside the
@@ -2766,36 +2766,58 @@ export default Controller.extend(prefClasses, {
      disabled target that swallows a dwell or a switch hit gives no feedback and
      forces the user to re-acquire it. `loading` drives nothing but the delayed dim
      cue below; the words themselves stay fully interactive throughout. */
-  /* Abandon any held swap. Required on every path that CHANGES THE VISIBLE WORDS outside
-     _commit_suggestions (_republish_suggestion_list rewrites the same list, so it is
-     deliberately not one of them): the hold lives in a bare setTimeout that knows nothing about
-     the rest of the pipeline, so without this a set held behind a dwell/scan commits
-     120ms after the sentence was cleared and resurrects predictions for a sentence that
-     no longer exists (updateSuggestions will not fire again until the next button
-     press, so nothing corrects it). Also called when a NEW lookup starts, since anything
-     still pending is superseded by it. */
-  _cancel_pending_suggestion_swap: function() {
-    if(this._suggestion_swap_timer) {
-      clearTimeout(this._suggestion_swap_timer);
-      this._suggestion_swap_timer = null;
+  /* ── Render-side freeze ────────────────────────────────────────────────────
+     `_prediction_freeze_list`, when set, is what the panel renders: the words that were on
+     screen when the panel became the live dwell/scan target, so a refresh arriving mid-reach
+     cannot move the tile the user is committing to. Plain state, not a queue — releasing it
+     renders whatever is live at that instant. */
+  _prediction_freeze_list: null,
+  _prediction_freeze_started: 0,
+  _prediction_freeze_retry_ms: 120,
+
+  _prediction_freeze_watch: observer('suggestions.list.[]', function() {
+    var words_of = function(list) {
+      return ((list || []).map(function(s) { return (s && s.word) || ''; })).join('\u0000');
+    };
+    var showing = this._displayed_prediction_list;
+    var incoming = this._deduped_suggestions(this.get('suggestions.list'));
+    /* Track what is on screen HERE rather than inside the computed: assigning from a computed
+       is an ember/no-side-effects violation, and a computed that records state stops being
+       true the moment it is cached. */
+    if(!this.get('_prediction_freeze_list')) {
+      this._displayed_prediction_list = incoming;
+    } else {
+      return;
     }
-    this._pending_suggestions = null;
-    /* The deadline is PER PENDING SET and is always cleared with it.
-       A previous revision preserved it across `_begin_suggestion_lookup` on the theory that
-       a stream of AI-fallback lookups could each restart a bounded window and so make the
-       hold unbounded. That was overstated — the original unbounded bug was self-sustaining
-       (the 120ms retry re-entered with no external input), whereas this path needs a fresh
-       user action per cycle, each already bounded. And preserving it was actively harmful:
-       the clock kept burning while NOTHING was held (the AI predict costs a 300ms debounce
-       plus a round trip), so the AI result arrived to an already-spent budget and committed
-       with ZERO hold — replacing the tile under a live dwell, the exact mis-selection the
-       hold exists to prevent. Per-set is the correct scope; the synchronous cap is what
-       actually bounds it. */
-    this._suggestion_swap_deadline = null;
+    if(!showing || !showing.length) { return; }
+    /* An identical word sequence cannot move anything, so there is nothing to protect. */
+    if(words_of(showing) === words_of(incoming)) { return; }
+    if(!this._prediction_panel_targeted()) { return; }
+    this.set('_prediction_freeze_list', showing);
+    this._prediction_freeze_started = (new Date()).getTime();
+    this._prediction_freeze_tick();
+  }),
+
+  /* Release when the panel stops being the target, or when the bound elapses. Hand-rolled
+     setTimeout rather than runLater: ember/no-runloop bans the runloop helpers and
+     ember-lifeline is not installed (same pattern as controllers/search.js). */
+  _prediction_freeze_tick: function() {
+    var _this = this;
+    if(this._prediction_freeze_timer) { clearTimeout(this._prediction_freeze_timer); }
+    this._prediction_freeze_timer = setTimeout(function() {
+      _this._prediction_freeze_timer = null;
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if(!_this.get('_prediction_freeze_list')) { return; }
+      var elapsed = (new Date()).getTime() - _this._prediction_freeze_started;
+      if(elapsed >= _this._suggestion_swap_max_hold() || !_this._prediction_panel_targeted()) {
+        _this.set('_prediction_freeze_list', null);
+        return;
+      }
+      _this._prediction_freeze_tick();
+    }, this.get('_prediction_freeze_retry_ms'));
   },
 
   _begin_suggestion_lookup: function() {
-    this._cancel_pending_suggestion_swap();
     var current = this.get('suggestions') || {};
     this.set('suggestions', { ready: current.ready, list: current.list || [], loading: true });
   },
@@ -2839,16 +2861,22 @@ export default Controller.extend(prefClasses, {
      needs UNIQUE keys, hence the de-dupe (a repeated prediction was never wanted on
      screen anyway). Array membership, not an object map: a word like "constructor"
      is truthy on a bare `{}` and would be silently dropped. */
-  prediction_suggestions: computed('suggestions.list.[]', function() {
-    var list = this.get('suggestions.list') || [];
+  prediction_suggestions: computed('suggestions.list.[]', '_prediction_freeze_list', function() {
+    return this.get('_prediction_freeze_list') || this._deduped_suggestions(this.get('suggestions.list'));
+  }),
+
+  /* De-duplicate by word. Both {{#each}}s key on `word`, so a repeated word would be a
+     duplicate Glimmer key. Array membership, not an object map — `seen['constructor']` is
+     truthy on a bare {} and would silently drop that word. */
+  _deduped_suggestions: function(list) {
     var words = [];
-    return list.filter(function(suggestion) {
+    return (list || []).filter(function(suggestion) {
       var word = suggestion && suggestion.word;
       if(!word || words.indexOf(word) !== -1) { return false; }
       words.push(word);
       return true;
     });
-  }),
+  },
 
   /* Is the prediction panel ITSELF the thing currently being targeted? True while the
      scanner is highlighting it, or while a dwell linger is in progress over it. Both
@@ -2904,111 +2932,53 @@ export default Controller.extend(prefClasses, {
     return false;
   },
 
-  /* Commit a new prediction set — but never WHILE the panel is the live target. If the
-     words change under an active dwell or an active scan OF THE PANEL, the user
-     selects a word they never chose: the tile they were committing to is replaced
-     mid-reach. So hold the new set and commit it once the panel is no longer targeted.
-
-     Three bounds keep the hold from becoming its own bug:
-       - an identical word sequence is never held (nothing can move, so there is
-         nothing to protect against — and this is the common case);
-       - _suggestion_swap_max_hold_ms caps the total hold, so a user who parks their
-         gaze on the rail cannot freeze predictions indefinitely;
-       - the loading cue is retracted as soon as the lookup itself finishes, so a held
-         swap does not leave the panel dimmed for the length of the hold. */
-  _suggestion_swap_retry_ms: 120,
-  _suggestion_swap_max_hold_ms: 2000,
-  /* How long a hold may last, derived from how long the user's own interaction takes.
+  /* How long a freeze may last, and equally how long a dwell linger stays "live" — one
+     definition of "how long a user-paced reach takes", used by both.
      - switch-paced dwell ('button'/'expression') never self-completes: the user holds the
        gaze and presses when ready, so there is no timeout bounding them and 2s is an
-       ordinary reach, not a long one.
-     - auto dwell completes at `dwell_timeout`, so the cap must clear that or it replaces the
-       tile mid-dwell for anyone whose dwell_duration is set above 2s — which keying off the
-       MODE alone did nothing for.
+       ordinary reach. A cursor held still also emits no further events, so the linger's
+       `updated` must be allowed to age this far before it counts as stale.
+     - auto dwell completes at `dwell_timeout` (raw_events schedules the trigger even if the
+       cursor stops), so the bound must clear that or it releases mid-dwell for anyone whose
+       dwell_duration is set above 2s.
      Gated on dwell_enabled because `buttonTracker.dwell_selection` is a sticky singleton:
      services/app-state.js assigns it only inside the dwell-on branch and resets it nowhere,
-     so a device where dwell was once on would otherwise hand a non-dwell user the long cap
-     — freezing their predictions for 8s, at 4x the intended duration, via the scanner branch. */
-  _suggestion_swap_max_hold_switch_ms: 8000,
+     so a device where dwell was once on would otherwise hand a non-dwell user the long
+     bound via the scanner branch. */
+  _prediction_hold_standard_ms: 2000,
+  _prediction_hold_switch_ms: 8000,
   _suggestion_swap_max_hold: function() {
-    var standard = this.get('_suggestion_swap_max_hold_ms');
+    var standard = this.get('_prediction_hold_standard_ms');
     try {
       if(!(buttonTracker.check && buttonTracker.check('dwell_enabled'))) { return standard; }
       var mode = buttonTracker.check('dwell_selection');
       if(mode === 'button' || mode === 'expression') {
-        return this.get('_suggestion_swap_max_hold_switch_ms');
+        return this.get('_prediction_hold_switch_ms');
       }
       return Math.max(standard, 2 * (buttonTracker.dwell_timeout || 1000));
-    } catch(e) { /* advisory read — fall through to the standard cap */ }
+    } catch(e) { /* advisory read — fall through to the standard bound */ }
     return standard;
   },
-  _commit_suggestions: function(next) {
-    var _this = this;
-    if(this._suggestion_swap_timer) {
-      clearTimeout(this._suggestion_swap_timer);
-      this._suggestion_swap_timer = null;
-    }
-    var words_of = function(state) {
-      return (((state && state.list) || []).map(function(s) { return (s && s.word) || ''; })).join('\u0000');
-    };
-    if(words_of(this.get('suggestions')) === words_of(next) || !this._prediction_panel_targeted()) {
-      this._pending_suggestions = null;
-      this._suggestion_swap_deadline = null;
-      this.set('suggestions', next);
-      return;
-    }
-    /* Enforce the cap HERE, not only inside the timer. Every entry to this function
-       clears the pending timer before reaching this point, so a commit stream arriving
-       faster than _suggestion_swap_retry_ms used to reset the countdown forever and the
-       deadline check in the timer was never reached — the hold was unbounded, which is
-       the opposite of what the cap is for. */
-    var now = (new Date()).getTime();
-    if(this._suggestion_swap_deadline && now >= this._suggestion_swap_deadline) {
-      this._pending_suggestions = null;
-      this._suggestion_swap_deadline = null;
-      this.set('suggestions', next);
-      return;
-    }
-    this._pending_suggestions = next;
-    if(!this._suggestion_swap_deadline) {
-      this._suggestion_swap_deadline = now + this._suggestion_swap_max_hold();
-    }
-    /* The lookup HAS finished — retract the cue now even though the words are held.
-       Same words + keyed each, so this re-render moves nothing. */
-    var current = this.get('suggestions');
-    if(current && current.loading) {
-      this.set('suggestions', { ready: current.ready, list: current.list || [] });
-    }
-    this._suggestion_swap_timer = setTimeout(function() {
-      _this._suggestion_swap_timer = null;
-      if(_this.isDestroyed || _this.isDestroying) { return; }
-      var pending = _this._pending_suggestions;
-      if(!pending) { return; }
-      /* The panel was deliberately blanked while this set was held — prediction turned off,
-         edit mode, or the sentence cleared. Committing now would resurrect predictions for a
-         sentence that no longer exists.
 
-         `=== null` is deliberately narrow. A previous revision widened this to "no `list`" to
-         also catch edit_manager.process_for_displaying's `{loading:true}` / `{ready:true}` /
-         `{error:true}` writes — but that block sits BELOW an early return that fires for
-         board-detail speak mode (utils/edit_manager.js, `speak_mode && is_board_detail &&
-         !edit_mode`), so it cannot blank this panel here at all. Widening bought nothing and
-         cost real results: `{error:true}` has no follow-up `updateSuggestions`, so dropping a
-         valid pending set there left the panel blank until the next button press, where
-         committing would have restored the words. Blank means null; nothing else. */
-      if(_this.get('suggestions') === null) {
-        _this._pending_suggestions = null;
-        _this._suggestion_swap_deadline = null;
-        return;
-      }
-      if((new Date()).getTime() >= _this._suggestion_swap_deadline) {
-        _this._pending_suggestions = null;
-        _this._suggestion_swap_deadline = null;
-        _this.set('suggestions', pending);
-        return;
-      }
-      _this._commit_suggestions(pending);
-    }, this.get('_suggestion_swap_retry_ms'));
+  /* THE HOLD LIVES IN THE RENDER, NOT IN THE COMMIT.
+
+     Earlier revisions queued a pending set behind a timer whenever the panel was the live
+     dwell/scan target. That needed a pending set, a retry timer, a deadline, a cancel call on
+     every other writer, and an invariant guard for "was the panel blanked while we held
+     this" — and three rounds of adversarial review found real bugs in it, twice in the fixes
+     themselves: a held set resurrected predictions for a cleared sentence, the cap silently
+     never applied, and a superseding lookup handed the next set an already-spent clock.
+
+     Every one of those is a bug about a QUEUED WRITE landing on a state it was not computed
+     against. So do not queue writes. `suggestions` is written immediately by everyone, and
+     `prediction_suggestions` — what the templates render — returns a frozen snapshot while
+     the panel is targeted. Nothing is pending, so nothing can be replayed; when the freeze
+     lifts the computed reads whatever is live NOW, which is by definition the newest value.
+     A sentence cleared mid-freeze shows empty on release instead of resurrecting words.
+
+     Kept as a named funnel so the write path has one obvious place to read. */
+  _commit_suggestions: function(next) {
+    this.set('suggestions', next);
   },
 
   _apply_suggestion_results: function(result, sentence, context) {
@@ -3055,7 +3025,6 @@ export default Controller.extend(prefClasses, {
     this.set('_last_warmed_button_sets', warmed_sets || []);
     var context = this._suggestion_lookup_context();
     if(!context) {
-      this._cancel_pending_suggestion_swap();
       this.set('suggestions', null);
       return;
     }
@@ -3104,14 +3073,12 @@ export default Controller.extend(prefClasses, {
       // Skip the lookup entirely when in edit mode or word prediction is off
       // (only an explicit `true` enables it; null/undefined = off).
       if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') !== true) {
-        this._cancel_pending_suggestion_swap();
         this.set('suggestions', null);
         return;
       }
       var _this = this;
       var context = this._suggestion_lookup_context();
       if(!context) {
-        this._cancel_pending_suggestion_swap();
         this.set('suggestions', null);
         return;
       }
