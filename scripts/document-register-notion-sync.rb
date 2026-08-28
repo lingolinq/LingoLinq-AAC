@@ -51,6 +51,7 @@ require 'json'
 require 'digest'
 require 'net/http'
 require 'uri'
+require_relative 'notion_rich_text'
 
 TOKEN   = ENV['NOTION_TOKEN']
 DB_ID   = ENV['NOTION_DOCS_DB_ID']
@@ -64,8 +65,7 @@ register = JSON.parse(File.read(REGISTER_PATH))
 documents = register['documents'] || []
 
 def rich(text)
-  t = text.to_s
-  t.empty? ? [] : [{ 'text' => { 'content' => t[0, 1900] } }]
+  NotionRichText.rich(text)
 end
 
 # Like rich, but when the value is an http(s) URL (e.g. a Drive or Notion
