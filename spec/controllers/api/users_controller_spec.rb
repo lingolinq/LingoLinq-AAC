@@ -3099,20 +3099,18 @@ describe Api::UsersController, :type => :controller do
       expect(json).to eq({'a' => 'a'})
     end
 
-    it "should skip Google and return empty translations when org disables external AI processing" do
+    it "should still call Google when org disables external AI processing" do
       token_user
       o = Organization.create(settings: {'total_licenses' => 1, 'external_ai_processing' => false})
       o.add_user(@user.user_name, false, true)
       @user.reload
       words = ['a', 'b', 'c']
-      expect(WordData).not_to receive(:translate_batch)
-      expect(Typhoeus).not_to receive(:get)
-      expect(Organization).to receive(:log_external_ai_processing_skip).with(@user, 'translation')
+      expect(WordData).to receive(:translate_batch).with(words.map{|w| {:text => w} }, 'en', 'es').and_return({a: 'a'})
+      expect(Organization).not_to receive(:log_external_ai_processing_skip)
       post 'translate', params: {:user_id => @user.global_id, :words => words, :source_lang => 'en', :destination_lang => 'es'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['translations']).to eq({})
-      expect(json['external_ai_processing']).to eq(false)
+      expect(json).to eq({'a' => 'a'})
     end
   end
   

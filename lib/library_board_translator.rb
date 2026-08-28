@@ -129,9 +129,6 @@ class LibraryBoardTranslator
   def self.translate_one!(board, dest_lang:, source_lang: SOURCE_LANG, visited_board_ids: nil)
     dest_lang = normalize_dest_lang(dest_lang)
     owner = board.user
-    unless Organization.external_ai_processing_allowed_for_user?(owner)
-      raise "external AI processing disabled for #{owner && owner.user_name}"
-    end
     visited_board_ids ||= []
     board_ids = english_owned_ids(BoardTranslationWords.board_ids(board))
     entries = BoardTranslationWords.collect_entries(board_ids)

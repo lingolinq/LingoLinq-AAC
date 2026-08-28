@@ -3570,7 +3570,7 @@ describe Board, :type => :model do
       expect(res).to eq({done: true, translated: false, reason: 'mismatched user'})
     end
 
-    it "should skip when the board owner's org disables external AI processing" do
+    it "should still apply translations when the board owner's org disables external AI processing" do
       o = Organization.create(settings: {'total_licenses' => 1, 'external_ai_processing' => false})
       u = User.create
       o.add_user(u.user_name, false, true)
@@ -3581,15 +3581,17 @@ describe Board, :type => :model do
         {'id' => 2, 'label' => 'cat'}
       ]
       b.save
-      expect(Organization).to receive(:log_external_ai_processing_skip).with(u, 'translation')
+      expect(Organization).not_to receive(:log_external_ai_processing_skip)
       res = b.translate_set({'hat' => 'sombrero', 'cat' => 'gato'}, {
         'source' => 'en',
         'dest' => 'es',
         'board_ids' => [b.global_id]
       })
-      expect(res).to eq({done: true, translated: false, reason: 'external_ai_processing_disabled'})
+      expect(res[:done]).to eq(true)
+      expect(res[:updated]).to include(b.global_id)
       b.reload
-      expect(b.settings['buttons'][0]['label']).to eq('hat')
+      expect(b.settings['buttons'][0]['label']).to eq('sombrero')
+      expect(b.settings['buttons'][1]['label']).to eq('gato')
     end
     
     it "should do nothing if the board's locale already matches the desired locale" do

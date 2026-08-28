@@ -1536,17 +1536,19 @@ class Organization < ApplicationRecord
     self.settings['default_beta_program_access'] != false
   end
 
-  # Opt-out off-switch for Google Translation / Speech-to-Text egress.
+  # Opt-out off-switch for Google Speech-to-Text (voice transcription) egress.
+  # Board translation is not gated here; the Translate Boards modal shows a
+  # Google Cloud Translation disclaimer instead.
   # Unset => allowed (preserve existing orgs). Explicit false => denied.
   def external_ai_processing_allowed?
     self.settings ||= {}
     self.settings['external_ai_processing'] != false
   end
 
-  # True when the user may send content to third-party AI processors.
+  # True when the user may send content to Google Speech-to-Text (transcription).
   # Unmanaged users are allowed (account-level COPPA gate covers minors).
   # If the user is attached to any org that has disabled processing, deny
-  # (fail closed across multi-org attachments).
+  # (fail closed across multi-org attachments). Board translation is not gated.
   def self.external_ai_processing_allowed_for_user?(user)
     return true unless user
     orgs = attached_orgs(user, true).map { |e| e['org'] }.compact
