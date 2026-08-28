@@ -28,6 +28,8 @@
 #   Frameworks (multi_select), Rule key (rich_text), First seen (date), Last seen (date),
 #   Closed/decided by (rich_text), PRs (rich_text), Closure SHA (rich_text),
 #   Evidence (rich_text), Remediation (rich_text).
+#   Remediation can exceed Notion's 2000-char-per-object cap; `rich` chunks via
+#   scripts/notion_rich_text.rb. Do not revert to a single `t[0, 1900]` slice.
 #
 # Split ownership (so non-devs can use the board without the sync clobbering them):
 # this script ONLY writes the register-owned columns listed below; it sends a fixed property
@@ -44,6 +46,7 @@
 require 'json'
 require 'net/http'
 require 'uri'
+require_relative 'notion_rich_text'
 
 TOKEN   = ENV['NOTION_TOKEN']
 DB_ID   = ENV['NOTION_FINDINGS_DB_ID']
@@ -79,8 +82,7 @@ def prs(f)
 end
 
 def rich(text)
-  t = text.to_s
-  t.empty? ? [] : [{ 'text' => { 'content' => t[0, 1900] } }]
+  NotionRichText.rich(text)
 end
 
 def properties_for(f)
