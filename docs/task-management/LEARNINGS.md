@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`](#pattern-spanish-long-press-defaults-use-spanish_verb_grid-not-english--s-ed-ing)
 - [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
 - [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
 - [Gotcha: dotenv leaves op:// refs in ENV — present? is not injected](#gotcha-dotenv-leaves-op-refs-in-env--present-is-not-injected)
@@ -3953,6 +3954,12 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 **Fix recipe:** Keep English Quick Core / Vocal Flair as canonical on `lingolinq/*`; `copy_for` → `WordData.translate_batch` → `translate_set` into `*-es` slugs so `image_id` is preserved. Provision with `rake lingolinq:provision_spanish_library_boards`; gate signup copies with `FeatureFlags.signup_spanish_library_boards_enabled?`.
 
 **Evidence:** `lib/spanish_library_boards.rb`, `lib/system_board_sources.rb`, `lib/user_board_provisioner.rb`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`
+
+English empty overlay slots are filled by `i18n.tense` (`-s`/`-ed`/`-ing`) when the locale is `en`. Spanish cannot reuse those suffixes. `grid_for` calls `i18n.spanish_verb_grid` / `spanish_noun_grid` / `spanish_adjective_grid` for `es` when the eight slots are empty (or still on generated defaults). Verbs: regular `-ar/-er/-ir`, boot stem-changers, irregular table. Nouns: plural (`gatos`, `luces`, `canciones`), `-o/-or` gender pair (`gata`, `profesora`; `mano` skipped), `no X`. Adjectives: agreement (`rojo/roja/rojos/rojas`), `más`/`menos`/`-ísimo`. Unset POS still tries the verb infinitive path only. Evidence: `app/frontend/app/utils/i18n.js` `spanishVerbGrid`; `edit_manager.js` `grid_for` Spanish fallback.
 
 ---
 
