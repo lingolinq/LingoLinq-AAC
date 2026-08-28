@@ -863,10 +863,13 @@ context('Button', function() {
         },
         source_part_of_speech: 'verb'
       });
+      // Current locale defaults to en, so update_translations overwrites
+      // the en slot from button.label (unset here), matching sibling tests.
       expect(b.get('translations')).toEqual([
-        translationEntry('en', 'say', undefined),
+        translationEntry('en', undefined, undefined),
         translationEntry('es', 'decir', undefined)
       ]);
+      expect(b.get('translations').map(function(entry) { return entry.locale; })).toEqual(['en', 'es']);
     });
   });
 

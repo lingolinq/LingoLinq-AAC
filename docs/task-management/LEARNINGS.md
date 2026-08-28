@@ -3986,6 +3986,8 @@ Language-tab 3×3 edits write `trans.inflections` on the **button.translations a
 
 **Evidence:** `app/models/board.rb` (`translation_locale_key?`, `process_buttons`); `lib/json_api/board.rb`; `app/frontend/app/utils/button.js#update_translations`; task log `2026-08-27-board-save-500-inflection-rules.md`.
 
+**Testing corollary (PR 878 CI):** `update_translations` overwrites the current locale slot (`en` by default) from `button.label`. A skip-`source_part_of_speech` assertion that expects `en.label` from the hash will fail with `undefined` even when the skip is correct (two objects vs two objects; QUnit then diffs the labels). Match the sibling tests: expect `undefined` for the current-locale label unless the test also sets `button.label`.
+
 ---
 
 ## Gotcha: rake dest locale must not use raw ENV LANG
