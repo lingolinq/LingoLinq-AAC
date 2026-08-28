@@ -114,6 +114,53 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
+  test('the loading cue survives a burst of image republishes', async function(assert) {
+    assert.expect(2);
+    /* _republish_suggestion_list carries `loading` through and fires once per resolved symbol
+       image. The cue observer used to clear and restart its countdown on every `suggestions`
+       write, so a lookup whose images resolved faster than the delay reset the timer
+       indefinitely and the cue never appeared — on exactly the slow lookups it exists for. */
+    const controller = buildController();
+    try {
+      controller.set('_suggestions_loading_cue_delay', 60);
+      controller.set('suggestions', { ready: true, list: [{ word: 'hello' }], loading: true });
+
+      // three republishes, each well inside the 60ms delay
+      for (let i = 0; i < 3; i++) {
+        await new Promise((r) => setTimeout(r, 20));
+        controller._republish_suggestion_list();
+      }
+      await new Promise((r) => setTimeout(r, 120));
+      assert.true(controller.get('suggestions_loading_visible'),
+        'the cue still appears despite the republish burst');
+
+      controller.set('suggestions', { ready: true, list: [{ word: 'hello' }] });
+      await new Promise((r) => setTimeout(r, 20));
+      assert.false(controller.get('suggestions_loading_visible'),
+        'and retracts once the lookup resolves');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('_republish_suggestion_list does not assert ready over a list that has none', function(assert) {
+    assert.expect(2);
+    /* It runs from an image callback that may belong to a superseded set. `ready` gates the
+       in-bar placement, so publishing it early claims the panel is up to date when it is not. */
+    const controller = buildController();
+    try {
+      controller.set('suggestions', { list: [{ word: 'hello' }], loading: true });
+      controller._republish_suggestion_list();
+      assert.notOk(controller.get('suggestions.ready'), 'ready is not invented');
+
+      controller.set('suggestions', { ready: true, list: [{ word: 'hello' }] });
+      controller._republish_suggestion_list();
+      assert.true(controller.get('suggestions.ready'), 'but a real ready is carried through');
+    } finally {
+      controller.destroy();
+    }
+  });
+
   test('_prediction_panel_targeted covers the IN-BAR group, which is a descendant of the scanned row', function(assert) {
     assert.expect(2);
     /* The scanner sweeps the in-bar prediction buttons into the header row, whose dom IS

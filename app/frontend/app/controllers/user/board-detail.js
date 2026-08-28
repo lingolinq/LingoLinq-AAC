@@ -1076,7 +1076,12 @@ export default Controller.extend(prefClasses, {
   _republish_suggestion_list: function() {
     var current = this.get('suggestions');
     if(!current || !current.list) { return; }
-    this.set('suggestions', { ready: true, loading: current.loading, list: current.list.slice() });
+    /* Carry `ready` through rather than asserting true. This runs from an image callback that
+       may belong to a superseded result set, and hardcoding true flipped `ready` on over a
+       state that had none — e.g. `{ready: undefined, list: []}` while the first lookup of a
+       fresh sentence is still in flight. `ready` gates the in-bar placement (the rail ignores
+       it), so publishing it early claims a panel is up to date when it is not. */
+    this.set('suggestions', { ready: current.ready, loading: current.loading, list: current.list.slice() });
   },
 
   _decorate_suggestion_images: function(list) {
@@ -2837,14 +2842,22 @@ export default Controller.extend(prefClasses, {
      in controllers/search.js and controllers/caseload.js. Cleared in willDestroy. */
   _suggestions_loading_cue: observer('suggestions', 'suggestions.loading', function() {
     var _this = this;
-    if(this._suggestions_cue_timer) {
-      clearTimeout(this._suggestions_cue_timer);
-      this._suggestions_cue_timer = null;
-    }
     if(!this.get('suggestions.loading')) {
+      if(this._suggestions_cue_timer) {
+        clearTimeout(this._suggestions_cue_timer);
+        this._suggestions_cue_timer = null;
+      }
+      this._suggestions_loading_run = false;
       if(this.get('suggestions_loading_visible')) { this.set('suggestions_loading_visible', false); }
       return;
     }
+    /* One countdown per LOADING RUN, not per write. The observer fires on every `suggestions`
+       change, and _republish_suggestion_list carries `loading` through and fires once per
+       resolved symbol image — so clearing and restarting the timer here meant a lookup whose
+       images resolved less than the delay apart reset the countdown indefinitely and the cue
+       never appeared at all, on exactly the slow lookups it exists for. */
+    if(this._suggestions_loading_run) { return; }
+    this._suggestions_loading_run = true;
     if(this.get('suggestions_loading_visible')) { return; }
     this._suggestions_cue_timer = setTimeout(function() {
       _this._suggestions_cue_timer = null;
