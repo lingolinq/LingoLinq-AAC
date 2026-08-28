@@ -251,31 +251,33 @@ describe('utterance', function() {
     });
 
     it("should use the completion image for a word completion", function() {
-      var result = utterance.modify_button({label: "cow", in_progress: true}, {vocalization: "+s"});
+      // Pin button_id/mod_id so modify_button's duplicate-guard cannot
+      // collide on two additions that both lack a button_id.
+      var result = utterance.modify_button({label: "cow", in_progress: true, button_id: 'cow'}, {vocalization: "+s", button_id: 'plus-s', mod_id: 1});
       expect(result.label).toEqual("cows");
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(1);
-      result = utterance.modify_button(result, {label: "+zoo"});
+      result = utterance.modify_button(result, {label: "+zoo", button_id: 'plus-zoo', mod_id: 2});
       expect(result.image).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg');
       expect(result.label).toEqual("cowszoo");
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(2);
-      result = utterance.modify_button(result, {label: ":complete", completion: "cowszoofill"});
+      result = utterance.modify_button(result, {label: ":complete", completion: "cowszoofill", button_id: 'complete', mod_id: 3});
       expect(result.image).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg');
       expect(result.label).toEqual("cowszoofill");
     });
 
     it("should use the addition's image if for a word completion", function() {
-      var result = utterance.modify_button({label: "cow", in_progress: true}, {vocalization: "+s"});
+      var result = utterance.modify_button({label: "cow", in_progress: true, button_id: 'cow'}, {vocalization: "+s", button_id: 'plus-s', mod_id: 1});
       expect(result.label).toEqual("cows");
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(1);
-      result = utterance.modify_button(result, {label: "+zoo"});
+      result = utterance.modify_button(result, {label: "+zoo", button_id: 'plus-zoo', mod_id: 2});
       expect(result.image).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/pencil%20and%20paper%202.svg');
       expect(result.label).toEqual("cowszoo");
       expect(result.modified).toEqual(true);
       expect(result.modifications.length).toEqual(2);
-      result = utterance.modify_button(result, {label: ":complete", completion: "cowszoofill", image: "http://www.example.com/pic.png"});
+      result = utterance.modify_button(result, {label: ":complete", completion: "cowszoofill", image: "http://www.example.com/pic.png", button_id: 'complete', mod_id: 3});
       expect(result.image).toEqual('http://www.example.com/pic.png');
       expect(result.label).toEqual("cowszoofill");
     });

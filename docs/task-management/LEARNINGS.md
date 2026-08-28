@@ -52,6 +52,8 @@ file (see [README.md](README.md)).
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
 - [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
+- [Gotcha: Notion rich_text is 2000 chars per object, not per property](#gotcha-notion-rich_text-is-2000-chars-per-object-not-per-property)
+- [Gotcha: primary source for the AI Act is CELEX 32024R1689, not artificialintelligenceact.eu](#gotcha-primary-source-for-the-ai-act-is-celex-32024r1689-not-artificialintelligenceacteu)
 - [Gotcha: "Scot re-attested" is not a pin on this branch until the row hash matches](#gotcha-scot-re-attested-is-not-a-pin-on-this-branch-until-the-row-hash-matches)
 - [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
 - [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
@@ -15831,3 +15833,17 @@ cause 2 on its first run, after cause 1 had already been "fixed" and eyeballed a
 `.md-board-detail-prediction-rail` + `.md-board-detail-grid.board.speak` (margin) +
 `.md-board-detail-grid--has-folders …__cell` (reserve); task log
 `2026-08-28-prediction-rail-alignment-and-width-stability.md`.
+
+---
+
+## Gotcha: Notion rich_text is 2000 chars per object, not per property
+
+Notion caps `text.content` at 2000 characters **per rich_text object**, not per property. A property value is an array of those objects (max 100). The findings and document-register Notion syncs used to send a single `t[0, 1900]` slice, which silently dropped the tail of counsel-length remediations (`LL-b3e3a0b99c` was 2,872 characters; the EUR-Lex URL, transitional caveat, five-year guidance, and version-bump mechanism never reached the board). Split via `scripts/notion_rich_text.rb`. Do not shorten the register SSOT to fit the mirror.
+
+**First seen in:** [2026-08-27-art50-counsel-pointer-review.md](./2026-08-27-art50-counsel-pointer-review.md)
+
+## Gotcha: primary source for the AI Act is CELEX 32024R1689, not artificialintelligenceact.eu
+
+`artificialintelligenceact.eu` is a third-party reproduction. The authentic OJ text of Regulation (EU) 2024/1689 is https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689. EUR-Lex consolidations (CELEX ids starting with `0`) are editorial and not authentic; cite the original act plus the amending OJ texts (for example Regulation (EU) 2026/1744) instead. A register row that says "verified against primary sources" must link those official texts, not the reproduction.
+
+**First seen in:** [2026-08-27-art50-counsel-pointer-review.md](./2026-08-27-art50-counsel-pointer-review.md)
