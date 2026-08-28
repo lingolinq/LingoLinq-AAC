@@ -63,19 +63,40 @@
 > `Invocations` and CloudTrail `InvokeModel` were queried against account `239044785114` for
 > 2026-07-01 to 2026-08-27 UTC. They establish three things the application log could not.
 > First, the window this passage originally asserted was closed (2026-07-30 to 2026-08-03) contains
-> **28 attributed invocations**: 27 on 2026-08-01 UTC and 1 on 2026-08-02 UTC. 26 were issued by
-> `lingolinq-bedrock-runtime` and 2 directly by an administrator principal.
+> **21 CloudTrail events in us-west-2, of which 13 FAILED and 8 succeeded.** The 13 failures never
+> reached a model: 7 `AccessDenied` and 6 `ValidationException` ("The provided model identifier is
+> invalid"). The request bodies reached the AWS endpoint, which is BAA-covered, but no inference
+> occurred, so they are not model egress and must not be counted as such. **Corrected 2026-08-28:**
+> an earlier revision of this note reported 28 invocations with 26 attributed to
+> `lingolinq-bedrock-runtime`. That count conflated failures with successes and, more importantly,
+> implied the serving path was active. It was not. Of the 8 successes, **7 carry
+> `userAgent: aws-cli` and exactly 1 carries `Anthropic::Helpers::Bedrock::Client/Ruby`**, the
+> application SDK. All 21 events originate from a single non-cloud source address. The accurate
+> statement is that a person exercised the production runtime credential interactively from a
+> workstation, largely unsuccessfully, and the deployed application made one call in that window.
+> us-east-1 over 2026-07-30 to 2026-08-06 is 8 events, **100% interactive CLI** from the same
+> address, 4 succeeded and 4 failed, with no application-SDK traffic at all.
 > Second, the window described as carrying "a single internal verification call" is 2026-08-03 to
-> 2026-08-04. A separately queried longer bucket (2026-08-03 to 2026-08-06) carries **8, every one
-> of them the runtime credential**. Calls after 2026-08-04, including those after the documented
-> credential restoration at 07:25, sit outside the original interval and cannot refute its count.
-> The 2026-08-26 query did not isolate the August 3-4 window, so this telemetry does not establish
-> that window's CloudTrail count and does not establish that the verification event was recorded
-> on the wrong dates. The only human-issued calls anywhere in the queried range fall on 2026-08-01.
-> Third, four principals invoke Bedrock, not one: `lingolinq-bedrock-runtime` (121),
-> `lingolinq-bedrock-staging` (67), `lingolinq-bedrock-dev` (27), and an administrator (2). Only the
-> first writes to production `AiApiLog`, so any figure that pools environments describes a different
-> population than the application log does.
+> 2026-08-04. A separately queried longer bucket (2026-08-03 to 2026-08-06) carries 7 events in
+> us-west-2, all successful: 6 via the application SDK and 1 via `aws-cli`. Source addresses split
+> 5 to the same non-cloud workstation address as the window above and 2 to cloud infrastructure, so
+> most of this bucket is the application run locally rather than the deployed service. Calls after
+> 2026-08-04, including those after the documented credential restoration at 07:25, sit outside the
+> original interval and cannot refute its count. The 2026-08-26 query did not isolate the
+> August 3-4 window, so this telemetry does not establish that window's count and does not establish
+> that the verification event was recorded on the wrong dates.
+> Third, four principals invoke Bedrock, not one: `lingolinq-bedrock-runtime`,
+> `lingolinq-bedrock-staging`, `lingolinq-bedrock-dev`, and an administrator. Across 2026-07-01 to
+> 2026-08-29 in us-west-2 the application-SDK totals are 114 dev, 94 runtime and 70 staging, with a
+> further 21 runtime and administrator events issued by `aws-cli` of which 13 failed. Only the
+> runtime principal writes to production `AiApiLog`, so any figure that pools environments describes
+> a different population than the application log does.
+>
+> Fourth, and this is the load-bearing one: **the deployed production path is visible and it starts
+> on 2026-08-12, exactly where this document's correction says it does.** The 2026-08-12 to
+> 2026-08-14 window carries 67 runtime and 3 staging calls, all via the application SDK,
+> overwhelmingly from cloud source addresses. That is the genuine post-PR #734 production egress.
+> The 2026-08-01 activity is a workstation exercising a credential; this is the service serving.
 >
 > Vendor telemetry and the application log therefore cannot be reconciled into a single number, and
 > **no ratio between them should be quoted.** The two sources also do not agree with each other
@@ -183,10 +204,23 @@ explicitly marked not operational.
   `us.anthropic.claude-opus-4-5-20251101-v1:0` and 1 of
   `us.anthropic.claude-sonnet-4-5-20250929-v1:0` by `lingolinq-bedrock-runtime` on 2026-08-01. Both
   are Anthropic models served by Amazon Bedrock under the same AWS BAA, so no processor outside the
-  BAA received the payload, but neither was a designated model. The `ALLOWED_RUNTIME_MODELS` gate in
-  `lib/ai_client.rb` that now restricts the runtime seams to Haiku 4.5 did not exist until commit
-  `5dbc4e478` (2026-08-02T17:03:04-0600). Every invocation after that commit resolves to Haiku 4.5,
-  which vendor telemetry independently confirms. **Corrected 2026-08-26: the runtime AI path was operational and carrying
+  BAA received the payload, but neither was a designated model. **Corrected 2026-08-28: those calls
+  were issued interactively via `aws-cli` from a workstation, not by the deployed application.** The
+  `ALLOWED_RUNTIME_MODELS` gate in `lib/ai_client.rb` that now restricts the runtime seams to
+  Haiku 4.5 did not exist until commit `5dbc4e478` (2026-08-02T17:03:04-0600). Every invocation
+  after that commit resolves to Haiku 4.5, which vendor telemetry independently confirms.
+- **Claude Opus 4.7 is named in the runtime inventory but has never been invocable.** Every
+  CloudTrail attempt against `us.anthropic.claude-opus-4-7-20260115-v1:0` and
+  `us.anthropic.claude-opus-4-7-v1:0` returned `ValidationException: The provided model identifier
+  is invalid`; the identifier does not resolve on Bedrock. `lib/eval_narrator.rb:64` sets
+  `DEFAULT_MODEL = 'anthropic.claude-opus-4-7'` and that seam's own `ALLOWED_MODELS` list admits it,
+  so the eval-narration seam cannot complete a call as configured. No successful Opus 4.7 invocation
+  appears anywhere in the queried range. Treat the runtime inventory as Haiku 4.5 only until this is
+  resolved in code, and do not describe Opus 4.7 as an in-use runtime model.
+- **Credential hygiene.** The production `lingolinq-bedrock-runtime` credential was used
+  interactively from a non-cloud workstation address on 2026-08-01, including successful model
+  invocations. That is independent of the operational-status question above and is recorded here so
+  it is not lost. **Corrected 2026-08-26: the runtime AI path was operational and carrying
   user-attributed traffic when last verified (application logs through 2026-08-14T21:13:27Z,
   serving-revision sweep 2026-08-16).** This passage read that these features "were not operational from
   2026-07-30 until 2026-08-03, were briefly operational from 2026-08-03 to 2026-08-04 for internal
