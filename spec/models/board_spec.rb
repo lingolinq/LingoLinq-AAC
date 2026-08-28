@@ -1698,6 +1698,48 @@ describe Board, :type => :model do
       })
     end
 
+    it "should keep source_part_of_speech and save locale inflections without treating POS as a locale" do
+      b = Board.new
+      b.settings = {
+        'locale' => 'en',
+        'translations' => {
+          '1_2' => {
+            'en' => { 'label' => 'say' },
+            'es' => { 'label' => 'decir' },
+            'source_part_of_speech' => 'verb'
+          }
+        }
+      }
+      expect {
+        b.process_buttons([
+          {'id' => '1_2', 'label' => 'say', 'translations' => [
+            {'locale' => 'en', 'label' => 'say'},
+            {'locale' => 'es', 'label' => 'decir', 'inflections' => ['digo', 'dices', 'dice'], 'rules' => [['yo', 'digo'], ['tú', 'dices']]},
+            {'locale' => 'source_part_of_speech', 'label' => 'decir', 'inflections' => ['digo']}
+          ]}
+        ], nil)
+      }.not_to raise_error
+      trans = b.settings['translations']['1_2']
+      expect(trans['source_part_of_speech']).to eq('verb')
+      expect(trans['es']['label']).to eq('decir')
+      expect(trans['es']['inflections'][0]).to eq('digo')
+      expect(trans['es']['rules']).to eq([['yo', 'digo'], ['tú', 'dices']])
+    end
+
+    it "should not raise when translation rules is a string" do
+      b = Board.new
+      b.settings ||= {}
+      expect {
+        b.process_buttons([
+          {'id' => '1', 'label' => 'say', 'translations' => [
+            {'locale' => 'es', 'label' => 'decir', 'rules' => "yo=digo\ntú=dices"}
+          ]}
+        ], nil)
+      }.not_to raise_error
+      expect(b.settings['translations']['1']['es']['label']).to eq('decir')
+      expect(b.settings['translations']['1']['es']['rules']).to eq(nil)
+    end
+
     it "should process translations from the translations hash" do
       b = Board.new
       b.settings ||= {}
@@ -3528,7 +3570,7 @@ describe Board, :type => :model do
       expect(res).to eq({done: true, translated: false, reason: 'mismatched user'})
     end
 
-    it "should skip when the board owner's org disables external AI processing" do
+    it "should still apply translations when the board owner's org disables external AI processing" do
       o = Organization.create(settings: {'total_licenses' => 1, 'external_ai_processing' => false})
       u = User.create
       o.add_user(u.user_name, false, true)
@@ -3539,15 +3581,17 @@ describe Board, :type => :model do
         {'id' => 2, 'label' => 'cat'}
       ]
       b.save
-      expect(Organization).to receive(:log_external_ai_processing_skip).with(u, 'translation')
+      expect(Organization).not_to receive(:log_external_ai_processing_skip)
       res = b.translate_set({'hat' => 'sombrero', 'cat' => 'gato'}, {
         'source' => 'en',
         'dest' => 'es',
         'board_ids' => [b.global_id]
       })
-      expect(res).to eq({done: true, translated: false, reason: 'external_ai_processing_disabled'})
+      expect(res[:done]).to eq(true)
+      expect(res[:updated]).to include(b.global_id)
       b.reload
-      expect(b.settings['buttons'][0]['label']).to eq('hat')
+      expect(b.settings['buttons'][0]['label']).to eq('sombrero')
+      expect(b.settings['buttons'][1]['label']).to eq('gato')
     end
     
     it "should do nothing if the board's locale already matches the desired locale" do

@@ -550,6 +550,205 @@ describe('editManager', function() {
     it("should open the pin confirmation dialog if protected", null);
   });
 
+  describe("grid_for", function() {
+    function localeAppState(label, vocalization) {
+      var app = editManager.appState || LingoLinq.appState;
+      if(app && typeof app.set === 'function') {
+        app.set('label_locale', label);
+        app.set('vocalization_locale', vocalization);
+      }
+    }
+
+    it("should build overlay slots from Language-tab translations when the board hash is empty", function() {
+      var button = editButton(board, 9, {
+        label: 'say',
+        vocalization: 'say',
+        part_of_speech: 'verb',
+        translations: [{
+          locale: 'es',
+          code: 'es',
+          label: 'decir',
+          inflections: ['digo', 'dices', 'dice', 'decimos', 'dicen', 'dije', 'diciendo', 'dicho']
+        }]
+      });
+      board.set('locale', 'en');
+      board.set('translations', { '9': { en: { label: 'say' }, es: { label: 'decir' } } });
+      setupEditBoard(board, [[button]]);
+      localeAppState('es', 'es');
+      var grid = editManager.grid_for(9);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.nw).toEqual('digo');
+      expect(byLoc.n).toEqual('dices');
+      expect(byLoc.ne).toEqual('dice');
+      expect(byLoc.w).toEqual('decimos');
+      expect(byLoc.e).toEqual('dicen');
+      expect(byLoc.sw).toEqual('dije');
+      expect(byLoc.s).toEqual('diciendo');
+      expect(byLoc.se).toEqual('dicho');
+      expect(byLoc.c).toEqual('decir');
+    });
+
+    it("should still use button.inflections for the current locale", function() {
+      var button = editButton(board, 4, {
+        label: 'walk',
+        part_of_speech: 'verb',
+        inflections: ['walked', 'walks', 'will walk', 'walking']
+      });
+      board.set('locale', 'en');
+      board.set('translations', {});
+      setupEditBoard(board, [[button]]);
+      localeAppState('en', 'en');
+      var grid = editManager.grid_for(4);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.nw).toEqual('walked');
+      expect(byLoc.n).toEqual('walks');
+      expect(byLoc.ne).toEqual('will walk');
+      expect(byLoc.w).toEqual('walking');
+    });
+
+    it("should fill empty Spanish overlay slots for hablar", function() {
+      var button = editButton(board, 11, {
+        label: 'hablar',
+        vocalization: 'hablar',
+        part_of_speech: 'verb'
+      });
+      board.set('locale', 'es');
+      board.set('translations', {});
+      if(board.get('model') && board.get('model').set) {
+        board.get('model').set('locale', 'es');
+        board.get('model').set('translations', {});
+      }
+      setupEditBoard(board, [[button]]);
+      localeAppState('es', 'es');
+      var grid = editManager.grid_for(11);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.nw).toEqual('hablo');
+      expect(byLoc.n).toEqual('hablas');
+      expect(byLoc.ne).toEqual('habla');
+      expect(byLoc.w).toEqual('hablamos');
+      expect(byLoc.e).toEqual('hablan');
+      expect(byLoc.sw).toEqual('hablé');
+      expect(byLoc.s).toEqual('hablando');
+      expect(byLoc.se).toEqual('hablado');
+      expect(byLoc.c).toEqual('hablar');
+    });
+
+    it("should fill empty Spanish overlay slots for decir from the irregular table", function() {
+      var button = editButton(board, 12, {
+        label: 'decir',
+        part_of_speech: 'verb'
+      });
+      if(board.get('model') && board.get('model').set) {
+        board.get('model').set('locale', 'es');
+        board.get('model').set('translations', {});
+      }
+      setupEditBoard(board, [[button]]);
+      localeAppState('es', 'es');
+      var grid = editManager.grid_for(12);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.nw).toEqual('digo');
+      expect(byLoc.n).toEqual('dices');
+      expect(byLoc.ne).toEqual('dice');
+      expect(byLoc.w).toEqual('decimos');
+      expect(byLoc.e).toEqual('dicen');
+      expect(byLoc.sw).toEqual('dije');
+      expect(byLoc.s).toEqual('diciendo');
+      expect(byLoc.se).toEqual('dicho');
+    });
+
+    it("should fill empty Spanish overlay slots for pensar from stem-change rules", function() {
+      var button = editButton(board, 14, {
+        label: 'pensar',
+        part_of_speech: 'verb'
+      });
+      if(board.get('model') && board.get('model').set) {
+        board.get('model').set('locale', 'es');
+        board.get('model').set('translations', {});
+      }
+      setupEditBoard(board, [[button]]);
+      localeAppState('es', 'es');
+      var grid = editManager.grid_for(14);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.nw).toEqual('pienso');
+      expect(byLoc.n).toEqual('piensas');
+      expect(byLoc.w).toEqual('pensamos');
+      expect(byLoc.sw).toEqual('pensé');
+      expect(byLoc.s).toEqual('pensando');
+    });
+
+    it("should fill empty Spanish overlay slots for gato as a noun", function() {
+      var button = editButton(board, 15, {
+        label: 'gato',
+        part_of_speech: 'noun'
+      });
+      if(board.get('model') && board.get('model').set) {
+        board.get('model').set('locale', 'es');
+        board.get('model').set('translations', {});
+      }
+      setupEditBoard(board, [[button]]);
+      localeAppState('es', 'es');
+      var grid = editManager.grid_for(15);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.n).toEqual('gatos');
+      expect(byLoc.s).toEqual('gata');
+      expect(byLoc.e).toEqual('gatas');
+      expect(byLoc.nw).toEqual('no gato');
+    });
+
+    it("should fill empty Spanish overlay slots for rojo as an adjective", function() {
+      var button = editButton(board, 16, {
+        label: 'rojo',
+        part_of_speech: 'adjective'
+      });
+      if(board.get('model') && board.get('model').set) {
+        board.get('model').set('locale', 'es');
+        board.get('model').set('translations', {});
+      }
+      setupEditBoard(board, [[button]]);
+      localeAppState('es', 'es');
+      var grid = editManager.grid_for(16);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.n).toEqual('rojos');
+      expect(byLoc.s).toEqual('roja');
+      expect(byLoc.ne).toEqual('más rojo');
+      expect(byLoc.e).toEqual('rojísimo');
+    });
+
+    it("should not conjugate a Spanish noun as a verb", function() {
+      var button = editButton(board, 13, {
+        label: 'lugar',
+        part_of_speech: 'noun'
+      });
+      if(board.get('model') && board.get('model').set) {
+        board.get('model').set('locale', 'es');
+        board.get('model').set('translations', {});
+      }
+      setupEditBoard(board, [[button]]);
+      localeAppState('es', 'es');
+      var grid = editManager.grid_for(13);
+      expect(grid).not.toEqual(null);
+      var byLoc = {};
+      grid.forEach(function(slot) { byLoc[slot.location] = slot.label; });
+      expect(byLoc.n).toEqual('lugares');
+      expect(byLoc.nw).toEqual('no lugar');
+      expect(byLoc.ne).toEqual(undefined);
+    });
+  });
+
   describe("change_button", function() {
     it("should allow clearing known attributes on buttons", function() {
       var button = editButton(board, 123, { label: 'happen', chicken: true });

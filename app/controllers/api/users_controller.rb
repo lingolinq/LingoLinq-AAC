@@ -1145,16 +1145,9 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'delete')
-    unless Organization.external_ai_processing_allowed_for_user?(user)
-      Organization.log_external_ai_processing_skip(user, 'translation')
-      # Neutral skip (not an error): empty translations, callers tolerate zero results.
-      return render json: {
-        source: params['source_lang'],
-        dest: params['destination_lang'],
-        translations: {},
-        external_ai_processing: false
-      }
-    end
+    # Board translation is not gated by org external_ai_processing (that
+    # off-switch covers voice transcription). The Translate Boards modal
+    # shows a Google Cloud Translation disclaimer before this call.
     res = WordData.translate_batch(params['words'].map{|w| {:text => w } }, params['source_lang'], params['destination_lang'])
     render json: res
   end

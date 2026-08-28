@@ -8632,7 +8632,9 @@ body > .popover.bottom {
   box-shadow: 5px 5px 10px rgba(0, 0, 0, 0.7);
   background: rgba(100, 100, 100, 0.95);
   border-radius: 5px;
-  z-index: 3;
+  /* Above board-detail chrome (sentence bar / hamburger ~2000) and below
+     dwell/alerts (~9999). The old z-index:3 sat under the modern grid. */
+  z-index: 4000;
   .overlay_row {
     clear: both;
     .overlay_button {
@@ -80416,6 +80418,8 @@ span.md-board-detail-modeling-btn--paused:hover {
   justify-content: center;
   padding: 0;
   overflow: hidden;
+  /* Hold tracking keys off the .button card. Nested img/svg must not steal the pointer. */
+  pointer-events: none;
   /* Match the responsive corner radius applied to the outer card
      (`.md-board-detail-symbol-card` further up). The outer card
      clips its content via `overflow: hidden`, so this radius isn't
@@ -80738,6 +80742,7 @@ span.md-board-detail-modeling-btn--paused:hover {
   // recognition cue for AAC users; only break between words. The
   // 3-line cap + ellipsis is a last-ditch fallback for unusually
   // long phrases.
+  pointer-events: none;
   font-size: var(--bd-button-text-size, 15px);
   /* Smooth the font-size change when the user adjusts the Text Size
      stepper in the Edit Tools rail. Without this, each +/- click
