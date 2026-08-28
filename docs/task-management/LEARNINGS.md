@@ -7959,9 +7959,11 @@ new runloop call sites were added. Diagnose before migrating: compare counts of
 then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
 in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new),
 `feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
-computed dep; the rest were `application.js` line shifts from three payload keys), and
+computed dep; the rest were `application.js` line shifts from three payload keys),
 `fix/melissa-translate-action-tokens-and-lang-search` merging staging (`new=7`; 3 `assert.expect`
-on new tests, one `model.board.id` computed dep, 3 line-shifted `runLater`/controller deps). New unit tests
+on new tests, one `model.board.id` computed dep, 3 line-shifted `runLater`/controller deps), and
+`feat/melissa-spanish-verb-inflections` (`new=13`; all line-shift: `edit_manager.js` +21,
+`i18n.js` +281; zero truly new). New unit tests
 must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
 `@ember/test-helpers`. See
 [`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),
