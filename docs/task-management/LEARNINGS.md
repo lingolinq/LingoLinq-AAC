@@ -20,7 +20,9 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`](#gotcha-merging-two-overlay-prs-is-a-union-of-tests-then-regenerate-eslint-todo)
 - [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
+- [Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`](#pattern-spanish-long-press-defaults-use-spanish_verb_grid-not-english--s-ed-ing)
 - [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
 - [Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one](#gotcha-source_part_of_speech-is-not-a-locale--process_buttons-500s-if-treated-as-one)
 - [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
@@ -3958,9 +3960,21 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 
 ---
 
+## Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`
+
+`fix/melissa-inflections-overlay` and staging `#880` (`feat/melissa-spanish-verb-inflections`) both edited `grid_for`, `edit_manager-test.js`, `LEARNINGS.md`, and `.eslint-todo`. Keep both behaviors: Language-tab `button.translations` lookup **and** Spanish empty-grid defaults. Conflicted tests are a union, not ours-or-theirs. `.eslint-todo` line numbers from either side are wrong after the combine; run `npm run lint:js:todo`. Task log: `2026-08-27-merge-staging-inflections-overlay.md`.
+
+---
+
 ## Gotcha: long-press overlay reads Language-tab inflections from the button translations array
 
 Language-tab 3×3 edits write `trans.inflections` on the **button.translations array**. `grid_for` used to read only `board.translations[id][locale]` (often label-only until save) and `button.inflections` (Rails deletes that when translation inflections exist). A filled Spanish grid then returned null, the overlay never opened, and `return true` swallowed the tap. Hold tracking also cancelled when `event.target` moved between nested img/label and the card. Fix: prefer the slot that actually has inflections; cancel the hold only when leaving the same `.button`. Tests: `edit_manager-test.js` `grid_for`. Task log: `2026-08-27-inflections-long-press.md`.
+
+---
+
+## Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`
+
+English empty overlay slots are filled by `i18n.tense` (`-s`/`-ed`/`-ing`) when the locale is `en`. Spanish cannot reuse those suffixes. `grid_for` calls `i18n.spanish_verb_grid` / `spanish_noun_grid` / `spanish_adjective_grid` for `es` when the eight slots are empty (or still on generated defaults). Verbs: regular `-ar/-er/-ir`, boot stem-changers, irregular table. Nouns: plural (`gatos`, `luces`, `canciones`), `-o/-or` gender pair (`gata`, `profesora`; `mano` skipped), `no X`. Adjectives: agreement (`rojo/roja/rojos/rojas`), `más`/`menos`/`-ísimo`. Unset POS still tries the verb infinitive path only. Evidence: `app/frontend/app/utils/i18n.js` `spanishVerbGrid`; `edit_manager.js` `grid_for` Spanish fallback.
 
 ---
 
@@ -7974,12 +7988,14 @@ new runloop call sites were added. Diagnose before migrating: compare counts of
 then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
 in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new),
 `feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
-computed dep; the rest were `application.js` line shifts from three payload keys), and
+computed dep; the rest were `application.js` line shifts from three payload keys),
 `fix/melissa-translate-action-tokens-and-lang-search` merging staging (`new=7`; 3 `assert.expect`
-on new tests, one `model.board.id` computed dep, 3 line-shifted `runLater`/controller deps), and
+on new tests, one `model.board.id` computed dep, 3 line-shifted `runLater`/controller deps),
 `fix/melissa-inflections-overlay` (`new=49`; all line-shifted `runLater`/computed-dep/string-proto
 in `board.js`/`button.js`/`edit_manager.js`/`raw_events.js`; file|rule counts unchanged except
-one stale `icon-select.js|no-dupe-keys` pruned). New unit tests
+one stale `icon-select.js|no-dupe-keys` pruned), and
+`feat/melissa-spanish-verb-inflections` (`new=13`; all line-shift: `edit_manager.js` +21,
+`i18n.js` +281; zero truly new). New unit tests
 must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
 `@ember/test-helpers`. See
 [`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),

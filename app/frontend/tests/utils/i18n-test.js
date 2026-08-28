@@ -683,6 +683,148 @@ describe("i18n", function() {
     });
   });
 
+  describe("spanish_verb_grid", function() {
+    it("should conjugate regular -ar hablar", function() {
+      expect(i18n.spanish_verb_grid('hablar')).toEqual({
+        c: 'hablar',
+        nw: 'hablo', n: 'hablas', ne: 'habla',
+        w: 'hablamos', e: 'hablan',
+        sw: 'hablé', s: 'hablando', se: 'hablado'
+      });
+    });
+
+    it("should conjugate regular -er comer and -ir vivir", function() {
+      expect(i18n.spanish_verb_grid('comer')).toEqual({
+        c: 'comer',
+        nw: 'como', n: 'comes', ne: 'come',
+        w: 'comemos', e: 'comen',
+        sw: 'comí', s: 'comiendo', se: 'comido'
+      });
+      expect(i18n.spanish_verb_grid('vivir')).toEqual({
+        c: 'vivir',
+        nw: 'vivo', n: 'vives', ne: 'vive',
+        w: 'vivimos', e: 'viven',
+        sw: 'viví', s: 'viviendo', se: 'vivido'
+      });
+    });
+
+    it("should use irregulars instead of regular endings", function() {
+      expect(i18n.spanish_verb_grid('decir').nw).toEqual('digo');
+      expect(i18n.spanish_verb_grid('decir').sw).toEqual('dije');
+      expect(i18n.spanish_verb_grid('decir').se).toEqual('dicho');
+      expect(i18n.spanish_verb_grid('ir').nw).toEqual('voy');
+      expect(i18n.spanish_verb_grid('ser').n).toEqual('eres');
+      expect(i18n.spanish_verb_grid('estar').n).toEqual('estás');
+      expect(i18n.spanish_verb_grid('hacer').se).toEqual('hecho');
+    });
+
+    it("should apply -car/-zar preterite spelling and vowel-stem gerund", function() {
+      expect(i18n.spanish_verb_grid('buscar').sw).toEqual('busqué');
+      expect(i18n.spanish_verb_grid('cazar').sw).toEqual('cacé');
+      expect(i18n.spanish_verb_grid('leer').s).toEqual('leyendo');
+      expect(i18n.spanish_verb_grid('leer').se).toEqual('leído');
+    });
+
+    it("should return null for non-infinitives", function() {
+      expect(i18n.spanish_verb_grid('hablo')).toEqual(null);
+      expect(i18n.spanish_verb_grid('')).toEqual(null);
+    });
+
+    it("should apply e-ie, o-ue, e-i, and jugar stem changes", function() {
+      expect(i18n.spanish_verb_grid('pensar')).toEqual({
+        c: 'pensar',
+        nw: 'pienso', n: 'piensas', ne: 'piensa',
+        w: 'pensamos', e: 'piensan',
+        sw: 'pensé', s: 'pensando', se: 'pensado'
+      });
+      expect(i18n.spanish_verb_grid('volver')).toEqual({
+        c: 'volver',
+        nw: 'vuelvo', n: 'vuelves', ne: 'vuelve',
+        w: 'volvemos', e: 'vuelven',
+        sw: 'volví', s: 'volviendo', se: 'vuelto'
+      });
+      expect(i18n.spanish_verb_grid('pedir')).toEqual({
+        c: 'pedir',
+        nw: 'pido', n: 'pides', ne: 'pide',
+        w: 'pedimos', e: 'piden',
+        sw: 'pedí', s: 'pidiendo', se: 'pedido'
+      });
+      expect(i18n.spanish_verb_grid('jugar')).toEqual({
+        c: 'jugar',
+        nw: 'juego', n: 'juegas', ne: 'juega',
+        w: 'jugamos', e: 'juegan',
+        sw: 'jugué', s: 'jugando', se: 'jugado'
+      });
+    });
+
+    it("should keep -ir gerund stem-changes and yo spelling for seguir/elegir", function() {
+      expect(i18n.spanish_verb_grid('dormir').s).toEqual('durmiendo');
+      expect(i18n.spanish_verb_grid('sentir').s).toEqual('sintiendo');
+      expect(i18n.spanish_verb_grid('seguir').nw).toEqual('sigo');
+      expect(i18n.spanish_verb_grid('seguir').s).toEqual('siguiendo');
+      expect(i18n.spanish_verb_grid('elegir').nw).toEqual('elijo');
+      expect(i18n.spanish_verb_grid('empezar').nw).toEqual('empiezo');
+      expect(i18n.spanish_verb_grid('empezar').sw).toEqual('empecé');
+      expect(i18n.spanish_verb_grid('sentarse').nw).toEqual('siento');
+      expect(i18n.spanish_verb_grid('morir').se).toEqual('muerto');
+    });
+  });
+
+  describe("spanish_noun_grid", function() {
+    it("should pluralize and gender-pair gato", function() {
+      expect(i18n.spanish_noun_grid('gato')).toEqual({
+        c: 'gato',
+        n: 'gatos',
+        s: 'gata',
+        e: 'gatas',
+        nw: 'no gato',
+        se: 'no gatos'
+      });
+    });
+
+    it("should pluralize casa without inventing a masculine", function() {
+      var grid = i18n.spanish_noun_grid('casa');
+      expect(grid.n).toEqual('casas');
+      expect(grid.s).toEqual(undefined);
+      expect(grid.nw).toEqual('no casa');
+    });
+
+    it("should use z-ces, -ión accent drop, and irregular jóvenes", function() {
+      expect(i18n.spanish_noun_grid('luz').n).toEqual('luces');
+      expect(i18n.spanish_noun_grid('canción').n).toEqual('canciones');
+      expect(i18n.spanish_noun_grid('joven').n).toEqual('jóvenes');
+      expect(i18n.spanish_noun_grid('ley').n).toEqual('leyes');
+      expect(i18n.spanish_noun_grid('profesor').s).toEqual('profesora');
+      expect(i18n.spanish_noun_grid('mano').s).toEqual(undefined);
+      expect(i18n.spanish_noun_grid('mano').n).toEqual('manos');
+    });
+  });
+
+  describe("spanish_adjective_grid", function() {
+    it("should agree rojo and add más/menos/ísimo", function() {
+      expect(i18n.spanish_adjective_grid('rojo')).toEqual({
+        c: 'rojo',
+        n: 'rojos',
+        s: 'roja',
+        sw: 'rojas',
+        ne: 'más rojo',
+        w: 'menos rojo',
+        e: 'rojísimo',
+        nw: 'no rojo',
+        se: 'no rojos'
+      });
+    });
+
+    it("should only number-inflect grande and form felices", function() {
+      var grande = i18n.spanish_adjective_grid('grande');
+      expect(grande.n).toEqual('grandes');
+      expect(grande.s).toEqual(undefined);
+      expect(grande.e).toEqual('grandísimo');
+      expect(i18n.spanish_adjective_grid('feliz').n).toEqual('felices');
+      expect(i18n.spanish_adjective_grid('rico').e).toEqual('riquísimo');
+    });
+  });
+
   describe("seconds_ago", function() {
     it("should return correct values", function() {
       expect(templateHelpers.seconds_ago(12)).toEqual("12 seconds");
