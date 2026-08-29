@@ -3162,8 +3162,18 @@ describe User, :type => :model do
       keys = User.signup_sidebar_boards.map { |b| b['key'] }.compact
       expect(keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
       expect(keys).to include(SystemBoardSources.board_key(SystemBoardSources::SENNER_BAUD_SLUG))
+      expect(keys).to include(SystemBoardSources.board_key('inflections'))
       expect(keys).not_to include(SystemBoardSources.board_key('vocal-flair-60'))
       expect(keys).not_to include('mbaud12/senner-baud-greetings')
+    end
+
+    it "should put Flexiones in the signup sidebar for Spanish locale users" do
+      u = User.new
+      u.settings = {'preferences' => {'locale' => 'es'}}
+      keys = User.signup_sidebar_boards(u).map { |b| b['key'] }.compact
+      expect(keys).to include(SystemBoardSources.board_key('inflections-es'))
+      expect(keys).not_to include(SystemBoardSources.board_key('inflections'))
+      expect(keys).to include(SystemBoardSources.board_key('vocal-flair-84'))
     end
 
     it "should not auto-add vocal-flair-84 or senner-baud into an older saved sidebar" do

@@ -825,6 +825,45 @@ describe("i18n", function() {
     });
   });
 
+  describe("spanish inflections board helpers", function() {
+    it("should conjugate verb slots from the overlay grid", function() {
+      expect(i18n.spanish_verb_slot('hablar', 'nw')).toEqual('hablo');
+      expect(i18n.spanish_verb_slot('hablar', 'n')).toEqual('hablas');
+      expect(i18n.spanish_verb_slot('hablar', 'ne')).toEqual('habla');
+      expect(i18n.spanish_verb_slot('hablar', 'w')).toEqual('hablamos');
+      expect(i18n.spanish_verb_slot('hablar', 'e')).toEqual('hablan');
+      expect(i18n.spanish_verb_slot('hablar', 's')).toEqual('hablando');
+      expect(i18n.spanish_verb_slot('hablar', 'se')).toEqual('hablado');
+      expect(i18n.spanish_verb_slot('hablo', 'nw')).toEqual('hablo');
+    });
+
+    it("should pluralize nouns and skip infinitives", function() {
+      expect(i18n.spanish_pluralize('gato')).toEqual('gatos');
+      expect(i18n.spanish_pluralize('luz')).toEqual('luces');
+      expect(i18n.spanish_pluralize('hablar')).toEqual('hablar');
+    });
+
+    it("should form feminine nouns and adjectives, including -os plurals", function() {
+      expect(i18n.spanish_feminine('gato')).toEqual('gata');
+      expect(i18n.spanish_feminine('gatos')).toEqual('gatas');
+      expect(i18n.spanish_feminine('rojo')).toEqual('roja');
+      expect(i18n.spanish_feminine('mano')).toEqual('mano');
+    });
+
+    it("should prefix no/más once and form -ísimo", function() {
+      expect(i18n.spanish_negation('gato')).toEqual('no gato');
+      expect(i18n.spanish_negation('no gato')).toEqual('no gato');
+      expect(i18n.spanish_mas('rojo')).toEqual('más rojo');
+      expect(i18n.spanish_isimo('rojo')).toEqual('rojísimo');
+    });
+
+    it("should wrap Spanish question and exclamation marks", function() {
+      expect(i18n.spanish_question('hola')).toEqual('¿hola?');
+      expect(i18n.spanish_question('¿hola?')).toEqual('¿hola?');
+      expect(i18n.spanish_exclaim('hola')).toEqual('¡hola!');
+    });
+  });
+
   describe("spanish_pronoun_grid", function() {
     it("should fill yo with object, possessives, tonic, and conmigo", function() {
       expect(i18n.spanish_pronoun_grid('yo')).toEqual({

@@ -193,6 +193,27 @@ function applySpanishCap(raw, form) {
   return (cap && form) ? (form.charAt(0).toUpperCase() + form.slice(1)) : form;
 }
 
+function spanishTrim(str) {
+  if(str == null || typeof str !== 'string') { return ''; }
+  return str.replace(/^\s+|\s+$/g, '');
+}
+
+function spanishPrefixForm(str, prefix) {
+  var raw = spanishTrim(str);
+  if(!raw) { return applySpanishCap(prefix, prefix + (str || '')); }
+  var check = raw.toLowerCase();
+  if(check.indexOf(prefix.toLowerCase()) === 0) { return raw; }
+  return applySpanishCap(raw, prefix + check);
+}
+
+function spanishWrapPunct(str, open, close) {
+  var raw = spanishTrim(str);
+  var core = raw;
+  if(core.charAt(0) === open) { core = core.slice(1); }
+  if(close && core.slice(-close.length) === close) { core = core.slice(0, -close.length); }
+  return open + core + close;
+}
+
 function unaccentChar(ch) {
   var map = {á: 'a', é: 'e', í: 'i', ó: 'o', ú: 'u', Á: 'A', É: 'E', Í: 'I', Ó: 'O', Ú: 'U'};
   return map[ch] || ch;
@@ -671,6 +692,53 @@ var i18n = EmberObject.extend({
   },
   spanish_pronoun_grid: function(str) {
     return spanishPronounGrid(str);
+  },
+  // Sidebar inflections board (`:es-*` actions). Overlay grids stay separate.
+  spanish_verb_slot: function(str, slot) {
+    var grid = spanishVerbGrid(str);
+    if(!grid || grid[slot] == null) { return str; }
+    return grid[slot];
+  },
+  spanish_pluralize: function(str) {
+    var raw = spanishTrim(str);
+    if(!raw) { return str; }
+    if(spanishVerbGrid(raw)) { return raw; }
+    return applySpanishCap(raw, spanishPlural(raw.toLowerCase()));
+  },
+  spanish_feminine: function(str) {
+    var raw = spanishTrim(str);
+    if(!raw) { return str; }
+    var check = raw.toLowerCase();
+    if(SPANISH_NO_GENDER_O[check]) { return raw; }
+    var fem;
+    if(/os$/.test(check)) {
+      fem = spanishFeminineNoun(check.slice(0, -1));
+      if(fem) { return applySpanishCap(raw, spanishPlural(fem)); }
+    }
+    fem = spanishFeminineNoun(check);
+    if(fem) { return applySpanishCap(raw, fem); }
+    fem = spanishAdjectiveAgreement(check).fem;
+    if(fem) { return applySpanishCap(raw, fem); }
+    return raw;
+  },
+  spanish_negation: function(str) {
+    return spanishPrefixForm(str, 'no ');
+  },
+  spanish_mas: function(str) {
+    return spanishPrefixForm(str, 'más ');
+  },
+  spanish_isimo: function(str) {
+    var raw = spanishTrim(str);
+    if(!raw) { return str; }
+    var check = raw.toLowerCase();
+    if(/ísimo$/.test(check)) { return raw; }
+    return applySpanishCap(raw, spanishIsimo(check) || ('el más ' + check));
+  },
+  spanish_question: function(str) {
+    return spanishWrapPunct(str, '¿', '?');
+  },
+  spanish_exclaim: function(str) {
+    return spanishWrapPunct(str, '¡', '!');
   },
   comparative: function(str, opts) {
     // good == better
