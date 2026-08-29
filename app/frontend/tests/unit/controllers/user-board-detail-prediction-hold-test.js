@@ -549,4 +549,178 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       controller.destroy();
     }
   });
+
+
+  /* A faithful board + rail in the real stylesheet, so getBoundingClientRect returns real
+     layout. tests/index.html loads assets/frontend.css, which is what makes this a
+     measurement rather than a mock. The shell class is required: the rail is display:none
+     by default (app.scss:72751) and only becomes a grid under a wordpred shell (:72905). */
+  function boardAndRailFixture(rows, cols, shapeClass, withSidebar) {
+    const shell = document.createElement('div');
+    shell.className = 'md-shell md-shell--board-detail md-shell--wordpred-side-rail qa-pred-fixture';
+    shell.style.cssText = 'width:640px;height:420px;position:absolute;left:-9999px;top:0;';
+    const main = document.createElement('div');
+    main.className = 'md-board-detail-main';
+    const wrap = document.createElement('div');
+    wrap.className = 'md-board-detail-grid-sidebar-wrap';
+    wrap.style.cssText = 'display:flex;align-items:flex-start;width:640px;height:420px;';
+    const fade = document.createElement('div');
+    fade.className = 'md-board-detail-grid-fade';
+    fade.style.cssText = 'flex:1;min-width:0;';
+    const grid = document.createElement('div');
+    grid.className = 'md-board-detail-grid board speak ' + (shapeClass || 'md-board-detail-grid--shape-square');
+    grid.style.setProperty('--board-rows', String(rows));
+    grid.style.setProperty('--board-columns', String(cols));
+    grid.style.cssText += ';height:420px;display:grid;grid-template-columns:repeat(' + cols +
+      ',minmax(0,1fr));grid-template-rows:repeat(' + rows + ',minmax(0,1fr));';
+    for(let i = 0; i < rows * cols; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'md-board-detail-grid__cell';
+      const card = document.createElement('div');
+      card.className = 'md-board-detail-symbol-card';
+      const label = document.createElement('span');
+      label.className = 'md-board-detail-symbol-card__label';
+      label.textContent = 'word';
+      card.appendChild(label);
+      cell.appendChild(card);
+      grid.appendChild(cell);
+    }
+    fade.appendChild(grid);
+    const rail = document.createElement('div');
+    rail.className = 'md-board-detail-prediction-rail';
+    for(let i = 0; i < rows; i++) {
+      const tile = document.createElement('button');
+      tile.className = 'md-board-detail-sentence-bar__prediction';
+      const span = document.createElement('span');
+      span.className = 'md-board-detail-sentence-bar__prediction-label';
+      span.textContent = 'you';
+      tile.appendChild(span);
+      rail.appendChild(tile);
+    }
+    wrap.appendChild(fade);
+    wrap.appendChild(rail);
+    if(withSidebar) {
+      const sidebar = document.createElement('div');
+      sidebar.className = 'md-board-detail-inline-sidebar';
+      sidebar.style.cssText = 'flex:0 0 auto;width:112px;height:420px;';
+      wrap.appendChild(sidebar);
+    }
+    main.appendChild(wrap);
+    shell.appendChild(main);
+    document.body.appendChild(shell);
+    return { grid, rail, main,
+      card: grid.querySelector('.md-board-detail-symbol-card'),
+      cell: grid.querySelector('.md-board-detail-grid__cell'),
+      tile: rail.querySelector('.md-board-detail-sentence-bar__prediction') };
+  }
+
+  /* Real-layout parity. These measure getBoundingClientRect in the browser the suite runs
+     in, against the app's own compiled stylesheet (tests/index.html loads
+     assets/frontend.css) — so they fail if the CSS and the published vars disagree, which
+     is the whole class of bug this rail keeps producing. */
+  function measureParity(shape, withSidebar) {
+    document.querySelectorAll('.qa-pred-fixture').forEach(function(n) { n.remove(); });
+    const f = boardAndRailFixture(4, 5, shape, withSidebar);
+    const controller = buildController();
+    controller.set('ordered_buttons', Array.from({ length: 4 }, function() {
+      return Array.from({ length: 5 }, function() { return {}; });
+    }));
+    controller._sync_prediction_tile_size();
+    const c = f.card.getBoundingClientRect();
+    const t = f.tile.getBoundingClientRect();
+    return {
+      dH: Math.round(t.height - c.height),
+      dW: Math.round(t.width - c.width),
+      dTop: Math.round(t.top - c.top),
+      cardH: Math.round(c.height)
+    };
+  }
+
+  test('a rail tile is the same box as a board button, in every button shape', function(assert) {
+    assert.expect(10);
+    ['square', 'tall', 'wide'].forEach(function(shape) {
+      const m = measureParity('md-board-detail-grid--shape-' + shape, false);
+      assert.strictEqual(m.dH, 0, shape + ': tile height matches the board card');
+      assert.strictEqual(m.dW, 0, shape + ': tile width matches the board card');
+      assert.strictEqual(m.dTop, 0, shape + ': tile top aligns with the board card');
+    });
+    /* Guard the guard: `wide` must actually be a SHORTER card than the others, or all
+       three assertions above could be passing against a fixture where the shape class
+       never applied. */
+    assert.ok(measureParity('md-board-detail-grid--shape-wide', false).cardH <
+              measureParity('md-board-detail-grid--shape-square', false).cardH,
+              'the wide shape really did produce a shorter card');
+  });
+
+  test('a rail tile matches the board button whether the sidebar is open or closed', function(assert) {
+    assert.expect(7);
+    const closed = measureParity('md-board-detail-grid--shape-square', false);
+    const open = measureParity('md-board-detail-grid--shape-square', true);
+    assert.strictEqual(closed.dH, 0, 'sidebar closed: height matches');
+    assert.strictEqual(closed.dW, 0, 'sidebar closed: width matches');
+    assert.strictEqual(closed.dTop, 0, 'sidebar closed: top aligns');
+    assert.strictEqual(open.dH, 0, 'sidebar open: height matches');
+    assert.strictEqual(open.dW, 0, 'sidebar open: width matches');
+    assert.strictEqual(open.dTop, 0, 'sidebar open: top aligns');
+    /* The board buttons themselves get narrower when the sidebar takes width, so the tile
+       must track them rather than hold a fixed size. If these were equal, the fixture never
+       actually gave the sidebar any width and the two cases above are the same test twice. */
+    assert.strictEqual(open.cardH, closed.cardH, 'row heights are unaffected by the sidebar');
+  });
+
+  /* The rail width solver. Arithmetic, not DOM: the point of the closed form is that it
+     does NOT need a settled layout, so a test that built one would be testing the wrong
+     thing. */
+  test('solves a rail width equal to one board button, from ANY current split', function(assert) {
+    assert.expect(4);
+    const controller = buildController();
+    /* Split-invariance is the property the whole fix rests on: the grid is flex:1, so
+       fade + rail is one budget however it currently divides. Three different splits of the
+       same 500px budget must agree, or the value chases its own tail across ResizeObserver
+       passes — the circular-measure bug recorded in LEARNINGS. */
+    const a = controller._solve_prediction_rail_width(400, 100, 4, 0, 1);
+    const b = controller._solve_prediction_rail_width(450, 50, 4, 0, 1);
+    const c = controller._solve_prediction_rail_width(499, 1, 4, 0, 1);
+    assert.strictEqual(Math.round(a), 100, 'solved from a 400/100 split');
+    assert.strictEqual(Math.round(b), 100, 'same answer from a 450/50 split');
+    assert.strictEqual(Math.round(c), 100, 'same answer from a 499/1 split');
+    /* A genuine fixed point: leaving the grid 400px over 4 columns gives a 100px cell,
+       which is the tile width just solved. */
+    assert.strictEqual(Math.round((500 - a) / 4), Math.round(a), 'tile equals the resulting cell');
+  });
+
+  test('solves a NARROWER tile for a tall button shape', function(assert) {
+    assert.expect(3);
+    const controller = buildController();
+    /* shape-tall makes the card 66.6667% of its cell (app.scss:80286), so the tile must
+       fall by the same ratio. A solver ignoring `ratio` returns 100 here; one using the
+       full-column `cols + 1` denominator returns 67. Neither is 71. */
+    const square = controller._solve_prediction_rail_width(400, 100, 4, 0, 1);
+    const tall = controller._solve_prediction_rail_width(400, 100, 4, 0, 2 / 3);
+    assert.strictEqual(Math.round(square), 100, 'square shape fills the column');
+    assert.strictEqual(Math.round(tall), 71, 'tall shape tracks the card, not the column');
+    assert.ok(tall < square, 'a tall button yields a narrower tile');
+  });
+
+  test('is stable on a one-column board, where iterating would oscillate forever', function(assert) {
+    assert.expect(2);
+    const controller = buildController();
+    /* The iterative form has gain -ratio/cols, exactly -1 at cols === 1: a permanent
+       period-2 flip. Feeding the closed form its own output returns the same number. */
+    const once = controller._solve_prediction_rail_width(400, 100, 1, 0, 1);
+    const twice = controller._solve_prediction_rail_width(500 - once, once, 1, 0, 1);
+    assert.strictEqual(Math.round(once), 250, 'solved once');
+    assert.strictEqual(Math.round(twice), Math.round(once), 're-solving from its own output is a no-op');
+  });
+
+  test('returns 0 rather than a bogus width when the board is not measurable', function(assert) {
+    assert.expect(3);
+    const controller = buildController();
+    /* The caller falls back to the measured card width on 0, so a bail must be
+       distinguishable from a real answer. */
+    assert.strictEqual(controller._solve_prediction_rail_width(0, 100, 4, 0, 1), 0, 'unmeasured grid');
+    assert.strictEqual(controller._solve_prediction_rail_width(400, 100, 0, 0, 1), 0, 'no columns');
+    assert.strictEqual(controller._solve_prediction_rail_width(400, 100, 4, 0, 0), 0, 'no shape ratio');
+  });
+
 });

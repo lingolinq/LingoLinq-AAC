@@ -531,38 +531,87 @@ export default Controller.extend(prefClasses, {
       main.style.setProperty('--prediction-tile-inset-top', insetTop + 'px');
       main.style.setProperty('--prediction-tile-h', Math.round(cardRect.height) + 'px');
     }
-    // WIDTH — match the speak-mode sidebar EXACTLY (per request). The rail and the
-    // inline sidebar are both fixed-width siblings of the FLEXIBLE board grid (which
-    // absorbs the remaining width); the sidebar's width is set by CSS per breakpoint
-    // (112 / 80 / 70px …), so reading its RENDERED width keeps the rail matched to it
-    // at every screen size. Non-circular: the sidebar width doesn't depend on the
-    // rail, so the grid just absorbs whatever the rail takes and the value settles in
-    // one pass. Falls back to the board card width when the sidebar isn't present
-    // (quick-sidebar disabled / collapsed).
+    // WIDTH — solve for the width at which ONE RAIL TILE == ONE BOARD BUTTON, in closed
+    // form. The rail is a fixed-width `flex-shrink:0` sibling of the FLEXIBLE grid, so
+    // assigning it the measured card width is circular: the rail steals that width back
+    // from the grid, the cards reflow, and it never settles (LEARNINGS, "sizing a
+    // fixed-width sibling to a FLEXIBLE element's measured size is circular"). Iterating
+    // to convergence is not an option either — the gain is -ratio/cols, which is exactly
+    // -1 on a one-column board and oscillates forever. So solve the fixed point directly.
+    //
+    //   budget = fade + railNow - (cols-1)*colGap   is INVARIANT to how the row splits,
+    //   because the flex:1 grid absorbs whatever the rail takes. Hence one measurement at
+    //   ANY current rail width yields:   W = ratio * budget / (cols + ratio)
+    //
+    // `ratio` is card ÷ cell — the BUTTON SHAPE, measured rather than hardcoded, so the
+    // tile tracks it: shape-tall sets the card `width: 66.6667%`, shape-wide
+    // `height: 66.6667%`, square fills the cell (app.scss:80286-80293). The cell carries no
+    // horizontal padding (app.scss:81160-81165), so card = ratio*cell is linear and `ratio`
+    // does not drift as the cell resizes — that is what makes this exact and not an
+    // approximation. At ratio == 1 it reduces to the plain one-column-per-tile form.
+    //
+    // Sidebar-independent by construction: the sidebar enters only through `fade`, so a
+    // tile matches its board button whether the sidebar is open or closed. It is no longer
+    // matched to the SIDEBAR's width — that was a separate request, and it is what made the
+    // tiles disagree with the buttons.
     var tileW = Math.round(cardRect.width);
-    var inlineSidebar = document.querySelector('.md-board-detail-inline-sidebar');
-    if(inlineSidebar) {
-      var sbw = Math.round(inlineSidebar.getBoundingClientRect().width);
-      if(sbw > 1) { tileW = sbw; }
+    var railEl = document.querySelector('.md-board-detail-prediction-rail');
+    var fadeEl = document.querySelector('.md-board-detail-grid-fade');
+    var predCols = parseInt(this.get('current_grid.columns'), 10) || 0;
+    var shapeRatio = (cellRect && cellRect.width >= 1) ? (cardRect.width / cellRect.width) : 0;
+    if(railEl && fadeEl && predCols > 0 && shapeRatio > 0) {
+      var solvedW = this._solve_prediction_rail_width(
+        fadeEl.getBoundingClientRect().width,
+        railEl.getBoundingClientRect().width,
+        predCols, colGap, shapeRatio
+      );
+      if(solvedW >= 1) { tileW = Math.round(solvedW); }
     }
     main.style.setProperty('--prediction-tile-w', Math.max(0, tileW) + 'px');
     // No per-tile height or top-inset measurement needed: the rail grid's rows
     // (--prediction-rows × minmax(0,1fr)), pinned to the board grid height above
     // with a matching 4px top inset, place each tile in its board row band
     // automatically. (--prediction-grid-h drives the rail height; see above.)
-    // FONT: match the rail words to the board labels EXACTLY by copying the
-    // board label's computed font-size. A `cqw`-based match is fragile here —
-    // cqw resolves against the container's CONTENT box, and the rail tile has
-    // more horizontal padding than the board card (10px vs 4px), so equal outer
-    // widths still yield different cqw px. Reading the rendered px sidesteps
-    // that (and any future padding/border drift). All board labels share the
-    // same size, so the first is representative.
-    var label = card.querySelector && card.querySelector('.md-board-detail-symbol-card__label');
-    if(label) {
-      var labelFont = window.getComputedStyle(label).fontSize;
-      if(labelFont) { main.style.setProperty('--prediction-label-font', labelFont); }
+    // FONT: match the rail words to the board labels by copying a board label's RENDERED
+    // font-size. Reading the rendered px (rather than re-deriving it) is what keeps the two
+    // in step, because the board label's size is not one rule: `--bd-button-text-size` at
+    // app.scss:80805 is overridden by a `clamp(9px, 1.5vw, pref)` at :80975 and then by
+    // `!important` cqmin clamps at :85592 (<=1200px) and :85602 (<=820px) — and the rail
+    // only ever renders at <=1024px or when pinned, i.e. always inside those bands. Copying
+    // the PREFERENCE instead would make rail words larger than every board label.
+    //
+    // Take the LARGEST rendered label, not the first. label_fit writes a per-label inline
+    // font-size with `!important` priority (label_fit.js:81) to wrap-fit long words, so the
+    // first cell's label is whatever THAT button was shrunk to — a board whose first button
+    // is a long word dragged every prediction down with it. label_fit only ever shrinks from
+    // the shared base, so the largest rendered label IS the unfitted base, which is the size
+    // a short word renders at — and predictions are short words. The scan stops at the first
+    // label carrying no inline override, since that one is already the base.
+    var predLabels = grid ? grid.querySelectorAll('.md-board-detail-symbol-card__label') : null;
+    var basePx = 0;
+    if(predLabels) {
+      for(var li = 0; li < predLabels.length; li++) {
+        var labelEl = predLabels[li];
+        var px = parseFloat(window.getComputedStyle(labelEl).fontSize) || 0;
+        if(px > basePx) { basePx = px; }
+        if(px > 0 && (!labelEl.style || !labelEl.style.fontSize)) { basePx = px; break; }
+      }
     }
+    if(basePx > 0) { main.style.setProperty('--prediction-label-font', basePx + 'px'); }
   },
+  /* The rail width at which one tile == one board button, solved rather than iterated.
+     Split-invariant: `fadeW + railW` is the horizontal budget the flex:1 grid and the
+     fixed-width rail share, so it is the same total whatever the current split is — which
+     is why ANY current rail width yields the same answer in one pass, with no feedback
+     loop. `ratio` is card/cell (the button shape). Returns 0 when the inputs cannot
+     produce a sane width, so the caller keeps its measured-card fallback. */
+  _solve_prediction_rail_width: function(fadeW, railW, cols, colGap, ratio) {
+    if(!(fadeW >= 1) || !(cols > 0) || !(ratio > 0)) { return 0; }
+    var budget = fadeW + (railW || 0) - ((cols - 1) * (colGap || 0));
+    if(!(budget > 0)) { return 0; }
+    return (ratio * budget) / (cols + ratio);
+  },
+
   /* (Re)point the ResizeObserver at the current board grid — the grid element
      is replaced on board change, so re-observe whenever the board changes. */
   _observe_prediction_grid: function() {
@@ -593,8 +642,23 @@ export default Controller.extend(prefClasses, {
      WITHOUT changing the grid's own box — the grid ResizeObserver therefore never
      fires for it, and --prediction-tile-inset-top would stay measured against the
      previous folder style. edit_mode covers the same transition on the way back from
-     the Edit Tools rail, where the style is actually changed. */
-  _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', 'edit_mode', 'effective_folder_display_style', 'app_state.window_inner_width', 'app_state.window_inner_height', function() {
+     the Edit Tools rail, where the style is actually changed.
+     `button_shape_class` is here for exactly the same reason and it is REQUIRED, not
+     belt-and-braces: the shape rules resize the CARD inside its cell (app.scss:80286-80293)
+     while the grid keeps its own box, so the grid ResizeObserver never fires — and the
+     width solved above is now a function of the measured card/cell ratio, so a missed
+     shape change leaves the rail solved against the previous shape. Observing the computed
+     (as with effective_folder_display_style) rather than the raw preference keeps this
+     keyed to the same value the grid's class is built from — `stretch_buttons` is read off
+     referenced_user (:4269), which is not currentUser in a modeling session.
+     `button_spacing_px` and `button_border_px` are the HEIGHT half of the same problem. The
+     grid is a fixed height with `repeat(var(--board-rows), minmax(0,1fr))` tracks, so the
+     spacing preference (which drives the grid's own `gap`) re-divides the rows and changes
+     every CELL's height — and the border preference changes the card's box inside it —
+     while the grid element's own box stays exactly the same. The ResizeObserver watches the
+     grid, so it sees neither, and --prediction-tile-h / --prediction-tile-inset-top would
+     stay measured against the previous spacing until some unrelated trigger fired. */
+  _sync_prediction_tile_size_on_change: observer('ordered_buttons', 'current_grid.columns', 'current_grid.rows', 'suggestions.list.[]', 'edit_mode', 'effective_folder_display_style', 'button_shape_class', 'button_text_size_px', 'button_text_position_class', 'button_spacing_px', 'button_border_px', 'app_state.window_inner_width', 'app_state.window_inner_height', function() {
     var _this = this;
     runLater(function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }

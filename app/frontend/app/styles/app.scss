@@ -72816,9 +72816,10 @@ span.md-board-detail-modeling-btn--paused:hover {
   margin-top: var(--prediction-tile-inset-top, 0px);
   height: var(--prediction-tile-h, calc(100% - var(--prediction-tile-inset-top, 0px)));
   min-height: 0;
-  /* Give the label breathing room from the image (the base gap:1px read as
-     cramped). */
-  gap: 4px;
+  /* Symbol-to-word spacing. Tighter than the base tile so the symbol keeps as much of
+     the tile's height as possible — the rail tile is exactly one board button tall, and
+     every px spent here is a px the symbol does not get. */
+  gap: 2px;
   /* Establish a cqw container so the label below tracks the tile width.
      The tile is sized to the board cell (--prediction-tile-w), so cqw here
      == cqw on the board's symbol-card → words match the board labels. */
@@ -72829,11 +72830,24 @@ span.md-board-detail-modeling-btn--paused:hover {
    tile and the label sits tight against the image — the tile fills like a board
    button. object-fit:contain (base) keeps the symbol scaled; max-width caps it. */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-img {
-  width: auto;
+  /* Fill the tile's width the way a board symbol fills its card
+     (app.scss:80551-80568 sets the board img `width:100%` + `object-fit:contain` so a
+     small-canvas symbol scales UP instead of sitting at intrinsic size). `width:auto` +
+     `max-width:80%` left the rail symbol both smaller and inset from the tile, which is
+     what made it read as a lesser button than the one beside it.
+     `flex: 1 1 0` is KEPT rather than the board's `flex:1 1 auto` + `height:100%`: the
+     board's height comes from a holder element the rail has no equivalent of (the rail img
+     is a bare flex child, board-detail.hbs:2029-2033), and a percentage height here would
+     go cyclic on the first paint before --prediction-tile-h lands and inflate the tile to
+     the symbol's intrinsic size. The flexed main size already gives the same used height.
+     Deliberately NOT copying the board img's `opacity: 1`: the --is-loading dim
+     (app.scss:72736) is the same specificity and EARLIER in source, so declaring opacity
+     here would silently win and kill the loading cue. */
+  width: 100%;
   flex: 1 1 0;
   min-height: 0;
   height: auto;
-  max-width: 80%;
+  max-width: 100%;
 }
 /* Placeholder (missing-image) symbol on the rail: square.svg is a translucent
    brand-coloured photo glyph, which reads DIM on the dark board surface the rail
