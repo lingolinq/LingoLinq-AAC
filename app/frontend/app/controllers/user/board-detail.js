@@ -2956,35 +2956,45 @@ export default Controller.extend(prefClasses, {
     if(typeof document === 'undefined') { return false; }
     var selector = '.md-board-detail-prediction-rail, .md-board-detail-sentence-bar__prediction-group';
     var within = function(node) {
-      if(!node || node.nodeType !== 1) { return false; }
-      /* Both directions, deliberately. `closest` alone (ancestors only) covers the RAIL, whose
-         scan row carries the rail element itself. It does NOT cover the in-bar group, which is a
-         DESCENDANT of #speak — and the scanner sweeps those buttons into the header row whose
-         dom IS #speak. So while the header row is highlighted, an ancestor-only test reported
-         "not targeted" and the hold never engaged for the `speak_bar` placement, nor for any
-         `auto` user above 1024px where the in-bar group is the active one. */
-      if(node.closest && node.closest(selector)) { return true; }
-      /* querySelectorAll + some(), not querySelector: the selector matches BOTH placements and
-         querySelector returns only the first, so a node containing a hidden group and a visible
-         rail would answer on the hidden one.
+      if(!node || node.nodeType !== 1 || !node.closest) { return false; }
+      /* ANCESTOR ONLY, and the match must be RENDERED.
 
-         The visibility filter is the load-bearing part. Only one placement is displayed (CSS
-         hides the other), but the hidden one stays in the DOM — and `side_rail`, the DEFAULT,
-         hides the in-bar group while leaving it inside #speak. The scanner's header row has
-         dom === #speak, so an unfiltered containment test reported "targeted" on the header row
-         of every pass: pick_elem restarts scanning at index 0 (the header) and the fresh lookup
-         resolves a few ms later, so the freeze engaged on essentially every selection and burnt
-         its bound before the user reached the panel. scanner.is_visible is the same predicate the
-         scanner's own `:visible` filter uses, so both halves of the feature now agree on what
-         "shown" means. */
-      if(!node.querySelectorAll) { return false; }
-      return Array.prototype.slice.call(node.querySelectorAll(selector))
-        .some(function(el) { return scanner.is_visible(el); });
+         The descendant half (does this node CONTAIN a panel?) was removed. It existed to cover the
+         in-bar placement, on the belief that the group is only ever reachable as a descendant of
+         #speak — but the scanner sweeps `#speak button:visible` into the header row's children, so
+         once the user drills in, current_element IS the prediction button and `closest` matches its
+         group. Nothing was lost, and what it cost was severe: #speak is the header row's dom and
+         contains the group in EVERY placement, so the descendant test reported "targeted" on the
+         header row of every scan pass — index 0 of every cycle — freezing the panel continuously
+         for speak_bar and auto>1024px users.
+
+         The dwell branch needs no descendant half either: raw_events resolves a linger to a button
+         or anchor (speak_bar_element_from_event / the chrome fallback), never to a container.
+
+         The visibility filter matters because the hidden placement stays in the DOM — side_rail
+         hides the in-bar group with CSS — so an unfiltered ancestor match would count a panel that
+         is not on screen after a viewport crossing.
+
+         The asymmetry this leaves is deliberate: the RAIL row counts as targeted, because every
+         element in it is a prediction. The HEADER row does not, because it is mostly Home, Back,
+         Clear, Backspace and Speak. */
+      var panel = node.closest(selector);
+      return !!(panel && scanner.is_visible(panel));
     };
     try {
       if(scanner.actively_scanning()) {
         var scanned = scanner.current_element && scanner.current_element.dom && scanner.current_element.dom[0];
-        if(within(scanned)) { return true; }
+        /* A RESTART placed this highlight, not the user. complete_word -> pick_elem nulls
+           current_element and calls start(), which lands on elements[0] — and with the
+           `scanning_skip_header` preference on, elements[0] IS the prediction row. So immediately
+           after a commit the highlight sits on the panel without the user having navigated there,
+           and the lookup that the selection triggered would freeze against it. Ignore a highlight
+           that a post-commit restart placed, until the user advances off index 0. No constant: this
+           self-clears on the next step. */
+        var restart_placed = scanner.started && this._last_prediction_commit_at &&
+          scanner.started >= this._last_prediction_commit_at &&
+          scanner.element_index === 0;
+        if(!restart_placed && within(scanned)) { return true; }
       }
     } catch(e) { /* advisory read — never block a commit on it */ }
     try {

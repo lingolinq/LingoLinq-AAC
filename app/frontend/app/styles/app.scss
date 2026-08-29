@@ -72711,19 +72711,25 @@ span.md-board-detail-modeling-btn--paused:hover {
    stale words stay live, because a dead target that swallows a dwell or a switch
    hit gives no feedback and costs the user a re-acquisition, which is worse than
    inserting a slightly stale but perfectly valid word. */
-.md-board-detail-sentence-bar__prediction-group--is-loading .md-board-detail-sentence-bar__prediction,
-.md-board-detail-prediction-rail--is-loading .md-board-detail-sentence-bar__prediction {
-  /* The cue is on the tile SURFACE, never on the text. `opacity` on the tile is a GROUP
-     operation — it multiplies the label's alpha too — and the rail's label is only ~5.1:1
-     against the board at the top of its gradient, so any group dim breaks WCAG 1.4.3 there:
-     0.55 measured ~2.9:1, and even 0.8 only reaches ~4.06:1, still under the 4.5:1 that applies
-     because the label can be 13px. The tiles are deliberately still live and clickable, so the
-     inactive-component exemption does not apply either.
-     Fading the tile's own background instead RAISES label contrast (the tile darkens under white
-     text, toward the ~7.7:1 of the gradient's low-alpha end), so the cue reads and the words stay
-     legible. Recompute if these alphas are retuned. */
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.03) 100%);
-  border-color: rgba(255, 255, 255, 0.16);
+.md-board-detail-sentence-bar__prediction-group--is-loading,
+.md-board-detail-prediction-rail--is-loading {
+  /* The cue is on the tile SURFACE, never on the text. `opacity` on the tile is a GROUP operation —
+     it multiplies the label's alpha too — and the LIGHT rail's label is only ~5.1:1 against the
+     board at the top of its gradient, so any group dim breaks WCAG 1.4.3 there: 0.55 measures
+     ~2.9:1, and even 0.8 reaches only ~4.06:1, under the 4.5:1 that applies because the label can
+     be 13px. The tiles stay live and clickable, so the inactive-component exemption does not apply.
+
+     Set as VARIABLES ON THE ANCESTOR and inherited by the tiles, rather than as properties on the
+     tiles: the dark-mode tile rule sits ~13,500 lines later at identical specificity, so a direct
+     property here lost to it on source order and the cue silently did not render in dark mode at
+     all. Inheritance has no specificity contest to lose.
+
+     One value set serves both themes — measured ceilings for a 4.5:1 label are 0.136 (light in-bar,
+     the tightest) and 0.377 (dark rail), and these clear both. Fading the tile RAISES label
+     contrast, since it darkens under white text. Recompute if these are retuned. */
+  --pred-tile-a-hi: 0.10;
+  --pred-tile-a-lo: 0.03;
+  --pred-tile-border-a: 0.16;
 }
 /* The symbol may fade — it is not text, and 1.4.11 does not apply to it. */
 .md-board-detail-sentence-bar__prediction-group--is-loading .md-board-detail-sentence-bar__prediction-img,
@@ -72929,8 +72935,11 @@ span.md-board-detail-modeling-btn--paused:hover {
      (.md-board-edit-panel, the sentence bar): a real frosted backdrop-blur
      pane with a translucent highlight->shade gradient, a bright inset top
      sheen, a soft solid glass edge, and a soft ambient drop. */
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 100%);
+  /* Tile surface alphas come through custom properties so the LOADING state can retune them from
+     the group/rail ancestor. The tile must never DECLARE these vars — its own declaration would
+     beat the inherited one and the cue would stop working. */
+  border: 1px solid rgba(255, 255, 255, var(--pred-tile-border-a, 0.3));
+  background: linear-gradient(135deg, rgba(255, 255, 255, var(--pred-tile-a-hi, 0.22)) 0%, rgba(255, 255, 255, var(--pred-tile-a-lo, 0.08)) 100%);
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
   box-shadow:
@@ -86247,8 +86256,12 @@ span.md-board-detail-modeling-btn--paused:hover {
 .md-board-detail--dark .md-board-detail-sentence-bar__prediction {
   /* Inherits the base backdrop-blur; just re-tunes the frosted tint, sheen,
      and ambient drop for the darker bar. */
-  border-color: rgba(255, 255, 255, 0.24);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 100%);
+  /* Same custom properties as the base rule. Both were literals before, and because this rule sits
+     ~13,500 lines later at identical specificity (0,2,0) it beat the --is-loading rule on source
+     order alone — so the loading cue did not render AT ALL in dark mode. Consuming the vars removes
+     the contest: the cue sets them on the ancestor and inheritance carries them here. */
+  border-color: rgba(255, 255, 255, var(--pred-tile-border-a, 0.24));
+  background: linear-gradient(135deg, rgba(255, 255, 255, var(--pred-tile-a-hi, 0.16)) 0%, rgba(255, 255, 255, var(--pred-tile-a-lo, 0.05)) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
     0 4px 16px rgba(0, 0, 0, 0.30);

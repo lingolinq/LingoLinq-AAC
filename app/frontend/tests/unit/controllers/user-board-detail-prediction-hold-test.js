@@ -114,12 +114,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
 
   test('_prediction_panel_targeted only trusts a LIVE dwell linger', function(assert) {
     assert.expect(4);
-    const rail = document.createElement('div');
-    rail.className = 'md-board-detail-prediction-rail qa-pred-fixture';
-    const tile = document.createElement('button');
-    tile.className = 'md-board-detail-sentence-bar__prediction';
-    rail.appendChild(tile);
-    document.body.appendChild(rail);
+    const tile = railFixture();
 
     patch(buttonTracker, 'appState', { get: function(k) { return k === 'speak_mode' ? true : null; } });
     patch(buttonTracker, 'dwell_enabled', true);
@@ -141,7 +136,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       assert.notOk(controller._prediction_panel_targeted(), 'no dwell configured means not targeted');
 
       buttonTracker.dwell_enabled = true;
-      rail.remove();
+      tile.closest('.md-board-detail-prediction-rail').remove();
       assert.notOk(controller._prediction_panel_targeted(), 'a detached node is not a live target');
     } finally {
       controller.destroy();
@@ -200,12 +195,20 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
   });
 
   function railFixture() {
+    /* The rail's DEFAULT is `display: none`; it is shown only via an ancestor shell class
+       (.md-shell--wordpred-side-rail, or the <=1024px media rule). The suite loads the real
+       stylesheet, so a bare rail appended to <body> is genuinely hidden — and any predicate that
+       filters on visibility would then reject it for a reason unrelated to what is under test.
+       Wrap it in the shell the app actually renders. */
+    const shell = document.createElement('div');
+    shell.className = 'md-shell md-shell--board-detail md-shell--wordpred-side-rail qa-pred-fixture';
     const rail = document.createElement('div');
-    rail.className = 'md-board-detail-prediction-rail qa-pred-fixture';
+    rail.className = 'md-board-detail-prediction-rail';
     const tile = document.createElement('button');
     tile.className = 'md-board-detail-sentence-bar__prediction';
     rail.appendChild(tile);
-    document.body.appendChild(rail);
+    shell.appendChild(rail);
+    document.body.appendChild(shell);
     return tile;
   }
   const wordsOf = (list) => (list || []).map((s) => s.word).join(',');
@@ -421,8 +424,8 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
-  test('_prediction_panel_targeted covers the IN-BAR group, which is a descendant of the scanned row', function(assert) {
-    assert.expect(4);
+  test('_prediction_panel_targeted counts the in-bar TILE, not the row that contains it', function(assert) {
+    assert.expect(5);
     /* The scanner sweeps the in-bar prediction buttons into the header row, whose dom IS
        #speak — and the group is a DESCENDANT of it. An ancestor-only `closest` test reported
        "not targeted" for the whole speak_bar placement (and every `auto` user above 1024px). */
@@ -442,8 +445,16 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
 
     const controller = buildController();
     try {
+      assert.notOk(controller._prediction_panel_targeted(),
+        'scanning the HEADER ROW does not count — it contains the group, but it is mostly Home/Back/Clear');
+
+      /* What replaced it: once the user drills in, the scanner's current_element IS the prediction
+         button (the header row's children come from a `#speak button:visible` sweep), so the
+         ancestor test matches its group. That is where in-bar protection actually lives. */
+      const inBarTile = group.querySelector('button');
+      scanner.current_element = { dom: [inBarTile] };
       assert.ok(controller._prediction_panel_targeted(),
-        'scanning the header row counts as targeting the in-bar predictions it contains');
+        'but the drilled-in prediction BUTTON does');
 
       /* A realistic unrelated scan element: another ROW. Deliberately not document.body —
          body CONTAINS the fixture, so the containment half of the test would match. That is
@@ -462,11 +473,46 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
          so without a visibility filter this reported "targeted" on the header row of every pass.
          display is set inline here on purpose: the predicate is under test, not the cascade.
          Mutation that fails this: drop scanner.is_visible from the descendant branch. */
-      scanner.current_element = { dom: [speakRow] };
+      /* Visibility is still load-bearing, but it is now asked of the panel the TILE closes up to,
+         not of a row that merely contains one. A hidden placement stays in the DOM — side_rail
+         hides the in-bar group with CSS — so without the filter a freeze could engage against a
+         panel that is not on screen. display is set inline on purpose: the predicate is under
+         test, not the cascade. */
+      scanner.current_element = { dom: [inBarTile] };
       assert.ok(controller._prediction_panel_targeted(), 'guard: a VISIBLE group still counts');
       group.style.display = 'none';
       assert.notOk(controller._prediction_panel_targeted(),
         'a display:none placement does not count as targeted');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('a highlight placed by a post-commit RESTART does not count as targeting', function(assert) {
+    assert.expect(2);
+    /* complete_word -> pick_elem nulls current_element and calls scanner.start(), which lands on
+       elements[0]. With the `scanning_skip_header` preference on and the default side_rail
+       placement, elements[0] IS the prediction row — so the highlight sits on the panel without
+       the user having navigated there, and the lookup the selection triggered would freeze against
+       it. Mutation that fails this: drop the `restart_placed` term. */
+    const tile = railFixture();
+    const rail = tile.closest('.md-board-detail-prediction-rail');
+    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker, 'last_dwell_linger', null);
+    patch(scanner, 'actively_scanning', function() { return true; });
+    patch(scanner, 'current_element', { dom: [rail] });
+    patch(scanner, 'started', (new Date()).getTime());
+    patch(scanner, 'element_index', 0);
+
+    const controller = buildController();
+    try {
+      controller._last_prediction_commit_at = scanner.started - 10;   // the restart followed a commit
+      assert.notOk(controller._prediction_panel_targeted(),
+        'a restart-placed highlight on index 0 is not a reach the user made');
+
+      scanner.element_index = 1;   // the user advanced
+      assert.ok(controller._prediction_panel_targeted(),
+        'once they navigate, the same row does count');
     } finally {
       controller.destroy();
     }

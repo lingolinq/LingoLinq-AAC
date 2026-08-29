@@ -1621,7 +1621,14 @@ describe('scanner', function() {
       stub(scanner, 'scan_elements', function(r) { rows = r; });
 
       scanner.start({});
-      expect((rows || []).length).toEqual(1);   // the header row only
+      /* Assert by CLASS, not by a row count. The count was load-bearing on stub internals: with
+         content.rows === 0, start() collapses rows to the header row's children, so the `1` was
+         actually the #identity menu — adding a second header child flipped it to 3 with production
+         code untouched. */
+      var railRows = (rows || []).filter(function(r) {
+        return r.dom && r.dom.hasClass && r.dom.hasClass('md-board-detail-prediction-rail');
+      });
+      expect(railRows.length).toEqual(0);
     });
   });
 

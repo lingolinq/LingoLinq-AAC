@@ -306,6 +306,9 @@ const setThrottle = async (client, { network, cpu }) => {
           attempts: attempt
         };
       }
+      /* Unreachable today — every attempt-3 branch returns before it — but it is the function's
+         TERMINATOR. Removing it makes the arrow return undefined, and the caller's r.attempts then
+         throws. Keep it. */
       return { ok: false, stage: 'exhausted retries', attempts: 3 };
     };
 
@@ -313,7 +316,12 @@ const setThrottle = async (client, { network, cpu }) => {
        read; a WARN line is. */
     const seedOrWarn = async (label) => {
       const r = await seedSentence();
-      if (r.attempts > 1) { info(`WARN: ${label} needed ${r.attempts} attempts to seed a sentence`); }
+      /* Gated on r.ok. Every hard-failure path returns attempts:3, so an ungated WARN printed
+         "needed 3 attempts to seed a sentence" for runs that never seeded one — in the very helper
+         whose job is to stop a non-start being misread. The count still reaches the reader on
+         failures: it is folded into the verdict messages instead, where it describes something
+         that happened. */
+      if (r.ok && r.attempts > 1) { info(`WARN: ${label} needed ${r.attempts} attempts to seed a sentence`); }
       return r;
     };
 
@@ -336,7 +344,7 @@ const setThrottle = async (client, { network, cpu }) => {
       const wrote = await setPrefs({ folder_display_style: value === undefined ? null : value });
       if (wrote !== true) { fail(`alignment — folder style "${label}"`, `could not write the style: ${wrote}`); continue; }
       const reseeded = await seedOrWarn(`alignment "${label}"`);
-      if (!reseeded.ok) { fail(`alignment — folder style "${label}"`, `could not seed: ${reseeded.stage}`); continue; }
+      if (!reseeded.ok) { fail(`alignment — folder style "${label}"`, `could not seed after ${reseeded.attempts} attempt(s): ${reseeded.stage}`); continue; }
       const m = await page.evaluate(MEASURE_ALIGNMENT);
       if (!m.ok) { fail(`alignment — folder style "${label}"`, m.why); continue; }
       /* Assert the style actually APPLIED before trusting the geometry. Without this the
@@ -375,7 +383,7 @@ const setThrottle = async (client, { network, cpu }) => {
     }
     await setPrefs({ folder_display_style: saved.folder_display_style === undefined ? null : saved.folder_display_style });
     const restored_seed = await seedOrWarn('post-alignment reset');
-    if (!restored_seed.ok) { info(`NOTE: could not re-seed after restoring the folder style: ${restored_seed.stage}`); }
+    if (!restored_seed.ok) { info(`NOTE: could not re-seed after restoring the folder style (${restored_seed.attempts} attempt(s)): ${restored_seed.stage}`); }
 
     /* ---- 2. the rail holds its width across real lookups ----
        Run twice: once at local speed, once under deployment-like throttling (see the end
