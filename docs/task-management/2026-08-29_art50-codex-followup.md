@@ -39,6 +39,15 @@ Mismatch:
 
 Fix: `needsAcknowledgement` reads `user.get('feature_flags.article_50_disclosure')` on `art50Subject`.
 
+## Follow-up: capability-check line drift
+
+The Codex comment on `lib/feature_flags.rb` added two lines above
+`eu_under16_blocks_ai_for?`. `eu-under16-ai-block` still cited `:290`.
+Updated the ledger anchor to `:292` (HEAD present-tense check), re-rendered
+`CAPABILITY_LEDGER.md`, regenerated the unattested document-register hash.
+`ruby scripts/capability-check.rb --check` and `scripts/regenerate-register.sh`
+both green.
+
 ## Not changed
 
 `ai_feature_gate.js` still reads `currentUser` (data-subject question). No server-side change. No compliance register / attestation.
