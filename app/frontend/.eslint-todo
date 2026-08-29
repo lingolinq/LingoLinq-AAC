@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-29T01:18:48.630Z
+# Generated: 2026-08-29T17:22:38.481Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -201,7 +201,7 @@ app/components/extra-colors.js|ember/require-super-in-lifecycle-hooks|14|3|1|04f
 app/components/fast-html-grabber.js|ember/require-super-in-lifecycle-hooks|10|3|1|04fd54f45db7
 app/components/find-button.js|ember/no-runloop|290|5|2|5addc2170315
 app/components/find-button.js|ember/no-runloop|544|9|2|5addc2170315
-app/components/focus-words.js|ember/require-computed-property-dependencies|301|22|1|a1504f862d94
+app/components/focus-words.js|ember/require-computed-property-dependencies|321|22|1|a1504f862d94
 app/components/focus-words.js|ember/require-computed-property-dependencies|68|14|1|2842efb9082b
 app/components/grid-listener.js|ember/require-super-in-lifecycle-hooks|35|3|1|04fd54f45db7
 app/components/grid-listener.js|ember/require-super-in-lifecycle-hooks|42|3|1|04fd54f45db7
@@ -1322,10 +1322,10 @@ tests/unit/utils/action-lock-test.js|qunit/no-assert-equal|87|7|1|8b9cc9ba7f61
 tests/unit/utils/action-lock-test.js|qunit/require-expect|24|3|1|053cb64234aa
 tests/unit/utils/action-lock-test.js|qunit/require-expect|52|3|1|053cb64234aa
 tests/unit/utils/action-lock-test.js|qunit/require-expect|71|3|1|053cb64234aa
-tests/unit/utils/article50-degrade-test.js|qunit/require-expect|88|3|1|053cb64234aa
-tests/unit/utils/article50-gate-test.js|qunit/require-expect|109|5|1|053cb64234aa
-tests/unit/utils/article50-gate-test.js|qunit/require-expect|134|5|1|053cb64234aa
-tests/unit/utils/article50-gate-test.js|qunit/require-expect|97|5|1|053cb64234aa
+tests/unit/utils/article50-degrade-test.js|qunit/require-expect|134|3|1|053cb64234aa
+tests/unit/utils/article50-gate-test.js|qunit/require-expect|117|5|1|053cb64234aa
+tests/unit/utils/article50-gate-test.js|qunit/require-expect|129|5|1|053cb64234aa
+tests/unit/utils/article50-gate-test.js|qunit/require-expect|154|5|1|053cb64234aa
 tests/unit/utils/board-categories-test.js|qunit/no-assert-logical-expression|547|15|1|10e4caa62dd1
 tests/unit/utils/board-categories-test.js|qunit/no-assert-logical-expression|863|15|1|975b4139d652
 tests/unit/utils/board-categories-test.js|qunit/no-conditional-assertions|860|7|2|a633385c916b

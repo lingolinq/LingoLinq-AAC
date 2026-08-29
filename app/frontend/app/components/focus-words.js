@@ -229,8 +229,28 @@ export default Component.extend({
    * presses Generate again, which is one click and keeps the AI call explicitly
    * user-initiated.
    */
-  _presentArticle50Gate(prompt, count) {
+  _presentArticle50Gate() {
     const settings = this.get('model') || {};
+    // Read EVERY field, the two AI ones included, from the component AT CALL
+    // TIME rather than from values captured by the caller.
+    //
+    // The post-403 path calls this after an awaited user.reload() that is
+    // allowed to take up to art50_reload_timeout_ms. The description textarea
+    // and the count input stay editable for that whole window (only the Generate
+    // button is disabled, via ai_generate_disabled reading ai_generating), so a
+    // user who keeps typing during a slow refresh had those keystrokes silently
+    // replaced by the pre-request snapshot when the modal re-opened. The other
+    // eight fields below were already read live and were never affected; the two
+    // AI fields were the only ones arriving as stale closure arguments, so
+    // reading them the same way removes the whole class rather than patching the
+    // one reachable instance.
+    //
+    // Normalized exactly as generate_focus_words_with_ai normalizes them, so the
+    // restored draft is the same shape the validated path produces. A count the
+    // user has blanked mid-edit is not a number to restore; it falls back to the
+    // field's own default of 20 rather than writing NaN into a number input.
+    const prompt = (this.get('ai_prompt') || '').trim();
+    const count = parseInt(this.get('ai_word_count'), 10) || 20;
     // Capture the WHOLE authored draft, not just the two AI fields. `opening()`
     // also clears words/existing/reuse/title/focus_id, and the "Save for Re-Use"
     // checkbox (with the "Word List Name" input it reveals) sits on the same view
@@ -530,10 +550,10 @@ export default Component.extend({
       // move this to: the description and word count are typed directly into THIS
       // modal, and modal.open() REPLACES the current modal, so opening
       // ai-disclosure destroys this component and everything the user entered.
-      // _presentArticle50Gate therefore captures the form state up front and
+      // _presentArticle50Gate therefore captures the form state itself and
       // re-opens focus-words with it restored.
       if (article50Gate.needsAcknowledgement(this.get('appState'))) {
-        this._presentArticle50Gate(prompt, count);
+        this._presentArticle50Gate();
         return;
       }
 
@@ -579,7 +599,13 @@ export default Component.extend({
           // The button reads "Generating Focus Words..." meanwhile, which is a
           // slight overstatement of a sub-second window that ends with the
           // disclosure replacing this modal outright.
-          const user = _this.get('appState.currentUser');
+          // Refresh the SAME account the gate and the server both judge, i.e.
+          // article50Gate.art50Subject (sessionUser, the authenticated user).
+          // Reloading `currentUser` reloaded the COMMUNICATOR in speak mode --
+          // never the record the 403 was about -- so needsAcknowledgement below
+          // re-read a record that could not have changed and the supporter fell
+          // into the "cannot be opened from here" branch every time.
+          const user = article50Gate.art50Subject(_this.get('appState'));
           if (user && typeof user.reload === 'function') {
             // BOUND the refresh. Unbounded, a promise that never settles (network
             // dropped after the 403, a cold-start stall) latches ai_generating
@@ -604,8 +630,10 @@ export default Component.extend({
               _this.set('ai_generating', false);
               if (article50Gate.needsAcknowledgement(_this.get('appState'))) {
                 // Record is accurate now, so present the gate directly. This is
-                // the draft-preserving path, so nothing the user typed is lost.
-                _this._presentArticle50Gate(prompt, count);
+                // the draft-preserving path, so nothing the user typed is lost --
+                // including anything typed DURING the reload above, which
+                // _presentArticle50Gate now reads at call time.
+                _this._presentArticle50Gate();
               } else {
                 // Refreshed cleanly and the record still does not ask for an
                 // acknowledgement, so the gate cannot be opened from here. Surface

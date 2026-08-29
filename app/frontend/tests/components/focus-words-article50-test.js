@@ -39,7 +39,8 @@ describe('focus-words Article 50 gate', function() {
     return EmberObject.create(Object.assign({
       id: '1_1',
       article_50_disclosure_required: false,
-      article_50_disclosure_shown: false
+      article_50_disclosure_shown: false,
+      feature_flags: {article_50_disclosure: true}
     }, attrs || {}));
   }
 
@@ -50,12 +51,40 @@ describe('focus-words Article 50 gate', function() {
     // this.get('appState.currentUser'), and Ember's path get on a plain object
     // is a property lookup -- it never calls the object's own .get(). A stub with
     // only .get() silently hands the component `undefined` for currentUser.
+    //
+    // needsAcknowledgement reads the flag from the SUBJECT, not
+    // appState.feature_flags. Keep the user's feature_flags in sync with flagOn
+    // so setAppState(false, user) still means "flag off" after that change.
+    if (user && typeof user.set === 'function') {
+      user.set('feature_flags', {article_50_disclosure: flagOn});
+    }
     component.set('appState', {
       currentUser: user,
       feature_flags: {article_50_disclosure: flagOn},
       get: function(key) {
         if(key === 'feature_flags.article_50_disclosure') { return flagOn; }
         if(key === 'currentUser') { return user; }
+        return null;
+      }
+    });
+  }
+
+  /* SPEAK MODE, supporter modeling for a communicator. app-state's
+     set_current_user has repointed currentUser at speakModeUser (the
+     communicator) while sessionUser is still the authenticated supporter. The
+     server's backstop judges the supporter, so the client has to as well. */
+  function setSpeakModeAppState(flagOn, sessionUser, currentUser) {
+    if (sessionUser && typeof sessionUser.set === 'function') {
+      sessionUser.set('feature_flags', {article_50_disclosure: flagOn});
+    }
+    component.set('appState', {
+      sessionUser: sessionUser,
+      currentUser: currentUser,
+      feature_flags: {article_50_disclosure: flagOn},
+      get: function(key) {
+        if(key === 'feature_flags.article_50_disclosure') { return flagOn; }
+        if(key === 'sessionUser') { return sessionUser; }
+        if(key === 'currentUser') { return currentUser; }
         return null;
       }
     });
@@ -429,6 +458,175 @@ describe('focus-words Article 50 gate', function() {
       waitsFor(function() { return component.get('ai_generating') === false; });
       runs(function() {
         expect(component.get('ai_generate_error')).toEqual('Feature not available');
+      });
+    });
+  });
+
+  /* P1. The client gate and the server backstop have to name the SAME account.
+     ApplicationController#article_50_disclosure_missing? evaluates @api_user,
+     the token-authenticated user, which speak mode never changes; the client
+     read appState.currentUser, which speak mode DOES change. */
+  describe('speak mode: a supporter generating for a communicator', function() {
+    it('gates on the authenticated supporter, not the communicator being spoken for', function() {
+      var opened = [];
+      stub(persistence, 'ajax', function(url) {
+        ajaxCalls.push(url);
+        return RSVP.resolve({});
+      });
+      var supporter = makeUser({
+        id: 'supporter_1',
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false
+      });
+      // Already acknowledged. Reading this record is what let a supporter's
+      // unacknowledged request through the client gate straight into a 403.
+      var communicator = makeUser({
+        id: 'communicator_9',
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: true
+      });
+      stubModalOpenWithGenuineAck(opened, supporter);
+      setSpeakModeAppState(true, supporter, communicator);
+      component.set('model', {board: 'b1'});
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+
+      waitsFor(function() { return opened.length > 0; });
+      runs(function() {
+        expect(opened[0].template).toEqual('ai-disclosure');
+        // No request may be dispatched before the supporter acknowledges.
+        expect(ajaxCalls.indexOf('/api/v1/focus/generate_words')).toEqual(-1);
+        // And the acknowledgement lands on the supporter, never the communicator.
+        expect(supporter.get('article_50_disclosure_shown')).toEqual(true);
+      });
+    });
+
+    it('refreshes the authenticated supporter after a stale-client 403, not the communicator', function() {
+      var reject = null;
+      var opened = [];
+      var reloaded = [];
+      var resolveReload = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      stub(modal, 'open', function(template, opts) {
+        opened.push({template: template, opts: opts});
+        return RSVP.resolve({});
+      });
+      var supporter = makeUser({id: 'supporter_1'});
+      var communicator = makeUser({id: 'communicator_9'});
+      supporter.reload = function() {
+        reloaded.push('supporter');
+        return new RSVP.Promise(function(res) {
+          resolveReload = function() {
+            supporter.set('article_50_disclosure_required', true);
+            res(supporter);
+          };
+        });
+      };
+      communicator.reload = function() {
+        reloaded.push('communicator');
+        return RSVP.resolve(communicator);
+      };
+      setSpeakModeAppState(true, supporter, communicator);
+      component.set('ai_prompt', 'the grinch');
+
+      component.send('generate_focus_words_with_ai');
+      reject({responseJSON: {error: 'article_50_disclosure_required'}});
+
+      waitsFor(function() { return !!resolveReload; });
+      runs(function() {
+        // Reloading the communicator can never clear a 403 raised about the
+        // supporter, so the supporter would have been dead-ended every time.
+        expect(reloaded).toEqual(['supporter']);
+        resolveReload();
+      });
+      waitsFor(function() { return opened.length > 0; });
+      runs(function() {
+        expect(opened[0].template).toEqual('ai-disclosure');
+        expect(component.get('ai_generate_error')).toEqual(null);
+      });
+    });
+  });
+
+  /* P2. The description and count stay editable while the post-403 reload is in
+     flight (only the Generate button is disabled), so anything typed during that
+     window has to survive the modal round-trip. */
+  describe('edits made during a slow post-403 refresh', function() {
+    it('carries the edits typed during the refresh, not the pre-request snapshot', function() {
+      var reject = null;
+      var opened = [];
+      var resolveReload = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      var user = makeUser();
+      user.reload = function() {
+        return new RSVP.Promise(function(res) {
+          resolveReload = function() {
+            user.set('article_50_disclosure_required', true);
+            res(user);
+          };
+        });
+      };
+      stubModalOpenWithGenuineAck(opened, user);
+      setAppState(true, user);
+      component.set('model', {board: 'b1'});
+      component.set('ai_prompt', 'the grinch');
+      component.set('ai_word_count', 12);
+
+      component.send('generate_focus_words_with_ai');
+      reject({responseJSON: {error: 'article_50_disclosure_required'}});
+
+      waitsFor(function() { return !!resolveReload; });
+      runs(function() {
+        // The user keeps working while the refresh is in flight. These fields are
+        // not disabled, so this is ordinary use, not an exotic race.
+        component.set('ai_prompt', 'the grinch, kindergarten circle');
+        component.set('ai_word_count', 25);
+        resolveReload();
+      });
+      waitsFor(function() { return opened.length > 1; });
+      runs(function() {
+        var resume = opened[1].opts.art50_resume;
+        expect(resume.ai_prompt).toEqual('the grinch, kindergarten circle');
+        expect(resume.ai_word_count).toEqual(25);
+      });
+    });
+
+    it('still carries the pre-request draft when nothing is edited during the refresh', function() {
+      var reject = null;
+      var opened = [];
+      var resolveReload = null;
+      stub(persistence, 'ajax', function() {
+        return new RSVP.Promise(function(resolve, innerReject) { reject = innerReject; });
+      });
+      var user = makeUser();
+      user.reload = function() {
+        return new RSVP.Promise(function(res) {
+          resolveReload = function() {
+            user.set('article_50_disclosure_required', true);
+            res(user);
+          };
+        });
+      };
+      stubModalOpenWithGenuineAck(opened, user);
+      setAppState(true, user);
+      component.set('model', {board: 'b1'});
+      component.set('ai_prompt', 'the grinch');
+      component.set('ai_word_count', 12);
+
+      component.send('generate_focus_words_with_ai');
+      reject({responseJSON: {error: 'article_50_disclosure_required'}});
+
+      waitsFor(function() { return !!resolveReload; });
+      runs(function() { resolveReload(); });
+      waitsFor(function() { return opened.length > 1; });
+      runs(function() {
+        var resume = opened[1].opts.art50_resume;
+        expect(resume.ai_prompt).toEqual('the grinch');
+        expect(resume.ai_word_count).toEqual(12);
       });
     });
   });
