@@ -123,6 +123,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     AFTER their fix, from a description rather than from a mechanism. A fix whose red test you
     cannot write is a fix whose bug you do not yet understand.
 
+    Worked example, from the bug that consumed three review rounds. The claim was "a cleared
+    sentence must blank the panel". Writing the fix first produced a guard that read correctly and
+    sat after the early return that made it unreachable; it survived a full round, a proposal
+    review, and a commit message asserting it was fixed. Writing the RED TEST first would have
+    required setting up a freeze, blanking it, and observing the panel — and the setup itself walks
+    straight into the early return, so the diagnosis surfaces in the first ten minutes rather than
+    the third round. The same holds for the header-row false positive: any test that scans the
+    header row goes red immediately, because building it forces you to ask what the scanner's
+    `dom` actually IS at that step. In both cases the test is not a check on the fix; it is the
+    instrument that finds where the fix belongs.
+
 14. **Five practices that prevent the specific defects this codebase has already produced.** Each
     is cheap, mechanical, and traceable to a real failure — not general advice.
 
@@ -159,11 +170,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     that class should never reach it. Reviews earn their cost on blast radius, cross-file
     interactions, and the things you structurally cannot see about your own work.
 
-    **Two structural constraints, learned the same way:** make ONE coherent change per unit — every
-    multi-item batch on that branch contained at least one defect while single-item ones did not —
-    and STOP when the error rate rises rather than pushing through. The sloppiest mistakes of that
-    session came late: a blanket `sed`, a `git checkout` that destroyed uncommitted work, a range
-    deletion that ate a helper.
+    (For the two structural constraints these practices depend on — one change per unit, and
+    stopping when the error rate rises — see rule 15.)
+
+15. **Two structural constraints on HOW the work is paced.** Rules 12-14 govern the content of a
+    change; these govern its size and its timing. Both were learned by violating them.
+
+    **One coherent change per unit.** On the branch that produced these rules, EVERY multi-item
+    batch contained at least one defect and every single-item change was clean — a perfect split.
+    The mechanism is not mysterious: a batch shares one verification pass, so a mistake in item
+    three hides behind green results earned by items one and two, and the fact sheet (rule 13)
+    degrades from a trace into a list. If several fixes are genuinely independent, they are
+    genuinely separate units; if they are not independent, that coupling is itself something to
+    establish before touching any of them. Batching also defeats falsification: mutating one item
+    to confirm its test fails tells you nothing about the other four.
+
+    **Stop when the error rate rises; do not push through.** Assumption errors on that branch got
+    WORSE as the session lengthened, not better, and the qualitatively different mistakes all came
+    late: a blanket `sed` across a shared stylesheet that corrupted four correct comments, a
+    `git checkout` on uncommitted work that destroyed a completed redesign and cost three further
+    rounds debugging its absence, and a range deletion that silently removed a helper two live call
+    sites still referenced. None of those are reasoning errors of the kind rules 13-14 address —
+    they are the mechanical slips of someone going too fast, and no amount of review discipline
+    prevents them because they happen in the act of applying an already-correct plan.
+
+    The tell is not fatigue, which is not observable from the inside. It is the RATE: two
+    self-inflicted errors close together, a fix that needs a second correction, or a verification
+    step that has to be re-run because the first attempt was botched. At that point the correct
+    move is to commit what is verified, write down what remains, and stop — not to attempt one more
+    change. Work that stops cleanly at a known-good state costs one session; work that continues
+    past this point has already cost more than it saved, twice, on the branch that produced this
+    rule.
 
 ## Branching (mandatory before ANY code change)
 
