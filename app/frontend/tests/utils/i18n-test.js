@@ -825,6 +825,122 @@ describe("i18n", function() {
     });
   });
 
+  describe("spanish inflections board helpers", function() {
+    it("should conjugate verb slots from the overlay grid", function() {
+      expect(i18n.spanish_verb_slot('hablar', 'nw')).toEqual('hablo');
+      expect(i18n.spanish_verb_slot('hablar', 'n')).toEqual('hablas');
+      expect(i18n.spanish_verb_slot('hablar', 'ne')).toEqual('habla');
+      expect(i18n.spanish_verb_slot('hablar', 'w')).toEqual('hablamos');
+      expect(i18n.spanish_verb_slot('hablar', 'e')).toEqual('hablan');
+      expect(i18n.spanish_verb_slot('hablar', 's')).toEqual('hablando');
+      expect(i18n.spanish_verb_slot('hablar', 'se')).toEqual('hablado');
+      expect(i18n.spanish_verb_slot('hablo', 'nw')).toEqual('hablo');
+    });
+
+    it("should pluralize nouns and skip infinitives", function() {
+      expect(i18n.spanish_pluralize('gato')).toEqual('gatos');
+      expect(i18n.spanish_pluralize('luz')).toEqual('luces');
+      expect(i18n.spanish_pluralize('hablar')).toEqual('hablar');
+    });
+
+    it("should form feminine nouns and adjectives, including -os plurals", function() {
+      expect(i18n.spanish_feminine('gato')).toEqual('gata');
+      expect(i18n.spanish_feminine('gatos')).toEqual('gatas');
+      expect(i18n.spanish_feminine('rojo')).toEqual('roja');
+      expect(i18n.spanish_feminine('mano')).toEqual('mano');
+    });
+
+    it("should prefix no/más once and form -ísimo", function() {
+      expect(i18n.spanish_negation('gato')).toEqual('no gato');
+      expect(i18n.spanish_negation('no gato')).toEqual('no gato');
+      expect(i18n.spanish_mas('rojo')).toEqual('más rojo');
+      expect(i18n.spanish_isimo('rojo')).toEqual('rojísimo');
+    });
+
+    it("should wrap Spanish question and exclamation marks", function() {
+      expect(i18n.spanish_question('hola')).toEqual('¿hola?');
+      expect(i18n.spanish_question('¿hola?')).toEqual('¿hola?');
+      expect(i18n.spanish_exclaim('hola')).toEqual('¡hola!');
+    });
+  });
+
+  describe("spanish_pronoun_grid", function() {
+    it("should fill yo with object, possessives, tonic, and conmigo", function() {
+      expect(i18n.spanish_pronoun_grid('yo')).toEqual({
+        c: 'yo',
+        n: 'me', nw: 'mis', w: 'mi',
+        s: 'mío', sw: 'mía',
+        e: 'mí', ne: 'conmigo',
+        se: 'no yo'
+      });
+    });
+
+    it("should look up any yo form and keep the button label in the center", function() {
+      var fromMe = i18n.spanish_pronoun_grid('me');
+      expect(fromMe.c).toEqual('me');
+      expect(fromMe.w).toEqual('mi');
+      expect(fromMe.e).toEqual('mí');
+      expect(fromMe.ne).toEqual('conmigo');
+      expect(i18n.spanish_pronoun_grid('mí').n).toEqual('me');
+      expect(i18n.spanish_pronoun_grid('mío').sw).toEqual('mía');
+    });
+
+    it("should fill tú and map unaccented tu to the same person", function() {
+      expect(i18n.spanish_pronoun_grid('tú')).toEqual({
+        c: 'tú',
+        n: 'te', nw: 'tus', w: 'tu',
+        s: 'tuyo', sw: 'tuya',
+        e: 'ti', ne: 'contigo',
+        se: 'no tú'
+      });
+      expect(i18n.spanish_pronoun_grid('tu').n).toEqual('te');
+      expect(i18n.spanish_pronoun_grid('tu').e).toEqual('ti');
+    });
+
+    it("should use lo/le for él and la/le for ella", function() {
+      expect(i18n.spanish_pronoun_grid('él').n).toEqual('lo');
+      expect(i18n.spanish_pronoun_grid('él').e).toEqual('le');
+      expect(i18n.spanish_pronoun_grid('él').ne).toEqual('consigo');
+      expect(i18n.spanish_pronoun_grid('ella').n).toEqual('la');
+      expect(i18n.spanish_pronoun_grid('ella').e).toEqual('le');
+      expect(i18n.spanish_pronoun_grid('el').n).toEqual('lo');
+    });
+
+    it("should default shared su/se/le to the él paradigm", function() {
+      expect(i18n.spanish_pronoun_grid('su').c).toEqual('su');
+      expect(i18n.spanish_pronoun_grid('su').n).toEqual('lo');
+      expect(i18n.spanish_pronoun_grid('se').n).toEqual('lo');
+      expect(i18n.spanish_pronoun_grid('le').n).toEqual('lo');
+    });
+
+    it("should fill nosotros possessives and nosotras as the gender pair", function() {
+      expect(i18n.spanish_pronoun_grid('nosotros')).toEqual({
+        c: 'nosotros',
+        n: 'nos', nw: 'nuestros', w: 'nuestro',
+        s: 'nuestras', sw: 'nuestra',
+        e: 'nosotras', ne: 'con nosotros',
+        se: 'no nosotros'
+      });
+      var fem = i18n.spanish_pronoun_grid('nosotras');
+      expect(fem.n).toEqual('nos');
+      expect(fem.e).toEqual(undefined);
+      expect(fem.ne).toEqual('con nosotras');
+    });
+
+    it("should include vos and vosotros", function() {
+      expect(i18n.spanish_pronoun_grid('vos').n).toEqual('te');
+      expect(i18n.spanish_pronoun_grid('vos').ne).toEqual('con vos');
+      expect(i18n.spanish_pronoun_grid('vosotros').n).toEqual('os');
+      expect(i18n.spanish_pronoun_grid('vosotros').e).toEqual('vosotras');
+    });
+
+    it("should return null for non-pronouns", function() {
+      expect(i18n.spanish_pronoun_grid('hablar')).toEqual(null);
+      expect(i18n.spanish_pronoun_grid('gato')).toEqual(null);
+      expect(i18n.spanish_pronoun_grid('')).toEqual(null);
+    });
+  });
+
   describe("seconds_ago", function() {
     it("should return correct values", function() {
       expect(templateHelpers.seconds_ago(12)).toEqual("12 seconds");

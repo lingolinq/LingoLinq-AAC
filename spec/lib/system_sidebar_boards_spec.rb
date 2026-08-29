@@ -5,12 +5,15 @@ describe SystemSidebarBoards do
     it "generates keyboard and inflections boards for the content user when missing" do
       user = User.create(user_name: 'lingolinq')
       boards = described_class.ensure_for(user)
-      expect(boards.length).to eq(2)
+      expect(boards.length).to eq(3)
       expect(Board.find_by_path('lingolinq/keyboard')).to_not eq(nil)
       expect(Board.find_by_path('lingolinq/inflections')).to_not eq(nil)
+      expect(Board.find_by_path('lingolinq/inflections-es')).to_not eq(nil)
       expect(Board.find_by_path('lingolinq/keyboard').public).to eq(true)
       expect(Board.find_by_path('lingolinq/keyboard').settings['locale']).to eq('en')
       expect(Board.find_by_path('lingolinq/inflections').public).to eq(true)
+      expect(Board.find_by_path('lingolinq/inflections-es').public).to eq(true)
+      expect(Board.find_by_path('lingolinq/inflections-es').settings['locale']).to eq('es')
     end
 
     it "imports the committed Vocal Flair keyboard OBZ in preference to legacy/generator" do

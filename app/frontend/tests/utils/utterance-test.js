@@ -249,6 +249,23 @@ describe('utterance', function() {
       expect(result.modifications.length).toEqual(1);
       expect(result.image).toEqual('https://opensymbols.s3.amazonaws.com/libraries/mulberry/paper.svg');
     });
+    it("should apply Spanish verb person and gerund modifiers", function() {
+      var yo = utterance.modify_button({label: "hablar"}, {vocalization: ":es-yo"});
+      expect(yo.label).toEqual("hablo");
+      expect(yo.vocalization).toEqual("hablo");
+      var gerund = utterance.modify_button({label: "hablar"}, {vocalization: ":es-gerund"});
+      expect(gerund.label).toEqual("hablando");
+      var noun = utterance.modify_button({label: "gato"}, {vocalization: ":es-yo"});
+      expect(noun.label).toEqual("gato");
+    });
+    it("should apply Spanish noun and punctuation modifiers", function() {
+      var plural = utterance.modify_button({label: "gato"}, {vocalization: ":es-plural"});
+      expect(plural.label).toEqual("gatos");
+      var fem = utterance.modify_button({label: "gato"}, {vocalization: ":es-feminine"});
+      expect(fem.label).toEqual("gata");
+      var q = utterance.modify_button({label: "hola"}, {vocalization: ":es-question"});
+      expect(q.label).toEqual("¿hola?");
+    });
 
     it("should use the completion image for a word completion", function() {
       // Pin button_id/mod_id so modify_button's duplicate-guard cannot

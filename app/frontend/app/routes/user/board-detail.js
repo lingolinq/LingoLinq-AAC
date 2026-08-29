@@ -10,6 +10,7 @@ import persistence from '../../utils/persistence';
 import capabilities from '../../utils/capabilities';
 import boardDetailCache from '../../utils/board_detail_cache';
 import boardCacheDiag from '../../utils/board_cache_diag';
+import { available_board_langs, resolve_board_display_locale } from '../../utils/board_display_locale';
 
 export default Route.extend({
   store: service('store'),
@@ -457,8 +458,9 @@ export default Route.extend({
     }
 
     // Set currentBoardState
-    var board_langs = (model.get('locales') || []);
-    var model_locale = model.get('locale') || 'en';
+    var raw_for_langs = _this.get('_raw_board_data') || {};
+    var board_langs = available_board_langs(model, raw_for_langs);
+    var model_locale = model.get('locale') || raw_for_langs.locale || 'en';
     var board_key = model.get('key') || '';
     var user_locale = _this.appState.get('currentUser.preferences.locale') ||
       _this.appState.get('sessionUser.preferences.locale');
@@ -477,26 +479,17 @@ export default Route.extend({
       translatable: board_langs.length > 1
     });
 
-    // Configure locales — honor explicit Switch Languages overrides; otherwise
-    // follow the board's default locale so translated boards speak the target language.
-    var stripped_langs = board_langs.map(function(l) { return l.split(/-|_/)[0]; });
+    // Honor Switch Languages for the whole session. An empty locales list
+    // (Flexiones, a cache hit before translations hydrate) must not drop
+    // Spanish back to the board default.
     var has_locale_override = _this.stashes.get('override_label_locale') || _this.stashes.get('override_vocalization_locale');
     ['label_locale', 'vocalization_locale'].forEach(function(loc_type) {
-      if(!has_locale_override) {
-        _this.appState.set(loc_type, keyboard_default_locale);
-      } else if(_this.stashes.get(loc_type)) {
-        var preferred = _this.stashes.get(loc_type);
-        var stripped = preferred.split(/-|_/)[0];
-        if(stripped_langs.indexOf(stripped) == -1) {
-          _this.appState.set(loc_type, keyboard_default_locale);
-        } else if(board_langs.indexOf(preferred) == -1) {
-          _this.appState.set(loc_type, stripped);
-        } else {
-          _this.appState.set(loc_type, _this.stashes.get(loc_type));
-        }
-      } else {
-        _this.appState.set(loc_type, keyboard_default_locale);
-      }
+      _this.appState.set(loc_type, resolve_board_display_locale({
+        boardDefault: keyboard_default_locale,
+        boardLangs: board_langs,
+        override: has_locale_override,
+        preferred: _this.stashes.get(loc_type) || _this.stashes.get('override_' + loc_type) || has_locale_override
+      }));
     });
 
     // Set up editManager for edit mode operations. ordered_buttons was

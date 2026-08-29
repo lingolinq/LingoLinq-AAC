@@ -15,7 +15,7 @@ describe BetaSeed do
       expect(Organization.admin_manager?(admin_user)).to eq(true)
       expect(User.find_by(user_name: 'example')).to eq(nil)
 
-      %w[one two three yesno keyboard inflections].each do |slug|
+      %w[one two three yesno keyboard inflections inflections-es].each do |slug|
         board = Board.find_by_path(SystemBoardSources.board_key(slug))
         expect(board).to_not eq(nil)
         expect(board.public).to eq(true)
