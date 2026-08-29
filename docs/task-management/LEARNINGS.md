@@ -23,6 +23,7 @@ file (see [README.md](README.md)).
 - [Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`](#gotcha-merging-two-overlay-prs-is-a-union-of-tests-then-regenerate-eslint-todo)
 - [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
 - [Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`](#pattern-spanish-long-press-defaults-use-spanish_verb_grid-not-english--s-ed-ing)
+- [Gotcha: Spanish pronoun lookup must register subject keys before slot values](#gotcha-spanish-pronoun-lookup-must-register-subject-keys-before-slot-values)
 - [Pattern: Spanish inflections sidebar board uses `:es-*` actions, not translated English suffixes](#pattern-spanish-inflections-sidebar-board-uses-es--actions-not-translated-english-suffixes)
 - [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
 - [Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one](#gotcha-source_part_of_speech-is-not-a-locale--process_buttons-500s-if-treated-as-one)
@@ -3968,6 +3969,8 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 
 `fix/melissa-inflections-overlay` and staging `#880` (`feat/melissa-spanish-verb-inflections`) both edited `grid_for`, `edit_manager-test.js`, `LEARNINGS.md`, and `.eslint-todo`. Keep both behaviors: Language-tab `button.translations` lookup **and** Spanish empty-grid defaults. Conflicted tests are a union, not ours-or-theirs. `.eslint-todo` line numbers from either side are wrong after the combine; run `npm run lint:js:todo`. Task log: `2026-08-27-merge-staging-inflections-overlay.md`.
 
+Same pattern on 2026-08-28: `feat/melissa-spanish-inflections-board` + staging `#883` (`spanish_pronoun_grid`). Union `i18n.js` public API (sidebar `:es-*` helpers **and** `spanish_pronoun_grid`), union both `i18n-test.js` describes, keep both LEARNINGS index entries, regenerate `.eslint-todo`. Task log: `2026-08-28-merge-staging-spanish-pronouns.md`.
+
 ---
 
 ## Gotcha: long-press overlay reads Language-tab inflections from the button translations array
@@ -3978,7 +3981,13 @@ Language-tab 3×3 edits write `trans.inflections` on the **button.translations a
 
 ## Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`
 
-English empty overlay slots are filled by `i18n.tense` (`-s`/`-ed`/`-ing`) when the locale is `en`. Spanish cannot reuse those suffixes. `grid_for` calls `i18n.spanish_verb_grid` / `spanish_noun_grid` / `spanish_adjective_grid` for `es` when the eight slots are empty (or still on generated defaults). Verbs: regular `-ar/-er/-ir`, boot stem-changers, irregular table. Nouns: plural (`gatos`, `luces`, `canciones`), `-o/-or` gender pair (`gata`, `profesora`; `mano` skipped), `no X`. Adjectives: agreement (`rojo/roja/rojos/rojas`), `más`/`menos`/`-ísimo`. Unset POS still tries the verb infinitive path only. Evidence: `app/frontend/app/utils/i18n.js` `spanishVerbGrid`; `edit_manager.js` `grid_for` Spanish fallback.
+English empty overlay slots are filled by `i18n.tense` (`-s`/`-ed`/`-ing`) when the locale is `en`. Spanish cannot reuse those suffixes. `grid_for` calls `i18n.spanish_verb_grid` / `spanish_noun_grid` / `spanish_adjective_grid` / `spanish_pronoun_grid` for `es` when the eight slots are empty (or still on generated defaults). Verbs: regular `-ar/-er/-ir`, boot stem-changers, irregular table. Nouns: plural (`gatos`, `luces`, `canciones`), `-o/-or` gender pair (`gata`, `profesora`; `mano` skipped), `no X`. Adjectives: agreement (`rojo/roja/rojos/rojas`), `más`/`menos`/`-ísimo`. Pronouns: person lookup table (`yo` → me/mi/mí/mío/conmigo), not English `'s` / `myself`. Unset POS still tries the verb infinitive path only. Evidence: `app/frontend/app/utils/i18n.js` `spanishVerbGrid` / `spanishPronounGrid`; `edit_manager.js` `grid_for` Spanish fallback.
+
+---
+
+## Gotcha: Spanish pronoun lookup must register subject keys before slot values
+
+`nosotros` has `e: nosotras` as a gender pair. If slot values are indexed in the same pass as subjects, `nosotras` is stored as an alias of `nosotros` and a **nosotras** button gets the nosotros grid (`e: nosotras` duplicating center). Index every canonical subject first (`yo`, `tú`, `nosotras`, …), then slot values and extras, first-wins. Same for `vosotras`. Shared `su`/`le`/`se` still resolve to `él` because those strings are not subject keys. Evidence: `indexSpanishPronounLookup` in `app/frontend/app/utils/i18n.js`. Task log: `2026-08-28-spanish-pronoun-inflections.md`.
 
 ---
 
