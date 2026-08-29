@@ -53,6 +53,8 @@ file (see [README.md](README.md)).
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
+- [Gotcha: `'self'` in a `/users/:id` URL is a username lookup, not the session user](#gotcha-self-in-a-usersid-url-is-a-username-lookup-not-the-session-user)
+- [Gotcha: `appState.feature_flags` follows `currentUser`, not the authenticated subject](#gotcha-appstatefeature_flags-follows-currentuser-not-the-authenticated-subject)
 - [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
 - [Gotcha: Notion rich_text is 2000 chars per object, not per property](#gotcha-notion-rich_text-is-2000-chars-per-object-not-per-property)
@@ -12136,6 +12138,29 @@ drop the `'self'` sentinel, fail closed.
 
 A test that stubs `{ id: '1_24' }` will not catch this. Stub `{ id: 'self',
 global_id: '1_24' }` — that is the network load path.
+
+## Gotcha: `'self'` in a `/users/:id` URL is a username lookup, not the session user (2026-08-29)
+
+The same `'self'` window that breaks authorship comparisons also breaks
+`User.find_by_path`. For `User`, a path that does not start with a digit is
+`find_by(:user_name => path.downcase)` (`global_id.rb`). POSTing
+`/api/v1/users/self/article_50_disclosure_ack` therefore looks up a username
+`self` and 404s. Use `art50UserId` / `user.global_id` (then `_actual_id`, then
+`.id`, drop `'self'`) for any user-path URL. Evidence:
+`app/frontend/app/utils/article50_gate.js` `art50UserId`;
+`app/frontend/app/components/ai-disclosure.js` `acknowledge`.
+
+## Gotcha: `appState.feature_flags` follows `currentUser`, not the authenticated subject (2026-08-29)
+
+`services/app-state.js#feature_flags` is computed from
+`currentUser.feature_flags`. In speak mode `currentUser` is the communicator.
+Org `enabled_features` overrides are per-account, and the server evaluates
+`frontend_flags_for(@api_user)`. Pairing the communicator's flag with the
+supporter's acknowledgement fields can skip a modal the server will 403, or
+show one the server will not enforce. Article 50 predicates must read
+`art50Subject(...).feature_flags.article_50_disclosure`. Leave
+`ai_feature_gate.js` on `currentUser` — that is the data-subject question.
+Task log: `2026-08-29_art50-codex-followup.md`.
 
 ## Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if` (2026-08-18)
 

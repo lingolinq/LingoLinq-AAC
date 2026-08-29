@@ -10,6 +10,7 @@ import {
   GATE_NOT_ACKNOWLEDGED,
   art50DisclosureUrl,
   art50Subject,
+  art50UserId,
   ART50_DISCLOSURE_URL
 } from 'frontend/utils/article50_gate';
 
@@ -79,7 +80,11 @@ module('Unit | Utility | article50 gate', function(hooks) {
 
   module('needsAcknowledgement', function() {
     test('returns false when the article_50_disclosure feature flag is off, regardless of other inputs', function(assert) {
-      var user = makeUser({article_50_disclosure_required: true, article_50_disclosure_shown: false});
+      var user = makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false,
+        feature_flags: {article_50_disclosure: false}
+      });
       var appState = makeAppState(false, user);
       assert.false(needsAcknowledgement(appState));
     });
@@ -288,6 +293,68 @@ module('Unit | Utility | article50 gate', function(hooks) {
       var appState = makeSpeakModeAppState(true, supporter, communicator);
       assert.false(needsAcknowledgement(appState),
         'gating here would ask the supporter to re-acknowledge a notice already on their record');
+    });
+
+    test('reads the feature flag from the supporter, not from appState (the communicator)', function(assert) {
+      var supporter = makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false,
+        feature_flags: {article_50_disclosure: false}
+      });
+      var communicator = makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false,
+        feature_flags: {article_50_disclosure: true}
+      });
+      // appState.feature_flags is ON (communicator), but the supporter's org
+      // has the flag off. Gating here would show a modal the server will not
+      // enforce, and the inverse (appState off, subject on) would skip a modal
+      // the server will 403.
+      var appState = makeSpeakModeAppState(true, supporter, communicator);
+      assert.false(needsAcknowledgement(appState),
+        'org overrides are per-account; the communicator flag must not drag the supporter in');
+    });
+
+    test('still gates a supporter whose own flag is on when appState (communicator) flag is off', function(assert) {
+      var supporter = makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false,
+        feature_flags: {article_50_disclosure: true}
+      });
+      var communicator = makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false,
+        feature_flags: {article_50_disclosure: false}
+      });
+      var appState = makeSpeakModeAppState(false, supporter, communicator);
+      assert.true(needsAcknowledgement(appState),
+        'the server evaluates the supporter flag; skipping the modal here would 403');
+    });
+  });
+
+  module('art50UserId', function() {
+    test('prefers global_id over the self sentinel on .id', function(assert) {
+      var user = makeUser({id: 'self', global_id: '1_24', _actual_id: '1_24'});
+      assert.strictEqual(art50UserId(user), '1_24');
+    });
+
+    test('falls back to _actual_id when global_id is absent', function(assert) {
+      var user = makeUser({id: 'self', _actual_id: '1_99'});
+      assert.strictEqual(art50UserId(user), '1_99');
+    });
+
+    test('uses .id when it is already a real backend id', function(assert) {
+      var user = makeUser({id: '1_7'});
+      assert.strictEqual(art50UserId(user), '1_7');
+    });
+
+    test('returns null for the self sentinel with no parked backend id', function(assert) {
+      var user = makeUser({id: 'self'});
+      assert.strictEqual(art50UserId(user), null);
+    });
+
+    test('returns null for a missing user', function(assert) {
+      assert.strictEqual(art50UserId(null), null);
     });
   });
 

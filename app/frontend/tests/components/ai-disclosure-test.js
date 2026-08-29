@@ -169,6 +169,45 @@ describe('ai-disclosure', function() {
       });
     });
 
+    it('POSTs to the backend global_id when the session record id is the self sentinel', function() {
+      user = EmberObject.create({id: 'self', global_id: '1_24', article_50_disclosure_shown: false});
+      component.set('appState', {
+        get: function(key) {
+          if(key === 'currentUser') { return user; }
+          return null;
+        }
+      });
+      var posted_url = null;
+      stub(persistence, 'ajax', function(url) {
+        posted_url = url;
+        return RSVP.resolve({article_50_disclosure_shown: true, disclosures_version: 1});
+      });
+      component.send('acknowledge');
+      waitsFor(function() { return posted_url !== null; });
+      runs(function() {
+        expect(posted_url).toEqual('/api/v1/users/1_24/article_50_disclosure_ack');
+      });
+    });
+
+    it('should set ack_error and not POST when id is the self sentinel with no parked backend id', function() {
+      user = EmberObject.create({id: 'self', article_50_disclosure_shown: false});
+      component.set('appState', {
+        get: function(key) {
+          if(key === 'currentUser') { return user; }
+          return null;
+        }
+      });
+      var ajaxCalled = false;
+      stub(persistence, 'ajax', function() {
+        ajaxCalled = true;
+        return RSVP.resolve({});
+      });
+      component.send('acknowledge');
+      expect(ajaxCalled).toEqual(false);
+      expect(component.get('ack_error')).toEqual(true);
+      expect(closeCalls).toEqual(0);
+    });
+
     it('should close the modal exactly once and mark the user shown on a successful acknowledgement write', function() {
       var resolve = null;
       stub(persistence, 'ajax', function() {
@@ -199,7 +238,9 @@ describe('ai-disclosure', function() {
 
     beforeEach(function() {
       closeCalls = 0;
-      supporter = EmberObject.create({id: 'supporter-1', article_50_disclosure_shown: false});
+      // id: 'self' is the findRecord('user', 'self') load path. The URL must
+      // use global_id, not .id — User.find_by_path('self') is a username lookup.
+      supporter = EmberObject.create({id: 'self', global_id: 'supporter-1', article_50_disclosure_shown: false});
       communicator = EmberObject.create({id: 'communicator-9', article_50_disclosure_shown: false});
       modalService = EmberObject.create({
         close: function() { closeCalls++; }

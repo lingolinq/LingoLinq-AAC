@@ -10,7 +10,9 @@ import i18n from './i18n';
  * rather than reimplementing any of these checks inline).
  *
  * FEATURE FLAG SCOPE (important): this module only READS
- * feature_flags.article_50_disclosure. Registering that flag in
+ * feature_flags.article_50_disclosure on the gate SUBJECT (art50Subject),
+ * not appState.feature_flags (that computed follows currentUser / the
+ * communicator in speak mode). Registering that flag in
  * AVAILABLE_FRONTEND_FEATURES was Phase 5 (RLL-01). CORRECTED 2026-08-25: that
  * registration HAS landed (lib/feature_flags.rb), and production additionally
  * enables the flag through the default_enabled_features DB Setting, verified by
@@ -90,18 +92,46 @@ export function art50Subject(appState) {
 }
 
 /**
+ * Backend id for an acknowledgement POST (and any other user-path URL).
+ *
+ * sessionUser is loaded as findRecord('user', 'self'). serializers/
+ * application.js pins that record's `.id` to the literal 'self' and parks the
+ * real global id on `_actual_id`; models/user.js#global_id exposes it.
+ * users_controller#article_50_disclosure_ack passes params['user_id'] to
+ * User.find_by_path, and a non-digit path is treated as a username
+ * (global_id.rb#find_by_path). Sending 'self' therefore 404s instead of
+ * acknowledging the authenticated account. Prefer global_id, then _actual_id,
+ * then .id; drop the 'self' sentinel. Same rule as eval-workbook.js#isAuthor.
+ */
+export function art50UserId(user) {
+  if (!user || typeof user.get !== 'function') { return null; }
+  var id = user.get('global_id') || user.get('_actual_id') || user.get('id');
+  if (!id || id === 'self') { return null; }
+  return id;
+}
+
+/**
  * True only when the article_50_disclosure feature flag is on AND there is a
  * gate subject (art50Subject above) AND that user's
  * article_50_disclosure_required is true AND article_50_disclosure_shown is
  * false. Fail-safe direction per D-04: gates on
  * EuJurisdiction.disclosure_required? (already true for :eu and :unknown), not
  * on the retention-column jurisdiction stamp.
+ *
+ * The flag is read from the SAME subject as the disclosure fields, not from
+ * appState.feature_flags. That computed property in services/app-state.js is
+ * derived from currentUser, which in speak mode is the communicator. Feature
+ * enablement can differ by managing-organization override, so pairing the
+ * communicator's flag with the supporter's acknowledgement state can skip a
+ * supporter the server will 403, or show the modal to a supporter whose org
+ * has the flag off. frontend_flags_for(user) on the server is per-account;
+ * this matches that.
  */
 export function needsAcknowledgement(appState) {
   if (!appState || typeof appState.get !== 'function') { return false; }
-  if (!appState.get('feature_flags.article_50_disclosure')) { return false; }
   var user = art50Subject(appState);
   if (!user || typeof user.get !== 'function') { return false; }
+  if (!user.get('feature_flags.article_50_disclosure')) { return false; }
   if (!user.get('article_50_disclosure_required')) { return false; }
   if (user.get('article_50_disclosure_shown')) { return false; }
   return true;
@@ -235,6 +265,7 @@ export default {
   ART50_DISCLOSURE_URL: ART50_DISCLOSURE_URL,
   art50DisclosureUrl: art50DisclosureUrl,
   art50Subject: art50Subject,
+  art50UserId: art50UserId,
   GATE_NOT_ACKNOWLEDGED: GATE_NOT_ACKNOWLEDGED,
   needsAcknowledgement: needsAcknowledgement,
   presentBlockingGate: presentBlockingGate,

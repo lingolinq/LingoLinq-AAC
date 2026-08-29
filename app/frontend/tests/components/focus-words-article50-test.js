@@ -39,7 +39,8 @@ describe('focus-words Article 50 gate', function() {
     return EmberObject.create(Object.assign({
       id: '1_1',
       article_50_disclosure_required: false,
-      article_50_disclosure_shown: false
+      article_50_disclosure_shown: false,
+      feature_flags: {article_50_disclosure: true}
     }, attrs || {}));
   }
 
@@ -50,6 +51,13 @@ describe('focus-words Article 50 gate', function() {
     // this.get('appState.currentUser'), and Ember's path get on a plain object
     // is a property lookup -- it never calls the object's own .get(). A stub with
     // only .get() silently hands the component `undefined` for currentUser.
+    //
+    // needsAcknowledgement reads the flag from the SUBJECT, not
+    // appState.feature_flags. Keep the user's feature_flags in sync with flagOn
+    // so setAppState(false, user) still means "flag off" after that change.
+    if (user && typeof user.set === 'function') {
+      user.set('feature_flags', {article_50_disclosure: flagOn});
+    }
     component.set('appState', {
       currentUser: user,
       feature_flags: {article_50_disclosure: flagOn},
@@ -66,6 +74,9 @@ describe('focus-words Article 50 gate', function() {
      communicator) while sessionUser is still the authenticated supporter. The
      server's backstop judges the supporter, so the client has to as well. */
   function setSpeakModeAppState(flagOn, sessionUser, currentUser) {
+    if (sessionUser && typeof sessionUser.set === 'function') {
+      sessionUser.set('feature_flags', {article_50_disclosure: flagOn});
+    }
     component.set('appState', {
       sessionUser: sessionUser,
       currentUser: currentUser,

@@ -19,10 +19,20 @@ function makeUser(attrs) {
   var data = Object.assign({
     preferences: {},
     article_50_disclosure_required: false,
-    article_50_disclosure_shown: false
+    article_50_disclosure_shown: false,
+    feature_flags: { article_50_disclosure: false }
   }, attrs || {});
   return {
     get: function(key) {
+      if(key.indexOf('.') !== -1) {
+        var parts = key.split('.');
+        var val = data;
+        for(var i = 0; i < parts.length; i++) {
+          if(val == null) { return null; }
+          val = val[parts[i]];
+        }
+        return val;
+      }
       return data[key];
     }
   };
@@ -88,6 +98,7 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
       user: makeUser({
         article_50_disclosure_required: true,
         article_50_disclosure_shown: false,
+        feature_flags: { article_50_disclosure: true },
         preferences: { ai_features_enabled: true, ai_word_prediction: true }
       })
     });
@@ -111,7 +122,11 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
   test('acknowledgement (shown true) re-enables prediction automatically, since is_enabled is evaluated per call', function(assert) {
     var appState = makeAppState({
       flags: { ai_word_prediction: true, article_50_disclosure: true },
-      user: makeUser({ article_50_disclosure_required: true, article_50_disclosure_shown: true })
+      user: makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: true,
+        feature_flags: { article_50_disclosure: true }
+      })
     });
     assert.true(ai_word_predictor.is_enabled(appState));
   });
@@ -124,7 +139,11 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
 
     var appState = makeAppState({
       flags: { ai_word_prediction: true, article_50_disclosure: true },
-      user: makeUser({ article_50_disclosure_required: true, article_50_disclosure_shown: false })
+      user: makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false,
+        feature_flags: { article_50_disclosure: true }
+      })
     });
 
     ai_word_predictor.predict('hello there', { appState: appState, immediate: true }).then(function(words) {
@@ -150,11 +169,13 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
         sessionUser: makeUser({
           article_50_disclosure_required: true,
           article_50_disclosure_shown: false,
+          feature_flags: { article_50_disclosure: true },
           preferences: enabledPrefs
         }),
         currentUser: makeUser({
           article_50_disclosure_required: true,
           article_50_disclosure_shown: true,
+          feature_flags: { article_50_disclosure: true },
           preferences: enabledPrefs
         })
       });
@@ -167,11 +188,13 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
         sessionUser: makeUser({
           article_50_disclosure_required: true,
           article_50_disclosure_shown: true,
+          feature_flags: { article_50_disclosure: true },
           preferences: enabledPrefs
         }),
         currentUser: makeUser({
           article_50_disclosure_required: true,
           article_50_disclosure_shown: false,
+          feature_flags: { article_50_disclosure: true },
           preferences: enabledPrefs
         })
       });
@@ -188,11 +211,13 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
         sessionUser: makeUser({
           article_50_disclosure_required: true,
           article_50_disclosure_shown: true,
+          feature_flags: { article_50_disclosure: true },
           preferences: enabledPrefs
         }),
         currentUser: makeUser({
           article_50_disclosure_required: true,
           article_50_disclosure_shown: true,
+          feature_flags: { article_50_disclosure: true },
           preferences: { ai_features_enabled: false, ai_word_prediction: false }
         })
       });
