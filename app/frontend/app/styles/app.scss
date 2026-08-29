@@ -72713,7 +72713,22 @@ span.md-board-detail-modeling-btn--paused:hover {
    inserting a slightly stale but perfectly valid word. */
 .md-board-detail-sentence-bar__prediction-group--is-loading .md-board-detail-sentence-bar__prediction,
 .md-board-detail-prediction-rail--is-loading .md-board-detail-sentence-bar__prediction {
-  opacity: 0.55;
+  /* The cue is on the tile SURFACE, never on the text. `opacity` on the tile is a GROUP
+     operation — it multiplies the label's alpha too — and the rail's label is only ~5.1:1
+     against the board at the top of its gradient, so any group dim breaks WCAG 1.4.3 there:
+     0.55 measured ~2.9:1, and even 0.8 only reaches ~4.06:1, still under the 4.5:1 that applies
+     because the label can be 13px. The tiles are deliberately still live and clickable, so the
+     inactive-component exemption does not apply either.
+     Fading the tile's own background instead RAISES label contrast (the tile darkens under white
+     text, toward the ~7.7:1 of the gradient's low-alpha end), so the cue reads and the words stay
+     legible. Recompute if these alphas are retuned. */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(255, 255, 255, 0.03) 100%);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+/* The symbol may fade — it is not text, and 1.4.11 does not apply to it. */
+.md-board-detail-sentence-bar__prediction-group--is-loading .md-board-detail-sentence-bar__prediction-img,
+.md-board-detail-prediction-rail--is-loading .md-board-detail-sentence-bar__prediction-img {
+  opacity: 0.5;
 }
 
 /* Word-prediction rail (<=1024px). The in-bar predictions overflow on small

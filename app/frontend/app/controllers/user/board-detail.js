@@ -1101,7 +1101,16 @@ export default Controller.extend(prefClasses, {
         item.image = local;
         return;
       }
-      var key = item.word.toLowerCase();
+      /* Key by the CONTEXT the resolution depends on, not the bare word.
+         attach_image_for_label resolves through the button sets of `lookup_ids`, so the same word
+         can legitimately resolve to different symbols on different board sets — and this map is
+         cleared only in clear_sentence, so a bare-word key can replay board A's symbol onto board
+         B. Pre-fix the failure was a missing symbol; with the memo it would be a confidently WRONG
+         one, which is worse for a symbol-reliant user.
+         Keying beats clearing: it never replays across a context and needs no extra observer.
+         (updateSuggestions does not observe model.id, so a clear-on-board-change would not have
+         fired reliably anyway.) */
+      var key = lookup_ids.join(',') + '|' + item.word.toLowerCase();
       var seen = lookups[key];
       if(seen) {
         /* A RESOLVED url is replayed onto this lookup's item. The latch used to store only

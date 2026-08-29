@@ -42,6 +42,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 11. **Do not assert anything about a system you have not just checked — especially to justify a change.** Saying "CI hits this too", "this is covered by specs", "that path is unused", or "this is pre-existing" is a claim, and each one is cheap to verify: query the Actions API for real run outcomes, grep for the call site, diff the linter against `git show HEAD:<file>`. Inference from plausible reasoning is not evidence, and a wrong claim is worse when it is the argument FOR editing shared config or shipping a fix. If a check is impractical, say the claim is unverified rather than stating it flatly — and when a claim you already made turns out wrong, correct the durable artifacts (docs, learnings, PR body), not just the chat.
 
+12. **Never implement a fix before an adversarial review of the PROPOSED fixes.** Diagnose, then
+    write the candidate fixes down — **more than one, wherever more than one exists** — and put
+    that proposal through adversarial review *before* editing any code. Apply only what survives,
+    with whatever changes the review demands.
+
+    The order matters because fixes are where the defects are. On the branch that produced this
+    rule, six review rounds found real bugs and **three of them found the bugs in the previous
+    round's fixes**. When proposals were finally reviewed before landing, the reviewer found
+    defects in **four of five** proposals — twice running. In the worst case, a CRITICAL scanning
+    lockout, *both* proposed remedies were actively harmful (one added ~120 DOM lookups per scan
+    tick on an eye-gaze user's code path; the other could leave scanning stopped with no armed
+    timer) and the correct third fix came from the review. Under fix-then-review, every one of
+    those ships and is discovered — if at all — a round later.
+
+    What a proposal must contain:
+    - the **diagnosis**, verified in code, with file:line — a wrong diagnosis makes the best-built
+      fix worthless, and one on that branch blamed the wrong commits entirely;
+    - **at least two candidate fixes** where they exist, with the trade-off between them stated,
+      plus the simplest alternative considered and why it was rejected;
+    - **the risks you can see**, and explicitly **the questions you could not resolve** — those are
+      where a wrong fix hides, and naming them is what lets the review aim;
+    - the **test** that will accompany the fix, and **the mutation that must make that test fail**.
+
+    Every accompanying test must then be **falsified** before it is trusted: revert the fix, confirm
+    the test goes red, restore. Four tests on that branch passed against the very bugs they were
+    written for and were caught only this way. A test that cannot fail is worse than no test,
+    because it is counted as coverage.
+
+    Restore from a copy you made yourself, never `git checkout` — that destroys uncommitted work,
+    and doing it once cost a whole redesign and three rounds of debugging its absence. Commit
+    before running destructive verification.
+
+    This does not license skipping rules 1-4: a review is evidence to verify, not a verdict. Reviews
+    on that branch were wrong too — a contrast remedy that still failed AA, a magnitude computed
+    from the wrong root font-size, a "factually wrong" charge against a comment that was correct.
+    Verify each finding yourself before acting on it, and say so when you disagree.
+
 ## Branching (mandatory before ANY code change)
 
 Before you make any edit in this repo, you MUST be on a properly-named branch — but **do not create a new branch** when the user is already working on one for the same task or PR.

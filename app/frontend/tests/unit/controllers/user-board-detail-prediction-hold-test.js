@@ -78,6 +78,40 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
+  test('the symbol memo does not replay a symbol across a different board set', function(assert) {
+    assert.expect(3);
+    /* attach_image_for_label resolves through the button sets of `lookup_ids`, so the same word
+       can legitimately resolve differently per board set — and the memo is cleared only in
+       clear_sentence. Keyed on the bare word it would replay board A's symbol onto board B: a
+       confidently WRONG symbol, worse for a symbol-reliant user than the missing one it replaced.
+       The sibling memo test stubs the board ids to [] for both calls, so it passes either way and
+       is not coverage for this. Mutation that fails this: revert the key to the bare word. */
+    let calls = 0;
+    let capturedCallback = null;
+    patch(wordSuggestions, 'resolve_word_image', function() { return null; });
+    patch(wordSuggestions, 'attach_image_for_label', function(word, ids, cb) { calls++; capturedCallback = cb; });
+
+    const controller = buildController();
+    controller._find_local_image_for_label = function() { return null; };
+    controller._republish_suggestion_list = function() {};
+
+    try {
+      controller._suggestion_lookup_board_ids = function() { return ['board-a']; };
+      const onA = [{ word: 'mom' }];
+      controller._decorate_suggestion_images(onA);
+      capturedCallback('https://example.test/mom-on-a.png');
+      assert.strictEqual(onA[0].image, 'https://example.test/mom-on-a.png', 'resolves on board A');
+
+      controller._suggestion_lookup_board_ids = function() { return ['board-b']; };
+      const onB = [{ word: 'mom' }];
+      controller._decorate_suggestion_images(onB);
+      assert.strictEqual(calls, 2, 'a different board set triggers a fresh lookup');
+      assert.notOk(onB[0].image, "and board A's symbol is not replayed onto board B");
+    } finally {
+      controller.destroy();
+    }
+  });
+
   test('_prediction_panel_targeted only trusts a LIVE dwell linger', function(assert) {
     assert.expect(4);
     const rail = document.createElement('div');
