@@ -79,6 +79,92 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     from the wrong root font-size, a "factually wrong" charge against a comment that was correct.
     Verify each finding yourself before acting on it, and say so when you disagree.
 
+13. **Establish three facts BEFORE writing a fix, and write them down labelled.** Every defect
+    self-inflicted on the branch that produced rules 12-14 came from skipping one of exactly three
+    questions. They are a closed list, they are cheap, and they are answerable before any code is
+    written:
+
+    - **(a) Where is this value actually READ?** Trace the control flow to the read, not to where
+      the concept belongs. This one question accounts for FIVE separate bugs on that branch, all
+      of the same shape: a guard placed where it cannot fire — after the early return it needed to
+      precede; on the dwell branch when the scanner branch returns first; keyed on a value that is
+      null for exactly the users it was written for; and twice as a proposed fix that was a strict
+      no-op. Every one of them read correctly. None executed correctly.
+    - **(b) What are ALL the shapes this can hold?** Enumerate the reachable states and name the
+      writer of each. `suggestions === null` missed `{ready: true, list: []}`, which three separate
+      call sites produce; the fix looked complete and covered one of two cases.
+    - **(c) Is this claim about another file TRUE?** Rule 11 already says this; it was still
+      violated repeatedly. "The sibling test uses the shared helper" (it uses an inline stub),
+      "`updateSuggestions` observes `model.id`" (it does not), "that probe failure was an ember
+      rebuild" (it was a real defect, and the misreading cost hours).
+
+    **Label every fact CONFIRMED (`file:line`) or ASSUMED before you use it.** No ASSUMED line may
+    be load-bearing for a fix: check it, or do not proceed on it. This exists because a verified
+    fact and a plausible inference are indistinguishable from the inside — writing them in
+    different columns is what makes the gap visible. Reviewers on that branch used exactly this
+    labelling and it is why their findings held up.
+
+    **The three facts are NEVER skipped, and "this one is obvious" is the signal to write them
+    down, not to skip them.** Every one of the five guard-placement bugs looked obvious. Each was a
+    one-line change to code the author had just written and believed he understood; that belief was
+    the defect. The fact sheet is a PRECONDITION of touching code, not a ceremony reserved for
+    changes that feel large — the small, confident, self-evident fix is exactly where this failed,
+    five times, and twice the misplaced guard WAS the entire proposed fix. There is no size or
+    urgency threshold below which the three questions are optional. If the answers are genuinely
+    trivial the sheet takes a minute and proves it; if writing it is awkward, that awkwardness IS
+    the finding, and it is cheaper here than three review rounds later.
+
+    **Then write the RED TEST FIRST — before the fix exists — derived from the traced mechanism.**
+    This is the highest-leverage single practice available here, because it forces (a), (b) and (c)
+    simultaneously: a test cannot fail *for the right reason* unless you know where the value is
+    read, which states are reachable, and what the neighbouring code really does. It also proves
+    the diagnosis before any effort is invested in a fix worth defending. All five hollow tests on
+    that branch — tests that passed against the very bug they were written for — were written
+    AFTER their fix, from a description rather than from a mechanism. A fix whose red test you
+    cannot write is a fix whose bug you do not yet understand.
+
+14. **Five practices that prevent the specific defects this codebase has already produced.** Each
+    is cheap, mechanical, and traceable to a real failure — not general advice.
+
+    1. **Trace-to-the-read before placing any guard.** State in one line where the value is read
+       and show the guard precedes it on every path. If you cannot write that line, you do not yet
+       know where the guard goes. (Rule 13(a) is the diagnosis; this is the habit.)
+    2. **Write the weakest passing state before writing a test.** Ask: what is the least-working
+       version of this system that still makes this test green? If that state contains the bug, the
+       test is wrong — rewrite it before running it. This catches hollow tests earlier and more
+       cheaply than falsification does, and falsification (rule 12) then confirms it. Real examples:
+       a cue test that stopped its stimulus before asserting; a regression that needed TWO
+       suppressed writes to diverge and had one; an "untargeted control" whose first assertion was
+       false for an unrelated reason and could never fail.
+    3. **Write comments last, and make every cross-file claim checkable.** Comments describe what
+       the code DOES, not what it is for, and any assertion about another file cites `file:line`.
+       Four comments on that branch claimed more than their code — including one asserting the
+       exact opposite of the behaviour beneath it, and one whose stated rationale described a path
+       that could not execute. A comment written before the code settles becomes a false statement
+       that misleads the next reader, the next reviewer, and you.
+    4. **Enumerate matches before any text substitution in a shared file.** List what a
+       replacement will hit and confirm each is intended. A blanket `<=768px` -> `<=1024px` rename
+       intended for ONE stale comment corrupted four correct ones, and a block deletion silently
+       removed a helper that two live call sites still referenced. The same rule applies to
+       deleting a range: print what is inside it first.
+    5. **Two independent reviewers for anything High or above.** Independent convergence was the
+       strongest evidence produced on that branch — two reviewers who had not seen each other's
+       output found the same HIGH defect, one by tracing and one by writing a probe test. A single
+       reviewer is also wrong sometimes: reviews on that branch produced a contrast remedy that
+       still failed AA, a magnitude computed from the wrong root font-size, and a "factually wrong"
+       charge against a comment that was correct.
+
+    **Ordering matters:** rules 13 and 14 come FIRST and rule 12's proposal review is the
+    BACKSTOP. A reviewer spending its attention on a guard that cannot fire is a wasted reviewer;
+    that class should never reach it. Reviews earn their cost on blast radius, cross-file
+    interactions, and the things you structurally cannot see about your own work.
+
+    **Two structural constraints, learned the same way:** make ONE coherent change per unit — every
+    multi-item batch on that branch contained at least one defect while single-item ones did not —
+    and STOP when the error rate rises rather than pushing through. The sloppiest mistakes of that
+    session came late: a blanket `sed`, a `git checkout` that destroyed uncommitted work, a range
+    deletion that ate a helper.
+
 ## Branching (mandatory before ANY code change)
 
 Before you make any edit in this repo, you MUST be on a properly-named branch — but **do not create a new branch** when the user is already working on one for the same task or PR.
