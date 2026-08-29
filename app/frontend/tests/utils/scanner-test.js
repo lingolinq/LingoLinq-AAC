@@ -1559,6 +1559,72 @@ describe('scanner', function() {
     });
   });
 
+  describe('prediction rail scan row', function() {
+    /* The rail row had NO headless coverage: deleting the whole block from start() left the suite
+       green, because scannerFindElemStub returns domStub(0) for selectors it does not know. If it
+       regressed, a scanning user could not reach any prediction in the DEFAULT placement — the bug
+       this branch exists to fix.
+
+       A delegating wrapper rather than teaching the SHARED helper the selector: doing that makes
+       14 existing tests fail, because every simple_header() test asserts an exact rows.length and
+       positional rows[n], and the rail row is pushed before scan_content() so it shifts each index
+       by one. The wrapper also handles the per-tile find_elem(this) calls, which a plain override
+       cannot — reload_children passes the element object, which would fall through to domStub(0)
+       and yield empty labels. */
+    var railFindElem = function(tile_count) {
+      var base = scannerFindElemStub({
+        '.md-board-detail-prediction-rail:visible': domStub(1, {
+          hasClass: function(cls) { return cls === 'md-board-detail-prediction-rail'; },
+          find: function(sel) {
+            if(sel !== '.md-board-detail-sentence-bar__prediction') { return domStub(0); }
+            return domStub(tile_count, {
+              each: function(cb) {
+                for(var i = 0; i < tile_count; i++) { cb.call({prediction_index: i}); }
+              }
+            });
+          }
+        })
+      });
+      return function(str) {
+        if(str && str.prediction_index !== undefined) {
+          return domStub(1, { text: function() { return ['cream', 'crunch'][str.prediction_index]; } });
+        }
+        return base(str);
+      };
+    };
+
+    it('registers the rail as its own scan row, with its tiles as children', function() {
+      var rows = null;
+      stub(scanner, 'find_elem', railFindElem(2));
+      stubScannerModalClosed();
+      stub(scanner, 'scan_content', function() { return { rows: 0, columns: 0, order: [[]] }; });
+      stub(scanner, 'scan_elements', function(r) { rows = r; });
+
+      scanner.start({});
+
+      var rail = (rows || []).filter(function(r) {
+        return r.dom && r.dom.hasClass && r.dom.hasClass('md-board-detail-prediction-rail');
+      })[0];
+      expect(!!rail).toEqual(true);
+      expect(rail.children.length).toEqual(2);
+      expect(rail.children[0].label).toEqual('cream');
+    });
+
+    it('does NOT register the row when the rail has no tiles', function() {
+      /* The children.length guard is what stops the scan loop parking a user on an empty
+         "Suggestions" row. The simple_header tests cannot reach it — they fail the outer
+         `if` with length 0 — so it needs its own case. */
+      var rows = null;
+      stub(scanner, 'find_elem', railFindElem(0));
+      stubScannerModalClosed();
+      stub(scanner, 'scan_content', function() { return { rows: 0, columns: 0, order: [[]] }; });
+      stub(scanner, 'scan_elements', function(r) { rows = r; });
+
+      scanner.start({});
+      expect((rows || []).length).toEqual(1);   // the header row only
+    });
+  });
+
   describe('load_children', function() {
     /* load_children is stubbed out in every other test in this file, so its body was never
        executed by the suite. */

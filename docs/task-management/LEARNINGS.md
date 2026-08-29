@@ -15895,9 +15895,23 @@ container had also left the DOM. A container deliberately kept mounted to hold l
 what the prediction rail now does — is attached and has a non-zero box, so the recovery never fires.
 
 **Fix:** handle it where the level is built, not where it is measured. In `scanner.load_children`, if
-the reloaded children are empty and a `higher_level` exists, `level_up(parent)` immediately instead of
-building a level containing only its own stub. Strictly better for every caller: the old path required
-the user to select the stub to reach the same place.
+the reloaded children are empty and a `higher_level` exists, `level_up(parent, true)` instead of
+building a level containing only its own stub.
+
+**Scope, stated precisely — an earlier version of this entry said "strictly better for every caller"
+and that was wrong.** The RECOVERY path already handled the empty case (it reaches the
+`elements.length == 1 && higher_level` check and levels up), so the behaviour that actually changes
+is the `pick` path, where the old code left the user on a level holding only its own level-up stub.
+The commit message of `3bd34f706` still carries the overclaim; `757f0ceb7` retracts it.
+
+**The second argument is load-bearing and was learned two rounds later.** `level_up` returns to
+`higher_level_index` — the row just left. Without `advance`, an emptied group is re-picked by
+`scanning_auto_select` every interval and levels up to itself: the user NEVER REACHES THE BOARD, and
+the only exit is the cancel switch, which stops scanning outright. Of the four `level_up` call sites
+only the empty-children one passes `advance`. Note this trap is not specific to the prediction rail:
+`origin/staging` pushes the classic `#word_suggestions` row with no children guard and board-alt
+renders it with visible "Loading word suggestions…" text, so the same loop ships there at two ticks
+per cycle instead of one.
 
 **Also check `escape()`:** it levels up only for containers whose class it recognises, and falls
 through to `scanner.stop()` otherwise — so a new drill-in level must be added there too, or escaping

@@ -271,6 +271,88 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
+  test('an UNTARGETED refresh never freezes, once a list is already displayed', function(assert) {
+    assert.expect(2);
+    /* The sibling test's "untargeted control" cannot fail: on the first write
+       _displayed_prediction_list is undefined, so `showing` is falsy and should_freeze is false
+       regardless of the targeting term. Removing _prediction_panel_targeted() from the
+       conjunction entirely — freezing on EVERY refresh for EVERY user — leaves that test green.
+       Priming with a real write first is what makes the targeting term load-bearing.
+       Mutation that fails this: drop _prediction_panel_targeted() from should_freeze. */
+    const tile = railFixture();
+    patch(scanner, 'actively_scanning', function() { return false; });
+    patch(scanner, 'current_element', { dom: [tile] });
+    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker, 'last_dwell_linger', null);
+
+    const controller = buildController();
+    try {
+      controller.set('suggestions', { ready: true, list: [{ word: 'A' }] });   // primes the field
+      controller.set('suggestions', { ready: true, list: [{ word: 'B' }] });
+      controller.set('suggestions', { ready: true, list: [{ word: 'C' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'C',
+        'an untargeted panel always renders the live list');
+      assert.notOk(controller.get('_prediction_freeze_list'), 'and never engages a freeze');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('_suggestion_swap_max_hold derives the bound from the dwell configuration', function(assert) {
+    assert.expect(4);
+    /* Collapsing this to a constant 2000 leaves the whole suite green, yet it governs BOTH how
+       long a freeze may last and how long a dwell linger counts as live. speak_mode must be true
+       or buttonTracker.check() returns null and everything collapses to the standard bound
+       silently. dwell_timeout is set explicitly because it is a sticky module singleton with no
+       declared default — otherwise case 1 is order-dependent on whatever ran before it. */
+    patch(buttonTracker, 'appState', { get: function(k) { return k === 'speak_mode' ? true : null; } });
+    patch(buttonTracker, 'dwell_enabled', true);
+    patch(buttonTracker, 'dwell_timeout', 1000);
+    patch(buttonTracker, 'dwell_selection', 'dwell');
+
+    const controller = buildController();
+    try {
+      assert.strictEqual(controller._suggestion_swap_max_hold(), 2000, 'auto dwell: the standard bound');
+
+      buttonTracker.dwell_selection = 'button';
+      assert.strictEqual(controller._suggestion_swap_max_hold(), 8000,
+        'switch-paced dwell never self-completes, so it gets the long bound');
+
+      buttonTracker.dwell_selection = 'dwell';
+      buttonTracker.dwell_timeout = 3000;
+      assert.strictEqual(controller._suggestion_swap_max_hold(), 6000,
+        'a long dwell_duration raises the bound so it always clears the dwell itself');
+
+      /* The guard the code calls load-bearing: dwell_selection is a sticky singleton that
+         app-state never resets, so a device where dwell was once on must not hand a non-dwell
+         user the long bound. All three cases above run with dwell_enabled true, so without this
+         the guard is never exercised. */
+      buttonTracker.dwell_enabled = false;
+      buttonTracker.dwell_selection = 'button';
+      assert.strictEqual(controller._suggestion_swap_max_hold(), 2000,
+        'dwell OFF gets the standard bound despite the sticky dwell_selection');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('_deduped_suggestions drops repeats, blanks, and survives the constructor trap', function(assert) {
+    assert.expect(1);
+    /* Both {{#each}}s key on `word`, so a duplicate is a duplicate Glimmer key. Removing the
+       de-dupe kills nothing anywhere in the suite. The 'constructor' element pins the documented
+       object-map trap (seen['constructor'] is truthy on a bare {}), and the empty-word element
+       covers the `!word` term, which a 3-element fixture leaves alive. */
+    const controller = buildController();
+    try {
+      const out = controller._deduped_suggestions([
+        { word: 'a' }, { word: 'a' }, { word: 'constructor' }, { word: '' }, { word: 'constructor' }
+      ]).map((s) => s.word);
+      assert.deepEqual(out, ['a', 'constructor'], 'one of each real word, no blanks');
+    } finally {
+      controller.destroy();
+    }
+  });
+
   test('a clear ENDS an in-flight freeze, for both blank shapes', async function(assert) {
     assert.expect(6);
     /* The proposal for this fix originally specified a test that passes at HEAD with the bug

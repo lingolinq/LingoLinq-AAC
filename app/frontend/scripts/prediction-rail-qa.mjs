@@ -196,6 +196,7 @@ const DIAG = () => {
     railDisplay: rail ? getComputedStyle(rail).display : null,
     controller: !!c,
     editMode: c ? get('edit_mode') : null,
+    speakMode: (() => { try { return window.appState.get('speak_mode'); } catch (e) { return 'ERR'; } })(),
     showWordSuggestions: c ? get('show_word_suggestions') : null,
     prefWordSuggestions: (() => { try { return window.appState.get('referenced_user.preferences.word_suggestions'); } catch (e) { return 'ERR'; } })(),
     sentenceWords: (() => { try { return (window.appState.get('button_list') || []).map((b) => b.label); } catch (e) { return 'ERR'; } })(),
@@ -262,22 +263,65 @@ const setThrottle = async (client, { network, cpu }) => {
     if (ok !== true) { fail('precondition — prediction prefs writable', String(ok)); throw new Error('halt'); }
 
     /* A prediction only exists once there is a sentence, so put one word in the bar. */
+    /* Returns {ok, stage, attempts}. `stage` matters: a run that never got a board to click is a
+       run that NEVER STARTED, and reporting that as "no tiles appeared" is how a non-start gets
+       mistaken for a regression (CLAUDE.md rule 10 — it happened to this probe, and the misread
+       cost real time).
+
+       The old version slept a blind 9s and then gave up if no card had rendered, WITHOUT
+       CLICKING — so the dominant failure was "the board wasn't ready yet", reported as a
+       20-second tile timeout that had not occurred. Waiting on the card is a precondition wait,
+       so it carries no masking risk; the retry is only around the click. */
     const seedSentence = async () => {
-      await page.goto(boardUrl, { waitUntil: 'domcontentloaded' });
-      await sleep(9000);
-      const card = await page.$(WORD_CARD);
-      if (!card) { return false; }
-      const b = await card.boundingBox();
-      await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
-      await page.waitForSelector(`${RAIL} ${TILE}`, { timeout: 20000 }).catch(() => {});
-      await sleep(1500);
-      return !!(await page.$(`${RAIL} ${TILE}`));
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        await page.goto(boardUrl, { waitUntil: 'domcontentloaded' });
+        const card = await page.waitForSelector(WORD_CARD, { timeout: 30000 }).catch(() => null);
+        if (!card) {
+          if (attempt === 3) { return { ok: false, stage: 'board never rendered a word button', attempts: attempt }; }
+          continue;
+        }
+        const b = await card.boundingBox();
+        if (!b) {
+          if (attempt === 3) { return { ok: false, stage: 'the word button had no layout box', attempts: attempt }; }
+          continue;
+        }
+        await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
+        /* Did the click reach the SENTENCE BAR? button_list is written by utterance.js and is
+           strictly upstream of the rail, so it separates "the click landed" from "the lookup
+           returned nothing" — the two causes the old single verdict conflated. */
+        const landed = await page.waitForFunction(
+          () => ((window.appState && window.appState.get('button_list')) || []).length > 0,
+          { timeout: 10000 }
+        ).then(() => true).catch(() => false);
+        if (!landed) {
+          if (attempt === 3) { return { ok: false, stage: 'the click never reached the sentence bar', attempts: attempt }; }
+          continue;
+        }
+        await page.waitForSelector(`${RAIL} ${TILE}`, { timeout: 20000 }).catch(() => {});
+        await sleep(1500);
+        const tiles = !!(await page.$(`${RAIL} ${TILE}`));
+        return {
+          ok: tiles,
+          stage: tiles ? 'ok' : 'the sentence was seeded but the rail stayed empty',
+          attempts: attempt
+        };
+      }
+      return { ok: false, stage: 'exhausted retries', attempts: 3 };
     };
 
-    if (!(await seedSentence())) {
+    /* A degraded-but-passing run must be VISIBLE. An attempt count buried in a pass line is not
+       read; a WARN line is. */
+    const seedOrWarn = async (label) => {
+      const r = await seedSentence();
+      if (r.attempts > 1) { info(`WARN: ${label} needed ${r.attempts} attempts to seed a sentence`); }
+      return r;
+    };
+
+    const seeded = await seedOrWarn('precondition');
+    if (!seeded.ok) {
       const d = await page.evaluate(DIAG).catch((e) => 'DIAG failed: ' + e.message);
       fail('precondition — the rail renders predictions after a word is selected',
-        'no tiles within 20s. State: ' + JSON.stringify(d));
+        `${seeded.stage} (after ${seeded.attempts} attempt(s)). State: ` + JSON.stringify(d));
       throw new Error('halt');
     }
     pass('precondition — rail renders predictions', 'a word was selected and the rail populated');
@@ -291,7 +335,8 @@ const setThrottle = async (client, { network, cpu }) => {
     for (const [label, value] of STYLES) {
       const wrote = await setPrefs({ folder_display_style: value === undefined ? null : value });
       if (wrote !== true) { fail(`alignment — folder style "${label}"`, `could not write the style: ${wrote}`); continue; }
-      await seedSentence();
+      const reseeded = await seedOrWarn(`alignment "${label}"`);
+      if (!reseeded.ok) { fail(`alignment — folder style "${label}"`, `could not seed: ${reseeded.stage}`); continue; }
       const m = await page.evaluate(MEASURE_ALIGNMENT);
       if (!m.ok) { fail(`alignment — folder style "${label}"`, m.why); continue; }
       /* Assert the style actually APPLIED before trusting the geometry. Without this the
@@ -329,7 +374,8 @@ const setThrottle = async (client, { network, cpu }) => {
       }
     }
     await setPrefs({ folder_display_style: saved.folder_display_style === undefined ? null : saved.folder_display_style });
-    await seedSentence();
+    const restored_seed = await seedOrWarn('post-alignment reset');
+    if (!restored_seed.ok) { info(`NOTE: could not re-seed after restoring the folder style: ${restored_seed.stage}`); }
 
     /* ---- 2. the rail holds its width across real lookups ----
        Run twice: once at local speed, once under deployment-like throttling (see the end
