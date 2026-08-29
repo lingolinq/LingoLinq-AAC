@@ -1037,19 +1037,39 @@ export default Service.extend({
     router = router || this.get('router') || this.router;
     this._debounceBoardLoadOverlay(router);
   },
+  // Sidebar entries often carry `locale` from Add to Sidebar (the language
+  // at add time, frequently English). Applying that stamp cleared Switch
+  // Languages, so Flexiones / Yes-No / Keyboard opened in their default
+  // language and Back showed Quick Core 40 in English.
+  sidebar_jump_preserves_session_locale: function(key, source) {
+    if(source === 'sidebar' || source === 'swipe') { return true; }
+    if(!key || typeof key !== 'string') { return false; }
+    var slug = key.split('/').pop();
+    return slug === 'inflections' || slug === 'inflections-es' || slug === 'keyboard';
+  },
+  restore_session_locale_override: function() {
+    var label = this.stashes.get('override_label_locale');
+    var vocalization = this.stashes.get('override_vocalization_locale');
+    if(label) {
+      this.stashes.persist('label_locale', label);
+      this.set('label_locale', label);
+    }
+    if(vocalization) {
+      this.stashes.persist('vocalization_locale', vocalization);
+      this.set('vocalization_locale', vocalization);
+    } else if(label) {
+      this.stashes.persist('vocalization_locale', label);
+      this.set('vocalization_locale', label);
+    }
+  },
   jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
     if(new_state && old_state && new_state.id && (new_state.id == old_state.id || new_state.key == old_state.key)) {
       // transition was getting stuck when staying on the same board
       buttonTracker.transitioning = false;
     }
+    var preserve_session_locale = this.sidebar_jump_preserves_session_locale(new_state && new_state.key, new_state && new_state.source);
     if(new_state && (new_state.source == 'sidebar' || new_state.source == 'swipe')) {
-      if(new_state && new_state.locale && this.stashes.get('override_label_locale') && new_state.locale != this.stashes.get('override_label_locale')) {
-        this.stashes.persist('override_label_locale', null);
-      }
-      if(new_state && new_state.locale && this.stashes.get('override_vocalization_locale') && new_state.locale != this.stashes.get('override_vocalization_locale')) {
-        this.stashes.persist('override_vocalization_locale', null);
-      }
       this.stashes.persist('last_root', new_state);
     }
     var history = this.get_history();
@@ -1078,7 +1098,7 @@ export default Service.extend({
     if(new_state.level) {
       this.stashes.persist('board_level', new_state.level);
     }
-    if(new_state.locale) {
+    if(new_state.locale && !preserve_session_locale) {
       this.stashes.persist('label_locale', new_state.locale);
       this.stashes.persist('vocalization_locale', new_state.locale);
       this.set('label_locale', new_state.locale);
@@ -1282,6 +1302,7 @@ export default Service.extend({
     if(state.level) {
       this.stashes.persist('board_level', state.level);
     }
+    this.restore_session_locale_override();
     this.set('referenced_board', state);
     var router = this.get('router') || this.router;
     if(router && typeof router.transitionTo === 'function') {
@@ -1307,12 +1328,8 @@ export default Service.extend({
         if(state.level || state.default_level) {
           this.stashes.persist('board_level', state.level || state.default_level);
         }
-        if(this.stashes.get('override_label_locale')) {
-          // If manually-set for the session, revert
-          // to the preferred value
-          this.stashes.persist('label_locale', this.stashes.get('override_label_locale'));
-          this.stashes.persist('vocalization_locale', this.stashes.get('override_vocalization_locale'));
-        } else if(state.locale) {
+        this.restore_session_locale_override();
+        if(!this.stashes.get('override_label_locale') && state.locale) {
           // Otherwise revert to the original
           // state in case it got changed during navigation
           this.stashes.persist('label_locale', state.locale);

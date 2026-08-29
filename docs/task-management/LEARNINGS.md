@@ -23,12 +23,15 @@ file (see [README.md](README.md)).
 - [Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`](#gotcha-merging-two-overlay-prs-is-a-union-of-tests-then-regenerate-eslint-todo)
 - [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
 - [Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`](#pattern-spanish-long-press-defaults-use-spanish_verb_grid-not-english--s-ed-ing)
+- [Gotcha: Spanish pronoun lookup must register subject keys before slot values](#gotcha-spanish-pronoun-lookup-must-register-subject-keys-before-slot-values)
+- [Pattern: Spanish inflections sidebar board uses `:es-*` actions, not translated English suffixes](#pattern-spanish-inflections-sidebar-board-uses-es--actions-not-translated-english-suffixes)
 - [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
 - [Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one](#gotcha-source_part_of_speech-is-not-a-locale--process_buttons-500s-if-treated-as-one)
 - [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
 - [Gotcha: dotenv leaves op:// refs in ENV — present? is not injected](#gotcha-dotenv-leaves-op-refs-in-env--present-is-not-injected)
 - [Gotcha: library translate must walk load_board links, not only downstream_board_ids](#gotcha-library-translate-must-walk-load_board-links-not-only-downstream_board_ids)
 - [Gotcha: spelling-key letters must not go to Google](#gotcha-spelling-key-letters-must-not-go-to-google)
+- [Gotcha: Google Translate maps AAC "who" to OMS, not quién](#gotcha-google-translate-maps-aac-who-to-oms-not-quién)
 - [Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep](#gotcha-the-boot-skeleton-is-ll-skel-progress-not-ll-premium-progress--and-a-shared-component-fix-has-no-siblings-left-to-sweep)
 - [Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`](#pattern-the-board-tile-board_action-is-a-contextual-remove-not-a-delete-button--gate-on-remove_type)
 - [Gotcha: the two categorised board variants do NOT space their categories the same way — one is ring-compensated, one is not](#gotcha-the-two-categorised-board-variants-do-not-space-their-categories-the-same-way--one-is-ring-compensated-one-is-not)
@@ -3972,6 +3975,8 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 
 `fix/melissa-inflections-overlay` and staging `#880` (`feat/melissa-spanish-verb-inflections`) both edited `grid_for`, `edit_manager-test.js`, `LEARNINGS.md`, and `.eslint-todo`. Keep both behaviors: Language-tab `button.translations` lookup **and** Spanish empty-grid defaults. Conflicted tests are a union, not ours-or-theirs. `.eslint-todo` line numbers from either side are wrong after the combine; run `npm run lint:js:todo`. Task log: `2026-08-27-merge-staging-inflections-overlay.md`.
 
+Same pattern on 2026-08-28: `feat/melissa-spanish-inflections-board` + staging `#883` (`spanish_pronoun_grid`). Union `i18n.js` public API (sidebar `:es-*` helpers **and** `spanish_pronoun_grid`), union both `i18n-test.js` describes, keep both LEARNINGS index entries, regenerate `.eslint-todo`. Task log: `2026-08-28-merge-staging-spanish-pronouns.md`.
+
 ---
 
 ## Gotcha: long-press overlay reads Language-tab inflections from the button translations array
@@ -3982,7 +3987,23 @@ Language-tab 3×3 edits write `trans.inflections` on the **button.translations a
 
 ## Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`
 
-English empty overlay slots are filled by `i18n.tense` (`-s`/`-ed`/`-ing`) when the locale is `en`. Spanish cannot reuse those suffixes. `grid_for` calls `i18n.spanish_verb_grid` / `spanish_noun_grid` / `spanish_adjective_grid` for `es` when the eight slots are empty (or still on generated defaults). Verbs: regular `-ar/-er/-ir`, boot stem-changers, irregular table. Nouns: plural (`gatos`, `luces`, `canciones`), `-o/-or` gender pair (`gata`, `profesora`; `mano` skipped), `no X`. Adjectives: agreement (`rojo/roja/rojos/rojas`), `más`/`menos`/`-ísimo`. Unset POS still tries the verb infinitive path only. Evidence: `app/frontend/app/utils/i18n.js` `spanishVerbGrid`; `edit_manager.js` `grid_for` Spanish fallback.
+English empty overlay slots are filled by `i18n.tense` (`-s`/`-ed`/`-ing`) when the locale is `en`. Spanish cannot reuse those suffixes. `grid_for` calls `i18n.spanish_verb_grid` / `spanish_noun_grid` / `spanish_adjective_grid` / `spanish_pronoun_grid` for `es` when the eight slots are empty (or still on generated defaults). Verbs: regular `-ar/-er/-ir`, boot stem-changers, irregular table. Nouns: plural (`gatos`, `luces`, `canciones`), `-o/-or` gender pair (`gata`, `profesora`; `mano` skipped), `no X`. Adjectives: agreement (`rojo/roja/rojos/rojas`), `más`/`menos`/`-ísimo`. Pronouns: person lookup table (`yo` → me/mi/mí/mío/conmigo), not English `'s` / `myself`. Unset POS still tries the verb infinitive path only. Evidence: `app/frontend/app/utils/i18n.js` `spanishVerbGrid` / `spanishPronounGrid`; `edit_manager.js` `grid_for` Spanish fallback.
+
+---
+
+## Gotcha: Spanish pronoun lookup must register subject keys before slot values
+
+`nosotros` has `e: nosotras` as a gender pair. If slot values are indexed in the same pass as subjects, `nosotras` is stored as an alias of `nosotros` and a **nosotras** button gets the nosotros grid (`e: nosotras` duplicating center). Index every canonical subject first (`yo`, `tú`, `nosotras`, …), then slot values and extras, first-wins. Same for `vosotras`. Shared `su`/`le`/`se` still resolve to `él` because those strings are not subject keys. Evidence: `indexSpanishPronounLookup` in `app/frontend/app/utils/i18n.js`. Task log: `2026-08-28-spanish-pronoun-inflections.md`.
+
+---
+
+## Pattern: Spanish inflections sidebar board uses `:es-*` actions, not translated English suffixes
+
+The English `lingolinq/inflections` board rewrites the last sentence-box word via `:plural` / `:ed` / `:ing`, which call English-only `i18n.pluralize` / `i18n.tense`. Copy-translating that board would still apply English `-s`/`-ed` to Spanish words. `lingolinq/inflections-es` is a generated 4×4 (`Flexiones`) whose vocalizations are `:es-yo`, `:es-plural`, `:es-feminine`, `:es-gerund`, and the other Spanish modifiers; those call `spanish_verb_grid` / `spanishPlural` helpers already used by the overlay. Verb persons (yo/tú/él/nosotros/ellos) are on the board; vosotros is omitted. Spanish-locale signup swaps the Inflections sidebar slot to this board. Do not put `inflections-es` in `SPANISH_SOURCE_MAP` (that path copy-translates English vocalizations). Evidence: `lib/templates/spanish_inflections_board.rb`; `button.js` `:es-*`; task log `2026-08-28-spanish-inflections-board.md`.
+
+**Gotcha (2026-08-28) — sidebar boards stay in their default language and reset QC40:** Add to Sidebar stores `locale` from the current session. A sidebar jump treated that stamp as a language switch: `locale: 'en'` cleared `override_label_locale` and persisted English. Board-detail setup then used each board's default unless Switch Languages was still set *and* `model.locales` listed Spanish. Flexiones often has an empty locales list (no translation hash), so Back to Quick Core 40 fell through to English. Inflections/Keyboard/Yes-No showed English for the same reason.
+
+Fix: every sidebar jump preserves session language. Back/Home restore the Switch Languages override (classic Home already did). Board load keeps the override when the locales list is empty ("unknown", not English). Evidence: `app-state.js` `sidebar_jump_preserves_session_locale` / `restore_session_locale_override`; `board_display_locale.js`.
 
 ---
 
@@ -4041,6 +4062,14 @@ Dotenv loads `.env.op.local` `op://` refs as literal strings. `ENV['GOOGLE_TRANS
 Keyboard letter buttons use vocalization `+e`, `+n`, … to compose spelling. The visible label is still the grapheme `e`. Google Translate has no “this is a letter key” context, so it returns abbreviations and solfege (`e`→`mi`, `c`→`do`, `g`→`gramo`, `n`→`norte`, `m`→`metro`, `p`→`pag`, `u`→`tú`, `x`→`incógnita`). Do not send those labels to `WordData.translate_batch`. Identity-map them (`e`→`e`) so a re-run overwrites the dest hash. Still translate word labels like `space` (`:space` is the action; the label is a word).
 
 **Evidence:** `lib/board_translation_words.rb#letter_compose_key?`; local `lingolinq/keyboard_16`; task log `2026-08-26-library-board-translations.md`.
+
+---
+
+## Gotcha: Google Translate maps AAC "who" to OMS, not quién
+
+Bare English **who** on a board is the question word. Google Translate has no AAC context, so it often returns **OMS** (WHO, Organización Mundial de la Salud). `WordData.persist_translation` uses `||=`, so that poisoned cache never overwrites. Force `en→es` `who` → `quién` in `WordData::TRANSLATION_OVERRIDES` **before** cache and Google, persist with assignment (not `||=`), and count origin `override` as a hit in `LibraryBoardTranslator`. Exact stripped downcase only (`who's` is not `who`).
+
+**Evidence:** `app/models/word_data.rb` `TRANSLATION_OVERRIDES`; `lib/library_board_translator.rb`; task log `2026-08-28-spanish-inflections-board.md`.
 
 ---
 

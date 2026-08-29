@@ -6858,6 +6858,7 @@ export default Controller.extend(prefClasses, {
       var prev = history.pop();
       if(prev) {
         this.set('app_state.board_detail_nav_history', history);
+        this.get('app_state').restore_session_locale_override();
         this.get('router').transitionTo('user.board-detail', prev.user_name, prev.boardname);
         return;
       }
@@ -6867,6 +6868,7 @@ export default Controller.extend(prefClasses, {
       var _this = this;
       this._preferred_board_detail_key(String(parentKey)).then(function(preferred_key) {
         if(_this.isDestroyed || _this.isDestroying) { return; }
+        _this.get('app_state').restore_session_locale_override();
         var parts = preferred_key.split('/');
         _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
       });
@@ -6884,6 +6886,7 @@ export default Controller.extend(prefClasses, {
         this.get('app_state.currentUser.preferences.home_board');
       if(home && home.key) {
         this.set('app_state.board_detail_nav_history', []);
+        this.get('app_state').restore_session_locale_override();
         var parts = home.key.split('/');
         this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
         return;
@@ -6899,6 +6902,7 @@ export default Controller.extend(prefClasses, {
           return;
         }
         this.set('app_state.board_detail_nav_history', []);
+        this.get('app_state').restore_session_locale_override();
         this.get('router').transitionTo('user.board-detail', entry.user_name, entry.boardname);
         return;
       }

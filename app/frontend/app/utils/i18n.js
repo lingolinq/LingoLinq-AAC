@@ -193,6 +193,27 @@ function applySpanishCap(raw, form) {
   return (cap && form) ? (form.charAt(0).toUpperCase() + form.slice(1)) : form;
 }
 
+function spanishTrim(str) {
+  if(str == null || typeof str !== 'string') { return ''; }
+  return str.replace(/^\s+|\s+$/g, '');
+}
+
+function spanishPrefixForm(str, prefix) {
+  var raw = spanishTrim(str);
+  if(!raw) { return applySpanishCap(prefix, prefix + (str || '')); }
+  var check = raw.toLowerCase();
+  if(check.indexOf(prefix.toLowerCase()) === 0) { return raw; }
+  return applySpanishCap(raw, prefix + check);
+}
+
+function spanishWrapPunct(str, open, close) {
+  var raw = spanishTrim(str);
+  var core = raw;
+  if(core.charAt(0) === open) { core = core.slice(1); }
+  if(close && core.slice(-close.length) === close) { core = core.slice(0, -close.length); }
+  return open + core + close;
+}
+
 function unaccentChar(ch) {
   var map = {á: 'a', é: 'e', í: 'i', ó: 'o', ú: 'u', Á: 'A', É: 'E', Í: 'I', Ó: 'O', Ú: 'U'};
   return map[ch] || ch;
@@ -299,6 +320,101 @@ function spanishAdjectiveGrid(str) {
   if(agr.fem && agr.fem != check) { out.s = cap(agr.fem); }
   if(agr.fem_pl && agr.fem_pl != agr.masc_pl && agr.fem_pl != check) { out.sw = cap(agr.fem_pl); }
   if(agr.masc_pl) { out.se = cap('no ' + agr.masc_pl); }
+  return out;
+}
+
+// Personal pronouns: lookup table, not suffix rules. Overlay slots:
+// n clitic, w/nw poss. adj., s/sw poss. pronoun, e tonic or IO, ne conmigo/…, se no + subject.
+// Shared 3rd-person su/le/se resolve to él (first registered key wins).
+var SPANISH_PRONOUN_ORDER = ['yo', 'tú', 'vos', 'él', 'ella', 'usted', 'nosotros', 'nosotras', 'vosotros', 'vosotras', 'ellos', 'ellas', 'ustedes'];
+var SPANISH_PRONOUN_PARADIGMS = {
+  'yo': {n: 'me', nw: 'mis', w: 'mi', s: 'mío', sw: 'mía', e: 'mí', ne: 'conmigo', se: 'no yo'},
+  'tú': {n: 'te', nw: 'tus', w: 'tu', s: 'tuyo', sw: 'tuya', e: 'ti', ne: 'contigo', se: 'no tú'},
+  'vos': {n: 'te', nw: 'tus', w: 'tu', s: 'tuyo', sw: 'tuya', ne: 'con vos', se: 'no vos'},
+  'él': {n: 'lo', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'le', ne: 'consigo', se: 'no él'},
+  'ella': {n: 'la', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'le', ne: 'consigo', se: 'no ella'},
+  'usted': {n: 'lo', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'le', ne: 'consigo', se: 'no usted'},
+  'nosotros': {n: 'nos', nw: 'nuestros', w: 'nuestro', s: 'nuestras', sw: 'nuestra', e: 'nosotras', ne: 'con nosotros', se: 'no nosotros'},
+  'nosotras': {n: 'nos', nw: 'nuestros', w: 'nuestro', s: 'nuestras', sw: 'nuestra', ne: 'con nosotras', se: 'no nosotras'},
+  'vosotros': {n: 'os', nw: 'vuestros', w: 'vuestro', s: 'vuestras', sw: 'vuestra', e: 'vosotras', ne: 'con vosotros', se: 'no vosotros'},
+  'vosotras': {n: 'os', nw: 'vuestros', w: 'vuestro', s: 'vuestras', sw: 'vuestra', ne: 'con vosotras', se: 'no vosotras'},
+  'ellos': {n: 'los', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'les', ne: 'consigo', se: 'no ellos'},
+  'ellas': {n: 'las', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'les', ne: 'consigo', se: 'no ellas'},
+  'ustedes': {n: 'los', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'les', ne: 'consigo', se: 'no ustedes'}
+};
+var SPANISH_PRONOUN_EXTRA_ALIASES = {
+  'yo': ['míos', 'mías', 'yo mismo', 'yo misma'],
+  'tú': ['tuyos', 'tuyas', 'tú mismo', 'tú misma'],
+  'vos': ['vos mismo', 'vos misma'],
+  'él': ['suyos', 'suyas', 'le', 'se', 'él mismo'],
+  'ella': ['ella misma'],
+  'usted': ['usted mismo', 'usted misma'],
+  'nosotros': ['nosotros mismos'],
+  'nosotras': ['nosotras mismas'],
+  'vosotros': ['vosotros mismos'],
+  'vosotras': ['vosotras mismas'],
+  'ellos': ['ellos mismos'],
+  'ellas': ['ellas mismas'],
+  'ustedes': ['ustedes mismos', 'ustedes mismas']
+};
+
+function unaccentSpanish(str) {
+  var out = '';
+  var i;
+  for(i = 0; i < str.length; i++) {
+    out += unaccentChar(str.charAt(i));
+  }
+  return out;
+}
+
+function indexSpanishPronounLookup() {
+  var lookup = {};
+  function add(form, key) {
+    if(!form) { return; }
+    if(form.indexOf('no ') == 0) { return; }
+    var k = form.toLowerCase();
+    if(lookup[k] === undefined) { lookup[k] = key; }
+    var u = unaccentSpanish(k);
+    if(lookup[u] === undefined) { lookup[u] = key; }
+  }
+  var i, key, para, extras, j, slotKeys, s;
+  // Subjects first so nosotras/vosotras are not stolen as gender-pair slots.
+  for(i = 0; i < SPANISH_PRONOUN_ORDER.length; i++) {
+    add(SPANISH_PRONOUN_ORDER[i], SPANISH_PRONOUN_ORDER[i]);
+  }
+  for(i = 0; i < SPANISH_PRONOUN_ORDER.length; i++) {
+    key = SPANISH_PRONOUN_ORDER[i];
+    para = SPANISH_PRONOUN_PARADIGMS[key];
+    slotKeys = Object.keys(para);
+    for(s = 0; s < slotKeys.length; s++) {
+      add(para[slotKeys[s]], key);
+    }
+    extras = SPANISH_PRONOUN_EXTRA_ALIASES[key] || [];
+    for(j = 0; j < extras.length; j++) {
+      add(extras[j], key);
+    }
+  }
+  return lookup;
+}
+
+var SPANISH_PRONOUN_LOOKUP = indexSpanishPronounLookup();
+
+function spanishPronounGrid(str) {
+  if(!str || typeof str !== 'string') { return null; }
+  var raw = str.replace(/^\s+|\s+$/g, '');
+  if(!raw) { return null; }
+  var check = raw.toLowerCase();
+  var key = SPANISH_PRONOUN_LOOKUP[check] || SPANISH_PRONOUN_LOOKUP[unaccentSpanish(check)];
+  if(!key) { return null; }
+  var para = SPANISH_PRONOUN_PARADIGMS[key];
+  var cap = function(form) { return applySpanishCap(raw, form); };
+  var out = {c: raw};
+  var locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
+  var i, loc;
+  for(i = 0; i < locs.length; i++) {
+    loc = locs[i];
+    if(para[loc]) { out[loc] = cap(para[loc]); }
+  }
   return out;
 }
 
@@ -573,6 +689,56 @@ var i18n = EmberObject.extend({
   },
   spanish_adjective_grid: function(str) {
     return spanishAdjectiveGrid(str);
+  },
+  spanish_pronoun_grid: function(str) {
+    return spanishPronounGrid(str);
+  },
+  // Sidebar inflections board (`:es-*` actions). Overlay grids stay separate.
+  spanish_verb_slot: function(str, slot) {
+    var grid = spanishVerbGrid(str);
+    if(!grid || grid[slot] == null) { return str; }
+    return grid[slot];
+  },
+  spanish_pluralize: function(str) {
+    var raw = spanishTrim(str);
+    if(!raw) { return str; }
+    if(spanishVerbGrid(raw)) { return raw; }
+    return applySpanishCap(raw, spanishPlural(raw.toLowerCase()));
+  },
+  spanish_feminine: function(str) {
+    var raw = spanishTrim(str);
+    if(!raw) { return str; }
+    var check = raw.toLowerCase();
+    if(SPANISH_NO_GENDER_O[check]) { return raw; }
+    var fem;
+    if(/os$/.test(check)) {
+      fem = spanishFeminineNoun(check.slice(0, -1));
+      if(fem) { return applySpanishCap(raw, spanishPlural(fem)); }
+    }
+    fem = spanishFeminineNoun(check);
+    if(fem) { return applySpanishCap(raw, fem); }
+    fem = spanishAdjectiveAgreement(check).fem;
+    if(fem) { return applySpanishCap(raw, fem); }
+    return raw;
+  },
+  spanish_negation: function(str) {
+    return spanishPrefixForm(str, 'no ');
+  },
+  spanish_mas: function(str) {
+    return spanishPrefixForm(str, 'más ');
+  },
+  spanish_isimo: function(str) {
+    var raw = spanishTrim(str);
+    if(!raw) { return str; }
+    var check = raw.toLowerCase();
+    if(/ísimo$/.test(check)) { return raw; }
+    return applySpanishCap(raw, spanishIsimo(check) || ('el más ' + check));
+  },
+  spanish_question: function(str) {
+    return spanishWrapPunct(str, '¿', '?');
+  },
+  spanish_exclaim: function(str) {
+    return spanishWrapPunct(str, '¡', '!');
   },
   comparative: function(str, opts) {
     // good == better

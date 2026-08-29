@@ -177,6 +177,30 @@ RSpec.describe WordData, :type => :model do
       expect(res[:translations]).not_to have_key('+q')
       expect(res[:translations]).not_to have_key(':shift')
     end
+
+    it "should force English who to Spanish quién even when cache has OMS" do
+      WordData.create(:word => 'who', :locale => 'en', :data => {'translations' => {'es' => 'OMS', 'es-US' => 'OMS'}})
+      expect(WordData).not_to receive(:query_translations)
+      res = WordData.translate_batch([
+        {:text => 'who'},
+        {:text => 'Who'}
+      ], 'en', 'es-US')
+      expect(res[:translations]['who']).to eq('quién')
+      expect(res[:translations]['Who']).to eq('Quién')
+      expect(res[:origins]['who']).to eq('override')
+      expect(res[:origins]['Who']).to eq('override')
+      rec = WordData.find_word_record('who', 'en')
+      rec.reload
+      expect(rec.data['translations']['es']).to eq('quién')
+      expect(rec.data['translations']['es-US']).to eq('quién')
+    end
+
+    it "should not override who's" do
+      expect(WordData).to receive(:query_translations).with([{:text => "who's"}], 'en', 'es').and_return([{:text => "who's", :type => nil, :translation => "de quién"}])
+      res = WordData.translate_batch([{:text => "who's"}], 'en', 'es')
+      expect(res[:translations]["who's"]).to eq("de quién")
+      expect(res[:origins]["who's"]).to eq('google')
+    end
   end
 
   describe "persist_translation" do
