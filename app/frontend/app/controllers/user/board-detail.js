@@ -2955,7 +2955,22 @@ export default Controller.extend(prefClasses, {
          "not targeted" and the hold never engaged for the `speak_bar` placement, nor for any
          `auto` user above 1024px where the in-bar group is the active one. */
       if(node.closest && node.closest(selector)) { return true; }
-      return !!(node.querySelector && node.querySelector(selector));
+      /* querySelectorAll + some(), not querySelector: the selector matches BOTH placements and
+         querySelector returns only the first, so a node containing a hidden group and a visible
+         rail would answer on the hidden one.
+
+         The visibility filter is the load-bearing part. Only one placement is displayed (CSS
+         hides the other), but the hidden one stays in the DOM — and `side_rail`, the DEFAULT,
+         hides the in-bar group while leaving it inside #speak. The scanner's header row has
+         dom === #speak, so an unfiltered containment test reported "targeted" on the header row
+         of every pass: pick_elem restarts scanning at index 0 (the header) and the fresh lookup
+         resolves a few ms later, so the freeze engaged on essentially every selection and burnt
+         its bound before the user reached the panel. scanner.is_visible is the same predicate the
+         scanner's own `:visible` filter uses, so both halves of the feature now agree on what
+         "shown" means. */
+      if(!node.querySelectorAll) { return false; }
+      return Array.prototype.slice.call(node.querySelectorAll(selector))
+        .some(function(el) { return scanner.is_visible(el); });
     };
     try {
       if(scanner.actively_scanning()) {
@@ -2977,6 +2992,15 @@ export default Controller.extend(prefClasses, {
       var linger = buttonTracker.last_dwell_linger;
       var dwell_on = buttonTracker.check && buttonTracker.check('dwell_enabled');
       var stamped = linger && (linger.updated || linger.started);
+      /* A linger older than the last committed prediction cannot justify a new freeze. Merely
+         RELEASING on selection is a half-fix: the lookup that the selection triggers arrives while
+         the same linger is still stamped (the keyed {{#each}} keeps the DOM node of any surviving
+         word, so the containment test still passes) and the panel immediately re-freezes on the
+         pre-selection list — two generations stale becomes one, not none. Requiring the linger to
+         be NEWER than the commit both releases and blocks the re-freeze, in one place, with no
+         ordering race. A gaze tracker keeps emitting gazelinger, so `updated` moves past the commit
+         and freezing correctly resumes once a genuinely new reach begins. */
+      if(stamped && stamped <= (this._last_prediction_commit_at || 0)) { stamped = null; }
       /* Same reasoning as the cap above: in switch-paced modes there is no dwell timeout, and
          a mouse/joystick cursor held still emits no further events, so `updated` would age out
          while the user is still holding position waiting to press. (Gaze trackers keep emitting
@@ -8042,6 +8066,8 @@ export default Controller.extend(prefClasses, {
 
     complete_word: function(word) {
       if(!word) { return; }
+      /* The one unambiguous signal that the reach COMPLETED — see _prediction_panel_targeted. */
+      this._last_prediction_commit_at = (new Date()).getTime();
       var _this = this;
       var text = word.word;
       var button = editManager.fake_button();

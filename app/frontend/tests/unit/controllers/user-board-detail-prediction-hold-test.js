@@ -306,7 +306,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
   });
 
   test('_prediction_panel_targeted covers the IN-BAR group, which is a descendant of the scanned row', function(assert) {
-    assert.expect(2);
+    assert.expect(4);
     /* The scanner sweeps the in-bar prediction buttons into the header row, whose dom IS
        #speak — and the group is a DESCENDANT of it. An ancestor-only `closest` test reported
        "not targeted" for the whole speak_bar placement (and every `auto` user above 1024px). */
@@ -340,6 +340,49 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       scanner.current_element = { dom: [otherRow] };
       assert.notOk(controller._prediction_panel_targeted(),
         'scanning an unrelated row is not targeting the panel');
+
+      /* The hidden placement must NOT count. `side_rail` is the default and hides the in-bar
+         group with CSS while leaving it inside #speak — and the scanner's header row IS #speak,
+         so without a visibility filter this reported "targeted" on the header row of every pass.
+         display is set inline here on purpose: the predicate is under test, not the cascade.
+         Mutation that fails this: drop scanner.is_visible from the descendant branch. */
+      scanner.current_element = { dom: [speakRow] };
+      assert.ok(controller._prediction_panel_targeted(), 'guard: a VISIBLE group still counts');
+      group.style.display = 'none';
+      assert.notOk(controller._prediction_panel_targeted(),
+        'a display:none placement does not count as targeted');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('a dwell linger older than the last committed prediction does not justify a freeze', function(assert) {
+    assert.expect(3);
+    /* Releasing the freeze when a word is selected is a half-fix: the lookup the selection
+       triggers arrives while the same linger is still stamped, so the panel re-freezes on the
+       pre-selection list. Requiring the linger to be NEWER than the commit blocks that.
+       Mutation that fails this: drop the `stamped <= _last_prediction_commit_at` term. */
+    const tile = railFixture();
+    patch(scanner, 'actively_scanning', function() { return false; });
+    patch(scanner, 'current_element', { dom: [tile] });
+    patch(buttonTracker, 'appState', { get: function(k) { return k === 'speak_mode' ? true : null; } });
+    patch(buttonTracker, 'dwell_enabled', true);
+    patch(buttonTracker, 'dwell_timeout', 1000);
+    patch(buttonTracker, 'dwell_selection', 'dwell');
+
+    const controller = buildController();
+    try {
+      const now = (new Date()).getTime();
+      patch(buttonTracker, 'last_dwell_linger', { dom: tile, updated: now });
+      assert.ok(controller._prediction_panel_targeted(), 'guard: a fresh linger is targeted');
+
+      controller._last_prediction_commit_at = now + 5;
+      assert.notOk(controller._prediction_panel_targeted(),
+        'a linger predating the selection cannot re-freeze the panel');
+
+      buttonTracker.last_dwell_linger = { dom: tile, updated: now + 50 };
+      assert.ok(controller._prediction_panel_targeted(),
+        'but a genuinely new reach after the selection does count again');
     } finally {
       controller.destroy();
     }

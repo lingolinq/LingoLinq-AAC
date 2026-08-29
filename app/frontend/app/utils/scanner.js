@@ -35,9 +35,7 @@ class JShim {
         }
         this.elements = Array.from(document.querySelectorAll(sel));
         if (filterVis) {
-          this.elements = this.elements.filter(function(el) {
-            return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
-          });
+          this.elements = this.elements.filter(function(el) { return scanner.is_visible(el); });
         }
       } else if (arg instanceof Element || arg === window || arg === document) {
         this.elements = [arg];
@@ -72,9 +70,7 @@ class JShim {
       }
     });
     if(filterVisible) {
-      res = res.filter(function(el) {
-        return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
-      });
+      res = res.filter(function(el) { return scanner.is_visible(el); });
     }
     return new JShim(res);
   }
@@ -610,6 +606,15 @@ var scanner = EmberObject.extend({
     scanner.scan_axes('clear');
     scanner.scanning_distances = {x: 0, y: 0};
   },
+  /* Is the element actually RENDERED? The single definition of that question for the whole
+     scanning/prediction feature — the JShim `:visible` filter above and
+     board-detail.js#_prediction_panel_targeted all route through here. It previously existed as
+     three separate copies, and the controller's copy silently disagreed with these two: it had no
+     visibility test at all, so a `display:none` placement still counted as "targeted". */
+  is_visible: function(el) {
+    if(!el || el.nodeType !== 1) { return false; }
+    return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
+  },
   actively_scanning: function() {
     return scanner.interval && scanner.current_element && document.body.contains(scanner.current_element.dom[0])
   },
@@ -708,9 +713,27 @@ var scanner = EmberObject.extend({
       }
     }
   },
-  level_up: function(elem) {
+  level_up: function(elem, advance) {
     scanner.elements = elem.higher_level;
     scanner.element_index = elem.higher_level_index;
+    /* `advance`: the level we are returning FROM had nothing left to scan, so putting the
+       highlight back on the row that just failed to open is a closed loop. With
+       scanning_auto_select the row is re-picked every interval, re-levels-up to itself, and the
+       user NEVER REACHES THE BOARD — the only exit is the cancel switch, which stops scanning
+       outright. This is not specific to the prediction rail: origin/staging pushes the classic
+       #word_suggestions row with no children guard and board-alt renders it with visible
+       "Loading word suggestions..." text, so the same trap ships there today, at two ticks per
+       cycle instead of one.
+
+       Deliberately NOT scanner.next(): that re-enters next_element synchronously (its recovery
+       can call back into load_children), and its ignore_until/reset_until debounce guards can
+       return early with scanner.interval already null — leaving no highlight and no armed
+       timer, i.e. scanning silently stopped. That is a worse outcome than the loop. */
+    if(advance) {
+      scanner.element_index = scanner.element_index + 1;
+      if(scanner.element_index >= scanner.elements.length) { scanner.element_index = 0; }
+      scanner.element_index_advanced = true;
+    }
     runCancel(scanner.interval);
     scanner.interval = runLater(function() {
       scanner.next_element();
@@ -1156,7 +1179,7 @@ var scanner = EmberObject.extend({
        branch (this function no longer produces single-stub levels), so the signal is
        belt-and-braces against a future path that does. */
     if(elem.children.length === 0 && parent.higher_level && parent.higher_level.length) {
-      scanner.level_up(parent);
+      scanner.level_up(parent, true);
       return true;
     }
     scanner.elements = elem.children.concat([parent]);

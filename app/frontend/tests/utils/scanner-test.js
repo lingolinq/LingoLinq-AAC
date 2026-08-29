@@ -1592,6 +1592,32 @@ describe('scanner', function() {
       expect(scanner.elements[2].higher_level).toBe(top);
     });
 
+    it('ADVANCES past a group whose children are all gone, instead of re-entering it', function() {
+      /* Deliberately does NOT stub level_up. The sibling test above stubs it, so it passes
+         identically with and without this behaviour and is not coverage for it.
+
+         Without the advance, `pick('auto')` on an emptied group levels up to the SAME index,
+         re-highlights the row that just failed to open, and auto-select picks it again — one
+         iteration per scan interval, for ever. A switch user never reaches the board. */
+      stub(scanner, 'next_element', function() { });
+      var rows = [{ label: 'header' }, { label: 'suggestions' }, { label: 'row 1' }];
+      var group = { label: 'suggestions', children: [{ label: 'old' }], reload_children: function() { return []; } };
+      scanner.element_index = 1;
+
+      scanner.load_children(group, rows, 1);
+      expect(scanner.elements).toBe(rows);
+      expect(scanner.element_index).toBe(2);   // NOT 1 — 1 is the closed loop
+    });
+
+    it('wraps to the first row when the dead level was the last one', function() {
+      stub(scanner, 'next_element', function() { });
+      var rows = [{ label: 'header' }, { label: 'suggestions' }];
+      var group = { label: 'suggestions', children: [], reload_children: function() { return []; } };
+
+      scanner.load_children(group, rows, 1);
+      expect(scanner.element_index).toBe(0);
+    });
+
     it('pins higher_level to the level it was PASSED, not one the element already carried', function() {
       /* Object.assign defaults must come last: with the element last, a stub fed back in
          would override the level we were given and level up to the wrong place. */
