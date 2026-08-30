@@ -311,11 +311,17 @@ redaction is real and scheduled; it currently has nothing to redact. The same is
 **On consent, an orphaned control.** A versioned verifiable-consent mechanism exists in full:
 `ai_consent_granted?`, `grant_ai_consent!`, `revoke_ai_consent!`, versioned disclosures, and
 `AuditEvent` records on grant and revoke. A grep of `app/` and `lib/` finds **no runtime caller
-for any of it** outside `app/models/user.rb` itself; the only other hits are documentation
-comments in `lib/lingo_linq/ai_consent_disclosures.rb`. It is written by nothing and read by
-nothing at runtime. The gates that actually run are the org switch, the COPPA block, the EU
-under-16 block, and the per-user preference described above. Question 19 asks what this means for
-the consent basis we have been describing.
+for the grant, revoke, or query methods** outside `app/models/user.rb` itself. One piece of the
+mechanism does run: `lib/lingo_linq/ai_consent_disclosures.rb` is a live runtime dependency, not
+a comments file. `AiConsent::DisclosuresController` calls its `known_version?` and `metadata`
+methods (`app/controllers/ai_consent/disclosures_controller.rb:25,29`) to serve the versioned
+disclosure text at `GET /ai_consent/disclosures/:version` (`config/routes.rb:48`), a page that is
+unauthenticated by design so a parent can read it before logging in, and that the privacy page
+links to (`privacy.hbs:76`). So the disclosure half of the mechanism is published and readable;
+what is written by nothing and read by nothing at runtime is the consent **record**: nothing
+outside `user.rb` ever grants, revokes, or checks it. The gates that actually run are the org
+switch, the COPPA block, the EU under-16 block, and the per-user preference described above.
+Question 19 asks what this means for the consent basis we have been describing.
 
 **On disclosure.** Article 50(1) disclosure is built and enabled in production through a database
 feature-flag override. A recent fix resolves the disclosure gate's subject from the authenticated
@@ -584,7 +590,16 @@ this model and the account retention setting resolves to the model default.
 
 ## 10. What we propose to stop saying
 
-**PROPOSED.** None of these is presently a customer representation except the first, which is.
+**PROPOSED.** Five of these statements were live customer representations at the audited commit,
+not one. On the privacy page: the inactive-vendor claim (`privacy.hbs:67`), the separate
+AI data-sharing consent representation (`privacy.hbs:76`), and the AI retention tiers, including
+the Article 50 record-keeping basis (`privacy.hbs:99-101`). On the unauthenticated AI disclosure
+page served at `/ai_consent/disclosures/1`: the Article 50 retention basis and the
+45 CFR 164.316(b)(2) "hard floor" (the `ai_consent_disclosures` block of `config/locales/en.yml`,
+keys `retention_eu` and `retention_hipaa`). The remaining rows appeared only in internal
+documents at that commit. PR #888, open as this memorandum is written, corrects four of the five
+(the inactive-vendor claim, the retention tiers, and both disclosure-page blocks); the consent
+representation at `privacy.hbs:76` stands, because whether it is true turns on question 19.
 
 | Statement | Where | Proposed treatment |
 |---|---|---|
