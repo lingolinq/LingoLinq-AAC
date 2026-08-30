@@ -64,6 +64,7 @@ file (see [README.md](README.md)).
 - [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
 - [Gotcha: the metadata table is not the signed attestation — write the statement, then pin](#gotcha-the-metadata-table-is-not-the-signed-attestation--write-the-statement-then-pin)
 - [Gotcha: a Path A correction must convert leftover present-tense operational bullets, not only the headline claim](#gotcha-a-path-a-correction-must-convert-leftover-present-tense-operational-bullets-not-only-the-headline-claim)
+- [Gotcha: do not claim a finding is tracked until the register row exists](#gotcha-do-not-claim-a-finding-is-tracked-until-the-register-row-exists)
 - [Gotcha: a SHA-pinned citation must use the line numbers at that SHA, not HEAD](#gotcha-a-sha-pinned-citation-must-use-the-line-numbers-at-that-sha-not-head)
 - [Gotcha: flag-enabled is not proof the disclosure modal was shown](#gotcha-flag-enabled-is-not-proof-the-disclosure-modal-was-shown)
 - [Gotcha: appending a ledger correction leaves the heading stale](#gotcha-appending-a-ledger-correction-leaves-the-heading-stale)
@@ -12561,6 +12562,12 @@ When Copilot flags the emails, grep `prepare an export` across mailers *and*
 `app/views/parental_consents/`. Ref:
 [`2026-08-17-copilot-coppa-review-comments.md`](./2026-08-17-copilot-coppa-review-comments.md).
 
+## Gotcha: COPPA offboarding is flag-gated, not just the birth-date check
+
+**Surface:** `User#requires_coppa_offboarding?`, `User.process_expired_offboarding_consents!`, `Organization#remove_user`.
+
+`JsonApi::Json.coppa_parental_consent_enabled?` is a domain settings row (DB override, not `lib/feature_flags.rb`). It does more than require birth month/year on seat reclaim. When the flag is off, `requires_coppa_offboarding?` returns false at `user.rb:514`, so `begin_family_offboarding_consents!` never stamps COPPA pending, and the expiry sweep returns 0 at `user.rb:878`. `Organization#remove_user` still reclaims the seat. The original LL-f150e0e828 gap (minor converted to a consumer trial with no parental re-consent) therefore still occurs if production has the setting disabled. Do not write "the flow is fixed regardless of the flag" or move that row to `verified-closed` until the live production setting is read as enabled. Ref: Codex review of PR #887; task log [`2026-08-30-high-findings-triage-staging-merge.md`](./2026-08-30-high-findings-triage-staging-merge.md).
+
 ## Gotcha: staging → audit-register merge is a union, then regenerate
 
 When `staging` lands on a findings-register branch, do not pick one side of
@@ -15784,3 +15791,16 @@ Notion caps `text.content` at 2000 characters **per rich_text object**, not per 
 `artificialintelligenceact.eu` is a third-party reproduction. The authentic OJ text of Regulation (EU) 2024/1689 is https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689. EUR-Lex consolidations (CELEX ids starting with `0`) are editorial and not authentic; cite the original act plus the amending OJ texts (for example Regulation (EU) 2026/1744) instead. A register row that says "verified against primary sources" must link those official texts, not the reproduction.
 
 **First seen in:** [2026-08-27-art50-counsel-pointer-review.md](./2026-08-27-art50-counsel-pointer-review.md)
+
+## Gotcha: do not claim a finding is tracked until the register row exists
+
+Moving forensic detail out of an externally shareable overview is correct, but pointing at
+`audit-reports/FINDINGS.json` is a claim. Grep the register for the issue (not just nearby
+Bedrock rows) before writing "the finding is tracked." If the row does not exist, file it first
+via `promote-finding.rb` (Critical/High, code/path evidence, no source addresses) and cite the
+id; do not leave a pointer to a missing row after deleting the prose that used to carry the
+detail. Same class of error: a Section 2 "everything is live unless marked not operational"
+page that drops the only "not operational" mark for a seam (`EvalNarrator` Opus default vs
+classic-plane Haiku-only `CLASSIC_PROFILE_IDS`) re-asserts that the seam works.
+
+**First seen in:** [2026-08-30-pr886-review-comments.md](./2026-08-30-pr886-review-comments.md)
