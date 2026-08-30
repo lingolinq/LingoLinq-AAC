@@ -120,7 +120,7 @@
 > operation.
 >
 > The per-event forensic detail behind this summary, including source-address analysis and the
-> credential-use finding it raised, is recorded in the findings register
+> credential-use finding it raised (LL-3bfc56ef4b), is recorded in the findings register
 > (`audit-reports/FINDINGS.json`) rather than in this externally shareable overview.
 >
 > The prompts are redacted by `lib/pii_scrubber.rb` before egress, which is
@@ -231,6 +231,13 @@ explicitly marked not operational.
   Restricting model choice at the credential level would require an IAM policy change, which we have
   not made. Vendor telemetry over the queried range shows no non-designated model invoked by the
   application path after that commit.
+- **Eval narration is not operational on the default classic Bedrock plane.**
+  `EvalNarrator::DEFAULT_MODEL` is `anthropic.claude-opus-4-7`. `AiClient::CLASSIC_PROFILE_IDS`
+  maps only `anthropic.claude-haiku-4-5`. `EvalNarrator.call_anthropic` documents that the Opus
+  alias has no classic-plane inference-profile mapping, so the call fails and `draft_narrative`
+  falls back to the deterministic local template. Treat the live runtime inventory as Haiku 4.5
+  (word prediction and board generation) until this is resolved in code. Do not describe eval
+  narration as an in-use runtime AI call under the default production configuration.
 - **Runtime AI operational status (corrected 2026-08-26).** An earlier revision of this document
   stated that these features "were not operational from 2026-07-30 until 2026-08-03, were briefly
   operational from 2026-08-03 to 2026-08-04 for internal verification only, and are **not
@@ -250,7 +257,7 @@ explicitly marked not operational.
   against the AWS API rather than through the application, and those are invisible to `AiApiLog` by
   construction. "No real person is known to have had data sent" should therefore be read as the
   limit of what our records can show, not as a guarantee that none was. The credential-use finding
-  this raises is tracked in `audit-reports/FINDINGS.json`.
+  this raises is tracked as LL-3bfc56ef4b in `audit-reports/FINDINGS.json`.
 - Before text is sent to our external LLM providers for word prediction, board generation, or eval
   narration, our PII scrubber removes identifiers. This is **pseudonymization (scrubbing)**, and we
   describe it accurately: the result is scrubbed data that we still treat as personal data. We do
@@ -262,7 +269,8 @@ explicitly marked not operational.
   the payload.
 - Our production AI vendors operate under Data Processing Agreements. The Anthropic models we use
   are eligible for zero data retention (no ZDR contract is signed today; see Section 3).
-- Runtime, user-facing AI calls (word prediction, board generation, and eval narration) are
+- Runtime, user-facing AI calls (word prediction and board generation; eval narration is not
+  operational on the default classic plane, see above) are
   recorded in an audit log (AiApiLog) with the fields needed for AI-governance reporting. **Corrected
   2026-08-26:** this read "Every ... call is recorded". The write is best-effort by design, so the
   log is an application-observed floor rather than a complete ledger; see the evidence limit above. IP

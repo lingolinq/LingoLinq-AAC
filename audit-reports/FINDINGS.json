@@ -6318,6 +6318,50 @@
         "attestation": ""
       },
       "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-26. Correctly keyed successor to the withdrawn LL-17ec91ff20, created 2026-08-26 after external review of PR #867 flagged that the rescoped row had kept a ruleKey describing a different claim (audit-merge.rb derives the id as SHA256(ruleKey|path), so key/content drift is a merge hazard). Anchored at :139, where the attribution appears, rather than :138. SCOPE: this row is ONLY about the legal-basis attribution, not about whether the purge works -- it does. PR #863 and #867 reached the same conclusion for the DOCUMENT surfaces and flagged the Article 50 attribution as an open counsel question there; the same attribution is asserted here to a DATA SUBJECT in a live consent disclosure served by app/controllers/ai_consent/disclosures_controller.rb:29 and rendered by app/views/ai_consent/disclosures/v1.html.erb. Stating a legal basis to a parent is a stronger act than stating one to an auditor, which is why this is tracked rather than left to the document-side flag. Severity set to medium rather than high: nothing here misstates what data is kept or for how long, and no safeguard is misrepresented; the defect is an unverified statutory citation. COUNSEL POINTERS ADDED 2026-08-27, verified against the EUR-Lex texts of Regulation (EU) 2024/1689 (CELEX 32024R1689) and Regulation (EU) 2026/1744 (OJ L 2026/1744) rather than asserted from memory, after an external reviewer raised the Article 12/19/26 distinction and the 2026/1744 timing. They are recorded in remediation.options as INPUT for counsel and are explicitly not a replacement legal basis: substituting one guessed citation for another is the error this row exists to correct. NOTE ON A REVIEWER REQUEST NOT ACTED ON: the same review asked that proposed parent-facing wording using the phrase \"improve reliability\" be marked draft. No such text exists anywhere in this repository (verified by grep across lib/, app/, docs/, audit-reports/, config/), and no replacement parent-facing wording has been drafted at all, so there was nothing to mark. The only parent-facing text is the note at ai_consent_disclosures.rb:138-139."
+    },
+    {
+      "id": "LL-3bfc56ef4b",
+      "ruleKey": "bedrock-runtime-credential-unrestricted-direct-api-use",
+      "title": "ALLOWED_RUNTIME_MODELS is an in-process application gate and cannot constrain direct AWS API or CLI use of the same Bedrock runtime credential",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_client.rb",
+        "line": 83,
+        "snippet": "ALLOWED_RUNTIME_MODELS = %w[",
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50"
+      },
+      "firstSeen": "2026-08-30",
+      "lastSeen": "2026-08-30",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add an IAM policy on the production Bedrock runtime principal that Allow-lists only the designated model (currently the Haiku 4.5 inference profile) and Deny bedrock:InvokeModel / InvokeModelWithResponseStream for every other model id. Optionally also restrict the principal to the Cloud Run runtime service account so a workstation or CI aws-cli session cannot use it. Until that ships, keep AiApiLog described as an application-observed floor, not a ledger of every invocation under the credential. Do not treat the application allowlist as a credential-level control in any externally shareable document.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 886,
+        "reviewer": "chatgpt-codex-connector",
+        "promotedDate": "2026-08-30"
+      },
+      "notes": "Promoted from PR #886 review (chatgpt-codex-connector) on 2026-08-30. Promoted from Codex P1 on PR 886 after the overview claimed this finding was already in the register and it was not. Distinct from LL-1b0d78dbe6 (account assertion on AiClient.build) and from the designated-model application gate itself: those constrain the deployed Ruby path only. Vendor telemetry quoted in docs/legal/2026-08-09_compliance-program-overview_draft.md records InvokeModel events under the production runtime principal with userAgent aws-cli, which this allowlist cannot see and AiApiLog cannot record. No source addresses or request bodies are stored here. Forensic detail stays out of the externally shareable overview on purpose."
     }
   ]
 }
