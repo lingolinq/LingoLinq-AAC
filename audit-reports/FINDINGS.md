@@ -5,7 +5,7 @@
 
 **Audited:** `staging (audited at 59f502aa4; staging tip had advanced to d2bf421f7 -- 7 commits, 43 files, PRs #814/#816/#819/#820/#821/#822/#823 -- by the time this PR was assembled; those 7 commits are NOT scanned by this run, see auditedShaPriorNote)` @ `59f502aa4a967c8c704637cc66a18ff05118c7d8` on 2026-08-18  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 0 Critical / 13 High
+**Headline (open + remediated-unverified):** 0 Critical / 14 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
@@ -123,20 +123,21 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-a97357136e | P2-2 | low | SOC2 | **wontfix** | audit-run | params.permit! bypasses Strong Parameters | `app/controllers/api/organizations_controller.rb`:866 |
 | LL-ce00c8d3ad | P2-3 | low |  | **wontfix** | audit-run | License model lacks Processable concern | `app/models/license.rb`:1 |
 
-## Remediated (awaiting verification) (8)
+## Remediated (awaiting verification) (9)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
 | LL-90045bb29c |  | high | FERPA | **accepted** | audit-run | User#user_token is a permanent, non-expiring credential serialized on login and embedded in navigable lesson/board share URLs | `lib/json_api/user.rb`:41 |
 | LL-a95e9c5f7c |  | high | SOC2 | untriaged | audit-run | lingolinq-worker's 512Mi memory limit is too small for ButtonImage/BoardDownstreamButtonSet jobs, causing continuous OOM kills that land as Resque::Failure instead of being requeued | (attestation) |
 | LL-705b10bcd7 |  | high | SOC2 | untriaged | audit-run | BoardDownstreamButtonSet S3 writes fail against KMS-encrypted bucket: 'Requests specifying Server Side Encryption with AWS KMS managed keys require AWS Signature Version 4' | (attestation) |
+| LL-f150e0e828 |  | high | COPPA, GDPR | **fixed** | pr-review | District seat reclaim converts an under-13's account to a consumer trial with no parental re-consent or notice (COPPA) | `app/models/license.rb`:76 |
 | LL-a9d6d5a46b |  | high | WCAG | untriaged | manual | AI disclosure full-notice link uses the low-contrast verdigris token for text on the near-white modal surface | `app/frontend/app/styles/app.scss`:38150 |
 | LL-6af580a23a |  | high | SOC2, HIPAA, FERPA | untriaged | audit-run | A Redis RDB persistence snapshot was tracked in git and shipped in every production container image for ~6 months; removed from HEAD (2026-08-14) but the blob remains fully retrievable from public git history at ced829ba1 on both staging and main | (attestation) |
 | LL-5954bcbbe6 |  | medium | SOC2 | untriaged | audit-run | Pre-existing Resque background-job failures: ImageMagick identify missing in Cloud Run image, stale job_stash lookups, and a call to a removed Board method | (attestation) |
 | LL-a167848115 |  | medium | GDPR, COPPA, FERPA | **fixed** | pr-review | Text-to-speech posts raw user text to subprocessors absent from the register (Abair has no DPA; Google TTS flow unrowed) (GDPR Art. 28/44) | `lib/tts.rb`:30 |
 | LL-6723438462 |  | medium | GDPR | untriaged | audit-run | Article 50 disclosure server-side backstop is present on only 2 of 5 AI ingresses | `app/controllers/api/word_suggestions_controller.rb`:19 |
 
-## Verified closed (59)
+## Verified closed (58)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -160,7 +161,6 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-9a09771121 |  | high | SOC2 | **fixed** | audit-run | Render production (branch main) still hand-signs S3 POST policies with SigV2; every upload to the SSE-KMS uploads bucket fails and silently degrades to DB-stored data URIs | `lib/uploader.rb`:291 |
 | LL-47117a3443 |  | high | COPPA, GDPR, FERPA | untriaged | audit-run | COPPA verifiable parental consent is granted with no immutable AuditEvent | `app/controllers/parental_consents_controller.rb`:14 |
 | LL-85038c0a7b |  | high |  | untriaged | audit-run | buttonsets#generate debug_sync=1 path returns raw exception message and full Ruby backtrace as JSON error body | `app/controllers/api/button_sets_controller.rb`:83 |
-| LL-f150e0e828 |  | high | COPPA, GDPR | **fixed** | pr-review | District seat reclaim converts an under-13's account to a consumer trial with no parental re-consent or notice (COPPA) | `app/models/license.rb`:76 |
 | LL-854b1d3853 |  | high | GDPR, FERPA, COPPA | **fixed** | pr-review | Hard delete leaves UserVideo records and off-board voice recordings (ButtonSound) undeleted (GDPR right-to-erasure) | `lib/flusher.rb`:363 |
 | LL-1b0d78dbe6 |  | high | HIPAA | **fixed** | pr-review | No check asserts the Bedrock credential resolves to the BAA'd AWS account, so the AWS BAA's operative condition is an untested assumption | `lib/ai_client.rb`:89 |
 | LL-16ef84ad9a |  | high | FERPA, HIPAA, GDPR | **fixed** | pr-review | Word-prediction cache holds the raw pre-scrubber user utterance in a process-global structure outside the PiiScrubber boundary, and is not tenant-scoped | `lib/ai_word_predictor.rb`:47 |
@@ -214,7 +214,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
-| LL-17ec91ff20 |  | high | GDPR, COPPA | **dismissed-false-positive** | audit-run | WITHDRAWN after review: the claim that the live AI consent disclosure represents an UNENFORCED EU retention purge as enforced. The purge is a working, end-to-end-verified control; awaiting Scot to close this row as a false positive | `lib/lingo_linq/ai_consent_disclosures.rb`:138 |
+| LL-17ec91ff20 |  | high | GDPR, COPPA | **dismissed-false-positive** | audit-run | WITHDRAWN after review: the claim that the live AI consent disclosure represents an UNENFORCED EU retention purge as enforced. The purge is a working, end-to-end-verified control; dismissed as a false positive and superseded 2026-08-30 | `lib/lingo_linq/ai_consent_disclosures.rb`:138 |
 | LL-3076d244a6 | Infra-P1-5 | high | SOC2 | untriaged | audit-run | Legacy s3 gem (0.3.29) in production | `Gemfile`:59 |
 | LL-8c911f5cfd | Prior-BAA-Render | high | HIPAA, FERPA | untriaged | audit-run | BAA with Render (Postgres/Redis hosting) for FERPA/HIPAA | (attestation) |
 

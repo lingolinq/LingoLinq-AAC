@@ -154,7 +154,7 @@ These are implemented and operating, not aspirational. Each cites its evidence.
 | Eval-narration hardening | COPPA gate + PiiScrubber + AiApiLog on the eval AI path; student name redacted before egress (PiiScrubber blocklist); egress bound to server-resolved user | PRs #411, #412, #413. Consent-binding High LL-11db0dc848 is **verified-closed** (2026-06-23). |
 | Child-event scrubbing | Drops error events tied to child users before they reach the error tracker | `config/initializers/sentry.rb` (CoppaSentryScrub) |
 | AI call logging | Every external model call recorded with PII-detection results for audit | `app/models/ai_api_log.rb` |
-| Console / privileged-access auditing | Privileged actions recorded with audit trails | `AuditEvent` model; per-session console AuditEvent residual tracked as open High LL-7f7372e3eb |
+| Console / privileged-access auditing | Privileged actions recorded with audit trails | `AuditEvent` model; per-session console AuditEvent residual ~~tracked as open High LL-7f7372e3eb~~ **[Updated 2026-08-30: LL-7f7372e3eb is verified-closed. The control IS operative: bin/rails runs a pre-boot refusal and config/initializers/auditing.rb writes a session-open AuditEvent fail-closed. Scope caveat: this covers `rails console` and `rails runner` only, not rake tasks or a direct `ruby -r./config/environment` boot. Residual: USER_KEY is self-asserted, so the actor is spoofable.]** |
 | Parental consent flow | Child registration gated; parent confirms via secure tokenized link; consent recorded with timestamp; 14-day expiry | `app/controllers/parental_consents_controller.rb`; `app/models/user.rb` (`grant_parental_consent!`) |
 | Encryption of sensitive fields | Server-side encryption layer for sensitive data | `secure_serialize` concern |
 | Rate limiting | Edge throttling on protected paths including consent endpoints | `config/initializers/throttling.rb` (Rack::Attack); LL-ca38d4d99e verified-closed |
@@ -165,7 +165,7 @@ These are implemented and operating, not aspirational. Each cites its evidence.
 word-prediction pre-scrubber cache (LL-16ef84ad9a), masquerade without AuditEvent (LL-522c1a6d13),
 district seat-reclaim consent (LL-f150e0e828), hard-delete media gaps (LL-854b1d3853), terms-agree
 modal a11y/order (LL-104bfa61dc, LL-53cb93fab1), and audited-console session AuditEvent
-(LL-7f7372e3eb). The 2026-08-12 six-finder audit run added several GCP production-access/logging
+(LL-7f7372e3eb; ~~open~~ verified-closed 2026-08-30). The 2026-08-12 six-finder audit run added several GCP production-access/logging
 Highs not yet reflected in this section's prose (WIF ref-lock LL-1e7b568ef3, no Data Access audit
 logging LL-b7ccc522b9, project-wide admin on a human principal LL-c0b3d59f58, public Cloud Run
 ingress LL-0b5443f43b) -- see the register for the full current list, this paragraph is
@@ -307,7 +307,7 @@ Render is no longer the active production app host for the branded domain, but i
 a write-frozen rollback fallback at `https://lingolinq-prod.onrender.com` until a separate explicit
 decommission go. Redis TLS (LL-6619cc1811) is **verified-closed** (2026-07-22) with in-context
 Cloud Run `rediss://` evidence and Scot attestation. The Render Postgres public-allowlist finding
-(LL-aacae48768, accepted-risk) and audited-console finding (LL-7f7372e3eb, still open for the
+(LL-aacae48768, accepted-risk) and audited-console finding (LL-7f7372e3eb, ~~still open for the~~ **verified-closed 2026-08-30; formerly open for the**
 per-session AuditEvent residual) should be superseded or closed only when Render is deleted or
 restricted and/or the console control is verified, not silently closed at DNS cutover.
 
@@ -391,7 +391,7 @@ by code, configuration, or signed agreements with accurate citations; aspiration
 confined to Section 12; known residuals remain tracked rather than hidden; counsel-dependent claims
 remain internal; and no external sharing is authorized until explicitly released. Prior residual
 IDs LL-11db0dc848, LL-6619cc1811, and LL-1b0d78dbe6 are now verified-closed in the register. Live
-residuals as of this 2026-08-20 attestation include LL-7f7372e3eb, LL-aacae48768
+residuals as of this 2026-08-20 attestation include ~~LL-7f7372e3eb~~ (verified-closed 2026-08-30), LL-aacae48768
 (accepted-risk), the High set listed in Section 5, and the additional GCP production-access/logging
 Highs added by the 2026-08-12 six-finder audit run. This attestation's fresh verification scope is
 the findings register and the Article 50 code-level claims (Sections 5/12); the infrastructure
@@ -422,7 +422,7 @@ the predecessor was attested 2026-08-04):
 4. This re-attestation does not close, downgrade, or supersede any finding by itself. Finding
    status remains governed by `audit-reports/FINDINGS.json`. Redis TLS (LL-6619cc1811) is
    verified-closed. LL-f150e0e828 still needs functional offboarding-consent remediation;
-   LL-aacae48768 (accepted-risk) and LL-7f7372e3eb remain Render-tail / console-control items until
+   LL-aacae48768 (accepted-risk) ~~and LL-7f7372e3eb~~ remain Render-tail items until (LL-7f7372e3eb verified-closed 2026-08-30)
    the fallback is deleted or restricted and the console AuditEvent gap is verified closed.
 5. The items flagged for counsel in Section 14, customer notice timing for the new active GCP
    infrastructure subprocessor listing, Render decommission, and external release of any summary
