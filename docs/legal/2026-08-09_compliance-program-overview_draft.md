@@ -313,8 +313,13 @@ explicitly marked not operational.
   not exhaustive: a transcode job whose completion is never recorded (owning record destroyed
   mid-job, or a lost/never-delivered SNS completion notification) leaves its S3 output with no
   persisted application metadata for any sweep to discover, tracked separately as LL-c4566fa37f.
-  LL-854b1d3853 remains open pending independent (dual-reviewer) verification of complete
-  media-object erasure; account merges transfer license records rather than orphaning them.
+  ~~LL-854b1d3853 remains open pending independent (dual-reviewer) verification of complete
+  media-object erasure~~ **Corrected 2026-08-30: LL-854b1d3853 is verified-closed, attested by
+  Scot Wahlquist 2026-08-29, on a trace verified at `origin/staging` `8afabd1d2` and confirmed
+  present in the deployed image `73a8f6339`. That closure covers `ButtonSound` and `UserVideo`
+  only; `PredictionEntry` rows are still not swept on account erasure, tracked separately as
+  LL-e8614c103f (open, High).** Account merges transfer license records rather than orphaning
+  them.
 - Organizations can set retention policies, and retention enforcement runs on a schedule.
 
 **Voice recordings**
@@ -326,8 +331,10 @@ explicitly marked not operational.
   `ButtonSound` / `UserVideo` rows, scheduling removal of the primary recording, the transcription
   working copy, prior-transcode originals, the video thumbnail, and an abandoned/never-confirmed
   upload's raw object (see the Data lifecycle and deletion section above for the thumbnail's
-  additional `s3:ListBucket` dependency). LL-854b1d3853 remains open pending independent
-  (dual-reviewer) verification of complete media-object erasure. They are the user's own
+  additional `s3:ListBucket` dependency). ~~LL-854b1d3853 remains open pending independent
+  (dual-reviewer) verification of complete media-object erasure.~~ **Corrected 2026-08-30:
+  LL-854b1d3853 is verified-closed (attested 2026-08-29); see the Data lifecycle and deletion
+  section above for its scope and the `PredictionEntry` residual.** They are the user's own
   communication content, not a biometric identifier used for recognition.
 
 **Accessibility**
