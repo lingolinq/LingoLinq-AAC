@@ -6388,6 +6388,52 @@
       "notes": "Promoted from PR #886 review (chatgpt-codex-connector) on 2026-08-30. Promoted from Codex P1 on PR 886 after the overview claimed this finding was already in the register and it was not. Distinct from LL-1b0d78dbe6 (account assertion on AiClient.build) and from the designated-model application gate itself: those constrain the deployed Ruby path only. Vendor telemetry quoted in docs/legal/2026-08-09_compliance-program-overview_draft.md records InvokeModel events under the production runtime principal with userAgent aws-cli, which this allowlist cannot see and AiApiLog cannot record. No source addresses or request bodies are stored here. Forensic detail stays out of the externally shareable overview on purpose."
     },
     {
+      "id": "LL-51da4fca1d",
+      "ruleKey": "eval-narrator-unconstrained-model-override",
+      "title": "EvalNarrator took its model from an unconstrained EVAL_NARRATOR_MODEL env var with no allowlist for ~2 months (2026-05-12 to 2026-07-19)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "status": "remediated-unverified",
+      "evidence": {
+        "type": "code",
+        "file": "lib/eval_narrator.rb",
+        "line": 68,
+        "snippet": "ALLOWED_MODELS = %w[",
+        "sha": "9fec7fd9ae915cf4aca0b93275bf1d7644e7812e"
+      },
+      "firstSeen": "2026-08-30",
+      "lastSeen": "2026-08-30",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Already remediated in code: the exact-ID allowlist EvalNarrator::ALLOWED_MODELS was added 2026-07-19 in commit dae497a97 (\"security(eval-narrator): exact-ID model allowlist + minimize etiology egress\", PR #632), and the direct api.anthropic.com route the override applied to was removed by PR #681 and is CI-enforced. What remains is verification and closure by Scot, plus a decision on whether any residual model-override env var anywhere in the runtime needs an equivalent gate. Note that ~/.claude/CLAUDE.md names EVAL_NARRATOR_MODEL specifically as a variable that must never be pointed at a mandatory-retention Covered Model, so this seam is named in standing policy.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 890,
+        "reviewer": "claude-adversary",
+        "promotedDate": "2026-08-30"
+      },
+      "notes": "Discovered during the PR #890 adversary review while verifying a claim the compliance overview made about this seam's history. lib/eval_narrator.rb was created 2026-05-12 in commit 775b56e48 with `model: ENV['EVAL_NARRATOR_MODEL'] || 'claude-opus-4-7'` and NO allowlist of any kind, so the model destination for that seam was settable by environment variable to an arbitrary model. The exact-ID allowlist first appears 2026-07-19 in dae497a97. That is an ungated interval of roughly two months on a seam that carries student evaluation content. RECORDED FOR COMPLETENESS, NOT BECAUSE IT IS LIVE: the gap is closed in code and the direct-API route it applied to no longer exists. No evidence has been found that EVAL_NARRATOR_MODEL was ever set in any deployed environment, and this finding does not assert that it was. Severity is low on that basis; a case exists for medium given that the sibling findings covering the same seam and era (LL-e573a39d2b no PiiScrubber, LL-ef5ac1b2a5 no AiApiLog, LL-2e4c14d370 no COPPA gate, LL-11db0dc848 unbound eval_session) are critical/high, and Scot may raise it. Status is remediated-unverified rather than open because the defect does not exist at the evidence sha; only Scot sets verified-closed. Distinct from LL-3bfc56ef4b, which concerns the AiClient::ALLOWED_RUNTIME_MODELS gate on the three other seams and the credential-level gap; this row is about EvalNarrator's own separate list and the period before it existed. Provenance note: an earlier revision of docs/legal/2026-08-09_compliance-program-overview_draft.md asserted this seam had \"always\" been model-gated, a claim inherited from commit 5dbc4e478's message (\"unlike EvalNarrator, which has had an exact-id gate all along\"). Both are wrong; the overview was corrected in PR #890 and this row is the register counterpart."
+    },
+    {
       "id": "LL-c259638711",
       "ruleKey": "ai-word-predictor-request-summary-omits-scrubbed-topic",
       "title": "AiApiLog request_summary for word prediction records the scrubbed sentence but omits the scrubbed topic",
