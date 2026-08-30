@@ -11,13 +11,13 @@
 **Audited commit:** `59f502aa4a967c8c704637cc66a18ff05118c7d8`  
 **Audited ref:** `staging (audited at 59f502aa4; staging tip had advanced to d2bf421f7 -- 7 commits, 43 files, PRs #814/#816/#819/#820/#821/#822/#823 -- by the time this PR was assembled; those 7 commits are NOT scanned by this run, see auditedShaPriorNote)`  
 **Run date:** 2026-08-18  
-**Page generated:** 2026-08-30T20:56:06Z
+**Page generated:** 2026-08-30T22:33:37Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **0** | **13** | 61 | 43 |
+| **0** | **12** | 62 | 43 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -27,7 +27,6 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 |---|---|---|---|---|---|
 | LL-0b5443f43b |  | high | SOC2, HIPAA | Production Cloud Run service is deployed with public ingress, so the direct run.app URL bypasses the load balancer and its attached Cloud Armor policy | `scripts/gcp/phase5-frontend-lb.sh`:490 |
 | LL-104bfa61dc |  | high | WCAG | Terms-agree modal is unreachable by switch scanning (no .modal_targets / .btn, opened without scannable) | `app/frontend/app/components/terms-agree.hbs`:27 |
-| LL-1e7b568ef3 |  | high | SOC2, HIPAA | Committed WIF provisioning script omits the assertion.ref branch lock the deploy pipeline names as a control, and reconciles (overwrites) the live provider on every re-run | `scripts/gcp/phase1-setup.sh`:329 |
 | LL-3bfc56ef4b |  | high | HIPAA, SOC2 | ALLOWED_RUNTIME_MODELS is an in-process application gate and cannot constrain direct AWS API or CLI use of the same Bedrock runtime credential | `lib/ai_client.rb`:83 |
 | LL-53cb93fab1 |  | high | GDPR, FERPA | Terms-agree modal can be silently replaced by intro before the user agrees | `app/frontend/app/routes/index.js`:132 |
 | LL-5617f4e17d |  | high | SOC2, HIPAA, FERPA | No server-side password strength policy exists; the only minimum-length check is a 6-character Ember computed property, bypassable by a direct API call | `app/frontend/app/controllers/register.js`:217 |
@@ -48,6 +47,7 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 | LL-171938b2b9 |  | medium | WCAG | Shared-message speak target is a div with a click handler and no keyboard semantics | `app/frontend/app/templates/utterance.hbs`:31 |
 | LL-1bb85a2ef5 |  | medium |  | bootstrap 3.4.1 (EOL, no upstream patches) remains a production dependency; supply-chain exposure beyond the already-fixed XSS | `app/frontend/package.json`:36 |
 | LL-1e2ab28aab |  | medium | GDPR, FERPA | Hard delete leaves LogSnapshot records undeleted (GDPR right-to-erasure) | `app/models/log_snapshot.rb`:11 |
+| LL-1e7b568ef3 |  | medium | SOC2, HIPAA | Committed WIF provisioning script omits the assertion.ref branch lock the deploy pipeline names as a control, and reconciles (overwrites) the live provider on every re-run | `scripts/gcp/phase1-setup.sh`:329 |
 | LL-1e8abb7d59 |  | medium | SOC2, HIPAA, FERPA | Failed authentication attempts produce no AuditEvent and no security log line, so credential-stuffing and password-guessing are undetectable after the fact | `app/controllers/session_controller.rb`:568 |
 | LL-33d756b764 |  | medium | SOC2 | The blocking secret-detection gate downloads and executes an unpinned, unverified gitleaks binary resolved at runtime from the GitHub releases API | `.github/workflows/ci.yml`:266 |
 | LL-35e6b7a3d6 |  | medium | WCAG | Dashboard search overlay text input has no programmatic label (placeholder only) | `app/frontend/app/templates/components/dashboard/authenticated-view.hbs`:588 |
