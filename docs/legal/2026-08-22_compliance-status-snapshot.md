@@ -147,15 +147,16 @@ constrain direct AWS API use, added by PR #886).
 
 ~~Eight Highs are past the 15-30 day advisory SLA (LL-7f7372e3eb, LL-a95e9c5f7c, LL-705b10bcd7,
 LL-90045bb29c, LL-f150e0e828, LL-854b1d3853, LL-53cb93fab1, LL-104bfa61dc).~~ **As of 2026-08-30, six of those remain past SLA: LL-a95e9c5f7c, LL-705b10bcd7, LL-90045bb29c, LL-f150e0e828, LL-53cb93fab1, LL-104bfa61dc. LL-7f7372e3eb and LL-854b1d3853 are verified-closed.** The nine findings
-from the 2026-08-12 run are all still within SLA (8 days old).
+from the 2026-08-12 run are ~~all still within SLA (8 days old)~~ **18 days old as of 2026-08-30, i.e. past the 15-day floor of the High SLA band stated above**.
 
 ---
 
 ## 3. Current posture by framework
 
 Live = `open` + `remediated-unverified` at `64cdccba1`. A finding can map to more than one framework, so
-rows do not sum to 112. Nineteen live findings carry no framework tag (engineering / API-contract /
-dependency items; one High, LL-7d50b089c9).
+rows do not sum to ~~112~~ **118 (2026-08-30)**. Nineteen live findings carry no framework tag
+(engineering / API-contract / dependency items; ~~one High, LL-7d50b089c9~~ **as of 2026-08-30 none
+is a High: LL-7d50b089c9 was downgraded to Medium, and all 14 live Highs carry frameworks**).
 
 Counts struck through are 2026-08-20; the figure after each is recomputed 2026-08-30 from
 `audit-reports/FINDINGS.json` (live = `open` + `remediated-unverified`). Notes below still
@@ -228,8 +229,8 @@ customer-facing doc.
 
 | Item | Owner | Timing | Notes |
 |---|---|---|---|
-| ~~Close or disposition the 20 live Highs~~ **14 live Highs as of 2026-08-30** | Scot / eng | SLA advisory 15-30d (8 already past) | Prioritize data-bearing: LL-16ef84ad9a, LL-522c1a6d13, LL-f150e0e828, LL-854b1d3853, plus the 2026-08-12 GCP access/logging set. |
-| Verify + attest 8 remediated-unverified | Scot | Near-term | LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium). |
+| ~~Close or disposition the 20 live Highs~~ **14 live Highs as of 2026-08-30** | Scot / eng | SLA advisory 15-30d (~~8~~ **6** already past as of 2026-08-30) | Prioritize data-bearing: LL-16ef84ad9a, LL-522c1a6d13, LL-f150e0e828, LL-854b1d3853, plus the 2026-08-12 GCP access/logging set. |
+| ~~Verify + attest 8 remediated-unverified~~ **9 as of 2026-08-30** | Scot | Near-term | LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium). **Added 2026-08-30: LL-f150e0e828 (High)**, restored to remediated-unverified when its 2026-08-30 closure was retracted (the fix is not deployed to production). |
 | Article 50(1) enablement decision | Scot / product | **VERIFIED ENABLED IN PRODUCTION 2026-08-23** (~~Overdue since 2026-08-02~~) | **CONTRADICTION RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`, itself CEO-attested 2026-08-19, records a live production read: `article_50_disclosure_shown` is TRUE on all 63 post-deploy `AiApiLog` rows. That column comes from `User#article_50_disclosure_shown?` (`app/models/user.rb:1324-1331` at `64cdccba1`), which returns true only when the user's `settings['ai_transparency']` carries a `shown_at` AND a matching `disclosures_version`. That bit can also be set by `admin_backfill` or by posting the acknowledgement endpoint; it is not proof the UI rendered, and it is not the evidence for enablement. Enablement is the `Setting.get` / `feature_enabled_for?` read below. (Scope caveat from that same record: the 63 rows come from 2 accounts, consistent with internal pre-tenant testing.) **RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** Production was read through the application path: `Setting.get('default_enabled_features')` CONTAINS `article_50_disclosure`, and `FeatureFlags.feature_enabled_for?('article_50_disclosure', user)` resolved TRUE for every user probed at `2026-08-23T21:04:12Z` (`RAILS_ENV=production`, image `web:73a8f633`). No org, beta or canary layer modifies it: production holds 2 organizations, 0 EU-stamped and 0 carrying any feature override, and neither the canary nor the beta `Setting` row exists. Enabled-SINCE date is NOT recoverable - `Setting` carries no PaperTrail history (0 version rows) and `Setting.set` overwrites in place; the containing row was created `2026-08-04T07:19:11Z` and last written `2026-08-13T00:03:56Z`, and nothing records which features the list held at either write. Full record: `docs/legal/2026-08-23_article-50-production-flag-verification.md`. Prior status text follows: Server-side backstop complete (#829/#831); WCAG contrast blocker LL-a9d6d5a46b is now remediated-unverified. LL-104bfa61dc (terms-agree modal switch scanning) remains the open blocker. |
 | ACR / VPAT attestation | Scot | Before district asks; calendar refresh 2026-12-13 | Git + branded Drive still `draft`. |
 | Overdue monthly-light audit | Scot / compliance | Overdue 26d | Register has had no scan stamp since 2026-07-08. |

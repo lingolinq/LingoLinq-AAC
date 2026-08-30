@@ -23,7 +23,7 @@
 
 ### Changes since the 2026-08-09 draft (predecessor attestation, 2026-08-20)
 
-- **Counts refreshed 2026-08-20.** Publisher convention at `64cdccba1` gives **0 Critical / 20 High / 52
+- **Counts refreshed 2026-08-20; register counts updated 2026-08-30 (see the note below the table).** Publisher convention at `64cdccba1` gives **0 Critical / ~~20~~ 14 High / ~~52~~ 61
   Medium / 40 Low** (112 live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
   Critical remains **0**, the gating metric. The High rise is almost entirely the 2026-08-12
   six-finder full audit run (privacy, infra, api, dependency, accessibility, code-hygiene), which
@@ -116,7 +116,7 @@ predecessor chain, not regressions introduced by #838 or #845.
 | Metric | Count |
 |---|---|
 | **Live Critical findings** | **0** |
-| **Live High findings** | **20** |
+| **Live High findings** | ~~**20**~~ **14** (2026-08-30) |
 | Live Medium / Low | 52 / 40 |
 | Verified closed (Scot attested) | 51 |
 | Accepted risk | 5 |
@@ -153,14 +153,21 @@ The practices behind these numbers:
 Live-finding distribution across regulatory frameworks (a single finding can map to more than
 one framework):
 
+Counts struck through are 2026-08-20; the figure after each is recomputed 2026-08-30 from
+`audit-reports/FINDINGS.json` (live = `open` + `remediated-unverified`). Context text still
+describes the 2026-08-20 composition. Of the 2026-08-20 Highs, seven are now verified-closed and
+one was downgraded to Medium; two Highs have been added since. **LL-f150e0e828 (COPPA seat
+reclaim) is NOT closed**: a 2026-08-30 closure was retracted the same day because the fix is not
+deployed to production, so it remains live and is counted in the 14.
+
 | Framework | Live | Live High | Context |
 |---|---:|---:|---|
-| FERPA (US schools) | 36 | 11 | Student data isolation, access scoping, audit trail, share-token and deletion residuals. |
-| HIPAA (US hospitals) | 27 | 10 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
-| GDPR (EU clients) | 22 | 6 | Data residency, subprocessor posture, deletion and export paths, EU AI Act Article 50 transparency. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
-| COPPA (under-13 users) | 10 | 4 | Amended Rule enforceable since 2026-04-22. Open Highs include seat-reclaim consent (LL-f150e0e828), hard-delete media (LL-854b1d3853), and two new from the 2026-08-12 run (unscrubbed context.topic to Bedrock LL-8908c7ac6f; PredictionEntry survives account deletion LL-e8614c103f). |
-| WCAG (accessibility) | 19 | 2 | Standing domain for an AAC tool. Open High: terms-agree switch scanning (LL-104bfa61dc). Article 50 disclosure contrast (LL-a9d6d5a46b) is remediated-unverified (fix landed via #694, closure evidence recorded 2026-08-19; awaiting Scot's verified-closed attestation), still counted as a High in the publisher convention. |
-| SOC 2 (in progress) | 43 | 9 | Control-evidence and audit-system hardening (worker memory, S3 KMS writes, audited console). 2026-08-12 run added several GCP production-access/logging Highs (WIF ref-lock, no Data Access audit logging, project-wide admin on a human principal, public Cloud Run ingress). |
+| FERPA (US schools) | ~~36~~ 31 | ~~11~~ 5 | Student data isolation, access scoping, audit trail, share-token and deletion residuals. |
+| HIPAA (US hospitals) | ~~27~~ 26 | ~~10~~ 6 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
+| GDPR (EU clients) | ~~22~~ 28 | ~~6~~ 3 | Data residency, subprocessor posture, deletion and export paths, EU AI Act Article 50 transparency. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
+| COPPA (under-13 users) | ~~10~~ 10 | ~~4~~ 2 | Amended Rule enforceable since 2026-04-22. Open Highs include seat-reclaim consent (LL-f150e0e828), hard-delete media (LL-854b1d3853), and two new from the 2026-08-12 run (unscrubbed context.topic to Bedrock LL-8908c7ac6f; PredictionEntry survives account deletion LL-e8614c103f). |
+| WCAG (accessibility) | ~~19~~ 19 | ~~2~~ 2 | Standing domain for an AAC tool. Open High: terms-agree switch scanning (LL-104bfa61dc). Article 50 disclosure contrast (LL-a9d6d5a46b) is remediated-unverified (fix landed via #694, closure evidence recorded 2026-08-19; awaiting Scot's verified-closed attestation), still counted as a High in the publisher convention. |
+| SOC 2 (in progress) | ~~43~~ 44 | ~~9~~ 8 | Control-evidence and audit-system hardening (worker memory, S3 KMS writes, audited console). 2026-08-12 run added several GCP production-access/logging Highs (WIF ref-lock, no Data Access audit logging, project-wide admin on a human principal, public Cloud Run ingress). |
 
 A single finding can map to more than one framework, so these rows do not sum to the 112 live total
 (open + remediated-unverified). 19 of those findings carry no framework tag (engineering-quality and

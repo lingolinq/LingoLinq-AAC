@@ -63,6 +63,15 @@ findings = register['findings'] || []
 SEV  = { 'critical' => 'Critical', 'high' => 'High', 'medium' => 'Medium', 'low' => 'Low' }.freeze
 
 def closed_by(f)
+  # A finding is only "closed by" someone when its STATUS says it is closed.
+  # disposition answers "what did we decide", not "is it closed", and the two are
+  # orthogonal by design (see audit-reports/README.md). Without this guard the
+  # fallback below published "<name> <date>" as the closer of a row whose closure
+  # had been RETRACTED: erasing closureEvidence.attestation was not enough, because
+  # disposition.decidedBy survived and this function fell through to it. Observed on
+  # LL-f150e0e828 (live COPPA High) 2026-08-30.
+  return '' unless f['status'].to_s == 'verified-closed'
+
   att = (f['closureEvidence'] || {})['attestation'].to_s
   if (m = att.match(/Scot Wahlquist \d{4}-\d{2}-\d{2}/))
     m[0]
