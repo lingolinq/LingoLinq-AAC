@@ -333,7 +333,49 @@ running to **2 December 2026**. If LingoLinq's board generation was on the marke
 2026, that is approximately three months from this memorandum. Question 16 asks counsel to confirm
 whether the grace period reaches us and what "on the market" means for a feature behind a flag.
 
-### 5.2 The egress paths our AI documents do not cover
+### 5.2 International transfer of EU and UK personal data to Bedrock
+
+**IMPLEMENTED, and a correction to how we have been describing this.** We have described the AI
+path as going to "Bedrock in us-west-2." That is not accurate. `lib/ai_client.rb` invokes the
+inference profile `us.anthropic.claude-haiku-4-5-20251001-v1:0`, which is a **US geo
+cross-region profile**, not a single region. Called from us-west-2 it may route to us-east-1,
+us-east-2, or us-west-2, and AWS's documentation states that with a cross-region profile "your
+input prompts and output results may be stored in the opt-in Regions for abuse detection
+purposes." Any transfer description must name the geo profile and its destination set, not one
+region.
+
+**The governing instruments, read from the documents themselves.**
+
+| Element | What applies | Source |
+|---|---|---|
+| Governing DPA | The **AWS Data Processing Addendum**, which supplements the AWS Customer Agreement and applies automatically. No separate signature. AWS acts as processor to us; we may act as controller or processor (DPA 1.1) | `AWS_GDPR_DPA.pdf` |
+| EU mechanism, main case | **SCCs, Module Three (processor to processor)**. DPA 12.2.2: "When Customer is acting as a processor, the Processor-to-Processor Clauses will apply to a Data Transfer" | DPA 12.2.2, definitions |
+| EU mechanism, secondary case | **SCCs, Module Two (controller to processor)**, for any slice where we act as controller rather than processor | DPA 12.2.1 |
+| SCC instrument | Commission Implementing Decision (EU) 2021/914 of 4 June 2021, incorporated by reference; "Nothing in this document varies or modifies the Standard Contractual Clauses" | DPA 16, definitions |
+| UK mechanism | The same Module Two or Module Three clauses **as amended by the International Data Transfer Addendum**, the ICO template laid before Parliament under s.119A Data Protection Act 2018 on **2 February 2022**. Governed by the laws of England and Wales | `UK_GDPR_Addendum_to_AWS_data_processing_addendum.pdf`, Annex A |
+| Adequacy / DPF | AWS is a covered entity under the **Amazon.com, Inc.** EU-US Data Privacy Framework certification, which is active, with the UK Extension and Swiss-US DPF. **But the AWS DPA does not mention the DPF and does not rely on it**; it defaults to SCCs, and 12.3 displaces them only if AWS adopts Binding Corporate Rules or "an alternative recognised compliance standard" | AWS DPF page; DPA 12.3 |
+| Government access | AWS will attempt to redirect a governmental demand to us, and will give reasonable notice unless legally prohibited | DPA 3 |
+| Sub-processors | Listed at `aws.amazon.com/compliance/sub-processors/`; 30 days' notice; objection remedies include **moving the data to another Region** | DPA 6.1 |
+
+**A flow-down obligation we currently owe and may not be meeting.** DPA 12.2.2 continues: because
+AWS has no relationship with our controllers, "**Customer will fulfil AWS's obligations to
+Customer's controllers under the Processor-to-Processor Clauses**." Under Module Three we are the
+data exporter, and AWS's obligations toward the school or hospital run through us. Our customer
+DPAs need to carry that. Question 24 asks counsel to check them.
+
+**The supplementary measure that removes the problem rather than mitigating it.** AWS publishes an
+**EU geo inference profile for the exact model we run**:
+`eu.anthropic.claude-haiku-4-5-20251001-v1:0`. Called from an EU source region it routes only to
+EU destination regions (Frankfurt, Stockholm, Milan, Spain, Ireland, Paris), and AWS states that a
+geo-scoped profile's "destination Region list will never change." Routing EU and UK traffic there
+would end the Chapter V transfer for that traffic instead of papering it.
+
+**The blocker is ours, not AWS's.** We cannot route by jurisdiction today, because
+`EuJurisdiction.status` resolves to `:unknown` for essentially every production account (section
+4.4). Region selection is also a single environment-derived value in `lib/ai_client.rb`, not a
+per-request decision. Making EU routing real is a code change, and it is listed as gap 20.
+
+### 5.3 The egress paths our AI documents do not cover
 
 **IMPLEMENTED.** Our AI governance documents describe the Bedrock path. Four other paths carry
 user content to third parties and are governed differently or not at all.
@@ -454,6 +496,51 @@ organization. It should not be the default.
 6. **No student or patient content to any route lacking a BAA or an equivalent instrument.**
    Current practice; we propose to keep it as a written rule and to confirm which instrument
    covers the Google paths.
+
+### 9.1 Proposed statement on international transfers
+
+**PROPOSED, subject to counsel's confirmation at questions 24 to 26.** We propose the document
+state the following, and nothing broader:
+
+> Where LingoLinq processes personal data subject to the EU GDPR or UK GDPR and that data is
+> transferred to Amazon Web Services in the United States for model inference, the transfer is
+> made under the **Standard Contractual Clauses adopted by Commission Implementing Decision (EU)
+> 2021/914 of 4 June 2021**, incorporated by reference into the AWS Data Processing Addendum,
+> which forms part of the AWS Customer Agreement.
+>
+> **Module Three (processor to processor)** applies where LingoLinq acts as a processor for a
+> school, district, or healthcare customer, which is the ordinary case. **Module Two (controller
+> to processor)** applies to the limited categories for which LingoLinq acts as controller.
+> LingoLinq is the data exporter and AWS is the data importer.
+>
+> For personal data subject to the UK GDPR, the same clauses apply **as amended by the
+> International Data Transfer Addendum** issued by the Information Commissioner under section
+> 119A of the Data Protection Act 2018 on 2 February 2022, governed by the laws of England and
+> Wales.
+>
+> LingoLinq does **not** rely on the EU-US Data Privacy Framework as its transfer mechanism for
+> this path. AWS is a covered entity under an active Amazon.com, Inc. DPF certification, and
+> LingoLinq treats that as supporting evidence in its transfer risk assessment rather than as the
+> transfer basis, because the AWS Data Processing Addendum itself provides for the Standard
+> Contractual Clauses.
+>
+> LingoLinq maintains a Transfer Impact Assessment for this transfer, reviewed at least annually
+> and on any change of region, model, or subprocessor.
+
+**Why we propose naming SCCs rather than the DPF.** Two reasons. The AWS DPA is the contract we
+actually have, and it provides for SCCs; it does not mention the DPF. And a DPF-based statement
+would have to be re-examined every time the adequacy decision is challenged, whereas an
+SCC-based statement with a live Transfer Impact Assessment survives that. Counsel may disagree,
+and question 25 asks.
+
+**Supplementary measures we propose to state**, in descending order of actual effect: routing EU
+and UK traffic to the EU geo inference profile so no Chapter V transfer occurs; TLS in transit and
+encryption at rest; `PiiScrubber` redaction before egress, described as pseudonymisation and never
+as de-identification; Bedrock model-invocation logging disabled, verified across three regions; no
+model-provider access to prompt content and no training on inputs; and AWS's contractual
+commitment to redirect and to notice government demands. We propose **not** to claim zero data
+retention, because AWS applies abuse-detection processing to this model and the account retention
+setting resolves to the model default.
 
 ## 10. What we propose to stop saying
 
@@ -625,6 +712,8 @@ item; "2026-08-29 triage" marks rows dispositioned on the unmerged CEO triage br
 | 17 | District seat reclaim converts an under-13 account to a consumer trial with no parental re-consent | Consent state does not follow the account through a lifecycle change | `LL-f150e0e828`, remediated 2026-08-29 triage, awaiting production verification |
 | 18 | No server-side password strength policy | Access control to the record set | `LL-5617f4e17d` |
 | 19 | Production GCP audit-log and least-privilege findings | Access accounting for the data store | `LL-b7ccc522b9`, `LL-c0b3d59f58`, both verified closed on a live read in the 2026-08-29 triage |
+| 20 | Cannot route EU or UK users to the EU geo inference profile. The jurisdiction resolver returns `:unknown` for essentially every account, and region is a single environment value rather than a per-request decision | Blocks the one supplementary measure that would end the Chapter V transfer instead of papering it | new |
+| 21 | No Transfer Impact Assessment exists for the Bedrock transfer | Required when relying on SCCs rather than adequacy | new |
 
 **Proposed sequencing**, subject to counsel's answers: item 8 immediately, because it is a live
 customer-facing statement. Then item 11, because it is the only gap with a date attached and that
@@ -751,12 +840,36 @@ internally.
     Business Associate" and "act as a School Official"
     (`app/frontend/app/templates/privacy.hbs:72-73`); we would like your view on both.
 
-### 15.6 US state student-privacy law
+### 15.6 International transfers
+
+24. **Is Module Three the right module, and do our customer DPAs carry the flow-down?** We read
+    the ordinary case as LingoLinq acting as processor for a school or hospital, making the
+    LingoLinq-to-AWS leg a processor-to-processor transfer under Module Three, which the AWS DPA
+    applies automatically. AWS also pushes its Module Three obligations toward our controllers
+    onto us (DPA 12.2.2). Do our school and hospital DPAs actually carry that, and what language
+    do they need? Relatedly, is the EU-controller-to-LingoLinq leg separately papered under
+    Module Two in those same agreements?
+25. **Should we state SCCs or the EU-US Data Privacy Framework as the transfer basis?** AWS is a
+    covered entity under an active Amazon.com, Inc. DPF certification, but the AWS DPA does not
+    mention the DPF and provides for SCCs. We propose to state SCCs and treat the DPF as
+    supporting evidence in the Transfer Impact Assessment. Do you agree, and does relying on SCCs
+    where an adequacy route arguably exists create any problem?
+26. **What must the Transfer Impact Assessment cover, and will you review ours?** Specific facts
+    we think it has to address: the data is verbatim communication content from children with
+    disabilities, which may be Article 9 special-category data (question 17); the model runs on a
+    **US geo cross-region profile** that may route to three US regions with prompts and outputs
+    stored in those regions for abuse detection; `PiiScrubber` is pseudonymisation, not
+    de-identification; and AWS commits to redirect and to notice government demands but cannot
+    promise to resist them. Separately: **if we route EU and UK traffic to the EU geo inference
+    profile so that no data leaves the EEA, does a Chapter V analysis fall away entirely for that
+    traffic**, and should we prioritise that engineering work over perfecting the paperwork?
+
+### 15.7 US state student-privacy law
 
 We did a first-pass survey only, from secondary compliance summaries rather than statute text, so
 these are framed as questions rather than positions.
 
-24. **Which state student-privacy regimes bind us today, and which are contract-driven?** Our
+27. **Which state student-privacy regimes bind us today, and which are contract-driven?** Our
     first pass suggests three patterns we would need to satisfy:
     - **California**, SOPIPA (Bus. & Prof. Code 22584) plus AB 1584 (Ed. Code 49073.1). SOPIPA
       bars sale, targeted advertising, and profiling of K-12 student data and requires compliance
@@ -773,9 +886,9 @@ these are framed as questions rather than positions.
     default rather than maintaining per-state behavior? And which other states should be on this
     list that our first pass missed?
 
-### 15.7 Process
+### 15.8 Process
 
-25. **Which corrections in Part C should be applied by superseding the affected attested records,
+28. **Which corrections in Part C should be applied by superseding the affected attested records,
     and which by a correction note that leaves the attested record frozen?** Our internal rule
     freezes an attested document's bytes permanently and supersedes it with a dated successor. We
     want your view on whether that is the right shape for records that reach customers in a
@@ -805,6 +918,14 @@ from memory.
 | Digital Omnibus, Regulation (EU) 2026/1744, deferring Annex III high-risk to 2027-12-02 while leaving Article 50 on its original date | https://www.goodwinlaw.com/en/insights/publications/2026/08/alerts-technology-dpc-eu-ai-act-transparency-obligations-now-in-force ; https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/ ; https://www.whitecase.com/insight-alert/eu-ai-omnibus-enters-force-amending-ai-act |
 | Article 50(2) marking grace period to 2026-12-02 | https://labs.cloudsecurityalliance.org/research/csa-research-note-eu-ai-act-article-50-transparency-20260729/ |
 | FTC declining to codify the ed-tech / school-authorization pathway in the 2025 amendments | https://www.lw.com/en/insights/ftc-publishes-updates-to-coppa-rule |
+| AWS Data Processing Addendum (transfer clauses at 12.2, definitions, government access at 3) | https://d1.awsstatic.com/legal/aws-gdpr/AWS_GDPR_DPA.pdf |
+| AWS Processor-to-Processor SCCs (Module Three) | https://d1.awsstatic.com/Processor_to_Processor_SCCs.pdf |
+| AWS Controller-to-Processor SCCs (Module Two) | https://d1.awsstatic.com/Controller_to_Processor_SCCs.pdf |
+| AWS UK GDPR Addendum, incorporating the ICO International Data Transfer Addendum of 2022-02-02 | https://d1.awsstatic.com/legal/aws-gdpr/UK_GDPR_Addendum_to_AWS_data_processing_addendum.pdf |
+| AWS EU-US Data Privacy Framework position | https://aws.amazon.com/compliance/eu-us-data-privacy-framework/ |
+| AWS subprocessor list | https://aws.amazon.com/compliance/sub-processors/ |
+| Bedrock Claude Haiku 4.5 model card: US and EU geo inference profile IDs and destination regions | https://docs.aws.amazon.com/bedrock/latest/userguide/model-card-anthropic-claude-haiku-4-5.html |
+| Bedrock cross-region inference, including storage in destination regions for abuse detection | https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html |
 
 **Retrieval limitations, stated rather than papered over.**
 
@@ -820,13 +941,14 @@ from memory.
   were confirmed separately against ftc.gov and federalregister.gov. **We did not separately
   verify the rule's own effective date**, which differs from the full-compliance date, and
   counsel should confirm both.
-- **The EU AI Act timeline in section 11 is the fastest-moving item here and is sourced
-  secondarily.** The Digital Omnibus, the Annex III deferral to 2 December 2027, and the
-  2 December 2026 Article 50(2) marking grace period were each confirmed across several
-  independent 2026 law-firm and compliance analyses that agree with one another, but **we did not
-  retrieve Regulation (EU) 2026/1744 from EUR-Lex directly**; the base AI Act page truncated
-  before reaching Article 113. Counsel should confirm against CELEX:32026R1744 before we act on
-  the December 2026 marking deadline.
+- **The EU AI Act timeline in section 11 was confirmed against EUR-Lex on the second pass.**
+  Regulation (EU) 2026/1744 (CELEX:32026R1744) was retrieved directly. Its Article 1(38) inserts
+  the transitional provision into Article 111 of Regulation (EU) 2024/1689, giving providers who
+  placed generative systems on the market before 2 August 2026 a **four-month** period to comply
+  with the Article 50(2) marking obligation, which lands on **2 December 2026**. Article 1(40)
+  amends Article 113 to set 2 December 2027 for Annex III and 2 August 2028 for Annex I.
+  **Residual caution:** the retrieved wording reads as recital language, so counsel should read
+  Article 111 as amended in the consolidated text before we treat 2 December 2026 as a hard date.
 - **GDPR Article 9(1) and Article 30(5) were read from convenience mirrors, not EUR-Lex**, whose
   page truncated. One retrieved Article 9(1) extract appeared to omit enumerated categories
   (biometric data for unique identification, and sexual orientation), so nothing in this
