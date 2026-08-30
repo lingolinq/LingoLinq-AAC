@@ -3821,14 +3821,14 @@
       },
       "closureEvidence": {
         "sha": "8afabd1d2cc37fd88013eb738143758096f52c50",
-        "verifierNote": "Verified 2026-08-29 against origin/staging 8afabd1d2. Organization#remove_user (app/models/organization.rb:1064+) raises ArgumentError \"offboarding birth month and year required\" when JsonApi::Json.coppa_parental_consent_enabled? is true and the birth classification is nil, and calls user.begin_family_offboarding_consents!, so an under-13 is not silently converted to a consumer trial on seat reclaim. The automated path routes through the same consent start via License.expire_licenses!. Both are present in the deployed production image (`git show 73a8f6339`). NOT yet verified, and the reason this is remediated-unverified rather than verified-closed: the live value of coppa_parental_consent_enabled? for the production domain, which is a database settings row rather than code (production feature flags are known to come from a DB override that can disagree with lib/feature_flags.rb). The parental re-consent flow itself does not depend on that flag; only the strictness of the birth-date requirement does. Read the live setting to complete this closure.",
+        "verifierNote": "Verified 2026-08-29 against origin/staging 8afabd1d2. Organization#remove_user (app/models/organization.rb:1064+) raises ArgumentError \"offboarding birth month and year required\" when JsonApi::Json.coppa_parental_consent_enabled? is true and the birth classification is nil, and calls user.begin_family_offboarding_consents!, so an under-13 is not silently converted to a consumer trial on seat reclaim. The automated path routes through the same consent start via License.expire_licenses!. Both are present in the deployed production image (`git show 73a8f6339`). CORRECTION 2026-08-30 (Codex review of PR #887): the parental re-consent flow IS gated on the same flag, not only the birth-date requirement. User#requires_coppa_offboarding? returns false immediately at user.rb:514 when the flag is off, so begin_family_offboarding_consents! skips the COPPA pending/email path. Organization#remove_user still reclaims the seat. User.process_expired_offboarding_consents! also returns 0 at user.rb:878 when the flag is off. The original gap (seat reclaim to a consumer trial with no parental re-consent) therefore still occurs if the production domain setting is disabled. Status stays remediated-unverified until the live production setting is confirmed enabled. Do not move to verified-closed on the birth-date-only reading.",
         "attestation": ""
       },
       "disposition": {
         "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-08-29",
-        "rationale": "CEO triage 2026-08-29. The remediation is real and accepted; held at remediated-unverified rather than verified-closed purely for accuracy about one sub-claim. The strict birth-month/year requirement is gated on JsonApi::Json.coppa_parental_consent_enabled?, which reads a domain settings row in the database rather than code, and that flag's live production value has not been read. The COPPA parental re-consent flow is fixed regardless of the flag. Move to verified-closed once someone reads the live setting; no further code work is expected."
+        "rationale": "CEO triage 2026-08-29. The remediation is real and accepted; held at remediated-unverified rather than verified-closed purely for accuracy about one sub-claim. The strict birth-month/year requirement is gated on JsonApi::Json.coppa_parental_consent_enabled?, which reads a domain settings row in the database rather than code, and that flag's live production value has not been read. CORRECTION 2026-08-30: the COPPA pending/email path is gated on the same flag (requires_coppa_offboarding? and the expiry sweep both return immediately when it is off), so the original gap still occurs if the production domain setting is disabled. Move to verified-closed only after the live setting is confirmed enabled; if it is off, further code work (ungate the offboarding consent path) is still required."
       },
       "source": {
         "kind": "pr-review",
@@ -3836,7 +3836,7 @@
         "reviewer": "claude-compliance-review",
         "promotedDate": "2026-07-09"
       },
-      "notes": "Promoted from PR #561 review (claude-compliance-review) on 2026-07-09. Surfaced 2026-07-09 during the compliance program-overview review (PR #561) and code-verified. Chain: user.rb:1295-1356 skips COPPA parental consent for org_authorized creations (school-official exception); license.rb:53 release_user! offboards to a 2-month trial without capturing consent or notifying the guardian; user.rb:35 in_trial? then treats the account as a live consumer trial. Prod carries only internal test accounts per PR #483 (operator attestation, not code-verified), so no live exposure yet; fix before real district offboarding. Filed on branch scot/compliance/offboarding-coppa-reconsent-finding."
+      "notes": "Promoted from PR #561 review (claude-compliance-review) on 2026-07-09. Surfaced 2026-07-09 during the compliance program-overview review (PR #561) and code-verified. Chain: user.rb:1295-1356 skips COPPA parental consent for org_authorized creations (school-official exception); license.rb:53 release_user! offboards to a 2-month trial without capturing consent or notifying the guardian; user.rb:35 in_trial? then treats the account as a live consumer trial. Prod carries only internal test accounts per PR #483 (operator attestation, not code-verified), so no live exposure yet; fix before real district offboarding. Filed on branch scot/compliance/offboarding-coppa-reconsent-finding. | Codex review of PR #887 (2026-08-30): the 2026-08-29 closure note that only the birth-date requirement is flag-gated was wrong; requires_coppa_offboarding? and process_expired_offboarding_consents! both no-op when the flag is off. Status left remediated-unverified."
     },
     {
       "id": "LL-854b1d3853",
@@ -4527,7 +4527,7 @@
       },
       "closureEvidence": {
         "sha": "8afabd1d2cc37fd88013eb738143758096f52c50",
-        "verifierNote": "Verified 2026-08-29 against origin/staging 8afabd1d2. The egress half is remediated: scrub_context (lib/ai_word_predictor.rb:206-214) runs ctx[:topic] through PiiScrubber.redact_for_ai and returns the scrubbed topic; it is called at line 98 BEFORE the cache key is built, and its pii_found and findings are merged into the pii_detected and pii_findings passed to log_ai_call (lines 99-100, 155-168), so a topic-borne detection is recorded on the AiApiLog row rather than dropped. RESIDUAL, deliberately not closed here: request_summary is still built from the scrubbed sentence alone and omits the scrubbed topic, so the log line does not show which topic accompanied the call. That is a log-completeness gap on already-scrubbed content, not an egress gap. Recommended for promotion as its own Low; NOT promoted in this change, because findings are only ever added mechanically via scripts/promote-finding.rb and that row has not been decided.",
+        "verifierNote": "Verified 2026-08-29 against origin/staging 8afabd1d2. The egress half is remediated: scrub_context (lib/ai_word_predictor.rb:206-214) runs ctx[:topic] through PiiScrubber.redact_for_ai and returns the scrubbed topic; it is called at line 98 BEFORE the cache key is built, and its pii_found and findings are merged into the pii_detected and pii_findings passed to log_ai_call (lines 99-100, 155-168), so a topic-borne detection is recorded on the AiApiLog row rather than dropped. RESIDUAL, tracked separately as LL-c259638711 (open Low, added 2026-08-30 from Codex review of PR #887): request_summary is still built from the scrubbed sentence alone and omits the scrubbed topic, so the log line does not show which topic accompanied the call. That is a log-completeness gap on already-scrubbed content, not an egress gap.",
         "attestation": "Scot Wahlquist 2026-08-29: attested verified-closed during the open-High triage sweep; accepted the recorded code/live-state trace at origin/staging 8afabd1d2 as the verification basis."
       },
       "notes": "Surfaced by privacy finder on 2026-08-12. Tier 1 runtime AI path. Only `sentence` is scrubbed (lib/ai_word_predictor.rb:92); `topic` is interpolated verbatim into the Bedrock system prompt. Reachable via POST /api/v1/word_suggestions (config/routes.rb:196), which affirmatively permits the field (app/controllers/api/word_suggestions_controller.rb:61, ctx.permit(:time_of_day, :topic)). Blast radius is bounded because the destination is the BAA'd Bedrock route and no first-party client currently populates context.topic (app/frontend/app/utils/ai_word_predictor.js:131 posts only sentence/locale/count), but the frontend's analogous topic_context is board name (app/frontend/app/controllers/board/index.js:181), a free-text field AAC users routinely personalize with caregiver/clinician names. Distinct from LL-16ef84ad9a, which concerns the cache key, not prompt egress. Independent secondary defect: AiApiLog pii_detected/pii_findings/request_summary understate what actually left the system. | adversary: confirmed -- Traced full path: only sentence hits PiiScrubber.redact_for_ai (lib/ai_word_predictor.rb:92); ctx flows raw through normalize_context into system_prompt's topic interpolation at line 340 with no scrub. word_suggestions_controller.rb:61 permits :topic. AiApiLog request_summary only records the scrubbed sentence, so pii_detected understates actual egress.",
@@ -4535,7 +4535,7 @@
         "state": "fixed",
         "decidedBy": "Scot Wahlquist",
         "decidedDate": "2026-08-29",
-        "rationale": "CEO triage 2026-08-29. Closed as fixed on the egress claim, which is what made this a High: the context topic is scrubbed before it leaves the process and its detections reach the audit row. The request_summary omission is carried forward as a separate Low rather than holding a High row open."
+        "rationale": "CEO triage 2026-08-29. Closed as fixed on the egress claim, which is what made this a High: the context topic is scrubbed before it leaves the process and its detections reach the audit row. The request_summary omission is carried forward as open Low LL-c259638711 rather than holding a High row open."
       }
     },
     {
@@ -6342,6 +6342,90 @@
         "attestation": ""
       },
       "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-26. Correctly keyed successor to the withdrawn LL-17ec91ff20, created 2026-08-26 after external review of PR #867 flagged that the rescoped row had kept a ruleKey describing a different claim (audit-merge.rb derives the id as SHA256(ruleKey|path), so key/content drift is a merge hazard). Anchored at :139, where the attribution appears, rather than :138. SCOPE: this row is ONLY about the legal-basis attribution, not about whether the purge works -- it does. PR #863 and #867 reached the same conclusion for the DOCUMENT surfaces and flagged the Article 50 attribution as an open counsel question there; the same attribution is asserted here to a DATA SUBJECT in a live consent disclosure served by app/controllers/ai_consent/disclosures_controller.rb:29 and rendered by app/views/ai_consent/disclosures/v1.html.erb. Stating a legal basis to a parent is a stronger act than stating one to an auditor, which is why this is tracked rather than left to the document-side flag. Severity set to medium rather than high: nothing here misstates what data is kept or for how long, and no safeguard is misrepresented; the defect is an unverified statutory citation. COUNSEL POINTERS ADDED 2026-08-27, verified against the EUR-Lex texts of Regulation (EU) 2024/1689 (CELEX 32024R1689) and Regulation (EU) 2026/1744 (OJ L 2026/1744) rather than asserted from memory, after an external reviewer raised the Article 12/19/26 distinction and the 2026/1744 timing. They are recorded in remediation.options as INPUT for counsel and are explicitly not a replacement legal basis: substituting one guessed citation for another is the error this row exists to correct. NOTE ON A REVIEWER REQUEST NOT ACTED ON: the same review asked that proposed parent-facing wording using the phrase \"improve reliability\" be marked draft. No such text exists anywhere in this repository (verified by grep across lib/, app/, docs/, audit-reports/, config/), and no replacement parent-facing wording has been drafted at all, so there was nothing to mark. The only parent-facing text is the note at ai_consent_disclosures.rb:138-139."
+    },
+    {
+      "id": "LL-3bfc56ef4b",
+      "ruleKey": "bedrock-runtime-credential-unrestricted-direct-api-use",
+      "title": "ALLOWED_RUNTIME_MODELS is an in-process application gate and cannot constrain direct AWS API or CLI use of the same Bedrock runtime credential",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_client.rb",
+        "line": 83,
+        "snippet": "ALLOWED_RUNTIME_MODELS = %w[",
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50"
+      },
+      "firstSeen": "2026-08-30",
+      "lastSeen": "2026-08-30",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add an IAM policy on the production Bedrock runtime principal that Allow-lists only the designated model (currently the Haiku 4.5 inference profile) and Deny bedrock:InvokeModel / InvokeModelWithResponseStream for every other model id. Optionally also restrict the principal to the Cloud Run runtime service account so a workstation or CI aws-cli session cannot use it. Until that ships, keep AiApiLog described as an application-observed floor, not a ledger of every invocation under the credential. Do not treat the application allowlist as a credential-level control in any externally shareable document.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 886,
+        "reviewer": "chatgpt-codex-connector",
+        "promotedDate": "2026-08-30"
+      },
+      "notes": "Promoted from PR #886 review (chatgpt-codex-connector) on 2026-08-30. Promoted from Codex P1 on PR 886 after the overview claimed this finding was already in the register and it was not. Distinct from LL-1b0d78dbe6 (account assertion on AiClient.build) and from the designated-model application gate itself: those constrain the deployed Ruby path only. Vendor telemetry quoted in docs/legal/2026-08-09_compliance-program-overview_draft.md records InvokeModel events under the production runtime principal with userAgent aws-cli, which this allowlist cannot see and AiApiLog cannot record. No source addresses or request bodies are stored here. Forensic detail stays out of the externally shareable overview on purpose."
+    },
+    {
+      "id": "LL-c259638711",
+      "ruleKey": "ai-word-predictor-request-summary-omits-scrubbed-topic",
+      "title": "AiApiLog request_summary for word prediction records the scrubbed sentence but omits the scrubbed topic",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "FERPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_word_predictor.rb",
+        "line": 165,
+        "snippet": "request_summary: \"Word prediction: #{scrubbed_sentence.truncate(200)}\",",
+        "sha": "19a88bc7cb9a22d10eee425e7128ab47e3ad00c0"
+      },
+      "firstSeen": "2026-08-30",
+      "lastSeen": "2026-08-30",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Include the already-scrubbed topic in the request_summary passed to log_ai_call in AiWordPredictor.predict, so the AiApiLog row reflects the full egress payload. Topic detections already reach pii_detected/pii_findings; this is log completeness only.",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 887,
+        "reviewer": "chatgpt-codex-connector",
+        "promotedDate": "2026-08-30"
+      },
+      "notes": "Surfaced by pr-review finder on 2026-08-30. Follow-up residual of LL-8908c7ac6f. The High egress claim is closed; this tracks the admitted request_summary omission so generated open-finding reports do not drop it. Promoted from Codex review of PR #887."
     }
   ]
 }
