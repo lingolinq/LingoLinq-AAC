@@ -363,17 +363,34 @@ Customer's controllers under the Processor-to-Processor Clauses**." Under Module
 data exporter, and AWS's obligations toward the school or hospital run through us. Our customer
 DPAs need to carry that. Question 24 asks counsel to check them.
 
-**The supplementary measure that removes the problem rather than mitigating it.** AWS publishes an
-**EU geo inference profile for the exact model we run**:
-`eu.anthropic.claude-haiku-4-5-20251001-v1:0`. Called from an EU source region it routes only to
-EU destination regions (Frankfurt, Stockholm, Milan, Spain, Ireland, Paris), and AWS states that a
-geo-scoped profile's "destination Region list will never change." Routing EU and UK traffic there
-would end the Chapter V transfer for that traffic instead of papering it.
+**An available supplementary measure, correctly scoped.** AWS publishes an **EU geo inference
+profile for the exact model we run**: `eu.anthropic.claude-haiku-4-5-20251001-v1:0`. Called from
+an EU source region it routes only to EU destination regions (Frankfurt, Stockholm, Milan, Spain,
+Ireland, Paris), and AWS states that a geo-scoped profile's "destination Region list will never
+change."
 
-**The blocker is ours, not AWS's.** We cannot route by jurisdiction today, because
+**What that would and would not achieve, stated precisely because an earlier draft of this
+section overstated it.** Routing the Bedrock leg to EU regions would relocate **model inference**
+into the EEA. It would **not** make LingoLinq's processing EU-resident and it would **not**
+eliminate the international transfer, because the application itself is not in the EEA. Our Cloud
+Run services, Cloud SQL database, and Redis instance all run in GCP `us-central1`
+(`scripts/gcp/phase3-data-layer.sh:67`). EU and UK personal data is therefore already in the
+United States before any Bedrock call is made. The Chapter V transfer that matters is the one
+from the EU controller into our US-hosted application, and it is untouched by the choice of
+Bedrock region.
+
+The honest framing is that EU Bedrock routing removes **one onward transfer leg** and narrows the
+surface a Transfer Impact Assessment has to cover. It is worth doing on those terms. It is not a
+repatriation of the data, and we should not describe it to a customer as one. Any assessment of
+whether the overall data path can be made EU-resident would have to take in hosting, database,
+backups, logging, and error telemetry, not just inference. Question 26 asks counsel how to
+prioritise that.
+
+**Two blockers, both ours.** We cannot route by jurisdiction today, because
 `EuJurisdiction.status` resolves to `:unknown` for essentially every production account (section
-4.4). Region selection is also a single environment-derived value in `lib/ai_client.rb`, not a
-per-request decision. Making EU routing real is a code change, and it is listed as gap 20.
+4.4), and region selection is a single environment-derived value in `lib/ai_client.rb` rather than
+a per-request decision. Making EU inference routing real is a code change, listed as gap 20. The
+larger question of EU-resident hosting is not scoped anywhere and is listed as gap 22.
 
 ### 5.3 The egress paths our AI documents do not cover
 
@@ -524,23 +541,36 @@ state the following, and nothing broader:
 > transfer basis, because the AWS Data Processing Addendum itself provides for the Standard
 > Contractual Clauses.
 >
+> [**CONDITIONAL, DO NOT PUBLISH UNTIL TRUE.** The following sentence asserts a control that does
+> not exist today. No Transfer Impact Assessment has been written (gap 21). It may be included
+> only once one is completed and approved, and it is set out here so counsel can review the
+> wording, not so it can be lifted into a customer-facing document in the meantime.]
+>
 > LingoLinq maintains a Transfer Impact Assessment for this transfer, reviewed at least annually
 > and on any change of region, model, or subprocessor.
+
+The bracketed caveat is deliberate. This memorandum's third principle is that we describe controls
+rather than conformance, and section 4 catalogues seven places where our documents already assert
+controls we do not have. A proposed statement that quietly repeated that error would undercut the
+whole document.
 
 **Why we propose naming SCCs rather than the DPF.** Two reasons. The AWS DPA is the contract we
 actually have, and it provides for SCCs; it does not mention the DPF. And a DPF-based statement
 would have to be re-examined every time the adequacy decision is challenged, whereas an
-SCC-based statement with a live Transfer Impact Assessment survives that. Counsel may disagree,
-and question 25 asks.
+SCC-based statement with a live Transfer Impact Assessment survives that. This is a **proposed
+position, not a legal conclusion**: AWS holds an active DPF certification and its DPA also carries
+an alternative-mechanism clause at 12.3, so the choice between the two is counsel's to make and
+cannot be settled mechanically from the documents. Question 25 asks.
 
-**Supplementary measures we propose to state**, in descending order of actual effect: routing EU
-and UK traffic to the EU geo inference profile so no Chapter V transfer occurs; TLS in transit and
-encryption at rest; `PiiScrubber` redaction before egress, described as pseudonymisation and never
-as de-identification; Bedrock model-invocation logging disabled, verified across three regions; no
-model-provider access to prompt content and no training on inputs; and AWS's contractual
-commitment to redirect and to notice government demands. We propose **not** to claim zero data
-retention, because AWS applies abuse-detection processing to this model and the account retention
-setting resolves to the model default.
+**Supplementary measures we propose to state**, in descending order of actual effect: TLS in
+transit and encryption at rest; `PiiScrubber` redaction before egress, described as
+pseudonymisation and never as de-identification; Bedrock model-invocation logging disabled,
+verified across three regions; no model-provider access to prompt content and no training on
+inputs; and AWS's contractual commitment to redirect and to notice government demands. Routing EU
+and UK inference to the EU geo profile belongs on this list once built, but as a measure that
+removes one onward transfer leg, **not** as one that ends the transfer; see section 5.2. We
+propose **not** to claim zero data retention, because AWS applies abuse-detection processing to
+this model and the account retention setting resolves to the model default.
 
 ## 10. What we propose to stop saying
 
@@ -713,7 +743,8 @@ item; "2026-08-29 triage" marks rows dispositioned on the unmerged CEO triage br
 | 18 | No server-side password strength policy | Access control to the record set | `LL-5617f4e17d` |
 | 19 | Production GCP audit-log and least-privilege findings | Access accounting for the data store | `LL-b7ccc522b9`, `LL-c0b3d59f58`, both verified closed on a live read in the 2026-08-29 triage |
 | 20 | Cannot route EU or UK users to the EU geo inference profile. The jurisdiction resolver returns `:unknown` for essentially every account, and region is a single environment value rather than a per-request decision | Blocks the one supplementary measure that would end the Chapter V transfer instead of papering it | new |
-| 21 | No Transfer Impact Assessment exists for the Bedrock transfer | Required when relying on SCCs rather than adequacy | new |
+| 21 | No Transfer Impact Assessment exists for the Bedrock transfer | Required when relying on SCCs rather than adequacy. Until one exists, the proposed customer statement in section 9.1 cannot be published in full | new |
+| 22 | The whole data path is US-resident (Cloud Run, Cloud SQL, and Redis in GCP `us-central1`), so EU personal data is in the United States before any AI call. Whether it can be made EU-resident is not scoped anywhere | Determines whether EU inference routing is worth building on its own, or is a partial measure inside a larger unaddressed question | new |
 
 **Proposed sequencing**, subject to counsel's answers: item 8 immediately, because it is a live
 customer-facing statement. Then item 11, because it is the only gap with a date attached and that
@@ -860,9 +891,13 @@ internally.
     **US geo cross-region profile** that may route to three US regions with prompts and outputs
     stored in those regions for abuse detection; `PiiScrubber` is pseudonymisation, not
     de-identification; and AWS commits to redirect and to notice government demands but cannot
-    promise to resist them. Separately: **if we route EU and UK traffic to the EU geo inference
-    profile so that no data leaves the EEA, does a Chapter V analysis fall away entirely for that
-    traffic**, and should we prioritise that engineering work over perfecting the paperwork?
+    promise to resist them. Separately, on scope: our application, database, and cache run in GCP
+    `us-central1`, so EU personal data is already in the United States before any Bedrock call.
+    **Routing inference to the EU geo profile therefore removes one onward leg rather than the
+    transfer itself.** Is that worth doing on its own terms, or is the only meaningful question
+    whether the whole data path (hosting, database, backups, logging, error telemetry) can be made
+    EU-resident? We would rather hear that the answer is the larger project than spend effort on a
+    measure that reads better than it works.
 
 ### 15.7 US state student-privacy law
 
