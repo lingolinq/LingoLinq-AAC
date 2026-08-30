@@ -4,13 +4,13 @@
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 > The codebase copy is canonical; the Notion board is a one-way mirror; Drive docs are linked, never copied.
 >
-> Generated: 2026-07-23 | Documents: 92 (git 60 / drive 28 / notion 4)
+> Generated: 2026-07-23 | Documents: 93 (git 61 / drive 28 / notion 4)
 
 ## Headline
 
-- **Status:** draft 18, approved 10, published 42, superseded 22
+- **Status:** draft 19, approved 10, published 42, superseded 22
 - **Overdue for review** (as of 2026-07-23): none
-- **Drafts awaiting attestation:** Compliance & Data Governance (2026-08-25 successor); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-25 successor); AI Data-Sharing Consent: Rationale and Policy (2026-08-25 successor); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report (2026-08-22 successor); Compliance & Security Program (2026-08-22 successor); Compliance Status Snapshot (2026-08-22); Article 50(1) Disclosure - Production Feature-Flag Verification; AI Governance Memo (2026-08-24 successor)
+- **Drafts awaiting attestation:** Compliance & Data Governance (2026-08-25 successor); Accessibility Conformance Report (ACR / VPAT); Data Retention Schedule (2026-08-09 draft); Accessibility Conformance Report (ACR / VPAT) (branded); AI Data-Flow Classification (2026-08-25 successor); AI Data-Sharing Consent: Rationale and Policy (2026-08-25 successor); LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft); EU AI Act Article 50 Transparency: Implementation Milestone Plan; Compliance Posture Report (branded, 2026-07-16 re-attest); Anthropic Business Associate Agreement (2026-05-06); Google Cloud Platform - Accepted Compliance Agreements (captured 2026-07-14); Annex A - Clinical BAA Template (DRAFT); Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT); Compliance Posture Report (2026-08-22 successor); Compliance & Security Program (2026-08-22 successor); Compliance Status Snapshot (2026-08-22); Article 50(1) Disclosure - Production Feature-Flag Verification; AI Governance Memo (2026-08-24 successor); Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft)
 
 ## Documents by type
 
@@ -37,7 +37,7 @@
 | Vendor and Subprocessor Management Policy | Drive | [open](https://docs.google.com/document/d/1fmBOfw-peYUpdwmttHC3hqzU_5c3OMNgBSN4NDK7mAM/edit) | published | SOC2, GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 | Written Information Security Program (WISP) | Drive | [open](https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit) | published | SOC2, HIPAA | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence, security-review, baa |
 
-### legal (22)
+### legal (23)
 
 | Title | System | Canonical location | Status | Frameworks | Owner | Last reviewed | Next due | Attested | Hash | Bundles |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -62,6 +62,7 @@
 | Compliance Program (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program_draft.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-09 | 2027-08-09 | no | `7bf31eae81de` |  |
 | LingoLinq Security, Privacy & Compliance Overview | git | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-04 | 2027-07-22 | 2026-08-04 | `63205ea1780c` |  |
 | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-30 | 2027-07-22 | no | `87be31f25f11` | security-review |
+| Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft) | git | `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md` | draft | HIPAA, FERPA, COPPA, GDPR, EU_AI_Act | Scot Wahlquist | 2026-08-30 | 2026-11-30 | no | `8c3170a86013` |  |
 | Records of Processing Activities (RoPA) and Data Map | Drive | [open](https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit) | published | GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, dsar |
 
 ### evidence (12)
@@ -233,7 +234,7 @@ What a federal or foundation grant application needs from the compliance library
 | `executed-agreement` | term + 7 years | contract-end | archive | 9 |
 | `corporate-permanent` | permanent | n/a | archive | 0 |
 | `grant-record` | award + 7 years | close-out | archive | 0 |
-| `policy-version` | supersession + 7 years | superseded | archive | 48 |
+| `policy-version` | supersession + 7 years | superseded | archive | 49 |
 | `audit-evidence` | 7 years | finding-closed | archive | 18 |
 | `attestation-record` | permanent | n/a | archive | 0 |
 | `dsar-case` | 3 years | case-closed | delete | 0 |
@@ -340,4 +341,4 @@ frozen point-in-time binder. Only the pointer is added.
 
 ---
 
-_92 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
+_93 documents. Re-run `ruby scripts/document-register-render.rb --check` to validate ids, git content hashes, and bundle completeness._
