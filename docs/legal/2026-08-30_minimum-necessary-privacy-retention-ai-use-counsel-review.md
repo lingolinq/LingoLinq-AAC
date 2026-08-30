@@ -87,6 +87,17 @@ document register records 63 successful production Bedrock calls. Whether the pa
 state the code does not guarantee. We treat this as the single most urgent item in this
 memorandum and it is question 21.
 
+### 1.2 The one item with a date attached
+
+Everything else in this memorandum is a question of posture. One item is a deadline. EU AI Act
+Article 50 has applied since 2 August 2026 and was left untouched by the Digital Omnibus
+amendments described in section 11. Generative systems already on the market before that date
+appear to have until **2 December 2026** to retrofit the Article 50(2) machine-readable marking of
+AI-generated content. Our marking is minted on the generation response but is **not persisted onto
+saved, exported, or shared boards**, and the code comment at
+`app/controllers/api/boards_controller.rb:635-641` says so in terms. If that grace period reaches
+us, we have roughly three months. Question 16 asks counsel to confirm.
+
 ---
 
 ## 2. Scope, method, and limits
@@ -286,15 +297,41 @@ that affirmatively.** Four limits matter:
   (`app/models/ai_focus_word_set.rb:42-48`).
 
 **On logging.** `ai_api_logs` stores `request_summary` and `response_summary` as plaintext free
-text alongside `user_global_id` (`db/schema.rb`). The IP is redacted at 90 days. The summaries are
-not, and section 4 establishes that for non-EU rows they persist until account deletion.
+text alongside `user_global_id` (`db/schema.rb`). The summaries are not redacted on any schedule,
+and section 4 establishes that for non-EU rows they persist until account deletion. Evaluation
+narration writes the **full, untruncated clinical narrative** into `response_summary`
+(`lib/eval_narrator.rb:219`); nothing truncates it at write time.
+
+A correction to a control we have described elsewhere: the 90-day IP redaction job operates on a
+column **the AI call sites never populate**. `AiApiLog.log_ai_call` accepts an `ip_address`
+parameter (`app/models/ai_api_log.rb:91`), but none of the four in-app call sites passes one. The
+redaction is real and scheduled; it currently has nothing to redact. The same is true of
+`organization_global_id`.
+
+**On consent, an orphaned control.** A versioned verifiable-consent mechanism exists in full:
+`ai_consent_granted?`, `grant_ai_consent!`, `revoke_ai_consent!`, versioned disclosures, and
+`AuditEvent` records on grant and revoke. A grep of `app/` and `lib/` finds **no runtime caller
+for any of it** outside `app/models/user.rb` itself; the only other hits are documentation
+comments in `lib/lingo_linq/ai_consent_disclosures.rb`. It is written by nothing and read by
+nothing at runtime. The gates that actually run are the org switch, the COPPA block, the EU
+under-16 block, and the per-user preference described above. Question 19 asks what this means for
+the consent basis we have been describing.
 
 **On disclosure.** Article 50(1) disclosure is built and enabled in production through a database
-feature-flag override. Article 50 applies from 2 August 2026 and is therefore in force. A recent
-fix resolves the disclosure gate's subject from the authenticated session user rather than from
-application state (PR #885, in commit `8afabd1d2`). Article 50(2) content marking covers the
-transient generation response and persisted focus-word sets, but was **not found** for saved,
-exported, or shared boards (`app/controllers/api/boards_controller.rb:634-640`).
+feature-flag override. A recent fix resolves the disclosure gate's subject from the authenticated
+session user rather than from application state (PR #885, in commit `8afabd1d2`). Article 50(2)
+content marking is minted for the transient generation response and for persisted focus-word
+sets, but was **not found** for saved, exported, or shared boards. The code says so itself: the
+comment at `app/controllers/api/boards_controller.rb:635-641` records that durable persistence of
+the marker onto `board.settings` at save time, and its propagation through `copy_for`, "are NOT
+yet implemented," so "saved/exported/shared boards are not yet marked."
+
+**This carries a dated deadline.** Article 50 has applied since 2 August 2026, and the Digital
+Omnibus did not amend it. Generative systems already on the market before that date received a
+narrow grace period specifically for retrofitting the Article 50(2) machine-readable marking,
+running to **2 December 2026**. If LingoLinq's board generation was on the market before 2 August
+2026, that is approximately three months from this memorandum. Question 16 asks counsel to confirm
+whether the grace period reaches us and what "on the market" means for a feature behind a flag.
 
 ### 5.2 The egress paths our AI documents do not cover
 
@@ -455,11 +492,22 @@ duties on deployers of emotion-recognition, biometric-categorisation, and deepfa
 Paragraph 5 fixes timing. **No paragraph imposes any record-keeping, logging, or retention
 obligation.**
 
-**Where the AI Act's log-retention duty actually sits.** Article 19 requires providers to keep the
-logs referred to in Article 12(1) for "a period appropriate to the intended purpose ... of at
-least six months, unless provided otherwise in the applicable Union or national law." Article 19
-binds **providers of high-risk AI systems**. It is a six-month floor, not a five-year duration,
-and it does not reach a system that is not high-risk.
+**Where the AI Act's log-retention duty actually sits.** Article 12 requires that a high-risk
+system be technically capable of automatically recording events. Article 19 then requires
+providers to keep those logs "to the extent such logs are under their control," for "a period
+appropriate to the intended purpose ... of at least six months, unless provided otherwise in the
+applicable Union or national law." Article 26(6) places a parallel six-month floor on deployers.
+All three bind **high-risk** systems only. The duty is a six-month floor, not a five-year
+duration, and it does not reach a system that is not high-risk.
+
+**The timeline has moved, and it matters here.** The Digital Omnibus, Regulation (EU) 2026/1744,
+entered into force on 27 July 2026. It deferred the stand-alone Annex III high-risk obligations
+from 2 August 2026 to **2 December 2027**, and the Annex I product-embedded obligations to
+2 August 2028. It did **not** amend Article 50, whose transparency duties took effect on schedule
+on 2 August 2026, subject only to the 2 December 2026 marking grace period described in section
+5.1. So the practical position today is that Article 50 binds us now, while any Article 19
+obligation would not attach before December 2027 even on the assumption that we are high-risk,
+which we do not assume. Question 14 asks counsel to test that assumption.
 
 **Proposed conclusion.** The five-year figure has no basis in Article 50, and the only AI Act
 retention provision that could apply is both shorter and conditioned on a high-risk
@@ -524,6 +572,27 @@ full-compliance date, and tell us whether any of the exceptions changes the anal
 We have no such written, published retention policy, and for non-EU rows we have no purge at all.
 That is the largest single gap this memorandum identifies.
 
+**A second COPPA point, because we rely on it in the product.** Our privacy notice states that we
+accept a FERPA school-official authorization in place of direct parental consent, limited to
+school-curriculum use with no AI features, no profiling, and no advertising
+(`app/frontend/app/templates/privacy.hbs:74`). That is a careful framing, but counsel should know
+what it rests on. The FTC **declined to codify** the school-authorization pathway in the 2025
+amendments, stating that it was "not finalizing the proposed amendments to the Rule related to ed
+tech and the role of schools at this time" in order to avoid conflict with potential changes to
+the Department of Education's FERPA regulations. The school-consent doctrine therefore remains
+**1999 FTC staff guidance rather than Rule text**, valid only for collection for the use and
+benefit of the school and for no other commercial purpose. Question 10 asks whether our framing
+holds and what we must do to keep it holding.
+
+The same notice promises that any use of AI word prediction or AI-drafted evaluation summaries by
+a child under 13 "requires verifiable parental consent under 16 CFR Part 312." What actually gates
+those features is the **account-activation** parental consent
+(`coppa_parental_consent_blocks_access?`), not a separate AI-specific consent. The separate
+AI-consent mechanism exists in code and, as section 5.1 records, has no runtime caller.
+Question 19 asks whether account-level consent satisfies what the notice promises, given that the
+2025 amendments require separate verifiable parental consent for disclosure of a child's personal
+information to third parties.
+
 ---
 
 # PART D: IMPLEMENTATION GAPS
@@ -545,7 +614,9 @@ item; "2026-08-29 triage" marks rows dispositioned on the unmerged CEO triage br
 | 8 | Live privacy notice states no user content goes to an AI vendor | Customer-facing accuracy | new, **urgent** |
 | 9 | Speech-to-Text, Text-to-Speech, Translation, and OpenSymbols carry user content with no COPPA, EU, Article 50, or user-preference gate, and no AI log record | Principle 5; a child's voice recording is COPPA personal information | new |
 | 10 | COPPA and EU AI gates pass when the subject user is not resolvable | Gates should fail closed | new |
-| 11 | Article 50(2) marking not found for saved, exported, or shared boards | Marking obligation is in force as of 2026-08-02 | new |
+| 11 | Article 50(2) marking not persisted onto saved, exported, or shared boards | Marking obligation in force since 2026-08-02; the retrofit grace period for pre-existing generative systems appears to end **2026-12-02** | new, **dated** |
+| 11a | The versioned verifiable-AI-consent mechanism has no runtime caller | A built consent control that nothing invokes; the notice promises consent the gates do not separately collect | new |
+| 11b | No AI call site writes `ip_address` or `organization_global_id`, so the 90-day IP redaction has nothing to redact | Not a privacy exposure, but a control we have described as active that is inert | new |
 | 12 | No accounting of disclosure for supervisor and org-manager reads of utterance logs | If an accounting obligation applies, this is where it fails | new |
 | 13 | `PredictionEntry` rows survive account deletion | Erasure incomplete | `LL-e8614c103f` |
 | 14 | No self-service full-account portable export | Access and portability rights | new |
@@ -556,9 +627,10 @@ item; "2026-08-29 triage" marks rows dispositioned on the unmerged CEO triage br
 | 19 | Production GCP audit-log and least-privilege findings | Access accounting for the data store | `LL-b7ccc522b9`, `LL-c0b3d59f58`, both verified closed on a live read in the 2026-08-29 triage |
 
 **Proposed sequencing**, subject to counsel's answers: item 8 immediately, because it is a live
-customer-facing statement. Then 3 and 2 together, since 2 cannot be built safely without 3. Then
-9 and 10, which are the same class of fix. Then 1 and 4. Then 7, a drafting task that depends on
-Part E. Items 5, 6, and 12 can proceed independently.
+customer-facing statement. Then item 11, because it is the only gap with a date attached and that
+date may be 2 December 2026. Then 3 and 2 together, since 2 cannot be built safely without 3.
+Then 9 and 10, which are the same class of fix. Then 1 and 4. Then 7, a drafting task that depends
+on Part E. Items 5, 6, 11a, 11b, and 12 can proceed independently.
 
 ---
 
@@ -611,7 +683,11 @@ internally.
    reporting, and is 12 months defensible for under-13 accounts?
 10. **Will you draft the 16 CFR 312.10 written retention policy, or review our draft?** It must
     state purposes, business need, and a deletion timeframe, and be published in the 312.4(d)
-    notice. What must it say about data a school authorised us to collect on the parent's behalf?
+    notice. Relatedly: **does our school-authorization framing hold?** Our notice accepts a FERPA
+    school-official authorization in place of direct parental consent for school-curriculum use
+    with no AI, no profiling, and no advertising. The FTC declined to codify that pathway in the
+    2025 amendments, so it rests on 1999 staff guidance rather than Rule text. Is the framing
+    sound, and what must we do to keep it sound?
 11. **Is "supersession plus seven years" the right treatment for our compliance records**, or
     should we match 164.530(j) at six years?
 12. **Should a customer be able to instruct us to retain longer than our default?** If so, what
@@ -630,20 +706,32 @@ internally.
 15. **Is our disclosure posture right?** Our EU jurisdiction resolver returns "unknown" for
     essentially every production account. We propose disclosing to everyone and stamping
     jurisdiction only when confirmed. Does that create a problem we have not seen?
-16. **Article 50(2) marking is not applied to saved, exported, or shared boards.** Given the
-    obligation is in force as of 2 August 2026, how quickly must that be closed, and does an
-    AI-assisted board that a human then edits remain "artificially generated" content?
+16. **Article 50(2) marking is not applied to saved, exported, or shared boards**, and the code
+    says so itself. Generative systems already on the market before 2 August 2026 appear to have
+    until **2 December 2026** to retrofit machine-readable marking. Does that grace period reach
+    us, and what does "already on the market" mean for a feature that has shipped behind a flag?
+    Separately, does an AI-assisted board that a human then edits remain "artificially generated"
+    content for marking purposes?
 17. **Would an AAC utterance log be Article 9 special-category data?** If yes, what lawful basis
     under Article 9(2) should we rely on, and does it change the retention analysis?
-18. **Do we need an Article 30 Records of Processing Activities document**, or does the Article
-    30(5) derogation reach us given our headcount and the nature of the data?
+18. **Do we need an Article 30 Records of Processing Activities document?** We are not assuming
+    the Article 30(5) small-organisation derogation covers us. That derogation is lost if the
+    processing is likely to risk data subjects' rights, **or** is not occasional, **or** includes
+    Article 9 special categories. Our processing of student and patient communication data is
+    continuous rather than occasional, and question 17 asks whether it is special-category. On
+    that reading the derogation is unlikely to apply regardless of headcount. Do you agree, and
+    if so will you specify the record's contents for a processor in our position?
 
 ### 15.5 AI and external egress
 
 19. **Is sending scrubbed but user-linked text to Amazon Bedrock under the AWS BAA a disclosure
-    requiring consent, notice, or both**, separately for each of FERPA, COPPA, and GDPR? We
-    currently obtain a separate AI data-sharing consent and would like to know whether it is
-    necessary, sufficient, or neither.
+    requiring consent, notice, or both**, separately for each of FERPA, COPPA, and GDPR? Two
+    specifics. First, our AI features are gated by the **account-activation** parental consent,
+    not by a separate AI consent; the separate AI-consent mechanism is built but has no runtime
+    caller. Does account-level consent satisfy the 2025 amendments' requirement of separate
+    verifiable parental consent for third-party disclosure, and does it satisfy what our own
+    notice promises? Second, if a separate consent is required, we will wire the existing
+    mechanism up rather than build a new one, and would like your view on the disclosure text.
 20. **What is required for the Google Speech-to-Text path?** It sends a recording of a child's
     voice to Google, gated only by a coarse organization switch that defaults to allow, with no
     COPPA gate and no log record. Under 16 CFR 312.2 a child's voice recording is itself personal
@@ -663,9 +751,31 @@ internally.
     Business Associate" and "act as a School Official"
     (`app/frontend/app/templates/privacy.hbs:72-73`); we would like your view on both.
 
-### 15.6 Process
+### 15.6 US state student-privacy law
 
-24. **Which corrections in Part C should be applied by superseding the affected attested records,
+We did a first-pass survey only, from secondary compliance summaries rather than statute text, so
+these are framed as questions rather than positions.
+
+24. **Which state student-privacy regimes bind us today, and which are contract-driven?** Our
+    first pass suggests three patterns we would need to satisfy:
+    - **California**, SOPIPA (Bus. & Prof. Code 22584) plus AB 1584 (Ed. Code 49073.1). SOPIPA
+      bars sale, targeted advertising, and profiling of K-12 student data and requires compliance
+      with school deletion requests; AB 1584 works through required contract clauses, commonly
+      including deletion of all student data and backups on contract termination with proof.
+    - **New York**, Education Law 2-d. Appears to impose an explicit **30-day** clock to securely
+      delete or destroy all student data remaining in the vendor's possession after contract
+      expiry or termination, with obligations surviving termination and flowing to subcontractors.
+    - **Illinois**, SOPPA (105 ILCS 85). Deletion after a defined period and on parent request
+      routed through the school, conditioned by other records-retention law.
+
+    Do these bind us directly, only through customer contracts, or both? Is the New York 30-day
+    clock the tightest deletion obligation we face, and should we simply build to it as the
+    default rather than maintaining per-state behavior? And which other states should be on this
+    list that our first pass missed?
+
+### 15.7 Process
+
+25. **Which corrections in Part C should be applied by superseding the affected attested records,
     and which by a correction note that leaves the attested record frozen?** Our internal rule
     freezes an attested document's bytes permanently and supersedes it with a dated successor. We
     want your view on whether that is the right shape for records that reach customers in a
@@ -686,10 +796,15 @@ from memory.
 | COPPA Rule amendments, Federal Register 2025-04-22 (RIN 3084-AB20) | https://www.federalregister.gov/documents/2025/04/22/2025-05904/childrens-online-privacy-protection-rule |
 | FTC announcement of the final COPPA amendments | https://www.ftc.gov/news-events/news/press-releases/2025/01/ftc-finalizes-changes-childrens-privacy-rule-limiting-companies-ability-monetize-kids-data |
 | 34 CFR 99.31(a)(1) (FERPA school-official exception) | https://www.law.cornell.edu/cfr/text/34/99.31 |
+| 34 CFR 99.10(e) (FERPA, the only destruction rule in Part 99) | https://www.law.cornell.edu/cfr/text/34/99.10 |
+| 45 CFR 164.502(b), 164.514(d) (HIPAA minimum necessary and its exceptions) | https://www.law.cornell.edu/cfr/text/45/164.502 |
 | Regulation (EU) 2024/1689 Article 50 (transparency) | https://artificialintelligenceact.eu/article/50/ |
-| Regulation (EU) 2024/1689 Article 19 (automatically generated logs) | https://artificialintelligenceact.eu/article/19/ |
-| Regulation (EU) 2024/1689 Article 113 (application dates) | https://artificialintelligenceact.eu/article/113/ |
+| Regulation (EU) 2024/1689 Articles 12, 19, 26 (logging, high-risk only) | https://artificialintelligenceact.eu/article/19/ |
+| Regulation (EU) 2024/1689 Article 113 and Annex III | https://artificialintelligenceact.eu/article/113/ ; https://artificialintelligenceact.eu/annex/3/ |
 | Authoritative EU text | https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=OJ:L_202401689 |
+| Digital Omnibus, Regulation (EU) 2026/1744, deferring Annex III high-risk to 2027-12-02 while leaving Article 50 on its original date | https://www.goodwinlaw.com/en/insights/publications/2026/08/alerts-technology-dpc-eu-ai-act-transparency-obligations-now-in-force ; https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/ ; https://www.whitecase.com/insight-alert/eu-ai-omnibus-enters-force-amending-ai-act |
+| Article 50(2) marking grace period to 2026-12-02 | https://labs.cloudsecurityalliance.org/research/csa-research-note-eu-ai-act-article-50-transparency-20260729/ |
+| FTC declining to codify the ed-tech / school-authorization pathway in the 2025 amendments | https://www.lw.com/en/insights/ftc-publishes-updates-to-coppa-rule |
 
 **Retrieval limitations, stated rather than papered over.**
 
@@ -705,12 +820,21 @@ from memory.
   were confirmed separately against ftc.gov and federalregister.gov. **We did not separately
   verify the rule's own effective date**, which differs from the full-compliance date, and
   counsel should confirm both.
-- The Article 113 application timeline retrieved differs from the timeline as originally
-  published, indicating subsequent amendment. **The dates in section 11 should be confirmed
-  against the consolidated text.**
-- State student-privacy retention and deletion duties (for example California AB 1584, New York
-  Education Law 2-d, Illinois SOPPA) were **not researched** for this memorandum and are a gap we
-  ask counsel to close.
+- **The EU AI Act timeline in section 11 is the fastest-moving item here and is sourced
+  secondarily.** The Digital Omnibus, the Annex III deferral to 2 December 2027, and the
+  2 December 2026 Article 50(2) marking grace period were each confirmed across several
+  independent 2026 law-firm and compliance analyses that agree with one another, but **we did not
+  retrieve Regulation (EU) 2026/1744 from EUR-Lex directly**; the base AI Act page truncated
+  before reaching Article 113. Counsel should confirm against CELEX:32026R1744 before we act on
+  the December 2026 marking deadline.
+- **GDPR Article 9(1) and Article 30(5) were read from convenience mirrors, not EUR-Lex**, whose
+  page truncated. One retrieved Article 9(1) extract appeared to omit enumerated categories
+  (biometric data for unique identification, and sexual orientation), so nothing in this
+  memorandum quotes Article 9(1) verbatim. Counsel should work from the authoritative text.
+- **State student-privacy law in section 15.6 is a first-pass survey from secondary compliance
+  summaries, not from statute text.** Cal. Bus. & Prof. Code 22584, Cal. Ed. Code 49073.1, NY
+  Education Law 2-d and 8 NYCRR Part 121, and 105 ILCS 85 were not independently retrieved. Treat
+  the New York 30-day figure in particular as unconfirmed.
 
 ## 17. Governance and register posture
 
