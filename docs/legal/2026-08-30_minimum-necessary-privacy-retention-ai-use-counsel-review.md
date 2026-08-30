@@ -361,7 +361,7 @@ region.
 AWS has no relationship with our controllers, "**Customer will fulfil AWS's obligations to
 Customer's controllers under the Processor-to-Processor Clauses**." Under Module Three we are the
 data exporter, and AWS's obligations toward the school or hospital run through us. Our customer
-DPAs need to carry that. Question 24 asks counsel to check them.
+DPAs need to carry that. Question 27 asks counsel to check them.
 
 **An available supplementary measure, correctly scoped.** AWS publishes an **EU geo inference
 profile for the exact model we run**: `eu.anthropic.claude-haiku-4-5-20251001-v1:0`. Called from
@@ -383,7 +383,7 @@ The honest framing is that EU Bedrock routing removes **one onward transfer leg*
 surface a Transfer Impact Assessment has to cover. It is worth doing on those terms. It is not a
 repatriation of the data, and we should not describe it to a customer as one. Any assessment of
 whether the overall data path can be made EU-resident would have to take in hosting, database,
-backups, logging, and error telemetry, not just inference. Question 26 asks counsel how to
+backups, logging, and error telemetry, not just inference. Question 29 asks counsel how to
 prioritise that.
 
 **Two blockers, both ours.** We cannot route by jurisdiction today, because
@@ -437,7 +437,7 @@ attestation, the system **defaults to treating the user as under 13**.
 - **Uploaded board images and sounds are given a `public-read` S3 ACL** unless the upload is
   marked private or the `UPLOADS_S3_NO_ACL` environment variable is set
   (`lib/uploader.rb:482, 491`). Whether that variable is set in production is not knowable from
-  source, and question 22 asks about it.
+  source, and question 24 asks about it.
 
 Two smaller items: `settings['old_emails']` retains every prior address indefinitely, and
 `saved phrases` and `contacts` are exposed at the `model` permission level rather than
@@ -480,7 +480,7 @@ defect.
 | `ai_api_logs`, accounts known to be under 13 | 12 months | Row creation | Same COPPA basis |
 | `cluster_locations` (geolocation, IP clusters) | 90 days | Record creation | Matches what the current documentation already claims; the job needs building |
 | `api_calls`, `telemetry_events` | 90 days and 6 months respectively | Record creation | Purge code already exists at those windows; it needs a caller |
-| `audit_events` | 6 years **only if** counsel confirms these are Security Rule documentation; otherwise 24 months | Record creation | Question 6 |
+| `audit_events` | 6 years **only if** counsel confirms these are Security Rule documentation; otherwise 24 months | Record creation | Question 7 |
 | PaperTrail change history | Current behavior, documented honestly | Existing thresholds | We propose correcting the document rather than building the archival job it describes, unless counsel identifies an obligation the current behavior defeats |
 
 **PROPOSED, deliberately absent.** We propose to **remove** the five-year EU tier and the
@@ -501,6 +501,12 @@ organization. It should not be the default.
    subject is an EU resident under 16, parental consent for AI specifically. Both gates exist for
    Bedrock; the proposal is to (a) make them fail closed when the subject user is not resolvable
    and (b) extend them to Speech-to-Text, Text-to-Speech, Translation, and OpenSymbols.
+   **Error telemetry is the awkward case and we are not hiding it.** Sentry currently receives
+   user ids, IPs, headers, cookies, and request bodies for every user who is not a COPPA-pending
+   child. A consent gate is the wrong instrument for crash reporting, so either this principle is
+   narrowed to exclude operational telemetry on a separate lawful basis that counsel states, or
+   the Sentry payload is minimised until it no longer carries user-derived content. We are not
+   choosing between those here; question 25 asks.
 2. **A child's voice recording is treated as the most sensitive class we hold**, and
    Speech-to-Text is gated at least as strictly as Bedrock.
 3. **Scrubbing is a safeguard, never a legal characterisation.** "Scrubbed" or "pseudonymised" in
@@ -511,12 +517,16 @@ organization. It should not be the default.
    regardless of jurisdiction. A jurisdiction resolver that returns "unknown" for essentially
    every account should not be what decides whether a person is told the truth.
 6. **No student or patient content to any route lacking a BAA or an equivalent instrument.**
-   Current practice; we propose to keep it as a written rule and to confirm which instrument
-   covers the Google paths.
+   We propose this as a written rule. We are **not** presenting it as settled current practice,
+   because we cannot show it holds today: the Google paths are understood to sit under the Google
+   Cloud data processing terms, but a repository-wide search finds **no OpenSymbols entry in any
+   subprocessor register and no recorded DPA, BAA, or equivalent instrument**, while
+   `lib/open_symbols.rb:42` sends a user-typed search query. Question 26 asks counsel what that
+   route needs before the rule can honestly be described as practice.
 
 ### 9.1 Proposed statement on international transfers
 
-**PROPOSED, subject to counsel's confirmation at questions 24 to 26.** We propose the document
+**PROPOSED, subject to counsel's confirmation at questions 27 to 29.** We propose the document
 state the following, and nothing broader:
 
 > Where LingoLinq processes personal data subject to the EU GDPR or UK GDPR and that data is
@@ -560,7 +570,7 @@ would have to be re-examined every time the adequacy decision is challenged, whe
 SCC-based statement with a live Transfer Impact Assessment survives that. This is a **proposed
 position, not a legal conclusion**: AWS holds an active DPF certification and its DPA also carries
 an alternative-mechanism clause at 12.3, so the choice between the two is counsel's to make and
-cannot be settled mechanically from the documents. Question 25 asks.
+cannot be settled mechanically from the documents. Question 28 asks.
 
 **Supplementary measures we propose to state**, in descending order of actual effect: TLS in
 transit and encryption at rest; `PiiScrubber` redaction before egress, described as
@@ -629,7 +639,7 @@ which we do not assume. Question 14 asks counsel to test that assumption.
 **Proposed conclusion.** The five-year figure has no basis in Article 50, and the only AI Act
 retention provision that could apply is both shorter and conditioned on a high-risk
 classification we have not established. We propose to withdraw the legal basis. Whether to keep
-the mechanism is a separate question, put at question 12.
+the mechanism is a separate question, put at question 13.
 
 ## 12. The six-year HIPAA floor is narrowed
 
@@ -662,12 +672,12 @@ can be argued that records generated to satisfy those become records of an actio
 required to be documented under 164.316(b)(1)(ii). We think that argument, if it succeeds,
 reaches our `audit_events` table rather than `ai_api_logs`, because `audit_events` records access
 and administrative action while `ai_api_logs` records feature usage. We are not confident, and
-questions 5 and 6 ask directly.
+questions 6 and 7 ask directly.
 
 **Where the six-year citation is used correctly.** Our document register applies a "supersession
 plus seven years" rule to policy versions and audit evidence, citing 164.530(j) as a floor it
 exceeds (`audit-reports/DOCUMENT-REGISTER.json`, `meta.retentionSchedule`). That is precisely the
-category the six-year rule was written for. We propose no change and question 10 asks for
+category the six-year rule was written for. We propose no change and question 11 asks for
 confirmation.
 
 ## 13. Consequence for the unshipped tiers
@@ -730,6 +740,7 @@ item; "2026-08-29 triage" marks rows dispositioned on the unmerged CEO triage br
 | 7 | No written, published children's data retention policy | 16 CFR 312.10 requires one, in the 312.4(d) notice | new |
 | 8 | Live privacy notice states no user content goes to an AI vendor | Customer-facing accuracy | new, **urgent** |
 | 9 | Speech-to-Text, Text-to-Speech, Translation, and OpenSymbols carry user content with no COPPA, EU, Article 50, or user-preference gate, and no AI log record | Principle 5; a child's voice recording is COPPA personal information | new |
+| 9a | Sentry receives exception events plus roughly 5 percent of transactions, including user id, IP, headers, cookies, and request body, suppressed in full only for COPPA-pending children | Same principle. This is a live production egress path that the proposed rule as first drafted did not reach | new |
 | 10 | COPPA and EU AI gates pass when the subject user is not resolvable | Gates should fail closed | new |
 | 11 | Article 50(2) marking not persisted onto saved, exported, or shared boards | Marking obligation in force since 2026-08-02; the retrofit grace period for pre-existing generative systems appears to end **2026-12-02** | new, **dated** |
 | 11a | The versioned verifiable-AI-consent mechanism has no runtime caller | A built consent control that nothing invokes; the notice promises consent the gates do not separately collect | new |
@@ -742,7 +753,7 @@ item; "2026-08-29 triage" marks rows dispositioned on the unmerged CEO triage br
 | 17 | District seat reclaim converts an under-13 account to a consumer trial with no parental re-consent | Consent state does not follow the account through a lifecycle change | `LL-f150e0e828`, remediated 2026-08-29 triage, awaiting production verification |
 | 18 | No server-side password strength policy | Access control to the record set | `LL-5617f4e17d` |
 | 19 | Production GCP audit-log and least-privilege findings | Access accounting for the data store | `LL-b7ccc522b9`, `LL-c0b3d59f58`, both verified closed on a live read in the 2026-08-29 triage |
-| 20 | Cannot route EU or UK users to the EU geo inference profile. The jurisdiction resolver returns `:unknown` for essentially every account, and region is a single environment value rather than a per-request decision | Blocks the one supplementary measure that would end the Chapter V transfer instead of papering it | new |
+| 20 | Cannot route EU or UK users to the EU geo inference profile. The jurisdiction resolver returns `:unknown` for essentially every account, and region is a single environment value rather than a per-request decision | Blocks the supplementary measure that would relocate model inference into the EEA. Per section 5.2 this removes ONE onward transfer leg; it does not end the Chapter V transfer, because the application is US-hosted | new |
 | 21 | No Transfer Impact Assessment exists for the Bedrock transfer | Required when relying on SCCs rather than adequacy. Until one exists, the proposed customer statement in section 9.1 cannot be published in full | new |
 | 22 | The whole data path is US-resident (Cloud Run, Cloud SQL, and Redis in GCP `us-central1`), so EU personal data is in the United States before any AI call. Whether it can be made EU-resident is not scoped anywhere | Determines whether EU inference routing is worth building on its own, or is a partial measure inside a larger unaddressed question | new |
 
@@ -871,21 +882,37 @@ internally.
     Business Associate" and "act as a School Official"
     (`app/frontend/app/templates/privacy.hbs:72-73`); we would like your view on both.
 
+24. **Uploaded board images and voice recordings receive a `public-read` S3 ACL** unless the
+    upload is marked private or the `UPLOADS_S3_NO_ACL` environment variable is set
+    (`lib/uploader.rb:482, 491`). We cannot tell from source whether that variable is set in
+    production. Assuming it is not, what is the exposure for a communicator's recorded voice or a
+    board image containing a child's photograph, and does it change the analysis under FERPA,
+    COPPA, or Article 32 GDPR?
+25. **What is the right treatment for error telemetry?** Sentry receives user ids, IPs, headers,
+    cookies, and request bodies for every user who is not a COPPA-pending child
+    (`config/initializers/sentry.rb:5-40`). A consent gate is the wrong instrument for crash
+    reporting. Should we rely on a separate lawful basis for operational telemetry, which we would
+    like you to state, or minimise the payload until it carries no user-derived content?
+26. **What does the OpenSymbols route need?** `lib/open_symbols.rb:42` sends a user-typed symbol
+    search query to a third party. We find no OpenSymbols entry in any subprocessor register and no
+    recorded DPA, BAA, or equivalent instrument. Is one required, is the query low-risk enough that
+    it is not, and should the route be disabled until the answer is known?
+
 ### 15.6 International transfers
 
-24. **Is Module Three the right module, and do our customer DPAs carry the flow-down?** We read
+27. **Is Module Three the right module, and do our customer DPAs carry the flow-down?** We read
     the ordinary case as LingoLinq acting as processor for a school or hospital, making the
     LingoLinq-to-AWS leg a processor-to-processor transfer under Module Three, which the AWS DPA
     applies automatically. AWS also pushes its Module Three obligations toward our controllers
     onto us (DPA 12.2.2). Do our school and hospital DPAs actually carry that, and what language
     do they need? Relatedly, is the EU-controller-to-LingoLinq leg separately papered under
     Module Two in those same agreements?
-25. **Should we state SCCs or the EU-US Data Privacy Framework as the transfer basis?** AWS is a
+28. **Should we state SCCs or the EU-US Data Privacy Framework as the transfer basis?** AWS is a
     covered entity under an active Amazon.com, Inc. DPF certification, but the AWS DPA does not
     mention the DPF and provides for SCCs. We propose to state SCCs and treat the DPF as
     supporting evidence in the Transfer Impact Assessment. Do you agree, and does relying on SCCs
     where an adequacy route arguably exists create any problem?
-26. **What must the Transfer Impact Assessment cover, and will you review ours?** Specific facts
+29. **What must the Transfer Impact Assessment cover, and will you review ours?** Specific facts
     we think it has to address: the data is verbatim communication content from children with
     disabilities, which may be Article 9 special-category data (question 17); the model runs on a
     **US geo cross-region profile** that may route to three US regions with prompts and outputs
@@ -904,7 +931,7 @@ internally.
 We did a first-pass survey only, from secondary compliance summaries rather than statute text, so
 these are framed as questions rather than positions.
 
-27. **Which state student-privacy regimes bind us today, and which are contract-driven?** Our
+30. **Which state student-privacy regimes bind us today, and which are contract-driven?** Our
     first pass suggests three patterns we would need to satisfy:
     - **California**, SOPIPA (Bus. & Prof. Code 22584) plus AB 1584 (Ed. Code 49073.1). SOPIPA
       bars sale, targeted advertising, and profiling of K-12 student data and requires compliance
@@ -923,7 +950,7 @@ these are framed as questions rather than positions.
 
 ### 15.8 Process
 
-28. **Which corrections in Part C should be applied by superseding the affected attested records,
+31. **Which corrections in Part C should be applied by superseding the affected attested records,
     and which by a correction note that leaves the attested record frozen?** Our internal rule
     freezes an attested document's bytes permanently and supersedes it with a dated successor. We
     want your view on whether that is the right shape for records that reach customers in a
@@ -1003,7 +1030,7 @@ The corrections proposed in Part C bear on the following records, none of which 
 memorandum: `docs/legal/DATA_RETENTION.md` (attested, superseded) and its dated successor
 `docs/legal/2026-08-09_data-retention_draft.md`; `docs/legal/AI_DATA_FLOW_CLASSIFICATION.md`
 (attested, superseded) and its dated successors. If counsel accepts the corrections, applying them
-is a separate governance act requiring the CEO's attestation, and question 24 asks how it should
+is a separate governance act requiring the CEO's attestation, and question 31 asks how it should
 be done.
 
 **Author-Model:** opus-5
