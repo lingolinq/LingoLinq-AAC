@@ -179,7 +179,7 @@ These are implemented and operating, not aspirational:
   events tied to child users before they reach the error tracker.
 - **Console auditing** (`AuditEvent`) and **AI call logging** (`AiApiLog`): privileged access
   and external model calls are recorded with audit trails. The audited-console wrapper residual
-  (LL-7f7372e3eb) remains open for per-session AuditEvent coverage.
+  (LL-7f7372e3eb) ~~remains open for per-session AuditEvent coverage~~ is verified-closed 2026-08-30. **[Updated 2026-08-30: LL-7f7372e3eb is verified-closed. The control IS operative: bin/rails runs a pre-boot refusal and config/initializers/auditing.rb writes a session-open AuditEvent fail-closed. Scope caveat: this covers `rails console` and `rails runner` only, not rake tasks or a direct `ruby -r./config/environment` boot. Residual: USER_KEY is self-asserted, so the actor is spoofable.]**
 - **Eval-narration AI gating** (`lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb`):
   the comprehensive assessment narrator is held to the same controls as the rest of the AI
   surface. Student PII is scrubbed before egress, every call is recorded in `AiApiLog`, a COPPA

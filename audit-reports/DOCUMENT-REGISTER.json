@@ -1684,7 +1684,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "4ef7e1616f1be902050ac8fce2014463e461699c01300c6e2a3cfd6a8a3d3a65",
+      "contentHash": "084034244caf387090a3d485e29c216fd839c1fec8d9efa0ce737b1b829d5cda",
       "bundles": [],
       "mirrors": [
         {
@@ -3699,7 +3699,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "5dfd58dec0f965b9ed8ef8270efb20aaf769b054a081a5d427862749a27429bc"
+      "contentHash": "dd6e9b3265c7f48d8d59140a05a47d58dadae1c315f989713b31ea2579ea70cf"
     },
     {
       "title": "Compliance & Security Program (2026-08-22 successor)",
@@ -3732,7 +3732,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "b5edf13cd0c919277bab0cbf0be2c7f4fe3d155d56f45f4e38c4e41f50d1b1ee"
+      "contentHash": "8fd7c935ce2866363adf53fc7e2fbc3055045b60e45fcf20ac57bfa77b33dd96"
     },
     {
       "title": "Compliance Status Snapshot (2026-08-22)",
@@ -3759,7 +3759,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-3468caf949",
-      "contentHash": "f1b9ad6728a2533f21b4d7836411ee3bd52d41e6718b7195af55f084164c40a4"
+      "contentHash": "0729df846a4ddd580bab2f30982c99e46b211fa7be8a19c73c6743537f36a1f5"
     },
     {
       "title": "Article 50(1) Disclosure - Production Feature-Flag Verification",
