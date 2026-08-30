@@ -12562,6 +12562,12 @@ When Copilot flags the emails, grep `prepare an export` across mailers *and*
 `app/views/parental_consents/`. Ref:
 [`2026-08-17-copilot-coppa-review-comments.md`](./2026-08-17-copilot-coppa-review-comments.md).
 
+## Gotcha: COPPA offboarding is flag-gated, not just the birth-date check
+
+**Surface:** `User#requires_coppa_offboarding?`, `User.process_expired_offboarding_consents!`, `Organization#remove_user`.
+
+`JsonApi::Json.coppa_parental_consent_enabled?` is a domain settings row (DB override, not `lib/feature_flags.rb`). It does more than require birth month/year on seat reclaim. When the flag is off, `requires_coppa_offboarding?` returns false at `user.rb:514`, so `begin_family_offboarding_consents!` never stamps COPPA pending, and the expiry sweep returns 0 at `user.rb:878`. `Organization#remove_user` still reclaims the seat. The original LL-f150e0e828 gap (minor converted to a consumer trial with no parental re-consent) therefore still occurs if production has the setting disabled. Do not write "the flow is fixed regardless of the flag" or move that row to `verified-closed` until the live production setting is read as enabled. Ref: Codex review of PR #887; task log [`2026-08-30-high-findings-triage-staging-merge.md`](./2026-08-30-high-findings-triage-staging-merge.md).
+
 ## Gotcha: staging → audit-register merge is a union, then regenerate
 
 When `staging` lands on a findings-register branch, do not pick one side of

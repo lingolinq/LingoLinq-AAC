@@ -134,10 +134,12 @@ bin/audit_console
 > Note: this script was previously named `bin/heroku_console`. It no longer
 > invokes the Heroku CLI; it sets `USER_KEY` and `exec`s `bundle exec rails
 > console`, so it works from the Render Shell tab, a Cloud Run exec shell, or a
-> local checkout. `USER_KEY` provides self-asserted PaperTrail write-attribution
-> only (see the Security section); the wrapper does NOT currently record a
-> per-session `AuditEvent` (the Reline-bypassed Readline hook is non-operative),
-> a gap tracked under open finding LL-7f7372e3eb.
+> local checkout. `USER_KEY` does two things: it attributes record writes to you
+> via PaperTrail, and it satisfies the audited-session control, which records a
+> session-open `AuditEvent` and refuses the session in production when the key is
+> absent (see the Security section). The control is operative as of 2026-08-29
+> (finding LL-7f7372e3eb, verified-closed); the older note claiming it was dead
+> on the Reline stack is obsolete.
 
 **Scheduled tasks (run periodically in production):**
 ```bash
@@ -359,7 +361,7 @@ change is large, or genuinely introduces a new capability, ask.
 
 - Avoid OWASP Top 10 vulnerabilities (XSS, SQL injection, command injection, etc.)
 - User data is privacy-regulated - use `secure_serialize` concern for sensitive fields
-- Console access: use `bin/audit_console` (sets `USER_KEY` so console record-writes are attributed to you via PaperTrail, and works from the Render Shell tab, a Cloud Run exec shell, or locally), not a bare `rails console`. NOTE: `USER_KEY` is self-asserted free text, not derived from an authenticated principal, so the attributed actor is spoofable and the wrapper is opt-in (a bare `rails console` bypasses it with no attribution). The per-session `AuditEvent` logging this is meant to feed is also currently non-operative on the Ruby 3.4 / Reline stack (Readline hook bypassed; `ARGV_COMMAND` undefined at boot so the un-keyed-console refusal never fires). All three gaps are tracked as open finding LL-7f7372e3eb
+- Console access: use `bin/audit_console` (sets `USER_KEY` so console record-writes are attributed to you via PaperTrail, and works from the Render Shell tab, a Cloud Run exec shell, or locally). The audited-session control is **operative** as of 2026-08-29 (LL-7f7372e3eb, verified-closed) and is not wrapper-only: `bin/rails` runs `Audit::ConsoleGuard.enforce_pre_boot!` before the app boots, and `bundle exec rails console` re-execs through `bin/rails` (`Rails::AppLoader.exec_app`), so both paths are covered. In production an un-keyed `console`/`runner` is refused pre-boot, `db`/`dbconsole` is refused outright (HIPAA), and `config/initializers/auditing.rb` re-checks at runtime (catching `-e`/`--environment` forms) before writing a session-open `AuditEvent` fail-closed. The wrapper's job is to prompt for `USER_KEY` rather than let you hit that refusal. RESIDUAL: `USER_KEY` is self-asserted free text, not derived from an authenticated principal, so the attributed actor is spoofable by anyone who already has a shell on the app; recorded in LL-7f7372e3eb's closure evidence
 - Protected IDs require nonce to prevent snooping
 
 ## PR Preflight (MANDATORY before opening a PR or pushing to an open PR)

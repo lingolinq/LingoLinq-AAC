@@ -189,8 +189,15 @@ customer-facing doc.
 5. **Triage untriaged Highs**, especially LL-522c1a6d13 (masquerade AuditEvent), LL-16ef84ad9a
    (pre-scrubber utterance cache), and the new 2026-08-12 GCP production-access/logging Highs
    (LL-1e7b568ef3, LL-b7ccc522b9, LL-c0b3d59f58, LL-0b5443f43b).
-6. **Approve re-anchor of LL-7f7372e3eb** so title/evidence match rewritten `bin/audit_console`
-   (finding stays open for the residual Reline / AuditEvent gap).
+   *Done 2026-08-29:* LL-522c1a6d13, LL-16ef84ad9a, LL-b7ccc522b9 and LL-c0b3d59f58 are
+   verified-closed; LL-1e7b568ef3 and LL-0b5443f43b were re-verified and remain open at High.
+6. ~~**Approve re-anchor of LL-7f7372e3eb**~~ *Resolved 2026-08-29: verified-closed, not
+   re-anchored.* The premise of this item is obsolete. The Reline / AuditEvent gap no longer
+   exists: the Readline monkeypatch was replaced by line-editor-agnostic Rails `console`/`runner`
+   hooks that write a session-open `AuditEvent` fail-closed, and `bin/rails` refuses an un-keyed
+   console/runner in production before boot. The surviving residual is narrower and is recorded in
+   the finding's closure evidence: `USER_KEY` is self-asserted free text, so the attributed actor
+   is spoofable by anyone who already has a shell on the app.
 7. **Calendar row `fix-euaiact-art50-2026-08-02`:** move from `upcoming` to `passed-enforceable`
    with a linked ongoing review (mirrors COPPA pattern). Drafted in this package if accepted.
 
