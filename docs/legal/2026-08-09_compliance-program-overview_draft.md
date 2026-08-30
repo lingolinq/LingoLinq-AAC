@@ -44,8 +44,10 @@
 > has been sent to a model provider on this path." **The operational-status claim is false.**
 > Credentials withdrawn on revision `00014-5rw` (2026-08-04T06:31:46Z) were restored on `00015-9l9`
 > 53 minutes later, and the 2026-08-12 production deploy of PR #734 put the path into
-> user-attributed use: production `AiApiLog` held **64 application-observed rows through 2026-08-14T21:13:27Z,
-> 63 of which carry a `user_global_id`** (`docs/legal/2026-08-16_subprocessor-register.md:99`;
+> user-attributed use: production `AiApiLog` held **64 application-observed rows through
+> 2026-08-14T21:13:27Z, of which 63 were written after the 2026-08-12 deploy and those same 63 carry
+> a `user_global_id`** (the 64th is the 2026-08-04 internal verification call, which carries no user)
+> (`docs/legal/2026-08-16_subprocessor-register.md:99`;
 > path verified live and serving revision swept 2026-08-16).
 >
 > **The second sentence is narrower than it looks and is not simply reversed.** Those 63
@@ -58,21 +60,26 @@
 >
 > **Evidence limit.** `AiApiLog` is an application-observed floor, not a ledger: `log_ai_call`
 > rescues `ActiveRecord::ActiveRecordError` and returns an unsaved record, and `Flusher` destroys
-> rows on erasure, so the application-observed counts above are a lower bound.
+> rows on erasure, so the application-observed counts above are a lower bound. It also records only
+> what the deployed application does, and vendor telemetry shows invocations issued directly against
+> the AWS API rather than through it. The assurance in the paragraph above is therefore the limit of
+> what our records can show, not a guarantee.
 >
 > **Vendor-side confirmation obtained 2026-08-26; narrowed 2026-08-28 and 2026-08-29.** An earlier
 > draft of this correction stated that no vendor-side confirmation had been obtained. That is no
 > longer true. CloudWatch `AWS/Bedrock` `Invocations` and CloudTrail `InvokeModel` were queried
 > against the LingoLinq production AWS account over `[2026-07-01, 2026-08-27)`. Every window below
-> is UTC and is stated as the half-open interval `[start, end)` that was actually queried, so
-> adjacent windows do not double-count. The telemetry establishes two things the application log
-> could not, and leaves a third open.
+> is UTC and half-open, written `[start, end)`. Where the interval described differs from the
+> interval actually queried, both are given. The telemetry establishes one thing the application log
+> could not, cannot resolve a second, and leaves a third open.
 >
 > First, the window this passage originally asserted was closed, `[2026-07-30, 2026-08-03)`, was not
 > empty. It carries 21 `InvokeModel` events in us-west-2: 13 failed and 8 succeeded. The 13 failures
-> were rejected by Bedrock (`AccessDenied`, and `ValidationException: The provided model identifier
-> is invalid`), so no inference occurred on them, though the request bodies did reach the AWS
-> endpoint, which is BAA-covered. **Corrected 2026-08-28:** an earlier revision of this note reported
+> were rejected by Bedrock (7 `AccessDenied`, 6 `ValidationException: The provided model identifier
+> is invalid`), so no inference occurred on them. The request bodies did reach the AWS endpoint,
+> which is BAA-covered, and we treat that as a transmission to a processor regardless: transmission
+> is processing under GDPR Art 4(2), and disclosure to a business associate is a disclosure under
+> HIPAA whether or not the recipient acted on it. **Corrected 2026-08-28:** an earlier revision of this note reported
 > 28 invocations with 26 attributed to the production runtime principal, and thereby implied the
 > deployed serving path was active in that window. It was not. Of the 8 successes, 7 carry
 > `userAgent: aws-cli` and 1 carries the application SDK
@@ -81,12 +88,16 @@
 > whether a person was present; the CLI is also the default in scripts and CI, so this document draws
 > no conclusion about who or what issued the calls.
 >
-> **What cannot be recovered.** Bedrock model-invocation logging was verified **off in all 17 Bedrock
-> regions** of this account on 2026-08-29, so no region persists prompt or response bodies. The
-> contents of those 13 rejected requests are therefore permanently unrecoverable from any evidence
-> that exists. The statement that no inference occurred rests on Bedrock's own rejection of the
-> calls, not on inspection of what was sent. That logging setting is mutable by any principal holding
-> `bedrock:PutModelInvocationLoggingConfiguration`, so this is a point-in-time verification.
+> **What we have not been able to recover.** Bedrock model-invocation logging, which is the setting
+> that would write prompt and response bodies to a destination we control, was **observed disabled in
+> all 17 Bedrock regions of this account on 2026-08-29.** We have not identified prompt or response
+> logs for those 13 rejected requests. Three limits on that statement, stated rather than glossed.
+> It is a point-in-time observation and does not establish the setting's state during 2026-07-30 to
+> 2026-08-14, nor is it a vendor retention guarantee: AWS-side retention is governed by the Bedrock
+> terms, and this document claims no zero-data-retention agreement (see section 3, Deliberately not
+> claimed). The setting is mutable by any principal holding
+> `bedrock:PutModelInvocationLoggingConfiguration`. Accordingly, the statement that no inference
+> occurred rests on Bedrock's own rejection of the calls, not on inspection of what was sent.
 >
 > Second, the window described as carrying "a single internal verification call" is
 > `[2026-08-03, 2026-08-04)`. Telemetry was queried over the wider bucket `[2026-08-03, 2026-08-06)`,
@@ -101,18 +112,15 @@
 > production egress. A further 3 calls in that window belong to staging and are not production
 > egress. Note that this window closes at 2026-08-14T00:00:00Z, earlier than the
 > 2026-08-14T21:13:27Z high-water mark of the application-log figures quoted above, so **67 is not a
-> complete post-deploy total.** This corroborates 2026-08-12 as the start of sustained,
-> cloud-originated serving traffic. It does **not** establish that nothing ran before then: that
-> window's left edge is itself 2026-08-12, application-SDK calls do appear in the earlier windows
-> above, and **the interval `[2026-08-06, 2026-08-12)` has not been isolated in any query run to
-> date.** Anyone relying on a start date should close that gap first.
+> complete post-deploy total.** And **this document assigns no start date to production
+> processing.** The window's left edge is itself 2026-08-12, application-SDK calls appear in the
+> earlier windows above, and the interval `[2026-08-06, 2026-08-12)` has not been isolated in any
+> query run to date. Anyone who needs a start date should close that gap first.
 >
-> **The sources do not reconcile into a single number, and no ratio between them should be quoted.**
-> CloudWatch and CloudTrail differ by 5 events over the queried range, unexplained. Separately, the
-> per-window counts above sum to more than the range-level attribution figure, because those windows
-> span two AWS regions and more than one principal while the range-level figure does not; every
-> per-window number above comes from CloudTrail directly, and the us-east-1 query spans both the
-> first and second windows rather than matching either. Four principals invoke Bedrock, not one:
+> **No aggregate total is quoted, and no ratio between the two sources should be quoted either.**
+> The windows above differ in region, principal and date range, so they are not additive, and
+> CloudWatch and CloudTrail do not agree exactly over the queried range. Every per-window number
+> above comes from CloudTrail directly. Four principals invoke Bedrock, not one:
 > production runtime, staging, dev, and an administrator. Only the production runtime principal
 > writes to production `AiApiLog`, so **any figure that pools environments describes a different
 > population than the application log does.** Credential mounts are not monotonic, so these
@@ -218,19 +226,22 @@ explicitly marked not operational.
 - LingoLinq uses AI for word prediction and communication-board generation. The designated model is
   Anthropic Claude (Haiku 4.5) on AWS Bedrock. There is no Google (Gemini) fallback; that path was
   removed on 2026-07-09. **Corrected 2026-08-26: before 2026-08-02 the runtime path was not
-  restricted to the designated model.** CloudTrail records 9 invocations of
-  `us.anthropic.claude-opus-4-5-20251101-v1:0` and 1 of
-  `us.anthropic.claude-sonnet-4-5-20250929-v1:0` by `lingolinq-bedrock-runtime` on 2026-08-01. Both
+  restricted to the designated model.** CloudTrail records 9 invocation attempts against
+  `us.anthropic.claude-opus-4-5-20251101-v1:0` and 1 against
+  `us.anthropic.claude-sonnet-4-5-20250929-v1:0` by `lingolinq-bedrock-runtime` on 2026-08-01. These
+  are attempts; this document does not state how many completed. Both
   are Anthropic models served by Amazon Bedrock under the same AWS BAA, so no processor outside the
   BAA received the payload, but neither was a designated model.
   **Corrected 2026-08-28: those calls were issued via `aws-cli`, not by the deployed application.**
-  The `ALLOWED_RUNTIME_MODELS` gate in `lib/ai_client.rb`, which restricts the application's runtime
-  seams to the designated model, did not exist until commit `5dbc4e478` (2026-08-02). It is an
+  The `ALLOWED_RUNTIME_MODELS` gate in `lib/ai_client.rb`, which restricts the three seams that
+  carry student data (word prediction, board generation, and prediction generation) to the designated
+  model, did not exist until commit `5dbc4e478` (2026-08-02T23:03:04Z). The fourth runtime seam, eval
+  narration, has always gated on its own separate `EvalNarrator::ALLOWED_MODELS` list. It is an
   in-process application gate: it constrains what the deployed application can request, and it
   **cannot constrain anything issued directly against the AWS API under the same credential.**
   Restricting model choice at the credential level would require an IAM policy change, which we have
-  not made. Vendor telemetry over the queried range shows no non-designated model invoked by the
-  application path after that commit.
+  not made. In the windows enumerated in the re-attestation note above, no non-designated model
+  appears on the application path after that commit.
 - **Eval narration is not operational on the default classic Bedrock plane.**
   `EvalNarrator::DEFAULT_MODEL` is `anthropic.claude-opus-4-7`. `AiClient::CLASSIC_PROFILE_IDS`
   maps only `anthropic.claude-haiku-4-5`. `EvalNarrator.call_anthropic` documents that the Opus
@@ -244,8 +255,10 @@ explicitly marked not operational.
   operational as of 2026-08-04**", and that no user or student data had been sent. **That claim was
   false.** Credentials withdrawn on revision `00014-5rw` were restored 53 minutes later on
   `00015-9l9` (2026-08-04T07:25:08Z), and since the 2026-08-12 production deploy of PR #734
-  production `AiApiLog` held **64 application-observed rows through 2026-08-14T21:13:27Z, 63 of
-  which carry a `user_global_id`** (`docs/legal/2026-08-16_subprocessor-register.md:99`). Scrubbed
+  production `AiApiLog` held **64 application-observed rows through 2026-08-14T21:13:27Z, of which
+  63 were written after that deploy and those same 63 carry a `user_global_id`**; the 64th is the
+  2026-08-04 internal verification call and carries no user
+  (`docs/legal/2026-08-16_subprocessor-register.md:99`). Scrubbed
   user content HAS reached the processing plane, which is **AWS** (Amazon Bedrock is the receiving
   processor under the AWS BAA; Anthropic supplies the model and does not receive the payload). The
   63 attributed calls resolve to two accounts, and all 34 production accounts were confirmed
@@ -253,9 +266,9 @@ explicitly marked not operational.
   is known to have had data sent on this path.**
 - **The limit of that last assurance, stated rather than omitted.** `AiApiLog` is an
   application-observed floor, not a ledger, and it records only what the deployed application does.
-  Vendor telemetry shows successful Bedrock invocations in this period that were issued directly
-  against the AWS API rather than through the application, and those are invisible to `AiApiLog` by
-  construction. "No real person is known to have had data sent" should therefore be read as the
+  Vendor telemetry shows successful Bedrock invocations in the 2026-07-30 to 2026-08-06 windows
+  described in the re-attestation note above that were issued directly against the AWS API rather
+  than through the application, and those are invisible to `AiApiLog` by construction. "No real person is known to have had data sent" should therefore be read as the
   limit of what our records can show, not as a guarantee that none was. The credential-use finding
   this raises is tracked as LL-3bfc56ef4b in `audit-reports/FINDINGS.json`.
 - Before text is sent to our external LLM providers for word prediction, board generation, or eval

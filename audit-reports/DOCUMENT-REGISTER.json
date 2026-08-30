@@ -3235,10 +3235,10 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-08-29",
+      "lastReviewed": "2026-08-30",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "1c9867e93d49d8682e4937cfd1f32673a2e328577c1132f08aa5074af872b279",
+      "contentHash": "c57f3e5f3db4264f6455d404f59c9af0fd7fd2273b314d6206e9fefed072f6b1",
       "bundles": [
         "security-review"
       ],
