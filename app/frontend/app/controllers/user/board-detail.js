@@ -3194,7 +3194,32 @@ export default Controller.extend(prefClasses, {
 
      Kept as a named funnel so the write path has one obvious place to read. */
   _commit_suggestions: function(next) {
+    this._capitalize_english_pronoun_i(next);
     this.set('suggestions', next);
+  },
+
+  /* The English first-person pronoun is always capitalised, and a predictor that works in
+     lowercase hands back "i". This is not cosmetic: `suggestion.word` is the visible label,
+     the aria-label, AND the text complete_word inserts into the sentence and speaks — so
+     lowercasing it puts "i want a drink" in the user's utterance.
+
+     ENGLISH ONLY, gated on the locale root the way word_suggestions.js:437 gates its corpus.
+     A bare "i" is a perfectly ordinary lowercase word elsewhere — it means "and" in Polish —
+     and capitalising it there would be an error, not a courtesy.
+
+     Runs in the write funnel, AFTER _decorate_suggestion_images has already resolved symbols
+     against the original lowercase word, so symbol lookup is entirely unaffected. Mutates the
+     item in place rather than returning a copy, deliberately: image resolution is async and
+     its callback closes over THESE item objects (`item.image = url`), so a copy here would
+     leave the late symbol landing on an object the template no longer renders. The items are
+     built fresh per lookup, so mutating them is safe. */
+  _capitalize_english_pronoun_i: function(next) {
+    if(!next || !next.list || !next.list.length) { return; }
+    var root = String(this._word_prediction_locale() || 'en').split(/[-_]/)[0].toLowerCase();
+    if(root !== 'en') { return; }
+    next.list.forEach(function(item) {
+      if(item && item.word === 'i') { item.word = 'I'; }
+    });
   },
 
   /* Advance the lookup generation. Called by every path that STARTS a lookup and by every

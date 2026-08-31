@@ -799,6 +799,38 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     return Math.round(Math.min(w, h));
   }
 
+  test('a standalone "i" is capitalised in English, and only in English', function(assert) {
+    assert.expect(6);
+    /* suggestion.word is the label, the aria-label AND the text complete_word inserts and
+       speaks, so a lowercase "i" puts "i want a drink" in the user's utterance. */
+    const controller = buildController();
+    try {
+      controller._word_prediction_locale = function() { return 'en-US'; };
+      const item = { word: 'i' };
+      const payload = { ready: true, list: [item, { word: 'in' }, { word: 'I' }] };
+      controller._commit_suggestions(payload);
+      const list = controller.get('suggestions.list');
+      assert.strictEqual(list[0].word, 'I', 'the bare pronoun is capitalised');
+      assert.strictEqual(list[1].word, 'in', 'a word merely STARTING with i is untouched');
+      assert.strictEqual(list[2].word, 'I', 'an already-capitalised one is left alone');
+      /* Identity, not equality: image resolution is async and its callback mutates THIS
+         object (`item.image = url`). A copy-based implementation would pass the assertions
+         above while silently dropping every late-arriving symbol. */
+      assert.strictEqual(list[0], item, 'the item object is mutated in place, not replaced');
+
+      controller._word_prediction_locale = function() { return 'pl'; };
+      controller._commit_suggestions({ ready: true, list: [{ word: 'i' }] });
+      assert.strictEqual(controller.get('suggestions.list')[0].word, 'i',
+        'left alone in Polish, where a bare "i" means "and"');
+
+      controller._word_prediction_locale = function() { return 'en'; };
+      controller._commit_suggestions({ ready: true, list: [] });
+      assert.strictEqual(controller.get('suggestions.list').length, 0, 'an empty list is safe');
+    } finally {
+      controller.destroy();
+    }
+  });
+
   test('a long prediction truncates inside the tile instead of spilling onto the board', function(assert) {
     assert.expect(4);
     /* The rail label previously declared no overflow, no clamp and no ellipsis, so a
