@@ -9,7 +9,7 @@
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (109)
+## Open (110)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -50,7 +50,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-6cea3b4787 |  | medium | FERPA, GDPR | untriaged | audit-run | focus_generated_words_usage writes caller-supplied words into any AiFocusWordSet with no ownership or tenant check | `app/controllers/api/integrations_controller.rb`:178 |
 | LL-8990c53bad |  | medium | GDPR, COPPA | untriaged | audit-run | AiFocusWordSet retains seed_user_global_id and prompt text after the seeding user's account is erased | `app/models/ai_focus_word_set.rb`:75 |
 | LL-92ae18cc4e |  | medium | FERPA, COPPA, HIPAA | untriaged | audit-run | anonymous_logs export job writes each publishing user's username to stdout, bypassing the PII-scrubbing log formatter | `app/models/log_session.rb`:2111 |
-| LL-1e7b568ef3 |  | medium | SOC2, HIPAA | untriaged | audit-run | Committed WIF provisioning script omits the assertion.ref branch lock the deploy pipeline names as a control, and reconciles (overwrites) the live provider on every re-run | `scripts/gcp/phase1-setup.sh`:329 |
+| LL-1e7b568ef3 |  | medium | SOC2, HIPAA | **accepted** | audit-run | Committed WIF provisioning script omits the assertion.ref branch lock the deploy pipeline names as a control, and reconciles (overwrites) the live provider on every re-run | `scripts/gcp/phase1-setup.sh`:329 |
 | LL-d3f41e7a67 |  | medium | SOC2, HIPAA, FERPA | untriaged | audit-run | Production Cloud SQL instance has deletion protection disabled and is provisioned without it, while automated deploys apply migrations with no pre-migration backup step | `scripts/gcp/phase3-data-layer.sh`:255 |
 | LL-0d54bcb32c |  | medium | SOC2, HIPAA | untriaged | audit-run | Production Cloud SQL instance accepts unencrypted connections (ssl mode allows unencrypted) and is provisioned with no SSL enforcement flag | `scripts/gcp/phase3-data-layer.sh`:252 |
 | LL-7296ada5da |  | medium | SOC2, HIPAA, FERPA | untriaged | audit-run | The admin_token cookie that gates the Resque admin console is set without HttpOnly, so any XSS can steal an admin console session | `app/controllers/session_controller.rb`:250 |
@@ -76,6 +76,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-ad67eecb9c |  | medium | GDPR | untriaged | audit-run | Attested AI Governance Memo describes the deliverable as the "EU-gated" disclosure modal; the gate is fail-safe OPEN, so non-EU and unknown-jurisdiction users are also in scope | `docs/legal/AI_GOVERNANCE_MEMO.md`:260 |
 | LL-db6bc3e568 |  | medium | GDPR | untriaged | audit-run | Attested Data Retention Schedule states the EU AiApiLog purge "matches EU rows wherever Phase 4 is deployed"; in production it matches none | `docs/legal/DATA_RETENTION.md`:33 |
 | LL-b3e3a0b99c |  | medium | GDPR, COPPA | untriaged | audit-run | Live AI consent disclosure asserts "EU AI Act Article 50 record-keeping" as the legal basis for the five-year AiApiLog retention window, to a data subject | `lib/lingo_linq/ai_consent_disclosures.rb`:139 |
+| LL-ac1d12bf3f |  | medium | COPPA, GDPR | untriaged | manual | User::PRIVACY_POLICY_VERSION is written into consent records but never compared against them, so a material privacy-policy change re-prompts nobody | `app/models/user.rb`:29 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | **accepted** | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | **accepted** | audit-run | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
 | LL-310b464be4 | P2-8 | medium | FERPA | **accepted** | audit-run | protected_image accepts user_token via URL parameter | `app/controllers/api/users_controller.rb`:945 |
@@ -136,7 +137,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-5954bcbbe6 |  | medium | SOC2 | untriaged | audit-run | Pre-existing Resque background-job failures: ImageMagick identify missing in Cloud Run image, stale job_stash lookups, and a call to a removed Board method | (attestation) |
 | LL-a167848115 |  | medium | GDPR, COPPA, FERPA | **fixed** | pr-review | Text-to-speech posts raw user text to subprocessors absent from the register (Abair has no DPA; Google TTS flow unrowed) (GDPR Art. 28/44) | `lib/tts.rb`:30 |
 | LL-6723438462 |  | medium | GDPR | untriaged | audit-run | Article 50 disclosure server-side backstop is present on only 2 of 5 AI ingresses | `app/controllers/api/word_suggestions_controller.rb`:19 |
-| LL-51da4fca1d |  | low | FERPA, HIPAA, GDPR, SOC2 | untriaged | pr-review | EvalNarrator took its model from an unconstrained EVAL_NARRATOR_MODEL env var with no allowlist for ~2 months (2026-05-12 to 2026-07-19) | `lib/eval_narrator.rb`:68 |
+| LL-51da4fca1d |  | low | FERPA, HIPAA, GDPR, SOC2 | untriaged | pr-review | EvalNarrator took its model from an unconstrained EVAL_NARRATOR_MODEL env var with no allowlist for ~2 months (2026-05-12 to 2026-07-19) | `lib/eval_narrator.rb`:54 |
 
 ## Verified closed (58)
 
@@ -221,4 +222,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_185 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_186 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

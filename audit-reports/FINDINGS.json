@@ -4762,7 +4762,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. deploy-cloudrun.yml states this as gate #3 of four: 'The ref guard + the WIF provider's assertion.ref condition, so no other ref can deploy or even mint a deploy token' (deploy-cloudrun.yml:33-34, repeated at :170-171). Live read-only check (gcloud iam workload-identity-pools providers describe github-provider, pool github-pool, location global) confirms the LIVE provider condition DOES include a ref and ref_type clause pinning the main branch -- so the control exists in production but does not exist in the committed provisioning source, and the source actively reverts it. Note also that the workflow-file if: github.ref == 'refs/heads/main' guard is not itself a boundary: workflow_dispatch executes the workflow definition from the SELECTED ref, so anyone who can push a branch and dispatch Actions can run a copy with the guard and the environment: production key removed. Live pool name is github-pool / provider github-provider, which does not match a naive read of the script's defaults -- confirm live before acting. | adversary: confirmed -- Live provider's attributeCondition includes the ref/ref_type lock; committed WIF_CONDITION at line 329 does not. Script unconditionally reconciles an existing provider via update-oidc, so a re-run would strip the live lock. | SEVERITY DOWNGRADED high -> medium on 2026-08-30 by Scot Wahlquist (CEO). Status stays open; this is a severity decision, not a closure. Basis, verified live on 2026-08-30 rather than inferred: the PRODUCTION provider is correctly hardened. `gcloud iam workload-identity-pools providers describe github-provider --project=lingolinq-prod --location=global --workload-identity-pool=github-pool` returns attributeCondition = \"assertion.repository_owner_id == '249911097' && assertion.repository_id == '1024104500' && assertion.repository == 'lingolinq/LingoLinq-AAC' && assertion.ref == 'refs/heads/main' && assertion.ref_type == 'branch'\", i.e. the ref/ref_type lock IS present in prod. So there is no current exposure to downgrade away from. What remains is a latent regression footgun: the COMMITTED script omits the ref lock at phase1-setup.sh:329 and unconditionally reconciles an existing provider via update-oidc, so any re-run of Phase 1 silently STRIPS the live branch lock with no error. That is a real defect worth fixing, but it is conditional on a rare, deliberate operator action against a currently-correct production state, which is medium, not high. NOTE for the record: an earlier triage worksheet justified this downgrade on the different and incorrect ground that residual risk was narrow because 'an attacker needs push access to some branch' -- that phrasing implied prod lacked the ref lock. Prod has it. The rationale recorded here supersedes that reasoning; the conclusion is unchanged."
+      "notes": "Surfaced by infra finder on 2026-08-12. deploy-cloudrun.yml states this as gate #3 of four: 'The ref guard + the WIF provider's assertion.ref condition, so no other ref can deploy or even mint a deploy token' (deploy-cloudrun.yml:33-34, repeated at :170-171). Live read-only check (gcloud iam workload-identity-pools providers describe github-provider, pool github-pool, location global) confirms the LIVE provider condition DOES include a ref and ref_type clause pinning the main branch -- so the control exists in production but does not exist in the committed provisioning source, and the source actively reverts it. Note also that the workflow-file if: github.ref == 'refs/heads/main' guard is not itself a boundary: workflow_dispatch executes the workflow definition from the SELECTED ref, so anyone who can push a branch and dispatch Actions can run a copy with the guard and the environment: production key removed. Live pool name is github-pool / provider github-provider, which does not match a naive read of the script's defaults -- confirm live before acting. | adversary: confirmed -- Live provider's attributeCondition includes the ref/ref_type lock; committed WIF_CONDITION at line 329 does not. Script unconditionally reconciles an existing provider via update-oidc, so a re-run would strip the live lock. | SEVERITY DOWNGRADED high -> medium on 2026-08-30 by Scot Wahlquist (CEO). Status stays open; this is a severity decision, not a closure. Basis, verified live on 2026-08-30 rather than inferred: the PRODUCTION provider is correctly hardened. `gcloud iam workload-identity-pools providers describe github-provider --project=lingolinq-prod --location=global --workload-identity-pool=github-pool` returns attributeCondition = \"assertion.repository_owner_id == '249911097' && assertion.repository_id == '1024104500' && assertion.repository == 'lingolinq/LingoLinq-AAC' && assertion.ref == 'refs/heads/main' && assertion.ref_type == 'branch'\", i.e. the ref/ref_type lock IS present in prod. So there is no current exposure to downgrade away from. What remains is a latent regression footgun: the COMMITTED script omits the ref lock at phase1-setup.sh:329 and unconditionally reconciles an existing provider via update-oidc, so any re-run of Phase 1 silently STRIPS the live branch lock with no error. That is a real defect worth fixing, but it is conditional on a rare, deliberate operator action against a currently-correct production state, which is medium, not high. NOTE for the record: an earlier triage worksheet justified this downgrade on the different and incorrect ground that residual risk was narrow because 'an attacker needs push access to some branch' -- that phrasing implied prod lacked the ref lock. Prod has it. The rationale recorded here supersedes that reasoning; the conclusion is unchanged. | REDIRECT (2026-08-31): the residual-risk phrasing in PR #892's squash-commit message is superseded by this row's note; the commit message is immutable, and the SEVERITY DOWNGRADED rationale recorded above is the authoritative basis for the downgrade.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-30",
+        "rationale": "Severity downgrade high -> medium ratified by Scot Wahlquist at the PR #892 merge (2026-08-30). The finding remains open and accepted for remediation on the backlog; this disposition records the severity decision and its attribution, not a closure. Basis: the SEVERITY DOWNGRADED paragraph in notes (production WIF provider verified hardened live on 2026-08-30; the committed script's ref-lock omission is a latent re-run footgun)."
+      }
     },
     {
       "id": "LL-b7ccc522b9",
@@ -6403,9 +6409,9 @@
       "evidence": {
         "type": "code",
         "file": "lib/eval_narrator.rb",
-        "line": 68,
-        "snippet": "ALLOWED_MODELS = %w[",
-        "sha": "9fec7fd9ae915cf4aca0b93275bf1d7644e7812e"
+        "line": 54,
+        "snippet": "model: ENV['EVAL_NARRATOR_MODEL'] || 'claude-opus-4-7',",
+        "sha": "775b56e48f169eae2f900ed26f2afeaedb761e53"
       },
       "firstSeen": "2026-08-30",
       "lastSeen": "2026-08-30",
@@ -6423,7 +6429,7 @@
         "state": "untriaged",
         "decidedBy": "",
         "decidedDate": "",
-        "rationale": ""
+        "rationale": "Filing at severity low ratified by Scot Wahlquist at the PR #893 merge (2026-08-30). disposition.state stays untriaged deliberately: the ratification covered the row's filing and severity, not a remediation disposition, and only Scot moves this row further."
       },
       "source": {
         "kind": "pr-review",
@@ -6431,7 +6437,7 @@
         "reviewer": "claude-adversary",
         "promotedDate": "2026-08-30"
       },
-      "notes": "Discovered during the PR #890 adversary review while verifying a claim the compliance overview made about this seam's history. lib/eval_narrator.rb was created 2026-05-12 in commit 775b56e48 with `model: ENV['EVAL_NARRATOR_MODEL'] || 'claude-opus-4-7'` and NO allowlist of any kind, so the model destination for that seam was settable by environment variable to an arbitrary model. The exact-ID allowlist first appears 2026-07-19 in dae497a97. That is an ungated interval of roughly two months on a seam that carries student evaluation content. RECORDED FOR COMPLETENESS, NOT BECAUSE IT IS LIVE: the gap is closed in code and the direct-API route it applied to no longer exists. No evidence has been found that EVAL_NARRATOR_MODEL was ever set in any deployed environment, and this finding does not assert that it was. Severity is low on that basis; a case exists for medium given that the sibling findings covering the same seam and era (LL-e573a39d2b no PiiScrubber, LL-ef5ac1b2a5 no AiApiLog, LL-2e4c14d370 no COPPA gate, LL-11db0dc848 unbound eval_session) are critical/high, and Scot may raise it. Status is remediated-unverified rather than open because the defect does not exist at the evidence sha; only Scot sets verified-closed. Distinct from LL-3bfc56ef4b, which concerns the AiClient::ALLOWED_RUNTIME_MODELS gate on the three other seams and the credential-level gap; this row is about EvalNarrator's own separate list and the period before it existed. Provenance note: an earlier revision of docs/legal/2026-08-09_compliance-program-overview_draft.md asserted this seam had \"always\" been model-gated, a claim inherited from commit 5dbc4e478's message (\"unlike EvalNarrator, which has had an exact-id gate all along\"). Both are wrong; the overview was corrected in PR #890 and this row is the register counterpart."
+      "notes": "Discovered during the PR #890 adversary review while verifying a claim the compliance overview made about this seam's history. lib/eval_narrator.rb was created 2026-05-12 in commit 775b56e48 with `model: ENV['EVAL_NARRATOR_MODEL'] || 'claude-opus-4-7'` and NO allowlist of any kind, so the model destination for that seam was settable by environment variable to an arbitrary model. The exact-ID allowlist first appears 2026-07-19 in dae497a97. That is an ungated interval of roughly two months on a seam that carries student evaluation content. RECORDED FOR COMPLETENESS, NOT BECAUSE IT IS LIVE: the gap is closed in code and the direct-API route it applied to no longer exists. No evidence has been found that EVAL_NARRATOR_MODEL was ever set in any deployed environment, and this finding does not assert that it was. Severity is low on that basis; a case exists for medium given that the sibling findings covering the same seam and era (LL-e573a39d2b no PiiScrubber, LL-ef5ac1b2a5 no AiApiLog, LL-2e4c14d370 no COPPA gate, LL-11db0dc848 unbound eval_session) are critical/high, and Scot may raise it. Status is remediated-unverified rather than open because the defect does not exist at the evidence sha; only Scot sets verified-closed. Distinct from LL-3bfc56ef4b, which concerns the AiClient::ALLOWED_RUNTIME_MODELS gate on the three other seams and the credential-level gap; this row is about EvalNarrator's own separate list and the period before it existed. Provenance note: an earlier revision of docs/legal/2026-08-09_compliance-program-overview_draft.md asserted this seam had \"always\" been model-gated, a claim inherited from commit 5dbc4e478's message (\"unlike EvalNarrator, which has had an exact-id gate all along\"). Both are wrong; the overview was corrected in PR #890 and this row is the register counterpart.\n\nSeverity/filing decision recorded 2026-08-31: the low severity and remediated-unverified filing were ratified by Scot Wahlquist at the PR #893 merge on 2026-08-30; that ratification is recorded here and in disposition.rationale, while decidedBy/decidedDate stay empty until a remediation disposition is actually decided (dual-review adjudication, 2026-08-31). Evidence re-anchored 2026-08-31 to the historical defect itself (775b56e48 lib/eval_narrator.rb:54, the ungated ENV['EVAL_NARRATOR_MODEL'] read at the file's creation) instead of the later fix; the fix commit dae497a97 remains cited in remediation.options."
     },
     {
       "id": "LL-c259638711",
@@ -6472,6 +6478,50 @@
         "promotedDate": "2026-08-30"
       },
       "notes": "Surfaced by pr-review finder on 2026-08-30. Follow-up residual of LL-8908c7ac6f. The High egress claim is closed; this tracks the admitted request_summary omission so generated open-finding reports do not drop it. Promoted from Codex review of PR #887."
+    },
+    {
+      "id": "LL-ac1d12bf3f",
+      "ruleKey": "privacy-policy-version-dead-reconsent-mechanism",
+      "title": "User::PRIVACY_POLICY_VERSION is written into consent records but never compared against them, so a material privacy-policy change re-prompts nobody",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/user.rb",
+        "line": 29,
+        "snippet": "PRIVACY_POLICY_VERSION = '2026-08-30'",
+        "sha": "cd4cae4777aa04bff83c278a01b3384f9890c3b8"
+      },
+      "firstSeen": "2026-08-31",
+      "lastSeen": "2026-08-31",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Build the comparator the constant's own comment promises. The constant (app/models/user.rb:29) is stamped into settings['privacy_policy_acknowledged']['policy_version'] at three write sites (user.rb:964 parent grant, :978 the parental-consent AuditEvent payload, :2368 signup acknowledgment) and deleted for under-13 signups at :2456, but no code path anywhere reads a stored policy_version back and compares it to the current constant, so bumping the version notifies nobody and re-prompts nobody. Fix: on session/user load (or in the user JSON serializer), compare settings['privacy_policy_acknowledged']['policy_version'] to User::PRIVACY_POLICY_VERSION; when stale, surface a re-acknowledgment prompt (and for under-13 users route re-consent through the existing grant_parental_consent! token flow rather than an in-app click). Note Organization#data_policy_version (organization.rb:137, lib/data_policy_enforcer.rb:22) is a separate org-scoped custom-policy mechanism and does not cover the application privacy policy. The drift-guard spec (spec/templates/signup_consent_contract_spec.rb:24-28) only pins the constant to the published policy date; it does not test any re-consent behavior.",
+        "timeframe": "60-90 days (before first real district onboarding; must exist before any material privacy-notice change ships)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": "",
+        "reviewer": "claude-retro-review-2026-08-31",
+        "promotedDate": "2026-08-31"
+      },
+      "notes": "Hand-filed 2026-08-31 from the retroactive dual-review of merged range 9fec7fd9a..cd4cae477 (finding 3). Grep-verified at cd4cae477: three write sites and one delete site for settings['privacy_policy_acknowledged'], zero compare sites against User::PRIVACY_POLICY_VERSION anywhere in app/, lib/, or the Ember frontend; the user serializer never exposes the stored policy_version, so no client-side comparator can exist either. The comment above the constant (user.rb:26-28) says 'Bump when a material change requires users to re-consent', but the re-consent mechanism it describes does not exist: a bump changes only what NEW consents record. Regulatory hook: 16 CFR 312.5(c) requires new verifiable parental consent for material changes to the collection, use, or disclosure practices the original consent covered; with this mechanism dead, a material privacy-notice change re-prompts nobody, including parents of under-13 users. The material-change question is already with counsel as Q32. Present exposure is limited by tenancy, not code: production carries only internal test accounts (PR #483, operator attestation, not code-verified). Severity medium is PROPOSED and awaits Scot's ratification at merge."
     }
   ]
 }
