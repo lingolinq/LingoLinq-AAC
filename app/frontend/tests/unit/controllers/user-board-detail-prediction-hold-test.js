@@ -683,6 +683,8 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
      layout. tests/index.html loads assets/frontend.css, which is what makes this a
      measurement rather than a mock. The shell class is required: the rail is display:none
      by default (app.scss:72751) and only becomes a grid under a wordpred shell (:72905). */
+  const QA_SYMBOL = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="%23888"/></svg>');
+
   function boardAndRailFixture(rows, cols, shapeClass, withSidebar) {
     const shell = document.createElement('div');
     shell.className = 'md-shell md-shell--board-detail md-shell--wordpred-side-rail qa-pred-fixture';
@@ -703,9 +705,19 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       ',minmax(0,1fr));grid-template-rows:repeat(' + rows + ',minmax(0,1fr));';
     for(let i = 0; i < rows * cols; i++) {
       const cell = document.createElement('div');
-      cell.className = 'md-board-detail-grid__cell';
+      /* Cell 1 is a FOLDER, as on a real board that opens with categories. Folder cells
+         reserve tab space, so their card is shorter — if the measurement samples this one,
+         every tile is published short. */
+      cell.className = 'md-board-detail-grid__cell' + (i === 0 ? ' md-board-detail-grid__cell--folder' : '');
       const card = document.createElement('div');
       card.className = 'md-board-detail-symbol-card';
+      const imgWrap = document.createElement('div');
+      imgWrap.className = 'md-board-detail-symbol-card__image';
+      const cardImg = document.createElement('img');
+      cardImg.className = 'symbol';
+      cardImg.src = QA_SYMBOL;
+      imgWrap.appendChild(cardImg);
+      card.appendChild(imgWrap);
       const label = document.createElement('span');
       label.className = 'md-board-detail-symbol-card__label';
       label.textContent = 'word';
@@ -715,10 +727,16 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
     fade.appendChild(grid);
     const rail = document.createElement('div');
-    rail.className = 'md-board-detail-prediction-rail';
+    /* The app always puts the board's text-position class on the rail
+       (board-detail.hbs:2027); omitting it here made the fixture unrepresentative. */
+    rail.className = 'md-board-detail-prediction-rail md-board-detail-grid--text-pos-top';
     for(let i = 0; i < rows; i++) {
       const tile = document.createElement('button');
       tile.className = 'md-board-detail-sentence-bar__prediction';
+      const tileImg = document.createElement('img');
+      tileImg.className = 'md-board-detail-sentence-bar__prediction-img';
+      tileImg.src = QA_SYMBOL;
+      tile.appendChild(tileImg);
       const span = document.createElement('span');
       span.className = 'md-board-detail-sentence-bar__prediction-label';
       span.textContent = 'you';
@@ -737,8 +755,8 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     shell.appendChild(main);
     document.body.appendChild(shell);
     return { grid, rail, main,
-      card: grid.querySelector('.md-board-detail-symbol-card'),
-      cell: grid.querySelector('.md-board-detail-grid__cell'),
+      card: grid.querySelectorAll('.md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder) .md-board-detail-symbol-card')[0],
+      cell: grid.querySelectorAll('.md-board-detail-grid__cell:not(.md-board-detail-grid__cell--folder)')[0],
       tile: rail.querySelector('.md-board-detail-sentence-bar__prediction') };
   }
 
@@ -763,6 +781,44 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       cardH: Math.round(c.height)
     };
   }
+
+  /* The painted symbol, not the element box: object-fit:contain renders at
+     min(width, height), so two boxes of different proportions can still paint different
+     symbol sizes. This is the assertion whose absence let a 24%-smaller rail symbol ship —
+     the box parity tests below were green throughout. */
+  function paintedSymbol(el) {
+    /* CONTENT box, not the border box. box-sizing:border-box keeps the element's rect at
+       the same size whatever padding/border it carries, so getBoundingClientRect cannot see
+       an inset that shrinks the painted image — a first version of this helper used the rect
+       and stayed GREEN when the dashed inset was restored, i.e. it was hollow against the
+       exact regression it exists to catch. clientWidth excludes the border; subtract the
+       padding to reach what object-fit:contain actually paints into. */
+    const cs = window.getComputedStyle(el);
+    const w = el.clientWidth - parseFloat(cs.paddingLeft || 0) - parseFloat(cs.paddingRight || 0);
+    const h = el.clientHeight - parseFloat(cs.paddingTop || 0) - parseFloat(cs.paddingBottom || 0);
+    return Math.round(Math.min(w, h));
+  }
+
+  test('a rail symbol paints at the same size as a board symbol', function(assert) {
+    assert.expect(4);
+    document.querySelectorAll('.qa-pred-fixture').forEach(function(n) { n.remove(); });
+    const f = boardAndRailFixture(5, 14, 'md-board-detail-grid--shape-square');
+    const controller = buildController();
+    controller.set('ordered_buttons', Array.from({ length: 5 }, function() {
+      return Array.from({ length: 14 }, function() { return {}; });
+    }));
+    controller._sync_prediction_tile_size();
+    const boardSym = paintedSymbol(f.card.querySelector('img.symbol'));
+    const railSym = paintedSymbol(f.tile.querySelector('.md-board-detail-sentence-bar__prediction-img'));
+    /* Guard: a many-column board, so the symbol is genuinely width-constrained. If this were
+       roomy the two could agree for reasons unrelated to the fix. */
+    assert.ok(boardSym > 0, 'guard: the board symbol actually rendered');
+    assert.ok(boardSym < 60, 'guard: and is width-constrained, so the comparison is meaningful');
+    assert.strictEqual(railSym, boardSym, 'the rail symbol paints at the board symbol size');
+    assert.strictEqual(Math.round(f.tile.getBoundingClientRect().height),
+                       Math.round(f.card.getBoundingClientRect().height),
+                       'and the tile is the height of a PLAIN button, not the folder in cell 1');
+  });
 
   test('a rail tile is the same box as a board button, in every button shape', function(assert) {
     assert.expect(10);

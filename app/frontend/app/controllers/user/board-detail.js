@@ -445,7 +445,16 @@ export default Controller.extend(prefClasses, {
     if(typeof document === 'undefined') { return; }
     var main = document.querySelector('.md-board-detail-main');
     if(!main) { return; }
-    var cell = document.querySelector('.md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty)');
+    /* Prefer a NON-FOLDER cell. Folder cells reserve space for the tab
+       (`.md-board-detail-grid__cell--folder { padding-top: 10px }`, app.scss:84475, and more
+       in the tab-labels / colored-corner modes), so their card is SHORTER than a plain
+       button's. Sampling `:first-of-the-grid` handed us that shorter card whenever the board
+       opened with a folder in cell 1 — which is the common layout, categories first — and
+       every rail tile was published one folder-reserve short of the buttons it must match.
+       Same failure as the label sample above: the first cell is not the representative one.
+       Falls back to any non-empty cell for an all-folders board. */
+    var cell = document.querySelector('.md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty):not(.md-board-detail-grid__cell--folder)') ||
+               document.querySelector('.md-board-detail-grid__cell:not(.md-board-detail-grid__cell--empty)');
     if(!cell) { return; }
     var card = cell.querySelector('.md-board-detail-symbol-card') || cell;
     var cardRect = card.getBoundingClientRect();

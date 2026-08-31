@@ -72801,10 +72801,12 @@ span.md-board-detail-modeling-btn--paused:hover {
 /* Tiles match the board button box (measured vars, fixed fallbacks). */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction {
   width: 100%;
-  /* No top/bottom padding — the symbol + word fill the tile's full height; only
-     4px left/right keeps them off the rail edges. The image↔label spacing comes
-     from `gap` below, not padding. Overrides the base tile's 4px/10px. */
-  padding: 0 4px;
+  /* Zero, so the tile's CONTENT box matches the card's. Matching the card's padding value
+     (`1px clamp(1px, 1%, 4px)`) is NOT the same thing and measured 2px short: the tile
+     carries a 1px border the card does not, so equal padding leaves a smaller content box.
+     What has to match is what the symbol gets, not what the declaration says. Measured at
+     14 columns: card content 33px, tile content 33px, painted symbol 33px on both. */
+  padding: 0;
   /* Override the base tile's `min-width: 44px`. The rail's width tracks one board
      button (--prediction-tile-w), so on a many-column board that width can be under
      44px; with the floor in place the tile stays wider than the rail's content box and
@@ -72863,6 +72865,15 @@ span.md-board-detail-modeling-btn--paused:hover {
   min-height: 0;
   height: auto;
   max-width: 100%;
+  /* No dashed frame on the RAIL. The frame is the in-bar placement's "this is a
+     suggestion" affordance, and it costs 3px padding + 1.5px border per side — which, with
+     object-fit:contain, shrinks the painted symbol by twice that on the binding axis. On a
+     14-column board that measured 25px against the board button's 33px: the same word,
+     visibly smaller, right beside it. The rail sits in the board grid and reads as another
+     column, so the tile's own glass surface is the affordance there; the in-bar group keeps
+     the dash (base rule below, untouched). */
+  padding: 0;
+  border: 0;
 }
 /* Placeholder (missing-image) symbol on the rail: square.svg is a translucent
    brand-coloured photo glyph, which reads DIM on the dark board surface the rail
@@ -72875,7 +72886,6 @@ span.md-board-detail-modeling-btn--paused:hover {
      loading cue on its symbol at all. */
   opacity: var(--pred-img-a, 1);
   background: rgba(255, 255, 255, 0.85);
-  border-color: rgba(255, 255, 255, 0.55);
 }
 /* Predicted-word font must EXACTLY match the board button label.
    --prediction-label-font is the board label's RENDERED font-size, copied in
