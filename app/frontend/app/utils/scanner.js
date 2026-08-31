@@ -259,7 +259,15 @@ var scanner = EmberObject.extend({
             'clear_button': i18n.t('clear', "Clear")
           };
           var $elem = scanner.find_elem(this);
-          var label = id_labels[$elem.attr('id')] || "";
+          /* Fall back to the ACCESSIBLE NAME, then to visible text. `id_labels` only knows
+             the six legacy ids, and on board-detail most of this row carries no id at all —
+             Home, Back, Back-to-picker, the modeling toggles and every word-prediction tile
+             are identified by aria-label alone (templates/user/board-detail.hbs:619+). They
+             were therefore scanned with label "", and next_element speaks
+             `vocalization || label`, so an auditory-scanning user heard SILENCE on each of
+             them and had to count steps. The id_labels lookup stays first so the six named
+             buttons keep their existing wording verbatim. */
+          var label = id_labels[$elem.attr('id')] || $elem.attr('aria-label') || $elem.text() || "";
           row.children.push({
             dom: $elem,
             label: label
@@ -660,6 +668,16 @@ var scanner = EmberObject.extend({
     }
   },
   pick: function(ref) {
+    /* A STOPPED scanner is inert. stop() (:598) leaves scanner.elements, element_index and
+       options intact, and the switch surface gates on the `scanning_enabled` PREFERENCE
+       rather than on this flag (raw_events.js:675) — so a press behind an open modal reaches
+       here with scanning false and would re-highlight and re-arm auto-select over a board the
+       user cannot see. escape() guards only its level-up BRANCH, because a cancel press must
+       still fall through to stop()'s cleanup; these two have no such duty, so they return.
+       `scanning` has exactly two writers (false at :598, true at :641), and step scanning
+       (auto_start false) keeps it TRUE — scan_elements sets it before the auto_start branch —
+       so no legitimate switch action is blocked. */
+    if(!scanner.scanning) { return; }
     var elem = scanner.current_element;
     if(scanner.options && scanner.options.scan_mode != 'axes') {
       if(!elem && scanner.options && !scanner.options.auto_start) {
@@ -1205,6 +1223,7 @@ var scanner = EmberObject.extend({
     });
   },
   next: function(reverse) {
+    if(!scanner.scanning) { return; }   // see pick() above
     var auto = false;
     if(reverse == 'auto') {
       auto = true;

@@ -1025,6 +1025,7 @@ describe('scanner', function() {
       scanner.current_element = {
         dom: { hasClass: function() { return false; } }
       };
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(called).toEqual(true);
     });
@@ -1034,6 +1035,7 @@ describe('scanner', function() {
       stub(modal, 'highlight_contoller', null);
       var tracked = false;
       stub(buttonTracker, 'track_selection', function() { tracked = true; });
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(tracked).toEqual(false);
     });
@@ -1059,6 +1061,7 @@ describe('scanner', function() {
         });
       });
       stub(scanner, 'load_children', function() { });
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(dispatched.length).toBeGreaterThan(0);
       expect(dispatched[0].pass_through).toEqual(true);
@@ -1078,6 +1081,7 @@ describe('scanner', function() {
       stub(scanner, 'next_element', function() {
         nexted = true;
       });
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       waitsFor(function() { return nexted; });
       runs(function() {
@@ -1098,6 +1102,7 @@ describe('scanner', function() {
           hasClass: function(str) { return false; }
         }
       };
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(children_load).toEqual(scanner.current_element);
     });
@@ -1140,6 +1145,7 @@ describe('scanner', function() {
           attr: function() { return 'button_id'; }
         }
       };
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(picked_button).toNotEqual(null);
     });
@@ -1158,6 +1164,7 @@ describe('scanner', function() {
           hasClass: function(str) { return str === 'integration_target'; }
         }
       };
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(evented).toEqual(true);
     });
@@ -1177,6 +1184,7 @@ describe('scanner', function() {
         scanner.elements = [{}, {}];
         scanner.interval = runLater(function() {}, 10000);
         stub(scanner, 'next_element', function() { });
+        scanner.scanning = true;   // asserts RUNNING-scanner behaviour
         scanner.next();
         expect(scanner.interval).toEqual(null);
       });
@@ -1187,8 +1195,10 @@ describe('scanner', function() {
         scanner.elements = [{}, {}];
         scanner.element_index = 0;
         stub(scanner, 'next_element', function() { });
+        scanner.scanning = true;   // asserts RUNNING-scanner behaviour
         scanner.next();
         expect(scanner.element_index).toEqual(1);
+        scanner.scanning = true;   // asserts RUNNING-scanner behaviour
         scanner.next();
         expect(scanner.element_index).toEqual(0);
       });
@@ -1577,7 +1587,16 @@ describe('scanner', function() {
       stub(scanner, 'level_up', function(elem) { levelled = elem; });
       stub(scanner, 'stop', function() { stopped = true; });
 
-      scanner.elements = [{ label: 'row 1' }, { label: 'row 2' }];
+      /* The trailing stub carries a VALID, allow-listed dom and a running scanner, so the
+         only thing standing between it and level_up is the absent `higher_level`. The
+         previous fixture ({label} only) failed the guard for two independent reasons at once
+         — no higher_level AND no dom — so no single-conjunct mutation could redden it, and a
+         test named for the higher_level term covered it not at all. */
+      scanner.elements = [{ label: 'row 1' }, {
+        label: 'a level with nowhere above it',
+        dom: { hasClass: function(c) { return c === 'md-board-detail-sentence-row'; } }
+      }];
+      scanner.scanning = true;
       scanner.escape();
       expect(levelled).toBe(null);
       expect(stopped).toBe(true);

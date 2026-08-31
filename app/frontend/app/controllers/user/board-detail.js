@@ -434,7 +434,7 @@ export default Controller.extend(prefClasses, {
     }, 150);
   }),
 
-  // Size the <=768px word-prediction rail tiles to match the live board
+  // Size the <=1024px word-prediction rail tiles to match the live board
   // buttons so they read as one consistent set. Board buttons are sized by the
   // CSS grid (gridWidth/cols x gridHeight/rows), which the rail — a sibling
   // outside that grid — can't read in CSS, so we measure a rendered card and
@@ -846,7 +846,7 @@ export default Controller.extend(prefClasses, {
       }, 0);
     }
 
-    // Keep the <=768px prediction-rail tiles matched to the board buttons as
+    // Keep the <=1024px prediction-rail tiles matched to the board buttons as
     // the viewport changes (board buttons resize with the viewport). Debounced;
     // each run is a single measure + two CSS-var writes. Cleaned up in
     // willDestroy. See _sync_prediction_tile_size.

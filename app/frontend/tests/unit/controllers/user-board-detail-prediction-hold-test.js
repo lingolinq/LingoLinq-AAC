@@ -177,8 +177,8 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
-  test('_republish_suggestion_list does not assert ready over a list that has none', function(assert) {
-    assert.expect(2);
+  test('_republish_suggestion_list republishes a NEW identity, and never invents ready', function(assert) {
+    assert.expect(6);
     /* It runs from an image callback that may belong to a superseded set. `ready` gates the
        in-bar placement, so publishing it early claims the panel is up to date when it is not. */
     const controller = buildController();
@@ -188,8 +188,18 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       assert.notOk(controller.get('suggestions.ready'), 'ready is not invented');
 
       controller.set('suggestions', { ready: true, list: [{ word: 'hello' }] });
+      const before = controller.get('suggestions');
       controller._republish_suggestion_list();
-      assert.true(controller.get('suggestions.ready'), 'but a real ready is carried through');
+      const after = controller.get('suggestions');
+      assert.true(after.ready, 'but a real ready is carried through');
+      /* The two assertions above are ALSO satisfied by the object the test just set, so on
+         their own a no-op republish passes them. These pin what the method is actually for:
+         the list items are mutated in place when a symbol resolves, so a NEW array identity
+         is the only thing that re-renders the keyed {{#each}}. */
+      assert.notStrictEqual(after, before, 'a new object identity is published');
+      assert.notStrictEqual(after.list, before.list, 'and a new ARRAY identity, which is what re-renders');
+      assert.strictEqual(wordsOf(after.list), 'hello', 'carrying the same words through');
+      assert.strictEqual(after.loading, undefined, 'and no loading flag is invented');
     } finally {
       controller.destroy();
     }

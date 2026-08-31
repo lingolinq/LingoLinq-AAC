@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-31T03:37:09.928Z
+# Generated: 2026-08-31T03:59:48.565Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -993,20 +993,20 @@ app/utils/raw_events.js|ember/no-runloop|749|3|2|513c0395fe72
 app/utils/raw_events.js|ember/no-runloop|750|3|2|513c0395fe72
 app/utils/raw_events.js|ember/no-runloop|946|7|2|5addc2170315
 app/utils/raw_events.js|ember/no-runloop|978|7|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|1030|5|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|1154|7|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|1202|5|2|513c0395fe72
-app/utils/scanner.js|ember/no-runloop|1203|24|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|1224|11|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|1233|5|2|513c0395fe72
-app/utils/scanner.js|ember/no-runloop|1374|28|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|584|5|2|513c0395fe72
-app/utils/scanner.js|ember/no-runloop|596|5|2|513c0395fe72
-app/utils/scanner.js|ember/no-runloop|737|5|2|513c0395fe72
-app/utils/scanner.js|ember/no-runloop|738|24|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|841|5|2|513c0395fe72
-app/utils/scanner.js|ember/no-runloop|848|5|2|5addc2170315
-app/utils/scanner.js|ember/no-runloop|874|7|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|1048|5|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|1172|7|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|1220|5|2|513c0395fe72
+app/utils/scanner.js|ember/no-runloop|1221|24|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|1243|11|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|1252|5|2|513c0395fe72
+app/utils/scanner.js|ember/no-runloop|1393|28|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|592|5|2|513c0395fe72
+app/utils/scanner.js|ember/no-runloop|604|5|2|513c0395fe72
+app/utils/scanner.js|ember/no-runloop|755|5|2|513c0395fe72
+app/utils/scanner.js|ember/no-runloop|756|24|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|859|5|2|513c0395fe72
+app/utils/scanner.js|ember/no-runloop|866|5|2|5addc2170315
+app/utils/scanner.js|ember/no-runloop|892|7|2|5addc2170315
 app/utils/speecher.js|ember/no-runloop|1121|7|2|5addc2170315
 app/utils/speecher.js|ember/no-runloop|1164|13|2|5addc2170315
 app/utils/speecher.js|ember/no-runloop|1187|5|2|5addc2170315
@@ -1580,9 +1580,9 @@ tests/utils/persistence-sync-test.js|no-undef|4436|14|2|a67768f2a969
 tests/utils/persistence-sync-test.js|no-undef|4646|14|2|a67768f2a969
 tests/utils/persistence-sync-test.js|no-undef|4861|14|2|a67768f2a969
 tests/utils/persistence-test.js|ember/no-runloop|149|9|2|513c0395fe72
-tests/utils/scanner-test.js|ember/no-runloop|1178|28|2|5addc2170315
-tests/utils/scanner-test.js|ember/no-runloop|1350|9|2|513c0395fe72
-tests/utils/scanner-test.js|ember/no-runloop|1414|9|2|513c0395fe72
+tests/utils/scanner-test.js|ember/no-runloop|1185|28|2|5addc2170315
+tests/utils/scanner-test.js|ember/no-runloop|1360|9|2|513c0395fe72
+tests/utils/scanner-test.js|ember/no-runloop|1424|9|2|513c0395fe72
 tests/utils/scanner-test.js|ember/no-runloop|938|28|2|5addc2170315
 tests/utils/scanner-test.js|ember/no-runloop|958|28|2|5addc2170315
 tests/utils/session-test.js|ember/no-runloop|385|11|2|b7a9757b024f

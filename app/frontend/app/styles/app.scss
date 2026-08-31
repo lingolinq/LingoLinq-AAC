@@ -72724,12 +72724,26 @@ span.md-board-detail-modeling-btn--paused:hover {
      property here lost to it on source order and the cue silently did not render in dark mode at
      all. Inheritance has no specificity contest to lose.
 
-     One value set serves both themes — measured ceilings for a 4.5:1 label are 0.136 (light in-bar,
-     the tightest) and 0.377 (dark rail), and these clear both. Fading the tile RAISES label
-     contrast, since it darkens under white text. Recompute if these are retuned. */
+     One value set serves both themes. Fading the tile RAISES label contrast, since it darkens
+     under white text: the light RAIL is the tightest surface and measures 5.06:1 at the shipped
+     0.22 and 7.10:1 at 0.10. (An earlier revision of this comment named the light IN-BAR as the
+     tightest with a 0.136 ceiling; that was computed without the group's own rgba(0,0,0,0.55)
+     backing, and the in-bar label actually measures 6.92:1 at 0.22. The rail is the binding
+     case.) The dark-rail ceiling for a 4.5:1 label is 0.377. Recompute against the RAIL if these
+     are retuned.
+
+     The hover pair exists because :hover redeclares the same `background` shorthand at higher
+     specificity: with literals there, hovering a tile mid-lookup silently cancelled its cue —
+     and on touch devices sticky hover kept it cancelled — so the one tile the user was reaching
+     for was the one that stopped showing it. --pred-img-a does the same job for the placeholder
+     symbol, whose [src$="square.svg"] rule outranks the img dim below. */
   --pred-tile-a-hi: 0.10;
   --pred-tile-a-lo: 0.03;
   --pred-tile-border-a: 0.16;
+  --pred-tile-hover-hi: 0.10;
+  --pred-tile-hover-lo: 0.03;
+  --pred-tile-hover-border-a: 0.16;
+  --pred-img-a: 0.5;
 }
 /* The symbol may fade — it is not text, and 1.4.11 does not apply to it. */
 .md-board-detail-sentence-bar__prediction-group--is-loading .md-board-detail-sentence-bar__prediction-img,
@@ -72791,14 +72805,15 @@ span.md-board-detail-modeling-btn--paused:hover {
      4px left/right keeps them off the rail edges. The image↔label spacing comes
      from `gap` below, not padding. Overrides the base tile's 4px/10px. */
   padding: 0 4px;
-  /* Override the base tile's `min-width: 44px`. The rail width tracks one board
-     cell (--prediction-tile-w), so on many-column boards the cell — and thus
-     the rail — is narrower than 44px. With the 44px floor the tile stays wider
-     than the rail's content box and the rail's overflow-y:auto (which makes
-     overflow-x compute to auto) clips the tile's RIGHT edge — visible even for
-     short words like "you"/"they". Letting the tile shrink to the rail width
-     removes the overflow, so nothing is clipped. The image scales with the tile
-     (see the rail __prediction-img rule below), so a sub-44px tile stays legible. */
+  /* Override the base tile's `min-width: 44px`. The rail's width tracks one board
+     button (--prediction-tile-w), so on a many-column board that width can be under
+     44px; with the floor in place the tile stays wider than the rail's content box and
+     spills past its right edge. Letting it shrink to the rail width keeps the two in
+     step. The image scales with the tile (see the rail __prediction-img rule below), so
+     a sub-44px tile stays legible.
+     NOTE: an earlier version of this comment attributed the spill to "the rail's
+     overflow-y:auto, which makes overflow-x compute to auto". The rail declares no
+     overflow property at all — that rationale described a mechanism that cannot run. */
   min-width: 0;
   /* Match the board CARD's box inside the row band — NOT the band itself. The rail's
      minmax(0,1fr) tracks already mirror the board rows, but a card does not fill its
@@ -72855,7 +72870,10 @@ span.md-board-detail-modeling-btn--paused:hover {
    opacity + a light frosted backing (mirrors the dark-mode lift) so the glyph
    composites over white and reads bright and clear instead of muddy. */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-img[src$="square.svg"] {
-  opacity: 1;
+  /* Through the shared alpha, not a literal: at (0,2,1) this rule outranks the --is-loading
+     img dim, so a literal `1` meant a prediction whose symbol failed to resolve showed no
+     loading cue on its symbol at all. */
+  opacity: var(--pred-img-a, 1);
   background: rgba(255, 255, 255, 0.85);
   border-color: rgba(255, 255, 255, 0.55);
 }
@@ -72960,13 +72978,15 @@ span.md-board-detail-modeling-btn--paused:hover {
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     0 4px 14px rgba(27, 54, 93, 0.18);
   cursor: pointer;
-  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+  /* No `opacity` here: nothing changes the TILE's opacity. The cue moves the IMG's, which
+     is where the transition belongs (see __prediction-img below). */
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease;
   flex-shrink: 0;
   position: relative;
 }
 .md-board-detail-sentence-bar__prediction:hover {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0.12));
-  border-color: rgba(255, 255, 255, 0.5);
+  background: linear-gradient(160deg, rgba(255, 255, 255, var(--pred-tile-hover-hi, 0.30)), rgba(255, 255, 255, var(--pred-tile-hover-lo, 0.12)));
+  border-color: rgba(255, 255, 255, var(--pred-tile-hover-border-a, 0.5));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
     0 4px 14px rgba(27, 54, 93, 0.20);
@@ -72982,6 +73002,10 @@ span.md-board-detail-modeling-btn--paused:hover {
   flex-shrink: 1;
   min-height: 0;
   opacity: 0.85;
+  /* The cue fades this element, so the easing belongs here. Without it the tile surface
+     eased over 180ms while the symbol snapped — the abrupt change the delayed-cue design
+     exists to avoid for CVI and attention differences. */
+  transition: opacity 0.18s ease;
   /* Soft, sleek dashed frame around the prediction symbol — the "suggestion"
      affordance now lives on the image (the tile itself is solid glass). A thin
      rounded dash with a little breathing room from the symbol reads modern.
@@ -86281,7 +86305,7 @@ span.md-board-detail-modeling-btn--paused:hover {
     0 4px 16px rgba(0, 0, 0, 0.30);
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__prediction:hover {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.09));
+  background: linear-gradient(160deg, rgba(255, 255, 255, var(--pred-tile-hover-hi, 0.22)), rgba(255, 255, 255, var(--pred-tile-hover-lo, 0.09)));
   border-color: rgba(255, 255, 255, 0.42);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.26),
