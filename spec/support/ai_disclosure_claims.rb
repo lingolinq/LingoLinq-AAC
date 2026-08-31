@@ -41,7 +41,18 @@ module AiDisclosureClaims
     ['guarantees zero data retention', /zero[- ]data[- ]retention guarantee/i],
     ['claims the vendor discards data after answering', /(?:does not retain it|does not keep the information) (?:beyond|after) answering/i],
     ['advertises Claude Opus 4.7 as in use', /Claude Opus 4\.7/i],
-    ['claims a Google Gemini fallback (disabled 2026-07-09)', /Gemini/i]
+    ['claims a Google Gemini fallback (disabled 2026-07-09)', /Gemini/i],
+    # The two retention bases RETRACTED 2026-08-30 (#888): the corrected copy may
+    # still QUOTE each one in order to retract it ("previously presented that
+    # window as record-keeping required by the EU AI Act", "described this as a
+    # hard floor required by 45 CFR ..."), and "previously" is not a NEGATOR, so
+    # these patterns match the retracted ASSERTION wordings only. English and
+    # Spanish forms both, because config/locales/es.yml served both claims after
+    # en.yml was corrected.
+    ['gives EU AI Act Article 50 as a retention/record-keeping basis (retracted 2026-08-30)',
+     /as part of the record-keeping this (?:notice|Article 50 disclosure)|Article 50 record-keeping|mantenimiento de registros que describe este aviso/i],
+    ['asserts the 45 CFR 164.316(b)(2) retention hard floor (retracted 2026-08-30)',
+     /a hard floor(?! required by)|This (?:is a )?hard floor|límite mínimo obligatorio(?! exigido por)/i]
   ].freeze
 
   # STRUCTURAL RULE, added after the phrase list missed a paraphrase.

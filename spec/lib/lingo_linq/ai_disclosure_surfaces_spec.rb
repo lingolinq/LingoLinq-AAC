@@ -30,6 +30,10 @@ describe 'AI disclosure rendered surfaces' do
 
   privacy_template_path = File.join(repo_root, 'app/frontend/app/templates/privacy.hbs')
   rails_locale_path = File.join(repo_root, 'config/locales/en.yml')
+  # EVERY Rails locale file, not just en.yml. Hardcoding en.yml here is how
+  # config/locales/es.yml kept serving both retention bases retracted by #888 on
+  # the unauthenticated Article 50 notice (?locale=es) with no spec noticing.
+  rails_locale_paths = Dir[File.join(repo_root, 'config/locales/*.yml')].sort.freeze
   frontend_locale_paths = Dir[File.join(repo_root, 'public/locales/*.json')].sort.freeze
 
   let(:privacy_template) { File.read(privacy_template_path) }
@@ -120,13 +124,28 @@ describe 'AI disclosure rendered surfaces' do
     end
   end
 
-  describe 'config/locales/en.yml (server-rendered consent copy)' do
-    it 'asserts none of the banned AI claims' do
-      offenders = AiDisclosureClaims.offending_claims(rails_locale)
-      expect(offenders).to be_empty, "config/locales/en.yml still #{offenders.join('; ')}"
+  describe 'config/locales/*.yml (server-rendered consent copy, every locale)' do
+    it 'has Rails locale files to check, including the Spanish Article 50 translation' do
+      expect(rails_locale_paths.map { |p| File.basename(p) }).to include('en.yml', 'es.yml')
     end
 
-    it 'does not present evaluation data as currently sent' do
+    it 'asserts none of the banned AI claims in any Rails locale file' do
+      failures = rails_locale_paths.flat_map do |path|
+        AiDisclosureClaims.offending_claims(File.read(path)).map { |d| "#{File.basename(path)}: #{d}" }
+      end
+      expect(failures).to be_empty,
+                          "Rails locale copy still asserts banned AI claims:\n  #{failures.join("\n  ")}"
+    end
+
+    it 'never ties evaluation summaries to data egress without marking them inactive, in any Rails locale file' do
+      failures = rails_locale_paths.flat_map do |path|
+        AiDisclosureClaims.eval_egress_violations(File.read(path)).map { |s| "#{File.basename(path)}: #{s}" }
+      end
+      expect(failures).to be_empty,
+                          "Rails locale copy asserts evaluation-data egress:\n  #{failures.join("\n  ")}"
+    end
+
+    it 'does not present evaluation data as currently sent (English copy)' do
       expect(rails_locale).to match(/what_we_send_item_eval:.*nothing is sent today/i)
     end
   end
