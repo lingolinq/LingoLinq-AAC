@@ -104,14 +104,39 @@ module OpenSymbols
       if repo
         fetch_defaults_bulk(repo, words, locale)
       else
-        # opensymbols or tawasol: no bulk endpoint, search each word
-        results = {}
-        words.each do |word|
-          symbols = search(word, locale: locale, repo: repo, favor: favor)
-          results[word] = symbols.first if symbols.any?
-        end
-        results
+        search_many(words, locale: locale, repo: repo, favor: favor)[:results]
       end
+    end
+
+    # Parallel per-word search. The combined opensymbols library has no
+    # bulk /defaults endpoint, so each uncached word is one HTTP call.
+    # Hydra runs them concurrently; a timed-out / 429 word is omitted
+    # (errors hash) rather than recorded as a hit.
+    def search_many(queries, locale: 'en', repo: nil, favor: nil)
+      words = Array(queries).compact.reject(&:blank?)
+      return {results: {}, errors: {}} if words.blank?
+
+      token = access_token
+      unless token
+        errors = {}
+        words.each { |word| errors[word] = :auth }
+        return {results: {}, errors: errors}
+      end
+
+      results = {}
+      errors = {}
+      hydra = Typhoeus::Hydra.new(max_concurrency: search_concurrency)
+      words.each do |word|
+        hydra.queue(build_search_request(word, locale: locale, repo: repo, favor: favor, token: token) do |classified|
+          if classified[:ok]
+            results[word] = classified[:results].first if classified[:results].any?
+          else
+            errors[word] = classified[:error]
+          end
+        end)
+      end
+      hydra.run
+      {results: results, errors: errors}
     end
     
     # Search for symbols and return in LingoLinq format
@@ -139,7 +164,31 @@ module OpenSymbols
     private
 
     def search_timeout
-      10
+      n = ENV['OPENSYMBOLS_SEARCH_TIMEOUT'].to_i
+      n > 0 ? n : 3
+    end
+
+    def search_concurrency
+      n = ENV['OPENSYMBOLS_HYDRA_CONCURRENCY'].to_i
+      n = 6 if n <= 0
+      [n, 16].min
+    end
+
+    def build_search_request(query, locale:, repo:, favor:, token:, &on_classified)
+      search_str = query.to_s
+      search_str += " repo:#{repo}" if repo.present?
+      search_str += " favor:#{favor}" if favor.present?
+      request = Typhoeus::Request.new(
+        "https://www.opensymbols.org/api/v2/symbols",
+        method: :get,
+        params: {q: search_str, locale: locale, safe: 1},
+        headers: { 'Authorization' => "Bearer #{token}" },
+        timeout: search_timeout
+      )
+      request.on_complete do |response|
+        on_classified.call(classify_search_response(response))
+      end
+      request
     end
 
     def classify_search_response(response)

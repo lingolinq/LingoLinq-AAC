@@ -64,7 +64,7 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'cat', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        timeout: 10
+        timeout: 3
       ).and_return(response)
       
       results = OpenSymbols.search('cat')
@@ -81,7 +81,7 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'dog repo:arasaac', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        timeout: 10
+        timeout: 3
       ).and_return(response)
       
       results = OpenSymbols.search('dog', repo: 'arasaac')
@@ -96,7 +96,7 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'house favor:tawasol', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        timeout: 10
+        timeout: 3
       ).and_return(response)
       
       results = OpenSymbols.search('house', favor: 'tawasol')
@@ -111,7 +111,7 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'sun hc:1', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        timeout: 10
+        timeout: 3
       ).and_return(response)
       
       results = OpenSymbols.search('sun', high_contrast: true)
@@ -308,18 +308,44 @@ describe OpenSymbols do
     end
 
     it 'should fall back to per-word search for opensymbols meta-repo' do
-      expect(OpenSymbols).to receive(:search).with('cat', locale: 'en', repo: nil, favor: nil).and_return([{ 'image_url' => 'https://example.com/cat.png', 'id' => 1 }])
-      expect(OpenSymbols).to receive(:search).with('dog', locale: 'en', repo: nil, favor: nil).and_return([])
+      expect(OpenSymbols).to receive(:search_many).with(['cat', 'dog'], locale: 'en', repo: nil, favor: nil).and_return({
+        results: {'cat' => { 'image_url' => 'https://example.com/cat.png', 'id' => 1 }},
+        errors: {}
+      })
 
       results = OpenSymbols.defaults('opensymbols', ['cat', 'dog'], 'en')
       expect(results).to eq('cat' => { 'image_url' => 'https://example.com/cat.png', 'id' => 1 })
     end
 
     it 'should fall back to per-word search for tawasol' do
-      expect(OpenSymbols).to receive(:search).with('house', locale: 'en', repo: nil, favor: 'tawasol').and_return([])
+      expect(OpenSymbols).to receive(:search_many).with(['house'], locale: 'en', repo: nil, favor: 'tawasol').and_return({
+        results: {},
+        errors: {}
+      })
 
       results = OpenSymbols.defaults('tawasol', ['house'], 'en')
       expect(results).to eq({})
+    end
+
+    it 'should omit a timed-out word from defaults rather than treating it as a miss hit' do
+      expect(OpenSymbols).to receive(:search_many).with(['a', 'b'], locale: 'en', repo: nil, favor: nil).and_return({
+        results: {'a' => { 'image_url' => 'https://example.com/a.png' }},
+        errors: {'b' => :timeout}
+      })
+      results = OpenSymbols.defaults('opensymbols', ['a', 'b'], 'en')
+      expect(results.keys).to eq(['a'])
+    end
+
+    it 'should queue opensymbols per-word searches on Hydra instead of waiting sequentially' do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token')
+      hydra = double('hydra')
+      queued = []
+      expect(Typhoeus::Hydra).to receive(:new).with(hash_including(:max_concurrency)).and_return(hydra)
+      expect(hydra).to receive(:queue) { |req| queued << req }.exactly(3).times
+      expect(hydra).to receive(:run)
+
+      OpenSymbols.defaults('opensymbols', %w[a b c], 'en')
+      expect(queued.length).to eq(3)
     end
   end
 end

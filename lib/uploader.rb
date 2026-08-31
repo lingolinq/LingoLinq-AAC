@@ -737,19 +737,9 @@ module Uploader
           protected_source = 'symbolstix'
         end
         
-        results = {}
-        
-        if library == 'opensymbols'
-          # The 'opensymbols' meta-repo doesn't support the defaults endpoint,
-          # iterate and search for each word individually
-          list.each do |word|
-            search_results = OpenSymbols.search(word, locale: locale)
-            results[word] = search_results.first if search_results.any?
-          end
-        else
-          # Use the bulk defaults endpoint for specific repositories
-          results = OpenSymbols.defaults(library, list, locale)
-        end
+        # opensymbols (and tawasol) have no bulk defaults endpoint;
+        # OpenSymbols.defaults parallelizes those per-word searches.
+        results = OpenSymbols.defaults(library, list, locale)
       else
         # Fallback to v1 API with OPENSYMBOLS_TOKEN
         token = ENV['OPENSYMBOLS_TOKEN']
