@@ -23,24 +23,203 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 10. **A red test run is not a regression until you have confirmed the run COMPLETED.** A truncated run is indistinguishable from a failing one at a glance — it prints a `# fail` line, names a test, and exits non-zero. Check the shape of the run before reporting anything:
     - **`node -v` FIRST — before reading a single line of failure output.** The shell's nvm
-      default here is **16**; this repo requires **22**. On Node 16 the suite builds and then dies
-      with `require() of ES Module .../execa/index.js not supported` — a run that NEVER STARTED,
-      which also exits non-zero and looks exactly like a red suite. `export NVM_DIR="$HOME/.nvm";
-      . "$NVM_DIR/nvm.sh"; nvm use 22`. This is documented in LEARNINGS (2026-08-10) and was still
-      rediscovered the hard way on 2026-08-23 — a handoff claimed "testem cannot launch in this
-      environment", which is false. Also invoke the local binary (`./node_modules/.bin/ember`):
-      under Node 22 `npx ember` resolves to the placeholder `ember` package, not ember-cli.
+      default here is **16**; this repo requires **22** (`/.nvmrc`, `app/frontend/.nvmrc`,
+      `package.json` engines `>=22 <23`). A wrong-Node run can die during BUILD and still exit
+      non-zero with a `# fail` line, which looks exactly like a red suite. `export
+      NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22`. Documented in LEARNINGS
+      (2026-08-10) and rediscovered the hard way on 2026-08-23 — a handoff claimed "testem
+      cannot launch in this environment", which is false.
+      Two claims that used to live here were re-verified on 2026-08-30 and are NO LONGER TRUE;
+      do not reason from them. (a) The `require() of ES Module .../execa/index.js` symptom:
+      `execa` now resolves to **1.0.0, CJS** (no `type` field), so it cannot reproduce. (b) "`npx
+      ember` resolves to a placeholder `ember` package": `node_modules/ember` does not exist and
+      is absent from `package-lock.json`; `.bin/ember` points at `ember-cli/bin/ember`, and
+      `.github/workflows/ci.yml` itself runs `npx ember build` / `npx ember test`. Invoking
+      `./node_modules/.bin/ember` is still the safer habit, just not for that reason.
     - **You cannot attribute a failure without a BASELINE.** Re-run the full suite with your change
       reverted in the working tree. Identical pass/fail counts with DIFFERENT failing test names
-      means flaky, not a regression — this repo has a live async leak in `services/session.js`
-      (`token_validated` written after teardown) that charges a global failure to whichever test is
-      running. A real regression fails the SAME tests every time.
-    - **`ember test`: check `# skip` first.** The skip count is near-constant (38 as of 2026-08-16) while the total drifts as tests are added, which makes skips the reliable tell. A complete run reports `# tests 2005 / # skip 38`; a truncated one reports the same `# skip` line with a much smaller number (0, 14 and 26 were all seen in one session) and a total well short of the baseline. The usual cause is `Browser timeout exceeded: 120s` — testem's `browser_disconnect_timeout` reaping a headless browser that went SILENT under machine load, not a slow test. The tell is that the named test differs every run and passes in isolation (`npx ember test --filter "<name>"`).
+      means flaky, not a regression. A real regression fails the SAME tests every time.
+      **The live cause as of 2026-08-31 is `capabilities.sync_access_token`**, which calls
+      `localStorage.getItem` from an async callback. When that callback lands after another test
+      has torn down its `localStorage` stub it throws `TypeError: localStorage.getItem is not a
+      function`, and QUnit charges the resulting GLOBAL FAILURE to whichever test happens to be
+      running — most recently `Unit | Component | boards-layout-toggle: rapid toggling serializes
+      saves instead of racing them`, which is not related to it in any way. Evidence: two
+      back-to-back full runs on the same tree, both complete (`# tests 2412 / # skip 38`), one
+      with that failure and one with none, and the named test passing 20/20 in isolation.
+      (This rule previously named a `token_validated` leak in `services/session.js`. That one was
+      FIXED — all three async writers are teardown-guarded at `services/session.js:279`, `:364`,
+      `:676`. The discipline outlived its original example, which is the point of dating the
+      example rather than trusting it.)
+    - **`ember test`: check `# skip` first.** The skip count is near-constant (38 as of 2026-08-16) while the total drifts as tests are added, which makes skips the reliable tell. A complete run reports `# skip 38` with a total that DRIFTS upward as tests are added (2005 on 2026-08-16; 2157 and 2327 in later recorded runs — reconcile against a recent run, not against this number); a truncated one reports the same `# skip` line with a much smaller number (0, 14 and 26 were all seen in one session) and a total well short of the baseline. The usual cause is `Browser timeout exceeded: 120s` — testem's `browser_disconnect_timeout` reaping a headless browser that went SILENT under machine load, not a slow test. The tell is that the named test differs every run and passes in isolation (`npx ember test --filter "<name>"`).
     - **Do not run a full suite while `ember serve` or browser probes are running.** That contention is the cause, and it wasted four runs in one session. Stop them, or accept the truncations.
-    - **Do not "fix" it by raising `browser_disconnect_timeout` in `testem.js`.** The 120s is deliberate (`.github/workflows/ci.yml:126-129` wants a wedged runner to fail fast rather than burn the Actions ceiling), and CI is not affected — the Ember step has failed 0 of the last 30 `ci.yml` runs. If you need a patient run locally, wrap the repo config in a temp file outside the repo and pass `--config-file`; never commit the change.
+    - **Do not "fix" it by raising `browser_disconnect_timeout` in `testem.js`.** The 120s is deliberate. Note what CI actually does, because an earlier version of this rule cited the wrong lines for it: `.github/workflows/ci.yml:124-129` is the **ESLint gate** (`run: npm run lint:js:ci`), while the fail-fast rationale lives at **`:141-147`** and justifies a 50-minute GitHub `timeout-minutes` STEP CAP — a different mechanism from testem's `browser_disconnect_timeout`. Treat "CI is unaffected" as UNVERIFIED unless you have just queried the Actions API; it is not checkable from the repo alone. If you need a patient run locally, wrap the repo config in a temp file outside the repo and pass `--config-file`; never commit the change.
     - Same discipline for any suite: reconcile the totals against a known-good baseline before claiming a delta. If you cannot say why the count moved, you do not yet know whether it passed.
 
 11. **Do not assert anything about a system you have not just checked — especially to justify a change.** Saying "CI hits this too", "this is covered by specs", "that path is unused", or "this is pre-existing" is a claim, and each one is cheap to verify: query the Actions API for real run outcomes, grep for the call site, diff the linter against `git show HEAD:<file>`. Inference from plausible reasoning is not evidence, and a wrong claim is worse when it is the argument FOR editing shared config or shipping a fix. If a check is impractical, say the claim is unverified rather than stating it flatly — and when a claim you already made turns out wrong, correct the durable artifacts (docs, learnings, PR body), not just the chat.
+
+12. **Never implement a fix before an adversarial review of the PROPOSED fixes.** Diagnose, then
+    write the candidate fixes down — **more than one, wherever more than one exists** — and put
+    that proposal through adversarial review *before* editing any code. Apply only what survives,
+    with whatever changes the review demands.
+
+    The order matters because fixes are where the defects are. On the branch that produced this
+    rule, six review rounds found real bugs and **three of them found the bugs in the previous
+    round's fixes**. When proposals were finally reviewed before landing, the reviewer found
+    defects in **four of five** proposals — twice running. In the worst case, a CRITICAL scanning
+    lockout, *both* proposed remedies were actively harmful (one added ~120 DOM lookups per scan
+    tick on an eye-gaze user's code path; the other could leave scanning stopped with no armed
+    timer) and the correct third fix came from the review. Under fix-then-review, every one of
+    those ships and is discovered — if at all — a round later.
+
+    What a proposal must contain:
+    - the **diagnosis**, verified in code, with file:line — a wrong diagnosis makes the best-built
+      fix worthless, and one on that branch blamed the wrong commits entirely;
+    - **at least two candidate fixes** where they exist, with the trade-off between them stated,
+      plus the simplest alternative considered and why it was rejected;
+    - **the risks you can see**, and explicitly **the questions you could not resolve** — those are
+      where a wrong fix hides, and naming them is what lets the review aim;
+    - the **test** that will accompany the fix, and **the mutation that must make that test fail**.
+
+    Every accompanying test must then be **falsified** before it is trusted: revert the fix, confirm
+    the test goes red, restore. Four tests on that branch passed against the very bugs they were
+    written for and were caught only this way. A test that cannot fail is worse than no test,
+    because it is counted as coverage.
+
+    Restore from a copy you made yourself, never `git checkout` — that destroys uncommitted work,
+    and doing it once cost a whole redesign and three rounds of debugging its absence. Commit
+    before running destructive verification.
+
+    This does not license skipping rules 1-4: a review is evidence to verify, not a verdict. Reviews
+    on that branch were wrong too — a contrast remedy that still failed AA, a magnitude computed
+    from the wrong root font-size, a "factually wrong" charge against a comment that was correct.
+    Verify each finding yourself before acting on it, and say so when you disagree.
+
+13. **Establish three facts BEFORE writing a fix, and write them down labelled.** Every defect
+    self-inflicted on the branch that produced rules 12-14 came from skipping one of exactly three
+    questions. They are a closed list, they are cheap, and they are answerable before any code is
+    written:
+
+    - **(a) Where is this value actually READ?** Trace the control flow to the read, not to where
+      the concept belongs. This one question accounts for FIVE separate bugs on that branch, all
+      of the same shape: a guard placed where it cannot fire — after the early return it needed to
+      precede; on the dwell branch when the scanner branch returns first; keyed on a value that is
+      null for exactly the users it was written for; and twice as a proposed fix that was a strict
+      no-op. Every one of them read correctly. None executed correctly.
+    - **(b) What are ALL the shapes this can hold?** Enumerate the reachable states and name the
+      writer of each. `suggestions === null` missed `{ready: true, list: []}`, which FOUR call sites in
+      `board-detail.js` produce, plus a fifth in `controllers/board/index.js`; the fix looked
+      complete and covered one of two cases. Note the count: this rule used to say "three",
+      copying a code comment that was counting CAUSES rather than writers — in the very rule that
+      tells you to name the writer of each.
+    - **(c) Is this claim about another file TRUE?** Rule 11 already says this; it was still
+      violated repeatedly. "The sibling test uses the shared helper" (it uses an inline stub),
+      "`updateSuggestions` observes `model.id`" (it does not), "that probe failure was an ember
+      rebuild" (it was a real defect, and the misreading cost hours).
+
+    **Label every fact CONFIRMED (`file:line`) or ASSUMED before you use it.** No ASSUMED line may
+    be load-bearing for a fix: check it, or do not proceed on it. This exists because a verified
+    fact and a plausible inference are indistinguishable from the inside — writing them in
+    different columns is what makes the gap visible. Reviewers on that branch used exactly this
+    labelling and it is why their findings held up.
+
+    **The three facts are NEVER skipped, and "this one is obvious" is the signal to write them
+    down, not to skip them.** Every one of the five guard-placement bugs looked obvious. Each was a
+    one-line change to code the author had just written and believed he understood; that belief was
+    the defect. The fact sheet is a PRECONDITION of touching code, not a ceremony reserved for
+    changes that feel large — the small, confident, self-evident fix is exactly where this failed,
+    five times, and twice the misplaced guard WAS the entire proposed fix. There is no size or
+    urgency threshold below which the three questions are optional. If the answers are genuinely
+    trivial the sheet takes a minute and proves it; if writing it is awkward, that awkwardness IS
+    the finding, and it is cheaper here than three review rounds later.
+
+    **Then write the RED TEST FIRST — before the fix exists — derived from the traced mechanism.**
+    This is the highest-leverage single practice available here, because it forces (a), (b) and (c)
+    simultaneously: a test cannot fail *for the right reason* unless you know where the value is
+    read, which states are reachable, and what the neighbouring code really does. It also proves
+    the diagnosis before any effort is invested in a fix worth defending. All five hollow tests on
+    that branch — tests that passed against the very bug they were written for — were written
+    AFTER their fix, from a description rather than from a mechanism. A fix whose red test you
+    cannot write is a fix whose bug you do not yet understand.
+
+    Worked example, from the bug that consumed three review rounds. The claim was "a cleared
+    sentence must blank the panel". Writing the fix first produced a guard that read correctly and
+    sat after the early return that made it unreachable; it survived a full round, a proposal
+    review, and a commit message asserting it was fixed. Writing the RED TEST first would have
+    required setting up a freeze, blanking it, and observing the panel — and the setup itself walks
+    straight into the early return, so the diagnosis surfaces in the first ten minutes rather than
+    the third round. The same holds for the header-row false positive: any test that scans the
+    header row goes red immediately, because building it forces you to ask what the scanner's
+    `dom` actually IS at that step. In both cases the test is not a check on the fix; it is the
+    instrument that finds where the fix belongs.
+
+14. **Five practices that prevent the specific defects this codebase has already produced.** Each
+    is cheap, mechanical, and traceable to a real failure — not general advice.
+
+    1. **Trace-to-the-read before placing any guard.** State in one line where the value is read
+       and show the guard precedes it on every path. If you cannot write that line, you do not yet
+       know where the guard goes. (Rule 13(a) is the diagnosis; this is the habit.)
+    2. **Write the weakest passing state before writing a test.** Ask: what is the least-working
+       version of this system that still makes this test green? If that state contains the bug, the
+       test is wrong — rewrite it before running it. This catches hollow tests earlier and more
+       cheaply than falsification does, and falsification (rule 12) then confirms it. Real examples:
+       a cue test that stopped its stimulus before asserting; a regression that needed TWO
+       suppressed writes to diverge and had one; an "untargeted control" whose first assertion was
+       false for an unrelated reason and could never fail.
+    3. **Write comments last, and make every cross-file claim checkable.** Comments describe what
+       the code DOES, not what it is for, and any assertion about another file cites `file:line`.
+       Four comments on that branch claimed more than their code — including one asserting the
+       exact opposite of the behaviour beneath it, and one whose stated rationale described a path
+       that could not execute. A comment written before the code settles becomes a false statement
+       that misleads the next reader, the next reviewer, and you.
+    4. **Enumerate matches before any text substitution in a shared file.** List what a
+       replacement will hit and confirm each is intended. A blanket `<=768px` -> `<=1024px` rename
+       intended for ONE stale comment corrupted four correct ones, and a block deletion silently
+       removed a helper that two live call sites still referenced. The same rule applies to
+       deleting a range: print what is inside it first.
+    5. **Two independent reviewers for anything High or above.** Independent convergence was the
+       strongest evidence produced on that branch — two reviewers who had not seen each other's
+       output found the same HIGH defect, one by tracing and one by writing a probe test. A single
+       reviewer is also wrong sometimes: reviews on that branch produced a contrast remedy that
+       still failed AA, a magnitude computed from the wrong root font-size, and a "factually wrong"
+       charge against a comment that was correct.
+
+    **Ordering matters:** rules 13 and 14 come FIRST and rule 12's proposal review is the
+    BACKSTOP. A reviewer spending its attention on a guard that cannot fire is a wasted reviewer;
+    that class should never reach it. Reviews earn their cost on blast radius, cross-file
+    interactions, and the things you structurally cannot see about your own work.
+
+    (For the two structural constraints these practices depend on — one change per unit, and
+    stopping when the error rate rises — see rule 15.)
+
+15. **Two structural constraints on HOW the work is paced.** Rules 12-14 govern the content of a
+    change; these govern its size and its timing. Both were learned by violating them.
+
+    **One coherent change per unit.** On the branch that produced these rules, EVERY multi-item
+    batch contained at least one defect and every single-item change was clean — a perfect split.
+    The mechanism is not mysterious: a batch shares one verification pass, so a mistake in item
+    three hides behind green results earned by items one and two, and the fact sheet (rule 13)
+    degrades from a trace into a list. If several fixes are genuinely independent, they are
+    genuinely separate units; if they are not independent, that coupling is itself something to
+    establish before touching any of them. Batching also defeats falsification: mutating one item
+    to confirm its test fails tells you nothing about the other four.
+
+    **Stop when the error rate rises; do not push through.** Assumption errors on that branch got
+    WORSE as the session lengthened, not better, and the qualitatively different mistakes all came
+    late: a blanket `sed` across a shared stylesheet that corrupted four correct comments, a
+    `git checkout` on uncommitted work that destroyed a completed redesign and cost three further
+    rounds debugging its absence, and a range deletion that silently removed a helper two live call
+    sites still referenced. None of those are reasoning errors of the kind rules 13-14 address —
+    they are the mechanical slips of someone going too fast, and no amount of review discipline
+    prevents them because they happen in the act of applying an already-correct plan.
+
+    The tell is not fatigue, which is not observable from the inside. It is the RATE: two
+    self-inflicted errors close together, a fix that needs a second correction, or a verification
+    step that has to be re-run because the first attempt was botched. At that point the correct
+    move is to commit what is verified, write down what remains, and stop — not to attempt one more
+    change. Work that stops cleanly at a known-good state costs one session; work that continues
+    past this point has already cost more than it saved, twice, on the branch that produced this
+    rule.
 
 ## Branching (mandatory before ANY code change)
 

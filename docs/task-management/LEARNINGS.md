@@ -210,6 +210,12 @@ file (see [README.md](README.md)).
 - [Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller](#pattern-a-body-attribute-published-by-a-self-contained-component-is-the-cross-component-channel--observe-it-dont-widen-a-shared-controller)
 - [Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it](#pattern-a-mobile-select-standing-in-for-a-desktop-tab-row-must-mirror-it-optgroup-not-flatten-it)
 - [Sourcing external requirements (payer/clinical/legal) — 2026-08-25](#sourcing-external-requirements-payerclinicallegal--2026-08-25)
+- [Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam](#gotcha-a-new-scannerfind_elem-call-in-start-must-be-guarded--the-specs-stub-that-seam)
+- [Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell](#pattern-loading-states-for-an-aac-prediction-panel--never-blank-delay-the-cue-dim-dont-spin-and-dont-swap-under-a-dwell)
+- [Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL](#pattern-to-line-a-sibling-up-with-the-board-grid-mirror-its-origin-margin--padding-not-just-its-height--and-remember-a-card-does-not-fill-its-cell)
+- [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
+- [Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery](#pattern-a-container-that-stays-in-the-layout-while-empty-defeats-the-scanners-detachedzero-box-recovery)
+- [Decision: scanner `escape()` keeps its class allow-list — generalising it removes the switch user's guaranteed exit](#decision-scanner-escape-keeps-its-class-allow-list--generalising-it-removes-the-switch-users-guaranteed-exit)
 
 ---
 
@@ -15782,6 +15788,119 @@ gate and the local citation check. The linter allowlists `evidence.type` against
 type the same as a missing one (derive `code` if a file is present). That strictness
 matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
 
+---
+
+## Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam
+
+**Surface:** adding any new selector lookup to `scanner.start()` (here, scanning the board-detail
+word-prediction rail). Two scanner specs died with
+`TypeError: Cannot read properties of undefined (reading 'length')` thrown from `Class.start`.
+
+**Root cause:** `find_elem` is the seam `tests/utils/scanner-test.js` stubs. The shared
+`scannerFindElemStub` helper has a `domStub(0)` fallback for unknown selectors, but several tests
+hand-roll a stub that answers only the selectors it knows about and returns `undefined` for
+everything else. Copying the shape of the neighbouring `#word_suggestions` block
+(`if(scanner.find_elem("#word_suggestions").length)`) is what leads you into this — that selector IS
+in the shared stub's known list, so the unguarded `.length` is safe there and nowhere else.
+
+**Fix:** `var $x = scanner.find_elem(sel); if($x && $x.length) { … }`, and guard `.find` the same way
+inside any `reload_children`. Fix the code, not the stub — a new selector must never be able to take
+the whole of `start()` down.
+
+**Also worth knowing about scan rows:** `scan_content()` builds the board rows solely from
+`model.grid.order`, and the header row sweeps `#speak button:visible`. Anything that is neither a
+board button nor a descendant of `#speak` is invisible to scanning until it is pushed as its own row
+— which is how board-detail's prediction rail (a SIBLING of `#speak`) shipped unreachable by
+scanning in its default placement. When adding such a row, `:visible` is load-bearing: the JShim
+constructor strips it and filters on `offsetParent`/`offsetWidth`/`offsetHeight`, and without it a
+`display:none` control is still in the DOM and becomes a scan stop on nothing.
+
+---
+
+## Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell
+
+**Surface:** the word-prediction panel (board-detail rail or in-bar group) between word selections,
+especially on deployment where a lookup is slow enough to see.
+
+The panel is a **motor-planning surface**, not a content feed, which inverts several normal web
+loading-state habits. In priority order:
+
+1. **Never blank it.** Keep the previous words visible and live until the new set arrives
+   (stale-while-revalidate). A stale but valid word is a far better outcome for someone already
+   reaching for it than an empty panel — and if the panel is a fixed-width sibling of the flexible
+   board grid, unmounting it also resizes every board button.
+2. **Show no cue below ~400ms.** Most lookups resolve locally in a few ms; a cue that flashes on and
+   off is more disruptive than none, actively so with CVI or attention differences. Delay the CUE,
+   never the DATA.
+3. **Dim, don't spin, never resize.** A spinner inside a targetable tile changes what the target
+   looks like mid-reach. Opacity only.
+4. **Never disable a stale tile.** A dead target that swallows a dwell or switch hit gives no
+   feedback and costs a re-acquisition — worse than inserting a slightly stale word.
+5. **Never swap the words under an active dwell or scan of the panel.** This is the one genuinely
+   dangerous moment: the user selects a word they never chose. Hold the new set while the panel is
+   the live target (`scanner.actively_scanning()` + `scanner.current_element`, and
+   `buttonTracker.last_dwell_linger`), and bound the hold three ways — skip it when the word sequence
+   is unchanged, cap the total hold, and retract the loading cue as soon as the lookup finishes so a
+   held swap does not leave the panel dimmed. Treat both state reads as advisory: if either throws,
+   commit, because a stuck panel is worse than a rare mistimed swap.
+6. **Key the `{{#each}}` on the word.** Without a key, Ember rebuilds every tile (and re-decodes
+   every symbol) on each lookup even for words that carried over. A keyed each needs unique keys, so
+   de-dupe the list — with array membership, not an object map: `seen['constructor']` is truthy on a
+   bare `{}` and silently drops that word.
+
+**Evidence:** `controllers/user/board-detail.js` (`_begin_suggestion_lookup`, `_commit_suggestions`,
+`_prediction_panel_targeted`, `suggestions_loading_visible`, `prediction_suggestions`);
+`app.scss` `.md-board-detail-prediction-rail--is-loading`; task log
+`2026-08-28-prediction-rail-alignment-and-width-stability.md`.
+
+---
+
+## Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL
+
+**Surface:** the word-prediction rail — a fixed-width flex sibling of the board grid — whose tiles are
+supposed to sit exactly beside the board buttons. Reported as "the prediction words don't line up
+with the board buttons on all folder settings".
+
+**Read the deltas before theorising.** Equal `dHeight` with a CONSTANT `dTop` across every row means
+the row math is right and the ORIGIN is wrong — a margin or padding, not a gap or a track count. A
+varying `dTop` would mean the opposite. This one measurement separates the two whole classes of cause.
+
+**Two independent causes, and the second was invisible until measured:**
+
+1. **A card does not fill its cell.** Every folder setting reserves a different slice of cell top
+   space for the tab: default-with-folders `calc(var(--bd-cell-min) * 0.14)` on EVERY cell, Show-
+   Labels-on-Tab 8/10px plus a `calc(100% - 18px)` translated card, colored-corner 0, folder-less
+   boards none. A rail tile that fills its row band edge-to-edge therefore floats above the card
+   beside it by exactly that reserve — and the offset changes with the folder setting, which is what
+   made it look like a folder bug.
+2. **The grid has its own `margin-top`.** `.md-board-detail-grid.board.speak` sets
+   `margin-top: 6px !important` (reset to `0 !important` at `max-height:820px` / `max-width:768px`).
+   Pinning the rail to the grid's HEIGHT and mirroring its PADDING still leaves it starting at the
+   flex row's top while the grid starts one margin lower.
+
+**Fix for both: publish measured values, never constants.** `_sync_prediction_tile_size` already
+measures a representative card, so it also publishes the card's offset within its cell
+(`--prediction-tile-inset-top`), the card's height (`--prediction-tile-h`), and the grid's computed
+`padding-top` and `margin-top` (`--prediction-rail-pad-top`, `--prediction-rail-margin-top`). A
+`getBoundingClientRect` reading captures transforms too, so one rule covers every folder mode with no
+per-mode CSS branch. Every one of these values is dynamic across breakpoints — a hardcoded `4px` top
+inset and an unmirrored `6px` margin were both already-shipped bugs of exactly this kind.
+
+**Not circular** (cf. the sizing-a-flex-sibling entry above): these are read FROM the grid/card and
+applied to the rail's INNER geometry, so they never re-enter the flex width distribution. Note the
+grid's own ResizeObserver does NOT fire when only the cell reserve changes (the grid's box is
+unchanged), so the folder-style property must be an explicit re-measure dependency.
+
+**Verify by measuring, not by looking.** `scripts/prediction-rail-qa.mjs` pairs each tile with the
+card in its row band and asserts `|dTop|` and `|dHeight|` within 2px, per folder style. It caught
+cause 2 on its first run, after cause 1 had already been "fixed" and eyeballed as done.
+
+**Evidence:** `controllers/user/board-detail.js#_sync_prediction_tile_size`; `app.scss`
+`.md-board-detail-prediction-rail` + `.md-board-detail-grid.board.speak` (margin) +
+`.md-board-detail-grid--has-folders …__cell` (reserve); task log
+`2026-08-28-prediction-rail-alignment-and-width-stability.md`.
+
+---
 ## Gotcha: a structural gate without negative fixtures is not a gate
 
 `register-lint.rb` is the only CI structural gate on findings rows. Running it against the
@@ -15823,6 +15942,235 @@ Notion caps `text.content` at 2000 characters **per rich_text object**, not per 
 
 **First seen in:** [2026-08-27-art50-counsel-pointer-review.md](./2026-08-27-art50-counsel-pointer-review.md)
 
+---
+
+## Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design
+
+**Surface:** any feature that wants to know "is the user dwelling on this right now?" — here, holding a
+word-prediction swap while the panel is the live dwell target.
+
+**The trap:** the name reads like live state. It is not. In `dwell_selection == 'button'` (and
+`'expression'`) mode `last_dwell_linger` is **never nulled**:
+
+- `linger_clear_later` (`raw_events.js` ~:2415) calls `clear_dwell` only `if(!dwell_no_cutoff &&
+  dwell_selection)`, where the LOCAL `dwell_selection` (~:2282) is
+  `buttonTracker.dwell_selection != 'button' && != 'expression'` — i.e. **false** in exactly those modes;
+- and `clear_dwell` itself (~:3053) *deliberately keeps* the linger in `'button'` mode, trimming only
+  its `events`, so the switch press can still release it.
+
+So once a dwell+switch user's gaze has rested on an element, a naive read returns "targeted" forever
+with no further input. Anything gated on it stays gated permanently — for the exact user population
+dwell features exist for.
+
+**How to read it safely:** require the linger to be genuinely live — dwell enabled
+(`buttonTracker.check('dwell_enabled')`), the element still in the document
+(`document.body.contains`), and activity within the dwell window (`linger.updated` is stamped on each
+linger event; `linger.started` is the fallback). A detached node is correctly not a live target.
+
+**General rule:** before gating behaviour on another subsystem's state, read that subsystem's
+lifecycle for where the state is CLEARED, not just where it is set. A field with no clear path is a
+latch, not a signal.
+
+---
+
+## Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery
+
+**Surface:** switch scanning drills into a group (the word-prediction rail) whose children then empty
+out; the scanner cycles a single level-up stub over an empty box, and `escape()` quits scanning
+instead of backing out.
+
+**Root cause:** `scanner.next_element` recovers a vanished level with
+`if(!document.body.contains(elem.dom[0]) || (bounds.width == 0 && bounds.height == 0))` and then
+auto-`level_up()`s. That worked by ACCIDENT for every group so far, because an emptied group's
+container had also left the DOM. A container deliberately kept mounted to hold layout width — which is
+what the prediction rail now does — is attached and has a non-zero box, so the recovery never fires.
+
+**Fix:** handle it where the level is built, not where it is measured. In `scanner.load_children`, if
+the reloaded children are empty and a `higher_level` exists, `level_up(parent, true)` instead of
+building a level containing only its own stub.
+
+**Scope, stated precisely — an earlier version of this entry said "strictly better for every caller"
+and that was wrong.** The RECOVERY path already handled the empty case (it reaches the
+`elements.length == 1 && higher_level` check and levels up), so the behaviour that actually changes
+is the `pick` path, where the old code left the user on a level holding only its own level-up stub.
+The commit message of `3bd34f706` still carries the overclaim; `757f0ceb7` retracts it.
+
+**The second argument is load-bearing and was learned two rounds later.** `level_up` returns to
+`higher_level_index` — the row just left. Without `advance`, an emptied group is re-picked by
+`scanning_auto_select` every interval and levels up to itself: the user NEVER REACHES THE BOARD, and
+the only exit is the cancel switch, which stops scanning outright. Of the four `level_up` call sites
+only the empty-children one passes `advance`. Note this trap is not specific to the prediction rail:
+`origin/staging` pushes the classic `#word_suggestions` row with no children guard and board-alt
+renders it with visible "Loading word suggestions…" text, so the same loop ships there at two ticks
+per cycle instead of one.
+
+**Also check `escape()`:** it levels up only for containers whose class it recognises, and falls
+through to `scanner.stop()` otherwise — so a new drill-in level must be added there too, or escaping
+out of it quits scanning altogether.
+
+**Wider lesson:** "keep it mounted so the layout doesn't move" is a good fix with a blast radius. Grep
+for everything that reasons about the element's PRESENCE — scanning, dwell hit-testing, `:empty` CSS,
+a11y tree, layout math — before assuming presence is free.
+
+---
+
+## Decision: scanner `escape()` keeps its class allow-list — generalising it removes the switch user's guaranteed exit
+
+**Status:** tried, reverted, do not retry without the two guards below. `utils/scanner.js#escape`
+points here.
+
+`escape()` levels up only for a parent stub whose dom carries `md-board-detail-sentence-row` or
+`md-board-detail-prediction-rail`, and calls `scanner.stop()` for everything else. That IS
+incoherent — of roughly eight drill-in levels, two go back and six quit, including board rows in
+both UIs, the classic header row, the `#identity` menu and the classic `#word_suggestions` row —
+and every level added later silently defaults to quit.
+
+Generalising it to `if(parent && parent.higher_level) { level_up }` looks obviously right and is
+worse. Two confirmed regressions, both hitting switch users specifically:
+
+1. **It revives a STOPPED scanner.** `scanner.stop()` does not clear `scanner.elements`, and
+   `modal.open` calls `scanner.stop()` for every non-scannable modal. So with the general rule a
+   cancel press behind an open modal runs `level_up` -> `next_element` and resumes scanning on the
+   board underneath — with `scanner.scanning` still false — and with `scanning_auto_select` a
+   button the user cannot see can be picked. The allow-list has the same hole, but for two levels
+   instead of eight.
+2. **It makes `stop()` unreachable in bounded presses.** `level_up` sets
+   `element_index = higher_level_index`, i.e. it puts the highlight back on the row just escaped,
+   and `next_element` re-arms auto-select. So escape -> re-drill -> escape -> re-drill: stopping
+   needs two presses INSIDE ONE SCAN INTERVAL, which is exactly what a long interval exists to
+   avoid for a slow-motor user. Under the allow-list, one press from a board row hits `stop()`,
+   terminal and guaranteed.
+
+**The trade to weigh:** the incoherence is a *coherence* problem; these are *"the switch user
+cannot reliably quit"* problems. Coherence loses.
+
+**What a real fix needs first:** a scanning-state guard in `escape()` (`if(!scanner.scanning) {
+scanner.stop(); return; }`, or the modal check `raw_events.js` already applies on the select
+branch), and suppression of the next auto-select after an escape-driven `level_up`. Both want
+their own tests. `tests/utils/scanner-test.js` now has a test named for the guaranteed exit that
+will fail if someone generalises this again without them.
+
+**Evidence:** `utils/scanner.js#stop` (does not clear `elements`), `#level_up`, `#escape`;
+`utils/modal.js:126,188`; `services/app-state.js` (`scanning_auto_select`); task log
+`2026-08-28-prediction-rail-alignment-and-width-stability.md`.
+
+## Pattern: a guard keyed on a MONOTONIC global silently collapses to its other term
+
+**Surface:** board-detail word-prediction freeze. `restart_placed` suppressed the swap-freeze when
+`scanner.started >= _last_prediction_commit_at && scanner.element_index === 0`.
+
+**Root cause:** `scanner.started` is written only in `start()` (`utils/scanner.js:197`) and never
+cleared — `stop()` leaves it — and `pick_elem` restarts after EVERY selection. So after the user's
+first prediction commit the first term was permanently true and the conjunction degenerated to
+`element_index === 0`. That index is not unique to a post-commit restart: `load_children` sets it on
+every drill-in (`:1187`) and `next()` wraps to it every cycle (`:1228`), so the freeze was disabled
+exactly on prediction tile #1 — the tile a user is most likely committing to.
+
+**Fix:** the intent ("do not withhold the refresh the user's own commit triggered") was one LOOKUP
+GENERATION wide, not a scanner index. Moved to a one-shot armed at commit and consumed in the
+observer. Two placement facts that were NOT obvious and each would have shipped a bug: the one-shot
+cannot live in the predicate, because the release poll calls it too and would consume it; and it
+must be consumed at the first *materially different, non-blanking* write, because between a commit
+and its result the panel takes a loading write plus one republish per resolved symbol, all carrying
+the SAME words — "consume on the next write" is eaten before the result arrives.
+
+**Rule of thumb:** when a guard ANDs a monotonic global against a specific condition, ask what the
+guard degenerates to once the global is permanently true. If the answer is "the other term", it is
+not a conjunction, it is that term with decoration.
+
+**Evidence:** `controllers/user/board-detail.js#_prediction_panel_targeted`, `#_prediction_freeze_watch`,
+`#_note_prediction_commit`; `utils/scanner.js:197, 1187, 1228`.
+
+## Pattern: cancellation that RESOLVES lands on the success path, not the failure path
+
+**Surface:** a superseded AI lookup blanked the prediction panel under a live dwell/scan reach.
+
+**Root cause:** `utils/ai_word_predictor.js` cancels a pending debounced call with
+`_pending_reject = function() { resolve([]); }`. It RESOLVES with an empty array. So the superseded
+generation ran the SUCCESS continuation and committed `{ready:true, list:[]}` — indistinguishable
+from a genuine "no words", which the freeze watcher correctly treats as a cleared sentence and
+releases on.
+
+**Two traps found in the obvious remedies.** (a) "Make it reject instead" is a strict NO-OP for the
+symptom: the rejection handler commits the identical `{ready:true, list:[]}`. It is also actively
+harmful — the predictor's promise is merged with `RSVP.all` in `utils/word_suggestions.js`, so
+rejecting destroys the LOCAL non-AI results that had already resolved, and contradicts the module's
+documented silent-degrade contract. (b) A generation guard on the continuation is necessary but not
+sufficient: three ABANDONMENT paths blanked `suggestions` and returned WITHOUT advancing the
+generation, so a cleared sentence left the in-flight continuation still matching and it repopulated
+the panel that had just been cleared.
+
+**Rule of thumb:** a generation counter must be advanced on every path that ENDS a lookup, not only
+on every path that starts one. And before "make it reject", check what the rejection handler
+actually does and what the promise is composed with.
+
+**Evidence:** `utils/ai_word_predictor.js` `_pending_reject`; `controllers/user/board-detail.js`
+`#_apply_suggestion_results`, `#_invalidate_suggestion_lookup`; `utils/word_suggestions.js` RSVP.all.
+
+## Pattern: EMBER UNIT TESTS GIVE YOU REAL LAYOUT — use them instead of asking for a console paste
+
+**Surface:** "the prediction tiles do not match the board buttons" — three candidate causes and no
+way to tell which without measuring.
+
+**What works:** `tests/index.html` loads `assets/frontend.css`, so a fixture appended to
+`document.body` in a unit test is laid out by the REAL stylesheet and `getBoundingClientRect()`
+returns real numbers. Building a board+rail fixture and calling the actual measure function turned
+a guess into a table (card vs tile height/width/top per button shape). This is far cheaper than the
+Puppeteer probe, which needs live servers.
+
+**The trap, and it produced a FALSE bug report before it was caught:** the code under test resolves
+its targets with `document.querySelector`. A fixture left in the DOM from a previous loop iteration
+is the one it measures, while the assertions read the current fixture — producing confident,
+completely wrong deltas. The tell was that the reported tile width was exactly the CSS fallback
+(`84px`), i.e. the measurement had never landed at all. Tear fixtures down between iterations, and
+treat "the value equals its fallback" as evidence the code never ran.
+
+**Rule of thumb:** when a measured value equals its declared fallback, do not report the delta —
+find out why the measurement did not land.
+
+**Evidence:** `tests/unit/controllers/user-board-detail-prediction-hold-test.js` (`boardAndRailFixture`,
+`measureParity`); `app/styles/app.scss` `--prediction-tile-w` fallback.
+
+## Pattern: this repo has TWO test frameworks — check the file before writing a test
+
+`tests/utils/scanner-test.js` is jasmine-style (`describe` / `it` / `expect(x).toBe(y)` / a local
+`stub` helper). `tests/unit/controllers/user-board-detail-prediction-hold-test.js` is QUnit
+(`module` / `test(name, function(assert))` / `assert.strictEqual`, with a local `buildController()`).
+A test written in the wrong idiom does not fail loudly — it simply never runs as intended. Also note
+`qunit/no-assert-equal` and `qunit/no-assert-logical-expression` are enforced: use `strictEqual`, and
+never put `||`/`===` inside an assertion.
+
+## Pattern: `--update-todo` will silently GRANDFATHER the violations you just introduced
+
+`scripts/eslint-todo-gate.js --update-todo` rewrites the whole baseline. Because the fingerprint
+includes the LINE NUMBER, any edit shifts hundreds of rows and the regenerate looks like noise — so
+a genuinely new violation of yours disappears into it unnoticed. The reliable check is to compare
+RULE IDENTITY across the rebaseline, ignoring line drift:
+
+    git show HEAD:app/frontend/.eslint-todo | grep -v '^#' | awk -F'|' '{print $1"|"$2"|"$5"|"$6}' | sort > before
+    node scripts/eslint-todo-gate.js --update-todo
+    grep -v '^#' .eslint-todo | awk -F'|' '{print $1"|"$2"|"$5"|"$6}' | sort > after
+    diff before after     # must be empty
+
+This caught three separate self-introduced lint findings in one session that the regenerate had
+already absorbed. Use the same technique to resolve an `.eslint-todo` MERGE CONFLICT: regenerate
+against the merged tree and prove the identity multiset is unchanged, rather than hand-merging.
+
+## Pattern: a red test can silently SELECT a candidate fix
+
+A red test written to be "candidate-agnostic" was not. Its guard assertion (`escape()` levels up out
+of this level) relied on a precondition the `beforeEach` did not establish — `scanner.scanning` is
+false at the start of every test — so under the fix that guards on `scanning`, the GUARD would have
+failed and the test would have appeared to rule that candidate out. It passed only under the one
+candidate that happened not to read the flag.
+
+**Rule of thumb:** for every assertion in a red test, ask which preconditions it depends on and
+whether the CANDIDATE FIXES change them. A guard assertion that fails under a proposed fix is not
+evidence against that fix; it is a bug in the test.
+
+**Related, from the same session:** replacing a RANGE in a test file deleted three tests that had
+been inserted between the two anchors. The count drop (24 → 21) was the only signal. Print what is
+inside a range before replacing it, and prefer insertion at a single anchor (CLAUDE.md rule 14.4).
 ## Gotcha: do not claim a finding is tracked until the register row exists
 
 Moving forensic detail out of an externally shareable overview is correct, but pointing at
