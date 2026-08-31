@@ -1504,10 +1504,51 @@ describe('scanner', function() {
         dom: { hasClass: function(c) { return c === 'md-board-detail-prediction-rail'; } }
       };
       scanner.elements = [{ label: 'child' }, stubElem];
+      scanner.scanning = true;   // this test asserts RUNNING-scanner behaviour
 
       scanner.escape();
       expect(levelled).toBe(stubElem);
       expect(stopped).toBe(false);
+    });
+
+    it('does not resurrect a scanner that was STOPPED behind a modal', function() {
+      /* H2. stop() (scanner.js:595-608) nulls interval/scanning/current_element but LEAVES
+         scanner.elements, element_index and options. Every non-scannable modal calls it
+         (services/modal.js:115, utils/modal.js:126/188). The switch surface gates on the
+         `scanning_enabled` PREFERENCE, not on scanner.scanning (raw_events.js ~675), so a
+         cancel press still reaches escape() with scanning already false — and levelling up
+         from there re-highlights and re-arms the auto-select timer underneath the open
+         modal, which for a scanning_auto_select user activates a button they cannot see.
+
+         This branch widened the exposure: staging allow-listed one class, HEAD added
+         md-board-detail-prediction-rail as a second (scanner.js:774).
+
+         Calls the REAL stop() rather than stubbing it, because stop() is what sets
+         scanning=false — the mechanism under test supplies its own precondition, which makes
+         this a mechanism test rather than a description test. */
+      var levelled = null;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+
+      var top = [{ label: 'row 1' }, { label: 'row 2' }];
+      var stubElem = {
+        label: 'the prediction rail', higher_level: top, higher_level_index: 1,
+        dom: { hasClass: function(c) { return c === 'md-board-detail-prediction-rail'; } }
+      };
+      scanner.elements = [{ label: 'child' }, stubElem];
+      scanner.scanning = true;   // a RUNNING scanner, drilled into the rail
+      /* Guard: prove this level IS one escape would otherwise level up out of, so the
+         assertion below cannot pass merely because the fixture was unrecognised. The
+         beforeEach leaves scanning false, so without the line above this guard would fail
+         under the very fix it is written for — and the test would silently be selecting a
+         different fix. */
+      scanner.escape();
+      expect(levelled).toBe(stubElem);
+
+      levelled = null;
+      scanner.elements = [{ label: 'child' }, stubElem];
+      scanner.stop();            // a modal opened
+      scanner.escape();          // the user presses cancel to dismiss it
+      expect(levelled).toBe(null);
     });
 
     it('STOPS from an unrecognised level — the guaranteed exit switch users depend on', function() {

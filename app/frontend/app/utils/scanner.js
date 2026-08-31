@@ -770,7 +770,20 @@ var scanner = EmberObject.extend({
          "the switch user cannot reliably quit" problems. Fixing it properly needs a
          scanning-state guard and auto-select suppression, both of which want their own tests;
          it is not a drive-by. See LEARNINGS. */
-      if(parent && parent.higher_level && parent.higher_level.length && parent.dom && parent.dom.hasClass &&
+      /* `scanner.scanning` FIRST. stop() (:598) nulls interval/scanning/current_element but
+         leaves scanner.elements and element_index, and every non-scannable modal calls it
+         (services/modal.js:115, utils/modal.js:126/188). The switch surface gates on the
+         `scanning_enabled` PREFERENCE, not on this flag (raw_events.js:675), so a cancel
+         press still arrives here with scanning false — and levelling up from a stale level
+         re-highlights and re-arms auto-select underneath the open modal, activating a button
+         the user cannot see. Guarding the BRANCH rather than the function is deliberate: a
+         cancel press while stopped must still fall through to stop() below, which re-runs
+         modal.close_highlight() and sweeps stray .highlight nodes (:602-605). That
+         cancel-always-cleans-up guarantee is what a top-of-function return would delete.
+         `scanning` has exactly two writers — false at :598, true at :641 — so it is false
+         only before the first start() or after a stop(), and no legitimate switch action
+         occurs in either window. */
+      if(scanner.scanning && parent && parent.higher_level && parent.higher_level.length && parent.dom && parent.dom.hasClass &&
          (parent.dom.hasClass('md-board-detail-sentence-row') || parent.dom.hasClass('md-board-detail-prediction-rail'))) {
         scanner.level_up(parent);
         return;
