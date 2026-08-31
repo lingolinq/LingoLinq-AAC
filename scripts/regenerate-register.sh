@@ -29,12 +29,14 @@
 #   6. compliance-publication-status      - rebuild the publication status report.
 #   7. Re-verify: every check audit-artifacts-integrity runs (the four artifact
 #      --check commands, the capability ledger, the register-lint structural gate,
-#      and the attestation-hash guard harness) PLUS a citation-check evidence gate.
-#      citation-check is intentionally NOT a CI job (see ci.yml); running it here
-#      is a stricter local gate. Green here means a green audit-artifacts-integrity
-#      in CI.
+#      the attestation-hash / legal-naming / register-lint sha / register-lint
+#      shape harnesses, and the consumer smoke test) PLUS a citation-check
+#      evidence gate. citation-check is intentionally NOT a CI job (see ci.yml);
+#      running it here is a stricter local gate. Green here means a green
+#      audit-artifacts-integrity in CI.
 #      NOTE: that promise only holds while this list stays a superset of ci.yml's
-#      steps. The harness was missing from here until 2026-08-08, so the wrapper
+#      steps. The attestation harness was missing from here until 2026-08-08, and
+#      the register-lint sha harness was missing until 2026-08-31, so the wrapper
 #      could go green while CI went red on the very guard protecting the register.
 #      If you add a step to ci.yml's audit-artifacts-integrity job, add it here too.
 #
@@ -145,6 +147,10 @@ verify_all() {
     bash scripts/tests/legal-naming-check-test.sh || rc=1
   step "verify: registers structurally valid (field shapes, enums, id uniqueness)" \
     ruby scripts/register-lint.rb audit-reports/FINDINGS.json audit-reports/ember-upgrade/FINDINGS-EMBER.json || rc=1
+  step "verify: the register evidence.sha guards actually fire" \
+    scripts/tests/register-lint-sha-test.sh || rc=1
+  step "verify: the register shape/enum/duplicate-id guards actually fire" \
+    scripts/tests/register-lint-shape-test.sh || rc=1
   step "verify: registers consumable by promote-finding / audit-merge (no-op run)" \
     scripts/tests/register-consumer-smoke-test.sh || rc=1
   return $rc
