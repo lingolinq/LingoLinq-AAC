@@ -799,6 +799,121 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     return Math.round(Math.min(w, h));
   }
 
+  test('a long prediction truncates inside the tile instead of spilling onto the board', function(assert) {
+    assert.expect(4);
+    /* The rail label previously declared no overflow, no clamp and no ellipsis, so a
+       prediction longer than the tile ran out of the tile and over the board grid. Board
+       labels have always truncated; this pins the rail to the same behaviour. */
+    document.querySelectorAll('.qa-pred-fixture').forEach(function(n) { n.remove(); });
+    const f = boardAndRailFixture(5, 14, 'md-board-detail-grid--shape-square');
+    const controller = buildController();
+    controller.set('ordered_buttons', Array.from({ length: 5 }, function() {
+      return Array.from({ length: 14 }, function() { return {}; });
+    }));
+    try {
+      controller._sync_prediction_tile_size();
+      const label = f.tile.querySelector('.md-board-detail-sentence-bar__prediction-label');
+      label.textContent = 'communication';
+
+      const ts = window.getComputedStyle(f.tile);
+      const tileContent = f.tile.clientWidth - parseFloat(ts.paddingLeft) - parseFloat(ts.paddingRight);
+      assert.ok(tileContent > 0, 'guard: the tile has a measurable content box');
+      assert.ok(tileContent < 60,
+        'guard: and is narrow enough that the word cannot fit (' + Math.round(tileContent) + 'px)');
+
+      const lr = label.getBoundingClientRect();
+      assert.ok(lr.width <= tileContent + 1,
+        'the label stays within the tile (' + Math.round(lr.width) + ' <= ' + Math.round(tileContent) + ')');
+      /* Non-vacuity: the word genuinely does not fit, so the assertion above is doing work.
+         NOTE this does NOT prove clipping — scrollWidth exceeds clientWidth whether overflow
+         is hidden or visible. What it rules out is the assertion passing merely because the
+         word happened to fit the tile. */
+      const exceedsBox = label.scrollWidth > label.clientWidth ||
+        label.scrollHeight > label.clientHeight;
+      assert.ok(exceedsBox,
+        'and the word genuinely exceeds the box, so the containment assertion is not vacuous');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('the panel shows the sentence, not the spine label, above the narrow breakpoint', function(assert) {
+    assert.expect(3);
+    /* Both nodes are always in the DOM and CSS picks one by width, so an inverted rule would
+       show the vertical spine label on a desktop board. This pins the default state; the
+       <=640px swap itself is a media query and is NOT covered here — verify it by resizing.
+       (The suite runs well above 640px, which is what makes this the default case.) */
+    document.querySelectorAll('.qa-pred-fixture').forEach(function(n) { n.remove(); });
+    const f = boardAndRailFixture(5, 8, 'md-board-detail-grid--shape-square');
+    f.rail.querySelectorAll('.md-board-detail-sentence-bar__prediction').forEach(function(n) { n.remove(); });
+    const empty = document.createElement('div');
+    empty.className = 'md-board-detail-prediction-rail__empty';
+    const copy = document.createElement('span');
+    copy.className = 'md-board-detail-prediction-rail__empty-copy';
+    copy.textContent = "Tap a board button, and we'll suggest words here.";
+    const spine = document.createElement('span');
+    spine.className = 'md-board-detail-prediction-rail__empty-spine';
+    spine.textContent = 'Word prediction panel';
+    empty.appendChild(copy);
+    empty.appendChild(spine);
+    f.rail.appendChild(empty);
+
+    assert.ok(window.innerWidth > 640, 'guard: the suite viewport is above the swap breakpoint');
+    assert.notStrictEqual(window.getComputedStyle(copy).display, 'none', 'the sentence is shown');
+    assert.strictEqual(window.getComputedStyle(spine).display, 'none', 'the spine label is not');
+  });
+
+  test('the empty-state copy fits the panel without breaking a word', function(assert) {
+    assert.expect(3);
+    /* The panel is the narrowest element on the page — one board button wide — so this copy
+       is the first thing to overflow. Two distinct failures were reported here: the block
+       spilling past the panel edge, and "predictions" breaking across two lines. A fragment
+       of a word reads as a typo, and in an AAC surface a word's visual shape is itself a
+       recognition cue. */
+    document.querySelectorAll('.qa-pred-fixture').forEach(function(n) { n.remove(); });
+    const f = boardAndRailFixture(5, 8, 'md-board-detail-grid--shape-square');
+    f.rail.querySelectorAll('.md-board-detail-sentence-bar__prediction').forEach(function(n) { n.remove(); });
+    const empty = document.createElement('div');
+    empty.className = 'md-board-detail-prediction-rail__empty';
+    empty.textContent = "Tap a board button, and we'll suggest words here.";
+    f.rail.appendChild(empty);
+
+    const controller = buildController();
+    controller.set('ordered_buttons', Array.from({ length: 5 }, function() {
+      return Array.from({ length: 8 }, function() { return {}; });
+    }));
+    try {
+      controller._sync_prediction_tile_size();
+      const es = window.getComputedStyle(empty);
+      const content = empty.clientWidth - parseFloat(es.paddingLeft) - parseFloat(es.paddingRight);
+      assert.ok(content > 0, 'guard: the panel has a measurable content box');
+
+      /* No line box may exceed the content width. */
+      const range = document.createRange();
+      range.selectNodeContents(empty);
+      const widest = Array.from(range.getClientRects())
+        .reduce(function(m, r) { return Math.max(m, r.width); }, 0);
+      assert.ok(widest <= content + 1, 'no line spills past the panel (' +
+        Math.round(widest) + ' <= ' + Math.round(content) + ')');
+
+      /* And the LONGEST WORD fits, which is what makes a mid-word break impossible rather
+         than merely unrequested. Measured at the element's own computed font. */
+      const probe = document.createElement('span');
+      probe.style.cssText = 'position:absolute;white-space:pre;visibility:hidden;';
+      probe.style.font = es.font;
+      probe.textContent = empty.textContent.split(/\s+/).reduce(function(a, b) {
+        return b.length > a.length ? b : a;
+      }, '');
+      document.body.appendChild(probe);
+      const wordW = probe.getBoundingClientRect().width;
+      probe.remove();
+      assert.ok(wordW <= content, 'the longest word fits unbroken (' +
+        Math.round(wordW) + ' <= ' + Math.round(content) + ')');
+    } finally {
+      controller.destroy();
+    }
+  });
+
   test('a rail symbol paints at the same size as a board symbol', function(assert) {
     assert.expect(4);
     document.querySelectorAll('.qa-pred-fixture').forEach(function(n) { n.remove(); });

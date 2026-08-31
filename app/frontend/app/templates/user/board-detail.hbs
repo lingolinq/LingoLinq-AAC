@@ -2024,7 +2024,7 @@
                the label order is fixed in the DOM (image, then label) and CSS flips
                flex-direction per the class (see app.scss
                .md-board-detail-prediction-rail text-pos rules). --}}
-          <div class="md-board-detail-prediction-rail {{this.button_text_position_class}} {{if this.suggestions_loading_visible 'md-board-detail-prediction-rail--is-loading'}}" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} aria-busy={{if this.suggestions_loading_visible "true" "false"}} aria-hidden={{unless this.prediction_rail_suggestions.length "true"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
+          <div class="md-board-detail-prediction-rail {{this.button_text_position_class}} {{if this.suggestions_loading_visible 'md-board-detail-prediction-rail--is-loading'}}" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} aria-busy={{if this.suggestions_loading_visible "true" "false"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
             {{#each this.prediction_rail_suggestions key="word" as |suggestion|}}
               <button type="button" class="md-board-detail-sentence-bar__prediction" {{on "click" (this.ctrlActionNoBubble "complete_word" suggestion)}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
                 {{#if this.utterance_show_symbols}}
@@ -2034,6 +2034,15 @@
                 {{/if}}
                 <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
               </button>
+            {{else}}
+              {{!-- The rail stays mounted with no predictions so the board does not resize
+                    under the user, which leaves a blank panel. Say why it is empty. --}}
+              <div class="md-board-detail-prediction-rail__empty">
+                {{!-- Both are rendered; CSS picks one by panel width. Below 640px the panel
+                      is too narrow for a sentence, so it becomes a vertical spine label. --}}
+                <span class="md-board-detail-prediction-rail__empty-copy">{{t "Tap a board button, and we'll suggest words here." key="board_detail_prediction_empty"}}</span>
+                <span class="md-board-detail-prediction-rail__empty-spine">{{t "Word prediction panel" key="board_detail_prediction_panel_label"}}</span>
+              </div>
             {{/each}}
           </div>
         {{/if}}

@@ -569,12 +569,18 @@ export default Controller.extend(prefClasses, {
     var predCols = parseInt(this.get('current_grid.columns'), 10) || 0;
     var shapeRatio = (cellRect && cellRect.width >= 1) ? (cardRect.width / cellRect.width) : 0;
     if(railEl && fadeEl && predCols > 0 && shapeRatio > 0) {
+      /* Read the panel padding back from CSS rather than hardcoding it, so the stylesheet
+         stays authoritative — same pattern as --prediction-rail-pad-top above. */
+      var railStyle = window.getComputedStyle(railEl);
+      var railPadX = (parseFloat(railStyle.paddingLeft) || 0) + (parseFloat(railStyle.paddingRight) || 0);
       var solvedW = this._solve_prediction_rail_width(
         fadeEl.getBoundingClientRect().width,
         railEl.getBoundingClientRect().width,
-        predCols, colGap, shapeRatio
+        predCols, colGap, shapeRatio, railPadX
       );
-      if(solvedW >= 1) { tileW = Math.round(solvedW); }
+      /* solvedW is the BUTTON width; the rail is that plus its padding, so the tile inside
+         (width:100% of the content box) still measures exactly one board button. */
+      if(solvedW >= 1) { tileW = Math.round(solvedW + railPadX); }
     }
     main.style.setProperty('--prediction-tile-w', Math.max(0, tileW) + 'px');
     // No per-tile height or top-inset measurement needed: the rail grid's rows
@@ -614,9 +620,13 @@ export default Controller.extend(prefClasses, {
      is why ANY current rail width yields the same answer in one pass, with no feedback
      loop. `ratio` is card/cell (the button shape). Returns 0 when the inputs cannot
      produce a sane width, so the caller keeps its measured-card fallback. */
-  _solve_prediction_rail_width: function(fadeW, railW, cols, colGap, ratio) {
+  _solve_prediction_rail_width: function(fadeW, railW, cols, colGap, ratio, railPadX) {
     if(!(fadeW >= 1) || !(cols > 0) || !(ratio > 0)) { return 0; }
-    var budget = fadeW + (railW || 0) - ((cols - 1) * (colGap || 0));
+    /* Subtract the panel's own horizontal padding from the shared budget before solving:
+       the rail occupies (button + padding), so the padding is width the board never gets
+       and must not be divided among the columns. Returns the BUTTON width; the caller adds
+       the padding back to size the rail. */
+    var budget = fadeW + (railW || 0) - ((cols - 1) * (colGap || 0)) - (railPadX || 0);
     if(!(budget > 0)) { return 0; }
     return (ratio * budget) / (cols + ratio);
   },
