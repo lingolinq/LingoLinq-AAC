@@ -16,7 +16,9 @@ Encoding.default_internal = Encoding::UTF_8
 # ruby i18n_generator.rb --generate
 # To merge any new strings from the english file into other locales:
 # ruby i18n_generator.rb --merge
-# To generate translations for a language, open a rails console:
+# To generate translations for a language, prefer the rake (loops past the 100-key cap):
+#   op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales LOCALE=es
+# Or in a rails console:
 # nopes = WordData.translate_locale_batch(locale, [])
 # (for repeat calls, pass nopes as 2nd arg to prevent repeating failed attempts)
 

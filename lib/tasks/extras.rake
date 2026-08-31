@@ -971,3 +971,51 @@ task "extras:clear_no_name_placeholder" => :environment do
   puts frd ? "  Cleared: #{updated} (#{errors} errors)" : "  Cleared: 0 (dry run)"
   puts "=============================================="
 end
+
+# Google-translate UI chrome placeholders in public/locales/*.json.
+# This is NOT the AAC board translator (lingolinq:translate_library_boards).
+# It loops WordData.translate_locale_batch (100 *** keys per call) until a
+# pass has nothing eligible left. Values that Google echoes as English stay
+# *** (brands/cognates). Requires GOOGLE_TRANSLATE_TOKEN.
+#
+#   op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales
+#   op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales LOCALE=es
+#   op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales LOCALE=all
+desc 'Google-translate *** placeholders in public/locales/*.json (LOCALE=es default, or all). Requires GOOGLE_TRANSLATE_TOKEN.'
+task "extras:translate_ui_locales" => :environment do
+  token = ENV['GOOGLE_TRANSLATE_TOKEN'].to_s.strip
+  # dotenv can load .env.op.local without resolving op:// refs (LEARNINGS).
+  if token.empty? || token.start_with?('op://')
+    raise "GOOGLE_TRANSLATE_TOKEN is missing or still an op:// reference. Run under: " \
+          "op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales LOCALE=es"
+  end
+
+  requested = (ENV['LOCALE'] || 'es').to_s.strip
+  locales = if requested == 'all'
+    Dir[Rails.root.join('public/locales/*.json')].map { |p| File.basename(p, '.json') }.reject { |l| l == 'en' }.sort
+  else
+    [requested]
+  end
+
+  locales.each do |locale|
+    fn = Rails.root.join('public', 'locales', "#{locale}.json")
+    raise "No locale file: #{fn}" unless File.file?(fn)
+
+    puts "Translating UI locale #{locale}..."
+    nopes = []
+    loop do
+      json = JSON.parse(File.read(fn))
+      leftover = json.count { |_k, v| v.is_a?(String) && v.match?(/^\*\*\*\s/) }
+      eligible = json.count { |k, v| v.is_a?(String) && v.match?(/^\*\*\*\s/) && !nopes.include?(k) }
+      if eligible == 0
+        puts "  done. leftover *** (Google echo/fail): #{leftover}"
+        break
+      end
+
+      nopes = WordData.translate_locale_batch(locale, nopes)
+      after = JSON.parse(File.read(fn))
+      after_star = after.count { |_k, v| v.is_a?(String) && v.match?(/^\*\*\*\s/) }
+      puts "  batch: #{leftover - after_star} translated, #{after_star} still ***, #{nopes.length} nopes"
+    end
+  end
+end
