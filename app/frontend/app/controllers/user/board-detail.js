@@ -2889,11 +2889,25 @@ export default Controller.extend(prefClasses, {
        freeze could snap the panel back to a set from two sentences ago. Selecting one of
        those speaks it and trains the local model through record_selection, so this is not
        cosmetic. */
-    var should_freeze = !blanking &&
+    /* An identical word sequence cannot move anything, so there is nothing to protect. */
+    var changing = !blanking &&
       showing && showing.length &&
-      /* An identical word sequence cannot move anything, so there is nothing to protect. */
-      words_of(showing) !== words_of(incoming) &&
-      this._prediction_panel_targeted();
+      words_of(showing) !== words_of(incoming);
+
+    /* Consume the post-commit exemption HERE — at the first materially different,
+       non-blanking write — and NOT on "the next write". Between a commit and its result the
+       panel takes a loading write (_begin_suggestion_lookup) and one republish per resolved
+       symbol image, all carrying the SAME word sequence; a flag consumed by those would be
+       spent before the result it exists for ever arrived. Consume it whether or not this
+       write would otherwise freeze, so it can never survive to exempt an unrelated later
+       swap. */
+    var commit_pending = false;
+    if(changing) {
+      commit_pending = !!this._prediction_commit_pending;
+      this._prediction_commit_pending = false;
+    }
+
+    var should_freeze = changing && !commit_pending && this._prediction_panel_targeted();
 
     if(should_freeze) {
       /* Leave _displayed_prediction_list alone: `showing` is still what the panel renders. */
@@ -2915,6 +2929,21 @@ export default Controller.extend(prefClasses, {
      ember-lifeline is not installed (same pattern as controllers/search.js). */
   /* One release path, used by both the poll and the observer. The bookkeeping in here was
      wrong twice when it lived in two places; keeping it in one is the point. */
+  /* The user committed a prediction. Stamps the commit (the dwell branch time-orders
+     against it), arms a ONE-SHOT exemption for the refresh that commit is about to trigger,
+     and ends any freeze that was holding the panel they just selected from.
+
+     That last part is required, not tidiness: `should_freeze` is never reached while a
+     freeze is active — the watch early-returns above — so the exemption alone cannot help a
+     commit made OFF a frozen panel, which is the most likely commit there is, since the
+     freeze exists to hold the panel steady while the user reaches. Releasing here is also
+     behaviour-preserving: the 120ms release tick already did this indirectly. */
+  _note_prediction_commit: function() {
+    this._last_prediction_commit_at = (new Date()).getTime();
+    this._prediction_commit_pending = true;
+    if(this.get('_prediction_freeze_list')) { this._release_prediction_freeze(); }
+  },
+
   _release_prediction_freeze: function() {
     if(this._prediction_freeze_timer) {
       clearTimeout(this._prediction_freeze_timer);
@@ -3048,17 +3077,18 @@ export default Controller.extend(prefClasses, {
     try {
       if(scanner.actively_scanning()) {
         var scanned = scanner.current_element && scanner.current_element.dom && scanner.current_element.dom[0];
-        /* A RESTART placed this highlight, not the user. complete_word -> pick_elem nulls
-           current_element and calls start(), which lands on elements[0] — and with the
-           `scanning_skip_header` preference on, elements[0] IS the prediction row. So immediately
-           after a commit the highlight sits on the panel without the user having navigated there,
-           and the lookup that the selection triggered would freeze against it. Ignore a highlight
-           that a post-commit restart placed, until the user advances off index 0. No constant: this
-           self-clears on the next step. */
-        var restart_placed = scanner.started && this._last_prediction_commit_at &&
-          scanner.started >= this._last_prediction_commit_at &&
-          scanner.element_index === 0;
-        if(!restart_placed && within(scanned)) { return true; }
+        /* Pure predicate: "is the panel the thing being targeted right now". The post-commit
+           exemption used to live here as a scanner-POSITION test (`element_index === 0`) and was
+           wrong twice over. `scanner.started` is written only in start() (scanner.js:197) and
+           never cleared, and pick_elem restarts after every selection — so once the user had
+           committed once, the first term was permanently true and the test collapsed to the index
+           alone. And index 0 is also where load_children lands on drill-in (scanner.js:1187) and
+           where next() wraps every auto cycle (scanner.js:1228), so the freeze was disabled
+           exactly on prediction tile #1. It cannot live here at all, either: this predicate is
+           called from the release tick as well as the freeze decision, so a one-shot read here
+           would be consumed by the tick. The exemption is now one LOOKUP GENERATION wide and
+           lives in _prediction_freeze_watch. */
+        if(within(scanned)) { return true; }
       }
     } catch(e) { /* advisory read — never block a commit on it */ }
     try {
@@ -3148,7 +3178,19 @@ export default Controller.extend(prefClasses, {
     this.set('suggestions', next);
   },
 
-  _apply_suggestion_results: function(result, sentence, context) {
+  /* Advance the lookup generation. Called by every path that STARTS a lookup and by every
+     path that ABANDONS one — the second half is the point. `_apply_suggestion_results`
+     starts a second, longer async op (the aiPredictor continuation below) after the token
+     was already checked, and that continuation is keyed on this counter. A cleared sentence
+     that blanked `suggestions` without advancing it would leave the in-flight continuation
+     still matching, and it would repopulate the panel that was just cleared. */
+  _invalidate_suggestion_lookup: function() {
+    var next = (this.get('_suggestion_lookup_token') || 0) + 1;
+    this.set('_suggestion_lookup_token', next);
+    return next;
+  },
+
+  _apply_suggestion_results: function(result, sentence, context, lookup_token) {
     var _this = this;
     if(_this.isDestroyed || _this.isDestroying) { return; }
     (result || []).forEach(function(word) {
@@ -3179,10 +3221,17 @@ export default Controller.extend(prefClasses, {
       appState: _this.get('app_state')
     }).then(function(words) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
+      /* A superseded predict() RESOLVES with [] rather than rejecting
+         (ai_word_predictor.js:105), so the ghost arrives HERE, on the success path, and
+         commits a blank that _prediction_freeze_watch reads as a cleared sentence — emptying
+         the panel under a live reach. Discarding it also stops a stale generation writing
+         into the symbol memo and arming image callbacks. */
+      if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
       var list = (words || []).map(function(w) { return { word: w }; });
       _this._commit_suggestions({ ready: true, list: _this._decorate_suggestion_images(list) });
     }, function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
+      if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
       _this._commit_suggestions({ ready: true, list: [] });
     });
   },
@@ -3192,13 +3241,13 @@ export default Controller.extend(prefClasses, {
     this.set('_last_warmed_button_sets', warmed_sets || []);
     var context = this._suggestion_lookup_context();
     if(!context) {
+      this._invalidate_suggestion_lookup();
       this.set('suggestions', null);
       return;
     }
     if(typeof wordSuggestionsModule.lookup !== 'function') { return; }
 
-    var lookup_token = (this.get('_suggestion_lookup_token') || 0) + 1;
-    this.set('_suggestion_lookup_token', lookup_token);
+    var lookup_token = this._invalidate_suggestion_lookup();
 
     var lookup_ids = wordSuggestionsModule.lookup_board_ids(
       _this.get('app_state'),
@@ -3214,7 +3263,7 @@ export default Controller.extend(prefClasses, {
     lookup_promise.then(function(result) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
-      _this._apply_suggestion_results(result, context.sentence, context);
+      _this._apply_suggestion_results(result, context.sentence, context, lookup_token);
     }, function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
@@ -3240,12 +3289,14 @@ export default Controller.extend(prefClasses, {
       // Skip the lookup entirely when in edit mode or word prediction is off
       // (only an explicit `true` enables it; null/undefined = off).
       if(this.get('edit_mode') || this.get('app_state.referenced_user.preferences.word_suggestions') !== true) {
+        this._invalidate_suggestion_lookup();
         this.set('suggestions', null);
         return;
       }
       var _this = this;
       var context = this._suggestion_lookup_context();
       if(!context) {
+        this._invalidate_suggestion_lookup();
         this.set('suggestions', null);
         return;
       }
@@ -8153,8 +8204,7 @@ export default Controller.extend(prefClasses, {
 
     complete_word: function(word) {
       if(!word) { return; }
-      /* The one unambiguous signal that the reach COMPLETED — see _prediction_panel_targeted. */
-      this._last_prediction_commit_at = (new Date()).getTime();
+      this._note_prediction_commit();
       var _this = this;
       var text = word.word;
       var button = editManager.fake_button();

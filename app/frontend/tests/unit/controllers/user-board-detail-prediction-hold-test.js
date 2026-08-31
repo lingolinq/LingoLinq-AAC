@@ -4,6 +4,7 @@ import BoardDetailController from 'frontend/controllers/user/board-detail';
 import wordSuggestions from 'frontend/utils/word_suggestions';
 import buttonTracker from 'frontend/utils/raw_events';
 import scanner from 'frontend/utils/scanner';
+import aiPredictor from 'frontend/utils/ai_word_predictor';
 
 /* Coverage for the two prediction-panel behaviours that three rounds of adversarial
    review found broken and that no existing harness reaches: the symbol-image memo, and
@@ -488,31 +489,148 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
-  test('a highlight placed by a post-commit RESTART does not count as targeting', function(assert) {
-    assert.expect(2);
-    /* complete_word -> pick_elem nulls current_element and calls scanner.start(), which lands on
-       elements[0]. With the `scanning_skip_header` preference on and the default side_rail
-       placement, elements[0] IS the prediction row — so the highlight sits on the panel without
-       the user having navigated there, and the lookup the selection triggered would freeze against
-       it. Mutation that fails this: drop the `restart_placed` term. */
+  test('the refresh a commit triggers is not withheld from the user who committed', function(assert) {
+    assert.expect(3);
+    /* The intent the old `restart_placed` guard was protecting, kept — but expressed at the
+       level it actually belongs to. After complete_word, pick_elem restarts the scanner and
+       the highlight can land back on the panel without the user navigating there, so the
+       lookup THAT COMMIT TRIGGERED must not be frozen against the pre-commit words. That is
+       one lookup generation, not a scanner index: this runs at element_index 1, where the
+       old position-based guard exempted nothing at all. */
     const tile = railFixture();
-    const rail = tile.closest('.md-board-detail-prediction-rail');
     patch(buttonTracker, 'appState', { get: function() { return null; } });
     patch(buttonTracker, 'last_dwell_linger', null);
     patch(scanner, 'actively_scanning', function() { return true; });
-    patch(scanner, 'current_element', { dom: [rail] });
-    patch(scanner, 'started', (new Date()).getTime());
-    patch(scanner, 'element_index', 0);
+    patch(scanner, 'current_element', { dom: [tile] });
+    patch(scanner, 'element_index', 1);
 
     const controller = buildController();
     try {
-      controller._last_prediction_commit_at = scanner.started - 10;   // the restart followed a commit
-      assert.notOk(controller._prediction_panel_targeted(),
-        'a restart-placed highlight on index 0 is not a reach the user made');
+      controller.set('suggestions', { ready: true, list: [{ word: 'A' }] });
+      controller._note_prediction_commit();
+      /* The AI path emits a LOADING write first, carrying the same words. It must not eat
+         the exemption, or the result it exists for arrives unprotected. */
+      controller.set('suggestions', { ready: true, list: [{ word: 'A' }], loading: true });
+      controller.set('suggestions', { ready: true, list: [{ word: 'B' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'B',
+        'the words the commit asked for are shown, not withheld');
+      assert.notOk(controller.get('_prediction_freeze_list'),
+        'and no freeze was started against them');
 
-      scanner.element_index = 1;   // the user advanced
+      controller.set('suggestions', { ready: true, list: [{ word: 'C' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'B',
+        'but a LATER swap the user did not ask for is still withheld');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  /* Stage an in-flight AI continuation. `_apply_suggestion_results` starts a SECOND async
+     op (board-detail.js aiPredictor.predict) AFTER the lookup token was already checked, so
+     that continuation is the one write path the generation guard never covered. */
+  function stageInFlightAi(controller, tile) {
+    let resolveAi = null;
+    patch(aiPredictor, 'predict', function() {
+      return new Promise(function(res) { resolveAi = res; });
+    });
+    controller._word_prediction_locale = function() { return 'en'; };
+    controller._decorate_suggestion_images = function(l) { return l; };
+    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker, 'last_dwell_linger', null);
+    patch(scanner, 'actively_scanning', function() { return false; });
+    patch(scanner, 'current_element', { dom: [tile] });
+    patch(scanner, 'element_index', 1);
+    controller.set('suggestions', { ready: true, list: [{ word: 'A' }] });
+    return function() { return resolveAi; };
+  }
+
+  test('a SUPERSEDED AI continuation neither blanks the panel nor releases the freeze', async function(assert) {
+    assert.expect(5);
+    /* H3. A superseded predict() RESOLVES with [] rather than rejecting
+       (ai_word_predictor.js:105), so the ghost lands on the SUCCESS handler and commits
+       {ready:true, list:[]} — which _prediction_freeze_watch reads as a cleared sentence and
+       releases the freeze on, emptying the panel under a live reach. */
+    const tile = railFixture();
+    const controller = buildController();
+    try {
+      const getResolve = stageInFlightAi(controller, tile);
+      controller.set('_suggestion_lookup_token', 1);
+      controller._apply_suggestion_results([], 'i want', { word_in_progress: '' }, 1);
+      assert.ok(getResolve(), 'guard: the AI continuation actually started');
+
+      scanner.actively_scanning = function() { return true; };
+      controller.set('suggestions', { ready: true, list: [{ word: 'B' }] });
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'A',
+        'guard: the freeze engaged and is holding the displayed words');
+
+      controller.set('_suggestion_lookup_token', 2);
+      getResolve()([]);
+      await new Promise(function(r) { setTimeout(r, 0); });
+
+      assert.ok(controller.get('_prediction_freeze_list'),
+        'a superseded continuation does not release the freeze');
+      assert.strictEqual(wordsOf(controller.get('prediction_suggestions')), 'A',
+        'the panel still shows the words the user is reaching for');
+      assert.strictEqual(wordsOf(controller.get('suggestions.list')), 'B',
+        'and the live list was never overwritten by the ghost');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('a CLEARED sentence is not repopulated by the previous lookup\'s words', async function(assert) {
+    assert.expect(2);
+    /* The abandonment paths blank `suggestions` and return WITHOUT advancing the lookup
+       generation, so an in-flight continuation still matches and repopulates the panel that
+       was just cleared. A generation guard alone does not fix this — the generation has to be
+       advanced when a lookup is ABANDONED, not only when one starts. */
+    const tile = railFixture();
+    const controller = buildController();
+    try {
+      const getResolve = stageInFlightAi(controller, tile);
+      controller.set('_suggestion_lookup_token', 1);
+      controller._apply_suggestion_results([], 'i want', { word_in_progress: '' }, 1);
+      assert.ok(getResolve(), 'guard: the AI continuation actually started');
+
+      controller._suggestion_lookup_context = function() { return null; };
+      controller._run_suggestion_lookup([]);
+      getResolve()(['ghost']);
+      await new Promise(function(r) { setTimeout(r, 0); });
+
+      assert.notOk(wordsOf(controller.get('suggestions.list')),
+        'a cleared panel stays cleared');
+    } finally {
+      controller.destroy();
+    }
+  });
+
+  test('a highlight the USER drilled onto tile #1 still counts as targeting', function(assert) {
+    assert.expect(2);
+    /* H1. The old guard suppressed targeting when
+       `scanner.started >= _last_prediction_commit_at && scanner.element_index === 0`. But
+       scanner.started is written only in start() (scanner.js:197) and never cleared, and
+       pick_elem restarts after EVERY selection — so once the user had committed one
+       prediction the first term was permanently true and it collapsed to `element_index === 0`.
+       Index 0 is ALSO where load_children lands on drill-in (scanner.js:1187) and where next()
+       wraps each cycle (scanner.js:1228), so the freeze was disabled exactly on prediction
+       tile #1 — the tile a user is most likely committing to. */
+    const tile = railFixture();
+    patch(buttonTracker, 'appState', { get: function() { return null; } });
+    patch(buttonTracker, 'last_dwell_linger', null);
+    patch(scanner, 'actively_scanning', function() { return true; });
+    patch(scanner, 'current_element', { dom: [tile] });
+    const commitAt = (new Date()).getTime() - 5000;
+    patch(scanner, 'started', commitAt + 4000);
+    patch(scanner, 'element_index', 1);
+
+    const controller = buildController();
+    try {
+      controller._last_prediction_commit_at = commitAt;
       assert.ok(controller._prediction_panel_targeted(),
-        'once they navigate, the same row does count');
+        'guard: the rail tile is reachable by the predicate at a non-zero index');
+      scanner.element_index = 0;
+      assert.ok(controller._prediction_panel_targeted(),
+        'tile #1 is a reach the user made, not a highlight the post-commit restart placed');
     } finally {
       controller.destroy();
     }
