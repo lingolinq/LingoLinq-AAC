@@ -1593,6 +1593,37 @@ describe Uploader do
       expect(cache.data['fallbacks']['cheddar']['data']).to_not eq(nil)
     end
 
+    it "should not cache a 429 as a missing word even when cache_forever" do
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('secret')
+      allow(OpenSymbols).to receive(:find_images_result).and_return({
+        ok: false, error: :throttled, results: []
+      })
+      expect(Uploader.find_images('bacon', 'opensymbols', 'en', nil, nil, false, true)).to eq([])
+      cache = LibraryCache.find_by(library: 'opensymbols', locale: 'en')
+      expect(cache).to eq(nil).or satisfy { |c| c.data['missing'].blank? || c.data['missing']['bacon'].nil? }
+    end
+
+    it "should not cache a timeout as a missing word even when cache_forever" do
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('secret')
+      allow(OpenSymbols).to receive(:find_images_result).and_return({
+        ok: false, error: :timeout, results: []
+      })
+      expect(Uploader.find_images('bacon', 'opensymbols', 'en', nil, nil, false, true)).to eq([])
+      cache = LibraryCache.find_by(library: 'opensymbols', locale: 'en')
+      expect(cache).to eq(nil).or satisfy { |c| c.data['missing'].blank? || c.data['missing']['bacon'].nil? }
+    end
+
+    it "should still cache a genuine empty result as missing when cache_forever" do
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('secret')
+      allow(OpenSymbols).to receive(:find_images_result).and_return({
+        ok: true, error: nil, results: []
+      })
+      expect(Uploader.find_images('bacon', 'opensymbols', 'en', nil, nil, false, true)).to eq([])
+      cache = LibraryCache.find_by(library: 'opensymbols', locale: 'en')
+      expect(cache).to_not eq(nil)
+      expect(cache.data['missing']['bacon']).to_not eq(nil)
+    end
+
     it "should cache as missing to the library if long-term" do
       expect(Uploader).to receive(:lessonpix_credentials).with(nil).and_return(nil)
       expect(Uploader.find_images('bacon', 'lessonpix', 'en', nil)).to eq(false)

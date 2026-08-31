@@ -162,6 +162,52 @@ describe OpenSymbols do
       expect(results).to eq([])
     end
   end
+
+  describe "search_result" do
+    it "should mark a 429 as throttled, not as an ok empty miss" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token_123')
+      response = double(success?: false, timed_out?: false, body: '{"throttled": true}', code: 429)
+      expect(Typhoeus).to receive(:get).and_return(response)
+
+      result = OpenSymbols.search_result('test')
+      expect(result[:ok]).to eq(false)
+      expect(result[:error]).to eq(:throttled)
+      expect(result[:results]).to eq([])
+    end
+
+    it "should mark a timed-out request as timeout" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token_123')
+      response = double(success?: false, timed_out?: true, body: '', code: 0)
+      expect(Typhoeus).to receive(:get).and_return(response)
+
+      result = OpenSymbols.search_result('test')
+      expect(result[:ok]).to eq(false)
+      expect(result[:error]).to eq(:timeout)
+      expect(result[:results]).to eq([])
+    end
+
+    it "should mark a 500 as http" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token_123')
+      response = double(success?: false, timed_out?: false, body: 'nope', code: 500)
+      expect(Typhoeus).to receive(:get).and_return(response)
+
+      result = OpenSymbols.search_result('test')
+      expect(result[:ok]).to eq(false)
+      expect(result[:error]).to eq(:http)
+      expect(result[:results]).to eq([])
+    end
+
+    it "should mark a 200 with an empty list as an ok miss" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token_123')
+      response = double(success?: true, timed_out?: false, body: '[]', code: 200)
+      expect(Typhoeus).to receive(:get).and_return(response)
+
+      result = OpenSymbols.search_result('test')
+      expect(result[:ok]).to eq(true)
+      expect(result[:error]).to eq(nil)
+      expect(result[:results]).to eq([])
+    end
+  end
   
   describe "find_images" do
     it "should convert search results to LingoLinq format" do

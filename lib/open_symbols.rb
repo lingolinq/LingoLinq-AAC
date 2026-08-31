@@ -22,61 +22,57 @@ module OpenSymbols
     # @param high_contrast [Boolean] favor high-contrast results
     # @return [Array<Hash>] array of symbol objects
     def search(query, locale: 'en', safe: true, repo: nil, favor: nil, high_contrast: false)
-      return [] if query.blank?
-      
-      # Build search string with modifiers
+      search_result(query, locale: locale, safe: safe, repo: repo, favor: favor, high_contrast: high_contrast)[:results]
+    end
+
+    # Same request as search, but a 429 / timeout / non-2xx is not folded
+    # into an empty miss. Uploader.find_images must not cache those as
+    # add_missing_word (lib/uploader.rb write site).
+    # @return [Hash] {ok:, error:, results:} error is :throttled, :timeout, :http, or :auth
+    def search_result(query, locale: 'en', safe: true, repo: nil, favor: nil, high_contrast: false)
+      return {ok: true, error: nil, results: []} if query.blank?
+
       search_str = query.to_s
       search_str += " repo:#{repo}" if repo.present?
       search_str += " favor:#{favor}" if favor.present?
       search_str += " hc:1" if high_contrast
-      
+
       token = access_token
-      return [] unless token
-      
+      return {ok: false, error: :auth, results: []} unless token
+
       params = {
         q: search_str,
         locale: locale,
         safe: safe ? 1 : 0
       }
-      
+
       url = "https://www.opensymbols.org/api/v2/symbols"
-      
+
       begin
         response = Typhoeus.get(
           url,
           params: params,
           headers: { 'Authorization' => "Bearer #{token}" },
-          timeout: 10
+          timeout: search_timeout
         )
-        
+
         if response.code == 401
-          # Token expired, clear cache and retry once
           clear_token_cache
           token = generate_new_token
-          return [] unless token
-          
+          return {ok: false, error: :auth, results: []} unless token
+
           response = Typhoeus.get(
             url,
             params: params,
             headers: { 'Authorization' => "Bearer #{token}" },
-            timeout: 10
+            timeout: search_timeout
           )
         end
-        
-        if response.code == 429
-          Rails.logger.warn "OpenSymbols API throttled"
-          return []
-        end
-        
-        if response.success?
-          parse_search_results(JSON.parse(response.body))
-        else
-          Rails.logger.error "OpenSymbols API error: #{response.code} - #{response.body}"
-          []
-        end
+
+        classify_search_response(response)
       rescue => e
         Rails.logger.error "OpenSymbols API exception: #{e.message}"
-        []
+        {ok: false, error: :http, results: []}
       end
     end
 
@@ -121,28 +117,62 @@ module OpenSymbols
     # Search for symbols and return in LingoLinq format
     # This maintains compatibility with the existing find_images interface
     def find_images(keyword, library, locale, protected_source: nil)
-      repo = nil
-      favor = nil
-      
-      # Map library names to OpenSymbols repo keys.
-      # 'original' means "keep the board's original symbols" and isn't a
-      # valid repo, so treat it like 'opensymbols' (search all).
+      mapped = repo_params_for(library)
+      return [] unless mapped
+
+      results = search(keyword, locale: locale, repo: mapped[:repo], favor: mapped[:favor])
+      format_lingolinq_images(results, protected_source)
+    end
+
+    def find_images_result(keyword, library, locale, protected_source: nil)
+      mapped = repo_params_for(library)
+      return {ok: true, error: nil, results: []} unless mapped
+
+      result = search_result(keyword, locale: locale, repo: mapped[:repo], favor: mapped[:favor])
+      {
+        ok: result[:ok],
+        error: result[:error],
+        results: format_lingolinq_images(result[:results], protected_source)
+      }
+    end
+    
+    private
+
+    def search_timeout
+      10
+    end
+
+    def classify_search_response(response)
+      if response.respond_to?(:timed_out?) && response.timed_out?
+        Rails.logger.warn "OpenSymbols API timeout"
+        return {ok: false, error: :timeout, results: []}
+      end
+      if response.code == 429
+        Rails.logger.warn "OpenSymbols API throttled"
+        return {ok: false, error: :throttled, results: []}
+      end
+      if response.success?
+        {ok: true, error: nil, results: parse_search_results(JSON.parse(response.body))}
+      else
+        Rails.logger.error "OpenSymbols API error: #{response.code} - #{response.body}"
+        {ok: false, error: :http, results: []}
+      end
+    end
+
+    def repo_params_for(library)
       case library
       when 'opensymbols', 'original'
-        # No specific repo, search all
+        {repo: nil, favor: nil}
       when 'tawasol'
-        favor = 'tawasol'
-      when 'noun-project', 'sclera', 'arasaac', 'mulberry', 'twemoji'
-        repo = library
-      when 'pcs', 'symbolstix'
-        repo = library
+        {repo: nil, favor: 'tawasol'}
+      when 'noun-project', 'sclera', 'arasaac', 'mulberry', 'twemoji', 'pcs', 'symbolstix'
+        {repo: library, favor: nil}
       else
-        return []
+        nil
       end
-      
-      results = search(keyword, locale: locale, repo: repo, favor: favor)
-      
-      # Convert to LingoLinq format
+    end
+
+    def format_lingolinq_images(results, protected_source)
       results.map do |symbol|
         {
           'url' => symbol['image_url'],
@@ -166,8 +196,6 @@ module OpenSymbols
         }
       end
     end
-    
-    private
     
     def get_cached_token
       if defined?(RedisAccess) && RedisAccess.redis
