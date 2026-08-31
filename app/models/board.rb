@@ -2860,6 +2860,28 @@ class Board < ApplicationRecord
       self.settings.delete('swap_incomplete')
     end
   end
+
+  # Shared with the default_images word list so a button the loop will skip
+  # is never sent to OpenSymbols first. Trace every read of these in
+  # swap_images before changing a predicate.
+  def swap_skips_button?(button)
+    return true unless button['image_id']
+    return true if button['label'] && button['label'].match(/LingoLinq/)
+    false
+  end
+
+  def swap_keeps_existing_image?(old_bi)
+    return false unless old_bi
+    return true if old_bi.preserve_source_image?
+    return true if old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
+    false
+  end
+
+  def swap_image_already_in_library?(old_bi, library)
+    return false unless old_bi
+    return false unless library.instance_variable_get('@skip_swapped')
+    old_bi.image_library == library || (OPENSYMBOLS_MEMBER_LIBRARIES.include?(old_bi.image_library) && library == OPENSYMBOLS_LIBRARY)
+  end
   
   def swap_images(library, author, board_ids, user_local_id=nil, visited_board_ids=[], updated_board_ids=[])
     author = User.find_by_global_id(author) if author && author.is_a?(String)
@@ -2892,7 +2914,6 @@ class Board < ApplicationRecord
       unresolved = false
       if !library.instance_variable_get('@skip_swapped') || swap_board.current_library(true) != library || swap_board.settings['swap_incomplete']
         # puts " checking if important"
-        words = swap_board.buttons.map{|b| [b['label'], b['vocalization']] }.flatten.compact.uniq
         # Important boards (i.e. boards that show up in the suggested list), should
         # definitely have their swap alternates cached indefinitely
         important_board = false
@@ -2906,32 +2927,36 @@ class Board < ApplicationRecord
           end
         end
         # puts " checking for default images"
-        defaults = Uploader.default_images(library, words, swap_board.settings['locale'] || 'en', author, true, important_board)
-        # puts " mapping buttons"
         bis = swap_board.known_button_images
+        # Only words the button loop will actually look up. The skip used to
+        # run AFTER default_images, so an already-correct board still made one
+        # OpenSymbols HTTP call per label. The lookup key is label ||
+        # vocalization (same read as the loop below).
+        words = swap_board.buttons.filter_map do |button|
+          next if swap_skips_button?(button)
+          old_bi = bis.detect{|i| i.global_id == button['image_id'] }
+          next if swap_keeps_existing_image?(old_bi)
+          next if swap_image_already_in_library?(old_bi, library)
+          button['label'] || button['vocalization']
+        end.compact.uniq
+        defaults = if words.any?
+          Uploader.default_images(library, words, swap_board.settings['locale'] || 'en', author, true, important_board)
+        else
+          {}
+        end
+        # puts " mapping buttons"
         # TODO: for images that have the correct library in library_alternates, don't look them up, just use that
         buttons = swap_board.buttons.map do |button|
-          # skip buttons that don't currently have an image
-          next button unless button['image_id']
-          next button if button['label'] && button['label'].match(/LingoLinq/)
+          next button if swap_skips_button?(button)
           old_bi = bis.detect{|i| i.global_id == button['image_id'] }
-          # skip buttons that have manually-uploaded image
-          if old_bi && old_bi.preserve_source_image?
-            # JSON bundle / migration import — keep exported image
-          elsif old_bi && old_bi.url && old_bi.url.match(/lingolinq-usercontent/)
-            # puts "SAFE PIC"
-          # `old_bi &&` matches the two guards above: known_button_images only returns
-          # images it can find, so a button whose image_id points at a deleted
-          # ButtonImage leaves old_bi nil, and calling nil.image_library here aborted
-          # the entire swap. A nil now falls through to the lookup below and the
-          # button gets a fresh image, which is the right outcome for a dangling ref.
-          elsif old_bi && library.instance_variable_get('@skip_swapped') && (old_bi.image_library == library || (OPENSYMBOLS_MEMBER_LIBRARIES.include?(old_bi.image_library) && library == OPENSYMBOLS_LIBRARY))
+          if swap_keeps_existing_image?(old_bi)
+            # JSON bundle / migration import, or a lingolinq-usercontent upload
+          # `old_bi &&` is inside swap_image_already_in_library?: known_button_images
+          # only returns images it can find, so a button whose image_id points at a
+          # deleted ButtonImage leaves old_bi nil and must fall through to lookup.
+          elsif swap_image_already_in_library?(old_bi, library)
             # puts "ALREADY SWAPPED"
             already_in_library = true
-          elsif false
-            # TODO: create or find an alternate version of the button_image that
-            # uses the library_alternates version as the fault and puts the current default
-            # into library_alternates instead
           elsif (button['label'] || button['vocalization'])
             image_data = defaults[button['label'] || button['vocalization']]
             if !image_data && (!defaults['_missing'] || !defaults['_missing'].include?(button['label'] || button['vocalization']))
