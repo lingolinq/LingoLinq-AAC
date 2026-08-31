@@ -123,20 +123,26 @@ module LingoLinq
           'lingolinq_general' => {
             'window_months' => 24,
             'enforced' => false,
-            'note' => 'Decided and being rolled out for accounts outside the EU that are not ' \
-              'flagged as a child under 13.'
+            'note' => 'Decided but NOT yet in effect for accounts outside the EU that are not ' \
+              'flagged as a child under 13. Today these records are removed when the account ' \
+              'is deleted, and not before.'
           },
           'lingolinq_children' => {
             'window_months' => 12,
             'enforced' => false,
-            'note' => 'Decided and being rolled out: a rolling 12 month window, independent of ' \
-              'account status, for accounts flagged as under 13.'
+            'note' => 'Decided but NOT yet in effect: a rolling 12 month window, independent of ' \
+              'account status, for accounts flagged as under 13. Today these records are removed ' \
+              'when the account is deleted, and not before.'
           },
           'lingolinq_eu' => {
             'window_years' => 5,
-            'enforced' => true,
-            'note' => 'Enforced today for accounts in the EU jurisdiction ' \
-              '(AiApiLog.purge_old_eu_logs!, EU AI Act Article 50 record-keeping).'
+            'enforced' => false,
+            'note' => 'A purge at 5 years (AiApiLog.purge_old_eu_logs!) is scheduled and running ' \
+              'for accounts confirmed in the EU jurisdiction, but no record is yet old enough for ' \
+              'it to have removed anything. An earlier revision of this entry said "enforced ' \
+              'today" and gave EU AI Act Article 50 as the basis; that was wrong, because ' \
+              'Article 50 is a transparency rule and imposes no record-keeping period. The basis ' \
+              'for this window is under review with counsel.'
           },
           'ip_address' => {
             'window_days' => 90,

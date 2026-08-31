@@ -112,7 +112,11 @@ describe LingoLinq::AiConsentDisclosures do
       m = described_class.metadata(1)
       retention = m['retention']
       expect(retention['lingolinq_eu']['window_years']).to eq(5)
-      expect(retention['lingolinq_eu']['enforced']).to eq(true)
+      # false, corrected 2026-08-30 with the #888 retraction pass: the 5-year EU
+      # purge is scheduled but has removed nothing (no record is old enough), and
+      # the "EU AI Act Article 50 record-keeping" basis the old note gave was
+      # retracted. This spec previously pinned the wrong value (true).
+      expect(retention['lingolinq_eu']['enforced']).to eq(false)
       expect(retention['lingolinq_children']['window_months']).to eq(12)
       expect(retention['lingolinq_children']['enforced']).to eq(false)
       expect(retention['lingolinq_general']['window_months']).to eq(24)
