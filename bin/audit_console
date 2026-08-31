@@ -22,6 +22,18 @@
 # This wrapper's job is to PROMPT for USER_KEY so you supply it up front instead
 # of hitting the refusal.
 #
+# SCOPE. Stated as a general rule, because enumerating the bypasses under-counts
+# them: the audit hooks are Rails.application.console and .runner, so ONLY
+# `rails console` and `rails runner` are audited. EVERY OTHER ROUTE TO THE
+# PRODUCTION DATABASE IS NOT. Non-exhaustively: bin/rake (requires config/boot
+# directly, no guard); any other bin/rails subcommand, e.g. db:migrate, which
+# ConsoleGuard.classify returns as :other so it passes enforce_pre_boot!, boots
+# fully and fires neither hook; a direct boot (ruby -r./config/environment);
+# and a non-Ruby client such as psql "$DATABASE_URL" or `gcloud sql connect`,
+# which sits outside the guard entirely and makes the `rails dbconsole` HIPAA
+# refusal largely decorative. All get database access with no AuditEvent, no
+# refusal and no attribution, in production included.
+#
 # Residual, recorded in LL-7f7372e3eb's closure evidence: USER_KEY is
 # self-asserted free text, not an authenticated principal, so the attributed
 # actor is spoofable by anyone who already has a shell on the app.
