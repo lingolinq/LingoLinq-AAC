@@ -16199,29 +16199,52 @@ full baseline (`# tests 2396 / # skip 38 / # fail 1`, so not a truncation). The 
 `global failure: TypeError: localStorage.getItem is not a function` with a stack in
 `capabilities.sync_access_token` -- the test's own assertions never ran red.
 
-**Mechanism (CONFIRMED, traced 2026-08-31):**
-- `app/frontend/app/utils/capabilities.js:320-326` starts a `setInterval` that calls
-  `capabilities.sync_access_token()` every 2000ms for the LIFE OF THE SUITE.
-- `sync_access_token` reads `localStorage.getItem('debug_tokens')`
-  (`capabilities.js:305`), guarded only by `typeof localStorage !== 'undefined'`.
-- `boards-layout-toggle-test.js` replaces `window.localStorage` per test with a plain object
-  that has NO `getItem` (`stubStorage` / `throwingStorage`, restored in `afterEach`).
-- When a 2s tick lands inside a test's ~25-50ms stub window, the tick throws, and QUnit charges
-  the uncaught error as a **global failure to whichever test is running**. Same victim-charging
-  class as the `token_validated` leak entry above, different leak source.
+**Mechanism (traced 2026-08-31; each step labeled):**
+- CONFIRMED: `app/frontend/app/utils/capabilities.js:320-326` starts a `setInterval` calling
+  `capabilities.sync_access_token()` every 2000ms; `_auth_sync_interval` is never cleared
+  anywhere (grep: only :320,321), so once started it runs for the life of the page.
+- CONFIRMED: the throwing line is `capabilities.js:305`, verbatim:
+  `if(window.LingoLinq && (window.LingoLinq.DEBUG || (typeof localStorage !== 'undefined' && localStorage.getItem('debug_tokens') === 'true'))) {`
+  The `typeof` check passes for a plain-object stub (it is not undefined), and the
+  `window.LingoLinq.DEBUG` short-circuit never saves it because `DEBUG` is read in two files
+  but ASSIGNED nowhere under `app/frontend/app/`.
+- CONFIRMED: two more gates must ALSO open before :305 runs: the early return at
+  `capabilities.js:301-303` (skip when the new token is empty and a valid one is cached) and
+  the `if(new_token !== capabilities.access_token)` wrapper at `:304`. A tick that finds an
+  unchanged token returns without touching localStorage. This is why the flake is rare, not
+  (stub window / 2000ms) common.
+- CONFIRMED: `boards-layout-toggle-test.js:41` replaces the PAGE-GLOBAL `window.localStorage`
+  per test with plain objects that have NO `getItem` (`stubStorage` / `throwingStorage`),
+  restored in an `afterEach` whose restore failure is swallowed by a bare `catch` (`:29-38`).
+- PLAUSIBLE (the one unproven link): that the interval is actually running during this
+  `setupTest` module. Nothing in the test file starts it; the only trigger in the codebase is
+  `extras.advance.watch('device', ...)` dispatching `method: 'init'` (`extras.js:530-531`),
+  which is module-level and order-dependent, so whether the tick fires here depends on what ran
+  earlier in the same browser page. Test-order dependence also better explains the observed
+  rarity than the 2s timing alone.
+- CONFIRMED: when the tick does throw, QUnit charges the uncaught error as a
+  **global failure to whichever test is running**. Same victim-charging class as the
+  `token_validated` leak entry above, different leak source.
 
 **Corroboration:** on PR #888 (run 33343382237, attempt 1, commit `8b0105a8a`) the only diff
 from the branch's previous fully-green frontend run was one line in `app/models/user.rb`, which
 the Ember suite never compiles. Identical frontend code, different outcome; attempt 2 passed.
 
-**Handling:** a solo boards-layout-toggle failure at full baseline whose message says
-`global failure ... localStorage.getItem` is this flake; rerun with `gh run rerun --failed`. If
-the rerun fails on a DIFFERENT test, stop and treat it as signal. Do not "fix" it by weakening
-the test's stubs blindly.
+**Handling -- key on the STACK FRAME, not the message:** a solo boards-layout-toggle failure at
+full baseline whose stack is in `capabilities.sync_access_token` is this flake; rerun with
+`gh run rerun --failed`. BUT the identical message (`localStorage.getItem is not a function`)
+can also come from `extras.js:241,248`, which has the same call with NO `typeof` guard on the
+ajax request path -- that one is request-driven, fires on any XHR issued while the global is
+stubbed, and will NOT clear on rerun. Check the stack frame before rerunning. If the rerun
+fails on a DIFFERENT test, stop and treat it as signal. Do not "fix" it by weakening the
+test's stubs blindly.
 
-**Fix candidates (NOT applied; need the >=30-iteration verification budget):** give the interval
-callback a real guard (`typeof localStorage.getItem === 'function'` or try/catch around the
-debug read); have the test harness cancel `capabilities._auth_sync_interval`; or add a no-op
-`getItem` to the test's stub objects.
+**Fix candidates (NOT applied; need the >=30-iteration verification budget):** stop replacing
+the page-global (inject a storage adapter, or make the `afterEach` restore THROW instead of the
+silent `catch` at `boards-layout-toggle-test.js:32` -- if a restore ever fails, the next
+`beforeEach` captures the stub as "real" and installs it for the rest of the suite with no
+diagnostic); guard or try/catch the debug reads at `capabilities.js:305` AND `extras.js:241,248`;
+have the test harness cancel `capabilities._auth_sync_interval`; or add a no-op `getItem` to the
+stub objects (weakest -- patches one symptom of an unbounded global mutation).
 
 **First seen in:** PR #888 CI, 2026-08-30/31.
