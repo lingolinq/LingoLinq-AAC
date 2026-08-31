@@ -139,12 +139,22 @@ describe LingoLinq::Article50Disclosures do
       expect(retention['lingolinq_eu']['window_years']).to eq(5)
     end
 
-    it 'states the HIPAA floor as 6 years, citing 45 CFR 164.316(b)(2), and as a hard floor' do
+    # Until 2026-08-30 this example pinned the RETRACTED claim: it required the
+    # note to present 45 CFR 164.316(b)(2) as a retention "hard floor". That rule
+    # governs a covered entity's written policies and procedures, not AI request
+    # logs (#888 retraction). The note may now cite the regulation only to
+    # retract it, and must say the window is under counsel review.
+    it 'states the healthcare window as 6 years without reasserting the retracted 164.316(b)(2) hard floor' do
       retention = described_class.metadata(1)['retention']
       floor = retention['lingolinq_hipaa_floor']
       expect(floor['window_years']).to eq(6)
       expect(floor['note']).to include('45 CFR 164.316(b)(2)')
-      expect(floor['note']).to match(/hard floor/i)
+      expect(floor['note']).to match(/under review with counsel/i)
+      # The retracted assertion shape: "a hard floor" NOT immediately followed by
+      # the retraction's "required by ..." framing. Mirrors the BANNED_CLAIMS row
+      # in spec/support/ai_disclosure_claims.rb.
+      expect(floor['note']).not_to match(/a hard floor(?! required by)/i)
+      expect(floor['note']).not_to match(/This (?:is a )?hard floor/)
     end
   end
 
