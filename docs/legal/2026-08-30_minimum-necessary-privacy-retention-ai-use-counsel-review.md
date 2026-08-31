@@ -970,6 +970,25 @@ these are framed as questions rather than positions.
     freezes an attested document's bytes permanently and supersedes it with a dated successor. We
     want your view on whether that is the right shape for records that reach customers in a
     diligence bundle.
+32. **Must existing users re-acknowledge the corrected privacy policy?** On 2026-08-30 we
+    corrected the privacy page and the AI disclosure page (PR #888): the corrections withdraw
+    false and overbroad statements and narrow our claims; they do not expand any data use. With
+    that change we bumped the signup consent version constant, `User::PRIVACY_POLICY_VERSION`,
+    from `'2026-07-09'` to `'2026-08-30'`. New signups now acknowledge the new version
+    (`app/models/user.rb:964,2368`), and the version is stamped into an immutable `AuditEvent`
+    when parental consent is granted (`app/models/user.rb:978`). Existing users' acknowledgment
+    records keep `'2026-07-09'`. **The position we have taken, pending your answer, is
+    notice-only: no forced re-acknowledgment**, on the reasoning that a correction in the user's
+    favor is not the kind of material change that requires fresh consent. Do you agree, and does
+    the answer differ for under-13 accounts, where the acknowledgment is part of the verifiable
+    parental consent record?
+33. **Does the public visibility of this memorandum's pull request matter?** This memorandum was
+    prepared on a branch of our public source repository, and the pull request carrying it is
+    held open but deliberately unmerged; the copy you receive is delivered out-of-band. Because
+    the repository is public, the branch diff is already visible regardless of merge state.
+    Should we close the pull request and delete the branch, leave both as they are, or does the
+    distinction carry no weight for privilege or any other purpose once the text has been
+    publicly visible at all?
 
 ---
 
