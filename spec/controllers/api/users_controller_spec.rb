@@ -527,7 +527,9 @@ describe Api::UsersController, :type => :controller do
       post :update, params: {:id => u.global_id, :reset_token => 'admin', :user => {'name' => 'fred', 'password' => '2345654'}}
       expect(response).to be_successful
       expect(u.reload.valid_password?('2345654')).to eq(true)
-      expect(u.settings['name']).to eq('No name')
+      # The reset path must ignore the other params it was sent, so `name`
+      # stays as it was -- unset, since signup never collected one.
+      expect(u.settings['name']).to eq(nil)
     end
     
     it "should not let non-admins reset passwords for users" do
@@ -844,7 +846,13 @@ describe Api::UsersController, :type => :controller do
       post :create, params: {:user => {'user_name' => ''}}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['user']['name'].length).to be > 5
+      # This asserted on `name` and only ever passed because generate_defaults
+      # seeded the 7-character placeholder "No name" -- an accident, in a test
+      # whose subject is the USER NAME. Assert what it means: a blank user_name
+      # is replaced by a generated handle (see Processable#generate_user_name).
+      expect(json['user']['user_name']).to_not eq(nil)
+      expect(json['user']['user_name']).to_not eq('')
+      expect(json['user']['user_name'].length).to be > 5
     end
 
     it "should include access token information" do
@@ -3091,20 +3099,18 @@ describe Api::UsersController, :type => :controller do
       expect(json).to eq({'a' => 'a'})
     end
 
-    it "should skip Google and return empty translations when org disables external AI processing" do
+    it "should still call Google when org disables external AI processing" do
       token_user
       o = Organization.create(settings: {'total_licenses' => 1, 'external_ai_processing' => false})
       o.add_user(@user.user_name, false, true)
       @user.reload
       words = ['a', 'b', 'c']
-      expect(WordData).not_to receive(:translate_batch)
-      expect(Typhoeus).not_to receive(:get)
-      expect(Organization).to receive(:log_external_ai_processing_skip).with(@user, 'translation')
+      expect(WordData).to receive(:translate_batch).with(words.map{|w| {:text => w} }, 'en', 'es').and_return({a: 'a'})
+      expect(Organization).not_to receive(:log_external_ai_processing_skip)
       post 'translate', params: {:user_id => @user.global_id, :words => words, :source_lang => 'en', :destination_lang => 'es'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['translations']).to eq({})
-      expect(json['external_ai_processing']).to eq(false)
+      expect(json).to eq({'a' => 'a'})
     end
   end
   

@@ -1,4 +1,31 @@
 namespace :lingolinq do
+  desc 'Store dest-locale translations on English lingolinq library boards (default LANG=es). ' \
+       'Does not change the English default. DEST_LANG wins over LANG; shell locales like ' \
+       'en_US.UTF-8 are ignored. SLUGS=quick-core-60 limits the run. SCOPE=seed translates ' \
+       'every listed public content-user root (reindex inventory). DRY_RUN=1 lists roots. ' \
+       'Production (including Render staging) needs ALLOW_PROD_TRANSLATE=1; SCOPE=seed also ' \
+       'needs TRANSLATE_CONFIRM=1. CSV written to tmp/.'
+  task translate_library_boards: :environment do
+    dest_lang = LibraryBoardTranslator.parse_dest_lang(
+      ENV['DEST_LANG'].presence || ENV['BOARD_LANG'].presence || ENV['LANG']
+    )
+    slugs = ENV['SLUGS'].to_s.split(',').map(&:strip).reject(&:blank?)
+    scope = ENV['SCOPE'].to_s.strip.presence
+    dry_run = ENV['DRY_RUN'].to_s =~ /^(1|true|yes)$/i
+    db = ActiveRecord::Base.connection_db_config.configuration_hash
+    db_desc = "#{db[:database]}@#{db[:host] || 'local'}"
+    puts "#{dry_run ? '[DRY RUN] ' : ''}Translating library boards on #{SystemBoardSources::USER_NAME} to #{dest_lang}" \
+         "#{slugs.any? ? " (#{slugs.join(', ')})" : scope ? " (scope=#{scope})" : ''}..."
+    puts "  Target: user '#{SystemBoardSources::USER_NAME}' on DB #{db_desc}"
+    LibraryBoardTranslator.translate_library!(
+      dest_lang: dest_lang,
+      slugs: slugs.presence,
+      scope: scope,
+      dry_run: dry_run
+    )
+    puts 'Done.'
+  end
+
   desc 'Copy and translate Quick Core / Vocal Flair library boards to Spanish on the lingolinq account'
   task provision_spanish_library_boards: :environment do
     force = ENV['FORCE'].to_s =~ /^(1|true|yes)$/i
@@ -72,6 +99,62 @@ namespace :lingolinq do
       missing.each { |item| puts "  - #{item}" }
       puts "(Likely an OpenAAC network/import failure; see logs above. Safe to re-run.)"
     end
+  end
+
+  desc 'Apply category grouping to boards for users, keyed by BOARD KEY so it ports ' \
+       'between environments. BOARDS=key1,key2 USERS=a,b|all [SCROLL=1] [NAMES=1] ' \
+       '[ORDER=people,actions,…] [OFF=1] [DRY_RUN=1]'
+  task seed_board_category_grouping: :environment do
+    # Keyed by board KEY, never global_id: an id is unique to one database, so an id-keyed
+    # override stops applying the moment it crosses environments. See
+    # User#sanitize_board_category_grouping! and board-detail.js#_board_category_ref.
+    board_keys = ENV['BOARDS'].to_s.split(',').map(&:strip).reject(&:empty?)
+    abort 'Usage: BOARDS=user/slug[,user/slug] USERS=name[,name]|all rake lingolinq:seed_board_category_grouping' if board_keys.empty?
+
+    missing = board_keys.reject { |k| Board.find_by_path(k) }
+    abort "Board(s) not found: #{missing.join(', ')}" if missing.any?
+
+    who = ENV['USERS'].to_s.strip
+    abort 'Set USERS=name[,name] or USERS=all' if who.empty?
+    users = who == 'all' ? User.all : who.split(',').map(&:strip).reject(&:empty?).map { |n| User.find_by_path(n) || abort("User not found: #{n}") }
+
+    enabled = ENV['OFF'].to_s !~ /\A(1|true|yes)\z/i
+    entry = {
+      'enabled' => enabled,
+      'order' => ENV['ORDER'].to_s.split(',').map(&:strip).reject(&:empty?),
+      'show_category_names' => ENV['NAMES'].to_s !~ /\A(0|false|no)\z/i,
+      'vertical_scroll' => ENV['SCROLL'].to_s !~ /\A(0|false|no)\z/i
+    }
+    dry = ENV['DRY_RUN'].to_s =~ /\A(1|true|yes)\z/i
+
+    puts "#{dry ? '[DRY RUN] ' : ''}#{enabled ? 'Enabling' : 'Disabling'} category grouping"
+    puts "  boards: #{board_keys.join(', ')}"
+    puts "  entry:  #{entry.inspect}"
+    changed = 0
+    # USERS=all yields a relation (batch it); a name list yields an Array (which has no
+    # find_each — that mismatch made the first run of this task die before updating anyone).
+    roster = users.respond_to?(:find_each) ? users.find_each : users
+    roster.each do |user|
+      prefs = user.settings['preferences'] ||= {}
+      grouping = prefs['board_category_grouping']
+      grouping = {} unless grouping.is_a?(Hash)
+      boards = grouping['boards']
+      boards = {} unless boards.is_a?(Hash)
+      before = boards.dup
+      board_keys.each { |k| boards[k] = entry.dup }
+      next if before == boards   # idempotent: re-running changes nothing
+      changed += 1
+      next if dry
+      grouping['boards'] = boards
+      # The top level is the user's DEFAULT for boards with no entry — left alone on
+      # purpose, so seeding one board cannot silently regroup every other board they own.
+      grouping['enabled'] = grouping['enabled'] == true
+      grouping['order'] = grouping['order'].is_a?(Array) ? grouping['order'] : []
+      prefs['board_category_grouping'] = grouping
+      user.settings['preferences'] = prefs
+      user.save
+    end
+    puts "#{dry ? 'Would update' : 'Updated'} #{changed} user(s) (of #{users.count})."
   end
 
   desc 'Verify that beta-critical seed records and public source boards exist'

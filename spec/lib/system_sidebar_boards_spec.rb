@@ -5,12 +5,15 @@ describe SystemSidebarBoards do
     it "generates keyboard and inflections boards for the content user when missing" do
       user = User.create(user_name: 'lingolinq')
       boards = described_class.ensure_for(user)
-      expect(boards.length).to eq(2)
+      expect(boards.length).to eq(3)
       expect(Board.find_by_path('lingolinq/keyboard')).to_not eq(nil)
       expect(Board.find_by_path('lingolinq/inflections')).to_not eq(nil)
+      expect(Board.find_by_path('lingolinq/inflections-es')).to_not eq(nil)
       expect(Board.find_by_path('lingolinq/keyboard').public).to eq(true)
       expect(Board.find_by_path('lingolinq/keyboard').settings['locale']).to eq('en')
       expect(Board.find_by_path('lingolinq/inflections').public).to eq(true)
+      expect(Board.find_by_path('lingolinq/inflections-es').public).to eq(true)
+      expect(Board.find_by_path('lingolinq/inflections-es').settings['locale']).to eq('es')
     end
 
     it "imports the committed Vocal Flair keyboard OBZ in preference to legacy/generator" do
@@ -22,6 +25,10 @@ describe SystemSidebarBoards do
       # imported, not copied from the legacy example board
       expect(board.parent_board_id).to eq(nil)
       expect(board.settings['name']).to eq('Vocal Flair 84 - Keyboard')
+      by_label = board.buttons.index_by { |b| b['label'] }
+      expect(by_label['shift']['vocalization']).to eq(':shift')
+      expect(by_label['space']['vocalization']).to eq(':space')
+      expect(by_label['a']['vocalization']).to eq('+a')
     end
 
     it "falls back to copying the legacy example board when the OBZ is missing" do
@@ -43,6 +50,27 @@ describe SystemSidebarBoards do
 
       board = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
       expect(board.settings['locale']).to eq('en')
+    end
+
+    it "restores missing keyboard control vocalizations from the committed OBZ" do
+      user = User.create(user_name: 'lingolinq')
+      Board.process_new({
+        'name' => 'Vocal Flair 84 - Keyboard',
+        'public' => true,
+        'locale' => 'en',
+        'buttons' => [
+          {'id' => 36, 'label' => 'shift'},
+          {'id' => 44, 'label' => 'space'},
+          {'id' => 27, 'label' => 'a'}
+        ],
+        'grid' => {'rows' => 1, 'columns' => 3, 'order' => [[36, 44, 27]]}
+      }, {user: user, key: 'keyboard'})
+
+      board = described_class.ensure_utility_board(user, described_class::UTILITIES.first)
+      by_label = board.buttons.index_by { |b| b['label'] }
+      expect(by_label['shift']['vocalization']).to eq(':shift')
+      expect(by_label['space']['vocalization']).to eq(':space')
+      expect(by_label['a']['vocalization']).to eq('+a')
     end
 
     it "is idempotent" do

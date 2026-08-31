@@ -716,13 +716,19 @@ describe Stats do
         {'type' => 'button', 'button' => {'label' => 'like', 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => now - 8},
         {'type' => 'button', 'button' => {'label' => 'ok go', 'board' => {'id' => '1_1'}, 'spoken' => true}, 'timestamp' => now}
       ]
-      # Stats.lam uses Time.at (UTC) for formatting
+      # Stats.lam formats in LOCAL time -- `Time.at(...).strftime` with no .utc
+      # (lib/stats.rb, under its own `# TODO: timezones`). These expectations
+      # must use the same zone as the code, or the example only passes on a
+      # machine whose local zone is UTC: it previously asserted `.utc` and so
+      # failed for every developer outside UTC while staying green in CI.
+      # Matches the sibling "should not include the same word twice" example
+      # above, which has always formatted locally.
       str = Stats.lam([s1])
       expect(str).to match(/CAUTION/)
-      expect(str).to include("#{Time.at(now - 10).utc.strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now - 10).utc.strftime('%y-%m-%d')}]*")
-      expect(str).to include("#{Time.at(now - 10).utc.strftime('%H:%M:%S')} SMP \"I \"")
-      expect(str).to include("#{Time.at(now - 8).utc.strftime('%H:%M:%S')} SMP \"like \"")
-      expect(str).to include("#{Time.at(now).utc.strftime('%H:%M:%S')} SMP \"ok go \"")
+      expect(str).to include("#{Time.at(now - 10).strftime('%H:%M:%S')} CTL *[YY-MM-DD=#{Time.at(now - 10).strftime('%y-%m-%d')}]*")
+      expect(str).to include("#{Time.at(now - 10).strftime('%H:%M:%S')} SMP \"I \"")
+      expect(str).to include("#{Time.at(now - 8).strftime('%H:%M:%S')} SMP \"like \"")
+      expect(str).to include("#{Time.at(now).strftime('%H:%M:%S')} SMP \"ok go \"")
     end
     
     it "should include spelling events correctly" do

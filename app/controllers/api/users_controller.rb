@@ -47,7 +47,7 @@ class Api::UsersController < ApplicationController
     nonce = GoSecure.nonce('valet_hash_password')[0, 5]
     password = user.valet_temp_password(nonce)
     credentials = "model-#{user.global_id}:#{password.gsub(/\?:\#/, '-')}"
-    url = "#{JsonApi::Json.current_host}/login?#{credentials}"
+    url = "#{JsonApi::Json.absolute_host}/login?#{credentials}"
     render json: {user_name: "model@#{user.global_id.sub(/_/, '.')}", password: password, url: url}
   end
   
@@ -804,6 +804,9 @@ class Api::UsersController < ApplicationController
         if user.coppa_parental_consent_revoked?
           return api_error 400, {error: 'parental consent revoked', coppa_parental_consent_revoked: true}
         end
+        if user.coppa_parental_consent_declined?
+          return api_error 400, {error: 'parental consent declined', coppa_parental_consent_declined: true}
+        end
         if user.coppa_needs_parent_email?
           return api_error 400, {error: 'parent email required', coppa_parent_email_required: true}
         end
@@ -1142,16 +1145,9 @@ class Api::UsersController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'delete')
-    unless Organization.external_ai_processing_allowed_for_user?(user)
-      Organization.log_external_ai_processing_skip(user, 'translation')
-      # Neutral skip (not an error): empty translations, callers tolerate zero results.
-      return render json: {
-        source: params['source_lang'],
-        dest: params['destination_lang'],
-        translations: {},
-        external_ai_processing: false
-      }
-    end
+    # Board translation is not gated by org external_ai_processing (that
+    # off-switch covers voice transcription). The Translate Boards modal
+    # shows a Google Cloud Translation disclaimer before this call.
     res = WordData.translate_batch(params['words'].map{|w| {:text => w } }, params['source_lang'], params['destination_lang'])
     render json: res
   end

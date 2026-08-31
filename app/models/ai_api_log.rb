@@ -228,15 +228,22 @@ class AiApiLog < ApplicationRecord
       .update_all(ip_address: '[REDACTED]')
   end
 
-  # EU AI Act Article 50 record-keeping: AI-call logs for EU-jurisdiction users
-  # are retained for five years, then purged. The `jurisdiction = 'EU'` value is
-  # the canonical stamp written by the shared call-context helper (the partial
-  # index `index_ai_api_logs_on_jurisdiction_and_created_at` backs this scan).
+  # EU retention purge: AI-call logs for EU-jurisdiction users are retained for
+  # five years, then purged. The `jurisdiction = 'EU'` value is the canonical
+  # stamp written by the shared call-context helper (the partial index
+  # `index_ai_api_logs_on_jurisdiction_and_created_at` backs this scan).
+  # BASIS NOTE (2026-08-30, #888 retraction): this purge was previously
+  # justified as "EU AI Act Article 50 record-keeping". That was wrong;
+  # Article 50 is a transparency rule and imposes no record-keeping period.
+  # The basis and length of this window are under counsel review. The purge
+  # itself stays as-is pending that review.
   #
   # Scope is deliberately EU-only. There is no blanket ai_api_logs purge today,
   # and one is out of scope here: these rows double as a HIPAA audit trail
-  # (45 CFR 164.316(b)(2) -> six years), so a shorter default purge is a separate
-  # decision that must weigh the HIPAA floor, not a byproduct of this EU rule.
+  # (the disclosed up-to-6-years window for healthcare-linked accounts; the
+  # earlier "45 CFR 164.316(b)(2) six-year floor" framing was retracted in the
+  # same pass), so a shorter default purge is a separate decision that must
+  # weigh that window, not a byproduct of this EU rule.
   # `delete_all` is used (not destroy_all): these rows have no dependents and no
   # destroy callbacks, and a bulk purge should not instantiate five years of rows.
   #

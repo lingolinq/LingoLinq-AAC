@@ -37,6 +37,22 @@ describe JsonApi::Board do
       expect(JsonApi::Board.as_json(b, :permissions => u, :wrapper => true)['board']['translations']).to eq({'a' => 1})
     end
 
+    it "should omit source_part_of_speech from translated_locales" do
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['locale'] = 'en'
+      b.settings['translations'] = {
+        '9' => {
+          'en' => { 'label' => 'say' },
+          'es' => { 'label' => 'decir' },
+          'source_part_of_speech' => 'verb'
+        },
+        'board_name' => { 'en' => 'tell', 'es' => 'decir' }
+      }
+      json = JsonApi::Board.build_json(b)
+      expect(json['translated_locales']).to eq(['en', 'es'])
+    end
+
     it "should include content retrieved from board_content record" do
       u = User.create
       b = Board.create(user: u)
@@ -87,6 +103,35 @@ describe JsonApi::Board do
       es = JsonApi::Board.build_json(b, :paginated => true, :locale => 'es')
       expect(es['localized_name']).to eq('ahem')
       expect(es['localized_locale']).to eq('es')
+    end
+
+    it "should not let a translation clear a SPECIAL vocalization" do
+      # ':suggestion' marks a word-prediction slot and '+s' appends a letter -- they are
+      # ACTIONS, not words, so they have no translation. A translation entry carrying only
+      # a label used to null them out, which removed the only marker the client identifies
+      # a prediction slot by: word prediction stopped running and the categorised grid
+      # filed the slots with the ordinary vocabulary.
+      u = User.create
+      b = Board.create(:user => u)
+      b.settings['buttons'] = [
+        {'id' => 1, 'label' => 'give', 'vocalization' => ':suggestion'},
+        {'id' => 2, 'label' => 'plural', 'vocalization' => '+s'},
+        {'id' => 3, 'label' => 'cat', 'vocalization' => 'cat'}
+      ]
+      b.settings['translations'] = {
+        '1' => {'es' => {'label' => 'dar'}},
+        '2' => {'es' => {'label' => 'plural'}},
+        '3' => {'es' => {'label' => 'gato'}}
+      }
+      b.save
+      json = JsonApi::Board.build_json(b, :locale => 'es')
+      btns = json['buttons'].map{|btn| [btn['id'], btn['vocalization']] }.to_h
+      expect(btns[1]).to eq(':suggestion')
+      expect(btns[2]).to eq('+s')
+      # An ORDINARY button still has its vocalization cleared by a translation that carries
+      # no vocalization -- deliberate, the client falls back to the translated label.
+      expect(btns[3]).to eq(nil)
+      expect(json['buttons'].map{|btn| btn['label'] }).to eq(['dar', 'plural', 'gato'])
     end
 
     it "should update full_set_revision on downstream shallow clone" do

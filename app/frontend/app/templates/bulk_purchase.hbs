@@ -11,8 +11,8 @@
         {{t "Gift Code"}}
         {{#if this.gift.giver}}
           {{t "from" key="from"}}
-          {{#if this.gift.giver.name}}
-            {{this.gift.giver.name}}
+          {{#if (display-name this.gift.giver)}}
+            {{display-name this.gift.giver}}
           {{else if this.gift.giver.email}}
             {{this.gift.giver.email}}
           {{else}}

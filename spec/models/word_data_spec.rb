@@ -154,6 +154,52 @@ RSpec.describe WordData, :type => :model do
         'runshkable' => 'rushef',
         'forshdeg' => 'milnar'
       })
+      expect(res[:origins]).to eq({
+        'troixlet' => 'cache',
+        'runshkable' => 'cache',
+        'forshdeg' => 'google'
+      })
+      expect(res[:origins]).not_to have_key('wilmerding')
+    end
+
+    it "should not look up or query action tokens like :space or +q" do
+      WordData.create(:word => ":space", :locale => 'en', :data => {'translations' => {'es' => 'espacio'}})
+      expect(WordData).to receive(:query_translations).with([{:text => 'hat'}], 'en', 'es').and_return([{:text => 'hat', :type => nil, :translation => 'sombrero'}])
+      res = WordData.translate_batch([
+        {:text => ':space'},
+        {:text => '+q'},
+        {:text => 'hat'},
+        {:text => ':shift'}
+      ], 'en', 'es')
+      expect(res[:translations]).to eq({'hat' => 'sombrero'})
+      expect(res[:origins]).to eq({'hat' => 'google'})
+      expect(res[:translations]).not_to have_key(':space')
+      expect(res[:translations]).not_to have_key('+q')
+      expect(res[:translations]).not_to have_key(':shift')
+    end
+
+    it "should force English who to Spanish quién even when cache has OMS" do
+      WordData.create(:word => 'who', :locale => 'en', :data => {'translations' => {'es' => 'OMS', 'es-US' => 'OMS'}})
+      expect(WordData).not_to receive(:query_translations)
+      res = WordData.translate_batch([
+        {:text => 'who'},
+        {:text => 'Who'}
+      ], 'en', 'es-US')
+      expect(res[:translations]['who']).to eq('quién')
+      expect(res[:translations]['Who']).to eq('Quién')
+      expect(res[:origins]['who']).to eq('override')
+      expect(res[:origins]['Who']).to eq('override')
+      rec = WordData.find_word_record('who', 'en')
+      rec.reload
+      expect(rec.data['translations']['es']).to eq('quién')
+      expect(rec.data['translations']['es-US']).to eq('quién')
+    end
+
+    it "should not override who's" do
+      expect(WordData).to receive(:query_translations).with([{:text => "who's"}], 'en', 'es').and_return([{:text => "who's", :type => nil, :translation => "de quién"}])
+      res = WordData.translate_batch([{:text => "who's"}], 'en', 'es')
+      expect(res[:translations]["who's"]).to eq("de quién")
+      expect(res[:origins]["who's"]).to eq('google')
     end
   end
 
@@ -806,9 +852,13 @@ RSpec.describe WordData, :type => :model do
       }.to_json))
       expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/words/like%3Aen", {timeout: 10}).and_return(OpenStruct.new(body: {
       }.to_json))
+      # Freeze Time.now so generated/checked do not flake if a second ticks
+      # between the stamp and the assertion (CI: 18:43:26 vs 18:43:27).
+      frozen_now = Time.now
+      allow(Time).to receive(:now).and_return(frozen_now)
       res = WordData.update_activities_for(u.global_id, false)
       activities = u.reload.settings['target_words']['activities']
-      expect(activities['generated']).to eq(Time.now.iso8601)
+      expect(activities['generated']).to eq(frozen_now.iso8601)
       expect(activities['words']).to eq([{"word"=>"about", "locale"=>"en", "reasons"=>nil, 'score' => 0}, {"word"=>"want", "locale"=>"en", "reasons"=>["fallback"], 'score' => 0}])
       expect(activities['list'].sort_by{|h| [h['word'], h['type'], h['id']]}).to eq([
           {"id"=>"ai1", "description"=>"about it", "type"=>"activity_ideas", "word"=>"about", "locale"=>"en", "score"=>6.3}, 
@@ -825,8 +875,8 @@ RSpec.describe WordData, :type => :model do
           {"id"=>"v2", "type"=>"videos", "word"=>"want", "locale"=>"en", "score"=>3.333}, 
         ].sort_by{|h| [h['word'], h['type'], h['id']]})
       expect(res).to eq({
-        'checked' => Time.now.iso8601,
-        'generated' => Time.now.iso8601,
+        'checked' => frozen_now.iso8601,
+        'generated' => frozen_now.iso8601,
         'list' => [
           {"id"=>"lp1", "text"=>"about something", "type"=>"learning_projects", "word"=>"about", "locale"=>"en", "score"=>6.3, "user_ids"=>[u.global_id]}, 
           {"id"=>"ai1", "description"=>"about it", "type"=>"activity_ideas", "word"=>"about", "locale"=>"en", "score"=>6.3, "user_ids"=>[u.global_id]}, 

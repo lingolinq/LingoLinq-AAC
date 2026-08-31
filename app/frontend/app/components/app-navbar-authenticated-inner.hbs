@@ -39,7 +39,13 @@
              default-mode page (boards / reports / extras / account, etc.), so it must
              be further gated to the home dashboard route so the button doesn't leak
              onto those pages. View-independent (applies in both Focused and Gentle). --}}
-        {{#if (is-equal this.appState.current_route "user.home")}}<DisplayStyle />{{/if}}
+        {{!-- The Focused/Gentle view selector. Mounted on the dashboard AND the
+             caseload page, which now has its own Focused View treatment (see the
+             "Caseload page — Focused View" section in styles/_focused-view.scss),
+             so a supporter can switch style from either. Mounting it here also
+             registers `appState.dashboard_design_opener`, which the ≤640px drawer
+             button below depends on — keep the two route lists in sync. --}}
+        {{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle />{{/if}}
       </span>
     {{/if}}
   </span>
@@ -124,7 +130,7 @@
         <span class="caret"></span>
       </a>
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
-        <li class="dropdown-header">{{this.appState.currentUser.name}}</li>
+        <li class="dropdown-header">{{this.appState.currentUser.display_name}}</li>
         <li role="presentation">
           <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}}>{{t "My Account" key="my_account"}}</LinkTo>
         </li>
@@ -195,7 +201,7 @@
     </button>
   </span>
   <LaMobileDrawer @isOpen={{this.isDrawerOpen}} @onClose={{this.onCloseDrawer}}>
-    <div class="la-mobile-drawer__header">{{this.appState.currentUser.name}}</div>
+    <div class="la-mobile-drawer__header">{{this.appState.currentUser.display_name}}</div>
     {{#if @showModernDashboardLink}}
       {{#if this.appState.currentUser.user_name}}
         <LinkTo @route="user.home" @model={{this.appState.currentUser.user_name}} class="la-mobile-drawer__link" {{on "click" this.onCloseDrawer}}>{{t "Home Page" key="home_page"}}</LinkTo>
@@ -218,10 +224,12 @@
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{on "click" this.onCloseDrawerAndSupport}}>{{t "Help" key="help"}}</button>
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button" {{on "click" this.onCloseDrawerAndOpenBetaFeedback}}>{{t "Beta feedback" key="beta_feedback_nav"}}</button>
     {{!-- Display Style — drawer replacement for the inner-header disc, which is
-         hidden at <=640px (see app.scss). Only relevant on the home page (where
-         the display-style component is mounted); shown only <=640px via
-         `--display-style` CSS so it never duplicates the still-visible disc. --}}
-    {{#if (is-equal this.appState.current_route "user.home")}}
+         hidden at <=640px (see app.scss). Only relevant on the pages where the
+         display-style component is mounted (home + caseload — keep this list in
+         sync with the <DisplayStyle /> gate above, since this button calls the
+         opener that mounting registers); shown only <=640px via `--display-style`
+         CSS so it never duplicates the still-visible disc. --}}
+    {{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button la-mobile-drawer__link--display-style" {{on "click" this.onCloseDrawerAndDisplayStyle}}>{{t "Display Style" key="display_style"}}</button>
     {{/if}}
     {{!-- Language picker — mirrors the desktop dropdown's

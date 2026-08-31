@@ -46,7 +46,11 @@ export default Component.extend({
     const u = this.get('appState.sessionUser');
     if (u) {
       this.setProperties({
-        name: u.get('name'),
+        // Raw `name`, not display_name_for: this seeds the "Your Name" input the
+        // user submits. Prefilling the login handle there would put it in the
+        // feedback record as their name. See utils/subscription.js for the same
+        // call made for the same reason.
+        name: u.get('name') || '',
         email: u.get('email')
       });
     }

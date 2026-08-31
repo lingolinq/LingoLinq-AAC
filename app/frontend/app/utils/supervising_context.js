@@ -25,6 +25,8 @@
 // standalone board-picker). The classic `/*key` board route has no page owner to
 // hand in and is deliberately not covered.
 
+import { display_name_for } from './display_name';
+
 function get(obj, key) {
   if(!obj) { return null; }
   return obj.get ? obj.get(key) : obj[key];
@@ -44,7 +46,9 @@ export function supervising_context_for(user) {
     id: id,
     user_name: get(user, 'user_name'),
     // Prefer the human name; fall back to the handle so the pill is never blank.
-    display_name: get(user, 'name') || get(user, 'user_name')
+    // The bare `name || user_name` this used to do let the server's "No name"
+    // sentinel win, so supporters read "Viewing No name".
+    display_name: display_name_for(user)
   };
 }
 

@@ -32,6 +32,17 @@ export default Component.extend({
   router: service('router'),
   store: service('store'),
   stashes: service('stashes'),
+  /* Shared with board-detail and the Display Style step so "Continue Anyway" on ANY
+     rotate-device overlay silences them all for the session. */
+  overlay_dismissals: service('overlay-dismissals'),
+
+  /* What the template actually gates on. A computed rather than reading the local flag
+     alone, so the overlay also disappears the moment the user turns helper messages off
+     in Preferences (or dismisses the message on another page) while this page is open —
+     the init seed below would otherwise be stale for the life of the component. */
+  orientation_overlay_hidden: computed('orientation_overlay_dismissed', 'overlay_dismissals.rotate_device_hidden', function() {
+    return !!(this.get('orientation_overlay_dismissed') || this.get('overlay_dismissals.rotate_device_hidden'));
+  }),
   appState: service('app-state'),
   tagName: '',
 
@@ -146,10 +157,11 @@ export default Component.extend({
     // board-detail speak mode's sentence box). Single-clicking a button appends
     // its label here and speaks it; the bar's Speak/Backspace/Clear act on it.
     this.set('_speak_words', []);
-    // ≤768px landscape-rotate overlay: shown via CSS media query; "Continue
-    // Anyway" flips this to dismiss it for the rest of this visit (resets on
-    // re-entry — see dismiss_orientation_overlay).
-    this.set('orientation_overlay_dismissed', false);
+    // ≤768px landscape-rotate overlay: shown via CSS media query; "Continue Anyway"
+    // dismisses it. Seeded from the SHARED session flag rather than hard `false`, so a
+    // dismissal made on another page (board-detail, the Display Style step) is already
+    // in effect on arrival instead of the overlay re-appearing here.
+    this.set('orientation_overlay_dismissed', this.get('overlay_dismissals.rotate_device_hidden'));
     // Create-method chooser: on entry to the create-board page, present three
     // animated options (Create My Own / Import / Generate with AI). Picking one
     // routes into that flow and dismisses the chooser.
@@ -434,6 +446,32 @@ export default Component.extend({
   ai_labels_generated: false,
   ai_generating: false,
   ai_generate_error: null,
+
+  /* Core Words. Rides the generate_labels request as `include_core_words`, and the
+     Rails prompt builder swaps its WHOLE vocabulary instruction on it
+     (lib/ai_board_generator.rb:96) — on, it asks for 40-60% high-frequency core
+     words mixed with topic vocabulary; off, topic-specific only.
+
+     This switch is the only way to reach the topic-only prompt. The core-words
+     instruction is appended AFTER the user's description, so it overrides wording
+     like "animals, no core vocabulary" in the description itself — which is exactly
+     the bug this fixes: the page hard-coded `true` and a topic-only request still
+     came back full of I / want / go / more / help.
+
+     Defaults to true, matching the generate-board modal (generate-board.js:52), so
+     anyone who never touches it sees no change. */
+  include_core_words: true,
+
+  /* Same two strings the generate-board modal uses, deliberately — one behaviour,
+     one set of words. Double-quoted because they are user-facing and
+     i18n_generator.rb only registers keys whose default is double-quoted; the
+     modal's single-quoted copies are why neither key was ever in the locale files
+     (fixed in generate-board.js in the same change). */
+  core_words_tooltip: computed('include_core_words', function() {
+    return this.get('include_core_words')
+      ? i18n.t('core_words_tooltip_checked', "Include 40-60% high-frequency core words (I, want, go, more, stop, like, not, help, do, is, it, the, my, turn, fast, slow, etc.), rest topic-specific vocabulary")
+      : i18n.t('core_words_tooltip_unchecked', "Focus on topic-specific vocabulary only (nouns, topic verbs, descriptors, phrases unique to that context)");
+  }),
 
   // ── Display Preferences toolbar (ported from board-detail) ────────────
   // Dropdown open-state flags
@@ -1939,7 +1977,18 @@ export default Component.extend({
      *  button. Leaving AI mode keeps any generated labels so toggling
      *  back and forth doesn't lose work. */
     set_create_mode: function(mode) {
-      this.set('ai_mode', mode === 'ai');
+      var to_ai = (mode === 'ai');
+      /* LEAVING AI mode must clear what AI produced. `model.ai_generated` is the
+         server-signed EU AI Act Art.50(2) provenance marker: left in place, a user who
+         switched to regular mode and hand-replaced every label still saved a board that
+         is recorded and displayed as AI-generated — a false provenance claim on a
+         compliance marker. `ai_labels_generated` is cleared with it so the section
+         gating (`!ai_mode || ai_labels_generated`) returns to its regular-mode meaning. */
+      if(!to_ai && this.get('ai_mode')) {
+        this.set('ai_labels_generated', false);
+        if(this.get('model')) { this.set('model.ai_generated', null); }
+      }
+      this.set('ai_mode', to_ai);
       this.set('ai_generate_error', null);
     },
 
@@ -1975,7 +2024,7 @@ export default Component.extend({
           prompt: prompt,
           rows: parseInt(_this.get('model.grid.rows'), 10) || 2,
           columns: parseInt(_this.get('model.grid.columns'), 10) || 4,
-          include_core_words: true,
+          include_core_words: _this.get('include_core_words'),
           labels_order: _this.get('model.grid.labels_order') || 'columns',
           locale: (_this.get('model.locale') || 'en')
         };
@@ -2039,8 +2088,26 @@ export default Component.extend({
       value = Math.min(Math.max(1, value), 20);
       this.set(attribute, value);
     },
+    /* Set both dimensions at once from <GridSizePicker>. Clamped to the same 1-20
+       range `plus_minus` above enforces, so the picker cannot reach a size the
+       steppers could not — 20x20 is also the MAX_GRID_LABELS (400) ceiling. */
+    setGridSize: function(rows, columns) {
+      var clamp = function(value) {
+        var n = parseInt(value, 10);
+        if (isNaN(n)) { return null; }
+        return Math.min(Math.max(1, n), 20);
+      };
+      var r = clamp(rows);
+      var c = clamp(columns);
+      if (r === null || c === null) { return; }
+      this.set('model.grid.rows', r);
+      this.set('model.grid.columns', c);
+    },
     setForUserId: function(userId) {
       this.set('model.for_user_id', userId);
+    },
+    toggleIncludeCoreWords: function() {
+      this.set('include_core_words', !this.get('include_core_words'));
     },
     toggleCreatingForSomeoneElse: function() {
       var newValue = !this.get('creating_for_someone_else');
@@ -2332,11 +2399,13 @@ export default Component.extend({
     speak_clear: function() {
       this.set('_speak_words', []);
     },
-    // "Continue Anyway" on the ≤1024px landscape-rotate overlay — dismiss it for
-    // the rest of THIS visit (accessibility escape for mounted / non-rotatable
-    // setups). State lives on the component, so it resets on a later visit, where
-    // the device orientation may well differ. Adds nb-orientation-overlay--dismissed,
-    // which beats the media query.
+    // "Continue Anyway" on the ≤1024px landscape-rotate overlay — dismiss it for the
+    // rest of the SESSION, app-wide (accessibility escape for mounted / non-rotatable
+    // setups). Adds nb-orientation-overlay--dismissed, which beats the media query.
+    // Previously this reset on every re-entry to the page; a user who had already said
+    // "Continue Anyway" still met the same overlay on the next visit and on other
+    // pages. The session flag lives in service:overlay-dismissals; it is still not
+    // persisted across a reload, so a genuinely new visit re-evaluates the device.
     //
     // Adversarial-review note ("a11y: SR users trapped if they can't rotate"): not a
     // trap — this is a real, keyboard/SR-reachable <button> that fully removes the
@@ -2346,6 +2415,8 @@ export default Component.extend({
     // the dismissal to a preference is a possible future nicety, not an a11y blocker.)
     dismiss_orientation_overlay: function() {
       this.set('orientation_overlay_dismissed', true);
+      // Session-wide, every page — see service:overlay-dismissals.
+      this.get('overlay_dismissals').dismiss('rotate_device');
     },
     // ── Create-method chooser actions ──────────────────────────────────
     // "Create My Own Board" → the regular create-board form (dismiss the chooser;

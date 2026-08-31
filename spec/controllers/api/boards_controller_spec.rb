@@ -1568,12 +1568,20 @@ describe Api::BoardsController, :type => :controller do
     end
 
     describe "article_50_disclosure backstop (Phase 3 Plan 03-04, T-03-04-01)" do
-      it "should proceed normally with the flag NOT enabled, regardless of jurisdiction or acknowledgement (primary flag-off no-change regression)" do
+      it "should proceed normally when feature_enabled_for? is false, regardless of jurisdiction or acknowledgement (code-default path, not the production state)" do
         token_user
         expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
-        # article_50_disclosure is not in AVAILABLE_FRONTEND_FEATURES on this branch, so
-        # feature_enabled_for? returns false for real (no stub) -- this is the shipping
-        # state. Any jurisdiction/acknowledgement combination must be unaffected.
+        # Pins the CODE-DEFAULT path. CORRECTED 2026-08-25: this comment said
+        # article_50_disclosure "is not in AVAILABLE_FRONTEND_FEATURES on this branch" and
+        # called that "the shipping state". Both are false -- the flag IS registered in
+        # AVAILABLE_FRONTEND_FEATURES, and production enables it via the
+        # default_enabled_features DB Setting (verified 2026-08-23,
+        # docs/legal/2026-08-23_article-50-production-flag-verification.md). What makes
+        # feature_enabled_for? false here is that the TEST DB carries no such Setting row.
+        # Any jurisdiction/acknowledgement combination must be unaffected on this path.
+        # Guard: pin the code-default explicitly so seeding a default_enabled_features
+        # row in test cannot silently invert this assertion.
+        expect(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).at_least(:once).and_return(false)
         allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
         allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
         allow(AiBoardGenerator).to receive(:generate_words).and_return(
@@ -2944,6 +2952,46 @@ describe Api::BoardsController, :type => :controller do
       progress = Progress.find_by_global_id(json['progress']['id'])
       expect(Worker.scheduled_for?('priority', Progress, :perform_action, progress.id)).to eq(true)
       expect(progress.settings['method']).to eq('translate_set')
+    end
+
+    it "should schedule a translation from a JSON body" do
+      token_user
+      b = Board.create(:user => @user)
+      request.headers['Content-Type'] = 'application/json'
+      post 'translate', params: {:board_id => b.global_id}, body: {
+        'translations' => {'hat' => 'sombrero'},
+        'source_lang' => 'en',
+        'destination_lang' => 'es',
+        'board_ids_to_translate' => []
+      }.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['progress']).to_not eq(nil)
+      progress = Progress.find_by_global_id(json['progress']['id'])
+      expect(progress.settings['method']).to eq('translate_set')
+      expect(progress.settings['arguments'][0]).to eq({'hat' => 'sombrero'})
+      expect(progress.settings['arguments'][1]['source']).to eq('en')
+      expect(progress.settings['arguments'][1]['dest']).to eq('es')
+    end
+
+    it "should accept a JSON translation map larger than Rack's form-param cap" do
+      token_user
+      b = Board.create(:user => @user)
+      translations = {}
+      4100.times { |i| translations["w#{i.to_s.rjust(4, '0')}"] = 'x' }
+      request.headers['Content-Type'] = 'application/json'
+      post 'translate', params: {:board_id => b.global_id}, body: {
+        'translations' => translations,
+        'source_lang' => 'en',
+        'destination_lang' => 'es',
+        'board_ids_to_translate' => []
+      }.to_json
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      progress = Progress.find_by_global_id(json['progress']['id'])
+      expect(progress.settings['arguments'][0].length).to eq(4100)
+      expect(progress.settings['arguments'][0]['w0000']).to eq('x')
+      expect(progress.settings['arguments'][0]['w4099']).to eq('x')
     end
   end
   

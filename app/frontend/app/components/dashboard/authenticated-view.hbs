@@ -6,13 +6,27 @@
        display-style component stays mounted across a mid-modal layout flip
        (no fixed-corner copy needed). --}}
   {{!-- Primary Nav: always visible; Boards tab shows full boards below --}}
-  <nav class="md-pillnav" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+  <nav class="md-pillnav {{if this.appState.currentUser.has_management_responsibility "md-pillnav--org-menu"}}" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
+    {{!-- STRICTLY-SLP users lead with Caseload (→ the caseload page); it is their
+         workspace and their default landing page on login (see routes/index.js
+         `_land_on_default`), so Home sits just to its right.
+         NOT FOR ORG MANAGERS (2026-08-16): a supporter who also manages an organization
+         keeps the ORIGINAL order — Home first, Caseload after — and the "Home" label.
+         Same rule and same flags as components/user-pill-nav.hbs; the two navs render on
+         different pages and must agree. Keep this order in sync with the
+         .md-pillnav-dropdown mirror below. --}}
+    {{#if (and this.sectionAvailable.caseload (not this.appState.currentUser.has_management_responsibility))}}
+    <LinkTo @route="caseload" class="md-pillnav__pill">{{t "Caseload" key="caseload_pill"}}</LinkTo>
+    {{/if}}
+    {{!-- Reads "Dashboard" for supporters, "Home" for communicators — see
+         helpers/home-pill-label.js. --}}
     <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{on "click" (fn this.onGoTab "home")}}>
-      {{t "Home" key="home"}}
+      {{home-pill-label this.appState.currentUser.supporter_role this.appState.currentUser.has_management_responsibility}}
     </button>
-    {{!-- Supervisors get a Caseload pill (→ the caseload page), just right of Home.
-         Gated on the same availability as the home Caseload card (supporter_role). --}}
-    {{#if this.sectionAvailable.caseload}}
+    {{!-- The org manager's Caseload pill — rendered AFTER Home so their original order is
+         preserved. A separate block rather than a position-aware one, so each branch
+         reads as a complete arrangement. --}}
+    {{#if (and this.sectionAvailable.caseload this.appState.currentUser.has_management_responsibility)}}
     <LinkTo @route="caseload" class="md-pillnav__pill">{{t "Caseload" key="caseload_pill"}}</LinkTo>
     {{/if}}
     {{!-- Org managers/supervisors get a My Organizations pill (→ the org list),
@@ -37,7 +51,7 @@
     <LinkTo @route="user.account" @model={{this.appState.currentUser.user_name}} class="md-pillnav__pill md-pillnav__pill--account">{{t "Account" key="account"}}</LinkTo>
     {{/if}}
   </nav>
-  <div class="md-pillnav-dropdown {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
+  <div class="md-pillnav-dropdown {{if this.appState.currentUser.has_management_responsibility "md-pillnav-dropdown--org-menu"}} {{if this.pillnavDropdownOpen "is-open"}}" role="presentation">
     <button type="button" class="md-pillnav-dropdown__trigger" {{on "click" this.onTogglePillnavDropdown}} aria-expanded={{this.pillnavDropdownOpen}} aria-haspopup="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
       <span class="md-pillnav-dropdown__label">
         {{#if (is-equal this.activeTab "home")}}<svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{/if}}
@@ -49,8 +63,14 @@
       <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
     </button>
     <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-      <li role="presentation"><button type="button" role="option" aria-selected={{if (is-equal this.activeTab "home") "true" "false"}} class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{on "click" (fn this.onSelectTab "home")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
-      {{#if this.sectionAvailable.caseload}}
+      {{!-- Caseload leads for STRICTLY-SLP users, mirroring the desktop nav order above;
+           org managers get it after Home instead. --}}
+      {{#if (and this.sectionAvailable.caseload (not this.appState.currentUser.has_management_responsibility))}}
+      <li role="presentation"><LinkTo @route="caseload" role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
+      {{/if}}
+      <li role="presentation"><button type="button" role="option" aria-selected={{if (is-equal this.activeTab "home") "true" "false"}} class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{on "click" (fn this.onSelectTab "home")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{home-pill-label this.appState.currentUser.supporter_role this.appState.currentUser.has_management_responsibility}}</button></li>
+      {{!-- Org manager's Caseload option — after Home, mirroring the desktop nav. --}}
+      {{#if (and this.sectionAvailable.caseload this.appState.currentUser.has_management_responsibility)}}
       <li role="presentation"><LinkTo @route="caseload" role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
       {{/if}}
       {{#if this.sectionAvailable.org}}
@@ -190,6 +210,34 @@
         </div>
         <LinkTo @route="caseload" class="md-btn md-btn--primary">{{t "Manage" key="manage"}}</LinkTo>
       </div>
+      {{!-- Focused View hero — the Caseload counterpart of the Speak "Hey <name>"
+           bar below. A supervisor's hero is their caseload, not Speak Mode
+           (focusedHeroKey in utils/dashboard_sections.js already resolves
+           'caseload' for them and stamps md-grid--hero-caseload on the grid; this
+           is the element that class finally drives). Always rendered; CSS shows it
+           ONLY under .md-grid--layout-focused.md-grid--hero-caseload and hides the
+           standard caseload card there, so the Dashboard Design preview clone gets
+           it for free. --}}
+      <LinkTo @route="caseload" class="md-card md-card--caseload md-card--caseload-focused" style={{this.cardHideStyle.caseload}} aria-label={{t "My Caseload" key="my_caseload"}}>
+        <span class="md-card--caseload-focused__icon" aria-hidden="true">
+          {{!-- Optimized 252px (2× the 126px display) assets: ~6KB WebP primary with
+               a ~19KB PNG fallback, down from a 494px 193KB source. Mirrors the Speak
+               hero exactly: decoding="sync" forces a full decode before painting so
+               the preloaded image renders atomically rather than top-down, and the
+               bytes are already in cache from the rel="preload" in app/index.html
+               (Ember) and layouts/application.html.erb (Rails-served production). --}}
+          <picture>
+            <source srcset={{path "images/caseload-dark.webp"}} type="image/webp">
+            <img src={{path "images/caseload-dark.png"}} class="md-card--caseload-focused__img" alt="" decoding="sync" fetchpriority="high">
+          </picture>
+        </span>
+        <span class="md-card--caseload-focused__text">
+          <span class="md-card--caseload-focused__title">{{t "My Caseload" key="my_caseload"}}</span>
+          <span class="md-card--caseload-focused__divider" aria-hidden="true"></span>
+          <span class="md-card--caseload-focused__sub">{{t "Open My Caseload" key="focused_home_caseload_sub"}} <span class="md-card--caseload-focused__arrow" aria-hidden="true">&rarr;</span></span>
+        </span>
+      </LinkTo>
+
       <LinkTo @route="caseload" class="md-card md-card--caseload md-card--caseload-as-button md-card--caseload-narrow-only" style={{this.cardHideStyle.caseload}} aria-label={{t "My Caseload" key="my_caseload"}}>
         <div class="md-card__head">
           <div class="md-card__icon md-card__icon--caseload" aria-hidden="true">
@@ -257,7 +305,12 @@
         <div class="md-card--boards__divider" aria-hidden="true"></div>
         <div class="md-attention__list">
           {{#each this.attentionCommunicators as |c|}}
-            <LinkTo @route="user" @model={{c.user_name}} class="md-attention-item" title={{c.user_name}}>
+            {{!-- Goes to the caseload page focused on this communicator, not their profile:
+           this card exists to get the supporter TO the person's controls. The
+           caseload page decides expand-vs-highlight from its own supervisee record
+           (see controllers/caseload.js#_applySuperviseeDeepLink), so the permission
+           rule lives in one place and every future deep link inherits it. --}}
+      <LinkTo @route="caseload" @query={{hash supervisee=c.user_name}} class="md-attention-item" title={{c.user_name}}>
               {{#if c.avatar_url}}
                 <Dashboard::GlowAvatar @src={{c.avatar_url}} class="md-attention-item__avatar" />
               {{/if}}
@@ -663,9 +716,7 @@
               <button type="button" class="md-extras-card" {{on "click" (fn this.onExtraAction item.action)}}>
                 <div class="md-extras-card__head">
                   <div class="md-extras-card__icon-wrap md-extras-card__icon-wrap--{{item.action}}">
-                    {{#if (is-equal item.action "intro")}}
-                      <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" stroke="#2A9D8F"/><path d="M12 16v-4" stroke="#46505F"/><path d="M12 8h.01" stroke="#46505F"/></svg>
-                    {{else if (is-equal item.action "sync_details")}}
+                    {{#if (is-equal item.action "sync_details")}}
                       <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 0 1 14.3-4.8" stroke="#4C86D8"/><polyline points="18 2 18 8 12 8" stroke="#4C86D8"/><path d="M20 12a8 8 0 0 1-14.3 4.8" stroke="#46505F"/><polyline points="6 22 6 16 12 16" stroke="#46505F"/></svg>
                     {{else if (is-equal item.action "goals")}}
                       <svg class="md-extras-card__svg-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18" stroke="#46505F"/><path d="M18 9l-5 5-2-2-4 4" stroke="#316F70"/></svg>

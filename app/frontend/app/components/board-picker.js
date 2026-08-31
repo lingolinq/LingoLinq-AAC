@@ -11,10 +11,12 @@ import { schedule, debounce, cancel } from '@ember/runloop';
 import persistence from '../utils/persistence';
 import {
   filterBoardsPageTopLevelRoots,
+  filterRootBoards,
   dedupeByName,
   boardsPagePreferUserNames,
   sortByNameNatural
 } from '../utils/board-roots';
+import { subjectHomeBoardKey, SUBJECT_HOME_BOARD_DEPS } from '../utils/subject_home_board';
 
 export default Component.extend({
   appState: service('app-state'),
@@ -24,16 +26,24 @@ export default Component.extend({
   category_explainer_overflows: false,
   public_boards_has_more: false,
   public_boards_loading_more: false,
-  /* Board-card density. false = detailed cards (the default, unchanged);
-     true = compact cards showing only icon, name and Preview. The compact
-     state is applied as a modifier class on the grid and the trimming is done
-     in CSS rather than by branching board-icon.hbs — that component renders on
-     the dashboard, boards page and search too, and this density choice belongs
-     to the picker alone. */
-  compact_boards: false,
+  /* Board-card density. true = compact cards showing only icon, name and Preview;
+     false = detailed cards. COMPACT IS NOW THE DEFAULT (2026-08-16) — most pickers hold
+     more boards than fit as detailed cards, so the denser view is the more useful
+     starting point. The compact state is applied as a modifier class on the grid and the
+     trimming is done in CSS rather than by branching board-icon.hbs. */
+  compact_boards: true,
   /* Toolbar lead: which set of boards is on screen, and how many. The count is a
      plain reflection of what the (unchanged) filtering pipeline produced — it
      does not re-filter anything. */
+  /* The key of the board the subject of this pick ALREADY has as their home
+     board, so the grid can crown that tile with a "Home Board" badge instead
+     of offering it as an undifferentiated choice. Subject = the communicator
+     when a supporter arrived via `?user_id=X`, else the current user — the
+     same resolution `board-preview-overlay#pick_for_home` uses when the pick
+     is actually written. '' when none is set, which never matches a real key. */
+  home_board_key: computed(...SUBJECT_HOME_BOARD_DEPS, function() {
+    return subjectHomeBoardKey(this.appState);
+  }),
   resultsTitle: computed('categories', function() {
     var selected = (this.get('categories') || []).find(function(c) { return c && c.selected; });
     return (selected && selected.name) || i18n.t('board_picker_all_boards', "All available boards");
@@ -51,7 +61,13 @@ export default Component.extend({
     if(this.get('include_mine')) {
       this.send('set_category', 'mine');
     } else if(this.get('searchAtTop')) {
-      this.send('set_category', 'available_boards');
+      // The picker PAGE (templates/board-picker.hbs -- the only caller passing
+      // searchAtTop) lands on Robust Vocabularies rather than All Available
+      // Boards. Someone arriving here is choosing a home board, and the whole
+      // catalogue is the least useful thing to meet first; the curated robust
+      // sets are what the page is for. All Available Boards is still one click
+      // away, now at the BOTTOM of the category list (see `categories`).
+      this.send('set_category', 'robust');
     } else {
       this.send('set_category', 'robust');
     }
@@ -173,16 +189,6 @@ export default Component.extend({
       res.push(cat);
     }
 
-    if (searchAtTop) {
-      var availableCat = {
-        name: i18n.t('board_picker_available_boards', "All Available Boards"),
-        id: 'available_boards'
-      };
-      if (current === 'available_boards') {
-        availableCat.selected = true;
-      }
-      res.push(availableCat);
-    }
     if (includeMine && !searchAtTop) {
       pushMine();
     }
@@ -193,6 +199,21 @@ export default Component.extend({
       }
       res.push(cat);
     });
+    // All Available Boards goes LAST, after the curated categories. It used to
+    // be pushed first, which put the entire catalogue ahead of the sets the page
+    // exists to recommend. Still present and still selectable -- only its
+    // position changed -- and it remains searchAtTop-only, so the four non-page
+    // callers never rendered it and are unaffected.
+    if (searchAtTop) {
+      var availableCat = {
+        name: i18n.t('board_picker_available_boards', "All Available Boards"),
+        id: 'available_boards'
+      };
+      if (current === 'available_boards') {
+        availableCat.selected = true;
+      }
+      res.push(availableCat);
+    }
     return res;
   }),
   boardSearchActive: computed('boardSearchQuery', function() {
@@ -331,11 +352,16 @@ export default Component.extend({
     this.set('public_boards_loading_more', false);
     this._public_boards_next_offset = snap.next_offset;
   },
-  /** Root tiles only, one row per display name, then A–Z (numeric-aware). */
-  _preparePickerBoardList: function(boards) {
+  /* Mine / All Available: root tiles only (brand-set sub-pages dropped), one
+     row per display name, then A–Z. Tagged category tabs skip the brand-root
+     filter so a public home-board keyboard such as `vocal-flair-112-keyboard`
+     can appear in Keyboards even though it is not a brand-set root. */
+  _preparePickerBoardList: function(boards, options) {
     var subjectId = this._subjectBoardUserId();
-    var roots = filterBoardsPageTopLevelRoots(boards || [], subjectId);
-    var deduped = dedupeByName(roots, {
+    var list = (options && options.keepCategoryTagged)
+      ? filterRootBoards(boards || [], subjectId)
+      : filterBoardsPageTopLevelRoots(boards || [], subjectId);
+    var deduped = dedupeByName(list, {
       preferUserNames: boardsPagePreferUserNames(this.appState)
     });
     return sortByNameNatural(deduped);
@@ -387,7 +413,7 @@ export default Component.extend({
       return publicCategorized();
     }).then(function(boards) {
       if (_this._isStaleBoardsLoad(loadId, categoryId) || boards == null) { return; }
-      _this.set('category_boards', _this._preparePickerBoardList(boards));
+      _this.set('category_boards', _this._preparePickerBoardList(boards, { keepCategoryTagged: true }));
     }).catch(function() {
       if (_this._isStaleBoardsLoad(loadId, categoryId)) { return; }
       _this.set('category_boards', { error: true });
@@ -648,7 +674,7 @@ export default Component.extend({
       _this.set('more_category_boards', {loading: true});
       LingoLinq.store.query('board', {public: true, sort: 'home_popularity', per_page: 9, category: categoryId}).then(function(data) {
         if (_this._isStaleBoardsLoad(loadId, categoryId)) { return; }
-        _this.set('more_category_boards', _this._preparePickerBoardList(data));
+        _this.set('more_category_boards', _this._preparePickerBoardList(data, { keepCategoryTagged: true }));
       }, function(err) {
         if (_this._isStaleBoardsLoad(loadId, categoryId)) { return; }
         _this.set('more_category_boards', {error: true});

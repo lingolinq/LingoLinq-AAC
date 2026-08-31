@@ -264,7 +264,14 @@ export default Controller.extend(prefClasses, {
         trans = trans || ((_this.get('model.translations') || {})[btn.id] || {})[_this.get('model.locale')];
         if(trans) {
           // Either find it in the translations hash...
-          emberSet(btn, 'vocalization', null);
+          /* NOT a special vocalization. ':suggestion', '+q', ':shift' and ':space' are
+             ACTIONS with no translation, so the source-locale entry below holds a label and
+             no vocalization — nulling first and restoring from it deletes the action. This
+             runs AFTER process_for_saving, so without the check it overwrites that guard and
+             the loss is what gets persisted. */
+          if(!/^[:+]/.test(String(emberGet(btn, 'vocalization') || ''))) {
+            emberSet(btn, 'vocalization', null);
+          }
           emberSet(btn, 'inflections', null);
           for(var key in trans) {
             if(key != 'code' && key != 'locale') {

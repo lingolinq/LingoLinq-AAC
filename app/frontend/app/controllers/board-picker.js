@@ -28,8 +28,8 @@ export default Controller.extend({
   /* Human display name for the communicator, never the raw handle when a real
      name exists — "aiden_parker" reads as a database key to a family. Falls back
      to the handle only when the record carries no name. */
-  setupUserDisplayName: computed('setup_user.name', 'setup_user.user_name', function() {
-    return this.get('setup_user.name') || this.get('setup_user.user_name') || '';
+  setupUserDisplayName: computed('setup_user.display_name', function() {
+    return this.get('setup_user.display_name') || '';
   }),
 
   boardPickerHeader: computed('for_self', 'setupUserDisplayName', function() {

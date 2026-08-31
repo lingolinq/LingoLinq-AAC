@@ -352,7 +352,8 @@ export default Component.extend({
       // (templates/eval/quick.hbs), not a modal -- so the disclosure does not
       // replace its own host the way it would in generate-board.
       //
-      // GATE SUBJECT: the CLINICIAN (appState.currentUser), deliberately NOT the
+      // GATE SUBJECT: the CLINICIAN (article50_gate.js#art50Subject, i.e. the
+      // authenticated sessionUser), deliberately NOT the
       // evaluated student, even though `user_id` below correctly carries the
       // student for the COPPA / org-opt-out gate. Two different questions:
       //   - "may this student's data be processed by AI at all?" -> the student.

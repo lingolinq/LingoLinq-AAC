@@ -21,6 +21,7 @@ import persistence from '../utils/persistence';
 import editManager from '../utils/edit_manager';
 import sync from '../utils/sync';
 import aiFeatureGate from '../utils/ai_feature_gate';
+import article50Gate from '../utils/article50_gate';
 
 export default Component.extend({
   modal: service('modal'),
@@ -28,6 +29,9 @@ export default Component.extend({
   appState: service('app-state'),
   tagName: '',
   ai_word_count: 20,
+  // Upper bound on the post-403 user refresh. Matches login-form.js:693's 6s
+  // fallback for a hanging user fetch. A property so specs can shorten it.
+  art50_reload_timeout_ms: 6000,
   ai_generating: false,
 
   init() {
@@ -208,6 +212,94 @@ export default Component.extend({
     }
   ),
 
+  /**
+   * EU AI Act Article 50(1) hand-off for the AI focus-word generator.
+   *
+   * Opening ai-disclosure REPLACES this modal, so this component is destroyed
+   * partway through. Everything the continuation needs is therefore captured
+   * BEFORE the gate opens (`settings`, `resume`), and nothing after it reads
+   * component state -- the same discipline new-board.js#generateWithAi uses when
+   * it captures `standalone` up front. `modal` here is the module import, not the
+   * component-bound service, so it still resolves after this component is gone.
+   *
+   * On acknowledgement the focus-words modal is re-opened with the typed
+   * description and word count restored (see the art50_resume branch in
+   * `opening`). It deliberately does NOT auto-submit: acknowledging a
+   * transparency notice must never itself dispatch an AI request. The user
+   * presses Generate again, which is one click and keeps the AI call explicitly
+   * user-initiated.
+   */
+  _presentArticle50Gate() {
+    const settings = this.get('model') || {};
+    // Read EVERY field, the two AI ones included, from the component AT CALL
+    // TIME rather than from values captured by the caller.
+    //
+    // The post-403 path calls this after an awaited user.reload() that is
+    // allowed to take up to art50_reload_timeout_ms. The description textarea
+    // and the count input stay editable for that whole window (only the Generate
+    // button is disabled, via ai_generate_disabled reading ai_generating), so a
+    // user who keeps typing during a slow refresh had those keystrokes silently
+    // replaced by the pre-request snapshot when the modal re-opened. The other
+    // eight fields below were already read live and were never affected; the two
+    // AI fields were the only ones arriving as stale closure arguments, so
+    // reading them the same way removes the whole class rather than patching the
+    // one reachable instance.
+    //
+    // Normalized exactly as generate_focus_words_with_ai normalizes them, so the
+    // restored draft is the same shape the validated path produces. A count the
+    // user has blanked mid-edit is not a number to restore; it falls back to the
+    // field's own default of 20 rather than writing NaN into a number input.
+    const prompt = (this.get('ai_prompt') || '').trim();
+    const count = parseInt(this.get('ai_word_count'), 10) || 20;
+    // Capture the WHOLE authored draft, not just the two AI fields. `opening()`
+    // also clears words/existing/reuse/title/focus_id, and the "Save for Re-Use"
+    // checkbox (with the "Word List Name" input it reveals) sits on the same view
+    // as the AI panel, so a user can legitimately have all of them filled in when
+    // the gate fires. Restoring only the AI fields silently unchecked the box and
+    // discarded the typed list name, which then changed downstream behavior:
+    // set_focus_words bails early when `reuse` is set without a `title`, and the
+    // saved-set usage ping is keyed on `focus_id`.
+    const resume = {
+      ai_prompt: prompt,
+      ai_word_count: count,
+      words: this.get('words'),
+      existing: this.get('existing'),
+      reuse: this.get('reuse'),
+      title: this.get('title'),
+      focus_id: this.get('focus_id'),
+      // Typed into the search box at focus-words.hbs:130. Note this is the
+      // {{else}} arm of the reuse_or_existing conditional at :121 -- the
+      // MUTUALLY EXCLUSIVE counterpart to the "Word List Name" input at :124,
+      // not a sibling of it. So exactly one of `title` / `search_term` is
+      // rendered at any moment, and carrying both is how the payload stays
+      // correct whichever arm the user was in. This is authored text, NOT the
+      // derived `search` results object find_source() builds from it (:390),
+      // which is correctly discarded.
+      search_term: this.get('search_term'),
+      // pick_set sets navigated and existing TOGETHER (:471-477). Carrying
+      // `existing` without this produced existing=true / navigated=false, a
+      // combination no user action can reach: the modal showed a picked set with
+      // its list name AND the "get started by pasting text" explainer that
+      // focus-words.hbs:87 gates on {{#unless this.navigated}}.
+      navigated: this.get('navigated'),
+      // Attribution for words a PREVIOUS generation produced. Restoring `words`
+      // without this leaves AI-generated words with no AiFocusWordSet id, so
+      // record_ai_focus_usage() returns early (:316-317) and applying or
+      // analyzing the retained list silently records nothing. Reachable when the
+      // disclosure requirement appears BETWEEN two generations in one session,
+      // which is what a flag enable or a CURRENT_VERSION bump does.
+      ai_focus_word_set_id: this.get('ai_focus_word_set_id')
+    };
+    article50Gate.presentBlockingGate(this.get('appState')).then(function() {
+      modal.open('modals/focus-words', Object.assign({}, settings, { art50_resume: resume }));
+    }, function() {
+      // Bumped by another modal, so no acknowledgement was recorded and the AI
+      // call must not proceed. The user is looking at whatever replaced the
+      // disclosure; fail-closed with no extra error surface, matching
+      // new-board.js#generateWithAi's rejection branch.
+    });
+  },
+
   ai_generate_disabled: computed('ai_generating', 'ai_prompt', 'ai_word_count', function() {
     const count = parseInt(this.get('ai_word_count'), 10);
     return !!this.get('ai_generating') ||
@@ -303,6 +395,43 @@ export default Component.extend({
       this.set('ai_generating', false);
       this.set('ai_generate_error', null);
       this.set('ai_focus_word_set_id', null);
+      // Restore the authored draft after an Article 50(1) disclosure round-trip.
+      // _presentArticle50Gate re-opens this modal with art50_resume because
+      // acknowledging destroys and replaces the component mid-flow; without this
+      // the user silently loses everything they had already entered. Runs after
+      // the resets above so it wins over them.
+      //
+      // The invariant, stated because getting it wrong has caused four separate
+      // defects on this branch: opening() clears 16 fields; this payload carries
+      // the 10 the user AUTHORED or that pair with authored state. The 6 it does
+      // not carry are `search` (results object built from search_term by
+      // find_source), `browse`, `analysis`, `ideas`, plus `ai_generating` and
+      // `ai_generate_error` which must start clean on any open.
+      //
+      // The first four are provably unreachable at gate time rather than merely
+      // judged discardable: focus-words.hbs:17 is {{#if this.analysis}} with the
+      // AI panel in its {{else}}, and within that, :152 {{#if this.browse}} /
+      // :200 {{else if this.search}} / :229 {{else}} holds the AI panel. So the
+      // Generate button cannot be reached while any of them is set, and `ideas`
+      // renders only inside {{#if this.analysis.missing}}.
+      //
+      // Note `search_term` is authored and IS carried while `search` is derived
+      // and is not; they are easy to conflate and were conflated once already.
+      // If you add a field to the resets above, decide explicitly which side of
+      // that line it falls on. Partial preservation is worse than none.
+      const art50Resume = this.get('model.art50_resume');
+      if (art50Resume) {
+        this.set('ai_prompt', art50Resume.ai_prompt);
+        this.set('ai_word_count', art50Resume.ai_word_count);
+        this.set('words', art50Resume.words);
+        this.set('existing', art50Resume.existing);
+        this.set('reuse', art50Resume.reuse);
+        this.set('title', art50Resume.title);
+        this.set('focus_id', art50Resume.focus_id);
+        this.set('ai_focus_word_set_id', art50Resume.ai_focus_word_set_id);
+        this.set('search_term', art50Resume.search_term);
+        this.set('navigated', art50Resume.navigated);
+      }
       if (window.webkitSpeechRecognition) {
         const speech = new window.webkitSpeechRecognition();
         if (speech) {
@@ -411,6 +540,23 @@ export default Component.extend({
       }
 
       this.set('ai_generate_error', null);
+
+      // EU AI Act Article 50(1) first-AI-use gate, BLOCK mode (D-03). Placed
+      // AFTER the prompt/count validation so acknowledging a disclosure is never
+      // immediately followed by a "add a description" error, and BEFORE the
+      // request so no prompt reaches a model provider unacknowledged.
+      //
+      // Unlike new-board.js#generateWithAi there is no pre-typing gate point to
+      // move this to: the description and word count are typed directly into THIS
+      // modal, and modal.open() REPLACES the current modal, so opening
+      // ai-disclosure destroys this component and everything the user entered.
+      // _presentArticle50Gate therefore captures the form state itself and
+      // re-opens focus-words with it restored.
+      if (article50Gate.needsAcknowledgement(this.get('appState'))) {
+        this._presentArticle50Gate();
+        return;
+      }
+
       this.set('ai_generating', true);
       persistence.ajax('/api/v1/focus/generate_words', {
         type: 'POST',
@@ -434,7 +580,81 @@ export default Component.extend({
         if (_this.isDestroyed || _this.isDestroying) { return; }
         let msg = i18n.t('generate_failed', "Generation failed");
         const resp = (err && err.fakeXHR && err.fakeXHR.responseJSON) || (err && err.responseJSON) || null;
-        if (resp && resp.error) {
+        if (resp && resp.error === 'article_50_disclosure_required') {
+          // The server-side Article 50(1) backstop refused this call
+          // (ApplicationController#require_article_50_disclosure!). Reaching here
+          // means the client gate above did NOT fire, which happens when the local
+          // user record is stale: the flag was enabled, or CURRENT_VERSION was
+          // bumped, after this record was cached. That is the NORMAL state of every
+          // already-signed-in user at the moment the flag is enabled, so this path
+          // has to be reliable rather than best-effort.
+          //
+          // Do NOT tell the user to press Generate again. Until the reload lands,
+          // needsAcknowledgement() still reads the stale record and returns false,
+          // so a retry re-sends the request and collects the same 403 -- and if the
+          // reload fails, every retry does, with the message still promising a
+          // notice that never opens. Instead hold the action pending across the
+          // reload and open the notice here. `ai_generating` stays true for that
+          // window, so the button is disabled and the retry race cannot be entered.
+          // The button reads "Generating Focus Words..." meanwhile, which is a
+          // slight overstatement of a sub-second window that ends with the
+          // disclosure replacing this modal outright.
+          // Refresh the SAME account the gate and the server both judge, i.e.
+          // article50Gate.art50Subject (sessionUser, the authenticated user).
+          // Reloading `currentUser` reloaded the COMMUNICATOR in speak mode --
+          // never the record the 403 was about -- so needsAcknowledgement below
+          // re-read a record that could not have changed and the supporter fell
+          // into the "cannot be opened from here" branch every time.
+          const user = article50Gate.art50Subject(_this.get('appState'));
+          if (user && typeof user.reload === 'function') {
+            // BOUND the refresh. Unbounded, a promise that never settles (network
+            // dropped after the 403, a cold-start stall) latches ai_generating
+            // true: the primary button is permanently disabled and still reads
+            // "Generating Focus Words...". Recovery exists but is destructive --
+            // reopening the modal REPLACES settingsFor, so art50_resume is gone
+            // and opening() clears the draft, costing the user exactly what this
+            // gate was built to protect. Timing out falls through to the
+            // refresh_failed branch, which already says the honest thing.
+            //
+            // runLater is the house idiom (login-form.js:693), but focus-words.js
+            // carries no grandfathered ember/no-runloop entry and .eslint-todo is
+            // not for baselining suppressions on new code.
+            const bounded = RSVP.race([
+              user.reload(),
+              new RSVP.Promise(function(resolve, reject) {
+                setTimeout(function() { reject('art50_reload_timeout'); }, _this.get('art50_reload_timeout_ms'));
+              })
+            ]);
+            bounded.then(function() {
+              if (_this.isDestroyed || _this.isDestroying) { return; }
+              _this.set('ai_generating', false);
+              if (article50Gate.needsAcknowledgement(_this.get('appState'))) {
+                // Record is accurate now, so present the gate directly. This is
+                // the draft-preserving path, so nothing the user typed is lost --
+                // including anything typed DURING the reload above, which
+                // _presentArticle50Gate now reads at call time.
+                _this._presentArticle50Gate();
+              } else {
+                // Refreshed cleanly and the record still does not ask for an
+                // acknowledgement, so the gate cannot be opened from here. Surface
+                // the refusal rather than swallowing it and appearing to hang.
+                _this.set('ai_generate_error', i18n.t('ai_focus_words_disclosure_unavailable', "AI focus words need the AI transparency notice acknowledged first. You can review it in your Preferences."));
+              }
+            }, function() {
+              // The refresh itself failed, so the record is still stale and a retry
+              // would loop on the same 403. Say what actually happened instead of
+              // promising a retry that cannot work.
+              if (_this.isDestroyed || _this.isDestroying) { return; }
+              _this.set('ai_generating', false);
+              _this.set('ai_generate_error', i18n.t('ai_focus_words_disclosure_refresh_failed', "We could not check your AI transparency settings. Check your connection, then try again."));
+            });
+            return;
+          }
+          // No refreshable user record, so there is no way to reach an accurate
+          // gate state from here. Never render the raw error code either -- it is
+          // an untranslated machine token that tells the user nothing actionable.
+          msg = i18n.t('ai_focus_words_disclosure_unavailable', "AI focus words need the AI transparency notice acknowledged first. You can review it in your Preferences.");
+        } else if (resp && resp.error) {
           msg = resp.error;
           if (resp.error_detail) { msg += ' - ' + resp.error_detail; }
         }

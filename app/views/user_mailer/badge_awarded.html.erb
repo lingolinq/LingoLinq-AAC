@@ -20,7 +20,7 @@
   what your typical usage looks like.
 <% elsif @goal %>
   This badge is part of the goal, 
-  <a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/goals/<%= @goal.global_id %>"><%= @goal.settings['summary'] %></a>, and
+  <a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/goals/<%= @goal.global_id %>"><%= @goal.settings['summary'] %></a>, and
   you can see more detailed information on goal progress in the <%= app_name %> app.
 <% end %>
 <% if !@badge.data['max_level'] %>This badge is part of a set, so keep at it and see if you can move up to the next level!<% end %>

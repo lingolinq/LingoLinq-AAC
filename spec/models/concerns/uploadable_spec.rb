@@ -187,6 +187,30 @@ describe Uploadable, :type => :model do
       expect(s.settings['pending']).to eq(false)
       expect(s.settings['content_type']).to eq('image/webp')
     end
+
+    it "uploads audio data URIs from curated OBF imports instead of rejecting them as invalid" do
+      payload = 'ID3fake'
+      uri = "data:audio/mpeg;base64,#{Base64.strict_encode64(payload)}"
+      s = ButtonSound.create(user: u, :settings => {})
+      expect(Typhoeus).to receive(:post) { |_url, args|
+        f = args[:body][:file]
+        f.rewind
+        expect(f.read).to eq(payload)
+      }.and_return(OpenStruct.new(:success? => true))
+      s.upload_to_remote(uri)
+      expect(s.url).not_to eq(nil)
+      expect(s.settings['pending']).to eq(false)
+      expect(s.settings['content_type']).to eq('audio/mpeg')
+      expect(s.settings['errored_pending_url']).to eq(nil)
+    end
+
+    it "rejects a malformed audio data URI without posting to S3" do
+      s = ButtonSound.create(user: u, :settings => {})
+      expect(Typhoeus).not_to receive(:post)
+      s.upload_to_remote('data:audio/mpeg;base64,%%%not-base64%%%')
+      expect(s.url).to eq(nil)
+      expect(s.settings['errored_pending_url']).to eq('data:audio/mpeg;base64,%%%not-base64%%%')
+    end
     
     it "should handle downloads" do
       s = ButtonSound.create(user: u, :settings => {})

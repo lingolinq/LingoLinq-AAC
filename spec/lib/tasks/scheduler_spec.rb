@@ -33,6 +33,7 @@ describe 'scheduler:dispatch rake task' do
     allow(JobStash).to receive(:flush_old_records)
     allow(DataPolicyEnforcer).to receive(:enforce_retention!).and_return(0)
     allow(SupervisorConsentExpirationWorker).to receive(:perform).and_return(0)
+    allow(OffboardingCoppaExpirationWorker).to receive(:perform).and_return(0)
     allow(License).to receive(:expire_stale_licenses!).and_return(0)
   end
 

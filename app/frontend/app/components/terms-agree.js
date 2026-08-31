@@ -53,21 +53,18 @@ export default Component.extend({
           _this.get('modal').close();
           _this.get('appState').set('auto_setup', true);
           if (!user.get('preferences.progress.intro_watched')) {
-            // home_tour ON: skip the legacy setup wizard entirely — mark
-            // intro_watched and let the home page's Shepherd tour auto-open
-            // (mirrors routes/register.js). OFF: fall back to the setup wizard so
-            // accounts/orgs not opted into the tour don't regress.
-            if (_this.get('appState').get('feature_flags.home_tour')) {
-              var preferences = user.get('preferences') || {};
-              var progress = preferences.progress || {};
-              user.set('preferences', preferences);
-              user.set('preferences.progress', progress);
-              user.set('preferences.progress.intro_watched', true);
-              _this.get('appState').set('auto_open_home_tour', true);
-              user.save().then(null, function() { });
-            } else {
-              _this.get('router').transitionTo('setup', { queryParams: { user_id: null, page: null } });
-            }
+            // Mark intro_watched and let the home page's Shepherd tour auto-open
+            // (mirrors routes/register.js). The `home_tour`-off fallback to the
+            // setup wizard was removed 2026-08-15 — setup is retired as a
+            // user-facing destination. With the flag off the user just lands on
+            // home and no tour opens, which is the intended degraded state.
+            var preferences = user.get('preferences') || {};
+            var progress = preferences.progress || {};
+            user.set('preferences', preferences);
+            user.set('preferences.progress', progress);
+            user.set('preferences.progress.intro_watched', true);
+            _this.get('appState').set('auto_open_home_tour', true);
+            user.save().then(null, function() { });
           }
         }, function() {
           _this.set('agree_error', true);

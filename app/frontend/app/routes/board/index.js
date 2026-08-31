@@ -6,6 +6,7 @@ import i18n from '../../utils/i18n';
 import LingoLinq from '../../app';
 import contentGrabbers from '../../utils/content_grabbers';
 import speecher from '../../utils/speecher';
+import { available_board_langs, resolve_board_display_locale } from '../../utils/board_display_locale';
 import { set as emberSet, get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import { computed } from '@ember/object';
@@ -85,21 +86,19 @@ export default Route.extend({
     }
     // By default use whatever locale is set for the board, but
     // if the user has explicitly set a preferred locale then try
-    // to use that
-    var board_langs = (model.get('locales') || []);
-    var stripped_langs = board_langs.map(function (l) { return l.split(/-|_/)[0]; });
+    // to use that. An empty locales list is "unknown", not English.
+    var board_langs = available_board_langs(model, null);
     var loc_types = ['label_locale', 'vocalization_locale'];
     loc_types.forEach(function(loc_type) {
-      if(_this.stashes.get(loc_type)) {
-        var preferred_lang = _this.stashes.get(loc_type);
-        var preferred_stripped_lang = preferred_lang.split(/-|_/)[0];
-        if (stripped_langs.indexOf(preferred_stripped_lang) == -1) {
-          _this.appState.set(loc_type, model.get('locale'));
-        } else if (board_langs.indexOf(preferred_lang) == -1) {
-          _this.appState.set(loc_type, preferred_stripped_lang);
-        } else {
-          _this.appState.set(loc_type, _this.stashes.get(loc_type));
-        }
+      var preferred_lang = _this.stashes.get(loc_type);
+      var override = _this.stashes.get('override_' + loc_type) || preferred_lang;
+      if(preferred_lang) {
+        _this.appState.set(loc_type, resolve_board_display_locale({
+          boardDefault: model.get('locale') || 'en',
+          boardLangs: board_langs,
+          override: override,
+          preferred: preferred_lang
+        }));
       } else {
         _this.appState.set(loc_type, model.get('locale'));
       }

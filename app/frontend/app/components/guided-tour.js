@@ -98,6 +98,13 @@ function _scrollHighlightIntoView(step) {
   }
   var block = (step.options && step.options.scrollBlock) || 'center';
   var force = !!(step.options && step.options.scrollBlock);
+  // `scrollBlock: 'none'` — DO NOT MOVE THE PAGE for this step. For a target that is both
+  // tall and already on screen (the caseload roster), any scroll is a loss: centring it
+  // drags the view down past the first rows, and even aligning its top nudges the page for
+  // no gain. The spotlight and the popover work perfectly well where the user already is.
+  // Distinct from omitting scrollBlock, which still centre-scrolls when the target is not
+  // judged "in view" — this skips the scroll outright and reveals immediately.
+  if (block === 'none') { reveal(); return; }
   scrollIntoViewSettled(target, block, force).then(reveal);
 }
 
@@ -314,6 +321,19 @@ export default Component.extend({
     return !!map[key];
   }),
 
+  // Whether THIS page+view's tour has already been AUTO-OPENED once for this
+  // user. Deliberately separate from `tourSeen` above: that flag records only a
+  // FINISHED tour (it drives the trigger's check badge, so binding it to cancel
+  // would make the badge lie). Auto-open needs the weaker "we already showed
+  // this to them" test — a user who skipped or dismissed the tour should not
+  // have it thrown at them again on their next board pick.
+  tourAutoShown: computed('appState.currentUser.preferences.progress.guided_tours_autoshown', 'tourKey', function() {
+    var key = this.get('tourKey');
+    if (!key) { return false; }
+    var map = this.get('appState.currentUser.preferences.progress.guided_tours_autoshown') || {};
+    return !!map[key];
+  }),
+
   // Auto-fire the tour when `appState.auto_open_home_tour` is flipped to true —
   // set by terms-agree confirm for newly-registered users who are skipping the
   // full setup wizard intro. The observer clears the flag on start so
@@ -336,21 +356,31 @@ export default Component.extend({
 
   // True only when THIS instance is the board-detail EDIT tour (edit mode on a
   // board-detail route → tourKey 'board_detail_edit_*'). The auto-start guard must
-  // use this, NOT a bare `tourBuilder` truthy check: `board_detail_tour_pending`
-  // is flipped during "Pick this Board" while the user is STILL on /board-picker,
-  // where the navbar guided-tour instance has a (board-PICKER) tourBuilder — a
-  // truthy check would let it consume the flag and fire the WRONG tour. Gating on
-  // the board-detail-edit tourKey makes only the edit-chrome instance respond.
+  // use this, NOT a bare `tourBuilder` truthy check: the pending flag would be
+  // flipped while the user is STILL on /board-picker, where the navbar guided-tour
+  // instance has a (board-PICKER) tourBuilder — a truthy check would let it consume
+  // the flag and fire the WRONG tour. Gating on the board-detail-edit tourKey makes
+  // only the edit-chrome instance respond. (See the DORMANT note on
+  // _boardDetailTourWatcher below: no writer sets `board_detail_tour_pending` yet,
+  // so this guard is correct but currently unexercised.)
   _isBoardDetailEditTour: function() {
     return (this.get('tourKey') || '').indexOf('board_detail_edit') === 0;
   },
 
   // Auto-fire the board-detail EDIT tour when `appState.board_detail_tour_pending`
-  // is set — flipped by board-preview "Pick this Board" (and, eventually, the
-  // create-board path) right before routing into board-detail edit mode. All three
-  // entry points (init, this observer, didInsertElement) funnel into the single
-  // poll-based consumer below, which clears the flag once and only on the
-  // board-detail edit instance.
+  // is set. All three entry points (init, this observer, didInsertElement) funnel
+  // into the single poll-based consumer below, which clears the flag once and only
+  // on the board-detail edit instance.
+  //
+  // DORMANT: nothing in app/frontend sets this flag truthy. `git grep
+  // board_detail_tour_pending` returns only reads, the two `set(…, false)` clears,
+  // and comments. "Pick this Board" (components/board-preview-overlay.js) sets the
+  // SPEAK flag, `board_detail_tour_pending_speak`, which is a different path with
+  // its own consumer. This machinery is kept, not deleted, because the create-board
+  // path is the intended writer and the plumbing is correct as written — but until
+  // something sets the flag, the edit tour cannot auto-open, and any change here is
+  // unobservable at runtime. Do not read a passing test or a clean diff as evidence
+  // that a change to this path works; wire a writer first.
   _boardDetailTourWatcher: observer('appState.board_detail_tour_pending', 'tourKey', function() {
     this._consumePendingBoardDetailTour();
   }),
@@ -524,12 +554,19 @@ export default Component.extend({
             // stale flag WITHOUT firing so it can't auto-open on the wrong board.
             _this._bdSpeakTourConsuming = false;
             _this.appState.set('board_detail_tour_pending_speak', false);
+            _this.appState.set('board_detail_tour_speak_manual', false);
             return;
           }
         }
+        // Manual replay ("Take a tour") routes through the SAME pending flag as
+        // the post-pick auto-open, so the once-per-user gate downstream has to be
+        // told which one this is — otherwise it swallows the manual trigger too.
+        // Read and clear together with the pending flag.
+        var manual = !!_this.get('appState.board_detail_tour_speak_manual');
         _this._bdSpeakTourConsuming = false;
         _this.appState.set('board_detail_tour_pending_speak', false);
-        _this._scheduleBoardDetailSpeakAutoOpen();
+        _this.appState.set('board_detail_tour_speak_manual', false);
+        _this._scheduleBoardDetailSpeakAutoOpen(manual);
       } else if (attempts++ < 20) {              // ~3s ceiling (20 × 150ms)
         runLater(_this, tryConsume, 150);
       } else {
@@ -546,6 +583,18 @@ export default Component.extend({
     // Belt-and-suspenders: never attach the board-picker handoff from a
     // board-detail host (see _autoOpenWatcher).
     if (this.get('speakHost') || this.get('editHost')) { return; }
+    // SUPPORTERS (SLPs/therapists/teachers/parents — all collapse to
+    // `supporter_role`) tour their CASELOAD, not the dashboard. That page is where
+    // routes/index.js `_land_on_default` already sends them on every subsequent
+    // login; the only reason they are sitting on the dashboard right now is that
+    // the terms-agree session gate had to run there first (see
+    // `_session_entry_gate_pending` in that route). They also get NO board-picker
+    // handoff — that exists so a newly-registered COMMUNICATOR still completes the
+    // must-have home-board pick, and a supporter has no board of their own to pick.
+    if (this.get('appState.currentUser.supporter_role')) {
+      this._startCaseloadAutoOpen();
+      return;
+    }
     scheduleOnce('afterRender', this, function() {
       // After the home tour ends (any way it ends), hand the user off to the
       // standalone board-picker so the remaining must-have step (home board pick)
@@ -561,6 +610,37 @@ export default Component.extend({
       if (!_this.get('tourBuilder')) { handoff(); return; }
       _this._startTour({ afterComplete: handoff });
     });
+  },
+
+  // Route a supporter to their caseload and start the CASELOAD tour there.
+  // The route hop means this instance's `tourBuilder`/`tourKey` recompute from
+  // `appState.current_route`, which settles a microtask or two AFTER the
+  // transition promise resolves — so poll for the caseload tour to become current
+  // rather than firing at a single afterRender (LEARNINGS.md: "a guided-tour
+  // auto-open flag consumed at a single afterRender misses when the gating state
+  // resolves on a promise microtask — poll the condition"). Same bound as the
+  // board-detail consumers: ~3s (20 x 150ms). If it never becomes current we
+  // simply don't fire — the user is left on their caseload with the "Take a tour"
+  // trigger right there, which is a safe outcome rather than a wrong tour.
+  // The navbar GuidedTour instance is persistent across in-app transitions, so
+  // `this` survives the hop; the isDestroyed guard covers a logout mid-poll.
+  _startCaseloadAutoOpen: function() {
+    var _this = this;
+    var attempts = 0;
+    var tryStart = function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      if ((_this.get('tourKey') || '').indexOf('caseload') === 0) {
+        _this._startTour();
+        return;
+      }
+      if (attempts++ < 20) { runLater(_this, tryStart, 150); }
+    };
+    var go = function() { scheduleOnce('afterRender', _this, tryStart); };
+    if (this.get('appState.current_route') === 'caseload') { go(); return; }
+    // Route errors resolve to the same poll: if the transition is superseded the
+    // poll just times out harmlessly rather than leaving a dangling promise.
+    var t = this.router.transitionTo('caseload');
+    if (t && t.then) { t.then(go, go); } else { go(); }
   },
 
   // Set true when the home-tour "I'd like to start speaking" button takes over the
@@ -610,6 +690,11 @@ export default Component.extend({
       if (_this.isDestroyed || _this.isDestroying) { return; }
       // Flag the board-detail SPEAK tour to auto-open once we land on THIS board
       // (runtime hand-off flag; the board-detail route hides the overlay on load).
+      // Clear the manual-replay companion explicitly: a "Take a tour" request that
+      // was never consumed (user navigated away first) would otherwise still be
+      // set here and make this AUTO open skip its once-per-user bookkeeping,
+      // re-creating the every-pick re-fire this flag pair exists to prevent.
+      appState.set('board_detail_tour_speak_manual', false);
       appState.set('board_detail_tour_pending_speak', key);
       var t = _this.get('router').transitionTo('user.board-detail', userName, boardname);
       if (t && typeof t.catch === 'function') {
@@ -683,6 +768,13 @@ export default Component.extend({
         // Re-confirm we're still the board-detail edit tour before starting (the
         // route could have changed during the poll).
         if (!_this._isBoardDetailEditTour()) { return; }
+        // Show the walkthrough ONCE per user, same rule as the SPEAK auto-open.
+        // `tourKey` only resolves to the edit key once we're on the board-detail
+        // page in edit mode, so this is checked here (at fire time) rather than
+        // when the pending flag is consumed. Manual entry via the "Take a tour"
+        // trigger is unaffected — this gate is only on the AUTO path.
+        if (_this.get('tourAutoShown')) { return; }
+        _this._markTourAutoShown();
         _this._startTour();
       } else {
         runLater(_this, tryStart, 150);
@@ -691,10 +783,18 @@ export default Component.extend({
     scheduleOnce('afterRender', this, tryStart);
   },
 
-  // Board-detail SPEAK auto-open. Same shape as the edit auto-open: wait for the
-  // board grid to render (so the interior spotlights resolve instead of being
+  // Board-detail SPEAK tour opener. Same shape as the edit auto-open: wait for
+  // the board grid to render (so the interior spotlights resolve instead of being
   // skipped), re-confirm we're still the speak tour, then start. Bounded.
-  _scheduleBoardDetailSpeakAutoOpen: function() {
+  //
+  // `manual` distinguishes the two callers, which share one pending flag: the
+  // post-"Pick this Board" auto-open (false) and the options-menu "Take a tour"
+  // item (true, via board-detail.js#start_speak_tour). Only the auto path is
+  // once-per-user. Getting this wrong is not a small bug: the component's own
+  // Shepherd trigger button is `display: none` (app.scss ~71474), so that menu
+  // item is the ONLY way to replay this tour, and every user who has picked a
+  // home board has already tripped the gate.
+  _scheduleBoardDetailSpeakAutoOpen: function(manual) {
     var _this = this;
     var attempts = 0;
     var tryStart = function() {
@@ -704,6 +804,16 @@ export default Component.extend({
                   document.querySelector('.md-board-detail-grid');
       if (ready || attempts >= 20) {        // ~3s ceiling (20 × 150ms)
         if (!_this._isBoardDetailSpeakTour()) { return; }
+        // AUTO-show the walkthrough once per user. `tourKey` only resolves to the
+        // speak key now that we're on the board-detail speak page, so this is
+        // checked here (at fire time) rather than when the pending flag is
+        // consumed. A manual replay skips both the gate and the bookkeeping —
+        // asking for the tour is not an auto-show and must not consume the
+        // one-shot, or a second manual replay would be swallowed.
+        if (!manual) {
+          if (_this.get('tourAutoShown')) { return; }
+          _this._markTourAutoShown();
+        }
         _this._startTour();
       } else {
         runLater(_this, tryStart, 150);
@@ -746,6 +856,23 @@ export default Component.extend({
     // before addSteps() so Shepherd picks them up when instantiating each step.
     tour.set('confirmCancel', false);
     tour.set('modal', true);
+    // MUST be set explicitly even though Shepherd defaults both to true.
+    // ember-shepherd's tour service declares `exitOnEsc` / `keyboardNavigation`
+    // as tracked properties initialised to undefined and then passes them
+    // POSITIVELY into `new Shepherd.Tour({ exitOnEsc, keyboardNavigation, ... })`
+    // (services/tour.js#_initialize). Shepherd merges with
+    // `Object.assign({}, {exitOnEsc: true, keyboardNavigation: true}, options)`,
+    // and an explicit `undefined` OVERWRITES the default — so leaving these
+    // unset silently disabled both. Verified live: tourObject.options.exitOnEsc
+    // read back as undefined, Escape did not dismiss, and arrow keys did not
+    // navigate. That made a full-screen modal overlay (modal:true +
+    // canClickTarget:false below) impossible to escape by keyboard — a hard trap
+    // for switch-scanning and eye-gaze users, who cannot click the X.
+    // Safe on cancel: _unlockTourScroll, _detachTourResize, _clearTourCenteredClass
+    // and the afterComplete handoff are all bound to `cancel` as well as
+    // `complete`, so an Esc exit cleans up exactly like the X button.
+    tour.set('exitOnEsc', true);
+    tour.set('keyboardNavigation', true);
     tour.set('defaultStepOptions', {
       classes: 'md-tour__step',
       cancelIcon: { enabled: true },
@@ -1021,6 +1148,31 @@ export default Component.extend({
     if (done[key]) { return; }
     done[key] = true;
     progress.guided_tours_completed = done;
+    prefs.progress = progress;
+    user.set('preferences', prefs);
+    if (user.save) { user.save().then(null, function() { /* best-effort */ }); }
+  },
+
+  // Persist "this page's tour has been AUTO-OPENED once" as
+  // preferences.progress.guided_tours_autoshown[<tourKey>] = true. Recorded when
+  // the tour auto-fires, NOT when it ends, so it sticks however the user leaves
+  // it (finish, skip, X, Esc). Without this the board-detail SPEAK tour re-fired
+  // on EVERY home-board pick forever: _scheduleBoardDetailSpeakAutoOpen called
+  // _startTour unconditionally, and guided_tours_completed is only written on
+  // `complete`, so anyone who dismissed it was never recorded at all.
+  // Same fresh-object-copy discipline as _markTourCompleted: ember-data only
+  // serializes a real reference change, so mutating the nested map in place
+  // would leave hasDirtyAttributes false and never save.
+  _markTourAutoShown: function() {
+    var key = this.get('tourKey');
+    var user = this.get('appState.currentUser');
+    if (!key || !user) { return; }
+    var prefs = Object.assign({}, user.get('preferences') || {});
+    var progress = Object.assign({}, prefs.progress || {});
+    var shown = Object.assign({}, progress.guided_tours_autoshown || {});
+    if (shown[key]) { return; }
+    shown[key] = true;
+    progress.guided_tours_autoshown = shown;
     prefs.progress = progress;
     user.set('preferences', prefs);
     if (user.save) { user.save().then(null, function() { /* best-effort */ }); }

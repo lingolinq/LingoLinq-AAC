@@ -30,6 +30,8 @@ import boardDetailCache from '../utils/board_detail_cache';
 import sessionHistory from '../utils/session_history';
 import { supervising_context_for } from '../utils/supervising_context';
 import boardsPageListCache from '../utils/boards_page_list_cache';
+import { clearStoredLayout } from '../utils/boards_layout_state';
+import { clearFoldersExpanded } from '../utils/folders_panel_state';
 import buttonTracker from '../utils/raw_events';
 import capabilities from '../utils/capabilities';
 import scanner from '../utils/scanner';
@@ -1035,19 +1037,39 @@ export default Service.extend({
     router = router || this.get('router') || this.router;
     this._debounceBoardLoadOverlay(router);
   },
+  // Sidebar entries often carry `locale` from Add to Sidebar (the language
+  // at add time, frequently English). Applying that stamp cleared Switch
+  // Languages, so Flexiones / Yes-No / Keyboard opened in their default
+  // language and Back showed Quick Core 40 in English.
+  sidebar_jump_preserves_session_locale: function(key, source) {
+    if(source === 'sidebar' || source === 'swipe') { return true; }
+    if(!key || typeof key !== 'string') { return false; }
+    var slug = key.split('/').pop();
+    return slug === 'inflections' || slug === 'inflections-es' || slug === 'keyboard';
+  },
+  restore_session_locale_override: function() {
+    var label = this.stashes.get('override_label_locale');
+    var vocalization = this.stashes.get('override_vocalization_locale');
+    if(label) {
+      this.stashes.persist('label_locale', label);
+      this.set('label_locale', label);
+    }
+    if(vocalization) {
+      this.stashes.persist('vocalization_locale', vocalization);
+      this.set('vocalization_locale', vocalization);
+    } else if(label) {
+      this.stashes.persist('vocalization_locale', label);
+      this.set('vocalization_locale', label);
+    }
+  },
   jump_to_board: function(new_state, old_state) {
     buttonTracker.transitioning = true;
     if(new_state && old_state && new_state.id && (new_state.id == old_state.id || new_state.key == old_state.key)) {
       // transition was getting stuck when staying on the same board
       buttonTracker.transitioning = false;
     }
+    var preserve_session_locale = this.sidebar_jump_preserves_session_locale(new_state && new_state.key, new_state && new_state.source);
     if(new_state && (new_state.source == 'sidebar' || new_state.source == 'swipe')) {
-      if(new_state && new_state.locale && this.stashes.get('override_label_locale') && new_state.locale != this.stashes.get('override_label_locale')) {
-        this.stashes.persist('override_label_locale', null);
-      }
-      if(new_state && new_state.locale && this.stashes.get('override_vocalization_locale') && new_state.locale != this.stashes.get('override_vocalization_locale')) {
-        this.stashes.persist('override_vocalization_locale', null);
-      }
       this.stashes.persist('last_root', new_state);
     }
     var history = this.get_history();
@@ -1076,7 +1098,7 @@ export default Service.extend({
     if(new_state.level) {
       this.stashes.persist('board_level', new_state.level);
     }
-    if(new_state.locale) {
+    if(new_state.locale && !preserve_session_locale) {
       this.stashes.persist('label_locale', new_state.locale);
       this.stashes.persist('vocalization_locale', new_state.locale);
       this.set('label_locale', new_state.locale);
@@ -1280,6 +1302,7 @@ export default Service.extend({
     if(state.level) {
       this.stashes.persist('board_level', state.level);
     }
+    this.restore_session_locale_override();
     this.set('referenced_board', state);
     var router = this.get('router') || this.router;
     if(router && typeof router.transitionTo === 'function') {
@@ -1305,12 +1328,8 @@ export default Service.extend({
         if(state.level || state.default_level) {
           this.stashes.persist('board_level', state.level || state.default_level);
         }
-        if(this.stashes.get('override_label_locale')) {
-          // If manually-set for the session, revert
-          // to the preferred value
-          this.stashes.persist('label_locale', this.stashes.get('override_label_locale'));
-          this.stashes.persist('vocalization_locale', this.stashes.get('override_vocalization_locale'));
-        } else if(state.locale) {
+        this.restore_session_locale_override();
+        if(!this.stashes.get('override_label_locale') && state.locale) {
           // Otherwise revert to the original
           // state in case it got changed during navigation
           this.stashes.persist('label_locale', state.locale);
@@ -2169,6 +2188,15 @@ export default Service.extend({
     // Boards-page Mine list snapshots are per-user localStorage; drop them
     // on sign-out so a shared device never shows another user's tiles.
     try { boardsPageListCache.clearAll(); } catch(e) { /* non-critical */ }
+    /* The boards-page layout mirror and the folders-panel state are per-DEVICE by
+       necessity — both are read on the FIRST frame, before the user record hydrates, so
+       neither can be keyed by user id at read time. That makes sign-out the only place
+       they can be scoped. Without this, the next person to sign in on a shared
+       school/clinic device inherits the previous user's arrangement: they have no
+       `boards_layout` preference of their own, so the resolver falls through to the
+       mirror and never adopts anything else for the whole session. */
+    try { clearStoredLayout(); } catch(e) { /* non-critical */ }
+    try { clearFoldersExpanded(); } catch(e) { /* non-critical */ }
     this.set('last_keepalive', null);
     this.set('refresh_stamp', null);
     this.set('short_refresh_stamp', null);
@@ -2448,6 +2476,11 @@ export default Service.extend({
         user.set('preferences.progress.app_added', true);
         user.save().then(null, function() { });
       }
+      /* `prev` captured BEFORE the set so the notify below can tell a real user switch
+         from a redundant re-set. This observer keys off `sessionUser`, and find_user
+         sets that several times per boot (initial, again after user.reload(), again at
+         the LingoLinq.appState path below), so it runs repeatedly with the SAME user. */
+      var prev = this.get('currentUser');
       this.set('currentUser', user);
       if (_vb) {
         console.log('[APP-STATE] set_current_user: currentUser set', {
@@ -2455,7 +2488,32 @@ export default Service.extend({
           currentUser_id: this.get('currentUser') ? this.get('currentUser.id') : null
         });
       }
-      runNext(() => this.notifyPropertyChange("currentUser"));
+      /* Only notify when the user ACTUALLY changed.
+         The unconditional version came from 48a055d55 (2026-01-20, the migration of the
+         146KB utils/app_state.js singleton into this service), commented "Force notify
+         property change to ensure reactivity". Mid-migration that was real: reads and
+         writes were routed through the utils/app_state.js Proxy shim, whose set trap
+         does a RAW assignment that bypasses Ember's set() and therefore never notifies,
+         and which returns undefined ("Service not ready yet") before the service exists.
+         That hazard no longer reaches currentUser — all five writes to it go through
+         .set(), and none of the 113 files importing the shim assign to it raw.
+
+         Measured cost of notifying unconditionally: an identical-value set() is already
+         a no-op in Ember (verified: real change -> 1 observer fire, two identical sets ->
+         still 1), so this call was the ENTIRE source of the invalidation. It fires ~4x
+         per board open, and because runNext defers it past the current render it landed
+         ~280ms after the board had painted, invalidating the ~13 preference-derived
+         arguments of <BoardDetailGrid> and re-rendering all 84 cells for no visual
+         change. Guarding it takes board open from 2 grid render passes to 1, with the
+         rendered output identical (cell count and computed label size unchanged).
+
+         The guard deliberately KEEPS the notify for real switches — speak-as, modeling,
+         and the initial null -> user load, which is what late-attaching observers such as
+         utils/utterance.js#update_voice depend on to pick up the first value.
+         See docs/task-management/2026-08-23-board-render-first-paint-research.md. */
+      if(prev !== user) {
+        runNext(() => this.notifyPropertyChange("currentUser"));
+      }
     }
     if(this.get('currentUser')) {
       this.set('currentUser.load_all_connections', true);

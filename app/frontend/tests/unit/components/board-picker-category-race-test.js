@@ -5,7 +5,7 @@ import { setupTest } from 'frontend/tests/helpers';
 import LingoLinq from 'frontend/app';
 
 /*
- * /board-picker starts on All Available Boards, which waits for a paged
+ * All Available Boards waits for a paged
  * mine/shared query plus a public query before painting. Switching to Cause
  * and Effect (or any other category) used to leave those requests running;
  * when they finished they wrote into the one shared `category_boards` list

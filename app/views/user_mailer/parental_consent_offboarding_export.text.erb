@@ -1,0 +1,24 @@
+<%= mailer_t('parental_consent_offboarding_export_mailer.greeting') %>
+
+<%= mailer_t('parental_consent_offboarding_export_mailer.intro', app_name: app_name, child_username: @child_username) %>
+
+<% if @export_url.present? %>
+<%= mailer_t('parental_consent_offboarding_export_mailer.export_prompt') %>
+
+<%= mailer_t('parental_consent_offboarding_export_mailer.export_cta_label') %>:
+<%= @export_url %>
+<% else %>
+<%= mailer_t('parental_consent_offboarding_export_mailer.export_unavailable') %>
+<% end %>
+
+<%= mailer_t('parental_consent_offboarding_export_mailer.deletion_notice', deletion_at: long_ordinal_date(@deletion_at)) %>
+
+<%= mailer_t('parental_consent_offboarding_export_mailer.footer') %>
+
+<%= mailer_t('parental_consent_offboarding_export_mailer.contact_link_label') %>:
+<%= @contact_url %>
+
+<%= mailer_t('parental_consent_offboarding_export_mailer.privacy_link_label') %>:
+<%= @privacy_url %>
+
+<%= email_signature %>

@@ -1,6 +1,5 @@
 import Component from '@ember/component';
 import LingoLinq from '../app';
-import { reads } from '@ember/object/computed';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 
@@ -9,10 +8,6 @@ export default Component.extend({
   classNames: ['icon-select'],
   content: null,
   action: function() { return this; },
-  _selection: reads('selection'),
-  init: function() {
-    this._super(...arguments);
-  },
   iconUrls: LingoLinq.iconUrls,
   set_extra_urls: observer('selection', function() {
     if(this.get('selection')) {
@@ -69,11 +64,26 @@ export default Component.extend({
   },
 
   actions: {
+    /* Shaped like bound-select#choose and modern-select#choose, and for the same two reasons:
+       WRITE THROUGH FIRST, then call the parent's action GUARDED.
+
+       It used to set `_selection` and `selection_picked` — neither of which is read anywhere,
+       including by this component's own template — and then call `action` unguarded. So the
+       callback was the only thing that could make a click do anything, and when a bare
+       `{{mut}}` stopped being callable under Ember 5 every thumbnail click threw
+       "callback is not a function" and the picked url never reached the field.
+
+       Setting `selection` is what the template already renders (`<input value={{this.selection}}>`)
+       and what `set_extra_urls` observes to build the preview, and it propagates to the parent
+       on its own — which is why bound-select and modern-select kept working with the same bare
+       `{{mut}}` argument that broke this one. The guard then makes a non-callable action a
+       no-op rather than an exception. Covered by tests/integration/mut-action-arg-test.js. */
     pick: function(url) {
-      this.set('selection_picked', true);
-      this.set('_selection', url);
+      this.set('selection', url);
       var callback = this.get('action');
-      callback(url);
+      if (typeof callback === 'function') {
+        callback(url);
+      }
     }
   }
 });

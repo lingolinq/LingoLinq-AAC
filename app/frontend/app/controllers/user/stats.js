@@ -196,7 +196,27 @@ export default Controller.extend({
   }),
   already_loaded: function(side, stats) {
     if(!stats) { return false; }
+    /* WHICH USER the loaded stats belong to. Without this the cache key is only
+       the date/device/location/snapshot filters, so switching communicator from
+       the Reports page itself — same route, same filters, different `model` —
+       looked "already loaded" and load_charts returned after merely redrawing
+       the PREVIOUS communicator's charts. Arriving from anywhere else worked
+       only because leaving the route fires resetController -> reset_params,
+       which nulls usage_stats and forces a fetch.
+
+       `last_model_id` was already being recorded by load_charts (below) for
+       exactly this purpose but was never read anywhere — the guard was
+       half-built. This is the missing half. */
     var suffix = side == 'left' ? '' : '2';
+    /* PER SIDE. `last_model_id` used to be one shared variable, which neutralised this
+       guard in compare mode: load_charts('left') writes the NEW subject to it before the
+       queued load_right_charts reads it, so side 2 always saw a match, never refetched
+       `usage_stats2`, and rendered the PREVIOUS communicator's word usage, core list and
+       geolocations under the new communicator's name. Each side now records and checks
+       its own subject. */
+    if(this.get('last_model_id' + suffix) && this.get('last_model_id' + suffix) != (this.get('model_id') || '_blank')) {
+      return false;
+    }
     var keys = ['device_id', 'location_id', 'snapshot_id', 'start', 'end'];
     var ref = this.get('status' + suffix) || this.get('usage_stats' + suffix);
     var matches = true;
@@ -211,7 +231,13 @@ export default Controller.extend({
   load_core: function() {
     var _this = this;
     if(!this.get('model.core_lists')) {
+      /* `model` is resolved at CALLBACK time, so a response issued for the previous
+         communicator would be written onto whichever record `model` points at when it
+         lands — and the `!core_lists` guard above then blocks any corrective fetch for
+         the rest of the session, scoring one child against another's core list. */
+      var request_model_id = this.get('model.id');
       persistence.ajax('/api/v1/users/' + this.get('model.id') + '/core_lists', {type: 'GET'}).then(function(res) {
+        if(_this.get('model.id') !== request_model_id) { return; }
         _this.set('model.core_lists', res);
       }, function(err) {
       });
@@ -265,7 +291,8 @@ export default Controller.extend({
       this.set('last_device_id', this.get('device_id') || "_blank");
       this.set('last_snapshot_id', this.get('snapshot_id') || "_blank");
       this.set('last_location_id', this.get('location_id') || "_blank");
-      pending_key_value = this.get('last_start') + ":" + this.get('last_end') + ":" + this.get('last_device_id') + ":" + this.get('last_location_id') + ":" + this.get('last_snapshot_id');
+      this.set('last_model_id', this.get('model_id') || "_blank");
+      pending_key_value = this.get('last_model_id') + ":" + this.get('last_start') + ":" + this.get('last_end') + ":" + this.get('last_device_id') + ":" + this.get('last_location_id') + ":" + this.get('last_snapshot_id');
     } else {
       pending_key_name = 'right_pending';
       this.set('last_start2', this.get('start2') || "_blank");
@@ -273,11 +300,16 @@ export default Controller.extend({
       this.set('last_device_id2', this.get('device_id2') || "_blank");
       this.set('last_snapshot_id2', this.get('snapshot_id2') || "_blank");
       this.set('last_location_id2', this.get('location_id2') || "_blank");
-      pending_key_value = this.get('last_start2') + ":" + this.get('last_end2') + ":" + this.get('last_device_id2') + ":" + this.get('last_location_id2') + ":" + this.get('last_snapshot_id2');
+      this.set('last_model_id2', this.get('model_id') || "_blank");
+      pending_key_value = this.get('last_model_id2') + ":" + this.get('last_start2') + ":" + this.get('last_end2') + ":" + this.get('last_device_id2') + ":" + this.get('last_location_id2') + ":" + this.get('last_snapshot_id2');
     }
+    /* The SUBJECT is part of the key (set per side above). Without it, switching
+       communicator while a request was in flight produced an identical key — every
+       filter is "_blank" by default — so this early return fired, NO request was ever
+       issued for the new communicator, and the previous one's response populated the
+       whole page under the new name, permanently for that visit. */
     if(pending_key_value && this.get(pending_key_name) == pending_key_value) { return; }
     this.set(pending_key_name, pending_key_value);
-    this.set('last_model_id', this.get('model_id') || "_blank");
     var controller = this;
     var args = {};
     ['start', 'end', 'location_id', 'device_id', 'snapshot_id'].forEach(function(key) {
@@ -304,10 +336,15 @@ export default Controller.extend({
     var status_key = side == 'left' ? 'status' : 'status2';
     var stats_key = side == 'left' ? 'usage_stats' : 'usage_stats2';
     controller.set(status_key, status);
+    /* Captured at ISSUE time. A response must never be written onto a different
+       communicator than the one it was requested for — the key guard above stops a
+       redundant request, this stops a late one from landing on the wrong subject. */
+    var request_model_id = controller.get('model.id');
     persistence.ajax('/api/v1/users/' + controller.get('model.id') + '/stats/daily', {type: 'GET', data: args}).then(function(data) {
       run(function() {
         try {
           if(controller.get(pending_key_name) == pending_key_value) { controller.set(pending_key_name, null); }
+          if(controller.get('model.id') !== request_model_id) { return; }
           // API returns flat JSON; allow wrapped payload if present
           var payload = data && (data.stats || data.data || data);
           if(!payload) { payload = {}; }

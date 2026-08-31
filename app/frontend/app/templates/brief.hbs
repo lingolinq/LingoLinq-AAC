@@ -298,7 +298,7 @@
           {{/if}}
           {{#unless this.app_state.limited_speak_mode_options}}
             {{#if this.session.isAuthenticated}}
-              <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
+              <li class="dropdown-header">{{this.app_state.currentUser.display_name}}</li>
               {{#unless this.app_state.index_view}}
                 <li role="presentation">
                   <LinkTo @route="index">{{t "Home" key="home"}}</LinkTo>

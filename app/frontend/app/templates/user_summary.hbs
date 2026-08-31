@@ -5,7 +5,7 @@
       <div title='currently online' class='online_marker'></div>
     {{/if}}
   </div>
-  <h2 style="margin-bottom: 0;">{{ this.model.name }}</h2>
+  <h2 style="margin-bottom: 0;">{{display-name this.model}}</h2>
   <div style="margin-bottom: 10px;">{{ this.model.user_name }}</div>
   <div>{{ this.model.description }}</div>
   {{#if this.model.details_url}}

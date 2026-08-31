@@ -51,7 +51,11 @@ module JsonApi::Board
       end
     else
       trans = (BoardContent.load_content(board, 'translations') || {})
-      trans.each{|k, h| if h.is_a?(Hash); list += h.keys; end }
+      trans.each_value do |h|
+        if h.is_a?(Hash)
+          list += h.keys.select { |loc| Board.translation_locale_key?(loc) }
+        end
+      end
     end
     json['translated_locales'] = list.select{|loc| !loc.blank? }.uniq
     json['style'] = board.settings['board_style'] if board.settings['board_style']
@@ -66,8 +70,25 @@ module JsonApi::Board
           json['buttons'].each do |button|
             btn_tran = trans[button['id'].to_s]
             if btn_tran && btn_tran[matching]
-              button['label'] = btn_tran[matching]['label']
-              button['vocalization'] = btn_tran[matching]['vocalization']
+              # Only when the entry actually HAS one. A translation row carrying a
+              # vocalization but no label used to null the label, the same shape of bug as
+              # the vocalization guard below.
+              button['label'] = btn_tran[matching]['label'] if btn_tran[matching]['label']
+              # A vocalization beginning ':' or '+' is an ACTION, not a word — ':suggestion'
+              # marks a word-prediction slot, '+s' appends a letter — and it has no
+              # translation. Overwriting it from a translation entry that carries only a
+              # label set it to nil, and the marker the client identifies these buttons by
+              # simply vanished for anyone whose session asked for a locale: word prediction
+              # never ran (Board#refresh_suggestions finds slots by == ':suggestion') and the
+              # grid could not group them either. The client has always guarded this exact
+              # assignment the same way — app/frontend/app/models/board.js
+              # #translated_buttons, `has_special_vocalization` — so this makes the server
+              # agree with the rule the client already applies.
+              # A translation with NO vocalization still clears an ordinary button's, which
+              # is deliberate: the client falls back to the translated label.
+              unless button['vocalization'].to_s.match(/^[:+]/)
+                button['vocalization'] = btn_tran[matching]['vocalization']
+              end
               button['inflections'] = btn_tran[matching]['inflections']
               button['rules'] = btn_tran[matching]['rules']
             end
