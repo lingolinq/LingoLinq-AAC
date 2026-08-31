@@ -590,27 +590,35 @@ this model and the account retention setting resolves to the model default.
 
 ## 10. What we propose to stop saying
 
-**PROPOSED.** Five of these statements were live customer representations at the audited commit,
-not one. On the privacy page: the inactive-vendor claim (`privacy.hbs:67`), the separate
-AI data-sharing consent representation (`privacy.hbs:76`), and the AI retention tiers, including
-the Article 50 record-keeping basis (`privacy.hbs:99-101`). On the unauthenticated AI disclosure
-page served at `/ai_consent/disclosures/1`: the Article 50 retention basis and the
-45 CFR 164.316(b)(2) "hard floor" (the `ai_consent_disclosures` block of `config/locales/en.yml`,
-keys `retention_eu` and `retention_hipaa`). The remaining rows appeared only in internal
-documents at that commit. PR #888, open as this memorandum is written, corrects four of the five
-(the inactive-vendor claim, the retention tiers, and both disclosure-page blocks); the consent
-representation at `privacy.hbs:76` stands, because whether it is true turns on question 19.
+**IMPLEMENTED.** The Where column below records, per row, the verified instances at the audited
+commit `8afabd1d2` and marks the user-facing ones **live**. Rows reached customers on three
+surfaces: the privacy page (`app/frontend/app/templates/privacy.hbs`), the unauthenticated AI
+data-sharing disclosure at `/ai_consent/disclosures/1` (rendered from the
+`ai_consent_disclosures` block of `config/locales/en.yml` via
+`app/views/ai_consent/disclosures/v1.html.erb`), and the unauthenticated Article 50 disclosure
+at `/ai_consent/disclosures/art50_v1` (rendered from the separate `art50_disclosures` block via
+`art50_v1.html.erb`). Correction status: PR #888, merged to `staging` as `558de5919` on
+2026-08-30 (statements about that commit are verified there, not at the audited commit),
+corrected `privacy.hbs:24,35,67,99-101` and the `retention_eu` / `retention_hipaa` keys of both
+disclosure blocks. Still live and uncorrected at `558de5919`: `privacy.hbs:22` (blanket
+framing), `privacy.hbs:76` (question 19), `privacy.hbs:98` and `en.yml:189` (IP redaction), and
+`en.yml:185` ("each AI request").
+
+**PROPOSED.** The treatment column.
 
 | Statement | Where | Proposed treatment |
 |---|---|---|
 | "Today none of these features send any user content to an AI vendor, because the Bedrock path is inactive" | `app/frontend/app/templates/privacy.hbs:67` (**live, user-facing**) | Correct or remove. No inactive switch exists and production calls are recorded. See question 21. |
+| The "Private Thoughts" guarantee: "we never log your private conversations"; "never logs, collects, or analyzes verbatim transcripts" | `privacy.hbs:24,35` (**live**) | Correct (done in PR #888). False at the audited commit: `lib/ai_word_predictor.rb:165` writes up to 200 characters of the composed sentence to `ai_api_logs` in plaintext (section 4). Its correction discloses a previously undisclosed collection; see question 32. |
+| A separate, second AI data-sharing consent is asked for | `privacy.hbs:76` (**live**) | Resolve with question 19: wire the consent mechanism, or correct the representation. |
+| IP addresses on AI records are redacted after 90 days, presented as in effect | `privacy.hbs:98` (**live**), `en.yml:189` (**live**, `/ai_consent/disclosures/1`) | Correct or build. No call site passes `ip_address` to `AiApiLog.log_ai_call`, so the scheduled redaction has nothing to redact (section 4). |
 | Communication logs have a "3 years default" retention | `DATA_RETENTION.md:29` | Withdraw. No default exists. Replace once the proposed 24-month default is built. |
 | Change history retained 6 years via cold-storage archival | `DATA_RETENTION.md:37` | Withdraw. The job does not exist; the code deletes those versions after weeks. |
 | `ClusterLocation` 90-day nightly trim; children's age-18 sweeper; `LogSnapshot` cascade; "raw events 2 years"; 2-year inactivity | `DATA_RETENTION.md:28, 30, 38, 40, 50` | Withdraw or build. Section 4.3. |
-| The EU five-year tier is required by "EU AI Act Article 50 record-keeping" | `DATA_RETENTION.md:33`, `AI_DATA_FLOW_CLASSIFICATION.md:231`, `scheduler.rake:147-152` | Withdraw the legal basis. Article 50 imposes no retention duty. |
-| A "six-year HIPAA floor" applies to `ai_api_logs` | `ai_api_log.rb:230-238`, `scheduler.rake:150-151, 174-181` | Narrow. 164.316(b)(2)(i) reaches Security Rule documentation, not application logs. |
-| "Every AI call is logged in `AiApiLog`" | Multiple | Narrow. False for the offline prediction generator and for all four Google paths. |
-| Blanket framing that FERPA, HIPAA, GDPR, and COPPA apply to all data at all times | Multiple | Replace with a per-configuration scope statement counsel approves. |
+| The EU five-year tier is required by "EU AI Act Article 50 record-keeping" | `DATA_RETENTION.md:33`, `AI_DATA_FLOW_CLASSIFICATION.md:231`, `scheduler.rake:147-152`; **live**: `privacy.hbs:99`, `en.yml:217` (`art50_disclosures`, `/ai_consent/disclosures/art50_v1`); the five-year window without the Article 50 attribution also at `en.yml:186` (`/ai_consent/disclosures/1`) | Withdraw the legal basis. Article 50 imposes no retention duty. |
+| A "six-year HIPAA floor" applies to `ai_api_logs` | `ai_api_log.rb:230-238`, `scheduler.rake:150-151, 174-181`; **live**: `en.yml:218` (`art50_disclosures`, `/ai_consent/disclosures/art50_v1`) | Narrow. 164.316(b)(2)(i) reaches Security Rule documentation, not application logs. |
+| "Every AI call is logged in `AiApiLog`" | Multiple; **live**: `en.yml:185` ("a summary of each AI request", `/ai_consent/disclosures/1`) | Narrow. False for the offline prediction generator and for all four Google paths. |
+| Blanket framing that FERPA, HIPAA, GDPR, and COPPA apply to all data at all times | Multiple; **live**: `privacy.hbs:22` | Replace with a per-configuration scope statement counsel approves. |
 
 ---
 
@@ -971,24 +979,37 @@ these are framed as questions rather than positions.
     want your view on whether that is the right shape for records that reach customers in a
     diligence bundle.
 32. **Must existing users re-acknowledge the corrected privacy policy?** On 2026-08-30 we
-    corrected the privacy page and the AI disclosure page (PR #888): the corrections withdraw
-    false and overbroad statements and narrow our claims; they do not expand any data use. With
-    that change we bumped the signup consent version constant, `User::PRIVACY_POLICY_VERSION`,
-    from `'2026-07-09'` to `'2026-08-30'`. New signups now acknowledge the new version
-    (`app/models/user.rb:964,2368`), and the version is stamped into an immutable `AuditEvent`
-    when parental consent is granted (`app/models/user.rb:978`). Existing users' acknowledgment
+    corrected the privacy page and both AI disclosure pages (PR #888, merged to `staging` as
+    `558de5919`; the citations in this question are verified at that commit, not at the audited
+    commit above). With that change we bumped the signup consent version constant,
+    `User::PRIVACY_POLICY_VERSION`, from `'2026-07-09'` to `'2026-08-30'` (`user.rb:29`). New
+    signups acknowledge the new version (`user.rb:2368`); when a parent completes an emailed
+    consent token, the parent's stamp on the child's behalf records it too (`user.rb:964`) and
+    it is written into an immutable `AuditEvent` (`user.rb:978`). Existing users' acknowledgment
     records keep `'2026-07-09'`. **The position we have taken, pending your answer, is
     notice-only: no forced re-acknowledgment**, on the reasoning that a correction in the user's
-    favor is not the kind of material change that requires fresh consent. Do you agree, and does
-    the answer differ for under-13 accounts, where the acknowledgment is part of the verifiable
-    parental consent record?
+    favor is not the kind of material change that requires fresh consent. Two facts cut against
+    that position, and we put them in front of you rather than resolve them ourselves. First,
+    one of the corrected statements was the "Private Thoughts" guarantee (`privacy.hbs:24,35`
+    at the audited commit): its correction is not only a narrowing but the disclosure of a
+    previously undisclosed collection, because `lib/ai_word_predictor.rb:165` writes up to 200
+    characters of the composed sentence to `ai_api_logs` in plaintext. Second, the version is
+    read at **grant time**, not at solicitation: `grant_parental_consent!` (`user.rb:930`)
+    stamps whatever `PRIVACY_POLICY_VERSION` holds when the parent completes the token, and
+    nothing pins the version when the token is issued, so a consent email sent before the bump
+    and completed after it records the parent as acknowledging a policy revision that did not
+    exist when they were solicited. Do you agree with notice-only; does the answer differ for
+    under-13 verifiable parental consent; and must the acknowledged version be captured at
+    solicitation rather than at grant?
 33. **Does the public visibility of this memorandum's pull request matter?** This memorandum was
-    prepared on a branch of our public source repository, and the pull request carrying it is
+    prepared on a branch of our public source repository and is carried by pull request #889,
     held open but deliberately unmerged; the copy you receive is delivered out-of-band. Because
-    the repository is public, the branch diff is already visible regardless of merge state.
-    Should we close the pull request and delete the branch, leave both as they are, or does the
-    distinction carry no weight for privilege or any other purpose once the text has been
-    publicly visible at all?
+    the repository is public, the branch diff is already visible regardless of merge state, and
+    closing the pull request or deleting the branch would NOT unpublish it: GitHub retains the
+    pull request's ref and every commit remains reachable by its hash. With that understood,
+    should we close #889 and delete the branch, leave both as they are, or does the distinction
+    carry no weight for privilege or any other purpose once the text has been publicly visible
+    at all?
 
 ---
 
