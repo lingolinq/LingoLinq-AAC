@@ -332,7 +332,7 @@ The stance LingoLinq takes, and that this memo records:
 - This is why the developer reviewer is restricted to sanitized diffs and is barred from
   identifiable and data-bearing content. PII-free compliance *documents* (the audit register)
   are Tier 2 and may be reviewed; the boundary is data-bearing content, enforced by
-  `codex-review-guard.sh` (see section 4.1, resolved 2026-07-12).
+  `codex-review-guard.sh` (see section 4.1, resolved 2026-07-12). **Path corrected 2026-08-30:** that script lives at `~/ai-company-brain/scripts/codex-review-guard.sh`, not in this repo; this repo carries a vendored copy of its data-bearing `RISKY_PATTERNS` as `scripts/codex-review-path-classifier.sh` (which adds a Guard B for `docs/legal/**` and `audit-reports/**`).
 
 ### 4.1 RESOLVED (2026-07-12): DeepSeek and the audit register
 
@@ -360,7 +360,7 @@ data can be in the stream, not on the compliance-surface label. Tier 1 (runtime 
 paths) stays on BAA/ZDR-verified models. Tier 2 (code diffs, CI output, and PII-free compliance
 documents) **permits** any approved reviewer -- a DeepSeek or Codex pass included -- but does
 **not require** one. The hard boundary (no identifiable or data-bearing content on a no-BAA
-route) is enforced by `scripts/codex-review-guard.sh`, which blocks fixtures / seeds / factories /
+route) is enforced by `~/ai-company-brain/scripts/codex-review-guard.sh` and, CI-side, by its vendored copy `scripts/codex-review-path-classifier.sh` in this repo, which block fixtures / seeds / factories /
 migrations / cassettes / data dumps, NOT `audit-reports/**` or `docs/legal/**`.
 
 **Net effect:** the current bot skip on compliance-path diffs is now a permitted **confidentiality
