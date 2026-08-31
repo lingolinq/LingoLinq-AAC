@@ -39165,7 +39165,7 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   font-weight: 600;
 }
 .la-phrases-clear-btn--confirm:hover {
-  background: darken($brand-danger, 6%);
+  background: color.adjust($brand-danger, $lightness: -6%);
 }
 
 /* Same story as the header, but it needs the WRAP in the selector too. The universal rule
