@@ -15991,3 +15991,122 @@ will fail if someone generalises this again without them.
 **Evidence:** `utils/scanner.js#stop` (does not clear `elements`), `#level_up`, `#escape`;
 `utils/modal.js:126,188`; `services/app-state.js` (`scanning_auto_select`); task log
 `2026-08-28-prediction-rail-alignment-and-width-stability.md`.
+
+## Pattern: a guard keyed on a MONOTONIC global silently collapses to its other term
+
+**Surface:** board-detail word-prediction freeze. `restart_placed` suppressed the swap-freeze when
+`scanner.started >= _last_prediction_commit_at && scanner.element_index === 0`.
+
+**Root cause:** `scanner.started` is written only in `start()` (`utils/scanner.js:197`) and never
+cleared — `stop()` leaves it — and `pick_elem` restarts after EVERY selection. So after the user's
+first prediction commit the first term was permanently true and the conjunction degenerated to
+`element_index === 0`. That index is not unique to a post-commit restart: `load_children` sets it on
+every drill-in (`:1187`) and `next()` wraps to it every cycle (`:1228`), so the freeze was disabled
+exactly on prediction tile #1 — the tile a user is most likely committing to.
+
+**Fix:** the intent ("do not withhold the refresh the user's own commit triggered") was one LOOKUP
+GENERATION wide, not a scanner index. Moved to a one-shot armed at commit and consumed in the
+observer. Two placement facts that were NOT obvious and each would have shipped a bug: the one-shot
+cannot live in the predicate, because the release poll calls it too and would consume it; and it
+must be consumed at the first *materially different, non-blanking* write, because between a commit
+and its result the panel takes a loading write plus one republish per resolved symbol, all carrying
+the SAME words — "consume on the next write" is eaten before the result arrives.
+
+**Rule of thumb:** when a guard ANDs a monotonic global against a specific condition, ask what the
+guard degenerates to once the global is permanently true. If the answer is "the other term", it is
+not a conjunction, it is that term with decoration.
+
+**Evidence:** `controllers/user/board-detail.js#_prediction_panel_targeted`, `#_prediction_freeze_watch`,
+`#_note_prediction_commit`; `utils/scanner.js:197, 1187, 1228`.
+
+## Pattern: cancellation that RESOLVES lands on the success path, not the failure path
+
+**Surface:** a superseded AI lookup blanked the prediction panel under a live dwell/scan reach.
+
+**Root cause:** `utils/ai_word_predictor.js` cancels a pending debounced call with
+`_pending_reject = function() { resolve([]); }`. It RESOLVES with an empty array. So the superseded
+generation ran the SUCCESS continuation and committed `{ready:true, list:[]}` — indistinguishable
+from a genuine "no words", which the freeze watcher correctly treats as a cleared sentence and
+releases on.
+
+**Two traps found in the obvious remedies.** (a) "Make it reject instead" is a strict NO-OP for the
+symptom: the rejection handler commits the identical `{ready:true, list:[]}`. It is also actively
+harmful — the predictor's promise is merged with `RSVP.all` in `utils/word_suggestions.js`, so
+rejecting destroys the LOCAL non-AI results that had already resolved, and contradicts the module's
+documented silent-degrade contract. (b) A generation guard on the continuation is necessary but not
+sufficient: three ABANDONMENT paths blanked `suggestions` and returned WITHOUT advancing the
+generation, so a cleared sentence left the in-flight continuation still matching and it repopulated
+the panel that had just been cleared.
+
+**Rule of thumb:** a generation counter must be advanced on every path that ENDS a lookup, not only
+on every path that starts one. And before "make it reject", check what the rejection handler
+actually does and what the promise is composed with.
+
+**Evidence:** `utils/ai_word_predictor.js` `_pending_reject`; `controllers/user/board-detail.js`
+`#_apply_suggestion_results`, `#_invalidate_suggestion_lookup`; `utils/word_suggestions.js` RSVP.all.
+
+## Pattern: EMBER UNIT TESTS GIVE YOU REAL LAYOUT — use them instead of asking for a console paste
+
+**Surface:** "the prediction tiles do not match the board buttons" — three candidate causes and no
+way to tell which without measuring.
+
+**What works:** `tests/index.html` loads `assets/frontend.css`, so a fixture appended to
+`document.body` in a unit test is laid out by the REAL stylesheet and `getBoundingClientRect()`
+returns real numbers. Building a board+rail fixture and calling the actual measure function turned
+a guess into a table (card vs tile height/width/top per button shape). This is far cheaper than the
+Puppeteer probe, which needs live servers.
+
+**The trap, and it produced a FALSE bug report before it was caught:** the code under test resolves
+its targets with `document.querySelector`. A fixture left in the DOM from a previous loop iteration
+is the one it measures, while the assertions read the current fixture — producing confident,
+completely wrong deltas. The tell was that the reported tile width was exactly the CSS fallback
+(`84px`), i.e. the measurement had never landed at all. Tear fixtures down between iterations, and
+treat "the value equals its fallback" as evidence the code never ran.
+
+**Rule of thumb:** when a measured value equals its declared fallback, do not report the delta —
+find out why the measurement did not land.
+
+**Evidence:** `tests/unit/controllers/user-board-detail-prediction-hold-test.js` (`boardAndRailFixture`,
+`measureParity`); `app/styles/app.scss` `--prediction-tile-w` fallback.
+
+## Pattern: this repo has TWO test frameworks — check the file before writing a test
+
+`tests/utils/scanner-test.js` is jasmine-style (`describe` / `it` / `expect(x).toBe(y)` / a local
+`stub` helper). `tests/unit/controllers/user-board-detail-prediction-hold-test.js` is QUnit
+(`module` / `test(name, function(assert))` / `assert.strictEqual`, with a local `buildController()`).
+A test written in the wrong idiom does not fail loudly — it simply never runs as intended. Also note
+`qunit/no-assert-equal` and `qunit/no-assert-logical-expression` are enforced: use `strictEqual`, and
+never put `||`/`===` inside an assertion.
+
+## Pattern: `--update-todo` will silently GRANDFATHER the violations you just introduced
+
+`scripts/eslint-todo-gate.js --update-todo` rewrites the whole baseline. Because the fingerprint
+includes the LINE NUMBER, any edit shifts hundreds of rows and the regenerate looks like noise — so
+a genuinely new violation of yours disappears into it unnoticed. The reliable check is to compare
+RULE IDENTITY across the rebaseline, ignoring line drift:
+
+    git show HEAD:app/frontend/.eslint-todo | grep -v '^#' | awk -F'|' '{print $1"|"$2"|"$5"|"$6}' | sort > before
+    node scripts/eslint-todo-gate.js --update-todo
+    grep -v '^#' .eslint-todo | awk -F'|' '{print $1"|"$2"|"$5"|"$6}' | sort > after
+    diff before after     # must be empty
+
+This caught three separate self-introduced lint findings in one session that the regenerate had
+already absorbed. Use the same technique to resolve an `.eslint-todo` MERGE CONFLICT: regenerate
+against the merged tree and prove the identity multiset is unchanged, rather than hand-merging.
+
+## Pattern: a red test can silently SELECT a candidate fix
+
+A red test written to be "candidate-agnostic" was not. Its guard assertion (`escape()` levels up out
+of this level) relied on a precondition the `beforeEach` did not establish — `scanner.scanning` is
+false at the start of every test — so under the fix that guards on `scanning`, the GUARD would have
+failed and the test would have appeared to rule that candidate out. It passed only under the one
+candidate that happened not to read the flag.
+
+**Rule of thumb:** for every assertion in a red test, ask which preconditions it depends on and
+whether the CANDIDATE FIXES change them. A guard assertion that fails under a proposed fix is not
+evidence against that fix; it is a bug in the test.
+
+**Related, from the same session:** replacing a RANGE in a test file deleted three tests that had
+been inserted between the two anchors. The count drop (24 → 21) was the only signal. Print what is
+inside a range before replacing it, and prefer insertion at a single anchor (CLAUDE.md rule 14.4).
+

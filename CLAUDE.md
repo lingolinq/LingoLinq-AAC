@@ -23,21 +23,29 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 10. **A red test run is not a regression until you have confirmed the run COMPLETED.** A truncated run is indistinguishable from a failing one at a glance — it prints a `# fail` line, names a test, and exits non-zero. Check the shape of the run before reporting anything:
     - **`node -v` FIRST — before reading a single line of failure output.** The shell's nvm
-      default here is **16**; this repo requires **22**. On Node 16 the suite builds and then dies
-      with `require() of ES Module .../execa/index.js not supported` — a run that NEVER STARTED,
-      which also exits non-zero and looks exactly like a red suite. `export NVM_DIR="$HOME/.nvm";
-      . "$NVM_DIR/nvm.sh"; nvm use 22`. This is documented in LEARNINGS (2026-08-10) and was still
-      rediscovered the hard way on 2026-08-23 — a handoff claimed "testem cannot launch in this
-      environment", which is false. Also invoke the local binary (`./node_modules/.bin/ember`):
-      under Node 22 `npx ember` resolves to the placeholder `ember` package, not ember-cli.
+      default here is **16**; this repo requires **22** (`/.nvmrc`, `app/frontend/.nvmrc`,
+      `package.json` engines `>=22 <23`). A wrong-Node run can die during BUILD and still exit
+      non-zero with a `# fail` line, which looks exactly like a red suite. `export
+      NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22`. Documented in LEARNINGS
+      (2026-08-10) and rediscovered the hard way on 2026-08-23 — a handoff claimed "testem
+      cannot launch in this environment", which is false.
+      Two claims that used to live here were re-verified on 2026-08-30 and are NO LONGER TRUE;
+      do not reason from them. (a) The `require() of ES Module .../execa/index.js` symptom:
+      `execa` now resolves to **1.0.0, CJS** (no `type` field), so it cannot reproduce. (b) "`npx
+      ember` resolves to a placeholder `ember` package": `node_modules/ember` does not exist and
+      is absent from `package-lock.json`; `.bin/ember` points at `ember-cli/bin/ember`, and
+      `.github/workflows/ci.yml` itself runs `npx ember build` / `npx ember test`. Invoking
+      `./node_modules/.bin/ember` is still the safer habit, just not for that reason.
     - **You cannot attribute a failure without a BASELINE.** Re-run the full suite with your change
       reverted in the working tree. Identical pass/fail counts with DIFFERENT failing test names
-      means flaky, not a regression — this repo has a live async leak in `services/session.js`
-      (`token_validated` written after teardown) that charges a global failure to whichever test is
-      running. A real regression fails the SAME tests every time.
-    - **`ember test`: check `# skip` first.** The skip count is near-constant (38 as of 2026-08-16) while the total drifts as tests are added, which makes skips the reliable tell. A complete run reports `# tests 2005 / # skip 38`; a truncated one reports the same `# skip` line with a much smaller number (0, 14 and 26 were all seen in one session) and a total well short of the baseline. The usual cause is `Browser timeout exceeded: 120s` — testem's `browser_disconnect_timeout` reaping a headless browser that went SILENT under machine load, not a slow test. The tell is that the named test differs every run and passes in isolation (`npx ember test --filter "<name>"`).
+      means flaky, not a regression. A real regression fails the SAME tests every time.
+      (This rule used to name a live `token_validated` async leak in `services/session.js` as the
+      cause. That leak was FIXED — all three async writers are teardown-guarded at
+      `services/session.js:279`, `:364`, `:676`, and the comments there describe it in the past
+      tense. The flaky-vs-regression discipline stands; its named live cause does not.)
+    - **`ember test`: check `# skip` first.** The skip count is near-constant (38 as of 2026-08-16) while the total drifts as tests are added, which makes skips the reliable tell. A complete run reports `# skip 38` with a total that DRIFTS upward as tests are added (2005 on 2026-08-16; 2157 and 2327 in later recorded runs — reconcile against a recent run, not against this number); a truncated one reports the same `# skip` line with a much smaller number (0, 14 and 26 were all seen in one session) and a total well short of the baseline. The usual cause is `Browser timeout exceeded: 120s` — testem's `browser_disconnect_timeout` reaping a headless browser that went SILENT under machine load, not a slow test. The tell is that the named test differs every run and passes in isolation (`npx ember test --filter "<name>"`).
     - **Do not run a full suite while `ember serve` or browser probes are running.** That contention is the cause, and it wasted four runs in one session. Stop them, or accept the truncations.
-    - **Do not "fix" it by raising `browser_disconnect_timeout` in `testem.js`.** The 120s is deliberate (`.github/workflows/ci.yml:126-129` wants a wedged runner to fail fast rather than burn the Actions ceiling), and CI is not affected — the Ember step has failed 0 of the last 30 `ci.yml` runs. If you need a patient run locally, wrap the repo config in a temp file outside the repo and pass `--config-file`; never commit the change.
+    - **Do not "fix" it by raising `browser_disconnect_timeout` in `testem.js`.** The 120s is deliberate. Note what CI actually does, because an earlier version of this rule cited the wrong lines for it: `.github/workflows/ci.yml:124-129` is the **ESLint gate** (`run: npm run lint:js:ci`), while the fail-fast rationale lives at **`:141-147`** and justifies a 50-minute GitHub `timeout-minutes` STEP CAP — a different mechanism from testem's `browser_disconnect_timeout`. Treat "CI is unaffected" as UNVERIFIED unless you have just queried the Actions API; it is not checkable from the repo alone. If you need a patient run locally, wrap the repo config in a temp file outside the repo and pass `--config-file`; never commit the change.
     - Same discipline for any suite: reconcile the totals against a known-good baseline before claiming a delta. If you cannot say why the count moved, you do not yet know whether it passed.
 
 11. **Do not assert anything about a system you have not just checked — especially to justify a change.** Saying "CI hits this too", "this is covered by specs", "that path is unused", or "this is pre-existing" is a claim, and each one is cheap to verify: query the Actions API for real run outcomes, grep for the call site, diff the linter against `git show HEAD:<file>`. Inference from plausible reasoning is not evidence, and a wrong claim is worse when it is the argument FOR editing shared config or shipping a fix. If a check is impractical, say the claim is unverified rather than stating it flatly — and when a claim you already made turns out wrong, correct the durable artifacts (docs, learnings, PR body), not just the chat.
@@ -91,8 +99,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
       null for exactly the users it was written for; and twice as a proposed fix that was a strict
       no-op. Every one of them read correctly. None executed correctly.
     - **(b) What are ALL the shapes this can hold?** Enumerate the reachable states and name the
-      writer of each. `suggestions === null` missed `{ready: true, list: []}`, which three separate
-      call sites produce; the fix looked complete and covered one of two cases.
+      writer of each. `suggestions === null` missed `{ready: true, list: []}`, which FOUR call sites in
+      `board-detail.js` produce, plus a fifth in `controllers/board/index.js`; the fix looked
+      complete and covered one of two cases. Note the count: this rule used to say "three",
+      copying a code comment that was counting CAUSES rather than writers — in the very rule that
+      tells you to name the writer of each.
     - **(c) Is this claim about another file TRUE?** Rule 11 already says this; it was still
       violated repeatedly. "The sibling test uses the shared helper" (it uses an inline stub),
       "`updateSuggestions` observes `model.id`" (it does not), "that probe failure was an ember
