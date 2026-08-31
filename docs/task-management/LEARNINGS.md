@@ -412,6 +412,8 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Gotcha: Ember Data's `{reload: true}` NEVER reaches the network — the app's adapter is offline-first, use `persistence.force_reload`](#gotcha-ember-datas-reload-true-never-reaches-the-network--the-apps-adapter-is-offline-first-use-persistenceforce_reload)
 - [Gotcha: a 200 on the user PUT does not mean the home board was stored — the server discards invalid refs silently](#gotcha-a-200-on-the-user-put-does-not-mean-the-home-board-was-stored--the-server-discards-invalid-refs-silently)
 - [Gotcha: a translucent control RE-TINTS when its container's state changes — "it changes colour when I click it" is often the parent, not the button](#gotcha-a-translucent-control-re-tints-when-its-containers-state-changes--it-changes-colour-when-i-click-it-is-often-the-parent-not-the-button)
+- [Gotcha: a structural gate without negative fixtures is not a gate](#gotcha-a-structural-gate-without-negative-fixtures-is-not-a-gate)
+- [Gotcha: chmod +x does not reach the git index when core.fileMode is false](#gotcha-chmod-x-does-not-reach-the-git-index-when-corefilemode-is-false)
 
 ## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
 
@@ -15779,6 +15781,35 @@ gate and the local citation check. The linter allowlists `evidence.type` against
 `code|doc|runtime|attestation` before applying the blank-sha exemption, and treats a blank
 type the same as a missing one (derive `code` if a file is present). That strictness
 matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
+
+## Gotcha: a structural gate without negative fixtures is not a gate
+
+`register-lint.rb` is the only CI structural gate on findings rows. Running it against the
+committed registers proves those files are currently clean, not that any given rule still
+fires. Last week two defects (an abbreviated `evidence.sha`, then a blank sha still legal
+on `code`/`doc` rows) slipped through that gate and were caught by human review; the sha
+family got a harness in #873, and the remaining families (object-field shapes, enums,
+duplicate ids) had none until `scripts/tests/register-lint-shape-test.sh`. A test that
+stays green against a deliberately broken rule is worse than no test. Meta-test by copying
+the linter, disabling one family, and confirming the harness goes red (duplicate-id: 1
+fail; object-fields: 6; enums: 6) before calling coverage real.
+`scripts/regenerate-register.sh verify_all` must stay a superset of
+`audit-artifacts-integrity`; the sha harness was omitted from the wrapper when it
+landed in CI, so the wrapper could go green while CI still ran a step the wrapper
+did not.
+
+**First seen in:** [2026-08-31-register-lint-shape-harness.md](./2026-08-31-register-lint-shape-harness.md)
+
+## Gotcha: chmod +x does not reach the git index when core.fileMode is false
+
+CI invokes `scripts/tests/*.sh` harnesses with no interpreter prefix, so the git mode must
+be `100755`. `chmod +x` only changes the worktree; with `core.fileMode=false` (or a
+`chmod` after `git add` that the index ignores) the file ships as `100644` and the job
+fails with permission denied. After adding a new CI-invoked script, run
+`git update-index --chmod=+x path` and confirm `git ls-files -s path` starts with `100755`.
+Observed on the sha harness in #873 before this same fix.
+
+**First seen in:** [2026-08-31-register-lint-shape-harness.md](./2026-08-31-register-lint-shape-harness.md)
 
 ## Gotcha: Notion rich_text is 2000 chars per object, not per property
 
