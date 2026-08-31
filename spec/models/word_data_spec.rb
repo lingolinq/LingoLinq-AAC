@@ -852,9 +852,13 @@ RSpec.describe WordData, :type => :model do
       }.to_json))
       expect(Typhoeus).to receive(:get).with("https://workshop.openaac.org/api/v1/words/like%3Aen", {timeout: 10}).and_return(OpenStruct.new(body: {
       }.to_json))
+      # Freeze Time.now so generated/checked do not flake if a second ticks
+      # between the stamp and the assertion (CI: 18:43:26 vs 18:43:27).
+      frozen_now = Time.now
+      allow(Time).to receive(:now).and_return(frozen_now)
       res = WordData.update_activities_for(u.global_id, false)
       activities = u.reload.settings['target_words']['activities']
-      expect(activities['generated']).to eq(Time.now.iso8601)
+      expect(activities['generated']).to eq(frozen_now.iso8601)
       expect(activities['words']).to eq([{"word"=>"about", "locale"=>"en", "reasons"=>nil, 'score' => 0}, {"word"=>"want", "locale"=>"en", "reasons"=>["fallback"], 'score' => 0}])
       expect(activities['list'].sort_by{|h| [h['word'], h['type'], h['id']]}).to eq([
           {"id"=>"ai1", "description"=>"about it", "type"=>"activity_ideas", "word"=>"about", "locale"=>"en", "score"=>6.3}, 
@@ -871,8 +875,8 @@ RSpec.describe WordData, :type => :model do
           {"id"=>"v2", "type"=>"videos", "word"=>"want", "locale"=>"en", "score"=>3.333}, 
         ].sort_by{|h| [h['word'], h['type'], h['id']]})
       expect(res).to eq({
-        'checked' => Time.now.iso8601,
-        'generated' => Time.now.iso8601,
+        'checked' => frozen_now.iso8601,
+        'generated' => frozen_now.iso8601,
         'list' => [
           {"id"=>"lp1", "text"=>"about something", "type"=>"learning_projects", "word"=>"about", "locale"=>"en", "score"=>6.3, "user_ids"=>[u.global_id]}, 
           {"id"=>"ai1", "description"=>"about it", "type"=>"activity_ideas", "word"=>"about", "locale"=>"en", "score"=>6.3, "user_ids"=>[u.global_id]}, 
