@@ -63,12 +63,34 @@ findings = register['findings'] || []
 SEV  = { 'critical' => 'Critical', 'high' => 'High', 'medium' => 'Medium', 'low' => 'Low' }.freeze
 
 def closed_by(f)
+  # This column is named "Closed/decided by" and legitimately carries BOTH halves: who
+  # ATTESTED a closure, and who DECIDED a disposition on a row that is not closed. The
+  # two must be distinguishable, because they were not: on 2026-08-30 the retracted
+  # closure of LL-f150e0e828 (live COPPA High) still published "Scot Wahlquist
+  # 2026-08-30" here, because clearing closureEvidence.attestation left
+  # disposition.decidedBy to fall through and read as the closer.
+  #
+  # A `return '' unless status == 'verified-closed'` guard was tried and rejected: it
+  # blanks 41 rows that carry a legitimate decided-by (26 open+accepted, 5
+  # accepted-risk+accepted, 4 open+wontfix, 2 open+dismissed-false-positive, 2
+  # remediated-unverified+fixed, 1 remediated-unverified+accepted, 1
+  # superseded+dismissed-false-positive) while changing none of the 58 verified-closed
+  # rows. properties_for writes this property on every row every run, so that would
+  # OVERWRITE the record of who accepted each risk with empty -- a wider blast radius
+  # than the single mislabeled row it was meant to fix.
+  #
+  # Label the second half instead. Only a verified-closed row may render a bare
+  # "<name> <date>"; every other row is prefixed so it cannot be read as a closure.
+  # Paired with Status and an empty Closure SHA, the row now reads correctly.
+  closed = f['status'].to_s == 'verified-closed'
   att = (f['closureEvidence'] || {})['attestation'].to_s
-  if (m = att.match(/Scot Wahlquist \d{4}-\d{2}-\d{2}/))
+  if closed && (m = att.match(/Scot Wahlquist \d{4}-\d{2}-\d{2}/))
     m[0]
   else
     d = f['disposition'] || {}
-    d['decidedBy'].to_s.empty? ? '' : "#{d['decidedBy']} #{d['decidedDate']}".strip
+    return '' if d['decidedBy'].to_s.empty?
+
+    "decided (not a closure): #{d['decidedBy']} #{d['decidedDate']}".strip
   end
 end
 
