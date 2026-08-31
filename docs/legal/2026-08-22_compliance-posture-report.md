@@ -23,8 +23,8 @@
 
 ### Changes since the 2026-08-09 draft (predecessor attestation, 2026-08-20)
 
-- **Counts refreshed 2026-08-20; register counts updated 2026-08-30 and 2026-08-31 (see the note below the table).** Publisher convention at `64cdccba1` gives **0 Critical / ~~20~~ 13 High / ~~52~~ 63
-  Medium / ~~40~~ 44 Low** (~~112~~ **120** live as of 2026-08-31), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
+- **Counts refreshed 2026-08-20; register counts updated 2026-08-30 and 2026-08-31 (see the note below the table).** Publisher convention gave **0 Critical / 20 High / 52 Medium / 40 Low** (112 live) at
+  `64cdccba1`; at 2026-08-31 the register state is **0 / 13 / 63 / 44** (**120** live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
   Critical remains **0**, the gating metric. The High rise is almost entirely the 2026-08-12
   six-finder full audit run (privacy, infra, api, dependency, accessibility, code-hygiene), which
   added 9 new Highs in a single run (8 still open at `64cdccba1`) -- notably three GCP production-access/logging gaps

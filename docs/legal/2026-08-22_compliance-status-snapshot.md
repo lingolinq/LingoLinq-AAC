@@ -154,14 +154,14 @@ constrain direct AWS API use, added by PR #886).
 | LL-0b5443f43b | open | SOC2, HIPAA | 8 | Production Cloud Run service has public ingress, bypassing Cloud Armor (2026-08-12 run) |
 
 ~~Eight Highs are past the 15-30 day advisory SLA (LL-7f7372e3eb, LL-a95e9c5f7c, LL-705b10bcd7,
-LL-90045bb29c, LL-f150e0e828, LL-854b1d3853, LL-53cb93fab1, LL-104bfa61dc).~~ **As of 2026-08-30, six of those remain past SLA: LL-a95e9c5f7c, LL-705b10bcd7, LL-90045bb29c, LL-f150e0e828, LL-53cb93fab1, LL-104bfa61dc. LL-7f7372e3eb and LL-854b1d3853 are verified-closed.** The nine findings
+LL-90045bb29c, LL-f150e0e828, LL-854b1d3853, LL-53cb93fab1, LL-104bfa61dc).~~ **As of 2026-08-30, six of those remain past SLA: LL-a95e9c5f7c, LL-705b10bcd7, LL-90045bb29c, LL-f150e0e828, LL-53cb93fab1, LL-104bfa61dc. LL-7f7372e3eb and LL-854b1d3853 are verified-closed.** *(Scoped to the original eight; LL-a9d6d5a46b crossed 30 days on 2026-08-21 and is counted in the seven-past-SLA figure in the roadmap below.)* The nine findings
 from the 2026-08-12 run are ~~all still within SLA (8 days old)~~ **18 days old as of 2026-08-30, i.e. past the 15-day floor of the High SLA band stated above**.
 
 ---
 
 ## 3. Current posture by framework
 
-Live = `open` + `remediated-unverified` at `64cdccba1`. A finding can map to more than one framework, so
+Live = `open` + `remediated-unverified`. Struck values are the `64cdccba1` pin; current values are the 2026-08-31 register state. A finding can map to more than one framework, so
 rows do not sum to ~~112~~ **120 (2026-08-31)**. Nineteen live findings carry no framework tag
 (engineering / API-contract / dependency items; ~~one High, LL-7d50b089c9~~ **as of 2026-08-31 none
 is a High: LL-7d50b089c9 and LL-1e7b568ef3 were downgraded to Medium, and all 13 live Highs carry
@@ -223,7 +223,7 @@ customer-facing doc.
    (pre-scrubber utterance cache), and the new 2026-08-12 GCP production-access/logging Highs
    (LL-1e7b568ef3, LL-b7ccc522b9, LL-c0b3d59f58, LL-0b5443f43b).
    *Done 2026-08-29:* LL-522c1a6d13, LL-16ef84ad9a, LL-b7ccc522b9 and LL-c0b3d59f58 are
-   verified-closed; LL-1e7b568ef3 and LL-0b5443f43b were re-verified and remain open at High.
+   verified-closed; LL-0b5443f43b was re-verified and remains open at High; LL-1e7b568ef3 was re-verified and downgraded to Medium at the PR #892 merge (2026-08-30).
 6. ~~**Approve re-anchor of LL-7f7372e3eb**~~ *Resolved 2026-08-29: verified-closed, not
    re-anchored.* The premise of this item is obsolete. The Reline / AuditEvent gap no longer
    exists: the Readline monkeypatch was replaced by line-editor-agnostic Rails `console`/`runner`
