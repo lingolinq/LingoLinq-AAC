@@ -3222,7 +3222,7 @@
     },
     {
       "title": "LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft)",
-      "description": "Draft successor to attested COMPLIANCE_PROGRAM_OVERVIEW.md. Began as an update to the data-lifecycle / voice-recording erasure claims to match Flusher.flush_user_content at HEAD (PR #721); later revisions corrected the runtime AI operational-status claim, and the 2026-08-29 revision narrowed that correction to what vendor telemetry supports and moved per-event forensic detail to FINDINGS.json. Not authorized for external release until attested.",
+      "description": "Draft successor to attested COMPLIANCE_PROGRAM_OVERVIEW.md. Began as an update to the data-lifecycle / voice-recording erasure claims to match Flusher.flush_user_content at HEAD (PR #721); later revisions corrected the runtime AI operational-status claim, and the 2026-08-29 and 2026-08-30 revisions narrowed that correction to what vendor telemetry supports, bounded the invocation-logging observation, and corrected an over-broad start-date disclaimer and an incorrect claim that the eval-narration seam had always been model-gated. Not authorized for external release until attested.",
       "type": "legal",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -3235,10 +3235,10 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-08-29",
+      "lastReviewed": "2026-08-30",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "e8c1cf5c27d2c17a8ad010373cbee701589fab21baf8b7b77003097ca886df34",
+      "contentHash": "87be31f25f11a3f67b0010302169bc4ce27492a4d9905ba132d7dc7a3acd09ef",
       "bundles": [
         "security-review"
       ],
