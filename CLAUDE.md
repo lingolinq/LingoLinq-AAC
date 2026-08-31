@@ -39,10 +39,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     - **You cannot attribute a failure without a BASELINE.** Re-run the full suite with your change
       reverted in the working tree. Identical pass/fail counts with DIFFERENT failing test names
       means flaky, not a regression. A real regression fails the SAME tests every time.
-      (This rule used to name a live `token_validated` async leak in `services/session.js` as the
-      cause. That leak was FIXED — all three async writers are teardown-guarded at
-      `services/session.js:279`, `:364`, `:676`, and the comments there describe it in the past
-      tense. The flaky-vs-regression discipline stands; its named live cause does not.)
+      **The live cause as of 2026-08-31 is `capabilities.sync_access_token`**, which calls
+      `localStorage.getItem` from an async callback. When that callback lands after another test
+      has torn down its `localStorage` stub it throws `TypeError: localStorage.getItem is not a
+      function`, and QUnit charges the resulting GLOBAL FAILURE to whichever test happens to be
+      running — most recently `Unit | Component | boards-layout-toggle: rapid toggling serializes
+      saves instead of racing them`, which is not related to it in any way. Evidence: two
+      back-to-back full runs on the same tree, both complete (`# tests 2412 / # skip 38`), one
+      with that failure and one with none, and the named test passing 20/20 in isolation.
+      (This rule previously named a `token_validated` leak in `services/session.js`. That one was
+      FIXED — all three async writers are teardown-guarded at `services/session.js:279`, `:364`,
+      `:676`. The discipline outlived its original example, which is the point of dating the
+      example rather than trusting it.)
     - **`ember test`: check `# skip` first.** The skip count is near-constant (38 as of 2026-08-16) while the total drifts as tests are added, which makes skips the reliable tell. A complete run reports `# skip 38` with a total that DRIFTS upward as tests are added (2005 on 2026-08-16; 2157 and 2327 in later recorded runs — reconcile against a recent run, not against this number); a truncated one reports the same `# skip` line with a much smaller number (0, 14 and 26 were all seen in one session) and a total well short of the baseline. The usual cause is `Browser timeout exceeded: 120s` — testem's `browser_disconnect_timeout` reaping a headless browser that went SILENT under machine load, not a slow test. The tell is that the named test differs every run and passes in isolation (`npx ember test --filter "<name>"`).
     - **Do not run a full suite while `ember serve` or browser probes are running.** That contention is the cause, and it wasted four runs in one session. Stop them, or accept the truncations.
     - **Do not "fix" it by raising `browser_disconnect_timeout` in `testem.js`.** The 120s is deliberate. Note what CI actually does, because an earlier version of this rule cited the wrong lines for it: `.github/workflows/ci.yml:124-129` is the **ESLint gate** (`run: npm run lint:js:ci`), while the fail-fast rationale lives at **`:141-147`** and justifies a 50-minute GitHub `timeout-minutes` STEP CAP — a different mechanism from testem's `browser_disconnect_timeout`. Treat "CI is unaffected" as UNVERIFIED unless you have just queried the Actions API; it is not checkable from the repo alone. If you need a patient run locally, wrap the repo config in a temp file outside the repo and pass `--config-file`; never commit the change.
