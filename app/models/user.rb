@@ -26,7 +26,7 @@ class User < ApplicationRecord
   # Keep in sync with the "Last Updated" date in the Privacy Policy
   # (app/frontend/app/templates/privacy.hbs). Bump when a material change
   # requires users to re-consent.
-  PRIVACY_POLICY_VERSION = '2026-07-09'
+  PRIVACY_POLICY_VERSION = '2026-08-30'
 
   def current_sponsor
     Organization.find_by(id: self.managing_organization_id)
