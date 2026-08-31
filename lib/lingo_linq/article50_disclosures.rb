@@ -50,9 +50,15 @@ module LingoLinq
   #    this file so a mechanical grep for those names on this file stays
   #    meaningful as a truthfulness gate.
   # 2. Retention is stated as a TIERED rule, never a flat number: 24 months
-  #    general / 12 rolling months for children's accounts, both overridden
-  #    UPWARD to up to 5 years for EU-jurisdiction records and up to 6 years
-  #    under the HIPAA audit-record hard floor (45 CFR 164.316(b)(2)).
+  #    general / 12 rolling months for children's accounts (both decided but
+  #    NOT yet in effect), both overridden UPWARD to up to 5 years for
+  #    EU-jurisdiction records and up to 6 years for healthcare-linked
+  #    accounts. Two earlier bases were RETRACTED 2026-08-30 (#888) and must
+  #    not be reasserted: EU AI Act Article 50 is a transparency rule and
+  #    imposes no record-keeping period, and 45 CFR 164.316(b)(2) governs a
+  #    covered entity's written policies and procedures, not AI request logs,
+  #    so it is not a retention "hard floor". Both windows are under counsel
+  #    review.
   # 3. Vendor-side retention (what Anthropic keeps) is a separate fact, under
   #    a separate key ('vendor_side'), from LingoLinq's own AiApiLog retention
   #    (the 'lingolinq_*' keys). The two are never merged into one sentence.
@@ -154,29 +160,36 @@ module LingoLinq
             'guarantee for this path.',
           'lingolinq_general' => {
             'window_months' => 24,
-            'note' => "LingoLinq's own record of an AI request (kept in AiApiLog for auditing) is kept for " \
-              '24 months for accounts outside the EU jurisdiction that are not flagged as belonging to a child ' \
-              'under 13. The EU and HIPAA floors below override this window upward when they apply, so this is ' \
-              'not a flat 24-month rule for every account.'
+            'note' => "LingoLinq's own record of an AI request (kept in AiApiLog for auditing) has a decided " \
+              'window of 24 months for accounts outside the EU jurisdiction that are not flagged as belonging ' \
+              'to a child under 13. This window is NOT yet in effect: today these records are removed when the ' \
+              'account is deleted, and not before. The EU and healthcare windows below override this window ' \
+              'upward when they apply, so this is not a flat 24-month rule for every account.'
           },
           'lingolinq_children' => {
             'window_months' => 12,
             'rolling' => true,
-            'note' => "LingoLinq's own record of an AI request is kept for a rolling 12 months, independent of " \
-              'whether the account stays open or closed, for accounts flagged as belonging to a child under 13. ' \
-              'The EU and HIPAA floors below override this window upward when they apply.'
+            'note' => "LingoLinq's own record of an AI request has a decided window of a rolling 12 months, " \
+              'independent of whether the account stays open or closed, for accounts flagged as belonging to a ' \
+              'child under 13. This window is NOT yet in effect: today these records are removed when the ' \
+              'account is deleted, and not before. The EU and healthcare windows below override this window ' \
+              'upward when they apply.'
           },
           'lingolinq_eu' => {
             'window_years' => 5,
             'note' => "LingoLinq's own record of an AI request is kept for up to 5 years for accounts in the " \
-              'EU jurisdiction, as part of the record-keeping this Article 50 disclosure itself describes.'
+              'EU jurisdiction. A purge at 5 years is scheduled and running, but no record is yet old enough ' \
+              'for it to have removed anything. An earlier revision of this entry gave EU AI Act Article 50 ' \
+              'as the basis for this window; that was wrong, because Article 50 is a transparency rule and ' \
+              'imposes no record-keeping period. The basis for this window is under review with counsel.'
           },
           'lingolinq_hipaa_floor' => {
             'window_years' => 6,
-            'note' => "LingoLinq's own record of an AI request is kept for up to 6 years, as a hard floor, " \
-              'for accounts subject to the HIPAA audit-record retention requirement (45 CFR 164.316(b)(2)). ' \
-              'This hard floor overrides the general and children windows above upward whenever it applies; ' \
-              'it is never shortened by them.'
+            'note' => "LingoLinq's own record of an AI request is kept for up to 6 years for accounts linked " \
+              'to a healthcare provider. An earlier revision described this as a hard floor required by ' \
+              '45 CFR 164.316(b)(2); that rule requires a covered entity to keep its own written policies and ' \
+              'procedures for six years, and is not a rule about how long AI request records must be kept. ' \
+              'This window is under review with counsel and may get shorter.'
           },
           'ip_address' => {
             'window_days' => 90,

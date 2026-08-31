@@ -53,6 +53,8 @@ file (see [README.md](README.md)).
 - [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
 - [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
 - [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
+- [Gotcha: `'self'` in a `/users/:id` URL is a username lookup, not the session user](#gotcha-self-in-a-usersid-url-is-a-username-lookup-not-the-session-user)
+- [Gotcha: `appState.feature_flags` follows `currentUser`, not the authenticated subject](#gotcha-appstatefeature_flags-follows-currentuser-not-the-authenticated-subject)
 - [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
 - [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
 - [Gotcha: Notion rich_text is 2000 chars per object, not per property](#gotcha-notion-rich_text-is-2000-chars-per-object-not-per-property)
@@ -62,6 +64,7 @@ file (see [README.md](README.md)).
 - [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
 - [Gotcha: the metadata table is not the signed attestation — write the statement, then pin](#gotcha-the-metadata-table-is-not-the-signed-attestation--write-the-statement-then-pin)
 - [Gotcha: a Path A correction must convert leftover present-tense operational bullets, not only the headline claim](#gotcha-a-path-a-correction-must-convert-leftover-present-tense-operational-bullets-not-only-the-headline-claim)
+- [Gotcha: do not claim a finding is tracked until the register row exists](#gotcha-do-not-claim-a-finding-is-tracked-until-the-register-row-exists)
 - [Gotcha: a SHA-pinned citation must use the line numbers at that SHA, not HEAD](#gotcha-a-sha-pinned-citation-must-use-the-line-numbers-at-that-sha-not-head)
 - [Gotcha: flag-enabled is not proof the disclosure modal was shown](#gotcha-flag-enabled-is-not-proof-the-disclosure-modal-was-shown)
 - [Gotcha: appending a ledger correction leaves the heading stale](#gotcha-appending-a-ledger-correction-leaves-the-heading-stale)
@@ -415,6 +418,8 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Gotcha: Ember Data's `{reload: true}` NEVER reaches the network — the app's adapter is offline-first, use `persistence.force_reload`](#gotcha-ember-datas-reload-true-never-reaches-the-network--the-apps-adapter-is-offline-first-use-persistenceforce_reload)
 - [Gotcha: a 200 on the user PUT does not mean the home board was stored — the server discards invalid refs silently](#gotcha-a-200-on-the-user-put-does-not-mean-the-home-board-was-stored--the-server-discards-invalid-refs-silently)
 - [Gotcha: a translucent control RE-TINTS when its container's state changes — "it changes colour when I click it" is often the parent, not the button](#gotcha-a-translucent-control-re-tints-when-its-containers-state-changes--it-changes-colour-when-i-click-it-is-often-the-parent-not-the-button)
+- [Gotcha: a structural gate without negative fixtures is not a gate](#gotcha-a-structural-gate-without-negative-fixtures-is-not-a-gate)
+- [Gotcha: chmod +x does not reach the git index when core.fileMode is false](#gotcha-chmod-x-does-not-reach-the-git-index-when-corefilemode-is-false)
 
 ## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
 
@@ -12143,6 +12148,29 @@ drop the `'self'` sentinel, fail closed.
 A test that stubs `{ id: '1_24' }` will not catch this. Stub `{ id: 'self',
 global_id: '1_24' }` — that is the network load path.
 
+## Gotcha: `'self'` in a `/users/:id` URL is a username lookup, not the session user (2026-08-29)
+
+The same `'self'` window that breaks authorship comparisons also breaks
+`User.find_by_path`. For `User`, a path that does not start with a digit is
+`find_by(:user_name => path.downcase)` (`global_id.rb`). POSTing
+`/api/v1/users/self/article_50_disclosure_ack` therefore looks up a username
+`self` and 404s. Use `art50UserId` / `user.global_id` (then `_actual_id`, then
+`.id`, drop `'self'`) for any user-path URL. Evidence:
+`app/frontend/app/utils/article50_gate.js` `art50UserId`;
+`app/frontend/app/components/ai-disclosure.js` `acknowledge`.
+
+## Gotcha: `appState.feature_flags` follows `currentUser`, not the authenticated subject (2026-08-29)
+
+`services/app-state.js#feature_flags` is computed from
+`currentUser.feature_flags`. In speak mode `currentUser` is the communicator.
+Org `enabled_features` overrides are per-account, and the server evaluates
+`frontend_flags_for(@api_user)`. Pairing the communicator's flag with the
+supporter's acknowledgement fields can skip a modal the server will 403, or
+show one the server will not enforce. Article 50 predicates must read
+`art50Subject(...).feature_flags.article_50_disclosure`. Leave
+`ai_feature_gate.js` on `currentUser` — that is the data-subject question.
+Task log: `2026-08-29_art50-codex-followup.md`.
+
 ## Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if` (2026-08-18)
 
 `supervisor_relationships_controller.rb` had `channel` / `actor_id` at 4 spaces
@@ -12541,6 +12569,12 @@ a shared `decline_thanks_body` that mentions export will lie to signup parents.
 When Copilot flags the emails, grep `prepare an export` across mailers *and*
 `app/views/parental_consents/`. Ref:
 [`2026-08-17-copilot-coppa-review-comments.md`](./2026-08-17-copilot-coppa-review-comments.md).
+
+## Gotcha: COPPA offboarding is flag-gated, not just the birth-date check
+
+**Surface:** `User#requires_coppa_offboarding?`, `User.process_expired_offboarding_consents!`, `Organization#remove_user`.
+
+`JsonApi::Json.coppa_parental_consent_enabled?` is a domain settings row (DB override, not `lib/feature_flags.rb`). It does more than require birth month/year on seat reclaim. When the flag is off, `requires_coppa_offboarding?` returns false at `user.rb:514`, so `begin_family_offboarding_consents!` never stamps COPPA pending, and the expiry sweep returns 0 at `user.rb:878`. `Organization#remove_user` still reclaims the seat. The original LL-f150e0e828 gap (minor converted to a consumer trial with no parental re-consent) therefore still occurs if production has the setting disabled. Do not write "the flow is fixed regardless of the flag" or move that row to `verified-closed` until the live production setting is read as enabled. **CORRECTED 2026-08-30, twice over. (a) The flag read is NECESSARY BUT NOT SUFFICIENT.** Following this lesson exactly still produced a wrongful `verified-closed`: the live flag was read as enabled, the row was closed, and the closure was false because the REMEDIATION IS NOT DEPLOYED. `a0b9df3ec` is not an ancestor of `origin/main`, and `origin/main` is the tag production serves, so 27 files of fix (including `app/workers/offboarding_coppa_expiration_worker.rb`, `config/routes.rb`, `lib/tasks/scheduler.rake` and the consent mailer set) are unreleased. Add the deployment precondition: before closing ANY row on production behaviour, assert `git merge-base --is-ancestor <fix-sha> origin/main` AND that a revision running that image is serving. **(b) The "domain settings row (DB override)" claim above is WRONG.** `coppa_parental_consent_enabled?` reads `current_domain['settings']['coppa_parental_consent']`, which for the default domain resolves purely from `ENV['COPPA_PARENTAL_CONSENT']` via `coppa_parental_consent_from_env?` (`lib/json_api/json.rb:202-207`, defaulting TRUE unless explicitly 0/false/no/off). `SystemAppDefaults` cannot reach the key: `EDITABLE_FIELDS` is five fields and the merge is `.slice()`d to them. The only DB path is a per-org custom domain, and production has zero. Ref: Codex review of PR #887; task log [`2026-08-30-high-findings-triage-staging-merge.md`](./2026-08-30-high-findings-triage-staging-merge.md).
 
 ## Gotcha: staging → audit-register merge is a union, then regenerate
 
@@ -15867,6 +15901,34 @@ cause 2 on its first run, after cause 1 had already been "fixed" and eyeballed a
 `2026-08-28-prediction-rail-alignment-and-width-stability.md`.
 
 ---
+## Gotcha: a structural gate without negative fixtures is not a gate
+
+`register-lint.rb` is the only CI structural gate on findings rows. Running it against the
+committed registers proves those files are currently clean, not that any given rule still
+fires. Last week two defects (an abbreviated `evidence.sha`, then a blank sha still legal
+on `code`/`doc` rows) slipped through that gate and were caught by human review; the sha
+family got a harness in #873, and the remaining families (object-field shapes, enums,
+duplicate ids) had none until `scripts/tests/register-lint-shape-test.sh`. A test that
+stays green against a deliberately broken rule is worse than no test. Meta-test by copying
+the linter, disabling one family, and confirming the harness goes red (duplicate-id: 1
+fail; object-fields: 6; enums: 6) before calling coverage real.
+`scripts/regenerate-register.sh verify_all` must stay a superset of
+`audit-artifacts-integrity`; the sha harness was omitted from the wrapper when it
+landed in CI, so the wrapper could go green while CI still ran a step the wrapper
+did not.
+
+**First seen in:** [2026-08-31-register-lint-shape-harness.md](./2026-08-31-register-lint-shape-harness.md)
+
+## Gotcha: chmod +x does not reach the git index when core.fileMode is false
+
+CI invokes `scripts/tests/*.sh` harnesses with no interpreter prefix, so the git mode must
+be `100755`. `chmod +x` only changes the worktree; with `core.fileMode=false` (or a
+`chmod` after `git add` that the index ignores) the file ships as `100644` and the job
+fails with permission denied. After adding a new CI-invoked script, run
+`git update-index --chmod=+x path` and confirm `git ls-files -s path` starts with `100755`.
+Observed on the sha harness in #873 before this same fix.
+
+**First seen in:** [2026-08-31-register-lint-shape-harness.md](./2026-08-31-register-lint-shape-harness.md)
 
 ## Gotcha: Notion rich_text is 2000 chars per object, not per property
 
@@ -16109,4 +16171,15 @@ evidence against that fix; it is a bug in the test.
 **Related, from the same session:** replacing a RANGE in a test file deleted three tests that had
 been inserted between the two anchors. The count drop (24 → 21) was the only signal. Print what is
 inside a range before replacing it, and prefer insertion at a single anchor (CLAUDE.md rule 14.4).
+## Gotcha: do not claim a finding is tracked until the register row exists
 
+Moving forensic detail out of an externally shareable overview is correct, but pointing at
+`audit-reports/FINDINGS.json` is a claim. Grep the register for the issue (not just nearby
+Bedrock rows) before writing "the finding is tracked." If the row does not exist, file it first
+via `promote-finding.rb` (Critical/High, code/path evidence, no source addresses) and cite the
+id; do not leave a pointer to a missing row after deleting the prose that used to carry the
+detail. Same class of error: a Section 2 "everything is live unless marked not operational"
+page that drops the only "not operational" mark for a seam (`EvalNarrator` Opus default vs
+classic-plane Haiku-only `CLASSIC_PROFILE_IDS`) re-asserts that the seam works.
+
+**First seen in:** [2026-08-30-pr886-review-comments.md](./2026-08-30-pr886-review-comments.md)

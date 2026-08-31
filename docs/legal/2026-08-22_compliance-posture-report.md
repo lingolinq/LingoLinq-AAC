@@ -23,8 +23,8 @@
 
 ### Changes since the 2026-08-09 draft (predecessor attestation, 2026-08-20)
 
-- **Counts refreshed 2026-08-20.** Publisher convention at `64cdccba1` gives **0 Critical / 20 High / 52
-  Medium / 40 Low** (112 live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
+- **Counts refreshed 2026-08-20; register counts updated 2026-08-30 and 2026-08-31 (see the note below the table).** Publisher convention gave **0 Critical / 20 High / 52 Medium / 40 Low** (112 live) at
+  `64cdccba1`; at 2026-08-31 the register state is **0 / 13 / 63 / 44** (**120** live), against 0 / 12 / 30 / 25 (67) at the 2026-08-09 draft. Open
   Critical remains **0**, the gating metric. The High rise is almost entirely the 2026-08-12
   six-finder full audit run (privacy, infra, api, dependency, accessibility, code-hygiene), which
   added 9 new Highs in a single run (8 still open at `64cdccba1`) -- notably three GCP production-access/logging gaps
@@ -91,10 +91,13 @@
 
 ## Corrections in this successor
 
-This successor exists only to correct defects carried by its predecessor. Every count, finding
-id and framework figure is otherwise unchanged, and the snapshot boundary is still `64cdccba1` --
-these corrections do not move the derivation to a later commit. The one substantive claim that
-IS corrected is the Article 50(1) enablement claim; see row 6 below.
+This successor exists only to correct defects carried by its predecessor. At the 2026-08-22
+supersession every count, finding id and framework figure was otherwise unchanged, and the
+snapshot boundary was still `64cdccba1` -- these corrections do not move the derivation to a
+later commit. (Dated count-refresh notes added since, stamped 2026-08-30 and 2026-08-31, update
+the register-derived figures in place; they post-date and are separate from the corrections in
+the table below.) The one substantive claim that IS corrected
+is the Article 50(1) enablement claim; see row 6 below.
 
 | # | Defect in `2026-08-20_compliance-posture-report.md` | Correction | Why it was wrong |
 |---|---|---|---|
@@ -116,11 +119,18 @@ predecessor chain, not regressions introduced by #838 or #845.
 | Metric | Count |
 |---|---|
 | **Live Critical findings** | **0** |
-| **Live High findings** | **20** |
-| Live Medium / Low | 52 / 40 |
-| Verified closed (Scot attested) | 51 |
+| **Live High findings** | ~~**20**~~ **13** (2026-08-31) |
+| Live Medium / Low | ~~52 / 40~~ **63 / 44** (2026-08-31) |
+| Verified closed (Scot attested) | ~~51~~ **58** (2026-08-31) |
 | Accepted risk | 5 |
-| Superseded | 2 |
+| Superseded | ~~2~~ **3** (2026-08-31) |
+
+> Figures marked (2026-08-31) are re-derived from `audit-reports/FINDINGS.json` at that date's
+> register state; struck-through figures are the 2026-08-20 derivation at `64cdccba1`. What
+> moved: the 2026-08-29 CEO triage (PR #887) closed seven Highs and downgraded one; PR #892
+> ratified a second High downgrade (LL-1e7b568ef3); the same window added findings at High,
+> Medium and Low, including LL-51da4fca1d (PR #893) and LL-ac1d12bf3f (2026-08-31 retro
+> review). 13 + 63 + 44 = 120 live.
 
 The headline counts `open` plus `remediated-unverified` findings by severity (the publisher
 convention, modernization decision 5.9.2), not a synthetic readiness score. Zero open Critical
@@ -153,18 +163,26 @@ The practices behind these numbers:
 Live-finding distribution across regulatory frameworks (a single finding can map to more than
 one framework):
 
+Counts struck through are 2026-08-20; the figure after each is recomputed 2026-08-31 from
+`audit-reports/FINDINGS.json` (live = `open` + `remediated-unverified`). Context text still
+describes the 2026-08-20 composition. Of the 2026-08-20 Highs, seven are now verified-closed
+(2026-08-29, PR #887) and two were downgraded to Medium (LL-7d50b089c9 at PR #887;
+LL-1e7b568ef3 at PR #892, 2026-08-30); two Highs have been added since. **LL-f150e0e828 (COPPA
+seat reclaim) is NOT closed**: a 2026-08-30 closure was retracted the same day because the fix
+is not deployed to production, so it remains live and is counted in the 13.
+
 | Framework | Live | Live High | Context |
 |---|---:|---:|---|
-| FERPA (US schools) | 36 | 11 | Student data isolation, access scoping, audit trail, share-token and deletion residuals. |
-| HIPAA (US hospitals) | 27 | 10 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
-| GDPR (EU clients) | 22 | 6 | Data residency, subprocessor posture, deletion and export paths, EU AI Act Article 50 transparency. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
-| COPPA (under-13 users) | 10 | 4 | Amended Rule enforceable since 2026-04-22. Open Highs include seat-reclaim consent (LL-f150e0e828), hard-delete media (LL-854b1d3853), and two new from the 2026-08-12 run (unscrubbed context.topic to Bedrock LL-8908c7ac6f; PredictionEntry survives account deletion LL-e8614c103f). |
-| WCAG (accessibility) | 19 | 2 | Standing domain for an AAC tool. Open High: terms-agree switch scanning (LL-104bfa61dc). Article 50 disclosure contrast (LL-a9d6d5a46b) is remediated-unverified (fix landed via #694, closure evidence recorded 2026-08-19; awaiting Scot's verified-closed attestation), still counted as a High in the publisher convention. |
-| SOC 2 (in progress) | 43 | 9 | Control-evidence and audit-system hardening (worker memory, S3 KMS writes, audited console). 2026-08-12 run added several GCP production-access/logging Highs (WIF ref-lock, no Data Access audit logging, project-wide admin on a human principal, public Cloud Run ingress). |
+| FERPA (US schools) | ~~36~~ 32 | ~~11~~ 5 | Student data isolation, access scoping, audit trail, share-token and deletion residuals. |
+| HIPAA (US hospitals) | ~~27~~ 27 | ~~10~~ 5 | PHI handling, minimum necessary, BAA coverage. AWS BAA on file (2026-02); GCP HIPAA BAA accepted (project `lingolinq-prod` 2026-07-12; org-wide 2026-06-08). |
+| GDPR (EU clients) | ~~22~~ 30 | ~~6~~ 3 | Data residency, subprocessor posture, deletion and export paths, EU AI Act Article 50 transparency. GCP SCCs certified (2026-07-14, project `lingolinq-prod`). |
+| COPPA (under-13 users) | ~~10~~ 11 | ~~4~~ 2 | Amended Rule enforceable since 2026-04-22. Live Highs: seat-reclaim consent (LL-f150e0e828) and PredictionEntry survives account deletion (LL-e8614c103f); hard-delete media (LL-854b1d3853) and unscrubbed context.topic to Bedrock (LL-8908c7ac6f) verified-closed 2026-08-29. Dead PRIVACY_POLICY_VERSION re-consent mechanism filed 2026-08-31 as Medium LL-ac1d12bf3f. |
+| WCAG (accessibility) | ~~19~~ 19 | ~~2~~ 2 | Standing domain for an AAC tool. Open High: terms-agree switch scanning (LL-104bfa61dc). Article 50 disclosure contrast (LL-a9d6d5a46b) is remediated-unverified (fix landed via #694, closure evidence recorded 2026-08-19; awaiting Scot's verified-closed attestation), still counted as a High in the publisher convention. |
+| SOC 2 (in progress) | ~~43~~ 45 | ~~9~~ 7 | Control-evidence and audit-system hardening (worker memory, S3 KMS writes, audited console). 2026-08-12 run added several GCP production-access/logging Highs (WIF ref-lock, no Data Access audit logging, project-wide admin on a human principal, public Cloud Run ingress); of those, only public ingress (LL-0b5443f43b) is still a live High as of 2026-08-31. |
 
-A single finding can map to more than one framework, so these rows do not sum to the 112 live total
-(open + remediated-unverified). 19 of those findings carry no framework tag (engineering-quality and
-API-contract items).
+A single finding can map to more than one framework, so these rows do not sum to the ~~112~~
+**120 (2026-08-31)** live total (open + remediated-unverified). 19 of those findings carry no
+framework tag (engineering-quality and API-contract items).
 
 ### Active product controls (evidence in code)
 
@@ -179,7 +197,7 @@ These are implemented and operating, not aspirational:
   events tied to child users before they reach the error tracker.
 - **Console auditing** (`AuditEvent`) and **AI call logging** (`AiApiLog`): privileged access
   and external model calls are recorded with audit trails. The audited-console wrapper residual
-  (LL-7f7372e3eb) remains open for per-session AuditEvent coverage.
+  (LL-7f7372e3eb) ~~remains open for per-session AuditEvent coverage~~ is verified-closed 2026-08-29. **[Updated 2026-08-30: LL-7f7372e3eb is verified-closed. The control IS operative: bin/rails runs a pre-boot refusal and config/initializers/auditing.rb writes a session-open AuditEvent fail-closed. Scope caveat: this covers `rails console` and `rails runner` only, not rake tasks or a direct `ruby -r./config/environment` boot. Residual: USER_KEY is self-asserted, so the actor is spoofable.]**
 - **Eval-narration AI gating** (`lib/eval_narrator.rb`, `app/controllers/api/eval_sessions_controller.rb`):
   the comprehensive assessment narrator is held to the same controls as the rest of the AI
   surface. Student PII is scrubbed before egress, every call is recorded in `AiApiLog`, a COPPA

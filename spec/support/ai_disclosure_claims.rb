@@ -32,6 +32,15 @@ module AiDisclosureClaims
   # copy drift, not a proof of truthfulness -- compliance-relevant wording still
   # needs human review. It is tuned to avoid false ALARMS, because a guard that
   # cries wolf on accurate disclaimers gets deleted, and then catches nothing.
+  #
+  # Because of that limit, a BANNED_CLAIMS row may opt out of the window with
+  # `no_negation: true`. The two retracted-claim rows below do, deliberately:
+  # their retraction sentences legitimately sit right next to where a
+  # re-assertion would land and contain "no"/"not" ("imposes no record-keeping
+  # period", "no impone ningun periodo"), so the window would suppress exactly
+  # the violation those rows exist to catch. An exempt row must instead carve
+  # the honest retraction wording out of its own pattern (see the lookaheads
+  # and the "(?!no impone)" guard in those rows).
   NEGATION_WINDOW = 60
 
   # [human description, pattern that must not be ASSERTED]
@@ -41,7 +50,40 @@ module AiDisclosureClaims
     ['guarantees zero data retention', /zero[- ]data[- ]retention guarantee/i],
     ['claims the vendor discards data after answering', /(?:does not retain it|does not keep the information) (?:beyond|after) answering/i],
     ['advertises Claude Opus 4.7 as in use', /Claude Opus 4\.7/i],
-    ['claims a Google Gemini fallback (disabled 2026-07-09)', /Gemini/i]
+    ['claims a Google Gemini fallback (disabled 2026-07-09)', /Gemini/i],
+    # The two retention bases RETRACTED 2026-08-30 (#888): the corrected copy may
+    # still QUOTE each one in order to retract it ("previously presented that
+    # window as record-keeping required by the EU AI Act", "described this as a
+    # hard floor required by 45 CFR ..."), so each pattern carves the retraction
+    # wording out of itself. English and Spanish forms both, because
+    # config/locales/es.yml served both claims after en.yml was corrected.
+    #
+    # Both rows are `no_negation: true` (see the NEGATION_WINDOW comment): the
+    # adjacent retraction sentences contain "no"/"not", and the window was shown
+    # to suppress a restored "This is a hard floor." sitting right after them.
+    #
+    # KNOWN LIMIT of the Spanish coverage, extending the English-only caveat
+    # below: the Spanish alternatives are concept-level and diacritic-tolerant
+    # ([íi], [óo]), not byte-pinned to the 2026-08-30 wording. They catch, with
+    # or without accents:
+    #   - "como parte de(l/ la) mantenimiento/conservacion de registros"
+    #     (the retracted 8800d1c67 assertion shape);
+    #   - any single sentence tying "Articulo 50" to "conservacion/mantenimiento
+    #     de registros", unless the span contains the retraction's own
+    #     "no impone";
+    #   - "limite minimo obligatorio/exigido", except the retraction's quoted
+    #     "limite minimo obligatorio exigido por ..." form.
+    # They do NOT catch a paraphrase avoiding those anchor phrases -- e.g. a
+    # record-keeping claim naming only "la Ley de IA de la UE", which is the
+    # retraction's own quoted wording and cannot be banned without failing the
+    # honest copy -- nor any third language. Translated compliance copy still
+    # needs human review; this file cannot supply it.
+    ['gives EU AI Act Article 50 as a retention/record-keeping basis (retracted 2026-08-30)',
+     /as part of the record-keeping this (?:notice|Article 50 disclosure)|Article 50 record-keeping|como parte de(?:l| la)? (?:mantenimiento|conservaci[óo]n) de registros|Art[íi]culo 50(?:(?!no impone)[^.]){0,80}(?:conservaci[óo]n|mantenimiento) de registros/i,
+     no_negation: true],
+    ['asserts the 45 CFR 164.316(b)(2) retention hard floor (retracted 2026-08-30)',
+     /a hard floor(?! required by)|This (?:is a )?hard floor|l[íi]mite m[íi]nimo (?!obligatorio exigido por)(?:obligatorio|exigido)/i,
+     no_negation: true]
   ].freeze
 
   # STRUCTURAL RULE, added after the phrase list missed a paraphrase.
@@ -93,16 +135,21 @@ module AiDisclosureClaims
 
   # Returns the descriptions of every banned claim ASSERTED in `text`.
   # A match preceded by a negator within NEGATION_WINDOW characters is treated
-  # as a disclaimer and allowed through.
+  # as a disclaimer and allowed through -- unless the row opts out with
+  # `no_negation: true`, in which case any match is a violation and the row's
+  # own pattern is responsible for excluding the honest retraction wording.
   def offending_claims(text)
-    BANNED_CLAIMS.filter_map do |description, pattern|
-      description if asserted?(text, pattern)
+    BANNED_CLAIMS.filter_map do |description, pattern, opts|
+      no_negation = opts.is_a?(Hash) && opts[:no_negation]
+      description if asserted?(text, pattern, skip_negation: no_negation)
     end
   end
 
-  def asserted?(text, pattern)
+  def asserted?(text, pattern, skip_negation: false)
     offset = 0
     while (match = pattern.match(text, offset))
+      return true if skip_negation
+
       lead_in = text[[match.begin(0) - NEGATION_WINDOW, 0].max...match.begin(0)].to_s
       return true unless lead_in.match?(NEGATORS)
 

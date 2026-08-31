@@ -1684,7 +1684,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "a4440e9b5f39946c9ac1bf5afbb8ad5a3cedd34d9de052afd09f6577bcdc575d",
+      "contentHash": "188e617969bb69afeb6a55b87f515270a489f83e3a2aceecd08003a5df89b593",
       "bundles": [],
       "mirrors": [
         {
@@ -3222,7 +3222,7 @@
     },
     {
       "title": "LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft)",
-      "description": "Draft successor to attested COMPLIANCE_PROGRAM_OVERVIEW.md; updates data-lifecycle / voice-recording erasure claims to match Flusher.flush_user_content at HEAD (PR #721). Not authorized for external release until attested.",
+      "description": "Draft successor to attested COMPLIANCE_PROGRAM_OVERVIEW.md. Began as an update to the data-lifecycle / voice-recording erasure claims to match Flusher.flush_user_content at HEAD (PR #721); later revisions corrected the runtime AI operational-status claim, and the 2026-08-29 and 2026-08-30 revisions narrowed that correction to what vendor telemetry supports, bounded the invocation-logging observation, and corrected an over-broad start-date disclaimer and an incorrect claim that the eval-narration seam had always been model-gated. Not authorized for external release until attested.",
       "type": "legal",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -3235,10 +3235,10 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-08-26",
+      "lastReviewed": "2026-08-30",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "e695fe5015a4666b1e995b814964944722f358101ce5992bbfd60cb5def6e7e4",
+      "contentHash": "87be31f25f11a3f67b0010302169bc4ce27492a4d9905ba132d7dc7a3acd09ef",
       "bundles": [
         "security-review"
       ],
@@ -3295,7 +3295,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "c2b9f1a87e4255170219b6971142276c253c3c7bf38821968b9f64dbb0b6d988",
+      "contentHash": "ddb6e5438522e5ba6c5be3eb822ad08fb997af1e5ce4653a7b709e2e78ed2a96",
       "bundles": [],
       "mirrors": [
         {
@@ -3699,7 +3699,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "5dfd58dec0f965b9ed8ef8270efb20aaf769b054a081a5d427862749a27429bc"
+      "contentHash": "de0e50fd746efd794069b2e991e7244d22af49b5d6d45f157b2f4859090e0f07"
     },
     {
       "title": "Compliance & Security Program (2026-08-22 successor)",
@@ -3732,7 +3732,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "b5edf13cd0c919277bab0cbf0be2c7f4fe3d155d56f45f4e38c4e41f50d1b1ee"
+      "contentHash": "d304c29f355b4cd43e99f55270eff7f9641ef22e550416d9c6c18a5b14daff2c"
     },
     {
       "title": "Compliance Status Snapshot (2026-08-22)",
@@ -3759,7 +3759,7 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-3468caf949",
-      "contentHash": "4007a6ea4fbaaf324280694ee13597637f643d80dd3465e3724e2071e1c24514"
+      "contentHash": "6c80055d174c17e32a419e8dd7eb0dc162da085fb9269e9cc65cc71502cc193a"
     },
     {
       "title": "Article 50(1) Disclosure - Production Feature-Flag Verification",
@@ -3821,7 +3821,7 @@
       "supersedes": "DOC-39f37f8200",
       "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified the enablement and inertness claims -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). The same read does not establish that the modal was displayed; 'shown to no one because the flag is off' is false, but this record does not claim the UI rendered. (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. CORRECTED 2026-08-25: that file (DOC-59273ae805) is SUPERSEDED by DOC-c5408d90b7 (2026-08-22), which corrects exactly that claim at its own :106. The predecessor is attested and Path-A frozen, so \"until that is swept\" prescribed something impossible. The real residual is that the superseded row retains its bundle membership on this point. Still status:draft with empty attestation; only Scot attests.",
       "id": "DOC-506bbe2039",
-      "contentHash": "8da9e7e72c6cc653b53bb863cd248b08c538c656a20f6d60622641bf3b13b1e0"
+      "contentHash": "6a44bb9d66857c4ccbf10a701b85012654baf8b72f8aca01d19b8f1f9e839e23"
     }
   ]
 }

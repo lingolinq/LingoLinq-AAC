@@ -242,6 +242,15 @@ jobs:
       - name: Verify the register evidence.sha guards actually fire
         run: scripts/tests/register-lint-sha-test.sh
 
+      # Proves the field-shape, enum, and duplicate-id branches of register-lint
+      # actually FIRE. The sha harness above covers evidence.sha; this covers the
+      # rest of the structural contract. A rule that has only ever been observed
+      # passing on the committed registers is evidence that those registers are
+      # clean, not that the rule works. Fixtures are built in a temp dir;
+      # audit-reports/ is never touched.
+      - name: Verify the register shape/enum/duplicate-id guards actually fire
+        run: scripts/tests/register-lint-shape-test.sh
+
       # Belt and braces to the lint above: register-lint checks the shapes we PREDICTED the
       # consumers need; this runs the real consumers (promote-finding.rb, audit-merge.rb) over each
       # committed register with empty input and asserts they exit 0 AND leave the file
