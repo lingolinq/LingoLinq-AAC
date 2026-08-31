@@ -38,6 +38,7 @@ describe 'AI disclosure rendered surfaces' do
 
   let(:privacy_template) { File.read(privacy_template_path) }
   let(:rails_locale) { File.read(rails_locale_path) }
+  let(:spanish_locale) { File.read(File.join(repo_root, 'config/locales/es.yml')) }
 
   describe 'app/frontend/app/templates/privacy.hbs' do
     it 'asserts none of the banned AI claims' do
@@ -147,6 +148,36 @@ describe 'AI disclosure rendered surfaces' do
 
     it 'does not present evaluation data as currently sent (English copy)' do
       expect(rails_locale).to match(/what_we_send_item_eval:.*nothing is sent today/i)
+    end
+
+    # POSITIVE presence guards for the #888 retraction sentences (adversary pass,
+    # 2026-08-31). The banned-claims rows are a denylist: a rewording, or a "no"
+    # landing near a re-assertion, can slip past them. These assertions cannot be
+    # defeated that way -- they pin the retraction wording itself (including its
+    # closing under-review sentence), so removing or replacing any part of the
+    # retraction fails the suite regardless of what is written in its place.
+    it 'keeps the Article 50 retraction sentences in the English notice copy' do
+      expect(rails_locale)
+        .to match(/That was wrong: Article 50 is a transparency rule and imposes no record-keeping period\. The basis for this window is under review with our lawyers\./)
+    end
+
+    it 'keeps the healthcare hard-floor retraction sentences in the English notice copy' do
+      expect(rails_locale)
+        .to match(/We previously described this as a hard floor required by 45 CFR 164\.316\(b\)\(2\)\./)
+      expect(rails_locale)
+        .to match(/it is not a rule about how long AI request records must be kept\. We are reviewing this window with our lawyers and it may get shorter\./)
+    end
+
+    it 'keeps the Article 50 retraction sentences in the Spanish notice copy' do
+      expect(spanish_locale)
+        .to match(/Eso era incorrecto: el Artículo 50 es una regla de transparencia y no impone ningún período de conservación de registros\. La base de este período está en revisión con nuestros abogados\./)
+    end
+
+    it 'keeps the healthcare hard-floor retraction sentences in the Spanish notice copy' do
+      expect(spanish_locale)
+        .to match(/Anteriormente describimos esto como un límite mínimo obligatorio exigido por el 45 CFR 164\.316\(b\)\(2\)\./)
+      expect(spanish_locale)
+        .to match(/no es una regla sobre cuánto tiempo deben conservarse los registros de solicitudes de IA\. Estamos revisando este período con nuestros abogados y podría acortarse\./)
     end
   end
 

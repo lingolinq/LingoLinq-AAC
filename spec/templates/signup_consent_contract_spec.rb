@@ -38,12 +38,19 @@ describe 'signup consent contract' do
     # privacy.hbs, a non-placeholder en.json value must equal the inline default.
     privacy_hbs = File.read(Rails.root.join('app/frontend/app/templates/privacy.hbs'))
     pairs = privacy_hbs.scan(/\{\{t "((?:[^"\\]|\\.)*)" key=['"]([^'"]+)['"]/)
-    # The extraction itself must not silently rot: privacy.hbs carries 102
-    # {{t "..." key="..."}} pairs as of 2026-08-30.
-    expect(pairs.length).to be > 90
+    # The extraction itself must not silently rot: privacy.hbs carries exactly
+    # 102 {{t "..." key="..."}} pairs as of 2026-08-31, and the count is pinned
+    # (not floored) so a pair the scan regex silently stops matching fails here
+    # instead of shrinking coverage. Editing privacy.hbs's {{t}} helpers means
+    # updating this number in the same change.
+    expect(pairs.length).to eq(102)
     mismatches = pairs.filter_map do |default, key|
       value = en_json[key]
       next if value.nil? || value.start_with?('*** ')
+      # Mirror the runtime translator-note transform (app/frontend/app/utils/
+      # i18n.js:448): i18n.t renders only the text before a " [[ " translator
+      # note, so the rendered-truth comparison must strip it the same way.
+      value = value.split(/\s\[\[\s/).first
       inline = default.gsub('\"', '"')
       "#{key}: en.json #{value.inspect} != template #{inline.inspect}" unless value == inline
     end

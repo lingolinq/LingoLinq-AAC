@@ -125,6 +125,19 @@ describe LingoLinq::AiConsentDisclosures do
       expect(retention['ip_address']['enforced']).to eq(true)
     end
 
+    # Pins the lingolinq_eu note prose the way
+    # spec/lib/lingo_linq/article50_disclosures_spec.rb pins its sibling
+    # hard-floor note: the note may cite Article 50 only to retract it, must say
+    # the window is under counsel review, and must not reassert the retracted
+    # "Article 50 record-keeping" basis (#888 retraction, adversary pass
+    # 2026-08-31).
+    it 'states the EU window basis as under counsel review without reasserting the retracted Article 50 record-keeping basis' do
+      note = described_class.metadata(1)['retention']['lingolinq_eu']['note']
+      expect(note).to match(/Article 50 is a transparency rule and imposes no record-keeping period/)
+      expect(note).to match(/under review with counsel/i)
+      expect(note).not_to match(/Article 50 record-keeping/i)
+    end
+
     it 'includes data categories and a scrubbing note' do
       m = described_class.metadata(1)
       expect(m['data_categories']).to be_an(Array)
