@@ -3145,7 +3145,7 @@
         "SOC2",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "bin/audit_console",
@@ -3161,15 +3161,15 @@
         "timeframe": "60d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50",
+        "verifierNote": "Verified 2026-08-29 against origin/staging 8afabd1d2 (cited files unchanged since 85514a7a17). Both halves of the finding are false at HEAD. (a) bin/audit_console no longer shells to the Heroku CLI: it exports USER_KEY and execs `bundle exec rails console`, so the finding's own evidence snippet (heroku auth:whoami) does not exist in the file. (b) The audited-session control is operative rather than bypassed: bin/rails captures INIT_ARGS and ARGV_COMMAND and runs Audit::ConsoleGuard.enforce_pre_boot! before boot; config/initializers/auditing.rb registers Rails.application.console and .runner hooks that call Audit::ConsoleGuard.enforce_runtime! (aborting on refusal) and then Audit::SessionLogger.record!, which writes AuditEvent.create! at lib/audit/console_guard.rb:264. The Reline/Readline dependency that made the original hook non-operative is gone; the hooks are line-editor agnostic. Covered by 59 examples in spec/lib/audit/console_guard_spec.rb. RESIDUAL, not closed by this row: USER_KEY is still self-asserted free text rather than an authenticated principal, so the attributed actor remains spoofable by someone who already has console access. STALE DOCUMENTS to correct separately (outside the register): the comment block in bin/audit_console and the Security section of the repo CLAUDE.md both still describe this control as not currently operative.",
+        "attestation": "Scot Wahlquist 2026-08-29: attested verified-closed during the open-High triage sweep; accepted the recorded code/live-state trace at origin/staging 8afabd1d2 as the verification basis."
       },
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
-        "decidedDate": "2026-06-23",
-        "rationale": "Accepted, but remediation is owned by the Render-to-GCP migration thread (infra cutover work). Tracked here; not changed in the compliance thread."
+        "decidedDate": "2026-08-29",
+        "rationale": "CEO triage 2026-08-29. Closed as fixed. The finding described a Heroku-shelling wrapper and a non-operative audit hook; neither survives at HEAD. Prior disposition was \"accepted\" (risk accepted while the control was believed dead); that is superseded by the control now being built, test-covered, and fail-closed in production."
       },
       "source": {
         "kind": "manual",
@@ -3804,7 +3804,7 @@
         "COPPA",
         "GDPR"
       ],
-      "status": "open",
+      "status": "remediated-unverified",
       "evidence": {
         "type": "code",
         "file": "app/models/license.rb",
@@ -3821,14 +3821,14 @@
       },
       "closureEvidence": {
         "sha": "",
-        "verifierNote": "",
+        "verifierNote": "RETRACTION 2026-08-30, and the reason this row is NOT closed. An earlier version of this note asserted the remediation was \"present in the deployed production image (git show 73a8f6339)\". THAT WAS FALSE, and it was the basis of a wrongful verified-closed. The fix landed on staging as a0b9df3ec (2026-08-03, \"fix(coppa): finish offboarding re-consent gaps for seat reclaim\"); `git merge-base --is-ancestor a0b9df3ec origin/main` reports it is NOT an ancestor of main. origin/main IS 73a8f6339, the exact tag the serving revision lingolinq-web-00024-yij runs, so the remediation is unreleased. The undeployed surface is 27 files, not just the two named above: it includes app/workers/offboarding_coppa_expiration_worker.rb, config/routes.rb, lib/tasks/scheduler.rake, the parental-consent decline view and the consent mailer set.\n\nMEASURED AT THE DEPLOYED TAG (grep -c, 73a8f6339 vs origin/staging): organization.rb \"offboarding birth month and year required\" 0 vs 1; organization.rb coppa_parental_consent_enabled? 0 vs 1 (a DIFFERENCE, not a missing protection: the staging flag gate NARROWS the call, and production invokes begin_family_offboarding_consents! unconditionally at organization.rb:1097); license.rb begin_family_offboarding_consents! 0 vs 1; license.rb force_under_13 0 vs 2. Production remove_user therefore carries no birth-data guard and no flag gate, and the automated License expiry path performs no COPPA handling at all.\n\nEXPOSURE, stated precisely because this row's `notes` say \"no live exposure yet\" and that remains true on its own terms: the CODE DEFECT is live in the deployed image, so a district seat reclaim in production today would convert a school-authorized minor to a consumer trial with no parental re-consent. What limits present harm is tenancy, not code: production carries only internal test accounts (PR #483, operator attestation, not code-verified) and zero custom org domains, so no real student is exposed right now. The gap becomes live harm the moment a real district is onboarded, which is why this must ship before district offboarding rather than after. With birth data omitted, requires_coppa_offboarding?(attested_under_13: nil) falls through to coppa_parental_consent_pending? || coppa_parental_consent_revoked?, both false for a school-created minor whose settings['coppa'] was never written, so no COPPA stamp is applied. That is this finding's original defect, live in production.\n\nCODE STATE (origin/staging 8afabd1d2, unreleased): the remediation itself is correct and complete. Organization#remove_user raises ArgumentError when the flag is on and the birth classification is nil, and calls begin_family_offboarding_consents!; License.expire_licenses! routes through the same consent start.\n\nFLAG READ (2026-08-30) retained but NOT sufficient for closure: an audited rails runner on lingolinq-migrate (execution lingolinq-migrate-wbsw8, exit 0) returned coppa_parental_consent_enabled? => true unconditionally (env_raw=nil, from_env=true, default_domain_value=true, custom_domains_total=0, explicit_setting=0, disabling_it=0). That discharges the flag precondition the Codex review of PR #887 identified, but the flag gates code that is not deployed, so it cannot discharge the deployment precondition.\n\nCORRECTION SCOPE, checked so the retraction is not over-broad: the same \"present in the deployed image\" phrasing on the other rows closed in this batch WAS verified at 73a8f6339 and holds. flusher.rb UserVideo.where 2 vs 2 and ButtonSound.where 5 vs 5 (LL-854b1d3853); application_controller.rb record_masquerade_audit! 3 vs 3 (LL-522c1a6d13); ai_word_predictor.rb scrub_context 2 vs 2 (LL-8908c7ac6f); LL-7f7372e3eb on the basis that actually holds, namely bin/rails, lib/audit/console_guard.rb and config/initializers/auditing.rb being byte-identical at 73a8f6339 and origin/staging (an earlier version of this note cited \"bin/audit_console heroku 0 vs 0\", which is a null comparison: absence in both refs distinguishes nothing and is not evidence of deployment). Only this row's deployment claim was false.\n\nTO CLOSE: re-verify after the release PR carrying a0b9df3ec merges to main and a revision running that image is serving. Do not close on staging state, and do not close on the flag read alone.",
         "attestation": ""
       },
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
-        "decidedDate": "2026-07-09",
-        "rationale": "Confirmed real COPPA/GDPR gap; accepted, will fix via claim-based parental re-consent at offboarding (see outputs/plans/2026-07-09-offboarding-coppa-reconsent-fix-scope.md). No live exposure yet (prod is test accounts, PR #483); target before the first real district student ages out or transfers."
+        "decidedDate": "2026-08-30",
+        "rationale": "CEO triage 2026-08-29; closure ATTEMPTED and RETRACTED 2026-08-30. Held at remediated-unverified. Two preconditions gate this row: (a) the COPPA offboarding consent path is entirely flag-gated (Codex review of PR #887, independently re-verified at user.rb:513/576/877 and organization.rb:1071), and (b) the remediation must actually be deployed. Precondition (a) IS discharged: the live production flag read on 2026-08-30 returned true unconditionally. Precondition (b) is NOT: a0b9df3ec is not an ancestor of origin/main, and origin/main is the tag production serves, so the fix is unreleased and the defect is live in production today. The verified-closed applied earlier on 2026-08-30 rested on a false deployed-image claim and has been reverted. Close only after the release carrying a0b9df3ec is serving."
       },
       "source": {
         "kind": "pr-review",
@@ -3836,7 +3836,7 @@
         "reviewer": "claude-compliance-review",
         "promotedDate": "2026-07-09"
       },
-      "notes": "Promoted from PR #561 review (claude-compliance-review) on 2026-07-09. Surfaced 2026-07-09 during the compliance program-overview review (PR #561) and code-verified. Chain: user.rb:1295-1356 skips COPPA parental consent for org_authorized creations (school-official exception); license.rb:53 release_user! offboards to a 2-month trial without capturing consent or notifying the guardian; user.rb:35 in_trial? then treats the account as a live consumer trial. Prod carries only internal test accounts per PR #483 (operator attestation, not code-verified), so no live exposure yet; fix before real district offboarding. Filed on branch scot/compliance/offboarding-coppa-reconsent-finding."
+      "notes": "Promoted from PR #561 review (claude-compliance-review) on 2026-07-09. Surfaced 2026-07-09 during the compliance program-overview review (PR #561) and code-verified. Chain: user.rb:1295-1356 skips COPPA parental consent for org_authorized creations (school-official exception); license.rb:53 release_user! offboards to a 2-month trial without capturing consent or notifying the guardian; user.rb:35 in_trial? then treats the account as a live consumer trial. Prod carries only internal test accounts per PR #483 (operator attestation, not code-verified), so no live exposure yet; fix before real district offboarding. Filed on branch scot/compliance/offboarding-coppa-reconsent-finding. | Codex review of PR #887 (2026-08-30): the 2026-08-29 closure note that only the birth-date requirement is flag-gated was wrong; requires_coppa_offboarding? and process_expired_offboarding_consents! both no-op when the flag is off. Status left remediated-unverified.\n\nRETRACTION 2026-08-30: a verified-closed applied earlier the same day was reverted. It rested on a false claim that the remediation was in the deployed production image; a0b9df3ec is not an ancestor of origin/main. The defect is live in production until that release ships. See closureEvidence."
     },
     {
       "id": "LL-854b1d3853",
@@ -3849,7 +3849,7 @@
         "FERPA",
         "COPPA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/flusher.rb",
@@ -3865,15 +3865,15 @@
         "timeframe": "high 15-30d (right-to-erasure correctness; blocks the doc's deletion-removes-voice claim)"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50",
+        "verifierNote": "Verified 2026-08-29 against origin/staging 8afabd1d2. lib/flusher.rb:394-406 sweeps both record types by user_id through flush_record, so the S3 remote_remove is scheduled rather than only the DB row deleted, with an in-code citation to this finding id. This row was previously held open pending a production deploy; that condition is now met. Production Cloud Run revision lingolinq-web-00024-yij runs image tag 73a8f6339, the merge of release PR #842 (staging into main, 2026-08-21) and an ancestor of origin/main; `git show 73a8f6339:lib/flusher.rb` contains both the ButtonSound and UserVideo sweeps. NOT closed by this row: PredictionEntry records are still not swept by Flusher, tracked separately and still open as LL-e8614c103f.",
+        "attestation": "Scot Wahlquist 2026-08-29: attested verified-closed during the open-High triage sweep; accepted the recorded code/live-state trace at origin/staging 8afabd1d2 as the verification basis."
       },
       "disposition": {
-        "state": "accepted",
+        "state": "fixed",
         "decidedBy": "Scot Wahlquist",
-        "decidedDate": "2026-07-09",
-        "rationale": "Confirmed real right-to-erasure gap; accepted, will fix by adding UserVideo and off-board ButtonSound sweeps (plus S3 object cleanup) to Flusher.flush_user_content. Small quick-win; no live exposure yet (test accounts only)."
+        "decidedDate": "2026-08-29",
+        "rationale": "CEO triage 2026-08-29. Closed as fixed. The GDPR Art.17 gap for message-bank/off-board ButtonSound and UserVideo records is remediated in code AND deployed, which was the row's own stated condition for closure. Prior disposition \"accepted\" superseded."
       },
       "source": {
         "kind": "pr-review",
@@ -4312,7 +4312,7 @@
         "HIPAA",
         "GDPR"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/ai_word_predictor.rb",
@@ -4328,15 +4328,15 @@
         "timeframe": "before Bedrock is marked operational"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50",
+        "verifierNote": "Verified 2026-08-29 against origin/staging 8afabd1d2. Both halves remediated in lib/ai_word_predictor.rb. (a) Pre-scrubber content no longer keys the cache: the sentence passes through PiiScrubber.redact_for_ai first and only the scrubbed form reaches cache_key_for (lines 92-103). (b) The key is tenant-scoped and no longer raw: cache_key_for SHA-256 digests [cache_scope(user), locale, scrubbed sentence, time_of_day, topic] joined on a NUL separator, and cache_scope resolves to the organization, falling back to the user id, so one tenant's entry cannot serve another's. Concurrency and unbounded growth were addressed in the same work: CACHE is guarded by CACHE_MUTEX and expired entries are swept on store.",
+        "attestation": "Scot Wahlquist 2026-08-29: attested verified-closed during the open-High triage sweep; accepted the recorded code/live-state trace at origin/staging 8afabd1d2 as the verification basis."
       },
       "disposition": {
-        "state": "untriaged",
-        "decidedBy": "",
-        "decidedDate": "",
-        "rationale": ""
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-29",
+        "rationale": "CEO triage 2026-08-29. Closed as fixed. Raw utterance no longer reaches the cache key and the key is tenant-scoped."
       },
       "source": {
         "kind": "pr-review",
@@ -4395,7 +4395,7 @@
         "FERPA",
         "HIPAA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "app/controllers/application_controller.rb",
@@ -4411,15 +4411,15 @@
         "timeframe": "30d"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50",
+        "verifierNote": "Verified 2026-08-29 against origin/staging 8afabd1d2. app/controllers/application_controller.rb:177-210 calls record_masquerade_audit! on BOTH masquerade branches (branch \"site_admin\" and branch \"org_manager\"). The fix exceeds what the finding asked for: a non-:ok return from the audit write refuses the masquerade with api_error 503 \"Audit log write failed; masquerade refused\", so there is no path that masquerades without an AuditEvent rather than merely one that logs after the fact. Present in the deployed production image (3 occurrences in `git show 73a8f6339`).",
+        "attestation": "Scot Wahlquist 2026-08-29: attested verified-closed during the open-High triage sweep; accepted the recorded code/live-state trace at origin/staging 8afabd1d2 as the verification basis."
       },
       "disposition": {
-        "state": "untriaged",
-        "decidedBy": "",
-        "decidedDate": "",
-        "rationale": ""
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-29",
+        "rationale": "CEO triage 2026-08-29. Closed as fixed. Masquerade is now audit-gated and fail-closed on both branches."
       },
       "source": {
         "kind": "pr-review",
@@ -4510,7 +4510,7 @@
         "HIPAA",
         "GDPR"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "lib/ai_word_predictor.rb",
@@ -4526,11 +4526,17 @@
         "timeframe": "30 days"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50",
+        "verifierNote": "Verified 2026-08-29 against origin/staging 8afabd1d2. The egress half is remediated: scrub_context (lib/ai_word_predictor.rb:206-214) runs ctx[:topic] through PiiScrubber.redact_for_ai and returns the scrubbed topic; it is called at line 98 BEFORE the cache key is built, and its pii_found and findings are merged into the pii_detected and pii_findings passed to log_ai_call (lines 99-100, 155-168), so a topic-borne detection is recorded on the AiApiLog row rather than dropped. RESIDUAL, tracked separately as LL-c259638711 (open Low, added 2026-08-30 from Codex review of PR #887): request_summary is still built from the scrubbed sentence alone and omits the scrubbed topic, so the log line does not show which topic accompanied the call. That is a log-completeness gap on already-scrubbed content, not an egress gap.",
+        "attestation": "Scot Wahlquist 2026-08-29: attested verified-closed during the open-High triage sweep; accepted the recorded code/live-state trace at origin/staging 8afabd1d2 as the verification basis."
       },
-      "notes": "Surfaced by privacy finder on 2026-08-12. Tier 1 runtime AI path. Only `sentence` is scrubbed (lib/ai_word_predictor.rb:92); `topic` is interpolated verbatim into the Bedrock system prompt. Reachable via POST /api/v1/word_suggestions (config/routes.rb:196), which affirmatively permits the field (app/controllers/api/word_suggestions_controller.rb:61, ctx.permit(:time_of_day, :topic)). Blast radius is bounded because the destination is the BAA'd Bedrock route and no first-party client currently populates context.topic (app/frontend/app/utils/ai_word_predictor.js:131 posts only sentence/locale/count), but the frontend's analogous topic_context is board name (app/frontend/app/controllers/board/index.js:181), a free-text field AAC users routinely personalize with caregiver/clinician names. Distinct from LL-16ef84ad9a, which concerns the cache key, not prompt egress. Independent secondary defect: AiApiLog pii_detected/pii_findings/request_summary understate what actually left the system. | adversary: confirmed -- Traced full path: only sentence hits PiiScrubber.redact_for_ai (lib/ai_word_predictor.rb:92); ctx flows raw through normalize_context into system_prompt's topic interpolation at line 340 with no scrub. word_suggestions_controller.rb:61 permits :topic. AiApiLog request_summary only records the scrubbed sentence, so pii_detected understates actual egress."
+      "notes": "Surfaced by privacy finder on 2026-08-12. Tier 1 runtime AI path. Only `sentence` is scrubbed (lib/ai_word_predictor.rb:92); `topic` is interpolated verbatim into the Bedrock system prompt. Reachable via POST /api/v1/word_suggestions (config/routes.rb:196), which affirmatively permits the field (app/controllers/api/word_suggestions_controller.rb:61, ctx.permit(:time_of_day, :topic)). Blast radius is bounded because the destination is the BAA'd Bedrock route and no first-party client currently populates context.topic (app/frontend/app/utils/ai_word_predictor.js:131 posts only sentence/locale/count), but the frontend's analogous topic_context is board name (app/frontend/app/controllers/board/index.js:181), a free-text field AAC users routinely personalize with caregiver/clinician names. Distinct from LL-16ef84ad9a, which concerns the cache key, not prompt egress. Independent secondary defect: AiApiLog pii_detected/pii_findings/request_summary understate what actually left the system. | adversary: confirmed -- Traced full path: only sentence hits PiiScrubber.redact_for_ai (lib/ai_word_predictor.rb:92); ctx flows raw through normalize_context into system_prompt's topic interpolation at line 340 with no scrub. word_suggestions_controller.rb:61 permits :topic. AiApiLog request_summary only records the scrubbed sentence, so pii_detected understates actual egress.",
+      "disposition": {
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-29",
+        "rationale": "CEO triage 2026-08-29. Closed as fixed on the egress claim, which is what made this a High: the context topic is scrubbed before it leaves the process and its detections reach the audit row. The request_summary omission is carried forward as open Low LL-c259638711 rather than holding a High row open."
+      }
     },
     {
       "id": "LL-e8614c103f",
@@ -4730,7 +4736,7 @@
       "id": "LL-1e7b568ef3",
       "ruleKey": "wif-provisioning-script-omits-ref-lock",
       "title": "Committed WIF provisioning script omits the assertion.ref branch lock the deploy pipeline names as a control, and reconciles (overwrites) the live provider on every re-run",
-      "severity": "high",
+      "severity": "medium",
       "confidence": "high",
       "frameworks": [
         "SOC2",
@@ -4756,7 +4762,13 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. deploy-cloudrun.yml states this as gate #3 of four: 'The ref guard + the WIF provider's assertion.ref condition, so no other ref can deploy or even mint a deploy token' (deploy-cloudrun.yml:33-34, repeated at :170-171). Live read-only check (gcloud iam workload-identity-pools providers describe github-provider, pool github-pool, location global) confirms the LIVE provider condition DOES include a ref and ref_type clause pinning the main branch -- so the control exists in production but does not exist in the committed provisioning source, and the source actively reverts it. Note also that the workflow-file if: github.ref == 'refs/heads/main' guard is not itself a boundary: workflow_dispatch executes the workflow definition from the SELECTED ref, so anyone who can push a branch and dispatch Actions can run a copy with the guard and the environment: production key removed. Live pool name is github-pool / provider github-provider, which does not match a naive read of the script's defaults -- confirm live before acting. | adversary: confirmed -- Live provider's attributeCondition includes the ref/ref_type lock; committed WIF_CONDITION at line 329 does not. Script unconditionally reconciles an existing provider via update-oidc, so a re-run would strip the live lock."
+      "notes": "Surfaced by infra finder on 2026-08-12. deploy-cloudrun.yml states this as gate #3 of four: 'The ref guard + the WIF provider's assertion.ref condition, so no other ref can deploy or even mint a deploy token' (deploy-cloudrun.yml:33-34, repeated at :170-171). Live read-only check (gcloud iam workload-identity-pools providers describe github-provider, pool github-pool, location global) confirms the LIVE provider condition DOES include a ref and ref_type clause pinning the main branch -- so the control exists in production but does not exist in the committed provisioning source, and the source actively reverts it. Note also that the workflow-file if: github.ref == 'refs/heads/main' guard is not itself a boundary: workflow_dispatch executes the workflow definition from the SELECTED ref, so anyone who can push a branch and dispatch Actions can run a copy with the guard and the environment: production key removed. Live pool name is github-pool / provider github-provider, which does not match a naive read of the script's defaults -- confirm live before acting. | adversary: confirmed -- Live provider's attributeCondition includes the ref/ref_type lock; committed WIF_CONDITION at line 329 does not. Script unconditionally reconciles an existing provider via update-oidc, so a re-run would strip the live lock. | SEVERITY DOWNGRADED high -> medium on 2026-08-30 by Scot Wahlquist (CEO). Status stays open; this is a severity decision, not a closure. Basis, verified live on 2026-08-30 rather than inferred: the PRODUCTION provider is correctly hardened. `gcloud iam workload-identity-pools providers describe github-provider --project=lingolinq-prod --location=global --workload-identity-pool=github-pool` returns attributeCondition = \"assertion.repository_owner_id == '249911097' && assertion.repository_id == '1024104500' && assertion.repository == 'lingolinq/LingoLinq-AAC' && assertion.ref == 'refs/heads/main' && assertion.ref_type == 'branch'\", i.e. the ref/ref_type lock IS present in prod. So there is no current exposure to downgrade away from. What remains is a latent regression footgun: the COMMITTED script omits the ref lock at phase1-setup.sh:329 and unconditionally reconciles an existing provider via update-oidc, so any re-run of Phase 1 silently STRIPS the live branch lock with no error. That is a real defect worth fixing, but it is conditional on a rare, deliberate operator action against a currently-correct production state, which is medium, not high. NOTE for the record: an earlier triage worksheet justified this downgrade on the different and incorrect ground that residual risk was narrow because 'an attacker needs push access to some branch' -- that phrasing implied prod lacked the ref lock. Prod has it. The rationale recorded here supersedes that reasoning; the conclusion is unchanged. | REDIRECT (2026-08-31): the residual-risk phrasing in PR #892's squash-commit message is superseded by this row's note; the commit message is immutable, and the SEVERITY DOWNGRADED rationale recorded above is the authoritative basis for the downgrade.",
+      "disposition": {
+        "state": "accepted",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-30",
+        "rationale": "Severity downgrade high -> medium ratified by Scot Wahlquist at the PR #892 merge (2026-08-30). The finding remains open and accepted for remediation on the backlog; this disposition records the severity decision and its attribution, not a closure. Basis: the SEVERITY DOWNGRADED paragraph in notes (production WIF provider verified hardened live on 2026-08-30; the committed script's ref-lock omission is a latent re-run footgun)."
+      }
     },
     {
       "id": "LL-b7ccc522b9",
@@ -4769,7 +4781,7 @@
         "HIPAA",
         "FERPA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "scripts/gcp/phase1-setup.sh",
@@ -4785,11 +4797,17 @@
         "timeframe": "30 days"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50",
+        "verifierNote": "Verified live 2026-08-29 by direct control-plane read (`gcloud projects get-iam-policy lingolinq-prod`): the project auditConfigs enable ADMIN_READ, DATA_READ and DATA_WRITE on secretmanager.googleapis.com, cloudsql.googleapis.com, storage.googleapis.com and aiplatform.googleapis.com. The finding's premise, that the production project has no Data Access audit log configuration, is false at read time. Verification is a live read, not a code trace, so the sha recorded here is the origin/staging tip at time of read rather than a commit implementing the control; re-read the IAM policy, not the repo, if this row is ever re-opened.",
+        "attestation": "Scot Wahlquist 2026-08-29: attested verified-closed during the open-High triage sweep; accepted the recorded code/live-state trace at origin/staging 8afabd1d2 as the verification basis."
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only: `gcloud projects get-iam-policy lingolinq-prod --format='value(auditConfigs)'` returns empty, i.e. no audit configs are set on the project. The committed Phase 1 script already lists this as deferred hardening at the cited line, so this is an acknowledged-but-unclosed item rather than an oversight. Materiality is amplified by the companion finding on human project-level secretmanager.admin: a human principal can read every production secret value with no audit trail, which is the specific combination HIPAA 164.312(b) audit controls exist to prevent. | adversary: confirmed -- gcloud projects get-iam-policy lingolinq-prod returns no auditConfigs key at all. Verified live 2026-08-13."
+      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only: `gcloud projects get-iam-policy lingolinq-prod --format='value(auditConfigs)'` returns empty, i.e. no audit configs are set on the project. The committed Phase 1 script already lists this as deferred hardening at the cited line, so this is an acknowledged-but-unclosed item rather than an oversight. Materiality is amplified by the companion finding on human project-level secretmanager.admin: a human principal can read every production secret value with no audit trail, which is the specific combination HIPAA 164.312(b) audit controls exist to prevent. | adversary: confirmed -- gcloud projects get-iam-policy lingolinq-prod returns no auditConfigs key at all. Verified live 2026-08-13.",
+      "disposition": {
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-29",
+        "rationale": "CEO triage 2026-08-29. Closed as fixed. Data Access logging is configured on every service that matters on the production project."
+      }
     },
     {
       "id": "LL-c0b3d59f58",
@@ -4802,7 +4820,7 @@
         "HIPAA",
         "FERPA"
       ],
-      "status": "open",
+      "status": "verified-closed",
       "evidence": {
         "type": "code",
         "file": "scripts/gcp/phase1-setup.sh",
@@ -4818,11 +4836,17 @@
         "timeframe": "30 days"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50",
+        "verifierNote": "Verified live 2026-08-29 by direct control-plane read (`gcloud projects get-iam-policy lingolinq-prod`). No non-owner human holds a project-wide admin role. The only human bindings are scot@lingolinq.com (roles/owner) and melissa@lingolinq.com on exactly the least-privilege set documented at scripts/gcp/phase1-setup.sh:243-258: run.developer, artifactregistry.writer, logging.viewer, monitoring.viewer, secretmanager.viewer. dominic@lingolinq.com holds logging.viewer and monitoring.viewer only. None of secretmanager.admin, cloudsql.admin or iam.serviceAccountAdmin is bound to a non-owner human. Same caveat as LL-b7ccc522b9: this is a live read, so re-read the IAM policy rather than the repo to re-test it.",
+        "attestation": "Scot Wahlquist 2026-08-29: attested verified-closed during the open-High triage sweep; accepted the recorded code/live-state trace at origin/staging 8afabd1d2 as the verification basis."
       },
-      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only: `gcloud projects get-iam-policy lingolinq-prod` shows one non-owner human principal bound at project scope to roles/secretmanager.admin, roles/cloudsql.admin, roles/iam.serviceAccountAdmin, roles/compute.networkAdmin, roles/redis.admin, roles/artifactregistry.admin and roles/run.admin. Identity deliberately not recorded here (workforce personal data). secretmanager.admin includes secretmanager.versions.access, i.e. read of every production secret value; cloudsql.admin includes instance deletion, which -- combined with deletionProtection being off -- is a single-principal path to destroying the production student/patient database and its backups. Context for triage, not a closure: an operations decision to grant a curated admin (non-owner) role set to a specific engineer is recorded outside the repo, with HIPAA workforce paperwork noted as owed. This finding records the control gap and the drift from the committed design; whether to accept the risk is Scot's call. The only roles/editor binding on the project is on the Google-managed cloudservices service agent, which is expected; the default compute service account carries no editor grant. | adversary: confirmed -- Live project IAM grants the roles cited to a non-owner human principal, directly contradicting the script's own documented least-privilege design (comments at lines 250-258). secretmanager.admin subsumes secretAccessor, so this is an inversion of the documented control, not mere drift."
+      "notes": "Surfaced by infra finder on 2026-08-12. Verified live, read-only: `gcloud projects get-iam-policy lingolinq-prod` shows one non-owner human principal bound at project scope to roles/secretmanager.admin, roles/cloudsql.admin, roles/iam.serviceAccountAdmin, roles/compute.networkAdmin, roles/redis.admin, roles/artifactregistry.admin and roles/run.admin. Identity deliberately not recorded here (workforce personal data). secretmanager.admin includes secretmanager.versions.access, i.e. read of every production secret value; cloudsql.admin includes instance deletion, which -- combined with deletionProtection being off -- is a single-principal path to destroying the production student/patient database and its backups. Context for triage, not a closure: an operations decision to grant a curated admin (non-owner) role set to a specific engineer is recorded outside the repo, with HIPAA workforce paperwork noted as owed. This finding records the control gap and the drift from the committed design; whether to accept the risk is Scot's call. The only roles/editor binding on the project is on the Google-managed cloudservices service agent, which is expected; the default compute service account carries no editor grant. | adversary: confirmed -- Live project IAM grants the roles cited to a non-owner human principal, directly contradicting the script's own documented least-privilege design (comments at lines 250-258). secretmanager.admin subsumes secretAccessor, so this is an inversion of the documented control, not mere drift.",
+      "disposition": {
+        "state": "fixed",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-29",
+        "rationale": "CEO triage 2026-08-29. Closed as fixed. The live IAM policy matches the least-privilege set the provisioning script documents."
+      }
     },
     {
       "id": "LL-0b5443f43b",
@@ -5244,7 +5268,7 @@
       "id": "LL-7d50b089c9",
       "ruleKey": "version-history-raw-db-id-not-global-id",
       "title": "BoardVersion/UserVersion history payloads use raw PaperTrail `version.id` instead of the repo's `global_id` string convention",
-      "severity": "high",
+      "severity": "medium",
       "confidence": "high",
       "frameworks": [],
       "status": "open",
@@ -5267,7 +5291,7 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by api finder on 2026-08-12. Every other lib/json_api/*.rb builder in this repo uses obj.global_id for json['id'] (verified across board.rb, goal.rb, snapshot.rb, tag.rb, word.rb, webhook.rb, lesson.rb, profile.rb, image.rb, organization.rb, etc). lib/json_api/board_version.rb:10 and lib/json_api/user_version.rb:10 are the only two builders that emit a raw ActiveRecord primary key (PaperTrail Version#id) as id. This breaks the sharding-readiness guarantee CLAUDE.md documents for global_id ('used instead of raw database IDs for future sharding support') and exposes sequential internal DB row numbers to the client for these two endpoints. Consumers: app/frontend/app/models/boardversion.js and app/frontend/app/models/userversion.js (default BaseModel, no id-format handling), fetched via app/frontend/app/controllers/board/history.js and app/frontend/app/controllers/user/history.js using store.query('boardversion'|'userversion', {board_id|user_id: ...}) against the flat routes get \"boardversions\" => \"boards#history\" / get \"userversions\" => \"users#history\" in config/routes.rb (~line 261-262). No functional break observed today (these records are list-only, never re-fetched by id), but it is a real, unremediated drift from the stated ID contract that should be flagged before any future sharding work or any feature that starts treating these ids as globally addressable. | adversary: confirmed -- Confirmed the raw PaperTrail PK with no global_id shim anywhere. Correction to the finder's universal claim: not literally every other builder uses global_id (alert.rb, gift.rb, board.rb/button_set.rb use other id schemes) -- but this pair is still the outlier using a bare sequential PK. Severity flagged as possibly inflated: routes are index-only, nothing looks up by version id today, so exposure is a monotonic write-volume leak rather than an IDOR."
+      "notes": "Surfaced by api finder on 2026-08-12. Every other lib/json_api/*.rb builder in this repo uses obj.global_id for json['id'] (verified across board.rb, goal.rb, snapshot.rb, tag.rb, word.rb, webhook.rb, lesson.rb, profile.rb, image.rb, organization.rb, etc). lib/json_api/board_version.rb:10 and lib/json_api/user_version.rb:10 are the only two builders that emit a raw ActiveRecord primary key (PaperTrail Version#id) as id. This breaks the sharding-readiness guarantee CLAUDE.md documents for global_id ('used instead of raw database IDs for future sharding support') and exposes sequential internal DB row numbers to the client for these two endpoints. Consumers: app/frontend/app/models/boardversion.js and app/frontend/app/models/userversion.js (default BaseModel, no id-format handling), fetched via app/frontend/app/controllers/board/history.js and app/frontend/app/controllers/user/history.js using store.query('boardversion'|'userversion', {board_id|user_id: ...}) against the flat routes get \"boardversions\" => \"boards#history\" / get \"userversions\" => \"users#history\" in config/routes.rb (~line 261-262). No functional break observed today (these records are list-only, never re-fetched by id), but it is a real, unremediated drift from the stated ID contract that should be flagged before any future sharding work or any feature that starts treating these ids as globally addressable. | adversary: confirmed -- Confirmed the raw PaperTrail PK with no global_id shim anywhere. Correction to the finder's universal claim: not literally every other builder uses global_id (alert.rb, gift.rb, board.rb/button_set.rb use other id schemes) -- but this pair is still the outlier using a bare sequential PK. Severity flagged as possibly inflated: routes are index-only, nothing looks up by version id today, so exposure is a monotonic write-volume leak rather than an IDOR.\n\nSeverity downgraded high -> medium 2026-08-30 by Scot. Rationale: emitting the raw PaperTrail version.id instead of a global_id is a convention and sharding-readiness defect in lib/json_api/board_version.rb:10 and lib/json_api/user_version.rb:10. It carries no compliance or access-control consequence: the id is not a protected id and discloses no additional data. Re-verified as still true at origin/staging 8afabd1d2; the downgrade reclassifies it, it does not close it. Title, evidence (including evidence.sha) and disposition are unchanged."
     },
     {
       "id": "LL-5d2436fce2",
@@ -6227,14 +6251,14 @@
     {
       "id": "LL-17ec91ff20",
       "ruleKey": "ai-consent-disclosure-tells-data-subjects-eu-retention-purge-is-enforced-when-it-deletes-nothing",
-      "title": "WITHDRAWN after review: the claim that the live AI consent disclosure represents an UNENFORCED EU retention purge as enforced. The purge is a working, end-to-end-verified control; awaiting Scot to close this row as a false positive",
+      "title": "WITHDRAWN after review: the claim that the live AI consent disclosure represents an UNENFORCED EU retention purge as enforced. The purge is a working, end-to-end-verified control; dismissed as a false positive and superseded 2026-08-30",
       "severity": "high",
       "confidence": "high",
       "frameworks": [
         "GDPR",
         "COPPA"
       ],
-      "status": "open",
+      "status": "superseded",
       "evidence": {
         "type": "code",
         "file": "lib/lingo_linq/ai_consent_disclosures.rb",
@@ -6250,11 +6274,17 @@
         "timeframe": "next triage"
       },
       "closureEvidence": {
-        "sha": "",
-        "verifierNote": "",
-        "attestation": ""
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50",
+        "verifierNote": "Status moved open -> superseded 2026-08-30 on Scot's decision, so the withdrawn finding stops counting toward the rendered open/remediated-unverified headline (the render counts status and ignores disposition, so the dismissed-false-positive disposition alone left it in the High count). No new evidence: the substance is unchanged from the dismissal recorded in disposition.rationale, which was re-verified against origin/staging 8afabd1d2 and is left byte-identical by this change.",
+        "attestation": "Scot Wahlquist 2026-08-30: attested superseded. The finding was withdrawn on review and dismissed as a false positive; this status move takes it out of the open headline. The surviving legal-basis question remains separately open at Medium as LL-b3e3a0b99c."
       },
-      "notes": "IDENTITY RESTORED 2026-08-26. This row had been rescoped in flight to cover an Article 50 legal-basis question while KEEPING this ruleKey, which describes the \"enforced when it deletes nothing\" claim. Because audit-merge.rb derives the id as SHA256(ruleKey|path) (scripts/audit-merge.rb:151-153), a row whose key and content disagree is a live merge hazard: a finder re-emitting THIS key would merge into a row about a different subject, and a correctly keyed legal-basis finding would land as a separate duplicate. Reported by external review of PR #867 at head 334ce2aa6. The rescoped content has been moved to its own correctly keyed row, LL-b3e3a0b99c, anchored at ai_consent_disclosures.rb:139 where the Article 50 attribution actually appears (this row was anchored at :138, the note's first line).\n\nTHE SUBSTANCE OF THIS ROW IS WITHDRAWN. The purge is implemented, scheduled daily, and verified end to end: spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through EuJurisdiction.retention_stamp, the resolver writes 'EU', purge_old_eu_logs! deletes that row, and an :unknown row is correctly spared under the HIPAA six-year fail-safe. The disclosure note is also correctly scoped (\"Enforced today for accounts in the EU jurisdiction\"). Zero production deletions reflect an absence of eligible DATA (no confirmed :eu user; no row five years old), the normal state of any five-year retention rule in a system younger than five years. 'enforced' => true is defensible and no code change is prescribed. Acting on the original claim would have shipped a v2 disclosure telling parents a WORKING safeguard is not enforced.\n\nRECOMMENDED DISPOSITION: dismissed-false-positive. Not applied here: only Scot closes a finding, downgrades severity, or accepts risk, and this row merged to staging in PR #867 so it is no longer a provisional in-PR draft that could simply be replaced. Severity is left at High for the same reason."
+      "notes": "IDENTITY RESTORED 2026-08-26. This row had been rescoped in flight to cover an Article 50 legal-basis question while KEEPING this ruleKey, which describes the \"enforced when it deletes nothing\" claim. Because audit-merge.rb derives the id as SHA256(ruleKey|path) (scripts/audit-merge.rb:151-153), a row whose key and content disagree is a live merge hazard: a finder re-emitting THIS key would merge into a row about a different subject, and a correctly keyed legal-basis finding would land as a separate duplicate. Reported by external review of PR #867 at head 334ce2aa6. The rescoped content has been moved to its own correctly keyed row, LL-b3e3a0b99c, anchored at ai_consent_disclosures.rb:139 where the Article 50 attribution actually appears (this row was anchored at :138, the note's first line).\n\nTHE SUBSTANCE OF THIS ROW IS WITHDRAWN. The purge is implemented, scheduled daily, and verified end to end: spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through EuJurisdiction.retention_stamp, the resolver writes 'EU', purge_old_eu_logs! deletes that row, and an :unknown row is correctly spared under the HIPAA six-year fail-safe. The disclosure note is also correctly scoped (\"Enforced today for accounts in the EU jurisdiction\"). Zero production deletions reflect an absence of eligible DATA (no confirmed :eu user; no row five years old), the normal state of any five-year retention rule in a system younger than five years. 'enforced' => true is defensible and no code change is prescribed. Acting on the original claim would have shipped a v2 disclosure telling parents a WORKING safeguard is not enforced.\n\nRECOMMENDED DISPOSITION: dismissed-false-positive. Not applied here: only Scot closes a finding, downgrades severity, or accepts risk, and this row merged to staging in PR #867 so it is no longer a provisional in-PR draft that could simply be replaced. Severity is left at High for the same reason.\n\nTriage 2026-08-29 (Scot): dismissed as a false positive. Withdrawal reasoning re-verified at origin/staging 8afabd1d2; see disposition.rationale for the full evidence trail. The EU purge control is implemented, scheduled, wired to a live jurisdiction stamp, and spec-proven end to end.",
+      "disposition": {
+        "state": "dismissed-false-positive",
+        "decidedBy": "Scot Wahlquist",
+        "decidedDate": "2026-08-29",
+        "rationale": "Dismissed (false positive) 2026-08-29 on CEO triage. The title already began \"WITHDRAWN after review\"; this records the withdrawal formally and preserves why it holds. Re-verified against origin/staging 8afabd1d2 before dismissal: the disclosure's claim that the EU retention purge is enforced is TRUE, not aspirational. (1) lib/lingo_linq/ai_consent_disclosures.rb:138-139 scopes the note to accounts in the EU jurisdiction, not to all accounts. (2) AiApiLog.purge_old_eu_logs! is implemented at app/models/ai_api_log.rb:244-248. (3) It is scheduled daily inside the scheduler:dispatch task at lib/tasks/scheduler.rake:183. (4) The jurisdiction stamp that makes the purge non-inert is wired: LingoLinq::Article50CallContext.for(user) calls EuJurisdiction.retention_stamp (lib/lingo_linq/article50_call_context.rb:45) and is invoked at all three AI call sites (lib/ai_board_generator.rb:678, lib/ai_word_predictor.rb:407, lib/eval_narrator.rb:313). (5) spec/models/ai_api_log_spec.rb:550-590 proves it end to end: a real EU user is driven through the resolver, the stamped row is purged after backdating, and the :unknown row is spared under the HIPAA six-year fail-safe. NOT resolved by this dismissal: the legal BASIS for the five-year window, which remains open at Medium as LL-b3e3a0b99c. STATUS RESOLVED 2026-08-30: moved open -> superseded on Scot's decision, so the row no longer counts toward the rendered open/remediated-unverified headline. (An earlier version of this rationale said the status was deliberately left \"open\" because this register keeps disposition orthogonal to status, and noted that the headline counts status rather than disposition. That was accurate on 2026-08-29 and is superseded by the status move; the observation about the render is retained here because it is why the move was needed.)"
+      }
     },
     {
       "id": "LL-db6bc3e568",
@@ -6309,7 +6339,7 @@
       "lastSeen": "2026-08-26",
       "owner": "unassigned",
       "remediation": {
-        "options": "Counsel question, not a ship gate. Confirm whether EU AI Act Article 50 is the correct basis for a five-year AiApiLog retention window. Article 50 is the AI Act's transparency provision; the record-keeping and logging duties for high-risk systems sit elsewhere in the Act. If counsel confirms the attribution, close this row with their sign-off as closure evidence. If counsel replaces it, the note text changes, which is a SUBSTANTIVE change and therefore takes a CURRENT_VERSION bump plus human review per ai_consent_disclosures.rb:44-49 -- NOT an in-place v1 edit, because a consent record persists disclosures_version as an integer and not content_hash (app/models/user.rb grant_ai_consent!), so editing v1 would silently rewrite what prior consenters were shown. Explicitly NOT part of this finding: the 'enforced' => true value, which is defensible (see LL-17ec91ff20, withdrawn).",
+        "options": "PRODUCT RECOMMENDATION: remove the \"EU AI Act Article 50 record-keeping\" attribution from the lingolinq_eu note. Do NOT substitute another statutory citation. Replace it with a factual, counsel-approved description of LingoLinq's own retention policy. Explicitly NOT part of this finding: the 'enforced' => true value, which is defensible (see LL-17ec91ff20, withdrawn).\n\nCOUNSEL INPUT, verified against primary sources on 2026-08-27. These are POINTERS TO CHECK, not legal advice, and none of it is counsel-validated:\n  * Article 50 is titled \"Transparency Obligations for Providers and Deployers of Certain AI Systems\" and imposes disclosure and marking duties only. It sets no retention period (https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R1689).\n  * The logging duties sit elsewhere: Article 12 (record-keeping) and Article 19 (\"Automatically Generated Logs\"), the latter requiring providers of HIGH-RISK systems to keep logs \"for a period appropriate to the intended purpose ... of at least six months\" (https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32024R1689). Article 26 carries the deployer-side duty.\n  * PREREQUISITE QUESTION: those duties bite only if the system is high-risk under Article 6(2) / Annex III. Whether LingoLinq's AAC features are in scope is a classification question, not a retention question; see the Annex III classification in the AI Governance Memo lineage before citing 12/19/26 anywhere.\n  * TIMING: Regulation (EU) 2026/1744 (Digital Omnibus on AI), of 8 July 2026, OJ 24 July 2026, in force 27 July 2026, recital (40), sets the application date of Chapter III Sections 1-3 to 2 December 2027 for Annex III high-risk systems. Article 50 transparency stayed on 2 August 2026, and recital (38) adds a four-month transitional period for the Article 50(2) marking duty for providers who placed systems on the market before 2 August 2026 (https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=OJ%3AL_202601744). That transitional period may also bear on this repo's Article 50(2) marking claims; a separate question for counsel.\n  * CONSEQUENCE FOR THE FIVE-YEAR NUMBER: even if Article 19 applied, it sets a FLOOR of about six months, not five years. The five-year window is a LingoLinq POLICY CHOICE and needs its own documented justification (necessity and proportionality under GDPR Article 5(1)(e)), not a statutory citation. Do not ship replacement parent-facing wording asserting \"up to five years\" until a log inventory confirms what is actually retained, where it goes, and whether five years is applied consistently.\n\nMECHANISM, unchanged: if the note text changes, that is a SUBSTANTIVE change and takes a CURRENT_VERSION bump plus human review per ai_consent_disclosures.rb:44-49, never an in-place v1 edit, because a consent record persists disclosures_version as an integer and not content_hash.",
         "timeframe": "counsel question; no ship gate"
       },
       "closureEvidence": {
@@ -6317,7 +6347,181 @@
         "verifierNote": "",
         "attestation": ""
       },
-      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-26. Correctly keyed successor to the withdrawn LL-17ec91ff20, created 2026-08-26 after external review of PR #867 flagged that the rescoped row had kept a ruleKey describing a different claim (audit-merge.rb derives the id as SHA256(ruleKey|path), so key/content drift is a merge hazard). Anchored at :139, where the attribution appears, rather than :138. SCOPE: this row is ONLY about the legal-basis attribution, not about whether the purge works -- it does. PR #863 and #867 reached the same conclusion for the DOCUMENT surfaces and flagged the Article 50 attribution as an open counsel question there; the same attribution is asserted here to a DATA SUBJECT in a live consent disclosure served by app/controllers/ai_consent/disclosures_controller.rb:29 and rendered by app/views/ai_consent/disclosures/v1.html.erb. Stating a legal basis to a parent is a stronger act than stating one to an auditor, which is why this is tracked rather than left to the document-side flag. Severity set to medium rather than high: nothing here misstates what data is kept or for how long, and no safeguard is misrepresented; the defect is an unverified statutory citation."
+      "notes": "Surfaced by compliance-record-accuracy finder on 2026-08-26. Correctly keyed successor to the withdrawn LL-17ec91ff20, created 2026-08-26 after external review of PR #867 flagged that the rescoped row had kept a ruleKey describing a different claim (audit-merge.rb derives the id as SHA256(ruleKey|path), so key/content drift is a merge hazard). Anchored at :139, where the attribution appears, rather than :138. SCOPE: this row is ONLY about the legal-basis attribution, not about whether the purge works -- it does. PR #863 and #867 reached the same conclusion for the DOCUMENT surfaces and flagged the Article 50 attribution as an open counsel question there; the same attribution is asserted here to a DATA SUBJECT in a live consent disclosure served by app/controllers/ai_consent/disclosures_controller.rb:29 and rendered by app/views/ai_consent/disclosures/v1.html.erb. Stating a legal basis to a parent is a stronger act than stating one to an auditor, which is why this is tracked rather than left to the document-side flag. Severity set to medium rather than high: nothing here misstates what data is kept or for how long, and no safeguard is misrepresented; the defect is an unverified statutory citation. COUNSEL POINTERS ADDED 2026-08-27, verified against the EUR-Lex texts of Regulation (EU) 2024/1689 (CELEX 32024R1689) and Regulation (EU) 2026/1744 (OJ L 2026/1744) rather than asserted from memory, after an external reviewer raised the Article 12/19/26 distinction and the 2026/1744 timing. They are recorded in remediation.options as INPUT for counsel and are explicitly not a replacement legal basis: substituting one guessed citation for another is the error this row exists to correct. NOTE ON A REVIEWER REQUEST NOT ACTED ON: the same review asked that proposed parent-facing wording using the phrase \"improve reliability\" be marked draft. No such text exists anywhere in this repository (verified by grep across lib/, app/, docs/, audit-reports/, config/), and no replacement parent-facing wording has been drafted at all, so there was nothing to mark. The only parent-facing text is the note at ai_consent_disclosures.rb:138-139."
+    },
+    {
+      "id": "LL-3bfc56ef4b",
+      "ruleKey": "bedrock-runtime-credential-unrestricted-direct-api-use",
+      "title": "ALLOWED_RUNTIME_MODELS is an in-process application gate and cannot constrain direct AWS API or CLI use of the same Bedrock runtime credential",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_client.rb",
+        "line": 83,
+        "snippet": "ALLOWED_RUNTIME_MODELS = %w[",
+        "sha": "8afabd1d2cc37fd88013eb738143758096f52c50"
+      },
+      "firstSeen": "2026-08-30",
+      "lastSeen": "2026-08-30",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add an IAM policy on the production Bedrock runtime principal that Allow-lists only the designated model (currently the Haiku 4.5 inference profile) and Deny bedrock:InvokeModel / InvokeModelWithResponseStream for every other model id. Optionally also restrict the principal to the Cloud Run runtime service account so a workstation or CI aws-cli session cannot use it. Until that ships, keep AiApiLog described as an application-observed floor, not a ledger of every invocation under the credential. Do not treat the application allowlist as a credential-level control in any externally shareable document.",
+        "timeframe": "30 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 886,
+        "reviewer": "chatgpt-codex-connector",
+        "promotedDate": "2026-08-30"
+      },
+      "notes": "Promoted from PR #886 review (chatgpt-codex-connector) on 2026-08-30. Promoted from Codex P1 on PR 886 after the overview claimed this finding was already in the register and it was not. Distinct from LL-1b0d78dbe6 (account assertion on AiClient.build) and from the designated-model application gate itself: those constrain the deployed Ruby path only. Vendor telemetry quoted in docs/legal/2026-08-09_compliance-program-overview_draft.md records InvokeModel events under the production runtime principal with userAgent aws-cli, which this allowlist cannot see and AiApiLog cannot record. No source addresses or request bodies are stored here. Forensic detail stays out of the externally shareable overview on purpose."
+    },
+    {
+      "id": "LL-51da4fca1d",
+      "ruleKey": "eval-narrator-unconstrained-model-override",
+      "title": "EvalNarrator took its model from an unconstrained EVAL_NARRATOR_MODEL env var with no allowlist for ~2 months (2026-05-12 to 2026-07-19)",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "status": "remediated-unverified",
+      "evidence": {
+        "type": "code",
+        "file": "lib/eval_narrator.rb",
+        "line": 54,
+        "snippet": "model: ENV['EVAL_NARRATOR_MODEL'] || 'claude-opus-4-7',",
+        "sha": "775b56e48f169eae2f900ed26f2afeaedb761e53"
+      },
+      "firstSeen": "2026-08-30",
+      "lastSeen": "2026-08-30",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Already remediated in code: the exact-ID allowlist EvalNarrator::ALLOWED_MODELS was added 2026-07-19 in commit dae497a97 (\"security(eval-narrator): exact-ID model allowlist + minimize etiology egress\", PR #632), and the direct api.anthropic.com route the override applied to was removed by PR #681 and is CI-enforced. What remains is verification and closure by Scot, plus a decision on whether any residual model-override env var anywhere in the runtime needs an equivalent gate. Note that ~/.claude/CLAUDE.md names EVAL_NARRATOR_MODEL specifically as a variable that must never be pointed at a mandatory-retention Covered Model, so this seam is named in standing policy.",
+        "timeframe": "90 days"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": "Filing at severity low ratified by Scot Wahlquist at the PR #893 merge (2026-08-30). disposition.state stays untriaged deliberately: the ratification covered the row's filing and severity, not a remediation disposition, and only Scot moves this row further."
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 890,
+        "reviewer": "claude-adversary",
+        "promotedDate": "2026-08-30"
+      },
+      "notes": "Discovered during the PR #890 adversary review while verifying a claim the compliance overview made about this seam's history. lib/eval_narrator.rb was created 2026-05-12 in commit 775b56e48 with `model: ENV['EVAL_NARRATOR_MODEL'] || 'claude-opus-4-7'` and NO allowlist of any kind, so the model destination for that seam was settable by environment variable to an arbitrary model. The exact-ID allowlist first appears 2026-07-19 in dae497a97. That is an ungated interval of roughly two months on a seam that carries student evaluation content. RECORDED FOR COMPLETENESS, NOT BECAUSE IT IS LIVE: the gap is closed in code and the direct-API route it applied to no longer exists. No evidence has been found that EVAL_NARRATOR_MODEL was ever set in any deployed environment, and this finding does not assert that it was. Severity is low on that basis; a case exists for medium given that the sibling findings covering the same seam and era (LL-e573a39d2b no PiiScrubber, LL-ef5ac1b2a5 no AiApiLog, LL-2e4c14d370 no COPPA gate, LL-11db0dc848 unbound eval_session) are critical/high, and Scot may raise it. Status is remediated-unverified rather than open because the defect does not exist at the evidence sha; only Scot sets verified-closed. Distinct from LL-3bfc56ef4b, which concerns the AiClient::ALLOWED_RUNTIME_MODELS gate on the three other seams and the credential-level gap; this row is about EvalNarrator's own separate list and the period before it existed. Provenance note: an earlier revision of docs/legal/2026-08-09_compliance-program-overview_draft.md asserted this seam had \"always\" been model-gated, a claim inherited from commit 5dbc4e478's message (\"unlike EvalNarrator, which has had an exact-id gate all along\"). Both are wrong; the overview was corrected in PR #890 and this row is the register counterpart.\n\nSeverity/filing decision recorded 2026-08-31: the low severity and remediated-unverified filing were ratified by Scot Wahlquist at the PR #893 merge on 2026-08-30; that ratification is recorded here and in disposition.rationale, while decidedBy/decidedDate stay empty until a remediation disposition is actually decided (dual-review adjudication, 2026-08-31). Evidence re-anchored 2026-08-31 to the historical defect itself (775b56e48 lib/eval_narrator.rb:54, the ungated ENV['EVAL_NARRATOR_MODEL'] read at the file's creation) instead of the later fix; the fix commit dae497a97 remains cited in remediation.options."
+    },
+    {
+      "id": "LL-c259638711",
+      "ruleKey": "ai-word-predictor-request-summary-omits-scrubbed-topic",
+      "title": "AiApiLog request_summary for word prediction records the scrubbed sentence but omits the scrubbed topic",
+      "severity": "low",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "FERPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/ai_word_predictor.rb",
+        "line": 165,
+        "snippet": "request_summary: \"Word prediction: #{scrubbed_sentence.truncate(200)}\",",
+        "sha": "19a88bc7cb9a22d10eee425e7128ab47e3ad00c0"
+      },
+      "firstSeen": "2026-08-30",
+      "lastSeen": "2026-08-30",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Include the already-scrubbed topic in the request_summary passed to log_ai_call in AiWordPredictor.predict, so the AiApiLog row reflects the full egress payload. Topic detections already reach pii_detected/pii_findings; this is log completeness only.",
+        "timeframe": "90d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 887,
+        "reviewer": "chatgpt-codex-connector",
+        "promotedDate": "2026-08-30"
+      },
+      "notes": "Surfaced by pr-review finder on 2026-08-30. Follow-up residual of LL-8908c7ac6f. The High egress claim is closed; this tracks the admitted request_summary omission so generated open-finding reports do not drop it. Promoted from Codex review of PR #887."
+    },
+    {
+      "id": "LL-ac1d12bf3f",
+      "ruleKey": "privacy-policy-version-dead-reconsent-mechanism",
+      "title": "User::PRIVACY_POLICY_VERSION is written into consent records but never compared against them, so a material privacy-policy change re-prompts nobody",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/user.rb",
+        "line": 29,
+        "snippet": "PRIVACY_POLICY_VERSION = '2026-08-30'",
+        "sha": "cd4cae4777aa04bff83c278a01b3384f9890c3b8"
+      },
+      "firstSeen": "2026-08-31",
+      "lastSeen": "2026-08-31",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Build the comparator the constant's own comment promises. The constant (app/models/user.rb:29) is stamped into settings['privacy_policy_acknowledged']['policy_version'] at three write sites (user.rb:964 parent grant, :978 the parental-consent AuditEvent payload, :2368 signup acknowledgment) and deleted for under-13 signups at :2456, but no code path anywhere reads a stored policy_version back and compares it to the current constant, so bumping the version notifies nobody and re-prompts nobody. Fix: on session/user load (or in the user JSON serializer), compare settings['privacy_policy_acknowledged']['policy_version'] to User::PRIVACY_POLICY_VERSION; when stale, surface a re-acknowledgment prompt (and for under-13 users route re-consent through the existing grant_parental_consent! token flow rather than an in-app click). Note Organization#data_policy_version (organization.rb:137, lib/data_policy_enforcer.rb:22) is a separate org-scoped custom-policy mechanism and does not cover the application privacy policy. The drift-guard spec (spec/templates/signup_consent_contract_spec.rb:24-28) only pins the constant to the published policy date; it does not test any re-consent behavior.",
+        "timeframe": "60-90 days (before first real district onboarding; must exist before any material privacy-notice change ships)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": "",
+        "reviewer": "claude-retro-review-2026-08-31",
+        "promotedDate": "2026-08-31"
+      },
+      "notes": "Hand-filed 2026-08-31 from the retroactive dual-review of merged range 9fec7fd9a..cd4cae477 (finding 3). Grep-verified at cd4cae477: three write sites and one delete site for settings['privacy_policy_acknowledged'], zero compare sites against User::PRIVACY_POLICY_VERSION anywhere in app/, lib/, or the Ember frontend; the user serializer never exposes the stored policy_version, so no client-side comparator can exist either. The comment above the constant (user.rb:26-28) says 'Bump when a material change requires users to re-consent', but the re-consent mechanism it describes does not exist: a bump changes only what NEW consents record. Regulatory hook: 16 CFR 312.5(c) requires new verifiable parental consent for material changes to the collection, use, or disclosure practices the original consent covered; with this mechanism dead, a material privacy-notice change re-prompts nobody, including parents of under-13 users. The material-change question is already with counsel as Q32. Present exposure is limited by tenancy, not code: production carries only internal test accounts (PR #483, operator attestation, not code-verified). Severity medium is PROPOSED and awaits Scot's ratification at merge."
     }
   ]
 }

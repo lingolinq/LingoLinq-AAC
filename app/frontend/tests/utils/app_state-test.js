@@ -2411,6 +2411,68 @@ describe('app_state', function() {
       app_state.jump_to_board({key: 'yodel', id: '1_1'});
       expect(app_state._testBoardTransitionKey).toEqual('yodel');
     });
+
+    it("should not apply sidebar locale for Flexiones, Inflections, or Keyboard", function() {
+      app_state.set('currentBoardState', {key: 'lingolinq/quick-core-40', id: '1_2'});
+      var s = stashesForTests();
+      s.persist('override_label_locale', 'es');
+      s.persist('override_vocalization_locale', 'es');
+      s.persist('label_locale', 'es');
+      s.persist('vocalization_locale', 'es');
+      app_state.set('label_locale', 'es');
+      app_state.set('vocalization_locale', 'es');
+
+      app_state.jump_to_board({
+        key: 'lingolinq/inflections-es',
+        id: '1_9',
+        source: 'sidebar',
+        locale: 'en'
+      });
+
+      expect(s.get('override_label_locale')).toEqual('es');
+      expect(s.get('override_vocalization_locale')).toEqual('es');
+      expect(s.get('label_locale')).toEqual('es');
+      expect(app_state.get('label_locale')).toEqual('es');
+    });
+
+    it("should not apply sidebar locale for regular vocabulary boards either", function() {
+      app_state.set('currentBoardState', {key: 'lingolinq/quick-core-40', id: '1_2'});
+      var s = stashesForTests();
+      s.persist('override_label_locale', 'es');
+      s.persist('override_vocalization_locale', 'es');
+      s.persist('label_locale', 'es');
+      s.persist('vocalization_locale', 'es');
+      app_state.set('label_locale', 'es');
+      app_state.set('vocalization_locale', 'es');
+
+      app_state.jump_to_board({
+        key: 'lingolinq/yesno',
+        id: '1_8',
+        source: 'sidebar',
+        locale: 'en'
+      });
+
+      expect(s.get('override_label_locale')).toEqual('es');
+      expect(s.get('label_locale')).toEqual('es');
+      expect(app_state.get('label_locale')).toEqual('es');
+    });
+
+    it("should still apply locale on a non-sidebar jump", function() {
+      app_state.set('currentBoardState', {key: 'lingolinq/quick-core-40', id: '1_2'});
+      var s = stashesForTests();
+      s.persist('override_label_locale', 'es');
+      s.persist('label_locale', 'es');
+      app_state.set('label_locale', 'es');
+
+      app_state.jump_to_board({
+        key: 'lingolinq/quick-core-24',
+        id: '1_8',
+        locale: 'en'
+      });
+
+      expect(s.get('label_locale')).toEqual('en');
+      expect(app_state.get('label_locale')).toEqual('en');
+    });
   });
 
   describe('back_one_board', function() {
@@ -2441,6 +2503,19 @@ describe('app_state', function() {
       app_state.set_history([{key: 'ground'}]);
       app_state.back_one_board();
       expect(app_state._testBoardTransitionKey).toEqual('ground');
+    });
+
+    it("should restore Switch Languages on back", function() {
+      app_state.set('currentBoardState', {key: 'lingolinq/inflections-es', id: '1_9'});
+      app_state.set_history([{key: 'lingolinq/quick-core-40'}]);
+      var s = stashesForTests();
+      s.persist('override_label_locale', 'es');
+      s.persist('override_vocalization_locale', 'es');
+      s.persist('label_locale', 'en');
+      app_state.set('label_locale', 'en');
+      app_state.back_one_board();
+      expect(s.get('label_locale')).toEqual('es');
+      expect(app_state.get('label_locale')).toEqual('es');
     });
   });
 

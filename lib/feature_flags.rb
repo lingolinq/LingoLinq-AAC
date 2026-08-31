@@ -73,10 +73,12 @@ module FeatureFlags
               # ENABLED_FRONTEND_FEATURES to activate (see eu_consent_age_enabled?).
               'eu_consent_age',
               # EU AI Act Article 50(1) first-AI-use disclosure modal (Art50 Phase 5,
-              # RLL-01). Reaches the client via frontend_flags_for(user) ->
-              # appState.feature_flags.article_50_disclosure, which is the ONLY input
-              # utils/article50_gate.js#needsAcknowledgement reads before it will show
-              # the modal. CAUTION, corrected 2026-08-25: AVAILABLE-only describes the
+              # RLL-01). Reaches the client via frontend_flags_for(user) on the gate
+              # SUBJECT (art50Subject = sessionUser, the authenticated account),
+              # which is the ONLY input utils/article50_gate.js#needsAcknowledgement
+              # reads before it will show the modal. Do not read
+              # appState.feature_flags here: that computed is derived from
+              # currentUser and in speak mode is the communicator. CAUTION, corrected 2026-08-25: AVAILABLE-only describes the
               # ENABLED_FRONTEND_FEATURES default, not production. Production resolves the
               # effective list through SystemFeatureSettings.effective_enabled_for, where a
               # default_enabled_features DB Setting REPLACES ENABLED_FRONTEND_FEATURES

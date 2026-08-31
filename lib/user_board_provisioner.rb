@@ -13,7 +13,11 @@ class UserBoardProvisioner
     end
 
     if FeatureFlags.signup_spanish_library_boards_enabled?(user)
-      return schedule_slugs(user, source_user, SystemBoardSources::SPANISH_LIBRARY_SLUGS)
+      return schedule_slugs(
+        user,
+        source_user,
+        SystemBoardSources::SPANISH_LIBRARY_SLUGS + SystemBoardSources::SPANISH_SIDEBAR_COPY_SLUGS
+      )
     end
 
     sync_slugs(user, source_user, SystemBoardSources::SIGNUP_SYNC_SLUGS)
@@ -29,7 +33,7 @@ class UserBoardProvisioner
     stored = user.settings['preferences']['sidebar_boards']
     return if stored.present?
 
-    user.settings['preferences']['sidebar_boards'] = User.signup_sidebar_boards.map { |entry| entry.dup }
+    user.settings['preferences']['sidebar_boards'] = User.signup_sidebar_boards(user).map { |entry| entry.dup }
     user.save
   end
 
