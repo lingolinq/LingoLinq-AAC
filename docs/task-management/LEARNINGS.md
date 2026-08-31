@@ -217,6 +217,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
 - [Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery](#pattern-a-container-that-stays-in-the-layout-while-empty-defeats-the-scanners-detachedzero-box-recovery)
 - [Decision: scanner `escape()` keeps its class allow-list — generalising it removes the switch user's guaranteed exit](#decision-scanner-escape-keeps-its-class-allow-list--generalising-it-removes-the-switch-users-guaranteed-exit)
+- [Gotcha: boards-layout-toggle global-failure flake (capabilities 2s auth-sync interval vs the per-test localStorage stub)](#gotcha-boards-layout-toggle-global-failure-flake-capabilities-2s-auth-sync-interval-vs-the-per-test-localstorage-stub)
 
 ---
 
@@ -16190,3 +16191,37 @@ classic-plane Haiku-only `CLASSIC_PROFILE_IDS`) re-asserts that the seam works.
 `i18n.t` (`app/frontend/app/utils/i18n.js:448`) and `WordData.translate_locale_batch` (`app/models/word_data.rb:718`) both key off a leading `*** `. A value stored as English with no prefix — e.g. `"edit_dashboard_sub": "Customize your Dashboard"` — is shown as-is and skipped by the batch. Mixed Spanish/English on the dashboard was untranslated `***` placeholders (and one English-without-prefix key), not missing `{{t}}` in the templates. Fill via `rake extras:translate_ui_locales LOCALE=es` under `op run`, or write `Translation [[ English`. Treat `op://` tokens as unset (see the dotenv gotcha).
 
 **First seen in:** [2026-08-31-dashboard-i18n-locale-placeholders.md](./2026-08-31-dashboard-i18n-locale-placeholders.md)
+## Gotcha: boards-layout-toggle global-failure flake (capabilities 2s auth-sync interval vs the per-test localStorage stub)
+
+**Symptom:** `build-and-test` fails on exactly one `Unit | Component | boards-layout-toggle`
+test (first seen: "re-choosing the SAME mode does not save again"), on a run that completed at
+full baseline (`# tests 2396 / # skip 38 / # fail 1`, so not a truncation). The TAP entry says
+`global failure: TypeError: localStorage.getItem is not a function` with a stack in
+`capabilities.sync_access_token` -- the test's own assertions never ran red.
+
+**Mechanism (CONFIRMED, traced 2026-08-31):**
+- `app/frontend/app/utils/capabilities.js:320-326` starts a `setInterval` that calls
+  `capabilities.sync_access_token()` every 2000ms for the LIFE OF THE SUITE.
+- `sync_access_token` reads `localStorage.getItem('debug_tokens')`
+  (`capabilities.js:305`), guarded only by `typeof localStorage !== 'undefined'`.
+- `boards-layout-toggle-test.js` replaces `window.localStorage` per test with a plain object
+  that has NO `getItem` (`stubStorage` / `throwingStorage`, restored in `afterEach`).
+- When a 2s tick lands inside a test's ~25-50ms stub window, the tick throws, and QUnit charges
+  the uncaught error as a **global failure to whichever test is running**. Same victim-charging
+  class as the `token_validated` leak entry above, different leak source.
+
+**Corroboration:** on PR #888 (run 33343382237, attempt 1, commit `8b0105a8a`) the only diff
+from the branch's previous fully-green frontend run was one line in `app/models/user.rb`, which
+the Ember suite never compiles. Identical frontend code, different outcome; attempt 2 passed.
+
+**Handling:** a solo boards-layout-toggle failure at full baseline whose message says
+`global failure ... localStorage.getItem` is this flake; rerun with `gh run rerun --failed`. If
+the rerun fails on a DIFFERENT test, stop and treat it as signal. Do not "fix" it by weakening
+the test's stubs blindly.
+
+**Fix candidates (NOT applied; need the >=30-iteration verification budget):** give the interval
+callback a real guard (`typeof localStorage.getItem === 'function'` or try/catch around the
+debug read); have the test harness cancel `capabilities._auth_sync_interval`; or add a no-op
+`getItem` to the test's stub objects.
+
+**First seen in:** PR #888 CI, 2026-08-30/31.
