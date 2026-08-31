@@ -1,6 +1,6 @@
 # LingoLinq Compliance Status Snapshot
 
-**Date:** 2026-08-09 (original); content refreshed 2026-08-20; corrected 2026-08-22 (this successor); register counts updated 2026-08-30 (see "Update 2026-08-30" below)
+**Date:** 2026-08-09 (original); content refreshed 2026-08-20; corrected 2026-08-22 (this successor); register counts updated 2026-08-30 and 2026-08-31 (see the "Update 2026-08-30" and "Update 2026-08-31" notes below)
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Trigger:** Post–Gate 1 operate-mode maintenance: EU AI Act Article 50 date (2026-08-02) has
 passed; the customer-facing Posture Report still claims **8** open High from the 2026-07-23
@@ -52,9 +52,9 @@ finding or attest any control; only Scot does that.
 Headline at staging commit `64cdccba1` (2026-08-20, publisher convention):
 
 - **0 open Critical** findings (the gating metric).
-- ~~**20 open High** findings (15 `open` + 5 `remediated-unverified`).~~ **14 as of 2026-08-30** (8 `open` + 6 `remediated-unverified`).
-- ~~**52** open Medium, **40** open Low. **112** live total.~~ **61** Medium, **43** Low, **118** live total as of 2026-08-30.
-- ~~Across all findings: 104 `open`, 8 `remediated-unverified`, 51 `verified-closed`, 5 `accepted-risk`, 2 `superseded`.~~ As of 2026-08-30: 109 `open`, 9 `remediated-unverified`, 58 `verified-closed`, 5 `accepted-risk`, 3 `superseded` (184 total).
+- ~~**20 open High** findings (15 `open` + 5 `remediated-unverified`).~~ **13 as of 2026-08-31** (7 `open` + 6 `remediated-unverified`).
+- ~~**52** open Medium, **40** open Low. **112** live total.~~ **63** Medium, **44** Low, **120** live total as of 2026-08-31.
+- ~~Across all findings: 104 `open`, 8 `remediated-unverified`, 51 `verified-closed`, 5 `accepted-risk`, 2 `superseded`.~~ As of 2026-08-31: 110 `open`, 10 `remediated-unverified`, 58 `verified-closed`, 5 `accepted-risk`, 3 `superseded` (186 total).
 - The 2026-08-12 six-finder full audit run added 40 new findings (9 High / 18 Medium / 13 Low)
   across privacy, infra, api, dependency, accessibility, and code-hygiene -- the single largest
   driver of the count rise since the 2026-08-09 draft. Notably several GCP production-access and
@@ -75,7 +75,15 @@ Headline at staging commit `64cdccba1` (2026-08-20, publisher convention):
 > verified-closed applied 2026-08-30 was retracted the same day because the remediation is not
 > in the deployed production image (`a0b9df3ec` is not an ancestor of `origin/main`), so the
 > COPPA seat-reclaim defect is live in production until that release ships. It remains
-> `remediated-unverified` and is counted in the 14.
+> `remediated-unverified` and is counted in the live-High set.
+>
+> **Update 2026-08-31.** Three register moves after the 2026-08-30 update: the LL-1e7b568ef3
+> downgrade to Medium was ratified at the PR #892 merge (2026-08-30), taking the live-High count
+> from 14 to **13**; LL-51da4fca1d (Low, the historical EvalNarrator model-override gap) was
+> filed `remediated-unverified` by PR #893 (2026-08-30); and LL-ac1d12bf3f (Medium, the dead
+> `PRIVACY_POLICY_VERSION` re-consent mechanism) was filed `open` from the 2026-08-31 retro
+> review. Current-figure stamps in this document dated 2026-08-31 reflect that state: 120 live
+> (13 High / 63 Medium / 44 Low).
 
 The Posture Report attested at the time this snapshot was first drafted (2026-07-23) showed
 **8 High / 27 Medium**; the currently attested one is `docs/legal/2026-08-20_compliance-posture-report.md`
@@ -108,10 +116,10 @@ accepted in *this* drafting session.
 | Bedrock / BAA claim correction | 2026-08-01 through 2026-08-07 corpus sweep; LL-1b0d78dbe6 filed, then **verified-closed 2026-08-11**. | Unverifiable Bedrock-account assertion retracted; closed operational window documented; check now landed and verified. |
 | Subprocessor quarterly review | Performed 2026-08-08. | Two omissions found (recorded in review notes); list hygiene in progress. |
 | 2026-08-12 six-finder full audit run | privacy, infra, api, dependency, accessibility, code-hygiene finders; 40 net-new findings (9 High). | Largest single driver of the count rise since this snapshot's original 2026-08-09 date; not narrated elsewhere in this document until this refresh. |
-| Remediation pending verify | Five High + three Medium in `remediated-unverified` (was three High + two Medium at 2026-08-09). | Code/config changes landed; need fresh-context verification + Scot close. |
+| Remediation pending verify | ~~Five High + three Medium in `remediated-unverified` (was three High + two Medium at 2026-08-09).~~ **Six High + three Medium + one Low as of 2026-08-31** (LL-f150e0e828 restored 2026-08-30 when its closure was retracted; LL-51da4fca1d filed 2026-08-30 by PR #893). | Code/config changes landed; need fresh-context verification + Scot close. |
 | Register hygiene | No `regression: true` findings at last full-run citation-check (2026-08-12, PASS 150/FAIL 0/SKIP 15; not re-run for this content-only refresh). | Evidence anchors for most findings still validate at pinned SHAs. |
 
-### Live High findings (20 as of 2026-08-20; **14** as of 2026-08-30)
+### Live High findings (20 as of 2026-08-20; **14** as of 2026-08-30; **13** as of 2026-08-31)
 
 Ages computed against 2026-08-20. `LL-1b0d78dbe6` (Bedrock account-binding) verified-closed
 2026-08-11 and no longer appears here.
@@ -124,25 +132,25 @@ constrain direct AWS API use, added by PR #886).
 
 | ID | Status | Frameworks | Age (d) | Title |
 |---|---|---|---|---|
-| LL-7f7372e3eb | ~~open~~ **verified-closed 2026-08-30; the control IS operative (bin/rails pre-boot guard + console/runner AuditEvent hooks). Title text below is the stale pre-closure description** | SOC2, HIPAA | 58 | Audited-console control not operative (per-session AuditEvent still missing; title/evidence still mention Heroku and need re-anchor) |
+| LL-7f7372e3eb | ~~open~~ **verified-closed 2026-08-29; the control IS operative (bin/rails pre-boot guard + console/runner AuditEvent hooks). Title text below is the stale pre-closure description** | SOC2, HIPAA | 58 | Audited-console control not operative (per-session AuditEvent still missing; title/evidence still mention Heroku and need re-anchor) |
 | LL-a95e9c5f7c | remediated-unverified | SOC2 | 48 | Worker 512Mi memory limit / OOM kills |
 | LL-705b10bcd7 | remediated-unverified | SOC2 | 48 | BoardDownstreamButtonSet S3 writes fail against KMS bucket |
 | LL-90045bb29c | remediated-unverified | FERPA | 45 | Permanent non-expiring `User#user_token` in share URLs |
 | LL-f150e0e828 | **remediated-unverified; STILL LIVE.** A 2026-08-30 closure was retracted the same day: the fix is not deployed to production | COPPA, GDPR | 42 | District seat reclaim to consumer trial without parental re-consent |
-| LL-854b1d3853 | ~~open~~ **verified-closed 2026-08-30; Flusher sweeps both record types AND the fix is in the deployed image** | GDPR, FERPA, COPPA | 42 | Hard delete leaves UserVideo / off-board ButtonSound |
+| LL-854b1d3853 | ~~open~~ **verified-closed 2026-08-29; Flusher sweeps both record types AND the fix is in the deployed image** | GDPR, FERPA, COPPA | 42 | Hard delete leaves UserVideo / off-board ButtonSound |
 | LL-53cb93fab1 | open | GDPR, FERPA | 31 | Terms-agree modal can be replaced by intro before agree |
 | LL-104bfa61dc | open | WCAG | 31 | Terms-agree modal unreachable by switch scanning |
 | LL-a9d6d5a46b | remediated-unverified | WCAG | 29 | AI disclosure full-notice link low-contrast verdigris token (fix landed 2026-07-28 via #694; register caught up 2026-08-19) |
-| LL-16ef84ad9a | ~~open~~ **verified-closed 2026-08-30; cache keyed on scrubbed text and tenant-scoped** | FERPA, HIPAA, GDPR | 18 | Word-prediction cache holds raw pre-scrubber utterance globally |
-| LL-522c1a6d13 | ~~open~~ **verified-closed 2026-08-30; masquerade is audit-gated and fail-closed on both branches** | FERPA, HIPAA | 16 | Masquerade produces no AuditEvent |
+| LL-16ef84ad9a | ~~open~~ **verified-closed 2026-08-29; cache keyed on scrubbed text and tenant-scoped** | FERPA, HIPAA, GDPR | 18 | Word-prediction cache holds raw pre-scrubber utterance globally |
+| LL-522c1a6d13 | ~~open~~ **verified-closed 2026-08-29; masquerade is audit-gated and fail-closed on both branches** | FERPA, HIPAA | 16 | Masquerade produces no AuditEvent |
 | LL-e8614c103f | open | GDPR, FERPA, COPPA | 8 | PredictionEntry rows survive account deletion (2026-08-12 run) |
-| LL-c0b3d59f58 | ~~open~~ **verified-closed 2026-08-30 on a live IAM policy read** | SOC2, HIPAA, FERPA | 8 | Human principal holds project-wide GCP secretmanager/cloudsql admin (2026-08-12 run) |
-| LL-b7ccc522b9 | ~~open~~ **verified-closed 2026-08-30 on a live IAM policy read** | SOC2, HIPAA, FERPA | 8 | GCP production project has no Data Access audit logging (2026-08-12 run) |
-| LL-8908c7ac6f | ~~open~~ **verified-closed 2026-08-30 on the egress claim; request_summary residual carried as Low LL-c259638711** | COPPA, FERPA, HIPAA, GDPR | 8 | Client-supplied context.topic reaches Bedrock unscrubbed (2026-08-12 run) |
+| LL-c0b3d59f58 | ~~open~~ **verified-closed 2026-08-29 on a live IAM policy read** | SOC2, HIPAA, FERPA | 8 | Human principal holds project-wide GCP secretmanager/cloudsql admin (2026-08-12 run) |
+| LL-b7ccc522b9 | ~~open~~ **verified-closed 2026-08-29 on a live IAM policy read** | SOC2, HIPAA, FERPA | 8 | GCP production project has no Data Access audit logging (2026-08-12 run) |
+| LL-8908c7ac6f | ~~open~~ **verified-closed 2026-08-29 on the egress claim; request_summary residual carried as Low LL-c259638711** | COPPA, FERPA, HIPAA, GDPR | 8 | Client-supplied context.topic reaches Bedrock unscrubbed (2026-08-12 run) |
 | LL-7d50b089c9 | ~~open~~ **still open but DOWNGRADED to Medium 2026-08-30; no longer a High** | (none) | 8 | BoardVersion/UserVersion history exposes raw PaperTrail version.id (2026-08-12 run) |
 | LL-6af580a23a | remediated-unverified | SOC2, HIPAA, FERPA | 8 | Redis RDB snapshot was tracked in git, shipped in every container image (2026-08-12 run) |
 | LL-5617f4e17d | open | SOC2, HIPAA, FERPA | 8 | No server-side password strength policy (2026-08-12 run) |
-| LL-1e7b568ef3 | open | SOC2, HIPAA | 8 | Committed WIF provisioning script omits the assertion.ref branch lock (2026-08-12 run) |
+| LL-1e7b568ef3 | ~~open~~ **still open but DOWNGRADED to Medium at the PR #892 merge (2026-08-30); no longer a High** | SOC2, HIPAA | 8 | Committed WIF provisioning script omits the assertion.ref branch lock (2026-08-12 run) |
 | LL-0b5443f43b | open | SOC2, HIPAA | 8 | Production Cloud Run service has public ingress, bypassing Cloud Armor (2026-08-12 run) |
 
 ~~Eight Highs are past the 15-30 day advisory SLA (LL-7f7372e3eb, LL-a95e9c5f7c, LL-705b10bcd7,
@@ -154,22 +162,23 @@ from the 2026-08-12 run are ~~all still within SLA (8 days old)~~ **18 days old 
 ## 3. Current posture by framework
 
 Live = `open` + `remediated-unverified` at `64cdccba1`. A finding can map to more than one framework, so
-rows do not sum to ~~112~~ **118 (2026-08-30)**. Nineteen live findings carry no framework tag
-(engineering / API-contract / dependency items; ~~one High, LL-7d50b089c9~~ **as of 2026-08-30 none
-is a High: LL-7d50b089c9 was downgraded to Medium, and all 14 live Highs carry frameworks**).
+rows do not sum to ~~112~~ **120 (2026-08-31)**. Nineteen live findings carry no framework tag
+(engineering / API-contract / dependency items; ~~one High, LL-7d50b089c9~~ **as of 2026-08-31 none
+is a High: LL-7d50b089c9 and LL-1e7b568ef3 were downgraded to Medium, and all 13 live Highs carry
+frameworks**).
 
-Counts struck through are 2026-08-20; the figure after each is recomputed 2026-08-30 from
+Counts struck through are 2026-08-20; the figure after each is recomputed 2026-08-31 from
 `audit-reports/FINDINGS.json` (live = `open` + `remediated-unverified`). Notes below still
 describe the 2026-08-20 composition and are not restated per row.
 
 | Framework | Live | Live High | Notes |
 |---|---:|---:|---|
-| FERPA | ~~36~~ 31 | ~~11~~ 5 | Includes token share URLs, masquerade audit, deletion residuals, prediction cache, plus several from the 2026-08-12 run. |
-| HIPAA | ~~27~~ 26 | ~~10~~ 6 | Bedrock account binding (now closed), masquerade, prediction cache, audited console, plus GCP access/logging gaps from the 2026-08-12 run. |
-| GDPR | ~~22~~ 28 | ~~6~~ 3 | Deletion/erasure, seat reclaim, prediction cache, terms modal, Article 50 transparency. |
-| COPPA | ~~10~~ 10 | ~~4~~ 2 | Seat reclaim (LL-f150e0e828); hard-delete media (LL-854b1d3853); two new from the 2026-08-12 run (context.topic to Bedrock LL-8908c7ac6f; PredictionEntry deletion residual LL-e8614c103f). |
+| FERPA | ~~36~~ 32 | ~~11~~ 5 | Includes token share URLs, masquerade audit, deletion residuals, prediction cache, plus several from the 2026-08-12 run. |
+| HIPAA | ~~27~~ 27 | ~~10~~ 5 | Bedrock account binding (now closed), masquerade, prediction cache, audited console, plus GCP access/logging gaps from the 2026-08-12 run. |
+| GDPR | ~~22~~ 30 | ~~6~~ 3 | Deletion/erasure, seat reclaim, prediction cache, terms modal, Article 50 transparency. |
+| COPPA | ~~10~~ 11 | ~~4~~ 2 | Seat reclaim (LL-f150e0e828); hard-delete media (LL-854b1d3853, now closed); two from the 2026-08-12 run (context.topic to Bedrock LL-8908c7ac6f, now closed; PredictionEntry deletion residual LL-e8614c103f); dead PRIVACY_POLICY_VERSION re-consent mechanism (LL-ac1d12bf3f, Medium, filed 2026-08-31). |
 | WCAG | ~~19~~ 19 | ~~2~~ 2 | Terms scanning (LL-104bfa61dc, open); Article 50 disclosure contrast (LL-a9d6d5a46b, remediated-unverified as of 2026-08-19). |
-| SOC 2 | ~~43~~ 44 | ~~9~~ 8 | Worker memory, S3 KMS writes, audited console, plus GCP production-access/logging and public-ingress gaps from the 2026-08-12 run. |
+| SOC 2 | ~~43~~ 45 | ~~9~~ 7 | Worker memory, S3 KMS writes, audited console, plus GCP production-access/logging and public-ingress gaps from the 2026-08-12 run. |
 
 ---
 
@@ -205,9 +214,11 @@ customer-facing doc.
    overdue items from the 2026-08-09 version are resolved. Next *full* audit is
    `rev-audit-run-quarterly-full` on 2026-09-14; confirm COPPA retention + parental-consent check
    cadence separately, as it is tracked on its own schedule, not the audit-run cadence.
-4. **Verification pass on eight `remediated-unverified` findings** (five High: LL-90045bb29c,
-   LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a; three Medium: LL-5954bcbbe6,
-   LL-a167848115, LL-6723438462), then attest closes.
+4. **Verification pass on ~~eight~~ ten `remediated-unverified` findings (as of 2026-08-31)**
+   (six High: LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a, and
+   LL-f150e0e828, restored 2026-08-30 when its closure was retracted; three Medium:
+   LL-5954bcbbe6, LL-a167848115, LL-6723438462; one Low: LL-51da4fca1d, filed 2026-08-30 by
+   PR #893), then attest closes.
 5. **Triage untriaged Highs**, especially LL-522c1a6d13 (masquerade AuditEvent), LL-16ef84ad9a
    (pre-scrubber utterance cache), and the new 2026-08-12 GCP production-access/logging Highs
    (LL-1e7b568ef3, LL-b7ccc522b9, LL-c0b3d59f58, LL-0b5443f43b).
@@ -229,14 +240,14 @@ customer-facing doc.
 
 | Item | Owner | Timing | Notes |
 |---|---|---|---|
-| ~~Close or disposition the 20 live Highs~~ **14 live Highs as of 2026-08-30** | Scot / eng | SLA advisory 15-30d (~~8~~ **6** already past as of 2026-08-30) | Prioritize data-bearing: LL-16ef84ad9a, LL-522c1a6d13, LL-f150e0e828, LL-854b1d3853, plus the 2026-08-12 GCP access/logging set. |
-| ~~Verify + attest 8 remediated-unverified~~ **9 as of 2026-08-30** | Scot | Near-term | LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium). **Added 2026-08-30: LL-f150e0e828 (High)**, restored to remediated-unverified when its 2026-08-30 closure was retracted (the fix is not deployed to production). |
+| ~~Close or disposition the 20 live Highs~~ **13 live Highs as of 2026-08-31** | Scot / eng | SLA advisory 15-30d (~~8~~ **7** already past the 30-day ceiling as of 2026-08-31) | Prioritize data-bearing: LL-f150e0e828 (COPPA seat reclaim, fix awaiting production deployment) and LL-e8614c103f (PredictionEntry survives account deletion). ~~LL-16ef84ad9a, LL-522c1a6d13, LL-854b1d3853, plus the 2026-08-12 GCP access/logging set~~ (verified-closed 2026-08-29, except: of that GCP set only LL-0b5443f43b, public Cloud Run ingress, is still a live High; LL-1e7b568ef3 was downgraded to Medium 2026-08-30). |
+| ~~Verify + attest 8 remediated-unverified~~ **10 as of 2026-08-31** | Scot | Near-term | LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium). **Added 2026-08-30: LL-f150e0e828 (High)**, restored to remediated-unverified when its 2026-08-30 closure was retracted (the fix is not deployed to production), **and LL-51da4fca1d (Low)**, filed by PR #893. |
 | Article 50(1) enablement decision | Scot / product | **VERIFIED ENABLED IN PRODUCTION 2026-08-23** (~~Overdue since 2026-08-02~~) | **CONTRADICTION RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`, itself CEO-attested 2026-08-19, records a live production read: `article_50_disclosure_shown` is TRUE on all 63 post-deploy `AiApiLog` rows. That column comes from `User#article_50_disclosure_shown?` (`app/models/user.rb:1324-1331` at `64cdccba1`), which returns true only when the user's `settings['ai_transparency']` carries a `shown_at` AND a matching `disclosures_version`. That bit can also be set by `admin_backfill` or by posting the acknowledgement endpoint; it is not proof the UI rendered, and it is not the evidence for enablement. Enablement is the `Setting.get` / `feature_enabled_for?` read below. (Scope caveat from that same record: the 63 rows come from 2 accounts, consistent with internal pre-tenant testing.) **RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** Production was read through the application path: `Setting.get('default_enabled_features')` CONTAINS `article_50_disclosure`, and `FeatureFlags.feature_enabled_for?('article_50_disclosure', user)` resolved TRUE for every user probed at `2026-08-23T21:04:12Z` (`RAILS_ENV=production`, image `web:73a8f633`). No org, beta or canary layer modifies it: production holds 2 organizations, 0 EU-stamped and 0 carrying any feature override, and neither the canary nor the beta `Setting` row exists. Enabled-SINCE date is NOT recoverable - `Setting` carries no PaperTrail history (0 version rows) and `Setting.set` overwrites in place; the containing row was created `2026-08-04T07:19:11Z` and last written `2026-08-13T00:03:56Z`, and nothing records which features the list held at either write. Full record: `docs/legal/2026-08-23_article-50-production-flag-verification.md`. Prior status text follows: Server-side backstop complete (#829/#831); WCAG contrast blocker LL-a9d6d5a46b is now remediated-unverified. LL-104bfa61dc (terms-agree modal switch scanning) remains the open blocker. |
 | ACR / VPAT attestation | Scot | Before district asks; calendar refresh 2026-12-13 | Git + branded Drive still `draft`. |
 | Overdue monthly-light audit | Scot / compliance | Overdue 26d | Register has had no scan stamp since 2026-07-08. |
 | Overdue COPPA quarterly check | Scot / privacy | Overdue 14d | Only ongoing verification linked to passed-enforceable COPPA rule. |
 | Sept 1 review cluster | Scot | Due 2026-09-01 | FERPA annual, GDPR DPA/RoPA, SOC2 quarterly, ZDR re-verify, Gemini BAA path, secret-rejector build, breach-runbook Drive remirror (2026-08-31). |
-| Render decommission / restrict | Scot / infra | Pending explicit go | Retires accepted-risk LL-aacae48768 path ~~and Render-tail of LL-7f7372e3eb~~ once fallback is gone. (LL-7f7372e3eb verified-closed 2026-08-30; no Render tail remains for it.) |
+| Render decommission / restrict | Scot / infra | Pending explicit go | Retires accepted-risk LL-aacae48768 path ~~and Render-tail of LL-7f7372e3eb~~ once fallback is gone. (LL-7f7372e3eb verified-closed 2026-08-29; no Render tail remains for it.) |
 | School SDPA / clinical BAA annexes | Scot / counsel | Draft | Annex A / Annex B still draft in Drive. |
 
 ---

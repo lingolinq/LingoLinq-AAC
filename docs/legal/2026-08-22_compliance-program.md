@@ -162,12 +162,12 @@ These are implemented and operating, not aspirational. Each cites its evidence.
 | Article 50(2) marking | Server-signed provenance markers on in-scope generative paths | `lib/art50_marker.rb` (board generation and word prediction). Article 50(1) disclosure UI is built and its server-side backstop now covers all 5 AI ingresses (#829/#831, 2026-08-19); the flag is AVAILABLE-only in `lib/feature_flags.rb` at `64cdccba1` -- a code default; the runtime state was verified ENABLED on 2026-08-23; see Section 12 and the runtime caveat there. |
 
 **Known residuals (tracked, not hidden):** live open Highs that touch product controls include
-word-prediction pre-scrubber cache (LL-16ef84ad9a, **verified-closed 2026-08-30**), masquerade
-without AuditEvent (LL-522c1a6d13, **verified-closed 2026-08-30**), district seat-reclaim consent
+word-prediction pre-scrubber cache (LL-16ef84ad9a, **verified-closed 2026-08-29**), masquerade
+without AuditEvent (LL-522c1a6d13, **verified-closed 2026-08-29**), district seat-reclaim consent
 (LL-f150e0e828, **still live; remediated-unverified, fix not yet deployed**), hard-delete media gaps
-(LL-854b1d3853, **verified-closed 2026-08-30**), terms-agree modal a11y/order (LL-104bfa61dc,
+(LL-854b1d3853, **verified-closed 2026-08-29**), terms-agree modal a11y/order (LL-104bfa61dc,
 LL-53cb93fab1, **both still open**), and ~~audited-console session AuditEvent
-(LL-7f7372e3eb)~~ [audited-console LL-7f7372e3eb removed from this live list: verified-closed 2026-08-30]. The 2026-08-12 six-finder audit run added several GCP production-access/logging
+(LL-7f7372e3eb)~~ [audited-console LL-7f7372e3eb removed from this live list: verified-closed 2026-08-29]. The 2026-08-12 six-finder audit run added several GCP production-access/logging
 Highs not yet reflected in this section's prose (WIF ref-lock LL-1e7b568ef3, no Data Access audit
 logging LL-b7ccc522b9, project-wide admin on a human principal LL-c0b3d59f58, public Cloud Run
 ingress LL-0b5443f43b) -- see the register for the full current list, this paragraph is
@@ -309,7 +309,7 @@ Render is no longer the active production app host for the branded domain, but i
 a write-frozen rollback fallback at `https://lingolinq-prod.onrender.com` until a separate explicit
 decommission go. Redis TLS (LL-6619cc1811) is **verified-closed** (2026-07-22) with in-context
 Cloud Run `rediss://` evidence and Scot attestation. The Render Postgres public-allowlist finding
-(LL-aacae48768, accepted-risk) and audited-console finding (LL-7f7372e3eb, ~~still open for the~~ **verified-closed 2026-08-30; formerly open for the**
+(LL-aacae48768, accepted-risk) and audited-console finding (LL-7f7372e3eb, ~~still open for the~~ **verified-closed 2026-08-29; formerly open for the**
 per-session AuditEvent residual) should be superseded or closed only when Render is deleted or
 restricted and/or the console control is verified, not silently closed at DNS cutover.
 
@@ -334,7 +334,7 @@ as a false promise. Several of these came from v1.1, where they were incorrectly
 | Render decommission | Pending | Render is superseded as primary host but remains a write-frozen rollback fallback until explicit teardown. Retires accepted-risk LL-aacae48768 path once fallback is gone. |
 | Article 50(1) disclosure enablement | Backstop built and complete; not in `ENABLED_FRONTEND_FEATURES` at `64cdccba1` (code default AVAILABLE-only at `64cdccba1`; runtime VERIFIED ENABLED 2026-08-23) | Code default only: `FeatureFlags` resolves the effective list from `SystemFeatureSettings.effective_enabled_for` (`lib/feature_flags.rb:132` at `64cdccba1` via `feature_enabled_for?` at `:155-158`), which resolves through `SystemFeatureSettings.default_enabled_features` (`lib/system_feature_settings.rb:6-12`) -- a `Setting` DB row that falls back to the code constant only when unset, a database override no code listing can show. **Production flag state WAS verified 2026-08-23: ENABLED in production via the `default_enabled_features` DB Setting (see `docs/legal/2026-08-23_article-50-production-flag-verification.md`).** `article_50_disclosure` is AVAILABLE-only in code while `ai_board_generation` is enabled. Obligation date 2026-08-02 has passed. Server-side backstop now covers all 5 AI ingresses (#829/#831, 2026-08-19; LL-6723438462 remediated-unverified). The contrast blocker (LL-a9d6d5a46b) is also remediated-unverified (already fixed via #694). LL-104bfa61dc (terms-agree modal switch scanning, same shared modal component) remains open. The premise is now VERIFIED: production has the flag ENABLED, so this is a documentation correction rather than a pending enablement decision. **CONTRADICTION RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** `docs/legal/2026-08-17_ai-data-flow-classification.md:132`, itself CEO-attested 2026-08-19, records a live production read: `article_50_disclosure_shown` is TRUE on all 63 post-deploy `AiApiLog` rows. That column comes from `User#article_50_disclosure_shown?` (`app/models/user.rb:1324-1331` at `64cdccba1`), which returns true only when the user's `settings['ai_transparency']` carries a `shown_at` AND a matching `disclosures_version` -- i.e. only after an actual modal acknowledgement. A disclosure never enabled cannot produce that. (Scope caveat from that same record: the 63 rows come from 2 accounts, consistent with internal pre-tenant testing.) **RESOLVED 2026-08-23 - PRODUCTION VERIFIED ENABLED.** Production was read through the application path: `Setting.get('default_enabled_features')` CONTAINS `article_50_disclosure`, and `FeatureFlags.feature_enabled_for?('article_50_disclosure', user)` resolved TRUE for every user probed at `2026-08-23T21:04:12Z` (`RAILS_ENV=production`, image `web:73a8f633`). No org, beta or canary layer modifies it: production holds 2 organizations, 0 EU-stamped and 0 carrying any feature override, and neither the canary nor the beta `Setting` row exists. Enabled-SINCE date is NOT recoverable - `Setting` carries no PaperTrail history (0 version rows) and `Setting.set` overwrites in place; the containing row was created `2026-08-04T07:19:11Z` and last written `2026-08-13T00:03:56Z`, and nothing records which features the list held at either write. Full record: `docs/legal/2026-08-23_article-50-production-flag-verification.md`. It IS enabled, so this is a documentation correction, not a roadmap item. LL-104bfa61dc is scoped to the TERMS-AGREE modal; the AI disclosure modal is opened with `scannable: true` (`app/frontend/app/utils/article50_gate.js:108,141`) and carries `.modal_targets` and a `.btn` (`app/frontend/app/components/ai-disclosure.hbs:51,56`), so treating it as a hard pre-enable blocker for THIS modal is not supported by the code. It remains a shared-component confidence concern pending a runtime switch-scanning check. |
 | ACR / VPAT publish | Draft | `docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md` and branded Drive mirror remain `draft` awaiting attestation. |
-| Remediated-unverified verification wave | In progress | ~~Eight findings (five High)~~ **Nine findings (six High) as of 2026-08-30** await fresh-context verification before Scot can close: LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a, **LL-f150e0e828** (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium). LL-f150e0e828 returned to this set on 2026-08-30 when its closure was retracted (the fix is not deployed to production). |
+| Remediated-unverified verification wave | In progress | ~~Eight findings (five High)~~ **Ten findings (six High) as of 2026-08-31** await fresh-context verification before Scot can close: LL-90045bb29c, LL-a95e9c5f7c, LL-705b10bcd7, LL-a9d6d5a46b, LL-6af580a23a, **LL-f150e0e828** (High); LL-5954bcbbe6, LL-a167848115, LL-6723438462 (Medium); **LL-51da4fca1d** (Low, filed 2026-08-30 by PR #893). LL-f150e0e828 returned to this set on 2026-08-30 when its closure was retracted (the fix is not deployed to production). |
 
 ---
 
@@ -388,7 +388,8 @@ over them.
 >
 > **Post-signature status note, 2026-08-30 (NOT part of the signed statement).** The signed
 > statement below names LL-7f7372e3eb among live residuals as of 2026-08-20. That was accurate
-> when signed. The finding was verified-closed on 2026-08-30 (PR #887). The statement is left
+> when signed. The finding was verified-closed on 2026-08-29 (applied at the PR #887 merge,
+> 2026-08-30). The statement is left
 > byte-for-byte intact; this note carries the update, per the rule that an attested statement is
 > reproduced, never re-made. Scope of that closure: the audited-console control covers
 > `rails console` and `rails runner` only, not rake tasks or a direct
