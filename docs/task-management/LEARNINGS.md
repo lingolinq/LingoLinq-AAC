@@ -40,6 +40,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `label_fit` cannot fit a ONE-line box — `scrollHeight` counts the label's padding and the line budget does not](#gotcha-label_fit-cannot-fit-a-one-line-box--scrollheight-counts-the-labels-padding-and-the-line-budget-does-not)
 - [Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing](#gotcha-a-hard-coded-forcegroupingtrue-makes-a-preview-lie-about-the-preference-it-is-previewing)
 - [Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes](#gotcha-single-quoted-i18n-defaults-never-reach-the-locale-files--and-a-ui-control-is-only-fixed-when-the-payload-changes)
+- [Gotcha: a locale value without a leading `*** ` is treated as already translated](#gotcha-a-locale-value-without-a-leading---is-treated-as-already-translated)
 - [Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`](#gotcha-extrasjs-wraps-string-ajax-bodies-as-text-meta--html-fetchers-must-unwrap-text)
 - [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
@@ -16183,6 +16184,12 @@ page that drops the only "not operational" mark for a seam (`EvalNarrator` Opus 
 classic-plane Haiku-only `CLASSIC_PROFILE_IDS`) re-asserts that the seam works.
 
 **First seen in:** [2026-08-30-pr886-review-comments.md](./2026-08-30-pr886-review-comments.md)
+
+## Gotcha: a locale value without a leading `*** ` is treated as already translated
+
+`i18n.t` (`app/frontend/app/utils/i18n.js:448`) and `WordData.translate_locale_batch` (`app/models/word_data.rb:718`) both key off a leading `*** `. A value stored as English with no prefix — e.g. `"edit_dashboard_sub": "Customize your Dashboard"` — is shown as-is and skipped by the batch. Mixed Spanish/English on the dashboard was untranslated `***` placeholders (and one English-without-prefix key), not missing `{{t}}` in the templates. Fill via `rake extras:translate_ui_locales LOCALE=es` under `op run`, or write `Translation [[ English`. Treat `op://` tokens as unset (see the dotenv gotcha).
+
+**First seen in:** [2026-08-31-dashboard-i18n-locale-placeholders.md](./2026-08-31-dashboard-i18n-locale-placeholders.md)
 
 ## Gotcha: a spec can PIN the defect, so the red test is the fix working
 
