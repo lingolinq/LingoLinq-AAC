@@ -13,6 +13,7 @@ import i18n from '../utils/i18n';
 import app_state from '../utils/app_state';
 import capabilities from '../utils/capabilities';
 import speecher from '../utils/speecher';
+import modal_paging from '../utils/modal_paging';
 
 /**
  * Repairs (Modify and Repair Message) Modal Component
@@ -147,8 +148,16 @@ export default Component.extend({
       this.set('button_index', app_state.get('insertion.index') || buttons.length - 1);
       this.set('buttons', stashes.get('working_vocalization'));
       app_state.set('insertion', null);
+      this._watch_scroll();
     },
-    closing() {},
+    closing() { this._unwatch_scroll(); },
+    /* Deliberately NOT named `move`. `move` already exists on this component and steps the
+       CURSOR through the word grid (:333, :340 handle 'up'/'down' as row movement) — reusing
+       the name would have silently rebound the existing Up/Down controls. */
+    page(direction) {
+      modal_paging.page(this._scroll_box(), direction);
+      this._sync_scroll_state();
+    },
     done(do_speak) {
       const buttons = this.get('buttons');
       utterance.set('rawButtonList', buttons);
@@ -368,6 +377,71 @@ export default Component.extend({
         this.set('button_index', idx);
       }
     }
+  },
+
+  /* `tagName: ''`, so this component has no `this.element` — the scroller is reached from the
+     document, the way big-button.js reaches `#full_button`. `.modal-content` is the scrollport
+     (modal-dialog.js:98 sets maxHeight + overflow on it for every modal); container_for walks
+     up to whatever is actually scrolling rather than hard-coding that, so an inner scroller
+     added to this modal later still pages correctly. */
+  _scroll_box() {
+    const wrap = document.querySelector('.la-repairs-wrap');
+    return wrap ? modal_paging.container_for(wrap) : null;
+  },
+
+  _sync_scroll_state() {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    const state = modal_paging.state_for(this._scroll_box());
+    this.set('scroll_needed', state.needed);
+    this.set('scroll_at_top', state.at_top);
+    this.set('scroll_at_bottom', state.at_bottom);
+  },
+
+  _watch_scroll() {
+    const _this = this;
+    this._unwatch_scroll();
+    const sync = function() { _this._sync_scroll_state(); };
+    this.set('_scroll_sync', sync);
+    window.addEventListener('resize', sync);
+    /* Deferred: ModalDialog sets the scrollport in its own didInsert, so on this tick
+       .modal-content has neither maxHeight nor overflow yet and container_for would walk
+       straight past it and report nothing to scroll.
+
+       `setTimeout`, not `runLater`: `ember/no-runloop` rejects new @ember/runloop calls and
+       its recommended replacement, ember-lifeline, is not a dependency of this app — adding
+       one for a single deferral is a shared-config change, not a detail of this feature. The
+       id is kept and cleared in _unwatch_scroll, which is what runLater would have needed
+       here anyway. */
+    const timer = setTimeout(function() {
+      if (_this.isDestroyed || _this.isDestroying) { return; }
+      const box = _this._scroll_box();
+      if (box) {
+        box.addEventListener('scroll', sync);
+        _this.set('_scroll_box_watched', box);
+      }
+      sync();
+    }, 0);
+    this.set('_scroll_timer', timer);
+  },
+
+  /* Idempotent, and called from both `closing()` and willDestroyElement because only the
+     second is guaranteed: `onClosing` is vestigial under the service-based modal system, the
+     same reason didInsertElement has to invoke `opening()` by hand below. */
+  _unwatch_scroll() {
+    const timer = this.get('_scroll_timer');
+    if (timer) { clearTimeout(timer); this.set('_scroll_timer', null); }
+    const sync = this.get('_scroll_sync');
+    if (!sync) { return; }
+    window.removeEventListener('resize', sync);
+    const box = this.get('_scroll_box_watched');
+    if (box) { box.removeEventListener('scroll', sync); }
+    this.set('_scroll_sync', null);
+    this.set('_scroll_box_watched', null);
+  },
+
+  willDestroyElement() {
+    this._super(...arguments);
+    this._unwatch_scroll();
   },
 
   didInsertElement() {

@@ -8,9 +8,11 @@ import i18n from '../utils/i18n';
 import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
 import boardsPageListCache from '../utils/boards_page_list_cache';
 
-// Best-effort human-readable form of whatever the copy chain rejected with, for
-// the background drawer (which renders a plain string, unlike the modal's error
-// slot). Falls back to a generic message rather than printing "[object Object]".
+// Best-effort human-readable form of whatever the copy chain rejected with. Used for BOTH
+// the background drawer and the modal's own error slot: copying-board.hbs:10 renders
+// `{{this.error}}` directly, so storing the raw rejection object there printed the literal
+// text "[object Object]" to the user. The copy chain rejects with several shapes -- a bare
+// string, a jqXHR-ish `{error: '...'}`, or an Error -- hence the ladder rather than a cast.
 function copy_error_message(err) {
   if (typeof err === 'string') { return err; }
   if (err && typeof err.error === 'string') { return err.error; }
@@ -128,7 +130,7 @@ export default Component.extend({
       }, function(err) {
         if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
         _this.set('loading', false);
-        _this.set('error', err);
+        _this.set('error', copy_error_message(err));
         _this.set('hierarchyLoadFailed', true);
         if (err && (err.error === 'buttonset load timed out' || err.error === 'generation_stalled')) {
           _this.set('isTimeoutError', true);
@@ -312,7 +314,7 @@ export default Component.extend({
           modal.is_open('copying-board') ||
           (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
         if (copyingOpen && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
-          _this.set('error', err);
+          _this.set('error', copy_error_message(err));
         } else {
           modal.error(err);
         }
@@ -328,7 +330,7 @@ export default Component.extend({
         modal.is_open('copying-board') ||
         (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
       if (copyingOpen && !_this.get('isDestroyed') && !_this.get('isDestroying')) {
-        _this.set('error', err);
+        _this.set('error', copy_error_message(err));
       } else {
         modal.error(err);
       }

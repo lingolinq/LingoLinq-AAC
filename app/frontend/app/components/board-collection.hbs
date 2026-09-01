@@ -12,6 +12,28 @@
   <div class="md-board-collection__title">
     {{t "My Board Collection" key="my_board_collection"}}
   </div>
+  {{!-- Language filter. Re-queries the server rather than filtering the loaded rows: the
+       whole point is to surface boards TRANSLATED into a language that the user has no copy
+       of, and those are not in the loaded set to filter. 'any' is the API's own no-filter
+       sentinel, not a placeholder.
+
+       Placement is CSS, not markup — top-right here, flipped to the left in the edit drawer
+       via `.md-board-detail-actions-menu--collection-left` (see app.scss), so both panels
+       share one template. --}}
+  <div class="md-board-collection__locale {{if this.filter_locale_active 'md-board-collection__locale--active'}}">
+    {{#if this.single_language}}
+      {{!-- Only one language exists in this account, so the control has nothing to filter
+            between. Say why rather than leaving a dropdown that looks broken. --}}
+      <span class="md-board-collection__locale-hint">{{t "Translate a board to add languages" key="board_collection_translate_hint"}}</span>
+    {{/if}}
+    <ModernSelect
+      @class="md-board-collection__locale-select"
+      @selectId="board_collection_locale"
+      @content={{this.filter_locale_options}}
+      @selection={{this.filter_locale}}
+      @action={{this.ctrlAction "set_filter_locale"}}
+      @ariaLabel={{t "Filter boards by language" key="board_collection_filter_language"}} />
+  </div>
   {{!-- Modern in-panel search filter. Live filter — no submit needed.
        Magnifier on the left, clear (×) on the right when the input
        has a value. Matches against board name AND key so URL slugs
@@ -52,11 +74,8 @@
           <button type="button" class="md-board-collection__item {{if (is_equal this.originalBoard.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{this.originalBoard.key}} {{on "click" (this.ctrlAction "select_board" this.originalBoard)}}>
             <img class="md-board-collection__item-icon" src={{this.originalBoard.icon_url_with_fallback}} alt="" />
             <BoardListItemLabel @board={{this.originalBoard}} @name={{this.originalBoard.name}} />
-            {{#if (board-language-label this.originalBoard)}}
-              <span class="md-board-collection__item-lang">{{board-language-label this.originalBoard}}</span>
-            {{/if}}
-            {{#if this.originalBoard.grid.rows}}
-              <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=this.originalBoard.grid.rows columns=this.originalBoard.grid.columns key="board_collection_grid_size"}}>{{this.originalBoard.grid.rows}} x {{this.originalBoard.grid.columns}}</span>
+            {{#if this.originalBoard.grid_dimensions}}
+              <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=this.originalBoard.grid_dimensions.rows columns=this.originalBoard.grid_dimensions.columns key="board_collection_grid_size"}}>{{this.originalBoard.grid_dimensions.rows}} x {{this.originalBoard.grid_dimensions.columns}}</span>
             {{/if}}
           </button>
         </li>
@@ -76,11 +95,8 @@
           <button type="button" class="md-board-collection__item {{if (is_equal this.currentBoard.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{this.currentBoard.key}} {{on "click" (this.ctrlAction "select_board" this.currentBoard)}}>
             <img class="md-board-collection__item-icon" src={{this.currentBoard.icon_url_with_fallback}} alt="" />
             <BoardListItemLabel @board={{this.currentBoard}} @name={{this.currentBoard.name}} />
-            {{#if (board-language-label this.currentBoard)}}
-              <span class="md-board-collection__item-lang">{{board-language-label this.currentBoard}}</span>
-            {{/if}}
-            {{#if this.currentBoard.grid.rows}}
-              <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=this.currentBoard.grid.rows columns=this.currentBoard.grid.columns key="board_collection_grid_size"}}>{{this.currentBoard.grid.rows}} x {{this.currentBoard.grid.columns}}</span>
+            {{#if this.currentBoard.grid_dimensions}}
+              <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=this.currentBoard.grid_dimensions.rows columns=this.currentBoard.grid_dimensions.columns key="board_collection_grid_size"}}>{{this.currentBoard.grid_dimensions.rows}} x {{this.currentBoard.grid_dimensions.columns}}</span>
             {{/if}}
           </button>
         </li>
@@ -88,6 +104,17 @@
     </section>
   {{/if}}
   {{!-- My Boards (owned + shared, root tiles only) --}}
+  {{!-- One message instead of an empty "My Boards" plus four self-hiding brand sections.
+       Without it a language with no matches renders a silently blank panel, which reads as a
+       broken filter rather than an honest "nothing is translated into this yet". --}}
+  {{#if this.filter_empty}}
+    <div class="md-board-collection__filter-empty" role="status">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z"/></svg>
+      <p class="md-board-collection__filter-empty-text">{{t "No boards are translated into %{language} yet." language=this.filter_locale_name key="board_collection_no_boards_for_language"}}</p>
+      <button type="button" class="md-board-collection__filter-empty-reset" {{on "click" (this.ctrlAction "set_filter_locale" "any")}}>{{t "Show all languages" key="board_collection_show_all_languages"}}</button>
+    </div>
+  {{/if}}
+  {{#unless this.filter_empty}}
   <section class="md-board-collection__section">
     <h3 class="md-board-collection__section-label"><span>{{t "My Boards" key="my_boards"}}</span><span class="md-board-collection__grid-size-label">{{t "Grid size" key="grid_size"}}</span></h3>
     {{#if (is_equal this.my_boards_state.state "loaded")}}
@@ -100,10 +127,7 @@
             <li class="md-board-collection__row">
               <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{board.key}} {{on "click" (this.ctrlAction "select_board" board)}}>
                 <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
-                <BoardListItemLabel @board={{board}} @name={{board.name}} />
-                {{#if (board-language-label board)}}
-                  <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
-                {{/if}}
+                <BoardListItemLabel @board={{board}} @name={{board.display_name}} />
                 {{#if (is_equal board.key this.home_key)}}
                   {{!-- Home-board indicator. Mirrors the per-tile pattern
                        on the boards page (app/components/board-icon.hbs)
@@ -113,12 +137,12 @@
                     <span class="glyphicon glyphicon-home" aria-hidden="true"></span>
                   </span>
                 {{/if}}
-                {{#if board.grid.rows}}
+                {{#if board.grid_dimensions}}
                   {{!-- Grid size (rows x columns) — the same metric the
                        boards-page board card shows in its top-right corner
                        (app/components/board-icon.hbs). Replaces the raw
                        button count. --}}
-                  <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>
+                  <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid_dimensions.rows columns=board.grid_dimensions.columns key="board_collection_grid_size"}}>{{board.grid_dimensions.rows}} x {{board.grid_dimensions.columns}}</span>
                 {{/if}}
               </button>
             </li>
@@ -166,17 +190,14 @@
               <li class="md-board-collection__row">
                 <button type="button" class="md-board-collection__item {{if (is_equal board.key this.home_key) 'md-board-collection__item--home'}}" data-bd-action={{this.select_action_name}} data-bd-arg={{board.key}} {{on "click" (this.ctrlAction "select_board" board)}}>
                   <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" />
-                  <BoardListItemLabel @board={{board}} @name={{board.name}} />
-                {{#if (board-language-label board)}}
-                  <span class="md-board-collection__item-lang">{{board-language-label board}}</span>
-                {{/if}}
+                  <BoardListItemLabel @board={{board}} @name={{board.display_name}} />
                   {{#if (is_equal board.key this.home_key)}}
                     <span class="md-board-collection__item-home" aria-label={{t "Home board" key="home_board"}} title={{t "Home board" key="home_board"}}>
                       <span class="glyphicon glyphicon-home" aria-hidden="true"></span>
                     </span>
                   {{/if}}
-                  {{#if board.grid.rows}}
-                    <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>
+                  {{#if board.grid_dimensions}}
+                    <span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid_dimensions.rows columns=board.grid_dimensions.columns key="board_collection_grid_size"}}>{{board.grid_dimensions.rows}} x {{board.grid_dimensions.columns}}</span>
                   {{/if}}
                 </button>
               </li>
@@ -190,6 +211,7 @@
       </section>
     {{/unless}}
   {{/each}}
+  {{/unless}}{{!-- /filter_empty --}}
 </div>
 
 {{!-- In-place loading overlay shown after a board row is clicked: dims the

@@ -34,6 +34,36 @@
         and never restarted it: a switch user was left in a modal with no reachable rows
         and no reachable close, stuck until someone else clicked or pressed Escape. --}}
   <div class="modal-body md-modal-body modal_targets">
+    {{!-- Outer scroll rail: pages the WHOLE modal. The Up/Down further down this same body
+          is a different control — it steps the CURSOR through the words (repairs.js#move). `.modal-content` is the scrollport
+          (modal-dialog.js:98) and ModalDialog yields INTO it, so this rail is inside the thing
+          it scrolls and has to be position:sticky or it scrolls away with the content.
+
+          `{{#if}}`, never a CSS hide: modal.js#scannable_targets is a bare querySelectorAll
+          with no visibility filter, so a display:none control is still handed to the scanner
+          and a switch user stops on something invisible.
+
+          `advanced_selection modal_targets` because neither is on the wrap — without them the
+          rail is unreachable by exactly the users it exists for. `btn` on each button is the
+          scanning hook, same reason the Oops control keeps it below. --}}
+    {{#if this.scroll_needed}}
+      <div class="la-repairs-scroll-rail advanced_selection modal_targets">
+        <div class="la-repairs-scroll-rail__inner">
+          {{!-- Not `disabled` at the ends, unlike big-button's Up/Down. scannable_targets does
+                not filter [disabled], so disabling would leave a scanning user stopping on a
+                dead control; the DOM clamps scrollTop anyway, so a press at the end is a safe
+                no-op. The end state is shown by dimming instead. --}}
+          <button type="button" class="btn la-repairs-scroll-btn {{if this.scroll_at_top 'la-repairs-scroll-btn--end'}}" {{on "click" (this.ctrlAction "page" "up")}} aria-label={{t "Scroll up" key="scroll_up"}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+            <span class="la-repairs-scroll-btn__label">{{t "Scroll up" key="scroll_up"}}</span>
+          </button>
+          <button type="button" class="btn la-repairs-scroll-btn {{if this.scroll_at_bottom 'la-repairs-scroll-btn--end'}}" {{on "click" (this.ctrlAction "page" "down")}} aria-label={{t "Scroll down" key="scroll_down"}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+            <span class="la-repairs-scroll-btn__label">{{t "Scroll down" key="scroll_down"}}</span>
+          </button>
+        </div>
+      </div>
+    {{/if}}
     {{#if this.buttons}}
       <div class='cursor_holder'>
         <div class='cursor_navigation repair_buttons'>

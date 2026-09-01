@@ -651,11 +651,37 @@
           </svg>
           <span class="md-board-detail-nav-btn__label">{{t "Home" key="board_detail_home"}}</span>
         </button>
-        {{!-- Modeling control — was a pill inside the sentence bar; it now reads as
-             a third nav button under Home. The long "Modeling is paused" caption
-             the pill carried is dropped: it cannot fit a 60px button, and each
-             state's aria-label already says it in full for screen readers, with
-             the play/pause icon and colour carrying it visually. --}}
+        {{!-- Modeling indicator — was a pill inside the sentence bar, then a third nav
+             button under Home, and is now a read-only badge in that same slot. The long
+             "Modeling is paused" caption the pill carried is still dropped: it cannot fit a
+             60px box, and the aria-label says it in full for screen readers. The play/pause
+             icon that used to carry the state visually is gone with the toggle; colour and
+             the aria-label carry it now. --}}
+        {{!-- STATUS BADGE, not a control. The manual pause/resume toggle is commented out
+              below rather than deleted, pending verification — restore that block and drop
+              this span to bring it back.
+
+              What was removed is only the MANUAL toggle. `modeling_paused` itself is still
+              live and still written by the edit route (routes/user/board-detail/edit.js:69
+              on entry, :126 on exit), because app-state.js:4072 reads it to keep a
+              supervisor's taps while editing OUT of the communicator's report data. That
+              behaviour is untouched; only the user-facing button is gone.
+
+              The badge still distinguishes the paused case, because saying "Modeling" while
+              modeling is suppressed would misreport what the system is doing. It is a
+              <span role="status"> in both states, so it is no longer a scan or dwell target
+              — two fewer stops in the cycle. --}}
+        {{#if this.app_state.modeling_session_active}}
+          <span class="md-board-detail-modeling-btn md-board-detail-modeling-btn--badge {{if this.edit_mode 'md-board-detail-modeling-btn--paused'}}" role="status"
+                aria-label={{if this.edit_mode
+                             (t "Modeling paused while editing — will resume on exit" key="board_detail_modeling_paused_edit")
+                             (t "Modeling mode is active" key="board_detail_modeling_active")}}>
+            <span class="md-board-detail-nav-btn__label">{{t "Modeling" key="board_detail_modeling_label"}}</span>
+          </span>
+        {{/if}}
+        {{!-- COMMENTED OUT 2026-08-31 — manual modeling pause/resume. Restore verbatim to
+              re-enable, and remove the badge above. The controller action it calls
+              (`toggle_modeling_pause`) is commented out in board-detail.js in the same pass.
         {{#if this.app_state.modeling_session_active}}
           {{#if this.edit_mode}}
             <span class="md-board-detail-modeling-btn md-board-detail-modeling-btn--paused" role="status" aria-label={{t "Modeling paused while editing — will resume on exit" key="board_detail_modeling_paused_edit"}}>
@@ -681,6 +707,7 @@
             </button>
           {{/if}}
         {{/if}}
+        --}}
         </div>
         {{#if this.show_board_back_nav}}
           <button type="button" class="md-board-detail-nav-stack__back" data-bd-action="go_back" {{on "click" (this.ctrlAction "go_back")}} aria-label={{t "Go back to previous board" key="board_detail_go_back"}}>

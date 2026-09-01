@@ -10257,14 +10257,6 @@ body.pretty_loader #loading_box {
 .form-inline .thin_select select.form-control {
   width: 100%;
 }
-#languages_prompt .form-group .glyphicon {
-  font-size: 30px;
-  vertical-align: middle;
-}
-.big_select {
-  font-size: 20px;
-  height: 50px;
-}
 
 #scanner_axis_vertical {
   width: 3px;
@@ -14201,16 +14193,24 @@ video.button_image {
 .la-repairs-wrap {
   color: $brand-charcoal-dark;
 }
-/* Layout ONLY. The gradient, the padding and the footer's chrome all come from the shared
-   `.modal .md-modal-header` / `.md-modal-footer` block near the end of this file — same
-   specificity (0,2,0) and later in source order, so anything repeated here would lose to it
-   anyway and forking one modal's chrome from the rest is not the intent. What is left is
-   what this modal genuinely needs: a flex row so the title and the Oops control sit on one
-   line, and room on the right for the close button. */
-.la-repairs-wrap > .modal-header {
+/* The gradient still comes from the shared `.modal .md-modal-header` / `.md-modal-footer`
+   block near the end of this file; the VERTICAL PADDING no longer does.
+
+   The `.modal` qualifier is load-bearing. That shared block is (0,2,0) and sits later in
+   source order, so an unqualified `.la-repairs-wrap > .modal-header` is also (0,2,0) and
+   loses every property they both declare — which is why this rule used to carry no
+   vertical padding at all. (0,3,0) makes this the authoritative header rule for this
+   modal. Same pattern as `.modal .la-share-text-modal-wrap .la-modal-header` (:39295).
+
+   Top/bottom is half the shared 28px. Longhands, not the `padding` shorthand: the shared
+   block sets only top/bottom, so a shorthand here would also reset the left padding this
+   rule does not own, and clobber the 56px right gutter the close button needs. */
+.modal .la-repairs-wrap > .modal-header {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding-top: 14px;
+  padding-bottom: 14px;
   padding-right: 56px;
   position: relative;
 }
@@ -14221,6 +14221,61 @@ video.button_image {
   font-weight: 700;
   color: $la-navy;
   letter-spacing: -0.3px;
+}
+
+/* Outer scroll rail — pages the whole modal. Sticky, not fixed or absolute: `.modal-content`
+   is the scrollport (modal-dialog.js:98) and this rail lives inside it, so any other
+   positioning scrolls away with the content it exists to move. `height: 0` keeps it out of
+   the flow so it cannot push the word grid down, and pointer-events is dropped on that
+   zero-height band and restored on the buttons so it cannot swallow clicks aimed at content
+   behind it. */
+.la-repairs-scroll-rail {
+  position: sticky;
+  top: 8px;
+  z-index: 4;
+  height: 0;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.la-repairs-scroll-rail__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: auto;
+}
+/* Gutter for the rail, and ONLY when the rail is rendered — it is behind an {{#if}}, so an
+   unconditional padding would indent every non-scrolling repair modal for nothing. `:has()`
+   is already used for this modal's dialog width at :14195. */
+.la-repairs-wrap > .modal-body:has(.la-repairs-scroll-rail) {
+  padding-right: 104px;
+}
+/* Deliberately the same skin as the Big Button modal's Up/Down (:39929): it is the paging
+   control users have already learned, and this one does the same job on a different box. */
+.la-repairs-wrap .btn.la-repairs-scroll-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 84px;
+  padding: 8px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 45%, rgba(255, 255, 255, 0.72) 100%), $brand-blue-grey;
+  color: $brand-charcoal-blue;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: normal;
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.06),
+              0 6px 18px rgba($brand-blue-black, 0.07),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+/* Dimmed at the ends, NOT disabled. `scannable_targets` does not filter `[disabled]`, so a
+   disabled button still stops the scanner on a dead control; see repairs.hbs. */
+.la-repairs-wrap .btn.la-repairs-scroll-btn--end {
+  opacity: 0.45;
 }
 
 /* The "Oops" control. Deliberately NOT red: it is something the user CHOOSES to do — it
@@ -14302,6 +14357,17 @@ video.button_image {
    stretch to the flex row. */
 .la-repairs-insert-action {
   flex-shrink: 0;
+}
+
+/* The footer's gradient still comes from the shared block; its vertical padding does not.
+   New rule rather than an edit, because this modal had no footer rule of its own — the
+   only one here styles the primary button. `.modal` qualifier and longhands for the same
+   two reasons as the header above (:14210): (0,2,0) would lose to the shared block, and a
+   shorthand would reset horizontal padding this rule does not own. Half the shared 28px,
+   matching the header so the two ends of the modal stay symmetrical. */
+.modal .la-repairs-wrap > .modal-footer {
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 /* Footer chrome likewise comes from the shared block; only the primary button is styled
@@ -38907,6 +38973,206 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 .la-valet-modal-close-btn:hover {
   background: #566878;
   border-color: rgba($brand-charcoal-blue, 0.45);
+}
+
+
+/* ── Switch Languages modal ──────────────────────────────────────────
+   Replaces the Bootstrap horizontal-form grid this modal used to carry. The header and its
+   close button come from the shared `.la-modal-header` chrome (already in the universal
+   header list); the footer is registered in the universal footer alias list above, which is
+   what gives it the shared gradient + padding — a `la-*-modal-footer` that is NOT in that
+   list silently gets no chrome at all (styling-recurring-problems.md #7).
+   The legacy `#languages_prompt .form-group .glyphicon` and `.big_select` rules were DELETED
+   rather than left in place: both had zero consumers left repo-wide once the markup changed,
+   and a legacy descendant rule that outlives its replacement is exactly how the Share Text
+   restyle half-landed (see LEARNINGS 2026-08-27). */
+/* The header label. Without this the shared `.la-modal-header-label` base applies, whose
+   colour is $brand-honey-bronze (#F2B95A) — measured 1.68:1 on this header's $surface-100
+   ground, against the 4.5:1 that 15px/800 text needs. That base is the legacy eyebrow
+   treatment; every modernised modal overrides it the same way (devices :38468, add-app,
+   colors, features, big-button), and this modal was simply missing the override rather than
+   needing a new colour. var(--md-ink) is #111A2E => 17.5:1. `text-transform: uppercase` is
+   deliberately left inherited: none of the sibling modals reset it, so the eyebrow keeps its
+   house form and only the contrast changes. */
+/* The icon TILE. There is no base `.la-modal-header-icon` rule — every modal's tile lives on
+   its own modifier (`--app` :38407, `--devices`, `--colors`, `--valet`), so a modifier with no
+   rule renders as a bare glyph with no box and no flex-shrink, which is why this one sat flush
+   against the title. Verdigris tint to match the globe's own accent stroke. */
+.la-modal-header-icon--languages {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba($brand-verdigris, 0.10);
+  border: 1px solid var(--md-line);
+  flex-shrink: 0;
+}
+.la-languages-modal-wrap .la-modal-header-label {
+  margin: 0;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -0.2px;
+  color: var(--md-ink);
+  flex: 1 1 auto;
+  min-width: 0;
+  /* Centred title. The header is `justify-content: space-between` with three children, and
+     this one takes the space between the 46px icon tile and the 48px close button — so
+     centring the text inside it lands within ~1px of the modal's true centre without having
+     to take the close button out of flow. */
+  text-align: center;
+}
+/* Half the shared 28px. `.modal` qualifier is load-bearing: the universal end-of-file
+   `.modal .la-modal-header` rule is (0,2,0) and sits LATER, so an unqualified wrapper rule
+   is also (0,2,0) and loses its vertical padding entirely. (0,3,0) makes this authoritative.
+   Same pattern as `.modal .la-share-text-modal-wrap .la-modal-header`. */
+.modal .la-languages-modal-wrap .la-modal-header {
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+.la-languages-modal-body {
+  padding: 20px 24px;
+}
+.la-languages-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.la-languages-desc {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--md-ink);
+}
+/* Label above control rather than the old 4/8 column split: at the widths this modal is
+   actually shown, a side label left the select under ~180px and clipped long endonyms. */
+.la-languages-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.la-languages-field__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--md-ink);
+}
+/* Was a 30px glyphicon font sitting on the label baseline; now an inline SVG sized to the
+   text so it cannot drag the row height around. */
+.la-languages-field__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: $brand-verdigris-aa;
+}
+.la-languages-field__control {
+  width: 100%;
+}
+/* Width only. `@select_class` lands on BoundSelect's OUTER `.bound-select` wrapper, not on a
+   `<select>` — the visible control is `.bound-select__trigger`, which already carries the
+   modern skin (44px min-height, its own chevron, focus ring). Restyling it from here would
+   fork one modal's select from every other one for no reason, and the first draft of this
+   rule did exactly that by aiming padding and borders at the wrapper, where they did nothing.
+   Menu clipping is likewise already handled: `.modal-content .bound-select__list` (:98132)
+   flow-positions the list for every modal (styling-recurring-problems.md #1). */
+.la-languages-select {
+  width: 100%;
+}
+/* Segmented pair, shown when the board offers exactly two languages. Equal flex basis so
+   neither language's name dominates, and wrapping text rather than the old
+   `max-width: 50%; overflow: hidden; text-overflow: ellipsis` inline style, which truncated
+   the name of whichever language happened to be longer. */
+.la-languages-segmented {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.la-languages-segmented__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  background: $surface-100;
+  color: var(--md-ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.la-languages-segmented__btn:hover {
+  background: $surface-200;
+  border-color: rgba($brand-teal, 0.3);
+}
+/* Selected state carries BOTH a fill and a border change, not colour alone: the two options
+   are language names, so a user who cannot separate the two hues has nothing else to go on
+   (WCAG 1.4.1). `aria-pressed` carries it for assistive tech. */
+.la-languages-segmented__btn--on {
+  background: rgba($brand-verdigris, 0.12);
+  border-color: $brand-verdigris-aa;
+  color: $brand-verdigris-ink;
+}
+.la-languages-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  font-weight: 400;
+  cursor: pointer;
+}
+/* 20px, and NOT shrunk on small screens: this is the control that decides whether the second
+   picker appears at all, and it is a touch target on a communicator's device. */
+.la-languages-check__box {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin: 1px 0 0;
+  cursor: pointer;
+}
+.la-languages-check__text {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--md-ink);
+}
+/* Wraps rather than scrolls: three buttons, one of which is a long translated string. */
+.la-languages-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  /* Horizontal padding has to be declared here. The universal footer rule this class is
+     registered in sets ONLY padding-top/bottom, and this footer carries no Bootstrap
+     `.modal-footer` class to inherit a horizontal value from — so without this the buttons
+     sat flush against the modal's right edge and the primary one clipped. Matches the body's
+     24px so the three columns line up. */
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.la-languages-btn {
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-blue-black, 0.12);
+  background: $surface-100;
+  color: var(--md-ink);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.la-languages-btn:hover {
+  background: $surface-200;
+  border-color: rgba($brand-teal, 0.3);
+}
+.la-languages-btn--primary {
+  background: $brand-charcoal-blue;
+  border-color: $brand-charcoal-blue;
+  color: #fff;
+}
+.la-languages-btn--primary:hover {
+  background: $la-navy;
+  border-color: $la-navy;
 }
 
 /* ── Saved Phrases modal (modern) ── */
@@ -72725,7 +72991,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
     0 4px 14px rgba($la-navy, 0.10);
 }
 .md-board-detail-home-btn:hover,
-.md-board-detail-modeling-btn:hover {
+.md-board-detail-modeling-btn:not(.md-board-detail-modeling-btn--badge):hover {
   background: rgba(110, 122, 140, 0.42);
 }
 .md-board-detail-home-btn:active,
@@ -72756,7 +73022,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   margin-right: -8px;
 }
 /* Shared layout for BOTH nav buttons: a compact icon-above-label control. Fixed
-   width so Home + Back read as a matched pair; height comes from the row (stretch),
+   width so the pair reads as one control set; height comes from the row (stretch),
+   (Home is now 80px and Back 60px — the Modeling badge shares Home's column and needs
+   the extra width; they are no longer the same width, deliberately),
    and the icon+label stay centered at a fixed size so they don't balloon on tall
    sentence-bar presets or overflow the shortest one. Overrides the base home-btn's
    row direction / 56px width / -8px margin / 10px padding. */
@@ -72781,7 +73049,8 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
      Thinned 2 → 1.5 so the Home/Back icons read lighter (per request). */
   stroke-width: 1.5;
 }
-/* Small label under each icon (Home / Back). */
+/* Small label under each icon (Home / Back / the Modeling badge). Back keeps this size;
+   Home and Modeling set their own below. */
 .md-board-detail-nav-btn__label {
   font-size: 11px;
   /* Lighter weight (600 → 500) so the label reads thinner alongside the thinner
@@ -72789,6 +73058,27 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0.01em;
+}
+/* Home reads larger than its neighbours (per request): 14px on a full-size screen, ramping
+   down to a 12px floor on smaller ones. Same breakpoint and floor as the prediction panel's
+   empty-state copy, and the same 1.71vw ramp, so the two step together rather than crossing
+   over — 820 × 0.0171 = 14.02, which makes the ramp continuous where the clamp takes over,
+   and it reaches the 12px floor at ~702px. No calc(): there is no mixed-unit ARITHMETIC
+   here, each clamp argument is a single unit, and dart-sass unwraps a calc() inside clamp()
+   anyway (see LEARNINGS). */
+.md-board-detail-home-btn .md-board-detail-nav-btn__label {
+  font-size: clamp(12px, 1.71vw, 14px);
+}
+/* The Modeling badge is set in small caps so it reads as a status marker rather than a
+   third navigation label. `text-transform`, never a pre-uppercased string: the value is
+   translated, and machine uppercasing is wrong in several locales — the same reason the
+   prediction panel's spine label uses a transform. */
+span.md-board-detail-modeling-btn--badge .md-board-detail-nav-btn__label {
+  font-size: 12px;
+  text-transform: uppercase;
+  /* 0.02em, not the 0.04em caps would normally want: at 0.04em the string measures 69.0px
+     against a 70px content box, and 1px of slack will not survive a different font stack. */
+  letter-spacing: 0.02em;
 }
 
 /* "Try this Board" return control (board-detail).
@@ -73352,7 +73642,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    rule at equal specificity, so this colour wins. */
 .md-board-detail-modeling-btn {
   width: 100%;
-  color: $brand-verdigris-aa;
+  color: $brand-verdigris-ink;
   font-weight: 700;
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -73382,13 +73672,39 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   justify-content: stretch;
   gap: 4px;
   flex: 0 0 auto;
-  width: 60px;
+  /* 60px -> 80px so the Modeling badge fits "MODELING" at 12px caps. Measured in the app's
+     own font: that string renders 67.0px at 0.02em tracking, against a content box of
+     80 - 8 (padding) - 2 (border) = 70px. The slack is only ~3px, so it is the string that
+     governs this width — re-measure before reducing it or raising the badge's size/tracking,
+     and note the fallback stack (Arial, generic sans) may set slightly wider than Helvetica.
+     Home rides this width too (it is width:100% of the column), which is why it is no longer
+     the same width as Back. */
+  width: 80px;
   min-height: 0;
 }
 .md-board-detail-nav-stack__home-col .md-board-detail-home-btn {
   flex: 1 1 auto;
   width: 100%;
   min-height: 0;
+}
+/* The badge fills the column too. Without this it kept the 60px from the grouped
+   `.md-board-detail-nav-stack .md-board-detail-modeling-btn` rule above — (0,2,0), which
+   outranks the plain `width: 100%` on `.md-board-detail-modeling-btn` — so widening the
+   column moved Home to 80px and left the badge behind at 60px. Home escapes that rule
+   through the sibling rule directly above; this is the badge's equivalent, and it has to
+   stay AFTER it in source order, since both are (0,2,0).
+
+   Deliberately NOT `flex: 1 1 auto` like Home: the badge is a fixed-height chip and must not
+   grow to share the column's height.
+
+   Horizontal padding drops 8px -> 4px because the label is what governs here. Measured:
+   "MODELING" at 12px/0.02em is 67.0px, and at the inherited 8px padding the content box is
+   80 - 16 - 2 = 62px — still an overflow even at 80px wide. At 4px it is 70px, leaving ~3px.
+   Home keeps the 8px: its label is only 41.9px and has room to spare. */
+.md-board-detail-nav-stack__home-col .md-board-detail-modeling-btn {
+  width: 100%;
+  padding-left: 4px;
+  padding-right: 4px;
 }
 /* With modeling showing, the column holds TWO stacked buttons instead of one
    tall Home, so each is roughly half the height — and the 18px radius Home
@@ -73431,6 +73747,54 @@ span.md-board-detail-modeling-btn--paused {
 }
 span.md-board-detail-modeling-btn--paused:hover {
   opacity: 0.7;
+}
+/* Badge state (2026-08-31): the modeling control is now a read-only <span> in BOTH states,
+   not just the edit-paused one. It keeps the shared surface above so it still sits under Home
+   at the same width; only the affordances that say "press me" are removed, or a status
+   element invites a tap that does nothing.
+
+   The hover backgrounds are cancelled by NARROWING the two rules that set them (:72802 and
+   the shell-scoped one at :76688) with `:not(...--badge)`, rather than by an override here.
+   An override was tried and abandoned: the shell rule is (0,5,0), so nothing a `span.` type
+   selector can reach would have won it, and out-specifying it would have been a cascade
+   fight of exactly the kind rule 7 forbids. The ink rule at :76711 is deliberately NOT
+   narrowed — the badge keeps its verdigris identity. */
+span.md-board-detail-modeling-btn--badge {
+  cursor: default;
+  /* Reads as a status chip, not a raised control: glass fill and a hairline in place
+     of the glass gloss + drop shadow the nav buttons carry. The LAYOUT half of the shared
+     rule at :72767 (size, flex centring) is still wanted, so only the surface is overridden
+     here; the light-shell glass rule is surface-only and is narrowed to exclude the badge
+     outright rather than being fought with specificity.
+
+     Colour is set here as well as in the two ink rules because the dark-mode override
+     (`.md-board-detail--dark .md-board-detail-modeling-btn`, (0,2,0)) would otherwise repaint
+     the label in LIGHTENED verdigris — which is correct on a dark button and wrong on this
+     light chip. (0,2,1) beats it, so the chip keeps one known ink everywhere.
+
+     Glassy, but on a FLOOR. The rail behind this badge is dark, so the LOWEST gradient stop
+     is what decides legibility, and a 10% verdigris tint tried earlier composited down to a
+     dark chip that swallowed the ink entirely. The nav buttons' own glass bottoms out at
+     `rgba(238,244,251,0.62)`, which measures ~3.9:1 here — that is the original defect. This
+     stops at 0.86 instead: measured over the dark rail, 6.7:1 at the top stop and 5.61:1 at
+     the bottom, against the 4.5:1 an 11px label needs. Do not lower the LAST stop without
+     re-measuring it over a DARK backdrop; the first two stops are not the binding constraint.
+
+     Gloss comes from the two INSET highlights only. There is deliberately no outer drop
+     shadow — that is what reads as a raised, pressable control, and this is a status chip. */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.97) 0%,
+    rgba(255, 255, 255, 0.90) 55%,
+    rgba(240, 246, 252, 0.86) 100%
+  );
+  border: 1px solid rgba($brand-verdigris, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 6px 10px -8px rgba(255, 255, 255, 0.7);
+  color: $brand-verdigris-ink;
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
 }
 .md-board-detail-sentence-bar__text {
   flex: 1;
@@ -76575,7 +76939,7 @@ span.md-board-detail-modeling-btn--paused:hover {
    The modeling button is included so its background MATCHES Home's; only its ink
    is pulled back to verdigris immediately below. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn,
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-modeling-btn,
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-modeling-btn:not(.md-board-detail-modeling-btn--badge),
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back,
 .new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-home-btn {
   /* Same glassy glossy language as the bar, scaled for a button (smaller sheen
@@ -76598,7 +76962,7 @@ span.md-board-detail-modeling-btn--paused:hover {
 }
 
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-home-btn:hover,
-.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-modeling-btn:hover,
+.md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-modeling-btn:not(.md-board-detail-modeling-btn--badge):hover,
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-nav-stack__back:hover,
 .new-board-mockup-wrap:not(.md-board-detail--dark) .md-board-detail-home-btn:hover {
   background: linear-gradient(
@@ -76622,7 +76986,7 @@ span.md-board-detail-modeling-btn--paused:hover {
    the ink flickered navy on mouse-over. */
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-modeling-btn,
 .md-shell--board-detail:not(.md-shell--board-detail-edit):not(.md-board-detail--dark) .md-board-detail-modeling-btn:hover {
-  color: $brand-verdigris-aa;
+  color: $brand-verdigris-ink;
 }
 
 /* 3. Tool buttons (backspace / clear / options chevron) — smaller
@@ -78154,12 +78518,6 @@ span.md-board-detail-modeling-btn--paused:hover {
 .md-shell--board-collection-left .md-board-edit-panel {
   display: none;
 }
-/* Edit-mode collection: hide the per-row board language labels (the drawer only
-   carries --collection-left in edit context, so speak mode is unaffected). Covers
-   every row — Original Selected Board, My Boards, and the brand sections. */
-.md-board-detail-actions-menu--collection-left .md-board-collection__item-lang {
-  display: none;
-}
 /* Right SETTINGS panel also hides while browsing the collection, so the center
    board area is unobstructed (mirrors the speak-mode collection hiding the inline
    sidebar). It comes back when the drawer closes. */
@@ -78274,6 +78632,110 @@ span.md-board-detail-modeling-btn--paused:hover {
    language (collection card top stroke, Show more pill). The
    active modifier (added when the input has a value) sustains the
    teal ring so users see "search is on" at a glance. */
+/* Language filter. The header is a flex COLUMN, so "top right" is align-self, not a float —
+   and that makes the speak/edit mirror a single property. The speak drawer is pinned to the
+   viewport's right edge so the control hugs that side; the edit drawer carries
+   --collection-left and is pinned to the left, so it mirrors. One template, two panels. */
+.md-board-collection__locale {
+  align-self: flex-end;
+  margin: 8px 2px 0;
+  min-width: 0;
+  max-width: 70%;
+  /* COLUMN, so the single-language hint stacks ABOVE the select. It was a row, which gave the
+     hint whatever width the select left over — about 60px — and wrapped it one word per line.
+     Stacking gives the sentence the full control width instead. */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+/* The edit drawer is pinned to the left, so the whole stack mirrors — both which edge it hugs
+   and which way its text runs. */
+.md-board-detail-actions-menu--collection-left .md-board-collection__locale {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+/* Explains a control that has nothing to choose between. Deliberately quiet — it is guidance,
+   not a warning — but not below the AAC legibility floor either. */
+.md-board-collection__locale-hint {
+  max-width: 100%;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: right;
+  color: rgba($la-navy, 0.66);
+}
+.md-board-detail-actions-menu--collection-left .md-board-collection__locale-hint {
+  text-align: left;
+}
+/* The hint is a sentence, so the stack needs more of the header than the bare select did. */
+.md-board-collection__locale:has(.md-board-collection__locale-hint) {
+  max-width: 100%;
+}
+.md-board-collection__locale-select {
+  align-self: stretch;
+}
+.md-board-detail-actions-menu--collection-left .md-board-collection__locale {
+  align-self: flex-start;
+}
+/* Active filter gets a verdigris hairline so a narrowed list is visibly narrowed rather than
+   looking like an empty collection. */
+.md-board-collection__locale--active .modern-select__trigger {
+  border-color: $brand-verdigris-aa;
+  background: rgba($brand-verdigris, 0.06);
+}
+.md-board-collection__locale-select {
+  width: 100%;
+}
+/* The drawer host (.md-board-detail-actions-menu--collection) is `position: fixed` with
+   `overflow: hidden`, so the default absolutely-positioned menu is clipped at the panel edge
+   — styling-recurring-problems.md #1. Flow-position it instead: the menu pushes the section
+   list down while open and is fully visible, which is the documented preferred fix for a
+   panel of stacked fields. Same pattern as `.md-edit-profile__form .modern-select__list`
+   (:49121) and the privacy modal's bound-select. */
+.md-board-collection__locale .modern-select__list {
+  position: static;
+  margin-top: 4px;
+}
+/* Language-filter empty state. Replaces the whole section stack rather than sitting under an
+   empty "My Boards" header: the brand sections already self-hide when they resolve to zero,
+   so the alternative was a blank panel that looks like a broken filter. */
+.md-board-collection__filter-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 10px;
+  padding: 28px 20px;
+  text-align: center;
+  border: 1px dashed rgba($brand-blue-black, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.6);
+  color: $brand-verdigris-aa;
+}
+.md-board-collection__filter-empty-text {
+  margin: 0;
+  /* 15px, not a 12-13px caption: this is the only thing in the panel at this point, and the
+     AAC sizing floor applies to explanatory copy as much as to controls. */
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--md-ink);
+}
+.md-board-collection__filter-empty-reset {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba($brand-verdigris, 0.35);
+  background: rgba($brand-verdigris, 0.10);
+  color: $brand-verdigris-ink;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.md-board-collection__filter-empty-reset:hover {
+  background: rgba($brand-verdigris, 0.18);
+  border-color: $brand-verdigris-aa;
+}
+
 .md-board-collection__search {
   display: flex;
   align-items: center;
@@ -78975,12 +79437,6 @@ span.md-board-detail-modeling-btn--paused:hover {
 .md-board-detail--dark .md-board-collection__item-home {
   background: rgba(80, 217, 209, 0.18);
   color: rgba(115, 232, 224, 1);
-}
-/* Language label is navy at 65% on light surfaces (above) — invisible on the
-   dark options-menu panel. Lighten it to a muted slate so it reads as a
-   secondary detail without competing with the board name. */
-.md-board-detail--dark .md-board-collection__item-lang {
-  color: rgba(226, 232, 240, 0.70);
 }
 .md-board-detail--dark .md-board-collection__item-owner {
   color: rgba(226, 232, 240, 0.55);
@@ -97271,6 +97727,7 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 .modal .la-assign-lesson-modal-footer,
 .modal .la-colors-modal-footer,
 .modal .la-devices-modal-footer,
+.modal .la-languages-modal-footer,
 .modal .la-modify-core-modal-footer,
 .modal .la-new-board-modal-footer,
 .modal .la-phrases-modal-footer,

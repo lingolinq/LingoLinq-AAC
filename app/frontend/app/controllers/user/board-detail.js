@@ -6580,10 +6580,22 @@ export default Controller.extend(prefClasses, {
       );
     },
 
+    /* COMMENTED OUT 2026-08-31 — the manual modeling pause/resume control was replaced by a
+       read-only "Modeling" badge in board-detail.hbs, pending verification. Kept rather than
+       deleted so both halves can be restored together; the template block is commented out
+       in the same pass and was its ONLY caller (verified: no other template, route, test or
+       `data-bd-action` referenced it).
+
+       NOT commented out, and must not be: `modeling_paused` itself. The edit route still
+       writes it (routes/user/board-detail/edit.js:69 / :126) and app-state.js:4072 reads it
+       to keep a supervisor's taps while editing out of the communicator's report data.
+       Removing this action removes the manual toggle only.
+
     toggle_modeling_pause: function() {
       var appState = this.get('app_state');
       appState.set('modeling_paused', !appState.get('modeling_paused'));
     },
+    */
 
     /* G3: `toggle_details_dropdown` and `details_dropdown_keydown` were deleted
        2026-08-24. They drove the "Details & Actions" dropdown that the
