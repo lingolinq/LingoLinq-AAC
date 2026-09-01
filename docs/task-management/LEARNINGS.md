@@ -45,6 +45,7 @@ file (see [README.md](README.md)).
 - [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
 - [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
+- [Pattern: collect `swap_images` lookup words with the same skip predicates as the button loop](#pattern-collect-swap_images-lookup-words-with-the-same-skip-predicates-as-the-button-loop)
 - [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
 - [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
@@ -12497,8 +12498,12 @@ Net: `_missing` conflates "no such symbol" with "the API was down when we asked,
 and does so *only* on the highest-value boards — the ones flagged important. Never
 treat membership in `_missing` as proof that work is complete or that a retry is
 futile. Using it to skip a redundant lookup within one run is fine; using it as a
-terminal state is not. The cache-write conflation at `uploader.rb:1013-1016` is
-still open.
+terminal state is not. The write-site conflation was closed on
+`perf/melissa-copy-swap-lookups`: `Uploader.find_images` only calls
+`add_missing_word` when the lookup is `ok` (a genuine empty 200). A 429 / timeout
+/ non-2xx is `OpenSymbols.search_result` `:throttled` / `:timeout` / `:http` and
+is not cached. Historical `missing` rows written before that fix can still sit
+until their stamp ages out.
 
 ## Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions
 
@@ -12530,6 +12535,18 @@ lookups, no skip, no button change) still sets `@had_unresolved`, so the bubble
 saved a board the old spec treats as a no-op (`board_spec.rb` "should do nothing
 when no images found"). That `save` is also how PaperTrail got stuck off in CI
 (see the next entry). Gate the bubble on `swapped_library == library`.
+
+## Pattern: collect `swap_images` lookup words with the same skip predicates as the button loop
+
+`#861` repaired the already-in-library skip, but `Uploader.default_images` still
+ran first for every label (`board.rb` used to build `words` from all labels at
+what is now the filtered list). An already-correct board still paid one
+OpenSymbols HTTP call per word. Collect only `label || vocalization` for buttons
+the loop will actually look up (`swap_skips_button?`, `swap_keeps_existing_image?`,
+`swap_image_already_in_library?` in `app/models/board.rb`). If every button is
+skippable, do not call `default_images` at all — an empty list still hits the
+cache / v1 POST (`lib/uploader.rb`). Remaining opensymbols lookups go through
+`OpenSymbols.search_many` (Hydra, 3s timeout), not a sequential 10s `search`.
 
 ## Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised
 
