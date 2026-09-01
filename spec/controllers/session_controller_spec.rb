@@ -2624,7 +2624,7 @@ describe SessionController, :type => :controller do
 
     it "rejects register google_start without terms attestation" do
       expect(GoogleOAuth).not_to receive(:store_state)
-      get :google_start, params: {
+      post :google_start, params: {
         flow: 'register',
         device_id: 'dev1',
         return_origin: 'http://localhost:8184',
@@ -2635,7 +2635,7 @@ describe SessionController, :type => :controller do
       expect(response).to redirect_to('http://localhost:8184/register?google_error=terms_required')
     end
 
-    it "stores locale, under_16, and birth on register google_start and ignores name in the query" do
+    it "stores locale, under_16, and birth on register google_start POST and ignores name" do
       expect(GoogleOAuth).to receive(:store_state) do |_code, config|
         expect(config['signup_name']).to eq(nil)
         expect(config['locale']).to eq('es')
@@ -2644,7 +2644,7 @@ describe SessionController, :type => :controller do
         expect(config['birth_year']).to eq(adult_google_birth['birth_year'])
       end
       expect(GoogleOAuth).to receive(:authorization_url).and_return('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
-      get :google_start, params: {
+      post :google_start, params: {
         flow: 'register',
         device_id: 'dev1',
         return_origin: 'http://localhost:8184',
@@ -2660,7 +2660,7 @@ describe SessionController, :type => :controller do
 
     it "rejects Google register start without a classifiable birth when COPPA is enabled" do
       allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
-      get :google_start, params: {
+      post :google_start, params: {
         flow: 'register',
         device_id: 'dev1',
         return_origin: 'http://localhost:8184',
@@ -2669,9 +2669,22 @@ describe SessionController, :type => :controller do
       expect(response).to redirect_to('http://localhost:8184/register?google_error=birthdate_required')
     end
 
-    it "rejects Google register start when birth month/year is under 13" do
+    it "ignores birth month/year on GET register start when COPPA is enabled" do
       allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
       get :google_start, params: {
+        flow: 'register',
+        device_id: 'dev1',
+        return_origin: 'http://localhost:8184',
+        terms_agree: 'true',
+        birth_month: 1,
+        birth_year: Time.now.utc.year - 20
+      }
+      expect(response).to redirect_to('http://localhost:8184/register?google_error=birthdate_required')
+    end
+
+    it "rejects Google register start when birth month/year is under 13" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      post :google_start, params: {
         flow: 'register',
         device_id: 'dev1',
         return_origin: 'http://localhost:8184',
@@ -2689,7 +2702,7 @@ describe SessionController, :type => :controller do
         expect(config['birth_year']).to eq(Time.now.utc.year - 20)
       end
       expect(GoogleOAuth).to receive(:authorization_url).and_return('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
-      get :google_start, params: {
+      post :google_start, params: {
         flow: 'register',
         device_id: 'dev1',
         return_origin: 'http://localhost:8184',
@@ -2706,7 +2719,7 @@ describe SessionController, :type => :controller do
         expect(config['signup_name']).to eq(nil)
       end
       expect(GoogleOAuth).to receive(:authorization_url).and_return('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
-      get :google_start, params: {
+      post :google_start, params: {
         flow: 'register',
         device_id: 'dev1',
         return_origin: 'http://localhost:8184',

@@ -433,6 +433,26 @@ export default Controller.extend({
     }
     return false;
   },
+  // POST /auth/google/start so birth month/year is not on a GET query string
+  // (history, proxy logs, referrer). Login start stays GET.
+  _submitGoogleRegisterStart: function(fields, openBlank) {
+    if(typeof document === 'undefined' || !document.body) { return; }
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/auth/google/start';
+    form.acceptCharset = 'UTF-8';
+    if(openBlank) { form.target = '_blank'; }
+    var keys = Object.keys(fields || {});
+    for(var i = 0; i < keys.length; i++) {
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = keys[i];
+      input.value = fields[keys[i]] == null ? '' : String(fields[keys[i]]);
+      form.appendChild(input);
+    }
+    document.body.appendChild(form);
+    form.submit();
+  },
   _setProductImprovementPrefs: function(value) {
     var enabled = !!value;
     // Signup model is the user record (route createRecord); do not require a
@@ -565,26 +585,28 @@ export default Controller.extend({
       var euUnder16 = !!this.get('euUnder16Registration');
       var optIn = euUnder16 ? false : !!this.get('productImprovementOptIn');
       var under16 = !!this._classifyUnder16();
-      var url = '/auth/google/start?flow=register&device_id=' + encodeURIComponent(capabilities.device_id());
-      url = url + '&return_origin=' + encodeURIComponent(window.location.origin);
-      url = url + '&registration_type=' + encodeURIComponent(this.get('model.preferences.registration_type') || 'communicator');
-      url = url + '&user_name=' + encodeURIComponent((this.get('model.user_name') || '').trim());
-      url = url + '&terms_agree=' + encodeURIComponent(this.get('model.terms_agree') ? 'true' : 'false');
-      url = url + '&product_improvement_opt_in=' + encodeURIComponent(optIn ? 'true' : 'false');
-      url = url + '&country=' + encodeURIComponent((this.get('registration_country') || '').trim().toUpperCase());
-      url = url + '&under_16=' + encodeURIComponent(under16 ? 'true' : 'false');
-      url = url + '&birth_month=' + encodeURIComponent(this.get('birth_month') || '');
-      url = url + '&birth_year=' + encodeURIComponent(this.get('birth_year') || '');
-      url = url + '&locale=' + encodeURIComponent((this.get('model.preferences.locale') || 'en').trim());
+      var fields = {
+        flow: 'register',
+        device_id: capabilities.device_id(),
+        return_origin: window.location.origin,
+        registration_type: this.get('model.preferences.registration_type') || 'communicator',
+        user_name: (this.get('model.user_name') || '').trim(),
+        terms_agree: this.get('model.terms_agree') ? 'true' : 'false',
+        product_improvement_opt_in: optIn ? 'true' : 'false',
+        country: (this.get('registration_country') || '').trim().toUpperCase(),
+        under_16: under16 ? 'true' : 'false',
+        birth_month: this.get('birth_month') || '',
+        birth_year: this.get('birth_year') || '',
+        locale: (this.get('model.preferences.locale') || 'en').trim()
+      };
       try {
         sessionStorage.setItem('ll_signup_name', (this.get('model.name') || '').trim());
       } catch (e) { /* sessionStorage unavailable */ }
       if(capabilities.installed_app) {
-        url = url + '&app=true&popout_id=' + encodeURIComponent((new Date()).getTime() + 'T' + Math.round(Math.random() * 999999));
-        window.open(url, '_blank');
-      } else {
-        location.href = url;
+        fields.app = 'true';
+        fields.popout_id = (new Date()).getTime() + 'T' + Math.round(Math.random() * 999999);
       }
+      this._submitGoogleRegisterStart(fields, !!capabilities.installed_app);
     },
     saveGoogleSignup: function() {
       var _this = this;

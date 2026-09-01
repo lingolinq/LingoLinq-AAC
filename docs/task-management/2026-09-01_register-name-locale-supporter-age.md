@@ -76,9 +76,10 @@ eye-gaze / switch users.
 - Public unauthenticated signup requires classifiable birth when COPPA
   is on (`users_controller#create`). `process_params` classifies from
   birth; client `coppa_under_13` wins only when birth is missing.
-- Google start rejects missing birth / under-13. Complete refuses
-  under-13. Form name is `signup_name` on the complete POST, not `&name=`
-  on the start GET.
+- Google register start accepts birth only on POST. GET register start
+  ignores query birth (COPPA PII must not sit on the start URL).
+  Complete refuses under-13. Form name is `signup_name` on the complete
+  POST, not `&name=` on the start GET.
 - RSpec: 16/16 COPPA create examples; Google auth examples including
   birthdate_required, coppa_age start, and coppa_age complete. Ember:
   RegisterController 23/23; BoundSelect 9/9 including the rendered

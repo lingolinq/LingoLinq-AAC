@@ -768,7 +768,10 @@ class SessionController < ApplicationController
       config['under_16'] = under_16
       config['locale'] = sanitize_google_signup_locale(params['locale'])
       if JsonApi::Json.coppa_parental_consent_enabled?
-        birth_month, birth_year = User.signup_birth_from_params(params)
+        # Birth is COPPA PII. Accept it only on POST so it is not stored in
+        # browser history, proxy logs, or the referrer on the Google redirect.
+        # GET register start ignores query birth (same as missing).
+        birth_month, birth_year = request.post? ? User.signup_birth_from_params(params) : [nil, nil]
         classified_under_13 = User.age_under_threshold?(
           birth_month: birth_month,
           birth_year: birth_year,

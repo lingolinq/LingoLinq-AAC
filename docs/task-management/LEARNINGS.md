@@ -16266,6 +16266,6 @@ stub objects (weakest -- patches one symptom of an unbounded global mutation).
 
 ## Gotcha: public COPPA signup is classified from birth month/year, not the client flag
 
-`User.process_params` treats a classifiable `birth_month` / `birth_year` as authoritative for the under-13 gate (`User.age_under_threshold?`, age 13). The Ember `coppa_under_13` flag is only a fallback when birth is missing (org New User, fixtures). Unauthenticated `POST /api/v1/users` requires birth when COPPA is on. Google register start rejects missing birth or under-13; complete raises `coppa_age`. Do not put the optional signup name on `/auth/google/start` as `&name=` — send `signup_name` on the complete POST.
+`User.process_params` treats a classifiable `birth_month` / `birth_year` as authoritative for the under-13 gate (`User.age_under_threshold?`, age 13). The Ember `coppa_under_13` flag is only a fallback when birth is missing (org New User, fixtures). Unauthenticated `POST /api/v1/users` requires birth when COPPA is on. Google register start accepts birth only on POST (`post auth/google/start`); GET register start ignores query birth so DOB is not in history, proxy logs, or the Google referrer. Complete raises `coppa_age`. Do not put the optional signup name on `/auth/google/start` as `&name=` — send `signup_name` on the complete POST.
 
 **First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)

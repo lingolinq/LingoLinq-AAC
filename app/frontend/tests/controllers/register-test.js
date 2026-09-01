@@ -352,6 +352,36 @@ describe('RegisterController', 'controller:register', function() {
     controller.set('model.password', 'secret6');
     expect(controller.get('emailStepSignupDisabled')).toEqual(false);
   });
+
+  it("posts Google register start so birth month/year is not on a GET query string", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({
+      preferences: { registration_type: 'communicator', locale: 'en' },
+      terms_agree: true,
+      user_name: 'chosen-name',
+      name: 'Ada'
+    }));
+    controller.set('registrationStep', 'account');
+    controller.set('coppa_age_group', 'over_13');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', '2000');
+    controller.set('registration_country', 'US');
+    controller.set('appState', EmberObject.create({ feature_flags: { google_sso: true } }));
+    controller.set('persistence', { get: function(key) { return key === 'online'; } });
+
+    var posted = null;
+    controller._submitGoogleRegisterStart = function(fields, openBlank) {
+      posted = { fields: fields, openBlank: openBlank };
+    };
+    controller.send('continue_with_google');
+
+    expect(posted).not.toEqual(null);
+    expect(posted.fields.flow).toEqual('register');
+    expect(posted.fields.birth_month).toEqual('1');
+    expect(posted.fields.birth_year).toEqual('2000');
+    expect(posted.fields.terms_agree).toEqual('true');
+    expect(posted.openBlank).toEqual(false);
+  });
 });
 // import Ember from 'ember';
 // 

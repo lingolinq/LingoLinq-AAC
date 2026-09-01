@@ -60,6 +60,7 @@ LingoLinq::Application.routes.draw do
   post 'auth/lookup' => 'session#auth_lookup'
   get 'auth' => redirect('/login')
   get 'auth/google/start' => 'session#google_start'
+  post 'auth/google/start' => 'session#google_start'
   get 'auth/google/callback' => 'session#google_callback'
   get 'auth/google/link' => 'session#google_link_candidates'
   post 'auth/google/link' => 'session#google_link_complete'
