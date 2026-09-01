@@ -766,6 +766,23 @@ class SessionController < ApplicationController
       under_16 = ActiveModel::Type::Boolean.new.cast(params['under_16'])
       config['country'] = country
       config['under_16'] = under_16
+      config['locale'] = sanitize_google_signup_locale(params['locale'])
+      if JsonApi::Json.coppa_parental_consent_enabled?
+        birth_month, birth_year = User.signup_birth_from_params(params)
+        classified_under_13 = User.age_under_threshold?(
+          birth_month: birth_month,
+          birth_year: birth_year,
+          age: JsonApi::Json::DEFAULT_COPPA_CONSENT_AGE
+        )
+        if classified_under_13.nil?
+          return redirect_to google_frontend_redirect('/register?google_error=birthdate_required', return_origin.present? ? { 'return_origin' => return_origin } : nil), allow_other_host: true
+        end
+        if classified_under_13
+          return redirect_to google_frontend_redirect('/register?google_error=coppa_age', return_origin.present? ? { 'return_origin' => return_origin } : nil), allow_other_host: true
+        end
+        config['birth_month'] = birth_month.to_i
+        config['birth_year'] = birth_year.to_i
+      end
       # EU under-16: never carry product-improvement opt-in through Google signup.
       eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
       pi = ActiveModel::Type::Boolean.new.cast(params['product_improvement_opt_in'])
@@ -962,7 +979,11 @@ class SessionController < ApplicationController
         terms_agree: params['terms_agree'].presence || link['terms_agree'],
         product_improvement_opt_in: eu_under_16 ? false : pi,
         country: country,
-        under_16: under_16
+        under_16: under_16,
+        signup_name: sanitize_google_signup_name(params['signup_name'].presence || link['signup_name']),
+        locale: link['locale'],
+        birth_month: link['birth_month'],
+        birth_year: link['birth_year']
       )
     rescue GoogleOAuth::Error => e
       error = e.message == 'user_creation_failed' ? 'registration_failed' : e.message
@@ -1011,6 +1032,17 @@ class SessionController < ApplicationController
   protected
   def google_sso_available?
     GoogleOAuth.enabled?
+  end
+
+  def sanitize_google_signup_name(name)
+    s = name.to_s.gsub(/[\x00-\x1F\x7F]/, '').strip
+    return nil if s.blank?
+    s[0, 200]
+  end
+
+  def sanitize_google_signup_locale(locale)
+    s = locale.to_s.strip.downcase
+    s.match?(/\A[a-z]{2,8}\z/) ? s : 'en'
   end
 
   def google_auth_error_redirect(error_code, config = nil)
@@ -1062,7 +1094,11 @@ class SessionController < ApplicationController
       'terms_agree' => config['terms_agree'],
       'product_improvement_opt_in' => config['product_improvement_opt_in'],
       'country' => config['country'],
-      'under_16' => config['under_16']
+      'under_16' => config['under_16'],
+      'signup_name' => config['signup_name'],
+      'locale' => config['locale'],
+      'birth_month' => config['birth_month'],
+      'birth_year' => config['birth_year']
     }
     link['single_candidate'] = true if single_candidate
     if unlinked_candidates.any?

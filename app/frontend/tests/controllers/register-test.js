@@ -115,6 +115,21 @@ describe('RegisterController', 'controller:register', function() {
     expect(controller.get('showProductImprovementOptIn')).toEqual(true);
   });
 
+  it("switches the continue label when the birth date is under 13", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'communicator');
+
+    expect(controller.get('showsParentApprovalContinue')).toEqual(false);
+
+    controller.set('birth_month', '1');
+    controller.set('birth_year', ((new Date()).getFullYear() - 20).toString());
+    expect(controller.get('showsParentApprovalContinue')).toEqual(false);
+
+    controller.set('birth_year', (new Date()).getFullYear().toString());
+    expect(controller.get('showsParentApprovalContinue')).toEqual(true);
+  });
+
   it("stores supporter subtypes without persisting the supporter grouping", function() {
     var controller = testOwner.lookup('controller:register');
     controller.set('model', EmberObject.create({ preferences: {} }));
@@ -124,10 +139,104 @@ describe('RegisterController', 'controller:register', function() {
     expect(controller.get('model.preferences.registration_type')).toEqual(null);
 
     controller.set('registration_country', 'US');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', ((new Date()).getFullYear() - 30).toString());
     controller.send('select_supporter_type', 'teacher');
+    expect(controller.get('registrationStep')).toEqual('supporter_type');
+    controller.send('continue_supporter_type');
     expect(controller.get('registrationStep')).toEqual('account');
     expect(controller.get('registration_role')).toEqual('supporter');
     expect(controller.get('model.preferences.registration_type')).toEqual('teacher');
+  });
+
+  it("selecting a supporter type does not leave the step", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'supporter');
+    controller.set('registration_country', 'US');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', ((new Date()).getFullYear() - 30).toString());
+    controller.send('select_supporter_type', 'teacher');
+
+    expect(controller.get('registrationStep')).toEqual('supporter_type');
+    expect(controller.get('model.preferences.registration_type')).toEqual('teacher');
+  });
+
+  it("does not leave the supporter type step without a supporter type", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'supporter');
+    controller.set('registration_country', 'US');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', ((new Date()).getFullYear() - 30).toString());
+    controller.send('continue_supporter_type');
+
+    expect(controller.get('registrationStep')).toEqual('supporter_type');
+    expect(controller.get('supporterTypeRequired')).toEqual(true);
+    expect(controller.get('model.preferences.registration_type')).toEqual(null);
+  });
+
+  it("does not leave the supporter type step without a birth month and year", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'supporter');
+    controller.set('registration_country', 'US');
+    controller.send('select_supporter_type', 'teacher');
+    controller.send('continue_supporter_type');
+
+    expect(controller.get('registrationStep')).toEqual('supporter_type');
+    expect(controller.get('communicatorAgeRequired')).toEqual(true);
+    expect(controller.get('model.preferences.registration_type')).toEqual('teacher');
+  });
+
+  it("routes under-13 supporters to the parent approval step", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'supporter');
+    controller.set('registration_country', 'US');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', (new Date()).getFullYear().toString());
+    controller.send('select_supporter_type', 'parent');
+    controller.send('continue_supporter_type');
+
+    expect(controller.get('coppa_age_group')).toEqual('under_13');
+    expect(controller.get('registrationStep')).toEqual('under_13');
+    expect(controller.get('model.preferences.registration_type')).toEqual('parent');
+    controller.set('triedToSave', true);
+    expect(controller.get('coppaParentEmailMissing')).toEqual(true);
+    expect(controller.get('googleRegisterAllowed')).toEqual(false);
+  });
+
+  it("does not ask for signup parent email for EU supporters aged 13–15", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'supporter');
+    controller.set('registration_country', 'DE');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', ((new Date()).getFullYear() - 14).toString());
+    controller.send('select_supporter_type', 'teacher');
+    controller.send('continue_supporter_type');
+
+    expect(controller.get('coppa_age_group')).toEqual('over_13');
+    expect(controller.get('registrationStep')).toEqual('account');
+    expect(controller._classifyUnder16()).toEqual(true);
+    expect(controller.get('euUnder16Registration')).toEqual(true);
+    expect(controller.get('showProductImprovementOptIn')).toEqual(false);
+    expect(controller.get('productImprovementOptIn')).toEqual(false);
+  });
+
+  it("shows product-improvement opt-in for non-EU under-16 supporters", function() {
+    var controller = testOwner.lookup('controller:register');
+    controller.set('model', EmberObject.create({ preferences: {} }));
+    controller.send('select_registration_role', 'supporter');
+    controller.set('registration_country', 'US');
+    controller.set('birth_month', '1');
+    controller.set('birth_year', ((new Date()).getFullYear() - 14).toString());
+    controller.send('select_supporter_type', 'teacher');
+    controller.send('continue_supporter_type');
+
+    expect(controller.get('euUnder16Registration')).toEqual(false);
+    expect(controller.get('showProductImprovementOptIn')).toEqual(true);
   });
 
   it("shows role-specific signup heading copy", function() {

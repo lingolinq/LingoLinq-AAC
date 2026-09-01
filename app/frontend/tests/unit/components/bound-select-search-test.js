@@ -63,4 +63,64 @@ QUnit.module('Unit | Component | bound-select search typing', function(hooks) {
     assert.deepEqual(shown, ['Spanish']);
     c.destroy();
   });
+
+  QUnit.test('grid layout still filters options by name', function(assert) {
+    var c = this.owner.factoryFor('component:bound-select').create({
+      searchable: true,
+      grid: true,
+      content: [
+        { name: 'January', id: '1' },
+        { name: 'June', id: '6' },
+        { name: 'July', id: '7' }
+      ]
+    });
+    c.set('searchQuery', 'ju');
+    var shown = c.get('renderContent').map(function(item) { return item.name; });
+    assert.deepEqual(shown, ['June', 'July']);
+    c.destroy();
+  });
+
+  QUnit.test('grid layout omits empty-id placeholders from the option list', function(assert) {
+    var c = this.owner.factoryFor('component:bound-select').create({
+      grid: true,
+      content: [
+        { name: 'Month', id: '' },
+        { name: 'January', id: '1' },
+        { name: 'February', id: '2' }
+      ]
+    });
+    var shown = c.get('renderContent').map(function(item) { return item.name; });
+    assert.deepEqual(shown, ['January', 'February']);
+    c.destroy();
+  });
+
+  QUnit.test('a letter keydown on the search input is not preventDefaulted in grid mode', function(assert) {
+    var c = this.owner.factoryFor('component:bound-select').create({
+      searchable: true,
+      grid: true
+    });
+    var ev = makeKeyEvent('j');
+    c.onSearchKeydown(ev);
+    assert.strictEqual(ev.preventDefaultCount, 0,
+      'grid mode must keep the dedicated search handler so typing still inserts');
+    c.destroy();
+  });
+
+  QUnit.test('_gridNextIndex moves by one cell horizontally and by columns vertically', function(assert) {
+    var c = this.owner.factoryFor('component:bound-select').create({
+      grid: true,
+      gridColumns: 3
+    });
+    // 12 cells, 3 columns (month grid).
+    assert.strictEqual(c._gridNextIndex(0, 'ArrowRight', 3, 12), 1);
+    assert.strictEqual(c._gridNextIndex(2, 'ArrowRight', 3, 12), 3);
+    assert.strictEqual(c._gridNextIndex(11, 'ArrowRight', 3, 12), 0);
+    assert.strictEqual(c._gridNextIndex(0, 'ArrowLeft', 3, 12), 11);
+    assert.strictEqual(c._gridNextIndex(0, 'ArrowDown', 3, 12), 3);
+    assert.strictEqual(c._gridNextIndex(9, 'ArrowDown', 3, 12), 0);
+    assert.strictEqual(c._gridNextIndex(3, 'ArrowUp', 3, 12), 0);
+    assert.strictEqual(c._gridNextIndex(0, 'ArrowUp', 3, 12), 9);
+    assert.strictEqual(c._gridNextIndex(11, 'ArrowUp', 3, 12), 8);
+    c.destroy();
+  });
 });

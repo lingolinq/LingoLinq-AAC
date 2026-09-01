@@ -2267,6 +2267,9 @@ describe SessionController, :type => :controller do
     let(:google_profile) do
       { sub: 'google-sub-abc', email: 'google@example.com', email_verified: true, name: 'Google User' }
     end
+    let(:adult_google_birth) do
+      { 'birth_month' => 1, 'birth_year' => Time.now.utc.year - 20 }
+    end
 
     before do
       allow(GoogleOAuth).to receive(:enabled?).and_return(true)
@@ -2509,7 +2512,7 @@ describe SessionController, :type => :controller do
         'device_id' => 'dev1',
         'app' => false,
         'terms_agree' => true
-      }
+      }.merge(adult_google_birth)
       allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
       expect(GoogleOAuth).to receive(:clear_link).with('signup-nonce')
       post :google_signup_complete, params: {
@@ -2538,7 +2541,7 @@ describe SessionController, :type => :controller do
         'registration_type' => 'teacher',
         'terms_agree' => true,
         'product_improvement_opt_in' => true
-      }
+      }.merge(adult_google_birth)
       allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
       expect(GoogleOAuth).to receive(:clear_link).with('signup-generated-nonce')
       post :google_signup_complete, params: {
@@ -2568,7 +2571,7 @@ describe SessionController, :type => :controller do
         'app' => false,
         'registration_type' => 'teacher',
         'terms_agree' => true
-      }
+      }.merge(adult_google_birth)
       allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
       post :google_signup_complete, params: {
         nonce: 'signup-blank-username',
@@ -2625,9 +2628,158 @@ describe SessionController, :type => :controller do
         flow: 'register',
         device_id: 'dev1',
         return_origin: 'http://localhost:8184',
-        terms_agree: 'false'
+        terms_agree: 'false',
+        birth_month: adult_google_birth['birth_month'],
+        birth_year: adult_google_birth['birth_year']
       }
       expect(response).to redirect_to('http://localhost:8184/register?google_error=terms_required')
+    end
+
+    it "stores locale, under_16, and birth on register google_start and ignores name in the query" do
+      expect(GoogleOAuth).to receive(:store_state) do |_code, config|
+        expect(config['signup_name']).to eq(nil)
+        expect(config['locale']).to eq('es')
+        expect(config['under_16']).to eq(true)
+        expect(config['birth_month']).to eq(adult_google_birth['birth_month'])
+        expect(config['birth_year']).to eq(adult_google_birth['birth_year'])
+      end
+      expect(GoogleOAuth).to receive(:authorization_url).and_return('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
+      get :google_start, params: {
+        flow: 'register',
+        device_id: 'dev1',
+        return_origin: 'http://localhost:8184',
+        terms_agree: 'true',
+        name: 'Ada Lovelace',
+        locale: 'es',
+        under_16: 'true',
+        birth_month: adult_google_birth['birth_month'],
+        birth_year: adult_google_birth['birth_year']
+      }
+      expect(response).to redirect_to('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
+    end
+
+    it "rejects Google register start without a classifiable birth when COPPA is enabled" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      get :google_start, params: {
+        flow: 'register',
+        device_id: 'dev1',
+        return_origin: 'http://localhost:8184',
+        terms_agree: 'true'
+      }
+      expect(response).to redirect_to('http://localhost:8184/register?google_error=birthdate_required')
+    end
+
+    it "rejects Google register start when birth month/year is under 13" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      get :google_start, params: {
+        flow: 'register',
+        device_id: 'dev1',
+        return_origin: 'http://localhost:8184',
+        terms_agree: 'true',
+        birth_month: Time.now.utc.month,
+        birth_year: Time.now.utc.year
+      }
+      expect(response).to redirect_to('http://localhost:8184/register?google_error=coppa_age')
+    end
+
+    it "stores a classifiable over-13 birth on Google register start when COPPA is enabled" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      expect(GoogleOAuth).to receive(:store_state) do |_code, config|
+        expect(config['birth_month']).to eq(1)
+        expect(config['birth_year']).to eq(Time.now.utc.year - 20)
+      end
+      expect(GoogleOAuth).to receive(:authorization_url).and_return('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
+      get :google_start, params: {
+        flow: 'register',
+        device_id: 'dev1',
+        return_origin: 'http://localhost:8184',
+        terms_agree: 'true',
+        birth_month: 1,
+        birth_year: Time.now.utc.year - 20
+      }
+      expect(response).to redirect_to('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
+    end
+
+    it "defaults an invalid register locale to en and drops a blank signup name" do
+      expect(GoogleOAuth).to receive(:store_state) do |_code, config|
+        expect(config['locale']).to eq('en')
+        expect(config['signup_name']).to eq(nil)
+      end
+      expect(GoogleOAuth).to receive(:authorization_url).and_return('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
+      get :google_start, params: {
+        flow: 'register',
+        device_id: 'dev1',
+        return_origin: 'http://localhost:8184',
+        terms_agree: 'true',
+        name: '   ',
+        locale: '../etc/passwd',
+        birth_month: adult_google_birth['birth_month'],
+        birth_year: adult_google_birth['birth_year']
+      }
+      expect(response).to redirect_to('https://accounts.google.com/o/oauth2/v2/auth?state=abc')
+    end
+
+    it "applies stored signup name and locale when completing Google signup" do
+      link = {
+        'mode' => 'signup_complete',
+        'sub' => 'google-sub-named-signup',
+        'email' => 'named-signup@gmail.com',
+        'name' => 'Google Profile Name',
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'app' => false,
+        'user_name' => 'named_google_signup',
+        'registration_type' => 'teacher',
+        'terms_agree' => true,
+        'signup_name' => nil,
+        'locale' => 'es',
+        'country' => 'DE',
+        'under_16' => true,
+        'birth_month' => 1,
+        'birth_year' => Time.now.utc.year - 14
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      expect(GoogleOAuth).to receive(:clear_link).with('signup-named-nonce')
+      post :google_signup_complete, params: {
+        nonce: 'signup-named-nonce',
+        terms_agree: 'true',
+        signup_name: 'Ada Teacher'
+      }
+      json = assert_success_json
+      expect(json['token']).not_to eq(nil)
+      user = User.find_by(user_name: 'named_google_signup')
+      expect(user).not_to eq(nil)
+      expect(user.settings['name']).to eq('Ada Teacher')
+      expect(user.settings['preferences']['locale']).to eq('es')
+      expect(user.settings['preferences']['role']).to eq('supporter')
+      expect(user.settings['registration']['under_16']).to eq(true)
+      expect(user.settings['registration']['eu_under_16']).to eq(true)
+    end
+
+    it "refuses Google signup complete when the stored birth is under 13" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      link = {
+        'mode' => 'signup_complete',
+        'sub' => 'google-sub-coppa-block',
+        'email' => 'kid-google@gmail.com',
+        'name' => 'Kid Google',
+        'flow' => 'register',
+        'device_id' => 'dev1',
+        'app' => false,
+        'user_name' => 'kid_google_signup',
+        'registration_type' => 'communicator',
+        'terms_agree' => true,
+        'birth_month' => Time.now.utc.month,
+        'birth_year' => Time.now.utc.year
+      }
+      allow(GoogleOAuth).to receive(:fetch_link).and_return(link)
+      post :google_signup_complete, params: {
+        nonce: 'signup-coppa-nonce',
+        terms_agree: 'true'
+      }
+      expect(response.status).to eq(400)
+      expect(JSON.parse(response.body)['error']).to eq('coppa_age')
+      expect(User.find_by(user_name: 'kid_google_signup')).to eq(nil)
     end
 
     it "redirects declined-consent Google login to /login?coppa_declined=1" do

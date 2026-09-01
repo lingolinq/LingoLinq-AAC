@@ -47,6 +47,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
 - [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
 - [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
+- [Gotcha: public COPPA signup is classified from birth month/year, not the client flag](#gotcha-public-coppa-signup-is-classified-from-birth-monthyear-not-the-client-flag)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
 - [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
 - [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
@@ -383,6 +384,8 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Gotcha: Translate Boards must not send action tokens to Google](#gotcha-translate-boards-must-not-send-action-tokens-to-google)
 - [Gotcha: Translate Boards tree is not a labeled button set](#gotcha-translate-boards-tree-is-not-a-labeled-button-set)
 - [Gotcha: BoundSelect search typing is killed by ctrlAction preventDefault](#gotcha-boundselect-search-typing-is-killed-by-ctrlaction-preventdefault)
+- [Gotcha: Ember classic `layout` is the template, not a listbox mode](#gotcha-ember-classic-layout-is-the-template-not-a-listbox-mode)
+- [Pattern: supporter signup COPPA reuses `coppa_under_13`, not a role check](#pattern-supporter-signup-coppa-reuses-coppa_under_13-not-a-role-check)
 - [Pattern: board-detail Speak bar must speak vocalization, not just label](#pattern-board-detail-speak-bar-must-speak-vocalization-not-just-label)
 - [Pattern: board-detail Speak bar must play attached button sounds, not TTS-only](#pattern-board-detail-speak-bar-must-play-attached-button-sounds-not-tts-only)
 - [Pattern: long-running modal work that must survive dismissal belongs in a service + app-level component, not a "hidden" modal](#pattern-long-running-modal-work-that-must-survive-dismissal-belongs-in-a-service--app-level-component-not-a-hidden-modal)
@@ -572,6 +575,18 @@ Keyboard boards use vocalizations as control protocols: `+a` composes spelling, 
 `ctrlAction` always calls `preventDefault()` on the event. The searchable language list puts the filter `<input>` inside the `<ul>`, so a `{{on "keydown" (this.ctrlAction "list_keydown")}}` on that list cancelled every keystroke before the character was inserted. Use dedicated `onListKeydown` / `onSearchKeydown` handlers assigned in `init()` (same pattern as `modern-select`), and only `preventDefault` for Escape / ArrowDown / Enter.
 
 **First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: Ember classic `layout` is the template, not a listbox mode
+
+`@ember/component` already uses `layout` for the compiled template. Passing `@layout="grid"` on BoundSelect would replace the listbox template with the string `"grid"`. Opt-in grid mode is `@grid={{true}}` plus `@gridColumns`. Search keydown still must use `onSearchKeydown`, not `ctrlAction`.
+
+**First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
+
+## Pattern: supporter signup COPPA reuses `coppa_under_13`, not a role check
+
+The backend COPPA parent-email path keys off `coppa_under_13`, not communicator vs supporter. Collect supporter birth month/year, run the same `_classifyCommunicatorAge` / `_classifyUnder16` cutoffs, and send `under_16` for every role. Google `link['name']` is the Google profile name — carry the form name as `signup_name` or it overwrites the profile name used before create.
+
+**First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
 
 ## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
 
@@ -16248,3 +16263,9 @@ have the test harness cancel `capabilities._auth_sync_interval`; or add a no-op 
 stub objects (weakest -- patches one symptom of an unbounded global mutation).
 
 **First seen in:** PR #888 CI, 2026-08-30/31.
+
+## Gotcha: public COPPA signup is classified from birth month/year, not the client flag
+
+`User.process_params` treats a classifiable `birth_month` / `birth_year` as authoritative for the under-13 gate (`User.age_under_threshold?`, age 13). The Ember `coppa_under_13` flag is only a fallback when birth is missing (org New User, fixtures). Unauthenticated `POST /api/v1/users` requires birth when COPPA is on. Google register start rejects missing birth or under-13; complete raises `coppa_age`. Do not put the optional signup name on `/auth/google/start` as `&name=` — send `signup_name` on the complete POST.
+
+**First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
