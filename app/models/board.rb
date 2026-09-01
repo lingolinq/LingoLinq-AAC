@@ -2928,13 +2928,17 @@ class Board < ApplicationRecord
         end
         # puts " checking for default images"
         bis = swap_board.known_button_images
+        # known_button_images already uniq's image_ids (board.rb:2558). Index
+        # once so the word-collection loop and the button loop below do not
+        # each walk the list per button.
+        bis_by_id = bis.index_by(&:global_id)
         # Only words the button loop will actually look up. The skip used to
         # run AFTER default_images, so an already-correct board still made one
         # OpenSymbols HTTP call per label. The lookup key is label ||
         # vocalization (same read as the loop below).
         words = swap_board.buttons.filter_map do |button|
           next if swap_skips_button?(button)
-          old_bi = bis.detect{|i| i.global_id == button['image_id'] }
+          old_bi = bis_by_id[button['image_id']]
           next if swap_keeps_existing_image?(old_bi)
           next if swap_image_already_in_library?(old_bi, library)
           button['label'] || button['vocalization']
@@ -2948,7 +2952,7 @@ class Board < ApplicationRecord
         # TODO: for images that have the correct library in library_alternates, don't look them up, just use that
         buttons = swap_board.buttons.map do |button|
           next button if swap_skips_button?(button)
-          old_bi = bis.detect{|i| i.global_id == button['image_id'] }
+          old_bi = bis_by_id[button['image_id']]
           if swap_keeps_existing_image?(old_bi)
             # JSON bundle / migration import, or a lingolinq-usercontent upload
           # `old_bi &&` is inside swap_image_already_in_library?: known_button_images

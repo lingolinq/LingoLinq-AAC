@@ -1614,6 +1614,8 @@ describe Uploader do
       expect(hash['cat']['url']).to eq('https://example.com/cat.png')
       expect(hash['_missing']).to eq(nil).or eq([])
     end
+
+    it "should not cache a throttled result as a missing word even when cache_forever" do
       allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('secret')
       allow(OpenSymbols).to receive(:find_images_result).and_return({
         ok: false, error: :throttled, results: []

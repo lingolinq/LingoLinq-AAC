@@ -1424,9 +1424,6 @@ export default Controller.extend({
       : i18n.t('set_home_board', "Set Home Board");
   }),
   actions: {
-    retry_board_list: function() {
-      this.update_selected();
-    },
     toggle_board_stats: function() {
       this.toggleProperty('board_stats_expanded');
     },
@@ -1856,6 +1853,9 @@ export default Controller.extend({
     },
     profile_preview: function() {
       modal.open('modals/profiles', {user: this.get('model')});
+    },
+    retry_board_list: function() {
+      this.update_selected();
     }
   }
 });

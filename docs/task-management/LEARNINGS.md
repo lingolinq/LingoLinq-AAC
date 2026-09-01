@@ -46,6 +46,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
 - [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
 - [Pattern: collect `swap_images` lookup words with the same skip predicates as the button loop](#pattern-collect-swap_images-lookup-words-with-the-same-skip-predicates-as-the-button-loop)
+- [Gotcha: inserting at the top of an Ember `actions` hash shifts grandfathered eslint-todo lines](#gotcha-inserting-at-the-top-of-an-ember-actions-hash-shifts-grandfathered-eslint-todo-lines)
 - [Gotcha: Hydra `search_many` must classify and retry like `search_result`](#gotcha-hydra-search_many-must-classify-and-retry-like-search_result)
 - [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
 - [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
@@ -12551,6 +12552,19 @@ skippable, do not call `default_images` at all — an empty list still hits the
 cache / v1 POST (`lib/uploader.rb`). Remaining opensymbols lookups go through
 `OpenSymbols.search_many` (Hydra, default 3s). Sequential `search_result` stays
 at 10s so interactive symbol search is not shortened by the Hydra default.
+Index `known_button_images` once by `global_id` and reuse that hash in both
+loops — a second `bis.detect` per button is O(buttons × images).
+
+## Gotcha: inserting at the top of an Ember `actions` hash shifts grandfathered eslint-todo lines
+
+`scripts/eslint-todo-gate.js` fingerprints `file|ruleId|line|column|severity|messageHash`.
+Adding three lines at the top of `actions` in `user/index.js` (#904 Try Again)
+moved pre-existing `ember/no-runloop` and `lingolinq/no-orphaned-action` hits
+off their todo rows. CI then reported them as NEW. The linter's
+"use ember-lifeline" hint is a red herring — this app does not depend on
+ember-lifeline (`caseload.js`). Put a new action at the **end** of the hash
+(lookup is by name) so grandfathered lines stay put. Do not convert nearby
+`schedule` / `runLater` calls just to silence a shift.
 
 ## Gotcha: Hydra `search_many` must classify and retry like `search_result`
 
