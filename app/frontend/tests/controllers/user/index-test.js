@@ -118,9 +118,14 @@ describe('UserIndexController', 'controller:user-index', function() {
       controller.set('model.my_boards', {error: true});
       controller.send('retry_board_list');
     });
-    waitsFor(function() { return queryCount > 0; });
+    waitsFor(function() {
+      var list = controller.get('model.my_boards');
+      return queryCount > 0 && list && list.done && !list.error;
+    });
     runs(function() {
       expect(queryCount).toEqual(1);
+      expect(controller.get('model.my_boards.error')).toEqual(undefined);
+      expect(controller.get('model.my_boards.done')).toEqual(true);
     });
   });
 
