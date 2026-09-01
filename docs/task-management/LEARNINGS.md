@@ -46,6 +46,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
 - [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
 - [Pattern: collect `swap_images` lookup words with the same skip predicates as the button loop](#pattern-collect-swap_images-lookup-words-with-the-same-skip-predicates-as-the-button-loop)
+- [Gotcha: Hydra `search_many` must classify and retry like `search_result`](#gotcha-hydra-search_many-must-classify-and-retry-like-search_result)
 - [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
 - [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
@@ -12502,7 +12503,9 @@ terminal state is not. The write-site conflation was closed on
 `perf/melissa-copy-swap-lookups`: `Uploader.find_images` only calls
 `add_missing_word` when the lookup is `ok` (a genuine empty 200). A 429 / timeout
 / non-2xx is `OpenSymbols.search_result` `:throttled` / `:timeout` / `:http` and
-is not cached. Historical `missing` rows written before that fix can still sit
+is not cached. A malformed HTTP 200 on the v1 fallback (`JSON.parse rescue []`)
+used to look like a genuine miss and still stamp six months; that parse failure
+is now `:http` as well. Historical `missing` rows written before that fix can still sit
 until their stamp ages out.
 
 ## Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions
@@ -12546,7 +12549,25 @@ the loop will actually look up (`swap_skips_button?`, `swap_keeps_existing_image
 `swap_image_already_in_library?` in `app/models/board.rb`). If every button is
 skippable, do not call `default_images` at all — an empty list still hits the
 cache / v1 POST (`lib/uploader.rb`). Remaining opensymbols lookups go through
-`OpenSymbols.search_many` (Hydra, 3s timeout), not a sequential 10s `search`.
+`OpenSymbols.search_many` (Hydra, default 3s). Sequential `search_result` stays
+at 10s so interactive symbol search is not shortened by the Hydra default.
+
+## Gotcha: Hydra `search_many` must classify and retry like `search_result`
+
+`search_result` wraps `JSON.parse` and retries 401 with `clear_token_cache` +
+`generate_new_token`. `search_many` is the opensymbols defaults path and used to
+do neither: a non-JSON 200 raised out of `hydra.run` and aborted `swap_images`
+before `swapped_library` was written (duplicate board set), and a stale cached
+token failed the whole batch as `:http` until Redis TTL died. Both paths now go
+through `classify_search_response` (`lib/open_symbols.rb`). Hydra 401s are
+`:auth` and get one requeue with a fresh token. Specs that stub `hydra.run` and
+never fire `on_complete` cannot catch this; stub the HTTP (Typhoeus.stub) so the
+callback runs.
+
+Hydra transport errors are returned on `defaults_result[:errors]` and copied to
+`defaults['_transport']`. `swap_images` skips `find_images` for those words in
+the same pass (no retry storm) and still sets `swap_incomplete`. Do not fold
+them into `_missing`.
 
 ## Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised
 
