@@ -74148,7 +74148,59 @@ span.md-board-detail-modeling-btn--badge {
   background: rgba(0, 0, 0, 0.55);
 }
 
-/* Word-prediction rail (<=768px). The in-bar predictions overflow on small
+/* Delayed loading cue, shared by both prediction placements. The class is applied
+   only once a lookup has been running longer than the cue delay (see
+   suggestions_loading_visible in controllers/user/board-detail.js) — most lookups
+   resolve in a few ms and a dim that flashes on and off is more disruptive than no
+   cue at all.
+
+   It is a DIM, deliberately not a spinner and never a size change: these tiles are
+   motor targets, so nothing may move, resize, or change enough to read as a
+   different control mid-reach. Pointer events are deliberately UNTOUCHED — the
+   stale words stay live, because a dead target that swallows a dwell or a switch
+   hit gives no feedback and costs the user a re-acquisition, which is worse than
+   inserting a slightly stale but perfectly valid word. */
+.md-board-detail-sentence-bar__prediction-group--is-loading,
+.md-board-detail-prediction-rail--is-loading {
+  /* The cue is on the tile SURFACE, never on the text. `opacity` on the tile is a GROUP operation —
+     it multiplies the label's alpha too — and the LIGHT rail's label is only ~5.1:1 against the
+     board at the top of its gradient, so any group dim breaks WCAG 1.4.3 there: 0.55 measures
+     ~2.9:1, and even 0.8 reaches only ~4.06:1, under the 4.5:1 that applies because the label can
+     be 13px. The tiles stay live and clickable, so the inactive-component exemption does not apply.
+
+     Set as VARIABLES ON THE ANCESTOR and inherited by the tiles, rather than as properties on the
+     tiles: the dark-mode tile rule sits ~13,500 lines later at identical specificity, so a direct
+     property here lost to it on source order and the cue silently did not render in dark mode at
+     all. Inheritance has no specificity contest to lose.
+
+     One value set serves both themes. Fading the tile RAISES label contrast, since it darkens
+     under white text: the light RAIL is the tightest surface and measures 5.06:1 at the shipped
+     0.22 and 7.10:1 at 0.10. (An earlier revision of this comment named the light IN-BAR as the
+     tightest with a 0.136 ceiling; that was computed without the group's own rgba(0,0,0,0.55)
+     backing, and the in-bar label actually measures 6.92:1 at 0.22. The rail is the binding
+     case.) The dark-rail ceiling for a 4.5:1 label is 0.377. Recompute against the RAIL if these
+     are retuned.
+
+     The hover pair exists because :hover redeclares the same `background` shorthand at higher
+     specificity: with literals there, hovering a tile mid-lookup silently cancelled its cue —
+     and on touch devices sticky hover kept it cancelled — so the one tile the user was reaching
+     for was the one that stopped showing it. --pred-img-a does the same job for the placeholder
+     symbol, whose [src$="square.svg"] rule outranks the img dim below. */
+  --pred-tile-a-hi: 0.10;
+  --pred-tile-a-lo: 0.03;
+  --pred-tile-border-a: 0.16;
+  --pred-tile-hover-hi: 0.10;
+  --pred-tile-hover-lo: 0.03;
+  --pred-tile-hover-border-a: 0.16;
+  --pred-img-a: 0.5;
+}
+/* The symbol may fade — it is not text, and 1.4.11 does not apply to it. */
+.md-board-detail-sentence-bar__prediction-group--is-loading .md-board-detail-sentence-bar__prediction-img,
+.md-board-detail-prediction-rail--is-loading .md-board-detail-sentence-bar__prediction-img {
+  opacity: 0.5;
+}
+
+/* Word-prediction rail (<=1024px). The in-bar predictions overflow on small
    screens, so they relocate into this vertical column between the board grid
    and the inline sidebar (a flex item inside .md-board-detail-grid-sidebar-wrap,
    which is a flex row). Hidden on larger screens — the inline in-bar group is
@@ -74164,9 +74216,10 @@ span.md-board-detail-modeling-btn--badge {
   /* Single column that MIRRORS THE BOARD'S ROW STRUCTURE: the same number of rows
      as the board (--prediction-rows) as minmax(0,1fr) tracks, the board's EXACT
      row gap, and the rail pinned to the board grid's height (--prediction-grid-h)
-     with the same 4px top inset the grid has. So each prediction tile lands in the
-     SAME row band as the board button beside it and the two line up 1:1 at every
-     screen size — no per-tile height measurement (all published by
+     with the grid's own measured top inset (--prediction-rail-pad-top). So each
+     prediction tile lands in the SAME row band as the board button beside it; the
+     tile rule below then insets it to the CARD's box within that band so the two
+     line up 1:1 at every screen size and in every folder setting (all published by
      _sync_prediction_tile_size in controllers/user/board-detail.js). A GRID, not a
      flex column: the flex column shrank its tiles to fit a max-height and they
      drifted out of line with the board rows. The suggestion list is capped to the
@@ -74180,38 +74233,134 @@ span.md-board-detail-modeling-btn--badge {
   height: var(--prediction-grid-h, 100%);
   gap: var(--prediction-tile-gap, 8px);
   /* No left/right padding — tiles fill the rail edge-to-edge so a tile matches the
-     board cell width exactly. 4px top inset matches the board grid's padding-top so
-     row 1 aligns; no bottom inset so the last row aligns too. */
-  padding: 4px 0 0;
+     board cell width exactly. The top inset mirrors the board grid's OWN padding-top,
+     copied from its computed style (--prediction-rail-pad-top) rather than hardcoded:
+     the grid uses `padding-top: var(--bd-grid-top, 4px)` and the short-viewport rules
+     set that to 0, so a literal 4px misaligned row 1 there. No bottom inset so the
+     last row aligns too. */
+  /* Panel surface — the same glass the tiles use, so the rail reads as one component
+     rather than tiles floating on the board canvas. Literal alphas, NOT the --pred-tile-*
+     vars: those are lowered by --is-loading to dim the TILES, and a panel that dimmed with
+     them would blunt the cue instead of backing it. The tiles composite over this, so they
+     stay visibly raised against it.
+     The hairline is an inset box-shadow rather than a border ON PURPOSE: a border would
+     shrink the content box, and the tile is width:100% of it — the tile must stay exactly
+     one board button wide, so nothing here may change the content box except the padding
+     below, which _sync_prediction_tile_size measures and compensates for. */
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.30);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border-radius: 14px;
+  /* Query container so the empty-state copy below can size itself against the PANEL's own
+     width (cqw). The rail's width is set explicitly from JS, so inline-size containment
+     cannot feed back into it. The tiles are containers in their own right, so their labels
+     still resolve against the tile, not this. */
+  container-type: inline-size;
+  /* Horizontal padding insets the tiles from the panel edge. It is READ BACK in JS and
+     added to the solved width, so the tiles stay board-button-sized and the board simply
+     yields the extra. Bottom stays 0 so the last row still aligns with the board's. */
+  padding: var(--prediction-rail-pad-top, 4px) 4px 0;
+  /* Top margin mirrors the GRID's own margin-top (`.md-board-detail-grid.board.speak`
+     has 6px, reset to 0 on short/narrow viewports) — without it the rail starts at the
+     flex row's top while the board starts a margin lower, and every row band is off by
+     that much even though the heights match exactly. Measured, not hardcoded, because
+     that margin changes with the viewport. */
+  margin-top: var(--prediction-rail-margin-top, 0px);
   margin-left: var(--prediction-rail-gap-left, 8px);
 }
+/* Empty state. The rail stays mounted with no tiles (it holds the board's width), so
+   without this the panel is a blank column with no explanation. Spans every row so the
+   message centres in the panel rather than sitting in row 1. The rail is narrow — one board
+   button wide — so the copy has to stay short enough to wrap gracefully. */
+.md-board-detail-prediction-rail__empty {
+  /* Spans every row so it cannot create an implicit extra track and push the panel taller
+     than the board grid, but the message sits at the TOP of that span — centring it in a
+     full-height panel read as the text floating in the middle of an empty column. */
+  grid-row: 1 / -1;
+  min-height: 0;
+  /* A grid item's automatic minimum size is its MIN-CONTENT width, so without this the box
+     refuses to shrink below the longest word and spills past the panel — measured 94px wide
+     inside a 71px rail, which reads as "the text is not centred" because it is centred in a
+     box wider than its container. `min-width: 0` lets it shrink to the track; break-word
+     then handles a word longer than the (deliberately narrow) panel, which matters most for
+     translations, since this string lives in the narrowest element on the page. Same trap
+     the tile rule above documents. */
+  min-width: 0;
+  /* Never break mid-word. Breaking "predictions" across two lines is the one thing this
+     copy must not do — a fragment reads as a typo, and in an AAC surface the visual shape of
+     a word is itself a recognition cue (the board label rule keeps `word-break: keep-all`
+     for the same reason). The size below is what makes the longest word FIT, so there is
+     nothing to break. */
+  overflow-wrap: normal;
+  word-break: keep-all;
+  /* A BLOCK, not a flex container. As a flex container the text became an anonymous flex
+     item, and a flex item carries its own automatic minimum size — so it refused to wrap
+     below the longest word no matter what min-width the container had, and the message
+     spilled symmetrically past both panel edges. A block box has no such item to fight:
+     text-align centres the lines and overflow-wrap can break a word that genuinely cannot
+     fit. Top alignment comes free, since block content starts at the top of the span. */
+  display: block;
+  text-align: center;
+  /* Minimal side padding: this is the narrowest element on the page, and every px spent
+     here is a px the longest word does not get. The panel's own 4px already holds the copy
+     off the edge. */
+  padding: 10px 2px 0;
+  /* 14px, FIXED. This is an AAC surface: text is held at or above 14px regardless of how
+     narrow the panel gets, so it is never shrunk to fit. An earlier revision sized this
+     against the panel with a 9px floor — that made the copy fit at any column count by
+     trading away legibility, which is not a trade this app makes. If the copy does not fit,
+     the copy is what changes. */
+  font-size: 14px;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.78);
+  pointer-events: none;
+}
+/* The spine label replaces the sentence below 640px (see that breakpoint); above it, the
+   panel is wide enough for the real copy. */
+.md-board-detail-prediction-rail__empty-spine {
+  display: none;
+}
+
 /* Tiles match the board button box (measured vars, fixed fallbacks). */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction {
   width: 100%;
-  /* No top/bottom padding — the symbol + word fill the tile's full height; only
-     4px left/right keeps them off the rail edges. The image↔label spacing comes
-     from `gap` below, not padding. Overrides the base tile's 4px/10px. */
-  padding: 0 4px;
-  /* Override the base tile's `min-width: 44px`. The rail width tracks one board
-     cell (--prediction-tile-w), so on many-column boards the cell — and thus
-     the rail — is narrower than 44px. With the 44px floor the tile stays wider
-     than the rail's content box and the rail's overflow-y:auto (which makes
-     overflow-x compute to auto) clips the tile's RIGHT edge — visible even for
-     short words like "you"/"they". Letting the tile shrink to the rail width
-     removes the overflow, so nothing is clipped. The image scales with the tile
-     (see the rail __prediction-img rule below), so a sub-44px tile stays legible. */
+  /* Zero, so the tile's CONTENT box matches the card's. Matching the card's padding value
+     (`1px clamp(1px, 1%, 4px)`) is NOT the same thing and measured 2px short: the tile
+     carries a 1px border the card does not, so equal padding leaves a smaller content box.
+     What has to match is what the symbol gets, not what the declaration says. Measured at
+     14 columns: card content 33px, tile content 33px, painted symbol 33px on both. */
+  padding: 0;
+  /* Override the base tile's `min-width: 44px`. The rail's width tracks one board
+     button (--prediction-tile-w), so on a many-column board that width can be under
+     44px; with the floor in place the tile stays wider than the rail's content box and
+     spills past its right edge. Letting it shrink to the rail width keeps the two in
+     step. The image scales with the tile (see the rail __prediction-img rule below), so
+     a sub-44px tile stays legible.
+     NOTE: an earlier version of this comment attributed the spill to "the rail's
+     overflow-y:auto, which makes overflow-x compute to auto". The rail declares no
+     overflow property at all — that rationale described a mechanism that cannot run. */
   min-width: 0;
-  /* Fill the grid row: the rail's minmax(0,1fr) tracks mirror the board rows, so
-     height:100% makes each tile fill its row band and match the board button
-     height. REQUIRED to override the base in-bar pill's fixed `height: 78px` — with
-     that leaking through, tiles stayed 78px tall and floated in the (correctly
-     tall) rows, leaving big gaps. min-height:0 lets the image + label shrink to
-     honor the row height on dense boards instead of growing the tile past it. */
-  height: 100%;
+  /* Match the board CARD's box inside the row band — NOT the band itself. The rail's
+     minmax(0,1fr) tracks already mirror the board rows, but a card does not fill its
+     cell: every folder setting reserves a different slice of cell top space for the
+     tab (default folders 0.14 x --bd-cell-min on every cell, Show-Labels-on-Tab
+     8/10px + a calc(100% - 18px) card, colored-corner 0, folder-less boards none), so
+     a band-filling tile floated above the card beside it by exactly that reserve.
+     --prediction-tile-inset-top / --prediction-tile-h are the card's MEASURED offset
+     and height (_sync_prediction_tile_size), which is why one rule covers every
+     folder mode. The calc() fallback keeps the old band-filling behavior until the
+     first measurement lands. Still REQUIRED to override the base in-bar pill's fixed
+     `height: 78px` — with that leaking through, tiles stayed 78px tall and floated in
+     the (correctly tall) rows, leaving big gaps. min-height:0 lets the image + label
+     shrink to honor the height on dense boards instead of growing the tile past it. */
+  margin-top: var(--prediction-tile-inset-top, 0px);
+  height: var(--prediction-tile-h, calc(100% - var(--prediction-tile-inset-top, 0px)));
   min-height: 0;
-  /* Give the label breathing room from the image (the base gap:1px read as
-     cramped). */
-  gap: 4px;
+  /* Symbol-to-word spacing. Tighter than the base tile so the symbol keeps as much of
+     the tile's height as possible — the rail tile is exactly one board button tall, and
+     every px spent here is a px the symbol does not get. */
+  gap: 2px;
   /* Establish a cqw container so the label below tracks the tile width.
      The tile is sized to the board cell (--prediction-tile-w), so cqw here
      == cqw on the board's symbol-card → words match the board labels. */
@@ -74222,11 +74371,33 @@ span.md-board-detail-modeling-btn--badge {
    tile and the label sits tight against the image — the tile fills like a board
    button. object-fit:contain (base) keeps the symbol scaled; max-width caps it. */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-img {
-  width: auto;
+  /* Fill the tile's width the way a board symbol fills its card
+     (app.scss:80551-80568 sets the board img `width:100%` + `object-fit:contain` so a
+     small-canvas symbol scales UP instead of sitting at intrinsic size). `width:auto` +
+     `max-width:80%` left the rail symbol both smaller and inset from the tile, which is
+     what made it read as a lesser button than the one beside it.
+     `flex: 1 1 0` is KEPT rather than the board's `flex:1 1 auto` + `height:100%`: the
+     board's height comes from a holder element the rail has no equivalent of (the rail img
+     is a bare flex child, board-detail.hbs:2029-2033), and a percentage height here would
+     go cyclic on the first paint before --prediction-tile-h lands and inflate the tile to
+     the symbol's intrinsic size. The flexed main size already gives the same used height.
+     Deliberately NOT copying the board img's `opacity: 1`: the --is-loading dim
+     (app.scss:72736) is the same specificity and EARLIER in source, so declaring opacity
+     here would silently win and kill the loading cue. */
+  width: 100%;
   flex: 1 1 0;
   min-height: 0;
   height: auto;
-  max-width: 80%;
+  max-width: 100%;
+  /* No dashed frame on the RAIL. The frame is the in-bar placement's "this is a
+     suggestion" affordance, and it costs 3px padding + 1.5px border per side — which, with
+     object-fit:contain, shrinks the painted symbol by twice that on the binding axis. On a
+     14-column board that measured 25px against the board button's 33px: the same word,
+     visibly smaller, right beside it. The rail sits in the board grid and reads as another
+     column, so the tile's own glass surface is the affordance there; the in-bar group keeps
+     the dash (base rule below, untouched). */
+  padding: 0;
+  border: 0;
 }
 /* Placeholder (missing-image) symbol on the rail: square.svg is a translucent
    brand-coloured photo glyph, which reads DIM on the dark board surface the rail
@@ -74234,9 +74405,11 @@ span.md-board-detail-modeling-btn--badge {
    opacity + a light frosted backing (mirrors the dark-mode lift) so the glyph
    composites over white and reads bright and clear instead of muddy. */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-img[src$="square.svg"] {
-  opacity: 1;
+  /* Through the shared alpha, not a literal: at (0,2,1) this rule outranks the --is-loading
+     img dim, so a literal `1` meant a prediction whose symbol failed to resolve showed no
+     loading cue on its symbol at all. */
+  opacity: var(--pred-img-a, 1);
   background: rgba(255, 255, 255, 0.85);
-  border-color: rgba(255, 255, 255, 0.55);
 }
 /* Predicted-word font must EXACTLY match the board button label.
    --prediction-label-font is the board label's RENDERED font-size, copied in
@@ -74254,6 +74427,36 @@ span.md-board-detail-modeling-btn--badge {
      tiles show the dark canvas through — so dark text is unreadable here. Use
      light text for legibility (matches the dark-mode rule below). */
   color: rgba(255, 255, 255, 0.95);
+  /* Truncate exactly as a board label does. The rail label previously declared no
+     overflow, no clamp and no ellipsis at all, so a prediction longer than the tile did not
+     truncate — it spilled out of the tile and over the board. These are the board label's
+     own declarations (`.md-board-detail-symbol-card__label`), copied so the two read as one
+     set of buttons: wrap at word boundaries only, never mid-word (the visual shape of a word
+     is a recognition cue for AAC users), cap at three lines and ellipsise past that.
+     `max-height` only CAPS, so a one-word prediction is unaffected — this changes nothing
+     until a label would otherwise have overflowed. Scoped to the rail: the in-bar placement
+     keeps its own behaviour. */
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  max-height: 3.45em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  /* CONSTRAINING THE BOX is what makes the clip mean anything, and it is load-bearing.
+     The tile is a COLUMN flex container with align-items:center, so the label's cross size
+     is AUTO — it sizes to its own content. `overflow: hidden` then clips inside a box that
+     is itself wider than the tile, and the label still spills over the board: measured 101px
+     inside a 33px tile, which is the state this rule exists to prevent.
+     Verified by mutation: removing EITHER declaration alone changes nothing, because the
+     other still constrains the box; removing BOTH reproduces the 101px spill. They are kept
+     as a pair to mirror `.md-board-detail-symbol-card__label`, which carries width:100% for
+     the same reason. */
+  width: 100%;
+  max-width: 100%;
 }
 /* Match the board buttons' text POSITION (the rail carries the board's text-pos
    class). DOM order is image-then-label, so flip flex-direction: top → label
@@ -74328,21 +74531,26 @@ span.md-board-detail-modeling-btn--badge {
      (.md-board-edit-panel, the sentence bar): a real frosted backdrop-blur
      pane with a translucent highlight->shade gradient, a bright inset top
      sheen, a soft solid glass edge, and a soft ambient drop. */
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 100%);
+  /* Tile surface alphas come through custom properties so the LOADING state can retune them from
+     the group/rail ancestor. The tile must never DECLARE these vars — its own declaration would
+     beat the inherited one and the cue would stop working. */
+  border: 1px solid rgba(255, 255, 255, var(--pred-tile-border-a, 0.3));
+  background: linear-gradient(135deg, rgba(255, 255, 255, var(--pred-tile-a-hi, 0.22)) 0%, rgba(255, 255, 255, var(--pred-tile-a-lo, 0.08)) 100%);
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     0 4px 14px rgba(27, 54, 93, 0.18);
   cursor: pointer;
+  /* No `opacity` here: nothing changes the TILE's opacity. The cue moves the IMG's, which
+     is where the transition belongs (see __prediction-img below). */
   transition: background 0.18s ease, border-color 0.18s ease, transform 0.12s ease, box-shadow 0.18s ease;
   flex-shrink: 0;
   position: relative;
 }
 .md-board-detail-sentence-bar__prediction:hover {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0.12));
-  border-color: rgba(255, 255, 255, 0.5);
+  background: linear-gradient(160deg, rgba(255, 255, 255, var(--pred-tile-hover-hi, 0.30)), rgba(255, 255, 255, var(--pred-tile-hover-lo, 0.12)));
+  border-color: rgba(255, 255, 255, var(--pred-tile-hover-border-a, 0.5));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.35),
     0 4px 14px rgba(27, 54, 93, 0.20);
@@ -74358,6 +74566,10 @@ span.md-board-detail-modeling-btn--badge {
   flex-shrink: 1;
   min-height: 0;
   opacity: 0.85;
+  /* The cue fades this element, so the easing belongs here. Without it the tile surface
+     eased over 180ms while the symbol snapped — the abrupt change the delayed-cue design
+     exists to avoid for CVI and attention differences. */
+  transition: opacity 0.18s ease;
   /* Soft, sleek dashed frame around the prediction symbol — the "suggestion"
      affordance now lives on the image (the tile itself is solid glass). A thin
      rounded dash with a little breathing room from the symbol reads modern.
@@ -87130,6 +87342,51 @@ span.md-board-detail-modeling-btn--badge {
   .md-board-detail-symbol-card__label {
     font-size: clamp(12px, 24cqmin, var(--bd-button-text-size, 15px)) !important;
   }
+  /* Below 820px the empty-state copy SCALES down with the viewport, from its 14px base to a
+     12px floor — the same floor the board label directly above steps to at this breakpoint,
+     so the panel's type never renders smaller than the buttons beside it.
+     1.71vw is chosen so the ramp STARTS at the breakpoint rather than jumping: 820 x 0.0171
+     = 14.0px, so the size is continuous across 820px, and it reaches the 12px floor at about
+     700px and holds there.
+     The floor is deliberate and is not to be lowered to make long copy fit. An earlier
+     revision used 9px for exactly that reason; on an AAC surface the copy is the variable,
+     not the type size. */
+  .md-board-detail-prediction-rail__empty {
+    font-size: clamp(12px, 1.71vw, 14px);
+  }
+}
+@media (max-width: 640px) {
+  /* At this width the panel is one board button wide on a phone — too narrow for a
+     sentence, which would wrap to a stack of one- and two-word lines. Turn it into a
+     vertical spine label instead: it reads cleanly in a narrow column and names the panel
+     rather than instructing, which is the honest thing to do when there is no room to
+     explain. The copy stays in the DOM for wider widths; only the display swaps. */
+  .md-board-detail-prediction-rail__empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0;
+  }
+  .md-board-detail-prediction-rail__empty-copy {
+    display: none;
+  }
+  .md-board-detail-prediction-rail__empty-spine {
+    display: block;
+    /* Bottom-to-top, the convention for a left-hand spine label. `vertical-rl` plus a 180
+       degree rotation reads upward; text-orientation:mixed keeps Latin glyphs upright
+       relative to the line rather than individually rotated. */
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    /* Uppercased in CSS, not in the source string: the translated value stays natural-case
+       so locales that do not uppercase meaningfully are unaffected. */
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.62);
+  }
   .md-board-detail-symbol-card__label-input {
     font-size: clamp(12px, 24cqmin, var(--bd-button-text-size, 15px)) !important;
   }
@@ -87784,14 +88041,18 @@ span.md-board-detail-modeling-btn--badge {
 .md-board-detail--dark .md-board-detail-sentence-bar__prediction {
   /* Inherits the base backdrop-blur; just re-tunes the frosted tint, sheen,
      and ambient drop for the darker bar. */
-  border-color: rgba(255, 255, 255, 0.24);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.05) 100%);
+  /* Same custom properties as the base rule. Both were literals before, and because this rule sits
+     ~13,500 lines later at identical specificity (0,2,0) it beat the --is-loading rule on source
+     order alone — so the loading cue did not render AT ALL in dark mode. Consuming the vars removes
+     the contest: the cue sets them on the ancestor and inheritance carries them here. */
+  border-color: rgba(255, 255, 255, var(--pred-tile-border-a, 0.24));
+  background: linear-gradient(135deg, rgba(255, 255, 255, var(--pred-tile-a-hi, 0.16)) 0%, rgba(255, 255, 255, var(--pred-tile-a-lo, 0.05)) 100%);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.32),
     0 4px 16px rgba(0, 0, 0, 0.30);
 }
 .md-board-detail--dark .md-board-detail-sentence-bar__prediction:hover {
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.09));
+  background: linear-gradient(160deg, rgba(255, 255, 255, var(--pred-tile-hover-hi, 0.22)), rgba(255, 255, 255, var(--pred-tile-hover-lo, 0.09)));
   border-color: rgba(255, 255, 255, 0.42);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.26),

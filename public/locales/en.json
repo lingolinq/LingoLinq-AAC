@@ -1180,6 +1180,8 @@
   "board_detail_modeling_active": "Modeling mode is active",
   "board_detail_back": "Back",
   "board_detail_word_predictions": "Word predictions",
+  "board_detail_prediction_empty": "Tap a board button, and we'll suggest words here.",
+  "board_detail_prediction_panel_label": "Word prediction panel",
   "board_detail_predicted_word": "Predicted word",
   "sentence_bar_edit_word": "Edit word",
   "sentence_bar_move_left": "Move left (%{word})",
