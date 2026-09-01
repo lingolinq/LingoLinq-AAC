@@ -16183,3 +16183,43 @@ page that drops the only "not operational" mark for a seam (`EvalNarrator` Opus 
 classic-plane Haiku-only `CLASSIC_PROFILE_IDS`) re-asserts that the seam works.
 
 **First seen in:** [2026-08-30-pr886-review-comments.md](./2026-08-30-pr886-review-comments.md)
+
+## Gotcha: a spec can PIN the defect, so the red test is the fix working
+
+`spec/models/user_org_offboarding_consent_spec.rb` "process_expired_offboarding_consents!
+schedules delete after deadline" stubbed `Exporter.export_user` to return **`nil`** and
+then asserted `schedule_deletion_at` **was** present. That is the defect written down as
+a requirement: a failed export deletes the child's account anyway. Fixing the code turned
+the spec red, and the spec looked like the authority.
+
+Before "fixing" a newly red test, read what it ASSERTS, not just that it broke. If the
+assertion encodes the behaviour you were sent to remove, the spec is the thing to change,
+and the change needs a comment saying so or the next person will revert it. Split it
+rather than editing in place: one example for the happy path, one that pins the new
+refusal, so the corrected expectation cannot quietly regress back.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md)
+
+## Gotcha: `user_spec` needs a CLEAN test DB — orphan rows fake 14 failures
+
+`spec/models/user_spec.rb` has blocks that assert on UNSCOPED global counts
+(`expect(AuditEvent.count).to eq(0)`, `expect(Board.count).to eq(4)`) with no
+`before(:each) { AuditEvent.delete_all }` of their own — `add_premium_voice`,
+`track_protected_source` and `copy_board_links` are the three. Any row left in
+`lingolinq-test` by an earlier run makes all 14 fail, identically, standalone, in a way
+that looks exactly like a regression in whatever you just changed.
+
+Confirm before believing it:
+
+```bash
+DB_USER=scotw RAILS_ENV=test bundle exec rails runner \
+  'puts "AuditEvent=#{AuditEvent.count} Board=#{Board.count} User=#{User.count}"'
+```
+
+Non-zero on a supposedly idle DB is your answer (5/1/1 in the observed case). Clean with
+`AuditEvent.delete_all; Board.delete_all; User.delete_all` and re-run: 405 examples,
+0 failures. AuditEvent commits outside the RSpec transaction, so an `after(:each)`
+cleanup can be rolled back while the inserts survive — which is why the repo's own
+convention is `before(:each) { AuditEvent.delete_all }`, not after.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md)
