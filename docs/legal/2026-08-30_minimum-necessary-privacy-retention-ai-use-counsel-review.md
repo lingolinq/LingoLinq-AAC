@@ -797,254 +797,279 @@ internally.
 
 ### 15.1 Regulatory scope
 
-1. **How should an AAC utterance log be classified?** It is a verbatim record of everything a
+**1. How should an AAC utterance log be classified?** It is a verbatim record of everything a
    person has said through the device, including statements about their health, body, needs, and
    relationships. Is it an education record under FERPA when district-sponsored, protected health
    information when clinic-sponsored, GDPR Article 9 special-category data because it reveals
    health information about a disabled data subject, or some combination that varies with the
    sponsoring organization?
-2. **Under what customer configurations is LingoLinq a business associate?** Does a signed BAA
+
+**2. Under what customer configurations is LingoLinq a business associate?** Does a signed BAA
    with a hospital customer make us a business associate as to all accounts on the platform, only
    accounts sponsored by that customer, or only the data flows named in the agreement?
-3. **When we serve a school district, are we a school official under the district's direct
+
+**3. When we serve a school district, are we a school official under the district's direct
    control** within 34 CFR 99.31(a)(1)(i)(B)? What contractual and operational facts must we
    establish, and what does "direct control with respect to the use and maintenance of education
    records" require us to give the district that section 4.5 shows we may not be giving it, for
    example a district-initiated export or deletion capability?
-4. **Does FERPA impose any retention obligation on us**, or only restrictions on use, disclosure,
+
+**4. Does FERPA impose any retention obligation on us**, or only restrictions on use, disclosure,
    and destruction while a request is pending? We believe the latter and would like confirmation.
-5. **For our European customers, are we a processor under GDPR Article 28 in every case**, or is
+
+**5. For our European customers, are we a processor under GDPR Article 28 in every case**, or is
    there a configuration in which we act as controller, for example for adult supporters'
    marketing-lead data, which is collected on a legitimate-interest basis with analytics cookies
    defaulting on for classic email signups?
 
 ### 15.2 The six-year question
 
-6. **Does 45 CFR 164.316(b)(2)(i) reach our `ai_api_logs` table?** Our reading is that it does
+**6. Does 45 CFR 164.316(b)(2)(i) reach our `ai_api_logs` table?** Our reading is that it does
    not, because that table records feature usage rather than a Security Rule action, activity, or
    assessment. Do you agree?
-7. **Does it reach our `audit_events` table?** That table records administrative and access
+
+**7. Does it reach our `audit_events` table?** That table records administrative and access
    events including console sessions, masquerade, data-policy changes, and deletions. If it does,
    we will adopt a six-year rule for `audit_events` specifically and say so.
-8. **Is there any federal HIPAA obligation to retain protected health information itself** for a
+
+**8. Is there any federal HIPAA obligation to retain protected health information itself** for a
    fixed period, as distinct from documentation? If not, which state retention laws should we be
    tracking for hospital and clinic customers, and is that our obligation or theirs?
 
 ### 15.3 Retention windows
 
-9. **Are the proposed windows in section 8 defensible?** In particular, is 24 months defensible
+**9. Are the proposed windows in section 8 defensible?** In particular, is 24 months defensible
    as a default for AAC communication logs given that they support longitudinal therapy progress
    reporting, and is 12 months defensible for under-13 accounts?
-10. **Will you draft the 16 CFR 312.10 written retention policy, or review our draft?** It must
-    state purposes, business need, and a deletion timeframe, and be published in the 312.4(d)
-    notice. Relatedly: **does our school-authorization framing hold?** Our notice accepts a FERPA
-    school-official authorization in place of direct parental consent for school-curriculum use
-    with no AI, no profiling, and no advertising. The FTC declined to codify that pathway in the
-    2025 amendments, so it rests on 1999 staff guidance rather than Rule text. Is the framing
-    sound, and what must we do to keep it sound?
-11. **Is "supersession plus seven years" the right treatment for our compliance records**, or
-    should we match 164.530(j) at six years?
-12. **Should a customer be able to instruct us to retain longer than our default?** If so, what
-    must that instruction contain to protect us, and does it affect our controller or processor
-    characterisation?
+
+**10. Will you draft the 16 CFR 312.10 written retention policy, or review our draft?** It must
+state purposes, business need, and a deletion timeframe, and be published in the 312.4(d)
+notice. Relatedly: **does our school-authorization framing hold?** Our notice accepts a FERPA
+school-official authorization in place of direct parental consent for school-curriculum use
+with no AI, no profiling, and no advertising. The FTC declined to codify that pathway in the
+2025 amendments, so it rests on 1999 staff guidance rather than Rule text. Is the framing
+sound, and what must we do to keep it sound?
+
+**11. Is "supersession plus seven years" the right treatment for our compliance records**, or
+should we match 164.530(j) at six years?
+
+**12. Should a customer be able to instruct us to retain longer than our default?** If so, what
+must that instruction contain to protect us, and does it affect our controller or processor
+characterisation?
 
 ### 15.4 EU and AI Act
 
-13. **Do you agree Article 50 imposes no retention obligation**, and that the five-year EU tier
-    should lose its stated basis? If we withdraw the basis, should we keep the mechanism?
-14. **Is LingoLinq's AI functionality plausibly within Annex III high-risk?** LLM-assisted word
-    prediction, board generation, and evaluation narration for a communication aid used in
-    schools and clinics. We assert no view. If it is, Article 19's six-month log floor and the
-    Chapter III obligations become live for us, and our answer to question 13 changes in the
-    opposite direction from the one proposed.
-15. **Is our disclosure posture right?** Our EU jurisdiction resolver returns "unknown" for
-    essentially every production account. We propose disclosing to everyone and stamping
-    jurisdiction only when confirmed. Does that create a problem we have not seen?
-16. **Article 50(2) marking is not applied to saved, exported, or shared boards**, and the code
-    says so itself. Generative systems already on the market before 2 August 2026 appear to have
-    until **2 December 2026** to retrofit machine-readable marking. Does that grace period reach
-    us, and what does "already on the market" mean for a feature that has shipped behind a flag?
-    Separately, does an AI-assisted board that a human then edits remain "artificially generated"
-    content for marking purposes?
-17. **Would an AAC utterance log be Article 9 special-category data?** If yes, what lawful basis
-    under Article 9(2) should we rely on, and does it change the retention analysis?
-18. **Do we need an Article 30 Records of Processing Activities document?** We are not assuming
-    the Article 30(5) small-organisation derogation covers us. That derogation is lost if the
-    processing is likely to risk data subjects' rights, **or** is not occasional, **or** includes
-    Article 9 special categories. Our processing of student and patient communication data is
-    continuous rather than occasional, and question 17 asks whether it is special-category. On
-    that reading the derogation is unlikely to apply regardless of headcount. Do you agree, and
-    if so will you specify the record's contents for a processor in our position?
+**13. Do you agree Article 50 imposes no retention obligation**, and that the five-year EU tier
+should lose its stated basis? If we withdraw the basis, should we keep the mechanism?
+
+**14. Is LingoLinq's AI functionality plausibly within Annex III high-risk?** LLM-assisted word
+prediction, board generation, and evaluation narration for a communication aid used in
+schools and clinics. We assert no view. If it is, Article 19's six-month log floor and the
+Chapter III obligations become live for us, and our answer to question 13 changes in the
+opposite direction from the one proposed.
+
+**15. Is our disclosure posture right?** Our EU jurisdiction resolver returns "unknown" for
+essentially every production account. We propose disclosing to everyone and stamping
+jurisdiction only when confirmed. Does that create a problem we have not seen?
+
+**16. Article 50(2) marking is not applied to saved, exported, or shared boards**, and the code
+says so itself. Generative systems already on the market before 2 August 2026 appear to have
+until **2 December 2026** to retrofit machine-readable marking. Does that grace period reach
+us, and what does "already on the market" mean for a feature that has shipped behind a flag?
+Separately, does an AI-assisted board that a human then edits remain "artificially generated"
+content for marking purposes?
+
+**17. Would an AAC utterance log be Article 9 special-category data?** If yes, what lawful basis
+under Article 9(2) should we rely on, and does it change the retention analysis?
+
+**18. Do we need an Article 30 Records of Processing Activities document?** We are not assuming
+the Article 30(5) small-organisation derogation covers us. That derogation is lost if the
+processing is likely to risk data subjects' rights, **or** is not occasional, **or** includes
+Article 9 special categories. Our processing of student and patient communication data is
+continuous rather than occasional, and question 17 asks whether it is special-category. On
+that reading the derogation is unlikely to apply regardless of headcount. Do you agree, and
+if so will you specify the record's contents for a processor in our position?
 
 ### 15.5 AI and external egress
 
-19. **Is sending scrubbed but user-linked text to Amazon Bedrock under the AWS BAA a disclosure
-    requiring consent, notice, or both**, separately for each of FERPA, COPPA, and GDPR? Two
-    specifics. First, our AI features are gated by the **account-activation** parental consent,
-    not by a separate AI consent; the separate AI-consent mechanism is built but has no runtime
-    caller. Does account-level consent satisfy the 2025 amendments' requirement of separate
-    verifiable parental consent for third-party disclosure, and does it satisfy what our own
-    notice promises? Second, if a separate consent is required, we will wire the existing
-    mechanism up rather than build a new one, and would like your view on the disclosure text.
-20. **What is required for the Google Speech-to-Text path?** It sends a recording of a child's
-    voice to Google, gated only by a coarse organization switch that defaults to allow, with no
-    COPPA gate and no log record. Under 16 CFR 312.2 a child's voice recording is itself personal
-    information. What consent, what contract, and what disclosure does this need, and should it be
-    disabled until those are in place?
-21. **What must we do about the live privacy notice?** `privacy.hbs:67` currently tells users
-    that no user content is sent to an AI vendor "because the Bedrock path is inactive," while our
-    register records production Bedrock calls. We propose to correct it immediately. Does the
-    correction carry any notification obligation to users, districts, or clinics, and does the
-    period during which the statement stood create exposure we should address affirmatively?
-22. **Is our current characterisation of evaluation narration** as an assistive-technology access
-    assessment rather than a health care activity sustainable? It determines whether that path is
-    a HIPAA flow at all.
-23. **What may we say publicly?** We would like language you approve for the website, RFP
-    responses, and district security questionnaires, consistent with principle 3's rule against
-    claiming conformance. The product's privacy page currently states that we "operate as a
-    Business Associate" and "act as a School Official"
-    (`app/frontend/app/templates/privacy.hbs:72-73`); we would like your view on both.
+**19. Is sending scrubbed but user-linked text to Amazon Bedrock under the AWS BAA a disclosure
+requiring consent, notice, or both**, separately for each of FERPA, COPPA, and GDPR? Two
+specifics. First, our AI features are gated by the **account-activation** parental consent,
+not by a separate AI consent; the separate AI-consent mechanism is built but has no runtime
+caller. Does account-level consent satisfy the 2025 amendments' requirement of separate
+verifiable parental consent for third-party disclosure, and does it satisfy what our own
+notice promises? Second, if a separate consent is required, we will wire the existing
+mechanism up rather than build a new one, and would like your view on the disclosure text.
 
-24. **Uploaded board images and voice recordings receive a `public-read` S3 ACL** unless the
-    upload is marked private or the `UPLOADS_S3_NO_ACL` environment variable is set
-    (`lib/uploader.rb:482, 491`). We cannot tell from source whether that variable is set in
-    production. Assuming it is not, what is the exposure for a communicator's recorded voice or a
-    board image containing a child's photograph, and does it change the analysis under FERPA,
-    COPPA, or Article 32 GDPR?
-25. **What is the right treatment for error telemetry?** Sentry receives user ids, IPs, headers,
-    cookies, and request bodies for every user who is not a COPPA-pending child
-    (`config/initializers/sentry.rb:5-40`). A consent gate is the wrong instrument for crash
-    reporting. Should we rely on a separate lawful basis for operational telemetry, which we would
-    like you to state, or minimise the payload until it carries no user-derived content?
-26. **What does the OpenSymbols route need?** `lib/open_symbols.rb:42` sends a user-typed symbol
-    search query to a third party. We find no OpenSymbols entry in any subprocessor register and no
-    recorded DPA, BAA, or equivalent instrument. Is one required, is the query low-risk enough that
-    it is not, and should the route be disabled until the answer is known?
+**20. What is required for the Google Speech-to-Text path?** It sends a recording of a child's
+voice to Google, gated only by a coarse organization switch that defaults to allow, with no
+COPPA gate and no log record. Under 16 CFR 312.2 a child's voice recording is itself personal
+information. What consent, what contract, and what disclosure does this need, and should it be
+disabled until those are in place?
+
+**21. What must we do about the live privacy notice?** `privacy.hbs:67` currently tells users
+that no user content is sent to an AI vendor "because the Bedrock path is inactive," while our
+register records production Bedrock calls. We propose to correct it immediately. Does the
+correction carry any notification obligation to users, districts, or clinics, and does the
+period during which the statement stood create exposure we should address affirmatively?
+
+**22. Is our current characterisation of evaluation narration** as an assistive-technology access
+assessment rather than a health care activity sustainable? It determines whether that path is
+a HIPAA flow at all.
+
+**23. What may we say publicly?** We would like language you approve for the website, RFP
+responses, and district security questionnaires, consistent with principle 3's rule against
+claiming conformance. The product's privacy page currently states that we "operate as a
+Business Associate" and "act as a School Official"
+(`app/frontend/app/templates/privacy.hbs:72-73`); we would like your view on both.
+
+**24. Uploaded board images and voice recordings receive a `public-read` S3 ACL** unless the
+upload is marked private or the `UPLOADS_S3_NO_ACL` environment variable is set
+(`lib/uploader.rb:482, 491`). We cannot tell from source whether that variable is set in
+production. Assuming it is not, what is the exposure for a communicator's recorded voice or a
+board image containing a child's photograph, and does it change the analysis under FERPA,
+COPPA, or Article 32 GDPR?
+
+**25. What is the right treatment for error telemetry?** Sentry receives user ids, IPs, headers,
+cookies, and request bodies for every user who is not a COPPA-pending child
+(`config/initializers/sentry.rb:5-40`). A consent gate is the wrong instrument for crash
+reporting. Should we rely on a separate lawful basis for operational telemetry, which we would
+like you to state, or minimise the payload until it carries no user-derived content?
+
+**26. What does the OpenSymbols route need?** `lib/open_symbols.rb:42` sends a user-typed symbol
+search query to a third party. We find no OpenSymbols entry in any subprocessor register and no
+recorded DPA, BAA, or equivalent instrument. Is one required, is the query low-risk enough that
+it is not, and should the route be disabled until the answer is known?
 
 ### 15.6 International transfers
 
-27. **Is Module Three the right module, and do our customer DPAs carry the flow-down?** We read
-    the ordinary case as LingoLinq acting as processor for a school or hospital, making the
-    LingoLinq-to-AWS leg a processor-to-processor transfer under Module Three, which the AWS DPA
-    applies automatically. AWS also pushes its Module Three obligations toward our controllers
-    onto us (DPA 12.2.2). Do our school and hospital DPAs actually carry that, and what language
-    do they need? Relatedly, is the EU-controller-to-LingoLinq leg separately papered under
-    Module Two in those same agreements?
-28. **Should we state SCCs or the EU-US Data Privacy Framework as the transfer basis?** AWS is a
-    covered entity under an active Amazon.com, Inc. DPF certification, but the AWS DPA does not
-    mention the DPF and provides for SCCs. We propose to state SCCs and treat the DPF as
-    supporting evidence in the Transfer Impact Assessment. Do you agree, and does relying on SCCs
-    where an adequacy route arguably exists create any problem?
-29. **What must the Transfer Impact Assessment cover, and will you review ours?** Specific facts
-    we think it has to address: the data is verbatim communication content from children with
-    disabilities, which may be Article 9 special-category data (question 17); the model runs on a
-    **US geo cross-region profile** that may route to three US regions with prompts and outputs
-    stored in those regions for abuse detection; `PiiScrubber` is pseudonymisation, not
-    de-identification; and AWS commits to redirect and to notice government demands but cannot
-    promise to resist them. Separately, on scope: our application, database, and cache run in GCP
-    `us-central1`, so EU personal data is already in the United States before any Bedrock call.
-    **Routing inference to the EU geo profile therefore removes one onward leg rather than the
-    transfer itself.** Is that worth doing on its own terms, or is the only meaningful question
-    whether the whole data path (hosting, database, backups, logging, error telemetry) can be made
-    EU-resident? We would rather hear that the answer is the larger project than spend effort on a
-    measure that reads better than it works.
+**27. Is Module Three the right module, and do our customer DPAs carry the flow-down?** We read
+the ordinary case as LingoLinq acting as processor for a school or hospital, making the
+LingoLinq-to-AWS leg a processor-to-processor transfer under Module Three, which the AWS DPA
+applies automatically. AWS also pushes its Module Three obligations toward our controllers
+onto us (DPA 12.2.2). Do our school and hospital DPAs actually carry that, and what language
+do they need? Relatedly, is the EU-controller-to-LingoLinq leg separately papered under
+Module Two in those same agreements?
+
+**28. Should we state SCCs or the EU-US Data Privacy Framework as the transfer basis?** AWS is a
+covered entity under an active Amazon.com, Inc. DPF certification, but the AWS DPA does not
+mention the DPF and provides for SCCs. We propose to state SCCs and treat the DPF as
+supporting evidence in the Transfer Impact Assessment. Do you agree, and does relying on SCCs
+where an adequacy route arguably exists create any problem?
+
+**29. What must the Transfer Impact Assessment cover, and will you review ours?** Specific facts
+we think it has to address: the data is verbatim communication content from children with
+disabilities, which may be Article 9 special-category data (question 17); the model runs on a
+**US geo cross-region profile** that may route to three US regions with prompts and outputs
+stored in those regions for abuse detection; `PiiScrubber` is pseudonymisation, not
+de-identification; and AWS commits to redirect and to notice government demands but cannot
+promise to resist them. Separately, on scope: our application, database, and cache run in GCP
+`us-central1`, so EU personal data is already in the United States before any Bedrock call.
+**Routing inference to the EU geo profile therefore removes one onward leg rather than the
+transfer itself.** Is that worth doing on its own terms, or is the only meaningful question
+whether the whole data path (hosting, database, backups, logging, error telemetry) can be made
+EU-resident? We would rather hear that the answer is the larger project than spend effort on a
+measure that reads better than it works.
 
 ### 15.7 US state student-privacy law
 
 We did a first-pass survey only, from secondary compliance summaries rather than statute text, so
 these are framed as questions rather than positions.
 
-30. **Which state student-privacy regimes bind us today, and which are contract-driven?** Our
-    first pass suggests three patterns we would need to satisfy:
-    - **California**, SOPIPA (Bus. & Prof. Code 22584) plus AB 1584 (Ed. Code 49073.1). SOPIPA
-      bars sale, targeted advertising, and profiling of K-12 student data and requires compliance
-      with school deletion requests; AB 1584 works through required contract clauses, commonly
-      including deletion of all student data and backups on contract termination with proof.
-    - **New York**, Education Law 2-d. Appears to impose an explicit **30-day** clock to securely
-      delete or destroy all student data remaining in the vendor's possession after contract
-      expiry or termination, with obligations surviving termination and flowing to subcontractors.
-    - **Illinois**, SOPPA (105 ILCS 85). Deletion after a defined period and on parent request
-      routed through the school, conditioned by other records-retention law.
+**30. Which state student-privacy regimes bind us today, and which are contract-driven?** Our
+first pass suggests three patterns we would need to satisfy:
+- **California**, SOPIPA (Bus. & Prof. Code 22584) plus AB 1584 (Ed. Code 49073.1). SOPIPA
+  bars sale, targeted advertising, and profiling of K-12 student data and requires compliance
+  with school deletion requests; AB 1584 works through required contract clauses, commonly
+  including deletion of all student data and backups on contract termination with proof.
+- **New York**, Education Law 2-d. Appears to impose an explicit **30-day** clock to securely
+  delete or destroy all student data remaining in the vendor's possession after contract
+  expiry or termination, with obligations surviving termination and flowing to subcontractors.
+- **Illinois**, SOPPA (105 ILCS 85). Deletion after a defined period and on parent request
+  routed through the school, conditioned by other records-retention law.
 
-    Do these bind us directly, only through customer contracts, or both? Is the New York 30-day
-    clock the tightest deletion obligation we face, and should we simply build to it as the
-    default rather than maintaining per-state behavior? And which other states should be on this
-    list that our first pass missed?
+Do these bind us directly, only through customer contracts, or both? Is the New York 30-day
+clock the tightest deletion obligation we face, and should we simply build to it as the
+default rather than maintaining per-state behavior? And which other states should be on this
+list that our first pass missed?
 
 ### 15.8 Process
 
-31. **Which corrections in Part C should be applied by superseding the affected attested records,
-    and which by a correction note that leaves the attested record frozen?** Our internal rule
-    freezes an attested document's bytes permanently and supersedes it with a dated successor. We
-    want your view on whether that is the right shape for records that reach customers in a
-    diligence bundle.
-32. **Must existing users re-acknowledge the corrected privacy policy?** On 2026-08-30 we
-    corrected the privacy page and both AI disclosure pages (PR #888, merged to `staging` as
-    `558de5919`; the citations in this question are verified at that commit, not at the audited
-    commit above). With that change we bumped the signup consent version constant,
-    `User::PRIVACY_POLICY_VERSION`, from `'2026-07-09'` to `'2026-08-30'` (`user.rb:29`). New
-    signups acknowledge the new version (`user.rb:2368`); when a parent completes an emailed
-    consent token, the parent's stamp on the child's behalf records it too (`user.rb:964`) and
-    it is written into an immutable `AuditEvent` (`user.rb:978`). Existing users' acknowledgment
-    records keep `'2026-07-09'`. **The position we have taken, pending your answer, is
-    notice-only: no forced re-acknowledgment**, on the reasoning that a correction in the user's
-    favor is not the kind of material change that requires fresh consent. Two facts cut against
-    that position, and we put them in front of you rather than resolve them ourselves. First,
-    one of the corrected statements was the "Private Thoughts" guarantee (`privacy.hbs:24,35`
-    at the audited commit): its correction is not only a narrowing but the disclosure of a
-    previously undisclosed collection, because `lib/ai_word_predictor.rb:165` writes up to 200
-    characters of the composed sentence to `ai_api_logs` in plaintext. Second, the version is
-    read at **grant time**, not at solicitation: `grant_parental_consent!` (`user.rb:930`)
-    stamps whatever `PRIVACY_POLICY_VERSION` holds when the parent completes the token, and
-    nothing pins the version when the token is issued, so a consent email sent before the bump
-    and completed after it records the parent as acknowledging a policy revision that did not
-    exist when they were solicited. Do you agree with notice-only; does the answer differ for
-    under-13 verifiable parental consent; and must the acknowledged version be captured at
-    solicitation rather than at grant?
-    Since this question was drafted we have established a further fact that bears directly on
-    it. `PRIVACY_POLICY_VERSION` has **no reader**: it is written at `user.rb:964`, `:978` and
-    `:2368`, and the acknowledgment key is deleted at `:2456`, but no code path anywhere
-    compares a stored `policy_version` against the current constant. There is no re-prompt, no
-    notification, and no mechanism that could produce either, so the notice-only position is at
-    present implemented as no notice at all. We have recorded that gap as an open finding,
-    `LL-ac1d12bf3f`. If your answer is that re-acknowledgment is required, the mechanism to
-    deliver it does not yet exist and would have to be built.
-33. **Does the public visibility of this memorandum's pull request matter?** This memorandum was
-    prepared on a branch of our public source repository and is carried by pull request #889,
-    held open but deliberately unmerged; the copy you receive is delivered out-of-band. Because
-    the repository is public, the branch diff is already visible regardless of merge state, and
-    closing the pull request or deleting the branch would NOT unpublish it: GitHub retains the
-    pull request's ref and every commit remains reachable by its hash. With that understood,
-    should we close #889 and delete the branch, leave both as they are, or does the distinction
-    carry no weight for privilege or any other purpose once the text has been publicly visible
-    at all?
-34. **Was the disclosure correction a correction in place of version 1, or a new version?** On
-    2026-08-30 and 2026-08-31 we corrected both AI disclosure surfaces (PR #888, merged as
-    `558de5919`; PR #895, merged as `f9620af8d`; the citations in this question are verified at
-    `origin/staging` commit `164e1c6c8`, not at the audited commit above). Two legal bases were
-    retracted as incorrect: EU AI Act Article 50 cited as a record-keeping requirement, and
-    45 CFR 164.316(b)(2) cited as a retention floor. Retention windows previously presented as
-    being in effect are now marked as not yet in effect. The Spanish text of the Article 50
-    notice carried both retracted claims until PR #895 and is served without authentication at
-    `/ai_consent/disclosures/art50_v1?locale=es`. **The position we have taken, pending your
-    answer, is correction in place**: the version constant remains `1` in all three places it is
-    recorded, `AiConsentDisclosures::CURRENT_VERSION`
-    (`lib/lingo_linq/ai_consent_disclosures.rb:51`), `Article50Disclosures::CURRENT_VERSION`
-    (`lib/lingo_linq/article50_disclosures.rb:85`), and `ART50_CURRENT_VERSION`
-    (`app/frontend/app/utils/article50_gate.js:33`). Three facts cut against that position.
-    First, both gates compare only the stored integer, `ai_consent_granted?` (`user.rb:1364`)
-    and `article_50_disclosure_shown?` (`user.rb:1554`), so every consent and acknowledgment
-    captured before the correction remains current, and no one who already acknowledged
-    version 1 will ever be shown the corrected notice. Second, the content fingerprint we
-    render into the page as the identity of what the user saw has now moved twice under the
-    same version number, so the version alone no longer resolves what a given parent consented
-    to. Third, a parent consented partly on the strength of retention statements that we now
-    mark as not yet in effect. Cutting the other way, production carries no live users today,
-    so publishing a new version and prompting everyone again would cost almost nothing now and
-    steadily more after launch. May the existing consents stand against the corrected
-    version 1, or does the material change standard at 16 CFR 312.5(c) require re-notice or
-    re-consent; and does the answer differ between the Article 50 notice, which records
-    display, and the AI consent disclosure, which records agreement?
+**31. Which corrections in Part C should be applied by superseding the affected attested records,
+and which by a correction note that leaves the attested record frozen?** Our internal rule
+freezes an attested document's bytes permanently and supersedes it with a dated successor. We
+want your view on whether that is the right shape for records that reach customers in a
+diligence bundle.
+
+**32. Must existing users re-acknowledge the corrected privacy policy?** On 2026-08-30 we
+corrected the privacy page and both AI disclosure pages (PR #888, merged to `staging` as
+`558de5919`; the citations in this question are verified at that commit, not at the audited
+commit above). With that change we bumped the signup consent version constant,
+`User::PRIVACY_POLICY_VERSION`, from `'2026-07-09'` to `'2026-08-30'` (`user.rb:29`). New
+signups acknowledge the new version (`user.rb:2368`); when a parent completes an emailed
+consent token, the parent's stamp on the child's behalf records it too (`user.rb:964`) and
+it is written into an immutable `AuditEvent` (`user.rb:978`). Existing users' acknowledgment
+records keep `'2026-07-09'`. **The position we have taken, pending your answer, is
+notice-only: no forced re-acknowledgment**, on the reasoning that a correction in the user's
+favor is not the kind of material change that requires fresh consent. Two facts cut against
+that position, and we put them in front of you rather than resolve them ourselves. First,
+one of the corrected statements was the "Private Thoughts" guarantee (`privacy.hbs:24,35`
+at the audited commit): its correction is not only a narrowing but the disclosure of a
+previously undisclosed collection, because `lib/ai_word_predictor.rb:165` writes up to 200
+characters of the composed sentence to `ai_api_logs` in plaintext. Second, the version is
+read at **grant time**, not at solicitation: `grant_parental_consent!` (`user.rb:930`)
+stamps whatever `PRIVACY_POLICY_VERSION` holds when the parent completes the token, and
+nothing pins the version when the token is issued, so a consent email sent before the bump
+and completed after it records the parent as acknowledging a policy revision that did not
+exist when they were solicited. Do you agree with notice-only; does the answer differ for
+under-13 verifiable parental consent; and must the acknowledged version be captured at
+solicitation rather than at grant?
+Since this question was drafted we have established a further fact that bears directly on
+it. `PRIVACY_POLICY_VERSION` has **no reader**: it is written at `user.rb:964`, `:978` and
+`:2368`, and the acknowledgment key is deleted at `:2456`, but no code path anywhere
+compares a stored `policy_version` against the current constant. There is no re-prompt, no
+notification, and no mechanism that could produce either, so the notice-only position is at
+present implemented as no notice at all. We have recorded that gap as an open finding,
+`LL-ac1d12bf3f`. If your answer is that re-acknowledgment is required, the mechanism to
+deliver it does not yet exist and would have to be built.
+
+**33. Does the public visibility of this memorandum's pull request matter?** This memorandum was
+prepared on a branch of our public source repository and is carried by pull request #889,
+held open but deliberately unmerged; the copy you receive is delivered out-of-band. Because
+the repository is public, the branch diff is already visible regardless of merge state, and
+closing the pull request or deleting the branch would NOT unpublish it: GitHub retains the
+pull request's ref and every commit remains reachable by its hash. With that understood,
+should we close #889 and delete the branch, leave both as they are, or does the distinction
+carry no weight for privilege or any other purpose once the text has been publicly visible
+at all?
+
+**34. Was the disclosure correction a correction in place of version 1, or a new version?** On
+2026-08-30 and 2026-08-31 we corrected both AI disclosure surfaces (PR #888, merged as
+`558de5919`; PR #895, merged as `f9620af8d`; the citations in this question are verified at
+`origin/staging` commit `164e1c6c8`, not at the audited commit above). Two legal bases were
+retracted as incorrect: EU AI Act Article 50 cited as a record-keeping requirement, and
+45 CFR 164.316(b)(2) cited as a retention floor. Retention windows previously presented as
+being in effect are now marked as not yet in effect. The Spanish text of the Article 50
+notice carried both retracted claims until PR #895 and is served without authentication at
+`/ai_consent/disclosures/art50_v1?locale=es`. **The position we have taken, pending your
+answer, is correction in place**: the version constant remains `1` in all three places it is
+recorded, `AiConsentDisclosures::CURRENT_VERSION`
+(`lib/lingo_linq/ai_consent_disclosures.rb:51`), `Article50Disclosures::CURRENT_VERSION`
+(`lib/lingo_linq/article50_disclosures.rb:85`), and `ART50_CURRENT_VERSION`
+(`app/frontend/app/utils/article50_gate.js:33`). Three facts cut against that position.
+First, both gates compare only the stored integer, `ai_consent_granted?` (`user.rb:1364`)
+and `article_50_disclosure_shown?` (`user.rb:1554`), so every consent and acknowledgment
+captured before the correction remains current, and no one who already acknowledged
+version 1 will ever be shown the corrected notice. Second, the content fingerprint we
+render into the page as the identity of what the user saw has now moved twice under the
+same version number, so the version alone no longer resolves what a given parent consented
+to. Third, a parent consented partly on the strength of retention statements that we now
+mark as not yet in effect. Cutting the other way, production carries no live users today,
+so publishing a new version and prompting everyone again would cost almost nothing now and
+steadily more after launch. May the existing consents stand against the corrected
+version 1, or does the material change standard at 16 CFR 312.5(c) require re-notice or
+re-consent; and does the answer differ between the Article 50 notice, which records
+display, and the AI consent disclosure, which records agreement?
 
 ---
 
