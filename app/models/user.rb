@@ -822,10 +822,17 @@ class User < ApplicationRecord
   # Claims under lock (offboarding_export_started_at) before the expensive
   # Exporter.export_user call so concurrent workers/manual declines cannot
   # each generate a full export for the same user.
-  def schedule_offboarding_export_then_delete!(reason:)
+  def schedule_offboarding_export_then_delete!(reason: nil)
     claimed = false
+    resolved_reason = reason
     self.with_lock(requires_new: true) do
       next unless coppa_offboarding_export_due?
+      # Derived INSIDE the lock, where with_lock has just reloaded the record. A
+      # reason resolved at discovery time can be minutes stale on a long sweep --
+      # a parent who declines while the sweep is running would be recorded as
+      # 'expired'. An explicit reason: argument still wins, because the
+      # interactive decline path knows something the record does not yet.
+      resolved_reason ||= offboarding_export_reason
       self.settings ||= {}
       c = self.settings['coppa']
       next unless c.is_a?(Hash)
@@ -837,12 +844,22 @@ class User < ApplicationRecord
     return false unless claimed
 
     upload = nil
-    export_error = nil
+    export_error_class = nil
     begin
       upload = Exporter.export_user(self.global_id)
     rescue StandardError => e
-      export_error = "#{e.class}: #{e.message}"
-      Rails.logger.error("[COPPA offboarding export] user=#{global_id} #{export_error}")
+      # CLASS ONLY, never e.message, and the class is what gets persisted.
+      # Exporter builds its S3 key from user.user_name (lib/exporter.rb:94), so an
+      # upload failure's message can carry a student's username straight into an
+      # immutable AuditEvent. Truncating it is not sanitising it, and
+      # PiiScrubber does not redact usernames by design (see its scrub_log_line
+      # note) -- so the message must not be persisted at all. Same posture as
+      # AuditEvent.log_command's own fallback. The message still reaches the log,
+      # scrubbed, where retention is bounded and an operator needs the detail.
+      export_error_class = e.class.name
+      Rails.logger.error(
+        PiiScrubber.scrub_log_line("[COPPA offboarding export] user=#{global_id} #{e.class}: #{e.message}")
+      )
     end
 
     # A FAILED export must NOT schedule the deletion. The whole point of
@@ -854,7 +871,7 @@ class User < ApplicationRecord
     # is never written. A Hash without :path counts as failure for the same
     # reason a raise does: there is nothing to hand the parent.
     unless upload.is_a?(Hash) && upload[:path].present?
-      return release_offboarding_export_claim!(reason: reason, error: export_error)
+      return release_offboarding_export_claim!(reason: resolved_reason, error_class: export_error_class)
     end
 
     scheduled = false
@@ -867,7 +884,7 @@ class User < ApplicationRecord
       next if c['offboarding_export_scheduled_at'].present?
       now = Time.now.utc.iso8601
       c['offboarding_export_scheduled_at'] = now
-      c['offboarding_export_reason'] = reason.to_s
+      c['offboarding_export_reason'] = resolved_reason.to_s
       c.delete('offboarding_export_started_at')
       # Guaranteed present: a missing path returned above.
       c['offboarding_export_path'] = upload[:path]
@@ -879,7 +896,7 @@ class User < ApplicationRecord
         user_key: self.global_id,
         data: {
           'type' => 'parental_consent_offboarding_export_scheduled',
-          'reason' => reason.to_s,
+          'reason' => resolved_reason.to_s,
           'export_path_present' => c['offboarding_export_path'].present?,
           'scheduled_deletion_at' => self.schedule_deletion_at&.iso8601,
           'record_id' => record_id
@@ -908,7 +925,8 @@ class User < ApplicationRecord
   # for a child account is a compliance event -- the record of the ATTEMPT is
   # what shows the export obligation was honoured even when the deletion did not
   # proceed. A Rails.logger.error line is not a record anyone can produce later.
-  def release_offboarding_export_claim!(reason:, error: nil)
+  def release_offboarding_export_claim!(reason:, error_class: nil)
+    released = false
     self.with_lock(requires_new: true) do
       self.settings ||= {}
       c = self.settings['coppa']
@@ -918,26 +936,43 @@ class User < ApplicationRecord
       c.delete('offboarding_export_started_at')
       self.settings['coppa'] = c
       self.save!
+      released = true
     end
+    # Only record a failure when this call actually released a claim. Taking the
+    # branch above means another finisher DID schedule the export, and writing
+    # deletion_scheduled: false then would put a row in the audit trail that
+    # contradicts what happened.
+    return false unless released
+
     record_id = SecureRandom.uuid
-    AuditEvent.create!(
-      user_key: self.global_id,
-      data: {
-        'type' => 'parental_consent_offboarding_export_failed',
-        'reason' => reason.to_s,
-        # Truncated: an exporter message can carry a bucket path or a stack
-        # fragment, and this row is retained for audit.
-        'error' => error.to_s[0, 300].presence,
-        'deletion_scheduled' => false,
-        'record_id' => record_id
-      },
-      event_type: 'parental_consent_offboarding_export_failed',
-      record_id: record_id
-    )
+    begin
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_offboarding_export_failed',
+          'reason' => reason.to_s,
+          # Exception CLASS only. The message is deliberately absent: see the
+          # rescue in schedule_offboarding_export_then_delete! for why an
+          # exporter message cannot go into an immutable audit row.
+          'error_class' => error_class.presence,
+          'deletion_scheduled' => false,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_offboarding_export_failed',
+        record_id: record_id
+      )
+    rescue StandardError => e
+      # Best-effort, matching AuditEvent.log_command's posture: a failed audit
+      # write must not turn a handled export failure into a 500 on the parent's
+      # decline page, or abort the rest of the sweep. create! is kept rather than
+      # log_command because that helper leaves event_type nil, and this row has to
+      # stay queryable by event_type for the compliance register.
+      Rails.logger.error("[COPPA offboarding export] audit write failed user=#{global_id} #{e.class}: #{e.message}")
+    end
     false
   end
 
-  # Who the offboarding sweep WOULD act on, with no mutation of any kind.
+  # Yields each account the offboarding sweep WOULD act on, with no mutation.
   #
   # Split out of process_expired_offboarding_consents! so the worker's `report`
   # (dry-run) mode answers "how many accounts would this delete?" using the exact
@@ -945,15 +980,23 @@ class User < ApplicationRecord
   # a dry run ends up reassuring you about a different set than the one that gets
   # deleted. Discovery goes through AuditEvent because user.settings is encrypted
   # and cannot be queried.
-  def self.expired_offboarding_consent_candidates
-    return [] unless JsonApi::Json.coppa_parental_consent_enabled?
+  #
+  # STREAMS deliberately: it yields one User at a time rather than returning an
+  # Array. The premise of the whole feature is a large accumulated backlog, and
+  # every User here carries a decrypted settings blob, so materialising N of them
+  # in a worker is an OOM waiting to happen. Callers that need a summary should
+  # accumulate the few fields they want, not the records.
+  def self.each_expired_offboarding_consent_candidate
+    return to_enum(:each_expired_offboarding_consent_candidate) unless block_given?
+    return unless JsonApi::Json.coppa_parental_consent_enabled?
     AuditEvent.where(event_type: 'parental_consent_offboarding_started')
       .where('created_at > ?', OFFBOARDING_SWEEP_LOOKBACK.ago)
       .distinct
       .pluck(:user_key)
-      .filter_map do |key|
+      .each do |key|
         user = User.find_by_global_id(key)
-        user if user && user.coppa_offboarding_export_due?
+        next unless user && user.coppa_offboarding_export_due?
+        yield user
       end
   end
 
@@ -966,10 +1009,19 @@ class User < ApplicationRecord
   end
 
   # Daily sweep: offboarding COPPA pending past deadline / declined → export-then-delete.
+  #
+  # The per-user rescue is not defensive padding. On the failure path every user
+  # writes an AuditEvent, so a single S3 outage sends the whole backlog down it;
+  # without this, one raise would abandon every remaining candidate silently and
+  # the run would look like it simply found fewer accounts.
   def self.process_expired_offboarding_consents!
     count = 0
-    expired_offboarding_consent_candidates.each do |user|
-      count += 1 if user.schedule_offboarding_export_then_delete!(reason: user.offboarding_export_reason)
+    each_expired_offboarding_consent_candidate do |user|
+      begin
+        count += 1 if user.schedule_offboarding_export_then_delete!
+      rescue StandardError => e
+        Rails.logger.error("[COPPA offboarding sweep] user=#{user.global_id} #{e.class}: #{e.message}")
+      end
     end
     count
   end

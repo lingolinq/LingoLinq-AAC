@@ -302,6 +302,29 @@ describe ParentalConsentsController, :type => :controller do
         expect(AuditEvent.where(event_type: 'parental_consent_decline').count).to eq(before_count)
       end
 
+      it "refuses to offer the confirm form once consent was already GRANTED" do
+        u = signup_user('signup_granted')
+        tok = u.settings['coppa']['parent_consent_token']
+        c = u.settings['coppa']
+        c['parent_consent_granted_at'] = Time.now.utc.iso8601
+        u.settings['coppa'] = c
+        u.save!
+        get :decline, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:not_declinable)
+        expect(response.body).not_to include(I18n.t('parental_consent.decline_confirm_button'))
+      end
+
+      it "refuses to offer the confirm form once the consent window has EXPIRED" do
+        u = signup_user('signup_expired')
+        tok = u.settings['coppa']['parent_consent_token']
+        c = u.settings['coppa']
+        c['parent_consent_expires_at'] = 1.day.ago.utc.iso8601
+        u.settings['coppa'] = c
+        u.save!
+        get :decline, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:not_declinable)
+      end
+
       it "shows the invalid page for a bad token, still without mutating" do
         u = offboarding_user
         get :decline, params: {user_id: u.global_id, token: 'not-the-token'}
@@ -349,6 +372,20 @@ describe ParentalConsentsController, :type => :controller do
         post :decline_submit, params: {user_id: u.global_id, token: tok}
         expect(response.body).to include(I18n.t('parental_consent.decline_thanks_body'))
         expect(response.body).not_to include('prepare an export')
+      end
+
+      it "tells the parent the truth when the export failed" do
+        u = offboarding_user
+        tok = u.settings['coppa']['parent_consent_token']
+        expect(Exporter).to receive(:export_user).and_raise(StandardError.new('S3 throttled'))
+        post :decline_submit, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:declined_export_pending)
+        expect(response.body).to include(I18n.t('parental_consent.decline_export_pending_title'))
+        # The decline itself still landed; only the export did not.
+        u.reload
+        expect(u.settings['coppa']['parent_consent_declined_at']).to be_present
+        expect(u.schedule_deletion_at).to be_blank
+        expect(response.body).not_to include(I18n.t('parental_consent.offboarding_decline_thanks_body'))
       end
 
       it "is idempotent on a repeat submit" do

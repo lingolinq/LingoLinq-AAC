@@ -117,3 +117,76 @@ fix working, not a regression.
 - `#complete` and `#revoke` still act on GET. `#complete` is not destructive.
   `#revoke` is out of scope here but has the same shape, and is worth the same
   treatment in a follow-up.
+
+## Dual review of PR #903 (2026-08-31), and what it changed
+
+Ran codex + adversary in parallel on my own branch. Both found real defects; two
+were regressions I had introduced, one was a PII leak, and two of my specs proved
+nothing. Fixes applied on the same branch.
+
+### Cross-confirmed by both reviewers
+
+- **90-day lookback orphans aged accounts.** `OFFBOARDING_SWEEP_LOOKBACK` bounds
+  the AuditEvent scan, so an offboarding that ages past it is due forever but never
+  discovered. Made worse by defaulting the sweep OFF: every day it stays off, more
+  of the backlog crosses the horizon, and `report` then prints a reassuringly small
+  number -- which is exactly the number used to justify enabling it. NOT fixed here
+  (it needs state-based discovery); documented on the constant, covered by a spec
+  that pins the behaviour, and called out in #902 as a pre-enable step.
+- **`prepare_decline_context` did not mirror the model's refusal conditions.**
+  Fixed: added `declinable?` covering `pending_parent_consent`, `parent_consent_granted_at`,
+  `offboarding_export_scheduled_at` and expiry, plus a `:not_declinable` state.
+- **Report specs were entirely doubles.** Fixed with DB-backed specs.
+
+### Found only by the adversary
+
+- **HIGH, a regression I introduced.** `decline_parental_consent!` discards the
+  return of `schedule_offboarding_export_then_delete!`, so an interactive decline
+  whose export failed still returned true and rendered "scheduled for export and
+  deletion". Pre-PR the account was wrongly DELETED; post-PR it was silently
+  RETAINED while the parent was told it was handled -- and the only retry is a sweep
+  this PR defaults off and that nothing invokes in prod. Fixed: `decline_outcome_state`
+  reads the persisted result and renders a distinct `:declined_export_pending` state.
+- **My token spec was vacuous.** `expect(d.valid_token?(d.settings['keys'].first))`
+  ran after asserting `keys == []`, i.e. `valid_token?(nil)` -- false for any device.
+  Fixed by capturing the minted token before the decline.
+- Failure row written even when another finisher had won the race. Fixed.
+- Report logging: one line per account pairing global_id with reason. Capped at 200.
+
+### Found only by codex
+
+- **HIGH, PII into an immutable record.** `error.to_s[0, 300]` persisted the raw
+  exporter message. `lib/exporter.rb:94` builds its S3 key from `user.user_name`
+  TWICE, so an upload failure writes a student's username into an AuditEvent and
+  the logs. Truncation is not sanitisation, and `PiiScrubber` does not redact
+  usernames by design. Fixed: persist `error_class` only; the message goes to the
+  log, scrubbed. Same posture as `AuditEvent.log_command`'s own fallback.
+- **Claim release has no ownership token**, so a >6h stale worker can clear a newer
+  worker's claim. Real; NOT fixed here (needs a claim token) -- noted as follow-up.
+- **Failed export does not cancel a PRE-EXISTING `schedule_deletion_at`.** Traced:
+  the fuse can come from `api/users_controller.rb:470` or `subscription.rb:1230`,
+  and `Flusher` (`lib/flusher.rb:318`) deletes on the fuse alone with no export
+  check. Real, but PRE-EXISTING: this PR only ever sets the fuse AFTER a successful
+  export, so it does not create the bad combination. Follow-up, not a blocker.
+- AuditEvent `after(:each)` cleanup can be rolled back. Fixed: added `before(:each)`
+  per the repo's own convention in user_spec.
+
+### Also fixed while in there
+
+- Candidates were materialised into an Array of full User records; the premise of
+  the feature is a large backlog and each record carries a decrypted settings blob.
+  Now `each_expired_offboarding_consent_candidate` STREAMS, restoring the original
+  one-at-a-time behaviour. Report accumulates two strings per row, not records.
+- `reason` was resolved at discovery time and could be minutes stale; now derived
+  inside the claim lock where `with_lock` has just reloaded the record.
+- No per-user rescue in the sweep: one raise abandoned the whole remaining backlog.
+- `form_tag` hardcoded the path; now uses `parental_consent_decline_path`. Note the
+  POST route must stay UNNAMED -- the GET already claims that helper for the same
+  path, and adding `as:` raises "Invalid route name, already in use" at boot.
+
+### Not accepted
+
+- N+1 `find_by_global_id` per candidate: kept. Batching would mean loading all
+  records to filter on `coppa_offboarding_export_due?` anyway, which is the memory
+  problem the streaming change just fixed. The query count is unchanged from the
+  original code.

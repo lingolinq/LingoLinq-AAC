@@ -62,11 +62,11 @@ class ParentalConsentsController < ApplicationController
     prepare_decline_context
     if @state == :confirm
       if @decline_user.decline_parental_consent!(@decline_token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
-        @state = :declined
         @success = true
+        @state = decline_outcome_state
       else
-        # The token passed the link check but the model refused (expired window,
-        # consent already granted, a concurrent decline). Nothing was changed.
+        # A concurrent decline or a state change between the GET and this POST.
+        # Nothing was changed.
         @state = :invalid
         @success = false
       end
@@ -114,13 +114,48 @@ class ParentalConsentsController < ApplicationController
     return unless @decline_user && @decline_user.valid_parent_consent_grant_link_token?(@decline_token)
 
     c = @decline_user.settings && @decline_user.settings['coppa']
-    @offboarding = !!(c.is_a?(Hash) && c['offboarding'])
-    if c.is_a?(Hash) && c['parent_consent_declined_at'].present?
-      @state = :already_declined
-      @already_declined = true
-      @success = true
-    else
-      @state = :confirm
+    return unless c.is_a?(Hash)
+    @offboarding = !!c['offboarding']
+    @state =
+      if c['parent_consent_declined_at'].present?
+        @already_declined = true
+        @success = true
+        :already_declined
+      elsif !declinable?(c)
+        :not_declinable
+      else
+        :confirm
+      end
+  end
+
+  # Mirrors every refusal in User#decline_parental_consent!. Without this the
+  # confirmation page offers "Decline and delete the account" to a parent whose
+  # consent was already granted or whose window expired, and the POST then dead-ends
+  # on "Link invalid" with nowhere to go -- worse than the pre-change behaviour,
+  # which showed invalid immediately. It also catches an offboarding account the
+  # sweep has already scheduled, where the page's "Nothing has changed yet" would
+  # be false.
+  def declinable?(c)
+    return false unless c['pending_parent_consent']
+    return false if c['parent_consent_granted_at'].present?
+    return false if c['offboarding_export_scheduled_at'].present?
+    exp = c['parent_consent_expires_at']
+    return true if exp.blank?
+    begin
+      Time.iso8601(exp) >= Time.now.utc
+    rescue ArgumentError
+      false
     end
+  end
+
+  # The decline itself always persists (and revokes tokens). For an ORG OFFBOARDING
+  # it also kicks off export-then-delete, and that can fail -- an S3 error leaves the
+  # account declined but with no export and no schedule_deletion_at. Reporting
+  # "scheduled for export and deletion" then would be a straight lie to the parent,
+  # so read the persisted result rather than assuming it worked.
+  def decline_outcome_state
+    return :declined unless @offboarding
+    c = @decline_user.reload.settings['coppa'] || {}
+    c['offboarding_export_scheduled_at'].present? ? :declined : :declined_export_pending
   end
 end

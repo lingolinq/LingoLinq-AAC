@@ -47,6 +47,8 @@ LingoLinq::Application.routes.draw do
   # consent would let a scanner schedule deletion of a child's account with no
   # human ever clicking. The POST below is what actually declines.
   get '/parental_consent/decline' => 'parental_consents#decline'
+  # Unnamed: the GET above already claims the `parental_consent_decline_path`
+  # helper for this same path, and the form posts to that same URL.
   post '/parental_consent/decline' => 'parental_consents#decline_submit'
   get '/parental_consent/revoke' => 'parental_consents#revoke'
   get '/eu_ai_parental_consent/complete' => 'eu_ai_parental_consents#complete'

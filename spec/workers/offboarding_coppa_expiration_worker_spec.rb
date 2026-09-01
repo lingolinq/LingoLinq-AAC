@@ -41,7 +41,7 @@ describe OffboardingCoppaExpirationWorker do
     end
 
     it 'does not even scan for candidates' do
-      expect(User).not_to receive(:expired_offboarding_consent_candidates)
+      expect(User).not_to receive(:each_expired_offboarding_consent_candidate)
       OffboardingCoppaExpirationWorker.perform
     end
 
@@ -62,21 +62,31 @@ describe OffboardingCoppaExpirationWorker do
       ]
     end
 
+    # These doubles exercise the worker's own logging and counting only. They
+    # prove NOTHING about which accounts get selected -- that is
+    # each_expired_offboarding_consent_candidate's job and it is covered against a
+    # real database in spec/models/user_org_offboarding_consent_spec.rb.
+    def stub_candidates(list)
+      allow(User).to receive(:each_expired_offboarding_consent_candidate) do |&blk|
+        list.each { |u| blk.call(u) }
+      end
+    end
+
     it 'never schedules anything' do
-      allow(User).to receive(:expired_offboarding_consent_candidates).and_return(candidates)
+      stub_candidates(candidates)
       expect(User).not_to receive(:process_expired_offboarding_consents!)
       expect(OffboardingCoppaExpirationWorker.perform).to eq(0)
     end
 
     it 'logs the count and the declined/expired split' do
-      allow(User).to receive(:expired_offboarding_consent_candidates).and_return(candidates)
+      stub_candidates(candidates)
       allow(Rails.logger).to receive(:info)
       expect(Rails.logger).to receive(:info).with(/mode=report DRY RUN: 3 account\(s\) WOULD be exported.*declined=1 expired=2/)
       OffboardingCoppaExpirationWorker.perform
     end
 
     it 'logs one identifiable line per affected account' do
-      allow(User).to receive(:expired_offboarding_consent_candidates).and_return(candidates)
+      stub_candidates(candidates)
       allow(Rails.logger).to receive(:info)
       expect(Rails.logger).to receive(:info).with('[OffboardingCoppaExpiration] mode=report would sweep user_global_id=1_101 reason=declined')
       expect(Rails.logger).to receive(:info).with('[OffboardingCoppaExpiration] mode=report would sweep user_global_id=1_102 reason=expired')
@@ -84,8 +94,17 @@ describe OffboardingCoppaExpirationWorker do
       OffboardingCoppaExpirationWorker.perform
     end
 
+    it 'caps the per-account lines but never the count' do
+      many = (1..250).map { |i| double('user', global_id: "1_#{i}", offboarding_export_reason: 'expired') }
+      stub_candidates(many)
+      allow(Rails.logger).to receive(:info)
+      expect(Rails.logger).to receive(:info).with(/DRY RUN: 250 account\(s\)/)
+      expect(Rails.logger).to receive(:info).with(/\.\.\.and 50 more, not listed/)
+      OffboardingCoppaExpirationWorker.perform
+    end
+
     it 'reports zero cleanly when nothing is due' do
-      allow(User).to receive(:expired_offboarding_consent_candidates).and_return([])
+      stub_candidates([])
       allow(Rails.logger).to receive(:info)
       expect(Rails.logger).to receive(:info).with(/mode=report DRY RUN: 0 account\(s\)/)
       expect(OffboardingCoppaExpirationWorker.perform).to eq(0)
