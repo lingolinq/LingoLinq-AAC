@@ -2958,10 +2958,13 @@ class Board < ApplicationRecord
             # puts "ALREADY SWAPPED"
             already_in_library = true
           elsif (button['label'] || button['vocalization'])
-            image_data = defaults[button['label'] || button['vocalization']]
-            if !image_data && (!defaults['_missing'] || !defaults['_missing'].include?(button['label'] || button['vocalization']))
+            word = button['label'] || button['vocalization']
+            image_data = defaults[word]
+            known_miss = defaults['_missing'] && defaults['_missing'].include?(word)
+            transport_failed = defaults['_transport'] && defaults['_transport'].include?(word)
+            if !image_data && !known_miss && !transport_failed
               # puts " SEARCHING FOR #{button['label']}"
-              image_data ||= (Uploader.find_images(button['label'] || button['vocalization'], library, 'en', author, nil, true, important_board) || [])[0]
+              image_data ||= (Uploader.find_images(word, library, 'en', author, nil, true, important_board) || [])[0]
             end
             new_bi = ButtonImage.find_by_global_id(image_data['lingolinq_image_id']) if image_data && image_data['lingolinq_image_id']
             if new_bi
@@ -2976,15 +2979,14 @@ class Board < ApplicationRecord
               button['image_id'] = new_bi.global_id
               @buttons_changed = 'swapped images'
             else
-              # Nothing resolved for this button. OpenSymbols.search returns [] on a
-              # 429, on any non-2xx, and on its 10s timeout. find_images caches that
-              # empty result as a miss when cache_forever is set (uploader.rb:1015),
-              # and LibraryCache#find_words returns it with no expiry check
-              # (library_cache.rb:208-210). The 6.months.from_now stamp on added only
-              # stops add_missing_word from refreshing; it does not age the miss out.
-              # Flag the board so copy consumers re-run swap_images in place. Still
-              # record swapped_library: withholding it is a library mismatch and
-              # mints a new board set (user.rb:3065, 3088, 3095).
+              # Nothing resolved for this button. A Hydra 429/timeout lands on
+              # defaults['_transport'] so this pass does not call find_images
+              # again. A genuine empty 200 can still be cached as a miss when
+              # cache_forever is set; a 429/timeout/non-2xx is not
+              # (uploader.rb find_images). Flag the board so copy consumers
+              # re-run swap_images in place. Still record swapped_library:
+              # withholding it is a library mismatch and mints a new board set
+              # (user.rb:3065, 3088, 3095).
               unresolved = true
               library.instance_variable_set('@had_unresolved', true)
             end

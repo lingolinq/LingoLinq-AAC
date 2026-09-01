@@ -5512,6 +5512,28 @@ describe Board, :type => :model do
       expect(b.reload.buttons.map{|b| b['image_id'] }).to eq([bi.global_id, bis[1].global_id])
     end
 
+    it "should not call find_images for a Hydra transport error, and should still flag swap_incomplete" do
+      u = User.create
+      bi = ButtonImage.create(user: u)
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => bi.global_id},
+      ], nil)
+      expect(Uploader).to receive(:default_images).with('twemoji', ['hat', 'cat'], 'en', u, true, false).and_return({
+        'cat' => {'url' => 'https://www.example.com/cat.png'},
+        '_transport' => ['hat']
+      })
+      expect(Uploader).to_not receive(:find_images)
+      b.settings['images_not_mapped'] = true
+      b.swap_images('twemoji', u, [], nil)
+      b.reload
+      expect(b.settings['swapped_library']).to eq('twemoji')
+      expect(b.settings['swap_incomplete']).to eq(true)
+      expect(b.buttons.map{|btn| btn['image_id'] }[0]).to eq(bi.global_id)
+      expect(b.buttons.map{|btn| btn['image_id'] }[1]).to_not eq(bi.global_id)
+    end
+
     it "should not swap images for user-uploaded buttons" do
       u = User.create
       bi = ButtonImage.create(user: u)

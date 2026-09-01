@@ -725,6 +725,7 @@ module Uploader
     found_words = cache.find_words(words, user) if cache && (!user || !user.subscription_hash['skip_cache'])
     if ['noun-project', 'sclera', 'arasaac', 'mulberry', 'tawasol', 'twemoji', 'opensymbols', 'pcs', 'symbolstix'].include?(library)
       list = words - found_words.keys
+      transport_words = []
 
       # Use OpenSymbols v2 API if OPENSYMBOLS_SECRET is configured
       if ENV['OPENSYMBOLS_SECRET'].present?
@@ -738,8 +739,10 @@ module Uploader
         end
         
         # opensymbols (and tawasol) have no bulk defaults endpoint;
-        # OpenSymbols.defaults parallelizes those per-word searches.
-        results = OpenSymbols.defaults(library, list, locale)
+        # OpenSymbols.defaults_result parallelizes those per-word searches.
+        lookup = OpenSymbols.defaults_result(library, list, locale)
+        results = lookup[:results] || {}
+        transport_words = (lookup[:errors] || {}).keys
       else
         # Fallback to v1 API with OPENSYMBOLS_TOKEN
         token = ENV['OPENSYMBOLS_TOKEN']
@@ -802,6 +805,7 @@ module Uploader
           }
         }        
       end
+      hash['_transport'] = transport_words if transport_words.any?
       cache.save_if_added
       return hash
     elsif found_words
@@ -969,7 +973,15 @@ module Uploader
         end
         res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(str)}&search_token=#{token}", timeout: 5)
         transport_error = classify_opensymbols_transport(res)
-        results = transport_error ? [] : (JSON.parse(res.body) rescue [])
+        results = []
+        if !transport_error
+          begin
+            results = JSON.parse(res.body)
+          rescue JSON::ParserError, TypeError
+            transport_error = :http
+            results = []
+          end
+        end
         results.each do |result|
           next unless result.is_a?(Hash)
           if result['extension']

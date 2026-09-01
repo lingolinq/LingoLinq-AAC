@@ -1593,7 +1593,27 @@ describe Uploader do
       expect(cache.data['fallbacks']['cheddar']['data']).to_not eq(nil)
     end
 
-    it "should not cache a 429 as a missing word even when cache_forever" do
+    it "should surface Hydra transport errors on _transport rather than as _missing" do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('secret')
+      allow(OpenSymbols).to receive(:defaults_result).and_return({
+        results: {
+          'cat' => {
+            'image_url' => 'https://example.com/cat.png',
+            'extension' => 'png',
+            'id' => '1',
+            'license' => 'CC',
+            'width' => 10,
+            'height' => 10
+          }
+        },
+        errors: {'hat' => :timeout}
+      })
+      hash = Uploader.default_images('opensymbols', ['hat', 'cat'], 'en', nil)
+      expect(hash['_transport']).to eq(['hat'])
+      expect(hash['cat']['url']).to eq('https://example.com/cat.png')
+      expect(hash['_missing']).to eq(nil).or eq([])
+    end
       allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('secret')
       allow(OpenSymbols).to receive(:find_images_result).and_return({
         ok: false, error: :throttled, results: []
@@ -1622,6 +1642,16 @@ describe Uploader do
       cache = LibraryCache.find_by(library: 'opensymbols', locale: 'en')
       expect(cache).to_not eq(nil)
       expect(cache.data['missing']['bacon']).to_not eq(nil)
+    end
+
+    it "should not cache a malformed 200 as a missing word on the v1 path" do
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return(nil)
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_TOKEN').and_return('tok')
+      res = double(success?: true, timed_out?: false, code: 200, body: '<html>')
+      expect(Typhoeus).to receive(:get).and_return(res)
+      expect(Uploader.find_images('bacon', 'opensymbols', 'en', nil, nil, false, true)).to eq([])
+      cache = LibraryCache.find_by(library: 'opensymbols', locale: 'en')
+      expect(cache).to eq(nil).or satisfy { |c| c.data['missing'].blank? || c.data['missing']['bacon'].nil? }
     end
 
     it "should cache as missing to the library if long-term" do
