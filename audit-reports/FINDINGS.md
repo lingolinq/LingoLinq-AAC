@@ -5,11 +5,11 @@
 
 **Audited:** `staging (audited at 59f502aa4; staging tip had advanced to d2bf421f7 -- 7 commits, 43 files, PRs #814/#816/#819/#820/#821/#822/#823 -- by the time this PR was assembled; those 7 commits are NOT scanned by this run, see auditedShaPriorNote)` @ `59f502aa4a967c8c704637cc66a18ff05118c7d8` on 2026-08-18  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 0 Critical / 13 High
+**Headline (open + remediated-unverified):** 0 Critical / 14 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (110)
+## Open (111)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -20,6 +20,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-5617f4e17d |  | high | SOC2, HIPAA, FERPA | untriaged | audit-run | No server-side password strength policy exists; the only minimum-length check is a 6-character Ember computed property, bypassable by a direct API call | `app/frontend/app/controllers/register.js`:217 |
 | LL-5f0a016e2b |  | high | SOC2, HIPAA | untriaged | audit-run | Attested AI Governance Memo states the Bedrock runtime AI path is "not operational since" revision 00014-5rw; credentials were re-mounted 53 minutes later and the path carries user-attributed traffic | `docs/legal/AI_GOVERNANCE_MEMO.md`:499 |
 | LL-3bfc56ef4b |  | high | HIPAA, SOC2 | untriaged | pr-review | ALLOWED_RUNTIME_MODELS is an in-process application gate and cannot constrain direct AWS API or CLI use of the same Bedrock runtime credential | `lib/ai_client.rb`:83 |
+| LL-ffdd40d2e9 |  | high | FERPA, HIPAA, GDPR | untriaged | audit-run | Team-message notification email embeds the full message body, the communicator's display name, and a deep link to their log, with no opt-out | `app/views/user_mailer/log_message.text.erb`:4 |
 | LL-7314b5a8ea |  | medium | HIPAA | untriaged | audit-run | Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews | `render.yaml`:107 |
 | LL-ebd844a7d0 |  | medium | FERPA | untriaged | manual | Permanent, non-expiring User#user_token still login-serialized and accepted by logged legacy token fallbacks | `lib/json_api/user.rb`:41 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
@@ -222,4 +223,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_186 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_187 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

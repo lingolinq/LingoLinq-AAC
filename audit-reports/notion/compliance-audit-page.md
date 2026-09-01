@@ -11,13 +11,13 @@
 **Audited commit:** `59f502aa4a967c8c704637cc66a18ff05118c7d8`  
 **Audited ref:** `staging (audited at 59f502aa4; staging tip had advanced to d2bf421f7 -- 7 commits, 43 files, PRs #814/#816/#819/#820/#821/#822/#823 -- by the time this PR was assembled; those 7 commits are NOT scanned by this run, see auditedShaPriorNote)`  
 **Run date:** 2026-08-18  
-**Page generated:** 2026-08-31T05:52:24Z
+**Page generated:** 2026-09-01T22:51:50Z
 
 ## Headline - open findings
 
 | Critical | High | Medium | Low |
 |---|---|---|---|
-| **0** | **13** | 63 | 44 |
+| **0** | **14** | 63 | 44 |
 
 _Headline is the count of `open` + `remediated-unverified` findings by severity (plan decision 5.9.2: counts, not a synthetic score). Only Scot closes a finding, downgrades severity, or accepts risk._
 
@@ -38,6 +38,7 @@ _Headline is the count of `open` + `remediated-unverified` findings by severity 
 | LL-a9d6d5a46b |  | high | WCAG | AI disclosure full-notice link uses the low-contrast verdigris token for text on the near-white modal surface | `app/frontend/app/styles/app.scss`:38150 |
 | LL-e8614c103f |  | high | GDPR, FERPA, COPPA | PredictionEntry rows survive account deletion, retaining per-user AAC vocabulary sequences indefinitely | `app/models/prediction_entry.rb`:4 |
 | LL-f150e0e828 |  | high | COPPA, GDPR | District seat reclaim converts an under-13's account to a consumer trial with no parental re-consent or notice (COPPA) | `app/models/license.rb`:76 |
+| LL-ffdd40d2e9 |  | high | FERPA, HIPAA, GDPR | Team-message notification email embeds the full message body, the communicator's display name, and a deep link to their log, with no opt-out | `app/views/user_mailer/log_message.text.erb`:4 |
 | LL-07f1869d92 |  | medium | GDPR, COPPA, FERPA | SubscriptionMailer#new_subscription sends a user's IP address to iplocate.io with no user-type or consent gate, to a third party absent from the subprocessor register (GDPR Art. 28/44, COPPA) | `app/mailers/subscription_mailer.rb`:30 |
 | LL-0c6e931f47 |  | medium | WCAG | Sentence box (utterance bar) symbol chip images have no alt attribute | `app/frontend/app/templates/components/button-list.hbs`:21 |
 | LL-0d54bcb32c |  | medium | SOC2, HIPAA | Production Cloud SQL instance accepts unencrypted connections (ssl mode allows unencrypted) and is provisioned with no SSL enforcement flag | `scripts/gcp/phase3-data-layer.sh`:252 |
