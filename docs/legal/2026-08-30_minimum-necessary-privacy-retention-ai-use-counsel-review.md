@@ -1001,6 +1001,14 @@ these are framed as questions rather than positions.
     exist when they were solicited. Do you agree with notice-only; does the answer differ for
     under-13 verifiable parental consent; and must the acknowledged version be captured at
     solicitation rather than at grant?
+    Since this question was drafted we have established a further fact that bears directly on
+    it. `PRIVACY_POLICY_VERSION` has **no reader**: it is written at `user.rb:964`, `:978` and
+    `:2368`, and the acknowledgment key is deleted at `:2456`, but no code path anywhere
+    compares a stored `policy_version` against the current constant. There is no re-prompt, no
+    notification, and no mechanism that could produce either, so the notice-only position is at
+    present implemented as no notice at all. We have recorded that gap as an open finding,
+    `LL-ac1d12bf3f`. If your answer is that re-acknowledgment is required, the mechanism to
+    deliver it does not yet exist and would have to be built.
 33. **Does the public visibility of this memorandum's pull request matter?** This memorandum was
     prepared on a branch of our public source repository and is carried by pull request #889,
     held open but deliberately unmerged; the copy you receive is delivered out-of-band. Because
@@ -1010,6 +1018,33 @@ these are framed as questions rather than positions.
     should we close #889 and delete the branch, leave both as they are, or does the distinction
     carry no weight for privilege or any other purpose once the text has been publicly visible
     at all?
+34. **Was the disclosure correction a correction in place of version 1, or a new version?** On
+    2026-08-30 and 2026-08-31 we corrected both AI disclosure surfaces (PR #888, merged as
+    `558de5919`; PR #895, merged as `f9620af8d`; the citations in this question are verified at
+    `origin/staging` commit `164e1c6c8`, not at the audited commit above). Two legal bases were
+    retracted as incorrect: EU AI Act Article 50 cited as a record-keeping requirement, and
+    45 CFR 164.316(b)(2) cited as a retention floor. Retention windows previously presented as
+    being in effect are now marked as not yet in effect. The Spanish text of the Article 50
+    notice carried both retracted claims until PR #895 and is served without authentication at
+    `/ai_consent/disclosures/art50_v1?locale=es`. **The position we have taken, pending your
+    answer, is correction in place**: the version constant remains `1` in all three places it is
+    recorded, `AiConsentDisclosures::CURRENT_VERSION`
+    (`lib/lingo_linq/ai_consent_disclosures.rb:51`), `Article50Disclosures::CURRENT_VERSION`
+    (`lib/lingo_linq/article50_disclosures.rb:85`), and `ART50_CURRENT_VERSION`
+    (`app/frontend/app/utils/article50_gate.js:33`). Three facts cut against that position.
+    First, both gates compare only the stored integer, `ai_consent_granted?` (`user.rb:1364`)
+    and `article_50_disclosure_shown?` (`user.rb:1554`), so every consent and acknowledgment
+    captured before the correction remains current, and no one who already acknowledged
+    version 1 will ever be shown the corrected notice. Second, the content fingerprint we
+    render into the page as the identity of what the user saw has now moved twice under the
+    same version number, so the version alone no longer resolves what a given parent consented
+    to. Third, a parent consented partly on the strength of retention statements that we now
+    mark as not yet in effect. Cutting the other way, production carries no live users today,
+    so publishing a new version and prompting everyone again would cost almost nothing now and
+    steadily more after launch. May the existing consents stand against the corrected
+    version 1, or does the material change standard at 16 CFR 312.5(c) require re-notice or
+    re-consent; and does the answer differ between the Article 50 notice, which records
+    display, and the AI consent disclosure, which records agreement?
 
 ---
 
