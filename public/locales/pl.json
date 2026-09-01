@@ -9213,5 +9213,13 @@
   "automatic_replacements": "*** Automatic replacements",
   "automatic_replacements_description": "*** Optional. When Automatic Inflections is on, words already in the sentence can change this button. One rule per line: previous words = new form.",
   "translate_google_disclaimer_title": "*** About board translation",
-  "translate_google_disclaimer_body": "*** Board translation uses Google Cloud Translation, a machine-translation service. It is not generative AI or a chatbot. Words on this board (button labels, spoken phrases, and the board name) will be sent to Google to translate. If any of those words include personal information, that information will be sent too."
+  "translate_google_disclaimer_body": "*** Board translation uses Google Cloud Translation, a machine-translation service. It is not generative AI or a chatbot. Words on this board (button labels, spoken phrases, and the board name) will be sent to Google to translate. If any of those words include personal information, that information will be sent too.",
+  "board_detail_prediction_empty": "*** Tap a board button, and we'll suggest words here.",
+  "board_detail_prediction_panel_label": "*** Word prediction panel",
+  "board_collection_translate_hint": "*** Translate a board to add languages",
+  "board_collection_filter_language": "*** Filter boards by language",
+  "board_collection_no_boards_for_language": "*** No boards are translated into %{language} yet.",
+  "board_collection_show_all_languages": "*** Show all languages",
+  "scroll_up": "*** Scroll up",
+  "scroll_down": "*** Scroll down"
 }
