@@ -411,8 +411,9 @@ describe 'User org offboarding parental consent', type: :model do
       expect(u.schedule_deletion_at).to be_present
     end
 
-    it 'process_expired_offboarding_consents! schedules delete after deadline' do
-      u = school_authorized_user!(suffix: 'expdue')
+    # Deadline-expired offboarding, past due and ready for the sweep.
+    def deadline_expired_user!(suffix:)
+      u = school_authorized_user!(suffix: suffix)
       o = Organization.create(settings: {'total_licenses' => 1})
       b = under13_birth
       u.begin_family_offboarding_consents!(org: o, birth_month: b[:month], birth_year: b[:year])
@@ -421,12 +422,33 @@ describe 'User org offboarding parental consent', type: :model do
       c['offboarding_deadline_at'] = 1.day.ago.utc.iso8601
       u.settings['coppa'] = c
       u.save!
-      expect(Exporter).to receive(:export_user).with(u.global_id).and_return(nil)
+      u
+    end
+
+    it 'process_expired_offboarding_consents! schedules delete after deadline' do
+      u = deadline_expired_user!(suffix: 'expdue')
+      # This stub used to be `and_return(nil)` while still asserting the deletion
+      # WAS scheduled -- i.e. the spec pinned the behaviour where a failed export
+      # deletes the child's account anyway. That is the defect; the export now
+      # has to succeed for the deletion to be scheduled, so the happy path needs
+      # a real path. The failure case is the example below.
+      expect(Exporter).to receive(:export_user).with(u.global_id).and_return({path: 'downloads/users/expdue.zip'})
       expect(User.process_expired_offboarding_consents!).to be >= 1
       u.reload
       expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_present
       expect(u.settings['coppa']['offboarding_export_reason']).to eq('expired')
       expect(u.schedule_deletion_at).to be_present
+    end
+
+    it 'process_expired_offboarding_consents! does NOT schedule delete when the export fails' do
+      u = deadline_expired_user!(suffix: 'expfail')
+      expect(Exporter).to receive(:export_user).with(u.global_id).and_return(nil)
+      expect(User.process_expired_offboarding_consents!).to eq(0)
+      u.reload
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+      expect(u.schedule_deletion_at).to be_blank
+      # Still due, so the next sweep retries rather than losing the account.
+      expect(u.coppa_offboarding_export_due?).to eq(true)
     end
 
     it 'claims under lock so a concurrent schedule_offboarding_export_then_delete! does not re-export' do
@@ -462,6 +484,101 @@ describe 'User org offboarding parental consent', type: :model do
       u.reload
       expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_present
       expect(u.settings['coppa']['offboarding_export_started_at']).to be_nil
+    end
+  end
+
+  describe 'export failure must not schedule deletion' do
+    # An offboarding account that is DUE for export-then-delete: parent declined,
+    # so coppa_offboarding_export_due? is true without waiting on a deadline.
+    def due_offboarding_user!(suffix:)
+      u = school_authorized_user!(suffix: suffix)
+      o = Organization.create(settings: {'total_licenses' => 1})
+      b = under13_birth
+      u.begin_family_offboarding_consents!(
+        org: o,
+        parent_email: "export_#{suffix}@example.com",
+        birth_month: b[:month],
+        birth_year: b[:year]
+      )
+      u.reload
+      u.settings['coppa']['parent_consent_declined_at'] = Time.now.utc.iso8601
+      u.settings['coppa'] = u.settings['coppa']
+      u.save!
+      u.reload
+      u
+    end
+
+    it 'does not schedule deletion when the exporter raises' do
+      u = due_offboarding_user!(suffix: 'raise')
+      expect(Exporter).to receive(:export_user).and_raise(StandardError.new('S3 throttled'))
+      expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
+      expect(u.schedule_offboarding_export_then_delete!(reason: 'declined')).to eq(false)
+      u.reload
+      expect(u.schedule_deletion_at).to be_blank
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+    end
+
+    it 'does not schedule deletion when the exporter returns no path' do
+      u = due_offboarding_user!(suffix: 'nopath')
+      expect(Exporter).to receive(:export_user).and_return({})
+      expect(u.schedule_offboarding_export_then_delete!(reason: 'declined')).to eq(false)
+      u.reload
+      expect(u.schedule_deletion_at).to be_blank
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+    end
+
+    it 'releases the claim so the next sweep retries' do
+      u = due_offboarding_user!(suffix: 'retry')
+      expect(Exporter).to receive(:export_user).and_raise(StandardError.new('boom'))
+      u.schedule_offboarding_export_then_delete!(reason: 'declined')
+      u.reload
+      expect(u.settings['coppa']['offboarding_export_started_at']).to be_blank
+      expect(u.coppa_offboarding_export_due?).to eq(true)
+    end
+
+    it 'records an AuditEvent for the failed export' do
+      u = due_offboarding_user!(suffix: 'audit')
+      expect(Exporter).to receive(:export_user).and_raise(StandardError.new('S3 throttled'))
+      u.schedule_offboarding_export_then_delete!(reason: 'declined')
+      ev = AuditEvent.where(event_type: 'parental_consent_offboarding_export_failed', user_key: u.global_id).last
+      expect(ev).to be_present
+      expect(ev.data['deletion_scheduled']).to eq(false)
+      expect(ev.data['reason']).to eq('declined')
+      expect(ev.data['error']).to match(/S3 throttled/)
+    end
+
+    it 'still schedules deletion when the export succeeds' do
+      u = due_offboarding_user!(suffix: 'ok')
+      expect(Exporter).to receive(:export_user).and_return({path: 'downloads/users/ok.zip'})
+      allow(UserMailer).to receive(:schedule_parent_consent_delivery)
+      expect(u.schedule_offboarding_export_then_delete!(reason: 'declined')).to eq(true)
+      u.reload
+      expect(u.schedule_deletion_at).to be_present
+      expect(u.settings['coppa']['offboarding_export_path']).to eq('downloads/users/ok.zip')
+    end
+  end
+
+  describe 'decline revokes access already granted' do
+    it 'clears persisted device keys, not just the Redis cache' do
+      u = User.process_new({
+        'name' => 'decline_tokens',
+        'email' => "decline_tokens_#{SecureRandom.hex(4)}@example.com",
+        'password' => 'abcdef',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'decline_tokens_parent@example.com'
+      }, {:pending => true})
+      d = Device.create(user: u, device_key: 'default', developer_key_id: 0)
+      d.generate_token!
+      d.reload
+      expect(d.settings['keys']).not_to be_empty
+
+      tok = u.settings['coppa']['parent_consent_token']
+      expect(u.decline_parental_consent!(tok, ip: '1.2.3.4', user_agent: 'spec')).to eq(true)
+
+      d.reload
+      expect(d.settings['keys']).to eq([])
+      expect(d.valid_token?(d.settings['keys'].first)).to eq(false)
     end
   end
 end

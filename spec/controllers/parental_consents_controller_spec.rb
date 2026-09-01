@@ -225,11 +225,13 @@ describe ParentalConsentsController, :type => :controller do
     end
   end
 
-  describe "GET decline" do
+  describe "decline" do
     render_views
     after(:each) { AuditEvent.delete_all }
 
-    it "declines pending offboarding consent and schedules export-then-delete" do
+    # An org-offboarding account sitting at pending parental consent, which is
+    # the state both the confirmation page and the decline act on.
+    def offboarding_user
       allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
       u = User.process_new({
         'user_name' => "decl_#{SecureRandom.hex(4)}",
@@ -252,55 +254,122 @@ describe ParentalConsentsController, :type => :controller do
         birth_year: t.year - 10
       )
       u.reload
-      tok = u.settings['coppa']['parent_consent_token']
-      expect(Exporter).to receive(:export_user).with(u.global_id).and_return({path: 'downloads/users/x.zip'})
-      expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_offboarding_export, u.global_id)
-      get :decline, params: {user_id: u.global_id, token: tok}
-      expect(response).to be_successful
-      expect(assigns(:success)).to eq(true)
-      u.reload
-      expect(u.settings['coppa']['parent_consent_declined_at']).to be_present
-      expect(u.schedule_deletion_at).to be_present
-      expect(assigns(:offboarding)).to eq(true)
+      u
     end
 
-    it "declines a signup consent without exporting and without export copy" do
+    def signup_user(name)
       allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
-      u = User.process_new({
-        'name' => 'signup_decl_kid',
-        'email' => "signup_decl_#{SecureRandom.hex(4)}@example.com",
+      User.process_new({
+        'name' => name,
+        'email' => "#{name}_#{SecureRandom.hex(4)}@example.com",
         'password' => 'abcdef',
         'terms_agree' => true,
         'coppa_under_13' => true,
-        'parent_consent_email' => 'signup_decl_parent@example.com'
+        'parent_consent_email' => "#{name}_parent@example.com"
       }, {:pending => true})
-      tok = u.settings['coppa']['parent_consent_token']
-      expect(Exporter).not_to receive(:export_user)
-      expect(UserMailer).not_to receive(:schedule_parent_consent_delivery).with(:parental_consent_offboarding_export, anything)
-      get :decline, params: {user_id: u.global_id, token: tok}
-      expect(response).to be_successful
-      expect(assigns(:success)).to eq(true)
-      expect(assigns(:offboarding)).to eq(false)
-      u.reload
-      expect(u.settings['coppa']['parent_consent_declined_at']).to be_present
-      expect(u.schedule_deletion_at).to be_present
-      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
     end
 
-    it "shows deletion-only thanks copy for a signup decline" do
-      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
-      u = User.process_new({
-        'name' => 'signup_decl_copy',
-        'email' => "signup_decl_copy_#{SecureRandom.hex(4)}@example.com",
-        'password' => 'abcdef',
-        'terms_agree' => true,
-        'coppa_under_13' => true,
-        'parent_consent_email' => 'signup_decl_copy_parent@example.com'
-      }, {:pending => true})
-      tok = u.settings['coppa']['parent_consent_token']
-      get :decline, params: {user_id: u.global_id, token: tok}
-      expect(response.body).to include(I18n.t('parental_consent.decline_thanks_body'))
-      expect(response.body).not_to include('prepare an export')
+    describe "GET decline (must not mutate)" do
+      it "renders a confirmation page and declines nothing" do
+        u = offboarding_user
+        tok = u.settings['coppa']['parent_consent_token']
+        expect(Exporter).not_to receive(:export_user)
+        get :decline, params: {user_id: u.global_id, token: tok}
+        expect(response).to be_successful
+        expect(assigns(:state)).to eq(:confirm)
+        expect(response.body).to include(I18n.t('parental_consent.decline_confirm_button'))
+        u.reload
+        expect(u.settings['coppa']['parent_consent_declined_at']).to be_blank
+        expect(u.settings['coppa']['pending_parent_consent']).to eq(true)
+        expect(u.schedule_deletion_at).to be_blank
+      end
+
+      it "does not schedule deletion for a signup consent either" do
+        u = signup_user('signup_get_inert')
+        tok = u.settings['coppa']['parent_consent_token']
+        get :decline, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:confirm)
+        u.reload
+        expect(u.settings['coppa']['parent_consent_declined_at']).to be_blank
+        expect(u.schedule_deletion_at).to be_blank
+      end
+
+      it "writes no AuditEvent" do
+        u = offboarding_user
+        tok = u.settings['coppa']['parent_consent_token']
+        before_count = AuditEvent.where(event_type: 'parental_consent_decline').count
+        get :decline, params: {user_id: u.global_id, token: tok}
+        expect(AuditEvent.where(event_type: 'parental_consent_decline').count).to eq(before_count)
+      end
+
+      it "shows the invalid page for a bad token, still without mutating" do
+        u = offboarding_user
+        get :decline, params: {user_id: u.global_id, token: 'not-the-token'}
+        expect(assigns(:state)).to eq(:invalid)
+        expect(response.body).to include(I18n.t('parental_consent.decline_invalid_title'))
+        u.reload
+        expect(u.settings['coppa']['parent_consent_declined_at']).to be_blank
+      end
+    end
+
+    describe "POST decline (performs the decline)" do
+      it "declines pending offboarding consent and schedules export-then-delete" do
+        u = offboarding_user
+        tok = u.settings['coppa']['parent_consent_token']
+        expect(Exporter).to receive(:export_user).with(u.global_id).and_return({path: 'downloads/users/x.zip'})
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_offboarding_export, u.global_id)
+        post :decline_submit, params: {user_id: u.global_id, token: tok}
+        expect(response).to be_successful
+        expect(assigns(:success)).to eq(true)
+        expect(assigns(:state)).to eq(:declined)
+        u.reload
+        expect(u.settings['coppa']['parent_consent_declined_at']).to be_present
+        expect(u.schedule_deletion_at).to be_present
+        expect(assigns(:offboarding)).to eq(true)
+      end
+
+      it "declines a signup consent without exporting and without export copy" do
+        u = signup_user('signup_decl_kid')
+        tok = u.settings['coppa']['parent_consent_token']
+        expect(Exporter).not_to receive(:export_user)
+        expect(UserMailer).not_to receive(:schedule_parent_consent_delivery).with(:parental_consent_offboarding_export, anything)
+        post :decline_submit, params: {user_id: u.global_id, token: tok}
+        expect(response).to be_successful
+        expect(assigns(:success)).to eq(true)
+        expect(assigns(:offboarding)).to eq(false)
+        u.reload
+        expect(u.settings['coppa']['parent_consent_declined_at']).to be_present
+        expect(u.schedule_deletion_at).to be_present
+        expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+      end
+
+      it "shows deletion-only thanks copy for a signup decline" do
+        u = signup_user('signup_decl_copy')
+        tok = u.settings['coppa']['parent_consent_token']
+        post :decline_submit, params: {user_id: u.global_id, token: tok}
+        expect(response.body).to include(I18n.t('parental_consent.decline_thanks_body'))
+        expect(response.body).not_to include('prepare an export')
+      end
+
+      it "is idempotent on a repeat submit" do
+        u = signup_user('signup_decl_twice')
+        tok = u.settings['coppa']['parent_consent_token']
+        post :decline_submit, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:declined)
+        post :decline_submit, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:already_declined)
+        expect(assigns(:success)).to eq(true)
+      end
+
+      it "refuses a bad token" do
+        u = signup_user('signup_decl_badtok')
+        post :decline_submit, params: {user_id: u.global_id, token: 'not-the-token'}
+        expect(assigns(:state)).to eq(:invalid)
+        expect(assigns(:success)).to eq(false)
+        u.reload
+        expect(u.settings['coppa']['parent_consent_declined_at']).to be_blank
+        expect(u.schedule_deletion_at).to be_blank
+      end
     end
   end
 end

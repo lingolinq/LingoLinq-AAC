@@ -1,5 +1,19 @@
 # One-click parental consent completion for COPPA minor registration (token in URL).
 # GET is used so the parent can approve from the email link without CSRF/session setup.
+#
+# DECLINE IS THE EXCEPTION, and deliberately so. #complete and #revoke act on GET
+# because that is what a one-click email link needs, but #decline is the only one
+# of the three that DESTROYS the account: it schedules deletion 36 hours out (or,
+# for an org offboarding, an export-then-delete). Mail-security link scanners,
+# inbox link previews and browser prefetch all fetch URLs out of a parent's inbox
+# with no human involved, so a decline-on-GET lets a robot delete a child's AAC
+# account. #decline therefore renders a confirmation page and mutates nothing;
+# #decline_submit does the work on POST.
+#
+# Note what the POST does and does not buy: ApplicationController sets
+# `protect_from_forgery with: :null_session`, so a missing authenticity token
+# does NOT raise here. The security property is that automated fetchers issue
+# GETs, not POSTs. The URL token remains the actual authorization.
 class ParentalConsentsController < ApplicationController
   def complete
     response.headers['Referrer-Policy'] = 'no-referrer'
@@ -37,21 +51,24 @@ class ParentalConsentsController < ApplicationController
     render layout: 'parental_consent'
   end
 
+  # GET /parental_consent/decline -- renders the confirmation page. NO MUTATION.
   def decline
-    response.headers['Referrer-Policy'] = 'no-referrer'
-    user = User.find_by_path(params[:user_id].presence || params['user_id'])
-    token = params[:token].presence || params['token']
-    @success = false
-    @already_declined = false
-    @offboarding = false
-    if user && user.valid_parent_consent_grant_link_token?(token)
-      c = user.settings && user.settings['coppa']
-      @offboarding = !!(c.is_a?(Hash) && c['offboarding'])
-      if c.is_a?(Hash) && c['parent_consent_declined_at'].present?
-        @already_declined = true
+    prepare_decline_context
+    render 'decline', layout: 'parental_consent'
+  end
+
+  # POST /parental_consent/decline -- performs the decline.
+  def decline_submit
+    prepare_decline_context
+    if @state == :confirm
+      if @decline_user.decline_parental_consent!(@decline_token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
+        @state = :declined
         @success = true
-      elsif user.decline_parental_consent!(token, ip: request.remote_ip, user_agent: request.headers['User-Agent'])
-        @success = true
+      else
+        # The token passed the link check but the model refused (expired window,
+        # consent already granted, a concurrent decline). Nothing was changed.
+        @state = :invalid
+        @success = false
       end
     end
     render 'decline', layout: 'parental_consent'
@@ -73,5 +90,37 @@ class ParentalConsentsController < ApplicationController
       end
     end
     render 'revoke', layout: 'parental_consent'
+  end
+
+  private
+
+  # Resolves the account, the token and which of the four page states applies,
+  # WITHOUT writing anything. Shared by the GET and the POST so the confirmation
+  # page and the action that follows it can never disagree about who is being
+  # declined or whether the link is still good.
+  #
+  #   :invalid          -- no such user, or the token does not check out
+  #   :already_declined -- a previous decline already landed (link is idempotent)
+  #   :confirm          -- valid and still pending; GET stops here, POST acts
+  #   :declined         -- set by decline_submit after a successful decline
+  def prepare_decline_context
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    @decline_user = User.find_by_path(params[:user_id].presence || params['user_id'])
+    @decline_token = params[:token].presence || params['token']
+    @success = false
+    @already_declined = false
+    @offboarding = false
+    @state = :invalid
+    return unless @decline_user && @decline_user.valid_parent_consent_grant_link_token?(@decline_token)
+
+    c = @decline_user.settings && @decline_user.settings['coppa']
+    @offboarding = !!(c.is_a?(Hash) && c['offboarding'])
+    if c.is_a?(Hash) && c['parent_consent_declined_at'].present?
+      @state = :already_declined
+      @already_declined = true
+      @success = true
+    else
+      @state = :confirm
+    end
   end
 end
