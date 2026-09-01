@@ -45,6 +45,9 @@ file (see [README.md](README.md)).
 - [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
 - [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
+- [Pattern: collect `swap_images` lookup words with the same skip predicates as the button loop](#pattern-collect-swap_images-lookup-words-with-the-same-skip-predicates-as-the-button-loop)
+- [Gotcha: inserting at the top of an Ember `actions` hash shifts grandfathered eslint-todo lines](#gotcha-inserting-at-the-top-of-an-ember-actions-hash-shifts-grandfathered-eslint-todo-lines)
+- [Gotcha: Hydra `search_many` must classify and retry like `search_result`](#gotcha-hydra-search_many-must-classify-and-retry-like-search_result)
 - [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
 - [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
 - [Gotcha: public COPPA signup is classified from birth month/year, not the client flag](#gotcha-public-coppa-signup-is-classified-from-birth-monthyear-not-the-client-flag)
@@ -12512,8 +12515,14 @@ Net: `_missing` conflates "no such symbol" with "the API was down when we asked,
 and does so *only* on the highest-value boards — the ones flagged important. Never
 treat membership in `_missing` as proof that work is complete or that a retry is
 futile. Using it to skip a redundant lookup within one run is fine; using it as a
-terminal state is not. The cache-write conflation at `uploader.rb:1013-1016` is
-still open.
+terminal state is not. The write-site conflation was closed on
+`perf/melissa-copy-swap-lookups`: `Uploader.find_images` only calls
+`add_missing_word` when the lookup is `ok` (a genuine empty 200). A 429 / timeout
+/ non-2xx is `OpenSymbols.search_result` `:throttled` / `:timeout` / `:http` and
+is not cached. A malformed HTTP 200 on the v1 fallback (`JSON.parse rescue []`)
+used to look like a genuine miss and still stamp six months; that parse failure
+is now `:http` as well. Historical `missing` rows written before that fix can still sit
+until their stamp ages out.
 
 ## Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions
 
@@ -12545,6 +12554,49 @@ lookups, no skip, no button change) still sets `@had_unresolved`, so the bubble
 saved a board the old spec treats as a no-op (`board_spec.rb` "should do nothing
 when no images found"). That `save` is also how PaperTrail got stuck off in CI
 (see the next entry). Gate the bubble on `swapped_library == library`.
+
+## Pattern: collect `swap_images` lookup words with the same skip predicates as the button loop
+
+`#861` repaired the already-in-library skip, but `Uploader.default_images` still
+ran first for every label (`board.rb` used to build `words` from all labels at
+what is now the filtered list). An already-correct board still paid one
+OpenSymbols HTTP call per word. Collect only `label || vocalization` for buttons
+the loop will actually look up (`swap_skips_button?`, `swap_keeps_existing_image?`,
+`swap_image_already_in_library?` in `app/models/board.rb`). If every button is
+skippable, do not call `default_images` at all — an empty list still hits the
+cache / v1 POST (`lib/uploader.rb`). Remaining opensymbols lookups go through
+`OpenSymbols.search_many` (Hydra, default 3s). Sequential `search_result` stays
+at 10s so interactive symbol search is not shortened by the Hydra default.
+Index `known_button_images` once by `global_id` and reuse that hash in both
+loops — a second `bis.detect` per button is O(buttons × images).
+
+## Gotcha: inserting at the top of an Ember `actions` hash shifts grandfathered eslint-todo lines
+
+`scripts/eslint-todo-gate.js` fingerprints `file|ruleId|line|column|severity|messageHash`.
+Adding three lines at the top of `actions` in `user/index.js` (#904 Try Again)
+moved pre-existing `ember/no-runloop` and `lingolinq/no-orphaned-action` hits
+off their todo rows. CI then reported them as NEW. The linter's
+"use ember-lifeline" hint is a red herring — this app does not depend on
+ember-lifeline (`caseload.js`). Put a new action at the **end** of the hash
+(lookup is by name) so grandfathered lines stay put. Do not convert nearby
+`schedule` / `runLater` calls just to silence a shift.
+
+## Gotcha: Hydra `search_many` must classify and retry like `search_result`
+
+`search_result` wraps `JSON.parse` and retries 401 with `clear_token_cache` +
+`generate_new_token`. `search_many` is the opensymbols defaults path and used to
+do neither: a non-JSON 200 raised out of `hydra.run` and aborted `swap_images`
+before `swapped_library` was written (duplicate board set), and a stale cached
+token failed the whole batch as `:http` until Redis TTL died. Both paths now go
+through `classify_search_response` (`lib/open_symbols.rb`). Hydra 401s are
+`:auth` and get one requeue with a fresh token. Specs that stub `hydra.run` and
+never fire `on_complete` cannot catch this; stub the HTTP (Typhoeus.stub) so the
+callback runs.
+
+Hydra transport errors are returned on `defaults_result[:errors]` and copied to
+`defaults['_transport']`. `swap_images` skips `find_images` for those words in
+the same pass (no retry storm) and still sets `swap_incomplete`. Do not fold
+them into `_missing`.
 
 ## Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised
 

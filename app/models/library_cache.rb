@@ -133,7 +133,7 @@ class LibraryCache < ApplicationRecord
 
   def add_missing_word(word, cache_forever=false)
     return false unless word
-    puts "  ADDING missing word: #{word}"
+    # puts "  ADDING missing word: #{word}"
     self.data['missing'] ||= {}
     if self.data['missing'][word.downcase] && self.data['missing'][word.downcase]['added'] > 2.weeks.ago.to_i
       true

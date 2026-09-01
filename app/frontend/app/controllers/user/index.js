@@ -1853,6 +1853,9 @@ export default Controller.extend({
     },
     profile_preview: function() {
       modal.open('modals/profiles', {user: this.get('model')});
+    },
+    retry_board_list: function() {
+      this.update_selected();
     }
   }
 });
