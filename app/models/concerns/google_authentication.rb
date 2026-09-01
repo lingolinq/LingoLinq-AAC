@@ -42,18 +42,37 @@ module GoogleAuthentication
       user
     end
 
-    def create_from_google_signup!(profile, user_name:, registration_type:, terms_agree:, product_improvement_opt_in: false, country: nil, under_16: false)
+    def create_from_google_signup!(profile, user_name:, registration_type:, terms_agree:, product_improvement_opt_in: false, country: nil, under_16: false, signup_name: nil, locale: nil, birth_month: nil, birth_year: nil)
       raise GoogleOAuth::Error, 'terms_required' unless ActiveModel::Type::Boolean.new.cast(terms_agree)
       user_name = user_name.to_s.strip
       raise GoogleOAuth::Error, 'username_required' if user_name.blank?
       product_improvement_opt_in = ActiveModel::Type::Boolean.new.cast(product_improvement_opt_in)
       under_16 = ActiveModel::Type::Boolean.new.cast(under_16)
       trusted_country = LingoLinq::Jurisdiction.trusted_country(country)
+      classified_under_13 = User.age_under_threshold?(
+        birth_month: birth_month,
+        birth_year: birth_year,
+        age: JsonApi::Json::DEFAULT_COPPA_CONSENT_AGE
+      )
+      if JsonApi::Json.coppa_parental_consent_enabled?
+        raise GoogleOAuth::Error, 'birthdate_required' if classified_under_13.nil?
+        raise GoogleOAuth::Error, 'coppa_age' if classified_under_13
+      end
+      classified_under_16 = User.age_under_threshold?(
+        birth_month: birth_month,
+        birth_year: birth_year,
+        age: 16
+      )
+      under_16 = classified_under_16 unless classified_under_16.nil?
       eu_under_16 = !!(trusted_country && LingoLinq::Jurisdiction.eu?(trusted_country) && under_16)
       product_improvement_opt_in = false if eu_under_16
 
       email = profile[:email].to_s.strip
-      name = profile[:name].presence || email.split('@').first
+      form_name = signup_name.to_s.gsub(/[\x00-\x1F\x7F]/, '').strip
+      form_name = form_name[0, 200]
+      name = form_name.presence || profile[:name].presence || email.split('@').first
+      locale_code = locale.to_s.strip.downcase
+      locale_code = 'en' unless locale_code.match?(/\A[a-z]{2,8}\z/)
       password = GoSecure.nonce('google_pw')
       params = {
         'name' => name,
@@ -62,8 +81,11 @@ module GoogleAuthentication
         'terms_agree' => true,
         'country' => trusted_country,
         'under_16' => under_16,
+        'birth_month' => birth_month,
+        'birth_year' => birth_year,
         'preferences' => {
           'registration_type' => registration_type.presence || 'communicator',
+          'locale' => locale_code,
           'cookies' => product_improvement_opt_in,
           'google_signup' => true,
           'telemetry_opt_in' => product_improvement_opt_in,
