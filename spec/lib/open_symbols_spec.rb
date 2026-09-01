@@ -64,7 +64,7 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'cat', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        timeout: 3
+        timeout: 10
       ).and_return(response)
       
       results = OpenSymbols.search('cat')
@@ -81,7 +81,7 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'dog repo:arasaac', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        timeout: 3
+        timeout: 10
       ).and_return(response)
       
       results = OpenSymbols.search('dog', repo: 'arasaac')
@@ -96,7 +96,7 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'house favor:tawasol', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        timeout: 3
+        timeout: 10
       ).and_return(response)
       
       results = OpenSymbols.search('house', favor: 'tawasol')
@@ -111,7 +111,7 @@ describe OpenSymbols do
         "https://www.opensymbols.org/api/v2/symbols",
         params: { q: 'sun hc:1', locale: 'en', safe: 1 },
         headers: { 'Authorization' => 'Bearer test_token_123' },
-        timeout: 3
+        timeout: 10
       ).and_return(response)
       
       results = OpenSymbols.search('sun', high_contrast: true)
@@ -205,6 +205,17 @@ describe OpenSymbols do
       result = OpenSymbols.search_result('test')
       expect(result[:ok]).to eq(true)
       expect(result[:error]).to eq(nil)
+      expect(result[:results]).to eq([])
+    end
+
+    it "should mark a 200 with a non-JSON body as http, not raise" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token_123')
+      response = double(success?: true, timed_out?: false, body: '<html>', code: 200)
+      expect(Typhoeus).to receive(:get).and_return(response)
+
+      result = OpenSymbols.search_result('test')
+      expect(result[:ok]).to eq(false)
+      expect(result[:error]).to eq(:http)
       expect(result[:results]).to eq([])
     end
   end
@@ -346,6 +357,43 @@ describe OpenSymbols do
 
       OpenSymbols.defaults('opensymbols', %w[a b c], 'en')
       expect(queued.length).to eq(3)
+    end
+  end
+
+  describe "search_many" do
+    after(:each) do
+      Typhoeus::Expectation.clear
+    end
+
+    def stub_symbols_responses(*bodies)
+      queue = bodies
+      Typhoeus.stub(/opensymbols\.org\/api\/v2\/symbols/) do
+        queue.shift || Typhoeus::Response.new(code: 200, body: '[]')
+      end
+    end
+
+    it "should not raise when Hydra gets a non-JSON 200, and should omit that word from results" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token')
+      stub_symbols_responses(Typhoeus::Response.new(code: 200, body: '<html>'))
+
+      result = nil
+      expect { result = OpenSymbols.search_many(['cat']) }.not_to raise_error
+      expect(result[:results]).to eq({})
+      expect(result[:errors]['cat']).to eq(:http)
+    end
+
+    it "should clear the token cache and retry Hydra words that returned 401" do
+      expect(OpenSymbols).to receive(:access_token).and_return('expired_token')
+      expect(OpenSymbols).to receive(:clear_token_cache)
+      expect(OpenSymbols).to receive(:generate_new_token).and_return('new_token')
+      stub_symbols_responses(
+        Typhoeus::Response.new(code: 401, body: '{"token_expired":true}'),
+        Typhoeus::Response.new(code: 200, body: [{'id' => 1, 'name' => 'cat', 'image_url' => 'https://example.com/cat.png', 'extension' => 'png'}].to_json)
+      )
+
+      result = OpenSymbols.search_many(['cat'])
+      expect(result[:errors]).to eq({})
+      expect(result[:results]['cat']['image_url']).to eq('https://example.com/cat.png')
     end
   end
 end

@@ -84,17 +84,23 @@ module OpenSymbols
     # @param locale [String] locale code
     # @return [Hash] mapping of query to symbol object
     def defaults(library, queries, locale)
-      return {} if queries.blank?
+      defaults_result(library, queries, locale)[:results]
+    end
+
+    # Same mapping as defaults, plus per-word transport errors for the
+    # opensymbols/tawasol Hydra path. Uploader.default_images puts those
+    # keys on `_transport` so swap_images can skip find_images without
+    # treating a 429/timeout as `_missing`.
+    def defaults_result(library, queries, locale)
+      return {results: {}, errors: {}} if queries.blank?
       library = 'opensymbols' if library == 'original'
       words = queries.compact.reject(&:blank?)
-      return {} if words.blank?
+      return {results: {}, errors: {}} if words.blank?
 
-      # Map library to repo/favor params
       repo = nil
       favor = nil
       case library
       when 'opensymbols'
-        # No bulk endpoint for meta-repo; fall back to per-word search
       when 'tawasol'
         favor = 'tawasol'
       when 'noun-project', 'sclera', 'arasaac', 'mulberry', 'twemoji', 'pcs', 'symbolstix'
@@ -102,9 +108,9 @@ module OpenSymbols
       end
 
       if repo
-        fetch_defaults_bulk(repo, words, locale)
+        {results: fetch_defaults_bulk(repo, words, locale), errors: {}}
       else
-        search_many(words, locale: locale, repo: repo, favor: favor)[:results]
+        search_many(words, locale: locale, repo: repo, favor: favor)
       end
     end
 
@@ -123,19 +129,20 @@ module OpenSymbols
         return {results: {}, errors: errors}
       end
 
-      results = {}
-      errors = {}
-      hydra = Typhoeus::Hydra.new(max_concurrency: search_concurrency)
-      words.each do |word|
-        hydra.queue(build_search_request(word, locale: locale, repo: repo, favor: favor, token: token) do |classified|
-          if classified[:ok]
-            results[word] = classified[:results].first if classified[:results].any?
-          else
-            errors[word] = classified[:error]
-          end
-        end)
+      results, errors = run_search_hydra(words, locale: locale, repo: repo, favor: favor, token: token)
+
+      auth_failed = errors.select { |_word, err| err == :auth }.keys
+      if auth_failed.any?
+        clear_token_cache
+        token = generate_new_token
+        if token
+          retry_results, retry_errors = run_search_hydra(auth_failed, locale: locale, repo: repo, favor: favor, token: token)
+          auth_failed.each { |word| errors.delete(word) }
+          results.merge!(retry_results)
+          errors.merge!(retry_errors)
+        end
       end
-      hydra.run
+
       {results: results, errors: errors}
     end
     
@@ -164,14 +171,38 @@ module OpenSymbols
     private
 
     def search_timeout
+      n = ENV['OPENSYMBOLS_SEQUENTIAL_SEARCH_TIMEOUT'].to_i
+      n = 10 if n <= 0
+      [n, 60].min
+    end
+
+    def hydra_search_timeout
       n = ENV['OPENSYMBOLS_SEARCH_TIMEOUT'].to_i
-      n > 0 ? n : 3
+      n = 3 if n <= 0
+      [n, 30].min
     end
 
     def search_concurrency
       n = ENV['OPENSYMBOLS_HYDRA_CONCURRENCY'].to_i
       n = 6 if n <= 0
       [n, 16].min
+    end
+
+    def run_search_hydra(words, locale:, repo:, favor:, token:)
+      results = {}
+      errors = {}
+      hydra = Typhoeus::Hydra.new(max_concurrency: search_concurrency)
+      words.each do |word|
+        hydra.queue(build_search_request(word, locale: locale, repo: repo, favor: favor, token: token) do |classified|
+          if classified[:ok]
+            results[word] = classified[:results].first if classified[:results].any?
+          else
+            errors[word] = classified[:error]
+          end
+        end)
+      end
+      hydra.run
+      [results, errors]
     end
 
     def build_search_request(query, locale:, repo:, favor:, token:, &on_classified)
@@ -183,7 +214,7 @@ module OpenSymbols
         method: :get,
         params: {q: search_str, locale: locale, safe: 1},
         headers: { 'Authorization' => "Bearer #{token}" },
-        timeout: search_timeout
+        timeout: hydra_search_timeout
       )
       request.on_complete do |response|
         on_classified.call(classify_search_response(response))
@@ -200,10 +231,21 @@ module OpenSymbols
         Rails.logger.warn "OpenSymbols API throttled"
         return {ok: false, error: :throttled, results: []}
       end
+      if response.code == 401
+        Rails.logger.error "OpenSymbols API error: 401"
+        return {ok: false, error: :auth, results: []}
+      end
       if response.success?
-        {ok: true, error: nil, results: parse_search_results(JSON.parse(response.body))}
+        begin
+          {ok: true, error: nil, results: parse_search_results(JSON.parse(response.body))}
+        rescue JSON::ParserError, TypeError
+          Rails.logger.error "OpenSymbols API error: #{response.code} - non-JSON body"
+          {ok: false, error: :http, results: []}
+        end
       else
-        Rails.logger.error "OpenSymbols API error: #{response.code} - #{response.body}"
+        body = response.body.to_s
+        body = body[0, 200] if body.length > 200
+        Rails.logger.error "OpenSymbols API error: #{response.code} - #{body}"
         {ok: false, error: :http, results: []}
       end
     end
