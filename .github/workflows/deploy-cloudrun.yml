@@ -279,7 +279,16 @@ jobs:
       # Cloud Run console edit). That needs a scheduled reconciler, which is deliberately not in
       # this change -- see the follow-up issue. Until it exists, the readback only proves the
       # state of a revision THIS workflow deployed.
-      APP_ENV_VARS_STATIC: BEDROCK_EXPECTED_AWS_ACCOUNT=239044785114,AWS_REGION=us-west-2,SES_REGION=us-west-2,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,REMOTE_EXTRA_DATA=1,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
+      # SES_CONFIGURATION_SET: MUST live in this list, not be set by hand on the service.
+      # It was set live on web+worker on 2026-07-11 as the remediation that closed
+      # LL-42a24ee911, and by 2026-09-01 it was gone from BOTH -- because the deploys below
+      # use --set-env-vars, which REPLACES the whole env set, and this list did not contain it.
+      # That is the same mechanism the comment above describes for the Bedrock pair on revision
+      # 00014. Without it, SesConfigurationSetInterceptor is a documented no-op, every send goes
+      # out untagged, and the lingolinq-transactional configuration set's SNS->SQS event
+      # destination (verified live, 1 confirmed subscription) receives nothing -- so there is no
+      # per-message delivery/bounce/complaint record for any real user email.
+      APP_ENV_VARS_STATIC: BEDROCK_EXPECTED_AWS_ACCOUNT=239044785114,AWS_REGION=us-west-2,SES_REGION=us-west-2,SES_CONFIGURATION_SET=lingolinq-transactional,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,REMOTE_EXTRA_DATA=1,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
       # REDIS_TLS_VERIFY_HOSTNAME=false is set on every deploy below: Memorystore is reached by
       # private IP and its server cert is issued for the instance, not the IP, so hostname
       # matching cannot pass. CA-chain verification (VERIFY_PEER against REDIS_CA_CERT) stays on.
