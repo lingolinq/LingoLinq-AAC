@@ -422,7 +422,7 @@
               <div class="register-checkboxes">
                 <div class="checkbox big_checkbox">
                   <label>
-                    <input type="checkbox" checked={{this.productImprovementOptIn}} {{on "change" (set-field this "productImprovementOptIn" "checkbox")}} />
+                    <input type="checkbox" checked={{this.productImprovementOptIn}} {{on "change" this.onProductImprovementChange}} />
                     {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
                   </label>
                 </div>

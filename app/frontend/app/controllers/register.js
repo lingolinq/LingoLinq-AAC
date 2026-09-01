@@ -463,6 +463,12 @@ export default Controller.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
+    // Named so no-orphaned-action sees 'toggle_product_improvement'. Do not
+    // use ctrlAction here: that preventDefaults and would block the checkbox.
+    this.onProductImprovementChange = function(event) {
+      var checked = !!(event && event.target && event.target.checked);
+      self.send('toggle_product_improvement', checked);
+    };
   },
   actions: {
     go_to_step: function(step) {

@@ -23,7 +23,7 @@ QUnit.module('Integration | Component | bound-select search template', function(
     assert.ok(input, 'search input is in the open listbox');
     var ev = new KeyboardEvent('keydown', { key: 'j', bubbles: true, cancelable: true });
     input.dispatchEvent(ev);
-    assert.strictEqual(ev.defaultPrevented, false,
+    assert.false(ev.defaultPrevented,
       'wiring the search input through ctrlAction would preventDefault and block typing');
   });
 });
