@@ -217,6 +217,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
 - [Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery](#pattern-a-container-that-stays-in-the-layout-while-empty-defeats-the-scanners-detachedzero-box-recovery)
 - [Decision: scanner `escape()` keeps its class allow-list — generalising it removes the switch user's guaranteed exit](#decision-scanner-escape-keeps-its-class-allow-list--generalising-it-removes-the-switch-users-guaranteed-exit)
+- [Gotcha: boards-layout-toggle global-failure flake (capabilities 2s auth-sync interval vs the per-test localStorage stub)](#gotcha-boards-layout-toggle-global-failure-flake-capabilities-2s-auth-sync-interval-vs-the-per-test-localstorage-stub)
 
 ---
 
@@ -16190,3 +16191,60 @@ classic-plane Haiku-only `CLASSIC_PROFILE_IDS`) re-asserts that the seam works.
 `i18n.t` (`app/frontend/app/utils/i18n.js:448`) and `WordData.translate_locale_batch` (`app/models/word_data.rb:718`) both key off a leading `*** `. A value stored as English with no prefix — e.g. `"edit_dashboard_sub": "Customize your Dashboard"` — is shown as-is and skipped by the batch. Mixed Spanish/English on the dashboard was untranslated `***` placeholders (and one English-without-prefix key), not missing `{{t}}` in the templates. Fill via `rake extras:translate_ui_locales LOCALE=es` under `op run`, or write `Translation [[ English`. Treat `op://` tokens as unset (see the dotenv gotcha).
 
 **First seen in:** [2026-08-31-dashboard-i18n-locale-placeholders.md](./2026-08-31-dashboard-i18n-locale-placeholders.md)
+## Gotcha: boards-layout-toggle global-failure flake (capabilities 2s auth-sync interval vs the per-test localStorage stub)
+
+**Symptom:** `build-and-test` fails on exactly one `Unit | Component | boards-layout-toggle`
+test (first seen: "re-choosing the SAME mode does not save again"), on a run that completed at
+full baseline (`# tests 2396 / # skip 38 / # fail 1`, so not a truncation). The TAP entry says
+`global failure: TypeError: localStorage.getItem is not a function` with a stack in
+`capabilities.sync_access_token` -- the test's own assertions never ran red.
+
+**Mechanism (traced 2026-08-31; each step labeled):**
+- CONFIRMED: `app/frontend/app/utils/capabilities.js:320-326` starts a `setInterval` calling
+  `capabilities.sync_access_token()` every 2000ms; `_auth_sync_interval` is never cleared
+  anywhere (grep: only :320,321), so once started it runs for the life of the page.
+- CONFIRMED: the throwing line is `capabilities.js:305`, verbatim:
+  `if(window.LingoLinq && (window.LingoLinq.DEBUG || (typeof localStorage !== 'undefined' && localStorage.getItem('debug_tokens') === 'true'))) {`
+  The `typeof` check passes for a plain-object stub (it is not undefined), and the
+  `window.LingoLinq.DEBUG` short-circuit never saves it because `DEBUG` is read in two files
+  but ASSIGNED nowhere under `app/frontend/app/`.
+- CONFIRMED: two more gates must ALSO open before :305 runs: the early return at
+  `capabilities.js:301-303` (skip when the new token is empty and a valid one is cached) and
+  the `if(new_token !== capabilities.access_token)` wrapper at `:304`. A tick that finds an
+  unchanged token returns without touching localStorage. This is why the flake is rare, not
+  (stub window / 2000ms) common.
+- CONFIRMED: `boards-layout-toggle-test.js:41` replaces the PAGE-GLOBAL `window.localStorage`
+  per test with plain objects that have NO `getItem` (`stubStorage` / `throwingStorage`),
+  restored in an `afterEach` whose restore failure is swallowed by a bare `catch` (`:29-38`).
+- PLAUSIBLE (the one unproven link): that the interval is actually running during this
+  `setupTest` module. Nothing in the test file starts it; the only trigger in the codebase is
+  `extras.advance.watch('device', ...)` dispatching `method: 'init'` (`extras.js:530-531`),
+  which is module-level and order-dependent, so whether the tick fires here depends on what ran
+  earlier in the same browser page. Test-order dependence also better explains the observed
+  rarity than the 2s timing alone.
+- CONFIRMED: when the tick does throw, QUnit charges the uncaught error as a
+  **global failure to whichever test is running**. Same victim-charging class as the
+  `token_validated` leak entry above, different leak source.
+
+**Corroboration:** on PR #888 (run 33343382237, attempt 1, commit `8b0105a8a`) the only diff
+from the branch's previous fully-green frontend run was one line in `app/models/user.rb`, which
+the Ember suite never compiles. Identical frontend code, different outcome; attempt 2 passed.
+
+**Handling -- key on the STACK FRAME, not the message:** a solo boards-layout-toggle failure at
+full baseline whose stack is in `capabilities.sync_access_token` is this flake; rerun with
+`gh run rerun --failed`. BUT the identical message (`localStorage.getItem is not a function`)
+can also come from `extras.js:241,248`, which has the same call with NO `typeof` guard on the
+ajax request path -- that one is request-driven, fires on any XHR issued while the global is
+stubbed, and will NOT clear on rerun. Check the stack frame before rerunning. If the rerun
+fails on a DIFFERENT test, stop and treat it as signal. Do not "fix" it by weakening the
+test's stubs blindly.
+
+**Fix candidates (NOT applied; need the >=30-iteration verification budget):** stop replacing
+the page-global (inject a storage adapter, or make the `afterEach` restore THROW instead of the
+silent `catch` at `boards-layout-toggle-test.js:32` -- if a restore ever fails, the next
+`beforeEach` captures the stub as "real" and installs it for the rest of the suite with no
+diagnostic); guard or try/catch the debug reads at `capabilities.js:305` AND `extras.js:241,248`;
+have the test harness cancel `capabilities._auth_sync_interval`; or add a no-op `getItem` to the
+stub objects (weakest -- patches one symptom of an unbounded global mutation).
+
+**First seen in:** PR #888 CI, 2026-08-30/31.
