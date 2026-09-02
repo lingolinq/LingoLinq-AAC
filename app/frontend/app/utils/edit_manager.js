@@ -2618,7 +2618,25 @@ var editManager = EmberObject.extend({
       this.badgeEditingCallback(data);
     }
   },
-  copy_board: function(old_board, decision, user, make_public, swap_library, new_owner, disconnect) {
+  /* `opts.on_progress(percent)` is optional and TRAILING so the eight existing call sites are
+     untouched. It fires only for the phases the server actually measures: the two
+     progress-tracked endpoints below. The board-set copy that runs first
+     (Board#create_copy -> a plain Ember Data save) has no Progress record, so callers get no
+     number for it and must show an indeterminate state rather than invent one. */
+  copy_board: function(old_board, decision, user, make_public, swap_library, new_owner, disconnect, opts) {
+    opts = opts || {};
+    var report_progress = function(event) {
+      if(typeof opts.on_progress !== 'function') { return; }
+      /* `percent` is absent from the payload until the job records one, and
+         lib/json_api/progress.rb only emits the key when it is set — so undefined means
+         "no measurement yet", which is not the same as 0.
+
+         It is a FRACTION (0.0-1.0), not a percentage: Progress#update_current_progress
+         clamps to [0,1] and rounds to 2dp (progress.rb:197,205). Multiply here, once, so the
+         two surfaces both receive a real 0-100 figure. */
+      var pct = event && event.percent;
+      opts.on_progress(pct == null ? null : Math.round(pct * 1000) / 10);
+    };
     return new RSVP.Promise(function(resolve, reject) {
       var ids_to_copy = old_board.get('downstream_board_ids_to_copy') || [];
       var expand_selected_ids = old_board.get('expand_selected_board_ids_to_copy');
@@ -2778,6 +2796,7 @@ var editManager = EmberObject.extend({
             }
           }).then(function(data) {
             progress_tracker.track(data.progress, function(event) {
+              report_progress(event);
               if(event.status == 'finished' || event.finished_at) {
                 runLater(function() {
                   user.reload();
@@ -2808,6 +2827,7 @@ var editManager = EmberObject.extend({
             }
           }).then(function(res) {
             progress_tracker.track(res.progress, function(event) {
+              report_progress(event);
               if(event.status == 'errored') {
                 reject(i18n.t('swap_imaged_failed2', "Swapping images for new board failed unexpectedly"));
               } else if(event.status == 'finished' || event.finished_at) {

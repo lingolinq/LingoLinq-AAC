@@ -177,12 +177,22 @@ export default Component.extend({
     const progress = { token: null };
     this._active_progress = progress;
     this.set('copying', true);
+    this.set('copy_percent', null);
     board.set('default_locale', null);
     if (model.default_locale && board.get('locale') !== model.default_locale) {
       board.set('default_locale', model.default_locale);
     }
     console.debug('[copying-board] starting copy_board', model.action);
-    editManager.copy_board(board, model.action, model.user, model.make_public, model.symbol_library, model.new_owner, model.disconnect).then(function(copiedBoard) {
+    /* Measured progress, when the server has any. Reported to BOTH surfaces because the user
+       can minimise mid-copy: the modal reads `copy_percent`, the drawer reads the service.
+       `progress.token` is null until minimise() runs, and the service ignores a null token,
+       so the pre-minimise calls are harmless no-ops rather than needing a guard here. */
+    const on_progress = function(pct) {
+      if (_this.get('isDestroyed') || _this.get('isDestroying')) { return; }
+      _this.set('copy_percent', pct);
+      copyProgress.progress(progress.token, pct);
+    };
+    editManager.copy_board(board, model.action, model.user, model.make_public, model.symbol_library, model.new_owner, model.disconnect, { on_progress: on_progress }).then(function(copiedBoard) {
       console.debug('[copying-board] copy_board resolved', copiedBoard && copiedBoard.get && copiedBoard.get('id'));
       let next = RSVP.resolve();
       const new_board_ids = board_ids_to_include ? copiedBoard.get('new_board_ids') : null;

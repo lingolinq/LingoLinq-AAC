@@ -4761,6 +4761,7 @@
   "copy_all_boards": "Copy All Boards",
   "copy_all_default_hint": "All linked boards will be copied. Open the list below only if you want to leave some out.",
   "copying_the_board": "Copying the board <strong>%{board_key}</strong>, this could take a few minutes...",
+  "copy_progress_indeterminate": "Copying, progress not yet measurable",
   "copy_selected_boards": "Copy Selected Boards",
   "create_board_landscape_explanation": "Rotate your device to landscape for the room to create and customize your board.",
   "create_chooser_title": "How would you like to create your board?",

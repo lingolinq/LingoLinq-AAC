@@ -50,6 +50,20 @@ class BoardSetCopier
 
         # Progress outside any transaction to avoid holding locks during IO
         Progress.update_minutes_estimate((total * 3) + (total - @mapper.size), "copying #{orig.key}, #{total - @mapper.size} left")
+        # ...and a PERCENT, which this job never reported before, so every copy showed an
+        # indeterminate bar for its whole duration. Phase 1 (cloning boards) owns 0.02-0.75 and
+        # phase 2 (relinking) the rest; the split is by measured cost -- the [copy_perf] logs
+        # below time both, and cloning dominates.
+        # `total` counts DOWNSTREAM boards only, while @mapper is pre-seeded with the starting
+        # board before this loop -- so completed-so-far is `@mapper.size - 1`, not @mapper.size.
+        # Without the -1 a single-board set reports 1/1 and the bar opens at 75%, which a
+        # mutation test caught. Clamped at both ends so a re-entrant or partially-seeded mapper
+        # cannot drive it negative or past the phase ceiling.
+        # Guarded on total > 0 because a copy with no downstream boards divides by zero.
+        if total > 0
+          done = [[@mapper.size - 1, 0].max, total].min
+          Progress.update_current_progress(0.02 + (0.73 * (done.to_f / total.to_f)), :copying_boards)
+        end
 
         if !orig.allows?(@user, +'view') && !orig.allows?(@auth_user, +'view')
           # Permission denied, skip (mirrors relinking.rb:432-433)
@@ -87,7 +101,13 @@ class BoardSetCopier
       # Phase 2: Relink all copies to point to each other
       phase2_started = Time.now
       all_board_ids = [@starting_old.global_id] + board_ids
-      relink_boards(all_board_ids, 'update_inline')
+      # Phase 2 is a single call with its own internal batching, so it is bracketed rather
+      # than sampled: as_percent maps whatever relink_boards reports into 0.75-1.0, and the
+      # bracket alone moves the bar off 75% the moment cloning ends.
+      Progress.update_current_progress(0.75, :relinking_boards)
+      Progress.as_percent(0.75, 1.0) do
+        relink_boards(all_board_ids, 'update_inline')
+      end
       Rails.logger.info("[copy_perf] Phase 2 (relink) took #{(Time.now - phase2_started).round(2)}s")
 
       @user.update_available_boards

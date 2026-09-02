@@ -31,6 +31,13 @@ export default Service.extend({
   // Null on the error path: there is nothing to open.
   copy: null,
 
+  // 0-100 when the copy has reached a phase the SERVER reports progress for, null while it
+  // has not. Deliberately nullable rather than defaulting to 0: a board copy runs in two
+  // phases and only the second has a Progress record (see edit_manager#copy_board), so a
+  // number here means "measured", and null means "running, but no measurement exists yet".
+  // The surfaces render an indeterminate bar for null rather than inventing a figure.
+  percent: null,
+
   // Identifies the current copy job. A job only gets to write its result if it
   // still owns the drawer, so a second copy started while the first one is
   // minimized can't be reported under the wrong board.
@@ -58,8 +65,22 @@ export default Service.extend({
     this.set('message', null);
     this.set('copy', null);
     this.set('board_key', opts.board_key || null);
+    this.set('percent', opts.percent == null ? null : opts.percent);
     this.set('status', 'copying');
     return token;
+  },
+
+  /**
+   * Report measured progress for a backgrounded copy.
+   * @param {number} token - from minimize()
+   * @param {number} percent - 0-100, or null to fall back to the indeterminate bar
+   */
+  progress(token, percent) {
+    if (!this._owns(token)) { return; }
+    /* Only while copying: a late poll landing after complete()/fail() must not drag the
+       result card back to a progress bar. */
+    if (this.get('status') !== 'copying') { return; }
+    this.set('percent', percent == null ? null : percent);
   },
 
   /**
@@ -72,6 +93,7 @@ export default Service.extend({
   complete(token, message, copy) {
     if (!this._owns(token)) { return; }
     this.set('message', message);
+    this.set('percent', null);
     this.set('copy', copy || null);
     this.set('status', 'done');
   },
@@ -82,6 +104,7 @@ export default Service.extend({
   fail(token, message) {
     if (!this._owns(token)) { return; }
     this.set('message', message);
+    this.set('percent', null);
     this.set('copy', null);
     this.set('status', 'error');
   },
@@ -95,6 +118,7 @@ export default Service.extend({
     this.set('status', null);
     this.set('message', null);
     this.set('board_key', null);
+    this.set('percent', null);
     this.set('copy', null);
     this.set('token', null);
   },

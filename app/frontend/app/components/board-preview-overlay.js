@@ -371,26 +371,12 @@ export default Component.extend({
           // No existing copy — 'links_copy_as_home' copies the board + downstream
           // links AND sets the COPY as the user's home board, resolving with the new
           // owned board (mirrors set-as-home#copy_as_home).
-          editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-            _this._finishPickForHome(copiedBoard, locale, setupUserSnapshot, routerSvc);
-          }, function(err) {
-            // Only surface `err` directly when it's a display string — copy_board can
-            // reject with an Error/object, which would render as "[object Object]".
-            // copy_board only rejects with an already-localized i18n.t() STRING or a
-            // plain internal-code OBJECT; the fallback below covers the object case.
-            var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-            _this._handlePickError(msg, routerSvc);
-          });
+          _this._copyForHomeViaModal(board, user, lib, locale, setupUserSnapshot, routerSvc);
         }
       }, function() {
         // Dedup lookup itself failed unexpectedly — fall back to copying so the user
         // is never blocked (a duplicate is preferable to a dead end).
-        editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-          _this._finishPickForHome(copiedBoard, locale, setupUserSnapshot, routerSvc);
-        }, function(err) {
-          var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-          _this._handlePickError(msg, routerSvc);
-        });
+        _this._copyForHomeViaModal(board, user, lib, locale, setupUserSnapshot, routerSvc);
       });
     }
   },
@@ -398,6 +384,37 @@ export default Component.extend({
   // Common tail for pick_for_home: flag the speak-mode tour hand-off (scoped to the
   // board's key), preserve the picked locale, preload images, then open the board in
   // SPEAK (use) mode — the board-detail INDEX route (`.edit` would be edit mode).
+  /* Route the copy through the shared `copying-board` modal instead of calling
+     editManager.copy_board directly, so a home-board pick gets the same experience as every
+     other copy: a progress bar, a phase message, minimise-to-drawer, and one completion
+     surface. Previously this path showed only this component's own "preparing" overlay, with
+     no progress and no way to keep working.
+
+     Safe against the modal replacing this component: `_finishPickForHome` already guards on
+     isDestroyed and falls back to app_state.controller.router (:405, :410), so it completes
+     the pick whether or not this component is still rendered.
+
+     `copy_finished` is what suppresses copying-board's own default jump -- it defers to the
+     caller's callback when one is present -- so the pick keeps owning the transition and we
+     do not get a double navigation. */
+  _copyForHomeViaModal: function(board, user, lib, locale, setupUserSnapshot, routerSvc) {
+    var _this = this;
+    return modal.open('copying-board', {
+      board: board,
+      action: 'links_copy_as_home',
+      user: user,
+      symbol_library: lib,
+      copy_finished: function(copiedBoard) {
+        _this._finishPickForHome(copiedBoard, locale, setupUserSnapshot, routerSvc);
+      }
+    }).then(null, function(err) {
+      // Only surface `err` directly when it's a display string -- the copy chain can reject
+      // with an Error/object, which would render as "[object Object]".
+      var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
+      _this._handlePickError(msg, routerSvc);
+    });
+  },
+
   _finishPickForHome: function(homeBoard, locale, setupUserSnapshot, routerSvc) {
     var _this = this;
     app_state.set('board_picker_pick_in_progress', false);

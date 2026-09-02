@@ -5,7 +5,6 @@ import { observer } from '@ember/object';
 import { get as emberGet } from '@ember/object';
 import { later as runLater } from '@ember/runloop';
 import modal from '../utils/modal';
-import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import LingoLinq from '../app';
 
@@ -183,11 +182,29 @@ export default Component.extend({
       _this.set('status', { copying: true });
       const library = this.get('symbol_library') || 'original';
       const board = _this.get('model.board');
+      const on_copied = _this.get('model.on_copied');
       LingoLinq.store.findRecord('user', for_user_id).then(function(user) {
-        editManager.copy_board(board, 'links_copy_as_home', user, false, library).then(function() {
-          _this.send('done');
-        }, function() {
-          _this.set('status', { errored: true });
+        /* Hand the copy to the shared `copying-board` modal rather than running it behind
+           this modal's one-line "Copying boards..." status, so a home-board copy gets the
+           same progress bar, phase message and minimise-to-drawer as every other copy.
+
+           CLOSED WITH `updated: false` FIRST, and that is load-bearing. The modal service
+           renders one modal at a time and `close(res)` is what resolves the opener's promise
+           (utils/modal.js:389-398), so opening copying-board without closing would leave
+           application.js:993 waiting forever. Resolving it with `updated: false` instead
+           means that caller does NOT run its done(true) yet -- which syncs and announces
+           "this is now the user's home board" -- because the copy has not finished. The real
+           completion is reported through `on_copied` below, once it has. */
+        _this.set('status', null);
+        _this.get('modal').close({ updated: false, copying: true });
+        modal.open('copying-board', {
+          board: board,
+          action: 'links_copy_as_home',
+          user: user,
+          symbol_library: library,
+          copy_finished: function() {
+            if(typeof on_copied === 'function') { on_copied(true); }
+          }
         });
       }, function() {
         _this.set('status', { errored: true });

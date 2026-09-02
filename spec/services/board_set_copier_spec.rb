@@ -1,6 +1,59 @@
 require 'spec_helper'
 
 describe BoardSetCopier, :type => :model do
+  it "reports a rising percent across both copy phases" do
+    # Before this, the copy job ran under a Progress record but never called
+    # update_current_progress, so `percent` was absent from the payload for the whole copy and
+    # every UI showed an indeterminate bar. The assertions are about the SHAPE of the reported
+    # series -- rising, bounded, reaching the relink phase -- not exact values, which depend on
+    # how many boards a fixture happens to clone.
+    owner = User.create
+    recipient = User.create
+    root = Board.create(user: owner, public: true)
+    child = Board.create(user: owner, public: true)
+    root.settings['buttons'] = [
+      { 'id' => 1, 'load_board' => { 'id' => child.global_id, 'key' => child.key } }
+    ]
+    root.instance_variable_set('@buttons_changed', true)
+    root.save!
+    root.reload
+
+    reported = []
+    allow(Progress).to receive(:update_current_progress) do |pct, key|
+      reported << [pct, key]
+    end
+    allow(Progress).to receive(:as_percent).and_wrap_original do |m, *args, &blk|
+      reported << [args.first, :as_percent_start]
+      blk.call
+    end
+
+    new_root = root.copy_for(recipient)
+    Board.copy_board_links_for(
+      recipient,
+      starting_old_board: root,
+      starting_new_board: new_root,
+      valid_ids: [root.global_id, child.key]
+    )
+
+    pcts = reported.map(&:first).compact
+    expect(pcts).not_to be_empty, "the copier reported no percent at all"
+    # Every figure is a FRACTION -- json_api/progress.rb ships it as-is and the client
+    # multiplies by 100, so a 0-100 value here would render as 4200%.
+    expect(pcts.all? { |p| p >= 0.0 && p <= 1.0 }).to eq(true), "percent must be a 0-1 fraction, got #{pcts.inspect}"
+    # Never goes backwards.
+    expect(pcts).to eq(pcts.sort), "percent went backwards: #{pcts.inspect}"
+    # Phase 2 is reached and bracketed, so the bar cannot stall in the copy phase.
+    expect(reported.map(&:last)).to include(:relinking_boards)
+    expect(reported.map(&:last)).to include(:as_percent_start)
+    # Phase 1 must report too. Without these two the spec passed with the whole cloning-phase
+    # report deleted -- the phase-2 bracket alone satisfied every other assertion, which is the
+    # hollow-test shape rule 14.2 warns about.
+    expect(reported.map(&:last)).to include(:copying_boards)
+    copying = reported.select { |(_, key)| key == :copying_boards }.map(&:first)
+    expect(copying.min).to be < 0.75, "cloning must start well below the relink handoff, got #{copying.inspect}"
+    expect(copying.min).to be < 0.1, "the bar should open near zero, not part-way along: #{copying.inspect}"
+  end
+
   it "copies explicitly selected linked boards even when downstream ids are stale" do
     owner = User.create
     recipient = User.create

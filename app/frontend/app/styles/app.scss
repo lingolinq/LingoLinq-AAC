@@ -94919,6 +94919,92 @@ span.md-board-detail-modeling-btn--badge {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+/* ── Copy progress meter ──────────────────────────────────────────
+   Shared by the Copying Board modal and the minimised copy drawer, so the two read as one
+   thing when a copy is sent to the background mid-flight.
+
+   TWO STATES, and the distinction is the point. A board copy runs in two phases and only the
+   second reports a percentage (edit_manager#copy_board), so:
+     - no modifier  -> indeterminate: a sweep, no width, no number;
+     - --determinate -> the fill's width IS the measured percentage.
+   The sweep animation is deliberately dropped in the determinate state; a bar that both
+   sweeps and fills reads as two different progress claims at once. */
+.ll-copy-meter {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  margin: 14px 0 0;
+  border-radius: 999px;
+  background: rgba($la-navy, 0.10);
+  overflow: hidden;
+}
+.ll-copy-meter__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, $brand-verdigris 0%, $brand-dusty-denim 100%);
+  /* Only the determinate bar animates its width. Transitioning an indeterminate bar would
+     animate it back to 0 on every poll that returns no figure. */
+  transition: none;
+}
+.ll-copy-meter--determinate .ll-copy-meter__fill {
+  transition: width 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+/* Indeterminate: the fill is unused (width stays 0) and a sweeping highlight carries the
+   "working" signal instead -- same gesture as .ll-premium-progress__bar below, so the two
+   loading languages match. */
+.ll-copy-meter:not(.ll-copy-meter--determinate)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba($brand-verdigris, 0) 0%,
+    $brand-verdigris 35%,
+    $brand-dusty-denim 65%,
+    rgba($brand-dusty-denim, 0) 100%
+  );
+  transform: translateX(-100%);
+  animation: ll-copy-meter-sweep 1.5s ease-in-out infinite;
+}
+@keyframes ll-copy-meter-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+/* Respect reduced-motion: hold a static, clearly-visible bar rather than sweeping. An AAC
+   user with vestibular sensitivity should not have to watch a looping animation to know a
+   copy is running -- the label already says so. */
+@media (prefers-reduced-motion: reduce) {
+  .ll-copy-meter:not(.ll-copy-meter--determinate)::after {
+    animation: none;
+    transform: translateX(0);
+    opacity: 0.55;
+  }
+  .ll-copy-meter--determinate .ll-copy-meter__fill { transition: none; }
+}
+.ll-copy-meter__value {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;   /* stops the row twitching as digits change */
+  color: $brand-verdigris-ink;
+  text-align: center;
+}
+/* Drawer variant: thinner, tighter, and the percentage sits inline under the hint. */
+.ll-copy-meter--drawer {
+  height: 4px;
+  margin-top: 10px;
+}
+.ll-copy-drawer__percent {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: $brand-verdigris-ink;
+}
+
 .ll-premium-progress__bar {
   position: relative;
   width: 100%;

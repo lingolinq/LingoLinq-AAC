@@ -12,6 +12,15 @@
       <div class="ll-copy-drawer__body">
         <p class="ll-copy-drawer__title">{{t "Copying <strong>%{board_key}</strong>..." key='copying_board_in_background' board_key=this.copy_progress.board_key}}</p>
         <p class="ll-copy-drawer__hint">{{t "Keep working — we'll let you know as soon as it's done." key='copy_notify_when_complete'}}</p>
+        {{!-- Same meter as the modal, same rule: a number only when the server measured one.
+              The drawer is already role="status" aria-live="polite", so the meter is
+              aria-hidden here -- announcing every poll would talk over the user. --}}
+        <div class="ll-copy-meter ll-copy-meter--drawer {{if this.copy_progress.percent 'll-copy-meter--determinate'}}" aria-hidden="true">
+          <div class="ll-copy-meter__fill" style={{safe-style (concat "width:" (or this.copy_progress.percent 0) "%")}}></div>
+        </div>
+        {{#if this.copy_progress.percent}}
+          <p class="ll-copy-drawer__percent">{{this.copy_progress.percent}}%</p>
+        {{/if}}
       </div>
     {{else}}
       <span class="ll-copy-drawer__icon" aria-hidden="true">
