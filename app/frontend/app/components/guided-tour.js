@@ -350,8 +350,7 @@ export default Component.extend({
   _autoOpenWatcher: observer('appState.auto_open_home_tour', function() {
     if (this.get('speakHost') || this.get('editHost')) { return; }
     if (this.get('appState.auto_open_home_tour')) {
-      this.appState.set('auto_open_home_tour', false);
-      this._scheduleAutoOpen();
+      this._consumeAutoOpenSignal();
     }
   }),
 
@@ -600,13 +599,33 @@ export default Component.extend({
   // notice closes only on acknowledgement or on navigation, both of which end
   // the wait, and a time cap would re-create the defect for a slow reader.
   //
-  // Whichever way the wait ends, _runAutoOpen still runs, so the board-picker
-  // handoff (home-board pick) is never lost, matching the no-tour case below.
+  // When the wait ends on this instance, _runAutoOpen runs, so the board-picker
+  // handoff (home-board pick) is kept, matching the no-tour case below. If the
+  // instance is torn down mid-wait instead (the navbar host is rendered only
+  // under useAppNavbarInHeader, templates/application.hbs:8, so a route change
+  // during the hold destroys it), willDestroy re-arms the signal with a stamp
+  // and _consumeAutoOpenSignal drops it if no navbar instance picks it up
+  // within art50_tour_rearm_max_ms: an old signal must not resurrect the tour
+  // and its handoff at an arbitrary later moment.
   // Tunables are properties so tests can shrink them (focus-words.js precedent).
   // Called off the DEFAULT export of article50_gate on purpose so tests can stub.
   art50_tour_defer_poll_ms: 250,
   art50_tour_due_max_ms: 5000,
+  art50_tour_rearm_max_ms: 60000,
   _autoOpenDeferring: false,
+
+  // The one place appState.auto_open_home_tour is cleared (init and
+  // _autoOpenWatcher both come here). A signal re-armed by willDestroy carries
+  // auto_open_home_tour_rearmed_at; a fresh signal from any of its writers does
+  // not, and is always honoured.
+  _consumeAutoOpenSignal: function() {
+    var appState = this.get('appState');
+    appState.set('auto_open_home_tour', false);
+    var rearmedAt = appState.get('auto_open_home_tour_rearmed_at');
+    appState.set('auto_open_home_tour_rearmed_at', null);
+    if (rearmedAt && (Date.now() - rearmedAt) > this.get('art50_tour_rearm_max_ms')) { return; }
+    this._scheduleAutoOpen();
+  },
 
   _scheduleAutoOpen: function() {
     // Belt-and-suspenders: never attach the board-picker handoff from a
@@ -1239,6 +1258,23 @@ export default Component.extend({
   // active Shepherd tour here — the navbar instance is destroyed when
   // empty_header flips during board-detail entry, and cancelling would dismiss
   // a tour the board-detail host still needs (or fire a stale afterComplete).
+  // Torn down while _autoOpenAfterArt50Notice is still holding the tour: hand the
+  // signal back to appState (stamped) so the next navbar instance's init consumes
+  // it through _consumeAutoOpenSignal. The pending runLater may still fire once;
+  // it exits on the destroyed guard without touching anything. The service can be
+  // going down in the same teardown (owner destroy), hence the guard on it.
+  willDestroy: function() {
+    if (this._autoOpenDeferring) {
+      this._autoOpenDeferring = false;
+      var appState = this.get('appState');
+      if (appState && !appState.isDestroyed && !appState.isDestroying) {
+        appState.set('auto_open_home_tour_rearmed_at', Date.now());
+        appState.set('auto_open_home_tour', true);
+      }
+    }
+    this._super.apply(this, arguments);
+  },
+
   willDestroyElement: function() {
     this._detachTourResize();
     this._unlockTourScroll();
@@ -1267,8 +1303,7 @@ export default Component.extend({
     // would bind afterComplete → board-picker onto the wrong tour).
     if (!this.get('speakHost') && !this.get('editHost')) {
       if (this.get('appState.auto_open_home_tour')) {
-        this.appState.set('auto_open_home_tour', false);
-        this._scheduleAutoOpen();
+        this._consumeAutoOpenSignal();
       } else {
         try {
           if (window.sessionStorage && sessionStorage.getItem('ll_auto_open_home_tour') === '1') {

@@ -26,6 +26,7 @@ import article50Gate from '../../utils/article50_gate';
  */
 describe('guided-tour auto-open vs the Art. 50 notice', function() {
   var component = null;
+  var extra = null;
   var runs = 0;
   var noticeOpen = false;
   var gatePending = false;
@@ -70,6 +71,13 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
       component.destroy();
     }
     component = null;
+    if(extra && !extra.isDestroyed) {
+      extra.destroy();
+    }
+    extra = null;
+    var appState = this.owner.lookup('service:app-state');
+    appState.set('auto_open_home_tour', false);
+    appState.set('auto_open_home_tour_rearmed_at', null);
   });
 
   itAsync('holds the tour while the notice is open, then runs it exactly once after it closes', async function() {
@@ -130,6 +138,64 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     noticeOpen = false;
     await sleep(60);
     expect(runs).toEqual(0);
+  });
+
+  itAsync('re-arms the auto-open signal, stamped, when destroyed while waiting, so a later navbar instance can consume it', async function() {
+    var appState = this.owner.lookup('service:app-state');
+    noticeOpen = true;
+    component._scheduleAutoOpen();
+    await sleep(30);
+    component.destroy();
+    // willDestroy is a scheduled (non-eager) destructor; give the runloop a tick.
+    await sleep(30);
+    noticeOpen = false;
+    await sleep(40);
+    expect(runs).toEqual(0);
+    expect(appState.get('auto_open_home_tour')).toEqual(true);
+    expect(typeof appState.get('auto_open_home_tour_rearmed_at')).toEqual('number');
+  });
+
+  itAsync('does not re-arm anything when destroyed while not waiting', async function() {
+    var appState = this.owner.lookup('service:app-state');
+    component.destroy();
+    await sleep(30);
+    expect(appState.get('auto_open_home_tour')).toEqual(false);
+    expect(appState.get('auto_open_home_tour_rearmed_at') || null).toEqual(null);
+  });
+
+  // The re-armed signal is consumed by the NEXT navbar instance's init. Observers
+  // are synchronous in this app, so the live instance from beforeEach is parked as
+  // a speak host first (its watcher returns before consuming) and the signal is
+  // set before the second instance is created; create() applies the _runAutoOpen
+  // override before init runs.
+  async function mountWithRearmedSignal(owner, ageMs, rearmMaxMs) {
+    var appState = owner.lookup('service:app-state');
+    component.set('speakHost', true);
+    appState.set('auto_open_home_tour_rearmed_at', Date.now() - ageMs);
+    appState.set('auto_open_home_tour', true);
+    expect(appState.get('auto_open_home_tour')).toEqual(true);
+    extra = owner.factoryFor('component:guided-tour').create({
+      art50_tour_defer_poll_ms: 10,
+      art50_tour_due_max_ms: 80,
+      art50_tour_rearm_max_ms: rearmMaxMs,
+      _runAutoOpen: function() { runs++; }
+    });
+    await sleep(40);
+    return appState;
+  }
+
+  itAsync('a fresh re-armed signal is consumed by the next instance, clearing the flag and the stamp', async function() {
+    var appState = await mountWithRearmedSignal(this.owner, 0, 50);
+    expect(runs).toEqual(1);
+    expect(appState.get('auto_open_home_tour')).toEqual(false);
+    expect(appState.get('auto_open_home_tour_rearmed_at') || null).toEqual(null);
+  });
+
+  itAsync('a re-armed signal older than the re-arm window is dropped instead of resurrecting the tour later', async function() {
+    var appState = await mountWithRearmedSignal(this.owner, 200, 50);
+    expect(runs).toEqual(0);
+    expect(appState.get('auto_open_home_tour')).toEqual(false);
+    expect(appState.get('auto_open_home_tour_rearmed_at') || null).toEqual(null);
   });
 
   itAsync('a second request while one is already waiting does not start a second chain', async function() {
