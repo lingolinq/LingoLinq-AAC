@@ -1272,7 +1272,7 @@ export default Component.extend({
         appState.set('auto_open_home_tour', true);
       }
     }
-    this._super.apply(this, arguments);
+    this._super(...arguments);
   },
 
   willDestroyElement: function() {
