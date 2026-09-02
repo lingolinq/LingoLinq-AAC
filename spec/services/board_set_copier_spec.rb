@@ -64,8 +64,12 @@ describe BoardSetCopier, :type => :model do
 
     pcts = reported.map(&:first).compact
     expect(pcts).not_to be_empty, "the copier reported no percent at all"
-    # Every figure is a FRACTION -- json_api/progress.rb ships it as-is and the client
-    # multiplies by 100, so a 0-100 value here would render as 4200%.
+    # Every figure is a FRACTION. json_api/progress.rb ships it as-is (progress.rb:29) and
+    # every client consumer multiplies by 100 -- components/importing-boards.js:50,
+    # components/download-board.js:90 and seven others all do, and none render it raw.
+    # Passing a 0-100 value here does NOT overflow the display: update_current_progress
+    # clamps to [0,1] BEFORE storing (progress.rb:197), so it would be silently truncated to
+    # 1.0 and shown as a bar stuck at 100%. That is the failure this bound catches.
     expect(pcts.all? { |p| p >= 0.0 && p <= 1.0 }).to eq(true), "percent must be a 0-1 fraction, got #{pcts.inspect}"
     # Never goes backwards.
     expect(pcts).to eq(pcts.sort), "percent went backwards: #{pcts.inspect}"

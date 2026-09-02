@@ -16546,3 +16546,79 @@ stub objects (weakest -- patches one symptom of an unbounded global mutation).
 `User.process_params` treats a classifiable `birth_month` / `birth_year` as authoritative for the under-13 gate (`User.age_under_threshold?`, age 13). The Ember `coppa_under_13` flag is only a fallback when birth is missing (org New User, fixtures). Unauthenticated `POST /api/v1/users` requires birth when COPPA is on. Google register start accepts birth only on POST (`post auth/google/start`); GET register start ignores query birth so DOB is not in history, proxy logs, or the Google referrer. Complete raises `coppa_age`. Do not put the optional signup name on `/auth/google/start` as `&name=` — send `signup_name` on the complete POST.
 
 **First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
+
+## Gotcha: `copy_finished` on the copying-board modal fires ONLY when the modal is closed (2026-09-02)
+
+`components/copying-board.js` has exactly one call site for `model.copy_finished` (:312), and it
+sits in the `else` of `if (copyingOpen || translatedResult)`. On the normal foreground success
+path the modal IS open, so the branch taken is `appState.jump_to_board(...)` + `modal.close()` and
+the caller's callback never runs. `copy_finished` therefore reaches you only if the user DISMISSED
+the modal before the copy landed; minimising takes a separate early return at `:261`.
+
+There IS a deferral to `copy_finished` that suppresses the modal's own navigation, but it is
+guarded by `model.for_editing` (`:297`), so it applies only to copy-to-edit callers.
+
+**Consequence for anyone wiring a new caller:** passing `copy_finished` does not give you a
+completion hook, and a truthy `copy_finished` additionally SUPPRESSES the "Copy created!" notice on
+the dismissed path (`:311-315`) — so a caller that supplies it but does nothing useful with it
+makes the dismissed copy silently feedback-free. A home-board rerouting built on this assumption
+shipped and had to be reverted (`34c8aab98`).
+
+**Related trap in the same area:** the copying-board opener promise never REJECTS on copy failure —
+the only rejections in `utils/modal.js` are `close(false)` (:394) and teardown (:64). A
+`.then(null, handler)` on `modal.open('copying-board', ...)` is dead code. Same shape as
+[cancellation that RESOLVES lands on the success path](#pattern-cancellation-that-resolves-lands-on-the-success-path-not-the-failure-path).
+
+## Gotcha: `Progress.as_percent` is a mapping bracket, NOT a progress report (2026-09-02)
+
+`as_percent(lo, hi) { ... }` maps percentages reported INSIDE the block into `[lo, hi]`
+(`progress.rb:153-156`). If nothing inside the block reports, the bracket produces exactly one
+effect: it writes `settings['percent'] = hi` on block EXIT (`progress.rb:168`), unconditionally.
+
+So wrapping a long phase in a bracket does not make the bar move through it — the bar sits at
+whatever preceded the block and then jumps to the ceiling when the phase is already over. Board
+copying shipped this way: `relink_boards` reports no percent at all (`grep -n "Progress\." on
+app/models/concerns/relinking.rb` returns nothing), so the meter froze at 75% for the whole relink
+phase.
+
+**Two corollaries.** (a) A band's ceiling must leave headroom for uninstrumented work that runs
+AFTER it — `swap_images` runs after `copy_board_links_for` returns (`user.rb:4248-4255`) and
+reports nothing, so a band ending at 1.0 shows 100% through the longest part of a
+symbol-library copy. (b) `update_current_progress` only PERSISTS when the value advances 0.3
+(`progress.rb:207`); the copy bar updates per-board only because `update_minutes_estimate` happens
+to save the same AR object every iteration. Dedupe that call and the bar silently degrades to ~3
+steps.
+
+## Pattern: a data structure's `.size` is not a progress counter (2026-09-02)
+
+`BoardSetCopier` computed cloning progress as `@mapper.size - 1`. The `-1` was right (the mapper is
+pre-seeded with the starting board), but `@mapper` is a LINK-REWRITING INDEX, not a counter, and it
+gains a SECOND key for every board carrying `shallow_source` (`board_set_copier.rb:88-90`). The
+counter advanced 2 per 1 cloned board and hit the phase ceiling early, where a `.min(total)` clamp
+turned the overcount into a silent stall instead of a visible overflow.
+
+**Rule of thumb:** if a progress figure is derived from something whose primary job is not counting
+progress, every future write to that structure is a latent progress bug. Use an explicit counter.
+Ask specifically: does any single iteration write to it more than once, and on which inputs?
+
+**Test-design corollary, learned the same day.** A progress test whose fixture yields ONE sample can
+only ever assert the base constant — `0.02 + span * (0/total)` is `0.02` no matter what `span` and
+`total` are. The original spec had `total == 1` and a hard-coded `update_current_progress(0.02)`
+passed every assertion in it, including one named "reports a rising percent". Pinning a ramp needs
+>=3 samples plus an assertion on a LATER value; that one assertion pins the base, the span, the
+denominator and the offset simultaneously. Verify by mutating each in turn.
+
+## Gotcha: a stub that does not model the collaborator's exit behaviour makes the TEST wrong (2026-09-02)
+
+Writing a headroom assertion against `Progress.as_percent`, the stub recorded only what was
+reported inside the block — but the real `as_percent` also writes the band ceiling on exit
+(`progress.rb:168`). The assertion "the highest reported value is the ceiling" was true of the
+production code and false of the harness, so the test failed and the FIX looked wrong.
+
+**Rule of thumb:** when a test double stands in for something with lifecycle behaviour (entry
+transform, exit write, teardown), model the lifecycle, not just the calls you expect to intercept.
+And when a fresh assertion fails, check the harness models reality BEFORE editing the code it is
+accusing — here the band was correct all along.
+
+Related: recording a bracketed value RAW rather than mapped makes a later phase look like it goes
+backwards, which then defeats any monotonicity assertion across the phase boundary.
