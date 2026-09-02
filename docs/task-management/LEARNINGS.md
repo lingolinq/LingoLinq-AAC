@@ -217,7 +217,9 @@ file (see [README.md](README.md)).
 - [Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller](#pattern-a-body-attribute-published-by-a-self-contained-component-is-the-cross-component-channel--observe-it-dont-widen-a-shared-controller)
 - [Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it](#pattern-a-mobile-select-standing-in-for-a-desktop-tab-row-must-mirror-it-optgroup-not-flatten-it)
 - [Sourcing external requirements (payer/clinical/legal) — 2026-08-25](#sourcing-external-requirements-payerclinicallegal--2026-08-25)
+- [Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there](#gotcha-generate_password-is-also-the-login-rehash-path--do-not-length-check-plaintext-there)
 - [Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam](#gotcha-a-new-scannerfind_elem-call-in-start-must-be-guarded--the-specs-stub-that-seam)
+- [Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there](#gotcha-generate_password-is-also-the-login-rehash-path--do-not-length-check-plaintext-there)
 - [Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell](#pattern-loading-states-for-an-aac-prediction-panel--never-blank-delay-the-cue-dim-dont-spin-and-dont-swap-under-a-dwell)
 - [Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL](#pattern-to-line-a-sibling-up-with-the-board-grid-mirror-its-origin-margin--padding-not-just-its-height--and-remember-a-card-does-not-fill-its-cell)
 - [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
@@ -15878,6 +15880,16 @@ type the same as a missing one (derive `code` if a file is present). That strict
 matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
 
 ---
+
+## Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there
+
+`Passwords#generate_password` is called from `valid_password?` after a successful login to
+re-hash outdated or newly-prehashed credentials (`passwords.rb` ~266-271). A length check
+inside `generate_password` would 500 existing 6-character accounts on login. Enforce NIST 8
+on user-supplied writes only (`process_params`, valet enable, eval-reset) and skip already
+`hashed?:#` values. Existing short passwords keep working until the user changes them.
+
+**First seen in:** [2026-08-31-findings-triage-queue.md](./2026-08-31-findings-triage-queue.md) (LL-5617f4e17d)
 
 ## Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam
 
