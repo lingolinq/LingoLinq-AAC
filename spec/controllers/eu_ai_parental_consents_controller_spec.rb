@@ -7,7 +7,7 @@ describe EuAiParentalConsentsController, type: :controller do
     u = User.process_new({
       'name' => "eu_pc_#{suffix}",
       'email' => "eu_pc_#{suffix}@example.com",
-      'password' => 'abcdef',
+      'password' => 'abcdefgh',
       'terms_agree' => true,
       'country' => 'FR',
       'under_16' => true
