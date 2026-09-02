@@ -1,12 +1,37 @@
 name: Deploy to Cloud Run
 
-# Production deploy pipeline for GCP Cloud Run.
+# Multi-environment deploy pipeline for GCP Cloud Run: production, staging, and dev.
+#
+# ENVIRONMENT MAPPING (the `resolve` job, fail-closed):
+#   refs/heads/main     -> GitHub environment `production` -> project from that environment's vars,
+#                          UNSUFFIXED resource names (lingolinq-web, lingolinq-worker,
+#                          lingolinq-migrate, lingolinq-scheduler). Nothing about prod changed.
+#   refs/heads/staging  -> GitHub environment `staging`    -> `-staging` suffix on every resource.
+#   refs/heads/develop  -> GitHub environment `dev`        -> `-dev` suffix on every resource.
+#   anything else       -> no environment, deploy job SKIPPED with a notice. This covers a
+#                          `workflow_dispatch` on a feature branch or a tag: nothing is deployed,
+#                          nothing is built, no token is minted.
+# Every GCP_* and APP_* value below is read from `vars.*` UNDER `environment: <env_name>`, so
+# each environment's variables select its own project, WIF provider, deploy SA, Cloud SQL
+# instance, VPC, buckets, Sentry env, and host. The `production` environment keeps its
+# required-reviewer rule, so a push to `main` still pauses for approval exactly as before;
+# `staging` and `dev` exist in GitHub with no protection rules and deploy unattended.
+#
+# STAGING AND DEV SHARE ONE PROJECT (lingolinq-nonprod), one Cloud SQL database, one Redis,
+# one Secret Manager secret set, and ONE worker pool (lingolinq-worker-staging). A dev deploy
+# builds and ships the web service and runs ITS OWN migrate Job against the shared database
+# (the same thing Render's preDeploy `db:migrate` did), but it must NOT deploy a worker pool or
+# touch a scheduler Job: staging's worker drains the shared Redis for both. That is why the
+# worker-pool, scheduler, and worker-readback steps are gated on the environment variable
+# DEPLOY_WORKER == 'true' (production and staging true, dev false), and NOT on the environment
+# name. Gating on a var keeps this file free of per-environment special cases; if dev ever
+# gets its own worker, flip the var, do not edit the workflow.
 #
 # LIVE: a push to `main` CREATES a production deployment, which then proceeds once a reviewer
 # approves it in the `production` environment. That deployment runs DB migrations against prod
 # Cloud SQL, rolls out a new web revision with no traffic, health-checks it, shifts traffic,
 # and replaces the worker pool. `workflow_dispatch` is retained for manual redeploys and
-# rollforwards, but only on `main` (see the ref guard on the deploy job).
+# rollforwards on any of the three mapped branches (see the `resolve` job).
 #
 # Do not read "every push deploys" too literally. A queued run can be cancelled while pending
 # (see CONCURRENCY below), so a merge can be superseded before it ever deploys. And a run that
@@ -30,11 +55,17 @@ name: Deploy to Cloud Run
 #   2. The `production` environment on the deploy job: `main`-only branch policy plus required
 #      reviewers. A pause, an audit record, and a kill switch. NOT a two-person control; see
 #      the note on the `environment:` key below for what actually enforces that.
-#   3. The ref guard + the WIF provider's `assertion.ref` condition, so no other ref can
-#      deploy or even mint a deploy token.
+#   3. The `resolve` branch map + each project's WIF provider `assertion.ref` condition, so no
+#      other ref can deploy or even mint a deploy token. Production's provider admits only
+#      refs/heads/main; the nonprod provider must admit refs/heads/staging and
+#      refs/heads/develop and nothing else. A ref the map does not know is skipped here, and
+#      a ref the provider does not know cannot authenticate even if this file were edited.
 #   4. The candidate rollout: the new revision takes NO user traffic until it has answered
 #      two consecutive health probes on its own tagged URL, and traffic is then pinned to
 #      that exact verified revision by name.
+# Staging and dev have gates 3 and 4 only. They have no required checks on merge and no
+# approval pause. That is acceptable because they hold no real user data; it is NOT a
+# template for production.
 #
 # MIGRATIONS MUST BE EXPAND-CONTRACT. This is a hard rule for anything that reaches `main`,
 # and it is a consequence of the step order below, which no amount of care in this file can
@@ -52,9 +83,16 @@ name: Deploy to Cloud Run
 # Destructive changes ship in a LATER release, after the code that depended on the old shape
 # is gone from production. If you cannot make a change expand-contract, do not put it through
 # the automatic path: take the site down, or deploy it by hand with someone watching.
+# On the shared nonprod database the same rule applies with an extra twist: a `develop`
+# migration lands in the database `staging` is serving, so a destructive migration on
+# `develop` breaks staging immediately.
 #
-# The `guard` job still no-ops the whole run when vars.GCP_PROJECT_ID is empty, so the
-# workflow stays inert in a fork or a repo where the migration vars were never set.
+# The inert guard still no-ops the run when the resolved environment's vars.GCP_PROJECT_ID is
+# empty, so the workflow stays inert in a fork or a repo where that environment was never
+# provisioned. It now lives as the FIRST STEP of the deploy job rather than a separate job,
+# because environment-scoped vars are only readable under `environment:`, and a second job
+# under `environment: production` would ask the reviewer for a second approval. Every later
+# step is gated on that step's `enabled` output.
 # Authentication is keyless via Workload Identity Federation -- no long-lived JSON
 # service-account key is ever stored in GitHub.
 #
@@ -66,35 +104,48 @@ name: Deploy to Cloud Run
 # merge instead: require the CI checks on `main` in branch protection, so nothing reaches
 # `main` red in the first place.
 #
-# CONCURRENCY: one fixed group across BOTH triggers, because there is ONE production database
-# and ONE shared `lingolinq-migrate` Job. Do not scope the group by ref. Two known limits, so
-# nobody reads more safety into this than it provides:
+# CONCURRENCY: one group PER DATABASE, across BOTH triggers. `main` serializes on
+# `deploy-cloudrun-production`; `staging`, `develop`, and every unknown ref serialize on
+# `deploy-cloudrun-nonprod`, because staging and dev share ONE database and must never run
+# two migrate Jobs against it at once. Production and nonprod deploys may overlap; they touch
+# different projects. Do not scope the group by ref. Three known limits, so nobody reads more
+# safety into this than it provides:
 #   - It is NOT a distributed lock. `gcloud run jobs execute --wait` is a client-side poll;
 #     killing the GitHub job does not stop the server-side execution. If a run hits the job's
 #     `timeout-minutes` ceiling, is cancelled, or its runner dies, the lock releases while the
-#     execution may still be writing to prod. That ceiling is set above the migrate Job's own
-#     `--task-timeout` precisely so a valid long migration cannot trip it, but a cancel or a
-#     dead runner still can. A real mutex would need a Postgres advisory lock inside the
-#     migration task. Tracked as follow-up, not solved here.
+#     execution may still be writing to the database. That ceiling is set above the migrate
+#     Job's own `--task-timeout` precisely so a valid long migration cannot trip it, but a
+#     cancel or a dead runner still can. A real mutex would need a Postgres advisory lock
+#     inside the migration task. Tracked as follow-up, not solved here.
 #   - GitHub keeps only ONE pending run per group and cancels the older pending one when a new
 #     run queues, regardless of `cancel-in-progress`. Three merges in quick succession deploy
 #     the 1st and 3rd; the 2nd shows `cancelled`. On a linear `main` that is benign, since the
-#     3rd contains the 2nd, but it means "every push deploys" is not literally true.
-#   - A run AWAITING ENVIRONMENT APPROVAL counts as in-progress and holds this group for as
-#     long as the approval sits unactioned, which can be days. Every merge behind it queues,
-#     and each new one cancels the previously pending one. Approve or reject promptly; an
-#     ignored approval quietly stops all production deploys. Nothing in this workflow stops a
-#     late approval from shipping the commit it was created for, even if `main` has moved on:
-#     see the note where the staleness guard used to be. Reject stale approvals by hand.
+#     3rd contains the 2nd, but it means "every push deploys" is not literally true. On the
+#     nonprod group a `develop` push can cancel a pending `staging` push, or vice versa; the
+#     cancelled branch simply needs a re-run (`gh workflow run deploy-cloudrun.yml --ref X`).
+#   - A run AWAITING ENVIRONMENT APPROVAL counts as in-progress and holds its group for as
+#     long as the approval sits unactioned, which can be days. Every merge to `main` behind it
+#     queues, and each new one cancels the previously pending one. Approve or reject promptly;
+#     an ignored approval quietly stops all production deploys (nonprod is unaffected: it is a
+#     different group). Nothing in this workflow stops a late approval from shipping the commit
+#     it was created for, even if `main` has moved on: see the note where the staleness guard
+#     used to be. Reject stale approvals by hand.
 # `cancel-in-progress: false` is still right: cancelling a run partway through the migration
 # Job is the one thing guaranteed to hurt.
 #
 # Pipeline (when enabled): build image -> push to Artifact Registry -> run DB migration as a
-# dedicated Cloud Run Job (gen2 + Cloud SQL) -> deploy web service -> deploy worker pool.
+# dedicated Cloud Run Job (gen2 + Cloud SQL) -> deploy web service -> (DEPLOY_WORKER only)
+# deploy worker pool -> (DEPLOY_WORKER only) update scheduler Job image.
 #
 # ---------------------------------------------------------------------------------------
-# REPOSITORY VARIABLES Phase 1 must create (Settings > Secrets and variables > Actions > Variables):
-#   GCP_PROJECT_ID         -- target GCP project id (empty = workflow stays inert)
+# ENVIRONMENT VARIABLES each GitHub environment must define
+# (Settings > Environments > <env> > Environment variables). Repository-level variables of the
+# same name are a FALLBACK, not a scope: a job under `environment: staging` that finds no
+# environment-scoped GCP_PROJECT_ID resolves the repository-level one, i.e. PRODUCTION's.
+# So keep the GCP_* set ONLY at environment scope, never at repository scope, and let a
+# half-configured environment resolve to empty and trip the inert guard instead. The guard
+# also refuses to point a nonprod environment at the production project as a second defense.
+#   GCP_PROJECT_ID         -- target GCP project id (empty = this environment stays inert)
 #   GCP_REGION             -- e.g. us-central1
 #   GCP_WIF_PROVIDER       -- full WIF provider resource name
 #                             (projects/NNN/locations/global/workloadIdentityPools/POOL/providers/PROVIDER)
@@ -102,23 +153,39 @@ name: Deploy to Cloud Run
 #   GCP_CLOUDSQL_INSTANCE  -- Cloud SQL connection name (PROJECT:REGION:INSTANCE)
 #   GCP_VPC_NETWORK        -- VPC network for Direct VPC egress (Memorystore Redis reachability)
 #   GCP_VPC_SUBNET         -- VPC subnet for Direct VPC egress
+#   DEPLOY_WORKER          -- 'true' to deploy the worker pool + update the scheduler Job
+#                             (production, staging); anything else skips both (dev)
+#   APP_UPLOADS_S3_BUCKET  -- REQUIRED. S3 bucket for user uploads
+#   APP_STATIC_S3_BUCKET   -- REQUIRED. S3 bucket for static/system assets
+#   APP_SENTRY_ENVIRONMENT -- REQUIRED. Sentry environment label
+#   APP_UPLOADS_S3_CDN     -- optional. CloudFront origin fronting the uploads bucket; omitted when blank
+#   APP_REDIS_NAMESPACE_SUFFIX -- optional. Resque namespace suffix; omitted when blank (prod blank).
+#                             Staging and dev MUST share one value: one worker drains both.
+#   APP_REMOTE_EXTRA_DATA  -- optional. '1' enables detach-to-S3 for big button sets; omitted when blank
+#   APP_DEFAULT_HOST       -- optional. Overrides the Secret Manager DEFAULT_HOST at BUILD time only
+#                             (window.default_host in the compiled frontend). Dev needs this because
+#                             it shares staging's secrets but must be built for dev.lingolinq.com.
+#                             Blank = read DEFAULT_HOST from Secret Manager (today's behaviour).
+#   STRIPE_PUBLIC_KEY, NEW_REGISTRATION_EMAIL -- optional, unchanged; appended when set.
 #
-# RUNTIME IDENTITY: the web service, worker pool, and migration Job all RUN AS the runtime
-# service account lingolinq-run@${GCP_PROJECT_ID}.iam.gserviceaccount.com (derived inline
-# from GCP_PROJECT_ID, created by scripts/gcp/phase1-setup.sh). This is NOT GCP_DEPLOY_SA
-# (that SA only authenticates GitHub Actions via WIF). It is REQUIRED: without
+# RUNTIME IDENTITY: the web service, worker pool, and Jobs all RUN AS the runtime service
+# account lingolinq-run@${GCP_PROJECT_ID}.iam.gserviceaccount.com (derived inline from
+# GCP_PROJECT_ID, created by scripts/gcp/phase1-setup.sh in each project). This is NOT
+# GCP_DEPLOY_SA (that SA only authenticates GitHub Actions via WIF). It is REQUIRED: without
 # --service-account, Cloud Run defaults to the project's Editor-roled compute SA, which has
 # no secretAccessor and therefore cannot read the boot secrets -- the app would fail to boot,
 # and the least-privilege runtime SA + its per-secret grants would be inert. (PR #353 review.)
-# ASSUMES the runtime SA is co-located with GCP_PROJECT_ID (single-project prod). Cross-project
-# use would require disabling the iam.disableCrossProjectServiceAccountUsage org policy.
+# ASSUMES the runtime SA is co-located with GCP_PROJECT_ID (one runtime SA per project).
+# Cross-project use would require disabling the iam.disableCrossProjectServiceAccountUsage
+# org policy.
 # PHASE 3 PREREQ: grant roles/cloudsql.client to this runtime SA before enabling -- the
 # migration Job, web service, and worker pool all connect to Cloud SQL (--set-cloudsql-instances)
 # and will fail to authenticate at DB connect without it. (PR #353/#354 adversary review.)
 # NOTE: worker pools are on the `gcloud beta` surface (not GA on SDK 564), hence `beta` below.
 #
-# GCP SECRET MANAGER secrets Phase 2 step 4 must seed (referenced by name via --set-secrets,
-# NOT GitHub secrets): SECRET_KEY_BASE, SECURE_ENCRYPTION_KEY, SECURE_NONCE_KEY, DB_HOST, DB_NAME,
+# GCP SECRET MANAGER secrets each project must seed (referenced by name via --set-secrets,
+# NOT GitHub secrets; staging and dev read the SAME unsuffixed names in lingolinq-nonprod):
+#   SECRET_KEY_BASE, SECURE_ENCRYPTION_KEY, SECURE_NONCE_KEY, DB_HOST, DB_NAME,
 #   DB_USERNAME, DB_PASSWORD, REDIS_URL, DEFAULT_EMAIL_FROM, SYSTEM_ERROR_EMAIL, COOKIE_KEY,
 #   DEFAULT_HOST. (DB_* replaced the single DATABASE_URL: the Cloud SQL socket URL is unparseable
 #   by uri >= 1.0, so config/database.yml builds the connection from discrete params instead.)
@@ -126,70 +193,109 @@ name: Deploy to Cloud Run
 #   per-instance CA, fetched from the live instance) -- the app's Redis client loads it to
 #   verify the rediss:// TLS chain.
 #
-# MANUAL TRIGGER (redeploy without a new commit, or deploy a specific ref):
-#   gh workflow run deploy-cloudrun.yml --ref main
+# MANUAL TRIGGER (redeploy without a new commit, or deploy a specific mapped branch):
+#   gh workflow run deploy-cloudrun.yml --ref main       # production (approval required)
+#   gh workflow run deploy-cloudrun.yml --ref staging    # staging
+#   gh workflow run deploy-cloudrun.yml --ref develop    # dev
+# Any other --ref resolves to no environment and the deploy job is skipped.
 # ---------------------------------------------------------------------------------------
 
 on:
   push:
-    branches: [main]
+    branches: [main, staging, develop]
   workflow_dispatch:
 
-# Serialize deploys across BOTH triggers. cancel-in-progress is deliberately false: see the
-# CONCURRENCY note above.
+# Serialize deploys PER DATABASE across BOTH triggers: production alone, nonprod (staging +
+# dev, one shared Cloud SQL) together. cancel-in-progress is deliberately false: see the
+# CONCURRENCY note above. This expression must use `github.*` only; job outputs are not
+# available at the workflow level.
 concurrency:
-  group: deploy-cloudrun
+  group: deploy-cloudrun-${{ github.ref == 'refs/heads/main' && 'production' || 'nonprod' }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  guard:
-    name: Check migration readiness
+  # Branch -> environment map. Fail-closed: an unknown ref (including a workflow_dispatch on a
+  # feature branch or a tag) yields an empty env_name and the deploy job is skipped with a
+  # notice. This job has NO `environment:` and NO GCP access on purpose: it only reads
+  # github.ref. Production is `main` and only `main`: without this map, ANY collaborator with
+  # Actions write could `workflow_dispatch` this workflow on any branch and deploy it to prod,
+  # migrations included. That is not hypothetical -- run 28881107723 (2026-07-07) deployed
+  # `--ref staging` to production under the pre-map version of this file.
+  resolve:
+    name: Resolve target environment
     runs-on: ubuntu-latest
     outputs:
-      enabled: ${{ steps.check.outputs.enabled }}
+      env_name: ${{ steps.map.outputs.env_name }}
+      svc_suffix: ${{ steps.map.outputs.svc_suffix }}
     steps:
-      - id: check
+      - id: map
+        env:
+          REF: ${{ github.ref }}
         run: |
-          if [ -z "${{ vars.GCP_PROJECT_ID }}" ]; then
-            echo "::notice::GCP_PROJECT_ID is not set. This workflow is inert until migration Phase 1 provisions GCP. No-op."
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          case "$REF" in
+            refs/heads/main)    env_name=production; svc_suffix="" ;;
+            refs/heads/staging) env_name=staging;    svc_suffix="-staging" ;;
+            refs/heads/develop) env_name=dev;        svc_suffix="-dev" ;;
+            *)                  env_name="";         svc_suffix="" ;;
+          esac
+          if [ -z "$env_name" ]; then
+            echo "::notice::Ref '$REF' is not mapped to a deploy environment (main|staging|develop). Deploying nothing."
           else
-            echo "GCP project configured; proceeding with deploy."
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Ref '$REF' -> environment '$env_name', resource suffix '${svc_suffix:-<none>}'."
           fi
+          echo "env_name=$env_name" >> "$GITHUB_OUTPUT"
+          echo "svc_suffix=$svc_suffix" >> "$GITHUB_OUTPUT"
 
   deploy:
-    name: Build and deploy
-    needs: guard
-    # Ref guard: production is `main` and only `main`. Without this, ANY collaborator with
-    # Actions write could `workflow_dispatch` this workflow on any branch or tag and deploy it
-    # to prod, migrations included. That is not hypothetical -- run 28881107723 (2026-07-07)
-    # deployed `--ref staging` to production. The WIF provider carries the matching
-    # `assertion.ref` condition, so a non-main ref cannot mint a deploy token either.
-    if: needs.guard.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
+    name: Build and deploy (${{ needs.resolve.outputs.env_name || 'skipped' }})
+    needs: resolve
+    # Only a mapped ref reaches here. Do NOT add `vars.*` to this job-level `if`: environment
+    # scoping is applied once the job starts, so an environment-scoped var read here would
+    # resolve at repository scope (production's, or empty). Var-driven gates live in the
+    # `guard` STEP below.
+    if: needs.resolve.outputs.env_name != ''
     runs-on: ubuntu-latest
-    # Protected environment: `main`-only deployment branch policy plus required reviewers.
-    # What this actually gives you, stated precisely so nobody over-trusts it: a PAUSE before
-    # anything touches prod, a Deployments API AUDIT RECORD of who released what, and a KILL
-    # SWITCH (disable the environment and auto-deploy stops without editing this file).
-    # It is NOT a two-person control: `prevent_self_review` is false, so whoever merges can
-    # approve their own deployment. That is deliberate, so a single on-call engineer can ship
-    # a hotfix at 2am. The actual two-person control is upstream and stronger: CODEOWNERS
+    # The GitHub environment selected by `resolve`. For `production` this is the protected
+    # environment: `main`-only deployment branch policy plus required reviewers. What that
+    # actually gives you, stated precisely so nobody over-trusts it: a PAUSE before anything
+    # touches prod, a Deployments API AUDIT RECORD of who released what, and a KILL SWITCH
+    # (disable the environment and auto-deploy stops without editing this file). It is NOT a
+    # two-person control: `prevent_self_review` is false, so whoever merges can approve their
+    # own deployment. That is deliberate, so a single on-call engineer can ship a hotfix at
+    # 2am. The actual two-person control is upstream and stronger: CODEOWNERS
     # (`* @swahlquist @MelissaOneil`) plus `require_code_owner_reviews` plus a required
     # approving review on `main`, which forces a second human onto every PR that gets here.
-    environment: production
+    # `staging` and `dev` carry no protection rules and proceed immediately.
+    environment: ${{ needs.resolve.outputs.env_name }}
     # 90, not 45. The migrate Job is allowed --task-timeout 3600s (60 min), so a 45 minute job
     # ceiling could cancel the workflow WHILE a valid long migration is still running
-    # server-side: GitHub would release the concurrency slot and report failure while prod is
-    # mid-DDL. This ceiling must stay strictly greater than build + 3600s + deploys + probes.
+    # server-side: GitHub would release the concurrency slot and report failure while the
+    # database is mid-DDL. This ceiling must stay strictly greater than build + 3600s + deploys
+    # + probes.
     timeout-minutes: 90
     permissions:
       contents: read
       id-token: write
     env:
+      ENV_NAME: ${{ needs.resolve.outputs.env_name }}
+      SVC_SUFFIX: ${{ needs.resolve.outputs.svc_suffix }}
+      # Resource names. Production's suffix is empty, so these resolve to EXACTLY the names
+      # production has always used. Nonprod gets `-staging` / `-dev`.
+      WEB_SERVICE: lingolinq-web${{ needs.resolve.outputs.svc_suffix }}
+      WORKER_POOL: lingolinq-worker${{ needs.resolve.outputs.svc_suffix }}
+      MIGRATE_JOB: lingolinq-migrate${{ needs.resolve.outputs.svc_suffix }}
+      SCHEDULER_JOB: lingolinq-scheduler${{ needs.resolve.outputs.svc_suffix }}
+      # Environment-scoped GCP target. Read once here, used as shell vars everywhere below.
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_REGION: ${{ vars.GCP_REGION }}
+      GCP_CLOUDSQL_INSTANCE: ${{ vars.GCP_CLOUDSQL_INSTANCE }}
+      GCP_VPC_NETWORK: ${{ vars.GCP_VPC_NETWORK }}
+      GCP_VPC_SUBNET: ${{ vars.GCP_VPC_SUBNET }}
+      RUNTIME_SA: lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com
       IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/lingolinq/web:${{ github.sha }}
       # Boot-mandatory secret set. Any `rake environment` / puma boot of this app in
       # production loads these (see the asset-precompile env block in the Dockerfile).
@@ -236,35 +342,45 @@ jobs:
       # cleanup. The existing GCP Secret Manager item is intentionally not deleted here. Do not
       # re-add the key: the Gemini Developer/AI-Studio route is not an approved Tier 1 runtime path.
       NON_BOOT_SECRETS: AWS_KEY=AWS_KEY:latest,AWS_SECRET=AWS_SECRET:latest,BEDROCK_AWS_KEY=BEDROCK_AWS_KEY:latest,BEDROCK_AWS_SECRET=BEDROCK_AWS_SECRET:latest,GOOGLE_TTS_TOKEN=GOOGLE_TTS_TOKEN:latest,GOOGLE_PLACES_TOKEN=GOOGLE_PLACES_TOKEN:latest,GOOGLE_TRANSLATE_TOKEN=GOOGLE_TRANSLATE_TOKEN:latest,GOOGLE_OAUTH_CLIENT_ID=GOOGLE_OAUTH_CLIENT_ID:latest,GOOGLE_OAUTH_CLIENT_SECRET=GOOGLE_OAUTH_CLIENT_SECRET:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,SENTRY_DSN=SENTRY_DSN:latest,SMS_ENCRYPTION_KEY=SMS_ENCRYPTION_KEY:latest,INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest,CACHE_TOKEN=CACHE_TOKEN:latest,OPENSYMBOLS_SECRET=OPENSYMBOLS_SECRET:latest,IPLOCATE_API_KEY=IPLOCATE_API_KEY:latest,YOUTUBE_API_KEY=YOUTUBE_API_KEY:latest
-      # Non-secret runtime config (Group B) + perf tuning (Group C), web + worker only. S3 bucket
-      # names + AWS/SES regions are not secret. Stripe PUBLISHABLE key, registration email, and the
-      # Redis namespace come from repo Variables (assembled below) so no env-specific value is
-      # committed. LD_PRELOAD/MALLOC_CONF are DELIBERATELY EXCLUDED until jemalloc is verified present
-      # in the image -- pointing LD_PRELOAD at a missing .so breaks boot (plan Group C). RAILS_ENV is
-      # set inline on every deploy; DEPLOY_TRIGGER/SEED_READY/LEADER_POSTGRES_URL are Render-only.
+      # Non-secret runtime config (Group B) + perf tuning (Group C), web + worker only. This is
+      # the ENVIRONMENT-INDEPENDENT part: identical in production, staging, and dev. The
+      # environment-specific part (buckets, CDN, Sentry env, Redis namespace, REMOTE_EXTRA_DATA,
+      # Stripe publishable key, registration email) is assembled from `vars.APP_*` in the
+      # "Assert referenced secrets exist + assemble runtime env" step below, so no per-environment
+      # value is committed here. LD_PRELOAD/MALLOC_CONF are DELIBERATELY EXCLUDED until jemalloc is
+      # verified present in the image -- pointing LD_PRELOAD at a missing .so breaks boot (plan
+      # Group C). RAILS_ENV is set inline on every deploy (it is `production` in ALL THREE
+      # environments; SENTRY_ENVIRONMENT is what distinguishes them); DEPLOY_TRIGGER/SEED_READY/
+      # LEADER_POSTGRES_URL are Render-only.
       # UPLOADS_S3_NO_ACL=1: lingolinq-prod-uploads is BucketOwnerEnforced (ACLs disabled) +
       # Block Public Access, per the private-bucket model (Scot, 2026-07-05). A presigned POST
       # carrying acl=public-read is rejected by such a bucket, so lib/uploader.rb must omit the
       # ACL field. Client-facing reads go through presigned GETs / CDN, not public object URLs.
-      # UPLOADS_S3_CDN: CloudFront distribution E2X2HAS6Y1L2MI fronts the private bucket via
-      # Origin Access Control (bucket policy + KMS key policy grant scoped to the distribution
-      # ARN). Uploader.fronted_url rewrites stored bucket URLs to this domain at serialization
-      # time; stable (non-presigned) URLs are required by the Ember offline cache, which is
-      # URL-keyed and does not strip X-Amz-* params.
-      # REMOTE_EXTRA_DATA=1: gates the detach-to-S3 path for BoardDownstreamButtonSet
-      # buttons and LogSession events (ExtraData#extra_data_too_big?). With it unset,
-      # BoardDownstreamButtonSet#generate_defaults still stripped data['buttons'] for
-      # any set over 200 buttons while detach_extra_data no-op'd, destroying the set on
+      # Kept as a constant for every environment: the nonprod uploads bucket must follow the
+      # same private-bucket model, or presigned uploads there will fail for the opposite reason.
+      # UPLOADS_S3_CDN (now vars.APP_UPLOADS_S3_CDN): in production, CloudFront distribution
+      # E2X2HAS6Y1L2MI fronts the private bucket via Origin Access Control (bucket policy + KMS
+      # key policy grant scoped to the distribution ARN). Uploader.fronted_url rewrites stored
+      # bucket URLs to this domain at serialization time; stable (non-presigned) URLs are
+      # required by the Ember offline cache, which is URL-keyed and does not strip X-Amz-*
+      # params. Nonprod has no distribution; the var is blank there and the env var is OMITTED,
+      # which lib/uploader.rb handles (falls back to the bucket URL).
+      # REMOTE_EXTRA_DATA=1 (now vars.APP_REMOTE_EXTRA_DATA): gates the detach-to-S3 path for
+      # BoardDownstreamButtonSet buttons and LogSession events (ExtraData#extra_data_too_big?).
+      # With it unset, BoardDownstreamButtonSet#generate_defaults still stripped data['buttons']
+      # for any set over 200 buttons while detach_extra_data no-op'd, destroying the set on
       # the next save -- which zeroed 1754 of 2061 prod button sets (find-a-button and
       # button-set loading broken library-wide, diagnosed 2026-08-01, PR #724).
       # PROVENANCE, do not restate this as a migration regression without checking:
       # the variable is absent from tracked config everywhere in this repo AND from the
       # 2026-06-30 45-var Render prod env accounting, so it was most likely never set on
       # Render prod either. Vintage unknown; it was NOT confirmed to be a GCP cutover drop.
-      # Enabling it here is a deliberate production enablement decision (Scot, 2026-08-01),
+      # Enabling it in production is a deliberate enablement decision (Scot, 2026-08-01),
       # not a restoration: the code now degrades safely to inline storage when this is
       # unset, but inline means every button set lives in Postgres and ships whole in the
-      # API response (~1MB for a 3717-button set), which is a bad steady state.
+      # API response (~1MB for a 3717-button set), which is a bad steady state. The code
+      # checks `!!ENV['REMOTE_EXTRA_DATA']`, i.e. PRESENCE, so a blank var must OMIT the env
+      # var entirely rather than set it to "" -- an empty string is truthy in Ruby.
       # BEDROCK_EXPECTED_AWS_ACCOUNT: the AWS account docs/legal/AWS_BAA_ACCEPTED.md is scoped to.
       # AiClient.account_verified? calls sts:GetCallerIdentity under the exact Bedrock credential
       # and REFUSES to build a client unless the account matches, so a credential belonging to any
@@ -274,7 +390,8 @@ jobs:
       # in config rather than in Ruby so an account migration is a config change. Losing it is a
       # silent-disable risk (unset means AiClient SKIPS the check), so it is defended twice: the
       # lint step below catches an edit to THIS file before deploying, and the "Assert deployed
-      # secrets landed" readback catches a value that did not land on the revision.
+      # secrets landed" readback catches a value that did not land on the revision. It is the
+      # same account in every environment; nonprod Bedrock credentials must also belong to it.
       # NOT covered: drift introduced outside this workflow (a hand-run `gcloud run deploy`, a
       # Cloud Run console edit). That needs a scheduled reconciler, which is deliberately not in
       # this change -- see the follow-up issue. Until it exists, the readback only proves the
@@ -288,21 +405,64 @@ jobs:
       # out untagged, and the lingolinq-transactional configuration set's SNS->SQS event
       # destination (verified live, 1 confirmed subscription) receives nothing -- so there is no
       # per-message delivery/bounce/complaint record for any real user email.
-      APP_ENV_VARS_STATIC: BEDROCK_EXPECTED_AWS_ACCOUNT=239044785114,AWS_REGION=us-west-2,SES_REGION=us-west-2,SES_CONFIGURATION_SET=lingolinq-transactional,UPLOADS_S3_BUCKET=lingolinq-prod-uploads,STATIC_S3_BUCKET=lingolinq-prod-static,UPLOADS_S3_NO_ACL=1,UPLOADS_S3_CDN=https://d34sa6lc5jfe66.cloudfront.net,REMOTE_EXTRA_DATA=1,SENTRY_ENVIRONMENT=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
+      APP_ENV_VARS_STATIC: BEDROCK_EXPECTED_AWS_ACCOUNT=239044785114,AWS_REGION=us-west-2,SES_REGION=us-west-2,SES_CONFIGURATION_SET=lingolinq-transactional,UPLOADS_S3_NO_ACL=1,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,RUBY_YJIT_ENABLE=1,WEB_CONCURRENCY=2
       # REDIS_TLS_VERIFY_HOSTNAME=false is set on every deploy below: Memorystore is reached by
       # private IP and its server cert is issued for the instance, not the IP, so hostname
       # matching cannot pass. CA-chain verification (VERIFY_PEER against REDIS_CA_CERT) stays on.
       # See config/initializers/resque.rb.
     steps:
+      # INERT GUARD + var-driven gates, as the first step of the (possibly approved) job. See the
+      # header for why this is a step and not a job: environment-scoped vars are only readable
+      # under `environment:`, and a separate job under `environment: production` would cost a
+      # second reviewer approval. Every step below is gated on `enabled`; the worker-pool,
+      # scheduler, and worker-readback steps are additionally gated on `deploy_worker`.
+      # Consequence, stated honestly: when a PROTECTED environment's GCP_PROJECT_ID is blank,
+      # the reviewer is still asked to approve a run that will then no-op. In this repo the
+      # production vars are always set, so that only bites a fork.
+      - name: Check deploy readiness for this environment
+        id: guard
+        env:
+          DEPLOY_WORKER: ${{ vars.DEPLOY_WORKER }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GCP_PROJECT_ID:-}" ]; then
+            echo "::notice::GCP_PROJECT_ID is not set in GitHub environment '$ENV_NAME'. This environment is inert until it is provisioned. No-op."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "deploy_worker=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Second defense against repository-level fallback (see the header): a nonprod
+          # environment must never resolve to the production project. Deliberately a literal:
+          # the production project id is fixed by scripts/gcp/phase1-setup.sh and this check
+          # has to work even when the nonprod environment is the thing that is misconfigured.
+          if [ "$ENV_NAME" != "production" ] && [ "$GCP_PROJECT_ID" = "lingolinq-prod" ]; then
+            echo "::error::Environment '$ENV_NAME' resolved GCP_PROJECT_ID=lingolinq-prod. A nonprod branch must never deploy into the production project."
+            echo "::error::Most likely the '$ENV_NAME' GitHub environment is missing its own GCP_* variables and fell through to repository-level ones. Fix the environment; do not edit this check."
+            exit 1
+          fi
+          for v in GCP_REGION GCP_CLOUDSQL_INSTANCE GCP_VPC_NETWORK GCP_VPC_SUBNET; do
+            [ -n "${!v:-}" ] || { echo "::error::$v is not set in GitHub environment '$ENV_NAME'."; exit 1; }
+          done
+          echo "Environment '$ENV_NAME' -> project '$GCP_PROJECT_ID' ($GCP_REGION); web=$WEB_SERVICE migrate=$MIGRATE_JOB"
+          if [ "${DEPLOY_WORKER:-}" = "true" ]; then
+            echo "DEPLOY_WORKER=true: worker pool '$WORKER_POOL' and scheduler Job '$SCHEDULER_JOB' will be updated after the traffic shift."
+            echo "deploy_worker=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "DEPLOY_WORKER is not 'true': worker pool and scheduler Job will NOT be touched (shared-worker environment)."
+            echo "deploy_worker=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "enabled=true" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
+        if: steps.guard.outputs.enabled == 'true'
         uses: actions/checkout@v6
 
       # NO STALENESS GUARD HERE, DELIBERATELY. An earlier version of this workflow had one, and
-      # it could not work: `actions/checkout` fetches refspec `+<github.sha>:refs/remotes/origin/main`
-      # on a push event, so after checkout `origin/main` IS this run's own SHA. Any comparison
-      # against the checkout-local ref is a tautology that passes on every input, including a
-      # genuinely stale one, while printing two matching SHAs and a green check. A control that
-      # cannot fail is worse than a documented gap, because people trust it.
+      # it could not work: `actions/checkout` fetches refspec `+<github.sha>:refs/remotes/origin/<branch>`
+      # on a push event, so after checkout the remote-tracking ref IS this run's own SHA. Any
+      # comparison against the checkout-local ref is a tautology that passes on every input,
+      # including a genuinely stale one, while printing two matching SHAs and a green check. A
+      # control that cannot fail is worse than a documented gap, because people trust it.
       #
       # THE GAP, stated plainly: an environment approval can sit for days, and the job then
       # resumes with the ORIGINAL github.sha. Approving a forgotten deployment ships that
@@ -315,6 +475,7 @@ jobs:
       # ref -- `gh api repos/${{ github.repository }}/git/ref/heads/main --jq .object.sha` --
       # and it MUST be tested against a deliberately stale SHA before anyone relies on it.
       - name: Authenticate to Google Cloud (Workload Identity Federation)
+        if: steps.guard.outputs.enabled == 'true'
         uses: google-github-actions/auth@v3
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
@@ -322,6 +483,7 @@ jobs:
           service_account: ${{ vars.GCP_DEPLOY_SA }}
 
       - name: Set up Cloud SDK
+        if: steps.guard.outputs.enabled == 'true'
         uses: google-github-actions/setup-gcloud@v3
         with:
           # `gcloud beta run worker-pools deploy` needs the beta component; gcloud 568+
@@ -330,11 +492,13 @@ jobs:
           install_components: beta
 
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+        if: steps.guard.outputs.enabled == 'true'
+        run: gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
 
       - name: Build and push image
+        if: steps.guard.outputs.enabled == 'true'
         env:
-          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          V_APP_DEFAULT_HOST: ${{ vars.APP_DEFAULT_HOST }}
         run: |
           set -euo pipefail
           # globals.js.erb bakes window.maps_key + window.default_host at asset-precompile (build
@@ -343,8 +507,23 @@ jobs:
           # default_host=localhost + omit maps_key). Both are fetched from Secret Manager as the
           # deploy SA (which already reads DEFAULT_HOST for the boot set; MAPS_KEY granted alongside).
           # Values are client-public (emitted to the browser) and never echoed.
+          #
+          # vars.APP_DEFAULT_HOST, when non-blank, OVERRIDES the Secret Manager DEFAULT_HOST for the
+          # BUILD ONLY. Staging and dev share one secret set in lingolinq-nonprod, so the DEFAULT_HOST
+          # secret can hold only one of their hosts; the var lets dev's frontend be compiled for
+          # dev.lingolinq.com while its runtime DEFAULT_HOST secret (boot set, below) stays shared.
+          # Format matches what Render used: the full origin, trailing slash allowed
+          # (e.g. https://staging.lingolinq.com/). Both consumers tolerate either form --
+          # capabilities.js strips a trailing slash and prefixes https:// on a bare host, and
+          # JsonApi::Json.absolute_host does the same server-side. Blank = today's behaviour.
           MAPS_KEY="$(gcloud secrets versions access latest --secret=MAPS_KEY --project="$GCP_PROJECT_ID")"
-          APP_DEFAULT_HOST="$(gcloud secrets versions access latest --secret=DEFAULT_HOST --project="$GCP_PROJECT_ID")"
+          if [ -n "${V_APP_DEFAULT_HOST:-}" ]; then
+            APP_DEFAULT_HOST="$V_APP_DEFAULT_HOST"
+            echo "Building frontend for DEFAULT_HOST from vars.APP_DEFAULT_HOST (environment '$ENV_NAME')."
+          else
+            APP_DEFAULT_HOST="$(gcloud secrets versions access latest --secret=DEFAULT_HOST --project="$GCP_PROJECT_ID")"
+            echo "Building frontend for DEFAULT_HOST from Secret Manager (project '$GCP_PROJECT_ID')."
+          fi
           docker build \
             --build-arg MAPS_KEY="$MAPS_KEY" \
             --build-arg APP_DEFAULT_HOST="$APP_DEFAULT_HOST" \
@@ -352,16 +531,30 @@ jobs:
           docker push "$IMAGE"
 
       - name: Assert referenced secrets exist + assemble runtime env
+        if: steps.guard.outputs.enabled == 'true'
         # Pre-deploy guard (env-reconciliation 4.E1 adversary ask): every Secret Manager secret the
-        # migrate Job / web / worker reference MUST already exist, or the deploy fails fast HERE with
-        # a clear list -- instead of a Cloud Run revision that crash-loops on a missing secret mount.
-        # Then assemble APP_ENV_VARS: the static Group-B/C config plus the three repo-Variable values
-        # (passed via env:, never interpolated into the shell) when set.
+        # migrate Job / web / worker reference MUST already exist in THIS environment's project, or
+        # the deploy fails fast HERE with a clear list -- instead of a Cloud Run revision that
+        # crash-loops on a missing secret mount.
+        # Then assemble APP_ENV_VARS: the static Group-B/C config plus the environment-specific
+        # values from `vars.APP_*` (passed via env:, never interpolated into the shell).
+        # REQUIRED (fail closed when blank): UPLOADS_S3_BUCKET, STATIC_S3_BUCKET, SENTRY_ENVIRONMENT.
+        # A blank bucket would make the app fall back to a hard-coded bucket name (`lingolinq`,
+        # see app/models/user.rb / lib/uploader.rb), i.e. silently write somewhere unintended.
+        # OPTIONAL (omitted entirely when blank, never set to ""): UPLOADS_S3_CDN,
+        # REDIS_NAMESPACE_SUFFIX, REMOTE_EXTRA_DATA, STRIPE_PUBLIC_KEY, NEW_REGISTRATION_EMAIL.
+        # Omission matters: REMOTE_EXTRA_DATA is a presence check in Ruby, and
+        # config/initializers/resque.rb only falls through to its default namespace when
+        # REDIS_NAMESPACE_SUFFIX is UNSET, not when it is empty.
         env:
-          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          V_UPLOADS_S3_BUCKET: ${{ vars.APP_UPLOADS_S3_BUCKET }}
+          V_STATIC_S3_BUCKET: ${{ vars.APP_STATIC_S3_BUCKET }}
+          V_UPLOADS_S3_CDN: ${{ vars.APP_UPLOADS_S3_CDN }}
+          V_SENTRY_ENVIRONMENT: ${{ vars.APP_SENTRY_ENVIRONMENT }}
+          V_REDIS_NAMESPACE_SUFFIX: ${{ vars.APP_REDIS_NAMESPACE_SUFFIX }}
+          V_REMOTE_EXTRA_DATA: ${{ vars.APP_REMOTE_EXTRA_DATA }}
           V_STRIPE_PUBLIC_KEY: ${{ vars.STRIPE_PUBLIC_KEY }}
           V_NEW_REGISTRATION_EMAIL: ${{ vars.NEW_REGISTRATION_EMAIL }}
-          V_REDIS_NAMESPACE_SUFFIX: ${{ vars.REDIS_NAMESPACE_SUFFIX }}
         run: |
           set -euo pipefail
           missing=""
@@ -384,17 +577,35 @@ jobs:
             exit 1
           fi
           echo "All $(printf '%s,%s' "$BOOT_SECRETS" "$NON_BOOT_SECRETS" | tr ',' '\n' | grep -c .) referenced secrets exist."
+          missing_vars=""
+          [ -n "${V_UPLOADS_S3_BUCKET:-}" ]  || missing_vars="$missing_vars APP_UPLOADS_S3_BUCKET"
+          [ -n "${V_STATIC_S3_BUCKET:-}" ]   || missing_vars="$missing_vars APP_STATIC_S3_BUCKET"
+          [ -n "${V_SENTRY_ENVIRONMENT:-}" ] || missing_vars="$missing_vars APP_SENTRY_ENVIRONMENT"
+          if [ -n "$missing_vars" ]; then
+            echo "::error::Required environment variable(s) blank in GitHub environment '$ENV_NAME':$missing_vars"
+            echo "Set them under Settings > Environments > $ENV_NAME > Environment variables."
+            exit 1
+          fi
           ev="$APP_ENV_VARS_STATIC"
-          [ -n "${V_STRIPE_PUBLIC_KEY:-}" ]     && ev="$ev,STRIPE_PUBLIC_KEY=$V_STRIPE_PUBLIC_KEY"
-          [ -n "${V_NEW_REGISTRATION_EMAIL:-}" ] && ev="$ev,NEW_REGISTRATION_EMAIL=$V_NEW_REGISTRATION_EMAIL"
+          ev="$ev,UPLOADS_S3_BUCKET=$V_UPLOADS_S3_BUCKET"
+          ev="$ev,STATIC_S3_BUCKET=$V_STATIC_S3_BUCKET"
+          ev="$ev,SENTRY_ENVIRONMENT=$V_SENTRY_ENVIRONMENT"
+          [ -n "${V_UPLOADS_S3_CDN:-}" ]         && ev="$ev,UPLOADS_S3_CDN=$V_UPLOADS_S3_CDN"
           [ -n "${V_REDIS_NAMESPACE_SUFFIX:-}" ] && ev="$ev,REDIS_NAMESPACE_SUFFIX=$V_REDIS_NAMESPACE_SUFFIX"
+          [ -n "${V_REMOTE_EXTRA_DATA:-}" ]      && ev="$ev,REMOTE_EXTRA_DATA=$V_REMOTE_EXTRA_DATA"
+          [ -n "${V_STRIPE_PUBLIC_KEY:-}" ]      && ev="$ev,STRIPE_PUBLIC_KEY=$V_STRIPE_PUBLIC_KEY"
+          [ -n "${V_NEW_REGISTRATION_EMAIL:-}" ] && ev="$ev,NEW_REGISTRATION_EMAIL=$V_NEW_REGISTRATION_EMAIL"
           echo "APP_ENV_VARS=$ev" >> "$GITHUB_ENV"
+          # Values are non-secret by construction (buckets, labels, a publishable key); print the
+          # NAMES so a wrong-environment deploy is visible in the log without leaking anything new.
+          echo "Runtime env for '$ENV_NAME': $(printf '%s' "$ev" | tr ',' '\n' | cut -d= -f1 | tr '\n' ' ')"
 
       - name: Lint the BAA account var in this workflow's own config
-        # SCOPE, stated honestly: this is a fail-FAST lint of a value authored twenty lines
-        # above in this same file. It catches an edit to APP_ENV_VARS_STATIC that drops or
-        # mistypes BEDROCK_EXPECTED_AWS_ACCOUNT, and it catches it BEFORE a bad revision is
-        # deployed rather than after. That is its entire value.
+        if: steps.guard.outputs.enabled == 'true'
+        # SCOPE, stated honestly: this is a fail-FAST lint of a value authored above in this same
+        # file. It catches an edit to APP_ENV_VARS_STATIC that drops or mistypes
+        # BEDROCK_EXPECTED_AWS_ACCOUNT, and it catches it BEFORE a bad revision is deployed rather
+        # than after. That is its entire value.
         #
         # It is NOT the control, and must not be mistaken for one. It cannot detect drift,
         # because it never reads live state -- it compares a literal against itself. The
@@ -433,12 +644,16 @@ jobs:
           echo "This is a config lint, not a drift check. The readback step is the control."
 
       - name: Run database migration (Cloud Run Job)
+        if: steps.guard.outputs.enabled == 'true'
         # Strictly incremental: db:migrate only. NEVER db:prepare here -- db:prepare can
         # load db/schema.rb (force: :cascade drops tables) if it decides the DB is
         # uninitialized, which against a populated/misconfigured DATABASE_URL would
         # irreversibly destroy student/patient data. Production data lands via the
         # Render -> Cloud SQL restore (Phase 3), not via this Job; the Job only applies
         # pending migrations on top of an already-provisioned schema.
+        # Staging and dev each have their OWN Job (lingolinq-migrate-staging /
+        # lingolinq-migrate-dev) but both point at the SAME nonprod database, which is why the
+        # nonprod concurrency group serializes them.
         # Direct VPC egress is attached for parity with the web/worker deploys: Cloud SQL
         # is reached via the built-in socket proxy (--set-cloudsql-instances, unaffected by
         # private-ranges-only), and the VPC path means a migration that ever enqueues a
@@ -452,17 +667,17 @@ jobs:
         # `algorithm: :concurrently` on log_session_boards / progresses / board_button_sounds.
         # A CREATE INDEX CONCURRENTLY killed at the timeout leaves an INVALID index behind; the
         # automatic retry then dies on PG::DuplicateTable, and the migration never records in
-        # schema_migrations -- a partially advanced prod schema needing manual DBA repair.
+        # schema_migrations -- a partially advanced schema needing manual DBA repair.
         # Retrying a Rails migration is never correct. Fail once, loudly, and stop.
         run: |
-          gcloud run jobs deploy lingolinq-migrate \
+          gcloud run jobs deploy "$MIGRATE_JOB" \
             --image "$IMAGE" \
-            --region "${{ vars.GCP_REGION }}" \
-            --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --region "$GCP_REGION" \
+            --service-account "$RUNTIME_SA" \
             --execution-environment gen2 \
-            --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
-            --network "${{ vars.GCP_VPC_NETWORK }}" \
-            --subnet "${{ vars.GCP_VPC_SUBNET }}" \
+            --set-cloudsql-instances "$GCP_CLOUDSQL_INSTANCE" \
+            --network "$GCP_VPC_NETWORK" \
+            --subnet "$GCP_VPC_SUBNET" \
             --vpc-egress private-ranges-only \
             --command bundle \
             --args "exec,rake,db:migrate" \
@@ -470,44 +685,68 @@ jobs:
             --task-timeout 3600s \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false" \
             --set-secrets "$BOOT_SECRETS"
-          gcloud run jobs execute lingolinq-migrate \
-            --region "${{ vars.GCP_REGION }}" \
+          gcloud run jobs execute "$MIGRATE_JOB" \
+            --region "$GCP_REGION" \
             --wait
 
       # Record the revision that is actually SERVING, before anything changes it. Do not derive
       # the rollback target later from "second newest revision": revision lists are ordered by
       # creation, include revisions that never took traffic, and a previous failed deploy would
       # otherwise become the recommended rollback target during an incident.
+      # FIRST DEPLOY of a service (a fresh nonprod environment): `describe` fails because the
+      # service does not exist yet. That is not an error here; record it as FIRST_DEPLOY so the
+      # deploy step below can create the service (a brand-new service has no prior revision to
+      # protect, so `--no-traffic` is moot and is omitted on creation only).
       - name: Record current serving revision
+        if: steps.guard.outputs.enabled == 'true'
         run: |
           set -euo pipefail
-          PREV="$(gcloud run services describe lingolinq-web \
-            --region "${{ vars.GCP_REGION }}" --format=json \
-            | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"
-          if [ -z "$PREV" ]; then
-            echo "::warning::Could not determine a single 100% traffic revision; rollback hints will be omitted."
+          FIRST_DEPLOY=false
+          PREV=""
+          if SVC_JSON="$(gcloud run services describe "$WEB_SERVICE" \
+                --region "$GCP_REGION" --format=json 2>/dev/null)"; then
+            PREV="$(printf '%s' "$SVC_JSON" \
+              | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"
+            if [ -z "$PREV" ]; then
+              echo "::warning::Could not determine a single 100% traffic revision; rollback hints will be omitted."
+            fi
+          else
+            FIRST_DEPLOY=true
+            echo "::notice::Service $WEB_SERVICE does not exist yet in $GCP_PROJECT_ID/$GCP_REGION; this is its first deploy."
           fi
           echo "PREV_REVISION=$PREV" >> "$GITHUB_ENV"
+          echo "FIRST_DEPLOY=$FIRST_DEPLOY" >> "$GITHUB_ENV"
           echo "Currently serving: ${PREV:-<none>}"
 
       # --no-traffic --tag candidate: the new revision is created and reachable at its own
       # candidate URL, but users stay on the current revision until the health gate passes.
       # This is what makes the probe a real pre-traffic gate rather than a post-mortem.
+      # On a FIRST deploy there is no current revision, so `--no-traffic` is omitted (the
+      # revision takes the service's only traffic slot) but the candidate tag is still applied,
+      # so the probe and the by-name pin below run unchanged.
       - name: Deploy web service (no traffic)
+        if: steps.guard.outputs.enabled == 'true'
         run: |
-          gcloud run deploy lingolinq-web \
-            --no-traffic \
+          set -euo pipefail
+          TRAFFIC_FLAG="--no-traffic"
+          if [ "${FIRST_DEPLOY:-false}" = "true" ]; then
+            TRAFFIC_FLAG=""
+            echo "First deploy of $WEB_SERVICE: creating the service without --no-traffic."
+          fi
+          # shellcheck disable=SC2086  # TRAFFIC_FLAG is intentionally unquoted: empty or one flag.
+          gcloud run deploy "$WEB_SERVICE" \
+            $TRAFFIC_FLAG \
             --tag candidate \
             --image "$IMAGE" \
-            --region "${{ vars.GCP_REGION }}" \
-            --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --region "$GCP_REGION" \
+            --service-account "$RUNTIME_SA" \
             --execution-environment gen2 \
             --min-instances 1 \
             --memory 2Gi \
             --port 8080 \
-            --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
-            --network "${{ vars.GCP_VPC_NETWORK }}" \
-            --subnet "${{ vars.GCP_VPC_SUBNET }}" \
+            --set-cloudsql-instances "$GCP_CLOUDSQL_INSTANCE" \
+            --network "$GCP_VPC_NETWORK" \
+            --subnet "$GCP_VPC_SUBNET" \
             --vpc-egress private-ranges-only \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
             --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS" \
@@ -538,22 +777,23 @@ jobs:
       # Two consecutive 200s, not one: a single 200 can come from an instance that is about to
       # crash-loop on a later request.
       - name: Verify candidate revision health
+        if: steps.guard.outputs.enabled == 'true'
         run: |
           set -euo pipefail
-          CAND_JSON="$(gcloud run services describe lingolinq-web \
-            --region "${{ vars.GCP_REGION }}" --format=json \
+          CAND_JSON="$(gcloud run services describe "$WEB_SERVICE" \
+            --region "$GCP_REGION" --format=json \
             | jq -c '[.status.traffic[] | select(.tag == "candidate")][0] // empty')"
           TAG_URL="$(printf '%s' "$CAND_JSON" | jq -r '.url // empty')"
           CANDIDATE_REV="$(printf '%s' "$CAND_JSON" | jq -r '.revisionName // empty')"
           if [ -z "$TAG_URL" ] || [ -z "$CANDIDATE_REV" ]; then
-            echo "::error::No candidate-tagged revision on lingolinq-web. The --tag candidate deploy did not take."
+            echo "::error::No candidate-tagged revision on $WEB_SERVICE. The --tag candidate deploy did not take."
             exit 1
           fi
           # Pin the IMMUTABLE revision name now. The traffic shift must target this exact
           # revision, not "whatever is latest at shift time": a concurrent manual
           # `gcloud run deploy` between this probe and the shift would otherwise put 100% of
-          # production traffic on a revision nobody probed. GitHub concurrency does not
-          # serialize humans running gcloud.
+          # traffic on a revision nobody probed. GitHub concurrency does not serialize humans
+          # running gcloud.
           echo "CANDIDATE_REV=$CANDIDATE_REV" >> "$GITHUB_ENV"
           echo "Candidate revision: $CANDIDATE_REV"
           echo "Probing candidate at $TAG_URL/api/v1/health"
@@ -574,14 +814,20 @@ jobs:
           done
           # Strip the public tag off the FAILING revision before giving up. Without this it stays
           # reachable at a stable unauthenticated candidate---* URL indefinitely.
-          gcloud run services update-traffic lingolinq-web \
-            --region "${{ vars.GCP_REGION }}" --remove-tags candidate || \
+          gcloud run services update-traffic "$WEB_SERVICE" \
+            --region "$GCP_REGION" --remove-tags candidate || \
             echo "::warning::Failed to remove the candidate tag; do it by hand."
           echo "::error::Candidate revision $CANDIDATE_REV never returned two consecutive 200s from /api/v1/health."
           echo "::error::"
-          echo "::error::STATE OF PRODUCTION RIGHT NOW, read this before touching anything:"
-          echo "::error::  * No user traffic was shifted. Users are on ${PREV_REVISION:-the previous revision}."
-          echo "::error::  * The worker pool was NOT replaced."
+          echo "::error::STATE OF ${ENV_NAME^^} ($WEB_SERVICE in $GCP_PROJECT_ID) RIGHT NOW, read this before touching anything:"
+          if [ "${FIRST_DEPLOY:-false}" = "true" ]; then
+            echo "::error::  * This was the FIRST deploy of $WEB_SERVICE, so there is no previous revision:"
+            echo "::error::    the failing revision IS the only one and holds the service's traffic slot."
+            echo "::error::    There are no users on a first deploy; fix and roll forward."
+          else
+            echo "::error::  * No user traffic was shifted. Users are on ${PREV_REVISION:-the previous revision}."
+          fi
+          echo "::error::  * The worker pool was NOT replaced (if this environment deploys one)."
           echo "::error::  * Traffic is now PINNED to that revision by name. \`latestRevision\` is CLEARED,"
           echo "::error::    because --no-traffic converts the allocation to a named target. A manual"
           echo "::error::    \`gcloud run deploy\` will therefore create a revision serving 0% and report"
@@ -596,22 +842,23 @@ jobs:
           echo "::error::"
           if [ -n "${PREV_REVISION:-}" ]; then
             echo "::error::To re-assert the known-good revision explicitly:"
-            echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --to-revisions $PREV_REVISION=100"
+            echo "::error::  gcloud run services update-traffic $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --to-revisions $PREV_REVISION=100"
           else
-            # No single 100% predecessor was recorded (split traffic, or the describe failed).
-            # Do NOT print a placeholder command: `<prev>` is shell redirection, not a visible
-            # blank, so a copy-paste yields "bash: prev: No such file or directory" and gcloud
-            # never runs. Send the operator to look the revision up instead.
+            # No single 100% predecessor was recorded (split traffic, first deploy, or the
+            # describe failed). Do NOT print a placeholder command: `<prev>` is shell
+            # redirection, not a visible blank, so a copy-paste yields "bash: prev: No such
+            # file or directory" and gcloud never runs. Send the operator to look the revision
+            # up instead.
             echo "::error::No single known-good predecessor was recorded before this deploy."
             echo "::error::Find the revision to pin to, then pin it deliberately:"
-            echo "::error::  gcloud run revisions list --service lingolinq-web --region ${{ vars.GCP_REGION }} --sort-by=~metadata.creationTimestamp"
-            echo "::error::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --to-revisions <that-revision>=100"
+            echo "::error::  gcloud run revisions list --service $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --sort-by=~metadata.creationTimestamp"
+            echo "::error::  gcloud run services update-traffic $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --to-revisions <that-revision>=100"
           fi
           echo "::error::To diagnose the failed revision WITHOUT exposing it publicly:"
-          echo "::error::  gcloud run revisions describe $CANDIDATE_REV --region ${{ vars.GCP_REGION }}"
-          echo "::error::  gcloud logging read 'resource.labels.revision_name=\"$CANDIDATE_REV\"' --freshness=1h --limit=100"
+          echo "::error::  gcloud run revisions describe $CANDIDATE_REV --project $GCP_PROJECT_ID --region $GCP_REGION"
+          echo "::error::  gcloud logging read 'resource.labels.revision_name=\"$CANDIDATE_REV\"' --project $GCP_PROJECT_ID --freshness=1h --limit=100"
           echo "::error::Do NOT re-tag it to reach it over HTTP. A tag is a stable public"
-          echo "::error::unauthenticated URL onto the production database, outside the load balancer"
+          echo "::error::unauthenticated URL onto the database, outside the load balancer"
           echo "::error::and Cloud Armor. Removing it is why this step stripped the tag above."
           echo "::error::To roll FORWARD, push a fixed commit and let this workflow verify it."
           exit 1
@@ -620,7 +867,7 @@ jobs:
       # immutable name. Do NOT use --to-latest here, for two reasons found in review:
       #   1. Cloud Run resolves LATEST to the newest READY revision at the moment the command
       #      runs, which is not necessarily the revision that just passed the probe. A
-      #      concurrent manual deploy would send all production traffic to an unprobed image.
+      #      concurrent manual deploy would send all traffic to an unprobed image.
       #   2. --to-latest silently REVERSES a human incident rollback. After someone pins to a
       #      known-good revision, a redeploy of the same bad SHA would pass this probe (it is a
       #      boot smoke test and cannot see a functional bug) and restore the bad revision.
@@ -631,14 +878,15 @@ jobs:
       # The candidate tag is removed in the same call, so no unauthenticated candidate---* URL
       # outlives the release.
       - name: Shift traffic to the verified revision
+        if: steps.guard.outputs.enabled == 'true'
         run: |
           set -euo pipefail
           if [ -z "${CANDIDATE_REV:-}" ]; then
             echo "::error::CANDIDATE_REV is unset; refusing to shift traffic."
             exit 1
           fi
-          gcloud run services update-traffic lingolinq-web \
-            --region "${{ vars.GCP_REGION }}" \
+          gcloud run services update-traffic "$WEB_SERVICE" \
+            --region "$GCP_REGION" \
             --to-revisions "$CANDIDATE_REV=100" \
             --remove-tags candidate
           # Read back who is serving. This read is LOAD-BEARING (it is the assert), so it is
@@ -649,8 +897,8 @@ jobs:
           SERVING=""
           DESCRIBE_OK=1
           for attempt in 1 2 3; do
-            if SERVING="$(gcloud run services describe lingolinq-web \
-                 --region "${{ vars.GCP_REGION }}" --format=json 2>/dev/null \
+            if SERVING="$(gcloud run services describe "$WEB_SERVICE" \
+                 --region "$GCP_REGION" --format=json 2>/dev/null \
                  | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"; then
               DESCRIBE_OK=0
               break
@@ -662,14 +910,14 @@ jobs:
             echo "::error::Could not read back the traffic allocation after the shift (3 attempts)."
             echo "::error::The shift command itself SUCCEEDED, so traffic is most likely on $CANDIDATE_REV,"
             echo "::error::but that is unverified. The worker pool has NOT been replaced. Confirm with:"
-            echo "::error::  gcloud run services describe lingolinq-web --region ${{ vars.GCP_REGION }} --format='value(status.traffic)'"
+            echo "::error::  gcloud run services describe $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --format='value(status.traffic)'"
             exit 1
           fi
           if [ "$SERVING" != "$CANDIDATE_REV" ]; then
             echo "::error::Traffic shift did not land where expected."
             echo "::error::  probed and intended: $CANDIDATE_REV"
             echo "::error::  actually serving:    ${SERVING:-<none, or a split with no 100% target>}"
-            echo "::error::Production may be serving an unverified revision. Investigate before proceeding."
+            echo "::error::$ENV_NAME may be serving an unverified revision. Investigate before proceeding."
             exit 1
           fi
           echo "Now serving: $SERVING (was: ${PREV_REVISION:-<unknown>})"
@@ -679,34 +927,64 @@ jobs:
           # reported as a failed read rather than silently collapsing to "no tag" -- otherwise
           # the one case this exists to report is the one case it cannot report.
           REMAINING_TAG=""
-          if ! REMAINING_TAG="$(gcloud run services describe lingolinq-web \
-               --region "${{ vars.GCP_REGION }}" --format=json 2>/dev/null \
+          if ! REMAINING_TAG="$(gcloud run services describe "$WEB_SERVICE" \
+               --region "$GCP_REGION" --format=json 2>/dev/null \
                | jq -r '[.status.traffic[] | select(.tag == "candidate")] | length')"; then
             REMAINING_TAG=""
           fi
           if [ -z "$REMAINING_TAG" ]; then
             echo "::warning::Could not verify that the candidate tag was removed. Check by hand:"
-            echo "::warning::  gcloud run services describe lingolinq-web --region ${{ vars.GCP_REGION }} --format='value(status.traffic)'"
+            echo "::warning::  gcloud run services describe $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --format='value(status.traffic)'"
           elif [ "$REMAINING_TAG" != "0" ]; then
-            echo "::warning::A candidate tag is still present on lingolinq-web. Remove it by hand:"
-            echo "::warning::  gcloud run services update-traffic lingolinq-web --region ${{ vars.GCP_REGION }} --remove-tags candidate"
+            echo "::warning::A candidate tag is still present on $WEB_SERVICE. Remove it by hand:"
+            echo "::warning::  gcloud run services update-traffic $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --remove-tags candidate"
           fi
 
+      # DEPLOY_WORKER gate (see header). Runs ONLY after the traffic shift above succeeded, so a
+      # failed web rollout never leaves new workers dequeuing against old web code. Dev skips
+      # this entirely: staging's worker serves the shared nonprod Redis for both.
       - name: Deploy worker pool
+        if: steps.guard.outputs.enabled == 'true' && steps.guard.outputs.deploy_worker == 'true'
         run: |
-          gcloud beta run worker-pools deploy lingolinq-worker \
+          gcloud beta run worker-pools deploy "$WORKER_POOL" \
             --image "$IMAGE" \
-            --region "${{ vars.GCP_REGION }}" \
-            --service-account "lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --region "$GCP_REGION" \
+            --service-account "$RUNTIME_SA" \
             --instances 1 \
             --memory 2Gi \
             --command bin/docker-worker-entrypoint \
-            --set-cloudsql-instances "${{ vars.GCP_CLOUDSQL_INSTANCE }}" \
-            --network "${{ vars.GCP_VPC_NETWORK }}" \
-            --subnet "${{ vars.GCP_VPC_SUBNET }}" \
+            --set-cloudsql-instances "$GCP_CLOUDSQL_INSTANCE" \
+            --network "$GCP_VPC_NETWORK" \
+            --subnet "$GCP_VPC_SUBNET" \
             --vpc-egress private-ranges-only \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
             --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS"
+
+      - name: Skip worker pool (DEPLOY_WORKER is not 'true')
+        if: steps.guard.outputs.enabled == 'true' && steps.guard.outputs.deploy_worker != 'true'
+        run: echo "::notice::DEPLOY_WORKER is not 'true' in environment '$ENV_NAME'; worker pool '$WORKER_POOL' and scheduler Job '$SCHEDULER_JOB' were not touched (shared-worker environment)."
+
+      # Scheduler Job: the Cloud Scheduler-driven `rake scheduler:dispatch` (production's
+      # lingolinq-scheduler was created 2026-09-02 by cloning lingolinq-migrate with args
+      # `exec rake scheduler:dispatch`). It runs application code and enqueues Resque jobs, so it
+      # belongs in the same expand-contract window as the worker and is updated AFTER the worker
+      # pool, gated on the same DEPLOY_WORKER var. IMAGE ONLY: `gcloud run jobs update --image`
+      # leaves the Job's command/args/env/secrets/VPC config exactly as the clone set them; this
+      # workflow does not own that config. If the Job does not exist in this environment, print
+      # a notice and move on -- creating it is a deliberate one-time operator action, not a deploy
+      # side effect.
+      - name: Update scheduler Job image (if the Job exists)
+        if: steps.guard.outputs.enabled == 'true' && steps.guard.outputs.deploy_worker == 'true'
+        run: |
+          set -euo pipefail
+          if gcloud run jobs describe "$SCHEDULER_JOB" --region "$GCP_REGION" --format='value(metadata.name)' >/dev/null 2>&1; then
+            gcloud run jobs update "$SCHEDULER_JOB" \
+              --region "$GCP_REGION" \
+              --image "$IMAGE"
+            echo "Scheduler Job $SCHEDULER_JOB now runs $IMAGE."
+          else
+            echo "::notice::Cloud Run Job '$SCHEDULER_JOB' does not exist in $GCP_PROJECT_ID/$GCP_REGION; skipping the scheduler image update. Create it by cloning $MIGRATE_JOB with args 'exec rake scheduler:dispatch' if this environment needs one."
+          fi
 
       # Read back what actually landed. The "verify secrets are seeded" step above proves the
       # secrets EXIST in Secret Manager before deploying; it cannot prove the deployed revision
@@ -731,12 +1009,22 @@ jobs:
       # lints-a-constant-against-itself defect, relocated. The account is already a plaintext
       # literal in APP_ENV_VARS_STATIC above, so naming it here costs nothing. On an account
       # migration, both lines change together, which is the intended coupling.
+      # The worker pool is included ONLY when this environment deployed one (DEPLOY_WORKER);
+      # scripts/gcp/assert-runtime-secrets.sh accepts --service alone.
       - name: Assert deployed secrets landed
+        if: steps.guard.outputs.enabled == 'true'
+        env:
+          DEPLOY_WORKER_EFFECTIVE: ${{ steps.guard.outputs.deploy_worker }}
         run: |
+          set -euo pipefail
+          worker_args=()
+          if [ "$DEPLOY_WORKER_EFFECTIVE" = "true" ]; then
+            worker_args=(--worker-pool "$WORKER_POOL")
+          fi
           bash scripts/gcp/assert-runtime-secrets.sh \
-            --project "${{ vars.GCP_PROJECT_ID }}" \
-            --region "${{ vars.GCP_REGION }}" \
-            --service lingolinq-web \
-            --worker-pool lingolinq-worker \
+            --project "$GCP_PROJECT_ID" \
+            --region "$GCP_REGION" \
+            --service "$WEB_SERVICE" \
+            "${worker_args[@]}" \
             --required "$BOOT_SECRETS,$NON_BOOT_SECRETS" \
             --required-literal 'BEDROCK_EXPECTED_AWS_ACCOUNT=^239044785114$'
