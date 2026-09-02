@@ -45,6 +45,10 @@ class BoardSetCopier
       @user.instance_variable_set('@already_updating_available_boards', true)
 
       phase1_started = Time.now
+      # Counts boards this loop has PROCESSED, for the progress percentage below. Deliberately
+      # not derived from @mapper.size: the mapper is a link-rewriting index, not a progress
+      # counter, and it gains a second key for every shallow board (:88-90 below).
+      cloned = 0
       Board.find_batches_by_global_id(board_ids, batch_size: 15) do |orig|
         next if @mapper.key?(orig.global_id)
 
@@ -54,16 +58,19 @@ class BoardSetCopier
         # indeterminate bar for its whole duration. Phase 1 (cloning boards) owns 0.02-0.75 and
         # phase 2 (relinking) the rest; the split is by measured cost -- the [copy_perf] logs
         # below time both, and cloning dominates.
-        # `total` counts DOWNSTREAM boards only, while @mapper is pre-seeded with the starting
-        # board before this loop -- so completed-so-far is `@mapper.size - 1`, not @mapper.size.
-        # Without the -1 a single-board set reports 1/1 and the bar opens at 75%, which a
-        # mutation test caught. Clamped at both ends so a re-entrant or partially-seeded mapper
-        # cannot drive it negative or past the phase ceiling.
-        # Guarded on total > 0 because a copy with no downstream boards divides by zero.
+        # Reports work completed BEFORE this board, so the first sample is the 0.02 floor and
+        # the last is 0.02 + 0.73*(n-1)/n; the move to 0.75 itself belongs to phase 2.
+        # `cloned` is incremented just below rather than here, and counts every board the loop
+        # reaches past the dedupe guard -- including one skipped for permissions, which still
+        # represents work the user is waiting through.
+        # `total` counts requested downstream ids while `cloned` counts iterations, and the
+        # batcher can yield a different number of records than ids requested, so the ratio is
+        # clamped.
         if total > 0
-          done = [[@mapper.size - 1, 0].max, total].min
+          done = [cloned, total].min
           Progress.update_current_progress(0.02 + (0.73 * (done.to_f / total.to_f)), :copying_boards)
         end
+        cloned += 1
 
         if !orig.allows?(@user, +'view') && !orig.allows?(@auth_user, +'view')
           # Permission denied, skip (mirrors relinking.rb:432-433)
