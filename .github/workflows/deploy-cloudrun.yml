@@ -5,7 +5,15 @@ name: Deploy to Cloud Run
 # ENVIRONMENT MAPPING (the `resolve` job, fail-closed):
 #   refs/heads/main     -> GitHub environment `production` -> project from that environment's vars,
 #                          UNSUFFIXED resource names (lingolinq-web, lingolinq-worker,
-#                          lingolinq-migrate, lingolinq-scheduler). Nothing about prod changed.
+#                          lingolinq-migrate, lingolinq-scheduler). Prod RESOURCE NAMES are
+#                          unchanged. Prod BEHAVIOUR changed in exactly three ways, stated for
+#                          the approver: (1) five runtime values (buckets, CDN, Sentry env,
+#                          REMOTE_EXTRA_DATA) moved from literals in this file to the
+#                          `production` environment's APP_* variables, all REQUIRED there
+#                          (fail closed when blank); (2) the worker-pool deploy is gated on
+#                          DEPLOY_WORKER, which production REQUIRES to be 'true' (fail closed);
+#                          (3) `--no-traffic` is skipped only on a genuine NOT_FOUND first deploy,
+#                          never on an existing service.
 #   refs/heads/staging  -> GitHub environment `staging`    -> `-staging` suffix on every resource.
 #   refs/heads/develop  -> GitHub environment `dev`        -> `-dev` suffix on every resource.
 #   anything else       -> no environment, deploy job SKIPPED with a notice. This covers a
@@ -57,9 +65,11 @@ name: Deploy to Cloud Run
 #      the note on the `environment:` key below for what actually enforces that.
 #   3. The `resolve` branch map + each project's WIF provider `assertion.ref` condition, so no
 #      other ref can deploy or even mint a deploy token. Production's provider admits only
-#      refs/heads/main; the nonprod provider must admit refs/heads/staging and
-#      refs/heads/develop and nothing else. A ref the map does not know is skipped here, and
-#      a ref the provider does not know cannot authenticate even if this file were edited.
+#      refs/heads/main (ref_type branch); the nonprod provider admits refs/heads/staging and
+#      refs/heads/develop (ref_type branch) and nothing else -- both verified live 2026-09-02
+#      (the nonprod condition was added that day; before it the provider was repo-locked
+#      only). A ref the map does not know is skipped here, and a ref the provider does not
+#      know cannot authenticate even if this file were edited.
 #   4. The candidate rollout: the new revision takes NO user traffic until it has answered
 #      two consecutive health probes on its own tagged URL, and traffic is then pinned to
 #      that exact verified revision by name.
@@ -135,7 +145,11 @@ name: Deploy to Cloud Run
 #
 # Pipeline (when enabled): build image -> push to Artifact Registry -> run DB migration as a
 # dedicated Cloud Run Job (gen2 + Cloud SQL) -> deploy web service -> (DEPLOY_WORKER only)
-# deploy worker pool -> (DEPLOY_WORKER only) update scheduler Job image.
+# deploy worker pool -> (DEPLOY_WORKER only) deploy scheduler Job (create-or-update, full config).
+#
+# MERGE-TIME NOTE for the change that introduced per-database concurrency groups: a run still
+# queued or awaiting approval under the OLD group name `deploy-cloudrun` is not serialized
+# against the first run under the new names. Merge only when no deploy-cloudrun run is pending.
 #
 # ---------------------------------------------------------------------------------------
 # ENVIRONMENT VARIABLES each GitHub environment must define
@@ -154,14 +168,17 @@ name: Deploy to Cloud Run
 #   GCP_VPC_NETWORK        -- VPC network for Direct VPC egress (Memorystore Redis reachability)
 #   GCP_VPC_SUBNET         -- VPC subnet for Direct VPC egress
 #   DEPLOY_WORKER          -- 'true' to deploy the worker pool + update the scheduler Job
-#                             (production, staging); anything else skips both (dev)
+#                             (production, staging); anything else skips both (dev). Production
+#                             REQUIRES 'true' and fails closed on anything else.
 #   APP_UPLOADS_S3_BUCKET  -- REQUIRED. S3 bucket for user uploads
 #   APP_STATIC_S3_BUCKET   -- REQUIRED. S3 bucket for static/system assets
 #   APP_SENTRY_ENVIRONMENT -- REQUIRED. Sentry environment label
-#   APP_UPLOADS_S3_CDN     -- optional. CloudFront origin fronting the uploads bucket; omitted when blank
+#   APP_UPLOADS_S3_CDN     -- optional in nonprod, REQUIRED in production. CloudFront origin fronting the
+#                             uploads bucket; omitted when blank
 #   APP_REDIS_NAMESPACE_SUFFIX -- optional. Resque namespace suffix; omitted when blank (prod blank).
 #                             Staging and dev MUST share one value: one worker drains both.
-#   APP_REMOTE_EXTRA_DATA  -- optional. '1' enables detach-to-S3 for big button sets; omitted when blank
+#   APP_REMOTE_EXTRA_DATA  -- optional in nonprod, REQUIRED in production. '1' enables detach-to-S3 for big
+#                             button sets; omitted when blank
 #   APP_DEFAULT_HOST       -- optional. Overrides the Secret Manager DEFAULT_HOST at BUILD time only
 #                             (window.default_host in the compiled frontend). Dev needs this because
 #                             it shares staging's secrets but must be built for dev.lingolinq.com.
@@ -295,6 +312,8 @@ jobs:
       GCP_CLOUDSQL_INSTANCE: ${{ vars.GCP_CLOUDSQL_INSTANCE }}
       GCP_VPC_NETWORK: ${{ vars.GCP_VPC_NETWORK }}
       GCP_VPC_SUBNET: ${{ vars.GCP_VPC_SUBNET }}
+      GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+      GCP_DEPLOY_SA: ${{ vars.GCP_DEPLOY_SA }}
       RUNTIME_SA: lingolinq-run@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com
       IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/lingolinq/web:${{ github.sha }}
       # Boot-mandatory secret set. Any `rake environment` / puma boot of this app in
@@ -440,10 +459,31 @@ jobs:
             echo "::error::Most likely the '$ENV_NAME' GitHub environment is missing its own GCP_* variables and fell through to repository-level ones. Fix the environment; do not edit this check."
             exit 1
           fi
-          for v in GCP_REGION GCP_CLOUDSQL_INSTANCE GCP_VPC_NETWORK GCP_VPC_SUBNET; do
+          for v in GCP_REGION GCP_CLOUDSQL_INSTANCE GCP_VPC_NETWORK GCP_VPC_SUBNET GCP_WIF_PROVIDER GCP_DEPLOY_SA; do
             [ -n "${!v:-}" ] || { echo "::error::$v is not set in GitHub environment '$ENV_NAME'."; exit 1; }
           done
+          # The deploy identity must live in the same project as the target. A nonprod environment
+          # that fell through to production's WIF provider or deploy SA would otherwise only be
+          # stopped by prod's provider rejecting the ref, which is a control in another system.
+          if [ "$ENV_NAME" != "production" ]; then
+            case "$GCP_WIF_PROVIDER$GCP_DEPLOY_SA" in
+              *549902645644*|*lingolinq-prod*)
+                echo "::error::Environment '$ENV_NAME' resolved a PRODUCTION deploy identity (GCP_WIF_PROVIDER/GCP_DEPLOY_SA). Fix the environment's variables; refusing to authenticate."
+                exit 1 ;;
+            esac
+          fi
+          case "$GCP_DEPLOY_SA" in
+            *"@${GCP_PROJECT_ID}.iam.gserviceaccount.com") ;;
+            *) echo "::error::GCP_DEPLOY_SA '$GCP_DEPLOY_SA' is not a service account in project '$GCP_PROJECT_ID'."; exit 1 ;;
+          esac
           echo "Environment '$ENV_NAME' -> project '$GCP_PROJECT_ID' ($GCP_REGION); web=$WEB_SERVICE migrate=$MIGRATE_JOB"
+          # Production MUST move its worker pool and scheduler in the same release (expand-contract
+          # assumes it). A missing, renamed, or mis-cased DEPLOY_WORKER in the production
+          # environment is a configuration error, not a request to skip the worker: fail closed.
+          if [ "$ENV_NAME" = "production" ] && [ "${DEPLOY_WORKER:-}" != "true" ]; then
+            echo "::error::DEPLOY_WORKER is '${DEPLOY_WORKER:-<unset>}' in the production environment; it must be exactly 'true'. Refusing to ship web without the worker pool."
+            exit 1
+          fi
           if [ "${DEPLOY_WORKER:-}" = "true" ]; then
             echo "DEPLOY_WORKER=true: worker pool '$WORKER_POOL' and scheduler Job '$SCHEDULER_JOB' will be updated after the traffic shift."
             echo "deploy_worker=true" >> "$GITHUB_OUTPUT"
@@ -479,8 +519,8 @@ jobs:
         uses: google-github-actions/auth@v3
         with:
           project_id: ${{ vars.GCP_PROJECT_ID }}
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_DEPLOY_SA }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_DEPLOY_SA }}
 
       - name: Set up Cloud SDK
         if: steps.guard.outputs.enabled == 'true'
@@ -581,11 +621,33 @@ jobs:
           [ -n "${V_UPLOADS_S3_BUCKET:-}" ]  || missing_vars="$missing_vars APP_UPLOADS_S3_BUCKET"
           [ -n "${V_STATIC_S3_BUCKET:-}" ]   || missing_vars="$missing_vars APP_STATIC_S3_BUCKET"
           [ -n "${V_SENTRY_ENVIRONMENT:-}" ] || missing_vars="$missing_vars APP_SENTRY_ENVIRONMENT"
+          # In production these two are not optional: UPLOADS_S3_CDN is what the URL-keyed Ember
+          # offline cache depends on, and REMOTE_EXTRA_DATA unset is the exact state that zeroed
+          # 1754 of 2061 button sets (PR #724, see the header). A blank value in the production
+          # environment is a configuration error, never an intended omission.
+          if [ "$ENV_NAME" = "production" ]; then
+            [ -n "${V_UPLOADS_S3_CDN:-}" ]    || missing_vars="$missing_vars APP_UPLOADS_S3_CDN"
+            [ -n "${V_REMOTE_EXTRA_DATA:-}" ] || missing_vars="$missing_vars APP_REMOTE_EXTRA_DATA"
+          fi
           if [ -n "$missing_vars" ]; then
             echo "::error::Required environment variable(s) blank in GitHub environment '$ENV_NAME':$missing_vars"
             echo "Set them under Settings > Environments > $ENV_NAME > Environment variables."
             exit 1
           fi
+          # Shape check: these values are concatenated into a comma-delimited --set-env-vars list and
+          # written to GITHUB_ENV. A comma would split into bogus env vars; whitespace or a newline
+          # would inject entries into every later step. Only admins can set them, so this is blast
+          # radius control, not privilege escalation -- but it is cheap and fails before any deploy.
+          for pair in "APP_UPLOADS_S3_BUCKET=$V_UPLOADS_S3_BUCKET" "APP_STATIC_S3_BUCKET=$V_STATIC_S3_BUCKET" \
+                      "APP_UPLOADS_S3_CDN=${V_UPLOADS_S3_CDN:-}" "APP_SENTRY_ENVIRONMENT=$V_SENTRY_ENVIRONMENT" \
+                      "APP_REDIS_NAMESPACE_SUFFIX=${V_REDIS_NAMESPACE_SUFFIX:-}" "APP_REMOTE_EXTRA_DATA=${V_REMOTE_EXTRA_DATA:-}" \
+                      "STRIPE_PUBLIC_KEY=${V_STRIPE_PUBLIC_KEY:-}" "NEW_REGISTRATION_EMAIL=${V_NEW_REGISTRATION_EMAIL:-}"; do
+            val="${pair#*=}"
+            if printf '%s' "$val" | grep -qE '[,[:space:]]'; then
+              echo "::error::GitHub variable ${pair%%=*} in environment '$ENV_NAME' contains a comma or whitespace; refusing to build the runtime env from it."
+              exit 1
+            fi
+          done
           ev="$APP_ENV_VARS_STATIC"
           ev="$ev,UPLOADS_S3_BUCKET=$V_UPLOADS_S3_BUCKET"
           ev="$ev,STATIC_S3_BUCKET=$V_STATIC_S3_BUCKET"
@@ -703,16 +765,25 @@ jobs:
           set -euo pipefail
           FIRST_DEPLOY=false
           PREV=""
+          # Only a genuine NOT_FOUND may become FIRST_DEPLOY. Any other describe failure (API 5xx,
+          # rate limit, expired token, IAM blip) must fail the run here: treating it as a first
+          # deploy would drop --no-traffic on an EXISTING service and, if latestRevision were
+          # ever restored by a manual --to-latest, move live traffic to an unprobed revision.
+          DESCRIBE_ERR="$RUNNER_TEMP/describe.err"
           if SVC_JSON="$(gcloud run services describe "$WEB_SERVICE" \
-                --region "$GCP_REGION" --format=json 2>/dev/null)"; then
+                --region "$GCP_REGION" --format=json 2>"$DESCRIBE_ERR")"; then
             PREV="$(printf '%s' "$SVC_JSON" \
               | jq -r '[.status.traffic[] | select(.percent == 100) | .revisionName][0] // empty')"
             if [ -z "$PREV" ]; then
               echo "::warning::Could not determine a single 100% traffic revision; rollback hints will be omitted."
             fi
-          else
+          elif grep -qiE 'NOT_FOUND|Cannot find service|could not be found|does not exist' "$DESCRIBE_ERR"; then
             FIRST_DEPLOY=true
             echo "::notice::Service $WEB_SERVICE does not exist yet in $GCP_PROJECT_ID/$GCP_REGION; this is its first deploy."
+          else
+            echo "::error::gcloud run services describe $WEB_SERVICE failed for a reason other than NOT_FOUND. Not treating this as a first deploy."
+            cat "$DESCRIBE_ERR" >&2
+            exit 1
           fi
           echo "PREV_REVISION=$PREV" >> "$GITHUB_ENV"
           echo "FIRST_DEPLOY=$FIRST_DEPLOY" >> "$GITHUB_ENV"
@@ -965,26 +1036,54 @@ jobs:
         run: echo "::notice::DEPLOY_WORKER is not 'true' in environment '$ENV_NAME'; worker pool '$WORKER_POOL' and scheduler Job '$SCHEDULER_JOB' were not touched (shared-worker environment)."
 
       # Scheduler Job: the Cloud Scheduler-driven `rake scheduler:dispatch` (production's
-      # lingolinq-scheduler was created 2026-09-02 by cloning lingolinq-migrate with args
-      # `exec rake scheduler:dispatch`). It runs application code and enqueues Resque jobs, so it
-      # belongs in the same expand-contract window as the worker and is updated AFTER the worker
-      # pool, gated on the same DEPLOY_WORKER var. IMAGE ONLY: `gcloud run jobs update --image`
-      # leaves the Job's command/args/env/secrets/VPC config exactly as the clone set them; this
-      # workflow does not own that config. If the Job does not exist in this environment, print
-      # a notice and move on -- creating it is a deliberate one-time operator action, not a deploy
-      # side effect.
-      - name: Update scheduler Job image (if the Job exists)
+      # lingolinq-scheduler was first created 2026-09-02 by cloning lingolinq-migrate; the Render
+      # cron it replaces had no GCP equivalent between the 2026-07-22 cutover and that date). It
+      # runs application code (log summaries, remote log push, goal advancement, the daily
+      # retention purges) and enqueues Resque jobs, so it is a THIRD expand-contract surface next
+      # to web and worker and is deployed AFTER the worker pool, gated on the same DEPLOY_WORKER
+      # var. This workflow OWNS the Job's config: `gcloud run jobs deploy` creates or updates it
+      # with the same runtime SA, Cloud SQL + VPC wiring, plain env, and FULL secret set
+      # (boot + non-boot) as the web service, so a scheduler task that touches S3 or SES has the
+      # credentials it needs and a hand-edited Job cannot drift for long. The Cloud Scheduler
+      # TRIGGER (`0 * * * *` -> jobs/<name>:run, OAuth as scheduler-invoker@<project>) is the one
+      # piece still created by an operator; without it the Job exists but never fires.
+      # --task-timeout 3000s (50 min) keeps one dispatch inside its hourly slot.
+      - name: Deploy scheduler Job (create or update)
         if: steps.guard.outputs.enabled == 'true' && steps.guard.outputs.deploy_worker == 'true'
         run: |
           set -euo pipefail
-          if gcloud run jobs describe "$SCHEDULER_JOB" --region "$GCP_REGION" --format='value(metadata.name)' >/dev/null 2>&1; then
-            gcloud run jobs update "$SCHEDULER_JOB" \
-              --region "$GCP_REGION" \
-              --image "$IMAGE"
-            echo "Scheduler Job $SCHEDULER_JOB now runs $IMAGE."
-          else
-            echo "::notice::Cloud Run Job '$SCHEDULER_JOB' does not exist in $GCP_PROJECT_ID/$GCP_REGION; skipping the scheduler image update. Create it by cloning $MIGRATE_JOB with args 'exec rake scheduler:dispatch' if this environment needs one."
+          gcloud run jobs deploy "$SCHEDULER_JOB" \
+            --image "$IMAGE" \
+            --region "$GCP_REGION" \
+            --service-account "$RUNTIME_SA" \
+            --execution-environment gen2 \
+            --set-cloudsql-instances "$GCP_CLOUDSQL_INSTANCE" \
+            --network "$GCP_VPC_NETWORK" \
+            --subnet "$GCP_VPC_SUBNET" \
+            --vpc-egress private-ranges-only \
+            --command bundle \
+            --args exec,rake,scheduler:dispatch \
+            --tasks 1 \
+            --max-retries 0 \
+            --task-timeout 3000s \
+            --cpu 1 \
+            --memory 1Gi \
+            --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
+            --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS"
+          # Read back what landed on the Job (assert-runtime-secrets.sh covers services and worker
+          # pools only): every required secret must be present AND backed by a secretKeyRef.
+          missing=""
+          landed="$(gcloud run jobs describe "$SCHEDULER_JOB" --region "$GCP_REGION" --format=json \
+            | jq -r '.spec.template.spec.template.spec.containers[0].env[] | select(.valueFrom.secretKeyRef != null) | .name')"
+          for pair in $(printf '%s,%s' "$BOOT_SECRETS" "$NON_BOOT_SECRETS" | tr ',' ' '); do
+            name="${pair%%=*}"
+            printf '%s\n' "$landed" | grep -qx "$name" || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Scheduler Job $SCHEDULER_JOB is missing secret-backed env:$missing"
+            exit 1
           fi
+          echo "Scheduler Job $SCHEDULER_JOB runs $IMAGE with $(printf '%s\n' "$landed" | grep -c .) secret-backed env vars."
 
       # Read back what actually landed. The "verify secrets are seeded" step above proves the
       # secrets EXIST in Secret Manager before deploying; it cannot prove the deployed revision
