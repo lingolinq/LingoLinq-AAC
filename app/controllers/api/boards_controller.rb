@@ -697,6 +697,9 @@ class Api::BoardsController < ApplicationController
     if FeatureFlags.feature_enabled_for?('english_first_board_generation', @api_user)
       locale = board_params['locale'].to_s
       translations = board_params['translations']
+      # Create-board-new sends both locales in translations when the user
+      # authored in a non-English language. Keep that locale. Only rewrite
+      # to English when the payload has no translations (legacy clients).
       if locale.present? && !locale.match?(/^en/i) && translations.blank?
         board_params['locale'] = 'en'
       end
