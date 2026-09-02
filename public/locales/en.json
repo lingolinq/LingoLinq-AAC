@@ -4846,6 +4846,7 @@
   "columns_first_short": "Columns, top to bottom",
   "locale": "Language",
   "english_first_board_hint": "Boards are created in English first for accurate symbol colors. You can translate after saving.",
+  "create_board_locale_english_lookup_hint": "Create in your language. Symbols and colors are matched using English in the background.",
   "icon_for_your_board": "Icon for your Board",
   "primary_navigation": "Primary Navigation",
   "more_tools": "More Tools & Resources",

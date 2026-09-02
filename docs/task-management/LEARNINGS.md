@@ -26,6 +26,8 @@ file (see [README.md](README.md)).
 - [Gotcha: Spanish pronoun lookup must register subject keys before slot values](#gotcha-spanish-pronoun-lookup-must-register-subject-keys-before-slot-values)
 - [Pattern: Spanish inflections sidebar board uses `:es-*` actions, not translated English suffixes](#pattern-spanish-inflections-sidebar-board-uses-es--actions-not-translated-english-suffixes)
 - [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
+- [Pattern: user create boards author in the communicator language, look up symbols in English](#pattern-user-create-boards-author-in-the-communicator-language-look-up-symbols-in-english)
+- [Gotcha: assigning `persistence.ajax = fn` does not stub the Ember helper — use `stub()`](#gotcha-assigning-persistenceajax--fn-does-not-stub-the-ember-helper--use-stub)
 - [Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one](#gotcha-source_part_of_speech-is-not-a-locale--process_buttons-500s-if-treated-as-one)
 - [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
 - [Gotcha: dotenv leaves op:// refs in ENV — present? is not injected](#gotcha-dotenv-leaves-op-refs-in-env--present-is-not-injected)
@@ -3993,6 +3995,24 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 **Fix recipe:** Keep English Quick Core / Vocal Flair as canonical on `lingolinq/*`; `copy_for` → `WordData.translate_batch` → `translate_set` into `*-es` slugs so `image_id` is preserved. Provision with `rake lingolinq:provision_spanish_library_boards`; gate signup copies with `FeatureFlags.signup_spanish_library_boards_enabled?`.
 
 **Evidence:** `lib/spanish_library_boards.rb`, `lib/system_board_sources.rb`, `lib/user_board_provisioner.rb`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Pattern: user create boards author in the communicator language, look up symbols in English
+
+**Symptom:** A Spanish user creating a board either sees English labels (`english_first_board_generation` forced `locale=en`) or types Spanish and gets no symbols (OpenSymbols miss).
+
+**Fix recipe:** Keep visible labels in the authoring locale. Batch-translate to English via `POST /api/v1/users/self/translate`, search `/search/symbols` and `batch_parts_of_speech` with the English words, cache results under the Spanish key. Save one board with `locale` = authoring language and `translations` containing both `es` and `en`. Do not open `translation-select` after save. The create-time rewrite of locale to `en` in `boards_controller#create` is skipped when translations are present.
+
+**Evidence:** `app/frontend/app/components/create-board-new.js` (`_lookup_label_english`, `_lookup_label_images_with_english`, `_build_authoring_translations`); task log `2026-09-01-create-board-bilingual-labels.md`.
+
+---
+
+## Gotcha: assigning `persistence.ajax = fn` does not stub the Ember helper — use `stub()`
+
+`persistence` is an EmberObject whose `ajax` is also mirrored onto the test helper. `persistence.ajax = function() { ... }` does not replace the method the component actually calls, so lookups hit the real/helper ajax and the test sees identity translations or zero symbol requests. Use `stub(persistence, 'ajax', function(url, opts) { ... })` from `frontend/tests/helpers/jasmine`.
+
+**Evidence:** `app/frontend/tests/components/create-board-new-test.js` bilingual describe; `app/frontend/tests/helpers/jasmine.js` `stub`.
 
 ---
 

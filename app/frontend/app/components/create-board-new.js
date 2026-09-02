@@ -85,9 +85,9 @@ export default Component.extend({
       this.set('model.grid.labels_order', this.stashes.get('new_board_labels_order'));
     }
 
-    // Board vocabulary is always authored in English first so Fitzgerald
-    // key colors and part-of-speech lookup stay accurate; offer translation
-    // after save when the communicator prefers another language.
+    // Author in the communicator's language. english_first_board_generation
+    // means "look up symbols and POS in English, persist English as a
+    // stored locale" — not "make the user type English."
     var preferred_locale = null;
     var locale = ((i18n.langs || {}).preferred || window.navigator.language || 'en').replace(/-/g, '_');
     var pieces = locale.split(/_/);
@@ -104,8 +104,9 @@ export default Component.extend({
       }
     }
     this.set('preferred_communicator_locale', preferred_locale);
+    this.set('_label_english', {});
     if(this.appState.get('feature_flags.english_first_board_generation')) {
-      this.set('model.locale', 'en');
+      this.set('model.locale', preferred_locale || 'en');
     } else if(preferred_locale) {
       this.set('model.locale', preferred_locale);
     }
@@ -1190,6 +1191,201 @@ export default Component.extend({
     return str;
   }),
 
+  /** 2-letter root of the language the user is authoring in. */
+  _authoring_locale_root() {
+    return ((this.get('model.locale') || 'en').split(/_|-/)[0] || 'en').toLowerCase();
+  },
+
+  /** True when we should translate labels to English for symbol/POS
+   *  lookup and persist both locales on save. */
+  _needs_english_lookup() {
+    if(!this.appState.get('feature_flags.english_first_board_generation')) {
+      return false;
+    }
+    return this._authoring_locale_root() !== 'en';
+  },
+
+  /** English string for a cached authoring-language label key, or the
+   *  key itself when we are authoring in English / have no mapping. */
+  _english_for_label(key) {
+    if(!key) { return key; }
+    if(!this._needs_english_lookup()) { return key; }
+    var mapped = (this.get('_label_english') || {})[key];
+    return mapped || key;
+  },
+
+  /** Batch-translate unseen labels to English. Caches identity on
+   *  failure so we do not retry forever. Does not change visible labels. */
+  _lookup_label_english() {
+    var _this = this;
+    if(this.isDestroyed || this.isDestroying) {
+      return RSVP.resolve();
+    }
+    if(!this._needs_english_lookup()) {
+      return RSVP.resolve();
+    }
+    var labels = this.get('parsed_labels') || [];
+    var cached = this.get('_label_english') || {};
+    var seen = {};
+    var to_lookup = [];
+    labels.forEach(function(l) {
+      var key = (l || '').toLowerCase();
+      if(!key || seen[key] || cached.hasOwnProperty(key)) { return; }
+      seen[key] = true;
+      to_lookup.push(key);
+    });
+    if(to_lookup.length === 0) {
+      return RSVP.resolve();
+    }
+    var source = this._authoring_locale_root();
+    var lookup_promise = persistence.ajax('/api/v1/users/self/translate', {
+      type: 'POST',
+      data: {
+        words: to_lookup,
+        source_lang: source,
+        destination_lang: 'en'
+      }
+    }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var trans = (data && data.translations) || {};
+      var next_map = Object.assign({}, _this.get('_label_english') || {});
+      to_lookup.forEach(function(word) {
+        var english = trans[word] || trans[word.toLowerCase()];
+        next_map[word] = (english && String(english).trim()) || word;
+      });
+      _this.set('_label_english', next_map);
+    }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var next_map = Object.assign({}, _this.get('_label_english') || {});
+      to_lookup.forEach(function(word) {
+        next_map[word] = word;
+      });
+      _this.set('_label_english', next_map);
+    });
+    this.set('_label_english_lookup_promise', lookup_promise);
+    lookup_promise.finally(function() {
+      if(!_this.isDestroyed && !_this.isDestroying && _this.get('_label_english_lookup_promise') === lookup_promise) {
+        _this.set('_label_english_lookup_promise', null);
+      }
+    });
+    return lookup_promise;
+  },
+
+  /** Waits for any in-flight English map, then translates remaining labels. */
+  _ensure_label_english() {
+    var _this = this;
+    if(!this._needs_english_lookup()) {
+      return RSVP.resolve();
+    }
+    var pending = this.get('_label_english_lookup_promise');
+    var wait = pending ? RSVP.resolve(pending) : RSVP.resolve();
+    return wait.then(function() {
+      return _this._lookup_label_english();
+    }, function() {
+      return _this._lookup_label_english();
+    });
+  },
+
+  /** Translate the board name to English once, for the translations blob. */
+  _ensure_board_name_english() {
+    var _this = this;
+    if(!this._needs_english_lookup()) {
+      return RSVP.resolve();
+    }
+    var name = (this.get('model.name') || '').trim();
+    if(!name) {
+      return RSVP.resolve();
+    }
+    if(this.get('_board_name_english')) {
+      return RSVP.resolve();
+    }
+    return persistence.ajax('/api/v1/users/self/translate', {
+      type: 'POST',
+      data: {
+        words: [name],
+        source_lang: this._authoring_locale_root(),
+        destination_lang: 'en'
+      }
+    }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      var trans = (data && data.translations) || {};
+      var english = trans[name] || trans[name.toLowerCase()];
+      _this.set('_board_name_english', (english && String(english).trim()) || name);
+    }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      _this.set('_board_name_english', name);
+    });
+  },
+
+  /** When creating for a supervisee, use their locale if the list already
+   *  carries one. Otherwise leave the current authoring locale in place. */
+  _apply_supervisee_authoring_locale(userId) {
+    if(!this.appState.get('feature_flags.english_first_board_generation')) {
+      return;
+    }
+    if(!userId || userId === 'self') {
+      this.set('model.locale', this.get('preferred_communicator_locale') || 'en');
+      return;
+    }
+    var supers = this.appState.get('sessionUser.known_supervisees') ||
+      this.appState.get('currentUser.known_supervisees') || [];
+    var match = null;
+    for(var i = 0; i < supers.length; i++) {
+      var s = supers[i];
+      if(s && (s.id === userId || s.user_name === userId)) {
+        match = s;
+        break;
+      }
+    }
+    var loc = match && (match.locale || (match.preferences && match.preferences.locale));
+    if(loc) {
+      this.set('model.locale', loc);
+    }
+  },
+
+  /** Per-button + board-name translations for the authoring locale and English. */
+  _build_authoring_translations(buttons) {
+    if(!this._needs_english_lookup()) {
+      return null;
+    }
+    var list = buttons || [];
+    if(list.length === 0) {
+      return null;
+    }
+    var authoring = this.get('model.locale') || this._authoring_locale_root();
+    var authoringRoot = this._authoring_locale_root();
+    var englishMap = this.get('_label_english') || {};
+    var name = (this.get('model.name') || '').trim();
+    var translations = {
+      default: authoring,
+      current_label: authoring,
+      current_vocalization: authoring,
+      board_name: {}
+    };
+    if(name) {
+      translations.board_name[authoring] = name;
+      translations.board_name[authoringRoot] = name;
+      var englishName = this.get('_board_name_english');
+      if(englishName) {
+        translations.board_name.en = englishName;
+      }
+    }
+    list.forEach(function(btn) {
+      if(!btn || btn.id == null) { return; }
+      var label = btn.label || '';
+      var key = label.toLowerCase();
+      var english = englishMap[key] || label;
+      var entry = {};
+      entry[authoringRoot] = { label: label, vocalization: label };
+      if(authoring !== authoringRoot) {
+        entry[authoring] = { label: label, vocalization: label };
+      }
+      entry.en = { label: english, vocalization: english };
+      translations[String(btn.id)] = entry;
+    });
+    return translations;
+  },
+
   /** Whenever the parsed labels change, schedule a Fitzgerald color
    *  lookup for any unseen labels. Debounced so we don't hit the API on
    *  every keystroke as the user is typing. */
@@ -1202,44 +1398,51 @@ export default Component.extend({
    *  Cached results stay in _label_colors so re-typing the same word is
    *  instant. */
   _lookup_label_colors() {
-    if(this.isDestroyed || this.isDestroying) { return; }
-    var labels = this.get('parsed_labels') || [];
-    var cached = this.get('_label_colors') || {};
-    var seen = {};
-    var to_lookup = [];
-    labels.forEach(function(l) {
-      var key = (l || '').toLowerCase();
-      if(!key || seen[key] || cached.hasOwnProperty(key)) { return; }
-      seen[key] = true;
-      to_lookup.push(key);
-    });
-    if(to_lookup.length === 0) { return; }
     var _this = this;
-    var palette = LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors || [];
-    persistence.ajax('/api/v1/search/batch_parts_of_speech', {
-      type: 'GET',
-      data: { words: to_lookup.join(',') }
-    }).then(function(res) {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    return this._ensure_label_english().then(function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
-      var results = (res && res.results) || {};
-      var next_map = Object.assign({}, _this.get('_label_colors') || {});
-      to_lookup.forEach(function(word) {
-        var data = results[word];
-        var entry = { fill: null, border: null, type: null };
-        if(data && data.types) {
-          var picked = pick_aac_color(data.types, palette, word);
-          if(picked) {
-            entry.fill = picked.color.fill;
-            entry.border = picked.color.border;
-            entry.type = picked.type;
-          }
-        }
-        // Cache even no-match results so we don't re-query the same word.
-        next_map[word] = entry;
+      var labels = _this.get('parsed_labels') || [];
+      var cached = _this.get('_label_colors') || {};
+      var seen = {};
+      var to_lookup = [];
+      labels.forEach(function(l) {
+        var key = (l || '').toLowerCase();
+        if(!key || seen[key] || cached.hasOwnProperty(key)) { return; }
+        seen[key] = true;
+        to_lookup.push(key);
       });
-      _this.set('_label_colors', next_map);
-    }, function() {
-      // Fail silently — preview just stays default-colored.
+      if(to_lookup.length === 0) { return; }
+      var palette = LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors || [];
+      var pos_words = to_lookup.map(function(word) {
+        return _this._english_for_label(word);
+      });
+      persistence.ajax('/api/v1/search/batch_parts_of_speech', {
+        type: 'GET',
+        data: { words: pos_words.join(',') }
+      }).then(function(res) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        var results = (res && res.results) || {};
+        var next_map = Object.assign({}, _this.get('_label_colors') || {});
+        to_lookup.forEach(function(word, idx) {
+          var english = pos_words[idx];
+          var data = results[english] || results[word];
+          var entry = { fill: null, border: null, type: null };
+          if(data && data.types) {
+            var picked = pick_aac_color(data.types, palette, english);
+            if(picked) {
+              entry.fill = picked.color.fill;
+              entry.border = picked.color.border;
+              entry.type = picked.type;
+            }
+          }
+          // Cache even no-match results so we don't re-query the same word.
+          next_map[word] = entry;
+        });
+        _this.set('_label_colors', next_map);
+      }, function() {
+        // Fail silently — preview just stays default-colored.
+      });
     });
   },
 
@@ -1267,6 +1470,23 @@ export default Component.extend({
     if(this.isDestroyed || this.isDestroying) {
       return RSVP.resolve();
     }
+    return this._ensure_label_english().then(function() {
+      if(_this.isDestroyed || _this.isDestroying) {
+        return RSVP.resolve();
+      }
+      return _this._lookup_label_images_with_english();
+    });
+  },
+
+  /** Symbol search after the English map (if any) is ready. Queries
+   *  OpenSymbols with the English word and locale=en, then caches
+   *  under the authoring-language label key so the preview stays
+   *  in the user's language. */
+  _lookup_label_images_with_english() {
+    var _this = this;
+    if(this.isDestroyed || this.isDestroying) {
+      return RSVP.resolve();
+    }
     var labels = this.get('parsed_labels') || [];
     var cached = this.get('_label_images') || {};
     var seen = {};
@@ -1280,7 +1500,7 @@ export default Component.extend({
     if(to_lookup.length === 0) {
       return RSVP.resolve();
     }
-    var locale = (this.get('model.locale') || 'en').split(/_|-/)[0];
+    var search_locale = this._needs_english_lookup() ? 'en' : this._authoring_locale_root();
     // Fire one request per label in parallel — the symbols endpoint is
     // single-word so we can't batch. RSVP.allSettled lets a single
     // 404/timeout not block the rest. Cap the parallel requests at a
@@ -1299,9 +1519,10 @@ export default Component.extend({
           return;
         }
         var promises = batch.map(function(word) {
+          var query = _this._english_for_label(word);
           return persistence.ajax(
-            '/api/v1/search/symbols?q=' + encodeURIComponent(word) +
-            '&safe=0&locale=' + encodeURIComponent(locale),
+            '/api/v1/search/symbols?q=' + encodeURIComponent(query) +
+            '&safe=0&locale=' + encodeURIComponent(search_locale),
             { type: 'GET' }
           ).then(function(results) {
             var pick = (results && results.length) ? results[0] : null;
@@ -1358,12 +1579,12 @@ export default Component.extend({
       : RSVP.resolve();
     var pending = this.get('_label_images_lookup_promise');
     var wait = pending ? RSVP.resolve(pending) : RSVP.resolve();
-    return wait_uploads.then(function() {
-      return wait.then(function() {
-        return _this._lookup_label_images();
-      }, function() {
-        return _this._lookup_label_images();
-      });
+    return this._ensure_label_english().then(function() {
+      return RSVP.allSettled([wait_uploads, wait, _this._ensure_board_name_english()]);
+    }).then(function() {
+      return _this._lookup_label_images();
+    }, function() {
+      return _this._lookup_label_images();
     });
   },
 
@@ -1395,7 +1616,8 @@ export default Component.extend({
       var i = label_images[k];
       return i && i.image_url;
     });
-    if(has_painted || has_auto || has_images) {
+    var needs_trans = this._needs_english_lookup() && (this.get('parsed_labels') || []).length > 0;
+    if(has_painted || has_auto || has_images || needs_trans) {
       var labels = this.get('parsed_labels') || [];
       var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
       var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
@@ -1460,6 +1682,10 @@ export default Component.extend({
       // don't auto-place" — combined with `buttons.length > 0` it
       // also bypasses the populate_from_labels path.
       this.set('model.grid.order', grid_order);
+      var translations = this._build_authoring_translations(buttons);
+      if(translations) {
+        this.set('model.translations', translations);
+      }
     }
     this.get('model').save().then(function(board) {
       board.set('button_locale', board.get('locale'));
@@ -1489,20 +1715,9 @@ export default Component.extend({
           _this.get('router').transitionTo('board', key);
         }
       };
-      var preferred = _this.get('preferred_communicator_locale');
-      var prefRoot = (preferred || 'en').split(/_|-/)[0];
-      if(_this.appState.get('feature_flags.english_first_board_generation') && preferred && prefRoot !== 'en') {
-        transition();
-        runLater(function() {
-          modalUtil.open('translation-select', {
-            board: board,
-            button_set: board.get('button_set'),
-            translate_locale: preferred
-          });
-        }, 500);
-      } else {
-        transition();
-      }
+      // Both languages are already on the create payload when the user
+      // authored in a non-English locale. Do not open translation-select.
+      transition();
     }, function() {
       _this.set('status', {error: true});
     });
@@ -2105,6 +2320,7 @@ export default Component.extend({
     },
     setForUserId: function(userId) {
       this.set('model.for_user_id', userId);
+      this._apply_supervisee_authoring_locale(userId);
     },
     toggleIncludeCoreWords: function() {
       this.set('include_core_words', !this.get('include_core_words'));
@@ -2115,6 +2331,7 @@ export default Component.extend({
       if(!newValue) {
         // Switching to "No" — board belongs to current user.
         this.set('model.for_user_id', 'self');
+        this._apply_supervisee_authoring_locale('self');
       }
     },
     setVisibility: function(value) {
