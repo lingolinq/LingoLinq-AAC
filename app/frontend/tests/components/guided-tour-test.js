@@ -102,6 +102,9 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
   });
 
   itAsync('holds the tour while the notice is due but not yet open, then runs it once it opens and closes', async function() {
+    // The due cap is not under test here; keep it far above the sleeps so a
+    // stalled headless browser cannot expire it before the notice "opens".
+    component.set('art50_tour_due_max_ms', 2000);
     gatePending = true;
     component._scheduleAutoOpen();
     await sleep(30);
@@ -207,6 +210,37 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     appState.clear_user_state();
     expect(appState.get('auto_open_home_tour')).toEqual(false);
     expect(appState.get('auto_open_home_tour_rearmed_at') || null).toEqual(null);
+  });
+
+  itAsync('passes the gate SUBJECT (not the appState) to sessionEntryGatePending', async function() {
+    var appState = this.owner.lookup('service:app-state');
+    var sentinel = { id: 'sentinel-subject' };
+    var received = [];
+    stub(article50Gate, 'art50Subject', function(state) { received.push({ state: state }); return sentinel; });
+    stub(article50Gate, 'sessionEntryGatePending', function(subject) { received.push({ subject: subject }); return false; });
+    component._scheduleAutoOpen();
+    await untilRuns(500);
+    expect(runs).toEqual(1);
+    expect(received.length).toEqual(2);
+    expect(received[0].state === appState).toEqual(true);
+    expect(received[1].subject === sentinel).toEqual(true);
+  });
+
+  itAsync('when the wait ends, the real _runAutoOpen still hands a communicator with no page tour off to board-picker', async function() {
+    // Back to the prototype implementation (beforeEach replaced it with a counter).
+    delete component._runAutoOpen;
+    var transitions = [];
+    stub(component.get('router'), 'transitionTo', function(name) { transitions.push(name); });
+    expect(component.get('tourBuilder') || null).toEqual(null);
+    expect(component.get('appState.currentUser.supporter_role') || false).toEqual(false);
+    noticeOpen = true;
+    component._scheduleAutoOpen();
+    await sleep(40);
+    expect(transitions).toEqual([]);
+    noticeOpen = false;
+    await sleep(80);
+    expect(transitions).toEqual(['board-picker']);
+    expect(component._autoOpenDeferring).toEqual(false);
   });
 
   itAsync('a second request while one is already waiting does not start a second chain', async function() {
