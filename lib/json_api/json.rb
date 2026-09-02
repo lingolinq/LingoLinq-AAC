@@ -95,9 +95,12 @@ module JsonApi::Json
   # e.g. "www.lingolinq.com". A link built as "#{current_host}/path" against that
   # bare fallback reaches the recipient as "www.lingolinq.com/path" -- a RELATIVE
   # url inside an <a href>, which a mail client resolves against its own base and
-  # cannot follow. That is the failure this method exists to prevent, and it was
-  # observed on the COPPA parental-consent approval link, i.e. the only way to
-  # activate a child's account.
+  # cannot follow. That is the MECHANISM this method exists to prevent, and the
+  # mechanism is verified. It was REPORTED AS having occurred on the COPPA
+  # parental-consent approval link, i.e. the only way to activate a child's
+  # account; that specific delivered email has not itself been verified (see
+  # below), so treat the mechanism as established and the historical incident as
+  # reported.
   #
   # CORRECTED 2026-09-02. An earlier version of this comment explained that
   # failure by asserting that mail is delivered from a Resque worker "and nothing
@@ -113,8 +116,8 @@ module JsonApi::Json
   # So this method is still correct and still needed -- a bare ENV['DEFAULT_HOST']
   # is restored just as faithfully as an absolute one, and any chain ORIGINATING
   # outside a request still yields relative links -- but do not cite the queue
-  # boundary as the reason. The actual trigger of the observed COPPA failure is
-  # NOT established. Note that consent delivery is NOT exclusively controller
+  # boundary as the reason. The actual trigger of the reported COPPA failure is
+  # NOT established, and neither is the delivered email itself. Note that consent delivery is NOT exclusively controller
   # backed: user.rb:874 is reached request-lessly from
   # app/workers/offboarding_coppa_expiration_worker.rb via
   # User.process_expired_offboarding_consents!. See the N1 entry in

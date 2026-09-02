@@ -379,14 +379,17 @@ bare host by design (`.env.example:8` documents `www.lingolinq.com`).
 > which is consistent with the quoted URL having been reconstructed from `.env.example:8` rather
 > than copied from delivered mail.
 >
-> Note also that the symptom URL quoted below, `www.lingolinq.com/...`, matches the illustrative
-> value in `.env.example:8` rather than any configured `DEFAULT_HOST` on this machine, so it may
-> have been reconstructed rather than copied from the delivered mail.
 
-So the parent received
+The parent **was reported as** receiving
 `href="www.lingolinq.com/parental_consent/complete?..."`, a *relative* URL a mail client cannot
-follow. The child was correctly held pending and could never be approved: the COPPA gate failed
-closed — safe, but non-functional.
+follow, and the child as being correctly held pending and never approvable: the COPPA gate failed
+closed — safe, but non-functional. **Read that paragraph as reported, not verified.** The MECHANISM
+by which a bare host produces an unfollowable link is verified and is not in question. What is not
+verified is this specific delivered email: no captured message carrying that `href` survives in the
+working log (absent) or in the 2026-08-24 session transcript (searched), and the quoted URL matches
+the illustrative value at `.env.example:8` rather than any configured `DEFAULT_HOST`. The
+distinction matters for closure: a verified mechanism plus a deployed remediation is not the same
+as a diagnosed incident.
 *Remediation shipped and VERIFIED DEPLOYED* (2026-09-02: prod `lingolinq-web` revision
 `lingolinq-web-00026-pas` serves image `web:3f752f1fd9c4c8...`, built from `3f752f1fd` / release
 #898, which contains `absolute_host` and 67 referencing files under `app/views` + `app/mailers`).
