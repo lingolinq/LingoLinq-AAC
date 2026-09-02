@@ -6522,6 +6522,42 @@
         "promotedDate": "2026-08-31"
       },
       "notes": "Hand-filed 2026-08-31 from the retroactive dual-review of merged range 9fec7fd9a..cd4cae477 (finding 3). Grep-verified at cd4cae477: three write sites and one delete site for settings['privacy_policy_acknowledged'], zero compare sites against User::PRIVACY_POLICY_VERSION anywhere in app/, lib/, or the Ember frontend; the user serializer never exposes the stored policy_version, so no client-side comparator can exist either. The comment above the constant (user.rb:26-28) says 'Bump when a material change requires users to re-consent', but the re-consent mechanism it describes does not exist: a bump changes only what NEW consents record. Regulatory hook: 16 CFR 312.5(c) requires new verifiable parental consent for material changes to the collection, use, or disclosure practices the original consent covered; with this mechanism dead, a material privacy-notice change re-prompts nobody, including parents of under-13 users. The material-change question is already with counsel as Q32. Present exposure is limited by tenancy, not code: production carries only internal test accounts (PR #483, operator attestation, not code-verified). Severity medium is PROPOSED and awaits Scot's ratification at merge."
+    },
+    {
+      "id": "LL-ffdd40d2e9",
+      "ruleKey": "log-message-email-embeds-message-body",
+      "title": "Team-message notification email embeds the full message body, the communicator's display name, and a deep link to their log, with no content-level opt-out",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/views/user_mailer/log_message.text.erb",
+        "line": 4,
+        "snippet": "<%= (@log.data['note'] && @log.data['note']['text']) || \"no message\" %>",
+        "sha": "408caa7607028e6f07edf9dcf8d02ac15d218e6c"
+      },
+      "firstSeen": "2026-09-01",
+      "lastSeen": "2026-09-01",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "(a) PREFERRED -- notify without content: replace the embedded body with \"You have a new message from <author>\" plus a sign-in link, keeping the text in the app. Applies to both log_message.text.erb and log_message.html.erb. (b) Add a content-level preference (org-level and user-level) controlling body inclusion, defaulting to EXCLUDED for org-sponsored district and hospital accounts. Note this is a NEW control: settings['email_disabled'] is all-or-nothing (it suppresses the whole email, see notifiable.rb:17-20), and preferences['share_notifications'] does not reach this path (it is read only in the utterance_shared branch of User#handle_notification, user.rb:4035). (c) If the body stays, record it in the FERPA/HIPAA data-flow documentation as a routine disclosure of message content to the RECIPIENT's mail provider, and reflect it in district and hospital contract language. (d) Consider also removing @target.display_name and the /<user_name>/logs deep link, which are identifying independent of the body.",
+        "timeframe": "before-district-onboarding"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced 2026-09-01 during the read-only production readiness audit of in-app team messaging, and confirmed against four real notification emails delivered during the authorized end-to-end smoke test on staging and production. MECHANISM, verified in source at the evidence sha: log_message.text.erb:4 and log_message.html.erb:3 both render (@log.data['note'] && @log.data['note']['text']) || \"no message\", so the message body is embedded verbatim. The same templates render @target.display_name (line 1) and a deep link to <absolute_host>/<user_name>/logs?type=note (text:5, html:4). SCOPE OF THE GAP, stated precisely: there is NO CONTENT-LEVEL control. A recipient cannot receive the notification without the body. The blunt global switch settings['email_disabled'] DOES suppress this mailer (Notifiable#channels_for, notifiable.rb:17-20, returns [] and General#mail_message, general.rb:8, iterates that array), but it is all-or-nothing across every non-critical email and is set automatically on bounce by UserMailer.bounce_email. preferences['share_notifications'] does NOT reach this path: it is read only in the utterance_shared branch of User#handle_notification (user.rb:4035), while the push_message branch calls UserMailer.schedule_delivery(:log_message, ...) unconditionally. FAN-OUT: LogSession#default_listeners adds self.user.supervisors unless notify_user_only is set, so one communicator's message text can be emailed to several mailboxes per message. TRANSPORT, stated accurately: SES itself is HIPAA-eligible and is covered by the accepted AWS BAA (docs/legal/AWS_BAA_ACCEPTED.md), so the SES leg is NOT the exposure. The exposure is the destination: once delivered, the message body rests in the RECIPIENT's mail provider (a district Exchange tenant, a consumer mailbox), which is outside LingoLinq's control and outside any LingoLinq BAA, and SES-to-destination TLS is opportunistic rather than guaranteed. No claim is made here about any specific recipient provider's contractual posture. WHY THIS IS NOT A BUG REPORT: inherited CoughDrop/SweetSuite behavior and intentional product design, not a regression, and not launch-blocking on its own. Filed as a data-minimization and disclosure question because the message body is the protected material under FERPA (education record) and HIPAA (a communication about a patient). SEVERITY HISTORY, recorded for transparency: originally drafted 'high' on three asserted aggravating factors. A dual review pass (Codex senior-dev, 2026-09-01) corrected two of the three -- the 'no opt-out' claim was too absolute given email_disabled, and the 'outside any BAA' claim was wrong for the SES leg given the recorded AWS BAA. Both corrections were independently re-verified in source before being accepted. Because two of the three premises for 'high' did not survive, the finding is filed at 'medium' on the corrected basis rather than at the originally drafted severity. This is an authoring correction made BEFORE the finding entered the register, not a downgrade of a filed finding; raising, lowering, triaging and closing all remain Scot's call. Hand-added rather than via scripts/promote-finding.rb, which is scoped to promoting Critical/High findings out of PR review; this came from an audit run, matching the manual-add precedent used for LL-42a24ee911.",
+      "source": {
+        "kind": "audit-run"
+      }
     }
   ]
 }
