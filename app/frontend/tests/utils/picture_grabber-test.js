@@ -284,11 +284,18 @@ describe('pictureGrabber', function() {
       runs();
     });
 
+    /* WAITS. `edit_image_preview` stashes inside a `.then()` — even for a data: URL, which
+       resolves immediately, the callback runs a turn later, so asserting on the next
+       statement read `stashedImage` as undefined. The two tests either side of this one
+       already wait; this one asserted synchronously and had been failing on it. */
     it('should stash the image on the editManager for postMessage callback', function() {
       pictureGrabber.setup(button, controller);
       controller.set('image_preview', {url: 'data:image/png'});
       pictureGrabber.edit_image_preview();
-      expect(editManager.stashedImage.url).toEqual('data:image/png');
+      waitsFor(function() { return editManager.stashedImage; });
+      runs(function() {
+        expect(editManager.stashedImage.url).toEqual('data:image/png');
+      });
     });
 
     it('should generate a data-uri for remote images before trying to edit', function() {

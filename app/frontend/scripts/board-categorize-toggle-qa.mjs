@@ -41,7 +41,13 @@ const PANEL = () => {
      ".md-board-category-order__row--primary" matches two of them and a :first-child
      anchor would silently follow any reordering of the cards. */
   const input = q('[data-bd-control="categorize"]');
-  const toggle = input && input.closest('.md-board-category-order__row');
+  /* The master switch lives in `.md-board-category-order__onoff--master`, a <label>, and no
+     longer has a `.md-board-category-order__row` ancestor — that selector resolved to null,
+     so `toggle` read false and the hit target measured 0x0 no matter how big it was. The
+     label IS the hit area (the whole row is clickable because it labels the input), which
+     is exactly what the 44px floor below is about. */
+  const toggle = input && (input.closest('.md-board-category-order__onoff') ||
+                           input.closest('.md-board-category-order__row'));
   const grid = q('.md-board-category-order__preview .md-board-detail-grid');
   const box = toggle ? toggle.getBoundingClientRect() : null;
   return {

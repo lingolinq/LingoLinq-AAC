@@ -9182,5 +9182,11 @@
   "board_category_controls": "*** Controls",
   "board_category_extra": "*** Extra",
   "board_category_things": "*** Things",
-  "board_category_keys": "*** Keys"
+  "board_category_keys": "*** Keys",
+  "board_categorize_reset_all": "*** Reset categories",
+  "board_move_button_groups": "*** This changes how the button is grouped. Its color stays the same.",
+  "reset_categories_title": "*** Reset Categories?",
+  "reset_categories_message": "*** This will clear the category order and every button you have moved by hand, returning this board to the default arrangement.",
+  "reset_categories_hint": "*** Button colors and words are not changed. You can undo this action before saving.",
+  "reset_categories": "*** Reset Categories"
 }
