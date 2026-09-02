@@ -108,12 +108,16 @@ class BoardSetCopier
       # Phase 2: Relink all copies to point to each other
       phase2_started = Time.now
       all_board_ids = [@starting_old.global_id] + board_ids
-      # Phase 2 is a single call with its own internal batching, so it is bracketed rather
-      # than sampled: as_percent maps whatever relink_boards reports into 0.75-1.0, and the
-      # bracket alone moves the bar off 75% the moment cloning ends.
+      # Phase 2 reports per relinked item, mapped into 0.75-0.95 by the bracket. The explicit
+      # 0.75 below is the floor: as_percent itself writes settings['percent'] only on block
+      # EXIT (progress.rb:168), so without a floor the bar would not leave phase 1's last
+      # value until relinking had already finished.
+      # The band stops at 0.95, not 1.0, because copy_board_links runs swap_images after this
+      # returns (user.rb:4248-4255) and that reports nothing; leaving headroom keeps the bar
+      # off 100% while a symbol-library swap is still running.
       Progress.update_current_progress(0.75, :relinking_boards)
-      Progress.as_percent(0.75, 1.0) do
-        relink_boards(all_board_ids, 'update_inline')
+      Progress.as_percent(0.75, 0.95) do
+        relink_boards(all_board_ids, 'update_inline', report_progress: true)
       end
       Rails.logger.info("[copy_perf] Phase 2 (relink) took #{(Time.now - phase2_started).round(2)}s")
 
@@ -273,7 +277,12 @@ class BoardSetCopier
 
   # Processes pending replacements in batches, rewriting board links.
   # Returns the home board replacement ref if the home board was replaced, nil otherwise.
-  def relink_boards(board_ids, update_preference)
+  # `report_progress` is opt-in and OFF by default because this method has two callers.
+  # copy_and_relink brackets it in Progress.as_percent(0.75, 0.95) and wants the bar to
+  # move; replace_and_relink does not bracket it and does substantial work afterwards
+  # (sidebar rewrite, home-board preference, track_downstream_boards!, :150-182), so an
+  # unbracketed 0-1 report there would drive the bar to 100% with work still to run.
+  def relink_boards(board_ids, update_preference, report_progress: false)
     pending = @mapper.to_a.dup
     boards_to_save = []
     boards_to_save_hash = {}
@@ -286,11 +295,19 @@ class BoardSetCopier
       end
     end
 
+    # Counted before the loop consumes `pending`, and per ITEM rather than per batch so the
+    # bar still moves on a set small enough to fit in one batch.
+    relink_total = pending.length
+    relinked = 0
     while pending.length > 0
       batch = pending.shift(Relinking::RELINKING_BATCH_SIZE)
 
       batch.each do |old_board_id, new_board_ref|
         Progress.update_minutes_estimate(pending.length * 3, "replacing links to #{old_board_id}, #{pending.length} left")
+        if report_progress && relink_total > 0
+          Progress.update_current_progress(relinked.to_f / relink_total.to_f, :relinking_boards)
+        end
+        relinked += 1
 
         linking_board_ids = @boards_link_to[old_board_id]
         next unless linking_board_ids

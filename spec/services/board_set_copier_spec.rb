@@ -1,6 +1,40 @@
 require 'spec_helper'
 
 describe BoardSetCopier, :type => :model do
+  # Records the percent series a copy actually reports, in the terms the CLIENT sees.
+  #
+  # Progress.as_percent maps everything reported inside its block into [lo, hi]
+  # (progress.rb:153-156), so a raw 0.5 inside as_percent(0.75, 1.0) reaches the user as
+  # 0.875. Emulating that here rather than recording raw arguments is what lets one series
+  # be asserted across both phases -- recording raw would make phase 2's values look like
+  # they go backwards.
+  #
+  # Returns the array; entries are [percent, message_key], plus a [lo, :as_percent_start]
+  # marker when a bracket opens.
+  def capture_progress
+    reported = []
+    scale = [0.0, 1.0]
+    allow(Progress).to receive(:update_current_progress) do |pct, key|
+      lo, hi = scale
+      reported << [lo + ((hi - lo) * pct), key]
+    end
+    allow(Progress).to receive(:as_percent).and_wrap_original do |_m, *args, &blk|
+      lo, hi = args
+      prior = scale
+      reported << [lo, :as_percent_start]
+      scale = [prior[0] + ((prior[1] - prior[0]) * lo), prior[0] + ((prior[1] - prior[0]) * hi)]
+      begin
+        blk.call
+      ensure
+        # as_percent writes settings['percent'] to the band ceiling on the way out,
+        # unconditionally and even if the block reported nothing (progress.rb:168). Modelled
+        # here because it is what makes the ceiling the highest value a phase can report.
+        reported << [scale[1], :as_percent_end]
+        scale = prior
+      end
+    end
+    reported
+  end
   it "reports a rising percent across both copy phases" do
     # Before this, the copy job ran under a Progress record but never called
     # update_current_progress, so `percent` was absent from the payload for the whole copy and
@@ -18,14 +52,7 @@ describe BoardSetCopier, :type => :model do
     root.save!
     root.reload
 
-    reported = []
-    allow(Progress).to receive(:update_current_progress) do |pct, key|
-      reported << [pct, key]
-    end
-    allow(Progress).to receive(:as_percent).and_wrap_original do |m, *args, &blk|
-      reported << [args.first, :as_percent_start]
-      blk.call
-    end
+    reported = capture_progress
 
     new_root = root.copy_for(recipient)
     Board.copy_board_links_for(
@@ -81,9 +108,7 @@ describe BoardSetCopier, :type => :model do
     end
     root.reload
 
-    reported = []
-    allow(Progress).to receive(:update_current_progress) { |pct, key| reported << [pct, key] }
-    allow(Progress).to receive(:as_percent).and_wrap_original { |m, *args, &blk| blk.call }
+    reported = capture_progress
 
     new_root = root.copy_for(recipient)
     Board.copy_board_links_for(
@@ -112,6 +137,112 @@ describe BoardSetCopier, :type => :model do
     # a sorted-order check but not this one.
     expect(copying.uniq.size).to eq(3), "the bar did not move between boards: #{copying.inspect}"
     expect(copying).to eq(copying.sort)
+  end
+
+  it "moves the bar during relinking instead of freezing at the phase handoff" do
+    # Regression: phase 2 was wrapped in Progress.as_percent(0.75, 1.0), but relink_boards
+    # reported no percent at all -- `grep -n "Progress\." app/models/concerns/relinking.rb`
+    # returns nothing, and the copier's own relink loop called only update_minutes_estimate.
+    # as_percent writes settings['percent'] once, on block EXIT (progress.rb:168), so the
+    # bracket's only effect was to jump 0.75 -> 1.0 when relinking finished. On a large set
+    # the bar sat at 75% for the whole phase.
+    owner = User.create
+    recipient = User.create
+    root = Board.create(user: owner, public: true)
+    kids = 3.times.map { Board.create(user: owner, public: true) }
+
+    root.settings['buttons'] = kids.each_with_index.map do |kid, i|
+      { 'id' => i + 1, 'load_board' => { 'id' => kid.global_id, 'key' => kid.key } }
+    end
+    root.instance_variable_set('@buttons_changed', true)
+    root.save!
+    root.reload
+
+    reported = capture_progress
+
+    new_root = root.copy_for(recipient)
+    Board.copy_board_links_for(
+      recipient,
+      starting_old_board: root,
+      starting_new_board: new_root,
+      valid_ids: [root.global_id] + kids.map(&:key)
+    )
+
+    # Strictly INSIDE the band. The 0.75 floor written just before the bracket opens is not
+    # evidence the bar moved, and neither is the 1.0 that as_percent writes on the way out --
+    # both are present even with the bug, which is why this asserts on neither.
+    inside = reported.map(&:first).select { |p| p > 0.75 && p < 1.0 }
+    expect(inside.uniq.size).to be >= 2,
+      "relinking never moved the bar off the handoff: #{reported.inspect}"
+
+    # Reported in the client's terms, so a raw fraction escaping the bracket unmapped would
+    # show up here as a value below the handoff.
+    relinking = reported.select { |(_, key)| key == :relinking_boards }.map(&:first)
+    expect(relinking.min).to be >= 0.75,
+      "a relink sample landed below the phase floor -- unmapped raw fraction? #{relinking.inspect}"
+    expect(relinking).to eq(relinking.sort)
+    expect(reported.map(&:first)).to eq(reported.map(&:first).sort),
+      "the series went backwards across the phase boundary: #{reported.inspect}"
+  end
+
+  it "does not report 100% before the image swap has run" do
+    # copy_board_links calls starting_new_board.swap_images AFTER copy_board_links_for
+    # returns (user.rb:4248-4255), and Board#swap_images reports no progress. When phase 2's
+    # bracket ended at 1.0, the meter hit 100% the instant relinking finished and then sat
+    # there for the whole symbol-library swap -- typically the longest part of the copy.
+    owner = User.create
+    recipient = User.create
+    root = Board.create(user: owner, public: true)
+    child = Board.create(user: owner, public: true)
+    root.settings['buttons'] = [
+      { 'id' => 1, 'load_board' => { 'id' => child.global_id, 'key' => child.key } }
+    ]
+    root.instance_variable_set('@buttons_changed', true)
+    root.save!
+    root.reload
+
+    reported = capture_progress
+
+    new_root = root.copy_for(recipient)
+    Board.copy_board_links_for(
+      recipient,
+      starting_old_board: root,
+      starting_new_board: new_root,
+      valid_ids: [root.global_id, child.key]
+    )
+
+    # as_percent writes its ceiling unconditionally on block exit (progress.rb:168), so the
+    # highest value this copy can report IS the band ceiling. Asserting it stays below 1.0 is
+    # what keeps the headroom; widen the band back to 1.0 and this goes red.
+    expect(reported.map(&:first).max).to be < 1.0,
+      "the copy reported 100% while swap_images had not run: #{reported.inspect}"
+    expect(reported.map(&:first).max).to be_within(0.0001).of(0.95)
+  end
+
+  it "reports no percent from the board-replacement path" do
+    # relink_boards has two callers. Only copy_and_relink brackets it in as_percent, so an
+    # unbracketed report here would be written as an ABSOLUTE percent and would reach 1.0
+    # while replace_and_relink still had the sidebar rewrite, the home-board preference
+    # update and track_downstream_boards! to run (board_set_copier.rb:150-182). Flip
+    # `report_progress` to default true and this goes red.
+    u = User.create
+    old = Board.create(user: u, public: true, settings: { 'name' => 'old' })
+    ref = Board.create(user: u, public: true, settings: { 'name' => 'ref' })
+    old.settings['buttons'] = [{ 'id' => 1, 'load_board' => { 'id' => ref.global_id } }]
+    old.instance_variable_set('@buttons_changed', true)
+    old.save!
+    new_board = old.reload.copy_for(u)
+    u.settings['preferences']['home_board'] = { 'id' => ref.global_id, 'key' => ref.key }
+    u.save
+
+    reported = capture_progress
+
+    Board.replace_board_for(u.reload, {
+      starting_old_board: old.reload,
+      starting_new_board: new_board.reload
+    })
+
+    expect(reported).to eq([]), "the replace path reported progress it cannot bracket: #{reported.inspect}"
   end
 
   it "copies explicitly selected linked boards even when downstream ids are stale" do
