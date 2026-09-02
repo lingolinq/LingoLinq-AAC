@@ -118,3 +118,95 @@ routes/index.js:70-77; no i18n, no flag (bug fix), plain revert.
   `require-super-in-lifecycle-hooks` shifted 1186 -> 1242. No other file gained or lost a row. Committed separately.
 - Falsification: running the same 8 tests against the pre-fix file (copy saved in the session scratchpad, restore by
   copy, never `git checkout`).
+
+### Results (22:20 UTC)
+- Falsification: against the pre-fix file 7/8 fail (only the pre-existing speak/edit-host guard passes); restored
+  from the saved copy, `cmp` verified.
+- Neighbouring suites (`/article50|ai-disclosure|focus-words|guided-tour|terms-agree/`): 94/94 pass.
+- `npm run lint:js:ci`: `new=0`, OK.
+- Commits: bfa007042 (fix + test + this log), d8579c268 (eslint rebaseline). PR #920 -> staging.
+- Dual review started: Claude adversary agent on the diff + Codex senior-dev pass (after the data-path guard).
+
+### Dual review results (22:45 UTC)
+- Codex senior-dev pass (gpt-5.6-terra, `~/bin/codex-review --base staging`): approve, no findings. Verbatim
+  verdict: "The change correctly defers auto-opening while the disclosure modal or pending gate is active,
+  preserves handoff behavior, and is covered by passing targeted tests."
+- Claude adversary pass (agent `art50-tour-pr920-adversary`, SHA d8579c268): 1 High + 3 Medium so far
+  (report truncated mid finding 4; remainder requested). Each checked in code below.
+
+| # | Finding (adversary) | My check | Decision |
+|---|---|---|---|
+| A1 High | "The handoff is never dropped" is false when the component is torn down mid-wait: `_autoOpenAfterArt50Notice` returns on `isDestroyed`/`isDestroying` (`guided-tour.js:629`) without re-arming; both signals were consumed at init (`:1270`, `:1275`) | CONFIRMED. Navbar `<GuidedTour />` lives in `app-navbar-authenticated-inner.hbs:37`, rendered only under `useAppNavbarInHeader` (`templates/application.hbs:8`), a computed on `appState.current_route` / `currentBoardState.id` (`controllers/application.js:2324`), so a route change mid-hold destroys the instance. Pre-fix the window was one afterRender flush; now >= 250 ms, up to 5 s on the due path, uncapped while the notice is open. Codex missed this. | Fix forward (proposal below). Also correct the PR body and the `:601-603` comment. |
+| A2 Medium | Every test stubs `_runAutoOpen`, so the Fix-status row citing a test for "handoff preserved" is unsupported | CONFIRMED (`guided-tour-test.js:64`) | Add one case that keeps `_runAutoOpen` real, stubs `router.transitionTo`, forces `tourBuilder` falsy, and asserts the `board-picker` transition. Reword the row to cite it. |
+| A3 Medium | Gate-subject wiring untested; swapping `sessionEntryGatePending(subject)` for `(this.get('appState'))` would pass all 8 | CONFIRMED (`guided-tour-test.js:57-58` stub both, subject `null`, predicate ignores its arg) | Add one case: `art50Subject` returns a sentinel, assert `sessionEntryGatePending` received that exact object. |
+| A4 Medium | Test 3 ("due but not yet open") flakes under load: due cap 80 ms, `sleep(30)` before the flip | CONFIRMED arithmetic; a >50 ms stall expires the due cap before `noticeOpen` flips | Set `art50_tour_due_max_ms` to 2000 in that case only (the "never opens" case keeps 80). |
+
+### Fact sheet for the A1 fix (rule 13)
+- (a) READ: both auto-open signals are read and cleared in `init` (`guided-tour.js:1268-1281`: appState flag, then
+  sessionStorage `ll_auto_open_home_tour`) and in `_autoOpenWatcher` (`:350-356`, appState flag on change). Both
+  then call `_scheduleAutoOpen` (`:611`), which sets `_autoOpenDeferring` and starts the poll. The poll's only exit
+  on teardown is the bare return at `:629`. CONFIRMED.
+- (b) SHAPES at teardown: `_autoOpenDeferring` true with a `runLater` pending (waiting: notice open or due);
+  false (never scheduled, or `_runAutoOpen` already ran and cleared it at `:638`). After `destroy()` the pending
+  timer still fires and returns at `:629`. Writers of the appState flag: terms-agree.js:66,
+  dashboard/authenticated-view.js:1701, getting-started.js:90, controllers/getting-started.js:69,
+  subscribe.js:91,:99, controllers/subscribe.js:43, register.js:112. sessionStorage writers: register.js:107,
+  services/beta-welcome-mode.js:45. CONFIRMED by grep.
+- (c) Cross-file claims: `willDestroyElement` exists at `:1242` and calls `_super`; no `willDestroy` hook is
+  defined in the file (grep). Speak/edit hosts' `_autoOpenWatcher` returns BEFORE clearing the flag (`:351`), so
+  a re-armed flag is not swallowed by a board-detail instance. `register.js:107` already uses sessionStorage as
+  the cross-mount carrier for exactly this signal. CONFIRMED.
+
+### Proposal for A1 (rule 12, reviewed before code)
+- Candidate A (preferred): in a new `willDestroy` hook, if `_autoOpenDeferring` is true, clear it and set
+  `appState.auto_open_home_tour` back to true. The next non-speak/edit-host instance consumes it at `init`
+  exactly as a fresh signal; live speak/edit hosts ignore it (`:351`). `willDestroy` rather than
+  `willDestroyElement` so it fires for a direct `destroy()` too (testable with `factoryFor(...).create()`).
+- Candidate B: consume the signals only when the wait ENDS (move the clears into `_runAutoOpen`). Rejected:
+  touches `init`, `_autoOpenWatcher` and the sessionStorage branch; leaves the flag true for the whole wait,
+  which contradicts the "clears the flag on start so subsequent renders don't re-fire" contract at `:340-342`.
+- Candidate C: drop the destroyed guard and run `_runAutoOpen` anyway. Rejected: fires the board-picker
+  handoff during a route change, the defect this PR removes.
+- Risk seen: re-arm on logout without reload would carry the tour to the next login on the same app instance.
+  The notice overlay covers the navbar identity menu, so a logout mid-hold is not reachable from the UI; noted,
+  not handled.
+- Test (red first): "re-arms the auto-open signal if destroyed while waiting": notice open, schedule, sleep,
+  `destroy()`, expect `appState.auto_open_home_tour === true` and `runs === 0`. Mutation that must fail it:
+  delete the `willDestroy` hook.
+
+Remainder of the adversary report (findings 5 and 6, plus a verified-clean list: runLater argument order,
+eslint rebaseline scope, no i18n, no import cycle, `_art50NoticeHoldsAutoOpen` cannot throw, `is_open` cannot
+stick, notice link is `target=_blank`, stubs restored by the harness, no-notice path creates zero timers):
+
+| # | Finding (adversary) | My check | Decision |
+|---|---|---|---|
+| A5 Low | Notice opening inside the final poll interval at the 5 s due cap still lets `_runAutoOpen` fire; for a supporter the caseload transition closes it | CONFIRMED by trace, but the proposed re-check at the top of `_runAutoOpen` has the same time-of-check window (the notice can open after any check). Reachable only if the notice took ~5 s to open, then landed in one 250 ms slot. | Logged, not fixed. The complete fix is the defect class (`app-state.js:716` closing uncloseable modals), already listed as a register recommendation. |
+| A6 Low | "7 of 8 fail" on the pre-fix file mostly proves the method is absent (stub inert), and case 6 fails by throwing, not by asserting | PLAUSIBLE; consistent with the observed count (case 8 passes, case 6 fails) | Re-falsify by in-place mutation (`_art50NoticeHoldsAutoOpen` forced false) after the A1 fix lands and report which cases go red. |
+
+### Proposal review of candidate A (adversary, 22:21 UTC) and what changed
+| # | Finding | My check | Decision |
+|---|---|---|---|
+| R1 High | A bare re-armed flag has no consumer on board-detail (speak/edit hosts return before clearing, `:351`) and no expiry, so the tour and its board-picker handoff resurrect at an arbitrary later moment | CONFIRMED | Re-arm carries `auto_open_home_tour_rearmed_at`; `_consumeAutoOpenSignal` drops a signal older than `art50_tour_rearm_max_ms` (60 s). Test: stale re-arm dropped. |
+| R2 Medium | `appState.set` from `willDestroy` can hit a destroyed service at owner teardown | CONFIRMED (services and components go down together) | Guarded on `isDestroyed`/`isDestroying`. |
+| R3 Medium | `clear_user_state` (`app-state.js:2102`, called from `session.js:758` on SPA sign-out) does not clear `auto_open_home_tour`, so a re-arm survives sign-out | CONFIRMED by reading the ~50 resets | Added both resets; test falsified by removing them. Separate commit. |
+| R4 Medium | The red test reads the flag before the scheduled `willDestroy` runs | CONFIRMED (non-eager destructor, `@ember/object/core.js:205`) | Test sleeps after `destroy()`. |
+| Answers | (1) the dying instance's watcher cannot fire: observers are deactivated by an eager destructor before `willDestroy`; (2) the pending timer may fire in the gap, harmless, `:629` exits without touching state; (3) see R3 | Accepted; (1) also matched by test 7 passing | |
+
+Test-design correction found on the way: observers are SYNCHRONOUS in this app, so a test that sets the flag
+and then calls `_consumeAutoOpenSignal` directly double-consumes (the watcher already took it). The two
+consumption cases now go through a second instance's `init`, which is the real production path for a re-arm.
+
+### Results (22:40 UTC)
+- `ember test --filter "guided-tour auto-open"`: 15/15. Neighbouring suites
+  (`/article50|ai-disclosure|focus-words|guided-tour|terms-agree|clear_user_state|loading-overlay/`): 107/107.
+- Falsification by IN-PLACE mutation (restore by copy, `cmp` verified each time):
+  re-arm removed -> only case 7 red; expiry removed -> only case 10 red; sign-out resets removed -> that case red;
+  subject swapped for appState -> only the SUBJECT case red; handoff dropped -> only the board-picker case red;
+  `_art50NoticeHoldsAutoOpen` forced false -> 6/12 red (cases 1, 2, 3, 4, 6, 7), which replaces the earlier
+  "7 of 8 on the pre-fix file" number (that one mostly proved the method was absent, per A6).
+- `npm run lint:js:ci`: new=0. Baseline: guided-tour.js rule multiset unchanged (18 rows shifted); app-state.js
+  38 rows shifted; `willDestroy` uses `this._super(...arguments)` so it adds no row.
+- Commits: b6dd81c19 (re-arm + expiry + tests), be7f34b68 (sign-out reset), c430fa086 (test hardening),
+  plus the eslint rebaseline.
+- Logged, not fixed: A5 (250 ms race at the 5 s due cap; any re-check has the same window; the real fix is the
+  modal-close-on-transition defect class), the slow-reader `really_fresh` question, switch-scanning pass.
