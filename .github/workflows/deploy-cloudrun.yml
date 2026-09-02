@@ -13,7 +13,11 @@ name: Deploy to Cloud Run
 #                          (fail closed when blank); (2) the worker-pool deploy is gated on
 #                          DEPLOY_WORKER, which production REQUIRES to be 'true' (fail closed);
 #                          (3) `--no-traffic` is skipped only on a genuine NOT_FOUND first deploy,
-#                          never on an existing service.
+#                          never on an existing service. Also new for prod: the scheduler Job
+#                          (lingolinq-scheduler) is deployed by this workflow on every release
+#                          with the same secret set and plain env as web, at its live size
+#                          (1 vCPU / 512Mi); it is CREATED if absent, so staging gets one on its
+#                          first deploy (harmless until an operator adds a Cloud Scheduler trigger).
 #   refs/heads/staging  -> GitHub environment `staging`    -> `-staging` suffix on every resource.
 #   refs/heads/develop  -> GitHub environment `dev`        -> `-dev` suffix on every resource.
 #   anything else       -> no environment, deploy job SKIPPED with a notice. This covers a
@@ -643,10 +647,13 @@ jobs:
                       "APP_REDIS_NAMESPACE_SUFFIX=${V_REDIS_NAMESPACE_SUFFIX:-}" "APP_REMOTE_EXTRA_DATA=${V_REMOTE_EXTRA_DATA:-}" \
                       "STRIPE_PUBLIC_KEY=${V_STRIPE_PUBLIC_KEY:-}" "NEW_REGISTRATION_EMAIL=${V_NEW_REGISTRATION_EMAIL:-}"; do
             val="${pair#*=}"
-            if printf '%s' "$val" | grep -qE '[,[:space:]]'; then
-              echo "::error::GitHub variable ${pair%%=*} in environment '$ENV_NAME' contains a comma or whitespace; refusing to build the runtime env from it."
-              exit 1
-            fi
+            # Shell pattern, not grep: grep is line-oriented and a value containing a newline would
+            # pass it. `[:space:]` here includes newline, tab, and carriage return.
+            case "$val" in
+              *[,[:space:]]*)
+                echo "::error::GitHub variable ${pair%%=*} in environment '$ENV_NAME' contains a comma or whitespace; refusing to build the runtime env from it."
+                exit 1 ;;
+            esac
           done
           ev="$APP_ENV_VARS_STATIC"
           ev="$ev,UPLOADS_S3_BUCKET=$V_UPLOADS_S3_BUCKET"
@@ -1067,7 +1074,7 @@ jobs:
             --max-retries 0 \
             --task-timeout 3000s \
             --cpu 1 \
-            --memory 1Gi \
+            --memory 512Mi \
             --set-env-vars "RACK_ENV=production,RAILS_ENV=production,REDIS_TLS_VERIFY_HOSTNAME=false,$APP_ENV_VARS" \
             --set-secrets "$BOOT_SECRETS,$NON_BOOT_SECRETS"
           # Read back what landed on the Job (assert-runtime-secrets.sh covers services and worker
@@ -1081,6 +1088,14 @@ jobs:
           done
           if [ -n "$missing" ]; then
             echo "::error::Scheduler Job $SCHEDULER_JOB is missing secret-backed env:$missing"
+            exit 1
+          fi
+          # Same BAA-account literal the web/worker readback asserts via --required-literal: the
+          # scheduler runs application code that can reach AiClient.
+          acct="$(gcloud run jobs describe "$SCHEDULER_JOB" --region "$GCP_REGION" --format=json \
+            | jq -r '.spec.template.spec.template.spec.containers[0].env[] | select(.name == "BEDROCK_EXPECTED_AWS_ACCOUNT") | .value // empty')"
+          if [ "$acct" != "239044785114" ]; then
+            echo "::error::Scheduler Job $SCHEDULER_JOB has BEDROCK_EXPECTED_AWS_ACCOUNT='${acct:-<unset>}', expected 239044785114."
             exit 1
           fi
           echo "Scheduler Job $SCHEDULER_JOB runs $IMAGE with $(printf '%s\n' "$landed" | grep -c .) secret-backed env vars."
