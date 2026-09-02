@@ -92,14 +92,30 @@ module JsonApi::Json
   # the protocol (`application_controller#set_host` uses
   # "#{request.protocol}#{request.host_with_port}"), but its fallback
   # ENV['DEFAULT_HOST'] is a BARE host by design -- .env.example documents it as
-  # e.g. "www.lingolinq.com". Mail is delivered from a Resque worker, which has
-  # no request, and nothing restores the request host across the queue boundary
-  # (Worker.domain_id / Worker.set_domain_id exist but are called from nowhere).
-  # So every link built as "#{current_host}/path" reached the recipient as
-  # "www.lingolinq.com/path" -- a RELATIVE url inside an <a href>, which a mail
-  # client resolves against its own base and cannot follow. That broke the COPPA
-  # parental-consent approval link, i.e. the only way to activate a child's
-  # account. See docs/task-management/2026-08-24-n1-under-13-signup-path.md.
+  # e.g. "www.lingolinq.com". A link built as "#{current_host}/path" against that
+  # bare fallback reaches the recipient as "www.lingolinq.com/path" -- a RELATIVE
+  # url inside an <a href>, which a mail client resolves against its own base and
+  # cannot follow. That is the failure this method exists to prevent, and it was
+  # observed on the COPPA parental-consent approval link, i.e. the only way to
+  # activate a child's account.
+  #
+  # CORRECTED 2026-09-02. An earlier version of this comment explained that
+  # failure by asserting that mail is delivered from a Resque worker "and nothing
+  # restores the request host across the queue boundary (Worker.domain_id /
+  # Worker.set_domain_id exist but are called from nowhere)". THAT WAS FALSE, and
+  # it was false when written. boy_band appends "domain::<Worker.domain_id>" at
+  # enqueue (boy_band.rb:58) and pops it at perform to call Worker.set_domain_id
+  # (boy_band.rb:140-142), and lib/worker.rb:149-152 has that call set_host AND
+  # load_domain. The host DOES survive the queue. That behavior dates to
+  # de621007b4 (2019-04-16); the claim was written 2026-08-25. Round trip proven
+  # by spec/lib/worker_spec.rb:41-47.
+  #
+  # So this method is still correct and still needed -- a bare ENV['DEFAULT_HOST']
+  # is restored just as faithfully as an absolute one, and any chain ORIGINATING
+  # outside a request still yields relative links -- but do not cite the queue
+  # boundary as the reason. The actual trigger of the observed COPPA failure is
+  # NOT established; see the N1 entry in
+  # docs/task-management/CLAIM-CHECK-BACKLOG.md, whose closure review is reopened.
   #
   # Deliberately a separate method rather than a change to current_host, which is
   # also consumed as a bare identifier (job_stash.rb:64 ships it as a 'host'

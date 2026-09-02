@@ -318,19 +318,53 @@ runtime check before assuming it works.
 ### N1 detail — the under-13 / COPPA parental-consent path (2026-08-24)
 
 Driven end to end against a live stack (Rails + Ember + Resque): API create, the child-facing UI,
-the parent's email, the approval endpoint, login, and revoke. **Two HIGH defects, both fixed.**
-The working log is `2026-08-24-n1-under-13-signup-path.md` (gitignored, local).
+the parent's email, the approval endpoint, login, and revoke. **Two HIGH defects. HIGH 2 is fixed
+and closed. HIGH 1's REMEDIATION is deployed, but its recorded ROOT CAUSE was false and its closure
+review is REOPENED (2026-09-02, Scot).** The working log is `2026-08-24-n1-under-13-signup-path.md`
+(gitignored, local, and NOT present on this machine at any searched path, which is why the trigger
+below is still open).
 
 **HIGH 1 — the parental-consent approval link was unfollowable.** Every backend-built email URL was
 `"#{JsonApi::Json.current_host}/path"`. `current_host` is absolute only when set from a web request
 (`application_controller.rb:29` prepends `request.protocol`); its fallback `ENV['DEFAULT_HOST']` is a
-bare host by design (`.env.example:8` documents `www.lingolinq.com`). Mail is delivered from a Resque
-worker, which has no request — and nothing restores one, because `Worker.domain_id` /
-`Worker.set_domain_id` are **called from nowhere in the repo**. So the parent received
+bare host by design (`.env.example:8` documents `www.lingolinq.com`).
+
+> **THIS DIAGNOSIS IS FALSE. Corrected 2026-09-02.** The sentence that stood here claimed mail is
+> delivered from a Resque worker "and nothing restores one, because `Worker.domain_id` /
+> `Worker.set_domain_id` are called from nowhere in the repo." Both are called by boy_band:
+> `boy_band.rb:58` appends `"domain::<Worker.domain_id>"` at enqueue, `boy_band.rb:140-142` pops it
+> at perform and calls `Worker.set_domain_id`, and `lib/worker.rb:149-152` has that call
+> `JsonApi::Json.set_host` **and** `JsonApi::Json.load_domain`. Settled by dates, not inference:
+> that behavior has existed since `de621007b4` (2019-04-16, "backend job support for alt domains"),
+> while this claim was written in `4e09b4617` (2026-08-25). It was false when written, not stale.
+> Verified independently by `spec/lib/worker_spec.rb:41-47` and by a live probe across the queue
+> boundary. See finding `LL-ffdd40d2e9` and PR #910.
+>
+> **What is still true:** a bare host in a delivered link does imply the chain originated with no
+> request context, since `Worker.domain_id` is `current_host || 'default'` and `current_host` falls
+> back to a bare `ENV['DEFAULT_HOST']` (`json.rb:85`). **What is not established:** how this
+> particular email came to be sent that way. All known enqueue sites are controllers inheriting
+> `ApplicationController`, which runs `set_host` with `request.protocol` prepended and is never
+> skipped, so a genuine signup request should have stamped an absolute host. `Worker.requeue_failed`
+> replays the original payload, so requeue is not a candidate either. The leading hypothesis, and it
+> is only a hypothesis, is that the observed email was triggered manually from a console or rake
+> task during the investigation. Confirming that needs the gitignored working log or whoever ran it.
+>
+> Note also that the symptom URL quoted below, `www.lingolinq.com/...`, matches the illustrative
+> value in `.env.example:8` rather than any configured `DEFAULT_HOST` on this machine, so it may
+> have been reconstructed rather than copied from the delivered mail.
+
+So the parent received
 `href="www.lingolinq.com/parental_consent/complete?..."`, a *relative* URL a mail client cannot
 follow. The child was correctly held pending and could never be approved: the COPPA gate failed
 closed — safe, but non-functional.
-*Fixed* with a new `JsonApi::Json.absolute_host` (scheme guaranteed, idempotent, loopback→http),
+*Remediation shipped and VERIFIED DEPLOYED* (2026-09-02: prod `lingolinq-web` revision
+`lingolinq-web-00026-pas` serves image `web:3f752f1fd9c4c8...`, built from `3f752f1fd` / release
+#898, which contains `absolute_host` and 67 referencing files under `app/views` + `app/mailers`).
+Per Scot's direction the remediation is **NOT** being reverted: it is independently sound because
+`absolute_host` guarantees a scheme regardless of what caused the original bare host. But the
+soundness of a fix is not evidence for the diagnosis behind it, which is why the closure review is
+reopened rather than the code. Implemented as a new `JsonApi::Json.absolute_host` (scheme guaranteed, idempotent, loopback→http),
 applied to every `current_host` use in `app/mailers` + `app/views` — 129 lines across 67 files
 on staging, 130 `absolute_host` references at HEAD, and `git grep current_host -- app/views` now
 returns zero. (CORRECTED 2026-08-24: this said "105", which was never measured.) Also utterance
