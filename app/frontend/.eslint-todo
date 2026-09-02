@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-09-02T01:05:08.928Z
+# Generated: 2026-09-02T22:03:32.290Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -202,24 +202,24 @@ app/components/focus-words.js|ember/require-computed-property-dependencies|321|2
 app/components/focus-words.js|ember/require-computed-property-dependencies|68|14|1|2842efb9082b
 app/components/grid-listener.js|ember/require-super-in-lifecycle-hooks|35|3|1|04fd54f45db7
 app/components/grid-listener.js|ember/require-super-in-lifecycle-hooks|42|3|1|04fd54f45db7
-app/components/guided-tour.js|ember/no-incorrect-calls-with-inline-anonymous-functions|598|39|1|2da67c91d637
-app/components/guided-tour.js|ember/no-runloop|451|9|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|458|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|499|36|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|515|9|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|522|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|548|36|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|571|9|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|578|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|598|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|636|30|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|638|27|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|724|7|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|780|9|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|783|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|819|9|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|822|5|2|513c0395fe72
-app/components/guided-tour.js|ember/require-super-in-lifecycle-hooks|1186|3|1|04fd54f45db7
+app/components/guided-tour.js|ember/no-runloop|452|9|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|459|5|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|500|36|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|516|9|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|523|5|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|549|36|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|572|9|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|579|5|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|631|7|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|651|5|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|692|30|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|694|27|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|780|7|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|836|9|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|839|5|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|875|9|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|878|5|2|513c0395fe72
+app/components/guided-tour.js|ember/require-super-in-lifecycle-hooks|1242|3|1|04fd54f45db7
 app/components/inbox.js|ember/require-return-from-computed|93|43|1|8c8d53fa71e0
 app/components/integration.js|ember/require-super-in-lifecycle-hooks|6|3|1|04fd54f45db7
 app/components/la-mobile-drawer.js|ember/no-runloop|20|7|2|513c0395fe72
