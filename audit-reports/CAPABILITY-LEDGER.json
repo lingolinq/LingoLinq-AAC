@@ -168,7 +168,7 @@
       "antiClaim": "There is no automatic time-based wipe (no 48h/180d purge); deletion is on request / policy-driven.",
       "currentEvidence": {
         "file": "lib/flusher.rb",
-        "line": 418,
+        "line": 432,
         "snippet": "def self.flush_user_completely(user_id, user_name)"
       },
       "frameworks": [
