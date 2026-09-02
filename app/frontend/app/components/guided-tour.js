@@ -7,6 +7,7 @@ import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
 import modal from '../utils/modal';
+import article50Gate from '../utils/article50_gate';
 import boardDetailCache from '../utils/board_detail_cache';
 
 // Tracks which in-body tour-action buttons already have their click handler, so
@@ -578,11 +579,63 @@ export default Component.extend({
     scheduleOnce('afterRender', this, tryConsume);
   },
 
+  // ---- Auto-open vs the EU AI Act Art. 50(1) session-entry notice ----------
+  //
+  // The terms-agree confirm does two things from one click: routes/index.js opens
+  // the (uncloseable) ai-disclosure modal once the terms promise resolves, and
+  // terms-agree.js:66 raises auto_open_home_tour. Observed in production on
+  // 2026-09-02: the Shepherd tour painted over the notice (z 9999 over 1050) and
+  // took focus; cancelling the tour ran the board-picker handoff below, and the
+  // route change closed the notice through app-state.js#global_transition's
+  // unconditional modal.close() with nothing acknowledged. So the auto-open waits
+  // here, in the one consumer, until the notice is neither open nor due.
+  //
+  // "Due" = article50Gate.sessionEntryGatePending on the gate subject: the notice
+  // opens on a promise microtask AFTER the flag flips (the flip is synchronous
+  // inside confirm, afterRender flushes before the microtask), so at the first
+  // check the modal is not open yet. That predicate needs really_fresh, a 30s
+  // window, so it cannot hold the tour indefinitely on its own; the due-wait is
+  // additionally capped by art50_tour_due_max_ms in case the notice never opens
+  // (a bumped modal, a stale model). The OPEN-wait is deliberately uncapped: the
+  // notice closes only on acknowledgement or on navigation, both of which end
+  // the wait, and a time cap would re-create the defect for a slow reader.
+  //
+  // Whichever way the wait ends, _runAutoOpen still runs, so the board-picker
+  // handoff (home-board pick) is never lost, matching the no-tour case below.
+  // Tunables are properties so tests can shrink them (focus-words.js precedent).
+  // Called off the DEFAULT export of article50_gate on purpose so tests can stub.
+  art50_tour_defer_poll_ms: 250,
+  art50_tour_due_max_ms: 5000,
+  _autoOpenDeferring: false,
+
   _scheduleAutoOpen: function() {
-    var _this = this;
     // Belt-and-suspenders: never attach the board-picker handoff from a
     // board-detail host (see _autoOpenWatcher).
     if (this.get('speakHost') || this.get('editHost')) { return; }
+    // init and _autoOpenWatcher can both call this; run one chain at a time.
+    if (this._autoOpenDeferring) { return; }
+    this._autoOpenDeferring = true;
+    this._autoOpenAfterArt50Notice(Date.now());
+  },
+
+  _art50NoticeHoldsAutoOpen: function(startedAt) {
+    if (modal.is_open('ai-disclosure')) { return true; }
+    var subject = article50Gate.art50Subject(this.get('appState'));
+    if (!article50Gate.sessionEntryGatePending(subject)) { return false; }
+    return (Date.now() - startedAt) < this.get('art50_tour_due_max_ms');
+  },
+
+  _autoOpenAfterArt50Notice: function(startedAt) {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    if (this._art50NoticeHoldsAutoOpen(startedAt)) {
+      runLater(this, this._autoOpenAfterArt50Notice, startedAt, this.get('art50_tour_defer_poll_ms'));
+      return;
+    }
+    this._runAutoOpen();
+  },
+
+  _runAutoOpen: function() {
+    this._autoOpenDeferring = false;
     // SUPPORTERS (SLPs/therapists/teachers/parents — all collapse to
     // `supporter_role`) tour their CASELOAD, not the dashboard. That page is where
     // routes/index.js `_land_on_default` already sends them on every subsequent
@@ -595,21 +648,24 @@ export default Component.extend({
       this._startCaseloadAutoOpen();
       return;
     }
-    scheduleOnce('afterRender', this, function() {
-      // After the home tour ends (any way it ends), hand the user off to the
-      // standalone board-picker so the remaining must-have step (home board pick)
-      // still happens. board-picker is the dedicated communicator board-setup
-      // page — intentionally decoupled from the legacy setup wizard, and the same
-      // target the tour's "choose my board" skip path uses (see below).
-      var handoff = function() {
-        _this.router.transitionTo('board-picker');
-      };
-      // If the current page/layout has no tour (e.g. a newly-registered user on
-      // the default Focused View, whose tour isn't built yet), skip the tour but
-      // STILL run the handoff so the home-board pick is never lost.
-      if (!_this.get('tourBuilder')) { handoff(); return; }
-      _this._startTour({ afterComplete: handoff });
-    });
+    scheduleOnce('afterRender', this, this._startHomeAutoOpen);
+  },
+
+  _startHomeAutoOpen: function() {
+    var _this = this;
+    // After the home tour ends (any way it ends), hand the user off to the
+    // standalone board-picker so the remaining must-have step (home board pick)
+    // still happens. board-picker is the dedicated communicator board-setup
+    // page — intentionally decoupled from the legacy setup wizard, and the same
+    // target the tour's "choose my board" skip path uses (see below).
+    var handoff = function() {
+      _this.router.transitionTo('board-picker');
+    };
+    // If the current page/layout has no tour (e.g. a newly-registered user on
+    // the default Focused View, whose tour isn't built yet), skip the tour but
+    // STILL run the handoff so the home-board pick is never lost.
+    if (!this.get('tourBuilder')) { handoff(); return; }
+    this._startTour({ afterComplete: handoff });
   },
 
   // Route a supporter to their caseload and start the CASELOAD tour there.
