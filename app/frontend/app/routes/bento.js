@@ -61,7 +61,7 @@ export default Route.extend({
             // A resolved .then() here is not the same thing as "the user
             // acknowledged" -- modal.open() resolves a bumped modal's promise
             // with {replaced: true}. onlyIfGenuinelyResolved rejects that.
-            modal.open('terms-agree').then(function(result) {
+            modal.open('terms-agree', { scannable: true }).then(function(result) {
               onlyIfGenuinelyResolved(result, model);
             });
           } else {
@@ -75,7 +75,7 @@ export default Route.extend({
         });
       } else if (model.get('really_fresh')) {
         art50_checked_inline = true;
-        modal.open('terms-agree').then(function(result) {
+        modal.open('terms-agree', { scannable: true }).then(function(result) {
           onlyIfGenuinelyResolved(result, model);
         });
       }
@@ -123,7 +123,10 @@ export default Route.extend({
     if (controller.update_current_badges) {
       controller.update_current_badges();
     }
-    if (_this.appState.get('show_intro')) {
+    // Skip intro when the terms-agree branch already claimed this render
+    // (LL-53cb93fab1). Opening both in the same run loop replaces terms-agree
+    // before it mounts. show_intro stays set for a later visit.
+    if (_this.appState.get('show_intro') && !art50_checked_inline) {
       modal.open('intro');
     }
     // EU AI Act Art.50 session-entry opportunity (03-UI-SPEC 7.1): only check

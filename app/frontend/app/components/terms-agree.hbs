@@ -23,10 +23,10 @@
       {{#if this.agree_error}}
         <p class="la-terms-agree-error">{{t "There was a problem updating your account, please try again." key="agree_error"}}</p>
       {{/if}}
-      <div class="la-contact-form__actions la-terms-agree-actions">
-        <button type="button" class="la-btn la-btn--primary" {{on "click" (this.ctrlAction "confirm")}}>{{t "Agree and Continue" key="accept_and_continue"}}</button>
+      <div class="modal_targets la-contact-form__actions la-terms-agree-actions">
+        <button type="button" class="btn la-btn la-btn--primary" {{on "click" (this.ctrlAction "confirm")}}>{{t "Agree and Continue" key="accept_and_continue"}}</button>
         {{#if this.session.as_user_id}}
-          <button type="button" class="la-btn la-btn--ghost" {{on "click" (this.ctrlAction "close")}}>{{t "This is Not My Account" key="this_is_not_my_account"}}</button>
+          <button type="button" class="btn la-btn la-btn--ghost" {{on "click" (this.ctrlAction "close")}}>{{t "This is Not My Account" key="this_is_not_my_account"}}</button>
         {{/if}}
       </div>
     </div>

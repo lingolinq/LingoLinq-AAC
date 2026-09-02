@@ -218,6 +218,7 @@ file (see [README.md](README.md)).
 - [Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it](#pattern-a-mobile-select-standing-in-for-a-desktop-tab-row-must-mirror-it-optgroup-not-flatten-it)
 - [Sourcing external requirements (payer/clinical/legal) — 2026-08-25](#sourcing-external-requirements-payerclinicallegal--2026-08-25)
 - [Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam](#gotcha-a-new-scannerfind_elem-call-in-start-must-be-guarded--the-specs-stub-that-seam)
+- [Gotcha: modal scanning needs both `.modal_targets .btn` markup AND `scannable: true`](#gotcha-modal-scanning-needs-both-modal_targets-btn-markup-and-scannable-true)
 - [Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell](#pattern-loading-states-for-an-aac-prediction-panel--never-blank-delay-the-cue-dim-dont-spin-and-dont-swap-under-a-dwell)
 - [Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL](#pattern-to-line-a-sibling-up-with-the-board-grid-mirror-its-origin-margin--padding-not-just-its-height--and-remember-a-card-does-not-fill-its-cell)
 - [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
@@ -15878,6 +15879,16 @@ type the same as a missing one (derive `code` if a file is present). That strict
 matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
 
 ---
+
+## Gotcha: modal scanning needs both `.modal_targets .btn` markup AND `scannable: true`
+
+The scanner selector is `.modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, ...`
+(`services/modal.js` / `utils/modal.js`). `scanner.start` only runs when that query is non-empty
+AND `modal.open` was called with `{ scannable: true }`. Markup alone is not enough; the flag
+alone is not enough. `ai-disclosure.hbs` is the working reference. Opening a second modal in the
+same `setupController` run loop (`intro` after `terms-agree`) replaces the first before it mounts.
+
+**First seen in:** [2026-08-31-findings-triage-queue.md](./2026-08-31-findings-triage-queue.md) (LL-104bfa61dc, LL-53cb93fab1)
 
 ## Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam
 
