@@ -210,3 +210,13 @@ consumption cases now go through a second instance's `init`, which is the real p
   plus the eslint rebaseline.
 - Logged, not fixed: A5 (250 ms race at the 5 s due cap; any re-check has the same window; the real fix is the
   modal-close-on-transition defect class), the slow-reader `really_fresh` question, switch-scanning pass.
+
+### Adversary proposal-review remainder (received 22:22 UTC, after the fix landed)
+- Verdict: "proceed, with the four counter-measures applied" (expiry stamp, destroyed-service guard,
+  `clear_user_state` reset, test waits for the scheduled `willDestroy`). All four were applied in b6dd81c19/be7f34b68.
+- Low: "delete the hook" is a weak mutation. Already avoided (the mutation kept the hook and disabled its condition);
+  added the reverse mutation it asked for: `willDestroy` re-arms UNCONDITIONALLY -> only case 8 ("does not re-arm
+  when destroyed while not waiting") goes red, 14/15 pass. The condition is pinned from both sides.
+- Low: eslint rows shift again -> rebaselined in 947cea9d8 with `this._super(...arguments)` so no row was added.
+- A2 correction (stub the real `router` injection; assert after the afterRender flush): the committed case stubs
+  `component.get('router').transitionTo` and asserts after the timer's runloop has flushed; falsified by mutation.
