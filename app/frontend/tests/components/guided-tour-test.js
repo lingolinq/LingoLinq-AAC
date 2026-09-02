@@ -198,6 +198,17 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(appState.get('auto_open_home_tour_rearmed_at') || null).toEqual(null);
   });
 
+  itAsync('a re-armed signal does not survive an SPA sign-out (app-state#clear_user_state)', async function() {
+    var appState = this.owner.lookup('service:app-state');
+    component.set('speakHost', true);
+    appState.set('auto_open_home_tour_rearmed_at', Date.now());
+    appState.set('auto_open_home_tour', true);
+    expect(appState.get('auto_open_home_tour')).toEqual(true);
+    appState.clear_user_state();
+    expect(appState.get('auto_open_home_tour')).toEqual(false);
+    expect(appState.get('auto_open_home_tour_rearmed_at') || null).toEqual(null);
+  });
+
   itAsync('a second request while one is already waiting does not start a second chain', async function() {
     noticeOpen = true;
     component._scheduleAutoOpen();
