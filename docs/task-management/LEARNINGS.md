@@ -219,7 +219,7 @@ file (see [README.md](README.md)).
 - [Sourcing external requirements (payer/clinical/legal) — 2026-08-25](#sourcing-external-requirements-payerclinicallegal--2026-08-25)
 - [Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there](#gotcha-generate_password-is-also-the-login-rehash-path--do-not-length-check-plaintext-there)
 - [Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam](#gotcha-a-new-scannerfind_elem-call-in-start-must-be-guarded--the-specs-stub-that-seam)
-- [Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there](#gotcha-generate_password-is-also-the-login-rehash-path--do-not-length-check-plaintext-there)
+- [Gotcha: modal scanning needs both `.modal_targets .btn` markup AND `scannable: true`](#gotcha-modal-scanning-needs-both-modal_targets-btn-markup-and-scannable-true)
 - [Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell](#pattern-loading-states-for-an-aac-prediction-panel--never-blank-delay-the-cue-dim-dont-spin-and-dont-swap-under-a-dwell)
 - [Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL](#pattern-to-line-a-sibling-up-with-the-board-grid-mirror-its-origin-margin--padding-not-just-its-height--and-remember-a-card-does-not-fill-its-cell)
 - [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
@@ -15888,8 +15888,20 @@ re-hash outdated or newly-prehashed credentials (`passwords.rb` ~266-271). A len
 inside `generate_password` would 500 existing 6-character accounts on login. Enforce NIST 8
 on user-supplied writes only (`process_params`, valet enable, eval-reset) and skip already
 `hashed?:#` values. Existing short passwords keep working until the user changes them.
+Specs that *write* a password through those user-supplied paths still need 8+ characters
+(`bacon`, `chicken`, `gemini` are all too short and fail as `"password too short"`).
 
 **First seen in:** [2026-08-31-findings-triage-queue.md](./2026-08-31-findings-triage-queue.md) (LL-5617f4e17d)
+
+## Gotcha: modal scanning needs both `.modal_targets .btn` markup AND `scannable: true`
+
+The scanner selector is `.modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, ...`
+(`services/modal.js` / `utils/modal.js`). `scanner.start` only runs when that query is non-empty
+AND `modal.open` was called with `{ scannable: true }`. Markup alone is not enough; the flag
+alone is not enough. `ai-disclosure.hbs` is the working reference. Opening a second modal in the
+same `setupController` run loop (`intro` after `terms-agree`) replaces the first before it mounts.
+
+**First seen in:** [2026-08-31-findings-triage-queue.md](./2026-08-31-findings-triage-queue.md) (LL-104bfa61dc, LL-53cb93fab1)
 
 ## Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam
 
