@@ -990,17 +990,7 @@ export default Controller.extend({
             }
           }
           if(needs_confirmation && !option) {
-            /* `on_copied` is how the COPY path reports back. set-as-home closes itself before
-               handing a copy to the copying-board modal (one modal at a time), so it can no
-               longer resolve this promise when the copy finishes -- it resolves immediately
-               with `updated: false` and calls this instead, once the copy is actually done.
-               The non-copy path (plain "set as home") still resolves with `updated: true`
-               here, so both endings run the same done(true). */
-            modal.open('set-as-home', {
-              board: board,
-              user_id: _this.get('setup_user_id'),
-              on_copied: done
-            }).then(function(res) {
+            modal.open('set-as-home', {board: board, user_id: _this.get('setup_user_id')}).then(function(res) {
               if(res && res.updated) {
                 done(true);
               }
