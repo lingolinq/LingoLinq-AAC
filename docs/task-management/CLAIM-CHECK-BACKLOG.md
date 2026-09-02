@@ -347,8 +347,37 @@ bare host by design (`.env.example:8` documents `www.lingolinq.com`).
 > `ApplicationController`, which runs `set_host` with `request.protocol` prepended and is never
 > skipped, so a genuine signup request should have stamped an absolute host. `Worker.requeue_failed`
 > replays the original payload, so requeue is not a candidate either. The leading hypothesis, and it
-> is only a hypothesis, is that the observed email was triggered manually from a console or rake
-> task during the investigation. Confirming that needs the gitignored working log or whoever ran it.
+> is only a hypothesis, is that the observed email was triggered from a request-less context during
+> the investigation. Confirming that needs the gitignored working log or whoever ran it.
+>
+> **CALL-GRAPH CORRECTION, 2026-09-02 (Codex review of PR #914).** An earlier draft of this note
+> said there are eight `schedule_parent_consent_delivery` call sites and that all are
+> controller-backed. Both were wrong. There are **NINE**, and they split three ways:
+> six are controllers (`parental_consents_controller.rb:18,72`,
+> `eu_ai_parental_consents_controller.rb:18,36`, `api/users_controller.rb:950,1255`);
+> `user.rb:715` is in `submit_parental_consent_email!`, reached from
+> `api/users_controller.rb:920`, so controller-backed;
+> `user.rb:665` is in `begin_family_offboarding_consents!`, reached from `license.rb:61` and
+> `organization.rb:1108`, both model code invocable outside a request; and
+> **`user.rb:874` is definitively request-less**, reached from
+> `User.process_expired_offboarding_consents!` via
+> `app/workers/offboarding_coppa_expiration_worker.rb:5`.
+> That last one sends `parental_consent_offboarding_export`, NOT the approval email, so it does not
+> explain the observed failure. But it disproves the claim that every path is controller-backed.
+> **The accurate statement:** known signup and resend APPROVAL-email paths are controller-backed,
+> but model methods can also be invoked from worker, rake, or console contexts, and at least one
+> consent-delivery site already is. The exact origin of the observed approval email remains
+> unverified.
+>
+> **TRANSCRIPT SEARCH, 2026-09-02.** The session transcripts were searched before accepting the
+> missing working log as the blocker. The 2026-08-24 investigation session
+> (`-mnt-c-Users-scotw-projects-LingoLinq-AAC/b61708be-...jsonl`) contains 44 `rails runner`
+> invocations, which is consistent with request-less triggering but does not identify the one that
+> sent this email. More tellingly, it contains **no captured delivered email** carrying the bare
+> `href`: every occurrence of "relative and unfollowable" in it is the text of `absolute_host`'s own
+> comment, not an observation. So the symptom itself is not evidenced in the transcript either,
+> which is consistent with the quoted URL having been reconstructed from `.env.example:8` rather
+> than copied from delivered mail.
 >
 > Note also that the symptom URL quoted below, `www.lingolinq.com/...`, matches the illustrative
 > value in `.env.example:8` rather than any configured `DEFAULT_HOST` on this machine, so it may

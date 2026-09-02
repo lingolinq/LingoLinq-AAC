@@ -114,7 +114,10 @@ module JsonApi::Json
   # is restored just as faithfully as an absolute one, and any chain ORIGINATING
   # outside a request still yields relative links -- but do not cite the queue
   # boundary as the reason. The actual trigger of the observed COPPA failure is
-  # NOT established; see the N1 entry in
+  # NOT established. Note that consent delivery is NOT exclusively controller
+  # backed: user.rb:874 is reached request-lessly from
+  # app/workers/offboarding_coppa_expiration_worker.rb via
+  # User.process_expired_offboarding_consents!. See the N1 entry in
   # docs/task-management/CLAIM-CHECK-BACKLOG.md, whose closure review is reopened.
   #
   # Deliberately a separate method rather than a change to current_host, which is
