@@ -272,9 +272,6 @@ export default Route.extend({
     controller.checkForBlankSlate();
     controller.subscription_check();
     controller.update_current_badges();
-    // Skip intro when the terms-agree branch already claimed this render
-    // (LL-53cb93fab1). Opening both in the same run loop replaces terms-agree
-    // before it mounts. show_intro stays set for a later visit.
     if(_this.appState.get('show_intro') && !art50_checked_inline) {
       modal.open('intro');
     }

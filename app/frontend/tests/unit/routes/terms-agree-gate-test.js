@@ -101,23 +101,23 @@ module('Unit | Route | terms-agree gate (index + bento)', function(hooks) {
     var model = makeModel({ really_fresh: true });
     runSetup.call(this, 'index', model, true);
     var names = opens.map(function(o) { return o.template; });
-    assert.ok(names.indexOf('terms-agree') !== -1, 'terms-agree opens');
-    assert.ok(names.indexOf('intro') === -1, 'intro is deferred (LL-53cb93fab1)');
+    assert.notStrictEqual(names.indexOf('terms-agree'), -1, 'terms-agree opens');
+    assert.strictEqual(names.indexOf('intro'), -1, 'intro is deferred (LL-53cb93fab1)');
   });
 
   test('bento really_fresh + show_intro opens terms-agree and not intro', function(assert) {
     var model = makeModel({ really_fresh: true });
     runSetup.call(this, 'bento', model, true);
     var names = opens.map(function(o) { return o.template; });
-    assert.ok(names.indexOf('terms-agree') !== -1, 'terms-agree opens');
-    assert.ok(names.indexOf('intro') === -1, 'intro is deferred (LL-53cb93fab1)');
+    assert.notStrictEqual(names.indexOf('terms-agree'), -1, 'terms-agree opens');
+    assert.strictEqual(names.indexOf('intro'), -1, 'intro is deferred (LL-53cb93fab1)');
   });
 
   test('index show_intro still opens intro when terms already agreed', function(assert) {
     var model = makeModel({ terms_agree: true, really_fresh: true });
     runSetup.call(this, 'index', model, true);
     var names = opens.map(function(o) { return o.template; });
-    assert.ok(names.indexOf('intro') !== -1, 'intro still opens when terms_agree is true');
-    assert.ok(names.indexOf('terms-agree') === -1, 'terms-agree is not opened');
+    assert.notStrictEqual(names.indexOf('intro'), -1, 'intro still opens when terms_agree is true');
+    assert.strictEqual(names.indexOf('terms-agree'), -1, 'terms-agree is not opened');
   });
 });
