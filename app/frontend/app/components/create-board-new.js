@@ -1230,7 +1230,7 @@ export default Component.extend({
     var to_lookup = [];
     labels.forEach(function(l) {
       var key = (l || '').toLowerCase();
-      if(!key || seen[key] || cached.hasOwnProperty(key)) { return; }
+      if(!key || seen[key] || Object.prototype.hasOwnProperty.call(cached, key)) { return; }
       seen[key] = true;
       to_lookup.push(key);
     });
@@ -1408,7 +1408,7 @@ export default Component.extend({
       var to_lookup = [];
       labels.forEach(function(l) {
         var key = (l || '').toLowerCase();
-        if(!key || seen[key] || cached.hasOwnProperty(key)) { return; }
+        if(!key || seen[key] || Object.prototype.hasOwnProperty.call(cached, key)) { return; }
         seen[key] = true;
         to_lookup.push(key);
       });
@@ -1493,7 +1493,7 @@ export default Component.extend({
     var to_lookup = [];
     labels.forEach(function(l) {
       var key = (l || '').toLowerCase();
-      if(!key || seen[key] || cached.hasOwnProperty(key)) { return; }
+      if(!key || seen[key] || Object.prototype.hasOwnProperty.call(cached, key)) { return; }
       seen[key] = true;
       to_lookup.push(key);
     });

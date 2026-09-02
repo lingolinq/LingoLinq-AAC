@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-08-31T18:48:50.262Z
+# Generated: 2026-09-02T01:05:08.928Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -118,23 +118,20 @@ app/components/confirm-delete-board.js|ember/require-computed-property-dependenc
 app/components/confirm-delete-user.js|ember/no-runloop|88|13|2|5addc2170315
 app/components/confirm-org-action.js|ember/require-computed-property-dependencies|107|18|1|4f3cfbc971db
 app/components/copying-board.js|lingolinq/no-orphaned-action|389|5|1|981d7ce18fc2
-app/components/create-board-new.js|ember/no-incorrect-calls-with-inline-anonymous-functions|2360|41|1|2da67c91d637
-app/components/create-board-new.js|ember/no-runloop|1197|5|2|ab6701509d85
-app/components/create-board-new.js|ember/no-runloop|1253|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|1255|35|2|ab6701509d85
-app/components/create-board-new.js|ember/no-runloop|1352|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|1496|9|2|5addc2170315
-app/components/create-board-new.js|ember/no-runloop|2254|7|2|00fc6802e68e
-app/components/create-board-new.js|ember/no-runloop|2360|7|2|513c0395fe72
-app/components/create-board-new.js|ember/no-runloop|3007|9|2|00fc6802e68e
-app/components/create-board-new.js|ember/require-computed-property-dependencies|1605|25|1|7f66d53536ea
-app/components/create-board-new.js|ember/require-computed-property-dependencies|1609|26|1|7f66d53536ea
-app/components/create-board-new.js|ember/require-computed-property-dependencies|1661|26|1|cb3b82a4722f
-app/components/create-board-new.js|ember/require-computed-property-dependencies|1665|23|1|cb3b82a4722f
-app/components/create-board-new.js|ember/require-computed-property-dependencies|1671|20|1|cb3b82a4722f
-app/components/create-board-new.js|ember/require-computed-property-dependencies|853|31|1|f4993249c296
-app/components/create-board-new.js|no-prototype-builtins|1212|38|1|796a0e9769cd
-app/components/create-board-new.js|no-prototype-builtins|1276|38|1|796a0e9769cd
+app/components/create-board-new.js|ember/no-incorrect-calls-with-inline-anonymous-functions|2577|41|1|2da67c91d637
+app/components/create-board-new.js|ember/no-runloop|1393|5|2|ab6701509d85
+app/components/create-board-new.js|ember/no-runloop|1456|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|1458|35|2|ab6701509d85
+app/components/create-board-new.js|ember/no-runloop|1573|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|2471|7|2|00fc6802e68e
+app/components/create-board-new.js|ember/no-runloop|2577|7|2|513c0395fe72
+app/components/create-board-new.js|ember/no-runloop|3224|9|2|00fc6802e68e
+app/components/create-board-new.js|ember/require-computed-property-dependencies|1820|25|1|7f66d53536ea
+app/components/create-board-new.js|ember/require-computed-property-dependencies|1824|26|1|7f66d53536ea
+app/components/create-board-new.js|ember/require-computed-property-dependencies|1876|26|1|cb3b82a4722f
+app/components/create-board-new.js|ember/require-computed-property-dependencies|1880|23|1|cb3b82a4722f
+app/components/create-board-new.js|ember/require-computed-property-dependencies|1886|20|1|cb3b82a4722f
+app/components/create-board-new.js|ember/require-computed-property-dependencies|854|31|1|f4993249c296
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|100|7|2|5addc2170315
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|111|7|2|5addc2170315
 app/components/dashboard-supervisors-modal.js|ember/no-runloop|143|7|2|5addc2170315
@@ -490,7 +487,6 @@ app/controllers/profile.js|ember/require-computed-property-dependencies|37|25|1|
 app/controllers/quick-assessment.js|ember/no-implicit-injections|14|9|2|b56779df9b9f
 app/controllers/quick-assessment.js|ember/no-implicit-injections|99|19|2|b56779df9b9f
 app/controllers/record-note.js|ember/no-implicit-injections|27|7|2|b56779df9b9f
-app/controllers/register.js|lingolinq/no-orphaned-action|491|5|1|7d2603ad5732
 app/controllers/rename-board.js|ember/no-runloop|35|11|2|5addc2170315
 app/controllers/save-snapshot.js|lingolinq/no-orphaned-action|58|5|1|11097b5a5164
 app/controllers/search.js|lingolinq/no-orphaned-action|406|5|1|0c0b7c487c92
