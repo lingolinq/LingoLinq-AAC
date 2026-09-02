@@ -26,6 +26,8 @@ file (see [README.md](README.md)).
 - [Gotcha: Spanish pronoun lookup must register subject keys before slot values](#gotcha-spanish-pronoun-lookup-must-register-subject-keys-before-slot-values)
 - [Pattern: Spanish inflections sidebar board uses `:es-*` actions, not translated English suffixes](#pattern-spanish-inflections-sidebar-board-uses-es--actions-not-translated-english-suffixes)
 - [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
+- [Pattern: user create boards author in the communicator language, look up symbols in English](#pattern-user-create-boards-author-in-the-communicator-language-look-up-symbols-in-english)
+- [Gotcha: assigning `persistence.ajax = fn` does not stub the Ember helper — use `stub()`](#gotcha-assigning-persistenceajax--fn-does-not-stub-the-ember-helper--use-stub)
 - [Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one](#gotcha-source_part_of_speech-is-not-a-locale--process_buttons-500s-if-treated-as-one)
 - [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
 - [Gotcha: dotenv leaves op:// refs in ENV — present? is not injected](#gotcha-dotenv-leaves-op-refs-in-env--present-is-not-injected)
@@ -45,8 +47,12 @@ file (see [README.md](README.md)).
 - [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
 - [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
 - [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
+- [Pattern: collect `swap_images` lookup words with the same skip predicates as the button loop](#pattern-collect-swap_images-lookup-words-with-the-same-skip-predicates-as-the-button-loop)
+- [Gotcha: inserting at the top of an Ember `actions` hash shifts grandfathered eslint-todo lines](#gotcha-inserting-at-the-top-of-an-ember-actions-hash-shifts-grandfathered-eslint-todo-lines)
+- [Gotcha: Hydra `search_many` must classify and retry like `search_result`](#gotcha-hydra-search_many-must-classify-and-retry-like-search_result)
 - [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
 - [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
+- [Gotcha: public COPPA signup is classified from birth month/year, not the client flag](#gotcha-public-coppa-signup-is-classified-from-birth-monthyear-not-the-client-flag)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
 - [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
 - [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
@@ -217,6 +223,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
 - [Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery](#pattern-a-container-that-stays-in-the-layout-while-empty-defeats-the-scanners-detachedzero-box-recovery)
 - [Decision: scanner `escape()` keeps its class allow-list — generalising it removes the switch user's guaranteed exit](#decision-scanner-escape-keeps-its-class-allow-list--generalising-it-removes-the-switch-users-guaranteed-exit)
+- [Gotcha: boards-layout-toggle global-failure flake (capabilities 2s auth-sync interval vs the per-test localStorage stub)](#gotcha-boards-layout-toggle-global-failure-flake-capabilities-2s-auth-sync-interval-vs-the-per-test-localstorage-stub)
 
 ---
 
@@ -382,6 +389,8 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Gotcha: Translate Boards must not send action tokens to Google](#gotcha-translate-boards-must-not-send-action-tokens-to-google)
 - [Gotcha: Translate Boards tree is not a labeled button set](#gotcha-translate-boards-tree-is-not-a-labeled-button-set)
 - [Gotcha: BoundSelect search typing is killed by ctrlAction preventDefault](#gotcha-boundselect-search-typing-is-killed-by-ctrlaction-preventdefault)
+- [Gotcha: Ember classic `layout` is the template, not a listbox mode](#gotcha-ember-classic-layout-is-the-template-not-a-listbox-mode)
+- [Pattern: supporter signup COPPA reuses `coppa_under_13`, not a role check](#pattern-supporter-signup-coppa-reuses-coppa_under_13-not-a-role-check)
 - [Pattern: board-detail Speak bar must speak vocalization, not just label](#pattern-board-detail-speak-bar-must-speak-vocalization-not-just-label)
 - [Pattern: board-detail Speak bar must play attached button sounds, not TTS-only](#pattern-board-detail-speak-bar-must-play-attached-button-sounds-not-tts-only)
 - [Pattern: long-running modal work that must survive dismissal belongs in a service + app-level component, not a "hidden" modal](#pattern-long-running-modal-work-that-must-survive-dismissal-belongs-in-a-service--app-level-component-not-a-hidden-modal)
@@ -571,6 +580,18 @@ Keyboard boards use vocalizations as control protocols: `+a` composes spelling, 
 `ctrlAction` always calls `preventDefault()` on the event. The searchable language list puts the filter `<input>` inside the `<ul>`, so a `{{on "keydown" (this.ctrlAction "list_keydown")}}` on that list cancelled every keystroke before the character was inserted. Use dedicated `onListKeydown` / `onSearchKeydown` handlers assigned in `init()` (same pattern as `modern-select`), and only `preventDefault` for Escape / ArrowDown / Enter.
 
 **First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: Ember classic `layout` is the template, not a listbox mode
+
+`@ember/component` already uses `layout` for the compiled template. Passing `@layout="grid"` on BoundSelect would replace the listbox template with the string `"grid"`. Opt-in grid mode is `@grid={{true}}` plus `@gridColumns`. Search keydown still must use `onSearchKeydown`, not `ctrlAction`.
+
+**First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
+
+## Pattern: supporter signup COPPA reuses `coppa_under_13`, not a role check
+
+The backend COPPA parent-email path keys off `coppa_under_13`, not communicator vs supporter. Collect supporter birth month/year, run the same `_classifyCommunicatorAge` / `_classifyUnder16` cutoffs, and send `under_16` for every role. Google `link['name']` is the Google profile name — carry the form name as `signup_name` or it overwrites the profile name used before create.
+
+**First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
 
 ## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
 
@@ -3974,6 +3995,24 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 **Fix recipe:** Keep English Quick Core / Vocal Flair as canonical on `lingolinq/*`; `copy_for` → `WordData.translate_batch` → `translate_set` into `*-es` slugs so `image_id` is preserved. Provision with `rake lingolinq:provision_spanish_library_boards`; gate signup copies with `FeatureFlags.signup_spanish_library_boards_enabled?`.
 
 **Evidence:** `lib/spanish_library_boards.rb`, `lib/system_board_sources.rb`, `lib/user_board_provisioner.rb`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Pattern: user create boards author in the communicator language, look up symbols in English
+
+**Symptom:** A Spanish user creating a board either sees English labels (`english_first_board_generation` forced `locale=en`) or types Spanish and gets no symbols (OpenSymbols miss).
+
+**Fix recipe:** Keep visible labels in the authoring locale. Batch-translate to English via `POST /api/v1/users/self/translate`, search `/search/symbols` and `batch_parts_of_speech` with the English words, cache results under the Spanish key. Save one board with `locale` = authoring language and `translations` containing both `es` and `en`. Do not open `translation-select` after save. The create-time rewrite of locale to `en` in `boards_controller#create` is skipped when translations are present.
+
+**Evidence:** `app/frontend/app/components/create-board-new.js` (`_lookup_label_english`, `_lookup_label_images_with_english`, `_build_authoring_translations`); task log `2026-09-01-create-board-bilingual-labels.md`.
+
+---
+
+## Gotcha: assigning `persistence.ajax = fn` does not stub the Ember helper — use `stub()`
+
+`persistence` is an EmberObject whose `ajax` is also mirrored onto the test helper. `persistence.ajax = function() { ... }` does not replace the method the component actually calls, so lookups hit the real/helper ajax and the test sees identity translations or zero symbol requests. Use `stub(persistence, 'ajax', function(url, opts) { ... })` from `frontend/tests/helpers/jasmine`.
+
+**Evidence:** `app/frontend/tests/components/create-board-new-test.js` bilingual describe; `app/frontend/tests/helpers/jasmine.js` `stub`.
 
 ---
 
@@ -12496,8 +12535,14 @@ Net: `_missing` conflates "no such symbol" with "the API was down when we asked,
 and does so *only* on the highest-value boards — the ones flagged important. Never
 treat membership in `_missing` as proof that work is complete or that a retry is
 futile. Using it to skip a redundant lookup within one run is fine; using it as a
-terminal state is not. The cache-write conflation at `uploader.rb:1013-1016` is
-still open.
+terminal state is not. The write-site conflation was closed on
+`perf/melissa-copy-swap-lookups`: `Uploader.find_images` only calls
+`add_missing_word` when the lookup is `ok` (a genuine empty 200). A 429 / timeout
+/ non-2xx is `OpenSymbols.search_result` `:throttled` / `:timeout` / `:http` and
+is not cached. A malformed HTTP 200 on the v1 fallback (`JSON.parse rescue []`)
+used to look like a genuine miss and still stamp six months; that parse failure
+is now `:http` as well. Historical `missing` rows written before that fix can still sit
+until their stamp ages out.
 
 ## Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions
 
@@ -12529,6 +12574,49 @@ lookups, no skip, no button change) still sets `@had_unresolved`, so the bubble
 saved a board the old spec treats as a no-op (`board_spec.rb` "should do nothing
 when no images found"). That `save` is also how PaperTrail got stuck off in CI
 (see the next entry). Gate the bubble on `swapped_library == library`.
+
+## Pattern: collect `swap_images` lookup words with the same skip predicates as the button loop
+
+`#861` repaired the already-in-library skip, but `Uploader.default_images` still
+ran first for every label (`board.rb` used to build `words` from all labels at
+what is now the filtered list). An already-correct board still paid one
+OpenSymbols HTTP call per word. Collect only `label || vocalization` for buttons
+the loop will actually look up (`swap_skips_button?`, `swap_keeps_existing_image?`,
+`swap_image_already_in_library?` in `app/models/board.rb`). If every button is
+skippable, do not call `default_images` at all — an empty list still hits the
+cache / v1 POST (`lib/uploader.rb`). Remaining opensymbols lookups go through
+`OpenSymbols.search_many` (Hydra, default 3s). Sequential `search_result` stays
+at 10s so interactive symbol search is not shortened by the Hydra default.
+Index `known_button_images` once by `global_id` and reuse that hash in both
+loops — a second `bis.detect` per button is O(buttons × images).
+
+## Gotcha: inserting at the top of an Ember `actions` hash shifts grandfathered eslint-todo lines
+
+`scripts/eslint-todo-gate.js` fingerprints `file|ruleId|line|column|severity|messageHash`.
+Adding three lines at the top of `actions` in `user/index.js` (#904 Try Again)
+moved pre-existing `ember/no-runloop` and `lingolinq/no-orphaned-action` hits
+off their todo rows. CI then reported them as NEW. The linter's
+"use ember-lifeline" hint is a red herring — this app does not depend on
+ember-lifeline (`caseload.js`). Put a new action at the **end** of the hash
+(lookup is by name) so grandfathered lines stay put. Do not convert nearby
+`schedule` / `runLater` calls just to silence a shift.
+
+## Gotcha: Hydra `search_many` must classify and retry like `search_result`
+
+`search_result` wraps `JSON.parse` and retries 401 with `clear_token_cache` +
+`generate_new_token`. `search_many` is the opensymbols defaults path and used to
+do neither: a non-JSON 200 raised out of `hydra.run` and aborted `swap_images`
+before `swapped_library` was written (duplicate board set), and a stale cached
+token failed the whole batch as `:http` until Redis TTL died. Both paths now go
+through `classify_search_response` (`lib/open_symbols.rb`). Hydra 401s are
+`:auth` and get one requeue with a fresh token. Specs that stub `hydra.run` and
+never fire `on_complete` cannot catch this; stub the HTTP (Typhoeus.stub) so the
+callback runs.
+
+Hydra transport errors are returned on `defaults_result[:errors]` and copied to
+`defaults['_transport']`. `swap_images` skips `find_images` for those words in
+the same pass (no retry storm) and still sets `swap_incomplete`. Do not fold
+them into `_missing`.
 
 ## Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised
 
@@ -16395,3 +16483,66 @@ classic-plane Haiku-only `CLASSIC_PROFILE_IDS`) re-asserts that the seam works.
 `i18n.t` (`app/frontend/app/utils/i18n.js:448`) and `WordData.translate_locale_batch` (`app/models/word_data.rb:718`) both key off a leading `*** `. A value stored as English with no prefix — e.g. `"edit_dashboard_sub": "Customize your Dashboard"` — is shown as-is and skipped by the batch. Mixed Spanish/English on the dashboard was untranslated `***` placeholders (and one English-without-prefix key), not missing `{{t}}` in the templates. Fill via `rake extras:translate_ui_locales LOCALE=es` under `op run`, or write `Translation [[ English`. Treat `op://` tokens as unset (see the dotenv gotcha).
 
 **First seen in:** [2026-08-31-dashboard-i18n-locale-placeholders.md](./2026-08-31-dashboard-i18n-locale-placeholders.md)
+## Gotcha: boards-layout-toggle global-failure flake (capabilities 2s auth-sync interval vs the per-test localStorage stub)
+
+**Symptom:** `build-and-test` fails on exactly one `Unit | Component | boards-layout-toggle`
+test (first seen: "re-choosing the SAME mode does not save again"), on a run that completed at
+full baseline (`# tests 2396 / # skip 38 / # fail 1`, so not a truncation). The TAP entry says
+`global failure: TypeError: localStorage.getItem is not a function` with a stack in
+`capabilities.sync_access_token` -- the test's own assertions never ran red.
+
+**Mechanism (traced 2026-08-31; each step labeled):**
+- CONFIRMED: `app/frontend/app/utils/capabilities.js:320-326` starts a `setInterval` calling
+  `capabilities.sync_access_token()` every 2000ms; `_auth_sync_interval` is never cleared
+  anywhere (grep: only :320,321), so once started it runs for the life of the page.
+- CONFIRMED: the throwing line is `capabilities.js:305`, verbatim:
+  `if(window.LingoLinq && (window.LingoLinq.DEBUG || (typeof localStorage !== 'undefined' && localStorage.getItem('debug_tokens') === 'true'))) {`
+  The `typeof` check passes for a plain-object stub (it is not undefined), and the
+  `window.LingoLinq.DEBUG` short-circuit never saves it because `DEBUG` is read in two files
+  but ASSIGNED nowhere under `app/frontend/app/`.
+- CONFIRMED: two more gates must ALSO open before :305 runs: the early return at
+  `capabilities.js:301-303` (skip when the new token is empty and a valid one is cached) and
+  the `if(new_token !== capabilities.access_token)` wrapper at `:304`. A tick that finds an
+  unchanged token returns without touching localStorage. This is why the flake is rare, not
+  (stub window / 2000ms) common.
+- CONFIRMED: `boards-layout-toggle-test.js:41` replaces the PAGE-GLOBAL `window.localStorage`
+  per test with plain objects that have NO `getItem` (`stubStorage` / `throwingStorage`),
+  restored in an `afterEach` whose restore failure is swallowed by a bare `catch` (`:29-38`).
+- PLAUSIBLE (the one unproven link): that the interval is actually running during this
+  `setupTest` module. Nothing in the test file starts it; the only trigger in the codebase is
+  `extras.advance.watch('device', ...)` dispatching `method: 'init'` (`extras.js:530-531`),
+  which is module-level and order-dependent, so whether the tick fires here depends on what ran
+  earlier in the same browser page. Test-order dependence also better explains the observed
+  rarity than the 2s timing alone.
+- CONFIRMED: when the tick does throw, QUnit charges the uncaught error as a
+  **global failure to whichever test is running**. Same victim-charging class as the
+  `token_validated` leak entry above, different leak source.
+
+**Corroboration:** on PR #888 (run 33343382237, attempt 1, commit `8b0105a8a`) the only diff
+from the branch's previous fully-green frontend run was one line in `app/models/user.rb`, which
+the Ember suite never compiles. Identical frontend code, different outcome; attempt 2 passed.
+
+**Handling -- key on the STACK FRAME, not the message:** a solo boards-layout-toggle failure at
+full baseline whose stack is in `capabilities.sync_access_token` is this flake; rerun with
+`gh run rerun --failed`. BUT the identical message (`localStorage.getItem is not a function`)
+can also come from `extras.js:241,248`, which has the same call with NO `typeof` guard on the
+ajax request path -- that one is request-driven, fires on any XHR issued while the global is
+stubbed, and will NOT clear on rerun. Check the stack frame before rerunning. If the rerun
+fails on a DIFFERENT test, stop and treat it as signal. Do not "fix" it by weakening the
+test's stubs blindly.
+
+**Fix candidates (NOT applied; need the >=30-iteration verification budget):** stop replacing
+the page-global (inject a storage adapter, or make the `afterEach` restore THROW instead of the
+silent `catch` at `boards-layout-toggle-test.js:32` -- if a restore ever fails, the next
+`beforeEach` captures the stub as "real" and installs it for the rest of the suite with no
+diagnostic); guard or try/catch the debug reads at `capabilities.js:305` AND `extras.js:241,248`;
+have the test harness cancel `capabilities._auth_sync_interval`; or add a no-op `getItem` to the
+stub objects (weakest -- patches one symptom of an unbounded global mutation).
+
+**First seen in:** PR #888 CI, 2026-08-30/31.
+
+## Gotcha: public COPPA signup is classified from birth month/year, not the client flag
+
+`User.process_params` treats a classifiable `birth_month` / `birth_year` as authoritative for the under-13 gate (`User.age_under_threshold?`, age 13). The Ember `coppa_under_13` flag is only a fallback when birth is missing (org New User, fixtures). Unauthenticated `POST /api/v1/users` requires birth when COPPA is on. Google register start accepts birth only on POST (`post auth/google/start`); GET register start ignores query birth so DOB is not in history, proxy logs, or the Google referrer. Complete raises `coppa_age`. Do not put the optional signup name on `/auth/google/start` as `&name=` — send `signup_name` on the complete POST.
+
+**First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)

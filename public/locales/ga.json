@@ -9229,5 +9229,17 @@
   "find_user_section_desc": "Cuardaigh aon chuntas de réir ainm úsáideora nó ríomhphoist. Oscail an phróifíl nó lig ort féin dul i bhfolach ó na torthaí. [[ Look up any account by username or email. Open the profile or masquerade from the results.",
   "user_name_or_email": "ainm úsáideora nó ríomhphost [[ user name or email",
   "caseload_tour_list_b3": "Fanann na sraitheanna ina n-áit ionas nach léimeann an liosta choíche [[ Rows stay put so the list never jumps",
-  "boards_layout_top_down": "Barr anuas [[ Top down"
+  "boards_layout_top_down": "Barr anuas [[ Top down",
+  "twitter": "*** Twitter",
+  "share_via_twitter": "Roinn trí Twitter [[ Share via Twitter",
+  "twitter_url": "URL Twitter [[ Twitter URL",
+  "twitter_handle": "Láimhseáil Twitter [[ Twitter Handle",
+  "full_name_optional": "Ainm Iomlán (roghnach) [[ Full Name (optional)",
+  "search_months": "Cuardaigh míonna [[ Search months",
+  "search_years": "Cuardaigh blianta [[ Search years",
+  "search_countries": "Cuardaigh tíortha... [[ Search countries...",
+  "supporter_type_required": "Roghnaigh cineál tacaí le do thoil. [[ Please choose a supporter type.",
+  "register_create_your_account": "Cruthaigh do chuntas [[ Create your account",
+  "register_continue_parent_approval": "Lean ar aghaidh le ceadú tuismitheora [[ Continue with parent approval",
+  "twitter_handle_example": "@cibé duine [[ @whoever"
 }

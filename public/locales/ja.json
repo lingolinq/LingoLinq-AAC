@@ -9222,5 +9222,17 @@
   "find_user_section_desc": "ユーザー名またはメールアドレスでアカウントを検索します。検索結果からプロフィールを開くか、なりすましを行います。 [[ Look up any account by username or email. Open the profile or masquerade from the results.",
   "user_name_or_email": "ユーザー名またはメールアドレス [[ user name or email",
   "caseload_tour_list_b3": "行は固定されているため、リストがジャンプすることはありません。 [[ Rows stay put so the list never jumps",
-  "boards_layout_top_down": "トップダウン [[ Top down"
+  "boards_layout_top_down": "トップダウン [[ Top down",
+  "twitter": "ツイッター [[ Twitter",
+  "share_via_twitter": "Twitterでシェア [[ Share via Twitter",
+  "full_name_optional": "氏名（任意） [[ Full Name (optional)",
+  "search_months": "検索月数 [[ Search months",
+  "search_years": "検索年 [[ Search years",
+  "search_countries": "国を検索... [[ Search countries...",
+  "supporter_type_required": "サポーターの種類を選択してください。 [[ Please choose a supporter type.",
+  "register_create_your_account": "アカウントを作成する [[ Create your account",
+  "register_continue_parent_approval": "保護者の承認を得て続行 [[ Continue with parent approval",
+  "twitter_url": "ツイッターのURL [[ Twitter URL",
+  "twitter_handle": "ツイッターハンドル [[ Twitter Handle",
+  "twitter_handle_example": "@誰であれ [[ @whoever"
 }

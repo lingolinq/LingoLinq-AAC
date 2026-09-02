@@ -9229,5 +9229,17 @@
   "find_user_section_desc": "Suchen Sie nach einem beliebigen Konto anhand des Benutzernamens oder der E-Mail-Adresse. Öffnen Sie das Profil oder die Maskerade aus den Suchergebnissen. [[ Look up any account by username or email. Open the profile or masquerade from the results.",
   "user_name_or_email": "Benutzername oder E-Mail-Adresse [[ user name or email",
   "caseload_tour_list_b3": "Die Zeilen bleiben an ihrem Platz, sodass die Liste nie springt. [[ Rows stay put so the list never jumps",
-  "boards_layout_top_down": "Von oben nach unten [[ Top down"
+  "boards_layout_top_down": "Von oben nach unten [[ Top down",
+  "twitter": "*** Twitter",
+  "share_via_twitter": "Über Twitter teilen [[ Share via Twitter",
+  "twitter_url": "Twitter-URL [[ Twitter URL",
+  "twitter_handle": "Twitter Griff [[ Twitter Handle",
+  "full_name_optional": "Vollständiger Name (optional) [[ Full Name (optional)",
+  "search_months": "Monate durchsuchen [[ Search months",
+  "search_years": "Suchjahre [[ Search years",
+  "search_countries": "Länder suchen... [[ Search countries...",
+  "supporter_type_required": "Bitte wählen Sie eine Unterstützerart. [[ Please choose a supporter type.",
+  "register_create_your_account": "Erstellen Sie Ihr Konto [[ Create your account",
+  "register_continue_parent_approval": "Mit Zustimmung der Eltern fortfahren [[ Continue with parent approval",
+  "twitter_handle_example": "@werauch [[ @whoever"
 }

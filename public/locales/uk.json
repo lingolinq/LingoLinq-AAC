@@ -9230,5 +9230,17 @@
   "find_user_section_desc": "Шукайте будь-який обліковий запис за іменем користувача або електронною поштою. Відкрийте профіль або замаскуйтеся з результатів. [[ Look up any account by username or email. Open the profile or masquerade from the results.",
   "user_name_or_email": "ім'я користувача або електронна адреса [[ user name or email",
   "caseload_tour_list_b3": "Рядки залишаються на місці, тому список ніколи не перескакує [[ Rows stay put so the list never jumps",
-  "boards_layout_top_down": "Зверху вниз [[ Top down"
+  "boards_layout_top_down": "Зверху вниз [[ Top down",
+  "twitter": "Твіттер [[ Twitter",
+  "share_via_twitter": "Поділіться через Twitter [[ Share via Twitter",
+  "twitter_url": "URL-адреса Twitter [[ Twitter URL",
+  "twitter_handle": "Ручка Twitter [[ Twitter Handle",
+  "full_name_optional": "Повне ім'я (необов'язково) [[ Full Name (optional)",
+  "search_months": "Пошук місяців [[ Search months",
+  "search_years": "Пошук років [[ Search years",
+  "search_countries": "Пошук країн... [[ Search countries...",
+  "supporter_type_required": "Будь ласка, виберіть тип вболівальника. [[ Please choose a supporter type.",
+  "register_create_your_account": "Створіть свій обліковий запис [[ Create your account",
+  "register_continue_parent_approval": "Продовжити з батьківським схваленням [[ Continue with parent approval",
+  "twitter_handle_example": "@хто б [[ @whoever"
 }

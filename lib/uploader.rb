@@ -725,6 +725,7 @@ module Uploader
     found_words = cache.find_words(words, user) if cache && (!user || !user.subscription_hash['skip_cache'])
     if ['noun-project', 'sclera', 'arasaac', 'mulberry', 'tawasol', 'twemoji', 'opensymbols', 'pcs', 'symbolstix'].include?(library)
       list = words - found_words.keys
+      transport_words = []
 
       # Use OpenSymbols v2 API if OPENSYMBOLS_SECRET is configured
       if ENV['OPENSYMBOLS_SECRET'].present?
@@ -737,19 +738,11 @@ module Uploader
           protected_source = 'symbolstix'
         end
         
-        results = {}
-        
-        if library == 'opensymbols'
-          # The 'opensymbols' meta-repo doesn't support the defaults endpoint,
-          # iterate and search for each word individually
-          list.each do |word|
-            search_results = OpenSymbols.search(word, locale: locale)
-            results[word] = search_results.first if search_results.any?
-          end
-        else
-          # Use the bulk defaults endpoint for specific repositories
-          results = OpenSymbols.defaults(library, list, locale)
-        end
+        # opensymbols (and tawasol) have no bulk defaults endpoint;
+        # OpenSymbols.defaults_result parallelizes those per-word searches.
+        lookup = OpenSymbols.defaults_result(library, list, locale)
+        results = lookup[:results] || {}
+        transport_words = (lookup[:errors] || {}).keys
       else
         # Fallback to v1 API with OPENSYMBOLS_TOKEN
         token = ENV['OPENSYMBOLS_TOKEN']
@@ -812,6 +805,7 @@ module Uploader
           }
         }        
       end
+      hash['_transport'] = transport_words if transport_words.any?
       cache.save_if_added
       return hash
     elsif found_words
@@ -827,6 +821,7 @@ module Uploader
   def self.find_images(keyword, library, locale, user, alt_user=nil, batch=false, cache_forever=false)
     return false if (keyword || '').strip.blank? || (library || '').strip.blank?
     list = nil
+    transport_error = nil
     if library == 'ss'
       return false
     elsif library == 'lessonpix'
@@ -956,7 +951,9 @@ module Uploader
         
         # Use the new OpenSymbols v2 API module
         require 'open_symbols' unless defined?(OpenSymbols)
-        list = OpenSymbols.find_images(keyword, library, locale, protected_source: protected_source)
+        lookup = OpenSymbols.find_images_result(keyword, library, locale, protected_source: protected_source)
+        list = lookup[:results]
+        transport_error = lookup[:error] unless lookup[:ok]
       else
         # Fall back to v1 API (legacy)
         str = keyword.to_s
@@ -975,7 +972,16 @@ module Uploader
           protected_source = 'symbolstix'
         end
         res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(str)}&search_token=#{token}", timeout: 5)
-        results = JSON.parse(res.body) rescue []
+        transport_error = classify_opensymbols_transport(res)
+        results = []
+        if !transport_error
+          begin
+            results = JSON.parse(res.body)
+          rescue JSON::ParserError, TypeError
+            transport_error = :http
+            results = []
+          end
+        end
         results.each do |result|
           next unless result.is_a?(Hash)
           if result['extension']
@@ -1013,12 +1019,23 @@ module Uploader
     library.instance_variable_set('@library_cache', cache)
     if cache && list && list[0]
       cache.add_word(keyword, list[0], cache_forever)
-    else
-      # Only cache missing words if they're on an "important" board (for now)
-      cache.add_missing_word(keyword, cache_forever) if cache_forever
+    elsif cache_forever && !transport_error
+      # Genuine empty result only. A 429 / timeout / non-2xx must not stamp
+      # missing 6 months forward (library_cache.rb:141) or swap_incomplete
+      # retries stay blocked until the stamp ages out.
+      cache.add_missing_word(keyword, cache_forever)
     end
     cache.save_if_added
     return list || false
+  end
+
+  def self.classify_opensymbols_transport(res)
+    return :timeout if res.respond_to?(:timed_out?) && res.timed_out?
+    code = res.respond_to?(:code) ? res.code.to_i : 0
+    return nil if code == 0 && !(res.respond_to?(:success?) && res.success? == false)
+    return :throttled if code == 429
+    return :http if code >= 400 || code == 0
+    nil
   end
   
   def self.find_resources(query, source, user)

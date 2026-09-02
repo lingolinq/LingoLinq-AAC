@@ -147,8 +147,9 @@ class Api::OrganizationsController < ApplicationController
           image_url: code[:target].is_a?(User) ? code[:target].generated_avatar_url('fallback') : code[:target].settings['image_url'],
           name: code[:target].settings['name']
         }
-        # Signup collects no name, so `name` above is blank for most supervisors
-        # and the client's "Invited By Supervisor - <name>" would render empty.
+        # Signup name is optional. When the target filled it in, this payload
+        # returns that real name; otherwise the client would show an empty
+        # "Invited By Supervisor" string. Resolve the fallback HERE.
         # Resolve the fallback HERE rather than shipping `user_name` for the
         # client to fall back to: this action is exempt from require_api_token
         # (see the before_action at the top of this file), so its payload is

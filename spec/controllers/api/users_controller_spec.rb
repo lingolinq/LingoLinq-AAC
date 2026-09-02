@@ -823,27 +823,31 @@ describe Api::UsersController, :type => :controller do
   end
   
   describe "create" do
+    def adult_birth_params(extra = {})
+      {'birth_month' => 1, 'birth_year' => Time.now.utc.year - 20}.merge(extra)
+    end
+
     it "should not require api token" do
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
     end
 
     it "should provision default library boards on signup when enabled" do
       expect(UserBoardProvisioner).to receive(:provision_for).and_return([])
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
     end
     
     it "should schedule delivery of a welcome message" do
       expect(UserMailer).to receive(:schedule_delivery).exactly(2).times
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['user']['name']).to eq('fred')
     end
     
     it "should not allow  blank user name" do
-      post :create, params: {:user => {'user_name' => ''}}
+      post :create, params: {:user => adult_birth_params('user_name' => '')}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       # This asserted on `name` and only ever passed because generate_defaults
@@ -856,14 +860,14 @@ describe Api::UsersController, :type => :controller do
     end
 
     it "should include access token information" do
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['meta']['access_token']).not_to be_nil
     end
     
     it "should have correct defaults" do
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       user = json['user']
@@ -876,7 +880,7 @@ describe Api::UsersController, :type => :controller do
     
     it "should error gracefully on user create fail" do
       expect_any_instance_of(User).to receive(:process_params){|u| u.add_processing_error("bacon") }.and_return(false)
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).not_to be_successful
       json = JSON.parse(response.body)
       expect(json['error']).to eq("user creation failed")
@@ -885,13 +889,13 @@ describe Api::UsersController, :type => :controller do
     
     it "should track the new user externally" do
       expect(ExternalTracker).to receive(:track_new_user)
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
     end
 
     describe "user_creation audit trail" do
       it "records a user_creation AuditEvent for plain self-registration" do
-        post :create, params: {:user => {'name' => 'fred'}}
+        post :create, params: {:user => adult_birth_params('name' => 'fred')}
         json = assert_success_json
         u = User.find_by_path(json['user']['id'])
         ev = AuditEvent.where(:event_type => 'user_creation').where("user_key = ?", u.global_id).first
@@ -904,7 +908,7 @@ describe Api::UsersController, :type => :controller do
       it "records the authoring organization when created via a valid start code" do
         o = Organization.create
         code = Organization.activation_code(o, {'user_type' => 'communicator'})
-        post :create, params: {:user => {'name' => 'fred', 'start_code' => code}}
+        post :create, params: {:user => adult_birth_params('name' => 'fred', 'start_code' => code)}
         json = assert_success_json
         u = User.find_by_path(json['user']['id'])
         ev = AuditEvent.where(:event_type => 'user_creation', :record_id => o.global_id).first
@@ -936,7 +940,7 @@ describe Api::UsersController, :type => :controller do
       it "does not orphan or 500 the account when the user_creation audit fails (fail-open)" do
         allow(AuditEvent).to receive(:create!).and_call_original
         expect(AuditEvent).to receive(:create!).with(hash_including(:event_type => 'user_creation')).and_raise(StandardError.new('boom'))
-        post :create, params: {:user => {'name' => 'audit_fail_plain'}}
+        post :create, params: {:user => adult_birth_params('name' => 'audit_fail_plain')}
         expect(response).to be_successful
         json = JSON.parse(response.body)
         u = User.find_by_path(json['user']['id'])
@@ -945,6 +949,9 @@ describe Api::UsersController, :type => :controller do
     end
 
     describe "COPPA parental consent" do
+      let(:child_birth) { {'birth_month' => Time.now.utc.month, 'birth_year' => Time.now.utc.year} }
+      let(:adult_birth) { {'birth_month' => 1, 'birth_year' => Time.now.utc.year - 20} }
+
       before do
         allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
       end
@@ -959,12 +966,32 @@ describe Api::UsersController, :type => :controller do
           'authored_organization_id' => '',
           'coppa_under_13' => true,
           'parent_consent_email' => 'parent_blank_org@example.com'
-        }}
+        }.merge(child_birth)}
         expect(response).to be_successful
         json = JSON.parse(response.body)
         expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
         u = User.find_by_path(json['user']['id'])
         expect(u.coppa_parental_consent_pending?).to eq(true)
+      end
+
+      it "creates a pending minor for a supporter registration type" do
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
+        post :create, params: {:user => {
+          'name' => 'coppa_supporter',
+          'email' => 'kid_supporter@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'parent_supporter@example.com',
+          'preferences' => {'registration_type' => 'teacher'}
+        }.merge(child_birth)}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(true)
+        expect(u.settings['preferences']['registration_type']).to eq('teacher')
+        expect(u.settings['preferences']['role']).to eq('supporter')
       end
 
       it "creates a pending minor without access token and emails the parent" do
@@ -979,7 +1006,7 @@ describe Api::UsersController, :type => :controller do
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'parent_coppa@example.com'
-        }}
+        }.merge(child_birth)}
         expect(response).to be_successful
         json = JSON.parse(response.body)
         expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
@@ -999,7 +1026,9 @@ describe Api::UsersController, :type => :controller do
           'password' => 'abcdef',
           'terms_agree' => true,
           'coppa-under-13' => true,
-          'parent-consent-email' => 'parent_dash@example.com'
+          'parent-consent-email' => 'parent_dash@example.com',
+          'birth-month' => Time.now.utc.month,
+          'birth-year' => Time.now.utc.year
         }}
         expect(response).to be_successful
         json = JSON.parse(response.body)
@@ -1016,7 +1045,9 @@ describe Api::UsersController, :type => :controller do
           'password' => 'abcdef',
           'terms_agree' => true,
           'coppaUnder13' => true,
-          'parentConsentEmail' => 'parent_camel@example.com'
+          'parentConsentEmail' => 'parent_camel@example.com',
+          'birthMonth' => Time.now.utc.month,
+          'birthYear' => Time.now.utc.year
         }}
         expect(response).to be_successful
         json = JSON.parse(response.body)
@@ -1032,7 +1063,7 @@ describe Api::UsersController, :type => :controller do
           'password' => 'abcdef',
           'terms_agree' => true,
           'coppa_under_13' => true
-        }}
+        }.merge(child_birth)}
         expect(response).not_to be_successful
         json = JSON.parse(response.body)
         expect(json['errors']).to include('parent consent email required for under-13 registration')
@@ -1046,7 +1077,7 @@ describe Api::UsersController, :type => :controller do
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'same@example.com'
-        }}
+        }.merge(child_birth)}
         expect(response).not_to be_successful
         json = JSON.parse(response.body)
         expect(json['errors']).to include('parent consent email must be different from the account email')
@@ -1060,7 +1091,7 @@ describe Api::UsersController, :type => :controller do
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'parent4@example.com'
-        }}
+        }.merge(child_birth)}
         expect(response).to be_successful
         u = User.find_by_path(JSON.parse(response.body)['user']['id'])
         code = u.registration_code
@@ -1081,10 +1112,55 @@ describe Api::UsersController, :type => :controller do
           'terms_agree' => true,
           'authored_organization_id' => 'invalid_org_999',
           'coppa_under_13' => true
-        }}
+        }.merge(child_birth)}
         expect(response).not_to be_successful
         json = JSON.parse(response.body)
         expect(json['errors']).to include('parent consent email required for under-13 registration')
+      end
+
+      it "rejects unauthenticated signup without a birth month and year" do
+        post :create, params: {:user => {
+          'name' => 'coppa_no_birth',
+          'email' => 'no_birth@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('birth month and year required')
+      end
+
+      it "does not honor a client under-13 flag when birth month/year is 13 or over" do
+        post :create, params: {:user => {
+          'name' => 'coppa_adult_flag',
+          'email' => 'adult_flag@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'parent_ignored@example.com'
+        }.merge(adult_birth)}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to be_falsey
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(false)
+      end
+
+      it "treats a classifiable under-13 birth as pending even when the client flag is false" do
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
+        post :create, params: {:user => {
+          'name' => 'coppa_child_no_flag',
+          'email' => 'child_no_flag@example.com',
+          'password' => 'abcdef',
+          'terms_agree' => true,
+          'coppa_under_13' => false,
+          'parent_consent_email' => 'parent_from_birth@example.com'
+        }.merge(child_birth)}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(true)
       end
 
       it "treats an unauthorized author's authored_organization_id as NO authorization (COPPA still applies)" do
@@ -1180,7 +1256,7 @@ describe Api::UsersController, :type => :controller do
     end
 
     it "ignores blank start code (optional field may submit empty string)" do
-      post :create, params: {:user => {'name' => 'reg_blank_start_code', 'start_code' => ''}}
+      post :create, params: {:user => adult_birth_params('name' => 'reg_blank_start_code', 'start_code' => '')}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['user']['id']).to be_present
@@ -1189,7 +1265,7 @@ describe Api::UsersController, :type => :controller do
     it "should allow adding a start code" do
       o = Organization.create
       code = Organization.activation_code(o, {'user_type' => 'communicator'})
-      post :create, params: {:user => {'name' => 'fred', 'start_code' => code}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred', 'start_code' => code)}
       json = assert_success_json
       u = User.find_by_path(json['user']['id'])
       expect(u).to_not eq(nil)
@@ -1201,7 +1277,7 @@ describe Api::UsersController, :type => :controller do
       o = Organization.create
       code = Organization.activation_code(o, {'user_type' => 'communicator'})
       Organization.remove_start_code(o, code)
-      post :create, params: {:user => {'name' => 'fred', 'start_code' => code}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred', 'start_code' => code)}
       assert_error('invalid start code')
     end
 
@@ -1213,14 +1289,14 @@ describe Api::UsersController, :type => :controller do
       expect(o.home_board_keys).to eq([b.key])
       
       code = Organization.activation_code(o, {'user_type' => 'communicator', 'locale' => 'fr', 'symbol_library' => 'symbolstix', 'supervisors' => [s.global_id], 'home_board_key' => b.key})
-      post :create, params: {:user => {
+      post :create, params: {:user => adult_birth_params({
         'name' => 'fred', 
         'preferences' => {
           'locale' => 'es', 
           'preferred_symbols' => 'pcs', 
         },
         'start_code' => code
-      }}
+      })}
       json = assert_success_json
       u = User.find_by_path(json['user']['id'])
       expect(u).to_not eq(nil)
@@ -1245,7 +1321,7 @@ describe Api::UsersController, :type => :controller do
       o.settings['default_beta_program_access'] = false
       o.save!
       code = Organization.activation_code(o, {'user_type' => 'communicator'})
-      post :create, params: {:user => {'name' => 'fred_no_beta', 'start_code' => code}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred_no_beta', 'start_code' => code)}
       json = assert_success_json
       u = User.find_by_path(json['user']['id'])
       expect(u.settings['preferences']['beta_program_access']).to eq(false)
@@ -1253,7 +1329,7 @@ describe Api::UsersController, :type => :controller do
     end
 
     it "should default beta_program_access to true for registrations without a start code" do
-      post :create, params: {:user => {'name' => 'fred_beta_default'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred_beta_default')}
       json = assert_success_json
       u = User.find_by_path(json['user']['id'])
       expect(u.settings['preferences']['beta_program_access']).to eq(true)
@@ -1271,7 +1347,7 @@ describe Api::UsersController, :type => :controller do
 
       it "sets app when X-INSTALLED-LINGOLINQ is true" do
         request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
-        post :create, params: {:user => {'name' => 'reg_hdr_app'}}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_hdr_app')}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['app']).to eq(true)
@@ -1280,7 +1356,7 @@ describe Api::UsersController, :type => :controller do
 
       it "sets browser when X-INSTALLED-LINGOLINQ is false" do
         request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
-        post :create, params: {:user => {'name' => 'reg_hdr_browser'}}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_hdr_browser')}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['browser']).to eq(true)
@@ -1288,7 +1364,7 @@ describe Api::UsersController, :type => :controller do
       end
 
       it "sets app when installed_app param is true and header is absent" do
-        post :create, params: {:user => {'name' => 'reg_param_app'}, :installed_app => 'true'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_param_app'), :installed_app => 'true'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['app']).to eq(true)
@@ -1297,7 +1373,7 @@ describe Api::UsersController, :type => :controller do
 
       it "treats header false as authoritative when it conflicts with installed_app param" do
         request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
-        post :create, params: {:user => {'name' => 'reg_hdr_wins'}, :installed_app => 'true'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_hdr_wins'), :installed_app => 'true'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['browser']).to eq(true)
@@ -1306,7 +1382,7 @@ describe Api::UsersController, :type => :controller do
 
       it "matches session-style resolution when header is true (param ignored)" do
         request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
-        post :create, params: {:user => {'name' => 'reg_hdr_over_param'}, :installed_app => 'false'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_hdr_over_param'), :installed_app => 'false'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['app']).to eq(true)
@@ -1314,7 +1390,7 @@ describe Api::UsersController, :type => :controller do
       end
 
       it "sets browser when installed_app param is false and header is absent" do
-        post :create, params: {:user => {'name' => 'reg_param_browser'}, :installed_app => 'false'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_param_browser'), :installed_app => 'false'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['browser']).to eq(true)
@@ -1323,7 +1399,7 @@ describe Api::UsersController, :type => :controller do
 
       it "ignores non-canonical header and uses installed_app param for app" do
         request.headers['X-INSTALLED-LINGOLINQ'] = 'yes'
-        post :create, params: {:user => {'name' => 'reg_garbage_app'}, :installed_app => 'true'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_garbage_app'), :installed_app => 'true'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['app']).to eq(true)
@@ -1332,7 +1408,7 @@ describe Api::UsersController, :type => :controller do
 
       it "ignores non-canonical header and uses installed_app param for browser" do
         request.headers['X-INSTALLED-LINGOLINQ'] = '1'
-        post :create, params: {:user => {'name' => 'reg_garbage_browser'}, :installed_app => 'false'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_garbage_browser'), :installed_app => 'false'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['browser']).to eq(true)
@@ -1348,7 +1424,7 @@ describe Api::UsersController, :type => :controller do
           d.save! if d.persisted?
           d
         end
-        post :create, params: {:user => {'name' => 'stale_app_cleared_reg'}}
+        post :create, params: {:user => adult_birth_params('name' => 'stale_app_cleared_reg')}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['app']).to eq(nil)
@@ -1364,7 +1440,7 @@ describe Api::UsersController, :type => :controller do
           d.save! if d.persisted?
           d
         end
-        post :create, params: {:user => {'name' => 'stale_browser_cleared_reg'}}
+        post :create, params: {:user => adult_birth_params('name' => 'stale_browser_cleared_reg')}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['browser']).to eq(nil)

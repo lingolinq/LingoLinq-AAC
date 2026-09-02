@@ -9222,5 +9222,17 @@
   "find_user_section_desc": "ابحث عن أي حساب باستخدام اسم المستخدم أو البريد الإلكتروني. افتح الملف الشخصي أو قم بإخفاء هويتك من النتائج. [[ Look up any account by username or email. Open the profile or masquerade from the results.",
   "user_name_or_email": "اسم المستخدم أو البريد الإلكتروني [[ user name or email",
   "caseload_tour_list_b3": "تبقى الصفوف ثابتة، لذا لا تقفز القائمة أبدًا. [[ Rows stay put so the list never jumps",
-  "boards_layout_top_down": "من أعلى إلى أسفل [[ Top down"
+  "boards_layout_top_down": "من أعلى إلى أسفل [[ Top down",
+  "twitter": "تويتر [[ Twitter",
+  "share_via_twitter": "شارك عبر تويتر [[ Share via Twitter",
+  "full_name_optional": "الاسم الكامل (اختياري) [[ Full Name (optional)",
+  "search_months": "أشهر البحث [[ Search months",
+  "search_years": "سنوات البحث [[ Search years",
+  "search_countries": "ابحث عن الدول... [[ Search countries...",
+  "supporter_type_required": "الرجاء اختيار نوع الداعم. [[ Please choose a supporter type.",
+  "register_create_your_account": "أنشئ حسابك [[ Create your account",
+  "register_continue_parent_approval": "يُستكمل الأمر بموافقة الوالدين [[ Continue with parent approval",
+  "twitter_url": "عنوان تويتر [[ Twitter URL",
+  "twitter_handle": "مقبض تويتر [[ Twitter Handle",
+  "twitter_handle_example": "*** @whoever"
 }

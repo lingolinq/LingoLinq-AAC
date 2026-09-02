@@ -1418,7 +1418,7 @@
               <div class="nb-field new-board-field--locale">
                 <label for="locale" class="nb-field__label">{{t "Language" key="locale"}}</label>
                 {{#if this.appState.feature_flags.english_first_board_generation}}
-                  <p class="nb-field__hint">{{t "Boards are created in English first for accurate symbol colors. You can translate after saving." key="english_first_board_hint"}}</p>
+                  <p class="nb-field__hint">{{t "Create in your language. Symbols and colors are matched using English in the background." key="create_board_locale_english_lookup_hint"}}</p>
                 {{else}}
                   <ModernSelect @class="new-board-select--modern" @selectId="locale" @content={{this.locales}} @selection={{this.model.locale}} @action={{this.ctrlAction "setLocale"}} @ariaLabel={{t "Language" key="locale"}} />
                 {{/if}}

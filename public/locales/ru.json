@@ -9230,5 +9230,17 @@
   "find_user_section_desc": "Найдите любую учетную запись по имени пользователя или адресу электронной почты. Откройте профиль или выберите подходящее имя из результатов поиска. [[ Look up any account by username or email. Open the profile or masquerade from the results.",
   "user_name_or_email": "имя пользователя или адрес электронной почты [[ user name or email",
   "caseload_tour_list_b3": "Строки остаются на своих местах, поэтому список никогда не перескакивает. [[ Rows stay put so the list never jumps",
-  "boards_layout_top_down": "Сверху вниз [[ Top down"
+  "boards_layout_top_down": "Сверху вниз [[ Top down",
+  "twitter": "Твиттер [[ Twitter",
+  "share_via_twitter": "Поделиться через Twitter [[ Share via Twitter",
+  "twitter_url": "URL-адрес Twitter [[ Twitter URL",
+  "twitter_handle": "Twitter ручка [[ Twitter Handle",
+  "full_name_optional": "Полное имя (необязательно) [[ Full Name (optional)",
+  "search_months": "Поиск месяцев [[ Search months",
+  "search_years": "Годы поисков [[ Search years",
+  "search_countries": "Поиск стран... [[ Search countries...",
+  "supporter_type_required": "Пожалуйста, выберите тип сторонника. [[ Please choose a supporter type.",
+  "register_create_your_account": "Создайте свою учетную запись [[ Create your account",
+  "register_continue_parent_approval": "Продолжить с согласия родителей. [[ Continue with parent approval",
+  "twitter_handle_example": "*** @whoever"
 }
