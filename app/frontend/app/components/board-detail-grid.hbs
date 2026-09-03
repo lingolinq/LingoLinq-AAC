@@ -240,6 +240,15 @@
             <span class="md-board-detail-symbol-card__label {{if btn.hide_label 'hide-label'}}" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
           {{/unless}}
         {{/if}}
+        {{!-- FOLDER BADGE — REMOVED 2026-09-02, MAY BE RE-INSTATED.
+              The small folder glyph in the bottom-right corner of every folder button.
+              Commented out rather than deleted because this may come back: a folder is still
+              signalled by its tab and back (`md-folder-back` / `md-folder-tab` above), and by
+              the Colored Corner / Colored Face settings, so the badge is redundant signal
+              rather than the only one — but that judgement may be revisited.
+              To re-instate: delete this comment wrapper. The styles are deliberately LEFT IN
+              PLACE (`.md-board-detail-symbol-card__folder-badge`, plus the high-contrast rule
+              at app.scss:86496), so nothing else needs changing.
         {{#if btn.load_board}}
           <span class="md-board-detail-symbol-card__folder-badge" aria-label={{t "Folder" key="folder"}}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none">
@@ -247,6 +256,7 @@
             </svg>
           </span>
         {{/if}}
+        --}}
         {{#if (or (and this.editMode btn.hidden) (and this.editMode this.previewLevelsMode btn.hidden))}}
           <span class="md-board-detail-symbol-card__hidden-badge" aria-label={{t "Hidden button" key="board_detail_hidden_badge"}}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
