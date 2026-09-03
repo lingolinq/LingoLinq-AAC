@@ -305,9 +305,9 @@ module('Unit | Controller | prediction suppressed on yes/no', function(hooks) {
   test('prediction is suppressed on the yes/no board even with the preference on', function(assert) {
     assert.expect(2);
     const c = controller('someone/yesno', true);
-    assert.strictEqual(c.get('is_yes_no_board'), true,
+    assert.true(c.get('is_yes_no_board'),
       'matched on the key slug, so a user copy counts too');
-    assert.strictEqual(c.get('show_word_suggestions'), false,
+    assert.false(c.get('show_word_suggestions'),
       'no predictions on a two-choice board');
     c.destroy();
   });
@@ -315,12 +315,12 @@ module('Unit | Controller | prediction suppressed on yes/no', function(hooks) {
   test('and the underlying preference is untouched, so it returns on the next board', function(assert) {
     assert.expect(2);
     const yes_no = controller('someone/yesno', true);
-    assert.strictEqual(yes_no.get('word_suggestions_enabled'), true,
+    assert.true(yes_no.get('word_suggestions_enabled'),
       'the Board Settings toggle still reflects what the user actually chose');
     yes_no.destroy();
 
     const other = controller('someone/core-24', true);
-    assert.strictEqual(other.get('show_word_suggestions'), true,
+    assert.true(other.get('show_word_suggestions'),
       'prediction comes back by itself on any other board');
     other.destroy();
   });

@@ -795,11 +795,18 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     controller._sync_prediction_tile_size();
     const c = f.card.getBoundingClientRect();
     const t = f.tile.getBoundingClientRect();
+    const r = f.rail.getBoundingClientRect();
+    const rs = window.getComputedStyle(f.rail);
+    const railInnerW = r.width - (parseFloat(rs.paddingLeft) || 0) - (parseFloat(rs.paddingRight) || 0);
     return {
       dH: Math.round(t.height - c.height),
-      dW: Math.round(t.width - c.width),
       dTop: Math.round(t.top - c.top),
-      cardH: Math.round(c.height)
+      cardH: Math.round(c.height),
+      /* Width parity with the board card is deliberately NOT asserted: the tile fills the
+         PANEL, which is sized to the inline sidebar. What must hold is that it fills the
+         panel exactly and never overhangs it. */
+      dPanelW: Math.round(t.width - railInnerW),
+      overhang: Math.round(t.right - r.right)
     };
   }
 
@@ -859,6 +866,12 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
        labels have always truncated; this pins the rail to the same behaviour. */
     document.querySelectorAll('.qa-pred-fixture').forEach(function(n) { n.remove(); });
     const f = boardAndRailFixture(5, 14, 'md-board-detail-grid--shape-square');
+    /* The tile now takes its width from the PANEL, which CSS sizes to the inline sidebar.
+       A 14-column board carries .md-shell--many-columns, where that is 53px at <=768px
+       (app.scss). The fixture does not match media queries, so set it explicitly — without
+       it the panel falls back to 100px and the narrow-tile condition this test needs never
+       arises. */
+    f.rail.style.setProperty('--bd-sidebar-w', '53px');
     const controller = buildController();
     controller.set('ordered_buttons', Array.from({ length: 5 }, function() {
       return Array.from({ length: 14 }, function() { return {}; });
@@ -967,7 +980,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     }
   });
 
-  test('a rail symbol paints at the same size as a board symbol', function(assert) {
+  test('a rail symbol never paints SMALLER than a board symbol', function(assert) {
     assert.expect(4);
     document.querySelectorAll('.qa-pred-fixture').forEach(function(n) { n.remove(); });
     const f = boardAndRailFixture(5, 14, 'md-board-detail-grid--shape-square');
@@ -982,19 +995,29 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
        roomy the two could agree for reasons unrelated to the fix. */
     assert.ok(boardSym > 0, 'guard: the board symbol actually rendered');
     assert.ok(boardSym < 60, 'guard: and is width-constrained, so the comparison is meaningful');
-    assert.strictEqual(railSym, boardSym, 'the rail symbol paints at the board symbol size');
+    /* Exact size parity no longer holds: the tile fills the PANEL (sidebar-width) rather
+       than matching the board card's width, and object-fit:contain paints at
+       min(width, height), so a wider tile paints a larger symbol. The defect this test
+       exists for is the opposite — a rail symbol 24% SMALLER than the board's, which is what
+       shipped once — so the guard is that it is never smaller, not that it is identical. */
+    assert.ok(railSym >= boardSym,
+      'the rail symbol is at least the board symbol size (rail ' + railSym + ' vs board ' + boardSym + ')');
     assert.strictEqual(Math.round(f.tile.getBoundingClientRect().height),
                        Math.round(f.card.getBoundingClientRect().height),
                        'and the tile is the height of a PLAIN button, not the folder in cell 1');
   });
 
-  test('a rail tile is the same box as a board button, in every button shape', function(assert) {
-    assert.expect(10);
+  test('a rail tile fills the panel and keeps the board button\'s height, in every shape', function(assert) {
+    assert.expect(13);
     ['square', 'tall', 'wide'].forEach(function(shape) {
       const m = measureParity('md-board-detail-grid--shape-' + shape, false);
       assert.strictEqual(m.dH, 0, shape + ': tile height matches the board card');
-      assert.strictEqual(m.dW, 0, shape + ': tile width matches the board card');
+      assert.strictEqual(m.dPanelW, 0, shape + ': tile fills the panel width');
       assert.strictEqual(m.dTop, 0, shape + ': tile top aligns with the board card');
+      /* The reported symptom: a tile sized to a board button WIDER than the sidebar hung
+         over the panel's edge. Asserted separately from dPanelW so an overhang is named as
+         an overhang rather than showing up as an unexplained width delta. */
+      assert.ok(m.overhang <= 0, shape + ': tile does not overhang the panel (' + m.overhang + 'px)');
     });
     /* Guard the guard: `wide` must actually be a SHORTER card than the others, or all
        three assertions above could be passing against a fixture where the shape class
@@ -1004,15 +1027,15 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
               'the wide shape really did produce a shorter card');
   });
 
-  test('a rail tile matches the board button whether the sidebar is open or closed', function(assert) {
+  test('a rail tile fills the panel whether the sidebar is open or closed', function(assert) {
     assert.expect(7);
     const closed = measureParity('md-board-detail-grid--shape-square', false);
     const open = measureParity('md-board-detail-grid--shape-square', true);
     assert.strictEqual(closed.dH, 0, 'sidebar closed: height matches');
-    assert.strictEqual(closed.dW, 0, 'sidebar closed: width matches');
+    assert.strictEqual(closed.dPanelW, 0, 'sidebar closed: tile fills the panel');
     assert.strictEqual(closed.dTop, 0, 'sidebar closed: top aligns');
     assert.strictEqual(open.dH, 0, 'sidebar open: height matches');
-    assert.strictEqual(open.dW, 0, 'sidebar open: width matches');
+    assert.strictEqual(open.dPanelW, 0, 'sidebar open: tile fills the panel');
     assert.strictEqual(open.dTop, 0, 'sidebar open: top aligns');
     /* The board buttons themselves get narrower when the sidebar takes width, so the tile
        must track them rather than hold a fixed size. If these were equal, the fixture never

@@ -74390,15 +74390,16 @@ span.md-board-detail-modeling-btn--badge {
   background: rgba(255, 255, 255, 0.04);
 }
 
-/* Tiles match the board button box (measured vars, fixed fallbacks). */
+/* Tiles fill the panel's width; HEIGHT and vertical position still come from the measured
+   board card (--prediction-tile-h / --prediction-tile-inset-top below), so a tile stays in
+   the same row band as the button beside it. */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction {
-  /* BOARD-BUTTON WIDTH, not the panel's. The rail PANEL matches the inline sidebar
-     (--bd-sidebar-w) so the board sees the same gutter whether or not the sidebar renders,
-     but a prediction still has to read as one more column of the board: the tile is the same
-     box as a board card, which is what _sync_prediction_tile_size measures into
-     --prediction-btn-w. Capped at the panel so a wide board button cannot overflow it. */
-  width: var(--prediction-btn-w, 100%);
-  max-width: 100%;
+  /* PANEL WIDTH. The panel is sized to the inline sidebar (--bd-sidebar-w), and a tile fills
+     it. Sizing the tile to the board BUTTON instead left it wider than the panel on boards
+     whose buttons are wider than the sidebar, so tiles overhung the panel edge. Width parity
+     with the board button is therefore deliberately given up; height and row alignment are
+     not, and are what actually keep a prediction reading as part of its row. */
+  width: 100%;
   /* Zero, so the tile's CONTENT box matches the card's. Matching the card's padding value
      (`1px clamp(1px, 1%, 4px)`) is NOT the same thing and measured 2px short: the tile
      carries a 1px border the card does not, so equal padding leaves a smaller content box.
@@ -74406,7 +74407,7 @@ span.md-board-detail-modeling-btn--badge {
      14 columns: card content 33px, tile content 33px, painted symbol 33px on both. */
   padding: 0;
   /* Override the base tile's `min-width: 44px`. The tile tracks one board button
-     (--prediction-btn-w), so on a many-column board that width can be under 44px; with the
+     (--bd-sidebar-w), which is 53-70px on narrow and many-column layouts; with the
      floor in place the tile stays wider than the board card it must match and spills past the
      panel's right edge. Letting it shrink keeps tile and card in step. The image scales with the tile (see the rail __prediction-img rule below), so
      a sub-44px tile stays legible.
@@ -74435,8 +74436,9 @@ span.md-board-detail-modeling-btn--badge {
      every px spent here is a px the symbol does not get. */
   gap: 2px;
   /* Establish a cqw container so the label below tracks the tile width. The tile is sized
-     to the board cell (--prediction-btn-w) — NOT to the panel, which is sidebar-width — so
-     cqw here == cqw on the board's symbol-card and predicted words match the board labels. */
+     to the PANEL (--bd-sidebar-w), so cqw here is relative to that rather than to a board
+     cell. --prediction-label-font, published by _sync_prediction_tile_size from a board
+     label's RENDERED size, is what keeps predicted words matching the board labels. */
   container-type: inline-size;
 }
 /* Let the symbol EXPAND to fill the tile's vertical space (mirrors the board

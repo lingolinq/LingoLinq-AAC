@@ -540,17 +540,11 @@ export default Controller.extend(prefClasses, {
       main.style.setProperty('--prediction-tile-inset-top', insetTop + 'px');
       main.style.setProperty('--prediction-tile-h', Math.round(cardRect.height) + 'px');
     }
-    // WIDTH — one rail tile must be the same box as one board button. The panel itself is
-    // sized in CSS to the inline sidebar (--bd-sidebar-w), so a tile can no longer derive its
-    // width from the panel's content box and is handed the measured card width directly.
-    //
-    // This does NOT reintroduce the circularity a closed-form solve used to guard against
-    // (LEARNINGS, "sizing a fixed-width sibling to a FLEXIBLE element's measured size is
-    // circular"). That solve existed because the rail's width WAS the button width, so
-    // publishing a measured card width fed straight back into the flex distribution that
-    // produced it and never settled. The panel's width is now a constant from the stylesheet,
-    // independent of anything measured here, so the loop is broken at the source.
-    main.style.setProperty('--prediction-btn-w', Math.max(0, cardRect.width) + 'px');
+    // WIDTH is no longer published: the tile fills the rail panel, which CSS sizes to the
+    // inline sidebar (--bd-sidebar-w). Only HEIGHT and the top inset are measured from the
+    // board card (above), which is what keeps a tile in the same row band as the button
+    // beside it. Width parity with the board button was given up deliberately — a tile sized
+    // to a button wider than the sidebar overhung the panel edge.
     // No per-tile height or top-inset measurement needed: the rail grid's rows
     // (--prediction-rows × minmax(0,1fr)), pinned to the board grid height above
     // with a matching 4px top inset, place each tile in its board row band
