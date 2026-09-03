@@ -39,7 +39,13 @@
   align-items: flex-start;
   gap: 24px;
   width: 100%;
-  padding: 24px 28px 40px;
+  /* Vertical padding is deliberately top-heavy (was 24 top / 40 bottom, requested
+     2026-09-02): the rail and panel both start at the very top of this box, so the
+     gap under the navbar is what the eye reads as the page's inset, while the space
+     below the last card is already padded by the card's own margin. Horizontal
+     unchanged. Overridden wholesale below 767px (see the max-width: 767px block),
+     so this pair governs full-size screens only. */
+  padding: 40px 28px 24px;
   box-sizing: border-box;
 }
 
