@@ -1197,6 +1197,23 @@ button.ch-tile--silver:focus-visible {
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
+// The rail's "Open In Speak Mode" (requested 2026-09-02): FLAT fill, and sized to its
+// own text rather than stretching to the rail.
+//
+// Must stay AFTER .ch-btn--primary — both are a single class, (0,1,0), so source order
+// is the only thing that decides which background wins. Moving this above it silently
+// restores the gradient.
+//
+// The flat colour is the gradient's START stop, not a new one. $brand-dusty-denim-aa
+// exists precisely because white on the lighter $brand-dusty-denim measures 3.68:1 and
+// fails WCAG AA; flattening to this end holds white text at 5.82:1, which is actually
+// better than the gradient's own worst point (5.11:1 at the $brand-smart-blue end).
+// The shadow is deliberately kept — only the gradient was removed.
+.ch-btn--speak {
+  align-self: flex-start;
+  background: $brand-dusty-denim-aa;
+}
+
 .ch-btn--primary:hover,
 .ch-btn--primary:focus-visible {
   color: #fff;
