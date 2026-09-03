@@ -916,7 +916,7 @@ export default Component.extend({
   // exists to prevent.
   activeTabLabel: computed('activeTab', 'appState.currentUser.supporter_role', 'appState.currentUser.has_management_responsibility', function() {
     var tab = this.get('activeTab');
-    var labels = { home: i18n.t('home', "Home"), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
+    var labels = { home: i18n.t('home_nav', "Home"), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
     return labels[tab] || labels.home;
   }),
   /** Index route @model is the logged-in user; @user is registration placeholder — use model for boards embed */

@@ -921,8 +921,8 @@
       {{#if this.showBentoStyleHeader}}
         {{#unless this.app_state.eval_mode}}
             {{#if this.app_state.currentUser.user_name}}
-            <LinkTo @route="user.home" @model={{this.app_state.currentUser.user_name}} class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Home" key="home"}} title={{t "Home" key="home"}}>
-              <span class="ll-bento-help-btn__label">{{t "Home" key="home"}}</span>
+            <LinkTo @route="user.home" @model={{this.app_state.currentUser.user_name}} class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Home" key="home_nav"}} title={{t "Home" key="home_nav"}}>
+              <span class="ll-bento-help-btn__label">{{t "Home" key="home_nav"}}</span>
             </LinkTo>
             {{/if}}
             {{#if this.isMasquerading}}
@@ -1138,7 +1138,7 @@
               <li class="dropdown-header">{{this.app_state.currentUser.display_name}}</li>
               {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
-                  <LinkTo @route="index">{{t "Home" key="home"}}</LinkTo>
+                  <LinkTo @route="index">{{t "Home" key="home_nav"}}</LinkTo>
                 </li>
               {{/unless}}
               {{#if this.app_state.currentUser.permissions.delete}}
@@ -1154,7 +1154,7 @@
             {{else}}
               {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
-                  <LinkTo @route="index">{{t "Home" key="home"}}</LinkTo>
+                  <LinkTo @route="index">{{t "Home" key="home_nav"}}</LinkTo>
                 </li>
               {{/unless}}
             {{/if}}
@@ -1459,7 +1459,7 @@
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
         {{#unless this.app_state.index_or_landing_view}}
         <li role="presentation">
-          <LinkTo @route="index">{{t "Home" key="home"}}</LinkTo>
+          <LinkTo @route="index">{{t "Home" key="home_nav"}}</LinkTo>
         </li>
         {{/unless}}
         <li role="presentation">

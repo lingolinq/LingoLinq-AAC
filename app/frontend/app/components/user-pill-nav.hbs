@@ -2,9 +2,9 @@
   {{! Home leads the nav for every role and reads "Home" for every role
       (2026-09-02). Caseload follows it below for supporters. }}
   {{#if (is-equal @active "home")}}
-    <span class="md-pillnav__pill is-active" aria-current="page">{{t "Home" key="home"}}</span>
+    <span class="md-pillnav__pill is-active" aria-current="page">{{t "Home" key="home_nav"}}</span>
   {{else}}
-    <LinkTo @route="user.home" @model={{@userName}} class="md-pillnav__pill">{{t "Home" key="home"}}</LinkTo>
+    <LinkTo @route="user.home" @model={{@userName}} class="md-pillnav__pill">{{t "Home" key="home_nav"}}</LinkTo>
   {{/if}}
 
   {{! Caseload — for every supporter, always AFTER Home. }}
@@ -64,7 +64,7 @@
     <svg class="md-pillnav-dropdown__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
   </summary>
   <ul class="md-pillnav-dropdown__list">
-    <li><LinkTo @route="user.home" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "home") "is-active"}}">{{t "Home" key="home"}}</LinkTo></li>
+    <li><LinkTo @route="user.home" @model={{@userName}} class="md-pillnav-dropdown__option {{if (is-equal @active "home") "is-active"}}">{{t "Home" key="home_nav"}}</LinkTo></li>
     {{#if this.appState.currentUser.supporter_role}}
       <li><LinkTo @route="caseload" class="md-pillnav-dropdown__option {{if (is-equal @active "caseload") "is-active"}}">{{t "Caseload" key="caseload_pill"}}</LinkTo></li>
     {{/if}}
