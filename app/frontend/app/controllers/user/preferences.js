@@ -290,9 +290,13 @@ export default Controller.extend({
     {name: i18n.t('hide_complete', "Hide Completely"), id: "hide"}
   ],
   // Where word prediction renders in board-detail speak mode.
+  /* Must stay in step with word_prediction_position_options in controllers/user/board-detail.js
+     — the same preference is offered in both places, and board-detail is what actually reads
+     it. 'auto' was removed from both: it varied placement by viewport, which read as the
+     setting doing nothing. A stored 'auto' resolves to the default in board-detail. */
   wordPredictionPositionList: [
-    {name: i18n.t('word_prediction_pos_auto', "Best fit for the screen"), id: "auto"},
     {name: i18n.t('word_prediction_pos_speak_bar', "Inside the speak bar"), id: "speak_bar"},
+    {name: i18n.t('word_prediction_pos_below_bar', "Below speak bar"), id: "below_bar"},
     {name: i18n.t('word_prediction_pos_side_rail', "To the right of the board"), id: "side_rail"}
   ],
   // EU under-16 users need parental consent before any AI prefs can stay ON.

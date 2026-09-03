@@ -9233,5 +9233,8 @@
   "board_collection_no_boards_for_language": "*** No boards are translated into %{language} yet.",
   "board_collection_show_all_languages": "*** Show all languages",
   "scroll_up": "*** Scroll up",
-  "scroll_down": "*** Scroll down"
+  "scroll_down": "*** Scroll down",
+  "word_prediction_pos_below_bar": "*** Below speak bar",
+  "copy_progress_indeterminate": "*** Copying, progress not yet measurable",
+  "create_board_locale_english_lookup_hint": "*** Create in your language. Symbols and colors are matched using English in the background."
 }

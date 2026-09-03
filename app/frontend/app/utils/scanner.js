@@ -350,18 +350,26 @@ var scanner = EmberObject.extend({
          scanner specs stub, and some of those stubs answer only the selectors they know
          about and return undefined for everything else. A new selector must not take
          the whole of start() down with it. */
-      var $prediction_rail = scanner.find_elem(".md-board-detail-prediction-rail:visible");
-      if($prediction_rail && $prediction_rail.length) {
+      /* BOTH out-of-#speak placements, built the same way. `side_rail` puts the panel beside
+         the board; `below_bar` puts it under the speak bar, inside the board's own block. The
+         third placement, `speak_bar`, needs nothing here — it lives inside #speak and the
+         header sweep above already reaches it. Only one of the three is ever visible, so at
+         most one row is pushed; `:visible` is what decides which. */
+      var prediction_panel_selectors = [".md-board-detail-prediction-rail:visible",
+                                        ".md-board-detail-prediction-below:visible"];
+      prediction_panel_selectors.forEach(function(panel_selector) {
+        var $panel = scanner.find_elem(panel_selector);
+        if(!$panel || !$panel.length) { return; }
         var prediction_row = {
           children: [],
-          dom: $prediction_rail,
+          dom: $panel,
           header: true,
           label: i18n.t('suggestions', "Suggestions"),
           reload_children: function() {
             var res = [];
-            var $rail = scanner.find_elem(".md-board-detail-prediction-rail:visible");
-            if($rail && $rail.find) {
-              $rail.find(".md-board-detail-sentence-bar__prediction").each(function() {
+            var $current = scanner.find_elem(panel_selector);
+            if($current && $current.find) {
+              $current.find(".md-board-detail-sentence-bar__prediction").each(function() {
                 var $elem = scanner.find_elem(this);
                 res.push({
                   dom: $elem,
@@ -376,7 +384,7 @@ var scanner = EmberObject.extend({
         if(prediction_row.children.length > 0) {
           rows.push(prediction_row);
         }
-      }
+      });
       var content = scanner.scan_content();
 
       if(options.scan_mode == 'row' || options.scan_mode == 'button') {
@@ -802,7 +810,9 @@ var scanner = EmberObject.extend({
          only before the first start() or after a stop(), and no legitimate switch action
          occurs in either window. */
       if(scanner.scanning && parent && parent.higher_level && parent.higher_level.length && parent.dom && parent.dom.hasClass &&
-         (parent.dom.hasClass('md-board-detail-sentence-row') || parent.dom.hasClass('md-board-detail-prediction-rail'))) {
+         (parent.dom.hasClass('md-board-detail-sentence-row') ||
+          parent.dom.hasClass('md-board-detail-prediction-rail') ||
+          parent.dom.hasClass('md-board-detail-prediction-below'))) {
         scanner.level_up(parent);
         return;
       }

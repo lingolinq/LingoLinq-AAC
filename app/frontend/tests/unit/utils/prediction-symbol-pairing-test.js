@@ -325,3 +325,87 @@ module('Unit | Controller | prediction suppressed on yes/no', function(hooks) {
     other.destroy();
   });
 });
+
+/* Placement: 'Best fit for the screen' (auto) was removed — it varied placement by viewport,
+   which read as the setting doing nothing — and replaced by 'Below speak bar', a horizontal
+   panel under the speak bar spanning the board buttons' width. */
+module('Unit | Controller | prediction placement', function(hooks) {
+  setupTest(hooks);
+
+  /* current_grid and prediction_suggestions are computeds on the controller, so they cannot be
+     overridden at create() — Ember asserts. Override them at extend() instead. */
+  function controller(pos, cols, list) {
+    return BoardDetailController.extend({
+      current_grid: EmberObject.create({ columns: cols || 8, rows: 5 }),
+      prediction_suggestions: list || []
+    }).create({
+      app_state: EmberObject.create({
+        referenced_user: EmberObject.create({ preferences: { word_suggestion_position: pos } })
+      }),
+      stashes: svc(), persistence: svc(), router: svc(), appState: svc()
+    });
+  }
+
+  test('below_bar is offered and auto is gone', function(assert) {
+    assert.expect(3);
+    const c = controller('side_rail');
+    const ids = (c.get('word_prediction_position_options') || []).map(function(o) { return o.id; });
+    assert.notStrictEqual(ids.indexOf('below_bar'), -1, 'the new placement is selectable');
+    assert.strictEqual(ids.indexOf('auto'), -1, 'the removed placement is not');
+    assert.strictEqual(ids.length, 3, 'three placements: speak bar, below bar, side rail');
+    c.destroy();
+  });
+
+  test('each placement pins its own shell class', function(assert) {
+    assert.expect(3);
+    ['speak_bar|md-shell--wordpred-speak-bar',
+     'below_bar|md-shell--wordpred-below-bar',
+     'side_rail|md-shell--wordpred-side-rail'].forEach(function(pair) {
+      const parts = pair.split('|');
+      const c = controller(parts[0]);
+      assert.strictEqual(c.get('word_suggestion_position_class'), parts[1], parts[0] + ' pins its class');
+      c.destroy();
+    });
+  });
+
+  test('a stored auto falls back to the default rather than an option that no longer exists', function(assert) {
+    assert.expect(2);
+    const c = controller('auto');
+    assert.strictEqual(c.get('word_suggestion_position_value'), 'side_rail',
+      'the dropdown shows a placement that still exists');
+    assert.strictEqual(c.get('word_suggestion_position_class'), 'md-shell--wordpred-side-rail',
+      'and the layout agrees with it');
+    c.destroy();
+  });
+
+  test('the below-bar empty state reserves width for its message', function(assert) {
+    assert.expect(3);
+    /* Ghosts sit to the RIGHT of the glyph + copy in this panel (the rail stacks them below
+       instead), so two columns are given back to the message. Floored at 1 so a narrow board
+       still shows the affordance rather than an empty bar. */
+    const wide = controller('below_bar', 8);
+    assert.strictEqual(wide.get('prediction_below_ghost_slots').length, 6,
+      'an 8-column board shows 6 ghosts, leaving 2 columns for the message');
+    wide.destroy();
+    const narrow = controller('below_bar', 2);
+    assert.strictEqual(narrow.get('prediction_below_ghost_slots').length, 1,
+      'a 2-column board still shows one ghost rather than none');
+    narrow.destroy();
+    const huge = controller('below_bar', 20);
+    assert.strictEqual(huge.get('prediction_below_ghost_slots').length, 6,
+      'and never exceeds the 8-column cap the tiles use');
+    huge.destroy();
+  });
+
+  test('the below-bar panel is capped to the board COLUMN count, not its rows', function(assert) {
+    assert.expect(2);
+    const eight = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map(function(w) { return { word: w }; });
+    const c = controller('below_bar', 4, eight);
+    assert.strictEqual(c.get('prediction_below_suggestions').length, 4,
+      'a 4-column board shows 4 tiles — the panel has a fixed height, so a second row would be clipped');
+    c.set('current_grid', EmberObject.create({ columns: 12, rows: 5 }));
+    assert.strictEqual(c.get('prediction_below_suggestions').length, 8,
+      'and never more than the server cap of 8');
+    c.destroy();
+  });
+});

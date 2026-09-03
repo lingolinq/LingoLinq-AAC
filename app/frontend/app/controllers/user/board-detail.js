@@ -2791,9 +2791,10 @@ export default Controller.extend(prefClasses, {
   // responsive in-bar/rail switch (empty class). Default (unset) is 'side_rail'
   // — a vertical rail just left of the sidebar — matching user.rb
   // preference_defaults. See app.scss ".md-shell--wordpred-*" rules.
-  word_suggestion_position_class: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
-    var pos = this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'side_rail';
+  word_suggestion_position_class: computed('word_suggestion_position_value', function() {
+    var pos = this.get('word_suggestion_position_value');
     if(pos === 'speak_bar') { return 'md-shell--wordpred-speak-bar'; }
+    if(pos === 'below_bar') { return 'md-shell--wordpred-below-bar'; }
     if(pos === 'side_rail') { return 'md-shell--wordpred-side-rail'; }
     return '';
   }),
@@ -2803,19 +2804,24 @@ export default Controller.extend(prefClasses, {
   // size dropdown's bindings in the same panel.
   word_prediction_position_dropdown_open: false,
   word_suggestion_position_value: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
-    return this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'side_rail';
+    var pos = this.get('app_state.referenced_user.preferences.word_suggestion_position');
+    /* 'auto' was removed as an option (it varied placement by viewport, which read as the
+       setting doing nothing). A stored 'auto' resolves to the default rather than leaving the
+       dropdown showing a label for a choice that no longer exists. */
+    if(!pos || pos === 'auto') { return 'side_rail'; }
+    return pos;
   }),
   word_prediction_position_options: computed(function() {
     return [
-      { id: 'auto', label: i18n.t('word_prediction_pos_auto', "Best fit for the screen") },
       { id: 'speak_bar', label: i18n.t('word_prediction_pos_speak_bar', "Inside the speak bar") },
+      { id: 'below_bar', label: i18n.t('word_prediction_pos_below_bar', "Below speak bar") },
       { id: 'side_rail', label: i18n.t('word_prediction_pos_side_rail', "To the right of the board") }
     ];
   }),
   word_prediction_position_label: computed('word_suggestion_position_value', function() {
     var val = this.get('word_suggestion_position_value');
     var match = (this.get('word_prediction_position_options') || []).find(function(o) { return o.id === val; });
-    return match ? match.label : i18n.t('word_prediction_pos_auto', "Best fit for the screen");
+    return match ? match.label : i18n.t('word_prediction_pos_side_rail', "To the right of the board");
   }),
 
   _suggestion_lookup_context: function() {
@@ -4579,6 +4585,48 @@ export default Controller.extend(prefClasses, {
      an extra "column", so it must never show more tiles than a board column has
      buttons — i.e. cap it at the board's row count (5 rows → max 5 predictions,
      3 rows → max 3). Falls back to the full list if the row count isn't known. */
+  /* One ghost per rail ROW, MINUS ONE. The empty state used to render a fixed six, which
+     overran the panel on any board with fewer rows; a bottom mask hid the overrun by fading
+     it, and that fade also dimmed the last ghost when it DID fit.
+     The -1 is what makes the fade unnecessary rather than merely less visible: the glyph and
+     copy sit ABOVE the ghosts in the same box and consume roughly a row of height, so a
+     ghost per row still overruns. Giving that row back to the message guarantees the last
+     ghost is whole, which is the whole point — a part-drawn placeholder reads as breakage.
+     TWO rows are given back at <=1024px: that is where the panel is narrowest (the stylesheet
+     drops it to 80px, and 60/53px on a many-column board), so the copy wraps to more lines and
+     the message block takes closer to two rows. Same breakpoint the sidebar/rail widths use,
+     so the two stay in step. Keyed on app_state.window_inner_width rather than matchMedia so
+     the count actually recomputes on resize.
+     Floored at 1 so a very short board still shows the affordance. Rows come from the same
+     source as prediction_rail_suggestions below, so ghosts land in the slots real
+     predictions will occupy. */
+  prediction_ghost_slots: computed('current_grid.rows', 'app_state.window_inner_width', function() {
+    var rows = parseInt(this.get('current_grid.rows'), 10) || 4;
+    var width = parseInt(this.get('app_state.window_inner_width'), 10) || 0;
+    var reserved = (width > 0 && width <= 1024) ? 2 : 1;
+    return new Array(Math.max(1, Math.min(rows, 8) - reserved)).fill(1);
+  }),
+
+  /* The BELOW-BAR panel is horizontal, so its capacity is the board's COLUMN count, not its
+     rows. Capped at 8 to match the server's own clamp (words_controller.rb) and floored at 1
+     so a single-column board still shows something. Sliced rather than wrapped: the panel has
+     a FIXED height by design, so an extra row of tiles would be clipped rather than shown. */
+  /* Ghost slots for the BELOW-BAR empty state. Horizontal, so it counts COLUMNS, and two are
+     given back to the glyph + copy that sit to the LEFT of the ghosts in that panel (the rail
+     stacks them above instead, and reserves rows for the same reason). Floored at 1 so a
+     narrow board still shows the affordance. */
+  prediction_below_ghost_slots: computed('current_grid.columns', function() {
+    var cols = parseInt(this.get('current_grid.columns'), 10) || 4;
+    return new Array(Math.max(1, Math.min(cols, 8) - 2)).fill(1);
+  }),
+
+  prediction_below_suggestions: computed('prediction_suggestions.[]', 'current_grid.columns', function() {
+    var list = this.get('prediction_suggestions') || [];
+    var cols = parseInt(this.get('current_grid.columns'), 10) || 0;
+    var cap = Math.max(1, Math.min(cols || list.length, 8));
+    return list.length > cap ? list.slice(0, cap) : list;
+  }),
+
   prediction_rail_suggestions: computed('prediction_suggestions.[]', 'current_grid.rows', function() {
     var list = this.get('prediction_suggestions') || [];
     var rows = parseInt(this.get('current_grid.rows'), 10) || 0;

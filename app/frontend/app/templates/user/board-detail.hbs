@@ -1990,6 +1990,49 @@
         </div>
       {{else}}
       <div class="md-board-detail-grid-fade {{if this.grid_loading 'md-board-detail-grid-fade--loading'}}">
+
+        {{!-- Word-prediction BELOW-BAR panel. Sits directly under the speak bar and spans
+              exactly the board buttons' width, because it is the first child of grid-fade
+              (the block that holds the grid). Same glass surface as the side rail, laid out
+              horizontally with a FIXED height, so the board never reflows as predictions come
+              and go. CSS decides whether it shows (see app.scss .md-shell--wordpred-below-bar);
+              like the rail, the markup is kept isolated rather than shared with the in-bar
+              group so a change here cannot regress the other placements. --}}
+        {{#unless this.edit_mode}}
+          {{#if this.show_word_suggestions}}
+            <div class="md-board-detail-prediction-below {{this.button_text_position_class}} {{if this.suggestions_loading_visible 'md-board-detail-prediction-below--is-loading'}}" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} aria-busy={{if this.suggestions_loading_visible "true" "false"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
+              {{#each this.prediction_below_suggestions key="word" as |suggestion|}}
+                <button type="button" class="md-board-detail-sentence-bar__prediction" {{on "click" (this.ctrlActionNoBubble "complete_word" suggestion)}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
+                  {{#if this.utterance_show_symbols}}
+                    {{#if suggestion.image}}
+                      <img src={{suggestion.image}} rel={{suggestion.fallback_image}} {{image-fallback-to-rel}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
+                    {{/if}}
+                  {{/if}}
+                  <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
+                </button>
+              {{else}}
+                {{!-- Same empty state as the side rail, laid out along the panel instead of
+                      down it: glyph + copy on the left, ghost tiles filling the rest. The
+                      panel keeps its fixed height either way, so the board never moves as
+                      predictions arrive or clear. Copy and label reuse the rail's i18n keys —
+                      it is the same message on a different surface. --}}
+                <div class="md-board-detail-prediction-below__empty">
+                  <span class="md-board-detail-prediction-below__empty-lead">
+                    {{!-- Decorative: the copy carries the meaning, and the group already has
+                          an accessible label. --}}
+                    <svg class="md-board-detail-prediction-below__empty-glyph" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span class="md-board-detail-prediction-below__empty-copy">{{t "Tap a board button, and we'll suggest words here." key="board_detail_prediction_empty"}}</span>
+                  </span>
+                  <span class="md-board-detail-prediction-below__empty-ghosts" aria-hidden="true">
+                    {{#each this.prediction_below_ghost_slots}}
+                      <span class="md-board-detail-prediction-below__empty-ghost"></span>
+                    {{/each}}
+                  </span>
+                </div>
+              {{/each}}
+            </div>
+          {{/if}}
+        {{/unless}}
       <BoardDetailGrid
         @board={{this.model}}
         @orderedButtons={{this.ordered_buttons}}
@@ -2087,16 +2130,15 @@
                 {{!-- Ghost tiles: they show WHERE words will land rather than leaving the
                       column blank below the copy, which is what made the empty panel read as
                       unfinished. Purely decorative, aria-hidden, no animation (this surface
-                      is used with eye-gaze and switch scanning). A fixed six is enough to
-                      reach the bottom of a tall rail; the container masks the overflow so a
-                      ghost clipped by the panel edge fades rather than cutting off. --}}
+                      is used with eye-gaze and switch scanning). The count comes from
+                      prediction_ghost_slots — the rail's row count less the rows the glyph and
+                      copy occupy — so every ghost is whole. There is no overflow mask: it
+                      dimmed the last ghost even when it fitted, which is the opposite of what
+                      this state is for. --}}
                 <span class="md-board-detail-prediction-rail__empty-ghosts" aria-hidden="true">
-                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
-                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
-                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
-                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
-                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
-                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
+                  {{#each this.prediction_ghost_slots}}
+                    <span class="md-board-detail-prediction-rail__empty-ghost"></span>
+                  {{/each}}
                 </span>
               </div>
             {{/each}}

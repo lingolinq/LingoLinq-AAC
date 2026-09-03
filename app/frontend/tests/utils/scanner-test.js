@@ -1653,6 +1653,70 @@ describe('scanner', function() {
       };
     };
 
+    /* Same shape as railFindElem, for the BELOW-BAR placement. Kept as its own helper rather
+       than parameterising the rail's, because every existing test in this describe binds to
+       that one and a shared signature change would touch all of them. */
+    var belowFindElem = function(tile_count) {
+      var base = scannerFindElemStub({
+        '.md-board-detail-prediction-below:visible': domStub(1, {
+          hasClass: function(cls) { return cls === 'md-board-detail-prediction-below'; },
+          find: function(sel) {
+            if(sel !== '.md-board-detail-sentence-bar__prediction') { return domStub(0); }
+            return domStub(tile_count, {
+              each: function(cb) {
+                for(var i = 0; i < tile_count; i++) { cb.call({prediction_index: i}); }
+              }
+            });
+          }
+        })
+      });
+      return function(str) {
+        if(str && str.prediction_index !== undefined) {
+          return domStub(1, { text: function() { return ['cream', 'crunch'][str.prediction_index]; } });
+        }
+        return base(str);
+      };
+    };
+
+    /* THE THIRD PLACEMENT. 'speak_bar' is reached by the header's "#speak button:visible"
+       sweep because it lives inside the sentence row; 'side_rail' by the test below. This
+       panel is inside the board's own block, so it is in NEITHER — without its own row a
+       scanning or eye-gaze user could not select a prediction at all while it is chosen. */
+    it('registers the BELOW-BAR panel as its own scan row, with its tiles as children', function() {
+      var rows = null;
+      stub(scanner, 'find_elem', belowFindElem(2));
+      stubScannerModalClosed();
+      stub(scanner, 'scan_content', function() { return { rows: 0, columns: 0, order: [[]] }; });
+      stub(scanner, 'scan_elements', function(r) { rows = r; });
+
+      scanner.start({});
+
+      var panel = (rows || []).filter(function(r) {
+        return r.dom && r.dom.hasClass && r.dom.hasClass('md-board-detail-prediction-below');
+      })[0];
+      expect(!!panel).toEqual(true);
+      expect(panel.children.length).toEqual(2);
+      expect(panel.children[0].label).toEqual('cream');
+    });
+
+    it('leaves the BELOW-BAR panel on escape instead of trapping the user in it', function() {
+      /* Every placement must have a way OUT under switch scanning. escape() levels up only for
+         parents it recognises; an unrecognised one falls through to stop(), which ends the scan
+         rather than returning to the row above — a dead end for a switch user. */
+      var levelled = null, stopped = false;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+      stub(scanner, 'stop', function() { stopped = true; });
+      var parent = {
+        higher_level: [{ label: 'board' }], higher_level_index: 0,
+        dom: { hasClass: function(c) { return c === 'md-board-detail-prediction-below'; } }
+      };
+      scanner.scanning = true;
+      scanner.elements = [{ label: 'child' }, parent];
+      scanner.escape();
+      expect(levelled).toEqual(parent);
+      expect(stopped).toEqual(false);
+    });
+
     it('registers the rail as its own scan row, with its tiles as children', function() {
       var rows = null;
       stub(scanner, 'find_elem', railFindElem(2));

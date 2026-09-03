@@ -74183,6 +74183,7 @@ span.md-board-detail-modeling-btn--badge {
    hit gives no feedback and costs the user a re-acquisition, which is worse than
    inserting a slightly stale but perfectly valid word. */
 .md-board-detail-sentence-bar__prediction-group--is-loading,
+.md-board-detail-prediction-below--is-loading,
 .md-board-detail-prediction-rail--is-loading {
   /* The cue is on the tile SURFACE, never on the text. `opacity` on the tile is a GROUP operation —
      it multiplies the label's alpha too — and the LIGHT rail's label is only ~5.1:1 against the
@@ -74218,6 +74219,7 @@ span.md-board-detail-modeling-btn--badge {
 }
 /* The symbol may fade — it is not text, and 1.4.11 does not apply to it. */
 .md-board-detail-sentence-bar__prediction-group--is-loading .md-board-detail-sentence-bar__prediction-img,
+.md-board-detail-prediction-below--is-loading .md-board-detail-sentence-bar__prediction-img,
 .md-board-detail-prediction-rail--is-loading .md-board-detail-sentence-bar__prediction-img {
   opacity: 0.5;
 }
@@ -74364,7 +74366,9 @@ span.md-board-detail-modeling-btn--badge {
 .md-board-detail-prediction-rail__empty-glyph {
   display: block;
   margin: 2px auto 6px;
-  color: rgba(255, 255, 255, 0.5);
+  /* Was 0.5 — dimmer than the copy below it (0.78), so the one element meant to draw the eye
+     to the panel was the faintest thing in it. */
+  color: rgba(255, 255, 255, 0.75);
 }
 /* Clip the ghost stack to the panel. Six tiles is more than a tall rail needs and fewer than
    a short one can show, so the overflow is expected; the mask fades the cut instead of
@@ -74375,19 +74379,55 @@ span.md-board-detail-modeling-btn--badge {
 .md-board-detail-prediction-rail__empty-ghosts {
   display: block;
   margin-top: 10px;
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 100%);
+  /* NO FADE. A bottom mask used to soften a ghost that overran the panel, but it dimmed the
+     last placeholder even when it fitted, which is the opposite of what this state is for —
+     the ghosts exist to show WHERE words will appear, and the faintest one was the one
+     nearest the words. Every ghost now paints at full strength.
+     Overrun is prevented rather than hidden: the count is the rail's row count MINUS ONE
+     (prediction_ghost_slots), the row given back to the glyph and copy that sit above these
+     in the same box. `__empty` keeps `overflow: hidden` as a backstop, but nothing should
+     reach it. */
 }
 /* Sized from the rail's OWN measured tile vars, not literals, so a ghost occupies exactly
    the box a real prediction will — same height, same gap, same corner radius as the tile
    rule below. If the board's geometry changes the ghosts track it for free. */
-.md-board-detail-prediction-rail__empty-ghost {
+/* APPEARANCE is shared by both placements — one dashed ghost, two orientations. Geometry is
+   split out below because the rail stacks its ghosts down the panel and the below-bar panel
+   lays them along it. */
+.md-board-detail-prediction-rail__empty-ghost,
+.md-board-detail-prediction-below__empty-ghost {
   display: block;
+  border-radius: 14px;
+  /* Legibility, raised 2026-09-02: these were 1px/0.16 dashed on a 0.04 fill, which is below
+     the threshold of easy perception on the dark board surface — the panel read as blank
+     rather than as "words will appear here". A ghost cannot compete with a real prediction
+     for attention because the two are mutually exclusive (the {{else}} arm renders only when
+     the list is empty), so it can afford to be clearly visible. Still DASHED and still a
+     lower fill than a real tile (0.16 -> 0.05 gradient), which is what keeps it reading as a
+     placeholder rather than as a button someone can press. */
+  /* 1px, not 1.5: browsers derive dash LENGTH from border-width (~3x), so 1.5px produced
+     chunky ~4.5px dashes. 1px gives a finer ~3px dash that reads sleeker at this size; the
+     alpha is lifted a little to hold the same visibility with less ink. */
+  border: 1px dashed rgba(255, 255, 255, 0.46);
+  background: rgba(255, 255, 255, 0.12);
+}
+/* RAIL geometry: stacked, each one board-tile tall. */
+.md-board-detail-prediction-rail__empty-ghost {
   height: var(--prediction-tile-h, 64px);
   margin-bottom: var(--prediction-tile-gap, 8px);
-  border-radius: 14px;
-  border: 1px dashed rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.04);
+}
+/* No trailing gap under the last ghost — it is pure overhang at the panel's bottom edge and
+   is exactly the space that pushes an otherwise-fitting ghost into being clipped. */
+.md-board-detail-prediction-rail__empty-ghost:last-child {
+  margin-bottom: 0;
+}
+/* BELOW-BAR geometry: side by side, full panel height, sharing the leftover width equally.
+   `min-width: 0` because a flex item refuses to shrink below its content by default — the
+   ghosts have no content, but the rule is what keeps them honest if that ever changes. */
+.md-board-detail-prediction-below__empty-ghost {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
 }
 
 /* Tiles fill the panel's width; HEIGHT and vertical position still come from the measured
@@ -74582,6 +74622,157 @@ span.md-board-detail-modeling-btn--badge {
   display: none;
 }
 
+/* ── Word-prediction panel BELOW THE SPEAK BAR ────────────────────────────────
+   Same glass surface as the side rail, turned through 90 degrees: it spans the board
+   BUTTONS' width (it is the first child of .md-board-detail-grid-fade, the block that holds
+   the grid) and has a FIXED height, where the rail spans the board's height and takes one
+   button's width.
+   Fixed height is the point of this placement: the panel sits between the speak bar and the
+   board, so a height that tracked its contents would push the whole grid down and up as
+   predictions arrive and clear. The board must not move under a user who is reaching for it.
+   `display: none` here; the placement rules below turn it on. */
+.md-board-detail-prediction-below {
+  display: none;
+  grid-auto-flow: column;
+  /* Equal shares of the panel, floored at 0 so a long word cannot widen its own column and
+     push the others out — the same minmax(0,1fr) the rail uses for its rows. */
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--prediction-tile-gap, 8px);
+  height: var(--prediction-below-h, 92px);
+  box-sizing: border-box;
+  margin-bottom: 6px;
+  /* Surface copied from the rail panel so the two placements are visibly the same component.
+     The hairline is an inset box-shadow rather than a border for the same reason it is there:
+     a border would change the content box the tiles are measured against. */
+  padding: 4px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.30);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+/* Tiles fill their column and the panel's height. The base tile carries a fixed
+   `height: 78px` and `min-width: 44px` for the in-bar placement; both have to go here or the
+   tiles would ignore the panel's fixed height and refuse to shrink on a many-column board. */
+.md-board-detail-prediction-below .md-board-detail-sentence-bar__prediction {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  gap: 2px;
+  /* cqw container so the label tracks the tile, matching the rail's tile rule. */
+  container-type: inline-size;
+}
+.md-board-detail-prediction-below .md-board-detail-sentence-bar__prediction-img {
+  width: 100%;
+  flex: 1 1 0;
+  min-height: 0;
+  height: auto;
+  max-width: 100%;
+  /* No dashed frame, for the same reason the rail drops it: the panel's own glass surface is
+     the "these are suggestions" affordance, and the frame costs painted symbol size. */
+  padding: 0;
+  border: 0;
+}
+/* Placeholder: inset, exactly as on the rail. At `width:auto` a 1:1 asset makes the element
+   box equal the glyph box, which is what keeps any treatment confined to the glyph instead of
+   spreading across the tile. NO background and NO halo here either — see the rail's
+   [src$="square.svg"] rule for why both were tried and removed. */
+.md-board-detail-prediction-below .md-board-detail-sentence-bar__prediction-img[src$="square.svg"] {
+  opacity: var(--pred-img-a, 1);
+  width: auto;
+  max-width: 80%;
+  align-self: center;
+}
+.md-board-detail-prediction-below .md-board-detail-sentence-bar__prediction-label {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--prediction-label-font, clamp(13px, 26cqw, var(--bd-button-text-size, 15px)));
+}
+/* EMPTY STATE — the rail's, rotated. The rail stacks glyph + copy above its ghosts; here they
+   sit to the LEFT and the ghosts take the remaining width. Spans every auto column so the
+   panel's grid does not try to give it a single column's share. */
+.md-board-detail-prediction-below__empty {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.md-board-detail-prediction-below__empty-lead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Never grows, and never shrinks below the point where the sentence is unreadable — if the
+     panel is too narrow for both, the GHOSTS give up their width first. The copy is the part
+     that carries the meaning. */
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-left: 4px;
+}
+.md-board-detail-prediction-below__empty-glyph {
+  flex: none;
+  color: rgba(255, 255, 255, 0.75);
+}
+.md-board-detail-prediction-below__empty-copy {
+  font-size: 14px;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.78);
+  /* Two lines at most, then ellipsis: the panel's height is fixed, so a third line would be
+     clipped mid-glyph rather than simply not shown. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  /* Same reason the rail's copy keeps these: a broken word reads as a typo, and in an AAC
+     surface a word's visual shape is itself a recognition cue. */
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+.md-board-detail-prediction-below__empty-ghosts {
+  display: flex;
+  align-items: stretch;
+  gap: var(--prediction-tile-gap, 8px);
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+}
+/* At <=640px the panel is too shallow to carry the ghosts AND the message legibly, so the
+   ghosts go and the message centres. Keeping the copy is the opposite of the RAIL's choice at
+   this width (app.scss ~87668 drops copy, glyph and ghosts for a rotated spine label) and the
+   difference is geometric, not stylistic: the rail at 640px is one board button WIDE and has
+   nowhere to put a sentence, while this panel still spans the whole board. The ghosts are the
+   decoration here, so they are what gives way.
+   640px is the codebase's existing "no room for a sentence" breakpoint — same number the rail
+   uses, so the two panels change at the same point even though they change differently. */
+@media (max-width: 640px) {
+  .md-board-detail-prediction-below__empty {
+    justify-content: center;
+  }
+  .md-board-detail-prediction-below__empty-lead {
+    /* No left inset once centred — it would push the pair off-centre by exactly that much. */
+    padding-left: 0;
+  }
+  .md-board-detail-prediction-below__empty-ghosts {
+    display: none;
+  }
+}
+/* Shorter on the viewports where vertical room is scarce; the board keeps the difference. */
+@media (max-width: 1024px) {
+  .md-board-detail-prediction-below {
+    height: var(--prediction-below-h, 78px);
+  }
+}
+@media (max-width: 768px) {
+  .md-board-detail-prediction-below {
+    height: var(--prediction-below-h, 68px);
+  }
+}
 /* ── Word-prediction placement (user pref: word_suggestion_position) ──────────
    'auto' (default, no shell class): responsive — in-bar on wide screens, rail
    on <=1024px. 'speak_bar' / 'side_rail' pin it at all widths. Toggling visibility
@@ -74592,7 +74783,7 @@ span.md-board-detail-modeling-btn--badge {
   .md-shell--board-detail:not(.md-shell--wordpred-speak-bar) .md-board-detail-sentence-bar__prediction-group {
     display: none;
   }
-  .md-shell--board-detail:not(.md-shell--wordpred-speak-bar) .md-board-detail-prediction-rail {
+  .md-shell--board-detail:not(.md-shell--wordpred-speak-bar):not(.md-shell--wordpred-below-bar) .md-board-detail-prediction-rail {
     display: grid;
   }
   /* Let the grid yield width so the rail + sidebar + gaps fit inside main
@@ -74611,6 +74802,14 @@ span.md-board-detail-modeling-btn--badge {
 }
 .md-shell--wordpred-side-rail .md-board-detail-grid-fade {
   min-width: 0;
+}
+/* Pinned BELOW THE SPEAK BAR — a horizontal panel spanning the board buttons' width. */
+.md-shell--wordpred-below-bar .md-board-detail-prediction-below {
+  display: grid;
+}
+.md-shell--wordpred-below-bar .md-board-detail-sentence-bar__prediction-group,
+.md-shell--wordpred-below-bar .md-board-detail-prediction-rail {
+  display: none;
 }
 /* Pinned SPEAK BAR needs no rule of its own — it's the default in-bar layout
    kept at every width: the <=1024 rail rules above are excluded for it via
@@ -78166,6 +78365,15 @@ span.md-board-detail-modeling-btn--badge {
 @media (max-width: 1024px) {
   .md-shell--board-detail {
     --bd-sidebar-w: 80px;
+  }
+  /* Side padding 8px -> 4px. The panel is 80px here (60/53 on a many-column board), so 8px a
+     side spent a fifth of it on gutter and squeezed the thumbnails. Top/bottom are left alone
+     -- vertical room is not what is scarce at this width. The <=768px rule below takes the
+     sides to 0, and the short-screen rule after it sets all four; both still win on source
+     order, so this only fills the gap between 769px and 1024px. */
+  .md-board-detail-inline-sidebar__scroll {
+    padding-left: 4px;
+    padding-right: 4px;
   }
   .md-board-detail-inline-sidebar__item {
     padding: 7px 4px;
