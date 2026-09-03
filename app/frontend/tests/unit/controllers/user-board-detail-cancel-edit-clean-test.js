@@ -2,6 +2,7 @@ import { module, test } from 'qunit';
 import { setupTest } from '../../helpers';
 import RSVP from 'rsvp';
 import modal from 'frontend/utils/modal';
+import { settled } from '@ember/test-helpers';
 
 /* "Discard Edits" (templates/user/board-detail.hbs:1510 -> `cancel_edit`) always opened
  * the "Discard Changes?" confirmation, even on a board the user had not touched.
@@ -50,7 +51,7 @@ module('Unit | Controller | user/board-detail cancel_edit on a clean session', f
 
   test('a clean session discards immediately, with no confirmation', async function(assert) {
     this.controller.send('cancel_edit');
-    await new Promise((r) => setTimeout(r, 0));
+    await settled();
     assert.deepEqual(this.modal_opens, [], 'no dialog for a board the user never changed');
     assert.strictEqual(this.discards, 1, 'the rollback still ran exactly once');
   });
@@ -60,7 +61,7 @@ module('Unit | Controller | user/board-detail cancel_edit on a clean session', f
     // opened a dialog would pass the clean case while silently destroying real work.
     this.controller.set('noUndo', false);
     this.controller.send('cancel_edit');
-    await new Promise((r) => setTimeout(r, 0));
+    await settled();
     assert.deepEqual(this.modal_opens, ['confirm-discard-changes'], 'the user is asked');
     assert.strictEqual(this.discards, 1, 'and the rollback runs once they confirm');
   });
@@ -72,7 +73,7 @@ module('Unit | Controller | user/board-detail cancel_edit on a clean session', f
     this.controller.set('original_display_prefs', { text_size: 'medium' });
     this.controller.set('pending_display_prefs', { text_size: 'large' });
     this.controller.send('cancel_edit');
-    await new Promise((r) => setTimeout(r, 0));
+    await settled();
     assert.deepEqual(this.modal_opens, ['confirm-discard-changes'],
       'a pending pref is unsaved work, so it is confirmed');
   });
@@ -84,7 +85,7 @@ module('Unit | Controller | user/board-detail cancel_edit on a clean session', f
     };
     this.controller.set('noUndo', false);
     this.controller.send('cancel_edit');
-    await new Promise((r) => setTimeout(r, 0));
+    await settled();
     assert.deepEqual(this.modal_opens, ['confirm-discard-changes'], 'asked');
     assert.strictEqual(this.discards, 0, 'and the edits survive a dismissed dialog');
   });
