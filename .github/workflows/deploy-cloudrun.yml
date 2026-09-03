@@ -871,17 +871,31 @@ jobs:
       # crash-loop on a later request.
       # FIRST-DEPLOY STOP. Fail closed, deliberately: the service now exists, private, with the
       # candidate tag on its only revision. Nothing is public and nothing was probed. The
-      # operator performs the one-time public-ingress setup and re-runs the workflow, which then
-      # takes the normal existing-service path. Pre-created services (lingolinq-web-staging,
+      # operator probes the private revision with an authenticated request FIRST, then performs
+      # the one-time public-ingress setup and re-runs the workflow, which then takes the normal
+      # existing-service path. Order matters: the first revision owns 100% of traffic, so opening
+      # ingress before that authenticated probe would expose an unverified revision. Pre-created services (lingolinq-web-staging,
       # lingolinq-web-dev, created and tagged 2026-09-02) never reach this step.
       - name: First deploy stop (operator must tag + grant public ingress, then re-run)
         if: steps.guard.outputs.enabled == 'true' && env.FIRST_DEPLOY == 'true'
         run: |
-          echo "::error::$WEB_SERVICE was just CREATED in $GCP_PROJECT_ID/$GCP_REGION and is private. One-time operator setup, then re-run this workflow:"
-          echo "::error::  gcloud resource-manager tags bindings create --location=$GCP_REGION --tag-value=<allUsersIngress=true tagValue id> --parent=//run.googleapis.com/projects/$GCP_PROJECT_ID/locations/$GCP_REGION/services/$WEB_SERVICE"
-          echo "::error::  gcloud run services add-iam-policy-binding $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --member allUsers --role roles/run.invoker"
-          echo "::error::  gcloud run services update-traffic $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --remove-tags candidate"
-          echo "::error::The health probe and traffic pin were NOT run. No traffic decision was made."
+          set -euo pipefail
+          # The initial revision owns 100% of this new service's traffic (there was nothing else
+          # to hold it). Granting allUsers before it is probed would expose an unverified revision,
+          # so the operator sequence probes it PRIVATELY first, with their own identity token,
+          # and only then opens public ingress. (Codex review of #919, round 4.)
+          CAND_URL="$(gcloud run services describe "$WEB_SERVICE" --region "$GCP_REGION" --format=json \
+            | jq -r '[.status.traffic[] | select(.tag == "candidate")][0].url // empty')"
+          echo "::error::$WEB_SERVICE was just CREATED in $GCP_PROJECT_ID/$GCP_REGION and is PRIVATE. Its only revision holds 100% of traffic and has NOT been probed."
+          echo "::error::One-time operator sequence, in this order, then re-run this workflow:"
+          echo "::error::  1. Probe the private revision with your own identity (needs run.invoker; project owners have it). Both must return 200:"
+          echo "::error::       for i in 1 2; do curl -sS -o /dev/null -w '%{http_code}\n' -H \"Authorization: Bearer \$(gcloud auth print-identity-token)\" ${CAND_URL:-<candidate tag URL from: gcloud run services describe $WEB_SERVICE --region $GCP_REGION --format=json | jq .status.traffic>}/api/v1/health; done"
+          echo "::error::     If either is not 200, STOP: fix and re-run the workflow; do not open ingress."
+          echo "::error::  2. gcloud resource-manager tags bindings create --location=$GCP_REGION --tag-value=<allUsersIngress=true tagValue id> --parent=//run.googleapis.com/projects/$GCP_PROJECT_ID/locations/$GCP_REGION/services/$WEB_SERVICE"
+          echo "::error::  3. gcloud run services add-iam-policy-binding $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --member allUsers --role roles/run.invoker"
+          echo "::error::  4. gcloud run services update-traffic $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --remove-tags candidate"
+          echo "::error::  5. Re-run the workflow; it now takes the existing-service path (no-traffic candidate, public probe, pin by name)."
+          echo "::error::No traffic decision was made by this run."
           exit 1
 
       - name: Verify candidate revision health
