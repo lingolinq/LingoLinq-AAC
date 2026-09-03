@@ -99,7 +99,7 @@
   // WCAG AA 4.5:1 floor. The next step up, 0.40/0.32, drops it to 4.27:1 and fails.
   // If this needs to go darker, raise the sub-label's opacity or drop the 0.75 first.
   // (The username itself is full-strength navy at 8.38:1 and is not the constraint.)
-  background: linear-gradient(150deg, rgba($brand-dusty-denim, 0.32) 0%, rgba($brand-verdigris, 0.26) 100%);
+  background: linear-gradient(150deg, rgba($brand-dusty-denim, 0.52) 0%, rgba($brand-verdigris, 0.44) 100%);
   // Same outline as the Actions tab's My Account tile (`.ch-tile--account`, which
   // takes `ch-tile-tint($brand-teal-blue)`): both are the door to the same page, so
   // they carry the same edge. Kept as the literal rgba the mixin emits rather than
@@ -182,7 +182,11 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--md-muted, $la-navy);
-  opacity: 0.75;
+  // 0.85, not 0.75: this is the binding contrast constraint on .ch-rail__identity's
+  // wash, and lifting it is what let that wash go from 0.32/0.26 to 0.52/0.44 while
+  // still clearing WCAG AA (4.76:1 at the denim start, 5.26:1 at the verdigris end).
+  // Still below the username's full strength, so it reads as the secondary line.
+  opacity: 0.85;
 }
 
 .ch-rail__arrow {
@@ -899,7 +903,7 @@ button.ch-tile--primary:focus-visible { color: #fff; }
 // Speak and My Account share ONE mixin call so their colouring is identical by
 // construction — not two calls that happen to carry the same numbers today.
 .ch-tile--account,
-.ch-tile--speak-main { @include ch-tile-tint($brand-teal-blue, 0.36, 0.16); }
+.ch-tile--speak-main { @include ch-tile-tint($brand-teal-blue, 0.52, 0.26); }
 .ch-tile--create  { @include ch-tile-tint($brand-verdigris); }
 .ch-tile--search  { @include ch-tile-tint($brand-dusty-denim); }
 .ch-tile--sup     { @include ch-tile-tint($brand-dusty-denim); }
@@ -907,8 +911,8 @@ button.ch-tile--primary:focus-visible { color: #fff; }
 // same colour, same recipe. Matching only the alphas was not enough — peach is light
 // and warm, stormy teal is dark and desaturated, so at the same 0.30 they rendered
 // as rgb(252,228,218) vs rgb(193,212,212) and still read as different weights.
-.ch-tile--reports { @include ch-tile-tint($brand-stormy-teal); }
-.ch-tile--ideas   { @include ch-tile-tint($brand-soft-fawn, 0.38, 0.17); }
+.ch-tile--reports { @include ch-tile-tint($brand-stormy-teal, 0.46, 0.22); }
+.ch-tile--ideas   { @include ch-tile-tint($brand-soft-fawn, 0.54, 0.26); }
 .ch-tile--learn   { @include ch-tile-tint($brand-stormy-teal); }
 .ch-tile--log     { @include ch-tile-tint($brand-blue-grey, 0.32, 0.14); }
 
@@ -936,7 +940,7 @@ button.ch-tile--primary:focus-visible { color: #fff; }
 // `ch-tile-tint($brand-dusty-denim)` call, so the two tiles cannot drift apart the way
 // two hand-matched colour sets would. That covers background, border and chip in one go.
 // It sits beside `.ch-tile--search` in the Actions grid, so they now read as a pair.
-.ch-tile--extras-toggle { @include ch-tile-tint($brand-dusty-denim); }
+.ch-tile--extras-toggle { @include ch-tile-tint($brand-dusty-denim, 0.46, 0.22); }
 .ch-tile--silver        { @include ch-tile-silver; }
 
 // `extras-toggle` is deliberately NOT in this list any more. This block sets a NEUTRAL
