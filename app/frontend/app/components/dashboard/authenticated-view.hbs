@@ -13,7 +13,7 @@
          components/user-pill-nav.hbs — the two navs render on different pages and
          must agree. --}}
     <button type="button" class="md-pillnav__pill {{if (is-equal this.activeTab "home") "is-active"}}" {{on "click" (fn this.onGoTab "home")}}>
-      {{t "Home" key="home"}}
+      {{t "Home" key="home_nav"}}
     </button>
     {{!-- Caseload — for every supporter, always AFTER Home. --}}
     {{#if this.sectionAvailable.caseload}}
@@ -53,7 +53,7 @@
       <span class="md-pillnav-dropdown__chevron" aria-hidden="true"></span>
     </button>
     <ul class="md-pillnav-dropdown__list" role="listbox" aria-label={{t "Primary Navigation" key="primary_navigation"}}>
-      <li role="presentation"><button type="button" role="option" aria-selected={{if (is-equal this.activeTab "home") "true" "false"}} class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{on "click" (fn this.onSelectTab "home")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home"}}</button></li>
+      <li role="presentation"><button type="button" role="option" aria-selected={{if (is-equal this.activeTab "home") "true" "false"}} class="md-pillnav-dropdown__option {{if (is-equal this.activeTab "home") "is-active"}}" {{on "click" (fn this.onSelectTab "home")}}><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>{{t "Home" key="home_nav"}}</button></li>
       {{!-- Caseload — after Home, mirroring the desktop nav. --}}
       {{#if this.sectionAvailable.caseload}}
       <li role="presentation"><LinkTo @route="caseload" role="option" aria-selected="false" class="md-pillnav-dropdown__option"><svg class="md-pillnav-dropdown__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>{{t "Caseload" key="caseload_pill"}}</LinkTo></li>

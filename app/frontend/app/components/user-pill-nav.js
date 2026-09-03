@@ -40,7 +40,7 @@ export default Component.extend({
   activeLabel: computed('active', function() {
     switch (this.get('active')) {
       case 'home':
-        return i18n.t('home', "Home");
+        return i18n.t('home_nav', "Home");
       case 'caseload': return i18n.t('caseload_pill', "Caseload");
       case 'organizations': return i18n.t('organizations', "Organizations");
       case 'boards': return i18n.t('boards', "Boards");
