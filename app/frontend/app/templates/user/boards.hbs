@@ -51,8 +51,8 @@
       <div class='alert alert-info' style="margin-bottom: 16px;">
         {{t "%{org} wants to support this user as part of their organization. This addition must be approved before it is complete." key="confirm_pending_org2" org=this.model.pending_org.name}}
         <br><br>
-        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_approve")}}>{{t "Approve %{org}" org=this.model.pending_org.name}}</button>
-        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_reject")}}>{{t "Deny Access"}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_approve")}}>{{t "Approve %{org}" key="approve_org" org=this.model.pending_org.name}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_reject")}}>{{t "Deny Access" key="deny_access"}}</button>
       </div>
     {{else if this.show_welcome_notice}}
       <div class="ll-welcome-notice" role="status">
