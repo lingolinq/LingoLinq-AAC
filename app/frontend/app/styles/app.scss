@@ -41298,10 +41298,24 @@ body.md-ds-active .app-navbar__beta-feedback-link {
      stay in the navbar at every width (see the .app-navbar__home-actions ≤1024
      block above). Excluding them here is what makes that intent win the cascade;
      the `:not(#header_search)` id-specificity otherwise defeats a class-only
-     visibility rule. */
-  .header-index-with-dark-toggle .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search):not(.app-navbar__home-actions),
-  #inner_header .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search):not(.app-navbar__home-actions),
-  .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search):not(.app-navbar__home-actions) {
+     visibility rule.
+
+     ALSO EXEMPT: `.ll-viewswitch`, the app-wide Classic/Card switch. It is a direct
+     child of .app-navbar__nav-header (components/view-switcher.js is `tagName: ''`,
+     so its own <div class="ll-viewswitch"> is the child), so without this it fell
+     into the hidden bucket on EVERY viewport <=1024px — every tablet and phone, which
+     is the primary AAC device class. That left no way to reach Classic except opening
+     a board and using Board Actions -> View Style. Same treatment as the home-actions
+     discs above and for the same reason: it is a navbar entry point that has to stay
+     reachable at every width.
+
+     `:not(#header_search)` is kept although the search field was removed on
+     2026-09-02: this comment records that its id-specificity is what lets this rule
+     win the cascade, so dropping it would silently demote the whole selector. Dead as
+     a match, load-bearing as specificity. */
+  .header-index-with-dark-toggle .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search):not(.app-navbar__home-actions):not(.ll-viewswitch),
+  #inner_header .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search):not(.app-navbar__home-actions):not(.ll-viewswitch),
+  .app-navbar .app-navbar__nav-header > *:not(h1):not(#header_search):not(.app-navbar__home-actions):not(.ll-viewswitch) {
     display: none !important;
   }
   /* Search icon only (hide input) on small screens */
