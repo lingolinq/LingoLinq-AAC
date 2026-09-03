@@ -711,11 +711,20 @@ var word_suggestions = EmberObject.extend({
           // legacy board-id-input path can share the matching loop.
           var process_buttonset = function(button_set, fallback_root_id) {
             if(!button_set) { return; }
-            var bs_id = button_set.get('id');
+            /* GLOBAL id, not the record id. `redepth` walks `board_id` (models/buttonset.js:379-401)
+               and every button carries a GLOBAL board id (board_downstream_button_set.rb:584 via
+               json_api/button_set.rb:11-12). But lookup_board_ids pushes sidebar board KEYS
+               (:1345-1347 below), and the application serializer rewrites a buttonset's record id
+               to whatever was REQUESTED, parking the real one on `_actual_id`
+               (serializers/application.js:100-108). So for a key-loaded set the record id is
+               'example/keyboard', no button matches it, redepth returns [], and the ENTIRE set —
+               every sub-board in it — contributes zero symbols. `global_id` resolves the pair
+               (models/buttonset.js:30-32) and equals the id the buttons carry.
+               The dedupe is keyed on it too: otherwise the same set loaded once by key and once by
+               id passes as two entries and both walks race on the same word. */
+            var bs_id = button_set.get('global_id') || button_set.get('id');
             if(bs_id && seen_buttonset_ids[bs_id]) { return; }
             if(bs_id) { seen_buttonset_ids[bs_id] = true; }
-            // Use the buttonset's own root id for redepth so depth is
-            // computed correctly even if the caller passed a key.
             var buttons = button_set.redepth(bs_id || fallback_root_id);
             buttons.forEach(function(button) {
               // Only image-bearing buttons can attach an image to a
@@ -742,8 +751,30 @@ var word_suggestions = EmberObject.extend({
               // button press and unnecessarily warmed the persistence
               // url cache on every prediction cycle.
               if(word && !word_suggestions.resolve_word_image(word) && button.depth < word.depth) {
+                /* The depth claim is PROVISIONAL until we know this button really has a symbol.
+                   fix_image is async, so the claim has to be staked now to de-dupe in-flight
+                   work for the same word (guard 3 above) — but it must be GIVEN BACK when the
+                   button turns out to have none. Otherwise `button.depth < word.depth` rejects
+                   every deeper button afterwards and the word stays bare even though its symbol
+                   exists further down the tree. */
+                var prev_depth = word.depth;
                 word.depth = button.depth;
                 LingoLinq.Buttonset.fix_image(button, images).then(function() {
+                  /* fix_image ALWAYS leaves button.image truthy: it stamps images/blank.gif
+                     whenever the matching store record has an empty best_url, or the server sent
+                     no url at all (models/buttonset.js:1226, board_downstream_button_set.rb:590).
+                     blank.gif is a 1x1 OPAQUE WHITE gif, and the rail paints the prediction image
+                     full-bleed with object-fit:contain (app.scss:74432-74459), so writing it here
+                     replaced the VISIBLE square.svg placeholder with a solid white square — and
+                     did so late, as a microtask, so it also clobbered symbols that had already
+                     resolved correctly.
+                     Every other writer into a suggestion's image already filters through
+                     is_placeholder_image (:1287, :1401, controllers/user/board-detail.js:1146
+                     and :1442). This was the only one that did not. */
+                  if(word_suggestions.is_placeholder_image(button.image)) {
+                    word.depth = prev_depth;
+                    return;
+                  }
                   if(!emberGet(word, 'original_image') && button.image) {
                     emberSet(word, 'original_image', button.original_image);
                     emberSet(word, 'safe_image', emberGet(word, 'image'));
@@ -1132,7 +1163,12 @@ word_suggestions.lookup_with_ai = function(options) {
   var appState = word_suggestions.get_app_state();
   var aiEnabled = ai_word_predictor.is_enabled(appState);
   var locale = options.locale || (appState && appState.get && appState.get('label_locale')) || 'en';
-  var maxResults = _this.max_results || 5;
+  /* The CALLER's cap wins. board-detail sizes this to the board's row count so the
+     vertical rail fills the height it already reserves; reading only `_this.max_results`
+     meant an options.max_results passed by any caller was silently ignored, which made
+     the obvious fix (set it in the options hash) a no-op. `lookup()` below already
+     honours options.max_results (:457); this brings the AI path in line. */
+  var maxResults = options.max_results || _this.max_results || 5;
 
   var localPromise = _this.lookup(options).then(function(results) {
     return results || [];
@@ -1174,7 +1210,21 @@ word_suggestions.lookup_with_ai = function(options) {
       source: aiWords.length ? 'merged' : 'local',
       locale: locale
     });
-    return merged;
+    /* Give every suggestion an image. AI words arrive as bare strings and become
+       `{ word, source }` (:1086); server entries the same (:1166). merge_suggestions only
+       COPIES an image from a local item, it never supplies one — so those suggestions reached
+       the template with no `image`, the `{{#if suggestion.image}}` gate rendered no <img> at
+       all, and the tile showed an empty box.
+       `lookup()` has always stamped the placeholder on its own results (:686); this brings the
+       AI path in line rather than inventing a second mechanism. Only fills what is MISSING, so
+       a real symbol is never overwritten. */
+    return word_suggestions.fallback_url().then(function(url) {
+      merged.forEach(function(item) {
+        if(!item.fallback_image) { item.fallback_image = url; }
+        if(!item.image) { item.image = url; }
+      });
+      return merged;
+    }, function() { return merged; });
   });
 };
 
@@ -1331,6 +1381,17 @@ word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra
   var covered = {};
   warmed.forEach(function(bs) {
     if(!bs || !bs.get) { return; }
+    /* A set with NO buttons yet covers NOTHING. button_sets_for_board_ids admits a record on
+       `root_url` alone (see its `|| bs.get('root_url')` branch) — meaning "this set exists"
+       rather than "this set is usable". Counting such a record as coverage marked its own id
+       as satisfied, so it was dropped from `missing` and load_button_set was never called for
+       it. `redepth` over an empty button array returns [], so every symbol lookup through that
+       set found nothing, and — since nothing else ever triggered the load — the word stayed
+       bare for the rest of the session. That is why a predicted word whose symbol is on the
+       parent board resolved there (the local on-screen matcher found it) but not from any
+       other board. `board_ids` is derived from the buttons (models/buttonset.js:40-48), so it
+       is empty for such a record anyway; only the id/key claims were doing damage. */
+    if(!((bs.get('buttons') || []).length)) { return; }
     covered[bs.get('id')] = true;
     (bs.get('board_ids') || []).forEach(function(bid) { covered[bid] = true; });
     if(bs.get('key')) { covered[bs.get('key')] = true; }
@@ -1354,23 +1415,37 @@ word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra
     return all;
   });
 };
-word_suggestions._best_exact_button_for_label = function(label, sets) {
+var _exact_button_candidates_for_label = function(label, sets) {
   var key = (label || '').toLowerCase();
-  if(!key) { return null; }
-  var best = null;
+  if(!key) { return []; }
+  var matches = [];
   (sets || []).forEach(function(bs) {
     if(!bs) { return; }
-    var buttons = bs.redepth(bs.get('id'));
+    // Same reason as process_buttonset above: redepth matches on the buttons' GLOBAL board id,
+    // and a key-loaded set's record id is the key, which matches nothing.
+    var buttons = bs.redepth(bs.get('global_id') || bs.get('id'));
     (buttons || []).forEach(function(button) {
       if(!button || !button.image_id) { return; }
       var bl = (button.label || '').toLowerCase();
       var bv = (button.vocalization || '').toLowerCase();
-      if((bl === key || bv === key) && (!best || button.depth < best.depth)) {
-        best = button;
-      }
+      if(bl === key || bv === key) { matches.push(button); }
     });
   });
-  return best;
+  // Shallowest first: the nearest copy of the word in the vocabulary tree is the one the user
+  // is most likely to recognise.
+  matches.sort(function(a, b) { return (a.depth || 0) - (b.depth || 0); });
+  return matches;
+};
+/* Every match for the label, shallowest first. Kept separate from the single-best accessor
+   below because `image_id` is only a PROMISE of a symbol: it can point at an image the server
+   could not resolve (board_downstream_button_set.rb:590 sends `image: nil`) or at a store
+   record with no usable url, and either way fix_image stamps a placeholder. A caller that
+   takes only the shallowest match and gives up therefore lets ONE symbol-less duplicate
+   permanently shadow a good button deeper in the tree — the word shows the placeholder even
+   though its symbol is right there in the vocabulary. */
+word_suggestions._exact_button_candidates_for_label = _exact_button_candidates_for_label;
+word_suggestions._best_exact_button_for_label = function(label, sets) {
+  return _exact_button_candidates_for_label(label, sets)[0] || null;
 };
 word_suggestions.attach_image_for_label = function(label, board_ids, on_image, context) {
   if(!label || !on_image) { return RSVP.resolve(null); }
@@ -1388,12 +1463,33 @@ word_suggestions.attach_image_for_label = function(label, board_ids, on_image, c
     RSVP.resolve(word_suggestions.button_sets_for_board_ids(lookup_ids));
   return load_sets.then(function(sets) {
     var images = LingoLinq.store.peekAll('image');
-    var best = word_suggestions._best_exact_button_for_label(label, sets);
-    if(best) {
-      return LingoLinq.Buttonset.fix_image(best, images).then(function() {
-        deliver(best.image, { word: label, image: best.image, original_image: best.original_image });
-        return best.image;
-      }, function() { return null; });
+    var candidates = word_suggestions._exact_button_candidates_for_label(label, sets);
+    if(candidates.length) {
+      /* Walk the matches shallowest-first until one yields a REAL symbol. Previously only the
+         SHALLOWEST match was tried: fix_image ran on it, and if the result was a placeholder
+         `deliver` dropped it and the whole lookup returned that placeholder. So a single
+         symbol-less duplicate of the word — one whose image_id the server could not resolve —
+         permanently shadowed a perfectly good button deeper in the tree, and the word showed
+         the placeholder on every board. It also returned the placeholder url to callers that
+         use the return value rather than the callback (board-detail.js:8424-8430); returning
+         null instead lets those fall through to their own fallback.
+         Capped: fix_image can touch IndexedDB per candidate (models/buttonset.js:1227+), and
+         this runs per predicted word on every keystroke. Common words legitimately appear on
+         many boards, so an uncapped walk would be unbounded work on the typing path. */
+      var MAX_IMAGE_CANDIDATES = 5;
+      var limit = Math.min(candidates.length, MAX_IMAGE_CANDIDATES);
+      var try_candidate = function(idx) {
+        if(idx >= limit) { return RSVP.resolve(null); }
+        var button = candidates[idx];
+        return LingoLinq.Buttonset.fix_image(button, images).then(function() {
+          if(word_suggestions.is_placeholder_image(button.image)) {
+            return try_candidate(idx + 1);
+          }
+          deliver(button.image, { word: label, image: button.image, original_image: button.original_image });
+          return button.image;
+        }, function() { return try_candidate(idx + 1); });
+      };
+      return try_candidate(0);
     }
     return word_suggestions.lookup({
       word_in_progress: label,

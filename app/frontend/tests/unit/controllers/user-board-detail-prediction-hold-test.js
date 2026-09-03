@@ -16,6 +16,21 @@ import aiPredictor from 'frontend/utils/ai_word_predictor';
    (scripts/prediction-rail-qa.mjs) covers neither: it hardcodes the side_rail placement and
    never inspects suggestion.image. */
 
+/* A resolved symbol is now DECODED before it replaces the placeholder
+   (board-detail.js `_decorate_suggestion_images`), so these memo tests have to drive that
+   step. The assertion they exist for — which url the memo replays, and that it is never
+   replayed across board sets — is unchanged; only the moment of application moved. */
+function stubImage() {
+  var created = [];
+  var orig = window.Image;
+  window.Image = function() { created.push(this); };
+  return {
+    created: created,
+    decode: function(idx) { created[idx || 0].onload(); },
+    restore: function() { window.Image = orig; }
+  };
+}
+
 function stubService() {
   return EmberObject.create({
     get: function() { return null; },
@@ -58,6 +73,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     controller._find_local_image_for_label = function() { return null; };
     controller._suggestion_lookup_board_ids = function() { return []; };
     controller._republish_suggestion_list = function() {};
+    const imgs = stubImage();
 
     try {
       const first = [{ word: 'hello' }];
@@ -65,6 +81,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       assert.ok(capturedCallback, 'the first lookup requests an image');
 
       capturedCallback('https://example.test/hello.png');
+      imgs.decode();
       assert.strictEqual(first[0].image, 'https://example.test/hello.png', 'the requesting list gets the image');
 
       /* Every lookup builds FRESH item objects (word_suggestions#merge_suggestions), so this
@@ -75,6 +92,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       assert.strictEqual(second[0].image, 'https://example.test/hello.png',
         'a later lookup of the same word keeps the symbol instead of coming back bare');
     } finally {
+      imgs.restore();
       controller.destroy();
     }
   });
@@ -95,12 +113,14 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     const controller = buildController();
     controller._find_local_image_for_label = function() { return null; };
     controller._republish_suggestion_list = function() {};
+    const imgs = stubImage();
 
     try {
       controller._suggestion_lookup_board_ids = function() { return ['board-a']; };
       const onA = [{ word: 'mom' }];
       controller._decorate_suggestion_images(onA);
       capturedCallback('https://example.test/mom-on-a.png');
+      imgs.decode();
       assert.strictEqual(onA[0].image, 'https://example.test/mom-on-a.png', 'resolves on board A');
 
       controller._suggestion_lookup_board_ids = function() { return ['board-b']; };
@@ -109,6 +129,7 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
       assert.strictEqual(calls, 2, 'a different board set triggers a fresh lookup');
       assert.notOk(onB[0].image, "and board A's symbol is not replayed onto board B");
     } finally {
+      imgs.restore();
       controller.destroy();
     }
   });
@@ -999,59 +1020,5 @@ module('Unit | Controller | user/board-detail prediction hold', function(hooks) 
     assert.strictEqual(open.cardH, closed.cardH, 'row heights are unaffected by the sidebar');
   });
 
-  /* The rail width solver. Arithmetic, not DOM: the point of the closed form is that it
-     does NOT need a settled layout, so a test that built one would be testing the wrong
-     thing. */
-  test('solves a rail width equal to one board button, from ANY current split', function(assert) {
-    assert.expect(4);
-    const controller = buildController();
-    /* Split-invariance is the property the whole fix rests on: the grid is flex:1, so
-       fade + rail is one budget however it currently divides. Three different splits of the
-       same 500px budget must agree, or the value chases its own tail across ResizeObserver
-       passes — the circular-measure bug recorded in LEARNINGS. */
-    const a = controller._solve_prediction_rail_width(400, 100, 4, 0, 1);
-    const b = controller._solve_prediction_rail_width(450, 50, 4, 0, 1);
-    const c = controller._solve_prediction_rail_width(499, 1, 4, 0, 1);
-    assert.strictEqual(Math.round(a), 100, 'solved from a 400/100 split');
-    assert.strictEqual(Math.round(b), 100, 'same answer from a 450/50 split');
-    assert.strictEqual(Math.round(c), 100, 'same answer from a 499/1 split');
-    /* A genuine fixed point: leaving the grid 400px over 4 columns gives a 100px cell,
-       which is the tile width just solved. */
-    assert.strictEqual(Math.round((500 - a) / 4), Math.round(a), 'tile equals the resulting cell');
-  });
-
-  test('solves a NARROWER tile for a tall button shape', function(assert) {
-    assert.expect(3);
-    const controller = buildController();
-    /* shape-tall makes the card 66.6667% of its cell (app.scss:80286), so the tile must
-       fall by the same ratio. A solver ignoring `ratio` returns 100 here; one using the
-       full-column `cols + 1` denominator returns 67. Neither is 71. */
-    const square = controller._solve_prediction_rail_width(400, 100, 4, 0, 1);
-    const tall = controller._solve_prediction_rail_width(400, 100, 4, 0, 2 / 3);
-    assert.strictEqual(Math.round(square), 100, 'square shape fills the column');
-    assert.strictEqual(Math.round(tall), 71, 'tall shape tracks the card, not the column');
-    assert.ok(tall < square, 'a tall button yields a narrower tile');
-  });
-
-  test('is stable on a one-column board, where iterating would oscillate forever', function(assert) {
-    assert.expect(2);
-    const controller = buildController();
-    /* The iterative form has gain -ratio/cols, exactly -1 at cols === 1: a permanent
-       period-2 flip. Feeding the closed form its own output returns the same number. */
-    const once = controller._solve_prediction_rail_width(400, 100, 1, 0, 1);
-    const twice = controller._solve_prediction_rail_width(500 - once, once, 1, 0, 1);
-    assert.strictEqual(Math.round(once), 250, 'solved once');
-    assert.strictEqual(Math.round(twice), Math.round(once), 're-solving from its own output is a no-op');
-  });
-
-  test('returns 0 rather than a bogus width when the board is not measurable', function(assert) {
-    assert.expect(3);
-    const controller = buildController();
-    /* The caller falls back to the measured card width on 0, so a bail must be
-       distinguishable from a real answer. */
-    assert.strictEqual(controller._solve_prediction_rail_width(0, 100, 4, 0, 1), 0, 'unmeasured grid');
-    assert.strictEqual(controller._solve_prediction_rail_width(400, 100, 0, 0, 1), 0, 'no columns');
-    assert.strictEqual(controller._solve_prediction_rail_width(400, 100, 4, 0, 0), 0, 'no shape ratio');
-  });
 
 });

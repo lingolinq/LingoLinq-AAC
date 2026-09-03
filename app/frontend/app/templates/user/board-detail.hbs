@@ -766,11 +766,11 @@
                        than the cue delay (see suggestions_loading_visible); the words
                        themselves stay put and stay clickable while it is on. --}}
                   <span class="md-board-detail-sentence-bar__prediction-group {{if this.suggestions_loading_visible 'md-board-detail-sentence-bar__prediction-group--is-loading'}}" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} aria-busy={{if this.suggestions_loading_visible "true" "false"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
-                    {{#each this.prediction_suggestions key="word" as |suggestion|}}
+                    {{#each this.prediction_bar_suggestions key="word" as |suggestion|}}
                       <button type="button" class="md-board-detail-sentence-bar__prediction" {{on "click" (this.ctrlActionNoBubble "complete_word" suggestion)}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
                         {{#if this.utterance_show_symbols}}
                           {{#if suggestion.image}}
-                            <img src={{suggestion.image}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
+                            <img src={{suggestion.image}} rel={{suggestion.fallback_image}} {{image-fallback-to-rel}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
                           {{/if}}
                         {{/if}}
                         <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
@@ -2067,7 +2067,7 @@
               <button type="button" class="md-board-detail-sentence-bar__prediction" {{on "click" (this.ctrlActionNoBubble "complete_word" suggestion)}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
                 {{#if this.utterance_show_symbols}}
                   {{#if suggestion.image}}
-                    <img src={{suggestion.image}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
+                    <img src={{suggestion.image}} rel={{suggestion.fallback_image}} {{image-fallback-to-rel}} alt="" class="md-board-detail-sentence-bar__prediction-img" decoding="async" loading="eager">
                   {{/if}}
                 {{/if}}
                 <span class="md-board-detail-sentence-bar__prediction-label">{{suggestion.word}}</span>
@@ -2076,10 +2076,28 @@
               {{!-- The rail stays mounted with no predictions so the board does not resize
                     under the user, which leaves a blank panel. Say why it is empty. --}}
               <div class="md-board-detail-prediction-rail__empty">
+                {{!-- Decorative only: the copy below carries the meaning, so this is
+                      aria-hidden and adds no announcement to a panel a screen reader
+                      already reaches through the group's label. --}}
+                <svg class="md-board-detail-prediction-rail__empty-glyph" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 {{!-- Both are rendered; CSS picks one by panel width. Below 640px the panel
                       is too narrow for a sentence, so it becomes a vertical spine label. --}}
                 <span class="md-board-detail-prediction-rail__empty-copy">{{t "Tap a board button, and we'll suggest words here." key="board_detail_prediction_empty"}}</span>
                 <span class="md-board-detail-prediction-rail__empty-spine">{{t "Word prediction panel" key="board_detail_prediction_panel_label"}}</span>
+                {{!-- Ghost tiles: they show WHERE words will land rather than leaving the
+                      column blank below the copy, which is what made the empty panel read as
+                      unfinished. Purely decorative, aria-hidden, no animation (this surface
+                      is used with eye-gaze and switch scanning). A fixed six is enough to
+                      reach the bottom of a tall rail; the container masks the overflow so a
+                      ghost clipped by the panel edge fades rather than cutting off. --}}
+                <span class="md-board-detail-prediction-rail__empty-ghosts" aria-hidden="true">
+                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
+                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
+                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
+                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
+                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
+                  <span class="md-board-detail-prediction-rail__empty-ghost"></span>
+                </span>
               </div>
             {{/each}}
           </div>

@@ -64692,9 +64692,16 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   .md-pillnav:not(.md-pillnav--org-menu) {
     display: none !important;
   }
+  /* Collapsed primary-nav width, 52% (was 40%, 2026-09-02 — requested wider).
+     THREE rules carry this value and they must move together, because which one wins
+     depends on the user type: this one takes non-org users (it outranks the
+     `--user` rule below on specificity), `--org-menu` covers org managers at <=550,
+     and `--user` is what an ORG manager actually lands on at <=460 (equal specificity
+     to --org-menu, later in source). Leaving any at 40% gives one user type a
+     narrower pill than the others for no reason. */
   .md-pillnav-dropdown:not(.md-pillnav-dropdown--org-menu) {
     display: block !important;
-    width: 40% !important;
+    width: 52% !important;
     /* 40px, i.e. the original 20px + 2rem (2026-08-16, requested). 1rem is 10px in this
        codebase (`html { font-size: 10px }`), so 2rem is 20px — see the rem trap in
        docs/task-management/LEARNINGS.md. The ACCOUNT-pages nav
@@ -64709,7 +64716,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   }
   .md-pillnav-dropdown--org-menu {
     display: block !important;
-    width: 40% !important;
+    width: 52% !important;
     /* 40px, i.e. the original 20px + 2rem (2026-08-16, requested). 1rem is 10px in this
        codebase (`html { font-size: 10px }`), so 2rem is 20px — see the rem trap in
        docs/task-management/LEARNINGS.md. The ACCOUNT-pages nav
@@ -64764,7 +64771,7 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   }
   .md-pillnav-dropdown--user {
     display: block !important;
-    width: 40% !important;
+    width: 52% !important;
     margin: 20px auto 0 !important;
   }
 }
@@ -74242,9 +74249,18 @@ span.md-board-detail-modeling-btn--badge {
      Width matches one board cell; left margin matches the board's COLUMN gap.
      Fixed fallbacks keep a sensible column if measurement hasn't run yet. */
   grid-template-rows: repeat(var(--prediction-rows, 4), minmax(0, 1fr));
+  /* The PANEL is sidebar-width; the TILES inside stay board-button-width (see the tile rule
+     below), so centre them in the track rather than stretching them. */
+  justify-items: center;
   flex-shrink: 0;
   align-self: flex-start;
-  width: var(--prediction-tile-w, 84px);
+  /* MATCH THE INLINE SIDEBAR at every width. --bd-sidebar-w is published on the shell, not
+     on the sidebar element, so the rail keeps the sidebar's width even when the sidebar is
+     not rendered (collection drawer open, or the user's quick_sidebar preference off) — the
+     board then sees the same gutter either way instead of reflowing. Previously the panel was
+     sized to one board button, which drifted from the sidebar at most widths; the TILES still
+     match a board button (see the tile rule below), the panel no longer does. */
+  width: var(--bd-sidebar-w, 100px);
   height: var(--prediction-grid-h, 100%);
   gap: var(--prediction-tile-gap, 8px);
   /* No left/right padding — tiles fill the rail edge-to-edge so a tile matches the
@@ -74336,21 +74352,63 @@ span.md-board-detail-modeling-btn--badge {
 .md-board-detail-prediction-rail__empty-spine {
   display: none;
 }
+/* Empty state, structural part. The copy alone left the rest of a full-height column blank,
+   which read as unfinished rather than as "nothing here yet". The glyph and ghost tiles give
+   the panel a resting state that shows WHERE words will appear.
+   Both are decorative and aria-hidden in the template — they add no announcement, and the
+   copy still carries the whole message for a screen reader.
+   BLOCK, not flex, throughout: the `__empty` rule above documents why this box must stay a
+   block (as a flex container the copy becomes an anonymous flex item, which carries its own
+   automatic minimum size and then refuses to wrap below the longest word). These children
+   are block-level siblings in that same flow, so that constraint is preserved. */
+.md-board-detail-prediction-rail__empty-glyph {
+  display: block;
+  margin: 2px auto 6px;
+  color: rgba(255, 255, 255, 0.5);
+}
+/* Clip the ghost stack to the panel. Six tiles is more than a tall rail needs and fewer than
+   a short one can show, so the overflow is expected; the mask fades the cut instead of
+   leaving a ghost sliced off square at the panel edge. */
+.md-board-detail-prediction-rail__empty {
+  overflow: hidden;
+}
+.md-board-detail-prediction-rail__empty-ghosts {
+  display: block;
+  margin-top: 10px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 100%);
+}
+/* Sized from the rail's OWN measured tile vars, not literals, so a ghost occupies exactly
+   the box a real prediction will — same height, same gap, same corner radius as the tile
+   rule below. If the board's geometry changes the ghosts track it for free. */
+.md-board-detail-prediction-rail__empty-ghost {
+  display: block;
+  height: var(--prediction-tile-h, 64px);
+  margin-bottom: var(--prediction-tile-gap, 8px);
+  border-radius: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.04);
+}
 
 /* Tiles match the board button box (measured vars, fixed fallbacks). */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction {
-  width: 100%;
+  /* BOARD-BUTTON WIDTH, not the panel's. The rail PANEL matches the inline sidebar
+     (--bd-sidebar-w) so the board sees the same gutter whether or not the sidebar renders,
+     but a prediction still has to read as one more column of the board: the tile is the same
+     box as a board card, which is what _sync_prediction_tile_size measures into
+     --prediction-btn-w. Capped at the panel so a wide board button cannot overflow it. */
+  width: var(--prediction-btn-w, 100%);
+  max-width: 100%;
   /* Zero, so the tile's CONTENT box matches the card's. Matching the card's padding value
      (`1px clamp(1px, 1%, 4px)`) is NOT the same thing and measured 2px short: the tile
      carries a 1px border the card does not, so equal padding leaves a smaller content box.
      What has to match is what the symbol gets, not what the declaration says. Measured at
      14 columns: card content 33px, tile content 33px, painted symbol 33px on both. */
   padding: 0;
-  /* Override the base tile's `min-width: 44px`. The rail's width tracks one board
-     button (--prediction-tile-w), so on a many-column board that width can be under
-     44px; with the floor in place the tile stays wider than the rail's content box and
-     spills past its right edge. Letting it shrink to the rail width keeps the two in
-     step. The image scales with the tile (see the rail __prediction-img rule below), so
+  /* Override the base tile's `min-width: 44px`. The tile tracks one board button
+     (--prediction-btn-w), so on a many-column board that width can be under 44px; with the
+     floor in place the tile stays wider than the board card it must match and spills past the
+     panel's right edge. Letting it shrink keeps tile and card in step. The image scales with the tile (see the rail __prediction-img rule below), so
      a sub-44px tile stays legible.
      NOTE: an earlier version of this comment attributed the spill to "the rail's
      overflow-y:auto, which makes overflow-x compute to auto". The rail declares no
@@ -74376,9 +74434,9 @@ span.md-board-detail-modeling-btn--badge {
      the tile's height as possible — the rail tile is exactly one board button tall, and
      every px spent here is a px the symbol does not get. */
   gap: 2px;
-  /* Establish a cqw container so the label below tracks the tile width.
-     The tile is sized to the board cell (--prediction-tile-w), so cqw here
-     == cqw on the board's symbol-card → words match the board labels. */
+  /* Establish a cqw container so the label below tracks the tile width. The tile is sized
+     to the board cell (--prediction-btn-w) — NOT to the panel, which is sidebar-width — so
+     cqw here == cqw on the board's symbol-card and predicted words match the board labels. */
   container-type: inline-size;
 }
 /* Let the symbol EXPAND to fill the tile's vertical space (mirrors the board
@@ -74414,17 +74472,47 @@ span.md-board-detail-modeling-btn--badge {
   padding: 0;
   border: 0;
 }
-/* Placeholder (missing-image) symbol on the rail: square.svg is a translucent
-   brand-coloured photo glyph, which reads DIM on the dark board surface the rail
-   sits on (base tiles are 0.85 opacity with no backing). Give the placeholder full
-   opacity + a light frosted backing (mirrors the dark-mode lift) so the glyph
-   composites over white and reads bright and clear instead of muddy. */
+/* Placeholder (missing-image) symbol on the rail. NO WHITE PAINT OF ANY KIND belongs on this
+   element -- not a background, not a halo. The board grid is the working reference and gives
+   the placeholder no treatment at all: `.md-board-detail--dark
+   .md-board-detail-symbol-card__image img.symbol[src$="square.svg"]` sets `filter: none`
+   (app.scss:82439-82441) precisely so an empty cell gets no halo. The rail now matches it.
+   Both attempts to "lift" the placeholder here produced the same white block, so neither is
+   made a third time:
+   - Until 2026-09-02 this rule carried `background: rgba(255,255,255,0.85)` as a frosted
+     plate. That was correct while the rail image was `width:auto; max-width:80%` inside a
+     dashed frame -- at `width:auto` a 1:1 asset makes the ELEMENT box equal the GLYPH box, so
+     anything painted on the element was confined to the glyph. bfd0facb2 (#900) made the rail
+     symbol full-bleed (`width:100%; padding:0; border:0`) to match the board button, which
+     decoupled them: the element box became the whole tile and the plate became a full-tile
+     white block.
+   - Replacing that plate with two white `drop-shadow` halos did NOT fix it. drop-shadow
+     follows the ALPHA SILHOUETTE, and square.svg's silhouette is a rounded-rect frame, so a
+     white glow around it is still a white rounded square -- the same symptom by another route.
+     Removed 2026-09-02.
+   square.svg needs no lift to be legible: it carries a fully opaque #2A9D8F circle and a
+   #3A6BC7 path at 0.82 alpha over the 0.16 wash. An earlier version of this comment called it
+   translucent and "DIM", counting only the wash and the 0.65 frame stroke. */
 .md-board-detail-prediction-rail .md-board-detail-sentence-bar__prediction-img[src$="square.svg"] {
-  /* Through the shared alpha, not a literal: at (0,2,1) this rule outranks the --is-loading
-     img dim, so a literal `1` meant a prediction whose symbol failed to resolve showed no
-     loading cue on its symbol at all. */
+  /* Through the shared alpha, not a literal: at (0,3,0) -- two classes plus an attribute,
+     which shares the class column -- this rule outranks the --is-loading img dim, so a literal
+     `1` meant a prediction whose symbol failed to resolve showed no loading cue at all. */
   opacity: var(--pred-img-a, 1);
-  background: rgba(255, 255, 255, 0.85);
+  /* Inset sizing, restored for the PLACEHOLDER ONLY (2026-09-02).
+     bfd0facb2 (#900) made the rail symbol full-bleed -- `width:100%; max-width:100%` -- to
+     match the board button. That is right for a real symbol and stays. But it also removed an
+     invariant the placeholder silently depended on: at `width:auto` a 1:1 asset makes the
+     ELEMENT box equal the GLYPH box, because `object-fit: contain` only paints an
+     aspect-fitted rectangle inside the element. So anything painted on the element -- the
+     frosted plate that lived here until today, or the unscoped dark-mode plate -- was
+     automatically confined to the glyph. At `width:100%` the element box became the whole
+     tile while the glyph stayed a centred square, which is what turned a placeholder chip
+     into a full-tile white block.
+     Restoring `width:auto` + an 80% cap here keeps that confinement for the placeholder and
+     leaves real symbols full-bleed, so #900's alignment work is untouched. */
+  width: auto;
+  max-width: 80%;
+  align-self: center;
 }
 /* Predicted-word font must EXACTLY match the board button label.
    --prediction-label-font is the board label's RENDERED font-size, copied in
@@ -74597,8 +74685,16 @@ span.md-board-detail-modeling-btn--badge {
 /* Dark-mode prediction-thumb lift — a softer, more translucent frosted
    backing (was a near-opaque 0.75 white square that read as a flat gray chip
    and fought the tile's glassmorphism). Lower alpha + larger radius lets the
-   frosted tile show through while still lifting dark line-art symbols. */
-.md-board-detail--dark .md-board-detail-sentence-bar__prediction-img {
+   frosted tile show through while still lifting dark line-art symbols.
+   SCOPED TO THE IN-BAR GROUP (2026-09-02). This is a plate behind a 48px thumb that sits
+   inside a dashed frame — which is what the in-bar placement has. The RAIL's image is
+   full-bleed (`width:100%`, `padding:0`, `border:0`, see the rail rule ~74432) since
+   bfd0facb2 (#900), so a background there paints the ENTIRE tile: every rail prediction
+   showed a white block, and one with no symbol showed nothing but the block. Unscoped, this
+   rule also WON over the rail rule — same specificity, later in the file — which is why
+   removing the separate square.svg plate did not fix it. The rail lifts its placeholder with
+   a halo instead. */
+.md-board-detail--dark .md-board-detail-sentence-bar__prediction-group .md-board-detail-sentence-bar__prediction-img {
   background: rgba(255, 255, 255, 0.5);
   border-radius: 10px;
   /* Soft white dash on the dark bar (inherits the base dash width/style). */
@@ -77804,8 +77900,8 @@ span.md-board-detail-modeling-btn--badge {
    COST: 16px of board width on a many-columns board. That is the trade the wider pill
    is worth; if it ever needs reclaiming, hide the label here the way ≤1024px does
    rather than narrowing the rail back under the pill. */
-.md-shell--many-columns .md-board-detail-inline-sidebar {
-  width: 100px;
+.md-shell--board-detail.md-shell--many-columns {
+  --bd-sidebar-w: 100px;
 }
 .md-shell--many-columns .md-board-detail-inline-sidebar__item {
   padding: 8px 6px;
@@ -77818,8 +77914,8 @@ span.md-board-detail-modeling-btn--badge {
   font-size: 12px;
 }
 @media (max-width: 1024px) {
-  .md-shell--many-columns .md-board-detail-inline-sidebar {
-    width: 60px;
+  .md-shell--board-detail.md-shell--many-columns {
+    --bd-sidebar-w: 60px;
   }
   .md-shell--many-columns .md-board-detail-inline-sidebar__item {
     padding: 5px 3px;
@@ -77833,8 +77929,8 @@ span.md-board-detail-modeling-btn--badge {
   }
 }
 @media (max-width: 768px) {
-  .md-shell--many-columns .md-board-detail-inline-sidebar {
-    width: 53px;
+  .md-shell--board-detail.md-shell--many-columns {
+    --bd-sidebar-w: 53px;
   }
   .md-shell--many-columns .md-board-detail-inline-sidebar__item {
     padding: 4px 2px;
@@ -77845,7 +77941,9 @@ span.md-board-detail-modeling-btn--badge {
   }
 }
 .md-board-detail-inline-sidebar {
-  width: 100px;
+  /* Single source of truth, published on the SHELL so the prediction rail can match it
+     even when this sidebar is not rendered (see --bd-sidebar-w definitions above). */
+  width: var(--bd-sidebar-w, 100px);
   flex-shrink: 0;
   /* Glassmorphism container matching the board-detail surfaces (sentence bar,
      prediction tiles, edit panels): a frosted backdrop-blur pane with a soft
@@ -78056,16 +78154,16 @@ span.md-board-detail-modeling-btn--badge {
 /* Wider viewports (>1024px): a 125px sidebar. At <=1024px it stays at the
    base 100px width (and 70px at <=768px). */
 @media (min-width: 1025px) {
-  .md-board-detail-inline-sidebar {
-    width: 112px;
+  .md-shell--board-detail {
+    --bd-sidebar-w: 112px;
   }
 }
 /* Narrow viewports (<=1024px): narrow the inline sidebar to 80px and shrink its
    board thumbnails/labels so they don't crowd the grid. The pin control is left
    alone so it keeps its 44px touch target. */
 @media (max-width: 1024px) {
-  .md-board-detail-inline-sidebar {
-    width: 80px;
+  .md-shell--board-detail {
+    --bd-sidebar-w: 80px;
   }
   .md-board-detail-inline-sidebar__item {
     padding: 7px 4px;
@@ -78084,8 +78182,8 @@ span.md-board-detail-modeling-btn--badge {
    board + prediction rail get more room. Side padding dropped too. Pin still
    centers via its own auto margins. */
 @media (max-width: 768px) {
-  .md-board-detail-inline-sidebar {
-    width: 70px;
+  .md-shell--board-detail {
+    --bd-sidebar-w: 70px;
   }
   .md-board-detail-inline-sidebar__scroll {
     padding-left: 0;
@@ -87382,7 +87480,12 @@ span.md-board-detail-modeling-btn--badge {
     justify-content: center;
     padding: 8px 0;
   }
-  .md-board-detail-prediction-rail__empty-copy {
+  .md-board-detail-prediction-rail__empty-copy,
+  .md-board-detail-prediction-rail__empty-glyph,
+  .md-board-detail-prediction-rail__empty-ghosts {
+    /* Spine mode: the panel is one board button wide on a phone. The ghosts would be a
+       column of near-invisible slivers and the glyph would crowd the rotated label, so the
+       spine stands alone. */
     display: none;
   }
   .md-board-detail-prediction-rail__empty-spine {
@@ -95692,25 +95795,31 @@ blockquote small {
 }
 .beta-feedback-drawer-tab--navbar {
   /* Absolute + top:100% seats the tab immediately BELOW the navbar, and
-     right/left/transform corner-anchor it so it lands clear of everything.
+     left/right/transform corner-anchor it so it lands clear of everything.
      This is D10's fix and it is scoped HERE rather than on the base rule
      because --speak hangs off the bottom edge over the board grid, where the
      same anchor would cover a communication button (see the base rule).
 
+     LEFT corner as of 2026-09-02, previously right. Corner-anchoring is what
+     D10 asked for; which corner is a placement choice, and the left one is now
+     the requested placement. The anti-centring warning below is unaffected —
+     far-left is not centre.
+
      The offset parent is `.app-navbar__inner`, not `.app-navbar` — the tab is a
      direct child of the inner wrapper (components/app-navbar.hbs:77) and
-     `.app-navbar .app-navbar__inner` is `position: relative !important` (~3440).
+     `.app-navbar .app-navbar__inner` is `position: relative !important` (~3468).
      On authenticated pages that resolves to the same place, because
      #inner_header / .app-navbar / .app-navbar__inner are all pinned to
-     `height: 70px !important` (~19944) with the navbar's 2rem padding zeroed —
-     so `top: 100%` does land on the navbar's bottom edge. But `right: 16px`
-     resolves inside the inner, whose right edge is already 16px in from
-     `.app-navbar { padding-right: 16px !important }` (~19864), so the tab sits
-     ~32px from the viewport, not 16. The media-query note below is written
-     against that. `.app-navbar__inner { overflow: visible !important }` above is
-     what lets the tab escape the navbar box — and now that this is `absolute`
-     rather than `fixed`, that declaration is load-bearing: any ancestor
-     `overflow` in this chain would clip the tab away entirely.
+     `height: 70px !important` with the navbar's 2rem padding zeroed — so
+     `top: 100%` does land on the navbar's bottom edge. `left: 16px` resolves
+     inside the inner, whose left edge is already 16px in from
+     `.app-navbar { padding-left: 16px !important }` (app.scss:20447), so the tab
+     sits ~32px from the viewport, not 16. That padding is symmetric with
+     `padding-right` on the next declaration (:20449), so the inset matches what
+     the right anchor produced. `.app-navbar__inner { overflow: visible
+     !important }` above is what lets the tab escape the navbar box — and because
+     this is `absolute` rather than `fixed`, that declaration is load-bearing:
+     any ancestor `overflow` in this chain would clip the tab away entirely.
 
      Do NOT re-add `left: 50%; right: auto; transform: translateX(-50%)` here.
      That was tried on 2026-08-23 to "restore" centring for this variant, on the
@@ -95725,8 +95834,8 @@ blockquote small {
      dropping the tab to y=900, off-screen. */
   position: absolute;
   top: 100%;
-  right: 16px;
-  left: auto;
+  left: 16px;
+  right: auto;
   transform: none;
 }
 /* Compact sizing through the 721-820 band as well as below 720 (that narrower
@@ -95735,16 +95844,24 @@ blockquote small {
    navbar (bottom 70) and the home page's secondary nav row beneath it (top 97)
    is only 28px, while the full-size tab is 36px tall — so a tab seated below
    the navbar necessarily clips that row. There is no vertical fix; no 36px gap
-   exists. Narrowing the tab (141px vs 172px) clears the row HORIZONTALLY
-   instead, because the row's right edge scales with the viewport while the
-   tab's left edge is `100vw - 16 - width`.
+   exists. Narrowing the tab (141px vs 172px) reduces its horizontal footprint,
+   which is what bought clearance under the previous anchor.
 
-   Measured at height 1138, this clears 760-820 (e.g. at 760 the tab's left edge
-   is 603px and the row's rightmost control ends at 578px) and shrinks the
-   overlap at 721 from 41px to 10px. It does NOT fully clear ~700-740, where a
-   ~10-20px horizontal by 6px vertical clip of one control remains — see
-   CLAIM-CHECK-BACKLOG.md A1. Above ~820 the gap opens to 72px+ and the
-   full-size tab is clear regardless.
+   STALE AS OF 2026-09-02 — RE-MEASURE BEFORE RELYING ON IT. Every figure below
+   was measured with the tab anchored RIGHT (`right: 16px`), where clearance came
+   from the row's right edge scaling with the viewport while the tab's left edge
+   sat at `100vw - 16 - width`. The tab is now anchored LEFT, so its span is
+   `16 .. 16 + width` and the geometry is against the row's LEFT-hand controls
+   instead — a different collision that has NOT been measured. Narrowing still
+   shrinks the tab, so it cannot make matters worse, but it is no longer known to
+   clear anything.
+
+   Superseded measurements, kept for the re-measure: at height 1138 and anchored
+   right, narrowing cleared 760-820 (at 760 the tab's left edge was 603px and the
+   row's rightmost control ended at 578px) and shrank the overlap at 721 from
+   41px to 10px. It did NOT fully clear ~700-740, where a ~10-20px horizontal by
+   6px vertical clip of one control remained — see CLAIM-CHECK-BACKLOG.md A1.
+   Above ~820 the gap opens to 72px+ and the full-size tab was clear regardless.
 
    Scoped to --navbar: the collision is with a row that only exists beneath the
    navbar, so there is no reason to shrink the --speak tab (which hangs off the
@@ -95842,8 +95959,10 @@ blockquote small {
    over: at top:0 the tab covers Settings / Support / the online-status control
    (measured at 1440px), and `position: fixed` also breaks the variant's own
    `top: 100%`, which then resolves against the VIEWPORT and drops the tab to
-   y=900, off-screen. Absolute + top:100% + the base `right: 16px` collides with
-   nothing. The drawer panel above still pins to top: 0 — only the tab changed. */
+   y=900, off-screen. Absolute + top:100% + a corner inset collides with nothing.
+   (That inset was `right: 16px` when this note was written; the variant is
+   anchored `left: 16px` as of 2026-09-02 — see the rule itself.) The drawer panel
+   above still pins to top: 0 — only the tab changed. */
 /* Hide the Beta Feedback drawer + tab entirely while a Shepherd tour is
    running, so the tour chrome owns the screen. Shepherd portals an active
    step's popover (`.shepherd-element.shepherd-enabled`) into <body>; the

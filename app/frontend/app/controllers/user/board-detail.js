@@ -540,49 +540,17 @@ export default Controller.extend(prefClasses, {
       main.style.setProperty('--prediction-tile-inset-top', insetTop + 'px');
       main.style.setProperty('--prediction-tile-h', Math.round(cardRect.height) + 'px');
     }
-    // WIDTH — solve for the width at which ONE RAIL TILE == ONE BOARD BUTTON, in closed
-    // form. The rail is a fixed-width `flex-shrink:0` sibling of the FLEXIBLE grid, so
-    // assigning it the measured card width is circular: the rail steals that width back
-    // from the grid, the cards reflow, and it never settles (LEARNINGS, "sizing a
-    // fixed-width sibling to a FLEXIBLE element's measured size is circular"). Iterating
-    // to convergence is not an option either — the gain is -ratio/cols, which is exactly
-    // -1 on a one-column board and oscillates forever. So solve the fixed point directly.
+    // WIDTH — one rail tile must be the same box as one board button. The panel itself is
+    // sized in CSS to the inline sidebar (--bd-sidebar-w), so a tile can no longer derive its
+    // width from the panel's content box and is handed the measured card width directly.
     //
-    //   budget = fade + railNow - (cols-1)*colGap   is INVARIANT to how the row splits,
-    //   because the flex:1 grid absorbs whatever the rail takes. Hence one measurement at
-    //   ANY current rail width yields:   W = ratio * budget / (cols + ratio)
-    //
-    // `ratio` is card ÷ cell — the BUTTON SHAPE, measured rather than hardcoded, so the
-    // tile tracks it: shape-tall sets the card `width: 66.6667%`, shape-wide
-    // `height: 66.6667%`, square fills the cell (app.scss:80286-80293). The cell carries no
-    // horizontal padding (app.scss:81160-81165), so card = ratio*cell is linear and `ratio`
-    // does not drift as the cell resizes — that is what makes this exact and not an
-    // approximation. At ratio == 1 it reduces to the plain one-column-per-tile form.
-    //
-    // Sidebar-independent by construction: the sidebar enters only through `fade`, so a
-    // tile matches its board button whether the sidebar is open or closed. It is no longer
-    // matched to the SIDEBAR's width — that was a separate request, and it is what made the
-    // tiles disagree with the buttons.
-    var tileW = Math.round(cardRect.width);
-    var railEl = document.querySelector('.md-board-detail-prediction-rail');
-    var fadeEl = document.querySelector('.md-board-detail-grid-fade');
-    var predCols = parseInt(this.get('current_grid.columns'), 10) || 0;
-    var shapeRatio = (cellRect && cellRect.width >= 1) ? (cardRect.width / cellRect.width) : 0;
-    if(railEl && fadeEl && predCols > 0 && shapeRatio > 0) {
-      /* Read the panel padding back from CSS rather than hardcoding it, so the stylesheet
-         stays authoritative — same pattern as --prediction-rail-pad-top above. */
-      var railStyle = window.getComputedStyle(railEl);
-      var railPadX = (parseFloat(railStyle.paddingLeft) || 0) + (parseFloat(railStyle.paddingRight) || 0);
-      var solvedW = this._solve_prediction_rail_width(
-        fadeEl.getBoundingClientRect().width,
-        railEl.getBoundingClientRect().width,
-        predCols, colGap, shapeRatio, railPadX
-      );
-      /* solvedW is the BUTTON width; the rail is that plus its padding, so the tile inside
-         (width:100% of the content box) still measures exactly one board button. */
-      if(solvedW >= 1) { tileW = Math.round(solvedW + railPadX); }
-    }
-    main.style.setProperty('--prediction-tile-w', Math.max(0, tileW) + 'px');
+    // This does NOT reintroduce the circularity a closed-form solve used to guard against
+    // (LEARNINGS, "sizing a fixed-width sibling to a FLEXIBLE element's measured size is
+    // circular"). That solve existed because the rail's width WAS the button width, so
+    // publishing a measured card width fed straight back into the flex distribution that
+    // produced it and never settled. The panel's width is now a constant from the stylesheet,
+    // independent of anything measured here, so the loop is broken at the source.
+    main.style.setProperty('--prediction-btn-w', Math.max(0, cardRect.width) + 'px');
     // No per-tile height or top-inset measurement needed: the rail grid's rows
     // (--prediction-rows × minmax(0,1fr)), pinned to the board grid height above
     // with a matching 4px top inset, place each tile in its board row band
@@ -620,16 +588,6 @@ export default Controller.extend(prefClasses, {
      is why ANY current rail width yields the same answer in one pass, with no feedback
      loop. `ratio` is card/cell (the button shape). Returns 0 when the inputs cannot
      produce a sane width, so the caller keeps its measured-card fallback. */
-  _solve_prediction_rail_width: function(fadeW, railW, cols, colGap, ratio, railPadX) {
-    if(!(fadeW >= 1) || !(cols > 0) || !(ratio > 0)) { return 0; }
-    /* Subtract the panel's own horizontal padding from the shared budget before solving:
-       the rail occupies (button + padding), so the padding is width the board never gets
-       and must not be divided among the columns. Returns the BUTTON width; the caller adds
-       the padding back to size the rail. */
-    var budget = fadeW + (railW || 0) - ((cols - 1) * (colGap || 0)) - (railPadX || 0);
-    if(!(budget > 0)) { return 0; }
-    return (ratio * budget) / (cols + ratio);
-  },
 
   /* (Re)point the ResizeObserver at the current board grid — the grid element
      is replaced on board change, so re-observe whenever the board changes. */
@@ -1133,8 +1091,19 @@ export default Controller.extend(prefClasses, {
       var btn = flat[idx];
       if(!btn) { continue; }
       var lbl = (btn.label || btn.vocalization || '').toLowerCase();
-      if(lbl === key && btn.image_url && !wordSuggestionsModule.is_placeholder_image(btn.image_url)) {
-        return btn.image_url;
+      if(lbl !== key) { continue; }
+      /* SAME PRECEDENCE THE GRID PAINTS WITH. board-detail-grid.hbs:152 renders the board
+         button as `{{or btn.local_image_url btn.image_url}}`: local_image_url is the locally
+         cached copy, and on a board that has synced it is frequently the ONLY one populated.
+         Reading image_url alone meant this matcher found nothing for precisely the buttons
+         whose symbol was already painted on screen — a predicted word that IS on the board
+         rendered blank. Every other consumer reads the pair (application.js:1880,
+         board/index.js:315, edit_manager.js:178, button-preview.js:78); this was the outlier.
+         A button showing the missing-image placeholder still offers nothing to borrow, so the
+         loop keeps looking rather than returning it. */
+      var url = btn.local_image_url || btn.image_url;
+      if(url && !wordSuggestionsModule.is_placeholder_image(url)) {
+        return url;
       }
     }
     return null;
@@ -1175,6 +1144,31 @@ export default Controller.extend(prefClasses, {
     }
     var lookups = _this._suggestion_image_lookups;
     var lookup_ids = _this._suggestion_lookup_board_ids();
+    /* How many of this context's button sets are in memory RIGHT NOW. A miss is only final
+       once the sets are loaded; before that it means the lookup raced the download, which is
+       exactly what happens to the first lookups after a board switch. Recording this count
+       alongside a miss lets a later lookup retry precisely when the warm state has changed —
+       and never otherwise, so a word with genuinely no symbol is asked for once rather than on
+       every keystroke. */
+    var sets_sig = 0;
+    try {
+      /* The signature must change when the DATA changes, not when the number of sets changes.
+         It used to be the set COUNT — but button_sets_for_board_ids admits a record on
+         `root_url` alone, so a set going from "known to exist, zero buttons" to "fully loaded"
+         left the count identical. A miss recorded while the buttons were still downloading was
+         therefore never retried, even though the symbol it needed had just arrived: the word
+         stayed bare for the rest of the session, and which words that hit was pure timing.
+         Summing the button counts makes arrival observable. `buttons` is a raw array, so
+         `.length` is O(1) per set and this stays cheap on the keystroke path. */
+      sets_sig = (wordSuggestionsModule.button_sets_for_board_ids(lookup_ids) || []).reduce(function(sum, bs) {
+        return sum + (((bs && bs.get && bs.get('buttons')) || []).length);
+      }, 0);
+    } catch(e) {
+      /* Advisory read — it reaches into the Ember-Data store, which is not guaranteed to be
+         present on every path (and is absent in bare unit tests). A failure here must never
+         break decoration; 0 simply means "treat the sets as cold", which is the safe default
+         because it permits a retry rather than latching. */
+    }
     var ctx = { appState: _this.get('app_state'), stashes: _this.get('stashes') };
     list.forEach(function(item) {
       if(!item || !item.word) { return; }
@@ -1195,24 +1189,46 @@ export default Controller.extend(prefClasses, {
          fired reliably anyway.) */
       var key = lookup_ids.join(',') + '|' + item.word.toLowerCase();
       var seen = lookups[key];
-      if(seen) {
-        /* A RESOLVED url is replayed onto this lookup's item. The latch used to store only
-           `true`, which made it a "we already asked" flag with nothing to show for it: every
-           lookup builds FRESH item objects (word_suggestions#merge_suggestions), so the item
-           that received the url is discarded, and the next lookup for the same word hits this
-           early return and renders with no symbol — permanently, until clear_sentence resets
-           the map. Type "h" and "hello" has its symbol; type "he" and it comes back bare. For a
-           symbol-reliant user that is the word becoming unreadable. Mirrors the fix the
-           sentence-chip pipeline already uses (_resolved_label_images). */
-        if(seen !== true) { item.image = seen; }
-        return;
-      }
-      lookups[key] = true;
+      /* A RESOLVED url is replayed onto this lookup's item. The memo used to store only
+         `true`, which made it a "we already asked" flag with nothing to show for it: every
+         lookup builds FRESH item objects (word_suggestions#merge_suggestions), so the item
+         that received the url is discarded, and the next lookup for the same word hit the
+         early return and rendered with no symbol — permanently, until clear_sentence reset
+         the map. Type "h" and "hello" has its symbol; type "he" and it comes back bare. For a
+         symbol-reliant user that is the word becoming unreadable. Mirrors the fix the
+         sentence-chip pipeline already uses (_resolved_label_images). */
+      if(typeof seen === 'string') { item.image = seen; return; }
+      /* A MISS is remembered with the warm state it was observed under, and is only binding
+         while that state holds. attach_image_for_label invokes its callback ONLY on success,
+         so a miss leaves whatever was written here before the call — which is why writing a
+         bare `true` latched the word bare for the whole session on that board set. */
+      if(seen && seen.miss === sets_sig) { return; }
+      /* Written BEFORE the async call so it also serves as the in-flight guard: a second
+         decorate pass while this one is outstanding must not fire a duplicate request. */
+      lookups[key] = { miss: sets_sig };
       wordSuggestionsModule.attach_image_for_label(item.word, lookup_ids, function(url) {
         if(_this.isDestroyed || _this.isDestroying || !url) { return; }
-        lookups[key] = url;
-        item.image = url;
-        _this._republish_suggestion_list();
+        /* DECODE BEFORE SWAP. Assigning `url` straight onto the item paints an <img> whose
+           bytes have not arrived yet: an empty box, and a WHITE BLOCK under
+           symbol_background_clear (whose white-backing filter applies to a broken image just
+           the same). The tile is already showing the placeholder, so swapping early gains
+           nothing and costs a visible flicker — blank, white, then finally the symbol.
+           Preloading first makes the tile go placeholder -> symbol in ONE step, and a symbol
+           that cannot paint simply never replaces the placeholder. Same technique
+           board_preview_warmer.js uses to stop grid pop-in. */
+        var probe = new Image();
+        probe.onload = function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          lookups[key] = url;
+          item.image = url;
+          _this._republish_suggestion_list();
+        };
+        probe.onerror = function() {
+          /* Deliberately leaves the memo on its `{miss}` entry rather than latching the url:
+             a symbol that failed to load once (offline, cold CDN) should be retried when the
+             button sets next change, not remembered as this word's symbol. */
+        };
+        probe.src = url;
       }, ctx);
     });
     return list;
@@ -2748,12 +2764,26 @@ export default Controller.extend(prefClasses, {
 
   // Word suggestions
   suggestions: null,
-  show_word_suggestions: computed('edit_mode', 'app_state.referenced_user.preferences.word_suggestions', function() {
+  /* The yes/no board exists to present exactly two choices. Offering other words alongside
+     them defeats its purpose, and for someone relying on it for a binary answer that is worse
+     than unhelpful — so prediction is suppressed there regardless of the user's preference.
+     Matched on the KEY SLUG rather than the whole key: it ships as 'lingolinq/yesno' (the
+     default sidebar entry, app/models/user.rb:3943), but every copy a user or org makes keeps
+     the slug under their own username (lib/accessibility_seed.rb builds it the same way), so a
+     full-key match would only cover the pristine original. */
+  is_yes_no_board: computed('model.key', function() {
+    return ((this.get('model.key') || '').split('/')[1] || '') === 'yesno';
+  }),
+  show_word_suggestions: computed('edit_mode', 'is_yes_no_board', 'app_state.referenced_user.preferences.word_suggestions', function() {
     // Global user preference gates word prediction in speak mode. NEW users get
     // it ON at registration (user.rb generate_defaults, new_record? only); for
     // everyone else only an explicit `true` shows it (null/undefined = off), so
     // existing users are never silently enabled. Never shown in edit mode.
     if(this.get('edit_mode')) { return false; }
+    /* Board-level override. Deliberately NOT applied to `word_suggestions_enabled` below:
+       that drives the Board Settings toggle and must keep reflecting the user's actual
+       preference, so prediction returns by itself on every other board. */
+    if(this.get('is_yes_no_board')) { return false; }
     return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
   }),
   // On/off state of word prediction (only an explicit `true` is on; null = off),
@@ -2852,6 +2882,16 @@ export default Controller.extend(prefClasses, {
         this.get('stashes'),
         [this.get('model.id')]
       ),
+      /* One word per board ROW, so the rail fills the height it already reserves. Its grid is
+         `repeat(var(--prediction-rows), minmax(0,1fr))` pinned to the board grid's height, and
+         `prediction_rail_suggestions` slices the list to the row count. That slice is a
+         CEILING with no floor, so the module default of 5 left a taller board showing 5 words
+         in 8 tracks.
+         Floored at 5 so a short board never gets FEWER words than before. Capped at 8 because
+         api/words_controller.rb:66 clamps `count` to 8 — asking for more buys nothing. The
+         rail has no `overflow: auto`, so more tiles than tracks would SPILL rather than
+         scroll; the row-count slice stays the final guard against that. */
+      max_results: Math.min(Math.max(parseInt(this.get('current_grid.rows'), 10) || 0, 5), 8),
       button_sets: warmed_sets
     };
   },
@@ -3262,6 +3302,10 @@ export default Controller.extend(prefClasses, {
     _this._begin_suggestion_lookup();
     aiPredictor.predict(sentence, {
       locale: _this._word_prediction_locale(),
+      /* Same row-sized cap as the main path. Without it this fallback falls through to
+         ai_word_predictor's own `options.count || 4` and returns four words, so the rail
+         would under-fill on exactly the path taken when the primary lookup is unavailable. */
+      count: Math.min(Math.max(parseInt(_this.get('current_grid.rows'), 10) || 0, 5), 8),
       appState: _this.get('app_state')
     }).then(function(words) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -3272,7 +3316,22 @@ export default Controller.extend(prefClasses, {
          into the symbol memo and arming image callbacks. */
       if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
       var list = (words || []).map(function(w) { return { word: w }; });
-      _this._commit_suggestions({ ready: true, list: _this._decorate_suggestion_images(list) });
+      /* Stamp the placeholder here too. This path bypasses lookup_with_ai entirely — it builds
+         bare `{ word }` items — so without this the tiles reach the template with no `image`,
+         the `{{#if suggestion.image}}` gate renders no <img>, and the symbol area is empty.
+         Same primitive lookup() and lookup_with_ai use, so all three agree. */
+      var commit = function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
+        _this._commit_suggestions({ ready: true, list: _this._decorate_suggestion_images(list) });
+      };
+      wordSuggestionsModule.fallback_url().then(function(url) {
+        list.forEach(function(item) {
+          if(!item.fallback_image) { item.fallback_image = url; }
+          if(!item.image) { item.image = url; }
+        });
+        commit();
+      }, commit);
     }, function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
@@ -4530,6 +4589,20 @@ export default Controller.extend(prefClasses, {
     var list = this.get('prediction_suggestions') || [];
     var rows = parseInt(this.get('current_grid.rows'), 10) || 0;
     return (rows > 0 && list.length > rows) ? list.slice(0, rows) : list;
+  }),
+
+  /* The HORIZONTAL in-bar group, which is a different surface with a different constraint.
+     It is `display: inline-flex` with no wrap, no max-width and no overflow handling
+     (app.scss ~74162), and it shows at widths ABOVE 1024px where the rail is hidden — so it
+     has no row count to size against and nothing to stop it running off the end of the
+     speak bar.
+     It used to render `prediction_suggestions` directly, which was safe only while the
+     lookup cap was a flat 5. Now that the cap is sized to the board's rows (up to 8) for the
+     rail's benefit, this surface needs its own explicit 5 or a tall board would push pills
+     out of the bar. Not a new limit — it is the limit this surface already had. */
+  prediction_bar_suggestions: computed('prediction_suggestions.[]', function() {
+    var list = this.get('prediction_suggestions') || [];
+    return list.length > 5 ? list.slice(0, 5) : list;
   }),
 
   grid_style: computed('current_grid.columns', 'current_grid.rows', function() {
