@@ -8,6 +8,7 @@ import i18n from '../utils/i18n';
 import LingoLinq from '../app';
 import session from '../utils/session';
 import { board_view_route } from '../utils/board_view';
+import { wait_for_session_user } from '../utils/session_user_wait';
 import { later as runLater } from '@ember/runloop';
 import { inject as service } from '@ember/service';
 
@@ -27,7 +28,43 @@ export default Route.extend({
       var boardname = parts.slice(1).join('/');
       // Open the board in the user's preferred view: board-detail (modern) by
       // default, board-alt (classic) only when they've opted into classic.
-      this.router.replaceWith(board_view_route(this.appState.get('currentUser')), user_id, boardname);
+      var _this = this;
+      var go = function(user) {
+        // A wait can outlive its transition: guard before touching the router, and never
+        // redirect against a superseded transition.
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(transition && transition.isAborted) { return; }
+        _this.router.replaceWith(board_view_route(user), user_id, boardname);
+      };
+
+      var loaded = this.appState.get('currentUser');
+      // BOTH conditions, deliberately. `access_token` alone is not enough: in-app
+      // navigation reaches this same wildcard route with a LOADED user — there are 8+
+      // `transitionTo('board', key)` call sites, and controllers/search.js:359-362
+      // documents that they all land here — so waiting whenever there is a session would
+      // stall every in-app board open, not just cold ones.
+      if(!session.get('access_token') || loaded) {
+        go(loaded);
+        return;
+      }
+
+      // COLD BOOT. `currentUser` is null (it is assigned inside find_user's async .then,
+      // reached from setupController, which Ember runs after every beforeModel), but the
+      // record is already being fetched: global_transition runs on `routeWillChange`,
+      // before this hook, and stored its promise. Wait briefly rather than guessing.
+      //
+      // WHOSE preference: the COMMUNICATOR's when one is in play, not the supporter's —
+      // it is their board and their AAC experience. Same precedence the in-session path
+      // already uses (`referenced_user || currentUser`, services/app-state.js:982). Their
+      // id is readable synchronously from stashes here, the same ids app-state.js:556-559
+      // resolves later, so we can fetch that record instead of the account holder's.
+      var ref_id = this.stashes.get('speak_mode_user_id') ||
+                   this.stashes.get('referenced_speak_mode_user_id');
+      var pending = ref_id ? this.store.findRecord('user', ref_id)
+                           : this.appState.get('session_user_promise');
+      // Resolves with null on timeout or failure, never rejects — `go(null)` then applies
+      // the modern default, exactly as before this change.
+      return wait_for_session_user(this.appState, { promise: pending }).then(go);
     }
   },
   model: function(params) {

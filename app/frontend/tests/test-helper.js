@@ -96,6 +96,7 @@ import 'frontend/tests/unit/helpers/letter-stagger-test';
 import 'frontend/tests/unit/utils/dashboard-sections-test';
 import 'frontend/tests/unit/utils/session-user-wait-test';
 import 'frontend/tests/unit/routes/setup-retired-test';
+import 'frontend/tests/unit/routes/board-cold-boot-view-test';
 /* eslint-enable ember/no-test-import-export */
 
 // loadTests: false — we already pre-loaded all test modules above

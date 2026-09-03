@@ -42,7 +42,10 @@ export function wait_for_session_user(appState, opts) {
   // runloop functions below.
   var later_fn = options.later || runLater;
   var cancel_fn = options.cancel || runCancel;
-  var promise = appState && appState.get && appState.get('session_user_promise');
+  // `opts.promise` lets the caller wait for a DIFFERENT record than the account holder's.
+  // routes/board.js uses it in speak mode, where the preference that matters belongs to
+  // the communicator, not the signed-in supporter.
+  var promise = options.promise || (appState && appState.get && appState.get('session_user_promise'));
   if(!promise || typeof promise.then !== 'function') { return RSVP.resolve(null); }
 
   return new RSVP.Promise(function(resolve) {
