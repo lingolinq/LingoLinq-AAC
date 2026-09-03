@@ -926,11 +926,18 @@ button.ch-tile--primary:focus-visible { color: #fff; }
   }
 }
 
-.ch-tile--extras-toggle { @include ch-tile-silver; }
+// Extras takes the SAME denim as Search Boards (requested 2026-09-02) — one shared
+// `ch-tile-tint($brand-dusty-denim)` call, so the two tiles cannot drift apart the way
+// two hand-matched colour sets would. That covers background, border and chip in one go.
+// It sits beside `.ch-tile--search` in the Actions grid, so they now read as a pair.
+.ch-tile--extras-toggle { @include ch-tile-tint($brand-dusty-denim); }
 .ch-tile--silver        { @include ch-tile-silver; }
 
-button.ch-tile--extras-toggle:hover,
-button.ch-tile--extras-toggle:focus-visible,
+// `extras-toggle` is deliberately NOT in this list any more. This block sets a NEUTRAL
+// blue-black hover shadow and, at (0,2,1), outranks the denim hover `ch-tile-tint`
+// installs at (0,2,0) — leaving it here would have kept the tile silver on hover while
+// looking correct at rest, which is exactly the kind of half-applied change that reads
+// as fixed and is not.
 a.ch-tile--silver:hover,
 a.ch-tile--silver:focus-visible,
 button.ch-tile--silver:hover,
