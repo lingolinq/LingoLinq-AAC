@@ -8716,6 +8716,8 @@
   "create_board_locale_english_lookup_hint": "*** Create in your language. Symbols and colors are matched using English in the background.",
   "translate_google_disclaimer_title": "*** About board translation",
   "translate_google_disclaimer_body": "*** Board translation uses Google Cloud Translation, a machine-translation service. It is not generative AI or a chatbot. Words on this board (button labels, spoken phrases, and the board name) will be sent to Google to translate. If any of those words include personal information, that information will be sent too.",
+  "user_name_already_exists_quoted": "*** \"%{user_name}\" already exists",
+  "user_name_already_exists": "*** %{user_name} already exists",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "À la date [[ On the Date",
   "after_time": "Après le temps [[ After Time",
