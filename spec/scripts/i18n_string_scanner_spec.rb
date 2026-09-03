@@ -11,9 +11,10 @@ describe I18nStringScanner do
     end
 
     it 'reads a plain double-quoted string' do
-      str, idx = read(%(t "Hello there" key='greeting'))
+      line = %(t "Hello there" key='greeting')
+      str, idx = described_class.read_quoted(line, line.index('"'))
       expect(str).to eq('Hello there')
-      expect(line_char(%(t "Hello there" key='greeting'), idx)).to eq('"')
+      expect(line[idx]).to eq('"')
     end
 
     it 'reads a plain single-quoted string' do
@@ -42,6 +43,26 @@ describe I18nStringScanner do
       expect(str).to eq('"')
     end
 
+    # CONSECUTIVE escapes are a THIRD behaviour class this fix changes, distinct from a leading
+    # escape. The old scanner consumed a character and then tested the NEXT one, so back-to-back
+    # escapes desynchronised it: `a\"\"b` came out as `a"\` — it lost the second pair and kept a
+    # stray backslash. Built by concatenation rather than written as one literal, because the
+    # escaping is the thing under test and a %() literal makes it unreadable.
+    it 'handles consecutive escaped quotes without desynchronising' do
+      line = 't "a' + '\\"' + '\\"' + 'b" key=' + "'x'"
+      expect(line).to include('a\\"\\"b')
+      str, = described_class.read_quoted(line, line.index('"'))
+      expect(str).to eq('a""b')
+    end
+
+    # A RUN of backslashes must halve, not lose parity. Four in source is two escaped
+    # backslashes and must yield two; the old scanner produced three.
+    it 'collapses a run of escaped backslashes with the right parity' do
+      line = 't "' + ('\\' * 4) + '" key=' + "'x'"
+      str, = described_class.read_quoted(line, line.index('"'))
+      expect(str).to eq('\\' * 2)
+    end
+
     it 'keeps the character after any backslash, not just quotes' do
       str, = read(%(t "a\\\\b" key='x'))
       expect(str).to eq('a\\b')
@@ -67,10 +88,6 @@ describe I18nStringScanner do
 
     it 'tolerates a trailing backslash at end of line' do
       expect { read(%(t "oops\\)) }.not_to raise_error
-    end
-
-    def line_char(line, idx)
-      line[idx]
     end
   end
 end

@@ -2,10 +2,11 @@
 
 # Reads the quoted source string out of a translatable call, for i18n_generator.rb.
 #
-# Extracted so it can be tested: the generator itself is a top-level script that globs the
-# repo and writes locale files as a side effect of being loaded, so it cannot be required
-# from a spec. The two call sites it serves — `i18n.t('key', "...")` in .js and
-# `{{t "..." key='...'}}` in .hbs — had SEPARATE COPIES of this loop with the same defect.
+# Extracted so it can be tested: the generator is a top-level script whose body globs the repo
+# and prints as soon as it is loaded, so requiring it from a spec is not workable. (It does not
+# WRITE anything on load — every write is gated on --generate/--merge/--confirm — so the reason
+# is the script body, not data loss.) The two call sites it serves — `i18n.t('key', "...")` in
+# .js and `{{t "..." key='...'}}` in .hbs — had SEPARATE COPIES of this loop with the same defect.
 #
 # THE DEFECT, for anyone tempted to re-inline this:
 #   str += line[idx]        # consume the current character
@@ -31,9 +32,15 @@ module I18nStringScanner
   # or of the end of the line if the string is unterminated, which both callers then handle
   # by failing to find their own terminator.
   #
-  # A backslash escapes whatever follows it and is itself dropped, so `\"` yields `"`. That
-  # is what the original loop did for a MID-string escape, and is preserved deliberately: the
+  # A backslash escapes whatever follows it and is itself dropped, so `\"` yields `"`. The
   # locale files hold the unescaped text and JSON.pretty_generate re-escapes on write.
+  #
+  # This is NOT merely "what the original did for a mid-string escape" — the original handled a
+  # SINGLE mid-string escape correctly but broke on two other cases, both fixed here and both
+  # covered by the spec:
+  #   `a\"\"b`  consecutive escapes desynchronised it   -> it produced `a"\`
+  #   `\\\\`      a RUN of backslashes lost parity        -> four produced three, not two
+  # Anything that changes this method must keep all three classes, not just the leading one.
   def self.read_quoted(line, open_idx)
     quote = line[open_idx]
     idx = open_idx + 1
