@@ -81,9 +81,22 @@ export default Component.extend({
     if(this._closeOnEscape) { document.removeEventListener('keydown', this._closeOnEscape); }
   },
 
-  // Hidden entirely when there is nobody to hold a preference, and in speak mode.
-  available: computed('appState.currentUser', 'appState.speak_mode', function() {
-    return !!this.appState.get('currentUser') && !this.appState.get('speak_mode');
+  // Hidden entirely when there is nobody to hold a preference, in speak mode, and
+  // while a board edit session is open.
+  //
+  // EDIT MODE is a data-loss guard, not tidiness. Switching view on a board
+  // transitions to the counterpart route, and app-state's global_transition reacts
+  // to leaving `user.board-detail.edit` by calling `toggle_edit_mode()`
+  // (services/app-state.js:734), which runs `editManager.clear_history()` and
+  // abandons the session. Both deliberate exits from edit mode put
+  // `confirm-discard-changes` in front of that (controllers/user/board-detail.js:8797,
+  // :8806) — so offering the switch here would be a third exit with no prompt, and
+  // the user's unsaved button edits would go without a word. They can switch after
+  // leaving edit mode, which asks properly.
+  available: computed('appState.currentUser', 'appState.speak_mode', 'appState.edit_mode', function() {
+    return !!this.appState.get('currentUser') &&
+           !this.appState.get('speak_mode') &&
+           !this.appState.get('edit_mode');
   }),
 
   isClassic: computed('appState.currentUser.preferences.board_view_style', function() {
