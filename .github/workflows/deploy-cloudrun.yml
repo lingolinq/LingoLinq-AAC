@@ -1023,6 +1023,7 @@ jobs:
       # The candidate tag is removed in the same call, so no unauthenticated candidate---* URL
       # outlives the release.
       - name: Shift traffic to the verified revision
+        id: shift
         if: steps.guard.outputs.enabled == 'true'
         run: |
           set -euo pipefail
@@ -1038,7 +1039,10 @@ jobs:
           # (worker pool, scheduler Job, secret readback) can fail with traffic already shifted,
           # which is exactly when an operator needs the pin-back command. See the failure step
           # at the end of this job.
-          echo "SHIFT_DONE=true" >> "$GITHUB_ENV"
+          # STEP OUTPUT, not $GITHUB_ENV: the failure diagnostic below gates on this in an `if:`,
+          # and `if:` is evaluated through workflow contexts. Same reasoning as first_deploy above;
+          # writing it only to $GITHUB_ENV would repeat the exact pattern this commit removes.
+          echo "shift_done=true" >> "$GITHUB_OUTPUT"
           # Read back who is serving. This read is LOAD-BEARING (it is the assert), so it is
           # guarded rather than left to `set -e`: a bare assignment failure would abort the step
           # between the completed traffic shift and the un-run worker deploy, stranding new web
@@ -1234,7 +1238,7 @@ jobs:
       # before this step those failures printed nothing actionable: a red run, new web code live,
       # and possibly an old worker still draining the queue. This step fires only in that window.
       - name: On failure after the traffic shift, print the rollback
-        if: failure() && env.SHIFT_DONE == 'true'
+        if: failure() && steps.shift.outputs.shift_done == 'true'
         run: |
           echo "::error::A step FAILED AFTER traffic was shifted. $WEB_SERVICE in $GCP_PROJECT_ID is serving ${CANDIDATE_REV:-the new revision} NOW."
           echo "::error::The worker pool and/or scheduler Job may still be on the PREVIOUS image, so web and worker can be running different code."

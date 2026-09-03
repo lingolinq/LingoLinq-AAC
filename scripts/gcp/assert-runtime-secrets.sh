@@ -64,8 +64,14 @@ while [ $# -gt 0 ]; do
     --region)      REGION="$2"; shift 2 ;;
     --service)     SERVICE="$2"; shift 2 ;;
     --worker-pool) WORKER_POOL="$2"; shift 2 ;;
-    --required)    REQUIRED="$2"; shift 2 ;;
-    --required-literal) REQUIRED_LITERAL="$2"; shift 2 ;;
+    # ACCUMULATE, do not overwrite. Both flags take a comma-delimited list, and a caller
+    # passing the flag N times is expressing N assertions. Assigning here would keep only the
+    # LAST one and silently drop the rest -- the failure mode is a check that looks present in
+    # the caller and never runs. Caught in review 2026-09-03, when five --required-literal
+    # flags in deploy-cloudrun.yml collapsed to one and dropped the BEDROCK account pin that
+    # had been asserted since the script was written.
+    --required)    REQUIRED="${REQUIRED:+$REQUIRED,}$2"; shift 2 ;;
+    --required-literal) REQUIRED_LITERAL="${REQUIRED_LITERAL:+$REQUIRED_LITERAL,}$2"; shift 2 ;;
     *) echo "assert-runtime-secrets: unknown argument '$1'" >&2; exit 2 ;;
   esac
 done
