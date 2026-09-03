@@ -1408,8 +1408,36 @@ button.ch-tile--silver:focus-visible {
 }
 
 @media (max-width: 767px) {
-  .ch-page { padding: 16px 14px 28px; gap: 16px; }
-  .ch-tab { flex: 1 1 40%; }
+  // Top/left/right raised from 16/14 (requested 2026-09-02); bottom left alone.
+  // Sides stop at 18px rather than going further, and that is a measured limit, not
+  // caution: .ch-grid is `repeat(auto-fit, minmax(132px, 1fr))` with a 12px gap, so
+  // every px of side padding is a px less for the tiles. Sweeping side padding from
+  // 14 to 28 across viewport widths 320-767, 14 is the only value that preserves the
+  // column count everywhere; 18 shifts it at exactly three widths (the first at
+  // 448px, 3 columns -> 2) and 20 shifts it at six. 18 buys visible breathing room
+  // for one narrow band where a row loses a tile, which is why it is the stopping
+  // point — past that the tiles start reflowing at common phone widths.
+  .ch-page { padding: 40px 18px 28px; gap: 16px; }
+
+  // Tabs stay on ONE row (requested 2026-09-02). The previous `flex: 1 1 40%` was the
+  // cause of the wrap it was meant to control: three tabs at a 40% basis is 120% of
+  // the line, so the third always dropped to a second row — and four tabs (supporters,
+  // who also get Communicators) is 160%. `flex: 1 1 0` + `min-width: 0` lets them
+  // divide the row evenly instead and shrink below their content width, with
+  // `nowrap` on the container so a second row is not possible at all.
+  .ch-tabs { flex-wrap: nowrap; }
+  .ch-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 9px 8px;
+    font-size: 13px;
+    // Last-resort truncation so the row can never wrap. Only reachable for a
+    // SUPPORTER on a narrow phone, where four tabs share the row and
+    // "Communicators" is the one long label; three-tab communicators have room.
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 // -----------------------------------------------------------------------------
