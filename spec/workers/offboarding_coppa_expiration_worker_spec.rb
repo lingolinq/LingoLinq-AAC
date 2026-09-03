@@ -97,10 +97,15 @@ describe OffboardingCoppaExpirationWorker do
     it 'caps the per-account lines but never the count' do
       many = (1..250).map { |i| double('user', global_id: "1_#{i}", offboarding_export_reason: 'expired') }
       stub_candidates(many)
-      allow(Rails.logger).to receive(:info)
-      expect(Rails.logger).to receive(:info).with(/DRY RUN: 250 account\(s\)/)
-      expect(Rails.logger).to receive(:info).with(/\.\.\.and 50 more, not listed/)
+      logged = []
+      allow(Rails.logger).to receive(:info) { |msg| logged << msg }
       OffboardingCoppaExpirationWorker.perform
+      expect(logged).to include(a_string_matching(/DRY RUN: 250 account\(s\)/))
+      expect(logged).to include(a_string_matching(/\.\.\.and 50 more, not listed/))
+      sweep_lines = logged.select { |msg| msg.include?('would sweep') }
+      expect(sweep_lines.length).to eq(OffboardingCoppaExpirationWorker::MAX_REPORT_LINES)
+      expect(sweep_lines.last).to include('user_global_id=1_200')
+      expect(logged.none? { |msg| msg.include?('user_global_id=1_201') }).to eq(true)
     end
 
     it 'reports zero cleanly when nothing is due' do

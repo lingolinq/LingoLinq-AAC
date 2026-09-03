@@ -190,3 +190,25 @@ nothing. Fixes applied on the same branch.
   records to filter on `coppa_offboarding_export_due?` anyway, which is the memory
   problem the streaming change just fixed. The query count is unchanged from the
   original code.
+
+## 2026-09-03: merge staging + remaining Codex threads
+
+Merged `origin/staging`. Conflicts were `LEARNINGS.md` (kept both sides) and
+`parental_consents_controller_spec.rb` (kept this branch's GET/POST rewrite;
+took staging's 8-character password). Bumped the leftover `abcdef` in the
+token-revocation spec so it still creates after `MIN_PASSWORD_LENGTH = 8`.
+
+Four open Codex threads:
+
+1. **Confirm only still-submittable declines.** Already fixed by `declinable?`
+   (`parental_consents_controller.rb:138`). Thread was outdated. Dismiss.
+2. **Clear only the owned export claim.** Real. `release_offboarding_export_claim!`
+   now takes `claimed_at` and deletes `offboarding_export_started_at` only when
+   it still matches. A stale attempt that fails after a retry claimed cannot
+   wipe the live claim.
+3. **Preserve export-pending on revisit.** Real. `prepare_decline_context` now
+   returns `:declined_export_pending` when the account is declined, offboarding,
+   and `offboarding_export_scheduled_at` is blank. GET and repeat POST keep the
+   honest copy until an export is actually scheduled.
+4. **Bound the dry-run accumulator.** Real. `perform_report` keeps running
+   totals and retains only the first `MAX_REPORT_LINES` pairs.

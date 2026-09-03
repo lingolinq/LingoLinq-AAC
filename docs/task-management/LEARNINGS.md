@@ -54,6 +54,8 @@ file (see [README.md](README.md)).
 - [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
 - [Gotcha: public COPPA signup is classified from birth month/year, not the client flag](#gotcha-public-coppa-signup-is-classified-from-birth-monthyear-not-the-client-flag)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
+- [Gotcha: an export-claim release must match the stamp this attempt wrote](#gotcha-an-export-claim-release-must-match-the-stamp-this-attempt-wrote)
+- [Gotcha: decline page state on revisit must re-read scheduled_at, not only declined_at](#gotcha-decline-page-state-on-revisit-must-re-read-scheduled_at-not-only-declined_at)
 - [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
 - [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
 - [Gotcha: a status-block lead must not over-claim "remaining" or "historical"](#gotcha-a-status-block-lead-must-not-over-claim-remaining-or-historical)
@@ -16422,3 +16424,15 @@ Teardown timing that the same branch had to get right: `willDestroy` is a NON-ea
 "7 of 8 fail on the pre-fix file" sounded like strong evidence and was mostly noise: with the fix reverted the method the tests stubbed did not exist, so the stub was inert and the counter stayed 0, and one case failed by THROWING on a destroyed component rather than by asserting. Mutating the fix in place (force the hold predicate false; delete the re-arm hook; delete the expiry check; drop the handoff) gave a per-mutation kill list where each mutation reddened exactly the cases that pin it. Report that list, not the revert count. Restore from a copy you saved, `cmp` it, never `git checkout`.
 
 **First seen in:** [2026-09-02_art50-notice-vs-guided-tour.md](./2026-09-02_art50-notice-vs-guided-tour.md) (PR #920, adversary finding A6).
+
+## Gotcha: an export-claim release must match the stamp this attempt wrote
+
+`offboarding_export_started_at` is a lease, not a mutex bit. After `OFFBOARDING_EXPORT_CLAIM_STALE` a retry overwrites it. If the original attempt later fails and deletes whichever stamp is stored, it clears the retry's live claim and a third sweep can start another concurrent export. Carry the claimed ISO8601 into `release_offboarding_export_claim!` and delete only on equality.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md) (PR #903).
+
+## Gotcha: decline page state on revisit must re-read scheduled_at, not only declined_at
+
+A successful offboarding decline whose export failed still writes `parent_consent_declined_at`. The first POST can render `:declined_export_pending` from `decline_outcome_state`, but a later GET/POST that keys only on `declined_at` shows `:already_declined` and tells the parent the account is scheduled for export and deletion. For declined offboarding, keep `:declined_export_pending` until `offboarding_export_scheduled_at` is present.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md) (PR #903).

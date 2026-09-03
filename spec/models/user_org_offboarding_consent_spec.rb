@@ -567,6 +567,25 @@ describe 'User org offboarding parental consent', type: :model do
       expect(ev.data['error_class']).to eq('StandardError')
     end
 
+    it 'does not clear a newer export claim when a stale attempt later fails' do
+      u = due_offboarding_user!(suffix: 'staleclaim')
+      newer = nil
+      expect(Exporter).to receive(:export_user) do
+        # A retry acquired a replacement claim after this attempt went stale.
+        other = User.find_by_global_id(u.global_id)
+        c = other.settings['coppa']
+        newer = (Time.now.utc + 1.hour).iso8601
+        c['offboarding_export_started_at'] = newer
+        other.settings['coppa'] = c
+        other.save!
+        raise StandardError, 'stale attempt failed'
+      end
+      u.schedule_offboarding_export_then_delete!(reason: 'declined')
+      u.reload
+      expect(u.settings['coppa']['offboarding_export_started_at']).to eq(newer)
+      expect(u.coppa_offboarding_export_due?).to eq(false)
+    end
+
     it 'does not write a failure row when another finisher already scheduled the export' do
       u = due_offboarding_user!(suffix: 'raced')
       # Block only -- `and_raise` combined with a block makes the block dead code,
@@ -600,7 +619,7 @@ describe 'User org offboarding parental consent', type: :model do
       u = User.process_new({
         'name' => 'decline_tokens',
         'email' => "decline_tokens_#{SecureRandom.hex(4)}@example.com",
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'decline_tokens_parent@example.com'

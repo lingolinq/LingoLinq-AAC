@@ -66,25 +66,30 @@ module OffboardingCoppaExpirationWorker
   end
 
   def self.perform_report
-    # Accumulate the two fields we log, NOT the User records. The candidate
-    # stream yields one decrypted account at a time precisely so a large backlog
-    # does not have to be resident all at once.
+    # Running totals for the full scan; only the first MAX_REPORT_LINES
+    # (global_id, reason) pairs are retained. The candidate stream already
+    # yields one decrypted account at a time so User records are not resident
+    # all at once -- this keeps the log buffer on the same bound.
     rows = []
+    total = 0
+    declined = 0
     User.each_expired_offboarding_consent_candidate do |user|
-      rows << [user.global_id, user.offboarding_export_reason]
+      total += 1
+      reason = user.offboarding_export_reason
+      declined += 1 if reason == 'declined'
+      rows << [user.global_id, reason] if rows.length < MAX_REPORT_LINES
     end
-    declined = rows.count { |(_, reason)| reason == 'declined' }
     Rails.logger.info(
-      "#{LOG_TAG} mode=report DRY RUN: #{rows.length} account(s) WOULD be exported and " \
-      "scheduled for deletion (declined=#{declined} expired=#{rows.length - declined}). " \
+      "#{LOG_TAG} mode=report DRY RUN: #{total} account(s) WOULD be exported and " \
+      "scheduled for deletion (declined=#{declined} expired=#{total - declined}). " \
       'Nothing was changed.'
     )
-    rows.first(MAX_REPORT_LINES).each do |(global_id, reason)|
+    rows.each do |(global_id, reason)|
       Rails.logger.info("#{LOG_TAG} mode=report would sweep user_global_id=#{global_id} reason=#{reason}")
     end
-    if rows.length > MAX_REPORT_LINES
+    if total > MAX_REPORT_LINES
       Rails.logger.info(
-        "#{LOG_TAG} mode=report ...and #{rows.length - MAX_REPORT_LINES} more, not listed. " \
+        "#{LOG_TAG} mode=report ...and #{total - MAX_REPORT_LINES} more, not listed. " \
         'The COUNT above is complete; only the per-account lines are capped.'
       )
     end

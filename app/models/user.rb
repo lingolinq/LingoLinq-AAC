@@ -831,6 +831,7 @@ class User < ApplicationRecord
   # each generate a full export for the same user.
   def schedule_offboarding_export_then_delete!(reason: nil)
     claimed = false
+    claimed_at = nil
     resolved_reason = reason
     self.with_lock(requires_new: true) do
       next unless coppa_offboarding_export_due?
@@ -843,7 +844,8 @@ class User < ApplicationRecord
       self.settings ||= {}
       c = self.settings['coppa']
       next unless c.is_a?(Hash)
-      c['offboarding_export_started_at'] = Time.now.utc.iso8601
+      claimed_at = Time.now.utc.iso8601
+      c['offboarding_export_started_at'] = claimed_at
       self.settings['coppa'] = c
       self.save!
       claimed = true
@@ -878,7 +880,11 @@ class User < ApplicationRecord
     # is never written. A Hash without :path counts as failure for the same
     # reason a raise does: there is nothing to hand the parent.
     unless upload.is_a?(Hash) && upload[:path].present?
-      return release_offboarding_export_claim!(reason: resolved_reason, error_class: export_error_class)
+      return release_offboarding_export_claim!(
+        reason: resolved_reason,
+        error_class: export_error_class,
+        claimed_at: claimed_at
+      )
     end
 
     scheduled = false
@@ -932,7 +938,7 @@ class User < ApplicationRecord
   # for a child account is a compliance event -- the record of the ATTEMPT is
   # what shows the export obligation was honoured even when the deletion did not
   # proceed. A Rails.logger.error line is not a record anyone can produce later.
-  def release_offboarding_export_claim!(reason:, error_class: nil)
+  def release_offboarding_export_claim!(reason:, error_class: nil, claimed_at:)
     released = false
     self.with_lock(requires_new: true) do
       self.settings ||= {}
@@ -940,6 +946,10 @@ class User < ApplicationRecord
       next unless c.is_a?(Hash)
       # Another finisher won the race and completed the export; leave it alone.
       next if c['offboarding_export_scheduled_at'].present?
+      # Clear only the claim THIS attempt took. After OFFBOARDING_EXPORT_CLAIM_STALE
+      # a retry can write a replacement started_at; deleting blindly would drop
+      # that live claim and let a third sweep start another concurrent export.
+      next unless claimed_at.present? && c['offboarding_export_started_at'] == claimed_at
       c.delete('offboarding_export_started_at')
       self.settings['coppa'] = c
       self.save!

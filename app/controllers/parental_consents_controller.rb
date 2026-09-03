@@ -99,10 +99,13 @@ class ParentalConsentsController < ApplicationController
   # page and the action that follows it can never disagree about who is being
   # declined or whether the link is still good.
   #
-  #   :invalid          -- no such user, or the token does not check out
-  #   :already_declined -- a previous decline already landed (link is idempotent)
-  #   :confirm          -- valid and still pending; GET stops here, POST acts
-  #   :declined         -- set by decline_submit after a successful decline
+  #   :invalid                 -- no such user, or the token does not check out
+  #   :already_declined        -- a previous decline already landed and, for
+  #                               offboarding, the export has been scheduled
+  #   :declined_export_pending -- declined, but the offboarding export is not
+  #                               scheduled yet (first POST or a later revisit)
+  #   :confirm                 -- valid and still pending; GET stops here, POST acts
+  #   :declined                -- set by decline_submit after a successful decline
   def prepare_decline_context
     response.headers['Referrer-Policy'] = 'no-referrer'
     @decline_user = User.find_by_path(params[:user_id].presence || params['user_id'])
@@ -120,7 +123,11 @@ class ParentalConsentsController < ApplicationController
       if c['parent_consent_declined_at'].present?
         @already_declined = true
         @success = true
-        :already_declined
+        if @offboarding && c['offboarding_export_scheduled_at'].blank?
+          :declined_export_pending
+        else
+          :already_declined
+        end
       elsif !declinable?(c)
         :not_declinable
       else

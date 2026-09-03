@@ -388,6 +388,33 @@ describe ParentalConsentsController, :type => :controller do
         expect(response.body).not_to include(I18n.t('parental_consent.offboarding_decline_thanks_body'))
       end
 
+      it "shows already-declined on revisit after a successful offboarding export" do
+        u = offboarding_user
+        tok = u.settings['coppa']['parent_consent_token']
+        expect(Exporter).to receive(:export_user).and_return({path: 'downloads/users/x.zip'})
+        allow(UserMailer).to receive(:schedule_parent_consent_delivery)
+        post :decline_submit, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:declined)
+        get :decline, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:already_declined)
+        expect(response.body).to include(I18n.t('parental_consent.offboarding_decline_already_body'))
+      end
+
+      it "keeps the export-pending page on revisit until an export is actually scheduled" do
+        u = offboarding_user
+        tok = u.settings['coppa']['parent_consent_token']
+        expect(Exporter).to receive(:export_user).and_raise(StandardError.new('S3 throttled'))
+        post :decline_submit, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:declined_export_pending)
+        get :decline, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:declined_export_pending)
+        expect(response.body).to include(I18n.t('parental_consent.decline_export_pending_title'))
+        expect(response.body).not_to include(I18n.t('parental_consent.offboarding_decline_already_body'))
+        post :decline_submit, params: {user_id: u.global_id, token: tok}
+        expect(assigns(:state)).to eq(:declined_export_pending)
+        expect(assigns(:success)).to eq(true)
+      end
+
       it "is idempotent on a repeat submit" do
         u = signup_user('signup_decl_twice')
         tok = u.settings['coppa']['parent_consent_token']
