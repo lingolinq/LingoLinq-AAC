@@ -179,9 +179,16 @@ export default AuthenticatedView.extend({
 
     // The parent exposes `autoOpenSpeakMode` as a get/set computed that persists on
     // set; drive it from a plain checkbox rather than a two-way <Input> binding.
-    toggle_auto_speak: function(event) {
-      var checked = !!(event && event.target && event.target.checked);
-      this.set('autoOpenSpeakMode', checked);
+    //
+    // Flips the CURRENT VALUE rather than reading `event.target.checked`, because
+    // this handler never sees the event: `ctrlAction` above pops a trailing DOM event
+    // off the argument list before dispatching, and this is the one call site that
+    // passes the event and nothing else. Reading it yielded `undefined` on every
+    // click, so `!!(undefined && …)` wrote `false` every time and the box could only
+    // ever be turned OFF. The input's `checked` attribute is bound to this same
+    // property (classic-view.hbs:140), so toggling it keeps the DOM in step.
+    toggle_auto_speak: function() {
+      this.set('autoOpenSpeakMode', !this.get('autoOpenSpeakMode'));
     },
 
     // Menu open/close. Toggling the already-open one closes it.
