@@ -1490,7 +1490,7 @@ export default Controller.extend(prefClasses, {
       this.get('router').transitionTo('user.board-detail.edit', user_name, boardname);
     },
 
-    // Normal-mode "Modern View" button: persist the user's preference
+    // Normal-mode "Card View" button: persist the user's preference
     // to 'modern' (so future logins land in the modern view) AND then
     // take them straight to the modern (board-detail) view.
     go_to_modern: function() {

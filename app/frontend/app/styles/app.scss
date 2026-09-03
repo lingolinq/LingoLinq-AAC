@@ -12,6 +12,8 @@
 @use "search";
 @use "board_picker";
 @use "reports";
+@use "classic-home";
+@use "view-switcher";
 
 // All design-token variables ($brand-*, $color-*, $aac-*, $la-*, $cat-*,
 // $nav_*, $page-footer-*, $ll-bento-*) live in _variables.scss above.
@@ -659,9 +661,9 @@ html, body {
   flex-direction: column;
   box-sizing: border-box;
   background: linear-gradient(to bottom,
-    rgba(126, 184, 224, 0.25) 0%,
-    rgba(212, 168, 75, 0.12) 50%,
-    rgba(61, 122, 92, 0.14) 100%) !important;
+    rgba($page-wash-blue, 0.25) 0%,
+    rgba($page-wash-gold, 0.12) 50%,
+    rgba($page-wash-green, 0.14) 100%) !important;
 }
 /* Login, register, forgot password/username: same scrollable content area so form is visible (unauthenticated, so #content has .no_user not .index.with_user).
    Apply the login gradient to #content itself so it fills the full scroll area —
@@ -768,9 +770,9 @@ html, body {
    `:has()` (1,2,0) out-specifies the `:has(.page-footer)` transparent reset. */
 #within_ember:has(.page-footer):has(.ub-find-board-page) {
   background: linear-gradient(to bottom,
-    rgba(126, 184, 224, 0.25) 0%,
-    rgba(212, 168, 75, 0.12) 50%,
-    rgba(61, 122, 92, 0.14) 100%);
+    rgba($page-wash-blue, 0.25) 0%,
+    rgba($page-wash-gold, 0.12) 50%,
+    rgba($page-wash-green, 0.14) 100%);
 }
 /* Keep this page's #content transparent so the full-viewport mesh above shows
    through the whole height (mirrors the login/register #content reset). Scoped
@@ -821,9 +823,9 @@ html, body {
 #within_ember.bento-default-mode-active:has(.page-footer) #content.index.with_user,
 #within_ember.bento-page-with-footer.bento-default-mode-active #content.index.with_user {
   background: linear-gradient(to bottom,
-    rgba(126, 184, 224, 0.25) 0%,
-    rgba(212, 168, 75, 0.12) 50%,
-    rgba(61, 122, 92, 0.14) 100%);
+    rgba($page-wash-blue, 0.25) 0%,
+    rgba($page-wash-gold, 0.12) 50%,
+    rgba($page-wash-green, 0.14) 100%);
 }
 /* #index_view fills #content so shell can stretch to full height; grows when content overflows so #content scrolls */
 #within_ember:has(.page-footer) #content.index.with_user #index_view,
@@ -25882,9 +25884,9 @@ header.header--unauthenticated ~ #content .la-topbar {
 /* Default palette shell: top-down gradient – blue, gold (subtle), green (subtle). */
 .ll-bento-app-shell--default {
   background: linear-gradient(to bottom,
-    rgba(126, 184, 224, 0.25) 0%,
-    rgba(212, 168, 75, 0.12) 50%,
-    rgba(61, 122, 92, 0.14) 100%);
+    rgba($page-wash-blue, 0.25) 0%,
+    rgba($page-wash-gold, 0.12) 50%,
+    rgba($page-wash-green, 0.14) 100%);
 }
 
 .ll-bento-app-shell--default .ll-bento-device-frame, .ll-bento-app-shell--default .ll-bento-device-frame,
@@ -44192,8 +44194,8 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   --md-teal: #{$brand-verdigris};
   --md-teal-soft: rgba(44, 183, 176, 0.18);
 
-  --md-coral: #f06a5b;
-  --md-coral-soft: rgba(240, 106, 91, 0.16);
+  --md-coral: #{$brand-coral};
+  --md-coral-soft: #{rgba($brand-coral, 0.16)};
 
   --md-surface: rgba(255, 255, 255, 0.76);
   --md-surface-2: rgba(255, 255, 255, 0.88);
@@ -60519,9 +60521,9 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   padding-bottom: var(--bottombar-height);
   /* Match authenticated home (#content.index.with_user): blue → gold → green top-down gradient */
   background: linear-gradient(to bottom,
-    rgba(126, 184, 224, 0.25) 0%,
-    rgba(212, 168, 75, 0.12) 50%,
-    rgba(61, 122, 92, 0.14) 100%);
+    rgba($page-wash-blue, 0.25) 0%,
+    rgba($page-wash-gold, 0.12) 50%,
+    rgba($page-wash-green, 0.14) 100%);
   color: var(--md-ink);
 }
 #within_ember:has(.page-footer) #content:has(.search-page) > .ember-view {
@@ -87007,6 +87009,15 @@ span.md-board-detail-modeling-btn--paused:hover {
   padding: 32px 24px;
   position: relative;
 }
+/* Half the vertical padding of .md-modal-header above (32px -> 16px), horizontal
+   unchanged. A VARIANT rather than a change to the base rule: 100 modal templates
+   share .md-modal-header, and only the ones that opt in should tighten. Currently
+   components/switch-communicators.hbs. */
+.md-modal-header--tight {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
 /* Button Settings header: the modal title + a live COPY of the button as it
    appears in speak mode (colour, symbol, label) — replaces the plain "- label"
    text so the user sees exactly which button they're editing. */
@@ -87113,6 +87124,16 @@ span.md-board-detail-modeling-btn--paused:hover {
   text-align: center;
   font-size: 16px;
 }
+/* The base .md-modal-body above is deliberately top-light (8px top, 28px bottom) —
+   it sits directly under a header that already carries its own bottom padding. This
+   variant matches the top to the bottom (28px both) for modals whose header is
+   tightened, where 8px left the content crowded against the title while the footer
+   end still had room. Opt-in, like the header/footer --tight variants: 100 modal
+   templates share .md-modal-body. Currently components/switch-communicators.hbs. */
+.md-modal-body--balanced {
+  padding-top: 28px;
+}
+
 /* Speak Mode PIN input (pin-settings modal): sized for a 4-digit PIN and
    centered. The modal body is already text-align: center, so margin auto
    centers the fixed-width field; text-indent offsets the trailing
@@ -87793,6 +87814,13 @@ span.md-board-detail-modeling-btn--paused:hover {
   justify-content: flex-end;
   gap: 10px;
 }
+/* Quarter the vertical padding of .md-modal-footer above (16px -> 4px), horizontal
+   unchanged. Same opt-in reasoning as .md-modal-header--tight. */
+.md-modal-footer--tight {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
 .md-modal-btn {
   display: inline-flex;
   align-items: center;
@@ -94085,6 +94113,17 @@ blockquote small {
     min-height: 34px;
   }
 }
+/* CLASSIC view (2026-09-02, requested): the tab sits at the TOP of the navbar
+   rather than hanging below it. The base rule puts it at `top:
+   var(--topbar-height)`, i.e. just under the bar — which on a tall header reads as
+   floating in the middle of the page rather than belonging to the navbar. Pinning
+   to `top: 0` seats it against the very top edge, still centred horizontally by the
+   base rule's `left: 50%` + `translateX(-50%)`.
+   Card View is unaffected: it keeps the `--navbar` corner anchor (D10). */
+.beta-feedback-drawer-tab--classic-top {
+  top: 0;
+}
+
 .beta-feedback-drawer-tab--speak {
   /* Speak mode: the drawer lives at the BOTTOM of the page, so the tab hangs
      UP from the bottom edge — rounded top corners, top border restored,
@@ -96771,71 +96810,6 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   margin-bottom: 0 !important;
 }
 
-/* Compact variant (`<UserSelect @compact={{true}} />`, currently the
-   switch-communicators modal) — the SAME markup laid out as a vertical list so
-   picking a communicator reads like a dropdown rather than a grid of large cards.
-   Bootstrap's col-* widths are plain classes, so a full-width override needs no
-   !important; the avatar size, button padding and row gap DO, because the
-   component writes those as inline `style` attributes and inline styles cannot be
-   beaten any other way (same reason the base rules above use it).
-   Scoped to the modifier, so the default card grid is untouched. */
-.user-select-grid--compact {
-  flex-direction: column;
-  flex-wrap: nowrap;
-  gap: 6px;
-  /* The card grid's row spacing is per-column; the list uses `gap` instead. */
-  > [class*="col-"] {
-    width: 100%;
-    max-width: 100%;
-    flex: 0 0 auto;
-    margin-bottom: 0;
-    padding-left: 0;
-    padding-right: 0;
-  }
-  /* Row: avatar left, name right, single line — not the centered column stack. */
-  .user_select.btn {
-    flex-direction: row !important;
-    justify-content: flex-start !important;
-    align-items: center !important;
-    gap: 12px;
-    padding: 8px 14px !important;
-    border-radius: 12px !important;
-    text-align: left !important;
-    /* The card grid wraps long usernames onto a second line to keep cards equal
-       height; a list row has no such constraint, so keep each entry one line. */
-    white-space: nowrap !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .user_select.btn img {
-    height: 32px !important;
-    width: 32px !important;
-    max-width: 32px !important;
-    border-radius: 50%;
-    object-fit: cover;
-    flex: 0 0 auto;
-  }
-  /* The markup separates avatar and name with <br>; in a row that would force a
-     line break, so collapse it. */
-  .user_select.btn br { display: none; }
-  /* With the <br>s collapsed, the "not available" note would run straight into
-     the name ("me not available"). Push it to the row's trailing edge so it reads
-     as a status against that entry — which is what it is. The row stays present
-     rather than hidden because `include_me` (user-select.js) toggles this entry's
-     disabled state when `skip_me` changes at runtime, so it has to exist. */
-  .user_select.btn .text-muted {
-    margin-left: auto;
-    padding-left: 12px;
-    font-size: 12px;
-    font-style: normal;
-    white-space: nowrap;
-  }
-  /* Selected state keeps the verdigris treatment from the base rules but drops the
-     wide halo, which is too heavy at row scale and overlapped its neighbours. */
-  .user_select.btn-info {
-    box-shadow: 0 0 0 2px rgba($brand-verdigris, 0.30) !important;
-  }
-}
 .modal-content .user_select.btn,
 .user-select-modern .user_select.btn {
   display: inline-flex !important;
@@ -96967,6 +96941,129 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 .modal-content .user_select.btn br,
 .user-select-modern .user_select.btn br {
   display: none;
+}
+
+/* NOTE ON ORDER: this block MUST come after the `.modal-content .user_select.btn`
+   card rules above. Both selectors are specificity (0,3,0) and both mark
+   padding/border-radius `!important`, so source order decides — and while this
+   sat BEFORE them, every compact row inside a modal silently took the CARD's
+   18px/16px padding and radius instead of the list's 8px/12px. The rows were
+   laid out as a list (flex-direction carries !important and won) but sized as
+   cards, which is why "compact" did not look compact. Moved rather than given a
+   higher-specificity duplicate, per CLAUDE.md rule 7. */
+/* Compact variant (`<UserSelect @compact={{true}} />`, currently the
+   switch-communicators modal) — the SAME markup laid out as compact WRAPPING rows:
+   each entry is avatar-left/name-right on one line, and several fit per row rather
+   than one card per column or one row per line.
+   Bootstrap's col-* widths are plain classes, so a full-width override needs no
+   !important; the avatar size, button padding and row gap DO, because the
+   component writes those as inline `style` attributes and inline styles cannot be
+   beaten any other way (same reason the base rules above use it).
+   Scoped to the modifier, so the default card grid is untouched. */
+.user-select-grid--compact {
+  /* GRID, not wrapping flex. Flex `flex: 1 1 200px` let the last row's items grow
+     to absorb the leftover space, so a trailing row of 1-2 entries rendered wider
+     than the full rows above it — unequal and unaligned. A grid track definition
+     gives every entry the same width and puts them in real columns.
+     auto-FILL (not auto-fit): auto-fit collapses the empty tracks and the survivors
+     stretch, which reintroduces exactly the unequal last row. auto-fill keeps the
+     empty tracks, so column widths are identical on every row.
+     `align-items: stretch` (grid default, stated for intent) keeps every entry in a
+     row the same height. */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  align-items: stretch;
+  gap: 8px;
+  /* The container also carries Bootstrap's `.row`, whose -15px side margins pull it
+     wider than its parent and shift the whole block left. Zero them so the tracks
+     start at the modal's content edge. */
+  margin-left: 0;
+  margin-right: 0;
+  /* Bootstrap's clearfix. `.row:after, .row:before { display: table; content: " " }`
+     ships in vendor.css, and in a GRID container a generated pseudo-element is a
+     grid ITEM — so ::before silently claimed the first cell and pushed the first
+     user into column 2, leaving a hole at the top-left (and ::after consumed a cell
+     at the end). The clearfix exists to contain floats, which a grid has none of. */
+  &::before,
+  &::after {
+    display: none;
+  }
+  /* Neutralise the Bootstrap column entirely. `col-md-3 col-sm-4 col-xs-6` brings a
+     FLOAT and a percentage width; a float on a grid item is ignored, but any of
+     these surviving (an unbuilt stylesheet, a future BS upgrade, a cached asset)
+     reintroduces exactly the staggered rows this replaced — each line laying out
+     against its own float context rather than a shared column. Explicitly clearing
+     float/width/padding makes the alignment hold either way. */
+  > [class*="col-"] {
+    float: none;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+  }
+  /* Every entry fills its track, so the cards line up on both edges. */
+  > [class*="col-"] > .user_select,
+  > [class*="col-"] > .btn-group {
+    width: 100%;
+    height: 100%;
+  }
+  /* Row: avatar left, name right, single line — not the centered column stack. */
+  .user_select.btn {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 10px;
+    padding: 7px 12px !important;
+    border-radius: 11px !important;
+    min-height: 0 !important;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: left !important;
+    /* The card grid wraps long usernames onto a second line to keep cards equal
+       height; a list row has no such constraint, so keep each entry one line. */
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .user_select.btn img {
+    height: 28px !important;
+    width: 28px !important;
+    max-width: 28px !important;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 auto;
+    /* Slight silver ring, same $brand-cool-steel family the classic rail uses on
+       its avatar and row edges. Most of these avatars are pale line-art on a near
+       white field, so without an edge they bleed into the row's own surface.
+       `box-sizing` is set explicitly because a border on a fixed !important width
+       would otherwise push the rendered circle to 30px and misalign the rows. */
+    box-sizing: border-box;
+    /* Matches the classic rail's icon chips exactly (.ch-row__icon,
+       _classic-home.scss) — same $brand-cool-steel at the same 0.28 — so the two
+       surfaces read as one system. */
+    border: 1px solid rgba($brand-cool-steel, 0.28);
+  }
+  /* The markup separates avatar and name with <br>; in a row that would force a
+     line break, so collapse it. */
+  .user_select.btn br { display: none; }
+  /* With the <br>s collapsed, the "not available" note would run straight into
+     the name ("me not available"). Push it to the row's trailing edge so it reads
+     as a status against that entry — which is what it is. The row stays present
+     rather than hidden because `include_me` (user-select.js) toggles this entry's
+     disabled state when `skip_me` changes at runtime, so it has to exist. */
+  .user_select.btn .text-muted {
+    margin-left: auto;
+    padding-left: 12px;
+    font-size: 12px;
+    font-style: normal;
+    white-space: nowrap;
+  }
+  /* Selected state keeps the verdigris treatment from the base rules but drops the
+     wide halo, which is too heavy at row scale and overlapped its neighbours. */
+  .user_select.btn-info {
+    box-shadow: 0 0 0 2px rgba($brand-verdigris, 0.30) !important;
+  }
 }
 
 /* Section body — sits inside the open section's unified container,

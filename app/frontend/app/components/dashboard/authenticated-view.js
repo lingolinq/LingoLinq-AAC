@@ -19,7 +19,6 @@ import i18n from '../../utils/i18n';
 import { filterRootBoards } from '../../utils/board-roots';
 import sessionHistory from '../../utils/session_history';
 import { availableHomeSections, sectionHidden, layoutPresentation, focusedHeroKey, communicatorsNeedingAttention } from '../../utils/dashboard_sections';
-import { homePillLabel } from '../../helpers/home-pill-label';
 
 export default Component.extend({
   tagName: '',
@@ -907,17 +906,17 @@ export default Component.extend({
 
   // Feeds the responsive .md-pillnav-dropdown trigger, so the label it shows for
   // the home tab has to match the pill itself — supporters read "Dashboard" —
-  // hence the shared homePillLabel rather than a second copy of that rule.
+  // hence one shared label rather than a second copy of that rule.
   // (Defaults are double-quoted per the i18n convention: a single-quoted default
   // is silently DELETED by the next i18n_generator.rb run.)
   // `has_management_responsibility` is READ below and must be a dependent key, or the
   // dropdown trigger keeps a stale label when org-manager status resolves after first
   // render (late org payload, or a role change in-session) — the pill row beside it
-  // would say "Home" while this said "Dashboard", the exact disagreement homePillLabel
+  // would say "Home" while this said something else — the disagreement the shared label
   // exists to prevent.
   activeTabLabel: computed('activeTab', 'appState.currentUser.supporter_role', 'appState.currentUser.has_management_responsibility', function() {
     var tab = this.get('activeTab');
-    var labels = { home: homePillLabel(this.get('appState.currentUser.supporter_role'), this.get('appState.currentUser.has_management_responsibility')), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
+    var labels = { home: i18n.t('home', "Home"), boards: i18n.t('boards', "Boards"), reports: i18n.t('reports', "Reports"), extras: i18n.t('extras', "Extras"), supervisors: i18n.t('supervisors', "Supervisors") };
     return labels[tab] || labels.home;
   }),
   /** Index route @model is the logged-in user; @user is registration placeholder — use model for boards embed */

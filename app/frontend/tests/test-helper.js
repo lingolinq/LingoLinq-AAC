@@ -88,7 +88,6 @@ import 'frontend/tests/unit/components/board-icon-pick-behavior-test';
 import 'frontend/tests/unit/components/board-density-defaults-test';
 import 'frontend/tests/unit/components/boards-layout-toggle-test';
 import 'frontend/tests/unit/helpers/break-on-separators-test';
-import 'frontend/tests/unit/helpers/home-pill-label-test';
 import 'frontend/tests/unit/helpers/letter-stagger-test';
 import 'frontend/tests/unit/utils/dashboard-sections-test';
 import 'frontend/tests/unit/routes/setup-retired-test';

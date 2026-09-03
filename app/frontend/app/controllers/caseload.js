@@ -6,19 +6,9 @@ import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
 import Badge from '../models/badge';
-
-function resolveSuperviseeHomeBoardKey(s) {
-  if (!s || typeof s !== 'object') {
-    return null;
-  }
-  return (
-    s.home_board_key ||
-    s.homeBoardKey ||
-    (s.home_board && typeof s.home_board === 'object' && s.home_board.key) ||
-    (s.preferences && s.preferences.home_board && s.preferences.home_board.key) ||
-    null
-  );
-}
+// Moved to utils/ so the classic home page's supervisee menu resolves the key
+// exactly the same way this page does. Behavior is unchanged.
+import { resolveSuperviseeHomeBoardKey } from '../utils/supervisee_home_board';
 
 // Palette for the 10 colored avatar PNGs in public/avatars/. The
 // caseload card renders its outer glass frame from the inline SVG

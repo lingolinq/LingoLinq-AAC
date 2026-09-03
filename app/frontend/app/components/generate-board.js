@@ -5,6 +5,7 @@ import { observer } from '@ember/object';
 import modalUtil from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
+import { board_view_route } from '../utils/board_view';
 
 /**
  * Generate board with AI modal.
@@ -304,7 +305,10 @@ export default Component.extend({
           _this.appState.set('referenced_board', { id: board.id, key: board.key });
           var parts = (board.key || '').split('/');
           if (parts.length >= 2) {
-            _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+            // Honor the user's view preference (utils/board_view.js) instead of
+            // hardcoding the modern shell — a classic user who creates/imports a board
+            // must land on their own board view, not be pushed into modern.
+            _this.get('router').transitionTo(board_view_route(_this.appState.get('currentUser')), parts[0], parts.slice(1).join('/'));
           } else {
             _this.get('router').transitionTo('board', board.key);
           }

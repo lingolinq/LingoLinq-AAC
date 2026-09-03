@@ -2,7 +2,6 @@ import Component from '@ember/component';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
-import { homePillLabel } from '../helpers/home-pill-label';
 
 /**
  * Shared primary pill-nav for the user-level pages (Boards / Reports / the
@@ -33,19 +32,15 @@ export default Component.extend({
      (2026-08-16, requested). A disclosure that names the current location tells the user
      where they are as well as offering where to go — and it matches the home dashboard's
      dropdown, which already shows its active tab.
-     Mirrors the pill row's own labels exactly, including `home-pill-label`'s Home/Dashboard
-     split (a supporter who does not manage orgs sees "Dashboard"), so the collapsed and
-     expanded navs never disagree about what a destination is called.
+     Mirrors the pill row's own labels exactly, so the collapsed and expanded navs never
+     disagree about what a destination is called. The home pill reads "Home" for every
+     role (2026-09-02); it used to read "Dashboard" for strictly-SLP users.
      Falls back to "Menu" only when `@active` names nothing this nav renders — the trigger
      must always have a label. */
-  activeLabel: computed('active', 'appState.currentUser.supporter_role',
-                        'appState.currentUser.has_management_responsibility', function() {
+  activeLabel: computed('active', function() {
     switch (this.get('active')) {
       case 'home':
-        return homePillLabel(
-          this.get('appState.currentUser.supporter_role'),
-          this.get('appState.currentUser.has_management_responsibility')
-        );
+        return i18n.t('home', "Home");
       case 'caseload': return i18n.t('caseload_pill', "Caseload");
       case 'organizations': return i18n.t('organizations', "Organizations");
       case 'boards': return i18n.t('boards', "Boards");

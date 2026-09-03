@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import modalUtil from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
+import { board_view_route } from '../utils/board_view';
 
 /**
  * Import board from pasted HTML (LingoLinq board speak/edit view).
@@ -91,7 +92,10 @@ export default Component.extend({
           // Debounced "Preparing your Board" mask for the post-import board load.
           _this.appState.arm_board_load_overlay(_this.get('router'));
           if (parts.length >= 2) {
-            _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+            // Honor the user's view preference (utils/board_view.js) instead of
+            // hardcoding the modern shell — a classic user who creates/imports a board
+            // must land on their own board view, not be pushed into modern.
+            _this.get('router').transitionTo(board_view_route(_this.appState.get('currentUser')), parts[0], parts.slice(1).join('/'));
           } else {
             _this.get('router').transitionTo('board', board.key);
           }

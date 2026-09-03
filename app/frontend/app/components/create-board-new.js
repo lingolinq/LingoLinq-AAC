@@ -20,6 +20,7 @@ import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS }
 import aiFeatureGate from '../utils/ai_feature_gate';
 import article50Gate from '../utils/article50_gate';
 import boardsPageListCache from '../utils/boards_page_list_cache';
+import { board_view_route } from '../utils/board_view';
 
 /**
  * Create Board (New) Modal Component
@@ -1754,7 +1755,10 @@ export default Component.extend({
         // Debounced "Preparing your Board" mask for the post-create board load.
         _this.appState.arm_board_load_overlay(_this.get('router'));
         if (parts.length >= 2) {
-          _this.get('router').transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+          // Honor the user's view preference (utils/board_view.js) instead of
+          // hardcoding the modern shell — a classic user who creates/imports a board
+          // must land on their own board view, not be pushed into modern.
+          _this.get('router').transitionTo(board_view_route(_this.appState.get('currentUser')), parts[0], parts.slice(1).join('/'));
         } else {
           _this.get('router').transitionTo('board', key);
         }

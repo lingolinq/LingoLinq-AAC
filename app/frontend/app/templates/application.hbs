@@ -567,7 +567,7 @@
                    (board-detail) view. --}}
               <a href="#" class="btn board-view-modern-btn" {{on "click" (this.ctrlAction "go_to_modern")}}>
                 <span class="glyphicon glyphicon-th-large"></span>
-                <span class="wide">{{t "Modern View" key="board_view_modern"}}</span>
+                <span class="wide">{{t "Card View" key="board_view_card"}}</span>
               </a>
             {{/if}}
           {{/if}}
@@ -721,16 +721,9 @@
       {{#unless (is-equal this.app_state.current_route "landing")}}
         {{#if (persistence-online)}}
           {{#unless this.app_state.super_no_linky}}
-            {{#if this.allow_search}}
-              <form id="header_search" {{on "submit" (this.ctrlAction "searchBoards")}}>
-                <div class="header-search-wrap">
-                  <input aria-label={{t "Search Boards" key="search_boards"}} type="text" value={{this.searchString}} {{on "input" (set-field this "searchString")}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
-                  <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>
-                    <svg class="header-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                  </button>
-                </div>
-              </form>
-            {{/if}}
+            {{!-- Search Boards field REMOVED (2026-09-02, requested) — see the note in
+                 components/app-navbar-authenticated-inner.hbs. "Find Board" in the
+                 identity dropdown below still reaches the same page. --}}
           {{/unless}}
         {{/if}}
       {{/unless}}
@@ -917,13 +910,19 @@
     {{/if}}
     </span>
   {{/if}}
+    {{!-- App-wide Classic/Modern switch, legacy-header copy. `useAppNavbarInHeader`
+         is false on user.board-alt.index (controllers/application.js:2326), so the
+         modern navbar's <ViewSwitcher /> does not render there — the classic board
+         needs its own mount to stay switchable. The component self-hides with no
+         user and in speak mode. --}}
+    <ViewSwitcher />
     <span id="identity" class="{{if this.app_state.speak_mode "advanced_selection undwellable" "advanced_selection"}} {{if this.showBentoStyleHeader "identity-with-dark-toggle"}} {{unless this.app_state.speak_mode "app-navbar-auth-nav--desktop identity-with-dark-toggle"}}">
       {{#if this.app_state.speak_mode}}
       {{#if this.showBentoStyleHeader}}
         {{#unless this.app_state.eval_mode}}
             {{#if this.app_state.currentUser.user_name}}
-            <LinkTo @route="user.home" @model={{this.app_state.currentUser.user_name}} class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Modern Dashboard" key="modern_dashboard"}} title={{t "Modern Dashboard" key="modern_dashboard"}}>
-              <span class="ll-bento-help-btn__label">{{t "Modern Dashboard" key="modern_dashboard"}}</span>
+            <LinkTo @route="user.home" @model={{this.app_state.currentUser.user_name}} class="ll-bento-help-btn ll-bento-help-btn--nav" aria-label={{t "Home" key="home"}} title={{t "Home" key="home"}}>
+              <span class="ll-bento-help-btn__label">{{t "Home" key="home"}}</span>
             </LinkTo>
             {{/if}}
             {{#if this.isMasquerading}}
@@ -1139,7 +1138,7 @@
               <li class="dropdown-header">{{this.app_state.currentUser.display_name}}</li>
               {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
-                  <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
+                  <LinkTo @route="index">{{t "Home" key="home"}}</LinkTo>
                 </li>
               {{/unless}}
               {{#if this.app_state.currentUser.permissions.delete}}
@@ -1155,7 +1154,7 @@
             {{else}}
               {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
-                  <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
+                  <LinkTo @route="index">{{t "Home" key="home"}}</LinkTo>
                 </li>
               {{/unless}}
             {{/if}}
@@ -1460,7 +1459,7 @@
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
         {{#unless this.app_state.index_or_landing_view}}
         <li role="presentation">
-          <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
+          <LinkTo @route="index">{{t "Home" key="home"}}</LinkTo>
         </li>
         {{/unless}}
         <li role="presentation">

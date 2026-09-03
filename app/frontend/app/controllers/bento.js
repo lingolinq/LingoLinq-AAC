@@ -2,11 +2,22 @@ import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import { computed } from '@ember/object';
+import { is_classic } from '../utils/view_style';
 
 export default Controller.extend({
   appState: service('app-state'),
   store: service('store'),
   app_state: alias('appState'),
+
+  // Same gate as controllers/index.js#classicHome. This route has its own
+  // controller (routes/bento.js sets no controllerName), so the computed cannot
+  // be inherited and is duplicated deliberately — both delegate to
+  // utils/view_style.js, which is the single reader of the preference key.
+  classicHome: computed('appState.currentUser.preferences.board_view_style', function() {
+    var appState = this.get('appState');
+    if (!appState) { return false; }
+    return is_classic(appState.get('currentUser'));
+  }),
 
   hasCurrentUser: computed('appState.currentUser', 'appState', function() {
     var appState = this.get('appState');

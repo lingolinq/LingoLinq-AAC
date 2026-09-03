@@ -1,0 +1,113 @@
+@use "variables" as *;
+
+// =============================================================================
+// VIEW SWITCH — the navbar "View" dropdown
+// =============================================================================
+// Styles for components/view-switcher.{js,hbs}.
+//
+// Its OWN partial, not part of _classic-home.scss: this control renders in BOTH
+// chromes (the modern navbar and the legacy classic header) and therefore on
+// MODERN pages too. Keeping it here means the classic-home partial contains only
+// classic-home rules, and a change to the switch cannot accidentally be reasoned
+// about as a classic-only change. `ll-` prefix rather than `ch-` for the same
+// reason: it is the control that CHOOSES classic, not part of the classic page.
+
+.ll-viewswitch {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+  // 12px clear of whatever precedes it in the navbar (requested 2026-09-02).
+  // Margin rather than a positional offset so it still participates in the
+  // navbar's flex flow and cannot overlap its neighbour at narrow widths.
+  margin-left: 12px;
+}
+
+.ll-viewswitch__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba($la-navy, 0.14);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.8) 100%);
+  box-shadow:
+    0 2px 6px rgba($brand-blue-black, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: $la-navy;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.ll-viewswitch__trigger:hover,
+.ll-viewswitch__trigger:focus-visible {
+  background: #fff;
+  border-color: rgba($brand-dusty-denim, 0.45);
+}
+
+.ll-viewswitch__icon { flex: 0 0 auto; }
+
+.ll-viewswitch__caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid rgba($la-navy, 0.5);
+  transition: transform 0.18s ease;
+}
+
+.ll-viewswitch.is-open .ll-viewswitch__caret { transform: rotate(180deg); }
+
+.ll-viewswitch__menu {
+  display: none;
+  position: absolute;
+  z-index: $aac-z-dropdown;
+  top: calc(100% + 6px);
+  // Anchored to the trigger's LEFT edge so the panel opens down-and-to-the-RIGHT.
+  // It was `right: 0`, which pinned the right edges together and made a wider menu
+  // than its trigger grow leftwards.
+  left: 0;
+  min-width: 170px;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  border-radius: 13px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.92) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow:
+    0 12px 30px rgba($brand-blue-black, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+
+.ll-viewswitch.is-open .ll-viewswitch__menu { display: block; }
+
+.ll-viewswitch__item {
+  display: block;
+  width: 100%;
+  padding: 9px 11px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  color: $la-navy;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+
+.ll-viewswitch__item:hover,
+.ll-viewswitch__item:focus-visible {
+  background: rgba($brand-dusty-denim, 0.12);
+}
+
+// The legacy header is a dense Bootstrap bar; keep the control compact there so
+// it does not push the identity cluster onto a second line.
+#nav_header .ll-viewswitch__trigger {
+  padding: 6px 10px;
+  font-size: 12px;
+}

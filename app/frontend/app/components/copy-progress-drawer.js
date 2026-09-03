@@ -1,5 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import { board_edit_route } from '../utils/board_view';
 
 /**
  * Bottom-right surface for a board copy running in the background.
@@ -44,7 +45,13 @@ export default Component.extend({
     if (!copy) { return; }
     const parts = copy.key ? String(copy.key).split('/') : [];
     if (copy.for_editing && parts.length >= 2) {
-      this.get('router').transitionTo('user.board-detail.edit', parts[0], parts.slice(1).join('/'));
+      // View-aware edit destination. board-detail has an /edit subroute; the
+      // classic board has none (router.js declares only `index` under board-alt) —
+      // classic editing is a MODE entered via app_state.toggle_edit_mode. So a
+      // classic user lands on their own board here rather than being ejected into
+      // modern. KNOWN GAP: edit mode is not auto-entered for them; closing that
+      // needs the classic edit route (Cluster C in the restoration plan).
+      this.get('router').transitionTo(board_edit_route(this.get('appState.currentUser')), parts[0], parts.slice(1).join('/'));
       return;
     }
     this.get('appState').jump_to_board({ id: copy.id, key: copy.key });

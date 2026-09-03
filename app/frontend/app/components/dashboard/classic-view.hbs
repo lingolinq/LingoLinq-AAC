@@ -1,0 +1,758 @@
+{{!-- Classic home page. Rendered only when preferences.board_view_style ==
+     'classic' (see classic-view.js); the modern dashboard is untouched.
+
+     Three columns, matching the historical classic layout recovered from
+     5b8c9f2fd^:app/frontend/app/templates/index/authenticated.hbs —
+       rail    : who you are and your setup (redesigned per spec)
+       stream  : status + notifications + recent sessions
+       boards  : browse / recent boards
+     restyled onto the `ch-` glass surface. Every action and permission gate is
+     the original's; the Bootstrap list-group / grid classes are not. --}}
+<div class="ch-page">
+
+  {{!-- ─────────────────────────── RAIL ─────────────────────────── --}}
+  <aside class="ch-rail" aria-label={{t "Your account" key="classic_rail_aria"}}>
+
+    {{!-- Identity — avatar + username, straight through to My Account. --}}
+    <LinkTo @route="user.account" @model={{this.classicUser.user_name}} class="ch-rail__identity">
+      <span class="ch-rail__avatar-wrap">
+        <img src={{this.classicUser.avatar_url_with_fallback}} rel={{path "avatars/avatar-0.png"}} {{image-fallback-to-rel}} alt="" class="ch-rail__avatar">
+        {{#if this.classicUser.online}}
+          <span class="ch-rail__online" title={{t "currently online" key="currently_online"}}></span>
+        {{/if}}
+      </span>
+      <span class="ch-rail__identity-text">
+        <span class="ch-rail__username">{{this.classicUser.user_name}}</span>
+        <span class="ch-rail__identity-sub">{{t "View my account" key="classic_view_my_account"}}</span>
+      </span>
+      <span class="ch-rail__arrow" aria-hidden="true">&rarr;</span>
+    </LinkTo>
+
+    <ul class="ch-rail__list">
+
+      {{!-- Guided tour. Hidden when the feature flag is off, because the tour
+           itself lives behind the same flag in the navbar. --}}
+      {{#if this.tourAvailable}}
+      <li class="ch-rail__item">
+        <button type="button" class="ch-row ch-row--tour" {{on "click" (this.ctrlAction "start_tour")}}>
+          <span class="ch-row__icon" aria-hidden="true">
+            {{!-- Map / walkthrough glyph — the same mark the navbar tour trigger
+                 uses (components/guided-tour.hbs), so the two read as one feature. --}}
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" stroke="#4C86D8"></polygon>
+              <line x1="8" y1="2" x2="8" y2="18" stroke="#46505F"></line>
+              <line x1="16" y1="6" x2="16" y2="22" stroke="#46505F"></line>
+            </svg>
+          </span>
+          <span class="ch-row__body">
+            <span class="ch-row__title">{{t "Welcome! Take a tour" key="classic_take_a_tour"}}</span>
+            <span class="ch-row__sub">{{t "A quick walk through your home page" key="classic_take_a_tour_sub"}}</span>
+          </span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </button>
+      </li>
+      {{/if}}
+
+      {{!-- Subscription state. Same gate as the original: only when the
+           subscriptions feature is on AND the account is expired or in its grace
+           period, so a healthy paid account sees nothing here. --}}
+      {{#if this.app_state.feature_flags.subscriptions}}
+        {{#if this.app_state.currentUser.expired_or_grace_period}}
+        <li class="ch-rail__item">
+          <LinkTo @route="user.subscription" @model={{this.classicUser.user_name}} class="ch-row ch-row--todo">
+            <span class="ch-row__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#C0392B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </span>
+            <span class="ch-row__body">
+              {{#if this.app_state.currentUser.expired}}
+                <span class="ch-row__title">{{t "Tap here to update your subscription" key="tap_to_subscribe"}}</span>
+                <span class="ch-row__sub">{{t "your free preview has ended" key="preview_expired"}}</span>
+              {{else}}
+                <span class="ch-row__title">{{t "Please update your license" key="update_license"}}</span>
+                <span class="ch-row__sub">{{t "your free preview ends" key="preview_expires"}} {{date this.app_state.currentUser.subscription.expires "day"}}</span>
+              {{/if}}
+            </span>
+            <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+          </LinkTo>
+        </li>
+        {{/if}}
+      {{/if}}
+
+      {{!-- NOTE: no supervisee list in the rail. Gen 2 kept the rail role-agnostic
+           and put "People I Supervise" in the Communicators tab — verified against
+           82a5b2dfc:templates/index/authenticated-new.hbs lines 1-310, which contain
+           no `known_supervisees` reference. Listing them here too would duplicate
+           the tab. --}}
+
+      {{!-- Home board: open it, wait on the copy, or go pick one. --}}
+      <li class="ch-rail__item">
+        {{#if this.homeBoardKey}}
+          <LinkTo @route="board" @model={{this.homeBoardKey}} class="ch-row ch-row--board">
+            <span class="ch-row__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2A9D8F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+            </span>
+            <span class="ch-row__body">
+              <span class="ch-row__title">{{t "Home Board" key="home_board"}}</span>
+              <span class="ch-row__sub">{{this.homeBoardKey}}</span>
+            </span>
+            <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+          </LinkTo>
+        {{else if this.homeBoardPending}}
+          <span class="ch-row ch-row--board ch-row--static">
+            <span class="ch-row__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2A9D8F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+            </span>
+            <span class="ch-row__body">
+              <span class="ch-row__title">{{t "Home Board" key="home_board"}}</span>
+              <span class="ch-row__sub">{{t "copying %{brd}..." key="copying_board" brd=this.classicUser.home_board_pending}}</span>
+            </span>
+          </span>
+        {{else}}
+          <LinkTo @route="board-picker" class="ch-row ch-row--board ch-row--todo">
+            <span class="ch-row__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2A9D8F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>
+            </span>
+            <span class="ch-row__body">
+              <span class="ch-row__title">{{t "You haven't set a home board yet" key="choose_home_board"}}</span>
+              <span class="ch-row__sub">{{t "Let us help you choose one." key="let_us_help_choose_home"}}</span>
+            </span>
+            <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+          </LinkTo>
+        {{/if}}
+      </li>
+
+      {{!-- COMMUNICATOR — open the home board straight into Speak Mode, plus the
+           "start app in Speak Mode" preference. Supporters never saw this block
+           (they model on a supervisee's board instead), and limited supervisors
+           are excluded exactly as in the original. --}}
+      {{#unless this.app_state.currentUser.supporter_role}}
+        {{#if this.homeBoardKey}}
+          {{#unless this.app_state.currentUser.subscription.any_limited_supervisor}}
+          <li class="ch-rail__item">
+            <div class="ch-row ch-row--speak ch-row--static">
+              <span class="ch-row__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2A9D8F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a9 9 0 0 1 0 14"/></svg>
+              </span>
+              <span class="ch-row__body">
+                <button type="button" class="ch-btn ch-btn--primary ch-btn--speak" {{on "click" (this.ctrlAction "homeInSpeakMode")}}>{{t "Open In Speak Mode" key="open_in_speak_mode"}}</button>
+                {{#if this.app_state.currentUser.currently_premium_or_fully_purchased}}
+                  <label class="ch-check">
+                    <input type="checkbox" checked={{this.autoOpenSpeakMode}} {{on "change" (this.ctrlAction "toggle_auto_speak")}}>
+                    <span>{{t "start app in Speak Mode" key="start_in_speak_mode"}}</span>
+                  </label>
+                {{/if}}
+              </span>
+            </div>
+          </li>
+          {{/unless}}
+        {{/if}}
+      {{/unless}}
+
+      {{!-- Supervisors — opens the Supervision settings modal for this user.
+           Communicators only: a supporter's own team is the supervisee list above,
+           which is the same split the original made. --}}
+      {{#unless this.app_state.currentUser.supporter_role}}
+      <li class="ch-rail__item">
+        <button type="button" class="ch-row ch-row--sup" {{on "click" (this.ctrlAction "manage_supervisors")}}>
+          <span class="ch-row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#4C86D8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          </span>
+          <span class="ch-row__body">
+            {{#if this.hasSupervisors}}
+              <span class="ch-row__title">{{t "supervisor" count=this.supervisorCount key="classic_supervisor_count"}}</span>
+              <span class="ch-row__sub">{{t "Manage who supports you" key="classic_manage_supervisors_sub"}}</span>
+            {{else}}
+              <span class="ch-row__title">{{t "No Supervisors" key="no_supervisors"}}</span>
+              <span class="ch-row__sub">{{t "Add someone to support you" key="classic_add_supervisor_sub"}}</span>
+            {{/if}}
+          </span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </button>
+      </li>
+      {{/unless}}
+
+      {{!-- ORG UNIT SUPERVISOR — Rooms. A plain link row like every other row, NOT a
+           list of the rooms themselves (2026-09-02, requested): it goes to the user's
+           Rooms page and lets that page do the listing.
+           `roomsAllOrgId` and `sortedRooms` are INHERITED from
+           authenticated-view.js — the modern Rooms card's "see all" button resolves
+           the destination the same way (first supervised unit's organization_id), so
+           the two cannot drift. Guarded on `roomsAllOrgId` as well as the units
+           themselves: a unit with no organization_id would otherwise build a LinkTo
+           with an undefined model. --}}
+      {{#if this.roomsAllOrgId}}
+      <li class="ch-rail__item">
+        <LinkTo @route="organization.rooms" @model={{this.roomsAllOrgId}} class="ch-row ch-row--rooms">
+          <span class="ch-row__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V6a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v15" stroke="#46505F"/><path d="M14 10h6a1 1 0 0 1 1 1v10" stroke="#46505F"/><line x1="2" y1="21" x2="22" y2="21" stroke="#46505F"/><rect x="6" y="9" width="2.6" height="2.6" rx="0.5" fill="#2A9D8F" stroke="none"/><rect x="6" y="14" width="2.6" height="2.6" rx="0.5" fill="#2A9D8F" stroke="none"/></svg>
+          </span>
+          <span class="ch-row__body">
+            <span class="ch-row__title">{{t "Rooms" key="rooms"}}</span>
+            <span class="ch-row__sub">{{t "room" count=this.sortedRooms.length key="slp_rooms"}}</span>
+          </span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </LinkTo>
+      </li>
+      {{/if}}
+
+      {{!-- Available to every role in the original. --}}
+      <li class="ch-rail__item">
+        <button type="button" class="ch-row ch-row--minor" {{on "click" (this.ctrlAction "newBoard")}}>
+          <span class="ch-row__icon" aria-hidden="true">
+            {{!-- Two-tone, and the SAME board-plus glyph the Actions tab's New Board
+                 tile uses (ch-tile--create): charcoal board, teal plus. --}}
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="12.5" height="15" rx="2" stroke="#46505F"/><line x1="2.5" y1="8.5" x2="15" y2="8.5" stroke="#46505F"/><line x1="20" y1="14.5" x2="20" y2="21.5" stroke="#2A9D8F"/><line x1="16.5" y1="18" x2="23.5" y2="18" stroke="#2A9D8F"/></svg>
+          </span>
+          <span class="ch-row__body">
+            <span class="ch-row__title">{{t "Create a New Board" key="create_a_new_board"}}</span>
+          </span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </button>
+      </li>
+
+      {{!-- Logging. Off -> Usage Reports (where the enable button lives).
+           On -> notifications + recent sessions. --}}
+      <li class="ch-rail__item">
+        {{#if this.loggingEnabled}}
+          <button type="button" class="ch-row ch-row--logging ch-row--logging-on" {{on "click" (this.ctrlAction "load_sessions")}}>
+            <span class="ch-row__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#4C86D8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            </span>
+            <span class="ch-row__body">
+              {{#if this.loggingWithGeo}}
+                <span class="ch-row__title">{{t "Logging is fully enabled" key="classic_logging_full"}}</span>
+              {{else}}
+                <span class="ch-row__title">{{t "Logging is enabled (no geo)" key="classic_logging_no_geo"}}</span>
+              {{/if}}
+              <span class="ch-row__sub">{{t "Notifications & recent sessions" key="classic_notifications_and_sessions"}}</span>
+            </span>
+            <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+          </button>
+        {{else}}
+          <button type="button" class="ch-row ch-row--logging ch-row--todo" {{on "click" (this.ctrlAction "load_reports")}}>
+            <span class="ch-row__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#46505F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+            </span>
+            <span class="ch-row__body">
+              <span class="ch-row__title">{{t "Logging is disabled" key="classic_logging_disabled"}}</span>
+              <span class="ch-row__sub">{{t "Turn on reports to see your usage" key="classic_logging_disabled_sub"}}</span>
+            </span>
+            <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+          </button>
+        {{/if}}
+      </li>
+
+      {{!-- ORG MANAGER / ADMIN — one chip per managed org when there are several,
+           a single labelled row when there is only one (the original's split). --}}
+      {{#if this.app_state.currentUser.has_management_responsibility}}
+        {{#if this.app_state.currentUser.manages_multiple_orgs}}
+        <li class="ch-rail__item ch-rail__item--wide">
+          <div class="ch-group">
+            <h3 class="ch-group__label">{{t "Organization Management" key="org_management"}}</h3>
+            <div class="ch-chips">
+              {{#each this.app_state.currentUser.managed_orgs as |org|}}
+                <LinkTo @route="organization" @model={{org.id}} class="ch-chip">{{org.name}}</LinkTo>
+              {{/each}}
+            </div>
+          </div>
+        </li>
+        {{else}}
+          {{#each this.app_state.currentUser.managed_orgs as |org|}}
+          <li class="ch-rail__item">
+            <LinkTo @route="organization" @model={{org.id}} class="ch-row ch-row--minor">
+              <span class="ch-row__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#46505F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4M10 10h4M10 14h4"/></svg>
+              </span>
+              <span class="ch-row__body">
+                <span class="ch-row__title">{{t "Organization Management" key="org_management"}}</span>
+                <span class="ch-row__sub">{{org.name}}</span>
+              </span>
+              <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+            </LinkTo>
+          </li>
+          {{/each}}
+        {{/if}}
+      {{/if}}
+
+      {{!-- Offline sync — LAST in the rail (2026-09-02, requested). Kept on this
+           page because offline readiness is not surfaced anywhere else, but it is a
+           background concern rather than a destination, so it sits below the
+           navigation rows. Gated on `sync_able` (extras ready + no external device)
+           exactly as the modern dashboard gates it. --}}
+      {{#if this.sync_able}}
+      <li class="ch-rail__item">
+        <button type="button" class="ch-row ch-row--sync" {{on "click" (this.ctrlAction "sync")}}>
+          <span class="ch-row__icon {{if (persistence-value 'syncing') "ch-row__icon--spinning"}}" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#2A9D8F" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </span>
+          <span class="ch-row__body">
+            {{#if (persistence-value 'sync_succeeded')}}
+              <span class="ch-row__title">{{t "Sync Done!" key="sync_done"}}</span>
+              <span class="ch-row__sub">{{t "Synced and ready for offline" key="up_to_date"}}</span>
+            {{else if (persistence-value 'sync_failed')}}
+              <span class="ch-row__title">{{t "Sync Failed, see details below" key="sync_failed"}}</span>
+              <span class="ch-row__sub">{{persistence-value 'sync_status_error'}}</span>
+            {{else if (persistence-value 'syncing')}}
+              <span class="ch-row__title">{{t "Syncing..." key="syncing_ellipsis"}}</span>
+              {{#if (persistence-value 'sync_progress.total')}}
+                <span class="ch-row__sub">{{persistence-value 'sync_progress.visited'}} / {{t "board" key="communication_set_board" count=(persistence-value 'sync_progress.total')}}</span>
+              {{else}}
+                <span class="ch-row__sub">{{t "initializing..." key="initializing_lower"}}</span>
+              {{/if}}
+            {{else if this.needs_sync}}
+              {{#if this.app_state.installed_app}}
+                <span class="ch-row__title">{{t "Sync before going offline!" key="needs_update"}}</span>
+              {{else}}
+                <span class="ch-row__title">{{t "Sync if planning to go offline" key="sync_if_planning_offline"}}</span>
+              {{/if}}
+              <span class="ch-row__sub">{{t "Save your boards for offline use" key="classic_sync_sub"}}</span>
+            {{else}}
+              <span class="ch-row__title">{{t "Synced and ready for offline" key="up_to_date"}}</span>
+              <span class="ch-row__sub">{{t "Sync again any time" key="classic_sync_again"}}</span>
+            {{/if}}
+          </span>
+          <span class="ch-row__arrow" aria-hidden="true">&rarr;</span>
+        </button>
+      </li>
+      {{/if}}
+
+    </ul>
+
+    {{!-- Rail footer — the small utility links the original kept below the list. --}}
+    <div class="ch-rail__footer">
+      <a href="#" class="ch-rail__minor" {{on "click" (this.ctrlAction "reload")}}>
+        {{!-- Two-tone circular arrow, matching the icon set on the tiles above:
+             charcoal ring, teal arrowhead. --}}
+        <svg class="ch-rail__minor-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20.5 12a8.5 8.5 0 1 1-2.49-6.01" stroke="#46505F"/>
+          <polyline points="20.5 3.5 20.5 9 15 9" stroke="#2A9D8F"/>
+        </svg>
+        {{t "Reload" key="reload"}}
+      </a>
+      {{#if (persistence-value 'sync_log')}}
+        <a href="#" class="ch-rail__minor" {{on "click" (this.ctrlAction "sync_details")}}>
+          <svg class="ch-rail__minor-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 4.5h11l4 4V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" stroke="#46505F"/>
+            <line x1="8" y1="13" x2="15" y2="13" stroke="#2A9D8F"/>
+          </svg>
+          {{t "recent sync details log" key="recent_sync_details"}}
+        </a>
+      {{/if}}
+    </div>
+  </aside>
+
+  {{!-- ────────────────────────── PANEL ─────────────────────────
+       Gen-2's four tabs. `index_nav` / `set_index_nav` are inherited from
+       authenticated-view.js (index_nav computed ~:823, action ~:432), which is
+       where they have lived since this markup was the shipping dashboard — the
+       modern pill nav is their descendant. Actions is the fallback branch so an
+       unset `index_nav` lands there, matching the parent's default. --}}
+  <section class="ch-panel">
+    <nav class="ch-tabs" role="tablist" aria-label={{t "Dashboard sections" key="classic_dashboard_sections"}}>
+      <button type="button" role="tab" aria-selected={{if this.index_nav.main "true" "false"}} class="ch-tab {{unless (or this.index_nav.supervisees this.index_nav.boards this.index_nav.updates) "is-active"}}" {{on "click" (this.ctrlAction "set_index_nav" "main")}}>{{t "Actions" key="actions"}}</button>
+      {{#unless this.app_state.currentUser.modeling_only}}
+        {{#if this.app_state.currentUser.supporter_role}}
+          <button type="button" role="tab" aria-selected={{if this.index_nav.supervisees "true" "false"}} class="ch-tab {{if this.index_nav.supervisees "is-active"}}" {{on "click" (this.ctrlAction "set_index_nav" "supervisees")}}>{{t "Communicators" key="communicators"}}</button>
+        {{/if}}
+      {{/unless}}
+      <button type="button" role="tab" aria-selected={{if this.index_nav.boards "true" "false"}} class="ch-tab {{if this.index_nav.boards "is-active"}}" {{on "click" (this.ctrlAction "set_index_nav" "boards")}}>{{t "Boards" key="boards"}}</button>
+      {{#unless this.app_state.currentUser.modeling_only}}
+        <button type="button" role="tab" aria-selected={{if this.index_nav.updates "true" "false"}} class="ch-tab {{if this.index_nav.updates "is-active"}}" {{on "click" (this.ctrlAction "set_index_nav" "updates")}}>
+          {{t "Updates" key="updates"}}
+          {{#if this.pending_updates}}
+            <span class="ch-tab__badge">{{#if this.pending_updates.count}}{{this.pending_updates.count}}{{else}}{{t "!" key="exclaim"}}{{/if}}</span>
+          {{/if}}
+        </button>
+      {{/unless}}
+    </nav>
+
+    {{!-- ── COMMUNICATORS ── People I Supervise --}}
+    {{#if this.index_nav.supervisees}}
+      <div class="ch-tabpanel" role="tabpanel">
+        <h2 class="ch-panel__title">{{t "People I Supervise" key="people_i_supervise"}}</h2>
+        {{#if this.decoratedSupervisees}}
+          <div class="ch-comms">
+            {{#each this.decoratedSupervisees as |supervisee|}}
+              <article class="ch-comm">
+                <div class="ch-comm__head">
+                  <img src={{supervisee.avatar_url}} alt="" class="ch-comm__avatar">
+                  <div class="ch-comm__ident">
+                    <h3 class="ch-comm__name">{{supervisee.user_name}}</h3>
+                    {{#if supervisee.goal}}
+                      <p class="ch-comm__goal">{{supervisee.goal.summary}}</p>
+                    {{else}}
+                      <p class="ch-comm__goal ch-comm__goal--none">{{t "no goal set" key="no_goal_set"}}
+                        <button type="button" class="ch-comm__goal-set" {{on "click" (this.ctrlAction "set_goal" supervisee)}}>{{t "set a goal" key="set_a_goal"}}</button>
+                      </p>
+                    {{/if}}
+                  </div>
+                </div>
+
+                <div class="ch-comm__actions">
+                  {{!-- Model / Speak need a resolved home board; without one
+                       set_speak_mode_user falls back to the SUPPORTER's own board.
+                       Same gate the caseload page applies. --}}
+                  {{#if supervisee.resolved_home_board_key}}
+                    <button type="button" class="ch-tile ch-tile--primary" {{on "click" (this.ctrlAction "homeInSpeakMode" supervisee.id true)}}>
+                      <svg class="ch-tile__icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="20"/></svg>
+                      <span class="ch-tile__label">{{t "Model for" key="model_for"}}<br>{{supervisee.user_name}}</span>
+                    </button>
+                    <button type="button" class="ch-tile ch-tile--speak" {{on "click" (this.ctrlAction "homeInSpeakMode" supervisee.id)}}>
+                      <svg class="ch-tile__icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="10.5 5 6 9 2.5 9 2.5 15 6 15 10.5 19 10.5 5"/><path d="M14.2 9.4a3.6 3.6 0 0 1 0 5.2"/><path d="M17.2 6.8a7.4 7.4 0 0 1 0 10.4"/></svg>
+                      <span class="ch-tile__label">{{t "Speak as" key="speak_as"}}<br>{{supervisee.user_name}}</span>
+                    </button>
+                  {{else if supervisee.modeling_only}}
+                    <span class="ch-tile ch-tile--locked" role="note">
+                      <svg class="ch-tile__icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="5" y1="19" x2="19" y2="5"/></svg>
+                      <span class="ch-tile__label">{{t "No board" key="model_unavailable_short"}}</span>
+                    </span>
+                  {{else}}
+                    <button type="button" class="ch-tile ch-tile--setup" {{on "click" (this.ctrlAction "set_supervisee_home_board" supervisee)}}>
+                      <svg class="ch-tile__icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="12.5" height="15" rx="2"/><line x1="20" y1="14.5" x2="20" y2="21.5"/><line x1="16.5" y1="18" x2="23.5" y2="18"/></svg>
+                      <span class="ch-tile__label">{{t "Choose a Home Board" key="classic_choose_home_board"}}</span>
+                    </button>
+                  {{/if}}
+
+                  {{#unless supervisee.modeling_only}}
+                    <LinkTo @route="user.stats" @model={{supervisee.user_name}} class="ch-tile ch-tile--reports">
+                      <svg class="ch-tile__icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="10"/></svg>
+                      <span class="ch-tile__label">{{t "Usage" key="usage"}}<br>{{t "Reports" key="reports"}}</span>
+                    </LinkTo>
+                  {{/unless}}
+
+                  <button type="button" class="ch-tile ch-tile--ideas" {{on "click" (this.ctrlAction "modeling_ideas" supervisee.user_name)}}>
+                    <svg class="ch-tile__icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="9" x2="8" y2="18"/><line x1="14" y1="9" x2="14" y2="18"/></svg>
+                    <span class="ch-tile__label">{{t "Modeling" key="modeling"}}<br>{{t "Ideas" key="ideas"}}</span>
+                  </button>
+
+                  {{!-- Extras — the modern dropdown pattern (button + aria-expanded
+                       over a role="menu" list), not the Bootstrap data-toggle one. --}}
+                  <div class="ch-comm__extras {{if (is-equal this.openSuperviseeId supervisee.id) "is-open"}}">
+                    <button type="button" class="ch-tile ch-tile--extras"
+                            aria-expanded={{if (is-equal this.openSuperviseeId supervisee.id) "true" "false"}}
+                            aria-haspopup="true"
+                            aria-label={{concat (t "Extras for" key="classic_extras_for") " " supervisee.user_name}}
+                            {{on "click" (this.ctrlAction "toggle_supervisee_menu" supervisee.id)}}>
+                      <span class="ch-tile__label">{{t "Extras" key="extras"}}</span>
+                      <span class="ch-tile__caret" aria-hidden="true"></span>
+                    </button>
+                    <ul class="ch-menu" role="menu">
+                      {{#if supervisee.resolved_home_board_key}}
+                        <li role="none"><LinkTo @route="board" @model={{supervisee.resolved_home_board_key}} role="menuitem" class="ch-menu__item">{{t "Home Board" key="home_board"}}</LinkTo></li>
+                      {{/if}}
+                      <li role="none"><LinkTo @route="user" @model={{supervisee.user_name}} role="menuitem" class="ch-menu__item">{{t "Account" key="account"}}</LinkTo></li>
+                      <li role="none"><button type="button" role="menuitem" class="ch-menu__item" {{on "click" (this.ctrlAction "record_note" supervisee)}}>{{t "New Note" key="new_note"}}</button></li>
+                      <li role="none"><button type="button" role="menuitem" class="ch-menu__item" {{on "click" (this.ctrlAction "quick_assessment" supervisee)}}>{{t "Quick Assessment" key="quick_assessment"}}</button></li>
+                      <li role="none"><button type="button" role="menuitem" class="ch-menu__item" {{on "click" (this.ctrlAction "run_eval" supervisee)}}>{{t "Run Evaluation" key="run_evaluation"}}</button></li>
+                      {{#if this.app_state.feature_flags.remote_modeling}}
+                        <li role="none"><button type="button" role="menuitem" class="ch-menu__item" {{on "click" (this.ctrlAction "remote_model" supervisee)}}>{{t "Remote Modeling" key="remote_modeling"}}</button></li>
+                      {{/if}}
+                    </ul>
+                  </div>
+                </div>
+
+                {{#if supervisee.current_badge}}
+                  <div class="ch-comm__badge"><BadgeProgress @badge={{supervisee.current_badge}} /></div>
+                {{else if supervisee.earned_badge}}
+                  <div class="ch-comm__badge"><BadgeEarned @badge={{supervisee.earned_badge}} /></div>
+                {{/if}}
+              </article>
+            {{/each}}
+          </div>
+          {{#if this.app_state.currentUser.all_connections.loading}}
+            <p class="ch-empty">{{t "Loading more..." key="loading_more"}}</p>
+          {{else if this.app_state.currentUser.all_connections.error}}
+            <p class="ch-empty ch-empty--error">{{t "There was an error loading supervision users" key="error_loading_connections"}}</p>
+          {{/if}}
+        {{else}}
+          <p class="ch-empty ch-empty--explained">{{t "You have not been added as a supervisor for any communicators. For privacy reasons, supervisors must be added from the communicator's account." key="no_supervisors_explainer"}}</p>
+        {{/if}}
+      </div>
+
+    {{!-- ── BOARDS ── --}}
+    {{else if this.index_nav.boards}}
+      <div class="ch-tabpanel" role="tabpanel">
+        {{#if this.showOffline}}
+          <h2 class="ch-panel__title">{{t "Recent boards" key="available_boards"}}</h2>
+          <div class="ch-boards__grid">
+            {{#if this.recentOfflineBoards}}
+              {{#each this.recentOfflineBoards as |board|}}
+                {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} /></div>{{/if}}
+              {{/each}}
+            {{else}}
+              <p class="ch-empty">{{t "None found" key="none_found"}}</p>
+            {{/if}}
+          </div>
+        {{else}}
+          <h2 class="ch-panel__title">{{t "Browse Boards" key="browse_boards"}}</h2>
+          <div class="ch-subtabs" role="tablist" aria-label={{t "Browse Boards" key="browse_boards"}}>
+            <button type="button" role="tab" aria-selected={{if this.suggested_selected "true" "false"}} class="ch-subtab {{if this.suggested_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "suggested")}}>{{t "Suggested" key="suggested"}}</button>
+            <button type="button" role="tab" aria-selected={{if this.personal_selected "true" "false"}} class="ch-subtab {{if this.personal_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "personal")}}>{{t "Mine" key="mine"}}</button>
+            <button type="button" role="tab" aria-selected={{if this.popular_selected "true" "false"}} class="ch-subtab {{if this.popular_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "popular")}}>{{t "Community" key="community"}}</button>
+            <button type="button" role="tab" aria-selected={{if this.recent_selected "true" "false"}} class="ch-subtab {{if this.recent_selected "is-active"}}" {{on "click" (this.ctrlAction "set_selected" "recent")}}>{{t "Recent" key="recent"}}</button>
+          </div>
+          {{#if this.suggested_selected}}
+            {{#unless this.app_state.currentUser.supporter_role}}
+              <LinkTo @route="home-boards" class="ch-boards__lead">{{t "Help Me Choose a Home Board" key="help_me_choose_a_home_board"}}</LinkTo>
+            {{/unless}}
+          {{/if}}
+          <div class="ch-boards__grid">
+            {{#if this.current_boards.loading}}
+              <p class="ch-empty">{{t "Loading..." key="loading"}}</p>
+            {{else if this.current_boards.error}}
+              <p class="ch-empty">{{t "Failed to load" key="failed_to_load"}}</p>
+            {{else if this.current_boards}}
+              {{#each this.current_boards as |board|}}
+                {{#if board.key}}<div class="ch-boards__cell"><BoardIcon @board={{board}} /></div>{{/if}}
+              {{/each}}
+            {{else}}
+              <p class="ch-empty">{{t "None found" key="none_found"}}</p>
+            {{/if}}
+          </div>
+          <div class="ch-boards__actions">
+            <button type="button" class="ch-btn ch-btn--ghost" {{on "click" (this.ctrlAction "newBoard")}}>{{t "Create a New Board" key="create_a_new_board"}}</button>
+            {{#if this.personal_selected}}
+              <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ch-boards__see-all">{{t "See All My Boards" key="see_all_my_boards"}}</LinkTo>
+            {{/if}}
+          </div>
+        {{/if}}
+      </div>
+
+    {{!-- ── UPDATES ── install reminder + notifications + recent sessions --}}
+    {{else if this.index_nav.updates}}
+      <div class="ch-tabpanel" role="tabpanel">
+        {{#if this.device.needs_install_reminder}}
+          <section class="ch-card ch-card--install">
+            <h2 class="ch-card__title">{{t "Try the App" key="use_cough_drop_app"}}</h2>
+            <p class="ch-card__text">{{t "%app_name% works in any web browser, but you can also install the free app in the following stores:" key="app_stores"}}</p>
+            <div class="ch-card__stores">
+              {{#if this.app_state.domain_settings.ios_store_url}}<a href={{this.app_state.domain_settings.ios_store_url}} target="_blank" rel="noopener"><img src={{path "images/ios_app_store.svg"}} alt={{t "iOS App Store" key="ios_app_store_alt"}}></a>{{/if}}
+              {{#if this.app_state.domain_settings.play_store_url}}<a href={{this.app_state.domain_settings.play_store_url}} target="_blank" rel="noopener"><img src={{path "images/google_play.png"}} alt={{t "Google Play" key="google_play_alt"}}></a>{{/if}}
+              {{#if this.app_state.domain_settings.kindle_store_url}}<a href={{this.app_state.domain_settings.kindle_store_url}} target="_blank" rel="noopener"><img src={{path "images/amazon.png"}} alt={{t "Amazon Appstore" key="amazon_appstore_alt"}}></a>{{/if}}
+              <LinkTo @route="download"><img src={{path "images/windows.svg"}} alt={{t "Windows" key="windows_alt"}}></LinkTo>
+            </div>
+          </section>
+        {{/if}}
+
+        <section class="ch-card ch-card--list">
+          <h3 class="ch-card__heading">{{t "Notifications" key="notifications"}}</h3>
+          <div class="ch-notes">
+            {{#if this.app_state.currentUser.pending_org}}
+              <p class="ch-note"><LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "%{org} wants to support this user as part of their organization." key="remind_pending_org" org=this.app_state.currentUser.pending_org.name}}</LinkTo></p>
+            {{/if}}
+            {{#if this.app_state.currentUser.pending_supervision_org}}
+              <p class="ch-note"><LinkTo @route="user" @model={{this.app_state.currentUser.user_name}}>{{t "%{org} wants to add you as a supervisor to their organization." key="remind_pending_supervision_org" org=this.app_state.currentUser.pending_supervision_org.name}}</LinkTo></p>
+            {{/if}}
+            {{#if this.app_state.currentUser.pending_board_shares}}
+              {{#each this.app_state.currentUser.pending_board_shares as |share|}}
+                <p class="ch-note"><LinkTo @route="board" @model={{share.board_key}}>{{share.board_key}}</LinkTo> {{t "is being shared with you by %{user_name}<br>and needs approval" key="board_share_needs_approval" user_name=share.user_name}}</p>
+              {{/each}}
+            {{/if}}
+            {{#if this.app_state.currentUser.unread_messages}}
+              <p class="ch-note"><LinkTo @route="user.logs" @model={{this.app_state.currentUser.user_name}} @query={{hash type="note"}}>{{t "You have " key="you_have"}}{{t "unread message" count=this.app_state.currentUser.unread_messages key="unread_message_count"}}</LinkTo></p>
+            {{/if}}
+            {{#if this.app_state.currentUser.parsed_notifications}}
+              {{#each this.app_state.currentUser.parsed_notifications as |notif|}}
+                <UserNotification @notification={{notif}} />
+              {{/each}}
+            {{/if}}
+            {{#unless this.app_state.currentUser.unread_messages}}
+              {{#unless this.app_state.currentUser.parsed_notifications}}
+                {{#unless this.app_state.currentUser.pending_board_shares}}
+                  {{#if this.show_notifications_explanation}}
+                    <p class="ch-empty ch-empty--explained">{{t "Notifications are alerts sent from other %app_name% users. Users can send messages to everyone on a communicator's team and they'll appear here for quick review." key="notification_explanation"}}</p>
+                  {{else}}
+                    <p class="ch-empty">{{t "You have no new messages" key="no_new_messages"}}
+                      <button type="button" class="ch-explain" {{on "click" (this.ctrlAction "show_explanation" "notifications")}} aria-label={{t "What are notifications?" key="classic_what_are_notifications"}}>?</button>
+                    </p>
+                  {{/if}}
+                {{/unless}}
+              {{/unless}}
+            {{/unless}}
+          </div>
+        </section>
+
+        <section class="ch-card ch-card--list">
+          {{#if this.app_state.currentUser.supporter_role}}
+            <h3 class="ch-card__heading">{{t "Recent Sessions for supervisees" key="recent_sessions_for_supervisees"}}</h3>
+          {{else}}
+            <h3 class="ch-card__heading">{{t "Recent Sessions" key="recent_sessions"}}</h3>
+          {{/if}}
+          <div class="ch-sessions">
+            {{#if this.logs.loading}}
+              <p class="ch-empty">{{t "Loading..." key="loading"}}</p>
+            {{else if this.logs.error}}
+              <p class="ch-empty">{{t "Failed to load" key="failed_to_load"}}</p>
+            {{else if this.logs}}
+              {{#each this.logs as |log|}}
+                <p class="ch-session">
+                  <span class="ch-session__head">
+                    <span class="ch-session__when" title={{date log.started_at}}>{{date_ago log.started_at}}</span>
+                    <LinkTo @route="user.log" @models={{array log.user.user_name log.id}} class="ch-session__link">
+                      {{#if log.assessment}}{{t "assessment" key="assessment"}}{{else}}{{t "button" count=log.button_count key="button_count"}}{{/if}}
+                    </LinkTo>
+                    {{#if this.app_state.currentUser.supporter_role}}
+                      <span class="ch-session__who">&ndash; <LinkTo @route="user" @model={{log.user.user_name}}>{{log.user.user_name}}</LinkTo></span>
+                    {{/if}}
+                  </span>
+                  <span class="ch-session__summary">{{log.summary}}</span>
+                </p>
+              {{/each}}
+            {{else if this.show_sessions_explanation}}
+              <p class="ch-empty ch-empty--explained">{{t "When logging is enabled in your account settings, your most recent sessions will appear here for quick review. If you are in the supervisor view you will instead see sessions for users you supervise." key="sessions_explanation"}}</p>
+            {{else}}
+              <p class="ch-empty">{{t "No sessions currently available" key="no_sessions_found"}}
+                <button type="button" class="ch-explain" {{on "click" (this.ctrlAction "show_explanation" "sessions")}} aria-label={{t "Why are there no sessions?" key="classic_why_no_sessions"}}>?</button>
+              </p>
+            {{/if}}
+          </div>
+        </section>
+      </div>
+
+    {{!-- ── ACTIONS (default) ── notices + the big-button grid --}}
+    {{else}}
+      <div class="ch-tabpanel" role="tabpanel">
+        {{#if this.session.invalid_token}}
+          <section class="ch-card ch-card--alert">
+            <h2 class="ch-card__title">{{t "Please Re-Login" key="please_relogin"}}</h2>
+            <p class="ch-card__text">{{t "It appears there is an issue with your current session, please log out and back in to correct the problem." key="please_log_out_and_back_in"}}</p>
+            <button type="button" class="ch-btn ch-btn--primary" {{on "click" (this.ctrlAction "invalidateSession")}}>{{t "Sign Out" key="sign_out"}}</button>
+          </section>
+        {{else if this.no_intro}}
+          <section class="ch-card ch-card--intro">
+            <h2 class="ch-card__title">{{t "Let's Get Started" key="lets_get_started"}}</h2>
+            <p class="ch-card__text">{{t "Thanks for signing up! If you're new to %app_name%, don't worry! We want to help make things easy as you get started. Just hit the button below to learn more about how the app works." key="thanks_getting_started_with_app"}}</p>
+            <button type="button" class="ch-btn ch-btn--primary" {{on "click" (this.ctrlAction "intro")}}>{{t "How To Use %app_name%" key="how_this_works"}}</button>
+          </section>
+        {{/if}}
+
+        <div class="ch-grid">
+          {{!-- Two-tone icons throughout, matching the modern card set: charcoal
+               (#46505F) carries the structure, an accent (#2A9D8F teal or #4C86D8
+               denim) carries the meaning. Each tile also takes its own tint
+               modifier so the row reads as a set of distinct actions rather than a
+               wall of identical white cards. --}}
+          {{!-- Speak — shown to EVERY role. Gen 2 hid it from supporters, but the
+               parent's `homeInSpeakMode` already handles them: with no argument it
+               opens the "Select User to Speak As" switcher
+               (authenticated-view.js#homeInSpeakMode), so a supporter gets a working
+               control rather than a dead one. Carries the same teal-blue as My
+               Account by sharing its mixin call — see .ch-tile--account /
+               .ch-tile--speak-main in _classic-home.scss. --}}
+          <button type="button" class="ch-tile ch-tile--big ch-tile--speak-main" {{on "click" (this.ctrlAction "homeInSpeakMode")}}>
+            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="10.5 5 6 9 2.5 9 2.5 15 6 15 10.5 19 10.5 5" stroke="#46505F"/><path d="M14.2 9.4a3.6 3.6 0 0 1 0 5.2" stroke="#23779B"/><path d="M17.2 6.8a7.4 7.4 0 0 1 0 10.4" stroke="#23779B"/></svg></span>
+            <span class="ch-tile__label">{{t "Speak" key="speak_short"}}</span>
+          </button>
+          <LinkTo @route="user" @model={{this.app_state.currentUser.user_name}} class="ch-tile ch-tile--big ch-tile--account">
+            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="12" cy="7" r="4" stroke="#23779B"/></svg></span>
+            <span class="ch-tile__label">{{t "My Account" key="my_account"}}</span>
+          </LinkTo>
+          <button type="button" class="ch-tile ch-tile--big ch-tile--reports" {{on "click" (this.ctrlAction "stats")}}>
+            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="20" x2="6" y2="14" stroke="#46505F"/><line x1="12" y1="20" x2="12" y2="4" stroke="#2A9D8F"/><line x1="18" y1="20" x2="18" y2="10" stroke="#46505F"/></svg></span>
+            <span class="ch-tile__label">{{t "Reports" key="reports"}}</span>
+          </button>
+          {{#if this.modeling_ideas_available}}
+            <button type="button" class="ch-tile ch-tile--big ch-tile--ideas" {{on "click" (this.ctrlAction "modeling_ideas")}}>
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9.15" y="9.4" width="5.7" height="5" rx="0.8" fill="#2A9D8F" stroke="none"/><rect x="3" y="4" width="18" height="16" rx="2" stroke="#46505F"/><line x1="3" y1="9" x2="21" y2="9" stroke="#46505F"/><line x1="9" y1="9" x2="9" y2="20" stroke="#46505F"/><line x1="15" y1="9" x2="15" y2="20" stroke="#46505F"/></svg></span>
+              <span class="ch-tile__label">{{t "Modeling" key="modeling"}}<br>{{t "Ideas" key="ideas"}}</span>
+            </button>
+          {{/if}}
+          <button type="button" class="ch-tile ch-tile--big ch-tile--create" {{on "click" (this.ctrlAction "newBoard")}}>
+            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="12.5" height="15" rx="2" stroke="#46505F"/><line x1="2.5" y1="8.5" x2="15" y2="8.5" stroke="#46505F"/><line x1="20" y1="14.5" x2="20" y2="21.5" stroke="#2A9D8F"/><line x1="16.5" y1="18" x2="23.5" y2="18" stroke="#2A9D8F"/></svg></span>
+            <span class="ch-tile__label">{{t "New Board" key="new_board"}}</span>
+          </button>
+          <button type="button" class="ch-tile ch-tile--big ch-tile--search" {{on "click" (this.ctrlAction "searchBoards")}}>
+            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="#46505F"/><line x1="21" y1="21" x2="16.5" y2="16.5" stroke="#4C86D8"/></svg></span>
+            <span class="ch-tile__label">{{t "Search Boards" key="search_boards"}}</span>
+          </button>
+          <button type="button" class="ch-tile ch-tile--big ch-tile--learn" {{on "click" (this.ctrlAction "intro")}}>
+            <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z" stroke="#46505F"/><line x1="8.5" y1="8" x2="15.5" y2="8" stroke="#2A9D8F"/><line x1="8.5" y1="12" x2="13" y2="12" stroke="#2A9D8F"/></svg></span>
+            <span class="ch-tile__label">{{t "Learn" key="learn"}}<br>{{t "and Setup" key="and_setup"}}</span>
+          </button>
+          {{#unless this.app_state.currentUser.supporter_role}}
+            <button type="button" class="ch-tile ch-tile--big ch-tile--sup" {{on "click" (this.ctrlAction "manage_supervisors")}}>
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="#46505F"/><circle cx="9" cy="7" r="4" stroke="#4C86D8"/><path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="#46505F"/></svg></span>
+              <span class="ch-tile__label">{{t "Supervisors" key="supervisors"}}</span>
+            </button>
+          {{/unless}}
+          {{#if this.app_state.currentUser.preferences.logging}}
+            <button type="button" class="ch-tile ch-tile--big ch-tile--log" {{on "click" (this.ctrlAction "manual_session")}}>
+              <span class="ch-tile__chip" aria-hidden="true"><svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" stroke="#46505F"/><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4z" stroke="#46505F"/><path d="M15 5l3 3" stroke="#2A9D8F"/></svg></span>
+              <span class="ch-tile__label">{{t "Manual Log" key="manual_log"}}<br>{{t "Session" key="session_word"}}</span>
+            </button>
+          {{/if}}
+          {{!-- Extras — expands the row below. Uses the parent's `toggle_extras`
+               action and `show_main_extras` state (authenticated-view.js), which are
+               Gen 2's own; the modern template only ever WRITES that flag, so reading
+               it here cannot affect Card View. --}}
+          <button type="button" class="ch-tile ch-tile--big ch-tile--extras-toggle {{if this.show_main_extras "is-open"}}"
+                  aria-expanded={{if this.show_main_extras "true" "false"}}
+                  aria-controls="ch-extras-row"
+                  {{on "click" (this.ctrlAction "toggle_extras")}}>
+            <span class="ch-tile__chip" aria-hidden="true">
+              <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="#46505F"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="#2A9D8F"/></svg>
+            </span>
+            <span class="ch-tile__label">{{t "Extras" key="extras"}}<span class="ch-tile__toggle-caret" aria-hidden="true"></span></span>
+          </button>
+        </div>
+
+        {{!-- The expanded Extras row. Targets are deliberately limited to pages that
+             are NOT modern-styled, so opening Extras cannot drop a classic user into
+             Card View: Settings (user/preferences is still the original Bootstrap
+             page), Messages (user/logs) and Recordings (user/recordings) are
+             Bootstrap-leaning, and Support is a modal. My Boards and Badges are
+             excluded on purpose — both are fully modern and would be a new leak until
+             their classic counterparts exist. --}}
+        {{#if this.show_main_extras}}
+        <div class="ch-grid ch-grid--extras" id="ch-extras-row">
+          <LinkTo @route="user.preferences" @model={{this.classicUser.user_name}} class="ch-tile ch-tile--big ch-tile--silver">
+            <span class="ch-tile__chip" aria-hidden="true">
+              <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2" stroke="#2A9D8F"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H9.1A1.7 1.7 0 0 0 10.13 3V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9.1a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1.03z" stroke="#46505F"/></svg>
+            </span>
+            <span class="ch-tile__label">{{t "Settings" key="settings"}}</span>
+          </LinkTo>
+          <LinkTo @route="user.logs" @model={{this.classicUser.user_name}} @query={{hash type="note"}} class="ch-tile ch-tile--big ch-tile--silver">
+            <span class="ch-tile__chip" aria-hidden="true">
+              <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#46505F"/><polyline points="3.5 6.5 12 13 20.5 6.5" stroke="#2A9D8F"/></svg>
+            </span>
+            <span class="ch-tile__label">{{t "Messages" key="messages"}}</span>
+          </LinkTo>
+          <LinkTo @route="user.recordings" @model={{this.classicUser.user_name}} class="ch-tile ch-tile--big ch-tile--silver">
+            <span class="ch-tile__chip" aria-hidden="true">
+              <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3" stroke="#2A9D8F"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0" stroke="#46505F"/><line x1="12" y1="18" x2="12" y2="21" stroke="#46505F"/></svg>
+            </span>
+            <span class="ch-tile__label">{{t "Recordings" key="recordings"}}</span>
+          </LinkTo>
+          <button type="button" class="ch-tile ch-tile--big ch-tile--silver" {{on "click" (this.ctrlAction "support")}}>
+            <span class="ch-tile__chip" aria-hidden="true">
+              <svg class="ch-tile__icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke="#46505F"/><path d="M9.3 9.3a2.8 2.8 0 1 1 3.6 3.9c-.6.4-.9.9-.9 1.6" stroke="#2A9D8F"/><line x1="12" y1="17.6" x2="12.01" y2="17.6" stroke="#2A9D8F"/></svg>
+            </span>
+            <span class="ch-tile__label">{{t "Support" key="support"}}</span>
+          </button>
+        </div>
+        {{/if}}
+
+        {{!-- HIDDEN 2026-09-02 (requested) — may come back.
+
+             The "Switch to Card View" card. The navbar View menu now offers the same
+             switch from every page, so this was a second door to it on the home page
+             only. (Gen 2 itself had no such control — it WAS the new dashboard — so
+             this card was an addition, not a restoration.)
+
+             TO RESTORE: un-comment the block below. Its `new_dashboard` action is
+             still defined in classic-view.js and is what the button calls; nothing
+             else was removed. Note the inner comment that used to sit above the
+             <section> was folded into THIS note, because Handlebars comments cannot
+             nest — re-adding one inside the block would unbalance the curlies.
+        --}}
+        {{!--
+        <section class="ch-card ch-card--switch">
+          <h2 class="ch-card__title">{{t "Card View" key="classic_card_view_title"}}</h2>
+          <p class="ch-card__text">{{t "You're using the Classic view. Card View arranges the same tools as cards you can rearrange." key="classic_switch_explainer_card"}}</p>
+          <button type="button" class="ch-btn ch-btn--primary" {{on "click" (this.ctrlAction "new_dashboard")}}>{{t "Switch to Card View" key="classic_switch_to_card_view"}}</button>
+        </section>
+        --}}
+      </div>
+    {{/if}}
+  </section>
+</div>

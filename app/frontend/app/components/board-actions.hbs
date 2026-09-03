@@ -169,7 +169,7 @@
         </div>
         <div class="la-board-actions-item__content">
           <span class="la-board-actions-item__label">{{t "View Style" key="board_view_style_label"}}</span>
-          <span class="la-board-actions-item__desc">{{t "Modern shows panelled tools with a focused button grid; Classic is the full-device grid. Switching reloads the board." key="board_view_style_explainer"}}</span>
+          <span class="la-board-actions-item__desc">{{t "Card View shows panelled tools with a focused button grid; Classic is the full-device grid. Switching reloads the board." key="board_view_style_explainer_card"}}</span>
           <div class="md-board-edit-view-style__toggle md-board-edit-view-style__toggle--viewstyle {{if this.is_modern 'md-board-edit-view-style__toggle--viewstyle-modern'}} la-board-actions-view-style__toggle" role="group" aria-label={{t "View Style" key="board_view_style_label"}}>
             <button type="button"
               class="md-board-edit-view-style__opt {{unless this.is_modern 'md-board-edit-view-style__opt--active'}}"
@@ -181,7 +181,7 @@
               class="md-board-edit-view-style__opt {{if this.is_modern 'md-board-edit-view-style__opt--active'}}"
               aria-pressed={{if this.is_modern "true" "false"}}
               {{on "click" (this.ctrlAction "set_view_style" "modern")}}>
-              {{t "Modern" key="board_view_modern_short"}}
+              {{t "Card" key="board_view_card_short"}}
             </button>
           </div>
         </div>

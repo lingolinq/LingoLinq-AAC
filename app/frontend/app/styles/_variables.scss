@@ -51,6 +51,37 @@ $brand-slate-gray:         #6B7280;
 $brand-slate-blue:         #5A6A85;
 $brand-cool-steel:         #9CA3AF;
 $brand-danger:             #C0392B;
+// Salmon/coral accent. SCSS twin of the `--md-coral` custom property the modern
+// pages use (app.scss :root), declared here so SCSS colour functions (rgba(),
+// color.adjust()) can reach it — a CSS custom property cannot be passed to them.
+// app.scss interpolates this into --md-coral, so the two cannot drift.
+$brand-coral:              #F06A5B;
+// Peach — warmer and lighter than the coral above. Used for the classic home's
+// Reports tile. Its own token rather than a lightened $brand-coral because
+// $brand-coral is interpolated into --md-coral and shared with the modern pages;
+// nudging it there would move a colour those pages depend on.
+$brand-peach:              #F5A184;
+// Teal-blue — the midpoint of $brand-verdigris (#2A9D8F) and $brand-dusty-denim
+// (#4C86D8): rgb(59, 146, 180). Used for the classic home's My Account tile.
+// Written as a LITERAL hex rather than `color.mix($brand-verdigris,
+// $brand-dusty-denim, 50%)` on purpose: the mix keeps fractional channels, and Sass
+// then emits `rgba(59, 145.5, 179.5, …)`. Fractional rgb() is valid CSS Color 4 and
+// fine in current browsers, but this app also ships in Cordova/Electron webviews,
+// and a webview that cannot parse it drops the whole declaration — leaving the tile
+// with no tint at all. If either brand colour changes, recompute this by hand.
+$brand-teal-blue:          #3B92B4;
+
+// -----------------------------------------------------------------------------
+// Page wash — the three-stop top-down gradient behind the authenticated page
+// surface. It was repeated as five identical literal gradients (app.scss ~665,
+// ~774, ~827, ~25888, ~60525: index-with-footer, find-board, bento shell, search),
+// which have to stay in lockstep, so the stops live here instead.
+// -----------------------------------------------------------------------------
+$page-wash-blue:           rgb(126, 184, 224);   // unchanged
+// Desaturated ~15% from the original #D4A84B (S 0.61 -> 0.46), hue and lightness
+// held, on request 2026-09-02 — the gold read too warm against the classic panel.
+$page-wash-gold:           rgb(195, 162, 92);
+$page-wash-green:          rgb(61, 122, 92);     // unchanged
 
 $brand-blue-black:         #111A2E;
 

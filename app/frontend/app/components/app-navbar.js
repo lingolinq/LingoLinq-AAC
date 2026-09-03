@@ -3,6 +3,7 @@ import { getOwner } from '@ember/application';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
 import i18n from '../utils/i18n';
+import { is_classic } from '../utils/view_style';
 
 /**
  * Reusable navbar: matches bento #inner_header when authenticated,
@@ -16,6 +17,13 @@ export default Component.extend({
   role: 'navigation',
 
   appState: service('app-state'),
+
+  /* Classic takes the beta-feedback tab's CENTRED base placement instead of the
+     `--navbar` corner anchor — see the template. Reads through utils/view_style so
+     the preference key keeps a single reader. */
+  isClassic: computed('appState.currentUser.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.currentUser'));
+  }),
 
   application: computed(function() {
     return getOwner(this).lookup('controller:application');
@@ -35,7 +43,7 @@ export default Component.extend({
     return this.appState.get('current_route') === 'login.device';
   }),
 
-  /** Hide "Modern Dashboard" nav link when already on dashboard home (/username/home). */
+  /** Hide the speak-mode "Home" nav link when already on dashboard home (/username/home). */
   isOnUserHomeDashboard: computed('appState.current_route', function() {
     return this.appState.get('current_route') === 'user.home';
   }),

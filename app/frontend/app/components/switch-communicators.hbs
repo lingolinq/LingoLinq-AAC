@@ -1,5 +1,5 @@
 <ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
-  <div class="modal-header md-modal-header">
+  <div class="modal-header md-modal-header md-modal-header--tight">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
@@ -11,7 +11,7 @@
       {{/if}}
     </h3>
   </div>
-  <div class="modal-body md-modal-body">
+  <div class="modal-body md-modal-body md-modal-body--balanced">
     {{!-- Modernized choice rows: each pair of options is a segmented
          card group (two equal cards). Active card carries the brand
          verdigris tint + glow, inactive sits as glass. Feather-style
@@ -68,7 +68,7 @@
          like a dropdown list rather than a wall of large cards. --}}
     <UserSelect @select_id="currently_selected_id" @skip_me={{this.model.skip_me}} @allow_all={{this.allow_all}} @buttons={{true}} @compact={{true}} @selection={{this.currently_selected_id}} @action={{this.ctrlAction "updateCurrentlySelectedId"}} />
   </div>
-  <div class="modal-footer md-modal-footer">
+  <div class="modal-footer md-modal-footer md-modal-footer--tight">
     <button {{on "click" (this.ctrlAction "close")}} class="btn btn-default md-modal-btn md-modal-btn--cancel">{{t "Cancel" key="cancel"}}</button>
   </div>
 </ModalDialog>

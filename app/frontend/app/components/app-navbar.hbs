@@ -73,8 +73,12 @@
       {{/unless}}
     {{/unless}}
   {{/if}}
+  {{!-- Beta-feedback tab. CLASSIC takes `--classic-top`: horizontally centred (from
+       the base rule) and pinned to `top: 0` so it sits at the TOP of the navbar
+       rather than hanging below it. Card View keeps D10's `--navbar` corner anchor.
+       See the two variants in app.scss, next to each other. --}}
   {{#if this.showBetaFeedbackDrawerTab}}
-    <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--navbar {{if this.application.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{on "click" this.toggleBetaFeedbackDrawer}} aria-expanded={{if this.application.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
+    <button type="button" class="beta-feedback-drawer-tab {{if this.isClassic "beta-feedback-drawer-tab--classic-top" "beta-feedback-drawer-tab--navbar"}} {{if this.application.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{on "click" this.toggleBetaFeedbackDrawer}} aria-expanded={{if this.application.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       <span>{{t "Beta feedback" key="beta_feedback_nav"}}</span>
       <svg class="beta-feedback-drawer-tab__caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
