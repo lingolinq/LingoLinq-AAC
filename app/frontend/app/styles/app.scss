@@ -74603,22 +74603,36 @@ span.md-board-detail-modeling-btn--badge {
   width: 100%;
   max-width: 100%;
 }
-/* Match the board buttons' text POSITION (the rail carries the board's text-pos
-   class). DOM order is image-then-label, so flip flex-direction: top → label
-   above (column-reverse), bottom → label below (column); none hides the label,
-   text_only hides the image. */
-.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-top .md-board-detail-sentence-bar__prediction {
+/* Match the board buttons' text POSITION. DOM order is image-then-label, so flip
+   flex-direction: top → label above (column-reverse), bottom → label below (column); none
+   hides the label, text_only hides the image.
+   ALL THREE PANELS (2026-09-02). These rules were scoped to the side rail alone, so the
+   below-speak-bar strip carried the text-pos class with nothing acting on it and the in-bar
+   group beside the sentence did not carry the class at all — the same preference produced
+   three different layouts depending on which placement the user had chosen.
+   The declarations act on the TILE, whose own `flex-direction: column` is placement-agnostic,
+   so one grouped selector serves a vertical rail and a horizontal strip equally. Widened here
+   rather than duplicated per panel so the four states stay defined in exactly one place. */
+.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-top .md-board-detail-sentence-bar__prediction,
+.md-board-detail-prediction-below.md-board-detail-grid--text-pos-top .md-board-detail-sentence-bar__prediction,
+.md-board-detail-sentence-bar__prediction-group.md-board-detail-grid--text-pos-top .md-board-detail-sentence-bar__prediction {
   flex-direction: column-reverse;
 }
-.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-bottom .md-board-detail-sentence-bar__prediction {
+.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-bottom .md-board-detail-sentence-bar__prediction,
+.md-board-detail-prediction-below.md-board-detail-grid--text-pos-bottom .md-board-detail-sentence-bar__prediction,
+.md-board-detail-sentence-bar__prediction-group.md-board-detail-grid--text-pos-bottom .md-board-detail-sentence-bar__prediction {
   flex-direction: column;
 }
-.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-none .md-board-detail-sentence-bar__prediction-label {
+.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-none .md-board-detail-sentence-bar__prediction-label,
+.md-board-detail-prediction-below.md-board-detail-grid--text-pos-none .md-board-detail-sentence-bar__prediction-label,
+.md-board-detail-sentence-bar__prediction-group.md-board-detail-grid--text-pos-none .md-board-detail-sentence-bar__prediction-label {
   /* Predictions must always show the word — unlike board buttons, a
      symbol-only board layout must not render blank prediction tiles. */
   display: block;
 }
-.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-text_only .md-board-detail-sentence-bar__prediction-img {
+.md-board-detail-prediction-rail.md-board-detail-grid--text-pos-text_only .md-board-detail-sentence-bar__prediction-img,
+.md-board-detail-prediction-below.md-board-detail-grid--text-pos-text_only .md-board-detail-sentence-bar__prediction-img,
+.md-board-detail-sentence-bar__prediction-group.md-board-detail-grid--text-pos-text_only .md-board-detail-sentence-bar__prediction-img {
   display: none;
 }
 

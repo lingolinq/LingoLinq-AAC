@@ -765,7 +765,7 @@
                   {{!-- --is-loading is set only once a lookup has been running longer
                        than the cue delay (see suggestions_loading_visible); the words
                        themselves stay put and stay clickable while it is on. --}}
-                  <span class="md-board-detail-sentence-bar__prediction-group {{if this.suggestions_loading_visible 'md-board-detail-sentence-bar__prediction-group--is-loading'}}" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} aria-busy={{if this.suggestions_loading_visible "true" "false"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
+                  <span class="md-board-detail-sentence-bar__prediction-group {{this.button_text_position_class}} {{if this.suggestions_loading_visible 'md-board-detail-sentence-bar__prediction-group--is-loading'}}" role="group" aria-label={{t "Word predictions" key="board_detail_word_predictions"}} aria-busy={{if this.suggestions_loading_visible "true" "false"}} style={{safe-style (concat "--bd-button-text-size:" this.button_text_size_px "px")}}>
                     {{#each this.prediction_bar_suggestions key="word" as |suggestion|}}
                       <button type="button" class="md-board-detail-sentence-bar__prediction" {{on "click" (this.ctrlActionNoBubble "complete_word" suggestion)}} aria-label={{concat (t "Predicted word" key="board_detail_predicted_word") ": " suggestion.word}}>
                         {{#if this.utterance_show_symbols}}
