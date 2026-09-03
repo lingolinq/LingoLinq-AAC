@@ -950,6 +950,22 @@ body:has(#within_ember.bento-page-with-footer) {
   display: flex;
   flex-direction: column;
 }
+/* The GHOST outlet wrapper the comment above promises to collapse — the case was never
+   actually written, so it kept `flex: 1 1 auto` from the rule above and split #content's
+   column with #index_view. Measured on the classic home page at 1600x1200: the ghost took
+   211px and pushed #index_view to top=237; at 1600x800 it took 22px and #index_view sat at
+   top=48.5. Half of every extra pixel of viewport height went to the ghost, which read as
+   the page being vertically centred (reported 2026-09-03).
+
+   `:has(+ #index_view)` is what makes this safe to put in a shared file: the REAL wrapper
+   CONTAINS #index_view, so only a wrapper that is a preceding SIBLING of it can match, and
+   that is the ghost by definition. Matching on "no .md-shell inside" instead would also
+   collapse the legitimate outlet on every non-dashboard route under this shell. */
+#within_ember:has(.page-footer) #content.index.with_user > .ember-view:has(+ #index_view),
+#within_ember.bento-page-with-footer #content > .ember-view:has(+ #index_view) {
+  flex: 0 0 auto;
+  min-height: 0;
+}
 /* Modern dashboard outlet: size to content so .md-shell bg extends to bottom of page; min-width 0 so it shrinks with viewport */
 #within_ember.bento-page-with-footer #content > .ember-view:has(.md-shell),
 #within_ember:has(.page-footer) #content > .ember-view:has(.md-shell) {

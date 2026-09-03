@@ -5,6 +5,7 @@ import { observer, computed } from '@ember/object';
 import { scheduleOnce, later as runLater, cancel as runCancel } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
+import { is_classic } from '../utils/view_style';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
 import modal from '../utils/modal';
 import article50Gate from '../utils/article50_gate';
@@ -295,8 +296,16 @@ export default Component.extend({
 
   // The step-builder for the current page/layout, or null when no tour exists
   // here. Drives both the trigger visibility (hasTour) and _startTour.
-  tourBuilder: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', function() {
-    return tourBuilderFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'));
+  // `isClassic` is the fourth axis the registry needs. It is read HERE rather than in the
+  // registry so that module stays a pure function of its arguments — see its comment.
+  // Depends on the preference key itself, so flipping view style re-resolves the builder
+  // without a reload.
+  isClassicView: computed('appState.currentUser.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.currentUser'));
+  }),
+
+  tourBuilder: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', 'isClassicView', function() {
+    return tourBuilderFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'), this.get('isClassicView'));
   }),
 
   // Only show the trigger when the current page actually has a tour.
@@ -307,8 +316,8 @@ export default Component.extend({
   // Stable completion-flag key for the current page + layout (e.g. 'home_gentle',
   // 'home_focused'), or null. Persisted under
   // preferences.progress.guided_tours_completed once the tour is COMPLETED.
-  tourKey: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', function() {
-    return tourKeyFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'));
+  tourKey: computed('appState.current_route', 'effectiveLayout', 'appState.edit_mode', 'isClassicView', function() {
+    return tourKeyFor(this.get('appState.current_route'), this.get('effectiveLayout'), this.get('appState.edit_mode'), this.get('isClassicView'));
   }),
 
   // Whether THIS page+view's tour has been completed at least once — drives the
