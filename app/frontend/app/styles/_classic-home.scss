@@ -1500,12 +1500,12 @@ button.ch-tile--silver:focus-visible {
   }
 
   // The eye should land on the icon first, so it is given more presence than the card.
-  .ch-tile--big .ch-tile__chip { width: 62px; height: 62px; border-radius: 18px; }
-  .ch-tile--big .ch-tile__icon { width: 28px; height: 28px; }
+  .ch-tile--big .ch-tile__chip { width: 74px; height: 74px; border-radius: 22px; }
+  .ch-tile--big .ch-tile__icon { width: 34px; height: 34px; }
 
   .ch-tile--big .ch-tile__label {
-    margin-top: 12px;
-    font-size: 19px;
+    margin-top: 14px;
+    font-size: 23px;
     font-weight: 700;
     line-height: 1.15;
     color: $la-navy;
@@ -1520,8 +1520,8 @@ button.ch-tile--silver:focus-visible {
   .ch-tile--big .ch-tile__sub {
     display: block;
     position: relative;
-    margin-top: 6px;
-    font-size: 14px;
+    margin-top: 7px;
+    font-size: 17px;
     font-weight: 600;
     line-height: 1.3;
     color: rgba(27, 54, 93, 0.72);
