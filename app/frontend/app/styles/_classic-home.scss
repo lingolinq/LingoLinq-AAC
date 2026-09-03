@@ -824,9 +824,12 @@ button.ch-tile:hover .ch-tile__chip {
 .ch-tile__icon { position: relative; flex: 0 0 auto; }
 .ch-tile__label { position: relative; }
 
-// Subheader. HIDDEN by default and revealed only above 900px (see the min-width block
-// with the other media queries), so the compact tile below that width is untouched.
-.ch-tile__sub { display: none; }
+// Subheader, separator and detail line. All HIDDEN by default and revealed only above
+// 900px (see the min-width block with the other media queries), so the compact tile
+// below that width is byte-for-byte what it was.
+.ch-tile__sub,
+.ch-tile__rule,
+.ch-tile__more { display: none; }
 
 .ch-tile--big { min-height: 124px; }
 
@@ -1437,10 +1440,25 @@ button.ch-tile--silver:focus-visible {
 // focus ring as a box-shadow — which is the behaviour we want: the focus ring takes over
 // rather than competing with a decorative one.
 @media (min-width: 901px) {
+  // Wider tracks for the information layout. The compact tile is happy at 132px, but a
+  // 296px-tall card carrying a full sentence is not — at 132px the detail line wraps to
+  // five or six words a row. 220px keeps four across on a normal desktop while letting
+  // the ten-tile Extras drawer settle into two comfortable rows rather than one thin
+  // ribbon of nine.
+  .ch-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+
   .ch-tile--big {
-    min-height: 148px;
+    // Roughly double the compact height (148 -> 296) to carry label, subheader,
+    // separator and detail line without crowding.
+    min-height: 296px;
+    // flex-start, not center: the detail block is pinned to the BOTTOM by
+    // `.ch-tile__rule`'s `margin-top: auto`, so the top group has to start at the top
+    // rather than float in the middle.
+    justify-content: flex-start;
     gap: 6px;
-    padding: 20px 16px;
+    padding: 22px 18px;
     outline: 1px solid rgba(255, 255, 255, 0.7);
     outline-offset: -7px;
   }
@@ -1460,6 +1478,45 @@ button.ch-tile--silver:focus-visible {
     // gives 4.97:1. The subheader reads as secondary through size and weight instead
     // of through contrast, which is the right trade on an AAC surface.
     color: rgba($la-navy, 0.9);
+  }
+
+  // The separator. A tapered hairline rather than a full-width border: it fades out at
+  // both ends so it reads as a divider inside a card rather than a box edge, and it
+  // carries `margin-top: auto`, which is what pushes it and the detail line below it to
+  // the bottom of the tile.
+  .ch-tile__rule {
+    display: block;
+    position: relative;
+    width: 100%;
+    max-width: 132px;
+    height: 1px;
+    margin-top: auto;
+    margin-bottom: 2px;
+    border: 0;
+    background: linear-gradient(
+      90deg,
+      rgba($la-navy, 0) 0%,
+      rgba($la-navy, 0.28) 22%,
+      rgba($la-navy, 0.28) 78%,
+      rgba($la-navy, 0) 100%
+    );
+  }
+
+  // The one-sentence detail. Same 0.9 navy as the subheader and for the same measured
+  // reason — anything lighter fails 4.5:1 against the darkest tile tint (Reports,
+  // stormy-teal at 0.46, where 0.80 gives 4.09:1). Kept a step smaller and lighter in
+  // weight than the subheader so the three text levels are distinguishable by size and
+  // weight rather than by contrast.
+  .ch-tile__more {
+    display: block;
+    position: relative;
+    max-width: 28ch;
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0;
+    line-height: 1.35;
+    color: rgba($la-navy, 0.9);
+    text-wrap: balance;
   }
 }
 
