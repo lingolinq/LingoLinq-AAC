@@ -501,6 +501,17 @@ class User < ApplicationRecord
     [month, year]
   end
 
+  # School-official create: the org exists and the author has 'edit' on it
+  # (full manager or assistant). Used by api/users#create (birth-data gate)
+  # and process_params (COPPA skip + authored_organization_id stamp) so both
+  # layers share one predicate. Returns the Organization or nil.
+  def self.validated_org_author(author, organization_id)
+    return nil if author.nil? || organization_id.blank?
+    org = Organization.find_by_global_id(organization_id)
+    return nil unless org && org.allows?(author, 'edit')
+    org
+  end
+
   # Manager-attested birth month/year (same ambiguity rule as register.js):
   # cutoff month counts as still under the threshold.
   # Returns true / false / nil (nil when month/year incomplete).
@@ -2497,10 +2508,11 @@ class User < ApplicationRecord
     params.delete('admin') if params.respond_to?(:delete)
     params.delete(:admin)  if params.respond_to?(:delete)
     self.settings ||= {}
-    if params['name']
-      cleaned_name = params['name'].to_s.gsub(/[\x00-\x1F\x7F]/, '').strip
+    if params.key?('name') || params.key?(:name)
+      raw_name = params['name'] || params[:name]
+      cleaned_name = raw_name.to_s.gsub(/[\x00-\x1F\x7F]/, '').strip
       cleaned_name = cleaned_name[0, 200]
-      self.settings['name'] = process_string(cleaned_name) if cleaned_name.present?
+      self.settings['name'] = cleaned_name.present? ? process_string(cleaned_name) : nil
     end
     ['description', 'details_url', 'location', 'cell_phone'].each do |arg|
       self.settings[arg] = process_string(params[arg]) if params[arg]
@@ -2555,23 +2567,17 @@ class User < ApplicationRecord
     # param being non-blank while the org/author validation ran later (see below), so
     # a present-but-invalid or unauthorized org id bypassed the COPPA gate AND recorded
     # nothing. Compute the validated result once and reuse it for both decisions.
-    org_authorized = false
-    authoring_org = nil
-    if !self.id && params['authored_organization_id'].present?
-      authoring_org = Organization.find_by_global_id(params['authored_organization_id'])
-      # NOTE: 'edit' is satisfied by assistant-level managers, not only full managers
-      # (Organization adds 'edit' for assistant? at organization.rb:43; 'manage' is the
-      # full-manager-only level at :44). This preserves the pre-existing authoring scope.
-      # Whether the school-official exception should be restricted to full managers, and
-      # gated on a signed-contract/DPA flag, is the Phase 1 decision (see
-      # outputs/plans/2026-06-19-org-coppa-bypass-fix-scope.md); do not silently change
-      # the scope here. Any code path that sets settings['school_authorization'] below
-      # must also emit the school_authorization AuditEvent (today the only creator path
-      # is api/users#create, which does).
-      if authoring_org && non_user_params[:author] && authoring_org.allows?(non_user_params[:author], 'edit')
-        org_authorized = true
-      end
-    end
+    # NOTE: 'edit' is satisfied by assistant-level managers, not only full managers
+    # (Organization adds 'edit' for assistant? at organization.rb:43; 'manage' is the
+    # full-manager-only level at :44). This preserves the pre-existing authoring scope.
+    # Whether the school-official exception should be restricted to full managers, and
+    # gated on a signed-contract/DPA flag, is the Phase 1 decision (see
+    # outputs/plans/2026-06-19-org-coppa-bypass-fix-scope.md); do not silently change
+    # the scope here. Any code path that sets settings['school_authorization'] below
+    # must also emit the school_authorization AuditEvent (today the only creator path
+    # is api/users#create, which does).
+    authoring_org = (!self.id ? User.validated_org_author(non_user_params[:author], params['authored_organization_id']) : nil)
+    org_authorized = !!authoring_org
     # Use !org_authorized (not authored_organization_id.blank?) so an empty string OR a
     # present-but-invalid/unauthorized org id both fall through to the COPPA gate.
     if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && !org_authorized

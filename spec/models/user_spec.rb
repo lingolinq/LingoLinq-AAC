@@ -920,6 +920,27 @@ describe User, :type => :model do
       expect(u.settings['public']).to eq(true)
     end
 
+    it "should clear the stored name when the client sends a blank name" do
+      u = User.new
+      u.settings = { 'name' => 'Ada Lovelace' }
+      u.process_params({'name' => ''}, {})
+      expect(u.settings['name']).to eq(nil)
+    end
+
+    it "should clear the stored name when the client sends whitespace-only name" do
+      u = User.new
+      u.settings = { 'name' => 'Ada Lovelace' }
+      u.process_params({'name' => "  \n"}, {})
+      expect(u.settings['name']).to eq(nil)
+    end
+
+    it "should not touch the stored name when name is omitted" do
+      u = User.new
+      u.settings = { 'name' => 'Ada Lovelace' }
+      u.process_params({'email' => 'ada@example.com'}, {})
+      expect(u.settings['name']).to eq('Ada Lovelace')
+    end
+
     it "should record a versioned privacy-policy acknowledgment alongside terms agreement" do
       u = User.new
       u.process_params({}, {})
@@ -1657,6 +1678,24 @@ describe User, :type => :model do
       expect(gp['email']).to eq(false)
       expect(gp['contact_type']).to eq('sms')
       expect(gp['image_url']).to match(/amazonaws/)
+    end
+
+    describe "validated_org_author" do
+      it "returns the org when the author has edit" do
+        o = Organization.create
+        u = User.create
+        o.add_manager(u.user_name, true)
+        expect(User.validated_org_author(u.reload, o.global_id)).to eq(o)
+      end
+
+      it "returns nil for a missing author, blank id, unknown org, or unauthorized author" do
+        o = Organization.create
+        u = User.create
+        expect(User.validated_org_author(nil, o.global_id)).to eq(nil)
+        expect(User.validated_org_author(u, '')).to eq(nil)
+        expect(User.validated_org_author(u, 'invalid_org_999')).to eq(nil)
+        expect(User.validated_org_author(u, o.global_id)).to eq(nil)
+      end
     end
 
     it "should only allow settings authored_organization_id (and unpending) if an org admin" do

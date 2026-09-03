@@ -8,7 +8,6 @@ import persistence from '../utils/persistence';
 import session from '../utils/session';
 import progress_tracker from '../utils/progress_tracker';
 import modalUtil from '../utils/modal';
-import RSVP from 'rsvp';
 
 /**
  * Eval Status Modal Component
@@ -169,17 +168,14 @@ export default Component.extend({
         return;
       } else {
         this.set('status', { resetting: true });
-        let pw_gen = RSVP.resolve(null);
-        const pw = this.get('reset_password');
-        if (pw) {
-          pw_gen = session.hashed_password(pw);
-        }
-        pw_gen.then(function(password) {
-          persistence.ajax('/api/v1/users/' + _this.get('user.id') + '/evals/reset', {
+        // Send plaintext so the server can enforce MIN_PASSWORD_LENGTH.
+        // hashed_password is for login, not writes (password_meets_minimum?
+        // rejects client-supplied prehashes).
+        persistence.ajax('/api/v1/users/' + _this.get('user.id') + '/evals/reset', {
             type: 'POST',
             data: {
               expires: _this.get('eval_expires'),
-              password: password,
+              password: this.get('reset_password') || null,
               email: _this.get('reset_email'),
               symbol_library: _this.get('symbol_library'),
               home_board_key: _this.get('home_board_key')
@@ -198,9 +194,6 @@ export default Component.extend({
           }, function() {
             _this.set('status', { reset_error: true });
           });
-        }, function() {
-          _this.set('status', { reset_error: true });
-        });
       }
     },
     extend() {
