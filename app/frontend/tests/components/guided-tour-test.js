@@ -78,6 +78,8 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     var appState = this.owner.lookup('service:app-state');
     appState.set('auto_open_home_tour', false);
     appState.set('auto_open_home_tour_rearmed_at', null);
+    appState.set('current_route', null);
+    try { window.sessionStorage.removeItem('ll_auto_open_home_tour'); } catch(e) { /* unavailable */ }
   });
 
   itAsync('holds the tour while the notice is open, then runs it exactly once after it closes', async function() {
@@ -118,16 +120,50 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(runs).toEqual(1);
   });
 
-  itAsync('runs the tour anyway when a due notice never opens within the due cap, so the handoff is not lost', async function() {
-    // The cap must fire here, but the "still held" assertion must not race it:
-    // 400 ms cap vs a 30 ms sleep leaves a wide margin for a stalled browser.
+  itAsync('keeps holding while the gate stays pending, well past the old due cap, and runs once it clears', async function() {
+    // beforeEach sets the ceiling to 80 ms; the old code released at that point.
     component.set('art50_tour_due_max_ms', 400);
     gatePending = true;
     component._scheduleAutoOpen();
-    await sleep(30);
+    await sleep(150);
     expect(runs).toEqual(0);
-    await untilRuns(1500);
+    gatePending = false;
+    await untilRuns(500);
     expect(runs).toEqual(1);
+  });
+
+  itAsync('a notice that opens late, after the old due cap, is still honoured', async function() {
+    component.set('art50_tour_due_max_ms', 400);
+    gatePending = true;
+    component._scheduleAutoOpen();
+    await sleep(150);
+    noticeOpen = true;
+    gatePending = false;
+    await sleep(60);
+    expect(runs).toEqual(0);
+    noticeOpen = false;
+    await untilRuns(500);
+    expect(runs).toEqual(1);
+  });
+
+  itAsync('the default due ceiling sits above the 30 s freshness window that bounds a pending gate', async function() {
+    // Cases above shrink the ceiling; this pins the shipped value. Below 30 s the
+    // ceiling could fire while a session-entry notice can still open.
+    extra = this.owner.factoryFor('component:guided-tour').create({ speakHost: true });
+    expect(extra.get('art50_tour_due_max_ms') > 30000).toEqual(true);
+  });
+
+  itAsync('a gate stuck pending past the ceiling cancels the attempt instead of starting the tour, and never starts later', async function() {
+    // Ceiling stays at the beforeEach 80 ms. In production it sits above the 30 s
+    // freshness window, so this branch only fires when the predicate is stuck.
+    gatePending = true;
+    component._scheduleAutoOpen();
+    await sleep(150);
+    expect(runs).toEqual(0);
+    expect(component._autoOpenDeferring).toEqual(false);
+    gatePending = false;
+    await sleep(60);
+    expect(runs).toEqual(0);
   });
 
   itAsync('runs the tour on the first tick when no notice is open or due', async function() {
@@ -232,6 +268,8 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
   itAsync('when the wait ends, the real _runAutoOpen still hands a communicator with no page tour off to board-picker', async function() {
     // Back to the prototype implementation (beforeEach replaced it with a counter).
     delete component._runAutoOpen;
+    // 'index' is a gate host with no tour of its own, so the no-tour handoff runs.
+    this.owner.lookup('service:app-state').set('current_route', 'index');
     var transitions = [];
     stub(component.get('router'), 'transitionTo', function(name) { transitions.push(name); });
     expect(component.get('tourBuilder') || null).toEqual(null);
@@ -261,6 +299,84 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     var atDestroy = ticks;
     await sleep(80);
     expect(ticks).toEqual(atDestroy);
+  });
+
+  // Route-aware resume. The real _runAutoOpen is used; the two branch starters are
+  // replaced by counters so no tour or transition is attempted.
+  function useRealResume(owner, route) {
+    delete component._runAutoOpen;
+    var starts = { home: 0, caseload: 0 };
+    component._startHomeAutoOpen = function() { starts.home++; };
+    component._startCaseloadAutoOpen = function() { starts.caseload++; };
+    // The shared service may hold null here, which would satisfy a cancel branch
+    // for the wrong reason; set the route explicitly.
+    owner.lookup('service:app-state').set('current_route', route);
+    return starts;
+  }
+
+  itAsync('cancels a deferred resume when the user has left for a route outside the allowlist', async function() {
+    var starts = useRealResume(this.owner, 'user.extras');
+    noticeOpen = true;
+    component._scheduleAutoOpen();
+    await sleep(30);
+    noticeOpen = false;
+    await sleep(60);
+    expect(starts.home).toEqual(0);
+    expect(starts.caseload).toEqual(0);
+    expect(component._autoOpenDeferring).toEqual(false);
+  });
+
+  itAsync('resumes on bento, the other session-entry gate host, with the home branch', async function() {
+    var starts = useRealResume(this.owner, 'bento');
+    noticeOpen = true;
+    component._scheduleAutoOpen();
+    await sleep(30);
+    noticeOpen = false;
+    await sleep(60);
+    expect(starts.home).toEqual(1);
+    expect(starts.caseload).toEqual(0);
+  });
+
+  itAsync('the never-held path is route-aware too: a foreign route at afterRender cancels, a gate host starts', async function() {
+    var starts = useRealResume(this.owner, 'user.extras');
+    component._scheduleAutoOpen();
+    await sleep(30);
+    expect(starts.home).toEqual(0);
+    expect(component._autoOpenDeferring).toEqual(false);
+    this.owner.lookup('service:app-state').set('current_route', 'user.home');
+    component._scheduleAutoOpen();
+    await sleep(30);
+    expect(starts.home).toEqual(1);
+  });
+
+  itAsync('the resume allowlist: gate hosts for everyone, caseload only for a supporter', async function() {
+    expect(component._autoOpenRouteAllowed('user.home', false)).toEqual(true);
+    expect(component._autoOpenRouteAllowed('user.home', true)).toEqual(true);
+    expect(component._autoOpenRouteAllowed('index', false)).toEqual(true);
+    expect(component._autoOpenRouteAllowed('bento', false)).toEqual(true);
+    expect(component._autoOpenRouteAllowed('caseload', true)).toEqual(true);
+    expect(component._autoOpenRouteAllowed('caseload', false)).toEqual(false);
+    expect(component._autoOpenRouteAllowed('user.extras', false)).toEqual(false);
+    expect(component._autoOpenRouteAllowed('user.extras', true)).toEqual(false);
+    expect(component._autoOpenRouteAllowed('board-picker', false)).toEqual(false);
+    expect(component._autoOpenRouteAllowed(null, false)).toEqual(false);
+  });
+
+  itAsync('consuming the appState signal also clears its sessionStorage twin, so a later remount cannot re-fire', async function() {
+    var appState = this.owner.lookup('service:app-state');
+    try { window.sessionStorage.setItem('ll_auto_open_home_tour', '1'); } catch(e) { return; }
+    appState.set('auto_open_home_tour', true);
+    await untilRuns(500);
+    expect(runs).toEqual(1);
+    expect(window.sessionStorage.getItem('ll_auto_open_home_tour') || null).toEqual(null);
+  });
+
+  itAsync('SPA sign-out clears the sessionStorage twin as well', async function() {
+    var appState = this.owner.lookup('service:app-state');
+    component.set('speakHost', true);
+    try { window.sessionStorage.setItem('ll_auto_open_home_tour', '1'); } catch(e) { return; }
+    appState.clear_user_state();
+    expect(window.sessionStorage.getItem('ll_auto_open_home_tour') || null).toEqual(null);
   });
 
   itAsync('a second request while one is already waiting does not start a second chain', async function() {

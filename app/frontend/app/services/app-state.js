@@ -2180,6 +2180,9 @@ export default Service.extend({
     // account signed in on this tab.
     this.set('auto_open_home_tour', false);
     this.set('auto_open_home_tour_rearmed_at', null);
+    try {
+      if (window.sessionStorage) { sessionStorage.removeItem('ll_auto_open_home_tour'); }
+    } catch(e) { /* sessionStorage unavailable */ }
 
     // Per-user transient UI overlays / refresh timers
     this.set('loading_overlay_message', null);
