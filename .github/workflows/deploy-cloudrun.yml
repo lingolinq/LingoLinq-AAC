@@ -119,7 +119,8 @@ name: Deploy to Cloud Run
 # `main` red in the first place.
 #
 # CONCURRENCY: one group PER DATABASE, across BOTH triggers. `main` serializes on
-# `deploy-cloudrun-production`; `staging`, `develop`, and every unknown ref serialize on
+# `deploy-cloudrun-production`; `staging` and `develop` serialize on (an unknown ref gets a
+# per-run `noop-*` group so its skipped run cannot cancel a pending nonprod deploy)
 # `deploy-cloudrun-nonprod`, because staging and dev share ONE database and must never run
 # two migrate Jobs against it at once. Production and nonprod deploys may overlap; they touch
 # different projects. Do not scope the group by ref. Three known limits, so nobody reads more
@@ -231,7 +232,9 @@ on:
 # CONCURRENCY note above. This expression must use `github.*` only; job outputs are not
 # available at the workflow level.
 concurrency:
-  group: deploy-cloudrun-${{ github.ref == 'refs/heads/main' && 'production' || 'nonprod' }}
+  # An UNMAPPED ref (feature-branch dispatch) gets its own throwaway group keyed by run id, so a
+  # no-op run can never cancel a pending staging or develop deploy by landing in the nonprod group.
+  group: deploy-cloudrun-${{ github.ref == 'refs/heads/main' && 'production' || ((github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/develop') && 'nonprod' || format('noop-{0}', github.run_id)) }}
   cancel-in-progress: false
 
 permissions:
