@@ -73,10 +73,23 @@ export default AuthenticatedView.extend({
   // column renders permanently empty with no tab appearing selected.
   // `checkForBlankSlate` runs too: `update_selected` returns early when offline,
   // and that is exactly the case that needs `showOffline` + recent boards set.
+  // `reload_logs` needs the same kick for the same reason, and was missed in the
+  // first pass. It is the ONLY writer of `logs` (authenticated-view.js:633-641),
+  // which the classic Updates tab renders — without this the tab shows "No sessions
+  // currently available" permanently, implying logging is off when it is not.
+  //
+  // It covers the badges too, so there is no third call here: reload_logs also
+  // populates `current_user_badges` from its second query (:642-650), and
+  // `current_user_badges` is a dependent key of `update_current_badges`
+  // (:659-666) — so setting it fires that observer through the normal chain.
+  //
+  // reload_logs carries its own online / cache-sentinel guards, so calling it
+  // directly cannot fetch in a state the observer would have skipped.
   didInsertElement() {
     this._super(...arguments);
     try { this.update_selected(); } catch (e) { /* board list stays empty */ }
     try { this.checkForBlankSlate(); } catch (e) { /* offline list stays empty */ }
+    try { this.reload_logs(); } catch (e) { /* sessions + badges stay empty */ }
   },
 
   // NOTE: deliberately NOT named `user`. index.hbs passes `@user={{this.user}}`,
