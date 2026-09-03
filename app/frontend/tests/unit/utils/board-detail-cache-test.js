@@ -121,6 +121,29 @@ module('Unit | Utility | board-detail-cache', function(hooks) {
     assert.notOk(forced.ordered_buttons, 'force clears ordered_buttons');
   });
 
+  test('prefetch_boards fetches uncached drawer boards and skips fresh ones', function(assert) {
+    /* The Board Collection drawer lists boards that prefetch_linked never covers (it walks the
+       CURRENT board's folder targets). Without this, switching from the drawer paid full
+       network latency for every symbol and the grid filled in tile by tile. */
+    assert.expect(3);
+    var done = assert.async();
+    var requested = [];
+    stubBoardDetailCacheAjax(function(url) {
+      requested.push(url);
+      return RSVP.resolve({ board: { key: 'user/cold', id: '1_5', buttons: [], image_urls: {} } });
+    });
+    boardDetailCache.set({ key: 'user/warm', id: '1_4', buttons: [] });
+
+    boardDetailCache.prefetch_boards(['user/warm', 'user/cold', null]).then(function() {
+      assert.strictEqual(requested.length, 1, 'exactly one fetch — the cached board is not refetched');
+      assert.strictEqual(requested[0], '/api/v1/boards/user/cold', 'and it is the uncached one');
+      return boardDetailCache.prefetch_boards([]);
+    }).then(function() {
+      assert.strictEqual(requested.length, 1, 'an empty list is a no-op');
+      done();
+    });
+  });
+
   test('ingest_tree with warm_root_images false still caches descendants without replacing a fresh root', function(assert) {
     var origStore = LingoLinq.store;
     var pushed = [];

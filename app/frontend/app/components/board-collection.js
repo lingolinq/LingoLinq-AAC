@@ -6,6 +6,7 @@ import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import { filterRootBoards, dedupeByName, boardsPagePreferUserNames } from '../utils/board-roots';
 import { filterBrandRoots } from '../utils/board-brands';
+import boardDetailCache from '../utils/board_detail_cache';
 /* Brand families (CommuniKate / Quick Core / Sequoia / Vocal Flair) — the
    `query`/`root_re`/`test` metadata now lives in the shared util so the
    Find Boards grid grouping and this panel classify brands identically.
@@ -210,6 +211,32 @@ export default Component.extend({
       // rows stay stable as later pages append below the fold. Shared component, so this
       // speeds up BOTH the speak-mode and edit-mode collection drawers.
       _this.set('my_boards_state', { state: 'loaded', boards: _this._sortMyBoards(next) });
+      /* Warm the symbols of the boards this drawer OFFERS, so picking one paints a complete
+         grid instead of filling in tile by tile.
+         routes/user/board-detail.js already prefetches + warms the current board's folder
+         targets (`prefetch_linked`), which is why opening a folder is instant. The drawer
+         lists a different set entirely — and it is where a board SWITCH comes from — so it
+         got none of that and paid full network latency for every symbol on arrival.
+         Deferred so it never competes with painting the rows the user is looking at, and
+         bounded by the cache's own MAX_PREFETCH. Passing prefs is best-effort: when they are
+         unavailable warm_images falls back to the user's display prefs itself. */
+      /* Plain setTimeout, not runLater: ember-lifeline (which the no-runloop rule points at)
+         is not a dependency here, and adding one for a background prefetch is not worth it.
+         The handle is cleared in willDestroyElement below, so it cannot outlive the drawer —
+         the same pattern the prediction freeze tick uses. */
+      if (_this._prefetch_timer) { clearTimeout(_this._prefetch_timer); }
+      _this._prefetch_timer = setTimeout(function() {
+        _this._prefetch_timer = null;
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        var boards = (_this.get('my_boards_state') || {}).boards || [];
+        boardDetailCache.prefetch_boards(boards.map(function(b) {
+          return (b && b.get && b.get('key')) || (b && b.key);
+        }), {
+          skin: _this.get('app_state.referenced_user.preferences.skin'),
+          preferred_symbols: _this.get('app_state.referenced_user.preferences.preferred_symbols')
+        });
+      }, 600);
+
       var meta = null;
       try { meta = _this.get('persistence') && _this.get('persistence').meta('board', data); } catch (e) { meta = null; }
       if (meta && meta.more) {
@@ -551,6 +578,14 @@ export default Component.extend({
       }
       runLater(_this, done, 8000);
     }
+  },
+
+  willDestroyElement() {
+    if (this._prefetch_timer) {
+      clearTimeout(this._prefetch_timer);
+      this._prefetch_timer = null;
+    }
+    this._super(...arguments);
   },
 
   init() {

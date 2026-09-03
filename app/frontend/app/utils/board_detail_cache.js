@@ -726,6 +726,51 @@ export default {
     });
   },
 
+  /* Prefetch + warm an EXPLICIT list of boards: the ones offered in the Board Collection
+     drawer. prefetch_linked already covers the folder targets reachable from the current
+     board, which is why opening a folder is instant — but the drawer lists a DIFFERENT set
+     (My Boards, Quick Core, brand rows), and that is where a board SWITCH comes from. Nothing
+     warmed those, so every switch paid full network latency for every symbol and the grid
+     popped in tile by tile.
+     Deliberately the same pipeline as prefetch_linked rather than a parallel one: same
+     freshness check, same _inflight de-dupe (so it cannot double-fetch a board the linked
+     prefetch is already pulling), same MAX_PREFETCH bound, same batched warm. Best-effort —
+     never rejects, and a board already fresh in the cache is warmed without a refetch. */
+  prefetch_boards: function(lookups, opts) {
+    opts = opts || {};
+    var _this = this;
+    if (persistence && persistence.get && persistence.get('online') === false) {
+      return RSVP.resolve();
+    }
+    var max = opts.max || MAX_PREFETCH;
+    var fetched = 0;
+    var promises = [];
+    (lookups || []).forEach(function(lookup) {
+      if (!lookup) { return; }
+      var existing = _lookup(lookup);
+      if (existing && _is_fresh(existing)) {
+        if (existing.raw) { _this.warm_images(existing.raw, opts); }
+        return;
+      }
+      if (_inflight[lookup]) { promises.push(_inflight[lookup]); return; }
+      if (fetched >= max) { return; }
+      fetched++;
+      var p = persistence.ajax('/api/v1/boards/' + lookup, { type: 'GET' }).then(function(data) {
+        delete _inflight[lookup];
+        var board_raw = normalize_board_payload(data);
+        if (board_raw) {
+          _this.set(board_raw);
+          _this.warm_images(board_raw, opts);
+        }
+      }, function() {
+        delete _inflight[lookup];
+      });
+      _inflight[lookup] = p;
+      promises.push(p);
+    });
+    return RSVP.all(promises).then(function() { }, function() { });
+  },
+
   _run_prefetch_pipeline: function(user, warm_opts, pipeline_opts) {
     var _this = this;
     var user_id = user.get('id');
