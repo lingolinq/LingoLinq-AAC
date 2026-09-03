@@ -87,6 +87,7 @@ import 'frontend/tests/unit/components/button-set-action-vocalization-test';
 import 'frontend/tests/unit/components/board-icon-pick-behavior-test';
 import 'frontend/tests/unit/components/board-density-defaults-test';
 import 'frontend/tests/unit/components/boards-layout-toggle-test';
+import 'frontend/tests/unit/components/view-switcher-availability-test';
 import 'frontend/tests/unit/helpers/break-on-separators-test';
 import 'frontend/tests/unit/helpers/letter-stagger-test';
 import 'frontend/tests/unit/utils/dashboard-sections-test';
