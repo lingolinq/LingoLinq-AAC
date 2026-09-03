@@ -349,7 +349,7 @@ describe('RegisterController', 'controller:register', function() {
     controller.set('model.email', 'person@example.com');
     expect(controller.get('emailStepSignupDisabled')).toEqual(true);
 
-    controller.set('model.password', 'secret6');
+    controller.set('model.password', 'secret68');
     expect(controller.get('emailStepSignupDisabled')).toEqual(false);
   });
 

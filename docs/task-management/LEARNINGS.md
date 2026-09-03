@@ -217,6 +217,7 @@ file (see [README.md](README.md)).
 - [Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller](#pattern-a-body-attribute-published-by-a-self-contained-component-is-the-cross-component-channel--observe-it-dont-widen-a-shared-controller)
 - [Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it](#pattern-a-mobile-select-standing-in-for-a-desktop-tab-row-must-mirror-it-optgroup-not-flatten-it)
 - [Sourcing external requirements (payer/clinical/legal) — 2026-08-25](#sourcing-external-requirements-payerclinicallegal--2026-08-25)
+- [Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there](#gotcha-generate_password-is-also-the-login-rehash-path--do-not-length-check-plaintext-there)
 - [Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam](#gotcha-a-new-scannerfind_elem-call-in-start-must-be-guarded--the-specs-stub-that-seam)
 - [Gotcha: modal scanning needs both `.modal_targets .btn` markup AND `scannable: true`](#gotcha-modal-scanning-needs-both-modal_targets-btn-markup-and-scannable-true)
 - [Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell](#pattern-loading-states-for-an-aac-prediction-panel--never-blank-delay-the-cue-dim-dont-spin-and-dont-swap-under-a-dwell)
@@ -15879,6 +15880,20 @@ type the same as a missing one (derive `code` if a file is present). That strict
 matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
 
 ---
+
+## Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there
+
+`Passwords#generate_password` is called from `valid_password?` after a successful login to
+re-hash outdated or newly-prehashed credentials (`passwords.rb` ~266-271). A length check
+inside `generate_password` would 500 existing 6-character accounts on login. Enforce NIST 8
+on user-supplied writes only (`process_params`, valet enable, eval-reset) and skip already
+`hashed?:#` values. Existing short passwords keep working until the user changes them.
+Specs that *write* a password through those user-supplied paths still need 8+ characters
+(`bacon`, `chicken`, `gemini` are all too short and fail as `"password too short"`).
+The Ember register gate (`emailStepSignupDisabled` at `register.js:351`) is the same:
+`secret6` is 7 characters and leaves the submit button disabled.
+
+**First seen in:** [2026-08-31-findings-triage-queue.md](./2026-08-31-findings-triage-queue.md) (LL-5617f4e17d)
 
 ## Gotcha: modal scanning needs both `.modal_targets .btn` markup AND `scannable: true`
 

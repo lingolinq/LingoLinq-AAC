@@ -168,11 +168,11 @@ export default Controller.extend({
       var user = this.get('model');
       user.set('preferences.progress.profile_edited', true);
       var _this = this;
-      if(user.get('password') && user.get('password').length < 6) {
-        modal.error(i18n.t('short_password_warning', "Password must be at least 6 characters long"));
+      if(user.get('password') && user.get('password').length < 8) {
+        modal.error(i18n.t('short_password_warning_8', "Password must be at least 8 characters long"));
         return;
-      } else if(user.get('valet_login') && (user.get('valet_password') || '').length > 0 && (user.get('valet_password') || '').length < 6) {
-        modal.error(i18n.t('short_valet_password', "Valet Password must be at least 6 characters long"));
+      } else if(user.get('valet_login') && (user.get('valet_password') || '').length > 0 && (user.get('valet_password') || '').length < 8) {
+        modal.error(i18n.t('short_valet_password_8', "Valet Password must be at least 8 characters long"));
         return;
       } else if(user.get('valet_login') && !user.get('valet_password_set') && (user.get('valet_password') || '').length == 0) {
         modal.error(i18n.t('valet_password_required', "Valet Password must be set to enable valet login"));

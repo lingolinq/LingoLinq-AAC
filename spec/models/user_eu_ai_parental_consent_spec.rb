@@ -7,7 +7,7 @@ describe 'User EU AI parental consent', type: :model do
     User.process_new({
       'name' => "eu_minor_#{suffix}",
       'email' => "eu_minor_#{suffix}@example.com",
-      'password' => 'abcdef',
+      'password' => 'abcdefgh',
       'terms_agree' => true,
       'country' => 'DE',
       'under_16' => true,
@@ -20,7 +20,7 @@ describe 'User EU AI parental consent', type: :model do
       u = User.process_new({
         'name' => 'eu_reg',
         'email' => 'eu_reg@example.com',
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'country' => 'de',
         'under_16' => true,
@@ -39,7 +39,7 @@ describe 'User EU AI parental consent', type: :model do
       u = User.process_new({
         'name' => 'us_under16',
         'email' => 'us_under16@example.com',
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'country' => 'US',
         'under_16' => true
@@ -60,7 +60,7 @@ describe 'User EU AI parental consent', type: :model do
       u = User.process_new({
         'user_name' => "eu_pi_#{Time.now.to_i}",
         'email' => "eu_pi_#{Time.now.to_i}@example.com",
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'country' => 'DE',
         'under_16' => true,
@@ -80,7 +80,7 @@ describe 'User EU AI parental consent', type: :model do
       u = User.process_new({
         'name' => 'bad_country',
         'email' => 'bad_country@example.com',
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'country' => 'Germany',
         'under_16' => true

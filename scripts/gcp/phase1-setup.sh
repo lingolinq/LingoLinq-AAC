@@ -324,7 +324,10 @@ fi
 # would never reach an already-created provider and a stale/wrong lock would persist silently.
 # (PR #353 adversary review - the "re-runs are safe" claim was overstated for this resource.)
 WIF_MAPPING="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id"
-WIF_CONDITION="assertion.repository_owner_id == '${GH_OWNER_ID}' && assertion.repository_id == '${GH_REPO_ID}' && assertion.repository == '${GH_REPO}'"
+# Must match the live production provider (verified 2026-08-30). This script
+# unconditionally reconciles via update-oidc, so omitting the ref lock would
+# silently strip it from prod on any Phase 1 re-run (LL-1e7b568ef3).
+WIF_CONDITION="assertion.repository_owner_id == '${GH_OWNER_ID}' && assertion.repository_id == '${GH_REPO_ID}' && assertion.repository == '${GH_REPO}' && assertion.ref == 'refs/heads/main' && assertion.ref_type == 'branch'"
 if gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
      --project="$PROJECT_ID" --location=global --workload-identity-pool="$WIF_POOL" >/dev/null 2>&1; then
   echo "    reconciling existing WIF provider attribute-mapping + condition"

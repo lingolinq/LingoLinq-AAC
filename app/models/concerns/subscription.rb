@@ -642,7 +642,11 @@ module Subscription
         self.settings['subscription']['eval_expires'] = Date.parse(opts['expires']).iso8601 rescue nil
       end
       if !opts['password'].blank?
-        self.generate_password(opts['password'])
+        if password_meets_minimum?(opts['password'])
+          self.generate_password(opts['password'])
+        else
+          add_processing_error("password too short")
+        end
       end
       org_link = Organization.attached_orgs(self, true).detect{|o| o['type'] == 'user' && o['eval'] && !o['pending']}
       org = org_link && org_link['org']

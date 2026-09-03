@@ -2994,8 +2994,8 @@ describe Subscription, :type => :model do
       u.save
       d = Device.create(user: u)
       u.settings['subscription'] = {'eval_account' => true}
-      u.reset_eval(d.global_id, {'password' => 'bacon'})
-      expect(u.valid_password?('bacon')).to eq(true)
+      u.reset_eval(d.global_id, {'password' => 'bacon123'})
+      expect(u.valid_password?('bacon123')).to eq(true)
     end
 
   

@@ -1219,23 +1219,23 @@ describe User, :type => :model do
       u.settings = {}
       u.settings['password'] = {}
       expect(u.process_params({
-        'password' => 'chicken'
+        'password' => 'chickens'
       }, {}) ).to eq(false)
       expect( u.processing_errors ).to eq(["incorrect current password"])
       u.instance_variable_set('@processing_errors', [])
 
       expect( u.process_params({
-        'password' => 'chicken',
-        'old_password' => 'bacon'
+        'password' => 'chickens',
+        'old_password' => 'bacon123'
       }, {}) ).to eq(false)
       expect( u.processing_errors ).to eq(["incorrect current password"])
       
       u.generate_password('horseradish')
       expect { u.process_params({
-        'password' => 'chicken',
+        'password' => 'chickens',
         'old_password' => 'horseradish'
       }, {}) }.to_not raise_error
-      expect(u.valid_password?('chicken')).to eq(true)
+      expect(u.valid_password?('chickens')).to eq(true)
       
       expect { u.process_params({
         'password' => 'chicken-little'
@@ -1263,13 +1263,13 @@ describe User, :type => :model do
       u.save!
       expect(u.valet_mode?).to eq(false)
       res = u.process_params({
-        'password' => 'chicken',
+        'password' => 'chickens',
         'old_password' => 'horseradish',
         'valet_login' => 'false'
       }, {'updater' => u})
       expect(u.processing_errors).to eq([])
       expect(res).to_not eq(false)
-      expect(u.valid_password?('chicken')).to eq(true)
+      expect(u.valid_password?('chickens')).to eq(true)
       # valet mode must NOT have been silently enabled by the falsey string
       expect(u.valet_mode?).to eq(false)
       expect(u.settings['valet_password']).to eq(nil)
@@ -1278,7 +1278,7 @@ describe User, :type => :model do
     it "should still disable valet when valet_login is boolean false" do
       u = User.create
       u.generate_password('horseradish')
-      u.process_params({'valet_login' => true, 'valet_password' => 'gemini'}, {'updater' => u})
+      u.process_params({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
       u.save!
       expect(u.settings['valet_password']).to_not eq(nil)
       u.process_params({'valet_login' => false}, {'updater' => u})
@@ -1296,9 +1296,9 @@ describe User, :type => :model do
         u.generate_password('horseradish')
         u.save!
         expect(AuditEvent.count).to eq(0)
-        expect(u.process_params({'password' => 'chicken', 'old_password' => 'horseradish'}, {})).to_not eq(false)
+        expect(u.process_params({'password' => 'chickens', 'old_password' => 'horseradish'}, {})).to_not eq(false)
         u.save!
-        expect(u.valid_password?('chicken')).to eq(true)
+        expect(u.valid_password?('chickens')).to eq(true)
         expect(AuditEvent.count).to eq(1)
         ae = AuditEvent.last
         expect(ae.user_key).to eq(u.global_id)
@@ -1813,10 +1813,10 @@ describe User, :type => :model do
     it  "should correctly set a new valet login password" do
       u = User.create
       expect(u.settings['valet_password']).to eq(nil)
-      u.process({'valet_login' => true, 'valet_password' => 'gemini'}, {'updater' => u})
+      u.process({'valet_login' => true, 'valet_password' => 'gemini12'}, {'updater' => u})
       expect(u.settings['valet_password']).to_not eq(nil)
       u.assert_valet_mode!
-      expect(u.valid_password?('gemini')).to eq(true)
+      expect(u.valid_password?('gemini12')).to eq(true)
     end
 
     it "should update private logging settings only if done by the actual user" do

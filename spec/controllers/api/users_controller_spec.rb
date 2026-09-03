@@ -516,6 +516,19 @@ describe Api::UsersController, :type => :controller do
       post :update, params: {:id => u.global_id, :reset_token => token, :user => {'password' => '98765432'}}
       assert_unauthorized
     end
+
+    it "should reject a short password on reset (LL-5617f4e17d)" do
+      u = User.create
+      u.generate_password('oldpass1')
+      u.save
+      u.generate_password_reset
+      token = u.reset_token_for_code(u.password_reset_code)
+      post :update, params: {:id => u.global_id, :reset_token => token, :user => {'password' => '1234567'}}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['errors']).to include("password too short")
+      expect(u.reload.valid_password?('oldpass1')).to eq(true)
+    end
     
     it "should let admins reset passwords for users" do
       token_user
@@ -524,9 +537,9 @@ describe Api::UsersController, :type => :controller do
       o.add_manager(@user.user_name, true)
       o.add_user(u.user_name, false)
       
-      post :update, params: {:id => u.global_id, :reset_token => 'admin', :user => {'name' => 'fred', 'password' => '2345654'}}
+      post :update, params: {:id => u.global_id, :reset_token => 'admin', :user => {'name' => 'fred', 'password' => '23456540'}}
       expect(response).to be_successful
-      expect(u.reload.valid_password?('2345654')).to eq(true)
+      expect(u.reload.valid_password?('23456540')).to eq(true)
       # The reset path must ignore the other params it was sent, so `name`
       # stays as it was -- unset, since signup never collected one.
       expect(u.settings['name']).to eq(nil)
@@ -832,6 +845,13 @@ describe Api::UsersController, :type => :controller do
       expect(response).to be_successful
     end
 
+    it "should reject a short password on create (LL-5617f4e17d)" do
+      post :create, params: {:user => adult_birth_params('name' => 'fred', 'password' => '1234567')}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['errors']).to include("password too short")
+    end
+
     it "should provision default library boards on signup when enabled" do
       expect(UserBoardProvisioner).to receive(:provision_for).and_return([])
       post :create, params: {:user => adult_birth_params('name' => 'fred')}
@@ -926,7 +946,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'school_kid_both_events',
           'email' => 'school_kid_both_events@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
@@ -961,7 +981,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid_blank_org',
           'email' => 'kid_blank_org@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => '',
           'coppa_under_13' => true,
@@ -979,7 +999,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_supporter',
           'email' => 'kid_supporter@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'parent_supporter@example.com',
@@ -1002,7 +1022,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid',
           'email' => 'kid_coppa@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'parent_coppa@example.com'
@@ -1023,7 +1043,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid_dash',
           'email' => 'kid_dash@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa-under-13' => true,
           'parent-consent-email' => 'parent_dash@example.com',
@@ -1042,7 +1062,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid_camel',
           'email' => 'kid_camel@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppaUnder13' => true,
           'parentConsentEmail' => 'parent_camel@example.com',
@@ -1060,7 +1080,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid2',
           'email' => 'kid2@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => true
         }.merge(child_birth)}
@@ -1073,7 +1093,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid3',
           'email' => 'same@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'same@example.com'
@@ -1087,7 +1107,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid4',
           'email' => 'kid4@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'parent4@example.com'
@@ -1108,7 +1128,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid_bogus_org',
           'email' => 'kid_bogus_org@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => 'invalid_org_999',
           'coppa_under_13' => true
@@ -1122,7 +1142,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_no_birth',
           'email' => 'no_birth@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true
         }}
         expect(response).not_to be_successful
@@ -1134,7 +1154,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_adult_flag',
           'email' => 'adult_flag@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'parent_ignored@example.com'
@@ -1151,7 +1171,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_child_no_flag',
           'email' => 'child_no_flag@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => false,
           'parent_consent_email' => 'parent_from_birth@example.com'
@@ -1170,7 +1190,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid_unauth_org',
           'email' => 'kid_unauth_org@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
@@ -1187,7 +1207,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'school_kid',
           'email' => 'school_kid@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
@@ -1218,7 +1238,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'assistant_authored_kid',
           'email' => 'assistant_kid@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
@@ -1238,7 +1258,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'audit_fail_kid',
           'email' => 'audit_fail_kid@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
