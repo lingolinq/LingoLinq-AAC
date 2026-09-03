@@ -230,3 +230,86 @@ consumption cases now go through a second instance's `init`, which is the real p
 | 4 | Real-time boundary assertion in the due-cap case | CONFIRMED: 80 ms cap vs a 30 ms sleep before `expect(runs).toEqual(0)` | Done, but the assertion is KEPT (it is what makes the never-hold mutation redden this case); the cap is 400 ms in that case so the margin before the first assertion is 370 ms. |
 | 5 | Run targeted + broader tests, CI | | guided-tour 17/17; neighbouring suites below; lint gate below; CI on the pushed head. |
 | 6 | Re-review, approve, merge | | Scot's call. |
+
+### Round 3: two unresolved Codex review threads on 6738ffbda (Scot, 2026-09-03)
+P1 (`guided-tour.js:644`): the 5 s due cap releases the tour while `sessionEntryGatePending(subject)` is still true,
+so a delayed notice opens after the tour started. P2 (`:658`): the navbar instance persists across most
+authenticated routes (`controllers/application.js:2324-2363`), so a deferred resume can run on a different route
+(`user.extras` -> immediate board-picker redirect; `caseload` -> that page's tour with the home handoff).
+
+#### Fact sheet (rule 13)
+- (a) READ. P1: the cap is read only in `_art50NoticeHoldsAutoOpen` (`:640-645`): open -> hold; pending and
+  elapsed < cap -> hold; pending and elapsed >= cap -> release. CONFIRMED. P2: the resume is `_runAutoOpen`
+  (`:656`), which reads `appState.currentUser.supporter_role` and schedules `_startHomeAutoOpen` on afterRender;
+  neither reads the route. `_startHomeAutoOpen` reads `tourBuilder`, a computed on `appState.current_route`
+  (`:298`), so a foreign route yields null -> immediate `transitionTo('board-picker')` (`:672`). CONFIRMED.
+- (b) SHAPES. `sessionEntryGatePending` = `really_fresh && needsAcknowledgement` (`article50_gate.js:233-236`);
+  `really_fresh` = `retrieved` within 30 s, recomputed on `appState.short_refresh_stamp`
+  (`models/base.js:54-58`), which ticks every 500 ms outside tests (`app-state.js:4958-4980`). So "pending" is
+  bounded at ~30 s after the model was fetched; the notice itself opens only through the same predicate
+  (`maybeShowSessionEntryGate`, `article50_gate.js:245`), so a still-pending gate means a notice CAN still open,
+  and an expired one means it cannot. Routes at resume: the gated flow parks BOTH roles on `user.home`
+  (`routes/index.js:70-77`: supporters go to caseload only when no gate is pending); `user.home` is the only
+  route with a home tour (`utils/tours/registry.js:27`). CONFIRMED.
+- (c) CROSS-FILE. `appState.current_route` is written in `global_transition` (`app-state.js:745`), which runs
+  from the `routeWillChange` listener (`routes/application.js:110-139`); router_js fires `routeWillChange`
+  synchronously inside transition creation (`ember-source/.../shared-chunks/router-DrLZsJeE.js:757`, before the
+  promise chain), so `current_route` already names the destination the moment `transitionTo` returns. The six
+  writers that raise the flag and then call `return_to_index()` (getting-started.js:90-91, subscribe.js:91-92,
+  :99-100, controllers/*, authenticated-view.js:1701-1702) therefore see `current_route === 'user.home'` by
+  afterRender (`return_to_index` -> `transitionTo('user.home', ...)`, `app-state.js:909-917`). CONFIRMED.
+
+#### Proposals (rule 12)
+P1-A (preferred): remove `art50_tour_due_max_ms`; hold while `modal.is_open('ai-disclosure') ||
+sessionEntryGatePending(subject)`. The 30 s freshness window is the bound, and it is the SAME bound the notice
+has, so releasing when pending clears is exactly "release when no notice can still open".
+P1-B: keep the cap but cancel the attempt (no tour, no handoff) when pending outlives it. Rejected: drops the
+onboarding handoff for a transient delay (blocked main thread), the loss the earlier High fixed.
+P1-C: keep the cap and re-check pending once before running. Rejected: same time-of-check window, just moved.
+Risk seen: a re-fetched model re-arms `really_fresh` for another 30 s (a second hold, bounded). In tests the
+stamp never ticks (`if(!this.get('testing'))`), but the tests stub the predicate directly.
+Tests: "keeps holding while the gate stays pending, with no time cap" (pending 200 ms at a 10 ms poll -> 0,
+then clears -> 1); "a notice that opens late is still honoured" (pending, then open after the old cap -> 0, close
+-> 1). Mutation that must fail them: re-introduce a release after N ms of pending.
+
+P2-A (preferred): `_runAutoOpen` schedules ONE afterRender step, `_startAutoOpen`, which cancels the attempt
+(clears `_autoOpenDeferring`, no tour, no handoff, no re-arm) unless `appState.current_route === 'user.home'`,
+then branches supporter -> caseload / else -> `_startHomeAutoOpen`. Uniform for the held and never-held paths;
+the writer flows pass because routeWillChange is synchronous (fact (c)); a deferred resume after the user left
+home is cancelled instead of yanking them to board-picker or starting a foreign tour with the home handoff.
+P2-B: capture the origin route at scheduling and compare at resume. Rejected: the watcher consumes the flag
+synchronously inside the writer's `set`, BEFORE `return_to_index`, so a hold started on getting-started/subscribe
+would resume on user.home and be falsely cancelled.
+P2-C: observer on `current_route` that cancels mid-hold. Rejected: same false cancel for the in-flight
+return_to_index transition, and for the boot-time index -> user.home replaceWith.
+P2-D: re-arm on route change. Rejected: resumes on the new route, which is the yank P2 describes.
+Risk seen: a supporter who acks and clicks Caseload before the next poll loses the auto caseload tour (they can
+start it from the navbar trigger); a communicator who leaves home loses the auto tour + handoff, by design.
+Question not resolved: whether any legitimate writer raises the flag on a route that never transitions to
+user.home (grep says all six either sit on the dashboard or call `return_to_index`).
+Tests (real `_runAutoOpen`, `_startHomeAutoOpen`/`_startCaseloadAutoOpen` replaced by counters): "cancels the
+resume when the route is not user.home after a hold" (0 starts, deferring false); "resumes on user.home" (1);
+"never-held path also requires user.home at afterRender" (route foreign -> 0; user.home -> 1). Mutation that
+must fail them: drop the route check (foreign-route cases red); the existing real-handoff case sets
+`current_route` to user.home.
+
+#### Round-3 adversary review of the proposals (agent `art50-tour-round3-adversary`, SHA 6738ffbda) and outcome
+| # | Finding | My check | Decision |
+|---|---|---|---|
+| High | P2-A equality with `user.home` cancels two live consumption routes: supporters who boot to `caseload` (`routes/index.js:70-75`, sessionStorage consumed there) and `bento`, the second gate host (`routes/bento.js:64,78`); it also makes `guided-tour.js` `current_route === 'caseload'` in `_startCaseloadAutoOpen` dead | CONFIRMED | Allowlist `_autoOpenRouteAllowed(route, supporter)`: `user.home` / `index` / `bento` for everyone, `caseload` for supporters; handoff kept on a gate host with no tour. Tests: bento resumes; allowlist table; foreign route cancels. |
+| High | P1-A's only bound (really_fresh, 30 s) does not tick under `testing` (`app-state.js:4923`), so an uncapped hold hangs a suite that reaches the real predicate | CONFIRMED | Ceiling KEPT and raised to 35 s (> the 30 s window, so in production it fires only when the predicate is stuck). At the ceiling the attempt is CANCELLED, not started (Codex's second option), because a gate that still reads pending could still open the notice. Tests: stuck gate cancelled; default ceiling > 30 s. |
+| Medium | "pending cleared = no notice can open" is false: `presentBlockingGate` (`article50_gate.js:169-172`) opens the notice on `needsAcknowledgement` alone | CONFIRMED | Comment states the rule as "a session-entry notice is still due, or one is open" and names the blocking gate as covered by `is_open`. |
+| Medium | Where `_autoOpenDeferring` clears decides whether a teardown in the afterRender gap re-arms a second tour | CONFIRMED (`willDestroy` re-arms on the flag) | Cleared first thing in `_runAutoOpen`, before the afterRender step; `_startAutoOpen` only returns on cancel. |
+| Medium | The sessionStorage twin `ll_auto_open_home_tour` is removed only on the flag-false branch (`:1319`); beta-welcome-mode sets both, so the key survives and re-fires on the next navbar mount, and crosses accounts on SPA sign-out | CONFIRMED (grep: two setters, one remover) | Removed in `_consumeAutoOpenSignal` and in `clear_user_state`; two tests, each with its own mutation. |
+| Low | Housekeeping: delete the contradicted due-cap test, fix the comment, rebaseline | | Done. |
+| Answers | Writers: TEN, not six (adds controllers/user/index.js:1455, routes/register.js:111, beta-welcome-mode.js:47, controllers/terms-agree.js:37); all land on `user.home`, `bento`, or (supporter boot) `caseload`. `user.home` is the exact leaf name (`router.js:128-129`, `routes/application.js:126-131`). One extra afterRender before the caseload transition is harmless and improves re-entrancy. The `user.home`-resume tests are hollow against the fix; the foreign-route halves are not. | Accepted. The real-handoff case moved to `index` (gate host without a tour). | |
+
+Test-design note: raising `art50_tour_due_max_ms` inside a case cannot distinguish the old 5 s default from the new
+35 s, so the value is pinned by a case that reads the default off a fresh instance (`> 30000`).
+
+#### Round-3 results
+- guided-tour suite 26/26. Mutations (restore by copy, `cmp` verified): ceiling starts instead of cancels -> only
+  the stuck-gate case; ceiling removed -> only the stuck-gate case (deferring stays true); route check removed ->
+  the two foreign-route cases; allowlist collapsed to `user.home` -> real-handoff (`index`), bento, allowlist
+  table; default ceiling 5000 -> only the default-pin case; sessionStorage removal dropped in consume / in
+  sign-out -> only the matching case. Commit 153cff674.
