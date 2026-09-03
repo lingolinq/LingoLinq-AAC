@@ -74,7 +74,7 @@ post-cutover go.
 |---------|-----|--------|-----|----------|
 | lingolinq-prod | srv-d510bsemcj7s73966i60 | main | https://lingolinq-prod.onrender.com | lingolinq-prod-db (write-frozen fallback) |
 | lingolinq-dev | srv-d510c5emcj7s73966pug | develop | https://lingolinq-dev.onrender.com | lingolinq-dev-staging-db |
-| lingolinq-staging | srv-d510c13e5dus73c8lg10 | clean-release | https://lingolinq-staging.onrender.com | lingolinq-dev-staging-db |
+| lingolinq-staging | srv-d510c13e5dus73c8lg10 | staging | https://lingolinq-staging.onrender.com | lingolinq-dev-staging-db |
 
 ### Background Workers
 | Service | ID | Branch | Database | REDIS_NAMESPACE_SUFFIX |

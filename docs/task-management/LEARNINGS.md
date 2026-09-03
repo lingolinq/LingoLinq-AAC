@@ -53,6 +53,10 @@ file (see [README.md](README.md)).
 - [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
 - [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
 - [Gotcha: public COPPA signup is classified from birth month/year, not the client flag](#gotcha-public-coppa-signup-is-classified-from-birth-monthyear-not-the-client-flag)
+- [Gotcha: the COPPA birth-data gate must use the same org-author predicate as process_params](#gotcha-the-coppa-birth-data-gate-must-use-the-same-org-author-predicate-as-process_params)
+- [Gotcha: SHA-512 prehashes are always long — reject the hashed prefix on write](#gotcha-sha-512-prehashes-are-always-long--reject-the-hashed-prefix-on-write)
+- [Gotcha: unique-index `update_all` plus `rescue nil` drops the whole transfer](#gotcha-unique-index-update_all-plus-rescue-nil-drops-the-whole-transfer)
+- [Gotcha: create-board label caches are keyed by label text, not locale](#gotcha-create-board-label-caches-are-keyed-by-label-text-not-locale)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
 - [Gotcha: an export-claim release must match the stamp this attempt wrote](#gotcha-an-export-claim-release-must-match-the-stamp-this-attempt-wrote)
 - [Gotcha: decline page state on revisit must re-read scheduled_at, not only declined_at](#gotcha-decline-page-state-on-revisit-must-re-read-scheduled_at-not-only-declined_at)
@@ -16436,3 +16440,27 @@ Teardown timing that the same branch had to get right: `willDestroy` is a NON-ea
 A successful offboarding decline whose export failed still writes `parent_consent_declined_at`. The first POST can render `:declined_export_pending` from `decline_outcome_state`, but a later GET/POST that keys only on `declined_at` shows `:already_declined` and tells the parent the account is scheduled for export and deletion. For declined offboarding, keep `:declined_export_pending` until `offboarding_export_scheduled_at` is present.
 
 **First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md) (PR #903).
+
+## Gotcha: the COPPA birth-data gate must use the same org-author predicate as process_params
+
+`@api_user.nil?` is the wrong skip. Any logged-in creator then omits birth, `age_under_threshold?` returns nil, and classification falls back to the client `coppa_under_13` flag. Share `User.validated_org_author(author, organization_id)` between `api/users#create` and `process_params`.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: SHA-512 prehashes are always long — reject the hashed prefix on write
+
+`password_meets_minimum?` returning true for `HASHED_PASSWORD` (or checking `length >= 8` on the hash string) does not enforce the original password length. A client can POST `hashed?:#sha512?:#` plus the digest of `"x"`. Login rehash does not call this method (`valid_password?` → `generate_password`). Reject prehashes on write; send plaintext from eval reset.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: unique-index `update_all` plus `rescue nil` drops the whole transfer
+
+`PredictionEntry` is unique on `(user_id, locale, prefix, next_word)`. One collision aborts the bulk `update_all`. `rescue nil` then looks like success, and a later `reset_eval` flush deletes the leftover source rows. Merge colliding scores, then move the rest.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: create-board label caches are keyed by label text, not locale
+
+`_label_english`, `_board_name_english`, `_label_colors`, and `_label_images` key only on the label string. Changing `model.locale` (supervisee switch or locale picker) without clearing them reuses the previous source language. Clear on 2-letter-root change and ignore in-flight writes from the old generation.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
