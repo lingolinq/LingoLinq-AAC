@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-09-02T22:36:25.585Z
+# Generated: 2026-09-03T02:29:55.590Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -202,6 +202,7 @@ app/components/focus-words.js|ember/require-computed-property-dependencies|321|2
 app/components/focus-words.js|ember/require-computed-property-dependencies|68|14|1|2842efb9082b
 app/components/grid-listener.js|ember/require-super-in-lifecycle-hooks|35|3|1|04fd54f45db7
 app/components/grid-listener.js|ember/require-super-in-lifecycle-hooks|42|3|1|04fd54f45db7
+app/components/guided-tour.js|ember/no-runloop|1273|7|2|513c0395fe72
 app/components/guided-tour.js|ember/no-runloop|451|9|2|5addc2170315
 app/components/guided-tour.js|ember/no-runloop|458|5|2|513c0395fe72
 app/components/guided-tour.js|ember/no-runloop|499|36|2|5addc2170315
@@ -210,16 +211,16 @@ app/components/guided-tour.js|ember/no-runloop|522|5|2|513c0395fe72
 app/components/guided-tour.js|ember/no-runloop|548|36|2|5addc2170315
 app/components/guided-tour.js|ember/no-runloop|571|9|2|5addc2170315
 app/components/guided-tour.js|ember/no-runloop|578|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|650|7|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|670|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|711|30|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|713|27|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|799|7|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|855|9|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|858|5|2|513c0395fe72
-app/components/guided-tour.js|ember/no-runloop|894|9|2|5addc2170315
-app/components/guided-tour.js|ember/no-runloop|897|5|2|513c0395fe72
-app/components/guided-tour.js|ember/require-super-in-lifecycle-hooks|1278|3|1|04fd54f45db7
+app/components/guided-tour.js|ember/no-runloop|655|30|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|675|5|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|716|30|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|718|27|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|804|7|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|860|9|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|863|5|2|513c0395fe72
+app/components/guided-tour.js|ember/no-runloop|899|9|2|5addc2170315
+app/components/guided-tour.js|ember/no-runloop|902|5|2|513c0395fe72
+app/components/guided-tour.js|ember/require-super-in-lifecycle-hooks|1287|3|1|04fd54f45db7
 app/components/inbox.js|ember/require-return-from-computed|93|43|1|8c8d53fa71e0
 app/components/integration.js|ember/require-super-in-lifecycle-hooks|6|3|1|04fd54f45db7
 app/components/la-mobile-drawer.js|ember/no-runloop|20|7|2|513c0395fe72
