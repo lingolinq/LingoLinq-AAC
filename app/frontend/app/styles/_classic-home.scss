@@ -1541,7 +1541,11 @@ button.ch-tile--silver:focus-visible {
     left: 0;
     right: 0;
     top: 50%;
-    transform: translateY(-50%);
+    // -50% centres it; the +2rem then drops it below centre (requested 2026-09-02).
+    // Still anchored to the CARD, so the offset is identical on every card in the row
+    // and they stay aligned — which is the whole reason this is not positioned relative
+    // to the text above or below it.
+    transform: translateY(calc(-50% + 2rem));
     height: auto;
     margin: 0;
     background: none;
@@ -1562,7 +1566,12 @@ button.ch-tile--silver:focus-visible {
   // the same place, and rotates it when open — the affordance the inline caret used to
   // carry. The inline caret is hidden here so the cue is not duplicated.
   .ch-tile--extras-toggle .ch-tile__rule::before { content: "\25BE"; }
-  .ch-tile--extras-toggle.is-open .ch-tile__rule { transform: translateY(-50%) rotate(180deg); }
+  .ch-tile--extras-toggle.is-open .ch-tile__rule {
+    // Must repeat the same offset as the base rule — `transform` replaces, it does not
+    // merge, so writing only the rotation here would snap the chevron back to centre the
+    // moment the drawer opened.
+    transform: translateY(calc(-50% + 2rem)) rotate(180deg);
+  }
   .ch-tile--big .ch-tile__toggle-caret { display: none; }
 
   .ch-tile--big .ch-tile__more {
