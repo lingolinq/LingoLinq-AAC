@@ -90,6 +90,7 @@ import 'frontend/tests/unit/components/boards-layout-toggle-test';
 import 'frontend/tests/unit/components/view-switcher-availability-test';
 import 'frontend/tests/unit/components/classic-view-auto-speak-test';
 import 'frontend/tests/unit/components/classic-view-observer-kick-test';
+import 'frontend/tests/unit/controllers/application-try-new-style-test';
 import 'frontend/tests/unit/helpers/break-on-separators-test';
 import 'frontend/tests/unit/helpers/letter-stagger-test';
 import 'frontend/tests/unit/utils/dashboard-sections-test';

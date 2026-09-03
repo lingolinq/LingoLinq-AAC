@@ -712,8 +712,17 @@ export default Controller.extend({
     // were in the modern shell while `board_view_style` still said 'classic', so
     // the next board they opened threw them back. Persist the choice, exactly as
     // the navbar View switch and the board's own Modern View button both do.
+    //
+    // Writes to `sessionUser`, NOT `currentUser`. This control renders only inside
+    // `{{#if this.app_state.speak_mode}}` (application.hbs:920), and in speak mode
+    // `set_current_user` reassigns `currentUser` to `speakModeUser`
+    // (services/app-state.js:2463) — so `currentUser` is the COMMUNICATOR, not the
+    // person tapping the menu. Writing there flipped and persisted an AAC user's own
+    // stored view because their supporter tried a different UI. `sessionUser` is the
+    // signed-in account and speak mode does not reassign it. When a communicator
+    // speaks as themselves the two are the same record, so that case is unchanged.
     goToNewStyle: function() {
-      var user = this.appState.get('currentUser');
+      var user = this.appState.get('sessionUser');
       if(user) { set_view_style(user, 'modern'); }
       var key = this.appState.get('currentBoardState.key');
       if(key && key.indexOf('/') !== -1) {
