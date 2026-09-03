@@ -1541,10 +1541,16 @@ button.ch-tile--silver:focus-visible {
     text-wrap: balance;
   }
 
-  // Understated directional cue, not a second button.
+  // Directional cue. Sized in `em` so it stays twice the statement's size if that ever
+  // changes, rather than a fixed px that would drift out of proportion.
+  // `line-height: 0` keeps the larger glyph from expanding the line box and pushing the
+  // statement's last line down; `vertical-align` then sits it back on the text baseline.
   .ch-tile--big .ch-tile__more::after {
     content: " \2192";
     opacity: 0.5;
+    font-size: 2em;
+    line-height: 0;
+    vertical-align: -0.18em;
   }
   // Extras opens a drawer rather than navigating, and already has its chevron.
   .ch-tile--extras-toggle .ch-tile__more::after { content: none; }
