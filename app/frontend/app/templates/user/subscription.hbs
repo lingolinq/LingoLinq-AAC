@@ -15,8 +15,8 @@
         <span class='glyphicon glyphicon-user' style="float: left; font-size: 30px; margin-right: 10px;"></span>
         {{t "<b>%{org}</b> wants to sponsor this user as part of their organization. This addition must be approved before it is complete." key="confirm_pending_org" org=this.model.pending_org.name}}
         <br><br>
-        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" true)}}>{{t "Approve %{org}" org=this.model.pending_org.name}}</button>
-        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" false)}}>{{t "Deny Access"}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" true)}}>{{t "Approve %{org}" key="approve_org" org=this.model.pending_org.name}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" false)}}>{{t "Deny Access" key="deny_access"}}</button>
       {{else}}
         <span class='glyphicon glyphicon-user' style="float: left; font-size: 30px; margin-right: 10px;"></span>
         {{t "Your account is being sponsored by the organization, <b>%{org}</b>. We hope everything is going well for you and %app_name% is making a difference!" key="org_managed" org=this.subscription.user.managing_org.name}}
