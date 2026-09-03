@@ -345,3 +345,29 @@ Test-design note: raising `art50_tour_due_max_ms` inside a case cannot distingui
 - Red test first: "does not re-arm when destroyed while waiting with no user signed in" was red on the unguarded code
   (only that case), green with the guard; the existing re-arm case now supplies a minimal `currentUser`. The
   falsification IS that pre-fix run: the mutation "drop the guard" is byte-identical to the state it ran against.
+- CI on 8cc4a170b: build-and-test COMPLETE (`# tests 2492 / # skip 38`) with one failure, `utterance set_button_list -
+  should properly handle + and : notations` (actual "can", expected "cans"). Not this branch: the previous run on
+  120bace82 (diff = the willDestroy guard, its test, baseline, task log) passed it; 4/4 locally in isolation. Order-
+  dependent pluralisation state; rerun via `gh run rerun --failed` (rule 10: complete run, different test, passes alone).
+
+### Round 5: Codex thread on 8cc4a170b (`_consumeAutoOpenSignal`, the sessionStorage twin)
+- Claim: removing `ll_auto_open_home_tour` at consumption breaks the reload fallback that `routes/register.js:103-112`
+  stores it for: a newly registered user who reloads WHILE the notice holds the tour loses appState and the re-arm,
+  and after the reload acknowledging the notice starts neither the tour nor the handoff. CONFIRMED; the init
+  sessionStorage branch (:1319) had the same loss before this PR, and the consume-time removal (round 3, adversary
+  Medium 5) extended it to the flag branch.
+- Fact sheet: setters register.js:107 and beta-welcome-mode.js:45 (both also set the flag); init checks the flag
+  before the key (`:1373`, `:1377`), so one branch runs. Removers were init :1319, `_consumeAutoOpenSignal`,
+  `clear_user_state`.
+- Proposal A (applied, adversary "proceed with two changes"): the key outlives consumption and the hold; removed by
+  `_clearAutoOpenStorageTwin` when the attempt resolves: at start (`_startAutoOpen`), at the ceiling cancel, at the
+  disallowed-route cancel, when a stale re-arm is dropped; kept on teardown (the reload fallback) including the
+  `_startAutoOpen` destroyed early-return, decided and documented; sign-out removal kept. Adversary's two changes:
+  (1) the re-render-swap case is documented in the init comment (a new instance may start a chain from the key
+  before the old instance re-arms the flag; the re-arm then hits the re-entrancy guard, one chain survives);
+  (2) the destroyed early-return is labelled as a teardown, key kept. B (re-write the key in willDestroy) and C
+  (document only) rejected.
+- Tests: five cases assert PRESENCE mid-hold then absence/presence after resolution (survives consumption then goes
+  at start; init's own branch keeps it until start; survives teardown mid-hold; goes at the ceiling cancel; goes at
+  the disallowed-route cancel); all five red on the previous code, green with the fix. Two labelled regression guards
+  (stale re-arm drops it; sign-out clears it).

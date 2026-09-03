@@ -629,19 +629,29 @@ export default Component.extend({
   // The one place appState.auto_open_home_tour is cleared (init and
   // _autoOpenWatcher both come here). A signal re-armed by willDestroy carries
   // auto_open_home_tour_rearmed_at; a fresh signal from any of its writers does
-  // not, and is always honoured. The sessionStorage twin (routes/register.js:107,
-  // services/beta-welcome-mode.js:45 set both) is cleared here as well, so a
-  // later navbar remount cannot fire the same signal a second time.
+  // not, and is always honoured. The sessionStorage twin is NOT removed here:
+  // routes/register.js:107 and services/beta-welcome-mode.js:45 set it alongside
+  // the flag as the reload fallback, and a reload while the notice is holding the
+  // tour discards appState and the willDestroy re-arm, so the key must outlive
+  // consumption. It goes when the attempt resolves (_clearAutoOpenStorageTwin
+  // callers) or on sign-out (app-state.js#clear_user_state). A stale re-arm is
+  // dropped here and takes the key with it, so it cannot re-fire on a later mount.
   _consumeAutoOpenSignal: function() {
     var appState = this.get('appState');
     appState.set('auto_open_home_tour', false);
+    var rearmedAt = appState.get('auto_open_home_tour_rearmed_at');
+    appState.set('auto_open_home_tour_rearmed_at', null);
+    if (rearmedAt && (Date.now() - rearmedAt) > this.get('art50_tour_rearm_max_ms')) {
+      this._clearAutoOpenStorageTwin();
+      return;
+    }
+    this._scheduleAutoOpen();
+  },
+
+  _clearAutoOpenStorageTwin: function() {
     try {
       if (window.sessionStorage) { sessionStorage.removeItem('ll_auto_open_home_tour'); }
     } catch (e) { /* sessionStorage unavailable */ }
-    var rearmedAt = appState.get('auto_open_home_tour_rearmed_at');
-    appState.set('auto_open_home_tour_rearmed_at', null);
-    if (rearmedAt && (Date.now() - rearmedAt) > this.get('art50_tour_rearm_max_ms')) { return; }
-    this._scheduleAutoOpen();
   },
 
   _scheduleAutoOpen: function() {
@@ -666,6 +676,7 @@ export default Component.extend({
   _cancelAutoOpen: function() {
     this._autoOpenDeferring = false;
     this._art50PollTimer = null;
+    this._clearAutoOpenStorageTwin();
   },
 
   _art50PollTimer: null,
@@ -708,9 +719,16 @@ export default Component.extend({
   },
 
   _startAutoOpen: function() {
+    // Torn down in the afterRender gap: treated as a teardown, so the storage
+    // twin is kept as the reload fallback (deliberate; _autoOpenDeferring is
+    // already false, so willDestroy does not re-arm the flag on this path).
     if (this.isDestroyed || this.isDestroying) { return; }
     var supporter = !!this.get('appState.currentUser.supporter_role');
-    if (!this._autoOpenRouteAllowed(this.get('appState.current_route'), supporter)) { return; }
+    if (!this._autoOpenRouteAllowed(this.get('appState.current_route'), supporter)) {
+      this._clearAutoOpenStorageTwin();
+      return;
+    }
+    this._clearAutoOpenStorageTwin();
     // SUPPORTERS (SLPs/therapists/teachers/parents — all collapse to
     // `supporter_role`) tour their CASELOAD, not the dashboard. That page is where
     // routes/index.js `_land_on_default` already sends them on every subsequent
@@ -1374,8 +1392,14 @@ export default Component.extend({
         this._consumeAutoOpenSignal();
       } else {
         try {
+          // Not removed here: the key outlives consumption as the reload
+          // fallback and goes when the attempt resolves (see
+          // _consumeAutoOpenSignal). A re-render swap can create the new
+          // instance before the old one's deferred willDestroy re-arms the
+          // flag, so this branch may start a chain on the new instance; the
+          // re-arm that follows then hits _scheduleAutoOpen's re-entrancy
+          // guard, so exactly one chain survives, on the surviving instance.
           if (window.sessionStorage && sessionStorage.getItem('ll_auto_open_home_tour') === '1') {
-            sessionStorage.removeItem('ll_auto_open_home_tour');
             this._scheduleAutoOpen();
           }
         } catch (e) { /* sessionStorage unavailable — fall through */ }

@@ -381,15 +381,97 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(component._autoOpenRouteAllowed(null, false)).toEqual(false);
   });
 
-  itAsync('consuming the appState signal also clears its sessionStorage twin, so a later remount cannot re-fire', async function() {
-    var appState = this.owner.lookup('service:app-state');
-    try { window.sessionStorage.setItem('ll_auto_open_home_tour', '1'); } catch(e) { return; }
-    appState.set('auto_open_home_tour', true);
-    await untilRuns(500);
-    expect(runs).toEqual(1);
-    expect(window.sessionStorage.getItem('ll_auto_open_home_tour') || null).toEqual(null);
+  // The sessionStorage twin (routes/register.js:107, services/beta-welcome-mode.js:45)
+  // is the reload fallback: it must SURVIVE consumption and the hold, and go only
+  // when the attempt resolves. Each case asserts presence mid-hold first, so it
+  // cannot pass against code that removes the key at consumption.
+  function setTwin() {
+    try { window.sessionStorage.setItem('ll_auto_open_home_tour', '1'); return true; } catch(e) { return false; }
+  }
+  function twin() {
+    try { return window.sessionStorage.getItem('ll_auto_open_home_tour') || null; } catch(e) { return null; }
+  }
+
+  itAsync('the twin survives consumption and the hold, and is removed when the attempt starts', async function() {
+    var starts = useRealResume(this.owner, 'user.home');
+    if (!setTwin()) { return; }
+    noticeOpen = true;
+    this.owner.lookup('service:app-state').set('auto_open_home_tour', true);
+    await sleep(30);
+    expect(twin()).toEqual('1');
+    noticeOpen = false;
+    await sleep(60);
+    expect(starts.home).toEqual(1);
+    expect(twin()).toEqual(null);
   });
 
+  itAsync('init consuming the twin itself also keeps it until the attempt starts', async function() {
+    if (!setTwin()) { return; }
+    var appState = this.owner.lookup('service:app-state');
+    appState.set('current_route', 'user.home');
+    component.set('speakHost', true);
+    noticeOpen = true;
+    var homeStarts = 0;
+    extra = this.owner.factoryFor('component:guided-tour').create({
+      art50_tour_defer_poll_ms: 10,
+      art50_tour_due_max_ms: 80,
+      _startHomeAutoOpen: function() { homeStarts++; },
+      _startCaseloadAutoOpen: function() {}
+    });
+    await sleep(30);
+    expect(twin()).toEqual('1');
+    noticeOpen = false;
+    await sleep(60);
+    expect(homeStarts).toEqual(1);
+    expect(twin()).toEqual(null);
+  });
+
+  itAsync('the twin survives a teardown mid-hold (a reload in that window must re-fire the tour)', async function() {
+    if (!setTwin()) { return; }
+    noticeOpen = true;
+    this.owner.lookup('service:app-state').set('auto_open_home_tour', true);
+    await sleep(30);
+    expect(twin()).toEqual('1');
+    component.destroy();
+    await sleep(30);
+    expect(twin()).toEqual('1');
+  });
+
+  itAsync('the twin is removed when a stuck gate is cancelled at the ceiling', async function() {
+    if (!setTwin()) { return; }
+    gatePending = true;
+    this.owner.lookup('service:app-state').set('auto_open_home_tour', true);
+    await sleep(30);
+    expect(twin()).toEqual('1');
+    await sleep(150);
+    expect(component._autoOpenDeferring).toEqual(false);
+    expect(twin()).toEqual(null);
+  });
+
+  itAsync('the twin is removed on a disallowed-route cancel', async function() {
+    var starts = useRealResume(this.owner, 'user.extras');
+    if (!setTwin()) { return; }
+    noticeOpen = true;
+    this.owner.lookup('service:app-state').set('auto_open_home_tour', true);
+    await sleep(30);
+    expect(twin()).toEqual('1');
+    noticeOpen = false;
+    await sleep(60);
+    expect(starts.home).toEqual(0);
+    expect(twin()).toEqual(null);
+  });
+
+  // Regression guard for the removal site only: a stale re-arm is dropped at
+  // consumption, and today's code also removes the key there.
+  itAsync('a stale re-arm that is dropped also drops the twin, so it cannot re-fire later', async function() {
+    if (!setTwin()) { return; }
+    var appState = await mountWithRearmedSignal(this.owner, 200, 50);
+    expect(runs).toEqual(0);
+    expect(appState.get('auto_open_home_tour')).toEqual(false);
+    expect(twin()).toEqual(null);
+  });
+
+  // Regression guard (existing behaviour): sign-out clears the twin regardless of state.
   itAsync('SPA sign-out clears the sessionStorage twin as well', async function() {
     var appState = this.owner.lookup('service:app-state');
     component.set('speakHost', true);
