@@ -41828,50 +41828,63 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   }
 }
 
-/* Supporter sub-type buttons — revealed under the role dropdown when
-   "Supporter" is selected. Modern glassy pill buttons (2 per row), with a
-   brand-smart-blue active state for the chosen type. */
+/* Supporter sub-type radios — one labelled row per type, large tap
+   target, brand-smart-blue active state for the chosen type. */
 .register-supporter-types {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  margin-top: 10px;
-}
-
-.register-supporter-types--large {
-  margin-bottom: $aac-spacing-16;
+  margin-top: 4px;
+  margin-bottom: $aac-spacing-8;
 }
 .register-supporter-type {
-  flex: 1 1 calc(50% - 4px);
-  min-width: 120px;
-  padding: 11px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  margin: 0;
+  padding: 8px 12px;
   border-radius: 12px;
   border: 1px solid rgba($la-navy, 0.14);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(241, 244, 248, 0.92) 100%);
+  background: rgba($la-navy, 0.03);
   color: $la-navy;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
-  text-align: center;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease, color 0.15s ease;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.6),
-    0 1px 3px rgba($la-navy, 0.08);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.register-supporter-type:hover {
+.register-supporter-type input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  border: 2px solid rgba($la-navy, 0.4);
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+  align-self: center;
+}
+.register-supporter-type input[type="radio"]:checked {
+  border-color: $brand-smart-blue;
+  background: radial-gradient(circle, $brand-smart-blue 0 5px, #fff 6px);
+}
+.register-supporter-type input[type="radio"]:focus-visible {
+  outline: 2px solid $brand-smart-blue;
+  outline-offset: 2px;
+}
+.register-supporter-type span {
+  line-height: 1;
+}
+.register-supporter-type:hover,
+.register-supporter-type:focus-within {
   border-color: rgba($brand-smart-blue, 0.5);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 2px 8px rgba($la-navy, 0.12);
-  transform: translateY(-1px);
+  background: rgba($brand-smart-blue, 0.06);
 }
 .register-supporter-type--active {
-  background: linear-gradient(180deg, rgba($brand-smart-blue, 0.16) 0%, rgba($brand-smart-blue, 0.08) 100%);
+  background: rgba($brand-smart-blue, 0.10);
   border-color: $brand-smart-blue;
-  color: $brand-smart-blue;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    0 0 0 2px rgba($brand-smart-blue, 0.18);
 }
 
 .register-footer-link {
@@ -41963,7 +41976,9 @@ body.md-ds-active .app-navbar__beta-feedback-link {
   .form-group {
     margin-bottom: $aac-spacing-14;
 
-    label {
+    /* Field captions only. Radio option rows (.register-supporter-type)
+       are also <label>s and need flex + their own type size. */
+    label:not(.register-supporter-type) {
       display: block;
       font-size: $aac-font-size-sm;
       font-weight: $aac-font-weight-semi;
@@ -88414,6 +88429,36 @@ span.md-board-detail-modeling-btn--paused:hover {
     0 2px 8px rgba($la-navy, 0.10);
   max-height: 320px;
   overflow-y: auto;
+}
+/* Opt-in grid listbox (register month/year). Large cells so eye-gaze
+   and switch users can hit a month or year without scrolling a
+   12- or 120-row list. Search / divider / empty rows span the grid. */
+.bound-select--grid .bound-select__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(48px, 1fr));
+  gap: 6px;
+  right: auto;
+  min-width: max(100%, 280px);
+  max-height: 360px;
+}
+.bound-select--grid.bound-select--cols-4 .bound-select__list {
+  grid-template-columns: repeat(4, minmax(48px, 1fr));
+  min-width: max(100%, 320px);
+}
+.bound-select--grid .bound-select__search,
+.bound-select--grid .bound-select__divider,
+.bound-select--grid .bound-select__empty {
+  grid-column: 1 / -1;
+}
+.bound-select--grid .bound-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 8px 6px;
+  text-align: center;
+  white-space: normal;
 }
 .bound-select__search {
   list-style: none;

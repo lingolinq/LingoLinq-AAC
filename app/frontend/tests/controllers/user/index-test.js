@@ -91,6 +91,44 @@ describe('UserIndexController', 'controller:user-index', function() {
     });
   });
 
+  it('retry_board_list re-fetches after a Mine list error', function() {
+    var controller = testOwner.lookup('controller:user/index');
+    var queryCount = 0;
+    controller.set('store', {
+      query: function(type, args) {
+        if (type !== 'board') { return RSVP.resolve([]); }
+        queryCount++;
+        return RSVP.resolve([]);
+      }
+    });
+    controller.set('persistence', EmberObject.create({
+      online: true,
+      meta: function() { return null; }
+    }));
+    controller.set('model', EmberObject.create({
+      id: '1_1',
+      my_boards: {error: true},
+      permissions: { supervise: true, edit: false },
+      preferences: { home_board: { key: 'u/home' } }
+    }));
+    controller.set('selected', 'mine');
+    waitsFor(function() { return queryCount > 0; });
+    runs(function() {
+      queryCount = 0;
+      controller.set('model.my_boards', {error: true});
+      controller.send('retry_board_list');
+    });
+    waitsFor(function() {
+      var list = controller.get('model.my_boards');
+      return queryCount > 0 && list && list.done && !list.error;
+    });
+    runs(function() {
+      expect(queryCount).toEqual(1);
+      expect(controller.get('model.my_boards.error')).toEqual(undefined);
+      expect(controller.get('model.my_boards.done')).toEqual(true);
+    });
+  });
+
   /*
    * Mine-tab sort ordering — Scot #3 pre-merge review (test coverage gap).
    * Replaces the orphaned `sorts favorite boards before other boards` coverage

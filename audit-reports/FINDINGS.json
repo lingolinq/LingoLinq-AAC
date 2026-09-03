@@ -6522,6 +6522,620 @@
         "promotedDate": "2026-08-31"
       },
       "notes": "Hand-filed 2026-08-31 from the retroactive dual-review of merged range 9fec7fd9a..cd4cae477 (finding 3). Grep-verified at cd4cae477: three write sites and one delete site for settings['privacy_policy_acknowledged'], zero compare sites against User::PRIVACY_POLICY_VERSION anywhere in app/, lib/, or the Ember frontend; the user serializer never exposes the stored policy_version, so no client-side comparator can exist either. The comment above the constant (user.rb:26-28) says 'Bump when a material change requires users to re-consent', but the re-consent mechanism it describes does not exist: a bump changes only what NEW consents record. Regulatory hook: 16 CFR 312.5(c) requires new verifiable parental consent for material changes to the collection, use, or disclosure practices the original consent covered; with this mechanism dead, a material privacy-notice change re-prompts nobody, including parents of under-13 users. The material-change question is already with counsel as Q32. Present exposure is limited by tenancy, not code: production carries only internal test accounts (PR #483, operator attestation, not code-verified). Severity medium is PROPOSED and awaits Scot's ratification at merge."
+    },
+    {
+      "id": "LL-ffdd40d2e9",
+      "ruleKey": "log-message-email-embeds-message-body",
+      "title": "Team-message notification email embeds the full message body, the communicator's display name, and a deep link to their log, with no recipient-scoped content control",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/views/user_mailer/log_message.text.erb",
+        "line": 4,
+        "snippet": "<%= (@log.data['note'] && @log.data['note']['text']) || \"no message\" %>",
+        "sha": "408caa7607028e6f07edf9dcf8d02ac15d218e6c"
+      },
+      "firstSeen": "2026-09-01",
+      "lastSeen": "2026-09-01",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "DIRECTION SET BY SCOT, 2026-09-02. Option (a) is the preferred DURABLE behavior. Option (b) is a TEMPORARY admin-controlled mitigation only and is not a privacy control. The candidate defects formerly parked in this field are now separate queryable findings and are referenced by id below rather than restated. (a) PREFERRED, DURABLE -- notify without content. Replace the embedded body with \"You have a new message from <author>\" plus a sign-in link, keeping the message text in the app. Applies to BOTH app/views/user_mailer/log_message.text.erb and log_message.html.erb. ACCEPTANCE CRITERIA, which are not satisfied by editing the two ERB files alone: (1) Verify against STORED GLOBAL overrides. Setting.get('default_email_templates') can hold a text_body/html_body for user_mailer/log_message that is rendered INSTEAD of the default template (SystemEmailOverride#mail, app/mailers/concerns/system_email_override.rb:18-40), so a stored override survives an edit to the ERB files and can reintroduce the body. (2) Verify against STORED PER-ORG overrides, org.settings['email_templates'], for the same reason. (3) Constrain or remove @log exposure for this template. lib/system_email_registry.rb declares log_message's variables as COMMON_VARS + ['@user', '@log']; while @log is exposed, any stored override can re-render @log.data['note']['text'] and undo (a) with no code change. Removing @log from the declared variables, or narrowing it to a non-content projection, is what makes (a) hold rather than merely hold today. (4) Assert the delivered output, not the template source. The acceptance test must inspect what is actually delivered for a log_message, in both MIME parts. (b) TEMPORARY MITIGATION ONLY, admin-controlled, NOT a privacy control. user_mailer/log_message is a registered overridable system email (lib/system_email_registry.rb:211) and SystemEmailOverride#mail substitutes a stored text_body/html_body at send time, so an administrator can strip the body with no code change and no deploy. That makes (b) useful as a stopgap while (a) is built. It does NOT make it a control a district can rely on, for two independent reasons, each now tracked separately: it resolves from the enqueueing context's host and never from the recipient's organization (LL-047959b17a), and it is stored ERB evaluated behind a regex denylist that fails open (LL-eadbb442c2). A third finding covers the case where an override is visible in preview but unreachable by delivery (LL-013ae2595c). IF (b) IS USED, all four of the following are required: (1) Set BOTH text_body AND html_body. SystemEmailOverride#mail applies them independently, so setting only one leaves the other MIME part rendering the default template with the body intact. (2) Verify the EFFECTIVE DELIVERED OUTPUT, not the admin preview, since preview and delivery resolve through different lookups (LL-013ae2595c). (3) Verify across all four resolution paths: global default, per-org, cross-org delivery (one enqueue fanning out to recipients in another organization), and a request-less path (rake task, console, cron), which stamps a bare ENV['DEFAULT_HOST']. (4) Treat it as time-boxed. Record it as a mitigation with an owner and a removal condition, not as a closure of this finding. (c) Regardless of (a) or (b): record the current behavior in the FERPA/HIPAA data-flow documentation as a routine disclosure of message content to the RECIPIENT's mail provider, and reflect it in district and hospital contract language for as long as the body ships. (d) Also constrain @target.display_name and the /<user_name>/logs deep link, which are identifying independent of the message body and are not addressed by (a) alone.",
+        "timeframe": "before-district-onboarding"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced 2026-09-01 during the read-only production readiness audit of in-app team messaging, and confirmed against four real notification emails delivered during the authorized end-to-end smoke test on staging and production. MECHANISM, verified in source at the evidence sha: log_message.text.erb:4 and log_message.html.erb:3 both render (@log.data['note'] && @log.data['note']['text']) || \"no message\", so the message body is embedded verbatim. The same templates render @target.display_name (line 1) and a deep link to <absolute_host>/<user_name>/logs?type=note (text:5, html:4). SCOPE OF THE GAP, stated precisely (and CORRECTED 2026-09-01 -- see REMEDIATION-PATH CORRECTION below, which supersedes the original wording of this sentence): there is no RECIPIENT-SCOPED content control. A recipient cannot ask to receive the notification without the body, and nothing resolves a content preference from the recipient or the recipient's org. An administrator CAN strip the body today via the system-email template override, so it is wrong to say no content-level control exists at all; what does not exist is one scoped to the recipient. The blunt global switch settings['email_disabled'] DOES suppress this mailer (Notifiable#channels_for, notifiable.rb:17-20, returns [] and General#mail_message, general.rb:8, iterates that array), but it is all-or-nothing across every non-critical email and is set automatically on bounce by UserMailer.bounce_email. preferences['share_notifications'] does NOT reach this path: it is read only in the utterance_shared branch of User#handle_notification (user.rb:4035), while the push_message branch calls UserMailer.schedule_delivery(:log_message, ...) unconditionally. FAN-OUT: LogSession#default_listeners adds self.user.supervisors unless notify_user_only is set, so one communicator's message text can be emailed to several mailboxes per message. TRANSPORT, stated accurately: SES itself is HIPAA-eligible and is covered by the accepted AWS BAA (docs/legal/AWS_BAA_ACCEPTED.md), so the SES leg is NOT the exposure. The exposure is the destination: once delivered, the message body rests in the RECIPIENT's mail provider (a district Exchange tenant, a consumer mailbox), which is outside LingoLinq's control and outside any LingoLinq BAA, and SES-to-destination TLS is opportunistic rather than guaranteed. No claim is made here about any specific recipient provider's contractual posture. WHY THIS IS NOT A BUG REPORT: inherited CoughDrop/SweetSuite behavior and intentional product design, not a regression, and not launch-blocking on its own. Filed as a data-minimization and disclosure question because the message body is the protected material under FERPA (education record) and HIPAA (a communication about a patient). SEVERITY HISTORY, recorded for transparency: originally drafted 'high' on three asserted aggravating factors. A dual review pass (Codex senior-dev, 2026-09-01) corrected two of the three -- the 'no opt-out' claim was too absolute given email_disabled, and the 'outside any BAA' claim was wrong for the SES leg given the recorded AWS BAA. Both corrections were independently re-verified in source before being accepted. Because two of the three premises for 'high' did not survive, the finding is filed at 'medium' on the corrected basis rather than at the originally drafted severity. This is an authoring correction made BEFORE the finding entered the register, not a downgrade of a filed finding; raising, lowering, triaging and closing all remain Scot's call. Hand-added rather than via scripts/promote-finding.rb, which is scoped to promoting Critical/High findings out of PR review; this came from an audit run, matching the manual-add precedent used for LL-42a24ee911. REMEDIATION-PATH CORRECTION, 2026-09-01 (post-merge follow-up to #907): as originally filed this finding said a content opt-out \"has to be added, not merely wired up\". That was wrong. user_mailer/log_message is a REGISTERED overridable system email and its body can be replaced with no code change, through either the tenant-wide default_email_templates store or a per-org org.settings['email_templates'] entry. remediation.options (b) now carries the mechanism with source anchors. The operative limit is NOT that the per-org lane fails to reach a worker-delivered mailer -- it does reach it -- but that the domain it resolves is the SENDER'S REQUEST HOST rather than the RECIPIENT'S ORG, which is recorded as (b-caveat) and flagged as a candidate separate finding. HOW THAT WAS GOT WRONG, recorded because the same trap is still in the tree: an earlier revision of this note asserted that the per-org override could not reach this mailer, reasoning that JsonApi::Json.current_domain is request-scoped and that nothing restores it across the queue boundary. That reasoning leaned on the comment at lib/json_api/json.rb:97, which states that \"Worker.domain_id / Worker.set_domain_id exist but are called from nowhere\". THAT COMMENT IS FALSE. Worker.domain_id is read at enqueue by boy_band.rb:58 and Worker.set_domain_id is called at perform by boy_band.rb:141, and lib/worker.rb:149-152 makes set_domain_id call JsonApi::Json.load_domain, so the domain IS restored inside the worker. THE FALSE PREMISE IS LIVE IN TWO PLACES, and the more serious one is NOT the code comment. (i) lib/json_api/json.rb:97, the comment. (ii) docs/task-management/CLAIM-CHECK-BACKLOG.md:325-328, which states the SAME false claim -- \"nothing restores one, because Worker.domain_id / Worker.set_domain_id are called from nowhere in the repo\" -- as the RECORDED ROOT CAUSE OF A CLOSED HIGH COPPA DEFECT (\"HIGH 1 -- the parental-consent approval link was unfollowable\"). A stale comment is a nuisance; a false root cause on a closed HIGH defect means the real trigger was never identified, the closure record cannot be relied on, and the 130 absolute_host references introduced as its remedy rest on a premise that was never true. The remedy may still be independently sound -- absolute_host does guarantee a scheme -- but soundness of the fix is not evidence for the diagnosis. Both files need correcting in the same change, along with the conclusion drawn at json.rb:88-102, which has no support once its premise is removed. RAISED FOR SCOT'S DECISION rather than actioned here: reopening or re-rating a closed HIGH defect is his call, not an auditor's, and it is out of scope for this finding. Until it is, do not reason from either file. RECONCILING IT WITH THE COPPA BUG IT DESCRIBES, since both cannot be literally true. SETTLED BY GIT HISTORY, not by inference: Worker.set_domain_id has called JsonApi::Json.set_host AND JsonApi::Json.load_domain since commit de621007b4, 2019-04-16 (\"backend job support for alt domains\"), while the absolute_host comment block asserting the opposite was introduced by commit 4e09b4617 on 2026-08-25. The behavior predates the comment by seven years, so the comment was FALSE WHEN WRITTEN rather than merely stale -- there is no window in which it was true. Confirmed empirically as well: a live probe across the queue boundary showed a job enqueued with marker \"domain::https://district.example.com\" restoring current_host and absolute_host to that exact scheme-carrying value after Worker.process_queues, and SystemEmailTemplates.lookup('user_mailer/log_message') returning nil before the boundary and the org's stored override after it. THE ACTUAL ROOT CAUSE OF THE COPPA LINK BUG REMAINS OPEN and is deliberately not asserted here: all eight schedule_parent_consent_delivery call sites (api/users_controller.rb:950,1255; parental_consents_controller.rb:18,72; eu_ai_parental_consents_controller.rb:18,36; user.rb:665,715,874) are controllers or reached from controllers and therefore have a request, so a normal signup should have stamped an absolute host. The primary evidence, docs/task-management/2026-08-24-n1-under-13-signup-path.md, is gitignored and local, so this cannot be closed from the repo. A bare host in a delivered link means the chain ORIGINATED OUTSIDE A REQUEST (console, rake task, cron), since Worker.domain_id then falls through current_host to a bare ENV['DEFAULT_HOST'] (json.rb:85) which is restored faithfully and propagated onward; whoever fixes the comment should establish how the observed email was actually triggered before rewriting it. The claim was caught by reading lib/worker.rb rather than by trusting the comment, and is confirmed by spec/lib/worker_spec.rb:41-47 (\"should load the domain override if set\"), which sets a host, schedules a job, runs Worker.process_queues, and asserts that BOTH JsonApi::Json.set_host AND JsonApi::Json.load_domain are received with the enqueueing host. That is the full round trip. An earlier revision of this note cited spec/mailers/user_mailer_spec.rb:322-340 instead; that spec calls Worker.set_domain_id DIRECTLY and never enqueues, so it proves only that set_domain_id populates current_domain -- the half that was never in dispute -- and proves nothing about the queue boundary. Both reviewers caught that independently. CITATION ANCHORS, recorded because they are load-bearing and the evidence block anchors only one of them: the dispatch is user.rb:4003 (UserMailer.schedule_delivery(:log_message, ...)) and the fan-out is LogSession#default_listeners at log_session.rb:2028-2039, both verified at the evidence sha. The evidence anchor stays on app/views/user_mailer/log_message.text.erb deliberately. Re-anchoring it to app/models/user.rb would CHANGE THE FINDING ID, since the id is LL- + sha256(ruleKey|evidence.file)[0,10]: the template yields LL-ffdd40d2e9 (this finding, already merged and externally referenced) while app/models/user.rb would yield LL-3cc100bdc6. Preserving a merged id outranks moving the anchor. ON THE CITATION GATE, stated precisely so it is not over-read: scripts/citation-check.rb asserts only that the quoted snippet still resolves in the cited file at the recorded sha. It is a register-integrity check, NOT a remediation detector, and by design it is not a CI job at all -- it runs as a stricter local gate inside scripts/regenerate-register.sh. A PASS here is therefore not evidence that this finding is unremediated, and closure must be carried by closureEvidence and Scot's attestation, never by the gate. PROCESS NOTE, recorded rather than buried: PR #907 was merged before the adversary pass returned. The pass was reported in-session as degraded when it had in fact only been slow. No Critical or High finding was involved, so the severity merge gate was not breached, but the second review did not inform the merge. The adversary raised the overridable-template mechanism, which was correct and is now recorded; its framing of that mechanism as a working per-district control was not accepted as stated, for the scoping reason in (b-caveat). REGISTER-SHAPE OBSERVATION, raised for Scot rather than actioned: this finding's remediation.options now carries FOUR distinct candidate findings as prose (the enqueue-context mis-scoping, the preview/delivery divergence via templates_for_org vs load_domains, the stored-ERB denylist, and the missing committed test on organization.rb:1227-1229). None is queryable. No search of audit-reports/FINDINGS.json by severity, status or ruleKey will surface any of them, and an earlier parked item was already lost once when this same field was rewritten. That is the second time remediation.options has been used as a parking lot. Either file each as its own finding, or add a queryable 'candidate' disposition to the register schema; filing new findings is Scot's call, so neither is done here. REMEDIATION DIRECTION RECORDED 2026-09-02 (Scot): option (a), notify-without-content, is the preferred durable behavior, with acceptance that must cover stored GLOBAL and PER-ORG overrides -- because editing the two ERB files alone leaves a stored override able to reintroduce the body -- and with @log exposure for this template constrained or removed, since while @log is a declared template variable any stored override can re-render the message text. Option (b) is accepted only as a temporary admin-controlled mitigation, explicitly NOT a recipient- or district-scoped privacy control. The four candidate defects previously parked in remediation.options as prose have been split into their own queryable rows per the same direction: LL-047959b17a (override resolves from the enqueueing host, never the recipient's org), LL-013ae2595c (admin preview can render an override delivery will never apply), LL-eadbb442c2 (stored ERB behind a denylist that fails open). The missing delivery-path test is tracked as GitHub issue #912 rather than a finding, since no register policy requires a finding for a test gap. remediation.options was rewritten rather than appended to on this pass: it had reached 8759 characters across five review rounds and had become the parking lot this register should not have.",
+      "source": {
+        "kind": "audit-run"
+      }
+    },
+    {
+      "id": "LL-047959b17a",
+      "ruleKey": "system-email-override-scoped-to-enqueue-host-not-recipient-org",
+      "title": "System-email content overrides resolve from the enqueueing context host, never from the recipient or the recipient organization",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/system_email_templates.rb",
+        "line": 5,
+        "snippet": "settings = JsonApi::Json.current_domain['settings'] || {}",
+        "sha": "f5935cd8eddba93ca4477747f7fa45be110df647"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "(a) PREFERRED: resolve the override from the RECIPIENT, not from ambient request state. The mailer already has the recipient (UserMailer#log_message resolves @user); pass the recipient's organization explicitly into template lookup instead of reading JsonApi::Json.current_domain. (b) If ambient resolution stays, refuse to present per-org email templates as a privacy or data-minimisation control anywhere in admin UI, documentation, or district contract language, because they do not follow the data subject. (c) At minimum, make the mismatch visible: warn in the template admin UI that an override applies by host, not by organization membership.",
+        "timeframe": "before-district-onboarding"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "SystemEmailTemplates.lookup resolves a stored override through JsonApi::Json.current_domain, which is ambient request/job state, and never consults the recipient's organization. Nothing in the log_message mailer path resolves an organization; every domain-dependent value reads current_domain (mailer_helper.rb:34, general.rb:7,16,20). CONSEQUENCE: the override that applies to an email is determined by the host of the context that ENQUEUED the job, not by the district whose student or patient data is in it. Three concrete effects. (1) A message composed on the shared host resolves the DEFAULT domain even when the recipient's district configured an override. (2) A message enqueued from district A's host applies DISTRICT A's template to a recipient in district B. (3) A chain originating with no request at all (rake task, console, cron) stamps a bare ENV['DEFAULT_HOST'] (Worker.domain_id is current_host || 'default', worker.rb:89-91; current_host falls back at json.rb:85), so an org configuring a settings['hosts'] entry equal to DEFAULT_HOST would silently capture the templates of every request-less job. THIS IS REACHED BY THE ORDINARY BROADCAST FEATURE, not a contrived cross-district case: api/units_controller.rb:56 enqueues LogSession.message_all ONCE, stamped with one host, carrying an entire org unit's roster assembled at units_controller.rb:45-54; message_all (log_session.rb:1282) creates one session per target; LogSession#default_listeners (log_session.rb:2028-2039) then adds each target's supervisors, who may belong to other orgs. One enqueue, one host, N recipients across potentially several organizations. The mechanism itself is confirmed end to end by spec/lib/worker_spec.rb:41-47 and by a live probe across the queue boundary; what is defective is not the restoration but WHICH domain it restores. PROVENANCE: split out of LL-ffdd40d2e9 per Scot's 2026-09-02 direction, which requires each candidate to be its own queryable row rather than prose parked in another finding's remediation.options. Surfaced by the dual review on PR #910 (Codex senior-dev + Claude adversary) and independently re-verified in source before filing. SEVERITY IS A PROPOSAL: only Scot sets disposition, closes, or re-rates.",
+      "source": {
+        "kind": "audit-run"
+      }
+    },
+    {
+      "id": "LL-013ae2595c",
+      "ruleKey": "system-email-preview-resolves-differently-than-delivery",
+      "title": "Admin preview of a system-email template can render an override that will never apply to a delivered email",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "GDPR",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/organization.rb",
+        "line": 1222,
+        "snippet": "Organization.where(custom_domain: true).order('id ASC').each do |org|",
+        "sha": "f5935cd8eddba93ca4477747f7fa45be110df647"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "(a) PREFERRED: resolve preview through the SAME path delivery uses, so the preview cannot succeed where delivery will not. (b) Alternatively, make the preview refuse or warn loudly when the org has no custom_domain or no settings['hosts'] entry, i.e. when the stored override is unreachable by delivery. (c) Whichever is chosen, add a test asserting preview and delivery agree for an org WITHOUT a custom domain, since that is the divergent case.",
+        "timeframe": "before-district-onboarding"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "The admin preview and the delivery path read the SAME stored value through DIFFERENT lookups, and the delivery lookup is strictly narrower. Preview resolves via SystemEmailTemplates.effective_content -> lookup_stored_entry -> templates_for_org, which reads org.settings['email_templates'] DIRECTLY (system_email_templates.rb:127-129). Delivery resolves via JsonApi::Json.load_domain -> Organization.load_domains[host], and load_domains only ever contains organizations matching where(custom_domain: true) with an entry in settings['hosts'] (organization.rb:1222-1224), copying email_templates into the per-host blob at organization.rb:1227-1229. CONSEQUENCE: an organization WITHOUT a custom domain can save a content override, see it correctly applied in preview, and have it silently never apply to a delivered email. This matters more than an ordinary UI bug because the override is exactly the control an administrator would reach for to strip protected content out of a notification email (see LL-ffdd40d2e9): the failure mode is an administrator believing a privacy control is in force when it is not, with no error and no signal. Distinct from LL-047959b17a, which concerns WHICH domain delivery resolves; this one concerns an org whose override delivery cannot reach AT ALL. PROVENANCE: split out of LL-ffdd40d2e9 per Scot's 2026-09-02 direction, which requires each candidate to be its own queryable row rather than prose parked in another finding's remediation.options. Surfaced by the dual review on PR #910 (Codex senior-dev + Claude adversary) and independently re-verified in source before filing. SEVERITY IS A PROPOSAL: only Scot sets disposition, closes, or re-rates.",
+      "source": {
+        "kind": "audit-run"
+      }
+    },
+    {
+      "id": "LL-eadbb442c2",
+      "ruleKey": "system-email-template-denylist-in-front-of-erb-eval",
+      "title": "Stored system-email templates are evaluated as server-side ERB behind a regex denylist that fails open",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2",
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/system_email_template_security.rb",
+        "line": 4,
+        "snippet": "DANGEROUS_EXPR = /\\b(system|exec|eval|`[^`]*`|%x\\(|Kernel|File::|IO::|Dir::|open\\s*\\(|require\\s*\\(|load\\s*\\(|send\\s*\\(|instance_eval|class_eval|constantize)\\b/i",
+        "sha": "f5935cd8eddba93ca4477747f7fa45be110df647"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "(a) PREFERRED, and the only option that removes the CLASS of problem: STOP EVALUATING STORED TEMPLATES AS RUBY. Replace ERB with a non-evaluating placeholder syntax over the declared variables, or bind tightly constrained SCALAR values with no method traversal, so a stored template can substitute a value but can never call anything. (b) INSUFFICIENT ON ITS OWN, recorded so it is not mistaken for a fix: an allowlist of permitted VARIABLE NAMES, drawn from the `variables:` the registry already declares per template (lib/system_email_registry.rb). An allowlist of names is a real improvement over the current denylist of patterns, but it does NOT close the hole while arbitrary Ruby expressions remain executable inside <%= %> -- an allowed variable is still a Ruby object, and method traversal, chaining and arbitrary receivers reachable from the binding all survive a name check. Treat (b) as a step toward (a), never as a substitute for it. (c) Whatever is chosen, add tests asserting that the specific bypass CLASSES are rejected, so a future gap fails CI instead of being found by review. (d) Interim, if neither (a) nor (b) has shipped: restrict who can write stored templates further than User#admin?, or disable stored-template overrides entirely for mailers that render protected content, which today includes user_mailer/log_message (see LL-ffdd40d2e9).",
+        "timeframe": "before-district-onboarding"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "SystemEmailTemplates.render_string evaluates a stored template with ERB.new(template_string).result(mailer_binding) (system_email_templates.rb:176-181). The only guard is the regex denylist at system_email_template_security.rb:4, which rejects <% %> code blocks and scans <%= %> expressions against a fixed pattern list. A denylist in front of an evaluator fails open by construction, and this one has confirmed gaps: it matches File::, IO:: and Dir:: in their double-colon forms but not their single-dot equivalents, and lists instance_eval while omitting instance_exec; neither ENV nor find_by_sql appears at all. Bypasses were demonstrated during the PR #910 review; the specific payloads are deliberately not recorded here. REACHABILITY, STATED PRECISELY SO THIS IS NOT OVER-READ: the write path is gated by require_system_settings_access (app/controllers/concerns/api/system_settings_access.rb:14-20), which admits only User#admin? -- settings['admin'] == true or Organization.admin_manager? (user.rb:3932-3934). That is LingoLinq INTERNAL ADMINS ONLY. District managers cannot reach it, and the org.manager? branch is reachable only by an actor already through that gate. This is a POST-AUTHENTICATION INSIDER surface, NOT tenant escalation and NOT district-reachable. Filed at medium on that reachability. The argument for high is that the primitive is server-side Ruby evaluation with database and environment read, delivered by email to an actor-chosen recipient, which is a broad capability even post-auth; that call is Scot's. RELEVANT TO LL-ffdd40d2e9: that finding recommends stored template overrides as the cheap content mitigation, so a compliance remediation currently steers work onto this surface. Fixing the boundary makes that recommendation safe rather than merely convenient. PROVENANCE: split out of LL-ffdd40d2e9 per Scot's 2026-09-02 direction, which requires each candidate to be its own queryable row rather than prose parked in another finding's remediation.options. Surfaced by the dual review on PR #910 (Codex senior-dev + Claude adversary) and independently re-verified in source before filing. SEVERITY IS A PROPOSAL: only Scot sets disposition, closes, or re-rates. REMEDIATION SHARPENED 2026-09-02 after Codex review: an earlier draft made the variable-name allowlist the PREFERRED option. That was wrong, and wrong in a way that would have shipped a false sense of closure. Restricting which variable NAMES a stored template may reference does not help while the template body is still evaluated as Ruby: an allowed variable is a Ruby object, and method traversal, chaining, and any receiver reachable from the mailer binding all survive a name check. The only remediation that removes the class of problem is to stop evaluating stored templates as Ruby at all. The allowlist is retained as an explicitly INSUFFICIENT intermediate step so nobody re-proposes it as the fix.",
+      "source": {
+        "kind": "audit-run"
+      }
+    },
+    {
+      "id": "LL-1baffd92d5",
+      "ruleKey": "claim-user-no-target-authorization-cross-tenant-takeover",
+      "title": "Organization claim_user authorizes only the requesting org manager and performs no check on the target user, allowing any manager with a free seat to take over any account by username, including one another district already manages",
+      "severity": "critical",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "GDPR",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/organizations_controller.rb",
+        "line": 245,
+        "snippet": "return unless allowed?(@org, 'manage')",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Require an organization-scoped invitation or enrollment code that the target user (or their parent/guardian) holds, and reject a target that already carries a managing_organization_id belonging to another org. Perform the ownership transition atomically and record both the prior and new managing org on the AuditEvent. Alternative: keep the manager-initiated flow but move the user into a pending-claim state that requires target-side acceptance before licenses.user_id and managing_organization_id are written.",
+        "timeframe": "24-72h"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by a dual review of the 2026-09-01 Codex whole-tree audit; both the Claude and Codex passes independently reached the same conclusion and both raised it above the audit's original High. claim_user resolves the target with User.find_by_path(params['user_id']) and never checks enrollment, invitation, consent, pending state, or another organization's existing control. Organization#claim_user then runs user.update!(managing_organization_id: self.id, expires_at: license.expires_at) unconditionally at app/models/organization.rb:29, overwriting any prior managing org AND the account's expires_at, and generates a sponsored UserLink which Organization#admin_manager? at app/models/organization.rb:15-16 treats as license to read that user's data. Preconditions: manager, upstream manager, or global admin of any org holding at least one free active seat of the requested seat_type. Detectable after the fact: an AuditEvent of type license_claim is written at organizations_controller.rb:249-256. This is the mandatory district data-isolation boundary. DISTINCT from the three closed claim_user rows, which cover throttling (LL-e65d34f109), the access-log gap (LL-3ccbf9b54a), and license JSON exposure (LL-55baae6d40); none of them examined target-side authorization."
+    },
+    {
+      "id": "LL-4f1eb5fd0a",
+      "ruleKey": "lesson-check-url-ssrf-bypasses-safehttp",
+      "title": "Lesson#check_url fetches a user-supplied URL with raw Typhoeus and unbounded redirect following, bypassing the repository's own SafeHttp DNS/IP and redirect validation",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/lesson.rb",
+        "line": 146,
+        "snippet": "res = Typhoeus.head(normalized, followlocation: true)",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Route the check through SafeHttp, which already performs DNS/IP validation and per-hop redirect revalidation (lib/safe_http.rb), and add a timeout. Alternative if the frame-header probe needs behaviour SafeHttp does not expose: extend SafeHttp with a head-with-headers helper rather than reintroducing a raw client, so there stays exactly one guarded egress path.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. Reached via after_save :check_url at app/models/lesson.rb:10, which schedules itself onto a Resque worker, so the request originates from the worker's network position rather than the web tier. No IP or DNS validation and followlocation: true means an attacker-controlled host can redirect the worker to an internal destination. Blind: HEAD only, and only checked_url.noframe is persisted, so this is a probe and pivot rather than a data-exfiltration path; res.code is never stored. Reachable by any authenticated non-valet user, since Lesson create with user_id set to self satisfies the supervise permission. Severity kept at high rather than medium on the Codex counter-argument that a blind result does not warrant a downgrade while egress controls are unconfirmed. SafeHttp is used at eleven other call sites in this repo; this is the outlier. The original audit cited lessons_controller.rb:41-64,105-112 for this, which contain no HTTP call; the sink is here."
+    },
+    {
+      "id": "LL-135ee6ca59",
+      "ruleKey": "ai-data-sharing-consent-documented-but-never-enforced-by-the-gate",
+      "title": "User#ai_consent_granted? has no runtime caller, so the separate AI data-sharing consent promised to parents on the privacy page is never enforced by the AI feature gate",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/feature_flags.rb",
+        "line": 242,
+        "snippet": "def self.ai_feature_enabled_for?(feature, user)",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Either add a current-version AI consent check to ai_feature_enabled_for? for the routes the disclosure covers, failing closed when consent is absent or stale, or obtain counsel-approved privacy-page wording that accurately describes the control that actually exists. Do not close this by deleting ai_consent_granted?: the disclosure and the consent-capture path both already ship.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01, independently confirmed by both passes. User#ai_consent_granted? is defined at app/models/user.rb:1364 and a repo-wide search outside spec and markdown returns only its own definition and surrounding comments plus references in lib/lingo_linq/ai_consent_disclosures.rb comments. The gate that actually decides AI feature access, FeatureFlags.ai_feature_enabled_for? at lib/feature_flags.rb:242-249, checks AI_FEATURES membership, the org opt-out, the COPPA marker, the EU under-16 marker and user prefs, and never consults consent. The promise to parents is at app/frontend/app/templates/privacy.hbs:76 and is now also published in eleven machine-translated locales. DISTINCT from LL-47117a3443 (audit trail on consent grant, closed) and LL-b3e3a0b99c (the disclosure's stated legal basis)."
+    },
+    {
+      "id": "LL-c7bbfa452a",
+      "ruleKey": "school-authorized-signup-skips-coppa-marker-the-ai-gate-reads",
+      "title": "School-authorized account creation skips the COPPA block entirely, so settings coppa is never written and the under-13 AI gate that reads it passes for exactly the accounts it was written to protect",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/user.rb",
+        "line": 2423,
+        "snippet": "if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && !org_authorized",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Decide, with counsel, whether the school-official exception is intended to waive the AI-routing gate or only the parental-consent capture. If only the latter, still write a marker on the school-authorized path so coppa_parental_consent_blocks_access? can distinguish 'consent not required' from 'consent never evaluated', and have the AI gate read that distinction explicitly rather than inferring it from an absent key.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. org_authorized is set at app/models/user.rb:2404-2418; the guard at :2423 then skips the whole COPPA block when it is true, so settings coppa is never written, so User#coppa_parental_consent_blocks_access? at app/models/user.rb:417-421 returns false, so the gate at lib/feature_flags.rb:245 passes. No sibling guard covers it: settings school_authorization is read only by app/models/license.rb:59, app/models/user.rb:577 and lib/compliance/segment_resolver.rb:37, none of which is an AI path. Counsel must approve the intended school-official exception before this is closed. Adjacent to but distinct from LL-f150e0e828, which covers seat reclaim converting an under-13 account to a consumer trial."
+    },
+    {
+      "id": "LL-933e61efd7",
+      "ruleKey": "privacy-page-retention-and-deletion-promises-have-no-implementing-code",
+      "title": "Five specific retention and deletion promises on the public privacy page have no implementing mechanism, and the scheduled jobs that would partially back them have not run in production since the 2026-07-21 cutover",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/privacy.hbs",
+        "line": 97,
+        "snippet": "<li>{{t \"Inactive accounts: accounts inactive for 12 months are flagged for automatic deletion, subject to a 10-day grace period for accidenta",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Reconcile each promise against executable behaviour: either implement the mechanism or amend the page. The five are the inactive-account grace period (privacy.hbs:97 promises 10 days; app/models/subscription.rb:1230 implements 36 hours), the 3-year org default (:103, absent from lib/compliance/data_policy_enforcer.rb:22-27 and app/models/organization.rb:105-125), contract-end deletion (:104, no mechanism), the age-18 transition (:105, no mechanism), and the post-restore purge (:107, no job). Amending the page is the faster remedy and must also cover the twelve locale files.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. These are public statements to parents and districts, so the exposure is the statement rather than the missing job alone. Compounded by two live facts: DataPolicyEnforcer skips non-org users entirely at lib/compliance/data_policy_enforcer.rb:22-24, and the production scheduler that would run any of the deletion sweeps has been suspended since 2026-07-21 (filed separately), so even the partially-implemented promises are not executing. The same copy now ships in twelve locale files after PR #901."
+    },
+    {
+      "id": "LL-400adcead5",
+      "ruleKey": "machine-translated-compliance-disclosures-ship-outside-the-guard-language-coverage",
+      "title": "PR #901 machine-translated the AI data-sharing, Article 50, COPPA and retention disclosures into twelve locale files, and the guard that checks those claims covers only English and Spanish, by its own admission",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "spec/support/ai_disclosure_claims.rb",
+        "line": 79,
+        "snippet": "honest copy -- nor any third language. Translated compliance copy still",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Have counsel or a qualified human translator review the disclosure keys in the eleven non-English locale files before they are treated as approved, or revert those keys to the English source pending review. Then either extend AiDisclosureClaims with per-language patterns for the locales actually shipped, or add a guard that fails when a disclosure key is translated without a recorded human review, so the coverage gap becomes visible rather than silent.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01; missed by the original audit, which reviewed the whole tree but produced no finding about the commit it targeted. The rake task at lib/tasks/extras.rake performs the translation through Google Translate. The affected keys carry legally operative content: the signed BAA assertion, the PII-filter caveat, the explicit refusal to claim zero data retention, the named model, the under-13 consent gate, and the claim that evaluation summaries are inactive. The guard at spec/lib/lingo_linq/ai_disclosure_surfaces_spec.rb does read public/locales/*.json, but each value carries the English original after a double-bracket separator and the matcher reads that half, while app/frontend/app/utils/i18n.js:449 renders only the half BEFORE the separator. So the text that ships to users is precisely the text no pattern checks, and the suite stays green. Poland is the live exposure: pl.json is among the twelve and Polish beta invites are held pending Article 50. Note the translated copy asserts the under-13 consent gate that a separate finding on this same review shows is not enforced."
+    },
+    {
+      "id": "LL-3e36a18199",
+      "ruleKey": "production-scheduler-dispatch-has-no-trigger-since-gcp-cutover",
+      "title": "rake scheduler:dispatch is the single entrypoint for every recurring job and nothing has triggered it in production since 2026-07-21, so all retention, purge, flush and expiry work is stopped",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/tasks/scheduler.rake",
+        "line": 67,
+        "snippet": "task \"scheduler:dispatch\" => :environment do",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Provision a trigger on the production platform, either a Cloud Scheduler job invoking a Cloud Run job that runs scheduler:dispatch hourly, or re-enable the suspended Render cron if Render remains the fallback. Whichever is chosen, add a liveness check that alerts when dispatch has not run within its interval, because the failure mode here was silent for six weeks. Until a trigger exists, the retention and deletion claims on the privacy page should be treated as unmet.",
+        "timeframe": "24-72h"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified live on 2026-09-01 and corroborated by an independent session the same day. Cloud Scheduler API is not enabled on the production GCP project (SERVICE_DISABLED, never used); no Workflows or Eventarc APIs are enabled; the eight Cloud Run jobs that exist are diagnostic and migration utilities and none dispatches the scheduler. The Render cron that previously ran this task hourly shows suspended with a user suspender and an updatedAt of 2026-07-21, the day before the GCP cutover, and nothing replaced it. There is no cron gem in Gemfile.lock, no scheduler process in the Procfile, and no cron in render.yaml. Consequently Flusher.flush_deleted_users has not run either, so deleted users are not actually being flushed, which is a direct GDPR Article 17 exposure. This finding also reframes the retention-precedence questions raised by the 2026-09-01 Codex audit: the EU purge and the HIPAA floor cannot conflict because neither executes."
+    },
+    {
+      "id": "LL-20703f4fa8",
+      "ruleKey": "ai-api-log-error-message-persisted-unscrubbed-and-unbounded",
+      "title": "AiApiLog.error_message is assigned raw provider exception text into an unbounded column and is excluded from the before_validation scrub that covers the request and response summaries",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/ai_api_log.rb",
+        "line": 90,
+        "snippet": "log.error_message = params[:error_message]",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add error_message to the scrub_summary_columns before_validation callback and truncate it to a bounded length. Alternative, if the raw text has diagnostic value: store a scrubbed and truncated message on the record and route the full text to the error tracker instead, which is already wired.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. The before_validation :scrub_summary_columns callback at app/models/ai_api_log.rb:20-26 covers response_summary and request_summary only. error_message is assigned raw at :90 from callers including lib/ai_word_predictor.rb:137 and lib/eval_narrator.rb:211, lands in a text column with no length bound, and is re-emitted by to_audit_hash at :275. A provider exception can echo request content, so a prompt fragment can reach the log unscrubbed. The original Codex audit rated this High; both review passes agreed Medium is correct because the egress scrubber still runs on the prompt itself and the exposure is second-order."
+    },
+    {
+      "id": "LL-fba170716e",
+      "ruleKey": "sns-subscription-confirmation-unverified-and-sms-payload-logged-before-verification",
+      "title": "The SNS callback logs the full payload before verifying it on the SMS branch, performs no signature verification at all on the SubscriptionConfirmation branch, and reads the request body with no size bound",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/callbacks_controller.rb",
+        "line": 15,
+        "snippet": "Rails.logger.warn(json_body.to_json)",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Move the SMS branch payload log to after the authenticity check so it mirrors the transcoding branch, add MessageVerifier to the SubscriptionConfirmation branch rather than relying on the topic ARN allowlist alone, and bound the body read. Also delete the stale TODO comment at line 8, which claims signature confirmation is outstanding and is almost certainly what led the 2026-09-01 Codex audit to report the whole endpoint as unauthenticated.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. This is deliberately NARROWER than the audit's original High, which claimed an unauthenticated callback. That claim is wrong and would have cast doubt on an attested closure: both Notification branches do verify before processing, returning 401 at :28-29 before Transcoder.handle_event at :32 and at :42-43 before RemoteTarget.process_inbound at :46, exactly as recorded in the closure of LL-6d8314e37b. What survives verification is three narrow residuals. First, the SubscriptionConfirmation branch at :10-19 gates only on an SNS_ARNS allowlist and logs the payload at :15 with no signature check. Second, the SMS branch logs the payload at :40 BEFORE verifying at :41-44, unlike the transcoding branch which logs after. Third, request.body.read at :6 has no size bound and the route is absent from the throttling initializer. Unauthenticated reachability, but a forged confirmation token still fails at AWS."
+    },
+    {
+      "id": "LL-d033b27acd",
+      "ruleKey": "document-register-overdue-window-frozen-to-generated-date-reports-none-overdue",
+      "title": "The document register anchors its overdue-for-review window to meta.generatedDate rather than the current date, so the rendered register printed none overdue while two records were genuinely past their review dates",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/document-register-render.rb",
+        "line": 154,
+        "snippet": "if meta.key?('generatedDate')",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Keep the deterministic render for CI, but add a separate freshness check that evaluates review dates against the current date and fails or warns when a record is overdue, so the blind window between the frozen anchor and HEAD cannot hide an overdue record. Alternative: keep one code path and render the overdue section against Date.today while excluding it from the contentHash comparison, so determinism is preserved where it matters.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. The anchoring is deliberate and documented in the comment above the cited line, so CI renders stay deterministic; the defect is that nothing else evaluates freshness. With the anchor frozen at the July generation date, DOCUMENT-REGISTER.md printed 'Overdue for review: none' while two records were overdue as of the reviewed commit: DOC-1ea9f75b4f Incident Log, due 2026-08-27, last reviewed 2026-05-27, status approved; and DOC-771d214850 EU AI Act Article 50 Implementation Milestone Plan, due 2026-08-02, status draft. The register does not merely carry an old date, it affirmatively reports the wrong answer. Note this is NOT the same as the 2026-09-01 Codex audit's claim that meta.auditedSha is internally stale, which misreads the audit-pointer governance convention documented in audit-reports/README.md:42-60."
+    },
+    {
+      "id": "LL-37860cbcfa",
+      "ruleKey": "github-actions-unpinned-by-digest-in-production-deploy-job-holding-id-token-write",
+      "title": "No GitHub Action in the repository is pinned by commit digest, including the authentication action inside the production deploy job that holds id-token write permission",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".github/workflows/deploy-cloudrun.yml",
+        "line": 309,
+        "snippet": "uses: google-github-actions/auth@v3",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Pin every third-party action to a full commit digest with the tag retained as a trailing comment, starting with the actions inside jobs that hold id-token write or otherwise touch production credentials. Add a CI check or Dependabot configuration so the pins stay current rather than silently ageing.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. Every action reference in the repository is tag-based: actions/checkout at v6 across fourteen call sites, ruby/setup-ruby at v1 across five, and google-github-actions/auth at v3 in the production deploy job whose permissions block at .github/workflows/deploy-cloudrun.yml:191 grants id-token write. A tag repoint by a third party, whether through compromise or maintainer error, therefore executes attacker-controlled code in the job that mints the production workload identity token. The original Codex audit noted tag-based references in passing while rating a gitleaks download issue higher; the ordering is inverted, since that path is already tracked as LL-33d756b764 and this one was not tracked at all."
+    },
+    {
+      "id": "LL-84c67d758d",
+      "ruleKey": "terms-agree-modal-dialog-invoked-without-labelledby-orphaning-its-title-id",
+      "title": "The terms-agree modal invokes ModalDialog without labelledBy, so the dialog ships with role dialog and aria-modal but no accessible name, and the title id added for that purpose is orphaned",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/terms-agree.hbs",
+        "line": 1,
+        "snippet": "<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}} @uncloseable=\"true\">",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Pass the labelledBy and describedBy arguments the way app/frontend/app/components/ai-disclosure.hbs:7 already does; it was cloned from this component and gets it right. Consider a development-time assertion in modal-dialog.js when labelledBy is absent, so the next clone cannot repeat it silently.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01; missed by the original audit, which cited this file for a different and partly incorrect claim. The component supplies id terms-agree-title on its heading at :8 specifically so a label association can be made, but never passes the argument. modal-dialog.hbs:6 binds aria-labelledby to this.labelledBy, which is undefined at modal-dialog.js:15, so Ember omits the attribute entirely and the id has no referent. WCAG 4.1.2 Name, Role, Value. Distinct from the generic modal shell rows LL-b06f063f85 and LL-58130aaefe, and distinct from LL-104bfa61dc, which correctly covers the switch-scanning gap in the same component. Note for triage: the audit's claim that this modal has a broken focus trap is FALSE. modal-dialog.js:104-135 implements a real Tab trap with wraparound and :61-85 sets initial focus, which terms-agree.hbs:4-8 opts into via data-autofocus."
     }
   ]
 }

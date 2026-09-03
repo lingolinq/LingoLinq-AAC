@@ -494,6 +494,13 @@ class User < ApplicationRecord
     c['parent_email'].blank?
   end
 
+  def self.signup_birth_from_params(params)
+    p = params || {}
+    month = p['birth_month'] || p['birth-month'] || p['birthMonth']
+    year = p['birth_year'] || p['birth-year'] || p['birthYear']
+    [month, year]
+  end
+
   # Manager-attested birth month/year (same ambiguity rule as register.js):
   # cutoff month counts as still under the threshold.
   # Returns true / false / nil (nil when month/year incomplete).
@@ -1939,15 +1946,15 @@ class User < ApplicationRecord
 
   def generate_defaults
     self.settings ||= {}
-    # NOTE: settings['name'] is deliberately NOT defaulted. Signup collects no
-    # name, and this used to seed the literal string "No name", which is not a
-    # null value -- every `name || user_name` guard in the codebase silently
-    # failed because a non-empty string is truthy. It reached users as
-    # "Hi No name", "Choose No name's home board", and worst, as an SMS to a
-    # family member reading "from No name - <message>" (see #share_with, where
-    # the guard is written correctly and only ever failed because of this line).
-    # Leaving it nil lets those guards work as written. Anything DISPLAYING a
-    # name should still go through the client-side helper
+    # NOTE: settings['name'] is deliberately NOT defaulted. Public signup
+    # collects an optional full name; when the field is left blank this stays
+    # nil. Seeding the literal string "No name" used to break every
+    # `name || user_name` guard because a non-empty string is truthy. It
+    # reached users as "Hi No name", "Choose No name's home board", and worst,
+    # as an SMS to a family member reading "from No name - <message>" (see
+    # #share_with, where the guard is written correctly and only ever failed
+    # because of this line). Leaving it nil lets those guards work as written.
+    # Anything DISPLAYING a name should still go through the client-side helper
     # (app/frontend/app/utils/display_name.js) or fall back to user_name.
     self.settings['preferences'] ||= {}
     self.settings['preferences']['progress'] ||= {}
@@ -2480,7 +2487,12 @@ class User < ApplicationRecord
     params.delete('admin') if params.respond_to?(:delete)
     params.delete(:admin)  if params.respond_to?(:delete)
     self.settings ||= {}
-    ['name', 'description', 'details_url', 'location', 'cell_phone'].each do |arg|
+    if params['name']
+      cleaned_name = params['name'].to_s.gsub(/[\x00-\x1F\x7F]/, '').strip
+      cleaned_name = cleaned_name[0, 200]
+      self.settings['name'] = process_string(cleaned_name) if cleaned_name.present?
+    end
+    ['description', 'details_url', 'location', 'cell_phone'].each do |arg|
       self.settings[arg] = process_string(params[arg]) if params[arg]
     end
     # Use process_boolean (true / '1' / 'true' only) rather than a bare
@@ -2553,9 +2565,21 @@ class User < ApplicationRecord
     # Use !org_authorized (not authored_organization_id.blank?) so an empty string OR a
     # present-but-invalid/unauthorized org id both fall through to the COPPA gate.
     if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && !org_authorized
-      # Ember may send snake_case, dasherized, or camelCase JSON keys depending on serializer/version.
-      minor_flag = params['coppa_under_13'] || params['coppa-under-13'] || params['coppaUnder13']
-      wants_minor = [true, 'true', '1', 1].include?(minor_flag)
+      # Birth month/year is authoritative when classifiable. The client
+      # coppa_under_13 flag is only a fallback for authored/internal creates
+      # that do not send a date (org New User, fixtures).
+      birth_month, birth_year = User.signup_birth_from_params(params)
+      classified_under_13 = User.age_under_threshold?(
+        birth_month: birth_month,
+        birth_year: birth_year,
+        age: JsonApi::Json::DEFAULT_COPPA_CONSENT_AGE
+      )
+      if classified_under_13.nil?
+        minor_flag = params['coppa_under_13'] || params['coppa-under-13'] || params['coppaUnder13']
+        wants_minor = [true, 'true', '1', 1].include?(minor_flag)
+      else
+        wants_minor = classified_under_13
+      end
       if wants_minor
         parent = (
           params['parent_consent_email'] ||
@@ -2590,15 +2614,26 @@ class User < ApplicationRecord
     end
     # Registration country + under-16 flags (EU AI / GDPR Art. 8). Persisted only
     # on create. Server recomputes eu_under_16 from trusted country + under_16;
-    # ignore any client-supplied eu_under_16. COPPA account-activation gate stays
-    # keyed on client coppa_under_13 (literal under-13 only — not EU age-16).
+    # ignore any client-supplied eu_under_16. When birth month/year is present,
+    # under_16 is classified here (same month/year rule as COPPA-13). COPPA
+    # account activation is literal under-13, not EU age-16.
     # EU under-16 may create accounts without signup parent email; AI enablement
     # uses settings['eu_ai_parental_consent'] after login.
     if !self.id
       country = LingoLinq::Jurisdiction.trusted_country(params['country'])
       self.settings['country'] = country if country
-      under16_flag = params['under_16'] || params['under-16'] || params['under16']
-      under_16 = [true, 'true', '1', 1].include?(under16_flag)
+      birth_month, birth_year = User.signup_birth_from_params(params)
+      classified_under_16 = User.age_under_threshold?(
+        birth_month: birth_month,
+        birth_year: birth_year,
+        age: 16
+      )
+      if classified_under_16.nil?
+        under16_flag = params['under_16'] || params['under-16'] || params['under16']
+        under_16 = [true, 'true', '1', 1].include?(under16_flag)
+      else
+        under_16 = classified_under_16
+      end
       eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
       self.settings['registration'] = {
         'under_16' => under_16,
@@ -2675,6 +2710,10 @@ class User < ApplicationRecord
     # current password". Only an explicitly-absent (nil) value is a no-op.
     unless params['valet_login'].nil?
       if process_boolean(params['valet_login'])
+        if params['valet_password'].present? && !password_meets_minimum?(params['valet_password'])
+          add_processing_error("password too short")
+          return false
+        end
         self.set_valet_password(params['valet_password'])
         self.settings['valet_long_term'] = process_boolean(params['valet_long_term']) if params['valet_long_term'] != nil
         self.settings['valet_prevent_disable'] = process_boolean(params['valet_prevent_disable']) if params['valet_prevent_disable'] != nil
@@ -3042,6 +3081,10 @@ class User < ApplicationRecord
     self.settings['public'] = !!params['public'] if params['public'] != nil
     self.settings['admin'] = !!non_user_params['admin'] if non_user_params['admin'] != nil
     if params['password'] && params['password'] != ""
+      if !password_meets_minimum?(params['password'])
+        add_processing_error("password too short")
+        return false
+      end
       if !self.settings['password'] || valid_password?(params['old_password']) || non_user_params[:allow_password_change]
         @password_changed = !!self.settings['password']
         # Remember whether this was a self-service change (old password verified)
@@ -3425,8 +3468,8 @@ class User < ApplicationRecord
   # app/frontend/app/utils/display_name.js, for the places JS cannot reach --
   # mailer views, Open Graph tags, the SMS body of a shared utterance.
   #
-  # Signup collects no name, so settings['name'] is absent for most accounts and
-  # every DISPLAY has to fall back to the handle.
+  # Signup name is optional, so settings['name'] is still absent for accounts
+  # that skip it and every DISPLAY has to fall back to the handle.
   # Use `settings['name']` directly only when round-tripping, never to display.
   def display_name
     return self.display_user_name if placeholder_name?

@@ -5413,10 +5413,7 @@ describe Board, :type => :model do
         {'id' => '1_2', 'label' => 'hat'},
         {'id' => '1_3', 'label' => 'cat'},
       ], nil)
-      expect(Uploader).to receive(:default_images).with('twemoji', ['hat', 'cat'], 'en', u, true, false).and_return({
-        'cat' => {'url' => 'https://www.example.com/cat.png'},
-        'hat' => {'url' => 'https://www.example.com/hat.png'}
-      })
+      expect(Uploader).to_not receive(:default_images)
       res = b.swap_images('twemoji', u, [], nil)
       expect(res).to eq({done: true, id: b.global_id, library: 'twemoji', board_ids: [], updated: [b.global_id], visited: [b.global_id]})
       bis = ButtonImage.all.order('id ASC')
@@ -5515,6 +5512,28 @@ describe Board, :type => :model do
       expect(b.reload.buttons.map{|b| b['image_id'] }).to eq([bi.global_id, bis[1].global_id])
     end
 
+    it "should not call find_images for a Hydra transport error, and should still flag swap_incomplete" do
+      u = User.create
+      bi = ButtonImage.create(user: u)
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
+        {'id' => '1_3', 'label' => 'cat', 'image_id' => bi.global_id},
+      ], nil)
+      expect(Uploader).to receive(:default_images).with('twemoji', ['hat', 'cat'], 'en', u, true, false).and_return({
+        'cat' => {'url' => 'https://www.example.com/cat.png'},
+        '_transport' => ['hat']
+      })
+      expect(Uploader).to_not receive(:find_images)
+      b.settings['images_not_mapped'] = true
+      b.swap_images('twemoji', u, [], nil)
+      b.reload
+      expect(b.settings['swapped_library']).to eq('twemoji')
+      expect(b.settings['swap_incomplete']).to eq(true)
+      expect(b.buttons.map{|btn| btn['image_id'] }[0]).to eq(bi.global_id)
+      expect(b.buttons.map{|btn| btn['image_id'] }[1]).to_not eq(bi.global_id)
+    end
+
     it "should not swap images for user-uploaded buttons" do
       u = User.create
       bi = ButtonImage.create(user: u)
@@ -5525,8 +5544,7 @@ describe Board, :type => :model do
         {'id' => '1_2', 'label' => 'hat', 'image_id' => bi.global_id},
         {'id' => '1_3', 'label' => 'cat', 'image_id' => bi2.global_id},
       ], nil)
-      expect(Uploader).to receive(:default_images).with('twemoji', ['hat', 'cat'], 'en', u, true, false).and_return({
-        'cat' => {'url' => 'https://www.example.com/cat.png'},
+      expect(Uploader).to receive(:default_images).with('twemoji', ['hat'], 'en', u, true, false).and_return({
         'hat' => {'url' => 'https://www.example.com/hat.png'}
       })
       b.settings['images_not_mapped'] = true
@@ -5790,7 +5808,9 @@ describe Board, :type => :model do
       b = Board.find_by_global_id(b.global_id)
       library = 'opensymbols'
       library.instance_variable_set('@skip_swapped', true)
-      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat'], 'en', u, true, false).and_return({})
+      # Every button is already in an aggregated library. Looking them up
+      # before the skip used to burn one OpenSymbols HTTP call per word.
+      expect(Uploader).to_not receive(:default_images)
       expect(Uploader).to_not receive(:find_images)
       b.swap_images(library, u, [], nil)
       expect(b.reload.buttons.map{|btn| btn['image_id'] }).to eq([bi.global_id, bi.global_id])
@@ -5814,7 +5834,7 @@ describe Board, :type => :model do
       b = Board.find_by_global_id(b.global_id)
       library = 'opensymbols'
       library.instance_variable_set('@skip_swapped', true)
-      expect(Uploader).to receive(:default_images).and_return({})
+      expect(Uploader).to_not receive(:default_images)
       b.swap_images(library, u, [], nil)
       # This is the exact comparison User#copy_to_home_board makes (user.rb ~3088)
       # and User#copy_board_to_library makes (user.rb ~3065).
@@ -5911,11 +5931,11 @@ describe Board, :type => :model do
       b = Board.find_by_global_id(b.global_id)
       library = 'opensymbols'
       library.instance_variable_set('@skip_swapped', true)
-      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat'], 'en', u, true, false).and_return({
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['cat'], 'en', u, true, false).and_return({
         'cat' => {'url' => 'https://www.example.com/cat.png'}
       })
-      # 'hat' is skipped, so it must never reach the per-word fallback even though
-      # default_images returned nothing for it.
+      # 'hat' is already in-library, so it must not be sent to default_images
+      # and must never reach the per-word fallback.
       expect(Uploader).to_not receive(:find_images)
       b.swap_images(library, u, [], nil)
       b.reload
@@ -5924,6 +5944,32 @@ describe Board, :type => :model do
       expect(ids[1]).to_not eq(swap.global_id)
       expect(b.settings['swapped_library']).to eq('opensymbols')
       expect(b.settings['swap_incomplete']).to eq(nil)
+    end
+
+    it "should look up a vocalization-only button that still needs a swap" do
+      # words used to flatten both label and vocalization. The read at
+      # board.rb:2936 is label || vocalization, so a button with no label
+      # must still send its vocalization and nothing else.
+      u = User.create
+      keep = licensed_image(u, 'ARASAAC', 'https://arasaac.org/')
+      swap = licensed_image(u, 'Tobii Dynavox', 'https://www.tobiidynavox.com/')
+      b = Board.create(user: u)
+      b.process_buttons([
+        {'id' => '1_2', 'label' => 'hat', 'image_id' => keep.global_id},
+        {'id' => '1_3', 'vocalization' => 'meow', 'image_id' => swap.global_id},
+      ], nil)
+      b.save
+      b = Board.find_by_global_id(b.global_id)
+      library = 'opensymbols'
+      library.instance_variable_set('@skip_swapped', true)
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['meow'], 'en', u, true, false).and_return({
+        'meow' => {'url' => 'https://www.example.com/meow.png'}
+      })
+      expect(Uploader).to_not receive(:find_images)
+      b.swap_images(library, u, [], nil)
+      b.reload
+      expect(b.buttons[0]['image_id']).to eq(keep.global_id)
+      expect(b.buttons[1]['image_id']).to_not eq(swap.global_id)
     end
 
     it "should record swapped_library and swap_incomplete when a member skip, a successful swap, and an empty lookup share a board" do
@@ -5945,7 +5991,7 @@ describe Board, :type => :model do
       b = Board.find_by_global_id(b.global_id)
       library = 'opensymbols'
       library.instance_variable_set('@skip_swapped', true)
-      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat', 'dog'], 'en', u, true, false).and_return({
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['cat', 'dog'], 'en', u, true, false).and_return({
         'cat' => {'url' => 'https://www.example.com/cat.png'}
       })
       expect(Uploader).to receive(:find_images).with('dog', 'opensymbols', 'en', u, nil, true, false).and_return([])
@@ -5974,7 +6020,7 @@ describe Board, :type => :model do
       b = Board.find_by_global_id(b.global_id)
       library = 'opensymbols'
       library.instance_variable_set('@skip_swapped', true)
-      expect(Uploader).to receive(:default_images).with('opensymbols', ['hat', 'cat'], 'en', u, true, false).and_return({
+      expect(Uploader).to receive(:default_images).with('opensymbols', ['cat'], 'en', u, true, false).and_return({
         'cat' => {'url' => 'https://www.example.com/cat.png'}
       })
       expect(Uploader).to_not receive(:find_images)
