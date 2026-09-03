@@ -189,9 +189,14 @@ task "scheduler:dispatch" => :environment do
       "#{count} expired"
     end
 
+    # Reports the MODE alongside the count. Without it "0 export-then-delete
+    # scheduled" is ambiguous between "nothing was due" and "the sweep is off",
+    # which are opposite operational facts. Default is disabled -- see the header
+    # of app/workers/offboarding_coppa_expiration_worker.rb for why.
     run_task.call("expire_offboarding_coppa_consents") do
+      mode = OffboardingCoppaExpirationWorker.mode
       count = OffboardingCoppaExpirationWorker.perform
-      "#{count} export-then-delete scheduled"
+      "mode=#{mode}, #{count} export-then-delete scheduled"
     end
 
     run_task.call("flush_expired_beta_feedback_recordings") do
