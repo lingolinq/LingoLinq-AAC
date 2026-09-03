@@ -1463,7 +1463,7 @@ button.ch-tile--silver:focus-visible {
     outline-offset: -7px;
   }
 
-  .ch-tile__sub {
+  .ch-tile--big .ch-tile__sub {
     display: block;
     // Above the gloss pseudo-element, same reason .ch-tile__label is positioned.
     position: relative;
@@ -1484,7 +1484,7 @@ button.ch-tile--silver:focus-visible {
   // both ends so it reads as a divider inside a card rather than a box edge, and it
   // carries `margin-top: auto`, which is what pushes it and the detail line below it to
   // the bottom of the tile.
-  .ch-tile__rule {
+  .ch-tile--big .ch-tile__rule {
     display: block;
     position: relative;
     width: 100%;
@@ -1507,7 +1507,7 @@ button.ch-tile--silver:focus-visible {
   // stormy-teal at 0.46, where 0.80 gives 4.09:1). Kept a step smaller and lighter in
   // weight than the subheader so the three text levels are distinguishable by size and
   // weight rather than by contrast.
-  .ch-tile__more {
+  .ch-tile--big .ch-tile__more {
     display: block;
     position: relative;
     max-width: 28ch;
