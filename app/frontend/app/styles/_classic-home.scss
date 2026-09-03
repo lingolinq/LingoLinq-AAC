@@ -789,7 +789,15 @@ button.ch-tile:hover .ch-tile__chip {
 
 // The lead action of a card reads as the primary one.
 .ch-tile--primary {
-  background: linear-gradient(160deg, $brand-dusty-denim 0%, $brand-smart-blue 100%);
+  /* Starts at $brand-dusty-denim-aa, NOT $brand-dusty-denim. These are the only two
+     places in this file that reverse WHITE text out of an opaque denim fill, and the
+     lighter denim fails WCAG 2.1 AA there: #fff on #4C86D8 measures 3.68:1 against a
+     4.5:1 requirement, and the gradient stayed under 4.5 for roughly its first three
+     quarters (midpoint #4378D0 = 4.34:1). Neither element qualifies as large text.
+     With the AA denim the whole ramp passes — 5.82:1 at the start, 5.11:1 at the end.
+     Everything else in this file uses plain $brand-dusty-denim as a low-alpha tint
+     behind DARK text, where it is fine; only reversed-out white needs the AA variant. */
+  background: linear-gradient(160deg, $brand-dusty-denim-aa 0%, $brand-smart-blue 100%);
   border-color: rgba(255, 255, 255, 0.5);
   color: #fff;
   box-shadow:
@@ -1150,7 +1158,15 @@ button.ch-tile--silver:focus-visible {
 }
 
 .ch-btn--primary {
-  background: linear-gradient(160deg, $brand-dusty-denim 0%, $brand-smart-blue 100%);
+  /* Starts at $brand-dusty-denim-aa, NOT $brand-dusty-denim. These are the only two
+     places in this file that reverse WHITE text out of an opaque denim fill, and the
+     lighter denim fails WCAG 2.1 AA there: #fff on #4C86D8 measures 3.68:1 against a
+     4.5:1 requirement, and the gradient stayed under 4.5 for roughly its first three
+     quarters (midpoint #4378D0 = 4.34:1). Neither element qualifies as large text.
+     With the AA denim the whole ramp passes — 5.82:1 at the start, 5.11:1 at the end.
+     Everything else in this file uses plain $brand-dusty-denim as a low-alpha tint
+     behind DARK text, where it is fine; only reversed-out white needs the AA variant. */
+  background: linear-gradient(160deg, $brand-dusty-denim-aa 0%, $brand-smart-blue 100%);
   color: #fff;
   box-shadow:
     0 6px 16px rgba($brand-smart-blue, 0.3),
