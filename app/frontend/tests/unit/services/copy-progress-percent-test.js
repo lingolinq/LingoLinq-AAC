@@ -1,5 +1,10 @@
 import { module, test } from 'qunit';
-import { setupTest } from 'ember-qunit';
+/* The repo's own setupTest, NOT ember-qunit's: the wrapper passes `waitForSettled: false`
+   because a booted app with stubbed persistence leaves orphan RSVP/runLater work that never
+   settles, and upstream's afterEach settled() then hangs (tests/helpers/index.js:36-40).
+   Importing upstream directly made all seven of these synchronous tests time out at 15s in a
+   FULL run while passing under a filter — which is exactly how it went unnoticed. */
+import { setupTest } from '../../helpers';
 
 /* The percent half of the copy-progress service. The distinction under test throughout is
    MEASURED vs NOT MEASURED: a board copy runs in two phases and only the second reports a
