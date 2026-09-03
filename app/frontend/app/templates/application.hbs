@@ -562,13 +562,11 @@
                   {{/unless}}
                 </ul>
               </span>
-              {{!-- Single "Modern View" link, styled like the Speak
-                   Mode button; navigates straight to the modern
-                   (board-detail) view. --}}
-              <a href="#" class="btn board-view-modern-btn" {{on "click" (this.ctrlAction "go_to_modern")}}>
-                <span class="glyphicon glyphicon-th-large"></span>
-                <span class="wide">{{t "Card View" key="board_view_card"}}</span>
-              </a>
+              {{!-- The "Card View" link was REMOVED here (2026-09-02, requested): the
+                   navbar View dropdown now offers the same switch from every
+                   authenticated page, so this was a second control for one action —
+                   and on this page specifically, sitting inside `#normal_mode` right
+                   beside "Try in Speak Mode". See components/view-switcher.js. --}}
             {{/if}}
           {{/if}}
 
