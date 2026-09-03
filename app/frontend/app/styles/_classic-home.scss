@@ -93,7 +93,13 @@
   padding: 14px 16px;
   border-radius: 18px;
   // Deeper tint than the rows so the person, not the actions, leads the panel.
-  background: linear-gradient(150deg, rgba($brand-dusty-denim, 0.16) 0%, rgba($brand-verdigris, 0.12) 100%);
+  // Darkened from 0.16/0.12 (requested 2026-09-02). 0.32/0.26 is the CEILING, not a
+  // taste call: `.ch-rail__identity-sub` ("View my account") is $la-navy at 0.75
+  // opacity, and against the darker verdigris end it measures 4.56:1 — just over the
+  // WCAG AA 4.5:1 floor. The next step up, 0.40/0.32, drops it to 4.27:1 and fails.
+  // If this needs to go darker, raise the sub-label's opacity or drop the 0.75 first.
+  // (The username itself is full-strength navy at 8.38:1 and is not the constraint.)
+  background: linear-gradient(150deg, rgba($brand-dusty-denim, 0.32) 0%, rgba($brand-verdigris, 0.26) 100%);
   // Same outline as the Actions tab's My Account tile (`.ch-tile--account`, which
   // takes `ch-tile-tint($brand-teal-blue)`): both are the door to the same page, so
   // they carry the same edge. Kept as the literal rgba the mixin emits rather than
@@ -1213,11 +1219,6 @@ button.ch-tile--silver:focus-visible {
   background: #fff;
   color: $la-navy;
   text-decoration: none;
-}
-
-// Inside the rail's speak row the button must not stretch the tile.
-.ch-btn--speak {
-  align-self: flex-start;
 }
 
 // -----------------------------------------------------------------------------
