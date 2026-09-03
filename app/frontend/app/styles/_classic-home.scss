@@ -1558,12 +1558,20 @@ button.ch-tile--silver:focus-visible {
     position: absolute;
     left: 0;
     right: 0;
-    top: 50%;
-    // -50% centres it; the +2rem then drops it below centre (requested 2026-09-02).
-    // Still anchored to the CARD, so the offset is identical on every card in the row
-    // and they stay aligned — which is the whole reason this is not positioned relative
-    // to the text above or below it.
-    transform: translateY(calc(-50% + 2rem));
+    // Anchored to the TOP of the card, not its centre (requested 2026-09-02: the cue must
+    // sit below the subheader and must never ride up into the title block).
+    //
+    // 12rem = 192px, and the top zone measures 169.5px on an Actions card
+    // (26 padding + 74 chip + 14 + 23x1.15 title + 7 + 17x1.3 subheader) and 146px on a
+    // drawer tile. So this clears the taller of the two by 22.5px and cannot collide
+    // with the content above it. Centre-anchoring could not promise that: on a 300px
+    // card, 50% + 2rem lands at 182px, which is only 12px below the subheader and moves
+    // with the card's height.
+    //
+    // A fixed offset from the top also still lines the cues up across the row — every
+    // card's top zone is now a single-line title over a single-line subheader, so the
+    // same offset resolves to the same y on all of them.
+    top: 12rem;
     height: auto;
     margin: 0;
     background: none;
@@ -1585,10 +1593,9 @@ button.ch-tile--silver:focus-visible {
   // carry. The inline caret is hidden here so the cue is not duplicated.
   .ch-tile--extras-toggle .ch-tile__rule::before { content: "\25BE"; }
   .ch-tile--extras-toggle.is-open .ch-tile__rule {
-    // Must repeat the same offset as the base rule — `transform` replaces, it does not
-    // merge, so writing only the rotation here would snap the chevron back to centre the
-    // moment the drawer opened.
-    transform: translateY(calc(-50% + 2rem)) rotate(180deg);
+    // No translate to repeat now that the cue is top-anchored — the rotation is the only
+    // transform, so this cannot fight the base rule's positioning.
+    transform: rotate(180deg);
   }
   .ch-tile--big .ch-tile__toggle-caret { display: none; }
 
