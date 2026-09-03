@@ -888,9 +888,13 @@ jobs:
             | jq -r '[.status.traffic[] | select(.tag == "candidate")][0].url // empty')"
           echo "::error::$WEB_SERVICE was just CREATED in $GCP_PROJECT_ID/$GCP_REGION and is PRIVATE. Its only revision holds 100% of traffic and has NOT been probed."
           echo "::error::One-time operator sequence, in this order, then re-run this workflow:"
-          echo "::error::  1. Probe the private revision with your own identity (needs run.invoker; project owners have it). Both must return 200:"
-          echo "::error::       for i in 1 2; do curl -sS -o /dev/null -w '%{http_code}\n' -H \"Authorization: Bearer \$(gcloud auth print-identity-token)\" ${CAND_URL:-<candidate tag URL from: gcloud run services describe $WEB_SERVICE --region $GCP_REGION --format=json | jq .status.traffic>}/api/v1/health; done"
-          echo "::error::     If either is not 200, STOP: fix and re-run the workflow; do not open ingress."
+          echo "::error::  1. Probe the private revision with your own identity (needs run.invoker; project owners have it)."
+          echo "::error::     This block FAILS CLOSED: it prints PROBE OK only if both probes return HTTP 200; otherwise it prints STOP and you must not continue."
+          PROBE_URL="${CAND_URL:-<candidate tag URL: gcloud run services describe $WEB_SERVICE --region $GCP_REGION --format=json | jq .status.traffic>}"
+          cat <<EOF_PROBE | sed 's/^/::error::       /'
+( for i in 1 2; do code="\$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer \$(gcloud auth print-identity-token)" "${PROBE_URL}/api/v1/health")"; [ "\$code" = "200" ] || { echo "STOP: private health probe returned HTTP \$code; do NOT open ingress" >&2; exit 1; }; done; echo "PROBE OK: both probes returned 200" )
+EOF_PROBE
+          echo "::error::     Continue to step 2 ONLY after PROBE OK. On STOP: fix, re-run this workflow, do not open ingress."
           echo "::error::  2. gcloud resource-manager tags bindings create --location=$GCP_REGION --tag-value=<allUsersIngress=true tagValue id> --parent=//run.googleapis.com/projects/$GCP_PROJECT_ID/locations/$GCP_REGION/services/$WEB_SERVICE"
           echo "::error::  3. gcloud run services add-iam-policy-binding $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --member allUsers --role roles/run.invoker"
           echo "::error::  4. gcloud run services update-traffic $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --remove-tags candidate"
