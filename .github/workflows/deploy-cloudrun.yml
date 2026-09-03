@@ -481,6 +481,15 @@ jobs:
                 echo "::error::Environment '$ENV_NAME' resolved a PRODUCTION deploy identity (GCP_WIF_PROVIDER/GCP_DEPLOY_SA). Fix the environment's variables; refusing to authenticate."
                 exit 1 ;;
             esac
+            # Same reasoning for the data plane: a nonprod environment that inherited the prod
+            # Cloud SQL connection name or VPC would otherwise be stopped only by the nonprod
+            # runtime SA lacking cloudsql.client on lingolinq-prod, i.e. a control in another
+            # project. Reject it here instead.
+            case "$GCP_CLOUDSQL_INSTANCE:$GCP_VPC_NETWORK" in
+              *lingolinq-prod*)
+                echo "::error::Environment '$ENV_NAME' resolved a PRODUCTION data-plane target (GCP_CLOUDSQL_INSTANCE='$GCP_CLOUDSQL_INSTANCE', GCP_VPC_NETWORK='$GCP_VPC_NETWORK'). Refusing to migrate or deploy against it."
+                exit 1 ;;
+            esac
           fi
           case "$GCP_DEPLOY_SA" in
             *"@${GCP_PROJECT_ID}.iam.gserviceaccount.com") ;;
@@ -773,6 +782,7 @@ jobs:
       # deploy step below can create the service (a brand-new service has no prior revision to
       # protect, so `--no-traffic` is moot and is omitted on creation only).
       - name: Record current serving revision
+        id: record
         if: steps.guard.outputs.enabled == 'true'
         run: |
           set -euo pipefail
@@ -799,7 +809,14 @@ jobs:
             exit 1
           fi
           echo "PREV_REVISION=$PREV" >> "$GITHUB_ENV"
+          # Emitted BOTH ways on purpose. $GITHUB_ENV feeds the shell bodies below; the step
+          # OUTPUT feeds the `if:` on the first-deploy stop. GitHub documents `env` as available
+          # to a step `if`, but NOT that a value written to $GITHUB_ENV by an earlier step is
+          # visible there, so gating on `env.FIRST_DEPLOY` rested on undocumented behaviour. If it
+          # ever evaluated false the stop would be skipped and a private first-deploy service
+          # would be probed publicly and fail confusingly. Step outputs are specified for this.
           echo "FIRST_DEPLOY=$FIRST_DEPLOY" >> "$GITHUB_ENV"
+          echo "first_deploy=$FIRST_DEPLOY" >> "$GITHUB_OUTPUT"
           echo "Currently serving: ${PREV:-<none>}"
 
       # --no-traffic --tag candidate: the new revision is created and reachable at its own
@@ -877,7 +894,7 @@ jobs:
       # ingress before that authenticated probe would expose an unverified revision. Pre-created services (lingolinq-web-staging,
       # lingolinq-web-dev, created and tagged 2026-09-02) never reach this step.
       - name: First deploy stop (operator must tag + grant public ingress, then re-run)
-        if: steps.guard.outputs.enabled == 'true' && env.FIRST_DEPLOY == 'true'
+        if: steps.guard.outputs.enabled == 'true' && steps.record.outputs.first_deploy == 'true'
         run: |
           set -euo pipefail
           # The initial revision owns 100% of this new service's traffic (there was nothing else
@@ -892,8 +909,10 @@ jobs:
           echo "::error::     This block FAILS CLOSED: it prints PROBE OK only if both probes return HTTP 200; otherwise it prints STOP and you must not continue."
           PROBE_URL="${CAND_URL:-<candidate tag URL: gcloud run services describe $WEB_SERVICE --region $GCP_REGION --format=json | jq .status.traffic>}"
           # Single-quoted template: nothing inside expands here; the operator's shell expands it.
-          PROBE_BLOCK='( for i in 1 2; do code="$(curl -sS -o /dev/null -w '"'"'%{http_code}'"'"' -H "Authorization: Bearer $(gcloud auth print-identity-token)" "__URL__/api/v1/health")"; [ "$code" = "200" ] || { echo "STOP: private health probe returned HTTP $code; do NOT open ingress" >&2; exit 1; }; done; echo "PROBE OK: both probes returned 200" )'
-          echo "::error::       ${PROBE_BLOCK//__URL__/$PROBE_URL}"
+          PROBE_BLOCK='( for i in 1 2; do code="$(curl -sS -o /dev/null -w '"'"'%{http_code}'"'"' -H "Authorization: Bearer $(gcloud auth print-identity-token --audiences=__AUD__)" "__URL__/api/v1/health")"; [ "$code" = "200" ] || { echo "STOP: private health probe returned HTTP $code; do NOT open ingress" >&2; exit 1; }; done; echo "PROBE OK: both probes returned 200" )'
+          PROBE_AUD="$(gcloud run services describe "$WEB_SERVICE" --region "$GCP_REGION" --format='value(status.url)' 2>/dev/null || echo "$PROBE_URL")"
+          PROBE_RENDERED="${PROBE_BLOCK//__URL__/$PROBE_URL}"
+          echo "::error::       ${PROBE_RENDERED//__AUD__/$PROBE_AUD}"
           echo "::error::     Continue to step 2 ONLY after PROBE OK. On STOP: fix, re-run this workflow, do not open ingress."
           echo "::error::  2. gcloud resource-manager tags bindings create --location=$GCP_REGION --tag-value=<allUsersIngress=true tagValue id> --parent=//run.googleapis.com/projects/$GCP_PROJECT_ID/locations/$GCP_REGION/services/$WEB_SERVICE"
           echo "::error::  3. gcloud run services add-iam-policy-binding $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --member allUsers --role roles/run.invoker"
@@ -1015,6 +1034,11 @@ jobs:
             --region "$GCP_REGION" \
             --to-revisions "$CANDIDATE_REV=100" \
             --remove-tags candidate
+          # Marks the point after which users are on the NEW revision. Everything from here on
+          # (worker pool, scheduler Job, secret readback) can fail with traffic already shifted,
+          # which is exactly when an operator needs the pin-back command. See the failure step
+          # at the end of this job.
+          echo "SHIFT_DONE=true" >> "$GITHUB_ENV"
           # Read back who is serving. This read is LOAD-BEARING (it is the assert), so it is
           # guarded rather than left to `set -e`: a bare assignment failure would abort the step
           # between the completed traffic shift and the un-run worker deploy, stranding new web
@@ -1183,10 +1207,42 @@ jobs:
           if [ "$DEPLOY_WORKER_EFFECTIVE" = "true" ]; then
             worker_args=(--worker-pool "$WORKER_POOL")
           fi
+          # BEDROCK_EXPECTED_AWS_ACCOUNT is pinned in every environment. The four values below
+          # left this file for GitHub environment variables, where the only gate is non-blank:
+          # a wrong-but-well-formed bucket, CDN origin or Sentry label would pass every check and
+          # nobody reviewing a PR can see them. Pin PRODUCTION's by literal here, so the readback
+          # that already runs proves what actually landed on the revision. Not circular: these
+          # EREs live in the repo and are reviewed; the variables are not.
+          literal_args=(--required-literal 'BEDROCK_EXPECTED_AWS_ACCOUNT=^239044785114$')
+          if [ "$ENV_NAME" = "production" ]; then
+            literal_args+=(--required-literal 'UPLOADS_S3_BUCKET=^lingolinq-prod-uploads$')
+            literal_args+=(--required-literal 'STATIC_S3_BUCKET=^lingolinq-prod-static$')
+            literal_args+=(--required-literal 'UPLOADS_S3_CDN=^https://d34sa6lc5jfe66\.cloudfront\.net$')
+            literal_args+=(--required-literal 'SENTRY_ENVIRONMENT=^production$')
+          fi
           bash scripts/gcp/assert-runtime-secrets.sh \
             --project "$GCP_PROJECT_ID" \
             --region "$GCP_REGION" \
             --service "$WEB_SERVICE" \
             "${worker_args[@]}" \
             --required "$BOOT_SECRETS,$NON_BOOT_SECRETS" \
-            --required-literal 'BEDROCK_EXPECTED_AWS_ACCOUNT=^239044785114$'
+            "${literal_args[@]}"
+
+      # POST-SHIFT FAILURE DIAGNOSTIC. The candidate-probe failure path prints a pin-back command
+      # because at that point nothing had moved. Everything AFTER the traffic shift -- worker pool,
+      # scheduler Job, secret readback -- can fail with users already on the new revision, and
+      # before this step those failures printed nothing actionable: a red run, new web code live,
+      # and possibly an old worker still draining the queue. This step fires only in that window.
+      - name: On failure after the traffic shift, print the rollback
+        if: failure() && env.SHIFT_DONE == 'true'
+        run: |
+          echo "::error::A step FAILED AFTER traffic was shifted. $WEB_SERVICE in $GCP_PROJECT_ID is serving ${CANDIDATE_REV:-the new revision} NOW."
+          echo "::error::The worker pool and/or scheduler Job may still be on the PREVIOUS image, so web and worker can be running different code."
+          if [ -n "${PREV_REVISION:-}" ]; then
+            echo "::error::To put users back on the last known-good revision:"
+            echo "::error::  gcloud run services update-traffic $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --to-revisions $PREV_REVISION=100"
+          else
+            echo "::error::No single known-good predecessor was recorded. Find one, then pin it deliberately:"
+            echo "::error::  gcloud run revisions list --service $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --sort-by=~metadata.creationTimestamp"
+          fi
+          echo "::error::Then re-run this workflow on the commit you intend to ship. Do not leave web and worker split."

@@ -65,11 +65,18 @@ end
 
 desc "Unified scheduler dispatch for Render cron job - runs all hourly tasks, daily tasks at 6 AM UTC"
 task "scheduler:dispatch" => :environment do
+  # One task's failure must not skip the rest (that is why each is rescued), but the RUN must
+  # still fail. Before this, every task could raise and the process still exited 0, so Cloud Run
+  # Jobs and Cloud Scheduler both reported success while the GDPR/FERPA/COPPA retention purges in
+  # the daily block silently stopped running. A success signal that cannot go red is worse than
+  # no signal, because the absence of alerts gets read as evidence the purges ran.
+  failed = []
   run_task = Proc.new do |name, &block|
     puts "  [#{name}] starting..."
     result = block.call
     puts "  [#{name}] done: #{result}"
   rescue => e
+    failed << name
     puts "  [#{name}] ERROR: #{e.class}: #{e.message}"
     Rails.logger.error("[Scheduler] #{name} failed: #{e.class}: #{e.message}")
     Rails.logger.error("[Scheduler] #{e.backtrace&.first(5)&.join("\n")}")
@@ -205,5 +212,11 @@ task "scheduler:dispatch" => :environment do
     end
   end
 
+  if failed.any?
+    msg = "#{failed.size} scheduled task(s) FAILED: #{failed.join(', ')}"
+    puts "[#{Time.now.utc.iso8601}] === Scheduler Dispatch FAILED: #{msg} ==="
+    Rails.logger.error("[Scheduler] #{msg}")
+    abort(msg)
+  end
   puts "[#{Time.now.utc.iso8601}] === Scheduler Dispatch Complete ==="
 end
