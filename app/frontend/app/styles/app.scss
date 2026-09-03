@@ -3610,6 +3610,11 @@ h1.with_board .nav-header__logo img {
   padding-bottom: 5px !important;
 
 }
+/* NOTE: this global `h2` hammer is why `.ch-panel__title` / `.ch-card__title` in
+   _classic-home.scss have to carry `!important` on font-size — an `!important`
+   declaration can only be beaten by another one, regardless of specificity or order.
+   Left as-is deliberately: it applies to every <h2> in the app and re-scoping it is a
+   change with app-wide blast radius that does not belong in a classic-view fix. */
 h2 {
   margin-top: 0 !important;
 
@@ -95165,6 +95170,16 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   .beta-feedback-drawer-tab--speak {
     top: auto;
     bottom: 0;
+  }
+  /* Classic keeps its top-edge anchor at narrow widths, for the same reason the two
+     variants above re-assert theirs. The generic `.beta-feedback-drawer-tab` rule at
+     the top of this block sets `top: var(--topbar-height, 70px)` at the SAME
+     specificity (0,1,0) and later in source than the unscoped `--classic-top` rule,
+     and a media query adds no specificity of its own — so without this line Classic
+     silently reverted to hanging below the navbar on every viewport <=720px while
+     working correctly on desktop. */
+  .beta-feedback-drawer-tab--classic-top {
+    top: 0;
   }
   .beta-feedback-drawer__panel {
     width: calc(100vw - 16px);

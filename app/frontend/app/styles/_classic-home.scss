@@ -587,7 +587,14 @@ button.ch-row--sync:focus-visible {
 
 .ch-panel__title {
   margin: 0;
-  font-size: 20px;
+  /* !important is REQUIRED here, not preferred. app.scss carries a global
+     `h2 { font-size: 25px !important }`, and these titles are <h2> elements
+     (classic-view.hbs:372, 476, 487, 526, 617, 623, 750). An !important declaration
+     can only be beaten by another !important, regardless of specificity or source
+     order — so without this the panel headings rendered at 25px, 25% larger than
+     designed. This and .ch-card__title below are the only two !importants in this
+     file, and they exist solely to escape that global hammer. */
+  font-size: 20px !important;
   font-weight: 700;
   color: $la-navy;
 }
@@ -1079,7 +1086,8 @@ button.ch-tile--silver:focus-visible {
 
 .ch-card__title {
   margin: 0 0 8px;
-  font-size: 20px;
+  /* See .ch-panel__title — same `h2 { font-size: 25px !important }` escape. */
+  font-size: 20px !important;
   font-weight: 700;
   line-height: 1.2;
   color: $la-navy;
