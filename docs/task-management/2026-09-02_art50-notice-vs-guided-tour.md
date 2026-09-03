@@ -220,3 +220,13 @@ consumption cases now go through a second instance's `init`, which is the real p
 - Low: eslint rows shift again -> rebaselined in 947cea9d8 with `this._super(...arguments)` so no row was added.
 - A2 correction (stub the real `router` injection; assert after the afterRender flush): the committed case stubs
   `component.get('router').transitionTo` and asserts after the timer's runloop has flushed; falsified by mutation.
+
+### Codex "still left to do" list (Scot forwarded, 23:20 UTC) — checked in code, then acted on
+| # | Codex item | My check | Decision |
+|---|---|---|---|
+| 1 | Retain and cancel the poll timer in `willDestroy` | CONFIRMED gap: `runLater` id was not kept; after teardown the timer fired once and exited on the destroyed guard (harmless, but a stray tick holds acceptance `settled()`) | Done: `_art50PollTimer` retained, `runCancel` in `willDestroy`. Test wraps `_autoOpenAfterArt50Notice` before scheduling and asserts no tick after `destroy()`; the global `_hasScheduledTimers` was NOT usable (other timers exist in the harness). Mutation (drop `runCancel`) reddens only that case. |
+| 2 | Reset `_autoOpenDeferring` if the gate check throws | NOT a reachable path: `modal.is_open` (`modal.js:232`, `_getService` in try/catch), `art50Subject` (`article50_gate.js:87`), `needsAcknowledgement` (`:130`), `sessionEntryGatePending` (`:233`) all null-guard and only read model properties; the adversary traced the same | Declined: a try/catch here would be speculative code guarding a path that cannot execute, and the fail direction (run the tour over the notice, or drop it) has no right answer. Recorded here instead. |
+| 3 | Real `editHost` test | CONFIRMED: the host case only set `speakHost` | Done: separate speak-host and edit-host cases. |
+| 4 | Real-time boundary assertion in the due-cap case | CONFIRMED: 80 ms cap vs a 30 ms sleep before `expect(runs).toEqual(0)` | Done, but the assertion is KEPT (it is what makes the never-hold mutation redden this case); the cap is 400 ms in that case so the margin before the first assertion is 370 ms. |
+| 5 | Run targeted + broader tests, CI | | guided-tour 17/17; neighbouring suites below; lint gate below; CI on the pushed head. |
+| 6 | Re-review, approve, merge | | Scot's call. |

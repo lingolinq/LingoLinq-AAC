@@ -2,7 +2,7 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import { observer, computed } from '@ember/object';
-import { scheduleOnce, later as runLater } from '@ember/runloop';
+import { scheduleOnce, later as runLater, cancel as runCancel } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
@@ -644,10 +644,15 @@ export default Component.extend({
     return (Date.now() - startedAt) < this.get('art50_tour_due_max_ms');
   },
 
+  _art50PollTimer: null,
+
   _autoOpenAfterArt50Notice: function(startedAt) {
+    this._art50PollTimer = null;
     if (this.isDestroyed || this.isDestroying) { return; }
     if (this._art50NoticeHoldsAutoOpen(startedAt)) {
-      runLater(this, this._autoOpenAfterArt50Notice, startedAt, this.get('art50_tour_defer_poll_ms'));
+      // Retained so willDestroy can cancel it: a stray 250 ms timer after teardown
+      // would otherwise hold acceptance tests' settled() for one more tick.
+      this._art50PollTimer = runLater(this, this._autoOpenAfterArt50Notice, startedAt, this.get('art50_tour_defer_poll_ms'));
       return;
     }
     this._runAutoOpen();
@@ -1258,12 +1263,16 @@ export default Component.extend({
   // active Shepherd tour here — the navbar instance is destroyed when
   // empty_header flips during board-detail entry, and cancelling would dismiss
   // a tour the board-detail host still needs (or fire a stale afterComplete).
-  // Torn down while _autoOpenAfterArt50Notice is still holding the tour: hand the
-  // signal back to appState (stamped) so the next navbar instance's init consumes
-  // it through _consumeAutoOpenSignal. The pending runLater may still fire once;
-  // it exits on the destroyed guard without touching anything. The service can be
-  // going down in the same teardown (owner destroy), hence the guard on it.
+  // Torn down while _autoOpenAfterArt50Notice is still holding the tour: cancel
+  // the pending poll and hand the signal back to appState (stamped) so the next
+  // navbar instance's init consumes it through _consumeAutoOpenSignal. The
+  // destroyed guard in the poll stays as a backstop. The service can be going
+  // down in the same teardown (owner destroy), hence the guard on it.
   willDestroy: function() {
+    if (this._art50PollTimer) {
+      runCancel(this._art50PollTimer);
+      this._art50PollTimer = null;
+    }
     if (this._autoOpenDeferring) {
       this._autoOpenDeferring = false;
       var appState = this.get('appState');

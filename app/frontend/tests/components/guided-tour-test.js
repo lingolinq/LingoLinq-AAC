@@ -119,11 +119,14 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
   });
 
   itAsync('runs the tour anyway when a due notice never opens within the due cap, so the handoff is not lost', async function() {
+    // The cap must fire here, but the "still held" assertion must not race it:
+    // 400 ms cap vs a 30 ms sleep leaves a wide margin for a stalled browser.
+    component.set('art50_tour_due_max_ms', 400);
     gatePending = true;
     component._scheduleAutoOpen();
     await sleep(30);
     expect(runs).toEqual(0);
-    await untilRuns(500);
+    await untilRuns(1500);
     expect(runs).toEqual(1);
   });
 
@@ -243,6 +246,23 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(component._autoOpenDeferring).toEqual(false);
   });
 
+  itAsync('cancels the pending poll timer when destroyed while waiting', async function() {
+    // Wrap the poll BEFORE scheduling: runLater is armed with
+    // this._autoOpenAfterArt50Notice, so the timer calls this wrapper too. The
+    // global backburner timer count is not usable here (other timers exist).
+    var ticks = 0;
+    var orig = component._autoOpenAfterArt50Notice;
+    component._autoOpenAfterArt50Notice = function() { ticks++; return orig.apply(this, arguments); };
+    noticeOpen = true;
+    component._scheduleAutoOpen();
+    await sleep(35);
+    expect(ticks > 1).toEqual(true);
+    component.destroy();
+    var atDestroy = ticks;
+    await sleep(80);
+    expect(ticks).toEqual(atDestroy);
+  });
+
   itAsync('a second request while one is already waiting does not start a second chain', async function() {
     noticeOpen = true;
     component._scheduleAutoOpen();
@@ -254,8 +274,15 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(runs).toEqual(1);
   });
 
-  itAsync('speak and edit hosts never auto-open, notice or not', async function() {
+  itAsync('a speak host never auto-opens, notice or not', async function() {
     component.set('speakHost', true);
+    component._scheduleAutoOpen();
+    await sleep(40);
+    expect(runs).toEqual(0);
+  });
+
+  itAsync('an edit host never auto-opens, notice or not', async function() {
+    component.set('editHost', true);
     component._scheduleAutoOpen();
     await sleep(40);
     expect(runs).toEqual(0);
