@@ -1527,6 +1527,19 @@ button.ch-tile--silver:focus-visible {
     color: rgba(27, 54, 93, 0.72);
   }
 
+  // The Extras DRAWER tiles keep the pre-scale top zone (requested 2026-09-02). The 20%
+  // increase is for the four Actions cards, which carry the page; the drawer's ten tiles
+  // are secondary destinations and a 74px chip with a 23px title reads overweight on
+  // them.
+  //
+  // Must sit AFTER the `.ch-tile--big` rules above: both are two-class selectors at
+  // (0,2,0), so source order alone decides. Moving this block above them silently
+  // restores the larger sizes.
+  .ch-tile--silver .ch-tile__chip { width: 62px; height: 62px; border-radius: 18px; }
+  .ch-tile--silver .ch-tile__icon { width: 28px; height: 28px; }
+  .ch-tile--silver .ch-tile__label { margin-top: 12px; font-size: 19px; }
+  .ch-tile--silver .ch-tile__sub   { margin-top: 6px;  font-size: 14px; }
+
   // THE DIRECTIONAL CUE LIVES IN THE MIDDLE ZONE, centred in the empty space between the
   // subheader and the bottom statement.
   //
