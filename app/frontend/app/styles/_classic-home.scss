@@ -1522,8 +1522,48 @@ button.ch-tile--silver:focus-visible {
     color: rgba(27, 54, 93, 0.72);
   }
 
-  // The separator belongs to the earlier composition; the breathing room replaces it.
-  .ch-tile--big .ch-tile__rule { display: none; }
+  // THE DIRECTIONAL CUE LIVES IN THE MIDDLE ZONE, centred in the empty space between the
+  // subheader and the bottom statement.
+  //
+  // It is hosted by `.ch-tile__rule` — the empty `aria-hidden` span that used to draw the
+  // separator. Reusing it avoids adding markup, and it is the only child that can be
+  // taken out of flow safely: it carries no text, so absolutely positioning it cannot
+  // disturb the top or bottom zones.
+  //
+  // Anchored to `top: 50%` of the CARD, not to the text above or below it. That is what
+  // makes the cues line up across the row: the grid stretches every card in a row to the
+  // same height (`align-items: stretch`), so 50% resolves to the same y on all of them —
+  // whereas positioning relative to the subheader or the statement would drift with
+  // however each card's label and copy happen to wrap.
+  .ch-tile--big .ch-tile__rule {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: auto;
+    margin: 0;
+    background: none;
+    font-size: 28px;
+    line-height: 1;
+    text-align: center;
+    // 0.60, not 0.50. At 0.50 the cue measured 2.77:1 against the Speak card's mid-card
+    // surface, under the 3:1 that WCAG 1.4.11 asks of non-text UI components — and on
+    // Extras this glyph is a real affordance (it says the drawer opens), not decoration.
+    // 0.60 clears it on every one of the five card tints, worst case 3.58:1.
+    color: rgba(27, 54, 93, 0.6);
+    // Decorative host — must never swallow a click meant for the card beneath it.
+    pointer-events: none;
+  }
+  .ch-tile--big .ch-tile__rule::before { content: "\2192"; }
+
+  // Extras opens a drawer rather than navigating, so it shows the disclosure chevron in
+  // the same place, and rotates it when open — the affordance the inline caret used to
+  // carry. The inline caret is hidden here so the cue is not duplicated.
+  .ch-tile--extras-toggle .ch-tile__rule::before { content: "\25BE"; }
+  .ch-tile--extras-toggle.is-open .ch-tile__rule { transform: translateY(-50%) rotate(180deg); }
+  .ch-tile--big .ch-tile__toggle-caret { display: none; }
 
   .ch-tile--big .ch-tile__more {
     display: block;
@@ -1541,19 +1581,7 @@ button.ch-tile--silver:focus-visible {
     text-wrap: balance;
   }
 
-  // Directional cue. Sized in `em` so it stays twice the statement's size if that ever
-  // changes, rather than a fixed px that would drift out of proportion.
-  // `line-height: 0` keeps the larger glyph from expanding the line box and pushing the
-  // statement's last line down; `vertical-align` then sits it back on the text baseline.
-  .ch-tile--big .ch-tile__more::after {
-    content: " \2192";
-    opacity: 0.5;
-    font-size: 2em;
-    line-height: 0;
-    vertical-align: -0.18em;
-  }
-  // Extras opens a drawer rather than navigating, and already has its chevron.
-  .ch-tile--extras-toggle .ch-tile__more::after { content: none; }
+
 }
 
 // Large desktop: the four Actions cards sit on one row and carry the layout. The Extras
