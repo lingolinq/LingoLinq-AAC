@@ -5474,7 +5474,7 @@
   "privacy_rights_correction": "Możesz zaktualizować lub poprawić nieprawidłowe dane w ustawieniach swojego profilu. [[ You may update or correct inaccurate data within your profile settings.",
   "privacy_rights_portability_heading": "Prawo do przenoszenia danych: [[ Right to Data Portability:",
   "privacy_rights_portability": "Możesz zażądać bezpiecznego eksportu swoich danych w ustrukturyzowanym, powszechnie używanym formacie. [[ You may request a secure export of your data in a structured, commonly used format.",
-  "privacy_rights_ccpa_heading": "*** \\",
+  "privacy_rights_ccpa_heading": "*** \"Do Not Sell or Share My Personal Information\" (CCPA):",
   "privacy_rights_ccpa": "LingoLinq nie sprzedaje Twoich danych osobowych i nie udostępnia ich na potrzeby reklamy behawioralnej w różnych kontekstach. [[ LingoLinq does not sell your personal information, nor do we share it for cross-context behavioral advertising.",
   "privacy_rights_contact": "Aby skorzystać z któregokolwiek z tych praw, prosimy o kontakt pod adresem support@lingolinq.com. Odpowiemy w terminie wymaganym przez obowiązujące prawo. [[ To exercise any of these rights, please contact us at support@lingolinq.com. We will respond within the timeframes required by applicable law.",
   "privacy_security_heading": "7. Bezpieczeństwo danych, ich przechowywanie i powiadamianie o naruszeniach [[ 7. Data Security, Retention, and Breach Notification",
@@ -9189,5 +9189,12 @@
   "board_category_controls": "Sterownica [[ Controls",
   "board_category_extra": "Dodatkowy [[ Extra",
   "board_category_things": "Rzeczy [[ Things",
-  "board_category_keys": "Klawiatura [[ Keys"
+  "board_category_keys": "Klawiatura [[ Keys",
+  "board_detail_prediction_empty": "*** Tap a board button, and we'll suggest words here.",
+  "board_detail_prediction_panel_label": "*** Word prediction panel",
+  "automatic_replacements": "*** Automatic replacements",
+  "automatic_replacements_description": "*** Optional. When Automatic Inflections is on, words already in the sentence can change this button. One rule per line: previous words = new form.",
+  "create_board_locale_english_lookup_hint": "*** Create in your language. Symbols and colors are matched using English in the background.",
+  "translate_google_disclaimer_title": "*** About board translation",
+  "translate_google_disclaimer_body": "*** Board translation uses Google Cloud Translation, a machine-translation service. It is not generative AI or a chatbot. Words on this board (button labels, spoken phrases, and the board name) will be sent to Google to translate. If any of those words include personal information, that information will be sent too."
 }

@@ -5479,7 +5479,7 @@
   "privacy_rights_correction": "您可以在个人资料设置中更新或更正不准确的数据。 [[ You may update or correct inaccurate data within your profile settings.",
   "privacy_rights_portability_heading": "数据可携权： [[ Right to Data Portability:",
   "privacy_rights_portability": "您可以请求以结构化的、常用的格式安全地导出您的数据。 [[ You may request a secure export of your data in a structured, commonly used format.",
-  "privacy_rights_ccpa_heading": "*** \\",
+  "privacy_rights_ccpa_heading": "*** \"Do Not Sell or Share My Personal Information\" (CCPA):",
   "privacy_rights_ccpa": "LingoLinq 不会出售您的个人信息，也不会将其用于跨平台行为广告。 [[ LingoLinq does not sell your personal information, nor do we share it for cross-context behavioral advertising.",
   "privacy_rights_contact": "如需行使上述任何权利，请联系我们：support@lingolinq.com。我们将在适用法律规定的时限内回复。 [[ To exercise any of these rights, please contact us at support@lingolinq.com. We will respond within the timeframes required by applicable law.",
   "privacy_security_heading": "7. 数据安全、保留和违规通知 [[ 7. Data Security, Retention, and Breach Notification",
@@ -9194,5 +9194,12 @@
   "board_category_controls": "控制 [[ Controls",
   "board_category_extra": "额外的 [[ Extra",
   "board_category_things": "事物 [[ Things",
-  "board_category_keys": "钥匙 [[ Keys"
+  "board_category_keys": "钥匙 [[ Keys",
+  "board_detail_prediction_empty": "*** Tap a board button, and we'll suggest words here.",
+  "board_detail_prediction_panel_label": "*** Word prediction panel",
+  "automatic_replacements": "*** Automatic replacements",
+  "automatic_replacements_description": "*** Optional. When Automatic Inflections is on, words already in the sentence can change this button. One rule per line: previous words = new form.",
+  "create_board_locale_english_lookup_hint": "*** Create in your language. Symbols and colors are matched using English in the background.",
+  "translate_google_disclaimer_title": "*** About board translation",
+  "translate_google_disclaimer_body": "*** Board translation uses Google Cloud Translation, a machine-translation service. It is not generative AI or a chatbot. Words on this board (button labels, spoken phrases, and the board name) will be sent to Google to translate. If any of those words include personal information, that information will be sent too."
 }

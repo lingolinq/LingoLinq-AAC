@@ -1,4 +1,5 @@
 require 'json'
+require_relative 'scripts/i18n_string_scanner'
 
 # The locale files and the source strings are UTF-8 (em-dashes, accents, CJK, RTL).
 # Ruby picks its default external encoding from the shell's locale, so in any shell
@@ -125,17 +126,7 @@ files.each do |fn|
           idx += 1
         end
         if line[idx]
-          str = ""
-          idx += 1
-          while line[idx] && line[idx] != "\""
-            str += line[idx]
-            idx += 1
-            if line[idx] == "\\"
-              idx += 1
-              str += line[idx]
-              idx += 1
-            end
-          end
+          str, idx = I18nStringScanner.read_quoted(line, idx)
           while line[idx] && line[idx] != ")"
             idx += 1
           end
@@ -171,17 +162,7 @@ files.each do |fn|
       count_idx = nil
       str = ""
       if idx
-        quote = line[idx]
-        idx += 1
-        while line[idx] && line[idx] != quote
-          str += line[idx]
-          idx += 1
-          if line[idx] == "\\"
-            idx += 1
-            str += line[idx]
-            idx += 1
-          end
-        end
+        str, idx = I18nStringScanner.read_quoted(line, idx)
         end_bracket = line.index(close_regex, idx)
         count_idx = line.index(/count=/, idx)
         idx = line.index(/key=(\'|\")/, idx)
