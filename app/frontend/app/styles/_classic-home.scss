@@ -1543,7 +1543,16 @@ button.ch-tile--silver:focus-visible {
   // (requested 2026-09-02): it shifts the tile column count at six widths rather than
   // three, the first still at 448px (3 columns -> 2). Recorded so the reflow is a known
   // cost of the roomier gutter, not a surprise.
-  .ch-page { padding: 40px 22px 28px; gap: 16px; }
+  // Sides and bottom only — `padding-top` is deliberately NOT set here so the base
+  // 80px carries through. The top offset must be identical at every width (requested
+  // 2026-09-02, after content was seen shifting between breakpoints); using the
+  // shorthand would silently reset the top to 0 and reintroduce exactly that.
+  .ch-page {
+    padding-right: 22px;
+    padding-left: 22px;
+    padding-bottom: 28px;
+    gap: 16px;
+  }
 
   // Tabs stay on ONE row (requested 2026-09-02). The previous `flex: 1 1 40%` was the
   // cause of the wrap it was meant to control: three tabs at a 40% basis is 120% of
