@@ -1150,6 +1150,19 @@ describe Api::UsersController, :type => :controller do
         expect(json['errors']).to include('birth month and year required')
       end
 
+      it "requires birth data from an authenticated creator who is not a validated org author" do
+        token_user
+        post :create, params: {:user => {
+          'name' => 'auth_no_birth',
+          'email' => 'auth_no_birth@example.com',
+          'password' => 'abcdefgh',
+          'terms_agree' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('birth month and year required')
+      end
+
       it "does not honor a client under-13 flag when birth month/year is 13 or over" do
         post :create, params: {:user => {
           'name' => 'coppa_adult_flag',
@@ -1194,7 +1207,7 @@ describe Api::UsersController, :type => :controller do
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
-        }}
+        }.merge(child_birth)}
         expect(response).not_to be_successful
         json = JSON.parse(response.body)
         expect(json['errors']).to include('parent consent email required for under-13 registration')
