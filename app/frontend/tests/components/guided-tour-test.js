@@ -7,6 +7,7 @@ import {
   stub
 } from 'frontend/tests/helpers/jasmine';
 import 'frontend/tests/helpers/ember_helper';
+import EmberObject from '@ember/object';
 import modal from '../../utils/modal';
 import article50Gate from '../../utils/article50_gate';
 
@@ -79,6 +80,7 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     appState.set('auto_open_home_tour', false);
     appState.set('auto_open_home_tour_rearmed_at', null);
     appState.set('current_route', null);
+    appState.set('currentUser', null);
     try { window.sessionStorage.removeItem('ll_auto_open_home_tour'); } catch(e) { /* unavailable */ }
   });
 
@@ -185,8 +187,10 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(runs).toEqual(0);
   });
 
-  itAsync('re-arms the auto-open signal, stamped, when destroyed while waiting, so a later navbar instance can consume it', async function() {
+  itAsync('re-arms the auto-open signal, stamped, when destroyed while waiting with a user signed in', async function() {
     var appState = this.owner.lookup('service:app-state');
+    // A minimal signed-in user; on_user_change tolerates one without an id.
+    appState.set('currentUser', EmberObject.create({}));
     noticeOpen = true;
     component._scheduleAutoOpen();
     await sleep(30);
@@ -198,6 +202,18 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(runs).toEqual(0);
     expect(appState.get('auto_open_home_tour')).toEqual(true);
     expect(typeof appState.get('auto_open_home_tour_rearmed_at')).toEqual('number');
+  });
+
+  itAsync('does not re-arm when destroyed while waiting with no user signed in (SPA sign-out already cleared the user)', async function() {
+    var appState = this.owner.lookup('service:app-state');
+    expect(appState.get('currentUser') || null).toEqual(null);
+    noticeOpen = true;
+    component._scheduleAutoOpen();
+    await sleep(30);
+    component.destroy();
+    await sleep(30);
+    expect(appState.get('auto_open_home_tour')).toEqual(false);
+    expect(appState.get('auto_open_home_tour_rearmed_at') || null).toEqual(null);
   });
 
   itAsync('does not re-arm anything when destroyed while not waiting', async function() {

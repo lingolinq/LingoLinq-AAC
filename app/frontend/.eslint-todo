@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-09-03T05:52:33.285Z
+# Generated: 2026-09-03T06:50:19.219Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -220,7 +220,7 @@ app/components/guided-tour.js|ember/no-runloop|911|9|2|5addc2170315
 app/components/guided-tour.js|ember/no-runloop|914|5|2|513c0395fe72
 app/components/guided-tour.js|ember/no-runloop|950|9|2|5addc2170315
 app/components/guided-tour.js|ember/no-runloop|953|5|2|513c0395fe72
-app/components/guided-tour.js|ember/require-super-in-lifecycle-hooks|1338|3|1|04fd54f45db7
+app/components/guided-tour.js|ember/require-super-in-lifecycle-hooks|1346|3|1|04fd54f45db7
 app/components/inbox.js|ember/require-return-from-computed|93|43|1|8c8d53fa71e0
 app/components/integration.js|ember/require-super-in-lifecycle-hooks|6|3|1|04fd54f45db7
 app/components/la-mobile-drawer.js|ember/no-runloop|20|7|2|513c0395fe72

@@ -326,3 +326,22 @@ Test-design note: raising `art50_tour_due_max_ms` inside a case cannot distingui
   drops the board-picker handoff silently.
 - Low (outside this repo, for Scot): `~/.codex/config.toml` pins `model = "gpt-5.6-luna"`, which the reviewer
   registry lists as not approved; the adversary overrode it with `-c model=gpt-5.6-terra` for its run.
+
+### Round 4: Codex thread on 120bace82 (`willDestroy`, sign-out ordering)
+- Claim: SPA sign-out (`session.js:749-766`: transition to index, then `clear_user_state()` in the `.then`) resets
+  the tour fields, and the navbar's DEFERRED `willDestroy` can run after that reset and re-arm the flag for the next
+  account on the same tab (60 s window). Ordering is PLAUSIBLE, not settled statically (runloop queue vs microtask);
+  the fix is correct under either ordering.
+- Fact sheet: `clear_user_state` nulls `sessionUser`, `currentUser` (`app-state.js:2109-2110`) before the tour
+  resets (`:2181-2185`). `currentUser` is nulled nowhere else that is live (`app-state.js#reset` :417 has no callers).
+  `refresh_session_user` never nulls (`:2229-2247`). Reload-path logout skips `clear_user_state` (`session.js:777-784`)
+  and a reload drops the flag anyway; `force_logout` routes through `invalidate(true)` (`:645-652`). CONFIRMED by
+  the adversary's read.
+- Proposal A (applied, adversary "proceed"): `willDestroy` re-arms only when `appState.get('currentUser')` is present,
+  guard on `currentUser` only (speak-mode swaps reassign it, never null it). Known exception named in the comment: a
+  cold boot whose `init` consumed the sessionStorage twin before `currentUser` resolved (`app-state.js:471/521/544`)
+  drops the signal if torn down in that window. B (marker set by clear_user_state) and C (clear_user_state reaching
+  into components) rejected.
+- Red test first: "does not re-arm when destroyed while waiting with no user signed in" was red on the unguarded code
+  (only that case), green with the guard; the existing re-arm case now supplies a minimal `currentUser`. The
+  falsification IS that pre-fix run: the mutation "drop the guard" is byte-identical to the state it ran against.

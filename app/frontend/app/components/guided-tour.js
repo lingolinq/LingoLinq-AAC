@@ -1327,7 +1327,15 @@ export default Component.extend({
     if (this._autoOpenDeferring) {
       this._autoOpenDeferring = false;
       var appState = this.get('appState');
-      if (appState && !appState.isDestroyed && !appState.isDestroying) {
+      // Re-arm only while a user is signed in. Sign-out (services/session.js
+      // invalidate -> app-state.js#clear_user_state, which nulls currentUser at
+      // :2110 before resetting the tour fields) is the only teardown that nulls
+      // it, and this deferred hook can run after that reset; re-arming then
+      // would hand the signal to the next account on the same tab. Known
+      // exception: a cold boot whose init consumed the sessionStorage twin before
+      // currentUser resolved (app-state.js:471/521/544) drops the signal if torn
+      // down in that window, rather than risk carrying it across accounts.
+      if (appState && !appState.isDestroyed && !appState.isDestroying && appState.get('currentUser')) {
         appState.set('auto_open_home_tour_rearmed_at', Date.now());
         appState.set('auto_open_home_tour', true);
       }
