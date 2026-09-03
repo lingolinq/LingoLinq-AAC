@@ -4,6 +4,7 @@ import AuthenticatedView from './authenticated-view';
 import modal from '../../utils/modal';
 import i18n from '../../utils/i18n';
 import { resolveSuperviseeHomeBoardKey } from '../../utils/supervisee_home_board';
+import scrollBelowHeader from '../../utils/scroll_below_header';
 
 /**
  * Classic home page.
@@ -190,18 +191,38 @@ export default AuthenticatedView.extend({
       modal.success(i18n.t('switched_to_card_view', "Switched to Card View. You can go back to Classic any time from the View menu."));
     },
 
-    // The parent exposes `autoOpenSpeakMode` as a get/set computed that persists on
-    // set; drive it from a plain checkbox rather than a two-way <Input> binding.
+    // OVERRIDE. The parent's `toggle_extras` (authenticated-view.js:1669) only flips
+    // `show_main_extras`. That flag is read nowhere but this template, and this template
+    // is its only caller — but the action lives on the shared class, so it is overridden
+    // here rather than edited there, keeping the "no edits to authenticated-view.js"
+    // contract this file opens with.
     //
-    // Flips the CURRENT VALUE rather than reading `event.target.checked`, because
-    // this handler never sees the event: `ctrlAction` above pops a trailing DOM event
-    // off the argument list before dispatching, and this is the one call site that
-    // passes the event and nothing else. Reading it yielded `undefined` on every
-    // click, so `!!(undefined && …)` wrote `false` every time and the box could only
-    // ever be turned OFF. The input's `checked` attribute is bound to this same
-    // property (classic-view.hbs:140), so toggling it keeps the DOM in step.
-    toggle_auto_speak: function() {
-      this.set('autoOpenSpeakMode', !this.get('autoOpenSpeakMode'));
+    // The drawer renders BELOW the Actions row (classic-view.hbs:705), so when that row
+    // sits mid-page the ten revealed tiles open past the bottom of the screen and the
+    // click reads as having done nothing. Scrolling the Extras card itself to the top
+    // puts the drawer in the space below it.
+    //
+    // ON OPEN ONLY. Scrolling on close would yank the page upward as the user is putting
+    // the drawer away, which is worse than not scrolling — this app's users include
+    // scanning and eye-gaze users for whom an unrequested viewport jump costs a
+    // re-acquire. `super` flips the flag first, so the value read here is the NEW one.
+    //
+    // DEFERRED, because the scroll depends on the drawer existing: until those ten tiles
+    // are in the DOM the page may not be tall enough to bring this row to the top, and
+    // the scroll would silently fall short.
+    //
+    // `requestAnimationFrame` and not `scheduleOnce('afterRender')`: Ember's render queue
+    // flushes synchronously before the browser hands out the next animation frame, so the
+    // drawer is in the DOM by the time this runs — and it keeps the component free of
+    // `@ember/runloop`, which `ember/no-runloop` forbids in new code.
+    toggle_extras: function() {
+      this._super.apply(this, arguments);
+      if(!this.get('show_main_extras')) { return; }
+      var _this = this;
+      window.requestAnimationFrame(function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        scrollBelowHeader(document.querySelector('.ch-tile--extras-toggle'));
+      });
     },
 
     // Menu open/close. Toggling the already-open one closes it.

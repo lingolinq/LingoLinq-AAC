@@ -4,20 +4,32 @@
 // the position-independent placement logic stay in ONE place.
 import i18n from '../i18n';
 
+// Which visual language a tour is dressed in. The four original tours run on the
+// modern dashboard and use `md-tour__*`; the classic home page has its own glass
+// surface and uses `ch-tour__*` (themed in _classic-home.scss). Passing the prefix
+// rather than duplicating these builders keeps ONE definition of a tour's footer
+// and eyebrow — the shape is identical, only the skin differs.
+//
+// Defaults to 'md' everywhere, so every existing caller is byte-for-byte unchanged.
+function tourPrefix(opts) {
+  return (opts && opts.classic) ? 'ch' : 'md';
+}
+
 // Standard Back/Next footer pair used on every interior step. The `type`
 // (back/next) is intercepted by ember-shepherd's makeButton, which wires the
 // navigation callback automatically.
-function standardButtons() {
+function standardButtons(opts) {
+  var p = tourPrefix(opts);
   return [
     {
       text: i18n.t('home_tour_back', "Back"),
       type: 'back',
-      classes: 'md-tour__btn md-tour__btn--ghost'
+      classes: p + '-tour__btn ' + p + '-tour__btn--ghost'
     },
     {
       text: i18n.t('home_tour_next', "Next"),
       type: 'next',
-      classes: 'md-tour__btn md-tour__btn--primary'
+      classes: p + '-tour__btn ' + p + '-tour__btn--primary'
     }
   ];
 }
@@ -26,13 +38,14 @@ function standardButtons() {
 // eyebrow pill above the heading. Shepherd renders `title` via innerHTML, so an
 // HTML string is the supported way to do this; every piece comes from i18n,
 // never user input.
-function decoratedTitle(headingKey, headingDefault) {
+function decoratedTitle(headingKey, headingDefault, opts) {
+  var p = tourPrefix(opts);
   var eyebrow = i18n.t('home_tour_eyebrow', "Guided Tour");
   var heading = i18n.t(headingKey, headingDefault);
-  var spark = '<svg class="md-tour__eyebrow-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.7 5.1 5.1 1.7-5.1 1.7L12 16.1l-1.7-5.1L5.2 9.3l5.1-1.7z"/><path d="M19 13.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" opacity="0.7"/></svg>';
-  return '<span class="md-tour__eyebrow">' + spark +
-         '<span class="md-tour__eyebrow-text">' + eyebrow + '</span></span>' +
-         '<span class="md-tour__heading">' + heading + '</span>';
+  var spark = '<svg class="' + p + '-tour__eyebrow-icon" width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.7 5.1 5.1 1.7-5.1 1.7L12 16.1l-1.7-5.1L5.2 9.3l5.1-1.7z"/><path d="M19 13.5l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" opacity="0.7"/></svg>';
+  return '<span class="' + p + '-tour__eyebrow">' + spark +
+         '<span class="' + p + '-tour__eyebrow-text">' + eyebrow + '</span></span>' +
+         '<span class="' + p + '-tour__heading">' + heading + '</span>';
 }
 
 // Build a modern, scannable CHECKLIST body for a tour step instead of a prose
@@ -49,14 +62,17 @@ function decoratedTitle(headingKey, headingDefault) {
 // (run-on checklist) is unchanged.
 function tourChecklist(items, lead, foot, options) {
   options = options || {};
-  var check = '<svg class="md-tour__li-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+  // `options.classic` skins the list for the classic home tour; every other caller
+  // omits it and gets the modern classes unchanged.
+  var p = tourPrefix(options);
+  var check = '<svg class="' + p + '-tour__li-check" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>';
   var lis = (items || []).map(function(t) {
-    return '<li class="md-tour__li">' + check + '<span class="md-tour__li-text">' + t + '</span></li>';
+    return '<li class="' + p + '-tour__li">' + check + '<span class="' + p + '-tour__li-text">' + t + '</span></li>';
   });
   var lisHtml = lis.join(options.separator || '');
-  var leadHtml = lead ? ('<p class="md-tour__lead">' + lead + '</p>') : '';
-  var footHtml = foot ? ('<p class="md-tour__foot">' + foot + '</p>') : '';
-  return leadHtml + '<ul class="md-tour__list">' + lisHtml + '</ul>' + footHtml;
+  var leadHtml = lead ? ('<p class="' + p + '-tour__lead">' + lead + '</p>') : '';
+  var footHtml = foot ? ('<p class="' + p + '-tour__foot">' + foot + '</p>') : '';
+  return leadHtml + '<ul class="' + p + '-tour__list">' + lisHtml + '</ul>' + footHtml;
 }
 
 // A full-width action BUTTON rendered inside a step's body (not the footer), for

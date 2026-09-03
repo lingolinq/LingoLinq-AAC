@@ -9,6 +9,7 @@ import Badge from '../models/badge';
 // Moved to utils/ so the classic home page's supervisee menu resolves the key
 // exactly the same way this page does. Behavior is unchanged.
 import { resolveSuperviseeHomeBoardKey } from '../utils/supervisee_home_board';
+import scrollBelowHeader from '../utils/scroll_below_header';
 
 // Palette for the 10 colored avatar PNGs in public/avatars/. The
 // caseload card renders its outer glass frame from the inline SVG
@@ -305,40 +306,20 @@ export default Controller.extend({
       // Also matches the deep-link highlight, which is NOT expanded and so carries
       // no --active class; both states want the identical top-aligned scroll.
       var row = document.querySelector('.md-caseload__list-row--active, .md-caseload__list-row--highlighted');
-      if (!row || typeof row.scrollIntoView !== 'function') { return; }
-      // ALWAYS top-align the opened card, and always scroll.
+      // ALWAYS top-align the opened card, and always scroll. This used to pick
+      // `block: 'nearest'` whenever the card fitted the viewport, and to skip
+      // scrolling entirely when the row was already fully visible. Both produced
+      // the reported behaviour: a card whose bottom was below the fold got its
+      // BOTTOM pulled to the viewport bottom, leaving the previous communicator's
+      // row occupying the top of the screen, which reads as "it scrolled to the
+      // wrong person".
       //
-      // This used to pick `block: 'nearest'` whenever the card fitted the
-      // viewport, and to skip scrolling entirely when the row was already fully
-      // visible. Both produced the reported behaviour: 'nearest' scrolls the
-      // MINIMUM distance, so a card whose bottom was below the fold got its
-      // BOTTOM pulled to the viewport bottom — leaving the previous
-      // communicator's row occupying the top of the screen, which reads as
-      // "it scrolled to the wrong person".
-      // 'start' puts the card's own top edge at the top every time.
-      //
-      // The navbar clearance is MEASURED from the live header, not taken from
-      // --topbar-height: that token resolves to 16px on authenticated layouts
-      // (app.scss ~367) while the bar this page actually renders is ~88px, so
-      // trusting it scrolled the card up UNDER the header and clipped its top.
-      // Measuring also survives the bar changing height between layouts (16 /
-      // 68 / 70 / 129px are all live values in this app) and when it wraps.
-      // Written to inline scroll-margin-top rather than doing the arithmetic
-      // ourselves, so this keeps working whether the scroll container is the
-      // window or an ancestor element.
-      var offset = 0;
-      var header = document.querySelector('#within_ember > header') || document.querySelector('body > header');
-      if (header && typeof window.getComputedStyle === 'function') {
-        var pos = window.getComputedStyle(header).position;
-        if (pos === 'fixed' || pos === 'sticky') {
-          offset = header.getBoundingClientRect().height || 0;
-        }
-      }
-      if (offset > 0) {
-        row.style.scrollMarginTop = (offset + 12) + 'px';
-      }
-      var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      row.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start', inline: 'nearest' });
+      // The header measurement, the inline scroll-margin-top and the
+      // reduced-motion handling all live in the shared helper now — see
+      // utils/scroll_below_header.js for why each is the way it is. The classic
+      // home page's Extras drawer needs the identical behaviour, and this logic
+      // is entirely about the app's chrome rather than about this page.
+      scrollBelowHeader(row);
     } catch (e) { /* best-effort — never block toggling */ }
   },
 
