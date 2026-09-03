@@ -1509,7 +1509,12 @@ button.ch-tile--silver:focus-visible {
     font-weight: 700;
     line-height: 1.15;
     color: $la-navy;
-    text-wrap: balance;
+    // `nowrap`, not `balance`: the titles here are two words at most and are meant to
+    // read as one line. `balance` would still break "Modeling Ideas" across two lines
+    // once a card narrows, which is the wrap this change exists to remove. The cards are
+    // at least 220px wide at this breakpoint and the longest title sets ~150px at
+    // 19px/700, so there is room.
+    white-space: nowrap;
   }
 
   .ch-tile--big .ch-tile__sub {
