@@ -4374,6 +4374,12 @@ export default Controller.extend(prefClasses, {
    *                              `categories` straight on the record and never saves, so it
    *                              leaves no undo entry at all. Compared against the baseline
    *                              above, since the record is dirty from load.
+   *   display preferences      - the display-prefs panel writes `pending_display_prefs` and
+   *                              holds the entry values in `original_display_prefs`. Leaving
+   *                              edit mode runs `close_display_preferences`, which REVERTS
+   *                              them, so a session whose only change was a pending pref
+   *                              reported clean and the user lost it unwarned. Only live
+   *                              while the panel is open — that call nulls both objects.
    *
    * Every term errs the same way: unsure means "there are changes", which costs a confirm
    * dialog. The opposite mistake costs the user their work.
@@ -4381,6 +4387,24 @@ export default Controller.extend(prefClasses, {
   edit_session_has_changes: function() {
     if(!this.get('noUndo')) { return true; }
     if(this.get('board_recolored') || this.get('borders_matched')) { return true; }
+    /* Pending display preferences. Grouped with the flag checks above because it is the
+       same kind of cheap read, and placed before the attribute comparison for that reason
+       only — every term here returns the same answer whatever the order.
+
+       Guarded on BOTH objects: `close_display_preferences` nulls them together, so they
+       are non-null only while the panel is open. Without the guard, every exit taken
+       outside the panel would compare undefined against undefined and the term would be
+       dead weight — or worse, throw on Object.keys(null).
+
+       Compared by VALUE, not by "is pending set": opening the panel seeds `pending` from
+       `original`, so a presence check alone would report dirty the moment the panel
+       opened and reinstate the always-prompt behaviour this whole check exists to end. */
+    var pending = this.get('pending_display_prefs');
+    var orig = this.get('original_display_prefs');
+    if(pending && orig) {
+      var pref_changed = Object.keys(orig).some(function(k) { return pending[k] !== orig[k]; });
+      if(pref_changed) { return true; }
+    }
     var base = this.get('_edit_dirty_baseline');
     if(!base) { return true; }
     var changed;
