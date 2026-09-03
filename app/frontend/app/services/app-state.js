@@ -2175,6 +2175,14 @@ export default Service.extend({
     this.set('suggestion_id', null);
     this.set('followers', null);
     this.set('focus_words', null);
+    // Onboarding tour auto-open signal, plus the re-arm stamp written by
+    // components/guided-tour.js#willDestroy; neither may carry to the next
+    // account signed in on this tab.
+    this.set('auto_open_home_tour', false);
+    this.set('auto_open_home_tour_rearmed_at', null);
+    try {
+      if (window.sessionStorage) { sessionStorage.removeItem('ll_auto_open_home_tour'); }
+    } catch(e) { /* sessionStorage unavailable */ }
 
     // Per-user transient UI overlays / refresh timers
     this.set('loading_overlay_message', null);

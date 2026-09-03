@@ -16367,3 +16367,17 @@ stub objects (weakest -- patches one symptom of an unbounded global mutation).
 `User.process_params` treats a classifiable `birth_month` / `birth_year` as authoritative for the under-13 gate (`User.age_under_threshold?`, age 13). The Ember `coppa_under_13` flag is only a fallback when birth is missing (org New User, fixtures). Unauthenticated `POST /api/v1/users` requires birth when COPPA is on. Google register start accepts birth only on POST (`post auth/google/start`); GET register start ignores query birth so DOB is not in history, proxy logs, or the Google referrer. Complete raises `coppa_age`. Do not put the optional signup name on `/auth/google/start` as `&name=` — send `signup_name` on the complete POST.
 
 **First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
+
+## Gotcha: classic `observer()` fires SYNCHRONOUSLY here — a test that sets a flag and then "consumes" it by hand double-consumes
+
+`config/environment.js` does not set `_DEFAULT_ASYNC_OBSERVERS`, so on Ember 5.12 a classic `observer('appState.flag', ...)` runs inside the `set()` call that flips the flag. In a unit test with a live component instance, `appState.set('auto_open_home_tour', true)` had already been consumed by the component's watcher by the time the test called the consume helper explicitly; the helper then ran without a signal and scheduled anyway, and the "stale signal is dropped" case reported `runs: 1`. It read like a code bug. It was the test. Two rules: (1) when a test needs a signal to survive until a SPECIFIC reader sees it, park every live watcher first (here: `component.set('speakHost', true)`, whose watcher returns before consuming) or destroy the instance; (2) prefer exercising the real reader (`factoryFor(...).create({ _runAutoOpen: counter })` runs `init` with the override already in place) over calling the helper by hand. Corollary for the app code: a flag raised by one writer is consumed by the FIRST live watcher in the same call stack, so "the next instance's init will pick it up" is only true when no live instance is watching.
+
+Teardown timing that the same branch had to get right: `willDestroy` is a NON-eager destructor (`@ember/object/core.js:205`), so `component.destroy()` returns before it runs; a test must await a tick before asserting anything `willDestroy` wrote. Observers, by contrast, are deactivated by an EAGER destructor before `willDestroy`, so a `willDestroy` that writes to a service cannot re-trigger the dying instance's own watcher.
+
+**First seen in:** [2026-09-02_art50-notice-vs-guided-tour.md](./2026-09-02_art50-notice-vs-guided-tour.md) (PR #920).
+
+## Pattern: falsify by IN-PLACE mutation, not by reverting the whole file
+
+"7 of 8 fail on the pre-fix file" sounded like strong evidence and was mostly noise: with the fix reverted the method the tests stubbed did not exist, so the stub was inert and the counter stayed 0, and one case failed by THROWING on a destroyed component rather than by asserting. Mutating the fix in place (force the hold predicate false; delete the re-arm hook; delete the expiry check; drop the handoff) gave a per-mutation kill list where each mutation reddened exactly the cases that pin it. Report that list, not the revert count. Restore from a copy you saved, `cmp` it, never `git checkout`.
+
+**First seen in:** [2026-09-02_art50-notice-vs-guided-tour.md](./2026-09-02_art50-notice-vs-guided-tour.md) (PR #920, adversary finding A6).
