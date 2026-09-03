@@ -4407,11 +4407,15 @@ export default Controller.extend(prefClasses, {
     var orig = this.get('original_display_prefs');
     if(pending && orig) {
       /* The UNION of both key sets, not `Object.keys(orig)` alone. `open_display_preferences`
-         seeds both from a 12-key snapshot, but `_display_prefs_paths` (:3960) is writable on
-         THIRTEEN — `vocalization_height` is absent from the snapshot, and
-         `pick_display_voice_height` -> `set_display_pref` adds it to `pending` only. Iterating
-         the original's keys cannot see such a key, and since `cancel_edit` is gated on this
-         method that would DISCARD a voice-height change with no confirmation at all. */
+         seeds both from a snapshot; anything writable through `_display_prefs_paths` (:3960)
+         but missing from that snapshot lands in `pending` and NOT in `orig`, where iterating
+         the original's keys cannot see it.
+
+         Defence in depth rather than the primary fix. The one key that was actually missing,
+         `vocalization_height`, is now seeded (see that snapshot), which is what makes all
+         three consumers — this method, close_display_preferences and
+         save_display_preferences — agree. This union keeps the check honest if a future key
+         is added to the paths map and the snapshot is forgotten again. */
       var keys = Object.keys(orig);
       Object.keys(pending).forEach(function(k) {
         if(keys.indexOf(k) < 0) { keys.push(k); }
@@ -7457,6 +7461,19 @@ export default Controller.extend(prefClasses, {
         symbol_background:    prefs.symbol_background     || 'clear',
         high_contrast:        !!prefs.high_contrast,
         utterance_text_only:  !!device.utterance_text_only,
+        /* Sentence Bar height — writable from the right panel's Speak Bar section via
+           `pick_display_voice_height` -> `set_display_pref`, and it was missing here.
+
+           Every key of THIS snapshot is what `Object.keys(original_display_prefs)` yields,
+           and three separate consumers iterate exactly that: save_display_preferences to
+           decide whether to persist, close_display_preferences to revert, and
+           edit_session_has_changes to decide whether exiting must warn. So a writable pref
+           absent from this object is invisible to all three at once — it applied live, was
+           never saved, was never reverted, and never counted as unsaved work.
+
+           Default 'medium' matches `display_prefs_current_voice_height_label` (:3898), so
+           an unset preference seeds the same value the UI already displays. */
+        vocalization_height:  device.vocalization_height  || 'medium',
         skin:                 prefs.skin                  || 'default'
       };
       this.set('pending_display_prefs', JSON.parse(JSON.stringify(snapshot)));

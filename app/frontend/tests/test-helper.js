@@ -70,6 +70,7 @@ import 'frontend/tests/unit/controllers/board-index-word-prediction-locale-test'
 import 'frontend/tests/unit/controllers/copying-board-test';
 import 'frontend/tests/unit/controllers/user-board-detail-display-prefs-dirty-test';
 import 'frontend/tests/unit/controllers/user-board-detail-cancel-edit-clean-test';
+import 'frontend/tests/unit/controllers/user-board-detail-display-prefs-snapshot-test';
 import 'frontend/tests/unit/components/copy-board-hierarchy-test';
 import 'frontend/tests/unit/controllers/user-board-detail-image-cache-test';
 import 'frontend/tests/unit/utils/board-detail-cache-test';

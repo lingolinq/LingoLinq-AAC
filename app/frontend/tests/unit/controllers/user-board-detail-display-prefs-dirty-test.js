@@ -65,14 +65,13 @@ module('Unit | Controller | user/board-detail display-prefs dirty check', functi
   });
 
   test('a pref the ORIGINAL snapshot never held still counts as a change', function(assert) {
-    // `open_display_preferences` seeds both objects from a 12-key snapshot, but
-    // `_display_prefs_paths` has 13 — `vocalization_height` is writable and NOT seeded.
-    // `pick_display_voice_height` -> `set_display_pref` therefore ADDS a key to `pending`
-    // that `original` never had.
+    // A key writable through `_display_prefs_paths` but absent from the snapshot lands in
+    // `pending` and never in `original`, so iterating the original's keys cannot see it.
     //
-    // Iterating Object.keys(original) alone cannot see it, and the consequence is worse
-    // than a missed prompt: cancel_edit is now gated on this check, so a voice-height
-    // change would be discarded with no confirmation at all. Compare the UNION.
+    // This guards the CLASS, not one instance. The instance that existed —
+    // `vocalization_height` — is now seeded into the snapshot, so all three consumers see
+    // it; this keeps the check correct if a future key is added to the paths map and the
+    // snapshot is forgotten.
     this.controller.set('original_display_prefs', { button_text: 'medium' });
     this.controller.set('pending_display_prefs', { button_text: 'medium', vocalization_height: 'tall' });
     assert.true(this.controller.edit_session_has_changes(),
