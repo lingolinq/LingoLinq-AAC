@@ -140,7 +140,7 @@ almost no plaintext personal data: the email address is stored only as a keyed S
 ever collected**; the system stores birth month and birth year only. Logging and geo-logging are
 **off by default** (`app/models/user.rb:1797-1798`).
 
-**The exceptions are the newer tables.** Three stores hold user-linked personal data in
+**The exceptions are the newer tables.** Four stores hold user-linked personal data in
 plaintext:
 
 - `ai_api_logs` holds `request_summary`, `response_summary`, `ip_address`, `user_global_id`, and
@@ -150,6 +150,13 @@ plaintext:
   `next_word` columns (`db/schema.rb`, `prediction_entries`).
 - `audit_events` encrypts its `data` payload but keeps `user_key` and a 4096-character `summary`
   in plaintext (`db/schema.rb`, `audit_events`).
+- `ai_focus_word_sets` holds scrubbed and normalized prompts, generated and applied word lists,
+  and optional `seed_user_global_id` and `seed_organization_global_id` as plaintext
+  (`db/schema.rb`, `ai_focus_word_sets`). `AiFocusWordSet.record_generation!` writes those seed
+  IDs when focus-word generation runs (`app/models/ai_focus_word_set.rb:73-86`). The active
+  endpoint is `Api::IntegrationsController#focus_generate_words`, gated on `@api_user`
+  (`app/controllers/api/integrations_controller.rb:94-158`). Rows are keyed globally by
+  `prompt_hash`, not tenant-scoped, and are shared across cache hits for the same scrubbed prompt.
 
 **QUESTION raised early, because it colors everything below.** An AAC user's utterance log is a
 verbatim record of everything that person has said through the device, including statements about
@@ -250,9 +257,13 @@ exists (`lib/exporter.rb:72-97`) but its **only caller is the COPPA offboarding 
 (`app/models/user.rb:826`). There is no product path by which a user, parent, or district can
 obtain a complete portable copy of an account.
 
-One erasure residual remains open: `PredictionEntry` rows survive account deletion, retaining
-per-user AAC vocabulary (`LL-e8614c103f`). A second, off-board voice recordings and video records
-surviving deletion (`LL-854b1d3853`), is recorded as fixed and deployed in the 2026-08-29 triage.
+Two erasure residuals remain open: `PredictionEntry` rows survive account deletion, retaining
+per-user AAC vocabulary (`LL-e8614c103f`); and `AiFocusWordSet` rows are not removed or unlinked
+by `Flusher.flush_user_content` or account hard delete — a grep of `lib/flusher.rb` finds no
+reference to the table (`lib/flusher.rb:363-434`). The `low_value` scope exists
+(`app/models/ai_focus_word_set.rb:24-26`) but has no caller (`LL-8990c53bad`). Off-board voice
+recordings and video records surviving deletion (`LL-854b1d3853`) is recorded as fixed and
+deployed in the 2026-08-29 triage.
 
 ## 5. What the AI path actually does
 
@@ -293,8 +304,9 @@ that affirmatively.** Four limits matter:
   neither HIPAA Safe Harbor nor Expert Determination, and scrubbed output still linked to a
   `user_global_id` remains linked to an identified person. Our vocabulary should be "scrubbed" or
   "pseudonymised," never "de-identified." The product's privacy page already gets this right.
-- Focus-word generation persists the supporter's prompt into a table that is not tenant-scoped
-  (`app/models/ai_focus_word_set.rb:42-48`).
+- Focus-word generation persists scrubbed prompts and word lists into `ai_focus_word_sets`, a
+  global cache that is not tenant-scoped; see section 3. Neither account erasure nor any scheduled
+  purge removes those rows today (`LL-8990c53bad`).
 
 **On logging.** `ai_api_logs` stores `request_summary` and `response_summary` as plaintext free
 text alongside `user_global_id` (`db/schema.rb`). The summaries are not redacted on any schedule,
@@ -481,6 +493,7 @@ defect.
 | Communication logs (`LogSession`) | 24 months default, customer-configurable shorter, not longer | Last activity | Purpose is therapy progress tracking and reporting, an annual to biennial cycle |
 | Communication logs, accounts known to be under 13 | 12 months, rolling | Record creation | 16 CFR 312.10 bars indefinite retention and requires a stated deletion timeframe |
 | Prediction history (`PredictionEntry`) | Life of account, deleted on account deletion | Account deletion | Purpose is personalisation of that user's own predictions only |
+| AI focus-word libraries (`AiFocusWordSet`) | **No purge exists today**; propose deletion or anonymisation on seed-user account erasure, plus a low-use TTL for unlinked rows | Seed-user account deletion (needs building) | Scrubbed prompts and word lists persist after the seeding user is erased (`LL-8990c53bad`); counsel to set the window |
 | `ai_api_logs` content fields (`request_summary`, `response_summary`) | 90 days | Row creation | These exist for debugging and abuse investigation, not for a record-keeping duty |
 | `ai_api_logs` metadata fields | 24 months | Row creation | Retains the trail of *that a call happened* without retaining what was said |
 | `ai_api_logs`, accounts known to be under 13 | 12 months | Row creation | Same COPPA basis |
@@ -770,6 +783,7 @@ item; "2026-08-29 triage" marks rows dispositioned on the unmerged CEO triage br
 | 11b | No AI call site writes `ip_address` or `organization_global_id`, so the 90-day IP redaction has nothing to redact | Not a privacy exposure, but a control we have described as active that is inert | new |
 | 12 | No accounting of disclosure for supervisor and org-manager reads of utterance logs | If an accounting obligation applies, this is where it fails | new |
 | 13 | `PredictionEntry` rows survive account deletion | Erasure incomplete | `LL-e8614c103f` |
+| 13a | `AiFocusWordSet` rows persist after account erasure; scrubbed prompts and seed IDs remain plaintext | Erasure incomplete; retention schedule and account-erasure plans omit a live user-linked store | `LL-8990c53bad` |
 | 14 | No self-service full-account portable export | Access and portability rights | new |
 | 15 | Uploads receive a `public-read` ACL unless an environment variable is set | Confidentiality of board images and voice recordings | new |
 | 16 | Tenant isolation has no database-level constraint | Depth of defense for district-to-district separation | new |
