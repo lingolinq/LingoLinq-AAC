@@ -371,3 +371,7 @@ Test-design note: raising `art50_tour_due_max_ms` inside a case cannot distingui
   at start; init's own branch keeps it until start; survives teardown mid-hold; goes at the ceiling cancel; goes at
   the disallowed-route cancel); all five red on the previous code, green with the fix. Two labelled regression guards
   (stale re-arm drops it; sign-out clears it).
+- Round-5 results: guided-tour 32/32. Mutations (restore by copy, `cmp` verified): removal re-added at consumption ->
+  the four flag-branch presence cases red (init's own-branch case stays green because that mutation does not touch
+  the init branch); removal dropped at start -> the two start cases; at the ceiling / at the route cancel / at the
+  expiry drop -> only the matching case each. Commit 2ab7ce884.
