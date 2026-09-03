@@ -5,14 +5,15 @@
 
 **Audited:** `staging (audited at 59f502aa4; staging tip had advanced to d2bf421f7 -- 7 commits, 43 files, PRs #814/#816/#819/#820/#821/#822/#823 -- by the time this PR was assembled; those 7 commits are NOT scanned by this run, see auditedShaPriorNote)` @ `59f502aa4a967c8c704637cc66a18ff05118c7d8` on 2026-08-18  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 0 Critical / 13 High
+**Headline (open + remediated-unverified):** 1 Critical / 19 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (114)
+## Open (126)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
+| LL-1baffd92d5 |  | critical | FERPA, COPPA, GDPR, SOC2 | untriaged | pr-review | Organization claim_user authorizes only the requesting org manager and performs no check on the target user, allowing any manager with a free seat to take over any account by username, including one another district already manages | `app/controllers/api/organizations_controller.rb`:245 |
 | LL-104bfa61dc |  | high | WCAG | untriaged | audit-run | Terms-agree modal is unreachable by switch scanning (no .modal_targets / .btn, opened without scannable) | `app/frontend/app/components/terms-agree.hbs`:27 |
 | LL-53cb93fab1 |  | high | GDPR, FERPA | untriaged | audit-run | Terms-agree modal can be silently replaced by intro before the user agrees | `app/frontend/app/routes/index.js`:132 |
 | LL-e8614c103f |  | high | GDPR, FERPA, COPPA | untriaged | audit-run | PredictionEntry rows survive account deletion, retaining per-user AAC vocabulary sequences indefinitely | `app/models/prediction_entry.rb`:4 |
@@ -20,6 +21,12 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-5617f4e17d |  | high | SOC2, HIPAA, FERPA | untriaged | audit-run | No server-side password strength policy exists; the only minimum-length check is a 6-character Ember computed property, bypassable by a direct API call | `app/frontend/app/controllers/register.js`:217 |
 | LL-5f0a016e2b |  | high | SOC2, HIPAA | untriaged | audit-run | Attested AI Governance Memo states the Bedrock runtime AI path is "not operational since" revision 00014-5rw; credentials were re-mounted 53 minutes later and the path carries user-attributed traffic | `docs/legal/AI_GOVERNANCE_MEMO.md`:499 |
 | LL-3bfc56ef4b |  | high | HIPAA, SOC2 | untriaged | pr-review | ALLOWED_RUNTIME_MODELS is an in-process application gate and cannot constrain direct AWS API or CLI use of the same Bedrock runtime credential | `lib/ai_client.rb`:83 |
+| LL-4f1eb5fd0a |  | high | SOC2 | untriaged | pr-review | Lesson#check_url fetches a user-supplied URL with raw Typhoeus and unbounded redirect following, bypassing the repository's own SafeHttp DNS/IP and redirect validation | `app/models/lesson.rb`:146 |
+| LL-135ee6ca59 |  | high | COPPA, GDPR, FERPA | untriaged | pr-review | User#ai_consent_granted? has no runtime caller, so the separate AI data-sharing consent promised to parents on the privacy page is never enforced by the AI feature gate | `lib/feature_flags.rb`:242 |
+| LL-c7bbfa452a |  | high | COPPA, FERPA | untriaged | pr-review | School-authorized account creation skips the COPPA block entirely, so settings coppa is never written and the under-13 AI gate that reads it passes for exactly the accounts it was written to protect | `app/models/user.rb`:2423 |
+| LL-933e61efd7 |  | high | GDPR, FERPA, COPPA | untriaged | pr-review | Five specific retention and deletion promises on the public privacy page have no implementing mechanism, and the scheduled jobs that would partially back them have not run in production since the 2026-07-21 cutover | `app/frontend/app/templates/privacy.hbs`:97 |
+| LL-400adcead5 |  | high | GDPR, COPPA | untriaged | pr-review | PR #901 machine-translated the AI data-sharing, Article 50, COPPA and retention disclosures into twelve locale files, and the guard that checks those claims covers only English and Spanish, by its own admission | `spec/support/ai_disclosure_claims.rb`:79 |
+| LL-3e36a18199 |  | high | GDPR, FERPA, HIPAA, SOC2 | untriaged | pr-review | rake scheduler:dispatch is the single entrypoint for every recurring job and nothing has triggered it in production since 2026-07-21, so all retention, purge, flush and expiry work is stopped | `lib/tasks/scheduler.rake`:67 |
 | LL-7314b5a8ea |  | medium | HIPAA | untriaged | audit-run | Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews | `render.yaml`:107 |
 | LL-ebd844a7d0 |  | medium | FERPA | untriaged | manual | Permanent, non-expiring User#user_token still login-serialized and accepted by logged legacy token fallbacks | `lib/json_api/user.rb`:41 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
@@ -81,6 +88,11 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-047959b17a |  | medium | FERPA, HIPAA, GDPR | untriaged | audit-run | System-email content overrides resolve from the enqueueing context host, never from the recipient or the recipient organization | `lib/system_email_templates.rb`:5 |
 | LL-013ae2595c |  | medium | FERPA, GDPR, SOC2 | untriaged | audit-run | Admin preview of a system-email template can render an override that will never apply to a delivered email | `app/models/organization.rb`:1222 |
 | LL-eadbb442c2 |  | medium | SOC2, FERPA, HIPAA | untriaged | audit-run | Stored system-email templates are evaluated as server-side ERB behind a regex denylist that fails open | `lib/system_email_template_security.rb`:4 |
+| LL-20703f4fa8 |  | medium | GDPR, HIPAA, FERPA | untriaged | audit-run | AiApiLog.error_message is assigned raw provider exception text into an unbounded column and is excluded from the before_validation scrub that covers the request and response summaries | `app/models/ai_api_log.rb`:90 |
+| LL-fba170716e |  | medium | SOC2 | untriaged | audit-run | The SNS callback logs the full payload before verifying it on the SMS branch, performs no signature verification at all on the SubscriptionConfirmation branch, and reads the request body with no size bound | `app/controllers/api/callbacks_controller.rb`:15 |
+| LL-d033b27acd |  | medium | SOC2 | untriaged | audit-run | The document register anchors its overdue-for-review window to meta.generatedDate rather than the current date, so the rendered register printed none overdue while two records were genuinely past their review dates | `scripts/document-register-render.rb`:154 |
+| LL-37860cbcfa |  | medium | SOC2 | untriaged | audit-run | No GitHub Action in the repository is pinned by commit digest, including the authentication action inside the production deploy job that holds id-token write permission | `.github/workflows/deploy-cloudrun.yml`:309 |
+| LL-84c67d758d |  | medium | WCAG | untriaged | audit-run | The terms-agree modal invokes ModalDialog without labelledBy, so the dialog ships with role dialog and aria-modal but no accessible name, and the title id added for that purpose is orphaned | `app/frontend/app/components/terms-agree.hbs`:1 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | **accepted** | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | **accepted** | audit-run | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
 | LL-310b464be4 | P2-8 | medium | FERPA | **accepted** | audit-run | protected_image accepts user_token via URL parameter | `app/controllers/api/users_controller.rb`:945 |
@@ -226,4 +238,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_190 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_202 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

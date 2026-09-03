@@ -26,7 +26,7 @@ describe 'User org offboarding parental consent', type: :model do
     u = User.process_new({
       'user_name' => "school_#{suffix}_#{SecureRandom.hex(4)}",
       'email' => "school_#{suffix}_#{SecureRandom.hex(4)}@example.com",
-      'password' => 'abcdef',
+      'password' => 'abcdefgh',
       'terms_agree' => true
     })
     u.settings['school_authorization'] = {
@@ -44,7 +44,7 @@ describe 'User org offboarding parental consent', type: :model do
     u = User.process_new({
       'user_name' => "eu_off_#{suffix}_#{SecureRandom.hex(4)}",
       'email' => "eu_off_#{suffix}_#{SecureRandom.hex(4)}@example.com",
-      'password' => 'abcdef',
+      'password' => 'abcdefgh',
       'terms_agree' => true,
       'country' => 'DE',
       'under_16' => true
@@ -97,7 +97,7 @@ describe 'User org offboarding parental consent', type: :model do
       u = User.process_new({
         'user_name' => "adult_#{SecureRandom.hex(4)}",
         'email' => "adult_#{SecureRandom.hex(4)}@example.com",
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true
       })
       expect(u.requires_coppa_offboarding?(attested_under_13: false)).to eq(false)
@@ -244,7 +244,7 @@ describe 'User org offboarding parental consent', type: :model do
       u = User.process_new({
         'user_name' => "rev_#{SecureRandom.hex(4)}",
         'email' => "rev_#{SecureRandom.hex(4)}@example.com",
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'old_parent@example.com'
@@ -396,7 +396,7 @@ describe 'User org offboarding parental consent', type: :model do
       u = User.process_new({
         'name' => 'signup_decl_model',
         'email' => "signup_decl_model_#{SecureRandom.hex(4)}@example.com",
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'signup_decl_model_parent@example.com'

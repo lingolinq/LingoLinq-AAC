@@ -2578,6 +2578,10 @@ class User < ApplicationRecord
     # current password". Only an explicitly-absent (nil) value is a no-op.
     unless params['valet_login'].nil?
       if process_boolean(params['valet_login'])
+        if params['valet_password'].present? && !password_meets_minimum?(params['valet_password'])
+          add_processing_error("password too short")
+          return false
+        end
         self.set_valet_password(params['valet_password'])
         self.settings['valet_long_term'] = process_boolean(params['valet_long_term']) if params['valet_long_term'] != nil
         self.settings['valet_prevent_disable'] = process_boolean(params['valet_prevent_disable']) if params['valet_prevent_disable'] != nil
@@ -2945,6 +2949,10 @@ class User < ApplicationRecord
     self.settings['public'] = !!params['public'] if params['public'] != nil
     self.settings['admin'] = !!non_user_params['admin'] if non_user_params['admin'] != nil
     if params['password'] && params['password'] != ""
+      if !password_meets_minimum?(params['password'])
+        add_processing_error("password too short")
+        return false
+      end
       if !self.settings['password'] || valid_password?(params['old_password']) || non_user_params[:allow_password_change]
         @password_changed = !!self.settings['password']
         # Remember whether this was a self-service change (old password verified)

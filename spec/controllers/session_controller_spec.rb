@@ -143,7 +143,7 @@ describe SessionController, :type => :controller do
         'user_name' => 'coppa_oauth_kid',
         'name' => 'COPPA OAuth Kid',
         'email' => 'child_coppa_oauth@example.com',
-        'password' => 'bacon',
+        'password' => 'bacon123',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'parent_coppa_oauth@example.com'
@@ -152,7 +152,7 @@ describe SessionController, :type => :controller do
       expect(u.coppa_parental_consent_pending?).to eq(true)
 
       key_with_stash
-      post :oauth_login, params: {:code => @code, :username => 'coppa_oauth_kid', :password => 'bacon'}
+      post :oauth_login, params: {:code => @code, :username => 'coppa_oauth_kid', :password => 'bacon123'}
       expect(response).not_to be_successful
       expect(assigns[:error]).to eq('awaiting_parental_consent')
       str = RedisInit.default.get("oauth_#{@code}")

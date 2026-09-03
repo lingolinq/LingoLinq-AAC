@@ -324,7 +324,9 @@ fi
 # would never reach an already-created provider and a stale/wrong lock would persist silently.
 # (PR #353 adversary review - the "re-runs are safe" claim was overstated for this resource.)
 WIF_MAPPING="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id"
-# BRANCH LOCK (2026-09-03). The repo lock alone lets ANY ref of this repo mint a deploy token,
+# BRANCH LOCK (2026-09-03; supersedes the prod-only hardcode from #918 / LL-1e7b568ef3, which
+# would have written main-only onto the NONPROD provider on a re-run there).
+# The repo lock alone lets ANY ref of this repo mint a deploy token,
 # and this reconciler REPLACES the live condition on every re-run, so a repo-only condition here
 # would silently erase the branch restriction deploy-cloudrun.yml relies on as safety gate 3
 # (found by Codex review of PR #919). WIF_ALLOWED_REFS is the comma-separated list of refs the
