@@ -1402,6 +1402,43 @@ describe Api::BoardsController, :type => :controller do
       json = JSON.parse(response.body)
       expect(json['error']).to eq('JSON body must be an object')
     end
+
+    it "keeps a non-English locale when the create payload includes English translations" do
+      token_user
+      post :create, params: {
+        board: {
+          name: "Mi tablero",
+          locale: "es",
+          buttons: [{ "id" => 1, "label" => "sombrero" }],
+          grid: { "rows" => 1, "columns" => 1, "order" => [[1]] },
+          translations: {
+            "default" => "es",
+            "current_label" => "es",
+            "current_vocalization" => "es",
+            "1" => {
+              "es" => { "label" => "sombrero", "vocalization" => "sombrero" },
+              "en" => { "label" => "hat", "vocalization" => "hat" }
+            }
+          }
+        }
+      }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['locale']).to eq('es')
+      board = Board.find_by_path(json['board']['id'])
+      expect(board.settings['locale']).to eq('es')
+      trans = BoardContent.load_content(board, 'translations')
+      expect(trans['1']['en']['label']).to eq('hat')
+      expect(trans['1']['es']['label']).to eq('sombrero')
+    end
+
+    it "rewrites a non-English locale to en when english_first is on and translations are blank" do
+      token_user
+      post :create, params: { board: { name: "Mi tablero", locale: "es" } }
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['board']['locale']).to eq('en')
+    end
   end
 
   describe "create (Art.50(2) marker persistence)" do

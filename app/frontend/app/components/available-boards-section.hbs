@@ -12,7 +12,12 @@
     <p class="ub-boards-page__loading-label">{{t "Loading your boards..." key="loading_your_boards"}}</p>
   </div>
   {{else if this.boardsCtrl.board_list.error}}
-    <p class="ub-boards-page__loading">{{t "Failed to load" key="failed_to_load"}}</p>
+    <div class="ub-boards-page__loading" role="alert">
+      <p class="ub-boards-page__loading-label">{{t "Failed to load" key="failed_to_load"}}</p>
+      <button type="button" class="btn btn-default" {{on "click" (this.ctrlAction "retry_board_list")}}>
+        {{t "Try Again" key="try_again"}}
+      </button>
+    </div>
   {{else if this.boardsCtrl.board_list.results}}
     {{#if this.boardsCtrl.prior_home_selected}}
       <ul class="list-group" style="max-width: 350px;">

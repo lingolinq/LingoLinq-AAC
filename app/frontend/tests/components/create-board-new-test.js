@@ -4,13 +4,15 @@ import {
   itAsync,
   expect,
   beforeEach,
-  afterEach
+  afterEach,
+  stub
 } from 'frontend/tests/helpers/jasmine';
 import 'frontend/tests/helpers/ember_helper';
 import EmberObject from '@ember/object';
 import RSVP from 'rsvp';
 import modalUtil from '../../utils/modal';
 import persistence from '../../utils/persistence';
+import editManager from '../../utils/edit_manager';
 
 /*
  * create-board-new component coverage — Scot #3 (High) pre-merge review.
@@ -162,6 +164,201 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       c.set('model.grid.columns', 6);  // 30 buttons, well under cap
       c.set('ai_generating', false);
       expect(c.get('ai_generate_disabled')).toEqual(false);
+    });
+  });
+
+  function stubEnglishFirstAppState(flagOn) {
+    return EmberObject.create({
+      feature_flags: EmberObject.create({ english_first_board_generation: !!flagOn }),
+      currentUser: null,
+      sessionUser: null
+    });
+  }
+
+  describe('bilingual English lookup on create', function() {
+    itAsync('searches symbols with the English translation and keeps the Spanish label', async function() {
+      var c = makeComponent();
+      c.set('appState', stubEnglishFirstAppState(true));
+      c.set('model.locale', 'es');
+      c.set('model.grid.labels', 'sombrero');
+      var symbolUrls = [];
+      stub(persistence, 'ajax', function(url) {
+        if(String(url).indexOf('/users/self/translate') !== -1) {
+          return RSVP.resolve({ translations: { sombrero: 'hat' } });
+        }
+        if(String(url).indexOf('/search/symbols') !== -1) {
+          symbolUrls.push(String(url));
+          return RSVP.resolve([{ image_url: 'https://example.com/hat.png' }]);
+        }
+        if(String(url).indexOf('batch_parts_of_speech') !== -1) {
+          return RSVP.resolve({ results: { hat: { types: ['noun'] } } });
+        }
+        return RSVP.resolve({});
+      });
+      await c._lookup_label_images();
+      expect(c.get('parsed_labels')).toEqual(['sombrero']);
+      expect(c.get('_label_english.sombrero')).toEqual('hat');
+      expect(symbolUrls.length).toEqual(1);
+      expect(symbolUrls[0].indexOf('q=hat') !== -1).toEqual(true);
+      expect(symbolUrls[0].indexOf('locale=en') !== -1).toEqual(true);
+      expect(symbolUrls[0].indexOf('q=sombrero') !== -1).toEqual(false);
+      expect(c.get('_label_images.sombrero.image_url')).toEqual('https://example.com/hat.png');
+    });
+
+    itAsync('does not call translate when authoring in English', async function() {
+      var c = makeComponent();
+      c.set('appState', stubEnglishFirstAppState(true));
+      c.set('model.locale', 'en');
+      c.set('model.grid.labels', 'hat');
+      var translateCalled = false;
+      var symbolUrls = [];
+      stub(persistence, 'ajax', function(url) {
+        if(String(url).indexOf('/users/self/translate') !== -1) {
+          translateCalled = true;
+          return RSVP.resolve({ translations: {} });
+        }
+        if(String(url).indexOf('/search/symbols') !== -1) {
+          symbolUrls.push(String(url));
+          return RSVP.resolve([{ image_url: 'https://example.com/hat.png' }]);
+        }
+        return RSVP.resolve({});
+      });
+      await c._lookup_label_images();
+      expect(translateCalled).toEqual(false);
+      expect(symbolUrls.length).toEqual(1);
+      expect(symbolUrls[0].indexOf('q=hat') !== -1).toEqual(true);
+    });
+
+    it('saves both locales on the create payload', function() {
+      var c = makeComponent();
+      c.set('appState', stubEnglishFirstAppState(true));
+      c.set('model.locale', 'es');
+      c.set('model.name', 'Mi tablero');
+      c.set('_label_english', { sombrero: 'hat' });
+      c.set('_board_name_english', 'My board');
+      var blob = c._build_authoring_translations([
+        { id: 1, label: 'sombrero' }
+      ]);
+      expect(blob.default).toEqual('es');
+      expect(blob.current_label).toEqual('es');
+      expect(blob['1'].es.label).toEqual('sombrero');
+      expect(blob['1'].en.label).toEqual('hat');
+      expect(blob.board_name.es).toEqual('Mi tablero');
+      expect(blob.board_name.en).toEqual('My board');
+    });
+
+    it('clears translation caches when the supervisee locale root changes', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true }),
+        sessionUser: EmberObject.create({
+          known_supervisees: [
+            { id: 'u-es', locale: 'es' },
+            { id: 'u-fr', locale: 'fr' }
+          ]
+        })
+      }));
+      c.set('model.locale', 'es');
+      c.set('_label_english', { sombrero: 'hat' });
+      c.set('_board_name_english', 'My board');
+      c.set('_label_colors', { sombrero: { fill: '#f00' } });
+      c.set('_label_images', { sombrero: { image_url: 'https://example.com/hat.png' } });
+      c._apply_supervisee_authoring_locale('u-fr');
+      expect(c.get('model.locale')).toEqual('fr');
+      expect(c.get('_label_english')).toEqual({});
+      expect(c.get('_board_name_english')).toEqual(null);
+      expect(c.get('_label_colors')).toEqual({});
+      expect(c.get('_label_images')).toEqual({});
+    });
+
+    it('keeps translation caches when the supervisee locale root is unchanged', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true }),
+        sessionUser: EmberObject.create({
+          known_supervisees: [
+            { id: 'u-es', locale: 'es' },
+            { id: 'u-es-mx', locale: 'es_MX' }
+          ]
+        })
+      }));
+      c.set('model.locale', 'es');
+      c.set('_label_english', { sombrero: 'hat' });
+      c._apply_supervisee_authoring_locale('u-es-mx');
+      expect(c.get('model.locale')).toEqual('es_MX');
+      expect(c.get('_label_english.sombrero')).toEqual('hat');
+    });
+
+    it('does not build translations for an English authoring locale', function() {
+      var c = makeComponent();
+      c.set('appState', stubEnglishFirstAppState(true));
+      c.set('model.locale', 'en');
+      expect(c._build_authoring_translations([{ id: 1, label: 'hat' }])).toEqual(null);
+    });
+
+    itAsync('looks up Fitzgerald colors from the English word', async function() {
+      var c = makeComponent();
+      c.set('appState', stubEnglishFirstAppState(true));
+      c.set('model.locale', 'es');
+      c.set('model.grid.labels', 'sombrero');
+      var posWords = null;
+      stub(persistence, 'ajax', function(url, opts) {
+        if(String(url).indexOf('/users/self/translate') !== -1) {
+          return RSVP.resolve({ translations: { sombrero: 'hat' } });
+        }
+        if(String(url).indexOf('batch_parts_of_speech') !== -1) {
+          posWords = opts && opts.data && opts.data.words;
+          return RSVP.resolve({ results: {} });
+        }
+        return RSVP.resolve({});
+      });
+      await c._lookup_label_colors();
+      expect(posWords).toEqual('hat');
+    });
+
+    itAsync('bakes translations on save and does not open translation-select', async function() {
+      var c = makeComponent();
+      var opened = [];
+      var origOpen = modalUtil.open;
+      var origClose = modalUtil.close;
+      var origAuto = editManager.auto_edit;
+      modalUtil.open = function(template) { opened.push(template); };
+      modalUtil.close = function() {};
+      editManager.auto_edit = function() {};
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true }),
+        currentUser: EmberObject.create({ id: '1' }),
+        arm_board_load_overlay: function() {}
+      }));
+      c.set('router', { transitionTo: function() {} });
+      c.set('_label_english', { sombrero: 'hat' });
+      c.set('_label_images', { sombrero: { image_url: 'https://example.com/hat.png' } });
+      var saved = RSVP.resolve();
+      c.set('model', EmberObject.create({
+        name: 'Mi tablero',
+        locale: 'es',
+        grid: EmberObject.create({ rows: 1, columns: 1, labels: 'sombrero', labels_order: 'rows' }),
+        license: { type: 'private' },
+        key: 'example/mi-tablero',
+        id: '1_1',
+        save: function() {
+          saved = RSVP.resolve(this);
+          return saved;
+        }
+      }));
+      try {
+        c._completeSaveBoard();
+        await saved;
+        expect(c.get('model.locale')).toEqual('es');
+        var trans = c.get('model.translations') || {};
+        expect(trans['1'].es.label).toEqual('sombrero');
+        expect(trans['1'].en.label).toEqual('hat');
+        expect(opened.indexOf('translation-select')).toEqual(-1);
+      } finally {
+        modalUtil.open = origOpen;
+        modalUtil.close = origClose;
+        editManager.auto_edit = origAuto;
+      }
     });
   });
 

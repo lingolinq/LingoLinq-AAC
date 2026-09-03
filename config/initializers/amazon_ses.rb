@@ -21,9 +21,10 @@ Aws::Rails.add_action_mailer_delivery_method(
   region: ENV['SES_REGION'] || ENV['AWS_REGION'] || ENV['AWS_DEFAULT_REGION']
 )
 
-# LL-42a24ee911: SES has no configuration set today, so there is no per-message delivery/bounce/
-# complaint record anywhere -- only account-wide 15-minute aggregates, which cannot explain any
-# one message's fate (e.g. the still-unexplained non-delivery to a personal Gmail address). This
+# LL-42a24ee911: the lingolinq-transactional configuration set DOES exist now (provisioned
+# 2026-07-11), with an SNS event destination on SEND/REJECT/BOUNCE/COMPLAINT/DELIVERY/
+# DELIVERY_DELAY feeding the lingolinq-ses-events SQS queue. Without it, the only signal is
+# account-wide 15-minute aggregates, which cannot explain any one message's fate. This
 # interceptor tags every outgoing message with the SES-documented X-SES-CONFIGURATION-SET header
 # (SendRawEmail-specific; SES strips it before the message leaves) so sends opt into the
 # lingolinq-transactional configuration set's SNS event destination

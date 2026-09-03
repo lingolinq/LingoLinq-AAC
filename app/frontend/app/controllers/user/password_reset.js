@@ -10,7 +10,7 @@ export default Controller.extend({
     var pw2 = this.get('model.password2');
     if(!pw) {
       this.set('badPassword', {empty: true});
-    } else if(pw.length < 6) {
+    } else if(pw.length < 8) {
       this.set('badPassword', {short: true});
     } else if(pw != pw2) {
       this.set('badPassword', {mismatch: true});

@@ -303,7 +303,7 @@ describe Flusher do
       u = User.create
       d = Device.create(user: u)
       o = []
-      17.times do |i|
+      18.times do |i|
         obj = {}
         o << obj
         expect(Flusher).to receive(:flush_record).with(obj).and_return(true)
@@ -320,6 +320,7 @@ describe Flusher do
       expect(ButtonSound).to receive(:where).with(:user_id => u.id).and_return([o[14]])
       expect(UserVideo).to receive(:where).with(:user_id => u.id).and_return([o[15]])
       expect(LogSnapshot).to receive(:where).with(:user_id => u.id).and_return([o[16]])
+      expect(PredictionEntry).to receive(:where).with(:user_id => u.id).and_return([o[17]])
       Flusher.flush_user_content(u.global_id, u.user_name, d)
     end
 
@@ -394,6 +395,18 @@ describe Flusher do
       expect(LogSnapshot.where(id: snap.id).count).to eq(0)
       expect(LogSnapshot.where(id: other.id).count).to eq(1)
     end
+
+    it "should flush PredictionEntry rows for the user without touching other users" do
+      u = User.create
+      u2 = User.create
+      mine = PredictionEntry.create!(user: u, locale: 'en', prefix: 'i want', next_word: 'more')
+      other = PredictionEntry.create!(user: u2, locale: 'en', prefix: 'i want', next_word: 'help')
+
+      Flusher.flush_user_content(u.global_id, u.user_name)
+
+      expect(PredictionEntry.where(id: mine.id).count).to eq(0)
+      expect(PredictionEntry.where(id: other.id).count).to eq(1)
+    end
   end
 
   describe "transfer_user_content" do
@@ -424,6 +437,22 @@ describe Flusher do
       expect(UserVideo).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(License).to receive(:where).with(:user_id => u1.id).and_return(ref)
       Flusher.transfer_user_content(u1.global_id, u1.user_name, u2.global_id, u2.user_name)
+    end
+
+    it "should merge colliding PredictionEntry rows instead of dropping the transfer" do
+      u1 = User.create
+      u2 = User.create
+      shared_source = PredictionEntry.create!(user: u1, locale: 'en', prefix: 'i', next_word: 'want', score: 2)
+      shared_target = PredictionEntry.create!(user: u2, locale: 'en', prefix: 'i', next_word: 'want', score: 3)
+      unique_source = PredictionEntry.create!(user: u1, locale: 'en', prefix: 'i', next_word: 'help', score: 1)
+
+      Flusher.transfer_user_content(u1.global_id, u1.user_name, u2.global_id, u2.user_name)
+
+      expect(PredictionEntry.where(user_id: u1.id).count).to eq(0)
+      expect(PredictionEntry.where(user_id: u2.id).count).to eq(2)
+      expect(shared_target.reload.score).to eq(5)
+      expect(PredictionEntry.where(id: shared_source.id).count).to eq(0)
+      expect(unique_source.reload.user_id).to eq(u2.id)
     end
 
     it "should transfer license seats so they are not orphaned on merge" do
@@ -467,6 +496,13 @@ describe Flusher do
       ut = Utterance.create(:user => u)
       Flusher.flush_user_completely(u.global_id, u.user_name)
       expect(Utterance.where(:user_id => u.id).count).to eq(0)
+    end
+
+    it "should remove the user's PredictionEntry rows" do
+      u = User.create
+      PredictionEntry.create!(user: u, locale: 'en', prefix: 'want', next_word: 'help')
+      Flusher.flush_user_completely(u.global_id, u.user_name)
+      expect(PredictionEntry.where(user_id: u.id).count).to eq(0)
     end
     
     it 'should flush user tags' do
@@ -683,6 +719,21 @@ describe Flusher do
       ubc = UserBoardConnection.create!(user_id: u.id, board_id: b.id)
       Flusher.flush_leftovers
       expect(UserBoardConnection.where(id: ubc.id).count).to eq(1)
+    end
+
+    it "should remove a PredictionEntry left dangling by a hard-deleted user" do
+      u = User.create
+      entry = PredictionEntry.create!(user: u, locale: 'en', prefix: 'i', next_word: 'want')
+      u.delete
+      Flusher.flush_leftovers
+      expect(PredictionEntry.where(id: entry.id).count).to eq(0)
+    end
+
+    it "should not remove a PredictionEntry that still has a live user" do
+      u = User.create
+      entry = PredictionEntry.create!(user: u, locale: 'en', prefix: 'i', next_word: 'want')
+      Flusher.flush_leftovers
+      expect(PredictionEntry.where(id: entry.id).count).to eq(1)
     end
 
     it "should report but not delete paper trail versions whose item_type no longer maps to any class" do

@@ -2,11 +2,12 @@ import Component from '@ember/component';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import { observer, computed } from '@ember/object';
-import { scheduleOnce, later as runLater } from '@ember/runloop';
+import { scheduleOnce, later as runLater, cancel as runCancel } from '@ember/runloop';
 import i18n from '../utils/i18n';
 import { tourBuilderFor, tourKeyFor } from '../utils/tours/registry';
 import { placementForElement, setIdentityDropdownOpen, scrollIntoViewSettled } from '../utils/tours/shared';
 import modal from '../utils/modal';
+import article50Gate from '../utils/article50_gate';
 import boardDetailCache from '../utils/board_detail_cache';
 
 // Tracks which in-body tour-action buttons already have their click handler, so
@@ -349,8 +350,7 @@ export default Component.extend({
   _autoOpenWatcher: observer('appState.auto_open_home_tour', function() {
     if (this.get('speakHost') || this.get('editHost')) { return; }
     if (this.get('appState.auto_open_home_tour')) {
-      this.appState.set('auto_open_home_tour', false);
-      this._scheduleAutoOpen();
+      this._consumeAutoOpenSignal();
     }
   }),
 
@@ -578,11 +578,157 @@ export default Component.extend({
     scheduleOnce('afterRender', this, tryConsume);
   },
 
+  // ---- Auto-open vs the EU AI Act Art. 50(1) session-entry notice ----------
+  //
+  // The terms-agree confirm does two things from one click: routes/index.js opens
+  // the (uncloseable) ai-disclosure modal once the terms promise resolves, and
+  // terms-agree.js:66 raises auto_open_home_tour. Observed in production on
+  // 2026-09-02: the Shepherd tour painted over the notice (z 9999 over 1050) and
+  // took focus; cancelling the tour ran the board-picker handoff below, and the
+  // route change closed the notice through app-state.js#global_transition's
+  // unconditional modal.close() with nothing acknowledged. So the auto-open waits
+  // here, in the one consumer, until the notice is neither open nor due.
+  //
+  // "Due" = article50Gate.sessionEntryGatePending on the gate subject: the notice
+  // opens on a promise microtask AFTER the flag flips (the flip is synchronous
+  // inside confirm, afterRender flushes before the microtask), so at the first
+  // check the modal is not open yet. The wait holds while a session-entry notice
+  // is still due OR one is currently open. "Due" is bounded by really_fresh
+  // (models/base.js:54-58, 30 s from `retrieved`, recomputed on the 500 ms
+  // short_refresh_stamp, app-state.js:4958-4980); the notice's own opener
+  // (article50_gate.js#maybeShowSessionEntryGate) uses the same predicate, so
+  // once it clears no session-entry notice can still open. The first-AI-use
+  // gate (presentBlockingGate) can open the notice without that predicate; the
+  // is_open check covers it. art50_tour_due_max_ms sits ABOVE the freshness
+  // window and is a safety valve only: the stamp does not tick under `testing`
+  // (app-state.js:4923), so a cached really_fresh could hold forever there. When
+  // the valve fires the attempt is CANCELLED, not started, because a gate that
+  // still reads pending could still open the notice over a running tour. The
+  // OPEN-wait is deliberately uncapped: the notice closes only on
+  // acknowledgement or on navigation, both of which end the wait, and a time
+  // cap would re-create the defect for a slow reader.
+  //
+  // When the wait ends on this instance, _runAutoOpen hands off to ONE
+  // afterRender step, _startAutoOpen, which resumes only on a route where the
+  // auto-open belongs (_autoOpenRouteAllowed) and cancels otherwise: the navbar
+  // instance survives most in-app transitions (controllers/application.js:2324),
+  // so a user who acknowledged and left home before the next poll must not be
+  // yanked to board-picker or given a foreign page's tour with the home handoff.
+  // If the instance is torn down mid-wait instead (a route change that drops the
+  // navbar destroys it), willDestroy re-arms the signal with a stamp and
+  // _consumeAutoOpenSignal drops it if no navbar instance picks it up within
+  // art50_tour_rearm_max_ms: an old signal must not resurrect the tour and its
+  // handoff at an arbitrary later moment.
+  // Tunables are properties so tests can shrink them (focus-words.js precedent).
+  // Called off the DEFAULT export of article50_gate on purpose so tests can stub.
+  art50_tour_defer_poll_ms: 250,
+  art50_tour_due_max_ms: 35000,
+  art50_tour_rearm_max_ms: 60000,
+  _autoOpenDeferring: false,
+
+  // The one place appState.auto_open_home_tour is cleared (init and
+  // _autoOpenWatcher both come here). A signal re-armed by willDestroy carries
+  // auto_open_home_tour_rearmed_at; a fresh signal from any of its writers does
+  // not, and is always honoured. The sessionStorage twin is NOT removed here:
+  // routes/register.js:107 and services/beta-welcome-mode.js:45 set it alongside
+  // the flag as the reload fallback, and a reload while the notice is holding the
+  // tour discards appState and the willDestroy re-arm, so the key must outlive
+  // consumption. It goes when the attempt resolves (_clearAutoOpenStorageTwin
+  // callers) or on sign-out (app-state.js#clear_user_state). A stale re-arm is
+  // dropped here and takes the key with it, so it cannot re-fire on a later mount.
+  _consumeAutoOpenSignal: function() {
+    var appState = this.get('appState');
+    appState.set('auto_open_home_tour', false);
+    var rearmedAt = appState.get('auto_open_home_tour_rearmed_at');
+    appState.set('auto_open_home_tour_rearmed_at', null);
+    if (rearmedAt && (Date.now() - rearmedAt) > this.get('art50_tour_rearm_max_ms')) {
+      this._clearAutoOpenStorageTwin();
+      return;
+    }
+    this._scheduleAutoOpen();
+  },
+
+  _clearAutoOpenStorageTwin: function() {
+    try {
+      if (window.sessionStorage) { sessionStorage.removeItem('ll_auto_open_home_tour'); }
+    } catch (e) { /* sessionStorage unavailable */ }
+  },
+
   _scheduleAutoOpen: function() {
-    var _this = this;
     // Belt-and-suspenders: never attach the board-picker handoff from a
     // board-detail host (see _autoOpenWatcher).
     if (this.get('speakHost') || this.get('editHost')) { return; }
+    // init and _autoOpenWatcher can both call this; run one chain at a time.
+    if (this._autoOpenDeferring) { return; }
+    this._autoOpenDeferring = true;
+    this._autoOpenAfterArt50Notice(Date.now());
+  },
+
+  // 'open' while the notice is on screen, 'due' while a session-entry notice can
+  // still open for the gate subject, else null.
+  _art50NoticeState: function() {
+    if (modal.is_open('ai-disclosure')) { return 'open'; }
+    var subject = article50Gate.art50Subject(this.get('appState'));
+    if (article50Gate.sessionEntryGatePending(subject)) { return 'due'; }
+    return null;
+  },
+
+  _cancelAutoOpen: function() {
+    this._autoOpenDeferring = false;
+    this._art50PollTimer = null;
+    this._clearAutoOpenStorageTwin();
+  },
+
+  _art50PollTimer: null,
+
+  _autoOpenAfterArt50Notice: function(startedAt) {
+    this._art50PollTimer = null;
+    if (this.isDestroyed || this.isDestroying) { return; }
+    var state = this._art50NoticeState();
+    if (state === 'due' && (Date.now() - startedAt) >= this.get('art50_tour_due_max_ms')) {
+      this._cancelAutoOpen();
+      return;
+    }
+    if (state) {
+      // Retained so willDestroy can cancel it: a stray 250 ms timer after teardown
+      // would otherwise hold acceptance tests' settled() for one more tick.
+      this._art50PollTimer = runLater(this, this._autoOpenAfterArt50Notice, startedAt, this.get('art50_tour_defer_poll_ms'));
+      return;
+    }
+    this._runAutoOpen();
+  },
+
+  _runAutoOpen: function() {
+    // Cleared HERE, before the afterRender gap, so a teardown in that gap does
+    // not re-arm the signal (willDestroy) and start a second tour later.
+    this._autoOpenDeferring = false;
+    scheduleOnce('afterRender', this, this._startAutoOpen);
+  },
+
+  // Routes where a consumed auto-open signal may actually start something. The
+  // session-entry gate hosts (routes/index.js, routes/bento.js; user.home extends
+  // index) are where every writer either raises the flag or lands via
+  // return_to_index (app-state.js:909-917), and `current_route` already names the
+  // destination at afterRender because routeWillChange fires synchronously inside
+  // transitionTo (routes/application.js:110-139 -> app-state.js:745). A supporter
+  // who boots straight to caseload (routes/index.js:70-75) consumes there and gets
+  // the caseload tour. Anything else means the user has moved on: cancel.
+  _autoOpenRouteAllowed: function(route, supporter) {
+    if (route === 'user.home' || route === 'index' || route === 'bento') { return true; }
+    return !!supporter && route === 'caseload';
+  },
+
+  _startAutoOpen: function() {
+    // Torn down in the afterRender gap: treated as a teardown, so the storage
+    // twin is kept as the reload fallback (deliberate; _autoOpenDeferring is
+    // already false, so willDestroy does not re-arm the flag on this path).
+    if (this.isDestroyed || this.isDestroying) { return; }
+    var supporter = !!this.get('appState.currentUser.supporter_role');
+    if (!this._autoOpenRouteAllowed(this.get('appState.current_route'), supporter)) {
+      this._clearAutoOpenStorageTwin();
+      return;
+    }
+    this._clearAutoOpenStorageTwin();
     // SUPPORTERS (SLPs/therapists/teachers/parents — all collapse to
     // `supporter_role`) tour their CASELOAD, not the dashboard. That page is where
     // routes/index.js `_land_on_default` already sends them on every subsequent
@@ -591,25 +737,28 @@ export default Component.extend({
     // `_session_entry_gate_pending` in that route). They also get NO board-picker
     // handoff — that exists so a newly-registered COMMUNICATOR still completes the
     // must-have home-board pick, and a supporter has no board of their own to pick.
-    if (this.get('appState.currentUser.supporter_role')) {
+    if (supporter) {
       this._startCaseloadAutoOpen();
       return;
     }
-    scheduleOnce('afterRender', this, function() {
-      // After the home tour ends (any way it ends), hand the user off to the
-      // standalone board-picker so the remaining must-have step (home board pick)
-      // still happens. board-picker is the dedicated communicator board-setup
-      // page — intentionally decoupled from the legacy setup wizard, and the same
-      // target the tour's "choose my board" skip path uses (see below).
-      var handoff = function() {
-        _this.router.transitionTo('board-picker');
-      };
-      // If the current page/layout has no tour (e.g. a newly-registered user on
-      // the default Focused View, whose tour isn't built yet), skip the tour but
-      // STILL run the handoff so the home-board pick is never lost.
-      if (!_this.get('tourBuilder')) { handoff(); return; }
-      _this._startTour({ afterComplete: handoff });
-    });
+    this._startHomeAutoOpen();
+  },
+
+  _startHomeAutoOpen: function() {
+    var _this = this;
+    // After the home tour ends (any way it ends), hand the user off to the
+    // standalone board-picker so the remaining must-have step (home board pick)
+    // still happens. board-picker is the dedicated communicator board-setup
+    // page — intentionally decoupled from the legacy setup wizard, and the same
+    // target the tour's "choose my board" skip path uses (see below).
+    var handoff = function() {
+      _this.router.transitionTo('board-picker');
+    };
+    // If the current page/layout has no tour (e.g. a newly-registered user on
+    // the default Focused View, whose tour isn't built yet), skip the tour but
+    // STILL run the handoff so the home-board pick is never lost.
+    if (!this.get('tourBuilder')) { handoff(); return; }
+    this._startTour({ afterComplete: handoff });
   },
 
   // Route a supporter to their caseload and start the CASELOAD tour there.
@@ -1183,6 +1332,35 @@ export default Component.extend({
   // active Shepherd tour here — the navbar instance is destroyed when
   // empty_header flips during board-detail entry, and cancelling would dismiss
   // a tour the board-detail host still needs (or fire a stale afterComplete).
+  // Torn down while _autoOpenAfterArt50Notice is still holding the tour: cancel
+  // the pending poll and hand the signal back to appState (stamped) so the next
+  // navbar instance's init consumes it through _consumeAutoOpenSignal. The
+  // destroyed guard in the poll stays as a backstop. The service can be going
+  // down in the same teardown (owner destroy), hence the guard on it.
+  willDestroy: function() {
+    if (this._art50PollTimer) {
+      runCancel(this._art50PollTimer);
+      this._art50PollTimer = null;
+    }
+    if (this._autoOpenDeferring) {
+      this._autoOpenDeferring = false;
+      var appState = this.get('appState');
+      // Re-arm only while a user is signed in. Sign-out (services/session.js
+      // invalidate -> app-state.js#clear_user_state, which nulls currentUser at
+      // :2110 before resetting the tour fields) is the only teardown that nulls
+      // it, and this deferred hook can run after that reset; re-arming then
+      // would hand the signal to the next account on the same tab. Known
+      // exception: a cold boot whose init consumed the sessionStorage twin before
+      // currentUser resolved (app-state.js:471/521/544) drops the signal if torn
+      // down in that window, rather than risk carrying it across accounts.
+      if (appState && !appState.isDestroyed && !appState.isDestroying && appState.get('currentUser')) {
+        appState.set('auto_open_home_tour_rearmed_at', Date.now());
+        appState.set('auto_open_home_tour', true);
+      }
+    }
+    this._super(...arguments);
+  },
+
   willDestroyElement: function() {
     this._detachTourResize();
     this._unlockTourScroll();
@@ -1211,12 +1389,17 @@ export default Component.extend({
     // would bind afterComplete → board-picker onto the wrong tour).
     if (!this.get('speakHost') && !this.get('editHost')) {
       if (this.get('appState.auto_open_home_tour')) {
-        this.appState.set('auto_open_home_tour', false);
-        this._scheduleAutoOpen();
+        this._consumeAutoOpenSignal();
       } else {
         try {
+          // Not removed here: the key outlives consumption as the reload
+          // fallback and goes when the attempt resolves (see
+          // _consumeAutoOpenSignal). A re-render swap can create the new
+          // instance before the old one's deferred willDestroy re-arms the
+          // flag, so this branch may start a chain on the new instance; the
+          // re-arm that follows then hits _scheduleAutoOpen's re-entrancy
+          // guard, so exactly one chain survives, on the surviving instance.
           if (window.sessionStorage && sessionStorage.getItem('ll_auto_open_home_tour') === '1') {
-            sessionStorage.removeItem('ll_auto_open_home_tour');
             this._scheduleAutoOpen();
           }
         } catch (e) { /* sessionStorage unavailable — fall through */ }

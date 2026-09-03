@@ -79,6 +79,10 @@ export default ApplicationSerializer.extend({
       } else if (u16 === false) {
         json.under_16 = false;
       }
+      var bm = record.get('birth_month');
+      var by = record.get('birth_year');
+      if (bm != null && bm !== '') { json.birth_month = bm; }
+      if (by != null && by !== '') { json.birth_year = by; }
     }
     return json;
   },

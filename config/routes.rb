@@ -41,7 +41,15 @@ LingoLinq::Application.routes.draw do
   get '/privacy_practices' => redirect('/privacy')
   get '/terms' => 'boards#terms'
   get '/parental_consent/complete' => 'parental_consents#complete'
+  # GET renders a confirmation page and MUTATES NOTHING. It is reached from a
+  # link in the parent's inbox, and mail-security link scanners, link previews
+  # and browser prefetch all follow those links unprompted -- a GET that declined
+  # consent would let a scanner schedule deletion of a child's account with no
+  # human ever clicking. The POST below is what actually declines.
   get '/parental_consent/decline' => 'parental_consents#decline'
+  # Unnamed: the GET above already claims the `parental_consent_decline_path`
+  # helper for this same path, and the form posts to that same URL.
+  post '/parental_consent/decline' => 'parental_consents#decline_submit'
   get '/parental_consent/revoke' => 'parental_consents#revoke'
   get '/eu_ai_parental_consent/complete' => 'eu_ai_parental_consents#complete'
   get '/eu_ai_parental_consent/revoke' => 'eu_ai_parental_consents#revoke'
@@ -60,6 +68,7 @@ LingoLinq::Application.routes.draw do
   post 'auth/lookup' => 'session#auth_lookup'
   get 'auth' => redirect('/login')
   get 'auth/google/start' => 'session#google_start'
+  post 'auth/google/start' => 'session#google_start'
   get 'auth/google/callback' => 'session#google_callback'
   get 'auth/google/link' => 'session#google_link_candidates'
   post 'auth/google/link' => 'session#google_link_complete'
