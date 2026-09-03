@@ -740,7 +740,12 @@ export default Service.extend({
       this.set('currentBoardState', null);
     }
     if(!this.get('sessionUser') && this.session.get('isAuthenticated')) {
-      this.refresh_session_user();
+      // Keep the promise, do not just fire and forget. This runs on `routeWillChange`,
+      // which fires BEFORE any route's beforeModel, so by the time a route hook needs the
+      // user record the fetch is already in flight — and a hook that needs a preference to
+      // decide where to send the user can await THIS rather than starting a second
+      // request or guessing. See utils/session_user_wait.js and routes/board.js.
+      this.set('session_user_promise', this.refresh_session_user());
     }
     this.set('current_route', transition.to_route);
     this.updateFavicon();
