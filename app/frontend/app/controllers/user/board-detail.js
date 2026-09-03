@@ -4421,6 +4421,61 @@ export default Controller.extend(prefClasses, {
     return false;
   },
 
+  /*
+   * The rollback shared by both `cancel_edit` branches — the clean one, which runs it
+   * straight away, and the confirmed one, which runs it after the dialog returns
+   * 'discard'. Unchanged from the body that used to live inline in that action; only its
+   * home moved, so there is ONE copy for the two callers.
+   *
+   * A controller METHOD, not an action: `cancel_edit` calls it directly, and entries in
+   * the `actions` hash are reachable only through `send()`.
+   */
+  _discard_edit_changes: function() {
+    var _this = this;
+    if(_this.get('display_prefs_open')) {
+      _this.send('close_display_preferences');
+    }
+    _this.set('edit_mode', false);
+    _this.set('paint_mode', null);
+    _this.set('color_picker_button', null);
+    _this.set('board_recolored', false);
+    _this.set('_saved_recolor', null);
+    _this.set('borders_matched', false);
+    _this.set('_saved_border_colors', null);
+    // current_mode is deliberately NOT written here (same reasoning as the
+    // save-and-exit path above). This branch transitions to
+    // user.board-detail.index — the user STAYS on board-detail, whose
+    // invariant is speak mode — so 'default' was outright wrong. Exiting
+    // the .edit child route restores 'speak' via its resetController.
+    // Discard any pending copy-on-save: if the user entered edit
+    // mode on a non-owned board (which set this flag) and is now
+    // cancelling, no copy should be created.
+    _this.get('stashes').persist('copy_on_save', null);
+    // Discard unsaved changes: rollback Ember Data model and reload fresh from server
+    _this.get('model').rollbackAttributes();
+    _this.set('ordered_buttons', null);
+    _this.set('board_loading', true);
+    var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
+    persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
+      var merged = boardDetailCache.normalize_board_payload(data);
+      if(merged) {
+        if(merged.images && merged.images.length) {
+          _this._board_detail_images = merged.images;
+        }
+        _this.set('_raw_board_data', merged);
+        _this._build_from_raw(merged);
+      }
+      _this.set('board_loading', false);
+    }, function() {
+      _this.set('board_loading', false);
+    });
+    // Transition back to the index subroute with panels collapsed
+    _this.set('panels_collapsed', true);
+    _this.set('board_collapsed', true);
+    _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+  },
+
+
   // Button text preferences from user device settings
   button_text_size_class: computed('app_state.referenced_user.preferences.device.button_text', function() {
     var size = this.get('app_state.referenced_user.preferences.device.button_text') || 'medium';
@@ -8825,54 +8880,38 @@ export default Controller.extend(prefClasses, {
         }
       }, function() { });
     },
+    /*
+     * "Discard Edits" (templates/user/board-detail.hbs:1510).
+     *
+     * Gated on `edit_session_has_changes()` so an untouched session leaves without a
+     * dialog, matching what `exit_to_home_from_edit` already does. Before this the two
+     * escapes from edit mode disagreed: one skipped the prompt on a clean board, the
+     * other always asked.
+     *
+     * BOTH branches call the SAME `_discard_edit_changes`. Extracted rather than
+     * duplicated because that body is ~40 lines and does real work — model rollback, a
+     * server refetch, a route transition — and two copies of it would drift the first
+     * time one of them gained a step.
+     *
+     * The clean branch still runs the full rollback rather than a cheap "just leave".
+     * `edit_session_has_changes()` reports on SAVEABLE changes; it says nothing about
+     * transient edit-mode UI such as an armed `paint_mode` or an open colour picker,
+     * which the rollback also clears. Skipping it would leave that state set on the way
+     * out.
+     */
     cancel_edit: function() {
       var _this = this;
+      if(!this.edit_session_has_changes()) {
+        this._discard_edit_changes();
+        return;
+      }
       modal.open('confirm-discard-changes', {}).then(function(result) {
         if(result === 'discard') {
-          if(_this.get('display_prefs_open')) {
-            _this.send('close_display_preferences');
-          }
-          _this.set('edit_mode', false);
-          _this.set('paint_mode', null);
-          _this.set('color_picker_button', null);
-          _this.set('board_recolored', false);
-          _this.set('_saved_recolor', null);
-          _this.set('borders_matched', false);
-          _this.set('_saved_border_colors', null);
-          // current_mode is deliberately NOT written here (same reasoning as the
-          // save-and-exit path above). This branch transitions to
-          // user.board-detail.index — the user STAYS on board-detail, whose
-          // invariant is speak mode — so 'default' was outright wrong. Exiting
-          // the .edit child route restores 'speak' via its resetController.
-          // Discard any pending copy-on-save: if the user entered edit
-          // mode on a non-owned board (which set this flag) and is now
-          // cancelling, no copy should be created.
-          _this.get('stashes').persist('copy_on_save', null);
-          // Discard unsaved changes: rollback Ember Data model and reload fresh from server
-          _this.get('model').rollbackAttributes();
-          _this.set('ordered_buttons', null);
-          _this.set('board_loading', true);
-          var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
-          persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-            var merged = boardDetailCache.normalize_board_payload(data);
-            if(merged) {
-              if(merged.images && merged.images.length) {
-                _this._board_detail_images = merged.images;
-              }
-              _this.set('_raw_board_data', merged);
-              _this._build_from_raw(merged);
-            }
-            _this.set('board_loading', false);
-          }, function() {
-            _this.set('board_loading', false);
-          });
-          // Transition back to the index subroute with panels collapsed
-          _this.set('panels_collapsed', true);
-          _this.set('board_collapsed', true);
-          _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+          _this._discard_edit_changes();
         }
       });
     },
+
 
     // ── Paint Mode ──
 
