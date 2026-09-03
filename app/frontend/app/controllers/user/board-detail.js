@@ -1103,11 +1103,55 @@ export default Controller.extend(prefClasses, {
     return null;
   },
 
+  /* The SET a symbol resolution belongs to, for the memo key below.
+     `_suggestion_lookup_board_ids` is the right list to SEARCH, but the wrong thing to KEY on:
+     it carries `currentBoardState.id` and the current `model.id`, so it changes the moment the
+     user opens a sub-board. Keying on it meant a word resolved on the parent was re-resolved
+     from scratch one level down, and lost its symbol whenever the parent's button set was not
+     loaded at that moment.
+     The board component itself is NOT removable — the same word can legitimately resolve to
+     different symbols on different board SETS, and replaying one set's symbol onto another is
+     a confidently wrong symbol, worse for a symbol-reliant user than a missing one. So the key
+     is scoped to the set's ROOT, which is stable while navigating inside it.
+     `temporary_root_board_state` first: it is what a temporarily-entered set is tracked under
+     (application.js:907, board-intro.js:80-82), so a temporary set gets its own scope rather
+     than borrowing the home set's. Falls back to the full id list, which is exactly today's
+     behaviour — no carry-over, but no cross-set replay either. */
+  _suggestion_memo_scope: function(lookup_ids) {
+    var stashes = this.get('stashes');
+    var appState = this.get('app_state');
+    var root = stashes && stashes.get &&
+      (stashes.get('temporary_root_board_state.id') || stashes.get('root_board_state.id'));
+    if(!root && appState && appState.get) {
+      root = appState.get('currentUser.preferences.home_board.id');
+    }
+    return root || (lookup_ids || []).join(',');
+  },
+
   _suggestion_lookup_board_ids: function() {
+    var extra = [this.get('model.id')];
+    /* Add the ROOT of the board tree the user is navigating.
+       A button set covers its board's DOWNSTREAM tree, so the root's set covers the parent,
+       the siblings and everything below — one id makes the whole tree searchable.
+       lookup_board_ids would normally get that from `root_board_state`, but that is only set
+       when transitioning to `board.index` from setup or home-boards (app-state.js:694-696).
+       Board-detail is a different route, so the flag never fires here and the tree root was
+       absent from the lookup entirely — which is why a predicted word whose symbol lives on
+       the PARENT board had nothing in scope that could find it.
+       board-detail keeps its own ancestor stack for back navigation, pushed oldest-first
+       (`_push_nav_history`), so entry 0 is the root. Only that one is added: the intermediate
+       boards are already inside its set, so pushing them too would just buy duplicate loads on
+       a path that runs while the user types. lookup_board_ids de-dupes, and load_button_set
+       caches, so the cost is a single fetch the first time a tree is entered. */
+    var history = this.get('app_state.board_detail_nav_history') || [];
+    var root = history[0];
+    if(root && root.user_name && root.boardname) {
+      extra.push(root.user_name + '/' + root.boardname);
+    }
     return wordSuggestionsModule.lookup_board_ids(
       this.get('app_state'),
       this.get('stashes'),
-      [this.get('model.id')]
+      extra
     );
   },
 
@@ -1181,7 +1225,7 @@ export default Controller.extend(prefClasses, {
          Keying beats clearing: it never replays across a context and needs no extra observer.
          (updateSuggestions does not observe model.id, so a clear-on-board-change would not have
          fired reliably anyway.) */
-      var key = lookup_ids.join(',') + '|' + item.word.toLowerCase();
+      var key = _this._suggestion_memo_scope(lookup_ids) + '|' + item.word.toLowerCase();
       var seen = lookups[key];
       /* A RESOLVED url is replayed onto this lookup's item. The memo used to store only
          `true`, which made it a "we already asked" flag with nothing to show for it: every

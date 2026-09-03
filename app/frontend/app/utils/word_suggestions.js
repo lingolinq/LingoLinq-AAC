@@ -1447,6 +1447,34 @@ word_suggestions._exact_button_candidates_for_label = _exact_button_candidates_f
 word_suggestions._best_exact_button_for_label = function(label, sets) {
   return _exact_button_candidates_for_label(label, sets)[0] || null;
 };
+/* Every button set already IN MEMORY, minus the ones just searched.
+   A button set covers its board's DOWNSTREAM tree only, so from a sub-board the parent's
+   symbols are structurally unreachable through the sub-board's own set — and
+   `lookup_board_ids` returns only a fixed handful of roots (home, current, sidebar, starred,
+   root_board_state), so a board opened from the collection drawer can have none of its tree
+   in scope at all.
+   Fetching every board's set to close that gap would put network calls on a path that runs as
+   the user types. Sets already loaded cost nothing to search, and were simply never offered
+   to the matcher — this returns them so they can serve as a FALLBACK. */
+word_suggestions.loaded_button_sets_beyond = function(searched) {
+  var seen = {};
+  (searched || []).forEach(function(bs) {
+    if(bs && bs.get && bs.get('id')) { seen[bs.get('id')] = true; }
+  });
+  var out = [];
+  try {
+    LingoLinq.store.peekAll('buttonset').forEach(function(bs) {
+      if(!bs || !bs.get) { return; }
+      var id = bs.get('id');
+      if(!id || seen[id]) { return; }
+      /* A set with no buttons covers nothing — the same rule load_vocabulary_button_sets uses. */
+      if(!((bs.get('buttons') || []).length)) { return; }
+      out.push(bs);
+    });
+  } catch(e) { /* advisory read — a missing store must never break symbol resolution */ }
+  return out;
+};
+
 word_suggestions.attach_image_for_label = function(label, board_ids, on_image, context) {
   if(!label || !on_image) { return RSVP.resolve(null); }
   var key = label.toLowerCase();
@@ -1464,7 +1492,6 @@ word_suggestions.attach_image_for_label = function(label, board_ids, on_image, c
   return load_sets.then(function(sets) {
     var images = LingoLinq.store.peekAll('image');
     var candidates = word_suggestions._exact_button_candidates_for_label(label, sets);
-    if(candidates.length) {
       /* Walk the matches shallowest-first until one yields a REAL symbol. Previously only the
          SHALLOWEST match was tried: fix_image ran on it, and if the result was a placeholder
          `deliver` dropped it and the whole lookup returned that placeholder. So a single
@@ -1477,36 +1504,61 @@ word_suggestions.attach_image_for_label = function(label, board_ids, on_image, c
          this runs per predicted word on every keystroke. Common words legitimately appear on
          many boards, so an uncapped walk would be unbounded work on the typing path. */
       var MAX_IMAGE_CANDIDATES = 5;
-      var limit = Math.min(candidates.length, MAX_IMAGE_CANDIDATES);
-      var try_candidate = function(idx) {
-        if(idx >= limit) { return RSVP.resolve(null); }
-        var button = candidates[idx];
-        return LingoLinq.Buttonset.fix_image(button, images).then(function() {
-          if(word_suggestions.is_placeholder_image(button.image)) {
-            return try_candidate(idx + 1);
-          }
-          deliver(button.image, { word: label, image: button.image, original_image: button.original_image });
-          return button.image;
-        }, function() { return try_candidate(idx + 1); });
+      var walk = function(list) {
+        var limit = Math.min(list.length, MAX_IMAGE_CANDIDATES);
+        var try_candidate = function(idx) {
+          if(idx >= limit) { return RSVP.resolve(null); }
+          var button = list[idx];
+          return LingoLinq.Buttonset.fix_image(button, images).then(function() {
+            if(word_suggestions.is_placeholder_image(button.image)) {
+              return try_candidate(idx + 1);
+            }
+            deliver(button.image, { word: label, image: button.image, original_image: button.original_image });
+            return button.image;
+          }, function() { return try_candidate(idx + 1); });
+        };
+        return try_candidate(0);
       };
-      return try_candidate(0);
-    }
-    return word_suggestions.lookup({
-      word_in_progress: label,
-      board_ids: lookup_ids,
-      button_sets: sets
-    }).then(function(result) {
-      var match = (result || []).find(function(w) {
-        return w.word && w.word.toLowerCase() === key;
+      /* IN-SCOPE SETS FIRST, then anything else already loaded — and the fall-through happens
+         on a failure to RESOLVE, not merely a failure to MATCH.
+         Falling through only when the scoped sets produced NO candidates was not enough: a
+         common word legitimately appears on many boards, and a symbol-less duplicate IS a
+         candidate. So a word like "you" found scoped candidates, exhausted the capped walk on
+         placeholders, and returned nothing — while the widened search never ran. A rarer word
+         like "I" had no scoped candidates, fell straight through, and worked. That asymmetry
+         is the bug.
+         Two BOUNDED passes rather than one longer walk: concatenating the lists would let a
+         handful of scoped duplicates consume the whole cap and starve the widened set, which
+         is precisely the case that needs it. Order still guarantees an in-scope symbol wins
+         whenever one resolves. Costs no fetch — these sets are already resident. */
+      return walk(candidates).then(function(found) {
+        if(found) { return found; }
+        var widened = word_suggestions._exact_button_candidates_for_label(
+          label, word_suggestions.loaded_button_sets_beyond(sets));
+        if(!widened.length) { return null; }
+        return walk(widened);
+      /* And only when NEITHER pass resolved a symbol do we fall back to the generic word
+         lookup, exactly as before — the two passes are inserted ahead of it, not in place
+         of it. */
+      }).then(function(found) {
+        if(found) { return found; }
+        return word_suggestions.lookup({
+          word_in_progress: label,
+          board_ids: lookup_ids,
+          button_sets: sets
+        }).then(function(result) {
+          var match = (result || []).find(function(w) {
+            return w.word && w.word.toLowerCase() === key;
+          });
+          if(!match) { return null; }
+          var finish = function() {
+            deliver(word_suggestions.resolve_word_image(match), match);
+          };
+          match.image_update = function() { finish(); };
+          finish();
+          return word_suggestions.resolve_word_image(match);
+        });
       });
-      if(!match) { return null; }
-      var finish = function() {
-        deliver(word_suggestions.resolve_word_image(match), match);
-      };
-      match.image_update = function() { finish(); };
-      finish();
-      return word_suggestions.resolve_word_image(match);
-    });
   });
 };
 
