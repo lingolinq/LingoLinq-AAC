@@ -31512,8 +31512,11 @@ header #identity #identity_button.btn::after {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  /* Sits inside nav-header right after the 180px Search field — small gap so the
-     two discs read as left-aligned next to it, not flush against it. */
+  /* Sits inside nav-header right after the brand — small gap so the two discs read
+     as left-aligned next to it, not flush against it. (Was "after the 180px Search
+     field"; that field was removed 2026-09-02 and the brand is now what precedes
+     this cluster. The View switch follows it on the right and carries its own
+     12px lead — see _view-switcher.scss.) */
   margin-left: 12px;
 }
 .app-navbar__home-actions .md-tour__trigger,

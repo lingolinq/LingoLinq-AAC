@@ -14,12 +14,6 @@
          field was a third door to the same page.
          The `{{#unless @isDevicePage}}` wrapper went with it: it existed only to
          hide the search field on the device page and had nothing else inside. --}}
-    {{!-- App-wide Classic/Modern switch. Deliberately OUTSIDE the
-         `empty_header` gate below: unlike the tour and display-style buttons
-         (dashboard-only), the View switch must be reachable from every
-         authenticated page, boards included. It hides itself when there is no
-         user and in speak mode — see components/view-switcher.js. --}}
-    <ViewSwitcher />
     {{#if this.appState.empty_header}}
       <span class="app-navbar__home-actions">
         {{#unless this.isClassic}}{{#if this.appState.feature_flags.home_tour}}<GuidedTour />{{/if}}{{/unless}}
@@ -36,6 +30,20 @@
         {{#unless this.isClassic}}{{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle />{{/if}}{{/unless}}
       </span>
     {{/if}}
+    {{!-- App-wide Classic/Modern switch. Sits AFTER the home-actions cluster so it
+         reads to the RIGHT of the Take a Tour and Display Style discs (requested
+         2026-09-02). Moved in the DOM rather than reordered with flex `order`: this
+         container is a plain flex row, so document order already is visual order, and
+         an `order` override would desync the keyboard tab sequence from what is on
+         screen — not acceptable on an AAC product.
+
+         Deliberately OUTSIDE the `empty_header` gate above: unlike the tour and
+         display-style buttons (dashboard-only), the View switch must be reachable from
+         every authenticated page, boards included. On those pages the home-actions
+         cluster does not render at all, so the switch simply sits where it always did.
+         It hides itself when there is no user, in speak mode, and during a board edit
+         session — see components/view-switcher.js. --}}
+    <ViewSwitcher />
   </span>
   {{!-- Quick-actions cluster. Lives in its own span
        just after .app-navbar__nav-header so it renders between the search
