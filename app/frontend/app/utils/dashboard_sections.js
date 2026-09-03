@@ -126,7 +126,7 @@ function communicatorsNeedingAttention(user) {
 // The i18n.t calls sit INSIDE the function, not in a module-level lookup table:
 // a table would evaluate every string once at import time, before i18n has
 // necessarily loaded its locale, and would then never re-translate when the user
-// switches language. Same reason helpers/home-pill-label.js resolves per call.
+// switches language.
 // Written as literal key + double-quoted default calls so i18n_generator.rb's
 // static scanner can extract them.
 function attentionBadgeFor(supervisee) {

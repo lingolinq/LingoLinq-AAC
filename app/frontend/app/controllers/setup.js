@@ -15,6 +15,7 @@ import Stats from '../utils/stats';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
+import { board_edit_route } from '../utils/board_view';
 
 var order = ['intro', 'usage', 'board_category', 'core', 'access', 'voice', 'logging', 'supervisors', 'extra-dashboard', 'extra-home-boards', 'extra-speak-mode', 'extra-folders', 'extra-exit-speak-mode', 'extra-modeling', 'extra-logs', 'extra-done'];
 // Critical-only subset used when `mode=critical` query param is set
@@ -831,7 +832,10 @@ export default Controller.extend({
       if (board_key) {
         var parts = board_key.split('/');
         if (parts.length === 2) {
-          this.router.transitionTo('user.board-detail.edit', parts[0], parts[1]).then(function() {
+          // View-aware edit destination — see utils/board_view.js#board_edit_route.
+          // Classic users land on their own board; edit mode is not auto-entered
+          // for them (known gap, Cluster C).
+          this.router.transitionTo(board_edit_route(this.get('appState.currentUser')), parts[0], parts[1]).then(function() {
             _this.appState.set('board_layout_mode', null);
           });
         } else {

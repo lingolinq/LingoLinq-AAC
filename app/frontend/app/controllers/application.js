@@ -26,6 +26,8 @@ import mineGrouping from '../utils/mine_board_grouping';
 import { inject as service } from '@ember/service';
 import { getOwner } from '@ember/application';
 import { alias } from '@ember/object/computed';
+import { board_edit_route } from '../utils/board_view';
+import { set_view_style } from '../utils/view_style';
 
 export default Controller.extend({
   router: service('router'),
@@ -705,7 +707,14 @@ export default Controller.extend({
     closeBetaFeedbackDrawer: function() {
       this.set('betaFeedbackDrawerOpen', false);
     },
+    // "Try New Style" (application.hbs, classic header). This USED to navigate to
+    // board-detail without touching the preference, which stranded the user: they
+    // were in the modern shell while `board_view_style` still said 'classic', so
+    // the next board they opened threw them back. Persist the choice, exactly as
+    // the navbar View switch and the board's own Modern View button both do.
     goToNewStyle: function() {
+      var user = this.appState.get('currentUser');
+      if(user) { set_view_style(user, 'modern'); }
       var key = this.appState.get('currentBoardState.key');
       if(key && key.indexOf('/') !== -1) {
         var parts = key.split('/');
@@ -1278,7 +1287,13 @@ export default Controller.extend({
           // brand-new copy — and re-showed the "Edit this Board" copy prompt. A direct
           // edit transition skips that re-check; the copy is owned, so editing/saving works.
           _this.stashes.persist('copy_on_save', null);
-          _this.get('router').transitionTo('user.board-detail.edit', parts[0], parts.slice(1).join('/'));
+          // View-aware edit destination. board-detail has an /edit subroute; the
+          // classic board has none (router.js declares only `index` under board-alt) —
+          // classic editing is a MODE entered via app_state.toggle_edit_mode. So a
+          // classic user lands on their own board here rather than being ejected into
+          // modern. KNOWN GAP: edit mode is not auto-entered for them; closing that
+          // needs the classic edit route (Cluster C in the restoration plan).
+          _this.get('router').transitionTo(board_edit_route(_this.get('appState.currentUser')), parts[0], parts.slice(1).join('/'));
           return;
         }
         // Fallback (no usable key): previous jump-to-board behavior.
@@ -1430,7 +1445,7 @@ export default Controller.extend({
       this.set('boardMenuOpen', false);
       modal.open('board-details', {board: this.get('board.model')});
     },
-    // "Modern View" header button on the classic page delegates to the
+    // "Card View" header button on the classic page delegates to the
     // board.index controller, which persists the user's view-style
     // preference to 'modern' and then navigates to the modern view.
     go_to_modern: function() {

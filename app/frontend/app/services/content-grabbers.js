@@ -14,6 +14,7 @@ import modal from '../utils/modal';
 import capabilities from '../utils/capabilities';
 import Utils from '../utils/misc';
 import progress_tracker from '../utils/progress_tracker';
+import { board_view_route } from '../utils/board_view';
 
 let appStateService;
 let stashesService;
@@ -3020,7 +3021,13 @@ var boardGrabber = EmberObject.extend({
         var navigateToImport = function(importKey) {
           var importParts = importKey ? importKey.split('/') : [];
           if(importParts.length === 2) {
-            boardGrabber.transitioner.transitionTo('user.board-detail', importParts[0], importParts[1]);
+            // Honor the view preference rather than hardcoding the modern shell.
+            // `appStateService`, not `boardGrabber.get('appState.…')` — boardGrabber is a
+            // bare EmberObject (:2770) with no service injection; the `appState` service
+            // lives on the contentGrabbers Service (:22). Every other user lookup in this
+            // object goes through the module-level ref for the same reason (:2866, :3085).
+            var _cg_user = appStateService.get('currentUser');
+            boardGrabber.transitioner.transitionTo(board_view_route(_cg_user), importParts[0], importParts[1]);
           } else {
             boardGrabber.transitioner.transitionTo('board', importKey);
           }

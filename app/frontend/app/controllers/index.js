@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { inject as controller } from '@ember/controller';
 import { alias } from '@ember/object/computed';
 import { computed } from '@ember/object';
+import { is_classic } from '../utils/view_style';
 
 export default Controller.extend({
   appState: service('app-state'),
@@ -22,6 +23,19 @@ export default Controller.extend({
     return !!currentUser;
   }),
   
+  // TRUE only when the signed-in user has chosen the CLASSIC view — the same
+  // `preferences.board_view_style` the board Classic/Modern toggle writes
+  // (components/board-actions.js#set_view_style) and utils/board_view.js reads.
+  // Modern is the default: unset, missing, or any other value is false, so the
+  // modern dashboard stays the fall-through for everyone who hasn't opted in.
+  // Pure computed, no observers — nothing here runs for a modern user beyond
+  // this comparison.
+  classicHome: computed('appState.currentUser.preferences.board_view_style', function() {
+    var appState = this.get('appState');
+    if (!appState) { return false; }
+    return is_classic(appState.get('currentUser'));
+  }),
+
   hasFullDomain: computed('appState.domain_settings.full_domain', 'appState.domain_settings', 'appState', function() {
     var appState = this.get('appState');
     if (!appState) { return false; }

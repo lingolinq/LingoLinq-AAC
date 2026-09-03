@@ -2,7 +2,15 @@
 {{#if this.app_state}}
   <div id="index_view" class={{if this.hasCurrentUser "row main_columns" "row"}}  style='touch-action: manipulation;'>
     {{#if this.hasCurrentUser}}
-      <Dashboard::AuthenticatedView @model={{this.model}} @user={{this.user}} />
+      {{!-- Classic vs modern home. `classicHome` is true only when the user's
+           preferences.board_view_style is 'classic' — the same toggle that already
+           picks the board route (utils/board_view.js). Anything else, including the
+           unset default, renders the modern dashboard below exactly as before. --}}
+      {{#if this.classicHome}}
+        <Dashboard::ClassicView @model={{this.model}} @user={{this.user}} />
+      {{else}}
+        <Dashboard::AuthenticatedView @model={{this.model}} @user={{this.user}} />
+      {{/if}}
     {{else if this.hasFullDomain}}
       <LandingAltPage />
     {{else}}

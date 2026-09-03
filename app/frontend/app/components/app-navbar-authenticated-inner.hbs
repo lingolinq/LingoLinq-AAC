@@ -8,33 +8,21 @@
         </LinkTo>
       </span>
     </h1>
-    {{#unless @isDevicePage}}
-    {{#if this.appState.empty_header}}
-      {{#if (persistence-online)}}
-        {{#unless this.appState.super_no_linky}}
-          {{#if this.application.allow_search}}
-            <form id="header_search" {{on "submit" this.onSearchBoardsSubmit}}>
-              <div class="header-search-wrap">
-                <input aria-label={{t "Search Boards" key="search_boards"}} type="text" value={{this.application.searchString}} {{on "input" (set-field this "application.searchString")}} {{on "input" this.onHandleSearchInput}} class="form-control header-search-input" placeholder={{t "Search Boards" key="search_boards"}} />
-                <button type="submit" class="header-search-btn" aria-label={{t "Search Boards" key="search_boards"}} title={{t "Search Boards" key="search_boards"}}>
-                  <svg class="header-search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m20 20-4.5-4.5"/></svg>
-                </button>
-              </div>
-            </form>
-          {{/if}}
-        {{/unless}}
-      {{/if}}
-    {{/if}}
-    {{/unless}}
-    {{!-- The dashboard's "Take a tour" + "Get Started" triggers live HERE for every
-         layout, as compact circle icon buttons LEFT-ALIGNED right after the Search
-         field. They sit INSIDE .app-navbar__nav-header (not the quick-actions
-         cluster) so the nav-header's `flex: 1` growth doesn't push them right. Gated
-         on the SAME dashboard context as the search (empty_header) so they don't
-         appear on board pages. --}}
+    {{!-- The header Search Boards field was REMOVED (2026-09-02, requested). Board
+         search is still reachable from the identity dropdown's "Find Boards" link
+         and, in Classic, from the Actions tab's Search Boards tile — the navbar
+         field was a third door to the same page.
+         The `{{#unless @isDevicePage}}` wrapper went with it: it existed only to
+         hide the search field on the device page and had nothing else inside. --}}
+    {{!-- App-wide Classic/Modern switch. Deliberately OUTSIDE the
+         `empty_header` gate below: unlike the tour and display-style buttons
+         (dashboard-only), the View switch must be reachable from every
+         authenticated page, boards included. It hides itself when there is no
+         user and in speak mode — see components/view-switcher.js. --}}
+    <ViewSwitcher />
     {{#if this.appState.empty_header}}
       <span class="app-navbar__home-actions">
-        {{#if this.appState.feature_flags.home_tour}}<GuidedTour />{{/if}}
+        {{#unless this.isClassic}}{{#if this.appState.feature_flags.home_tour}}<GuidedTour />{{/if}}{{/unless}}
         {{!-- Display Style button — home page ONLY. `empty_header` is true on every
              default-mode page (boards / reports / extras / account, etc.), so it must
              be further gated to the home dashboard route so the button doesn't leak
@@ -45,7 +33,7 @@
              so a supporter can switch style from either. Mounting it here also
              registers `appState.dashboard_design_opener`, which the ≤640px drawer
              button below depends on — keep the two route lists in sync. --}}
-        {{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle />{{/if}}
+        {{#unless this.isClassic}}{{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}<DisplayStyle />{{/if}}{{/unless}}
       </span>
     {{/if}}
   </span>
@@ -227,11 +215,14 @@
          hidden at <=640px (see app.scss). Only relevant on the pages where the
          display-style component is mounted (home + caseload — keep this list in
          sync with the <DisplayStyle /> gate above, since this button calls the
-         opener that mounting registers); shown only <=640px via `--display-style`
-         CSS so it never duplicates the still-visible disc. --}}
+         opener that mounting registers — INCLUDING the Classic gate, or this
+         becomes a button whose opener was never registered); shown only <=640px via
+         `--display-style` CSS so it never duplicates the still-visible disc. --}}
+    {{#unless this.isClassic}}
     {{#if (or (is-equal this.appState.current_route "user.home") (is-equal this.appState.current_route "caseload"))}}
     <button type="button" class="la-mobile-drawer__link la-mobile-drawer__link--button la-mobile-drawer__link--display-style" {{on "click" this.onCloseDrawerAndDisplayStyle}}>{{t "Display Style" key="display_style"}}</button>
     {{/if}}
+    {{/unless}}
     {{!-- Language picker — mirrors the desktop dropdown's
          `openLanguage` link (which sends `language` to the
          application controller). Surfaces the user's current

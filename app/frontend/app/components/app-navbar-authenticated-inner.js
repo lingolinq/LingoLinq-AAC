@@ -2,6 +2,7 @@ import Component from '@ember/component';
 import { getOwner } from '@ember/application';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
+import { is_classic } from '../utils/view_style';
 
 /**
  * Reusable authenticated navbar inner: brand, search, identity (with optional
@@ -12,6 +13,17 @@ import { inject as service } from '@ember/service';
 export default Component.extend({
   tagName: '',
   appState: service('app-state'),
+
+  /* True when the user is in Classic. The tour trigger and the Display Style
+     selector are BOTH Card-View concepts and are hidden in Classic:
+       - Classic has its own "Take a tour" row in the rail, so the navbar disc
+         would be a second trigger for the same tour.
+       - Display Style chooses Gentle vs Focused, which are arrangements of the
+         CARD grid. Classic has no card grid, so the control has nothing to act on.
+     Reads through utils/view_style so the preference key has one reader. */
+  isClassic: computed('appState.currentUser.preferences.board_view_style', function() {
+    return is_classic(this.get('appState.currentUser'));
+  }),
 
   /** When true, the mobile drawer (same structure as landing la-mobile-drawer) is open. */
   isDrawerOpen: false,

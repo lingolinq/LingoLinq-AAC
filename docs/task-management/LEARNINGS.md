@@ -16352,3 +16352,48 @@ stub objects (weakest -- patches one symptom of an unbounded global mutation).
 `User.process_params` treats a classifiable `birth_month` / `birth_year` as authoritative for the under-13 gate (`User.age_under_threshold?`, age 13). The Ember `coppa_under_13` flag is only a fallback when birth is missing (org New User, fixtures). Unauthenticated `POST /api/v1/users` requires birth when COPPA is on. Google register start accepts birth only on POST (`post auth/google/start`); GET register start ignores query birth so DOB is not in history, proxy logs, or the Google referrer. Complete raises `coppa_age`. Do not put the optional signup name on `/auth/google/start` as `&name=` — send `signup_name` on the complete POST.
 
 **First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
+
+## Gotcha: the "classic" home page was deleted, and the surviving SCSS/i18n makes it look alive
+
+`app/frontend/app/templates/index/authenticated.hbs` — the legacy classic home (avatar `<h2>`
++ `.left_links.list-group` rows) — was ALREADY dead code before it was deleted. `ef72e6147`
+("finally remove old user dashboard", Aug 2020) hard-wired index.hbs to the modern partial:
+
+    {{#if app_state.currentUser.preferences.new_index}}
+      {{partial 'index/authenticated-new'}}   <- modern
+    {{else}}
+      {{partial 'index/authenticated'}}       <- CLASSIC
+    {{/if}}
+
+`5b8c9f2fd` (Ember 5.12 upgrade, #490) then deleted the orphan file. **What survived makes it
+look live and will mislead a grep-only investigation:**
+- `.left_links` styling at `styles/app.scss:11349` + commented blocks at 19540-19578.
+- i18n keys with NO template consumer: `let_us_help_choose_home`, `no_supervisors`,
+  `choose_home_board` — still in every `public/locales/*.json`.
+- The `new_index` checkbox still renders at `templates/user/preferences.hbs:1019` ("Use the
+  New Dashboard Layout") but is INERT: `controllers/application.js#content_class` appends
+  `"new_index "` unconditionally.
+
+**Technique that settled it:** when a screenshot's strings have locale entries but no template
+consumer, `git log -S"<i18n_key>" -- <dir>` then `git grep -ln "<key>" <sha>^` finds the file
+that used to hold them. Also check the app_name in the screenshot against the repo — the
+screenshots read "CoughDrop", which this repo never renders, proving they were upstream
+reference imagery and not a render of the branch under test.
+
+## Technique: adding a whole alternate page without touching the existing one
+
+`routes/user/home.js` sets `controllerName: 'index'` + `templateName: 'index'`, so `/` and
+`/:user_name/home` share ONE template. A single `{{#if}}` in `templates/index.hbs` therefore
+swaps the entire home page on both surfaces, and a new route (with its own redirect into
+`routes/index.js`'s ~200-line `afterModel` chain — auto-speak, session-resume, terms-agree /
+EU AI Act Art.50 gates) is not needed. Prefer a component swap plus one PURE computed on the
+shared controller: adding observers or fetch-triggering computeds there would run for users of
+the OTHER view and is a real behavior change to code you were told not to touch.
+
+**Trap when doing this:** `utils/modal.js:80` special-cases `modal.open('supervision-settings')`
+when `router.currentRouteName === 'index'` — it silently resolves and sets
+`appState.requestedSupervisorsView` for the modern inline tab instead of opening the modal. Any
+alternate view rendered under route name `index` gets a no-op button. Check `utils/modal.js` for
+route-name special cases before reusing a modal on a new surface.
+
+**First seen in:** [2026-09-02-classic-view-home-overlay.md](./2026-09-02-classic-view-home-overlay.md)
