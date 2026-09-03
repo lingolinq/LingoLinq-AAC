@@ -12,9 +12,11 @@ import { setupTest } from '../../helpers';
  * whose only change was a pending display pref reported clean, and the user lost it with
  * no warning.
  *
- * Narrow by construction: `close_display_preferences` nulls both objects, so
- * `original_display_prefs` is non-null only while the panel is OPEN. The uncovered state
- * is exactly "panel open, pref changed, user exits".
+ * Wider than "panel open": collapsing the panel (board-detail.js:7415) deliberately KEEPS
+ * `pending_display_prefs` in memory so the user can re-expand and see their edits, and
+ * that code says the full discard happens "via cancel_edit or a no-op save". Only
+ * `close_display_preferences` and a committed save null the two objects. So the uncovered
+ * state was "prefs pending — panel open OR merely collapsed — and the user exits".
  *
  * These assert the METHOD rather than a click path, because the method is the single
  * place every exit path consults, and it is what the missing term belongs in.
@@ -60,6 +62,21 @@ module('Unit | Controller | user/board-detail display-prefs dirty check', functi
     this.controller.set('pending_display_prefs', { text_size: 'medium', spacing: 'medium' });
     assert.false(this.controller.edit_session_has_changes(),
       'panel opened but nothing altered');
+  });
+
+  test('a pref the ORIGINAL snapshot never held still counts as a change', function(assert) {
+    // `open_display_preferences` seeds both objects from a 12-key snapshot, but
+    // `_display_prefs_paths` has 13 — `vocalization_height` is writable and NOT seeded.
+    // `pick_display_voice_height` -> `set_display_pref` therefore ADDS a key to `pending`
+    // that `original` never had.
+    //
+    // Iterating Object.keys(original) alone cannot see it, and the consequence is worse
+    // than a missed prompt: cancel_edit is now gated on this check, so a voice-height
+    // change would be discarded with no confirmation at all. Compare the UNION.
+    this.controller.set('original_display_prefs', { button_text: 'medium' });
+    this.controller.set('pending_display_prefs', { button_text: 'medium', vocalization_height: 'tall' });
+    assert.true(this.controller.edit_session_has_changes(),
+      'a key present only in pending is still unsaved work');
   });
 
   test('a closed panel is not a change', function(assert) {

@@ -4378,8 +4378,12 @@ export default Controller.extend(prefClasses, {
    *                              holds the entry values in `original_display_prefs`. Leaving
    *                              edit mode runs `close_display_preferences`, which REVERTS
    *                              them, so a session whose only change was a pending pref
-   *                              reported clean and the user lost it unwarned. Only live
-   *                              while the panel is open — that call nulls both objects.
+   *                              reported clean and the user lost it unwarned. NOT only
+   *                              while the panel is open: collapsing it (:7415) keeps
+   *                              `pending` in memory on purpose, and that comment says the
+   *                              full discard happens "via cancel_edit or a no-op save" —
+   *                              i.e. exactly here. Only `close_display_preferences` and a
+   *                              committed save null the two objects.
    *
    * Every term errs the same way: unsure means "there are changes", which costs a confirm
    * dialog. The opposite mistake costs the user their work.
@@ -4402,7 +4406,17 @@ export default Controller.extend(prefClasses, {
     var pending = this.get('pending_display_prefs');
     var orig = this.get('original_display_prefs');
     if(pending && orig) {
-      var pref_changed = Object.keys(orig).some(function(k) { return pending[k] !== orig[k]; });
+      /* The UNION of both key sets, not `Object.keys(orig)` alone. `open_display_preferences`
+         seeds both from a 12-key snapshot, but `_display_prefs_paths` (:3960) is writable on
+         THIRTEEN — `vocalization_height` is absent from the snapshot, and
+         `pick_display_voice_height` -> `set_display_pref` adds it to `pending` only. Iterating
+         the original's keys cannot see such a key, and since `cancel_edit` is gated on this
+         method that would DISCARD a voice-height change with no confirmation at all. */
+      var keys = Object.keys(orig);
+      Object.keys(pending).forEach(function(k) {
+        if(keys.indexOf(k) < 0) { keys.push(k); }
+      });
+      var pref_changed = keys.some(function(k) { return pending[k] !== orig[k]; });
       if(pref_changed) { return true; }
     }
     var base = this.get('_edit_dirty_baseline');
