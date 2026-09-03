@@ -1525,6 +1525,14 @@ button.ch-tile--silver:focus-visible {
   .ch-boards__grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 }
 
+// The one width-specific exception to the otherwise constant top offset (requested
+// 2026-09-02). Placed BEFORE the 900px and 767px blocks: all are single-class selectors
+// of equal specificity, so source order decides, and the 767px block must stay free to
+// set its own sides/bottom without this overriding them.
+@media (max-width: 1024px) {
+  .ch-page { padding-top: 56px; }
+}
+
 @media (max-width: 900px) {
   .ch-page { flex-direction: column; }
   .ch-rail, .ch-panel { max-width: none; width: 100%; }
