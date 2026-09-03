@@ -14,7 +14,7 @@ infrastructure changes.
 ```
                     GitHub (lingolinq/LingoLinq-AAC)
                     |           |              |
-                    main     develop      clean-release
+                    main     develop      staging
                     |           |              |
               +-----+     +----+         +----+
               v           v              v
