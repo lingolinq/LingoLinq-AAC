@@ -34,6 +34,24 @@
   pointer-events: none;
 }
 
+// #index_view carries Bootstrap's `.row`, and vendor.css sets
+// `.row { margin-right: -15px; margin-left: -15px }`. Those negative margins pull this
+// page 15px BEYOND its parent on each side, so `.ch-page`'s own side padding starts
+// off-screen and only the remainder is visible — an 18px gutter rendered as ~3px, with
+// the element computing 30px wider than the viewport (569px inside a 539px window,
+// confirmed in devtools). It also meant the classic page had a horizontal overflow at
+// every width, not just narrow ones.
+//
+// Zeroed here rather than by inflating the padding to compensate, which would have left
+// the overflow in place and made the real gutter depend on a Bootstrap constant.
+// Scoped with `:has(> .ch-page)` so ONLY the classic page is affected: the modern
+// dashboard shares this same `#index_view.row` and absorbs the negative margins through
+// `.md-workspace`'s `margin: 40px auto`, so it must keep them.
+.row:has(> .ch-page) {
+  margin-left: 0;
+  margin-right: 0;
+}
+
 .ch-page {
   display: flex;
   align-items: flex-start;
@@ -806,6 +824,10 @@ button.ch-tile:hover .ch-tile__chip {
 .ch-tile__icon { position: relative; flex: 0 0 auto; }
 .ch-tile__label { position: relative; }
 
+// Subheader. HIDDEN by default and revealed only above 900px (see the min-width block
+// with the other media queries), so the compact tile below that width is untouched.
+.ch-tile__sub { display: none; }
+
 .ch-tile--big { min-height: 124px; }
 
 // The lead action of a card reads as the primary one.
@@ -1396,6 +1418,51 @@ button.ch-tile--silver:focus-visible {
 // Narrow viewports — rail sits above the panel
 // -----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+// Above 900px: the tiles become information buttons — a subheader under the label
+// and an inset outline. Below this width they stay the compact tiles they were, which
+// is why every rule here is additive and lives in its own min-width block.
+//
+// Scoped to `.ch-tile--big`, NOT `.ch-tile`. The main-grid and Extras-drawer tiles all
+// carry `--big`; the small pill inside each supervisee card is a bare
+// `.ch-tile .ch-tile--extras` with `min-height: 0` and a 999px radius, and sweeping
+// `.ch-tile` here would have re-sized it into something it is not.
+//
+// The inset ring is an `outline` with a negative offset rather than a pseudo-element or
+// an inset box-shadow, and that is forced by what is already on the element: `::before`
+// is the gloss and `::after` the specular bloom (both taken), and `box-shadow` is
+// rewritten per variant by ch-tile-tint / ch-tile-silver, so adding a ring there would
+// mean redeclaring every variant's shadow. `outline` composes with all of it. It is
+// suppressed while focused — app.scss:301 sets `outline: none !important` and draws the
+// focus ring as a box-shadow — which is the behaviour we want: the focus ring takes over
+// rather than competing with a decorative one.
+@media (min-width: 901px) {
+  .ch-tile--big {
+    min-height: 148px;
+    gap: 6px;
+    padding: 20px 16px;
+    outline: 1px solid rgba(255, 255, 255, 0.7);
+    outline-offset: -7px;
+  }
+
+  .ch-tile__sub {
+    display: block;
+    // Above the gloss pseudo-element, same reason .ch-tile__label is positioned.
+    position: relative;
+    max-width: 24ch;
+    font-size: 12px;
+    font-weight: 550;
+    letter-spacing: 0;
+    line-height: 1.3;
+    // 0.9, not a lighter "muted" value. Measured against the DARKEST stop of every
+    // tint these tiles use: at 0.70 the Reports tile (stormy-teal 0.46) gives 3.37:1
+    // and at 0.80 it gives 4.09:1 — both under the 4.5:1 floor for 12px text. 0.90
+    // gives 4.97:1. The subheader reads as secondary through size and weight instead
+    // of through contrast, which is the right trade on an AAC surface.
+    color: rgba($la-navy, 0.9);
+  }
+}
+
 @media (max-width: 1100px) {
   .ch-rail { max-width: 320px; }
   .ch-boards__grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
@@ -1415,9 +1482,11 @@ button.ch-tile--silver:focus-visible {
   // 14 to 28 across viewport widths 320-767, 14 is the only value that preserves the
   // column count everywhere; 18 shifts it at exactly three widths (the first at
   // 448px, 3 columns -> 2) and 20 shifts it at six. 18 buys visible breathing room
-  // for one narrow band where a row loses a tile, which is why it is the stopping
-  // point — past that the tiles start reflowing at common phone widths.
-  .ch-page { padding: 40px 18px 28px; gap: 16px; }
+  // for a narrow band where a row loses a tile. 22 was chosen over that measured 18
+  // (requested 2026-09-02): it shifts the tile column count at six widths rather than
+  // three, the first still at 448px (3 columns -> 2). Recorded so the reflow is a known
+  // cost of the roomier gutter, not a surprise.
+  .ch-page { padding: 40px 22px 28px; gap: 16px; }
 
   // Tabs stay on ONE row (requested 2026-09-02). The previous `flex: 1 1 40%` was the
   // cause of the wrap it was meant to control: three tabs at a 40% basis is 120% of
