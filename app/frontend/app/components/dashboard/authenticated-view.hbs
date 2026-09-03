@@ -130,7 +130,7 @@
         <div class="md-pending-notice__body">
           <p class="md-pending-notice__text">{{t "%{org} wants to support this user as part of their organization. This addition must be approved before it is complete. If approved, the organization will have access to profile information for this user." key="confirm_pending_org2" org=this.appState.currentUser.pending_org.name}}{{#if this.appState.currentUser.pending_org.sponsored}} {{t "The organization will also sponsor this account, meaning it will be free as long as the organization remains a sponsor." key="org_sponsored"}}{{/if}}</p>
           <div class="md-pending-notice__actions">
-            <button type="button" class="md-btn md-btn--primary" {{on "click" (fn this.onApproveOrRejectOrg "user_approve")}}>{{t "Approve %{org}" org=this.appState.currentUser.pending_org.name}}</button>
+            <button type="button" class="md-btn md-btn--primary" {{on "click" (fn this.onApproveOrRejectOrg "user_approve")}}>{{t "Approve %{org}" key="approve_org" org=this.appState.currentUser.pending_org.name}}</button>
             <button type="button" class="md-btn md-btn--ghost md-pending-notice__deny" {{on "click" (fn this.onApproveOrRejectOrg "user_reject")}}>{{t "Deny Access" key="deny_access"}}</button>
           </div>
         </div>
@@ -143,7 +143,7 @@
         <div class="md-pending-notice__body">
           <p class="md-pending-notice__text">{{t "%{org} wants to add you as a supervisor to their organization. Organization admins will be able to see your basic profile information, including the communicators in the organization that you are currently supervising." key="confirm_pending_supervision_org" org=this.appState.currentUser.pending_supervision_org.name}}</p>
           <div class="md-pending-notice__actions">
-            <button type="button" class="md-btn md-btn--primary" {{on "click" (fn this.onApproveOrRejectOrg "supervisor_approve")}}>{{t "Approve %{org}" org=this.appState.currentUser.pending_supervision_org.name}}</button>
+            <button type="button" class="md-btn md-btn--primary" {{on "click" (fn this.onApproveOrRejectOrg "supervisor_approve")}}>{{t "Approve %{org}" key="approve_org" org=this.appState.currentUser.pending_supervision_org.name}}</button>
             <button type="button" class="md-btn md-btn--ghost md-pending-notice__deny" {{on "click" (fn this.onApproveOrRejectOrg "supervisor_reject")}}>{{t "Deny Access" key="deny_access"}}</button>
           </div>
         </div>
