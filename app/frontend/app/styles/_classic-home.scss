@@ -39,13 +39,18 @@
   align-items: flex-start;
   gap: 24px;
   width: 100%;
-  /* Vertical padding is deliberately top-heavy (was 24 top / 40 bottom, requested
-     2026-09-02): the rail and panel both start at the very top of this box, so the
-     gap under the navbar is what the eye reads as the page's inset, while the space
-     below the last card is already padded by the card's own margin. Horizontal
-     unchanged. Overridden wholesale below 767px (see the max-width: 767px block),
-     so this pair governs full-size screens only. */
-  padding: 40px 28px 24px;
+  /* Top inset MATCHES THE MODERN DASHBOARD's, which is why it is 80 and not a round
+     guess. `.ch-page` is this component's root and sits where `.md-shell` sits for the
+     modern view (both are direct children of #index_view). Modern's spacing comes from
+     its inner wrapper, `.md-workspace`, which carries `margin: 40px auto` PLUS
+     `padding: 40px …` (app.scss ~44344) — 80px of clearance below the navbar. Classic
+     has no equivalent inner wrapper, so the whole inset has to live here or the content
+     rides up under the navbar.
+     Bottom stays tight at 24 (requested 2026-09-02): the last card carries its own
+     margin, so a large bottom pad just adds dead space above the footer.
+     Overridden wholesale below 767px (see the max-width: 767px block), so this governs
+     full-size screens only. */
+  padding: 80px 28px 24px;
   box-sizing: border-box;
 }
 
