@@ -87023,14 +87023,6 @@ span.md-board-detail-modeling-btn--paused:hover {
   padding: 32px 24px;
   position: relative;
 }
-/* Half the vertical padding of .md-modal-header above (32px -> 16px), horizontal
-   unchanged. A VARIANT rather than a change to the base rule: 100 modal templates
-   share .md-modal-header, and only the ones that opt in should tighten. Currently
-   components/switch-communicators.hbs. */
-.md-modal-header--tight {
-  padding-top: 16px;
-  padding-bottom: 16px;
-}
 
 /* Button Settings header: the modal title + a live COPY of the button as it
    appears in speak mode (colour, symbol, label) — replaces the plain "- label"
@@ -87137,15 +87129,6 @@ span.md-board-detail-modeling-btn--paused:hover {
   padding: 8px 24px 28px;
   text-align: center;
   font-size: 16px;
-}
-/* The base .md-modal-body above is deliberately top-light (8px top, 28px bottom) —
-   it sits directly under a header that already carries its own bottom padding. This
-   variant matches the top to the bottom (28px both) for modals whose header is
-   tightened, where 8px left the content crowded against the title while the footer
-   end still had room. Opt-in, like the header/footer --tight variants: 100 modal
-   templates share .md-modal-body. Currently components/switch-communicators.hbs. */
-.md-modal-body--balanced {
-  padding-top: 28px;
 }
 
 /* Speak Mode PIN input (pin-settings modal): sized for a 4-digit PIN and
@@ -87827,12 +87810,6 @@ span.md-board-detail-modeling-btn--paused:hover {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-}
-/* Quarter the vertical padding of .md-modal-footer above (16px -> 4px), horizontal
-   unchanged. Same opt-in reasoning as .md-modal-header--tight. */
-.md-modal-footer--tight {
-  padding-top: 4px;
-  padding-bottom: 4px;
 }
 
 .md-modal-btn {
@@ -96508,6 +96485,38 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
   padding-top: 28px;
   padding-bottom: 28px;
   background: linear-gradient(135deg, rgba($brand-verdigris, 0.08), rgba($brand-dusty-denim, 0.08), rgba(123, 107, 173, 0.05)), $surface-100;
+}
+
+/* OPT-IN MODAL DENSITY VARIANTS.
+   Placed HERE, immediately after the `.modal .md-modal-*` cluster above, and scoped
+   with `.modal` — both are required, and neither alone is enough.
+
+   These started life ~9,500 lines earlier as bare `.md-modal-header--tight` etc.
+   That is specificity (0,1,0), while the cluster above matches the same elements at
+   (0,2,0) via `.modal .md-modal-header` / `.modal .md-modal-footer`. Specificity is
+   decided before source order, so the variants lost outright and the Switch
+   Communicators modal kept the full 28px/28px padding — the tightening never applied
+   at all. Matching the (0,2,0) scope makes them competitive; sitting after the
+   cluster makes them win the tie.
+
+   Still opt-in: ~100 modal templates share the base classes, and only a template that
+   asks for these modifiers gets them. Currently components/switch-communicators.hbs.
+
+   Note the base padding inside a modal is 28px (the cluster above), not the 32px on
+   the unscoped `.md-modal-header` rule — the earlier comments here cited the wrong
+   baseline because they were written against the unscoped rule. */
+.modal .md-modal-header--tight {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+/* The body variant needs no `.modal` scope to win (there is no `.modal .md-modal-body`
+   rule), but is kept with its siblings so the three are read and changed together. */
+.modal .md-modal-body--balanced {
+  padding-top: 28px;
+}
+.modal .md-modal-footer--tight {
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
 /* Same flow-positioned fix for the .md-pref-box pattern used in
