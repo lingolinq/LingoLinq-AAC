@@ -120,8 +120,11 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(runs).toEqual(1);
   });
 
-  itAsync('keeps holding while the gate stays pending, well past the old due cap, and runs once it clears', async function() {
-    // beforeEach sets the ceiling to 80 ms; the old code released at that point.
+  // The next two cases guard the HOLD while a gate is pending under the ceiling.
+  // They are not pins of the ceiling change (the previous cap held here too);
+  // the "never hold" mutation is what reddens them. The ceiling change itself is
+  // pinned by the stuck-gate case and the default-value case below.
+  itAsync('holds while the gate is pending under the ceiling, and runs once it clears', async function() {
     component.set('art50_tour_due_max_ms', 400);
     gatePending = true;
     component._scheduleAutoOpen();
@@ -132,7 +135,7 @@ describe('guided-tour auto-open vs the Art. 50 notice', function() {
     expect(runs).toEqual(1);
   });
 
-  itAsync('a notice that opens late, after the old due cap, is still honoured', async function() {
+  itAsync('the open-check still holds when a pending phase ends with the notice opening', async function() {
     component.set('art50_tour_due_max_ms', 400);
     gatePending = true;
     component._scheduleAutoOpen();

@@ -313,3 +313,16 @@ Test-design note: raising `art50_tour_due_max_ms` inside a case cannot distingui
   the two foreign-route cases; allowlist collapsed to `user.home` -> real-handoff (`index`), bento, allowlist
   table; default ceiling 5000 -> only the default-pin case; sessionStorage removal dropped in consume / in
   sign-out -> only the matching case. Commit 153cff674.
+
+#### Post-landing check (adversary + its own Codex pass on 153cff674, 06:10 UTC)
+- Four of six proposal findings converged independently (bento, false "self-bounding 30 s" premise, sessionStorage
+  twin, rebaseline). Codex also surfaced `return_to_index` falling back to `index` with no named user
+  (`app-state.js:916`); the allowlist already includes `index`. The adversary withdrew its own "release at the
+  ceiling" advice in favour of the landed cancel: releasing runs the handoff, which navigates, which closes the
+  notice unacknowledged, the original defect.
+- Medium (accepted): the two "hold past the old cap" cases pin the HOLD, not the ceiling change (the previous cap
+  held there too). Retitled and commented as hold guards; the P1 pins are the stuck-gate case and the default-value
+  case. PR body corrected. Accepted residual added to the PR body: a ceiling cancel or a disallowed-route resume
+  drops the board-picker handoff silently.
+- Low (outside this repo, for Scot): `~/.codex/config.toml` pins `model = "gpt-5.6-luna"`, which the reviewer
+  registry lists as not approved; the adversary overrode it with `-c model=gpt-5.6-terra` for its run.
