@@ -1456,7 +1456,28 @@ word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra
   if(!missing.length) {
     return RSVP.resolve(record_scoped_sets(appState, warmed));
   }
-  return RSVP.all_wait(missing.filter(function(id) { return !!id; }).map(function(id) {
+  /* RSVP.all, NOT all_wait. `all_wait` resolves with no value at all (utils/misc.js:161 and
+     :149 are both a bare `resolve()`), so `loaded` below was always `undefined` and the concat
+     that follows silently discarded every set this call had just fetched -- the whole reason
+     the fetch happened. The symptom was a predicted word showing its placeholder instead of
+     its symbol on the lookup that triggered the fetch, and a smaller suggestion vocabulary
+     with it, since `lookup` short-circuits on a truthy-but-empty `button_sets` (:802).
+     `all` is equivalent here for two independent reasons:
+       - `all_wait`'s distinctive behaviour, waiting through failures rather than rejecting on
+         the first, is gated on `LingoLinq.all_wait` (utils/misc.js:155) -- which has NO writer
+         anywhere in app/, only in tests. In production `all_wait` already rejects on the first
+         failure, exactly as `all` does.
+       - nothing in this array can reject in any case: both handlers below are non-throwing and
+         return non-thenables.
+     The per-promise error handler is load-bearing, not decorative: `load_button_set` returns
+     `RSVP.reject()` for any id matching /^b/ or /^i/ (models/buttonset.js:1261-1263), which a
+     real board KEY beginning with "b" does, and lookup_board_ids pushes keys (:1359). It turns
+     that into a null, which the `!bs || !bs.get` guard below drops.
+     `all` also resolves in INPUT order. That matters downstream: candidates are sorted by depth
+     alone (:1494) and Array#sort is stable, so array order is the tie-break deciding which of
+     two equal-depth symbols the user actually sees. Settlement order would make that vary with
+     network timing. */
+  return RSVP.all(missing.filter(function(id) { return !!id; }).map(function(id) {
     return LingoLinq.Buttonset.load_button_set(id).then(function(bs) { return bs; }, function() { return null; });
   })).then(function(loaded) {
     var seen = {};
