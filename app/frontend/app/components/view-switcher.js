@@ -88,11 +88,23 @@ export default Component.extend({
   // transitions to the counterpart route, and app-state's global_transition reacts
   // to leaving `user.board-detail.edit` by calling `toggle_edit_mode()`
   // (services/app-state.js:734), which runs `editManager.clear_history()` and
-  // abandons the session. Both deliberate exits from edit mode put
-  // `confirm-discard-changes` in front of that (controllers/user/board-detail.js:8797,
-  // :8806) — so offering the switch here would be a third exit with no prompt, and
-  // the user's unsaved button edits would go without a word. They can switch after
-  // leaving edit mode, which asks properly.
+  // abandons the session.
+  //
+  // The two deliberate exits — `exit_to_home_from_edit`
+  // (controllers/user/board-detail.js:8900) and `cancel_edit` (:8933) — each put
+  // `confirm-discard-changes` in front
+  // of that WHEN THERE IS SOMETHING TO LOSE. Both are gated on
+  // `edit_session_has_changes()` (:4391) and leave without asking on a clean session.
+  // Switching view would be a third exit that never asks, on a dirty one included, so
+  // unsaved button edits would go without a word. They can switch after leaving edit
+  // mode, which asks properly.
+  //
+  // Re-verified after merging #928 (2026-09-04), which rewrote both exits: it made the
+  // prompt conditional on `edit_session_has_changes()` and widened what counts as a
+  // change to include display preferences. That WIDENS the set of states this guard
+  // protects; the guard itself was not affected, and #928 touched neither this file nor
+  // services/app-state.js. An earlier version of this comment claimed both exits always
+  // prompt, which #928 made false, and cited :8797/:8806, which the rewrite moved.
   available: computed('appState.currentUser', 'appState.speak_mode', 'appState.edit_mode', function() {
     return !!this.appState.get('currentUser') &&
            !this.appState.get('speak_mode') &&
