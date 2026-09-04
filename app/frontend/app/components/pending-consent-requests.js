@@ -9,8 +9,9 @@ export default Component.extend({
   appState: service('app-state'),
   tagName: '',
   responding_id: null,
+  loading_pending: false,
 
-  pending_requests: computed('user.pending_supervisor_requests', function() {
+  pending_requests: computed('user.pending_supervisor_requests.[]', function() {
     return this.get('user.pending_supervisor_requests') || [];
   }),
 
@@ -18,27 +19,54 @@ export default Component.extend({
     return (this.get('pending_requests.length') || 0) > 0;
   }),
 
-  _respond: function(request_id, action) {
+  didInsertElement() {
+    this._super(...arguments);
+    this.load_pending();
+  },
+
+  load_pending: function() {
+    var _this = this;
+    if (!_this.get('user')) { return; }
+    _this.set('loading_pending', true);
+    persistence.ajax('/api/v1/supervisor_relationships?role=communicator&status=pending', {
+      type: 'GET'
+    }).then(function(res) {
+      var rels = (res && res.supervisor_relationship) || [];
+      var mapped = rels.map(function(rel) {
+        var supervisor = rel.supervisor || {};
+        return {
+          id: rel.id,
+          requester_name: supervisor.user_name || supervisor.name || '',
+          requester_avatar_url: supervisor.avatar_url,
+          permission_level: rel.permission_level
+        };
+      });
+      _this.set('user.pending_supervisor_requests', mapped);
+      _this.set('loading_pending', false);
+    }, function() {
+      _this.set('loading_pending', false);
+    });
+  },
+
+  _respond: function(request_id, decision) {
     var _this = this;
     _this.set('responding_id', request_id);
 
-    persistence.ajax('/api/v1/supervisor_relationships/' + request_id + '/consent_response', {
-      type: 'POST',
-      data: {
-        action: action
-      }
+    // Member PUT approve/deny — decision comes from the route, not a body `action`
+    // (Rails reserves params.action for the controller action name).
+    persistence.ajax('/api/v1/supervisor_relationships/' + request_id + '/' + decision, {
+      type: 'PUT',
+      data: {}
     }).then(function() {
       _this.set('responding_id', null);
-      // Remove from local list
       var requests = (_this.get('pending_requests') || []).filter(function(r) {
         return r.id !== request_id;
       });
       _this.set('user.pending_supervisor_requests', requests);
-      // Reload user
       if (_this.get('user') && _this.get('user').reload) {
         _this.get('user').reload();
       }
-      if (action === 'approve') {
+      if (decision === 'approve') {
         modal.success(i18n.t('supervision_approved', "Supervision access has been approved."));
       } else {
         modal.success(i18n.t('supervision_denied', "Supervision request has been denied."));

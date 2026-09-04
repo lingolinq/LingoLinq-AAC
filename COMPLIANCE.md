@@ -127,7 +127,7 @@ This table maps every external service to the data it receives, its BAA status, 
 | **Render.com**       | Superseded primary host; retained temporarily as write-frozen rollback fallback pending decommission | **DPA signed; BAA pending** | No new production traffic should rely on Render. Keep listed until the fallback database/services are deleted or restricted. Do not onboard hospital tenants that would depend on the Render fallback. |
 | **AWS S3**           | User-uploaded images, symbols, board exports        | **BAA SIGNED (2026-02-07)** | Accepted on AWS account 2390-4478-5114 via AWS Artifact. See `docs/legal/AWS_BAA_ACCEPTED.md` and `docs/legal/AWS_BAA_2026-02.pdf`. HIPAA-eligible services only; bucket encryption enforced. |
 | **Google Cloud Platform** (Cloud Run / Cloud SQL / Memorystore) | Live production hosting for `app.lingolinq.com` as of the 2026-07-22 Gate 1 cutover | **BAA ACCEPTED (console, 2026-07-12)** | Google Cloud HIPAA BAA + Cloud Data Processing Addendum accepted 2026-07-12, SCCs certified 2026-07-14, on project `lingolinq-prod` (formalizes the org-wide Google BAA of 2026-06-08). Console acceptance, no countersigned PDF; recorded in `docs/legal/GCP_BAA_ACCEPTED.md`. PHI permitted under BAA terms, which are necessary but not sufficient: HIPAA-eligible services only, encryption in transit and at rest, access controls, minimum necessary; private VPC additionally. Infrastructure BAA only; does NOT cover the Anthropic AI-egress path. No Google inference path is live (the Vertex/Gemini fallback was disabled 2026-07-09 PR #570); any future Vertex AI or Gemini inference path needs per-product HIPAA covered-service verification before child data. |
-| **Anthropic (Claude)** | **Runtime:** pseudonymized (scrubbed) prompts for AI board generation + word prediction (Haiku 4.5) and eval-narrative drafting (Opus 4.7), redacted by `lib/pii_scrubber.rb` before egress. Also dev-time code assistance. | **HIPAA-Ready BAA SIGNED + readiness enabled (2026-07-18)** | Anthropic HIPAA-Ready BAA executed and HIPAA readiness enabled on the runtime-dedicated **LingoLinq, LLC** API org; verified live (Messages API 200, Files API 400). PHI permitted on the Messages API only, in-scope models only (Haiku 4.5 / Opus 4.7 / Sonnet), no ZDR required; excluded features (Files/Batch/Skills/Code-Exec/Computer-Use/Web-Fetch) blocked org-wide. See `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`. Scrubbed learner content still egresses as pseudonymized personal data; the PiiScrubber remains a defense-in-depth control on top of the BAA. All four runtime seams are in-scope under the BAA; eval narration is classified as an assistive-technology access assessment, not a Healthcare Activity (Scot 2026-07-19), so no licensed-clinician gate applies. See `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`. |
+| **Anthropic (Claude)** | **Runtime: NOT OPERATIONAL as of 2026-08-04.** Operational 2026-08-03T08:23Z to 2026-08-04T06:31Z (revision `00013-76w`) for internal verification only: one `word_prediction` call, no user attached, no user or student data. Not operational before or since; credentials withdrawn on revision `00014-5rw`, so `AiClient.configured?` is false again, and the prior direct `api.anthropic.com` route was removed by PR #681 and is CI-enforced. When live, the runtime path is pseudonymized (scrubbed) prompts for AI board generation + word prediction (Haiku 4.5) and eval-narrative drafting (Opus 4.7), redacted by `lib/pii_scrubber.rb` before egress. See the 2026-08-04 operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`. Dev-time code assistance is unaffected. | **HIPAA-Ready BAA SIGNED + readiness enabled (2026-07-18)** | Anthropic HIPAA-Ready BAA executed and HIPAA readiness enabled on the runtime-dedicated **LingoLinq, LLC** API org; verified live (Messages API 200, Files API 400). PHI permitted on the Messages API only, in-scope models only (Haiku 4.5 / Opus 4.7 / Sonnet), no ZDR required; excluded features (Files/Batch/Skills/Code-Exec/Computer-Use/Web-Fetch) blocked org-wide. See `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`. When the path is live, scrubbed learner content egresses as pseudonymized personal data; the PiiScrubber remains a defense-in-depth control on top of the BAA. Nothing egresses while the path is dormant (see the Runtime column). All four runtime seams are in-scope under the BAA; eval narration is classified as an assistive-technology access assessment, not a Healthcare Activity (Scot 2026-07-19), so no licensed-clinician gate applies. See `docs/legal/ANTHROPIC_BAA_ACCEPTED.md`. |
 | **Google (Gemini)**  | **Runtime fallback DISABLED 2026-07-09** (PR #570); no active runtime data flow today. Dev-time code assistance only. | N/A (no active runtime flow) | If reactivated (e.g. via a Google Cloud covered-service path such as Vertex AI), verify the specific product's HIPAA covered-service status and re-review data-handling terms before any child data; tracked as `rev-gemini-baa-annual`. See `SUBPROCESSORS.md` row 5. |
 | **HubSpot**          | Business contacts: admin names, school/hospital emails, deal info | No BAA needed | Business contacts only; never student/patient data |
 | **Stripe**           | Institutional payment data (org name, billing email, card via Stripe.js) | N/A: PCI-DSS handled by Stripe | LingoLinq never handles raw card data; Stripe is PCI Level 1 |
@@ -170,7 +170,7 @@ This table covers every MCP (Model Context Protocol) server used in the developm
 ### Architecture Overview
 
 ```
-User Device  -->  Rails Backend  -->  [PII Scrubber]  -->  Anthropic Claude / Google Gemini API
+User Device  -->  Rails Backend  -->  [PII Scrubber]  -->  Anthropic Claude (AWS Bedrock)
                       |                                         |
                       |                                    Pseudonymized
                       |                                    data only
@@ -178,6 +178,17 @@ User Device  -->  Rails Backend  -->  [PII Scrubber]  -->  Anthropic Claude / Go
               PostgreSQL (user data)
               S3 (user uploads)
 ```
+
+**Status as of 2026-08-04: the model leg of this diagram is NOT OPERATIONAL.** No `lingolinq-web`
+revision currently carries a Bedrock credential, so `AiClient.configured?` is false. It was
+operational for one window, 2026-08-03T08:23Z to 2026-08-04T06:31Z (revision `00013-76w`), during
+which a single internal verification call was made and logged; credentials were withdrawn on
+revision `00014-5rw`. Scoping note: `AiApiLog` records the three logged runtime seams
+(`ai_word_predictor`, `ai_board_generator`, `eval_narrator`), so a zero-row or single-row result
+establishes that no *logged seam call completed*, which is narrower than "nothing egressed." The
+Google Gemini leg was removed entirely on 2026-07-09 (PR #570) and is no longer part of this
+architecture. The diagram describes the designated flow, not current traffic. See the 2026-08-04
+operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`.
 
 ### The Single Enforcement Point
 
@@ -198,7 +209,7 @@ This module is responsible for:
 |------------------------------|---------------------|--------------------------|------------------------------------------|
 | Rails application            | Yes                 | N/A                      | Primary application; handles all user data |
 | PostgreSQL / Redis / S3      | Yes                 | N/A                      | Storage layer; encrypted at rest          |
-| AI APIs (Anthropic, Google)  | No direct identifiers      | Yes (pseudonymized) | Receives pseudonymized personal data (still in GDPR scope): direct identifiers stripped before egress, free-text scrubbed best-effort. See the Subprocessor Register for the authoritative classification. |
+| AI APIs (Anthropic)          | No direct identifiers      | Not operational as of 2026-08-04; pseudonymized when live | Would receive pseudonymized personal data (still in GDPR scope) when the path is live: direct identifiers stripped before egress, free-text scrubbed best-effort. Operational only 2026-08-03T08:23Z to 2026-08-04T06:31Z, for one internal verification call carrying no user or student data; not operational before or since. The Google Gemini runtime path was removed 2026-07-09 (PR #570). See the Subprocessor Register for the authoritative classification. |
 | MCPs (dev environment)       | **NEVER** (prod)    | Yes (dev/seed data)      | MCPs only connect to dev DB with test data |
 | Notion / HubSpot / Slack     | **NEVER**           | No                       | Business operations only                  |
 

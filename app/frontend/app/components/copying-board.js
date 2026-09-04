@@ -1,10 +1,22 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
+import { getOwner } from '@ember/application';
 import RSVP from 'rsvp';
 import modal from '../utils/modal';
 import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
+import boardsPageListCache from '../utils/boards_page_list_cache';
+
+// Best-effort human-readable form of whatever the copy chain rejected with, for
+// the background drawer (which renders a plain string, unlike the modal's error
+// slot). Falls back to a generic message rather than printing "[object Object]".
+function copy_error_message(err) {
+  if (typeof err === 'string') { return err; }
+  if (err && typeof err.error === 'string') { return err.error; }
+  if (err && typeof err.message === 'string') { return err.message; }
+  return i18n.t('copy_failed_background', "Copying the board failed. Please try again.");
+}
 
 /**
  * Copying Board progress modal (Phase 2).
@@ -12,6 +24,8 @@ import loadHierarchyForCopyModal from '../utils/copy_hierarchy_loader';
 export default Component.extend({
   modal: service('modal'),
   appState: service('app-state'),
+  router: service('router'),
+  copyProgress: service('copy-progress'),
   tagName: '',
 
   // Collapsed by default — the board picker is an opt-in disclosure (all boards
@@ -41,6 +55,25 @@ export default Component.extend({
         self.send.apply(self, [actionName].concat(bound));
       };
     };
+    // Assigned here rather than in didInsertElement: this component renders
+    // <ModalDialog> as a child, so anything the template hands to it must exist
+    // before the first render (a later plain assignment never re-binds).
+    this.onBackdropClose = function() {
+      self.send('backdrop_close');
+    };
+    /*
+     * Same reason, same render: <ModalDialog> reads @action/@opening/@closing on
+     * its FIRST render, and didInsertElement runs after that, so these were
+     * undefined on the pass that matters -- the bind-before-assign class fixed for
+     * three other modals in 650d30685. @action stayed undefined in practice, and
+     * modal-dialog's fallback (utils/modal.close) is the only reason the Escape
+     * key behaved correctly. That makes this change load-bearing on the close()
+     * fix above: defining onClose without it would hand Escape the same stale-flag
+     * navigation the X had.
+     */
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
 
     const modalService = this.get('modal');
     const template = 'copying-board';
@@ -65,6 +98,8 @@ export default Component.extend({
       return;
     }
     if (this.get('model.action') === 'keep_links' || this.get('model.action') === 'remove_links') {
+      _this.start_copying();
+    } else if (this.get('model.skip_hierarchy_picker')) {
       _this.start_copying();
     } else {
       loadHierarchyForCopyModal(board, {
@@ -114,19 +149,32 @@ export default Component.extend({
     this.set('loading', false);
     let board_ids_to_include = null;
     const include_missing = this.get('includeMissing') || this.get('hierarchy.include_missing');
+    const live_links_incomplete = this.get('hierarchy.live_links_incomplete') || this.get('model.expand_selected_board_ids_to_copy');
     if (include_missing) {
       board_ids_to_include = null;
       this.set('hierarchy', null);
     } else if (this.get('hierarchy') && this.get('hierarchy').selected_board_ids) {
       board_ids_to_include = this.get('hierarchy').selected_board_ids();
       this.set('hierarchy', null);
+    } else if (this.get('model.board_ids_to_copy')) {
+      board_ids_to_include = this.get('model.board_ids_to_copy');
     }
     board.set('downstream_board_ids_to_copy', board_ids_to_include);
-    board.set('expand_selected_board_ids_to_copy', !include_missing && this.get('hierarchy.live_links_incomplete'));
+    board.set('expand_selected_board_ids_to_copy', !include_missing && live_links_incomplete);
     const _this = this;
     const model = this.get('model') || {};
     const modalSvc = this.get('modal');
     const appState = this.get('appState');
+    // Services are captured up front because this modal may be closed (and this
+    // component destroyed) while the copy is still running -- the promise chain
+    // below outlives it, so it must not reach through `this` for anything.
+    const copyProgress = this.get('copyProgress');
+    // Shared handle for THIS copy job. `token` is null while the modal is in the
+    // foreground and is stamped by minimize() when the user sends the copy to the
+    // background drawer, so the settle handlers can tell which way to report.
+    const progress = { token: null };
+    this._active_progress = progress;
+    this.set('copying', true);
     board.set('default_locale', null);
     if (model.default_locale && board.get('locale') !== model.default_locale) {
       board.set('default_locale', model.default_locale);
@@ -171,22 +219,78 @@ export default Component.extend({
             });
           });
         }
-        // Do not block closing the copying modal on reload — a stuck reload() left the UI
-        // on "Loading..." / copying forever even after button-set progress finished.
+        // For an edit-oriented copy, AWAIT the reload so the copy's freshly-granted
+        // permissions.edit is loaded BEFORE we transition into the edit route (and
+        // before the caller's finish_copy runs) — otherwise the edit-permission check
+        // (board-detail.js#5222) sees a stale copy and re-prompts "Edit a Copy" on the
+        // brand-new copy. Copying requires an online connection (guarded upstream), so
+        // this reload resolves rather than hanging. Non-editing copies keep the original
+        // fire-and-forget reload — there a stalled reload must not block the modal close.
+        if (model.for_editing) {
+          return copiedBoard.reload(true).then(function() { return null; }, function() { return null; });
+        }
         copiedBoard.reload(true).then(null, function() {});
         return RSVP.resolve(null);
       });
       next.then(function(res) {
+        _this.clear_copying();
+        /* Invalidate Mine-list snapshot for the copy destination user so
+           /boards does not keep serving a pre-copy list within TTL. */
+        try {
+          var destUser = model.user;
+          var destId = destUser && (destUser.get ? destUser.get('id') : destUser.id);
+          if (destId) { boardsPageListCache.clear(destId); }
+        } catch (e) { /* non-critical */ }
+        // Backgrounded copy: the user is off doing something else, so OFFER the
+        // new board rather than navigating to it. The foreground branch below
+        // jumps / transitions outright, and model.copy_finished transitions too
+        // -- neither is welcome when they chose to keep working. The result card
+        // carries the same destination behind an "Open Board" button instead.
+        if (progress.token) {
+          // Same freshness guarantee the foreground jump gives itself -- "Open
+          // Board" may be clicked minutes later.
+          copiedBoard.set('should_reload', true);
+          copyProgress.complete(progress.token, i18n.t('copy_ready', "Copy created!"), {
+            id: copiedBoard.get('id'),
+            key: copiedBoard.get('key'),
+            for_editing: !!model.for_editing
+          });
+          return;
+        }
         const translatedResult = !!(res && res.translated === true);
         const copyingOpen =
           modal.is_open('copying-board') ||
           (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
         if (copyingOpen || translatedResult) {
           copiedBoard.set('should_reload', true);
-          appState.jump_to_board({
-            id: copiedBoard.get('id'),
-            key: copiedBoard.get('key')
-          });
+          var copyKey = copiedBoard.get('key') || '';
+          var editParts = copyKey.split('/');
+          if (model.for_editing) {
+            // Edit-oriented copy (copy-to-edit, incl. a board previewed via the edit-mode
+            // Board Collections drawer): land in EDIT mode of the new copy — NOT the
+            // default speak-mode jump (jump_to_board / transitionToBoardForCurrentUiStyle
+            // only ever route to speak). The caller's copy_finished callback already
+            // performs the transition into the copy's edit route AFTER this modal closes;
+            // doing our own transition too caused a double-transition that re-triggered the
+            // edit-permission check ("Edit a Copy" again). So: defer to copy_finished when
+            // present, and only transition ourselves as a fallback. Either way close the
+            // collection drawer if it was the origin (no-op otherwise).
+            try {
+              var bdCtrl = getOwner(_this).lookup('controller:user/board-detail');
+              if (bdCtrl) {
+                bdCtrl.set('edit_board_collection_open', false);
+                bdCtrl.set('edit_collection_original_board', null);
+              }
+            } catch (e) { /* controller not resolvable — non-fatal */ }
+            if (!model.copy_finished && editParts.length >= 2) {
+              _this.get('router').transitionTo('user.board-detail.edit', editParts[0], editParts.slice(1).join('/'));
+            }
+          } else {
+            appState.jump_to_board({
+              id: copiedBoard.get('id'),
+              key: copyKey
+            });
+          }
           modal.close({ copied: true, id: copiedBoard.get('id'), key: copiedBoard.get('key') });
           if (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board')) {
             modalSvc.close({ copied: true, id: copiedBoard.get('id'), key: copiedBoard.get('key') });
@@ -199,6 +303,11 @@ export default Component.extend({
           }
         }
       }, function(err) {
+        _this.clear_copying();
+        if (progress.token) {
+          copyProgress.fail(progress.token, copy_error_message(err));
+          return;
+        }
         const copyingOpen =
           modal.is_open('copying-board') ||
           (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
@@ -210,6 +319,11 @@ export default Component.extend({
       });
     }, function(err) {
       console.debug('[copying-board] copy_board rejected', err);
+      _this.clear_copying();
+      if (progress.token) {
+        copyProgress.fail(progress.token, copy_error_message(err));
+        return;
+      }
       const copyingOpen =
         modal.is_open('copying-board') ||
         (modalSvc && typeof modalSvc.isOpen === 'function' && modalSvc.isOpen('copying-board'));
@@ -221,9 +335,54 @@ export default Component.extend({
     });
   },
 
+  // The copy has settled, so a backdrop click is a plain dismissal again. Called
+  // from the settle handlers, which also run when the copy was backgrounded and
+  // this component no longer exists -- hence the destroyed guard.
+  clear_copying() {
+    if (this.get('isDestroyed') || this.get('isDestroying')) { return; }
+    this.set('copying', false);
+  },
+
+  // Send an in-flight copy to the bottom-right drawer and close the modal. The
+  // copy itself is untouched: it lives in the promise chain started by
+  // start_copying(), which reports its result through the copy-progress service.
+  minimize() {
+    const board = this.get('model.board');
+    const progress = this._active_progress;
+    const token = this.get('copyProgress').minimize({
+      board_key: board && board.get('key')
+    });
+    if (progress) { progress.token = token; }
+    // utils/modal.close (not the service's) so BOTH the service state and the
+    // legacy _component_based_template flag are cleared -- otherwise
+    // modal.is_open('copying-board') would keep reporting true.
+    modal.close();
+  },
+
   actions: {
+    /*
+     * utils/modal.close, NOT the service's -- the same reason minimize() gives
+     * above. The service close leaves utils/modal._component_based_template set,
+     * so modal.is_open('copying-board') keeps reporting true; a copy still running
+     * when the user dismissed then takes the FOREGROUND branch of start_copying's
+     * settle handler and navigates. Measured before this fix: dismissing an
+     * in-flight copy with the X moved the user /caseload ->
+     * /<user>/board-detail/one_4. Dismiss has to mean dismiss. The settle
+     * handler's else-branch already handles a dismissed copy properly -- it calls
+     * model.copy_finished, or reports "Copy created!" as a notice.
+     */
     close() {
-      this.get('modal').close();
+      modal.close();
+    },
+    // Clicking outside the modal while the copy is actually running minimizes it
+    // instead of dismissing it. Every other state (hierarchy load, board picker,
+    // an error on display) keeps the plain close-on-backdrop behavior.
+    backdrop_close() {
+      if (this.get('copying') && !this.get('error')) {
+        this.minimize();
+      } else {
+        modal.close();
+      }
     },
     opening() {},
     closing() {},
@@ -247,13 +406,5 @@ export default Component.extend({
       this.toggleProperty('show_board_picker');
     }
   },
-
-  didInsertElement() {
-  this._super(...arguments);
-  var self = this;
-    this.onClose = function() { self.send('close'); };
-    this.onOpening = function() { self.send('opening'); };
-    this.onClosing = function() { self.send('closing'); };
-},
 
 });

@@ -26,13 +26,14 @@ module AiPredictionGenerator
     def generate(batch_size: nil)
       api_config = resolve_api_config
       if api_config.blank?
-        puts '[predictions] ERROR: Bedrock is unavailable. Set BEDROCK_AWS_KEY and ' \
-             'BEDROCK_AWS_SECRET (both -- a half pair is ignored), and BEDROCK_AWS_REGION or ' \
-             'AWS_REGION. If BEDROCK_EXPECTED_AWS_ACCOUNT is set, the credential must also ' \
-             'resolve to that AWS account; the preceding [AiClient] log line says which check ' \
-             'failed. ANTHROPIC_API_KEY is NOT read at runtime -- AI egresses to Claude on AWS ' \
-             'Bedrock, not api.anthropic.com. The GEMINI_API_KEY fallback is disabled -- see ' \
-             'docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2.'
+        puts "[predictions] ERROR: AWS Bedrock is not configured. Set a complete credential " \
+             "pair: BEDROCK_AWS_KEY + BEDROCK_AWS_SECRET (preferred) or AWS_ACCESS_KEY_ID + " \
+             "AWS_SECRET_ACCESS_KEY (standard SDK fallback). Both halves of a pair are " \
+             "required; a partial pair is ignored. Also set a region via BEDROCK_AWS_REGION, " \
+             "AWS_REGION, or AWS_DEFAULT_REGION. AWS_KEY / AWS_SECRET are deliberately NOT used " \
+             "as a fallback (S3/SES credentials, no Bedrock invoke permission). ANTHROPIC_API_KEY " \
+             "no longer configures this path -- see lib/ai_client.rb. The GEMINI_API_KEY fallback " \
+             "is disabled -- see docs/legal/AI_DATA_SHARING_CONSENT.md section 2.2."
         return
       end
       puts "[predictions] Using provider: #{api_config[:provider]} (#{api_config[:model]})"
@@ -119,9 +120,8 @@ module AiPredictionGenerator
       {
         provider: :claude,
         region: AiClient.bedrock_region,
-        # runtime_model, not bedrock_model -- see the note in AiBoardGenerator's
-        # resolve_api_config. bedrock_model passes an unvetted override through to
-        # the wire; runtime_model enforces ALLOWED_RUNTIME_MODELS first.
+        # runtime_model applies the Tier 1 ALLOWED_RUNTIME_MODELS gate to the
+        # ANTHROPIC_MODEL override; see AiClient.
         model: AiClient.runtime_model('anthropic.claude-haiku-4-5')
       }
     end

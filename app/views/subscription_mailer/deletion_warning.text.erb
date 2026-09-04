@@ -1,8 +1,8 @@
 Hello from <%= company_name %>! You have an account with <%= app_name %> (user name "<%= @user.user_name %>") that has been inactive for a long time. We don't need to keep your information around if it's not useful for you, so your account is currently scheduled for deletion. This is your <%= @attempt == 1 ? 'first' : 'final' %> warning.
 
-**If you do nothing, your <%= app_name %> account will be deleted soon**. If you would like to prevent this from happening, all you need to do is log in to your account (<%= JsonApi::Json.current_host %>/login) and the deletion will be canceled. Alternately, if you would like to delete your account right away, you can log in, go to your profile page and hit "Delete My Account" to have it deleted.
+**If you do nothing, your <%= app_name %> account will be deleted soon**. If you would like to prevent this from happening, all you need to do is log in to your account (<%= JsonApi::Json.absolute_host %>/login) and the deletion will be canceled. Alternately, if you would like to delete your account right away, you can log in, go to your profile page and hit "Delete My Account" to have it deleted.
 
-We are grateful to you for giving <%= app_name %> a try. If we can answer any questions for you please feel free to contact us (<%= JsonApi::Json.current_host %>/contact) and we'll be happy to work with you.
+We are grateful to you for giving <%= app_name %> a try. If we can answer any questions for you please feel free to contact us (<%= JsonApi::Json.absolute_host %>/contact) and we'll be happy to work with you.
 
 Thanks!
 <%= email_signature %>

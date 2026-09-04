@@ -353,11 +353,9 @@
             {{else}}
               <LinkTo @route="forgot_password">{{t "forgot password" key="forgot_password_lower"}}</LinkTo>
               {{#if this.app_state.domain_settings.full_domain}}
-                {{#unless this.app_state.feature_flags.landing_beta_closed}}
-                  |
-                  <span style="color: #000;">{{t "Don't have an account?" key="dont_have_account"}}</span>
-                  <LinkTo @route="register">{{t "sign up" key="sign_up_lower"}}</LinkTo>
-                {{/unless}}
+                |
+                <span style="color: #000;">{{t "Don't have an account?" key="dont_have_account"}}</span>
+                <LinkTo @route="register">{{t "sign up" key="sign_up_lower"}}</LinkTo>
               {{/if}}
             {{/if}}
           </div>

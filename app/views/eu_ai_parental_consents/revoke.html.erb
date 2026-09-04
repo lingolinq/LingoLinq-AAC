@@ -1,5 +1,6 @@
 <div class="box">
   <% app_name = (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %>
+  <%= render 'shared/consent_status_badge' %>
   <% if @success && @already_revoked %>
     <h1><%= t('eu_ai_parental_consent.revoke_already_title') %></h1>
     <p><%= t('eu_ai_parental_consent.revoke_already_body') %></p>

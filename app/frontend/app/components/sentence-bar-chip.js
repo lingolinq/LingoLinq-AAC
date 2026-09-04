@@ -42,14 +42,34 @@ export default Component.extend({
   init() {
     this._super(...arguments);
     var self = this;
+    /* PASSES THE EVENT THROUGH. This used to detect a trailing DOM event and `pop()` it
+       off before `send()`, so every handler below received `undefined` for `event` —
+       while all of them are written to USE it. The damage, traced live:
+
+         tap()       `if(event) { event.stopPropagation(); event.preventDefault(); }`
+                     never ran, so a chip click BUBBLED to
+                     `.md-board-detail-sentence-bar__text`, whose {{on "click"}} is
+                     `speak_sentence`. Completing a press-and-hold therefore SPOKE the
+                     sentence, setting `list_vocalized = true` — and the next board-button
+                     tap hit add_button's "already vocalized" rule and CLEARED the whole
+                     utterance, replacing it with that one word. That is the reported
+                     "hold, tap a button, and it wipes my sentence".
+         holdEnd()   `if(event && event.type !== 'pointerup')` never cleared `_hold_fired`
+                     on pointercancel/pointerleave, so the flag dangled true and ate the
+                     next genuine tap — the reported "it gets stuck and nothing else works".
+         holdStart() `_hold_origin` was always null, so holdMove() could never cancel a
+                     hold on drag/scroll.
+         keydown()   `var key = event.key` threw on every keypress on a chip.
+
+       Introduced with the Ember 5.12 upgrade (#490) and present at this branch's
+       merge-base, so it is latent on staging too — not a regression from this branch.
+       Bound args (none today) still precede the event, which is the order every handler
+       expects. */
     this.chipAction = function(actionName) {
+      var bound = Array.prototype.slice.call(arguments, 1);
       return function() {
         var args = Array.prototype.slice.call(arguments);
-        var evt = args[args.length - 1];
-        if (evt && typeof evt.preventDefault === 'function' && (evt.type || evt.target)) {
-          args.pop();
-        }
-        self.send.apply(self, [actionName].concat(args));
+        self.send.apply(self, [actionName].concat(bound).concat(args));
       };
     };
   },

@@ -1,43 +1,43 @@
 <div class="md-shell md-shell--reports-view">
   <div class="md-workspace">
+    {{!-- Layout selector — SIDE-BY-SIDE (Folders 1/4 left, Boards 3/4 right) vs
+         TOP-DOWN (the original stacked order), so the two can be compared on the real
+         page. Sits here rather than in `.ub-boards-page__page-header` because that
+         header is `display: none` in Focused View, which would hide the selector on
+         exactly one of the two views it exists to compare.
+         RENDERED BEFORE <UserPillNav> so it is the workspace's first flex child and can
+         align to the content box's right edge; it carries `height: 0`, so despite coming
+         first it takes no vertical space and does NOT push the pill-nav down.
+         BEHIND `boards_side_by_side_layout` (lib/feature_flags.rb), which is CURRENTLY IN
+         BOTH `AVAILABLE_FRONTEND_FEATURES` AND `ENABLED_FRONTEND_FEATURES` — i.e.
+         TEMPORARILY FORCED ON FOR EVERYONE (2026-08-16) so the selector can be compared
+         on the real page without a per-user opt-in. Removing it from the ENABLED list
+         before production go-live returns it to beta-opt-in, and with the flag off this
+         never renders, no `data-boards-layout` is ever set on <body>, and the page keeps
+         the TOP-DOWN layout it has today. --}}
+    {{#if this.app_state.feature_flags.boards_side_by_side_layout}}
+      <BoardsLayoutToggle />
+    {{/if}}
     <UserPillNav @active="boards" @userName={{this.model.user_name}} />
-{{!-- Full-viewport loading overlay — uses the same `.ll-premium-progress`
-     chrome as the bootstrap skeleton (boards/index.html.erb +
-     app/index.html) and index-loading.hbs so the user perceives ONE
-     continuous loading state from page refresh through my_boards
-     resolution (no separate spinner card flashes in afterward). Lives
-     OUTSIDE the page wrapper so it sits above the navbar and any
-     other in-page content (z-index 10054). --}}
-{{#unless this.model.my_boards.done}}
-  <div class="ll-premium-progress" role="status" aria-live="polite" aria-busy="true">
-    <div class="ll-premium-progress__card">
-      <h2 class="ll-premium-progress__title">{{t "Preparing your workspace" key="preparing_your_workspace"}}</h2>
-      <p class="ll-premium-progress__sub">{{t "Loading boards and communication resources" key="loading_boards_and_resources"}}</p>
-      <div class="ll-premium-progress__bar" aria-hidden="true"></div>
-    </div>
-  </div>
-{{/unless}}
 
 <div class="ub-boards-page ub-boards-page--below-dashboard-pills">
 
   <div class="la-section-header ub-boards-page__page-header" style="display: block; text-align: center;">
     <div class="la-hero-title-wrap">
-      {{!-- "Let's Communicate" — the per-letter typewriter animation
-           on "Communicate" only starts when the letters first mount
-           in the DOM. If we render them while the loading overlay is
-           up, the animation plays unseen and the user misses it.
-           Gating on `my_boards.done` defers the mount until the
-           overlay drops, so the user sees the animation play fresh.
-           The {{else}} branch renders an invisible placeholder with
-           identical text + sizing so the wrap reserves the exact
-           same vertical space during the loading phase — without
-           it, the content below jumps up while loading and shifts
-           back down when the real title mounts. --}}
-      {{#if this.model.my_boards.done}}
-        <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="ub-communicate" aria-label={{t "Communicate" key="communicate_word"}}><span class="ub-letter" style="animation-delay:0.25s" aria-hidden="true">C</span><span class="ub-letter" style="animation-delay:0.31s" aria-hidden="true">o</span><span class="ub-letter" style="animation-delay:0.37s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.43s" aria-hidden="true">m</span><span class="ub-letter" style="animation-delay:0.49s" aria-hidden="true">u</span><span class="ub-letter" style="animation-delay:0.55s" aria-hidden="true">n</span><span class="ub-letter" style="animation-delay:0.61s" aria-hidden="true">i</span><span class="ub-letter" style="animation-delay:0.67s" aria-hidden="true">c</span><span class="ub-letter" style="animation-delay:0.73s" aria-hidden="true">a</span><span class="ub-letter" style="animation-delay:0.79s" aria-hidden="true">t</span><span class="ub-letter" style="animation-delay:0.85s" aria-hidden="true">e</span></span></h1>
-      {{else}}
-        <h1 class="la-hero-title la-hero-title--placeholder" aria-hidden="true">{{t "Let's Communicate" key="lets_communicate_placeholder"}}</h1>
-      {{/if}}
+      {{!-- Rendered unconditionally. This used to be gated on
+           `mineListPaintReady` so the per-letter typewriter animation on
+           "Communicate" would not play behind the full-viewport loading
+           overlay, with an invisible placeholder <h1> holding the vertical
+           space so the layout did not jump when the real title mounted.
+           The overlay is gone and the page paints immediately, so the
+           animation is visible from the first frame and both the gate and
+           its placeholder are unnecessary. --}}
+      {{!-- The staggered word is DECORATIVE to assistive tech: `letter-stagger` marks every
+           span it emits aria-hidden, and aria-label is name-prohibited on role=generic, so the
+           previous aria-label on this <span> contributed nothing and the heading announced as
+           just "Let's". Carry the word in a visually-hidden node instead -- `.sr-only` is
+           position:absolute so it costs no layout. --}}
+      <h1 class="la-hero-title">{{t "Let's " key="lets_prefix"}}<span class="sr-only">{{t "Communicate" key="communicate_word"}}</span><span class="ub-communicate" aria-hidden="true">{{letter-stagger (t "Communicate" key="communicate_word") start=0.25 step=0.06}}</span></h1>
     </div>
     <p class="la-pricing-hero-subtitle">{{t "Manage your vocabularies and page-sets," key="ub_boards_subtitle_pre"}}<br>{{t "or create" key="ub_boards_subtitle_mid"}} <em><a href="#" class="ub-boards-page__subtitle-link" {{on "click" (this.ctrlAction "newBoard")}}>{{t "something new..." key="ub_boards_subtitle_em"}}</a></em></p>
   </div>
@@ -51,8 +51,8 @@
       <div class='alert alert-info' style="margin-bottom: 16px;">
         {{t "%{org} wants to support this user as part of their organization. This addition must be approved before it is complete." key="confirm_pending_org2" org=this.model.pending_org.name}}
         <br><br>
-        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_approve")}}>{{t "Approve %{org}" org=this.model.pending_org.name}}</button>
-        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_reject")}}>{{t "Deny Access"}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_approve")}}>{{t "Approve %{org}" key="approve_org" org=this.model.pending_org.name}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_reject")}}>{{t "Deny Access" key="deny_access"}}</button>
       </div>
     {{else if this.show_welcome_notice}}
       <div class="ll-welcome-notice" role="status">
@@ -88,7 +88,13 @@
       </div>
 
       <div class="ub-boards-page__getting-started-actions">
-        <LinkTo @route="home-boards" class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
+        {{!-- Goes to the standalone board picker, not /search/home. `user_id`
+             carries whose home board is being chosen: it is null on your own
+             page (Ember omits a query param at its default, so the URL stays
+             /board-picker and the picker runs its self flow) and the page
+             user's id when a supporter is on a communicator's Boards page —
+             see controllers/user/index#homeBoardPickerUserId. --}}
+        <LinkTo @route="board-picker" @query={{hash user_id=this.homeBoardPickerUserId}} class="md-btn md-card__getting-started-btn">{{t "Help me Choose" key="help_me_choose"}}</LinkTo>
       </div>
     </section>
   </div>

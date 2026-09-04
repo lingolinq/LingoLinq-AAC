@@ -114,15 +114,17 @@ export default modal.ModalController.extend({
 
       persistence.ajax('/api/v1/boards/' + _this.get('model.board.id') + '/translate', {
         type: 'POST',
-        data: {
+        contentType: 'application/json',
+        dataType: 'json',
+        data: JSON.stringify({
           source_lang: source_locale,
           destination_lang: _this.get('translate_locale'),
           set_as_default: true,
           fallbacks: 'true',
           force_update_default: true,
           translations: {},
-          board_ids_to_translate: board_ids_to_include
-        }
+          board_ids_to_translate: board_ids_to_include && board_ids_to_include.toArray ? board_ids_to_include.toArray() : board_ids_to_include
+        })
       }).then(function(res) {
         app_state.set('board_translate_in_progress', true);
         modal.flash(i18n.t('switching_language', "Switching Language..."), 'notice', false, true);

@@ -15,6 +15,7 @@ import modal from './modal';
 import progress_tracker from './progress_tracker';
 import word_suggestions from './word_suggestions';
 import i18n from './i18n';
+import { saveHomeBoard } from './home_board';
 import { observer } from '@ember/object';
 import utterance from './utterance';
 
@@ -131,8 +132,11 @@ var editManager = EmberObject.extend({
           }
           if(elem && grid && !modal.is_open() && !modal.is_open('highlight') && !modal.is_open('highlight-secondary')) {
             editManager.overlay_grid(grid, elem, opts);
+            return true;
           }
-          return true;
+          // Empty grid: do not swallow the tap. Returning true here used to set
+          // ignoreUp with no overlay, so a 1.5s hold on a filled-looking Spanish
+          // button did nothing.
         } else if(opts.radial_id && opts.radial_dom) {
           // TODO: look for handler for radial, it should return
           // a hash of button labels, images and callbacks to be rendered
@@ -685,9 +689,44 @@ var editManager = EmberObject.extend({
     var voc_locale = this.appState.get('vocalization_locale') || navigator.language;
     var lab_locale = this.appState.get('label_locale') || navigator.language;
     var base_label = button.original_label || button.label;
-    var trans = (board.get('translations') || {})[button_id];
-    var voc = (trans || {})[voc_locale] || (trans || {})[voc_locale.split(/-|_/)[0]];
-    var lab = (trans || {})[lab_locale] || (trans || {})[lab_locale.split(/-|_/)[0]];
+    // Language-tab edits live on button.translations (array of {locale, inflections}).
+    // Rails persist them on board.translations[id][locale] (hash) and then delete
+    // button.inflections. Overlay lookup must accept both, including string vs
+    // numeric button ids, or a filled Spanish grid never opens.
+    var button_key = (button.id != null) ? button.id : button_id;
+    var board_trans_hash = board.get('translations') || {};
+    var trans = board_trans_hash[button_key] || board_trans_hash[String(button_key)];
+    var locale_slot = function(bucket, locale) {
+      if(!bucket || !locale) { return null; }
+      var root = String(locale).split(/-|_/)[0];
+      var first = (typeof bucket.objectAt === 'function') ? bucket.objectAt(0) : bucket[0];
+      var as_list = first && (first.locale || first.code) && typeof bucket.forEach === 'function';
+      if(as_list) {
+        var exact = null;
+        var rooted = null;
+        bucket.forEach(function(entry) {
+          if(!entry) { return; }
+          var loc = entry.locale || entry.code;
+          if(!loc) { return; }
+          if(loc == locale) { exact = entry; }
+          else if(String(loc).split(/-|_/)[0] == root) { rooted = rooted || entry; }
+        });
+        return exact || rooted;
+      }
+      return bucket[locale] || bucket[root] || null;
+    };
+    // Prefer the slot that actually has inflections. board.translations often
+    // already has a label-only hash for the locale, which would otherwise
+    // hide Language-tab forms sitting on button.translations.
+    var prefer_inflections = function(a, b) {
+      var a_has = a && a.inflections && a.inflections.length;
+      var b_has = b && b.inflections && b.inflections.length;
+      if(a_has) { return a; }
+      if(b_has) { return b; }
+      return a || b;
+    };
+    var voc = prefer_inflections(locale_slot(trans, voc_locale), locale_slot(button.translations, voc_locale));
+    var lab = prefer_inflections(locale_slot(trans, lab_locale), locale_slot(button.translations, lab_locale));
     var locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
     var list = [];
     var ignore_defaults = false;
@@ -697,7 +736,7 @@ var editManager = EmberObject.extend({
     if(button.inflection_defaults && button.inflection_defaults.types && button.inflection_defaults.types[0] != button.part_of_speech) {
       ignore_defaults = true;
     }
-    if(button.inflections || trans || button.inflection_defaults) {
+    if(button.inflections || trans || button.inflection_defaults || (button.translations && button.translations.length)) {
       if(button.inflection_defaults) {
         base_label = button.inflection_defaults['base'] || button.inflection_defaults['c'] || button.inflection_defaults['src'] || button.label;
       }
@@ -724,8 +763,8 @@ var editManager = EmberObject.extend({
         if(for_current_locale && button.inflections && button.inflections[idx]) {
           defaults_allowed = false;
           list.push({location: locs[idx], label: button.inflections[idx]});
-        } else if(trans_voc && trans_lab) {
-          list.push({location: locs[idx], label: trans_lab, voc: trans_voc});
+        } else if(trans_voc || trans_lab) {
+          list.push({location: locs[idx], label: trans_lab || trans_voc, voc: trans_voc || trans_lab});
         } else if(for_current_locale && button.inflection_defaults && button.inflection_defaults[locs[idx]]) {
           if(button.inflection_defaults.v != expected_inflections_version) {
             defaults_allowed = false;
@@ -870,6 +909,29 @@ var editManager = EmberObject.extend({
       res = res.concat([
         {location: 'se', label: i18n.negation(base_label)},
       ]);
+    }
+    // Spanish: verbs (person/tense), nouns (plural/gender), adjectives (agreement/degree),
+    // pronouns (person table). Same empty-grid fallback as English. Manual inflections win.
+    if(lab_locale.match(/^es/i) && lab_locale == voc_locale && (res.length == 0 || defaults_allowed)) {
+      var pos = button.part_of_speech;
+      var src = ((lab && lab.label) || base_label || '').toString();
+      var es_grid = null;
+      if(pos == 'noun') {
+        es_grid = i18n.spanish_noun_grid(src);
+      } else if(pos == 'adjective') {
+        es_grid = i18n.spanish_adjective_grid(src);
+      } else if(pos == 'pronoun') {
+        es_grid = i18n.spanish_pronoun_grid(src);
+      } else if(!pos || pos == 'verb') {
+        es_grid = i18n.spanish_verb_grid(src);
+      }
+      if(es_grid) {
+        ['nw', 'n', 'ne', 'w', 'c', 'e', 'sw', 's', 'se'].forEach(function(loc) {
+          if(es_grid[loc]) {
+            res.push({location: loc, label: es_grid[loc]});
+          }
+        });
+      }
     }
     var final = [];
     var seen_locations = {};
@@ -2170,8 +2232,29 @@ var editManager = EmberObject.extend({
         if(emberGet(currentButton, 'label') || emberGet(currentButton, 'image_id')) {
           newButton.label = emberGet(currentButton, 'label');
           var vocalization = emberGet(currentButton, 'vocalization');
+          /* "Same as the label" means the button has no vocalization of its own, so it is
+             dropped rather than stored twice. A SPECIAL vocalization (':suggestion', '+q',
+             ':shift', ':space') can never mean that — it is an action, and it is not a word
+             the label could be equal to. If one has gone missing from the display copy the
+             right answer is the ORIGINAL, not deletion.
+
+             The second line is the load-bearing one. A display copy that reached here
+             flattened (board-detail's localizer used to replace a special vocalization with
+             the label — see `_localized_button_fields`) made this branch delete every one of
+             them, and the save persisted a board whose keyboard keys no longer type. Fixed
+             at the source; this stays as the guard, because the cost of getting it wrong
+             again is silent permanent data loss on a user's board. */
+          var original_special = /^[:+]/.test(String((originalButton || {}).vocalization || ''));
           if(vocalization && vocalization != newButton.label) {
             newButton.vocalization = vocalization;
+          } else if(original_special && vocalization) {
+            /* `vocalization` is non-blank and EQUAL to the label — the signature of a display
+               copy that was flattened upstream, never of a user's intent (nobody types '+q'
+               into a field that already reads '+q' and gets 'q'). Restore the action.
+               A BLANK vocalization is the other case: the user cleared the field, which is a
+               deliberate "this button has no vocalization of its own", and it falls through
+               to the delete below so a special button can still be un-specialed. */
+            newButton.vocalization = originalButton.vocalization;
           } else {
             delete newButton['vocalization'];
           }
@@ -2546,28 +2629,63 @@ var editManager = EmberObject.extend({
         // TODO: always start with a shallow clone, even if not an org board
         if(user.get('org_board_keys').indexOf(old_board.get('key')) != -1) {
           // use shallow-enabled cloning workflow shown here
+          /* `org` can be undefined: `org_board_keys` is the flattened key list,
+             but `organizations` only carries the orgs whose `home_board_keys`
+             this client actually received. Dereferencing `org.id` threw inside
+             this RSVP executor, where the TypeError is swallowed into a
+             rejection and surfaced as the generic "we couldn't set up your
+             board". Fall through to the normal copy path instead — it does not
+             need the org reference. */
+          /* NOT COVERED BY A CLICK-TEST (2026-08-14). The other two `as_home`
+             cases — supervisor-picks-for-communicator, and communicator with no
+             existing copy — were both driven end to end and confirmed by
+             re-reading the user from the server. This org branch was not: the org
+             home board is private, appears in no board-picker category, and the
+             picker in that layout renders no search box, so the flow cannot be
+             reached from the picker at all. The other producer of this same
+             `links_copy_as_home` decision (board-detail -> "Set as Home Board" ->
+             "Make a New Copy", components/set-as-home.js:180) lives in the board
+             edit panel, which only renders under `edit_mode`. Both guards below
+             fail SAFE — falling through to the normal copy path, or rejecting with
+             a message — so the risk is unverified-not-broken. If you touch this
+             branch, exercise it manually first. See
+             docs/task-management/2026-08-14-click-test-adversarial-fixes.md. */
           var org = (user.get('organizations') || []).find(function(org) { return org.home_board_keys.indexOf(old_board.get('key')) != -1; });
-          user.set('preferences.home_board', {
-            id: old_board.get('id'),
-            key: old_board.get('key'),
-            swap_library: swap_library,
-            shallow: true,
-            copy: true,
-            copy_from_org: org.id
-          });
-          if(level && level > 0 && level < 10) {
-            user.set('preferences.home_board.level', level);
+          if(org && org.id) {
+            user.set('preferences.home_board', {
+              id: old_board.get('id'),
+              key: old_board.get('key'),
+              swap_library: swap_library,
+              shallow: true,
+              copy: true,
+              copy_from_org: org.id
+            });
+            if(level && level > 0 && level < 10) {
+              user.set('preferences.home_board.level', level);
+            }
+            user.save().then(function() {
+              /* Deliberately NOT saveHomeBoard's identity check: this request
+                 asks the server to COPY the org board, so it legitimately
+                 stores a different id than the one sent (user.rb#
+                 copy_to_home_board ~2869). What must be true is that an id came
+                 back at all — without this guard a skipped write fell through to
+                 findRecord(undefined), which reads as "couldn't retrieve the
+                 copied board" rather than "nothing was stored". */
+              var stored_id = user.get('preferences.home_board.id');
+              if(!stored_id) {
+                reject(i18n.t('user_home_failed', "Failed to update user's home board"));
+                return;
+              }
+              LingoLinq.store.findRecord('board', stored_id).then(function(board) {
+                resolve(board);
+              }, function(err) {
+                reject(i18n.t('user_home_find_failed', "Failed to retrieve the copied home board"));
+              })
+            }, function() {
+              reject(i18n.t('user_home_failed', "Failed to update user's home board"));
+            });
+            return;
           }
-          user.save().then(function() {
-            LingoLinq.store.findRecord('board', user.get('preferences.home_board.id')).then(function(board) {
-              resolve(board);
-            }, function(err) {
-              reject(i18n.t('user_home_find_failed', "Failed to retrieve the copied home board"));
-            })
-          }, function() {
-            reject(i18n.t('user_home_failed', "Failed to update user's home board"));
-          });
-          return;
         }
       }
       var save = old_board.create_copy(user, make_public, swap_library, new_owner, disconnect);
@@ -2597,14 +2715,14 @@ var editManager = EmberObject.extend({
           board.set('new_board_ids', new_board_ids);
           board.load_button_set(true);
           if(decision && decision.match(/as_home$/)) {
-            user.set('preferences.home_board', {
-              id: board.get('id'),
-              key: board.get('key')
-            });
-            if(level && level > 0 && level < 10) {
-              user.set('preferences.home_board.level', level);
-            }
-            user.save().then(function() {
+            /* CONFIRMED write. A 200 on the user PUT does not prove the home
+               board was stored — process_home_board (user.rb ~2932) DELETES the
+               preference and returns true when the reference will not resolve,
+               so the old `user.save().then(success)` reported a board that was
+               never set. saveHomeBoard reads the server's own echo back off the
+               record; both rejection shapes land on the same message the caller
+               already handled. */
+            saveHomeBoard(user, board, null, {level: level}).then(function() {
               finalize(true, board);
             }, function() {
               finalize(false, i18n.t('user_home_failed', "Failed to update user's home board"));

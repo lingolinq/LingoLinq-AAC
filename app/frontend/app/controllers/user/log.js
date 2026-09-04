@@ -15,6 +15,10 @@ import { inject as service } from '@ember/service';
 
 export default Controller.extend({
   router: service('router'),
+  // Injected so computed dependency keys can actually observe it. The imported
+  // `app_state` singleton above is the same instance, but it lives in module
+  // scope where Ember cannot watch it — see same_author below.
+  appState: service('app-state'),
   title: computed('model.user_name', function() {
     return "Log Details";
   }),
@@ -145,32 +149,46 @@ export default Controller.extend({
       this.set('processed_profile.history', this.get('history_result.results'))
     }
   }),
-  processed_assessment: computed(
+  // The RAW eval blob, before analyze() derives display values off a copy.
+  // Anything that needs to WRITE back to the eval (the report workbook) must
+  // start from this, because analyze() returns a copy carrying derived fields
+  // that must never be persisted, and `data['eval']` is replaced wholesale on
+  // save (see evaluation.save_workbook).
+  raw_assessment: computed(
     'model.type',
     'model.eval_in_memory',
     'model.evaluation',
-    'model.profile',
     'user.id',
     'user.user_name',
     'eval_memory_fallback',
     'eval_memory_fallback.user_id',
     function() {
-      if(this.get('model.type') == 'eval') {
-        var assessment = this.get('model.evaluation');
-        if(this.get('model.eval_in_memory')) {
-          assessment = evaluation.last_assessment_from_memory(this.get('user.id'), this.get('user.user_name')) || {};
-          // In-memory is empty on a fresh load / reload (appState wiped). Fall back
-          // to the durable in-progress snapshot (IndexedDB, loaded by
-          // load_eval_fallback) so the results page recovers the eval instead of
-          // rendering blank. Point-of-use user match: this controller is a
-          // singleton reused across communicators, so never render a fallback that
-          // belongs to a different user (defense on top of the observer's reset).
-          if(!(assessment && (assessment.events || assessment.started)) &&
-             this.get('eval_memory_fallback') &&
-             String(this.get('eval_memory_fallback.user_id')) == String(this.get('user.id'))) {
-            assessment = this.get('eval_memory_fallback');
-          }
+      if(this.get('model.type') != 'eval') { return null; }
+      var assessment = this.get('model.evaluation');
+      if(this.get('model.eval_in_memory')) {
+        assessment = evaluation.last_assessment_from_memory(this.get('user.id'), this.get('user.user_name')) || {};
+        // In-memory is empty on a fresh load / reload (appState wiped). Fall back
+        // to the durable in-progress snapshot (IndexedDB, loaded by
+        // load_eval_fallback) so the results page recovers the eval instead of
+        // rendering blank. Point-of-use user match: this controller is a
+        // singleton reused across communicators, so never render a fallback that
+        // belongs to a different user (defense on top of the observer's reset).
+        if(!(assessment && (assessment.events || assessment.started)) &&
+           this.get('eval_memory_fallback') &&
+           String(this.get('eval_memory_fallback.user_id')) == String(this.get('user.id'))) {
+          assessment = this.get('eval_memory_fallback');
         }
+      }
+      return assessment;
+    }
+  ),
+  processed_assessment: computed(
+    'model.type',
+    'model.profile',
+    'raw_assessment',
+    function() {
+      if(this.get('model.type') == 'eval') {
+        var assessment = this.get('raw_assessment');
         window.current_assesment = assessment;
         return evaluation.analyze(assessment);
       }
@@ -207,8 +225,31 @@ export default Controller.extend({
       }
     });
   }),
-  same_author: computed('model.author.id', 'app_state.sessionUser.id', function() {
-    return this.get('model.author.id') == app_state.get('sessionUser.id');
+  // Gates the "Resume Evaluation" button (templates/user/log.hbs:620).
+  //
+  // The dependency key used to be 'app_state.sessionUser.id', but this controller
+  // has no `app_state` PROPERTY — it reads the imported singleton from module
+  // scope. Ember resolved that key against the controller, found nothing, and so
+  // the computed never invalidated when the session user changed: after switching
+  // communicators without a full reload, Resume could stay visible for someone who
+  // did not author the eval, or stay hidden from the person who did.
+  //
+  // Injecting the service makes the watched path and the read path the same
+  // object. Matches controllers/user/lessons.js:16-18.
+  //
+  // Compare `sessionUser.global_id`, not `.id`. serializers/application.js pins
+  // the session-user record id to the literal 'self' so Ember Data never re-keys
+  // the identifier; `global_id` (models/user.js) is the real backend id on both
+  // the network and local-storage load paths. Matching `.id` against
+  // `model.author.id` reads as `'self' == '1_24'` and hides Resume from the
+  // eval's own author — the same gate eval-workbook.js already uses.
+  same_author: computed('model.author.id', 'appState.sessionUser.global_id', 'appState.sessionUser.id', function() {
+    var author = this.get('model.author.id');
+    var myGlobal = this.get('appState.sessionUser.global_id') ||
+                   this.get('appState.sessionUser.id');
+    if (myGlobal === 'self') { myGlobal = null; }
+    if (!author || !myGlobal) { return false; }
+    return String(author) === String(myGlobal);
   }),
   init() {
     this._super(...arguments);

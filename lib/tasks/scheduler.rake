@@ -150,11 +150,24 @@ task "scheduler:dispatch" => :environment do
     # up to 5 years EU-jurisdiction, up to 6 years HIPAA hard floor
     # (45 CFR 164.316(b)(2)). NOT a flat 24-month purge.
     #
-    # ENFORCED here today:
+    # WIRED here today (per-item status below; the EU purge currently matches zero rows):
     #   - EU 5-year purge (purge_old_eu_ai_api_logs below): scans jurisdiction = 'EU'
-    #     rows, which the Art50 Phase 4 shared call-context helper now stamps at the
-    #     three AI call sites. It is functional wherever Phase 4 is deployed (staged
-    #     on staging; effective in production only after the Phase 4/5 prod deploy).
+    #     rows, which the Art50 Phase 4 shared call-context helper stamps at the three
+    #     AI call sites. CORRECTED 2026-08-25: this said the purge is "functional
+    #     wherever Phase 4 is deployed (staged on staging; effective in production only
+    #     after the Phase 4/5 prod deploy)". Phase 4 IS in production. The purge is
+    #     WIRED but currently deletes NOTHING: the stamp writes 'EU' only for a
+    #     confirmed :eu user, production had none as of the 2026-08-23 audited read,
+    #     and the filter is
+    #     created_at < 5.years.ago while the jurisdiction column dates from
+    #     2026-06-21 -- so a write-time-stamped row cannot match before ~2031-06
+    #     (the ai_api_logs table itself dates from 2026-02-21, so ~2031-02 is the
+    #     earliest conceivable match at all). This is an absence of eligible DATA,
+    #     not a broken control: the mechanism is verified end to end by
+    #     spec/models/ai_api_log_spec.rb:550-586, which drives a real EU user
+    #     through EuJurisdiction.retention_stamp and sees the row purged while an
+    #     :unknown row is spared. See
+    #     docs/legal/2026-08-23_article-50-production-flag-verification.md.
     #   - 90-day IP redaction (redact_old_ai_api_log_ips above).
     #   - Row-lifecycle deletion when the owning account is deleted (Flusher cascade).
     #
@@ -174,6 +187,16 @@ task "scheduler:dispatch" => :environment do
     run_task.call("expire_stale_supervisor_consent_requests") do
       count = SupervisorConsentExpirationWorker.perform
       "#{count} expired"
+    end
+
+    # Reports the MODE alongside the count. Without it "0 export-then-delete
+    # scheduled" is ambiguous between "nothing was due" and "the sweep is off",
+    # which are opposite operational facts. Default is disabled -- see the header
+    # of app/workers/offboarding_coppa_expiration_worker.rb for why.
+    run_task.call("expire_offboarding_coppa_consents") do
+      mode = OffboardingCoppaExpirationWorker.mode
+      count = OffboardingCoppaExpirationWorker.perform
+      "mode=#{mode}, #{count} export-then-delete scheduled"
     end
 
     run_task.call("flush_expired_beta_feedback_recordings") do

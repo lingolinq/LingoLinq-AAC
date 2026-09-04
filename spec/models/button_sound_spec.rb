@@ -153,7 +153,11 @@ describe ButtonSound, :type => :model do
       expect(BoardButtonSound.where(:button_sound_id => s.id).count).to eq(0)
     end
   end
-  
+
+  # Derivative-object cleanup on destroy (secondary_output, prior_full_filenames,
+  # thumbnail_filename) is shared with UserVideo via the MediaObject concern;
+  # see spec/models/concerns/media_object_spec.rb "remove_derivative_remote_data".
+
   describe "secondary_url" do
     it "should return the correct value" do
       u = User.create
@@ -436,6 +440,42 @@ describe ButtonSound, :type => :model do
       expect(bs.settings['transcription_confidence']).to eq(0.45)
     end
     
+    it "should preserve the outgoing secondary_output key in prior_full_filenames even if the immediate S3 delete fails" do
+      # settings['secondary_output'] is cleared and saved BEFORE
+      # Uploader.remote_remove is attempted below. If that immediate delete
+      # fails or silently no-ops (S3 misconfig, network error, an exception),
+      # the key must still be reachable via prior_full_filenames -- which
+      # MediaObject#remove_derivative_remote_data sweeps on destroy -- rather
+      # than having no pointer anywhere in settings.
+      key = 'sounds/1/2/3/1_5-secondaryv1723500000.wav'
+      bs = ButtonSound.new(:settings => {
+        'secondary_output' => {'filename' => key, 'content_type' => 'audio/wav'}
+      })
+      expect(bs).to receive(:secondary_url).and_return("http://www.example.com/sound.wav").at_least(1).times
+      expect(Typhoeus).to receive(:get).with("http://www.example.com/sound.wav").and_return(OpenStruct.new({
+        body: 'asdf'
+      }))
+      ENV['GOOGLE_TRANSLATE_TOKEN'] = 'tokeny'
+      expect(Typhoeus).to receive(:post).with("https://speech.googleapis.com/v1/speech:recognize?key=tokeny", {
+        body: {config: {encoding: 'LINEAR16', sampleRateHertz: 44100, languageCode: 'en', profanityFilter: true}, audio: {content: 'YXNkZg'}}.to_json,
+        headers: { 'Accept-Encoding' => 'application/json', 'Content-Type' => 'application/json'}
+      }).and_return(OpenStruct.new({
+        body: {
+          results: [
+            {alternatives: [
+              transcript: 'ahem',
+              confidence: 0.45
+            ]}
+          ]
+        }.to_json
+      }))
+      # Simulates a failed/no-op immediate delete (e.g. missing S3 config).
+      expect(Uploader).to receive(:remote_remove).with("http://www.example.com/sound.wav").and_return(nil)
+      bs.schedule_transcription(true)
+      expect(bs.settings['secondary_output']).to eq(nil)
+      expect(bs.settings['prior_full_filenames']).to eq([key])
+    end
+
     it "should not set the transcription if too low a confidence" do
       bs = ButtonSound.new(:settings => {
       })

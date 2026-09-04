@@ -147,6 +147,18 @@ docs/CI_TEST_FAILURES_ANALYSIS.md
 # disk for the author's reference, NOT committed. Pattern matches any
 # YYYY-MM-DD-*.md file anywhere in the tree.
 [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md
+
+# PR body drafts (docs/task-management/PR-BODY-*.md). Written to compose a pull
+# request description and then pasted into it; the PR itself is where the text
+# lives, so keeping a copy in the tree would just go stale. Same rationale as
+# the dated working logs above.
+PR-BODY-*.md
+
+# Session handoff notes (docs/task-management/HANDOFF-*.md). Same rationale as
+# the dated working logs above: written for the next session to pick up a task,
+# superseded once it does, and not a durable record. Durable lessons belong in
+# docs/task-management/LEARNINGS.md, which IS committed.
+HANDOFF-*.md
 .cursor/rules/melissa-branch-workflow.mdc
 
 # One-off generated artifacts (NotebookLM scripts, infographic/visual prompts,
@@ -172,3 +184,11 @@ docs/CI_TEST_FAILURES_ANALYSIS.md
 # scripts, test-run logs, pre-merge file snapshots). Nothing here is part of
 # the build; keep it out of the repo the same way per-task working logs are.
 app/frontend/scratchpad/
+
+# Redis persistence dumps: local-dev-only artifacts, never belong in git or
+# in a container image (finding LL-6af580a23a: a stale dump.rdb shipped in
+# every prod image for ~6 months before this rule existed).
+*.rdb
+dump.rdb
+.cursor/rules/clear-explanations.mdc
+.cursor/rules/recommend-brain-skills.mdc

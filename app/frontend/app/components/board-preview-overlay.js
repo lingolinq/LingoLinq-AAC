@@ -9,6 +9,7 @@ import editManager from '../utils/edit_manager';
 import i18n from '../utils/i18n';
 import paint_view_switch_overlay from '../utils/view_switch_overlay';
 import { findExistingUserCopy } from '../utils/board-copy';
+import { saveHomeBoard } from '../utils/home_board';
 import { preload_board_images } from '../utils/board_preview_warmer';
 
 /* Minimum time the loading overlay must stay visible after it first
@@ -49,6 +50,15 @@ export default Component.extend({
      account (before routing into edit mode). Drives a "Setting up your board..."
      overlay so the (server-side, can-take-seconds) copy isn't an opaque freeze. */
   copying: false,
+
+  /* The preview must show the board the way THIS user's board-detail will show
+     it. Dark mode there is the `preferences.board_dark_mode` pref (default off —
+     controllers/user/board-detail.js:329, persisted at :5167), so the preview
+     follows the pref instead of the hard-coded `true` it used to pass, which made
+     every board preview navy while the board it previewed was light. */
+  board_dark_mode: computed('modal.boardPreview', function() {
+    return !!app_state.get('currentUser.preferences.board_dark_mode');
+  }),
 
   init() {
     this._super(...arguments);
@@ -213,6 +223,19 @@ export default Component.extend({
       this.set('model_style', null);
       this.get('modal').close(null, 'board-preview');
     },
+    /* Touch-device parity for the tile's hover-only `.board_action`
+       (available-boards-section.hbs:388). The callback is a closure bound in
+       that template which dispatches `remove_board(remove_type, board)` to the
+       user controller — the same path the hover button takes, and every branch
+       of it opens a confirm modal (controllers/user/index.js:1560-1579). Close
+       the preview first so that confirm opens on a clean stack. Mirrors the
+       route-era controllers/board-preview.js#remove. */
+    remove() {
+      var ctx = this.get('modal.boardPreview.remove');
+      if(!ctx || !ctx.callback) { return; }
+      this.send('close');
+      ctx.callback();
+    },
     preview(key) {
       this.set('model_style', true);
       this.set('model_key', key);
@@ -243,6 +266,52 @@ export default Component.extend({
         preview.callback();
       }
     },
+    /* Board-picker "Try this Board": open the board the user is looking at, in
+       speak mode, WITHOUT copying it or assigning anything. Nothing is created,
+       so backing out leaves no trace -- which is the whole point of a trial and
+       the difference from pick_for_home directly below.
+
+       Routes to `user.board-detail` explicitly rather than through
+       board_view_route(user), matching _finishPickForHome. Two reasons: the
+       picker's own flows already land everyone on board-detail, and the Back
+       control this sets up lives in board-detail's nav stack, so honouring a
+       'classic' preference here would strand the user with no way back.
+
+       The marker below is what board-detail reads to show that control. It is
+       scoped to a board key, not a bare boolean, so a stale flag cannot put a
+       Back button on some unrelated board the user reaches later. */
+    try_board() {
+      var preview = this.get('modal.boardPreview');
+      var board = preview && preview.board;
+      var key = board && (board.get ? board.get('key') : board.key);
+      var parts = key ? key.split('/') : [];
+      if (parts.length < 2) { return; }
+
+      var routerSvc = this.get('router');
+      var locale = (preview && preview.locale) || app_state.get('label_locale');
+      if (locale) { app_state.set('label_locale', locale); }
+
+      // Leaving the picker page clears this in routes/board-picker.js, but the
+      // transition below is what triggers that -- clear it here so the preview
+      // cannot repaint its picker CTAs during the hand-off.
+      app_state.set('tour_board_picker_active', false);
+      app_state.set('board_detail_try_origin', { key: key, from: 'board_picker' });
+
+      modal.close_board_preview();
+
+      var isDark = true;
+      var themeMode = app_state.get('themeMode');
+      if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
+      paint_view_switch_overlay({
+        routerSvc: routerSvc,
+        isDark: isDark,
+        accentLight: false,
+        transition: function() {
+          // Speak (use) mode = the board-detail INDEX route.
+          return routerSvc.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
+        }
+      });
+    },
     // Board-picker "Pick this Board": get the user an OWNED copy of the picked
     // (public catalog) board set as their home board, then open it in board-detail
     // SPEAK mode and auto-start the speak-mode tour. If the user already has a copy
@@ -253,7 +322,7 @@ export default Component.extend({
       var preview = this.get('modal.boardPreview');
       var board = preview && preview.board;
       if (!board) { app_state.set('tour_board_picker_active', false); this.send('select'); return; }
-      var user = app_state.get('currentUser');
+      var user = app_state.get('setup_user') || app_state.get('currentUser');
       if (!user || !user.get || !user.save) {
         // Adversarial-review note ("raw English fallback string"): this is NOT a raw
         // string — an `i18n.t` call (key + English-default arg) is the project's REQUIRED i18n
@@ -282,46 +351,45 @@ export default Component.extend({
       // overlay already exists).
       _this._paintPreparingOverlay();
       _this.set('copying', true);
-      app_state.set('tour_board_picker_active', false);
+      app_state.set('board_picker_pick_in_progress', true);
+      var setupUserSnapshot = user;
+      var routerSvc = _this.get('router');
       // Dedup first: skip copying if the user already owns a copy of this board.
       findExistingUserCopy(board, user).then(function(existing) {
-        if (_this.isDestroyed || _this.isDestroying) { return; }
         if (existing) {
-          // Reuse the existing copy — just (re)set it as the home board, no new copy.
-          user.set('preferences.home_board', {
-            id: existing.get('id'),
-            key: existing.get('key'),
-            locale: locale
-          });
-          user.save().then(function() {
-            _this._finishPickForHome(existing, locale);
+          // Reuse the existing copy — just (re)set it as the home board, no new
+          // copy. Via utils/home_board so the save is CONFIRMED against what the
+          // server stored: a 200 here does not mean the assignment was kept (the
+          // server drops the write for a board it can't resolve or the user
+          // can't view), and this branch used to report those as success.
+          saveHomeBoard(user, existing, locale).then(function() {
+            _this._finishPickForHome(existing, locale, setupUserSnapshot, routerSvc);
           }, function() {
-            _this._handlePickError(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"));
+            _this._handlePickError(i18n.t('set_as_home_failed', "Home board update failed unexpectedly"), routerSvc);
           });
         } else {
           // No existing copy — 'links_copy_as_home' copies the board + downstream
           // links AND sets the COPY as the user's home board, resolving with the new
           // owned board (mirrors set-as-home#copy_as_home).
           editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-            _this._finishPickForHome(copiedBoard, locale);
+            _this._finishPickForHome(copiedBoard, locale, setupUserSnapshot, routerSvc);
           }, function(err) {
             // Only surface `err` directly when it's a display string — copy_board can
             // reject with an Error/object, which would render as "[object Object]".
             // copy_board only rejects with an already-localized i18n.t() STRING or a
             // plain internal-code OBJECT; the fallback below covers the object case.
             var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-            _this._handlePickError(msg);
+            _this._handlePickError(msg, routerSvc);
           });
         }
       }, function() {
         // Dedup lookup itself failed unexpectedly — fall back to copying so the user
         // is never blocked (a duplicate is preferable to a dead end).
-        if (_this.isDestroyed || _this.isDestroying) { return; }
         editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-          _this._finishPickForHome(copiedBoard, locale);
+          _this._finishPickForHome(copiedBoard, locale, setupUserSnapshot, routerSvc);
         }, function(err) {
           var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-          _this._handlePickError(msg);
+          _this._handlePickError(msg, routerSvc);
         });
       });
     }
@@ -330,21 +398,70 @@ export default Component.extend({
   // Common tail for pick_for_home: flag the speak-mode tour hand-off (scoped to the
   // board's key), preserve the picked locale, preload images, then open the board in
   // SPEAK (use) mode — the board-detail INDEX route (`.edit` would be edit mode).
-  _finishPickForHome: function(homeBoard, locale) {
+  _finishPickForHome: function(homeBoard, locale, setupUserSnapshot, routerSvc) {
     var _this = this;
-    if (_this.isDestroyed || _this.isDestroying) { return; }
+    app_state.set('board_picker_pick_in_progress', false);
+    app_state.set('tour_board_picker_active', false);
+    if (!_this.isDestroyed && !_this.isDestroying) { _this.set('copying', false); }
+    var setupUser = setupUserSnapshot || app_state.get('setup_user');
+    var currentUser = app_state.get('currentUser');
+    var pickingForOther = setupUser && currentUser && setupUser.get('id') != currentUser.get('id');
     var key = (homeBoard && homeBoard.get && homeBoard.get('key')) || '';
+    routerSvc = routerSvc || (_this.get && !_this.isDestroyed && _this.get('router')) || (app_state.controller && app_state.controller.router);
+
+    if (pickingForOther) {
+      var returnToBoards = function() {
+        _this._removePreparingOverlay();
+        modal.close_board_preview();
+        modal.success(i18n.t('board_set_as_home', "Great! This is now the user's home board!"), true);
+        var userName = setupUser.get('user_name');
+        if (userName && routerSvc) {
+          routerSvc.transitionTo('user.boards', userName);
+        } else {
+          app_state.return_to_index();
+        }
+      };
+      preload_board_images(homeBoard).then(returnToBoards, returnToBoards);
+      return;
+    }
+
     // Hand-off flag for the board-detail SPEAK tour: the speak guided-tour instance
     // reads this once it mounts on THIS board and auto-starts the speak tour, then
     // clears it (see guided-tour.js _consumePendingBoardDetailSpeakTour). Scoped to
     // the board key so a stale flag can't fire the tour on a different board.
-    if (key) { app_state.set('board_detail_tour_pending_speak', key); }
+    // `board_detail_tour_speak_manual` is cleared explicitly rather than left
+    // alone: it rides the same pending flag to mark a "Take a tour" REPLAY, and a
+    // replay request that was never consumed would otherwise make this AUTO open
+    // skip its once-per-user bookkeeping and re-fire on every subsequent pick.
+    if (key) {
+      app_state.set('board_detail_tour_speak_manual', false);
+      app_state.set('board_detail_tour_pending_speak', key);
+    }
     if (locale) { app_state.set('label_locale', locale); }
     var parts = key.split('/');
-    var routerSvc = _this.get('router');
+    /* TWO OBSERVATIONS FROM THE SELF-PICK CLICK-TESTS, DEFERRED (2026-08-14).
+       Both were seen in this path; neither is explained, and neither blocked the
+       finding H3 was about — the home board stored correctly and was confirmed by
+       re-reading the user from the server.
+
+       1. A self-pick landed on `/<user>/boards` — the pickingForOther destination —
+          even though `pickingForOther` is false here, so it is THIS transition to
+          user.board-detail that runs. So it is very unlikely to be a wrong-branch
+          bug. A 404 was logged in that run; the leading (UNCONFIRMED) hypothesis is
+          that board-detail fails to load the just-created copy and something
+          redirects to /boards.
+       2. A separate run (a different communicator, same self-pick path) never
+          reached a terminal state within 180s. Not investigated; may be nothing
+          more than a slow dev-stack copy.
+
+       To pick this up: `node scripts/adversarial-review-qa.mjs --only h3b
+       --self-id <a communicator with no copy of the picked board>` on a quiet
+       stack. The harness already emits a NAV block — the URL trail plus the
+       setup_user/currentUser ids this function branches on — which should settle
+       (1) in a single run. See
+       docs/task-management/2026-08-14-click-test-adversarial-fixes.md. */
     var go = function() {
-      if (_this.isDestroyed || _this.isDestroying) { return; }
-      if (parts.length >= 2) {
+      if (parts.length >= 2 && routerSvc) {
         var isDark = true;
         var themeMode = app_state.get('themeMode');
         if (themeMode === 'light' || themeMode === 'midDay' || themeMode === 'default') { isDark = false; }
@@ -357,24 +474,40 @@ export default Component.extend({
             return routerSvc.transitionTo('user.board-detail', parts[0], parts.slice(1).join('/'));
           }
         });
-      } else {
+      } else if (routerSvc) {
         routerSvc.transitionTo('board', key);
       }
     };
+    /* Confirm the switch in words. The pickingForOther branch above has always
+       done this ("Great! This is now the user's home board!"); the self-pick
+       path silently transitioned, so after a 30-40s wait the user arrived with
+       no statement that anything had changed. modal.flash survives the route
+       change, so it lands on the new board rather than on the dying preview.
+       Named so it also answers "why did that take so long".
+
+       Two handlers, not one: the home board is set either way, but the images
+       are exactly what did NOT get saved when the preload rejects, so promising
+       offline use on that path is the one claim we know to be false — and the
+       user finds out only when they are offline and the board renders blank. */
     var finish = function() {
-      if (!_this.isDestroyed && !_this.isDestroying) { _this.set('copying', false); }
+      modal.success(i18n.t('board_now_your_home_board', "This is now your home board, and it's saved for offline use."), true);
       go();
     };
-    preload_board_images(homeBoard).then(finish, finish);
+    var finish_without_images = function() {
+      modal.success(i18n.t('board_now_your_home_board_no_offline', "This is now your home board. Some images could not be saved for offline use — reconnect and open the board once to finish saving it."), true);
+      go();
+    };
+    preload_board_images(homeBoard).then(finish, finish_without_images);
   },
 
   // Clear the copying overlay and surface a (localized) error. Leaves the preview
   // open so the user can retry — and removes the full-screen "Preparing your Board"
   // overlay so the user isn't stranded behind it (no route change will dismiss it).
-  _handlePickError: function(msg) {
-    if (this.isDestroyed || this.isDestroying) { return; }
+  _handlePickError: function(msg, routerSvc) {
+    app_state.set('board_picker_pick_in_progress', false);
+    app_state.set('tour_board_picker_active', true);
+    if (!this.isDestroyed && !this.isDestroying) { this.set('copying', false); }
     this._removePreparingOverlay();
-    this.set('copying', false);
     modal.error(msg);
   },
 

@@ -15,13 +15,13 @@ in case you decide to pick it up again later  (you won't receive regular emails 
 
 Your premium cloud extras access is set to expire <b><%= long_ordinal_date(@user.expires_at) %></b>. 
 Please 
-<a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">update your billing settings</a> 
+<a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">update your billing settings</a> 
 so that you don't miss out on the great resource <%= app_name %> can be to help
 struggling communicators.<br/><br/>
 
 If you need help finding a funding solution, please don't be afraid to reach out to us, 
 we're willing to work with individuals to find a good solution. Just 
-<a href="<%= JsonApi::Json.current_host %>/contact">contact us</a>
+<a href="<%= JsonApi::Json.absolute_host %>/contact">contact us</a>
 and we'll be happy to work with you.<br/><br/>
 
 Thanks!<br/>

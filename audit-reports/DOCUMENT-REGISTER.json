@@ -227,12 +227,12 @@
             "location": "https://docs.google.com/document/d/1wvjHGzOYfnpfqonKmr9HwK2wZKxWf-PTuOV20mS8zkE/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
-            "title": "Data Retention Schedule",
-            "location": "docs/legal/DATA_RETENTION.md"
+            "title": "Data Retention Schedule (2026-08-09 draft)",
+            "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
             "title": "Incident Log",
@@ -247,8 +247,8 @@
             "location": "COMPLIANCE.md"
           },
           {
-            "title": "Subprocessor Register",
-            "location": "docs/legal/SUBPROCESSORS.md"
+            "title": "Subprocessor Register (2026-08-16 successor)",
+            "location": "docs/legal/2026-08-16_subprocessor-register.md"
           }
         ],
         "gaps": [
@@ -261,16 +261,20 @@
         "description": "What a US school-district diligence / DPA review asks for (FERPA / COPPA / accessibility).",
         "requiredDocs": [
           {
+            "title": "Compliance Posture Report (2026-08-22 successor)",
+            "location": "docs/legal/2026-08-22_compliance-posture-report.md"
+          },
+          {
             "title": "Compliance Posture Report",
-            "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
+            "location": "docs/legal/2026-08-20_compliance-posture-report.md"
           },
           {
-            "title": "Subprocessor Register",
-            "location": "docs/legal/SUBPROCESSORS.md"
+            "title": "Subprocessor Register (2026-08-16 successor)",
+            "location": "docs/legal/2026-08-16_subprocessor-register.md"
           },
           {
-            "title": "Data Retention Schedule",
-            "location": "docs/legal/DATA_RETENTION.md"
+            "title": "Data Retention Schedule (2026-08-09 draft)",
+            "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
             "title": "COPPA Final-Rule Verification",
@@ -285,12 +289,12 @@
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
-            "title": "AI Data-Flow Classification",
-            "location": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md"
+            "title": "AI Data-Flow Classification (2026-08-17 successor)",
+            "location": "docs/legal/2026-08-17_ai-data-flow-classification.md"
           },
           {
             "title": "Annex B - US Schools SDPA Package (NDPA v2.1 + Exhibits) (DRAFT)",
@@ -307,32 +311,40 @@
         "description": "What a school district or hospital IT security questionnaire asks for. Deliberately SEPARATE from soc2-evidence: this is the customer-facing diligence pack (posture, accessibility, AI data-flow, subprocessors), whereas soc2-evidence is the internal controls-evidence pack. Merging them would force each to carry documents the other reviewer never asks for.",
         "requiredDocs": [
           {
+            "title": "Compliance Posture Report (2026-08-22 successor)",
+            "location": "docs/legal/2026-08-22_compliance-posture-report.md"
+          },
+          {
             "title": "Compliance Posture Report",
-            "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
+            "location": "docs/legal/2026-08-20_compliance-posture-report.md"
           },
           {
-            "title": "LingoLinq Security, Privacy & Compliance Overview",
-            "location": "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md"
+            "title": "LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft)",
+            "location": "docs/legal/2026-08-09_compliance-program-overview_draft.md"
           },
           {
-            "title": "Subprocessor Register",
-            "location": "docs/legal/SUBPROCESSORS.md"
+            "title": "Subprocessor Register (2026-08-16 successor)",
+            "location": "docs/legal/2026-08-16_subprocessor-register.md"
           },
           {
-            "title": "Data Retention Schedule",
-            "location": "docs/legal/DATA_RETENTION.md"
+            "title": "Data Retention Schedule (2026-08-09 draft)",
+            "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Accessibility Conformance Report (ACR / VPAT)",
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
           },
           {
-            "title": "AI Data-Flow Classification",
-            "location": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md"
+            "title": "AI Data-Flow Classification (2026-08-17 successor)",
+            "location": "docs/legal/2026-08-17_ai-data-flow-classification.md"
+          },
+          {
+            "title": "AI Governance Memo (2026-08-24 successor)",
+            "location": "docs/legal/2026-08-24_ai-governance-memo.md"
           },
           {
             "title": "AI Governance Memo",
@@ -361,16 +373,16 @@
             "location": "docs/legal/AWS_BAA_2026-02.pdf"
           },
           {
-            "title": "AWS BAA acceptance record",
-            "location": "docs/legal/AWS_BAA_ACCEPTED.md"
+            "title": "AWS BAA Acceptance and Runtime Status Record (2026-08-12)",
+            "location": "docs/legal/2026-08-12_aws-baa-acceptance-record.md"
           },
           {
             "title": "Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record",
             "location": "docs/legal/GCP_BAA_ACCEPTED.md"
           },
           {
-            "title": "Anthropic HIPAA-Ready BAA Acceptance Record",
-            "location": "docs/legal/ANTHROPIC_BAA_ACCEPTED.md"
+            "title": "Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16)",
+            "location": "docs/legal/2026-08-16_anthropic-baa-acceptance-record.md"
           },
           {
             "title": "Anthropic Business Associate Agreement (2026-05-06)",
@@ -385,8 +397,8 @@
             "location": "https://docs.google.com/document/d/1Q6hDhooIQVMArkpn4ppxr4om3-Hx64QmYiIQe0sSWmY/edit"
           },
           {
-            "title": "Incident Response and Breach Runbook",
-            "location": "docs/legal/BREACH_RUNBOOK.md"
+            "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+            "location": "docs/legal/2026-08-15_incident-response-breach-runbook.md"
           },
           {
             "title": "Written Information Security Program (WISP)",
@@ -411,12 +423,12 @@
             "location": "https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit"
           },
           {
-            "title": "Data Retention Schedule",
-            "location": "docs/legal/DATA_RETENTION.md"
+            "title": "Data Retention Schedule (2026-08-09 draft)",
+            "location": "docs/legal/2026-08-09_data-retention_draft.md"
           },
           {
-            "title": "AI Data-Flow Classification",
-            "location": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md"
+            "title": "AI Data-Flow Classification (2026-08-17 successor)",
+            "location": "docs/legal/2026-08-17_ai-data-flow-classification.md"
           }
         ],
         "gaps": [
@@ -435,8 +447,12 @@
             "location": "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md"
           },
           {
+            "title": "Compliance Posture Report (2026-08-22 successor)",
+            "location": "docs/legal/2026-08-22_compliance-posture-report.md"
+          },
+          {
             "title": "Compliance Posture Report",
-            "location": "docs/legal/COMPLIANCE_POSTURE_REPORT.md"
+            "location": "docs/legal/2026-08-20_compliance-posture-report.md"
           }
         ],
         "gaps": [
@@ -454,7 +470,34 @@
     "integrityNote": "--check also enforces: every canonicalSystem is one of canonicalSystemEnum; a git row canonicalLocation is a repo path (not a URL); a drive/notion row canonicalLocation is a URL and does not resolve to a tracked repo file (so a git doc cannot dodge hash verification by being relabeled drive/notion); and id + canonicalLocation are unique across the register.",
     "attestationHashNote": "attestation.attestedContentHash pins the sha256 of the bytes that were actually attested, alongside contentHash which tracks the file as it is now. document-register-render.rb --check fails when the two diverge on a canonicalSystem=git row: the attested revision no longer exists and re-attestation is owed. Enforced for git rows only - Drive and Notion hashes are operator-supplied with no automated refresh, so the field is rejected there. Render NEVER backfills this field; populating it from current bytes would make every attestation self-certifying. Only Scot attests, and the hash is pinned when the attestation is recorded.",
     "attestationBackfillExemptions": [],
-    "attestationBackfillNote": "CLEARED 2026-07-23. All seven rows that predated the attestedContentHash check were re-attested against their current revisions and now pin their attested bytes, so the grandfather list is empty and every attested git row is verifiable. It stays empty: the closed set in scripts/document-register-render.rb is the ceiling and nothing is ever added to it, so a future attestation must pin its hash when it is recorded."
+    "attestationBackfillNote": "CLEARED 2026-07-23. All seven rows that predated the attestedContentHash check were re-attested against their current revisions and now pin their attested bytes, so the grandfather list is empty and every attested git row is verifiable. It stays empty: the closed set in scripts/document-register-render.rb is the ceiling and nothing is ever added to it, so a future attestation must pin its hash when it is recorded.",
+    "legalNamingGrandfathered": [
+      "docs/legal/ACCESSIBILITY_CONFORMANCE_REPORT.md",
+      "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md",
+      "docs/legal/AI_DATA_SHARING_CONSENT.md",
+      "docs/legal/AI_GOVERNANCE_MEMO.md",
+      "docs/legal/ANTHROPIC_BAA_ACCEPTED.md",
+      "docs/legal/AWS_BAA_2026-02.pdf",
+      "docs/legal/AWS_BAA_ACCEPTED.md",
+      "docs/legal/BREACH_RUNBOOK.md",
+      "docs/legal/CAPABILITY_LEDGER.md",
+      "docs/legal/COMPLIANCE_DOCS_GUIDE.md",
+      "docs/legal/COMPLIANCE_POSTURE_REPORT.md",
+      "docs/legal/COMPLIANCE_PROGRAM.md",
+      "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md",
+      "docs/legal/COMPLIANCE_STATUS_2026-04-23.md",
+      "docs/legal/COMPLIANCE_STATUS_2026-06-18.md",
+      "docs/legal/COMPLIANCE_STATUS_2026-08-09.md",
+      "docs/legal/COPPA_VERIFICATION_2026-04-26.md",
+      "docs/legal/DATA_RETENTION.md",
+      "docs/legal/EU_AI_ACT_ARTICLE_50_PLAN.md",
+      "docs/legal/GCP_BAA_ACCEPTED.md",
+      "docs/legal/INCIDENT_LOG.md",
+      "docs/legal/PARENTAL_CONSENT_EMAIL.md",
+      "docs/legal/README.md",
+      "docs/legal/SUBPROCESSORS.md"
+    ],
+    "legalNamingNote": "CLOSED set of docs/legal records whose names predate the statusless dated naming rule (docs/legal/README.md, \"Naming\"). They keep their names because renaming breaks every inbound reference for no compliance benefit. scripts/legal-naming-check.rb treats any git-canonical docs/legal row that is neither dated nor listed here as a NEW violation, and treats a listed path that is no longer a row as a stale entry to remove. This list may only SHRINK. Note there is deliberately NO exemption list for the four grandfathered dated _draft records: the status-token check fires only on rows that carry an attestation, so their exemption expires automatically the moment one is attested."
   },
   "documents": [
     {
@@ -464,7 +507,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "COMPLIANCE.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -472,18 +515,19 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-23",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-10",
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
-        "attestedDate": "2026-07-23",
-        "attestedContentHash": "4afee21c69b01deeecca9f33e80fbb74f4d639ff381c5d539d06a4269912a126",
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "72af832942c4de82ef82de6e2ed0b4a35272db0934f07d745cea18044ef1c0ec",
         "priorAttestations": [
+          "2026-07-23",
           "2026-07-06"
         ],
-        "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist. Scope: the runtime-AI operational-status correction in PR #725. The prior corpus stated the Bedrock path was dormant and that no lingolinq-web revision carried a Bedrock credential; that was accurate when written and expired 2026-08-03T08:23:02Z when revision 00013-76w mounted BEDROCK_AWS_KEY/SECRET. The corpus now states a closed window: not operational to 2026-08-03T08:23Z, operational to 2026-08-04T06:31Z (one internal verification call, no user or student data), not operational since. Verified live: sts:GetCallerIdentity returned 239044785114 (user/lingolinq-bedrock-runtime)."
       },
-      "contentHash": "4afee21c69b01deeecca9f33e80fbb74f4d639ff381c5d539d06a4269912a126",
+      "contentHash": "72af832942c4de82ef82de6e2ed0b4a35272db0934f07d745cea18044ef1c0ec",
       "bundles": [
         "soc2-evidence"
       ],
@@ -496,7 +540,43 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-f6d26afec8"
+    },
+    {
+      "id": "DOC-f6d26afec8",
+      "title": "Compliance & Data Governance (2026-08-25 successor)",
+      "description": "Path A successor to the CEO-attested repo-root COMPLIANCE.md. Corrects three sites stating the Anthropic/Bedrock runtime AI path is NOT OPERATIONAL and that AiClient.configured? is false. Credentials were re-mounted on revision 00015-9l9 at 2026-08-04T07:25:08Z, 53 minutes after the withdrawal the predecessor recorded as the end state, and have been continuously mounted since; the path carries user-attributed traffic (63 of 64 AiApiLog rows have a user_global_id).",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-25_compliance-data-governance.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-25",
+      "nextReviewDue": "2026-11-25",
+      "attestation": {},
+      "bundles": [
+        "soc2-evidence"
+      ],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-9b299a785b",
+      "notes": "Path A successor to DOC-9b299a785b (attested 2026-08-04), created 2026-08-25. Corrects the Bedrock runtime operational-status claim at THREE sites: the subprocessor table Anthropic row (:130, \"NOT OPERATIONAL as of 2026-08-04 ... Not operational before or since ... Nothing egresses while the path is dormant\") the data-flow table AI APIs (Anthropic) row (:212, \"Not operational as of 2026-08-04\" / \"not operational before or since\", found in round-5 review), and the architecture-diagram status note (:182-190, \"the model leg of this diagram is NOT OPERATIONAL. No lingolinq-web revision currently carries a Bedrock credential\"). Both were overtaken 53 minutes after the moment they describe by the 00015-9l9 re-mount (evidence: docs/legal/2026-08-16_subprocessor-register.md:99,268; row counts :96). Direction of error is understatement of live AI egress, and the predecessor is in the soc2-evidence bundle, so the claim travels to auditors and prospects. GOVERNANCE NOTE FOR THE ATTESTER: Path A leaves the repo-root COMPLIANCE.md frozen with the false claim and no in-file pointer, in a PUBLIC AGPLv3 repository. If that is unacceptable, Path B (re-pin and re-attest COMPLIANCE.md in place) is the alternative and only Scot can authorise it; this successor is drafted so its corrected text serves either path.",
+      "contentHash": "29588f8b4a86b9c1e66f731da9f762c7e896a28784f7c715ff0187d916ae6445"
     },
     {
       "title": "Compliance Program",
@@ -505,7 +585,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/COMPLIANCE_PROGRAM.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -513,14 +593,18 @@
         "GDPR",
         "SOC2"
       ],
-      "lastReviewed": "2026-07-22",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-22",
-        "attestedContentHash": "1d1f81b0eeab01e63abf4d2c91101ff402928d3802c77528e327973f8067729e"
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "72070eb8e84a9c68b48dd2b3a90120b5e74ec5464f2f5e6da43787b547b5abc3",
+        "priorAttestations": [
+          "2026-07-22"
+        ],
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist as v1.2 (third pin, same day). The program described is unchanged from v1.1; this revision realigns the in-document version header with this register, which had pinned the document at 2026-08-04 while the header still read v1.1 / 2026-07-22. Scope of this pin: the version block, the attestation-statement date, the attestation-date row, and the added v1.2 scope paragraph. The substantive runtime-AI closed-window correction it describes was already present in the bytes pinned earlier the same day; no compliance claim changed in this revision."
       },
-      "contentHash": "1d1f81b0eeab01e63abf4d2c91101ff402928d3802c77528e327973f8067729e",
+      "contentHash": "72070eb8e84a9c68b48dd2b3a90120b5e74ec5464f2f5e6da43787b547b5abc3",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -533,7 +617,9 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-73a80fc88d",
+      "notes": "SUPERSEDED 2026-08-09 by DOC-73a80fc88d. Attested bytes and attestedContentHash left unchanged (Path A). Remains in frozen binder compliance-records-set-2026-06. Do not edit this file."
     },
     {
       "title": "Compliance Posture Report",
@@ -542,7 +628,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/COMPLIANCE_POSTURE_REPORT.md",
-      "status": "published",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
@@ -563,11 +649,7 @@
         "note": "Re-attested 2026-07-23 against the current revision after verification against live code and infrastructure state. The prior attestation covered a revision that no longer exists; see the document banner for what changed."
       },
       "contentHash": "b29b1cd0d5caf7c89425319f28a74dbea5b1ad2a618f0526201308333ff538f3",
-      "bundles": [
-        "school-dpa-package",
-        "security-review",
-        "grant"
-      ],
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
@@ -582,7 +664,204 @@
         "status": "draft"
       },
       "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-4fc1647b7e",
+      "notes": "SUPERSEDED 2026-08-09 by DOC-4fc1647b7e. Attested bytes and attestedContentHash left unchanged (Path A). Live bundles school-dpa-package / security-review / grant now point at the successor draft. Do not edit this file."
+    },
+    {
+      "title": "Compliance Posture Report (2026-08-09 draft)",
+      "description": "2026-08-09 counts refresh draft of the customer-facing posture report. Superseded, never attested.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-09_compliance-posture-report_draft.md",
+      "status": "superseded",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-09",
+      "nextReviewDue": "2026-11-09",
+      "attestation": {},
+      "contentHash": "c491a7aa043d8169d5c3d0e55c488dd92e2ea9f90b00c59e2cf2842c43ec9601",
+      "bundles": [],
+      "mirrors": [],
+      "supersedes": "DOC-4e3b7fb1fb",
+      "supersededBy": "DOC-59273ae805",
+      "notes": "Path A successor to attested COMPLIANCE_POSTURE_REPORT.md. SUPERSEDED 2026-08-20 by DOC-59273ae805 (Path A: never attested, so this row is retired rather than frozen-with-attestation; the grandfathered _draft transition rule in docs/legal/README.md required leaving this path before attestation).",
+      "id": "DOC-4fc1647b7e",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
       "dispositionEligibleAfter": null
+    },
+    {
+      "title": "Compliance Program (2026-08-09 draft)",
+      "description": "2026-08-09 v1.3 draft of the internal Compliance & Security Program (done vs roadmap). Superseded, never attested.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-09_compliance-program_draft.md",
+      "status": "superseded",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-09",
+      "nextReviewDue": "2027-08-09",
+      "attestation": {},
+      "contentHash": "7bf31eae81ded7034d0a70356689bb6c0b626cab8b4f5cd4ae4a2c2b20162628",
+      "bundles": [],
+      "mirrors": [],
+      "supersedes": "DOC-b61994933c",
+      "supersededBy": "DOC-5a4b795792",
+      "notes": "Path A successor to attested COMPLIANCE_PROGRAM.md v1.2. SUPERSEDED 2026-08-20 by DOC-5a4b795792 (Path A: never attested, so this row is retired rather than frozen-with-attestation; the grandfathered _draft transition rule in docs/legal/README.md required leaving this path before attestation).",
+      "id": "DOC-73a80fc88d",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
+    },
+    {
+      "title": "Compliance Posture Report",
+      "description": "Customer-facing posture; headline is the open Critical/High count from the findings register. Attested.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-20_compliance-posture-report.md",
+      "status": "superseded",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-20",
+      "nextReviewDue": "2026-11-20",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-20",
+        "attestedContentHash": "6c3373faff8bb936bbf14b5bec9986a8736b167d5296e883d28ac76e956e986a",
+        "priorAttestations": [
+          "2026-06-19",
+          "2026-07-16",
+          "2026-07-23"
+        ],
+        "note": "Attested 2026-08-20 after Claude Code verified every cited finding ID against the live register (audit-reports/FINDINGS.json at staging HEAD 64cdccba1) and confirmed the Article 50 server-side backstop (#829/#831) and disclosure-link contrast fix (#694) claims against live code. Infrastructure claims (Gate 1 cutover, GCP BAA/CDPA/SCCs, Redis TLS) are carried forward from the 2026-07-23 predecessor attestation and were not independently re-verified against live GCP/AWS state in this pass. Path A supersession of unattested draft DOC-4fc1647b7e (docs/legal/2026-08-09_compliance-posture-report_draft.md), which itself superseded DOC-4e3b7fb1fb (COMPLIANCE_POSTURE_REPORT.md, attested 2026-07-23)."
+      },
+      "contentHash": "6c3373faff8bb936bbf14b5bec9986a8736b167d5296e883d28ac76e956e986a",
+      "bundles": [
+        "school-dpa-package",
+        "security-review",
+        "grant"
+      ],
+      "mirrors": [],
+      "supersedes": "DOC-4fc1647b7e",
+      "notes": "Path A successor to unattested draft DOC-4fc1647b7e, which itself succeeded attested COMPLIANCE_POSTURE_REPORT.md (DOC-4e3b7fb1fb). Attested 2026-08-20.",
+      "id": "DOC-59273ae805",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-c5408d90b7"
+    },
+    {
+      "title": "Compliance & Security Program",
+      "description": "Framework overview across FERPA/HIPAA/GDPR/COPPA and SOC 2 posture.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-20_compliance-program.md",
+      "status": "superseded",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-20",
+      "nextReviewDue": "2027-08-07",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-20",
+        "attestedContentHash": "78804f7cd631c03216cf48518040a6e9bef16688abb290b997ba690b83c72b91",
+        "priorAttestations": [
+          "2026-06-18",
+          "2026-07-22",
+          "2026-08-04"
+        ],
+        "note": "Attested 2026-08-20 (v1.3) after Claude Code verified every cited finding ID against the live register (audit-reports/FINDINGS.json at staging HEAD 64cdccba1) and confirmed the Article 50 server-side backstop (#829/#831) and disclosure-link contrast fix (#694) claims against live code. Infrastructure and vendor/BAA claims (Sections 11, 15 points 2-3) are carried forward from the 2026-08-04 v1.2 attestation and were not independently re-verified against live GCP/AWS state in this pass. Path A supersession of unattested draft DOC-73a80fc88d (docs/legal/2026-08-09_compliance-program_draft.md), which itself superseded DOC-b61994933c (COMPLIANCE_PROGRAM.md v1.2, attested 2026-08-04)."
+      },
+      "contentHash": "78804f7cd631c03216cf48518040a6e9bef16688abb290b997ba690b83c72b91",
+      "bundles": [],
+      "mirrors": [],
+      "supersedes": "DOC-73a80fc88d",
+      "notes": "Path A successor to unattested draft DOC-73a80fc88d, which itself succeeded attested COMPLIANCE_PROGRAM.md v1.2 (DOC-b61994933c). Attested 2026-08-20 as v1.3.",
+      "id": "DOC-5a4b795792",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-e5e85eccb1"
+    },
+    {
+      "title": "Compliance Status Snapshot (2026-08-09)",
+      "description": "Internal done-vs-needed status snapshot at HEAD 20aab90d3. Attested 2026-08-20.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/COMPLIANCE_STATUS_2026-08-09.md",
+      "status": "superseded",
+      "frameworks": [],
+      "lastReviewed": "2026-08-20",
+      "nextReviewDue": "",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-20",
+        "attestedContentHash": "7703f09ffae717111b164c1ef0c1d3b52794a55b8fd81b7fef60ac9bd992547b",
+        "priorAttestations": [],
+        "note": "Attested 2026-08-20 in the same transaction as the Posture Report and Compliance Program re-attestations this snapshot recommended. Not a _draft-suffixed filename, so no Path A supersession was required for this row; attested in place per docs/legal/README.md's grandfathered-name rule."
+      },
+      "contentHash": "7703f09ffae717111b164c1ef0c1d3b52794a55b8fd81b7fef60ac9bd992547b",
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Successor operational snapshot after COMPLIANCE_STATUS_2026-06-18.md.",
+      "id": "DOC-3468caf949",
+      "retention": {
+        "class": "working-note",
+        "rule": "90 days",
+        "disposition": "delete",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-af01c65b10"
     },
     {
       "title": "AI Governance Memo",
@@ -591,24 +870,26 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AI_GOVERNANCE_MEMO.md",
-      "status": "published",
+      "status": "superseded",
       "frameworks": [
         "GDPR",
         "COPPA"
       ],
-      "lastReviewed": "2026-07-27",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2026-10-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-27",
-        "attestedContentHash": "74ec247f35dd8af99a17825e22df86cf34105a6ce6968c86d899bc12ddbe883e",
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "f35f99bd8b2971cad723b80fba1f9adffc7a212eeaadccd6b85c72ceb4269001",
         "priorAttestations": [
+          "2026-07-27",
           "2026-07-24",
           "2026-07-22"
         ],
-        "note": "Re-attested 2026-07-27 (Path B recovery on Scot/feat/bedrock-runtime-ai): removed contradictory \"re-attestation owed\" banners that remained after the 2026-07-24 Bedrock routing attestation, and reconciled section 3 AWS BAA coverage wording with the active Bedrock runtime route. Prior 2026-07-24 attestation covered the Bedrock routing bytes that still incorrectly said attestation was owed."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. This document previously named three different 'latest' dates (header banner 2026-07-27, attestation table 2026-07-24, closing trailer 2026-08-04). All three now read 2026-08-04, with the superseded dates preserved in a new prior-re-attestations row. Amended 2026-08-05 (second pin in this realignment, external review): section 5.2 boundary rule (3) still read as a live, undated 'awaits Scot's re-attestation' claim, contradicting this document's own 2026-08-04 attestation. Per instruction the clause is retained as the historical record of the Phase 5 handoff and carries a dated discharge note (2026-07-22, the date the memo's own section 8 amendment records Scot re-attesting the Phase 5 section 5.2 rewrite). No claim changed."
       },
-      "contentHash": "74ec247f35dd8af99a17825e22df86cf34105a6ce6968c86d899bc12ddbe883e",
+      "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-08-02 note said Bedrock 'has never been operational in production' and that runtime AI had been dormant since 00011-l7f. That was accurate through revision 00012-x8z and expired 2026-08-03T08:23:02Z, when 00013-76w mounted the Bedrock credentials. Correct statement: not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z with one logged seam call completed (internal verification, no user or student data); not operational since 00014-5rw. Re-attested by Scot Wahlquist 2026-08-04; the earlier 'Re-attestation owed' note is discharged.",
+      "contentHash": "f35f99bd8b2971cad723b80fba1f9adffc7a212eeaadccd6b85c72ceb4269001",
       "bundles": [
         "compliance-records-set-2026-06",
         "security-review"
@@ -616,7 +897,7 @@
       "mirrors": [
         {
           "system": "drive",
-          "location": "https://docs.google.com/document/d/1HEuWT7cS5zPmGI-o9SB2zsc1DJgArEAlCgJz0ECJK9U/edit"
+          "location": "https://docs.google.com/document/d/1fH7YutNAn2K9YHZF7h6g35FuA4dIpQOPQf6jQ71KhSc/edit"
         }
       ],
       "id": "DOC-39f37f8200",
@@ -627,7 +908,8 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-506bbe2039"
     },
     {
       "title": "Accessibility Conformance Report (ACR / VPAT)",
@@ -672,7 +954,7 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/DATA_RETENTION.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "GDPR",
@@ -691,12 +973,7 @@
         "note": "Re-attested 2026-07-23 against the current revision after live Cloud SQL verification. The RPO target is not established, so this attestation does not assert that the current recovery capability meets an RPO target. The prior attestation covered a revision that no longer exists. (Re-pinned after a same-day follow-up removed a stray blank line that had split the retention table; no substantive content change.)"
       },
       "contentHash": "0c748cadd7442821d768c475f64e32036dd1a8b3a86a9f3557a0f3a4aba84858",
-      "bundles": [
-        "soc2-evidence",
-        "school-dpa-package",
-        "security-review",
-        "dsar"
-      ],
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
@@ -711,7 +988,46 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-e62caf7fb9",
+      "notes": "Superseded 2026-08-09 by DOC-e62caf7fb9 (PR #721 Path A): Flusher UserVideo/ButtonSound erasure claim updates moved to the dated draft successor. Attested bytes and attestedContentHash on this row are frozen."
+    },
+    {
+      "title": "Data Retention Schedule (2026-08-09 draft)",
+      "description": "Draft successor to attested DATA_RETENTION.md; updates Flusher UserVideo/ButtonSound erasure claims to match flush_user_content at HEAD (PR #721).",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-09_data-retention_draft.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "GDPR",
+        "HIPAA",
+        "COPPA"
+      ],
+      "lastReviewed": "2026-08-09",
+      "nextReviewDue": "2027-04-20",
+      "attestation": {},
+      "contentHash": "603325c273bfb489c5d1804e09e5c4f1ff6b8dbc17a684e8a4f35ecb2ed05132",
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "dsar"
+      ],
+      "mirrors": [],
+      "notes": "Path A successor to DOC-bff9acf51f. Draft pending CEO attestation. Live bundles retargeted here; predecessor remains the frozen attested cut.",
+      "supersedes": "DOC-bff9acf51f",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-e62caf7fb9"
     },
     {
       "title": "Subprocessor Register",
@@ -720,34 +1036,33 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/SUBPROCESSORS.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "GDPR",
         "FERPA",
         "HIPAA"
       ],
-      "lastReviewed": "2026-07-23",
-      "nextReviewDue": "2027-07-23",
+      "lastReviewed": "2026-08-08",
+      "nextReviewDue": "2026-11-08",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-24",
-        "attestedContentHash": "f2ee37371ebf3b89037f42a6fc3aeedeb8d857a23297759604508c8ff5161fb3",
+        "attestedDate": "2026-08-08",
+        "attestedContentHash": "29360a41966130e4722c335ffe0ad0ba26375547abf24e3a575fa59b1a5b7ce0",
         "priorAttestations": [
+          "2026-07-24",
           "2026-07-06",
-          "2026-07-23"
+          "2026-07-23",
+          "2026-08-04",
+          "2026-08-06"
         ],
-        "note": "Re-attested 2026-07-24 (CEO, explicit) for the §2 subprocessor-notice position on the GCP infrastructure addition (#19): recorded the pre-tenant baseline / no-notice-owed position and the compliance-calendar gate `gate-first-tenant-subprocessor-baseline`. Covers content hash f2ee3737. The prior 2026-07-23 attestation covered revision 1e404832, which no longer exists."
+        "note": "Re-attested 2026-08-08 by Scot Wahlquist, CEO, against sha256 29360a41966130e4 which he was shown and explicitly confirmed before this pin was written. Scope of this pin, which is the union of the 2026-08-07 and 2026-08-08 amendments plus the record-completeness correction the superseded 2026-08-06 pin covered. (A) QUARTERLY FULL-REGISTER REVIEW PERFORMED 2026-08-08, and it found two active third-party processors absent from the section 4 table: Stripe, Inc. (lib/purchasing.rb sets Stripe.api_key and retrieves Customers and Charges; gem 'stripe' in the Gemfile), receiving payment and customer-identity data and named nowhere in the register before 2026-08-08; and iplocate.io, receiving user IP for geolocation from lib/external_tracker.rb (gated) and app/mailers/subscription_mailer.rb#new_subscription (UNGATED, no user-type check and no consent gate, so it can fire for a child account). Both are disclosed in new section 4.1 on identification rather than held until full rows are drafted, so the table is not mistaken for a complete inventory meanwhile; drafting rows requires per-vendor DPA verification, which is separate tracked work. THIS ATTESTATION IS MADE WITH THOSE TWO OMISSIONS DISCLOSED, NOT RESOLVED. The ungated iplocate call site is raised as findings-register entry LL-07f1869d92 for CEO triage. This review is the cycle that fell due 2026-07-20 and was not performed; rather than re-date the schedule past the gap, the CEO directed on 2026-08-08 that it be performed. (B) The Anthropic/Bedrock runtime status in row 4 and the section 5.7 consistency note is corrected against live infrastructure: both asserted that no lingolinq-web revision carried a Bedrock credential, when credentials have been continuously mounted on the serving revision since 2026-08-04T07:25:08Z. That claim was false at the time of the superseded 2026-08-06 attestation. The data-flow determination is unchanged, subject to the evidentiary limits now stated in row 4 (AiApiLog can under-record because log_ai_call rescues ActiveRecord::ActiveRecordError, and vendor-side confirmation is not obtainable with current AWS permissions). (C) The header revision chain is repaired: it named 2026-07-23 as the prior amendment, skipping 2026-07-24, 2026-08-02 and 2026-08-04, and its 'Last amended' date lagged the change log. (D) The 2026-08-05 discharge note carried a live 'a re-attestation IS currently outstanding' clause, now bounded to the revision it was true of. (E) Review cadence reconciled across all three scheduling sources. Scope of the superseded 2026-08-06 pin, retained here because these corrections are carried forward into these bytes: a record-completeness correction, recorded as the 2026-08-06 change-log entry. Three defects. (1) The section 8 change log is a three-column table, but the 2026-08-02 and 2026-08-04 rows were each authored with only two cells, so the 'Notified to customers' column was structurally absent from both, leaving an Article 28 change-log field unanswered rather than answered. Git history confirms the column was never populated in either row from the commits that introduced them (11453341a, 2624186d6), so this completes an omission at authoring and does not restore deleted content. Both cells are completed from each row's OWN section 2 determination, read with section 2's Pre-tenant baseline and section 5.7; neither is derived from a neighbouring row and neither notice determination changed. (2) The header's 'Last amended' date read 2026-07-23 while the change log already carried 2026-07-24, 2026-08-02 and 2026-08-04 entries. (3) The header carried an undated live clause that Privacy Office confirmation of the section 2 customer-notice timing was 'still owed before external publication'; true when written 2026-07-23, answered 2026-07-24, now bounded to the period it was true with the historical sentence retained. No vendor, data flow, contract, or classification changed in that revision, and none changed in this one either: section 4.1 discloses processors that were already in the code and already receiving data, not new flows. Those 2026-08-06 bytes were corrected before merge and never reached staging, so that attestation is SUPERSEDED rather than void, and 2026-08-06 is appended to priorAttestations as an ordinary entry (a different calendar day from this pin, so no ambiguity). Independently reviewed by Codex CLI (gpt-5.6-terra, Tier 2) across successive heads of PR #763; the Bedrock-status defect at (B) was surfaced by that review and verified against live Cloud Run revisions before this pin."
       },
-      "contentHash": "f2ee37371ebf3b89037f42a6fc3aeedeb8d857a23297759604508c8ff5161fb3",
-      "bundles": [
-        "school-dpa-package",
-        "soc2-evidence",
-        "security-review"
-      ],
+      "contentHash": "29360a41966130e4722c335ffe0ad0ba26375547abf24e3a575fa59b1a5b7ce0",
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
-          "location": "https://docs.google.com/document/d/13i7PUAZO-_lyUrObdB3CLDQ5KB9s5GNL7XHpcBCRn_M/edit"
+          "location": "https://docs.google.com/document/d/1AHinfXwANtcGNQ9LjMxyp6c-_82ybxClfKrQIeJh0I8/edit"
         }
       ],
       "id": "DOC-0387973005",
@@ -759,7 +1074,52 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "notes": "Re-attested by Scot Wahlquist, CEO, 2026-07-23. This revision adds the Abair Irish-TTS DISABLE (row #17, PR #674) and the localization/speech finding triage (LL-a167848115 remediated; LL-c38e7da48e and LL-1eb9a2435b accepted-risk) on top of the 2026-07-23 re-attestation recorded in PR #672 (which cleared the 2026-07-21/22/23 DRAFT amendments). Only Scot attests."
+      "notes": "Re-attested by Scot Wahlquist, CEO, 2026-07-23. This revision adds the Abair Irish-TTS DISABLE (row #17, PR #674) and the localization/speech finding triage (LL-a167848115 remediated; LL-c38e7da48e and LL-1eb9a2435b accepted-risk) on top of the 2026-07-23 re-attestation recorded in PR #672 (which cleared the 2026-07-21/22/23 DRAFT amendments). Only Scot attests.",
+      "supersededBy": "DOC-f850df36ad"
+    },
+    {
+      "title": "Subprocessor Register (2026-08-16 successor)",
+      "description": "Vendor / subprocessor list with data-flow and BAA/DPA status. Supersedes docs/legal/SUBPROCESSORS.md; corrects the Anthropic/Bedrock runtime status from \"carrying no traffic\" to active user-attributed egress.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-16_subprocessor-register.md",
+      "status": "approved",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-08-19",
+      "nextReviewDue": "2026-11-08",
+      "bundles": [
+        "school-dpa-package",
+        "soc2-evidence",
+        "security-review"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1AHinfXwANtcGNQ9LjMxyp6c-_82ybxClfKrQIeJh0I8/edit"
+        }
+      ],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-0387973005",
+      "id": "DOC-f850df36ad",
+      "contentHash": "fd8224cdfd7efdc87113de028273317aa765d3d43c56520c1a3a7fe47f894e1c",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-19",
+        "attestedContentHash": "fd8224cdfd7efdc87113de028273317aa765d3d43c56520c1a3a7fe47f894e1c",
+        "note": "First attestation of this dated successor (Path A successor to DOC-0387973005). Row 3's OpenAI note was corrected before signing: no OpenAI::Client.new call sites remain in the repository, so the prior 'in-repo OpenAI SDK clients target Gemini' wording no longer described the code. Runtime AI egress is received by AWS via Bedrock under the AWS BAA, with Anthropic, PBC as model provider."
+      }
     },
     {
       "title": "COPPA Final-Rule Verification",
@@ -852,31 +1212,28 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/BREACH_RUNBOOK.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA",
         "GDPR",
         "FERPA"
       ],
-      "lastReviewed": "2026-07-28",
-      "nextReviewDue": "2027-07-28",
+      "lastReviewed": "2026-08-02",
+      "nextReviewDue": "2027-08-02",
       "attestation": {
         "attestedBy": "Scot Wahlquist, CEO",
-        "attestedDate": "2026-07-28",
-        "attestedContentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
+        "attestedDate": "2026-08-01",
+        "attestedContentHash": "2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907",
         "priorAttestations": [
           "2026-06-21",
-          "2026-07-23"
+          "2026-07-23",
+          "2026-07-28",
+          "2026-07-31"
         ],
-        "note": "Re-attested 2026-07-28 by Scot Wahlquist, CEO. v2.2 refresh after the Dominic SEC-002 review and a current code/evidence check: re-homes incident detection and evidence-capture onto the GCP/Cloud Run + Cloud SQL + Bedrock reality (gcloud logging / Cloud Audit Logs / Cloud SQL clone as primary recovery; Render as write-frozen rollback fallback only), corrects the GDPR/HIPAA/COPPA/NY-Ed-Law notification prose, and removes stale OpenAI/Gemini vendor contacts. Prior attestation 2026-07-23."
+        "note": "Re-attested 2026-08-01 by Scot Wahlquist, CEO, as v2.2.1 (hash 2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907 @ commit 4ece3a6435). Correction release disclosing four v2.2 drafting defects (self-contradicting draft/attested changelog language; New York Ed Law 2-d; section 4.2 kill list; section 7 vendor contacts). Git-canonical v2.2 bytes are PR #703 commit 456b6735a6, hash 0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1; an earlier register claim that those bytes hashed fbdf49a1 is retracted (no such blob in merged ancestry). Distinct labels: v2.2 = 0ee1b92e... @ 456b6735a6; v2.2.1-interim = 2026-07-31 attestation at 95bc22359cf363e526ca0221a39b1c6f34c1d4afcd353c4c5b5fc8a4d97e5ae6 @ 271b2f961c (superseded before publication; date retained in priorAttestations); v2.2.1 = this 2026-08-01 attestation. Prior attestations: 2026-07-31, 2026-07-28, 2026-07-23, 2026-06-21."
       },
-      "contentHash": "0ee1b92ec130e89215383bcb1ae26de7be5ef6f9fcd1b80d6ad9ae6d41152af1",
-      "bundles": [
-        "soc2-evidence",
-        "school-dpa-package",
-        "security-review",
-        "baa"
-      ],
+      "correctionNote": "CORRECTION 2026-08-02 (not an attestation; only Scot attests). The attestation.note above covers v2.2.1 bytes (2b788387). The document is now v2.2.2: its section 7 Anthropic contact described the runtime AI path as active and asserted active Bedrock egress, which is false (no lingolinq-web revision carries a Bedrock credential; runtime AI dormant since 00011-l7f deployed 2026-07-30T16:37Z). Corrected and disclosed in BREACH_RUNBOOK.md section 13. Operationally material: a responder scoping an incident under v2.2.1 would look for egress that does not exist. Root evidence: the 2026-08-01 correction in docs/legal/AWS_BAA_ACCEPTED.md (PR #725, which must merge first). Re-attestation owed for v2.2.2.",
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
@@ -891,7 +1248,54 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "contentHash": "2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907",
+      "supersededBy": "DOC-28f19f73e4"
+    },
+    {
+      "title": "Incident Response and Breach Runbook (2026-08-15 successor)",
+      "description": "Operative incident response and breach runbook, v2.2.3. Supersedes docs/legal/BREACH_RUNBOOK.md, which is frozen at the v2.2.1 bytes attested 2026-08-01. Section 7 corrected 2026-08-15 to state that runtime AI egress to AWS Bedrock is ACTIVE and must be scoped during an incident.",
+      "type": "runbook",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-15_incident-response-breach-runbook.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA",
+        "GDPR",
+        "FERPA"
+      ],
+      "lastReviewed": "2026-08-15",
+      "nextReviewDue": "2027-08-02",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist, CEO",
+        "attestedDate": "2026-08-16",
+        "attestedContentHash": "ebe2c69f63ac34714106a6f47378da2cb19122352de174edeb270d352f4dc87d",
+        "note": "Attested 2026-08-16 by Scot Wahlquist, CEO. First attestation of this record; it supersedes DOC-d4e3b8be32 (docs/legal/BREACH_RUNBOOK.md), which remains frozen at the v2.2.1 bytes attested 2026-08-01 (2b788387259bc315fc4b1e5a10817f55ae2d9eae02988236b245c5f62ede1907) with its own attestation block unaltered. Delivered as a Path A supersession rather than a same-row re-pin, so the register keeps its byte-level link to that earlier signature. VERIFIED BEFORE ATTESTING, not assumed: section 7 states that runtime AI egress to AWS Bedrock is ACTIVE and must be included in incident scoping. Confirmed against production on 2026-08-15 and re-confirmed 2026-08-16: BEDROCK_AWS_KEY and BEDROCK_AWS_SECRET mounted on the serving revision lingolinq-web-00020-per, AiClient.configured? true, and 63 of 63 logged calls since the 2026-08-12 deploy succeeded on inference profile us.anthropic.claude-haiku-4-5-20251001-v1:0. Section 7 also records, and an MFA-session check confirmed, that Bedrock model-invocation logging has no destination configured in us-west-2, us-east-1, or us-east-2, and that account data retention is inherit resolving to the model default default, with no zero-data-retention guarantee claimed. This corrects the v2.2.2 \"dormant, no runtime model egress on any path\" marking, which was accurate on 2026-08-02 and was overtaken by PR #734. Review dates deliberately follow the attested bytes rather than the usual today+interval rebase: the frozen file states Last reviewed 2026-08-15 and Next review 2027-08-02, and the register must not contradict the bytes that were attested. Evidence pack: outputs/docs/2026-08-15-bedrock-runtime-verification-evidence.md; see also PR #722 and #734."
+      },
+      "bundles": [
+        "soc2-evidence",
+        "school-dpa-package",
+        "security-review",
+        "baa"
+      ],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po/edit"
+        }
+      ],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-d4e3b8be32",
+      "id": "DOC-28f19f73e4",
+      "contentHash": "ebe2c69f63ac34714106a6f47378da2cb19122352de174edeb270d352f4dc87d"
     },
     {
       "title": "Incident Log",
@@ -1016,26 +1420,25 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/ANTHROPIC_BAA_ACCEPTED.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-27",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-18",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-27",
-        "attestedContentHash": "21179eb31560cc33812909b7bc8ca36fc47f4e3a7a18240b0d57479534f6794e",
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "bb1ff239ec4cb2f2e1c38a2180c9b3a305417c29b7e9efad3e9a3c0959e455e0",
         "priorAttestations": [
+          "2026-07-27",
           "2026-07-24",
           "2026-07-18"
         ],
-        "note": "Re-attested 2026-07-27 (Path B recovery): removed contradictory \"re-attestation owed\" banner left after the 2026-07-24 Bedrock routing attestation. Prior 2026-07-24 attestation covered those Bedrock routing bytes."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the same Mantle-to-classic plane correction, and the operative-condition bullet bounded to its period with the 2026-08-04 verification recorded separately."
       },
-      "bundles": [
-        "baa"
-      ],
+      "bundles": [],
       "mirrors": [
         {
           "system": "drive",
@@ -1046,9 +1449,48 @@
           "location": "https://drive.google.com/file/d/1QQV-PrgsNtnQZtwa2BJ0bf1qrOG54Upr/view"
         }
       ],
-      "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body was fully updated and re-attested by Scot Wahlquist on 2026-07-19 in the AI governance memo re-attestation PR.",
+      "notes": "Parity with the AWS (docs/legal/AWS_BAA_ACCEPTED.md) and GCP (docs/legal/GCP_BAA_ACCEPTED.md) acceptance records. Model-provider BAA for the Anthropic runtime egress path; supersedes the prior 'no model-provider BAA / provisional pending CEO review' posture in COMPLIANCE.md, SUBPROCESSORS.md row 4, GCP_BAA_ACCEPTED.md, and AI_GOVERNANCE_MEMO.md (all reconciled in the same PR). Live enablement verified 2026-07-18 (Messages API 200; Files API 400 'not available for HIPAA-regulated organizations without Zero Data Retention'). Attested by Scot Wahlquist 2026-07-18 per explicit confirmation; git contentHash computed and CI-verified. The broader AI_GOVERNANCE_MEMO body was fully updated and re-attested by Scot Wahlquist on 2026-07-19 in the AI governance memo re-attestation PR. SUPERSEDED 2026-08-16 by DOC-91b87f5f7f. Attested bytes and attestedContentHash left unchanged (Path A). Live bundle baa now points at the successor. Do not edit this file.",
       "id": "DOC-ab3a8c3ed4",
-      "contentHash": "21179eb31560cc33812909b7bc8ca36fc47f4e3a7a18240b0d57479534f6794e",
+      "contentHash": "bb1ff239ec4cb2f2e1c38a2180c9b3a305417c29b7e9efad3e9a3c0959e455e0",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-91b87f5f7f"
+    },
+    {
+      "title": "Anthropic HIPAA-Ready BAA Acceptance and Runtime Status Record (2026-08-16)",
+      "description": "Path A successor to attested docs/legal/ANTHROPIC_BAA_ACCEPTED.md (DOC-ab3a8c3ed4). Carries forward, unchanged and not re-verified, the Anthropic HIPAA-Ready BAA acceptance details, coverage scope, and the eval-narration seam classification. Adds a 2026-08-16 sweep of lingolinq-web Cloud Run revisions 00013-76w through 00020-per for the BEDROCK_AWS_KEY/BEDROCK_AWS_SECRET credential pair, the serving-revision state (00020-per, 100 percent of traffic), and the first observation of BEDROCK_EXPECTED_AWS_ACCOUNT present on a serving revision (with its enforcement status explicitly not verified). Corrects the predecessor's frozen 'not operational as of 2026-08-04' claim, which git history shows was already false in the bytes that were attested. Attested by Scot Wahlquist, CEO, 2026-08-16.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-16_anthropic-baa-acceptance-record.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-08-16",
+      "nextReviewDue": "2027-08-16",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-16",
+        "attestedContentHash": "50d7771cce4d8946e1f34f7bcda47d2b5802ac7174d9bd69ddfa4e4d48757121",
+        "priorAttestations": [],
+        "note": "Attested 2026-08-16 by Scot Wahlquist, CEO, on the exact bytes at the pinned hash (commit 1d4b011e4, HEAD of this branch at attestation). Path A supersession of DOC-ab3a8c3ed4, whose file, filename, location, and 2026-08-04 attestation are frozen and were not modified by this cycle; priorAttestations is empty because these are new bytes and the lineage is carried by the supersedes pointer. Scope of this pin, per this document's own section 6: the acceptance and coverage facts carried forward in section 1; the credential-mount history in section 2.2 and the serving state in section 2.3, both bound to the 2026-08-16 evidence time; the narrow BEDROCK_EXPECTED_AWS_ACCOUNT observation and its explicit limits in section 2.4; the git-history findings and corrections in section 3, including the sentence-A/sentence-B distinction in 3.1 (the predecessor's 'not operational' claim was true for about fifteen minutes when first written at 07:09:39Z, but the bytes actually attested at commit 8340e88 and pinned into the register restated it 9h46m and 13h36m after credentials were restored on 00015-9l9, so it was false in the bytes that were attested); the evidentiary boundaries in section 4; and the verification standard added in section 5. Explicitly NOT attested: any claim that an in-app Bedrock call has succeeded in production; any claim that the account-assertion control (BEDROCK_EXPECTED_AWS_ACCOUNT) is actively enforcing in production; and any restatement of the 2026-07-18 Anthropic enablement probes, the 2026-07-19 eval-narration seam classification, the 2026-07-27 model-invocation-logging check, or the 2026-08-04 and 2026-08-10 caller-identity verifications as currently verified rather than carried forward at their own dates."
+      },
+      "supersedes": "DOC-ab3a8c3ed4",
+      "bundles": [
+        "baa"
+      ],
+      "mirrors": [],
+      "notes": "Path A successor to attested ANTHROPIC_BAA_ACCEPTED.md (DOC-ab3a8c3ed4). Predecessor's file, filename, location, and 2026-08-04 attestation are frozen and unmodified by this cycle; its bundle membership moved here, and it left the baa bundle.",
+      "id": "DOC-91b87f5f7f",
+      "contentHash": "50d7771cce4d8946e1f34f7bcda47d2b5802ac7174d9bd69ddfa4e4d48757121",
       "retention": {
         "class": "executed-agreement",
         "rule": "term + 7 years",
@@ -1065,27 +1507,26 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AWS_BAA_ACCEPTED.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "HIPAA"
       ],
-      "lastReviewed": "2026-07-27",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-05-11",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-27",
-        "attestedContentHash": "8895bd338274f504979477aadec47e5c64ac41cabe1bb9c90b654af81f4b687c",
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "376b1e18ce5297a8d9c23257850c1b028805d502090167b2a7b0c440941da2b9",
         "priorAttestations": [
           "2026-07-24",
           "2026-06-21",
           "2026-07-27"
         ],
-        "note": "Re-attested 2026-07-27: recorded the verified Bedrock operative conditions (deployed lingolinq-web credential resolves to the BAA'd AWS account 2390-4478-5114 / us-west-2; Bedrock model-invocation logging OFF in that account/region). Content-only verification; no scope change."
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (second pin, same day). Supersedes the earlier 2026-08-04 pin, whose bytes were corrected across three external review rounds before merge. Scope of this pin: the closed-window runtime-AI operational status (not operational through 00012-x8z; operational 2026-08-03T08:23Z to 2026-08-04T06:31Z on 00013-76w; not operational since 00014-5rw), with every historical claim explicitly bounded to the period it covers rather than stated as an unbounded absolute. Also pinned: the narrow verified/reachable/unavailable split for the operational window (word prediction exercised, one completed call; board generation and prediction seeding reachable but unexercised; eval narration unavailable throughout), the AiApiLog scoping note, and the 2026-08-04 sts:GetCallerIdentity verification recorded as a separate dated finding that does NOT revive the retracted 2026-07-27 claim."
       },
-      "contentHash": "8895bd338274f504979477aadec47e5c64ac41cabe1bb9c90b654af81f4b687c",
-      "bundles": [
-        "baa"
-      ],
+      "correctionNote": "CORRECTION 2026-08-02, SUPERSEDED 2026-08-04 (not an attestation; only Scot attests). The 2026-07-27 attestation note asserted the deployed lingolinq-web credential was verified to resolve to AWS account 2390-4478-5114. That verification is RETRACTED and stays retracted: it was false when made, and no revision from 00001-2vn (2026-06-29) through 00012-x8z (2026-08-02T20:31Z) carried a Bedrock credential. The 2026-08-02 wording 'has ever carried' was an unbounded absolute and is corrected to that bounded range, because revision 00013-76w (2026-08-03T08:23:02Z) did mount the credentials. The operative condition was then independently verified for the first time on 2026-08-04 (sts:GetCallerIdentity returned 239044785114, principal user/lingolinq-bedrock-runtime); that verification is dated 2026-08-04 and does not revive the 2026-07-27 claim. The attestation object is left unmodified because it records what was signed. Re-attested by Scot Wahlquist 2026-08-04.",
+      "contentHash": "376b1e18ce5297a8d9c23257850c1b028805d502090167b2a7b0c440941da2b9",
+      "bundles": [],
       "mirrors": [],
       "id": "DOC-286318ff28",
       "retention": {
@@ -1095,11 +1536,83 @@
         "status": "draft"
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "supersededBy": "DOC-211a60d29e"
+    },
+    {
+      "title": "AWS BAA Acceptance and Runtime Status Record",
+      "description": "Acceptance and provenance record for the signed AWS BAA, with Bedrock runtime status re-verified across all 18 lingolinq-web revisions on 2026-08-11. Supersedes the 2026-08-04 acceptance record.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-11_aws-baa-acceptance-record.md",
+      "status": "superseded",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-08-11",
+      "nextReviewDue": "2027-05-11",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-11",
+        "attestedContentHash": "d6d4fb76887c8c28c9e1f865b4ae60dc59dd8b9f8601d67346020ce692e330aa",
+        "priorAttestations": [],
+        "note": "Attested 2026-08-11 by Scot Wahlquist, CEO, on the exact bytes at the pinned hash. Path A supersession of DOC-286318ff28, whose file, filename, location, and 2026-08-04 attestation are frozen and were not modified by this cycle; priorAttestations is empty because these are new bytes and the lineage is carried by the supersedes pointer. Scope of this pin: the acceptance facts; the credential-mount history and serving state re-verified across all 18 lingolinq-web revisions within the 2026-08-11T18:41Z to 18:47Z evidence window, including the non-monotonic gap on 00014-5rw; the status of the BAA account assertion (built and merged to staging in PR #768, not enforcing in production because BEDROCK_EXPECTED_AWS_ACCOUNT is absent from serving revision 00018-cup); the nine corrections to the predecessor's frozen text; the evidentiary boundaries; and the verification standard. Explicitly NOT attested: any claim that an in-app Bedrock call succeeded in production. Bedrock model-invocation logging is carried forward at its original 2026-07-27 verification date and could not be re-verified at this evidence time, because bedrock:GetModelInvocationLoggingConfiguration is denied for the available principal."
+      },
+      "contentHash": "d6d4fb76887c8c28c9e1f865b4ae60dc59dd8b9f8601d67346020ce692e330aa",
+      "bundles": [],
+      "mirrors": [],
+      "id": "DOC-211a60d29e",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-286318ff28",
+      "supersededBy": "DOC-82e90ba16a"
+    },
+    {
+      "title": "AWS BAA Acceptance and Runtime Status Record (2026-08-12)",
+      "description": "Current standalone acceptance and provenance record for the signed AWS BAA, with Bedrock runtime status re-verified across all 18 lingolinq-web revisions on 2026-08-12. Supersedes the 2026-08-11 record.",
+      "type": "evidence",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-12_aws-baa-acceptance-record.md",
+      "status": "approved",
+      "frameworks": [
+        "HIPAA"
+      ],
+      "lastReviewed": "2026-08-12",
+      "nextReviewDue": "2027-05-11",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-12",
+        "attestedContentHash": "a5f2c59512fa04fa2c3f45c66fec2cc95ff3f8f76bb24e35046cd43a9566ea38",
+        "priorAttestations": [],
+        "note": "Attested 2026-08-12 by Scot Wahlquist, CEO, on the exact bytes at the pinned hash. Third record in a Path A chain: DOC-286318ff28 (attested 2026-08-04) superseded by DOC-211a60d29e (attested 2026-08-11) superseded by this record. Both predecessors keep their files, filenames, locations, attestations, and pinned hashes unmodified; this cycle changed only their lifecycle fields and bundle membership. priorAttestations is empty because these are new bytes and the lineage is carried by the supersedes pointer. Scope of this pin: the acceptance facts; the credential-mount history and serving state re-verified across all 18 lingolinq-web revisions on 2026-08-12 (sweep completing 16:29Z, remaining checks 16:30Z), including the non-monotonic gap on 00014-5rw; the status of the BAA account assertion (built and merged to staging in PR #768, not enforcing in production because BEDROCK_EXPECTED_AWS_ACCOUNT is absent from every revision including serving revision 00018-cup); the corrections to both predecessors; the evidentiary boundaries; and the verification standard. Explicitly NOT attested: any claim that an in-app Bedrock call succeeded in production, and any restatement of the 2026-07-27 model-invocation-logging check or the 2026-08-04 and 2026-08-10 caller-identity verifications as currently verified rather than carried forward at their own dates. Both the model-invocation-logging and CloudWatch checks were re-attempted 2026-08-12T16:30Z and remain denied for principal user/lingolinq-app."
+      },
+      "contentHash": "a5f2c59512fa04fa2c3f45c66fec2cc95ff3f8f76bb24e35046cd43a9566ea38",
+      "bundles": [
+        "baa"
+      ],
+      "mirrors": [],
+      "id": "DOC-82e90ba16a",
+      "retention": {
+        "class": "executed-agreement",
+        "rule": "term + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-211a60d29e"
     },
     {
       "title": "Compliance Status Snapshot (2026-06-18)",
-      "description": "Dated status snapshot. Superseded by the attested Posture Report (PR #454); kept for history.",
+      "description": "Dated status snapshot. Superseded by COMPLIANCE_STATUS_2026-08-09.md; kept for history.",
       "type": "audit-artifact",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -1109,7 +1622,7 @@
       "lastReviewed": "2026-06-18",
       "nextReviewDue": "",
       "attestation": {},
-      "contentHash": "94b8288187ead04f26a0c929afab0a234b3154ed7ba0dca06adad69a50d053a6",
+      "contentHash": "155c8a1a610275317ccd9401c7c034e006e293d2cc8ff21063faadf36eaccb57",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-d19d6ab8e6",
@@ -1122,7 +1635,8 @@
         "ambiguityNote": "sec 5.2 offers two readings for a superseded record: \"policies (each version)\" (7yr, archive) and \"superseded drafts with no attestation\" (1yr, delete). This was a published artifact, not a draft, so the archive reading was taken. Confirm with counsel."
       },
       "legalHold": false,
-      "dispositionEligibleAfter": null
+      "dispositionEligibleAfter": null,
+      "notes": "Superseded by DOC-3468caf949 (2026-08-09 status snapshot)."
     },
     {
       "title": "Compliance Status Snapshot (2026-04-23)",
@@ -1170,7 +1684,7 @@
       "lastReviewed": "2026-06-19",
       "nextReviewDue": "2026-09-19",
       "attestation": {},
-      "contentHash": "23c5edfd936ddcc670255ebd01017578f5007babcedb6c1b79fbf8396b5f2ec6",
+      "contentHash": "8c0a967e19a770b04429d425f7123171ae1e89ebd3f896596bd07efeb6dd7b10",
       "bundles": [],
       "mirrors": [
         {
@@ -1208,7 +1722,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-09-16",
       "attestation": {},
-      "contentHash": "f120e6526e52fa9440093026877ccd7c729ee5266c3c9dc07d8479a1f48182ef",
+      "contentHash": "113334ce9f06c2f8df598bd8b979663f1933939fdffe581ffd140143399f1b03",
       "bundles": [
         "compliance-records-set-2026-06"
       ],
@@ -1242,7 +1756,7 @@
       "lastReviewed": "2026-06-16",
       "nextReviewDue": "2026-12-16",
       "attestation": {},
-      "contentHash": "22b5592fb46a3e8f00467451f6789569a657f41dc8935647362661b9d6873a11",
+      "contentHash": "2447d50f97cd3bc314175bd694f54013fb8b88df7cf1d97180f61f703e95d6fb",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-b35f7a3444",
@@ -1301,7 +1815,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2027-06-21",
       "attestation": {},
-      "contentHash": "05c98f8f40f85ddbdae308e2a8721467377f92b9a286cf51501111ff66f5d5c5",
+      "contentHash": "c8e466f878b5d065f2a30d6b86915885a32c0eed63beabcd81a0d57541f7d508",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-a936b01d6a",
@@ -1326,7 +1840,7 @@
       "lastReviewed": "2026-06-21",
       "nextReviewDue": "2026-12-21",
       "attestation": {},
-      "contentHash": "fffaf2ed085616af30a6814e805d65ae0d605f470ce9cf8101ac4d290c6f31f3",
+      "contentHash": "bec29394758a39c12105553b51687f4fb1d028e4a30ced19d8f1c761d3465d1d",
       "bundles": [],
       "mirrors": [],
       "id": "DOC-d9f17c6919",
@@ -2478,26 +2992,28 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AI_DATA_FLOW_CLASSIFICATION.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
         "HIPAA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-22",
+      "lastReviewed": "2026-08-08",
       "nextReviewDue": "2027-07-22",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-22",
-        "attestedContentHash": "f16e851f8cc09794437f0f87089b309763124943af4a5475b1e60b25fcf9f475"
+        "attestedDate": "2026-08-08",
+        "attestedContentHash": "8c1479578f6bce463e6d3290340e88d6c7a5cf28bc312a0a7e2f203f53d99601",
+        "priorAttestations": [
+          "2026-07-22",
+          "2026-08-04",
+          "2026-08-06"
+        ],
+        "note": "Re-attested 2026-08-08 by Scot Wahlquist, CEO, against sha256 8c1479578f6bce46 which he was shown and explicitly confirmed before this pin was written. This remains a PROVISIONAL attestation: outside-counsel review is deferred until the full 5-phase VPC is built. Scope of this pin covers two corrections. FIRST, the section 3 runtime operational-status note asserted the Bedrock path had been not operational since revision 00014-5rw (2026-08-04T06:31:46Z); in fact Bedrock credentials have been continuously mounted on the serving lingolinq-web revision since 00015-9l9 at 2026-08-04T07:25:08Z, 53 minutes after the withdrawal that note cited. That claim was false at the time of the superseded 2026-08-06 attestation. The note is corrected and now states its evidentiary limits explicitly rather than asserting a negative it cannot establish. SECOND, carried forward from the superseded 2026-08-06 pin, a section 8 correction. The bullet resolving whether scrubbed neutral board generation can move to the Non-personal bucket read 'resolved 2026-07-09 (Scot's provisional attestation: stays gated)', stating the SUPERSEDED initial position as the outcome. That contradicted this document's own section 3 table (row 1: Non-personal, gate column 'No'), its own section 4.2 reclassification rationale, AI_DATA_SHARING_CONSENT.md section 7 (which records the Non-personal reclassification as 'the CURRENT, final position'), AND the shipped implementation: lib/lingo_linq/ai_consent_disclosures.rb deliberately omits board generation from the second-tier disclosure inventory with a comment citing section 4.2 by name, and config/locales/en.yml (board_suggestions_note) tells parents board suggestions are not covered by that consent. The bullet now states Non-personal as the final position with 'stays gated' retained and explicitly marked superseded. The decision itself is unchanged; only this document's description of it is corrected. No classification, gate, or data flow changed in either correction. The 2026-08-06 bytes were corrected before merge and never reached staging, so that attestation is SUPERSEDED rather than void, and 2026-08-06 is appended to priorAttestations as an ordinary entry (a different calendar day from this pin, so no ambiguity). Independently reviewed by Codex CLI (gpt-5.6-terra, Tier 2) across successive heads of PR #763; the Bedrock-status defect was surfaced by that review and verified against live Cloud Run revisions before this pin."
       },
-      "contentHash": "f16e851f8cc09794437f0f87089b309763124943af4a5475b1e60b25fcf9f475",
-      "bundles": [
-        "school-dpa-package",
-        "security-review",
-        "dsar"
-      ],
+      "contentHash": "8c1479578f6bce463e6d3290340e88d6c7a5cf28bc312a0a7e2f203f53d99601",
+      "bundles": [],
       "mirrors": [],
       "notes": "Re-attested (provisional) by Scot Wahlquist 2026-07-22, covering the current revision. The prior 2026-07-09 attestation covered an earlier revision (PR #656 rewrote the AI-log retention tiers). Before the re-attestation was recorded, the changed claims were verified against live code: AiApiLog.purge_old_eu_logs!(years: 5) exists at app/models/ai_api_log.rb and is dispatched from lib/tasks/scheduler.rake, and LingoLinq::Article50CallContext.for(user) stamps jurisdiction at exactly the three AI call sites. Outside-counsel review remains deferred until the full 5-phase VPC is built, so this stays a provisional attestation.",
       "retention": {
@@ -2508,7 +3024,85 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "id": "DOC-90b5d33227"
+      "id": "DOC-90b5d33227",
+      "supersededBy": "DOC-6d37a68cf4"
+    },
+    {
+      "title": "AI Data-Flow Classification (2026-08-17 successor)",
+      "description": "Classification of AI data flows. Supersedes docs/legal/AI_DATA_FLOW_CLASSIFICATION.md; corrects the Bedrock runtime status from \"carrying no traffic\" to active user-attributed egress.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-17_ai-data-flow-classification.md",
+      "status": "superseded",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-08-19",
+      "nextReviewDue": "2027-07-22",
+      "bundles": [
+        "school-dpa-package",
+        "security-review",
+        "dsar"
+      ],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-90b5d33227",
+      "id": "DOC-6d37a68cf4",
+      "contentHash": "473e7ebb4ef8e103a784b013d96a0957e2c6bad595b1153497f8716150df8362",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-19",
+        "attestedContentHash": "473e7ebb4ef8e103a784b013d96a0957e2c6bad595b1153497f8716150df8362",
+        "note": "First attestation of this dated successor (Path A successor to DOC-90b5d33227). Section 2's audit-basis paragraph was annotated before signing: it describes the code at c595f6304, which predates PR #570, and read in the present tense would have wrongly implied this product ships an OpenAI SDK aimed at Gemini."
+      },
+      "supersededBy": "DOC-48adac383b"
+    },
+    {
+      "id": "DOC-48adac383b",
+      "title": "AI Data-Flow Classification (2026-08-25 successor)",
+      "description": "Path A successor to the CEO-attested 2026-08-17 AI Data-Flow Classification. Withdraws the claim that the EU-jurisdiction AiApiLog retention tier is \"Enforced\" and \"Now functional ... matches EU rows\". In production the scheduled purge matches no row, because production has no confirmed :eu user so nothing is stamped. The control itself is implemented and verified end to end; this corrects a coverage claim, not the safeguard.",
+      "type": "policy",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-25_ai-data-flow-classification.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR"
+      ],
+      "lastReviewed": "2026-08-25",
+      "nextReviewDue": "2026-11-25",
+      "attestation": {},
+      "bundles": [
+        "school-dpa-package",
+        "security-review",
+        "dsar"
+      ],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-6d37a68cf4",
+      "notes": "Path A successor to DOC-6d37a68cf4 (attested 2026-08-19), created 2026-08-25. Corrects an ENFORCEMENT claim, not a compliance one: purge_old_eu_logs! deletes jurisdiction = 'EU' AND created_at < 5.years.ago (app/models/ai_api_log.rb:244-248); the jurisdiction column was created 2026-06-21 (db/migrate/20260621120000_add_article_50_fields_to_ai_api_logs.rb), so the oldest possible stamped row turns five years old on 2031-06-21 and the job matches zero rows until then. Two carriers: the attestation-history narrative (:36, PR #656 moved \"the EU tier from inert to functional\") and the section 6 retention table (:293). No data was retained longer than a rule permits; this is an enforcement-description defect, not a retention violation. The defect is that a document offered as evidence described a dormant job as an operating control. The same claim was corrected in place in the unattested draft docs/legal/2026-08-09_data-retention_draft.md (DOC-e62caf7fb9), which needed no supersession. NOTE ON LEGAL BASIS (added 2026-08-25 after review): the predecessor's \"Basis\" column attributes this tier to \"EU AI Act Article 50 record-keeping\". That attribution is INHERITED, not endorsed here, and is flagged as an open question for counsel: Article 50 is the AI Act's transparency provision and nothing in this record establishes that it imposes a five-year AiApiLog retention duty. This correction is scoped to the ENFORCEMENT claim only and takes no position on the legal basis. WINDOW CLAIM, tightened 2026-08-25 after review: the binding fact is the TABLE's age, not the stamp. ai_api_logs was created 2026-02-21 (db/migrate/20260221000001_create_ai_api_logs.rb), so no row can be five years old before 2031-02-21; write-time-stamped rows cannot qualify before 2031-06-21. A backfill or manual UPDATE stamping older rows could make one eligible sooner; no such backfill exists (no update_all touching jurisdiction). The earlier phrasing \"cannot delete any row before 2031-06-21\" was an overstatement. OPERATIVE REASON, added 2026-08-25 after review: the date is not why it matches nothing. The stamp writes 'EU' only for a confirmed :eu user (lib/eu_jurisdiction.rb; :unknown and :non_eu both map to nil), and as of the 2026-08-23 read EuJurisdiction.status is :unknown for 34 of 34 production accounts with jurisdiction null on all 64 AiApiLog rows. Nothing has ever been stamped, so the control is structurally dormant rather than merely date-gated; it does not start working in 2031 by the passage of time. ALIGNED 2026-08-26 after external review: an earlier phrasing here called the control \"structurally dormant\", which overstated it. spec/models/ai_api_log_spec.rb:550-586 drives a real EU user through the resolver and the purge deletes the row, so the mechanism is verified end to end. Zero production matches reflect an absence of eligible DATA (no confirmed :eu user; no row five years old), not a broken control. What the predecessor got wrong is that it matches EU rows in production today.",
+      "contentHash": "cc3eb2d246b39561bf45810b4aa9c5ab3f7c881d5c72c831444391533eff7e99"
     },
     {
       "title": "AI Data-Sharing Consent: Rationale and Policy",
@@ -2517,20 +3111,24 @@
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
       "canonicalLocation": "docs/legal/AI_DATA_SHARING_CONSENT.md",
-      "status": "approved",
+      "status": "superseded",
       "frameworks": [
         "FERPA",
         "COPPA",
         "GDPR"
       ],
-      "lastReviewed": "2026-07-09",
+      "lastReviewed": "2026-08-04",
       "nextReviewDue": "2027-07-09",
       "attestation": {
         "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-09",
-        "attestedContentHash": "c77ebb0dc5c8a228f32f268f40f36a74e60ef867a5ada78ba0e22f0d4a7ca914"
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "2e5f09a3a6c2ddfada3a56aac0c087040cac2752e9c6ac6609406afd1c38c868",
+        "priorAttestations": [
+          "2026-07-09"
+        ],
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. Status line and attestation-date row moved from 2026-07-09 to 2026-08-04, and the attestation scope now names the ZDR narrowing to the direct api.anthropic.com path with no ZDR guarantee claimed for the Bedrock runtime route."
       },
-      "contentHash": "c77ebb0dc5c8a228f32f268f40f36a74e60ef867a5ada78ba0e22f0d4a7ca914",
+      "contentHash": "2e5f09a3a6c2ddfada3a56aac0c087040cac2752e9c6ac6609406afd1c38c868",
       "bundles": [],
       "mirrors": [],
       "notes": "Register bookkeeping from the in-document attestation line (2026-07-09, provisional, conservative-default). Not yet reviewed by outside counsel. Scot to confirm or correct.",
@@ -2542,36 +3140,28 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "id": "DOC-2e9fdc06e4"
+      "id": "DOC-2e9fdc06e4",
+      "supersededBy": "DOC-33e056e136"
     },
     {
-      "title": "LingoLinq Security, Privacy & Compliance Overview",
-      "description": "The short, externally shareable program overview. Deliberately claims only controls that exist in the live production build.",
-      "type": "legal",
+      "id": "DOC-33e056e136",
+      "title": "AI Data-Sharing Consent: Rationale and Policy (2026-08-25 successor)",
+      "description": "Path A successor to the CEO-attested AI Data-Sharing Consent rationale. Corrects two operational-status facts in the section 3 bullet: the 2026-08-04 verification call was the first AiApiLog row but not the only one (64 rows as of 2026-08-16, 63 user-attributed), and the path did not stop being operational at the 00014-5rw withdrawal. The consent policy itself is unchanged.",
+      "type": "policy",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
-      "canonicalLocation": "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md",
-      "status": "approved",
+      "canonicalLocation": "docs/legal/2026-08-25_ai-data-sharing-consent.md",
+      "status": "draft",
       "frameworks": [
         "FERPA",
         "COPPA",
-        "HIPAA",
-        "GDPR",
-        "SOC2"
+        "GDPR"
       ],
-      "lastReviewed": "2026-07-23",
-      "nextReviewDue": "2027-07-22",
-      "attestation": {
-        "attestedBy": "Scot Wahlquist",
-        "attestedDate": "2026-07-23",
-        "attestedContentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046"
-      },
-      "contentHash": "47318beb94b3d3b9fa76845def3d68db6eddd38b7a6e2c44596d11b2d733b046",
-      "bundles": [
-        "security-review"
-      ],
+      "lastReviewed": "2026-08-25",
+      "nextReviewDue": "2026-11-25",
+      "attestation": {},
+      "bundles": [],
       "mirrors": [],
-      "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist, CEO, 2026-07-23 (rev. 2026-07-23-a): corrected the text-to-speech statement after Irish/Abair TTS was disabled (PR #674, no DPA on file) so the doc no longer names Abair as an active provider (see docs/legal/SUBPROCESSORS.md #17 and finding LL-a167848115). Prior re-attestation 2026-07-22 (rev. 2026-07-22-a) covered the COPPA-offboarding (#649) and GCP-cutover subprocessor/hosting (#652) rewrites; the 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision.",
       "retention": {
         "class": "policy-version",
         "rule": "supersession + 7 years",
@@ -2580,7 +3170,90 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "id": "DOC-03cb9fe91f"
+      "supersedes": "DOC-2e9fdc06e4",
+      "notes": "Path A successor to DOC-2e9fdc06e4 (attested 2026-08-04), created 2026-08-25. Corrects (1) \":66 recorded as the first and only row in AiApiLog\" - it was the first, not the only: 64 rows as of 2026-08-16, 63 carrying a user_global_id (docs/legal/2026-08-16_subprocessor-register.md:96,99); and (2) \":67 the path is not operational as of that timestamp\" - credentials were re-mounted 53 minutes later on 00015-9l9 at 2026-08-04T07:25:08Z and have been continuously mounted since (same source, :99,268). Revision credential mounts are NOT monotonic, so a status read from one revision does not establish a subsequent one. No consent policy, gate, or disclosure text changes; only the operational-status facts. A consent rationale is read to decide what families are told, so an UNDERSTATED egress is the direction of error that matters.",
+      "contentHash": "09d637ed88896da0deefe1f819b3697823b8454b1908064198897d3e556a83ea"
+    },
+    {
+      "title": "LingoLinq Security, Privacy & Compliance Overview",
+      "description": "The short, externally shareable program overview. Deliberately claims only controls that exist in the live production build.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md",
+      "status": "superseded",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-04",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {
+        "attestedBy": "Scot Wahlquist",
+        "attestedDate": "2026-08-04",
+        "attestedContentHash": "63205ea1780cabe4e1e4a49c25b314bbe61890a9cdd4dfe39d63a1edc445bce7",
+        "priorAttestations": [
+          "2026-07-23"
+        ],
+        "note": "Re-attested 2026-08-04 by Scot Wahlquist (attestation-block realignment, recorded 2026-08-05). The register had pinned this document at 2026-08-04 while the document's own attestation block still named an earlier date, so the body and the register disagreed about the document's own identity. Scope of this pin: attestation-block metadata only. No compliance claim, control description, or evidence citation changed in this revision; the substantive 2026-08-04 corrections were already present in the bytes pinned earlier that day. This is the externally shareable document, so the stale block was the highest-exposure instance. External-release authorization now reads 2026-08-04 (rev. 2026-08-04-a) with prior authorizations listed, and a 2026-08-04 re-attestation entry records the runtime-AI closed-window status that this revision states."
+      },
+      "contentHash": "63205ea1780cabe4e1e4a49c25b314bbe61890a9cdd4dfe39d63a1edc445bce7",
+      "bundles": [],
+      "mirrors": [
+        {
+          "system": "drive",
+          "location": "https://docs.google.com/document/d/1bN3p5lo0snYMC8WOT5JvnTzy1U5ar3so2NhtZIbcF7k/edit"
+        }
+      ],
+      "notes": "Re-attested for EXTERNAL RELEASE by Scot Wahlquist, CEO, 2026-07-23 (rev. 2026-07-23-a): corrected the text-to-speech statement after Irish/Abair TTS was disabled (PR #674, no DPA on file) so the doc no longer names Abair as an active provider (see docs/legal/SUBPROCESSORS.md #17 and finding LL-a167848115). Prior re-attestation 2026-07-22 (rev. 2026-07-22-a) covered the COPPA-offboarding (#649) and GCP-cutover subprocessor/hosting (#652) rewrites; the 2026-07-09 attestation (rev. 2026-07-09-c) covered an earlier revision. Superseded 2026-08-09 by DOC-90632edc44 (PR #721 Path A): data-lifecycle / voice-recording erasure claim updates moved to the dated draft successor. Attested bytes and attestedContentHash on this row are frozen; external-release authorization remains on this predecessor until Scot attests the successor.",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-03cb9fe91f",
+      "supersededBy": "DOC-90632edc44"
+    },
+    {
+      "title": "LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft)",
+      "description": "Draft successor to attested COMPLIANCE_PROGRAM_OVERVIEW.md. Began as an update to the data-lifecycle / voice-recording erasure claims to match Flusher.flush_user_content at HEAD (PR #721); later revisions corrected the runtime AI operational-status claim, and the 2026-08-29 and 2026-08-30 revisions narrowed that correction to what vendor telemetry supports, bounded the invocation-logging observation, and corrected an over-broad start-date disclaimer and an incorrect claim that the eval-narration seam had always been model-gated. Not authorized for external release until attested.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-09_compliance-program-overview_draft.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-30",
+      "nextReviewDue": "2027-07-22",
+      "attestation": {},
+      "contentHash": "87be31f25f11a3f67b0010302169bc4ce27492a4d9905ba132d7dc7a3acd09ef",
+      "bundles": [
+        "security-review"
+      ],
+      "mirrors": [],
+      "notes": "Path A successor to DOC-03cb9fe91f. Draft pending CEO attestation. Live security-review bundle retargeted here; predecessor remains the frozen externally authorized cut until Scot attests this successor.",
+      "supersedes": "DOC-03cb9fe91f",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-90632edc44"
     },
     {
       "title": "EU AI Act Article 50 Transparency: Implementation Milestone Plan",
@@ -2596,7 +3269,7 @@
       "lastReviewed": "2026-07-14",
       "nextReviewDue": "2026-08-02",
       "attestation": {},
-      "contentHash": "1a557d9d5b3d0fa00fbee146b773f1af979bf2379748564fa46c0fc7de7b1c89",
+      "contentHash": "3a67f5fb45127d1edb84c77261ca8c5b7d9ed3c4a93d41cc7cb41bedaf054224",
       "bundles": [],
       "mirrors": [],
       "notes": "Self-declared DRAFT for review. Regulatory deadline 2026-08-02 is tracked in audit-reports/compliance-calendar.json.",
@@ -2622,7 +3295,7 @@
       "lastReviewed": "2026-07-12",
       "nextReviewDue": "2027-01-12",
       "attestation": {},
-      "contentHash": "fc9879b3036b381cc7a64cba511e9a0c0315f76d40d5d5d35a27abeacb4de3c9",
+      "contentHash": "a947fe093837ab7186d2f12fa7c5b6de75aa5f23f3fb13001de3b6d6da0394c8",
       "bundles": [],
       "mirrors": [
         {
@@ -2655,7 +3328,7 @@
       "lastReviewed": "2026-07-22",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "e9f92d18c0613394db221b659ea2f0abd301123ae02a68815af960f2a87e36c6",
+      "contentHash": "9bdef6d4ae50281d2d1e97dc8018e4ae0d1e507cff6e8a1ecb1536539fd33bad",
       "bundles": [],
       "mirrors": [],
       "notes": "Written for IA report sec 9.2 (folder READMEs so agents stop filing things in the wrong place).",
@@ -2785,6 +3458,33 @@
       "legalHold": false,
       "dispositionEligibleAfter": null,
       "id": "DOC-9e70bd81e4"
+    },
+    {
+      "title": "code-hygiene-auditor agent definition",
+      "description": "Read-only dead-code and AI-slop finder for LingoLinq-AAC, added 2026-08-12 to the /audit-run fan-out.",
+      "type": "agent-config",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": ".claude/agents/code-hygiene-auditor.md",
+      "status": "published",
+      "frameworks": [],
+      "lastReviewed": "2026-08-12",
+      "nextReviewDue": "2027-02-12",
+      "attestation": {},
+      "contentHash": "c9f43e41bf85f31a59051726705ef38b5f8b34407589b212d12547ac84eb8c2e",
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "operational-config",
+        "rule": "retain while in use; supersession + 1 year",
+        "disposition": "archive",
+        "status": "draft",
+        "ambiguous": true,
+        "ambiguityNote": "agent-config is not a record class in the sec 5.2 starting table; operational-config was added for it and needs counsel confirmation."
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "id": "DOC-9208eb99d2"
     },
     {
       "title": "Compliance Posture Report (branded, 2026-07-16 re-attest)",
@@ -2962,6 +3662,198 @@
       "dispositionEligibleAfter": null,
       "driveFileId": "1vPwlcZwllRPuTU1TlqFeSwxJZ445pxsh6O0cBrGyE6M",
       "id": "DOC-78b0aa1618"
+    },
+    {
+      "title": "Compliance Posture Report (2026-08-22 successor)",
+      "description": "Corrects the 2026-08-12 run size (46 -> 40, 9/18/13), three mislabelled table headers that read \"Open\" while carrying live values, an off-by-one open-High count, an unqualified article_50_disclosure runtime claim, and a missing infrastructure methodology caveat. No count or posture claim otherwise changed.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-22_compliance-posture-report.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "WCAG",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-22",
+      "nextReviewDue": "2026-11-22",
+      "attestation": {},
+      "bundles": [
+        "grant",
+        "school-dpa-package",
+        "security-review"
+      ],
+      "mirrors": [],
+      "supersedes": "DOC-59273ae805",
+      "notes": "Path A successor to CEO-attested DOC-59273ae805 (docs/legal/2026-08-20_compliance-posture-report.md, attested 2026-08-20). UNATTESTED DRAFT - carries no attestation of its own. Corrects the following defects the predecessor carries: the 2026-08-12 run size (46 -> 40, 9/18/13), three tables headed \"Open\" while carrying live values, an off-by-one open-High count, unqualified \"at HEAD\" phrasing, a missing infrastructure methodology caveat, and an article_50_disclosure runtime claim that rested only on a code listing. BUNDLES, override recorded 2026-08-25: an earlier version of this note said bundles were 'intentionally EMPTY' and that school-dpa-package, security-review and grant must not be retargeted from DOC-59273ae805 'in the same change that attests it, not before'. That rule was CONSCIOUSLY OVERRIDDEN, for the same reason recorded on DOC-506bbe2039: the predecessor is CEO-attested but carries a falsified runtime claim ('article_50_disclosure remains AVAILABLE-only (not enabled)' at :36 and :138), and all three are customer-facing packs -- school districts, hospitals and grant reviewers. Shipping a signed-but-false document is worse than shipping a true-but-unattested one alongside it. This row is now in all three bundles; DOC-59273ae805 is RETAINED in each so every pack still contains an attested record. This row remains status:draft with an empty attestation; only Scot attests.",
+      "id": "DOC-c5408d90b7",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "contentHash": "de0e50fd746efd794069b2e991e7244d22af49b5d6d45f157b2f4859090e0f07"
+    },
+    {
+      "title": "Compliance & Security Program (2026-08-22 successor)",
+      "description": "v1.3.1. Corrects the 2026-08-12 run size (46 -> 40), live values labelled \"open\" in the attestation table, unqualified \"at HEAD\" statements, and unqualified article_50_disclosure runtime claims. No program claim otherwise changed.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-22_compliance-program.md",
+      "status": "draft",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "GDPR",
+        "SOC2"
+      ],
+      "lastReviewed": "2026-08-22",
+      "nextReviewDue": "2026-11-22",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "supersedes": "DOC-5a4b795792",
+      "notes": "v1.3.1. Path A successor to CEO-attested DOC-5a4b795792 (docs/legal/2026-08-20_compliance-program.md, v1.3, attested 2026-08-20). UNATTESTED DRAFT - carries no attestation of its own; Section 15 reproduces the v1.3 STATEMENT byte-for-byte and marks it as not re-made; the metadata table beneath that statement is not part of what was signed and does carry this successor's corrections (run size, HEAD-pinning, open -> live relabel, draft status). Corrects the 2026-08-12 run size (46 -> 40), live values labelled \"open\" in the attestation block, unqualified \"at HEAD\" phrasing, and the article_50_disclosure enablement claim.",
+      "id": "DOC-e5e85eccb1",
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "contentHash": "d304c29f355b4cd43e99f55270eff7f9641ef22e550416d9c6c18a5b14daff2c"
+    },
+    {
+      "title": "Compliance Status Snapshot (2026-08-22)",
+      "description": "Corrects the 2026-08-12 run size (46 -> 40, 9/18/13), unqualified \"at HEAD\" statements, and the unqualified article_50_disclosure runtime claim.",
+      "type": "audit-artifact",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-22_compliance-status-snapshot.md",
+      "status": "draft",
+      "frameworks": [],
+      "lastReviewed": "2026-08-22",
+      "nextReviewDue": "2026-11-22",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Path A successor to CEO-attested DOC-3468caf949 (docs/legal/COMPLIANCE_STATUS_2026-08-09.md, attested 2026-08-20). UNATTESTED DRAFT - carries no attestation of its own. Corrects the 2026-08-12 run size (46 -> 40, 9/18/13), unqualified \"at HEAD\" phrasing, stale self-references to the predecessor's attestation, and the article_50_disclosure enablement claim.",
+      "id": "DOC-af01c65b10",
+      "retention": {
+        "class": "working-note",
+        "rule": "90 days",
+        "disposition": "delete",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-3468caf949",
+      "contentHash": "6c80055d174c17e32a419e8dd7eb0dc162da085fb9269e9cc65cc71502cc193a"
+    },
+    {
+      "title": "Article 50(1) Disclosure - Production Feature-Flag Verification",
+      "description": "Direct read of production feature-flag state for article_50_disclosure across five layers (global default, org overrides, beta/canary cohorts, per-user resolution, DB override history). Finds the flag ENABLED in production via the default_enabled_features DB Setting, contradicting the code default; finds the enabled-since date structurally unrecoverable because Setting carries no version history.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-23_article-50-production-flag-verification.md",
+      "status": "draft",
+      "frameworks": [
+        "GDPR",
+        "EU_AI_Act"
+      ],
+      "lastReviewed": "2026-08-23",
+      "nextReviewDue": "2026-11-23",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "notes": "Evidence record, UNATTESTED DRAFT. Produced by four named audited read-only rails runner executions (lingolinq-migrate-jqpxb at 2026-08-23T21:04:12Z, lingolinq-migrate-4ss8l at 2026-08-23T21:08:00Z, lingolinq-migrate-wxt9x at 2026-08-23T23:14:30Z, lingolinq-migrate-stnwz at 2026-08-23T23:23:41Z) against RAILS_ENV=production on image web:73a8f633, attributed attribution label scot-art50-flag-verification-2026-08-23, supplied via the USER_KEY environment variable. AuditEvent.count moved 245 to 251 (six runner sessions) under that label; two of those six have no retained Cloud Run execution ID in this record and are disclosed as unbound. Resolves the open Article 50(1) enablement question carried by DOC-c5408d90b7, DOC-e5e85eccb1 and DOC-af01c65b10, and corroborates the attested live-production observation at docs/legal/2026-08-17_ai-data-flow-classification.md:132. Does NOT establish an enabled-since date: Setting has no PaperTrail history (0 version rows) and Setting.set overwrites in place, so that question is unanswerable for every Setting-backed control, not only this flag. Surfaces two pre-existing open items: zero organizations carry a jurisdiction stamp, and code/DB disagree on the default feature set.",
+      "id": "DOC-6c023a20a0",
+      "contentHash": "761492d309ecfcb9482c1ed0bfb0cfd0923b2acd3a08d31ce9adf42f435ac0e8",
+      "retention": {
+        "class": "audit-evidence",
+        "rule": "7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null
+    },
+    {
+      "title": "AI Governance Memo (2026-08-24 successor)",
+      "description": "Path A successor to the CEO-attested AI Governance Memo. Corrects the Article 50(1) enablement and inertness claims a direct production read falsified on 2026-08-23 -- the disclosure modal is not \"gated OFF\" and not \"inert\"; the flag is ENABLED in production via the default_enabled_features DB Setting. The same read does not establish that the modal was displayed; \"shown to no one because the flag is off\" is false, but this record does not claim the UI rendered. Adds the population-scope fact the predecessor could not state: all 34 production accounts are test/QA accounts, so no real person has encountered an undisclosed AI interaction.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-24_ai-governance-memo.md",
+      "status": "draft",
+      "frameworks": [
+        "GDPR",
+        "COPPA",
+        "EU_AI_Act"
+      ],
+      "lastReviewed": "2026-08-24",
+      "nextReviewDue": "2026-11-24",
+      "attestation": {},
+      "bundles": [
+        "security-review"
+      ],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "supersedes": "DOC-39f37f8200",
+      "notes": "Path A successor to DOC-39f37f8200 (attested 2026-08-04), created 2026-08-24 and reconciled 2026-08-25. Corrects TWO independent defect classes. (1) EU AI Act Article 50 status: the predecessor said the 50(1) disclosure modal is 'built and staged, gated OFF, not yet enabled for any user', that 'the whole path is inert', and that it is 'shown to no one in production'. A direct audited production read on 2026-08-23 falsified the enablement and inertness claims -- the article_50_disclosure flag IS ENABLED via the default_enabled_features DB Setting, which overrides the code constant (evidence: DOC-6c023a20a0, unattested). The same read does not establish that the modal was displayed; 'shown to no one because the flag is off' is false, but this record does not claim the UI rendered. (2) Bedrock runtime status, at four sites (section 2 operational-status note, section 3 BAA coverage bullet, the Runtime routing update paragraph, and the 2026-08-04 trailer), all of which stated or implied the runtime AI path has been not operational since revision 00014-5rw; credentials were re-mounted 53 minutes later on 00015-9l9. Those corrections were folded in from the never-merged PR #827 by three-way git merge-file over the frozen predecessor as common base; #827 is superseded by this record. BUNDLES: an earlier version of this note said security-review must not be retargeted until this record is attested. That rule was consciously OVERRIDDEN on 2026-08-25: the pack is customer-facing diligence and pinning it solely to the predecessor shipped the falsified 'shown to no one in production' claim to school districts and hospitals. Both records are now in the pack -- this successor for the corrected content, the predecessor so the pack still contains an ATTESTED AI-governance record. compliance-records-set-2026-06 is a frozen point-in-time binder and stays on the predecessor only. KNOWN GAP, not fixed here: docs/legal/2026-08-20_compliance-posture-report.md (also a security-review member) still says at :36 and :138 that article_50_disclosure 'remains AVAILABLE-only (not enabled)'. CORRECTED 2026-08-25: that file (DOC-59273ae805) is SUPERSEDED by DOC-c5408d90b7 (2026-08-22), which corrects exactly that claim at its own :106. The predecessor is attested and Path-A frozen, so \"until that is swept\" prescribed something impossible. The real residual is that the superseded row retains its bundle membership on this point. Still status:draft with empty attestation; only Scot attests.",
+      "id": "DOC-506bbe2039",
+      "contentHash": "6a44bb9d66857c4ccbf10a701b85012654baf8b72f8aca01d19b8f1f9e839e23"
+    },
+    {
+      "title": "Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft)",
+      "description": "Draft-for-counsel review memorandum. Separates what the code does today from the lean policy direction under consideration, withdraws the EU AI Act Article 50 retention theory and narrows the six-year HIPAA floor to Security Rule documentation, proposes short purpose-tied retention windows in place of five- and six-year defaults, lists the implementation gaps, and closes with 31 questions for outside counsel. Carries one dated item: the Article 50(2) machine-readable-marking retrofit, whose grace period for pre-existing generative systems appears to end 2026-12-02. Claims no HIPAA/FERPA/COPPA conformance. Supersedes nothing and modifies no attested record.",
+      "type": "legal",
+      "owner": "Scot Wahlquist",
+      "canonicalSystem": "git",
+      "canonicalLocation": "docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md",
+      "status": "draft",
+      "frameworks": [
+        "HIPAA",
+        "FERPA",
+        "COPPA",
+        "GDPR",
+        "EU_AI_Act"
+      ],
+      "lastReviewed": "2026-08-30",
+      "nextReviewDue": "2026-11-30",
+      "attestation": {},
+      "bundles": [],
+      "mirrors": [],
+      "retention": {
+        "class": "policy-version",
+        "rule": "supersession + 7 years",
+        "disposition": "archive",
+        "status": "draft"
+      },
+      "legalHold": false,
+      "dispositionEligibleAfter": null,
+      "notes": "Created 2026-08-30 as a NEW review record, not a successor: it supersedes no row and leaves every attested record frozen and byte-identical. Verified against origin/staging 8afabd1d2. Records three classes of finding for counsel. (1) LEGAL PREMISE: the five-year EU AiApiLog tier is attributed to 'EU AI Act Article 50 record-keeping', but Article 50 imposes no record-keeping duty; the AI Act's only log-retention duty is Article 19, a six-month floor binding providers of HIGH-RISK systems. The six-year 'HIPAA floor' over ai_api_logs cites 45 CFR 164.316(b)(2)(i), which applies six years to DOCUMENTATION required by the Security Rule, not to PHI or application logs. Both are proposed for withdrawal/narrowing and are put to counsel at questions 6, 7 and 13; neither is applied to any record here. This matters operationally because lib/tasks/scheduler.rake:174-181 names the six-year floor as the reason the ratified 24-month and 12-month AiApiLog tiers were never built. (2) DOC-VS-CODE: DATA_RETENTION.md states a 3-year LogSession default (no default exists in code), a 6-year PaperTrail cold-storage archival job (does not exist; User.flush_old_versions DELETES those versions at 1 week / 1 month / 6 months), a ClusterLocation 90-day nightly trim, a children's age-18 sweeper, a LogSnapshot cascade, 'raw events 2 years', and 2-year inactivity (code is 12 months). TelemetryEvent.flush and ApiCall.flush exist with no caller. Each NOT-FOUND was verified by grep at the audited commit. (3) URGENT, CUSTOMER-FACING: app/frontend/app/templates/privacy.hbs:67 tells users 'Today none of these features send any user content to an AI vendor, because the Bedrock path is inactive'; no inactive switch exists in code and this register records 63 production Bedrock calls. Raised as question 21. Also records four non-Bedrock egress paths our AI documents do not cover (Google Speech-to-Text carrying raw child voice audio gated only by the coarse external_ai_processing switch, Google TTS, Google Translate, OpenSymbols), none gated by COPPA/EU/Art50 and none written to AiApiLog. Unattested and remains so: only Scot attests, and this record is explicitly marked DRAFT FOR COUNSEL REVIEW, NOT LEGAL ADVICE. SECOND RESEARCH PASS (same day) added four items, each verified before inclusion. (a) EU AI ACT TIMELINE: the Digital Omnibus, Regulation (EU) 2026/1744, in force 2026-07-27, deferred stand-alone Annex III high-risk obligations to 2027-12-02 and Annex I to 2028-08-02, but did NOT amend Article 50, which has applied since 2026-08-02. Generative systems already on the market before that date appear to have until 2026-12-02 to retrofit Article 50(2) machine-readable marking. That is the only dated obligation in the memo and it bears directly on boards_controller.rb:635-641, whose own comment records that the marker is not persisted onto saved/exported/shared boards. PROVENANCE CORRECTED on the review pass: an earlier version of this note said the omnibus was sourced from law-firm analyses rather than EUR-Lex. That was true when written and became false in the same change set, because CELEX:32026R1744 was then retrieved from EUR-Lex directly and the memo was updated to say so; this note was not. The memo's section 16 is authoritative: the omnibus WAS pulled from EUR-Lex, Article 1(38) inserting the four-month Article 50(2) marking transition into Article 111 and Article 1(40) amending Article 113, with one residual caution recorded there that the retrieved wording reads as recital language. (b) COPPA SCHOOL PATHWAY: the FTC expressly DECLINED to codify the ed-tech/school-authorization pathway in the 2025 amendments, so it rests on 1999 staff guidance rather than Rule text; privacy.hbs:74 relies on it. (c) ORPHANED CONSENT: the versioned verifiable-AI-consent mechanism (ai_consent_granted?/grant_ai_consent!/revoke_ai_consent!, versioned disclosures, AuditEvents) has NO runtime caller outside user.rb, verified by grep; what actually gates AI is the account-activation COPPA consent, while privacy.hbs:74 promises consent 'under 16 CFR Part 312' for AI use specifically. (d) INERT COLUMN: no AI call site passes ip_address or organization_global_id to AiApiLog.log_ai_call, so the scheduled 90-day IP redaction has nothing to redact. Also records that eval narration writes the FULL untruncated clinical narrative into response_summary (eval_narrator.rb:219). A first-pass US state student-privacy survey (CA SOPIPA/AB 1584, NY Ed Law 2-d, IL SOPPA) was added as questions rather than positions, explicitly flagged as sourced from secondary summaries rather than statute text. REVIEW PASS (Codex on PR #889) produced five accepted findings, all fixed rather than argued: gap 20 still claimed EU routing would END the Chapter V transfer after section 5.2 had been corrected to say it removes one onward leg; this register note contradicted the memo on omnibus provenance; six question cross-references pointed at the wrong question and three gaps (public-read upload ACL, Sentry telemetry, the OpenSymbols instrument) had no question at all; Sentry was absent from the external-egress remediation list while section 5.3 documented it as a live user-data egress; and proposed rule 6 described a no-instrument-no-content rule as 'current practice' when no OpenSymbols DPA or BAA is recorded anywhere. Questions renumbered to 31 across eight subsections and every reference re-verified programmatically.",
+      "id": "DOC-58b3944cad",
+      "contentHash": "a82116b03b78e1826355e3750e40cc213f91de466fa7fd4f153ba579d7dc13b1"
     }
   ]
 }

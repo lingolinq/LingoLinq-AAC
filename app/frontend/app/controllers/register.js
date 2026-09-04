@@ -45,16 +45,16 @@ export default Controller.extend({
   showGoogleSignup: computed('google_signup', 'googleSignupProfile', function() {
     return !!(this.get('google_signup') && this.get('googleSignupProfile'));
   }),
-  // Communicator + EU country + under 16 → hide product-improvement opt-in.
+  // EU country + under 16 → hide product-improvement opt-in.
+  // Applies to communicator and supporter; the server stamps eu_under_16
+  // from country + the under_16 flag, not from registration_type.
   euUnder16Registration: computed(
     'registration_country',
     'birth_month',
     'birth_year',
-    'model.preferences.registration_type',
     function() {
       var country = (this.get('registration_country') || '').toUpperCase();
       if(EU_COUNTRY_CODES.indexOf(country) === -1) { return false; }
-      if(this.get('model.preferences.registration_type') !== 'communicator') { return false; }
       return !!this._classifyUnder16();
     }
   ),
@@ -77,8 +77,8 @@ export default Controller.extend({
     return false;
   }),
   registration_types: LingoLinq.registrationTypes,
-  // Two-tier role: top-level dropdown (communicator/supporter) + supporter
-  // sub-type buttons. `registration_role` is UI-only; the persisted value is
+  // Two-tier role: top-level cards (communicator/supporter) + supporter
+  // sub-type radios. `registration_role` is UI-only; the persisted value is
   // always model.preferences.registration_type (communicator or a supporter
   // sub-type), set by the actions below.
   role_categories: LingoLinq.roleCategories,
@@ -129,11 +129,31 @@ export default Controller.extend({
     return !!(this.get('birth_month') && this.get('birth_year'));
   }),
   communicatorAgeRequired: computed('triedToSave', 'birthDateComplete', 'registrationStep', function() {
-    return this.get('triedToSave') && this.get('registrationStep') === 'communicator_age' && !this.get('birthDateComplete');
+    var step = this.get('registrationStep');
+    if(!this.get('triedToSave') || this.get('birthDateComplete')) { return false; }
+    return step === 'communicator_age' || step === 'supporter_type';
+  }),
+  // Live label on communicator/supporter continue. Incomplete or 13+ stays
+  // "Create your account"; only a complete under-13 DOB switches copy.
+  showsParentApprovalContinue: computed('birth_month', 'birth_year', function() {
+    return this._classifyCommunicatorAge() === 'under_13';
+  }),
+  localeList: computed(function() {
+    var list = i18n.get('locales');
+    var res = [{name: i18n.t('english_default', "English (default)"), id: 'en'}];
+    for(var key in list) {
+      if(!key.match(/-|_/)) {
+        var str = i18n.locales[key] || key;
+        res.push({name: str, id: key});
+      }
+    }
+    return res;
+  }),
+  under13BackStep: computed('registration_role', function() {
+    return this.get('registration_role') === 'supporter' ? 'supporter_type' : 'communicator_age';
   }),
   countryOptions: computed(function() {
     return [
-      {id: '', name: i18n.t('select_country_placeholder', "Select country…")},
       {id: 'US', name: i18n.t('country_us', "United States")},
       {id: 'GB', name: i18n.t('country_gb', "United Kingdom")},
       {id: 'CA', name: i18n.t('country_ca', "Canada")},
@@ -191,6 +211,9 @@ export default Controller.extend({
     }
     return false;
   }),
+  supporterTypeRequired: computed('triedToSave', 'registrationStep', 'roleIncomplete', function() {
+    return this.get('triedToSave') && this.get('registrationStep') === 'supporter_type' && this.get('roleIncomplete');
+  }),
   selectedRoleSignupHeading: computed('model.preferences.registration_type', function() {
     switch(this.get('model.preferences.registration_type')) {
       case 'parent':
@@ -214,7 +237,7 @@ export default Controller.extend({
   shortPassword: computed('model.password', 'model.password2', 'triedToSave', function() {
     var password = this.get('model.password') || '';
     var password2 = this.get('model.password2');
-    return (this.get('triedToSave') || password == password2) && password.length < 6;
+    return (this.get('triedToSave') || password == password2) && password.length < 8;
   }),
   noSpacesName: computed('model.user_name', function() {
     return !!(this.get('model.user_name') || '').match(/[\s\.'"]/);
@@ -325,7 +348,7 @@ export default Controller.extend({
     if(!this.get('model.terms_agree')) { return true; }
     if(this.get('userNameBlank') || this.get('noSpacesName') || this.get('userNameUnavailable')) { return true; }
     if(!(this.get('model.email') || '').trim()) { return true; }
-    if((this.get('model.password') || '').length < 6) { return true; }
+    if((this.get('model.password') || '').length < 8) { return true; }
     return false;
   }),
   clear_start_code_ref: observer('model.start_code', 'start_code_ref', function() {
@@ -410,6 +433,26 @@ export default Controller.extend({
     }
     return false;
   },
+  // POST /auth/google/start so birth month/year is not on a GET query string
+  // (history, proxy logs, referrer). Login start stays GET.
+  _submitGoogleRegisterStart: function(fields, openBlank) {
+    if(typeof document === 'undefined' || !document.body) { return; }
+    var form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/auth/google/start';
+    form.acceptCharset = 'UTF-8';
+    if(openBlank) { form.target = '_blank'; }
+    var keys = Object.keys(fields || {});
+    for(var i = 0; i < keys.length; i++) {
+      var input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = keys[i];
+      input.value = fields[keys[i]] == null ? '' : String(fields[keys[i]]);
+      form.appendChild(input);
+    }
+    document.body.appendChild(form);
+    form.submit();
+  },
   _setProductImprovementPrefs: function(value) {
     var enabled = !!value;
     // Signup model is the user record (route createRecord); do not require a
@@ -440,6 +483,12 @@ export default Controller.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
+    // Named so no-orphaned-action sees 'toggle_product_improvement'. Do not
+    // use ctrlAction here: that preventDefaults and would block the checkbox.
+    this.onProductImprovementChange = function(event) {
+      var checked = !!(event && event.target && event.target.checked);
+      self.send('toggle_product_improvement', checked);
+    };
   },
   actions: {
     go_to_step: function(step) {
@@ -456,7 +505,7 @@ export default Controller.extend({
         // 'supporter' is a UI grouping; the persisted registration_type must be
         // a supporter sub-type (therapist/parent/teacher/other) so the backend
         // maps role=supporter. Clear any non-supporter value to force a choice
-        // via the buttons.
+        // via the radios.
         if(['therapist', 'parent', 'teacher', 'other'].indexOf(this.get('model.preferences.registration_type')) === -1) {
           this.set('model.preferences.registration_type', null);
         }
@@ -468,12 +517,22 @@ export default Controller.extend({
       }
     },
     select_supporter_type: function(type) {
-      this.set('triedToSave', true);
-      if(!(this.get('registration_country') || '').trim()) { return; }
-      this.set('triedToSave', false);
       this.set('registration_role', 'supporter');
       this.set('model.preferences.registration_type', type);
-      this.set('registrationStep', 'account');
+    },
+    continue_supporter_type: function() {
+      this.set('triedToSave', true);
+      if(!(this.get('registration_country') || '').trim()) { return; }
+      var ageGroup = this._classifyCommunicatorAge();
+      if(!ageGroup) { return; }
+      if(['therapist', 'parent', 'teacher', 'other'].indexOf(this.get('model.preferences.registration_type')) === -1) { return; }
+      this.set('triedToSave', false);
+      this.set('coppa_age_group', ageGroup);
+      if(this.get('euUnder16Registration')) {
+        this.set('productImprovementOptIn', false);
+        this._setProductImprovementPrefs(false);
+      }
+      this.set('registrationStep', ageGroup === 'under_13' ? 'under_13' : 'account');
     },
     continue_communicator_age: function() {
       this.set('triedToSave', true);
@@ -525,21 +584,29 @@ export default Controller.extend({
       if(!this.get('googleRegisterAllowed') || !this.persistence.get('online')) { return; }
       var euUnder16 = !!this.get('euUnder16Registration');
       var optIn = euUnder16 ? false : !!this.get('productImprovementOptIn');
-      var under16 = this.get('model.preferences.registration_type') === 'communicator' && !!this._classifyUnder16();
-      var url = '/auth/google/start?flow=register&device_id=' + encodeURIComponent(capabilities.device_id());
-      url = url + '&return_origin=' + encodeURIComponent(window.location.origin);
-      url = url + '&registration_type=' + encodeURIComponent(this.get('model.preferences.registration_type') || 'communicator');
-      url = url + '&user_name=' + encodeURIComponent((this.get('model.user_name') || '').trim());
-      url = url + '&terms_agree=' + encodeURIComponent(this.get('model.terms_agree') ? 'true' : 'false');
-      url = url + '&product_improvement_opt_in=' + encodeURIComponent(optIn ? 'true' : 'false');
-      url = url + '&country=' + encodeURIComponent((this.get('registration_country') || '').trim().toUpperCase());
-      url = url + '&under_16=' + encodeURIComponent(under16 ? 'true' : 'false');
+      var under16 = !!this._classifyUnder16();
+      var fields = {
+        flow: 'register',
+        device_id: capabilities.device_id(),
+        return_origin: window.location.origin,
+        registration_type: this.get('model.preferences.registration_type') || 'communicator',
+        user_name: (this.get('model.user_name') || '').trim(),
+        terms_agree: this.get('model.terms_agree') ? 'true' : 'false',
+        product_improvement_opt_in: optIn ? 'true' : 'false',
+        country: (this.get('registration_country') || '').trim().toUpperCase(),
+        under_16: under16 ? 'true' : 'false',
+        birth_month: this.get('birth_month') || '',
+        birth_year: this.get('birth_year') || '',
+        locale: (this.get('model.preferences.locale') || 'en').trim()
+      };
+      try {
+        sessionStorage.setItem('ll_signup_name', (this.get('model.name') || '').trim());
+      } catch (e) { /* sessionStorage unavailable */ }
       if(capabilities.installed_app) {
-        url = url + '&app=true&popout_id=' + encodeURIComponent((new Date()).getTime() + 'T' + Math.round(Math.random() * 999999));
-        window.open(url, '_blank');
-      } else {
-        location.href = url;
+        fields.app = 'true';
+        fields.popout_id = (new Date()).getTime() + 'T' + Math.round(Math.random() * 999999);
       }
+      this._submitGoogleRegisterStart(fields, !!capabilities.installed_app);
     },
     saveGoogleSignup: function() {
       var _this = this;
@@ -554,7 +621,11 @@ export default Controller.extend({
           user_name: (_this.get('googleSignupUserName') || '').trim(),
           registration_type: _this.get('googleSignupRegistrationType') || 'communicator',
           terms_agree: _this.get('googleSignupTerms') ? 'true' : 'false',
-          product_improvement_opt_in: optIn ? 'true' : 'false'
+          product_improvement_opt_in: optIn ? 'true' : 'false',
+          signup_name: (function() {
+            try { return sessionStorage.getItem('ll_signup_name') || ''; }
+            catch (e) { return ''; }
+          })()
         }
       }).then(function(res) {
         if(_this.isDestroyed || _this.isDestroying) { return; }

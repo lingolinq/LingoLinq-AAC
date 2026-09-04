@@ -37,7 +37,14 @@ class BoardDownstreamButtonSet < ApplicationRecord
       self.data['linked_board_ids'] = buttons.map{|b| b['linked_board_id'] }.compact.uniq
       self.data['button_count'] = buttons.length
       self.data['board_count'] = buttons.map{|b| b['board_id'] }.uniq.length
-      if (self.data['buttons'] || []).length > 200
+      # Only hand the buttons off to the detach-to-S3 path when that path can
+      # actually store them. Without REMOTE_EXTRA_DATA, detach_extra_data is a
+      # no-op (extra_data_too_big? short-circuits), so stashing them here would
+      # move the only copy into memory, and the next save re-enters this method,
+      # clears @cached_extra_data, and writes button_count = 0 -- silently
+      # destroying the set. Keeping them inline is the correct degraded mode; it
+      # is already how every set under the 200-button threshold is stored.
+      if remote_extra_data_enabled? && (self.data['buttons'] || []).length > 200
         @cached_extra_data = self.data['buttons']
         self.data.delete('buttons')
       end

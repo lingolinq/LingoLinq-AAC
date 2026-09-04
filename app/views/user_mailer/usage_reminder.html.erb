@@ -41,7 +41,7 @@ your experience. This is a one-time email that you'll hopefully find helpful.<br
   <h3>Logging</h3>
   <img src="https://lingolinq.s3.amazonaws.com/email/reporting.png" style="float: left; width: 300px; border: 1px solid #888; padding: 2px; margin-right: 10px; margin-left: 5px;" alt="reporting screen shot"/>
   <%= app_name %> has powerful reporting and logging built-in. Once you 
-  <a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/stats">turn on logging</a> 
+  <a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/stats">turn on logging</a> 
   then any usage that happens will be automatically gathered into detailed
   reports and summaries. The communicator and their support team can see things
   like what time of day communication is happening, what types of speech are being
@@ -54,7 +54,7 @@ your experience. This is a one-time email that you'll hopefully find helpful.<br
 <% if @no_subscription %>
   <h3>Purchasing</h3>
   If you like what you're seeing with <%= app_name %>, feel free to 
-  <a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/subscription">update your billing settings</a> 
+  <a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/subscription">update your billing settings</a> 
   to keep using all of <%= app_name %>'s features for the long-term! Remember, you can buy <%= app_name %>
   as a one-time purchase, or as a monthly subscription, whatever works better for you.<br/><br/>
 <% end %>
@@ -66,7 +66,7 @@ or <a href="<%= domain_settings['kindle_store_url'] %>">Kindle App Store</a>!<br
 We hope this was a helpful check-in! If you have any questions or concerns, please 
 <a href="<%= domain_settings['youtube_url'] %>">check out our YouTube channel</a>
 or 
-<a href="<%= JsonApi::Json.current_host %>/contact">reach out to us</a>
+<a href="<%= JsonApi::Json.absolute_host %>/contact">reach out to us</a>
 and we'll be happy to help you out.
 <br/><br/>
 Thanks!<br/>

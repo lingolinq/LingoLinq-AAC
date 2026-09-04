@@ -29,21 +29,27 @@ export default modal.ModalController.extend({
       user.save().then(null, function() { });
       this.send('subscription_skip');
     },
+    // Post-subscribe (and skip) now lands on the user's HOME page with the guided
+    // tour, not the setup wizard — setup is retired as a user-facing destination
+    // (2026-08-15). `return_to_index` is the established helper for "go to my home
+    // page" (services/app-state.js:907) and already handles the no-currentUser case.
+    // `auto_open_home_tour` is what the terms-agree path sets; GuidedTour observes
+    // it and clears it on start, and it is inert when the flag is off.
     subscription_skip: function() {
       modal.close();
       if(window.ga) {
-        window.ga('send', 'event', 'Setup', 'launch', 'Setup started');
+        window.ga('send', 'event', 'Onboarding', 'launch', 'Home tour started');
       }
-      this.appState.set('auto_setup', true);
-      this.router.transitionTo('setup', {queryParams: {user_id: null, page: null}});
+      this.appState.set('auto_open_home_tour', true);
+      this.appState.return_to_index();
     },
     subscription_error: function(err) {
       this.set('error', err);
     },
     subscription_success: function(msg) {
       modal.close();
-      this.appState.set('auto_setup', true);
-      this.router.transitionTo('setup', {queryParams: {user_id: null, page: null}});
+      this.appState.set('auto_open_home_tour', true);
+      this.appState.return_to_index();
       modal.success(msg);
     }
   }

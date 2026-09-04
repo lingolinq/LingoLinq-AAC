@@ -85,9 +85,7 @@
               <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
               <li>➕ {{t "Add supervisor credits for $25 each" key="add_supervisor_credits"}}</li>
             </ul>
-            {{#unless this.app_state.feature_flags.landing_beta_closed}}
-              <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Start Communicator Plan" key="start_communicator_plan"}}</LinkTo>
-            {{/unless}}
+            <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Start Communicator Plan" key="start_communicator_plan"}}</LinkTo>
           </div>
 
           {{!-- Supporter --}}
@@ -122,9 +120,7 @@
               <li>✔ {{t "Free modeling-only accounts available" key="free_modeling_only_available"}}</li>
               <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
             </ul>
-            {{#unless this.app_state.feature_flags.landing_beta_closed}}
-              <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Get Supporter Access" key="get_supporter_access"}}</LinkTo>
-            {{/unless}}
+            <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Get Supporter Access" key="get_supporter_access"}}</LinkTo>
           </div>
 
           {{!-- Eval --}}
@@ -157,9 +153,7 @@
               <li>✔ <button type="button" class="btn-link subscription-form__cloud-extras-link la-pricing-card__cloud-extras-link" {{on "click" (this.ctrlAction "openCloudExtras")}}>{{t "Cloud extras" key="cloud_extras"}}</button> {{t "reset per evaluation" key="eval_cloud_extras_reset"}}</li>
               <li>➕ {{t "add LessonPix, SymbolStix & BoardMaker (Tobii Dynavox) for US$25" key="add_premium_symbols"}}</li>
             </ul>
-            {{#unless this.app_state.feature_flags.landing_beta_closed}}
-              <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Purchase Eval License" key="purchase_eval_license"}}</LinkTo>
-            {{/unless}}
+            <LinkTo @route="register" class="cta secondary la-btn la-btn--badge">{{t "Purchase Eval License" key="purchase_eval_license"}}</LinkTo>
           </div>
         </div>
 
@@ -184,19 +178,15 @@
         </div>
 
         {{#if this.app_state.domain_settings.full_domain}}
-          {{#unless this.app_state.feature_flags.landing_beta_closed}}
-            <div class="la-pricing-actions" style="margin-top: 2rem;">
-              <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Sign Up for a Free Trial of %app_name%" key="sign_up_for_trial_lingolinq"}}</LinkTo>
-              {{#unless this.subscription.app_pricing_override}}
-                <LinkTo @route="gift_purchase" class="la-btn la-btn--badge la-btn--lg">{{t "Purchase as a Gift" key="purchase_as_a_Gift"}}</LinkTo>
-              {{/unless}}
-            </div>
-          {{/unless}}
+          <div class="la-pricing-actions" style="margin-top: 2rem;">
+            <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Sign Up for a Free Trial of %app_name%" key="sign_up_for_trial_lingolinq"}}</LinkTo>
+            {{#unless this.subscription.app_pricing_override}}
+              <LinkTo @route="gift_purchase" class="la-btn la-btn--badge la-btn--lg">{{t "Purchase as a Gift" key="purchase_as_a_Gift"}}</LinkTo>
+            {{/unless}}
+          </div>
         {{/if}}
         <div class="la-cta-buttons" style="margin-top: 2rem; text-align: center;">
-          {{#unless this.app_state.feature_flags.landing_beta_closed}}
-            <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
-          {{/unless}}
+          <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
           <LinkTo @route="contact" class="la-btn la-btn--ghost la-btn--lg">{{t "Contact Us" key="contact_us"}}</LinkTo>
         </div>
       </section>

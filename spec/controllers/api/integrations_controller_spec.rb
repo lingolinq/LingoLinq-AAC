@@ -308,11 +308,12 @@ describe Api::IntegrationsController, :type => :controller do
       assert_missing_token
     end
 
-    it 'should reject when the feature flag is off' do
+    it 'should reject when the AI feature gate is off' do
       token_user
-      expect(FeatureFlags).to receive(:feature_enabled_for?).with('ai_board_generation', @user).and_return(false)
+      expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(false)
       post 'focus_generate_words', params: { prompt: 'grinch lesson' }
       expect(response).to have_http_status(403)
+      expect(JSON.parse(response.body)['error']).to eq('Feature not available')
     end
 
     it 'should require a prompt' do
@@ -449,6 +450,141 @@ describe Api::IntegrationsController, :type => :controller do
       expect(response).to have_http_status(503)
       json = JSON.parse(response.body)
       expect(json['error']).to eq('AI service unavailable')
+    end
+
+    # Cache-hit consent gate (issue #762): AiFocusWordSet.find_for is global by
+    # scrubbed prompt/locale/core flag, so a warmed row can serve any requester.
+    # On a hit the controller used to return before AiBoardGenerator ran, skipping
+    # ai_feature_enabled_for?. These examples assert 403 ON A CACHE HIT. A
+    # cache-miss-only example passes against the broken code and proves nothing.
+    # Stub surrounding layers; leave real ai_feature_enabled_for? running (except
+    # where the Article 50 block stubs it true to isolate that backstop).
+    describe "AI consent gate on cache hit" do
+      def warm_focus_cache!
+        AiFocusWordSet.create!(
+          scrubbed_prompt: 'grinch lesson',
+          locale: 'en',
+          include_core_words: true,
+          title: 'Grinch Words',
+          words: %w[go stop more help read]
+        )
+      end
+
+      def post_cached_focus
+        post 'focus_generate_words', params: {
+          prompt: 'grinch lesson', word_count: 5, locale: 'en', include_core_words: true
+        }
+      end
+
+      # Drive real ai_feature_enabled_for?; stub only the layers around the
+      # preference check (matches boards_controller "user preference gate").
+      def stub_ai_layers_except_prefs
+        allow(FeatureFlags).to receive(:ai_enabled_for?).and_return(true)
+        allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+        allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(false)
+        allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+        allow(FeatureFlags).to receive(:feature_enabled_for?)
+          .with('ai_board_generation', anything).and_return(true)
+      end
+
+      it "should 403 for an opted-out user even when the library is already warmed" do
+        token_user
+        focus_set = warm_focus_cache!
+        stub_ai_layers_except_prefs
+        @user.settings['preferences']['ai_features_enabled'] = false
+        @user.save!
+        expect(AiBoardGenerator).not_to receive(:generate_focus_words)
+        post_cached_focus
+        expect(response).to have_http_status(:forbidden)
+        expect(JSON.parse(response.body)['error']).to eq('Feature not available')
+        expect(focus_set.reload.cache_hit_count).to eq(0)
+      end
+
+      it "should 403 when the org has disable_ai_features even on a cache hit" do
+        token_user
+        focus_set = warm_focus_cache!
+        allow(FeatureFlags).to receive(:ai_enabled_for?).and_return(false)
+        allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+        allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(false)
+        allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+        allow(FeatureFlags).to receive(:feature_enabled_for?)
+          .with('ai_board_generation', anything).and_return(true)
+        expect(AiBoardGenerator).not_to receive(:generate_focus_words)
+        post_cached_focus
+        expect(response).to have_http_status(:forbidden)
+        expect(JSON.parse(response.body)['error']).to eq('Feature not available')
+        expect(focus_set.reload.cache_hit_count).to eq(0)
+      end
+
+      it "should 403 for a COPPA-blocked account even on a cache hit" do
+        token_user
+        focus_set = warm_focus_cache!
+        allow(FeatureFlags).to receive(:ai_enabled_for?).and_return(true)
+        allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(true)
+        allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(false)
+        allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+        allow(FeatureFlags).to receive(:feature_enabled_for?)
+          .with('ai_board_generation', anything).and_return(true)
+        expect(AiBoardGenerator).not_to receive(:generate_focus_words)
+        post_cached_focus
+        expect(response).to have_http_status(:forbidden)
+        expect(JSON.parse(response.body)['error']).to eq('Feature not available')
+        expect(focus_set.reload.cache_hit_count).to eq(0)
+      end
+
+      it "should 403 for an EU under-16 account without parental consent even on a cache hit" do
+        token_user
+        focus_set = warm_focus_cache!
+        allow(FeatureFlags).to receive(:ai_enabled_for?).and_return(true)
+        allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+        allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(true)
+        allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+        allow(FeatureFlags).to receive(:feature_enabled_for?)
+          .with('ai_board_generation', anything).and_return(true)
+        expect(AiBoardGenerator).not_to receive(:generate_focus_words)
+        post_cached_focus
+        expect(response).to have_http_status(:forbidden)
+        expect(JSON.parse(response.body)['error']).to eq('Feature not available')
+        expect(focus_set.reload.cache_hit_count).to eq(0)
+      end
+
+      describe "article_50_disclosure backstop" do
+        it "should proceed on a cache hit when feature_enabled_for? is false (code-default path, not the production state)" do
+          token_user
+          focus_set = warm_focus_cache!
+          expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+          # Pins the CODE-DEFAULT path: with no default_enabled_features row in the test
+          # DB, feature_enabled_for? returns false unstubbed. This is NOT the production
+          # state -- production enables article_50_disclosure via that DB Setting (verified
+          # 2026-08-23, docs/legal/2026-08-23_article-50-production-flag-verification.md).
+          # Jurisdiction/ack must not affect the response on this path.
+          # Guard: pin the code-default explicitly so seeding a default_enabled_features
+          # row in test cannot silently invert this assertion.
+          expect(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).at_least(:once).and_return(false)
+          allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
+          allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
+          expect(AiBoardGenerator).not_to receive(:generate_focus_words)
+          post_cached_focus
+          json = assert_success_json
+          expect(json['cached']).to eq(true)
+          expect(focus_set.reload.cache_hit_count).to eq(1)
+        end
+
+        it "should return 403 with article_50_disclosure_required on a cache hit when the flag is on, in scope, and unacknowledged" do
+          token_user
+          focus_set = warm_focus_cache!
+          expect(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_board_generation', anything).and_return(true)
+          allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+          allow(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).and_return(true)
+          allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
+          allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
+          expect(AiBoardGenerator).not_to receive(:generate_focus_words)
+          post_cached_focus
+          expect(response).to have_http_status(:forbidden)
+          expect(JSON.parse(response.body)['error']).to eq('article_50_disclosure_required')
+          expect(focus_set.reload.cache_hit_count).to eq(0)
+        end
+      end
     end
   end
 

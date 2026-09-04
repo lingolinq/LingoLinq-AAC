@@ -60,12 +60,14 @@ export default modal.ModalController.extend({
     return res;
   }),
   actions: {
+    // Onboarding for the CURRENT user now means the home page's guided tour, not
+    // the setup wizard, which is retired and route-guarded (routes/setup.js).
     intro: function() {
       if(window.ga) {
-        window.ga('send', 'event', 'Setup', 'launch', 'Setup started');
+        window.ga('send', 'event', 'Onboarding', 'launch', 'Home tour started');
       }
-      app_state.set('auto_setup', false);
-      this.router.transitionTo('setup', {queryParams: {user_id: null}});
+      app_state.set('auto_open_home_tour', true);
+      app_state.return_to_index();
       modal.close();
     },
     app_install: function() {

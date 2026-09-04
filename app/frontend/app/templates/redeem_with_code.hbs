@@ -23,16 +23,12 @@
         </LinkTo>
       {{else}}
         <p>
-          {{#unless this.app_state.feature_flags.landing_beta_closed}}
-            {{t "Before you can redeem this code you'll need to " key="before_redeem"}}
-            <LinkTo @route="login">{{t "sign in" key="sign_in"}}</LinkTo>
-            {{#if this.app_state.domain_settings.full_domain}}
-              {{t "or" key="or"}}
-              <LinkTo @route="register">{{t "create a new account" key="create_a_new_account"}}</LinkTo>.
-            {{/if}}
-          {{else}}
-            {{t "Gift redemption requires an existing account. Sign in and registration are unavailable during beta testing." key="redeem_landing_beta_closed"}}
-          {{/unless}}
+          {{t "Before you can redeem this code you'll need to " key="before_redeem"}}
+          <LinkTo @route="login">{{t "sign in" key="sign_in"}}</LinkTo>
+          {{#if this.app_state.domain_settings.full_domain}}
+            {{t "or" key="or"}}
+            <LinkTo @route="register">{{t "create a new account" key="create_a_new_account"}}</LinkTo>.
+          {{/if}}
         </p>
       {{/if}}
     {{else}}

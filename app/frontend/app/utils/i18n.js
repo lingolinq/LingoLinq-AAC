@@ -21,6 +21,403 @@ function escapeHtmlForInterpolation(val) {
     .replace(/'/g, '&#39;');
 }
 
+// Present (yo/tú/él/nosotros/ellos), preterite yo, gerund, participle.
+// Overlay slots: nw n ne / w c e / sw s se. Irregulars win over regular endings.
+var SPANISH_IRREGULAR_VERBS = {
+  'decir': {nw: 'digo', n: 'dices', ne: 'dice', w: 'decimos', e: 'dicen', sw: 'dije', s: 'diciendo', se: 'dicho'},
+  'ir': {nw: 'voy', n: 'vas', ne: 'va', w: 'vamos', e: 'van', sw: 'fui', s: 'yendo', se: 'ido'},
+  'ser': {nw: 'soy', n: 'eres', ne: 'es', w: 'somos', e: 'son', sw: 'fui', s: 'siendo', se: 'sido'},
+  'estar': {nw: 'estoy', n: 'estás', ne: 'está', w: 'estamos', e: 'están', sw: 'estuve', s: 'estando', se: 'estado'},
+  'tener': {nw: 'tengo', n: 'tienes', ne: 'tiene', w: 'tenemos', e: 'tienen', sw: 'tuve', s: 'teniendo', se: 'tenido'},
+  'hacer': {nw: 'hago', n: 'haces', ne: 'hace', w: 'hacemos', e: 'hacen', sw: 'hice', s: 'haciendo', se: 'hecho'},
+  'querer': {nw: 'quiero', n: 'quieres', ne: 'quiere', w: 'queremos', e: 'quieren', sw: 'quise', s: 'queriendo', se: 'querido'},
+  'poder': {nw: 'puedo', n: 'puedes', ne: 'puede', w: 'podemos', e: 'pueden', sw: 'pude', s: 'pudiendo', se: 'podido'},
+  'ver': {nw: 'veo', n: 'ves', ne: 've', w: 'vemos', e: 'ven', sw: 'vi', s: 'viendo', se: 'visto'},
+  'dar': {nw: 'doy', n: 'das', ne: 'da', w: 'damos', e: 'dan', sw: 'di', s: 'dando', se: 'dado'}
+};
+
+// Boot verbs: present yo/tú/él/ellos change; nosotros and pret. yo do not.
+// Gerund stem-change is only for -ir (pidiendo, durmiendo, sintiendo).
+var SPANISH_STEM_CHANGERS = {
+  'pensar': 'e_ie', 'sentar': 'e_ie', 'empezar': 'e_ie', 'comenzar': 'e_ie',
+  'entender': 'e_ie', 'perder': 'e_ie', 'preferir': 'e_ie', 'cerrar': 'e_ie',
+  'despertar': 'e_ie', 'calentar': 'e_ie', 'negar': 'e_ie', 'recomendar': 'e_ie',
+  'sentir': 'e_ie', 'mentir': 'e_ie', 'herir': 'e_ie', 'convertir': 'e_ie',
+  'advertir': 'e_ie', 'defender': 'e_ie', 'encender': 'e_ie', 'atravesar': 'e_ie',
+  'fregar': 'e_ie', 'temblar': 'e_ie', 'confesar': 'e_ie', 'apretar': 'e_ie',
+  'merendar': 'e_ie', 'gobernar': 'e_ie',
+  'volver': 'o_ue', 'encontrar': 'o_ue', 'costar': 'o_ue', 'contar': 'o_ue',
+  'soñar': 'o_ue', 'recordar': 'o_ue', 'mostrar': 'o_ue', 'mover': 'o_ue',
+  'dormir': 'o_ue', 'morir': 'o_ue', 'almorzar': 'o_ue', 'volar': 'o_ue',
+  'doler': 'o_ue', 'probar': 'o_ue', 'sonar': 'o_ue', 'acostar': 'o_ue',
+  'soltar': 'o_ue', 'morder': 'o_ue', 'llover': 'o_ue', 'resolver': 'o_ue',
+  'pedir': 'e_i', 'servir': 'e_i', 'repetir': 'e_i', 'seguir': 'e_i',
+  'vestir': 'e_i', 'medir': 'e_i', 'elegir': 'e_i', 'competir': 'e_i',
+  'impedir': 'e_i', 'despedir': 'e_i', 'conseguir': 'e_i',
+  'jugar': 'u_ue'
+};
+var SPANISH_IRREGULAR_PARTICIPLES = {
+  'volver': 'vuelto',
+  'morir': 'muerto',
+  'resolver': 'resuelto'
+};
+
+function replaceLast(stem, from, to) {
+  var idx = stem.lastIndexOf(from);
+  if(idx == -1) { return stem; }
+  return stem.slice(0, idx) + to + stem.slice(idx + from.length);
+}
+
+function applySpanishStemChange(stem, type, slot, ending) {
+  if(!type) { return stem; }
+  if(slot == 'w' || slot == 'sw') { return stem; }
+  if(slot == 's') {
+    if(ending != 'ir') { return stem; }
+    if(type == 'e_ie' || type == 'e_i') { return replaceLast(stem, 'e', 'i'); }
+    if(type == 'o_ue') { return replaceLast(stem, 'o', 'u'); }
+    return stem;
+  }
+  if(type == 'e_ie') { return replaceLast(stem, 'e', 'ie'); }
+  if(type == 'e_i') { return replaceLast(stem, 'e', 'i'); }
+  if(type == 'o_ue') { return replaceLast(stem, 'o', 'ue'); }
+  if(type == 'u_ue') { return replaceLast(stem, 'u', 'ue'); }
+  return stem;
+}
+
+function presentYoStem(stem, ending) {
+  if((ending == 'er' || ending == 'ir') && stem.slice(-2) == 'gu') {
+    return stem.slice(0, -1);
+  }
+  if((ending == 'er' || ending == 'ir') && stem.slice(-1) == 'g') {
+    return stem.slice(0, -1) + 'j';
+  }
+  return stem;
+}
+
+function stripSpanishSe(check) {
+  if(check.length > 4 && check.slice(-2) == 'se') {
+    var base = check.slice(0, -2);
+    if(base.slice(-2) == 'ar' || base.slice(-2) == 'er' || base.slice(-2) == 'ir') {
+      return base;
+    }
+  }
+  return check;
+}
+
+function regularSpanishVerbForms(check) {
+  check = stripSpanishSe(check);
+  var ending = null;
+  if(check.slice(-2) == 'ar') { ending = 'ar'; }
+  else if(check.slice(-2) == 'er') { ending = 'er'; }
+  else if(check.slice(-2) == 'ir') { ending = 'ir'; }
+  else { return null; }
+  var stem = check.slice(0, -2);
+  // One-letter stems are almost always irregular (dar, ir, ver, ser).
+  if(stem.length < 2) { return null; }
+  var last = stem.charAt(stem.length - 1);
+  // leer/oír/traer → -yendo. seguir (-guir) keeps -iendo (siguiendo, not siguyendo).
+  var vowel_stem = 'aeioáéíó'.indexOf(last) != -1 || (last == 'u' && stem.slice(-2) != 'gu');
+  var change = SPANISH_STEM_CHANGERS[check];
+  var n_end, ne_end, w_end, e_end, yo_past, gerund, part, pret_stem;
+  pret_stem = stem;
+  if(ending == 'ar') {
+    n_end = 'as'; ne_end = 'a'; w_end = 'amos'; e_end = 'an';
+    yo_past = 'é';
+    gerund = 'ando';
+    part = 'ado';
+    if(last == 'c') { pret_stem = stem.slice(0, -1); yo_past = 'qué'; }
+    else if(last == 'g') { pret_stem = stem.slice(0, -1); yo_past = 'gué'; }
+    else if(last == 'z') { pret_stem = stem.slice(0, -1); yo_past = 'cé'; }
+  } else {
+    n_end = 'es'; ne_end = 'e'; e_end = 'en';
+    w_end = (ending == 'ir') ? 'imos' : 'emos';
+    yo_past = 'í';
+    gerund = vowel_stem ? 'yendo' : 'iendo';
+    part = vowel_stem ? 'ído' : 'ido';
+  }
+  var boot = applySpanishStemChange(stem, change, 'nw', ending);
+  var gerund_stem = applySpanishStemChange(stem, change, 's', ending);
+  var yo = presentYoStem(boot, ending);
+  return {
+    nw: yo + 'o',
+    n: boot + n_end,
+    ne: boot + ne_end,
+    w: stem + w_end,
+    e: boot + e_end,
+    sw: pret_stem + yo_past,
+    s: gerund_stem + gerund,
+    se: SPANISH_IRREGULAR_PARTICIPLES[check] || (stem + part)
+  };
+}
+
+function spanishVerbGrid(str) {
+  if(!str || typeof str !== 'string') { return null; }
+  var raw = str.replace(/^\s+|\s+$/g, '');
+  if(!raw) { return null; }
+  var check = raw.toLowerCase();
+  var forms = SPANISH_IRREGULAR_VERBS[check] || SPANISH_IRREGULAR_VERBS[stripSpanishSe(check)] || regularSpanishVerbForms(check);
+  if(!forms) { return null; }
+  var cap = raw.charAt(0) !== raw.charAt(0).toLowerCase();
+  var out = {c: raw};
+  ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'].forEach(function(loc) {
+    var f = forms[loc];
+    out[loc] = (cap && f) ? (f.charAt(0).toUpperCase() + f.slice(1)) : f;
+  });
+  return out;
+}
+
+var SPANISH_IRREGULAR_PLURALS = {
+  'joven': 'jóvenes',
+  'examen': 'exámenes',
+  'imagen': 'imágenes',
+  'origen': 'orígenes',
+  'volumen': 'volúmenes',
+  'carácter': 'caracteres',
+  'régimen': 'regímenes',
+  'país': 'países'
+};
+var SPANISH_NO_GENDER_O = {
+  'mano': true, 'foto': true, 'moto': true, 'radio': true,
+  'libido': true, 'soprano': true, 'modelo': true
+};
+var SPANISH_NOUN_FEMININE = {
+  'actor': 'actriz',
+  'rey': 'reina',
+  'jefe': 'jefa',
+  'héroe': 'heroína'
+};
+
+function applySpanishCap(raw, form) {
+  if(!form) { return form; }
+  var cap = raw && raw.charAt(0) !== raw.charAt(0).toLowerCase();
+  return (cap && form) ? (form.charAt(0).toUpperCase() + form.slice(1)) : form;
+}
+
+function spanishTrim(str) {
+  if(str == null || typeof str !== 'string') { return ''; }
+  return str.replace(/^\s+|\s+$/g, '');
+}
+
+function spanishPrefixForm(str, prefix) {
+  var raw = spanishTrim(str);
+  if(!raw) { return applySpanishCap(prefix, prefix + (str || '')); }
+  var check = raw.toLowerCase();
+  if(check.indexOf(prefix.toLowerCase()) === 0) { return raw; }
+  return applySpanishCap(raw, prefix + check);
+}
+
+function spanishWrapPunct(str, open, close) {
+  var raw = spanishTrim(str);
+  var core = raw;
+  if(core.charAt(0) === open) { core = core.slice(1); }
+  if(close && core.slice(-close.length) === close) { core = core.slice(0, -close.length); }
+  return open + core + close;
+}
+
+function unaccentChar(ch) {
+  var map = {á: 'a', é: 'e', í: 'i', ó: 'o', ú: 'u', Á: 'A', É: 'E', Í: 'I', Ó: 'O', Ú: 'U'};
+  return map[ch] || ch;
+}
+
+function unaccentFinalSyllableAeO(word) {
+  var i, ch, low;
+  for(i = word.length - 1; i >= 0; i--) {
+    ch = word.charAt(i);
+    low = ch.toLowerCase();
+    if('aeiouáéíóúü'.indexOf(low) != -1) {
+      if(low == 'á' || low == 'é' || low == 'ó') {
+        return word.slice(0, i) + unaccentChar(ch) + word.slice(i + 1);
+      }
+      return word;
+    }
+  }
+  return word;
+}
+
+function spanishPlural(check) {
+  if(!check) { return check; }
+  if(SPANISH_IRREGULAR_PLURALS[check]) { return SPANISH_IRREGULAR_PLURALS[check]; }
+  if(/[aeiouáéíóú]$/.test(check)) { return check + 's'; }
+  if(check.slice(-1) == 'y') { return check.slice(0, -1) + 'yes'; }
+  if(check.slice(-1) == 'z') { return check.slice(0, -1) + 'ces'; }
+  if(/[sx]$/.test(check) && !/[áéíóú]/.test(check)) { return check; }
+  return unaccentFinalSyllableAeO(check) + 'es';
+}
+
+function spanishFeminineNoun(check) {
+  if(SPANISH_NOUN_FEMININE[check]) { return SPANISH_NOUN_FEMININE[check]; }
+  if(SPANISH_NO_GENDER_O[check]) { return null; }
+  if(/mayor$|menor$|mejor$|peor$/.test(check)) { return null; }
+  if(/or$/.test(check)) { return check + 'a'; }
+  if(/[^aeiouáéíóú]o$/.test(check)) { return check.slice(0, -1) + 'a'; }
+  return null;
+}
+
+function spanishNounGrid(str) {
+  if(!str || typeof str !== 'string') { return null; }
+  var raw = str.replace(/^\s+|\s+$/g, '');
+  if(!raw) { return null; }
+  var check = raw.toLowerCase();
+  var pl = spanishPlural(check);
+  var fem = spanishFeminineNoun(check);
+  var fem_pl = fem ? spanishPlural(fem) : null;
+  var cap = function(form) { return applySpanishCap(raw, form); };
+  var out = {c: raw, nw: cap('no ' + check)};
+  if(pl && pl != check) { out.n = cap(pl); }
+  if(fem && fem != check) { out.s = cap(fem); }
+  if(fem_pl && fem_pl != pl && fem_pl != check) { out.e = cap(fem_pl); }
+  if(pl) { out.se = cap('no ' + pl); }
+  return out;
+}
+
+function spanishAdjectiveAgreement(check) {
+  var fem = null;
+  var masc_pl = spanishPlural(check);
+  var fem_pl = null;
+  if(/o$/.test(check)) {
+    fem = check.slice(0, -1) + 'a';
+    fem_pl = spanishPlural(fem);
+  } else if(/és$/.test(check)) {
+    fem = unaccentFinalSyllableAeO(check).slice(0, -1) + 'sa';
+    masc_pl = unaccentFinalSyllableAeO(check) + 'es';
+    fem_pl = spanishPlural(fem);
+  } else if(/or$/.test(check) && !/mayor$|menor$|mejor$|peor$/.test(check)) {
+    fem = check + 'a';
+    fem_pl = spanishPlural(fem);
+  }
+  return {masc_pl: masc_pl, fem: fem, fem_pl: fem_pl};
+}
+
+function spanishIsimo(check) {
+  var last = check.slice(-1);
+  var stem;
+  if(last == 'o' || last == 'a' || last == 'e') {
+    stem = check.slice(0, -1);
+    if(stem.slice(-1) == 'c') { stem = stem.slice(0, -1) + 'qu'; }
+    else if(stem.slice(-1) == 'g') { stem = stem + 'u'; }
+    return stem + 'ísimo';
+  }
+  if(last == 'z') { return check.slice(0, -1) + 'císimo'; }
+  return null;
+}
+
+function spanishAdjectiveGrid(str) {
+  if(!str || typeof str !== 'string') { return null; }
+  var raw = str.replace(/^\s+|\s+$/g, '');
+  if(!raw) { return null; }
+  var check = raw.toLowerCase();
+  var agr = spanishAdjectiveAgreement(check);
+  var cap = function(form) { return applySpanishCap(raw, form); };
+  var isimo = spanishIsimo(check);
+  var out = {
+    c: raw,
+    ne: cap('más ' + check),
+    w: cap('menos ' + check),
+    e: cap(isimo || ('el más ' + check)),
+    nw: cap('no ' + check)
+  };
+  if(agr.masc_pl && agr.masc_pl != check) { out.n = cap(agr.masc_pl); }
+  if(agr.fem && agr.fem != check) { out.s = cap(agr.fem); }
+  if(agr.fem_pl && agr.fem_pl != agr.masc_pl && agr.fem_pl != check) { out.sw = cap(agr.fem_pl); }
+  if(agr.masc_pl) { out.se = cap('no ' + agr.masc_pl); }
+  return out;
+}
+
+// Personal pronouns: lookup table, not suffix rules. Overlay slots:
+// n clitic, w/nw poss. adj., s/sw poss. pronoun, e tonic or IO, ne conmigo/…, se no + subject.
+// Shared 3rd-person su/le/se resolve to él (first registered key wins).
+var SPANISH_PRONOUN_ORDER = ['yo', 'tú', 'vos', 'él', 'ella', 'usted', 'nosotros', 'nosotras', 'vosotros', 'vosotras', 'ellos', 'ellas', 'ustedes'];
+var SPANISH_PRONOUN_PARADIGMS = {
+  'yo': {n: 'me', nw: 'mis', w: 'mi', s: 'mío', sw: 'mía', e: 'mí', ne: 'conmigo', se: 'no yo'},
+  'tú': {n: 'te', nw: 'tus', w: 'tu', s: 'tuyo', sw: 'tuya', e: 'ti', ne: 'contigo', se: 'no tú'},
+  'vos': {n: 'te', nw: 'tus', w: 'tu', s: 'tuyo', sw: 'tuya', ne: 'con vos', se: 'no vos'},
+  'él': {n: 'lo', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'le', ne: 'consigo', se: 'no él'},
+  'ella': {n: 'la', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'le', ne: 'consigo', se: 'no ella'},
+  'usted': {n: 'lo', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'le', ne: 'consigo', se: 'no usted'},
+  'nosotros': {n: 'nos', nw: 'nuestros', w: 'nuestro', s: 'nuestras', sw: 'nuestra', e: 'nosotras', ne: 'con nosotros', se: 'no nosotros'},
+  'nosotras': {n: 'nos', nw: 'nuestros', w: 'nuestro', s: 'nuestras', sw: 'nuestra', ne: 'con nosotras', se: 'no nosotras'},
+  'vosotros': {n: 'os', nw: 'vuestros', w: 'vuestro', s: 'vuestras', sw: 'vuestra', e: 'vosotras', ne: 'con vosotros', se: 'no vosotros'},
+  'vosotras': {n: 'os', nw: 'vuestros', w: 'vuestro', s: 'vuestras', sw: 'vuestra', ne: 'con vosotras', se: 'no vosotras'},
+  'ellos': {n: 'los', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'les', ne: 'consigo', se: 'no ellos'},
+  'ellas': {n: 'las', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'les', ne: 'consigo', se: 'no ellas'},
+  'ustedes': {n: 'los', nw: 'sus', w: 'su', s: 'suyo', sw: 'suya', e: 'les', ne: 'consigo', se: 'no ustedes'}
+};
+var SPANISH_PRONOUN_EXTRA_ALIASES = {
+  'yo': ['míos', 'mías', 'yo mismo', 'yo misma'],
+  'tú': ['tuyos', 'tuyas', 'tú mismo', 'tú misma'],
+  'vos': ['vos mismo', 'vos misma'],
+  'él': ['suyos', 'suyas', 'le', 'se', 'él mismo'],
+  'ella': ['ella misma'],
+  'usted': ['usted mismo', 'usted misma'],
+  'nosotros': ['nosotros mismos'],
+  'nosotras': ['nosotras mismas'],
+  'vosotros': ['vosotros mismos'],
+  'vosotras': ['vosotras mismas'],
+  'ellos': ['ellos mismos'],
+  'ellas': ['ellas mismas'],
+  'ustedes': ['ustedes mismos', 'ustedes mismas']
+};
+
+function unaccentSpanish(str) {
+  var out = '';
+  var i;
+  for(i = 0; i < str.length; i++) {
+    out += unaccentChar(str.charAt(i));
+  }
+  return out;
+}
+
+function indexSpanishPronounLookup() {
+  var lookup = {};
+  function add(form, key) {
+    if(!form) { return; }
+    if(form.indexOf('no ') == 0) { return; }
+    var k = form.toLowerCase();
+    if(lookup[k] === undefined) { lookup[k] = key; }
+    var u = unaccentSpanish(k);
+    if(lookup[u] === undefined) { lookup[u] = key; }
+  }
+  var i, key, para, extras, j, slotKeys, s;
+  // Subjects first so nosotras/vosotras are not stolen as gender-pair slots.
+  for(i = 0; i < SPANISH_PRONOUN_ORDER.length; i++) {
+    add(SPANISH_PRONOUN_ORDER[i], SPANISH_PRONOUN_ORDER[i]);
+  }
+  for(i = 0; i < SPANISH_PRONOUN_ORDER.length; i++) {
+    key = SPANISH_PRONOUN_ORDER[i];
+    para = SPANISH_PRONOUN_PARADIGMS[key];
+    slotKeys = Object.keys(para);
+    for(s = 0; s < slotKeys.length; s++) {
+      add(para[slotKeys[s]], key);
+    }
+    extras = SPANISH_PRONOUN_EXTRA_ALIASES[key] || [];
+    for(j = 0; j < extras.length; j++) {
+      add(extras[j], key);
+    }
+  }
+  return lookup;
+}
+
+var SPANISH_PRONOUN_LOOKUP = indexSpanishPronounLookup();
+
+function spanishPronounGrid(str) {
+  if(!str || typeof str !== 'string') { return null; }
+  var raw = str.replace(/^\s+|\s+$/g, '');
+  if(!raw) { return null; }
+  var check = raw.toLowerCase();
+  var key = SPANISH_PRONOUN_LOOKUP[check] || SPANISH_PRONOUN_LOOKUP[unaccentSpanish(check)];
+  if(!key) { return null; }
+  var para = SPANISH_PRONOUN_PARADIGMS[key];
+  var cap = function(form) { return applySpanishCap(raw, form); };
+  var out = {c: raw};
+  var locs = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se'];
+  var i, loc;
+  for(i = 0; i < locs.length; i++) {
+    loc = locs[i];
+    if(para[loc]) { out[loc] = cap(para[loc]); }
+  }
+  return out;
+}
+
 var i18n = EmberObject.extend({
   init: function() {
     this._super();
@@ -283,6 +680,65 @@ var i18n = EmberObject.extend({
       res = "will haver been " + res;
     }
     return res;
+  },
+  spanish_verb_grid: function(str) {
+    return spanishVerbGrid(str);
+  },
+  spanish_noun_grid: function(str) {
+    return spanishNounGrid(str);
+  },
+  spanish_adjective_grid: function(str) {
+    return spanishAdjectiveGrid(str);
+  },
+  spanish_pronoun_grid: function(str) {
+    return spanishPronounGrid(str);
+  },
+  // Sidebar inflections board (`:es-*` actions). Overlay grids stay separate.
+  spanish_verb_slot: function(str, slot) {
+    var grid = spanishVerbGrid(str);
+    if(!grid || grid[slot] == null) { return str; }
+    return grid[slot];
+  },
+  spanish_pluralize: function(str) {
+    var raw = spanishTrim(str);
+    if(!raw) { return str; }
+    if(spanishVerbGrid(raw)) { return raw; }
+    return applySpanishCap(raw, spanishPlural(raw.toLowerCase()));
+  },
+  spanish_feminine: function(str) {
+    var raw = spanishTrim(str);
+    if(!raw) { return str; }
+    var check = raw.toLowerCase();
+    if(SPANISH_NO_GENDER_O[check]) { return raw; }
+    var fem;
+    if(/os$/.test(check)) {
+      fem = spanishFeminineNoun(check.slice(0, -1));
+      if(fem) { return applySpanishCap(raw, spanishPlural(fem)); }
+    }
+    fem = spanishFeminineNoun(check);
+    if(fem) { return applySpanishCap(raw, fem); }
+    fem = spanishAdjectiveAgreement(check).fem;
+    if(fem) { return applySpanishCap(raw, fem); }
+    return raw;
+  },
+  spanish_negation: function(str) {
+    return spanishPrefixForm(str, 'no ');
+  },
+  spanish_mas: function(str) {
+    return spanishPrefixForm(str, 'más ');
+  },
+  spanish_isimo: function(str) {
+    var raw = spanishTrim(str);
+    if(!raw) { return str; }
+    var check = raw.toLowerCase();
+    if(/ísimo$/.test(check)) { return raw; }
+    return applySpanishCap(raw, spanishIsimo(check) || ('el más ' + check));
+  },
+  spanish_question: function(str) {
+    return spanishWrapPunct(str, '¿', '?');
+  },
+  spanish_exclaim: function(str) {
+    return spanishWrapPunct(str, '¡', '!');
   },
   comparative: function(str, opts) {
     // good == better

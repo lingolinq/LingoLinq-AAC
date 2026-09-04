@@ -5,7 +5,7 @@ import persistence from '../utils/persistence';
 // URL live in utils/article50_gate so this modal and the passive Preferences link
 // cannot drift apart; that constant tracks the backend's
 // LingoLinq::Article50Disclosures::CURRENT_VERSION (Plan 03-01).
-import { art50DisclosureUrl } from '../utils/article50_gate';
+import { art50DisclosureUrl, art50Subject, art50UserId } from '../utils/article50_gate';
 
 /**
  * The one shared, accessible "you are about to use AI" modal (F1). Composes
@@ -60,8 +60,19 @@ export default Component.extend({
     }
     persistence.ajax(this.get('disclosureLinkUrl'), { type: 'GET', dataType: 'html' }).then(function(html) {
       if (_this.isDestroyed || _this.isDestroying) { return; }
-      if (html) {
-        _this.set('disclosure_html', html);
+      // extras.js wraps every string AJAX body as {text: html, meta: ...} so
+      // Ember Data always receives an object. persistence.ajax JSON callers already
+      // expect that shape; this HTML fetch must unwrap .text or {{safe}} stringifies
+      // the object to "[object Object]". A raw string is still accepted for tests
+      // / the unpatched $.ajax path.
+      var htmlString = null;
+      if (typeof html === 'string') {
+        htmlString = html;
+      } else if (html && typeof html.text === 'string') {
+        htmlString = html.text;
+      }
+      if (htmlString) {
+        _this.set('disclosure_html', htmlString);
         _this.set('loading', false);
       } else {
         _this.showOfflineFallback();
@@ -91,18 +102,34 @@ export default Component.extend({
      * blocked action proceeds. A failed write NEVER closes the modal -- closing
      * would resolve the caller's promise and let a gated AI action proceed with
      * no recorded acknowledgement (T-03-03-06).
+     *
+     * The ack is recorded against art50Subject (the AUTHENTICATED account), the
+     * same account needsAcknowledgement gated on and the same one the server's
+     * backstop evaluates. Reading `currentUser` here meant that in speak mode a
+     * supporter's acknowledgement was POSTed to the COMMUNICATOR's id: the
+     * endpoint takes params['user_id'] and a supporter usually passes
+     * allowed?(user, 'edit'), so it wrote an audited Article 50 record for a
+     * person who never saw the notice while the supporter stayed ungated. The
+     * audit trail has to name the human who actually read it.
+     *
+     * The URL uses art50UserId (global_id / _actual_id), never `.id` alone.
+     * findRecord('user', 'self') leaves `.id` as the literal 'self', and
+     * User.find_by_path treats a non-digit path as a username, so POSTing
+     * /users/self/article_50_disclosure_ack 404s and the supporter cannot
+     * acknowledge.
      */
     acknowledge() {
       var _this = this;
       if (this.get('acknowledging')) { return; }
-      var user = this.get('appState').get('currentUser');
-      if (!user || !user.get('id')) {
+      var user = art50Subject(this.get('appState'));
+      var userId = art50UserId(user);
+      if (!user || !userId) {
         this.set('ack_error', true);
         return;
       }
       this.set('acknowledging', true);
       this.set('ack_error', false);
-      persistence.ajax('/api/v1/users/' + user.get('id') + '/article_50_disclosure_ack', {
+      persistence.ajax('/api/v1/users/' + userId + '/article_50_disclosure_ack', {
         type: 'POST'
       }).then(function() {
         if (_this.isDestroyed || _this.isDestroying) { return; }

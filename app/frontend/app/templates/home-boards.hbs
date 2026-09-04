@@ -14,7 +14,13 @@
             <p class="md-card--home-boards__subheader-support">{{t "When you find one that fits, use the menu and choose \"Set as Home\" to make it yours." key="finding_home_board2"}}</p>
           </div>
           <div class="md-card--home-boards__picker">
-            <BoardPicker />
+            {{!-- Explicitly NOT compact. `compact_boards` became a component-wide default
+                 of true, and this surface renders the picker bare, so it inherited compact
+                 with no way out — the Compact/Detailed toggle is gated on `searchAtTop`,
+                 which this call site does not pass. Compact rows also set
+                 pickOpensPreview, so tapping a card opened a preview instead of picking,
+                 turning the one job of this page into two taps. --}}
+            <BoardPicker @compact_boards={{false}} />
           </div>
         {{else}}
           <BoardSelectionTool @search={{true}} @loadError={{this.ctrlAction "show_advanced"}} @advanced={{this.ctrlAction "show_advanced"}} @onSelect={{this.ctrlAction "select_board"}} />

@@ -367,7 +367,175 @@ describe ExtraData, :type => :model do
       expect(ra.path).to eq("#{s.global_id}")
       expect(ra.action).to eq("upload_log_session")
       expect(ra.act_at).to be > 4.minutes.from_now
-    end    
+    end
+
+    describe "preserving the only copy when the upload does not land" do
+      # Regression for #732. A throttled (or otherwise unsuccessful) upload used
+      # to delete data['buttons'] anyway, on the theory that a button set is
+      # always regenerable. The empty-button-set incident showed regeneration
+      # hits the same trap. Nothing may drop the local copy unless a remote copy
+      # is confirmed present.
+      let(:many_buttons) do
+        (0...250).map{|i| {'id' => i, 'board_id' => '1_1', 'label' => "b#{i}"} }
+      end
+
+      def with_remote_extra_data
+        prior = ENV['REMOTE_EXTRA_DATA']
+        ENV['REMOTE_EXTRA_DATA'] = '1'
+        yield
+      ensure
+        ENV['REMOTE_EXTRA_DATA'] = prior
+      end
+
+      it "should keep a small button set inline when the upload is throttled" do
+        with_remote_extra_data do
+          u = User.create
+          b = Board.create(user: u)
+          bs = BoardDownstreamButtonSet.create(board: b)
+          bs.data['buttons'] = many_buttons[0, 10]
+          bs.generate_defaults(true)
+          # under the stash threshold, so the buttons are still inline
+          expect(bs.data['buttons'].length).to eq(10)
+          expect(Uploader).to receive(:remote_upload).at_least(1).times.and_raise("throttled upload")
+
+          bs.detach_extra_data(true)
+
+          expect(bs.data['buttons']).to_not eq(nil)
+          expect(bs.data['buttons'].length).to eq(10)
+          expect(bs.reload.data['buttons'].length).to eq(10)
+          expect(bs.data['button_count']).to eq(10)
+        end
+      end
+
+      it "should restore a stashed large button set when the upload is throttled" do
+        # The case that actually matters: generate_defaults has already moved the
+        # buttons out of self.data into @cached_extra_data, so merely skipping the
+        # delete would still persist a row with no buttons at all.
+        with_remote_extra_data do
+          u = User.create
+          b = Board.create(user: u)
+          bs = BoardDownstreamButtonSet.create(board: b)
+          bs.data['buttons'] = many_buttons
+          bs.generate_defaults(true)
+          expect(bs.data['buttons']).to eq(nil)
+          expect(bs.instance_variable_get('@cached_extra_data').length).to eq(250)
+          expect(Uploader).to receive(:remote_upload).at_least(1).times.and_raise("throttled upload")
+
+          bs.detach_extra_data(true)
+
+          expect(bs.reload.data['buttons']).to_not eq(nil)
+          expect(bs.data['buttons'].length).to eq(250)
+          expect(bs.data['button_count']).to eq(250)
+          expect(bs.buttons.length).to eq(250)
+        end
+      end
+
+      it "should not record the revision as stored when the upload is throttled" do
+        with_remote_extra_data do
+          u = User.create
+          b = Board.create(user: u)
+          bs = BoardDownstreamButtonSet.create(board: b)
+          bs.data['full_set_revision'] = 'rev-abc'
+          bs.data['buttons'] = many_buttons[0, 10]
+          bs.generate_defaults(true)
+          expect(Uploader).to receive(:remote_upload).at_least(1).times.and_raise("throttled upload")
+
+          bs.detach_extra_data(true)
+
+          expect(bs.data['extra_data_revision']).to_not eq('rev-abc')
+        end
+      end
+
+      it "should restore the stashed copy when the upload is skipped for an already-scheduled retry" do
+        # Path C: the guard skips the upload entirely, but generate_defaults has
+        # already emptied self.data. The caller's own save would then persist a
+        # row with no buttons.
+        with_remote_extra_data do
+          u = User.create
+          b = Board.create(user: u)
+          bs = BoardDownstreamButtonSet.create(board: b)
+          RemoteAction.create(path: b.global_id, act_at: 5.minutes.from_now, action: 'upload_button_set')
+          bs.data['buttons'] = many_buttons
+          bs.generate_defaults(true)
+          expect(bs.data['buttons']).to eq(nil)
+          expect(Uploader).to_not receive(:remote_upload)
+
+          bs.detach_extra_data(true)
+
+          expect(bs.reload.data['buttons']).to_not eq(nil)
+          expect(bs.data['buttons'].length).to eq(250)
+          expect(bs.data['button_count']).to eq(250)
+        end
+      end
+
+      it "should survive a full update_for rebuild whose upload is throttled" do
+        # The real-world path: update_for calls generate_defaults(true), then
+        # detach_extra_data(true), then set.save. That final save runs OUTSIDE
+        # @skip_extra_data_update, so before_save generate_defaults re-stashes and
+        # re-deletes -- which is how a row ends up with no buttons and a stale
+        # button_count.
+        with_remote_extra_data do
+          u = User.create
+          b = Board.create(user: u)
+          buttons = (0...250).map{|i| {'id' => i + 1, 'label' => "b#{i}"} }
+          order = (0...25).map{|r| (0...10).map{|c| (r * 10) + c + 1 } }
+          b.process({'buttons' => buttons, 'grid' => {'rows' => 25, 'columns' => 10, 'order' => order}})
+          Worker.process_queues
+          BoardDownstreamButtonSet.last_scheduled_stamp = nil
+          expect(Uploader).to receive(:remote_upload).at_least(1).times.and_raise("throttled upload")
+
+          set = BoardDownstreamButtonSet.update_for(b.global_id, true)
+          expect(set).to_not eq(nil)
+
+          set.reload
+          expect(set.data['buttons']).to_not eq(nil)
+          expect(set.data['buttons'].length).to eq(250)
+          expect(set.data['button_count']).to eq(250)
+          expect(set.buttons.length).to eq(250)
+        end
+      end
+
+      it "should still drop the local copy once the upload succeeds" do
+        with_remote_extra_data do
+          u = User.create
+          b = Board.create(user: u)
+          bs = BoardDownstreamButtonSet.create(board: b)
+          bs.data['full_set_revision'] = 'rev-abc'
+          bs.data['buttons'] = many_buttons
+          bs.generate_defaults(true)
+          expect(Uploader).to receive(:remote_upload).at_least(1).times.and_return({path: 'c/d/e.json', uploaded: true})
+
+          bs.detach_extra_data(true)
+
+          expect(bs.reload.data['buttons']).to eq(nil)
+          expect(bs.data['extra_data_revision']).to eq('rev-abc')
+        end
+      end
+
+      it "should drop a log session's events when an identical remote copy is confirmed" do
+        # Behavior change approved with #732: upload_remote_data used to return
+        # :nothing when S3 already held a byte-identical object at the same path,
+        # which is indistinguishable from "no upload happened". That case is now
+        # :confirmed, so the remote copy is verified and the local one may go.
+        u = User.create
+        d = Device.create(user: u)
+        s = LogSession.create(user: u, device: d, author: u, data: {'extra_data_nonce' => 'qwwqtqw'})
+        s.data['events'] = [{'id' => 1}, {'id' => 2}]
+        private_path, public_path = LogSession.extra_data_remote_paths(s.data['extra_data_nonce'], s, 2, true)
+        s.data['extra_data_private_path'] = private_path
+        s.data['extra_data_public_path'] = public_path
+        expect(s).to receive(:extra_data_too_big?).and_return(false).at_least(1).times
+        # same path back, no :uploaded flag -- remote_upload only does this after
+        # check_existing_upload matched on checksum
+        expect(Uploader).to receive(:remote_upload).at_least(1).times { |path, local, type, digest|
+          {url: "https://example.com/#{path}", path: path}
+        }
+
+        s.detach_extra_data('force')
+
+        expect(s.reload.data['events']).to eq(nil)
+      end
+    end
   end
 
   describe "extra_data_attribute" do

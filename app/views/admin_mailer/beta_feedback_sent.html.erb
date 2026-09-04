@@ -27,6 +27,6 @@ Virtual meeting requested: <%= ActiveModel::Type::Boolean.new.cast(@message.sett
 <br/>Screen recording: <% if recording || @message.settings['recording_id'].present? %>uploaded<% if @message.settings['recording_byte_size'].present? %> (<%= @message.settings['recording_byte_size'] %> bytes)<% end %><% else %>saved locally by submitter<% end %> — view in admin inbox (video not attached to email).
 <% end %>
 <br/><br/>
-<a href="<%= JsonApi::Json.current_host %>/beta-feedback/admin/entry/<%= @message.global_id %>">View in beta feedback admin</a><br/><br/>
+<a href="<%= JsonApi::Json.absolute_host %>/beta-feedback/admin/entry/<%= @message.global_id %>">View in beta feedback admin</a><br/><br/>
 Thanks!<br/>
 <%= email_signature %>

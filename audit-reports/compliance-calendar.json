@@ -3,7 +3,7 @@
     "schemaVersion": "1.0",
     "artifact": "LingoLinq-AAC compliance calendar",
     "description": "Source of truth for recurring compliance review cadences and fixed regulatory dates. Owned by the compliance-officer agent, surfaced at /compliance-status. The officer DRAFTS and SURFACES; only Scot attests that a review was completed. Regenerate compliance-calendar.md with `ruby scripts/compliance-calendar-render.rb`; do not hand-edit the render.",
-    "generatedDate": "2026-06-14",
+    "generatedDate": "2026-08-07",
     "owner": "compliance-officer (drafts/surfaces); Scot Wahlquist (attests completion)",
     "basis": "Audit/Compliance Modernization plan 2026-06-11 sections 1.3, 5.1, 6, 9.1; fresh regulatory lookups 2026-06-13; Phase 4 audit-run cadence added 2026-06-14",
     "dateConvention": "ISO-8601 absolute dates. All cached regulatory dates are 'verify before relying'; regulation is fast-moving.",
@@ -70,10 +70,10 @@
       "framework": "GDPR",
       "title": "Subprocessor list review (SUBPROCESSORS.md)",
       "cadence": "quarterly",
-      "lastDone": null,
-      "nextDue": "2026-09-01",
+      "lastDone": "2026-08-08",
+      "nextDue": "2026-11-08",
       "drafts": "updated subprocessor inventory + change notice draft (GDPR Art. 28(2) prior-notice posture)",
-      "watch": "any new third-party data processor added to the stack triggers an off-cycle review",
+      "watch": "any new third-party data processor added to the stack triggers an off-cycle review. MISSED CYCLE, THEN PERFORMED: lastDone was null and nextDue 2026-09-01 until 2026-08-07, while docs/legal/SUBPROCESSORS.md recorded its last full line-by-line review as 2026-04-20. On a quarterly cadence from 2026-04-20 a cycle fell due 2026-07-20 and was not performed. Re-dating past that gap would have hidden an overdue Article 28 review because, at the time, the renderer surfaced only nextDue and never this field, so the CEO directed on 2026-08-08 that the review be PERFORMED instead. It was: every external host in lib/, app/models/, app/controllers/ and config/ was reconciled against the section 4 table, and it found two active processors absent from the register (Stripe, and iplocate.io, the latter with an ungated call site raised as LL-07f1869d92). Findings are recorded in SUBPROCESSORS.md section 4.1 and its 2026-08-08 change-log entry. lastDone 2026-08-08 reflects that performed review; nextDue 2026-11-08 is one quarter on. Note the many dated amendments in the change log are per-change updates, not the periodic full-register review this item tracks.",
       "basis": "plan 1.3, 2.5; docs/legal/SUBPROCESSORS.md"
     },
     {
@@ -156,12 +156,12 @@
     {
       "id": "rev-breach-runbook-drive-remirror",
       "framework": "HIPAA",
-      "title": "Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2 (DOC-f576f43250)",
+      "title": "Re-brand + re-share BREACH_RUNBOOK Drive mirror to v2.2.2 (DOC-f576f43250)",
       "cadence": "one-time",
       "lastDone": null,
       "nextDue": "2026-08-31",
-      "drafts": "The git-canonical runbook docs/legal/BREACH_RUNBOOK.md is v2.2-attested (2026-07-28, hash 0ee1b92e); the branded Drive mirror DOC-f576f43250 (Google Doc 1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po) still carries v2.1-era content. Regenerate the branded Google Doc from the v2.2 markdown and re-share it into the school-dpa-package, soc2-evidence, and baa bundles, then confirm the refresh in DOCUMENT-REGISTER.json.",
-      "watch": "document-register-render --check is structurally blind to Drive (Drive hashes are operator-supplied), so this drift never fails CI and must be tracked here. Sequence AFTER PR #703 merges so the Drive doc is re-branded from the final attested bytes. No hard regulatory deadline (pre-MVP, no real district users yet); nextDue is advisory.",
+      "drafts": "The git-canonical runbook docs/legal/BREACH_RUNBOOK.md is v2.2.2 (2026-08-02), pending Scot's re-attestation; the branded Drive mirror DOC-f576f43250 (Google Doc 1aaJ9sXq4Y-SpX2d2rzOY2qUKN5NYXhOVgI3uZdMM2po) still carries v2.1-era content and is now three revisions behind. Regenerate the branded Google Doc from the v2.2.2 markdown and re-share it into the school-dpa-package, soc2-evidence, and baa bundles, then confirm the refresh in DOCUMENT-REGISTER.json. Mirror ONLY from v2.2.2 bytes, and only AFTER Scot re-attests them. Two superseded revisions must NOT be used as the source: v2.2 (hash 0ee1b92e @ commit 456b6735a6 / PR #703) is superseded, and v2.2.1 (hash 2b788387) described Anthropic as the active runtime AI provider and asserted active Bedrock egress, which v2.2.2 retracts (see BREACH_RUNBOOK.md section 13). Mirroring either would republish a known-false claim into a customer-shared Drive doc. CORRECTED 2026-08-02: this item previously targeted v2.2.1; also retracts an earlier fbdf49a1 pin that is not retrievable from merged ancestry.",
+      "watch": "document-register-render --check is structurally blind to Drive (Drive hashes are operator-supplied), so this drift never fails CI and must be tracked here. Sequenced AFTER the v2.2.2 re-attestation so the Drive doc is re-branded from the final attested bytes. PR #703 merged 2026-07-29T23:05Z; v2.2.1-interim (2026-07-31) was superseded by v2.2.1 (2026-08-01), then by v2.2.2 on 2026-08-02. No hard regulatory deadline (pre-MVP, no real district users yet); nextDue is advisory.",
       "basis": "senior-dev content-integrity review of PR #703 (finding M4); docs/legal/BREACH_RUNBOOK.md; DOCUMENT-REGISTER.json DOC-f576f43250"
     }
   ],
@@ -183,12 +183,13 @@
       "id": "fix-euaiact-art50-2026-08-02",
       "framework": "EU_AI_Act",
       "date": "2026-08-02",
-      "status": "upcoming",
+      "status": "passed-enforceable",
+      "nextDue": "2026-09-01",
       "title": "EU AI Act Article 50 transparency obligations apply",
       "obligation": "Disclose AI interaction to users; label synthetic/AI-generated content; deepfake identification. Applies to ANY in-scope AI system, not only high-risk. For an AAC predictor, the relevant question is whether output meets the synthetic-content marking trigger.",
-      "action": "Applicability memo finalized (AI_GOVERNANCE_MEMO section 5). 50(2) marking on prod (PR #584). 50(1) disclosure now BUILT and STAGED, gated OFF: modal + ack endpoint + first-AI-use gate (PR #646, Phase 3) and jurisdiction stamping (PR #635, Phase 4) are on staging; the article_50_disclosure flag is registered AVAILABLE-only (Phase 5, RLL-01), so nothing is shown to any user yet. Remaining before 2026-08-02: (1) production deploy of Phases 3-5; (2) on Scot's sign-off, enable the flag for EU accounts; (3) clear the pre-enable accessibility blocker (finding disclosure-full-notice-link-low-contrast-token, WCAG 1.4.3). Not live in production until the deploy + enable happen.",
-      "source": "https://artificialintelligenceact.eu/article/50/",
-      "verifiedOn": "2026-07-22"
+      "action": "Date PASSED 2026-08-02 (verified 2026-08-09 against Commission FAQ). 50(2) marking on prod (lib/art50_marker.rb). 50(1) disclosure UI is BUILT and the flag IS ENABLED IN PRODUCTION, verified 2026-08-23 by direct read (see docs/legal/2026-08-23_article-50-production-flag-verification.md): present in the default_enabled_features DB Setting, resolving true for all 34 of 34 users. It is AVAILABLE-only in CODE; the DB Setting overrides that. Enabled-since date is not recoverable (Setting has no version history). Ongoing: (1) Scot decision to enable for EU accounts or record dated non-applicability rationale; (2) clear pre-enable WCAG High LL-a9d6d5a46b; (3) keep DOC-771d214850 plan current. Machine-readable marking grace for 50(2) ends 2026-12-02 (fix-euaiact-art50-2-2026-12-02) and is not headroom for first EU placement after 2026-08-02.",
+      "source": "https://digital-strategy.ec.europa.eu/en/faqs/transparency-obligations-under-article-50-ai-act",
+      "verifiedOn": "2026-08-09"
     },
     {
       "id": "fix-euaiact-art50-2-2026-12-02",
@@ -240,8 +241,8 @@
       "date": null,
       "status": "conditional",
       "title": "First real-tenant onboarding - subprocessor baseline confirmation (Art. 28)",
-      "obligation": "docs/legal/SUBPROCESSORS.md \u00a72 commits to 30 days advance notice before any subprocessor change that affects a tenant. That clock is dormant while production carries only synthetic/test data with no real tenant (\u00a75.7 pre-tenant baseline): subprocessor additions made in this window (incl. Google Cloud Platform #19, added at the 2026-07-22 Gate 1 cutover) affect no tenant and fire no notice. They form the disclosed baseline the first real tenant receives at onboarding.",
-      "action": "Before onboarding the first real (non-synthetic) tenant: confirm the published subprocessor list at https://lingolinq.com/legal/subprocessors matches docs/legal/SUBPROCESSORS.md \u00a74 and lists every active subprocessor (incl. GCP #19) as the disclosed baseline. From that point the \u00a72 30-day advance-notice obligation is live for any subsequent subprocessor change.",
+      "obligation": "docs/legal/SUBPROCESSORS.md §2 commits to 30 days advance notice before any subprocessor change that affects a tenant. That clock is dormant while production carries only synthetic/test data with no real tenant (§5.7 pre-tenant baseline): subprocessor additions made in this window (incl. Google Cloud Platform #19, added at the 2026-07-22 Gate 1 cutover) affect no tenant and fire no notice. They form the disclosed baseline the first real tenant receives at onboarding.",
+      "action": "Before onboarding the first real (non-synthetic) tenant: confirm the published subprocessor list at https://lingolinq.com/legal/subprocessors matches docs/legal/SUBPROCESSORS.md §4 and lists every active subprocessor (incl. GCP #19) as the disclosed baseline. From that point the §2 30-day advance-notice obligation is live for any subsequent subprocessor change.",
       "trigger": "end of the pre-MVP synthetic-only window / first real tenant onboarded (see project_prod_no_real_users)",
       "verifiedOn": "2026-07-24"
     }

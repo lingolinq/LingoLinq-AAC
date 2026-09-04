@@ -603,17 +603,84 @@ class WordData < ApplicationRecord
     locales
   end
   
+  # Google Translate has no AAC context. Bare "who" is the question word
+  # (quién), but the API often returns OMS (WHO, the health agency).
+  # These win over WordData cache and Google. Keys are lowercase source text;
+  # dest casing follows the source label.
+  TRANSLATION_OVERRIDES = {
+    'en:es' => {
+      'who' => 'quién'
+    }
+  }.freeze
+
+  def self.translation_override_canonical(text, source_lang, dest_lang)
+    src = source_lang.to_s.split(/[-_]/).first
+    dest = dest_lang.to_s.split(/[-_]/).first
+    table = TRANSLATION_OVERRIDES["#{src}:#{dest}"]
+    return nil unless table
+    table[text.to_s.strip.downcase]
+  end
+
+  def self.translation_override_for(text, source_lang, dest_lang)
+    forced = translation_override_canonical(text, source_lang, dest_lang)
+    return nil unless forced
+    apply_source_capitalization(text, forced)
+  end
+
+  def self.apply_source_capitalization(source, dest)
+    s = source.to_s.strip
+    return dest if s.blank?
+    if s == s.upcase && s.match?(/[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]/)
+      return dest.upcase
+    end
+    if s[0] && s[0] == s[0].upcase
+      return dest.sub(/\A./) { |ch| ch.upcase }
+    end
+    dest
+  end
+
+  def self.persist_forced_translation(text, translation, source_lang, dest_lang)
+    return if text.to_s.match(/^[\+\:]/)
+    word = find_word_record(text, source_lang)
+    if !word
+      word = WordData.find_or_create_by(:word => text.downcase.strip, :locale => source_lang) rescue nil
+      word ||= WordData.find_or_create_by(:word => text.downcase.strip, :locale => source_lang)
+    end
+    return unless word
+    word.data ||= {}
+    word.data['word'] ||= text.downcase.strip
+    word.data['translations'] ||= {}
+    # Overwrite (not ||=). persist_translation uses ||= so a poisoned
+    # Google value such as OMS for "who" would stick forever.
+    word.data['translations'][dest_lang] = translation
+    word.data['translations'][dest_lang.split(/-/)[0]] = translation
+    word.save
+  end
+
   def self.translate(text, source_lang, dest_lang, type=nil)
     batch = translate_batch([{text: text, type: type}], source_lang, dest_lang)
     batch[:translations][text]
   end
   
   def self.translate_batch(batch, source_lang, dest_lang)
-    res = {source: source_lang, dest: dest_lang, translations: {}}
+    res = {source: source_lang, dest: dest_lang, translations: {}, origins: {}}
     found = {}
+    # Action tokens (':space', '+q', ':shift', ':suggestion', ...) are
+    # control protocols, not words. persist_translation already refuses
+    # to create records for /^[\+\:]/, but we must also skip cache lookup
+    # and Google so a prior cached hit cannot leak back to the client.
+    batch = Array(batch).reject { |obj| (obj[:text] || obj['text']).to_s.match(/^[:+]/) }
     missing = batch
     batch.each do |obj|
       text = obj[:text]
+      forced = translation_override_for(text, source_lang, dest_lang)
+      if forced
+        res[:translations][text] = forced
+        res[:origins][text] = 'override'
+        persist_forced_translation(text, translation_override_canonical(text, source_lang, dest_lang), source_lang, dest_lang)
+        missing = missing.select{|e| e[:text] != text }
+        next
+      end
       word = find_word_record(text, source_lang)
       new_text = nil
       if word && word.data
@@ -623,15 +690,19 @@ class WordData < ApplicationRecord
       end
       if new_text
         res[:translations][text] = new_text
+        res[:origins][text] = 'cache'
         missing = missing.select{|e| e[:text] != text }
       end
     end
     
     # API call to look up all missing strings
-    query_translations(missing, source_lang, dest_lang).each do |obj|
-      if obj[:translation]
-        res[:translations][obj[:text]] = obj[:translation]
-        schedule(:persist_translation, obj[:text], obj[:translation], source_lang, dest_lang, obj[:type])
+    unless missing.empty?
+      query_translations(missing, source_lang, dest_lang).each do |obj|
+        if obj[:translation]
+          res[:translations][obj[:text]] = obj[:translation]
+          res[:origins][obj[:text]] = 'google'
+          schedule(:persist_translation, obj[:text], obj[:translation], source_lang, dest_lang, obj[:type])
+        end
       end
     end
     

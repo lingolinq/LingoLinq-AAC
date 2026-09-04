@@ -9,7 +9,7 @@ You have earned a <%= app_name %> badge!
 <% if @badge.data['global_goal'] %>
 As <%= app_name %> tracks your usage, you'll automagically see badges like this one be awarded based on how much you use different features in <%= app_name %>, and what your typical usage looks like.
 <% elsif @goal %>
-This badge is part of the goal, <%= @goal.settings['summary'] %> (<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/goals/<%= @goal.global_id %>), and you can see more detailed information on goal progress in the <%= app_name %> app.
+This badge is part of the goal, <%= @goal.settings['summary'] %> (<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/goals/<%= @goal.global_id %>), and you can see more detailed information on goal progress in the <%= app_name %> app.
 <% end %>
 <% if !@badge.data['max_level'] %>
 This badge is part of a set, so keep at it and see if you can move up to the next level!

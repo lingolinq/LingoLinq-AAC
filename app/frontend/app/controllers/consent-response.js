@@ -112,7 +112,8 @@ export default Controller.extend({
       type: 'POST',
       data: {
         token: token,
-        action: consent_action
+        // Rails reserves `action` for the controller action name — use decision.
+        decision: consent_action
       }
     }).then(function(res) {
       _this.set('submitting', false);

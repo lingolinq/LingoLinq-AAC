@@ -64,7 +64,7 @@ const RENDER_WORKERS = {
 
 // 1Password vault structure (post-2026-04-06 restructure):
 //   - LingoLinq Admin: AWS Credentials, Render API (admin-only access)
-//   - LingoLinq Shared Dev: ANTHROPIC_API_KEY, GEMINI_API_KEY, Notion, Stripe (test), Email Config, etc. (all devs)
+//   - LingoLinq Shared Dev: Notion, Stripe (test), Email Config, etc. (all devs)
 //   - LingoLinq Staging: per-env Rails secrets, Stripe staging, etc.
 //   - LingoLinq Prod: per-env Rails secrets, Stripe LIVE, Database, etc.
 const VAULTS = {
@@ -138,12 +138,6 @@ const KEY_MANIFEST = {
   NEW_REGISTRATION_EMAIL:{ vault: 'shared', item: 'Email Config', field: 'NEW_REGISTRATION_EMAIL', shared: true },
 
   // -- AI/API keys (shared vault) --
-  // Per-key 1Password items (the old combined "AI Keys" item was split into
-  // per-key API-credential items on 2026-07-17). ANTHROPIC uses the standard
-  // API-credential `credential` field; GEMINI uses a custom field of its own name.
-  GEMINI_API_KEY:        { vault: 'shared', item: 'GEMINI_API_KEY', field: 'GEMINI_API_KEY', shared: true },
-  ANTHROPIC_API_KEY:     { vault: 'shared', item: 'ANTHROPIC_API_KEY', field: 'credential', shared: true },
-
   // -- Google APIs (shared vault) --
   GOOGLE_TTS_TOKEN:      { vault: 'shared', item: 'Google APIs', field: 'GOOGLE_TTS_TOKEN', shared: true },
   GOOGLE_TRANSLATE_TOKEN:{ vault: 'shared', item: 'Google APIs', field: 'GOOGLE_TRANSLATE_TOKEN', shared: true },
@@ -169,21 +163,7 @@ const KEY_MANIFEST = {
   // LEADER_POSTGRES_URL:  set manually on prod for Octopus sharding
 };
 
-// Which Render environments a manifest key applies to, narrowed to the ones this
-// run actually targets.
-//
-// `selected` is the --service filter. Passing it matters for more than tidiness:
-// BEDROCK_AWS_KEY is deliberately scoped to ['dev', 'staging'] because prod runs
-// on Cloud Run and mounts that pair from Secret Manager. Without the narrowing, a
-// `--service prod` run still iterated dev and staging for that key, and because
-// the key is `required: true`, a missing dev/staging 1Password entry aborted the
-// whole run via the fail-closed guard -- blocking a prod sync on credentials prod
-// does not use and must never receive.
-//
-// An EMPTY intersection is a normal outcome, not an error: it means this key does
-// not apply to the selected environment. Only the manifest declaration itself is
-// validated as non-empty.
-function renderEnvironmentsFor(config, selected = null) {
+function renderEnvironmentsFor(config) {
   const environments = config.renderEnvironments || Object.keys(RENDER_SERVICES);
   if (!Array.isArray(environments) || environments.length === 0) {
     throw new Error('Manifest renderEnvironments must be a non-empty array');
@@ -193,14 +173,11 @@ function renderEnvironmentsFor(config, selected = null) {
       throw new Error(`Manifest names unknown Render environment: ${environment}`);
     }
   }
-  if (!selected) { return environments; }
-  return environments.filter(environment => selected.includes(environment));
+  return environments;
 }
 
-function valuesForRenderEnvironments(config, value, selected = null) {
-  return Object.fromEntries(
-    renderEnvironmentsFor(config, selected).map(environment => [environment, value])
-  );
+function valuesForRenderEnvironments(config, value) {
+  return Object.fromEntries(renderEnvironmentsFor(config).map(environment => [environment, value]));
 }
 
 const ENV_FILE_PATH = path.join(os.homedir(), 'ai-company-brain', 'config', '.env');
@@ -458,11 +435,6 @@ async function sync(services, source, apply, dependencies = {}) {
   const readSecret = dependencies.readSecret || opRead;
   console.log(`\n=== Sync Render Env Vars (source: ${source}, mode: ${apply ? 'APPLY' : 'DRY-RUN'}) ===\n`);
 
-  // The --service filter, as the caller already narrowed it. Every manifest
-  // lookup below is scoped to this so a targeted run neither reads, calculates,
-  // nor fails on values belonging to an environment it is not touching.
-  const selected = Object.keys(services);
-
   // Load desired values
   let desiredValues = {};
 
@@ -475,7 +447,7 @@ async function sync(services, source, apply, dependencies = {}) {
     for (const [key, config] of Object.entries(KEY_MANIFEST)) {
       // Handle keys with static default values (no 1Password needed)
       if (config.defaultValue) {
-        desiredValues[key] = valuesForRenderEnvironments(config, config.defaultValue, selected);
+        desiredValues[key] = valuesForRenderEnvironments(config, config.defaultValue);
         continue;
       }
       if (config.shared) {
@@ -488,14 +460,14 @@ async function sync(services, source, apply, dependencies = {}) {
         }
         const val = readSecret(vaultName, config.item, config.field);
         if (val) {
-          desiredValues[key] = valuesForRenderEnvironments(config, val, selected);
+          desiredValues[key] = valuesForRenderEnvironments(config, val);
         } else {
           console.warn(`  Warning: Could not read ${vaultName}/${config.item}/${config.field}`);
         }
       } else if (config.perEnv) {
         // Read once per allowed environment from that environment's vault.
         desiredValues[key] = {};
-        for (const env of renderEnvironmentsFor(config, selected)) {
+        for (const env of renderEnvironmentsFor(config)) {
           const vaultName = VAULTS[env];
           const val = readSecret(vaultName, config.item, config.field);
           if (val) {
@@ -517,21 +489,9 @@ async function sync(services, source, apply, dependencies = {}) {
     const envVars = loadEnvFile(ENV_FILE_PATH);
     for (const [key, config] of Object.entries(KEY_MANIFEST)) {
       if (config.defaultValue) {
-        desiredValues[key] = valuesForRenderEnvironments(config, config.defaultValue, selected);
+        desiredValues[key] = valuesForRenderEnvironments(config, config.defaultValue);
       } else if (envVars[key]) {
-        desiredValues[key] = valuesForRenderEnvironments(config, envVars[key], selected);
-      } else if (config.required) {
-        // `required` was previously enforced on the 1Password path only, so a
-        // --source env run with a .env missing one or both Bedrock credentials
-        // still wrote BEDROCK_AWS_REGION and BEDROCK_EXPECTED_AWS_ACCOUNT (both
-        // defaultValue keys, so neither depends on the .env). That is exactly
-        // the partial configuration the guard below says it prevents: the
-        // service comes up with Bedrock control settings and no credential, and
-        // AI is dark with nothing to indicate why. Report per targeted
-        // environment so the message names what will not be synced.
-        for (const env of renderEnvironmentsFor(config, selected)) {
-          reportRequiredManifestValueFailure(key, env, `${key} is absent from ${ENV_FILE_PATH}`);
-        }
+        desiredValues[key] = valuesForRenderEnvironments(config, envVars[key]);
       }
     }
   }
@@ -717,8 +677,6 @@ async function exportToOp() {
     'Rails Secrets': ['SECRET_KEY_BASE', 'SECURE_ENCRYPTION_KEY', 'SECURE_NONCE_KEY', 'COOKIE_KEY', 'SMS_ENCRYPTION_KEY'],
     'AWS Credentials': ['AWS_KEY', 'AWS_SECRET'],
     'Email Config': ['DEFAULT_EMAIL_FROM', 'SYSTEM_ERROR_EMAIL', 'NEW_REGISTRATION_EMAIL'],
-    'GEMINI_API_KEY': ['GEMINI_API_KEY'],
-    'ANTHROPIC_API_KEY': ['ANTHROPIC_API_KEY'],
     'Google APIs': ['GOOGLE_TTS_TOKEN', 'GOOGLE_TRANSLATE_TOKEN', 'GOOGLE_PLACES_TOKEN', 'YOUTUBE_API_KEY'],
     'Stripe': ['STRIPE_SECRET_KEY', 'STRIPE_PUBLIC_KEY'],
     'OpenSymbols': ['OPENSYMBOLS_SECRET'],
@@ -733,19 +691,10 @@ async function exportToOp() {
     'HubSpot': ['HUBSPOT_ACCESS_TOKEN', 'HUBSPOT_CLIENT_SECRET'],
   };
 
-  // 1Password field label per env var, for items whose secret lives in a field
-  // whose name differs from the env var name. The ANTHROPIC_API_KEY item is an
-  // API-Credential item storing its value in the standard `credential` field --
-  // the same field the forward KEY_MANIFEST reads -- so the export helper must
-  // emit `credential[password]=...`, not `ANTHROPIC_API_KEY[password]=...`, or a
-  // recreated item would be unreadable by the sync (the warn-and-skip drift class
-  // this file's manifest fix addresses). Keys absent here default to their own name.
-  const opFieldLabel = { ANTHROPIC_API_KEY: 'credential' };
-
   for (const [itemName, keys] of Object.entries(categories)) {
     const fields = keys
       .filter(k => envVars[k])
-      .map(k => `${opFieldLabel[k] || k}[password]=${envVars[k]}`);
+      .map(k => `${k}[password]=${envVars[k]}`);
 
     if (fields.length === 0) continue;
 

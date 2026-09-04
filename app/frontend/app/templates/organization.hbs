@@ -11,7 +11,12 @@
            requires 'edit'). Supervisors have view-only org access, so these
            links must not appear for them — they'd only lead to 400s. --}}
       {{#if this.model.permissions.edit}}
-        <LinkTo @route="organization.people" @model={{this.model.id}} class="md-pillnav__pill">{{t "Admin" key="admin"}}</LinkTo>
+        {{!-- "User", not "Admin": this tab is the org's PEOPLE — managers, supervisors,
+             communicators and their evals — while every other tab on this nav is already
+             org administration. `key="user"` is the existing key for this exact string
+             (7 other call sites), so it is translated in every locale already; `admin`
+             stays defined for the role chips that legitimately say "Admin". --}}
+        <LinkTo @route="organization.people" @model={{this.model.id}} class="md-pillnav__pill">{{t "User" key="user"}}</LinkTo>
         <LinkTo @route="organization.reports" @model={{this.model.id}} class="md-pillnav__pill">{{t "Reports" key="reports"}}</LinkTo>
         {{#if (or this.app_state.feature_flags.telemetry_admin_panel this.app_state.currentUser.admin)}}
           <LinkTo @route="organization.telemetry" @model={{this.model.id}} class="md-pillnav__pill">{{t "Telemetry" key="telemetry"}}</LinkTo>

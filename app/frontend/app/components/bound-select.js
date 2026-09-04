@@ -31,6 +31,10 @@ export default Component.extend({
   short: false,
   searchable: false,
   search_placeholder: null,
+  // Opt-in grid listbox (register month/year). Do NOT name this `layout` —
+  // Ember classic uses `layout` for the compiled template.
+  grid: false,
+  gridColumns: 3,
 
   isOpen: false,
   searchQuery: '',
@@ -62,20 +66,32 @@ export default Component.extend({
     return !this.get('selectedItem') && (this.get('_chosenLabel') == null || this.get('_chosenLabel') === '');
   }),
 
+  isGrid: computed('grid', function() {
+    return !!this.get('grid');
+  }),
+
+  gridColsClass: computed('grid', 'gridColumns', function() {
+    if(!this.get('grid')) { return ''; }
+    return 'bound-select--cols-' + this._gridColumnCount();
+  }),
+
   /** Build a render-friendly content list that includes divider rows
    *  (rendered as <li class="bound-select__divider">). Each divider
    *  item gets an internal _isDivider flag so the template can branch
-   *  cleanly. */
-  renderContent: computed('content', 'searchable', 'searchQuery', function() {
+   *  cleanly. Grid mode drops empty-id placeholders so month/year
+   *  cells are the real values only. */
+  renderContent: computed('content', 'searchable', 'searchQuery', 'grid', function() {
     const content = this.get('content') || [];
     const searchable = this.get('searchable');
     const query = searchable ? (this.get('searchQuery') || '').toLowerCase().trim() : '';
+    const grid = !!this.get('grid');
     return content.map(function(c) {
       if (c && c.divider) {
         return { _isDivider: true, label: c.label || '' };
       }
       return c;
     }).filter(function(c) {
+      if (grid && c && !c._isDivider && (c.id === '' || c.id == null)) { return false; }
       if (!query) { return true; }
       if (!c || c._isDivider) { return false; }
       return (c.name || '').toLowerCase().indexOf(query) !== -1 ||
@@ -145,6 +161,35 @@ export default Component.extend({
     }
   },
 
+  _gridColumnCount() {
+    var cols = parseInt(this.get('gridColumns'), 10);
+    if(!cols || cols < 2) { return 3; }
+    return cols;
+  },
+
+  /** Next option index for a grid listbox. Horizontal keys move one
+   *  cell; vertical keys move by column count and wrap in-column. */
+  _gridNextIndex(current, key, columns, length) {
+    if(length <= 0) { return 0; }
+    var i = current;
+    if(i < 0 || i >= length) { i = 0; }
+    var cols = columns > 0 ? columns : 3;
+    if(key === 'ArrowRight') { return i < length - 1 ? i + 1 : 0; }
+    if(key === 'ArrowLeft') { return i > 0 ? i - 1 : length - 1; }
+    if(key === 'ArrowDown') {
+      var down = i + cols;
+      if(down < length) { return down; }
+      return i % cols;
+    }
+    if(key === 'ArrowUp') {
+      var up = i - cols;
+      if(up >= 0) { return up; }
+      var col = i % cols;
+      return col + Math.floor((length - 1 - col) / cols) * cols;
+    }
+    return i;
+  },
+
   actions: {
     stopPropagation(ev) {
       if (ev && ev.stopPropagation) { ev.stopPropagation(); }
@@ -189,7 +234,11 @@ export default Component.extend({
     option_keydown(item, ev) {
       if (!ev || !ev.key) { return; }
       const key = ev.key;
-      if (key === 'ArrowDown' || key === 'ArrowUp' || key === 'Home' || key === 'End') {
+      const isGrid = !!this.get('grid');
+      const navKeys = isGrid
+        ? ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End']
+        : ['ArrowDown', 'ArrowUp', 'Home', 'End'];
+      if (navKeys.indexOf(key) !== -1) {
         ev.preventDefault();
         const target = ev.target;
         const list = target ? target.closest('.bound-select__list') : null;
@@ -197,7 +246,9 @@ export default Component.extend({
         const items = Array.from(list.querySelectorAll('.bound-select__option:not(.bound-select__option--disabled)'));
         const i = items.indexOf(target);
         let next = i;
-        if (key === 'ArrowDown') { next = i < items.length - 1 ? i + 1 : 0; }
+        if (isGrid && (key === 'ArrowDown' || key === 'ArrowUp' || key === 'ArrowLeft' || key === 'ArrowRight')) {
+          next = this._gridNextIndex(i, key, this._gridColumnCount(), items.length);
+        } else if (key === 'ArrowDown') { next = i < items.length - 1 ? i + 1 : 0; }
         else if (key === 'ArrowUp') { next = i > 0 ? i - 1 : items.length - 1; }
         else if (key === 'Home')    { next = 0; }
         else if (key === 'End')     { next = items.length - 1; }
@@ -219,12 +270,45 @@ export default Component.extend({
         this.close();
         this._focusTrigger();
       }
+    },
+    /** Keyboard on the search input. Letter keys must NOT preventDefault
+     *  (that is what made "Search languages..." untypeable: the <ul>
+     *  keydown used to go through ctrlAction, which always preventDefaults).
+     *  ArrowDown / Enter / Escape match modern-select. */
+    search_keydown(ev) {
+      if (ev && ev.stopPropagation) { ev.stopPropagation(); }
+      if (!ev || !ev.key) { return; }
+      const key = ev.key;
+      if (key === 'ArrowDown') {
+        ev.preventDefault();
+        if (!this.element) { return; }
+        const first = this.element.querySelector('.bound-select__option:not(.bound-select__option--disabled)');
+        if (first && typeof first.focus === 'function') { this._focusWithoutScrolling(first); }
+      } else if (key === 'Enter') {
+        ev.preventDefault();
+        if (!this.element) { return; }
+        const first = this.element.querySelector('.bound-select__option:not(.bound-select__option--disabled)');
+        if (first) { first.click(); }
+      } else if (key === 'Escape') {
+        ev.preventDefault();
+        this.close();
+        this._focusTrigger();
+      }
     }
   },
 
   init() {
     this._super(...arguments);
     var self = this;
+    // List/search keydown must NOT go through ctrlAction: that helper always
+    // calls preventDefault(), which blocks typing in the search input.
+    // Assigned in init (not didInsertElement) so {{on}} binds a real function.
+    this.onListKeydown = function(ev) {
+      self.send('list_keydown', ev);
+    };
+    this.onSearchKeydown = function(ev) {
+      self.send('search_keydown', ev);
+    };
     // Stable handlers (same pattern as modern-select). The old ctrlAction
     // helper called preventDefault then *dropped* the event before send(),
     // so toggle/choose never got stopPropagation — clicks bubbled into

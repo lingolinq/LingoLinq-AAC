@@ -162,6 +162,63 @@ describe OpenSymbols do
       expect(results).to eq([])
     end
   end
+
+  describe "search_result" do
+    it "should mark a 429 as throttled, not as an ok empty miss" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token_123')
+      response = double(success?: false, timed_out?: false, body: '{"throttled": true}', code: 429)
+      expect(Typhoeus).to receive(:get).and_return(response)
+
+      result = OpenSymbols.search_result('test')
+      expect(result[:ok]).to eq(false)
+      expect(result[:error]).to eq(:throttled)
+      expect(result[:results]).to eq([])
+    end
+
+    it "should mark a timed-out request as timeout" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token_123')
+      response = double(success?: false, timed_out?: true, body: '', code: 0)
+      expect(Typhoeus).to receive(:get).and_return(response)
+
+      result = OpenSymbols.search_result('test')
+      expect(result[:ok]).to eq(false)
+      expect(result[:error]).to eq(:timeout)
+      expect(result[:results]).to eq([])
+    end
+
+    it "should mark a 500 as http" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token_123')
+      response = double(success?: false, timed_out?: false, body: 'nope', code: 500)
+      expect(Typhoeus).to receive(:get).and_return(response)
+
+      result = OpenSymbols.search_result('test')
+      expect(result[:ok]).to eq(false)
+      expect(result[:error]).to eq(:http)
+      expect(result[:results]).to eq([])
+    end
+
+    it "should mark a 200 with an empty list as an ok miss" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token_123')
+      response = double(success?: true, timed_out?: false, body: '[]', code: 200)
+      expect(Typhoeus).to receive(:get).and_return(response)
+
+      result = OpenSymbols.search_result('test')
+      expect(result[:ok]).to eq(true)
+      expect(result[:error]).to eq(nil)
+      expect(result[:results]).to eq([])
+    end
+
+    it "should mark a 200 with a non-JSON body as http, not raise" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token_123')
+      response = double(success?: true, timed_out?: false, body: '<html>', code: 200)
+      expect(Typhoeus).to receive(:get).and_return(response)
+
+      result = OpenSymbols.search_result('test')
+      expect(result[:ok]).to eq(false)
+      expect(result[:error]).to eq(:http)
+      expect(result[:results]).to eq([])
+    end
+  end
   
   describe "find_images" do
     it "should convert search results to LingoLinq format" do
@@ -262,18 +319,81 @@ describe OpenSymbols do
     end
 
     it 'should fall back to per-word search for opensymbols meta-repo' do
-      expect(OpenSymbols).to receive(:search).with('cat', locale: 'en', repo: nil, favor: nil).and_return([{ 'image_url' => 'https://example.com/cat.png', 'id' => 1 }])
-      expect(OpenSymbols).to receive(:search).with('dog', locale: 'en', repo: nil, favor: nil).and_return([])
+      expect(OpenSymbols).to receive(:search_many).with(['cat', 'dog'], locale: 'en', repo: nil, favor: nil).and_return({
+        results: {'cat' => { 'image_url' => 'https://example.com/cat.png', 'id' => 1 }},
+        errors: {}
+      })
 
       results = OpenSymbols.defaults('opensymbols', ['cat', 'dog'], 'en')
       expect(results).to eq('cat' => { 'image_url' => 'https://example.com/cat.png', 'id' => 1 })
     end
 
     it 'should fall back to per-word search for tawasol' do
-      expect(OpenSymbols).to receive(:search).with('house', locale: 'en', repo: nil, favor: 'tawasol').and_return([])
+      expect(OpenSymbols).to receive(:search_many).with(['house'], locale: 'en', repo: nil, favor: 'tawasol').and_return({
+        results: {},
+        errors: {}
+      })
 
       results = OpenSymbols.defaults('tawasol', ['house'], 'en')
       expect(results).to eq({})
+    end
+
+    it 'should omit a timed-out word from defaults rather than treating it as a miss hit' do
+      expect(OpenSymbols).to receive(:search_many).with(['a', 'b'], locale: 'en', repo: nil, favor: nil).and_return({
+        results: {'a' => { 'image_url' => 'https://example.com/a.png' }},
+        errors: {'b' => :timeout}
+      })
+      results = OpenSymbols.defaults('opensymbols', ['a', 'b'], 'en')
+      expect(results.keys).to eq(['a'])
+    end
+
+    it 'should queue opensymbols per-word searches on Hydra instead of waiting sequentially' do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token')
+      hydra = double('hydra')
+      queued = []
+      expect(Typhoeus::Hydra).to receive(:new).with(hash_including(:max_concurrency)).and_return(hydra)
+      expect(hydra).to receive(:queue) { |req| queued << req }.exactly(3).times
+      expect(hydra).to receive(:run)
+
+      OpenSymbols.defaults('opensymbols', %w[a b c], 'en')
+      expect(queued.length).to eq(3)
+    end
+  end
+
+  describe "search_many" do
+    after(:each) do
+      Typhoeus::Expectation.clear
+    end
+
+    def stub_symbols_responses(*bodies)
+      queue = bodies
+      Typhoeus.stub(/opensymbols\.org\/api\/v2\/symbols/) do
+        queue.shift || Typhoeus::Response.new(code: 200, body: '[]')
+      end
+    end
+
+    it "should not raise when Hydra gets a non-JSON 200, and should omit that word from results" do
+      expect(OpenSymbols).to receive(:access_token).and_return('test_token')
+      stub_symbols_responses(Typhoeus::Response.new(code: 200, body: '<html>'))
+
+      result = nil
+      expect { result = OpenSymbols.search_many(['cat']) }.not_to raise_error
+      expect(result[:results]).to eq({})
+      expect(result[:errors]['cat']).to eq(:http)
+    end
+
+    it "should clear the token cache and retry Hydra words that returned 401" do
+      expect(OpenSymbols).to receive(:access_token).and_return('expired_token')
+      expect(OpenSymbols).to receive(:clear_token_cache)
+      expect(OpenSymbols).to receive(:generate_new_token).and_return('new_token')
+      stub_symbols_responses(
+        Typhoeus::Response.new(code: 401, body: '{"token_expired":true}'),
+        Typhoeus::Response.new(code: 200, body: [{'id' => 1, 'name' => 'cat', 'image_url' => 'https://example.com/cat.png', 'extension' => 'png'}].to_json)
+      )
+
+      result = OpenSymbols.search_many(['cat'])
+      expect(result[:errors]).to eq({})
+      expect(result[:results]['cat']['image_url']).to eq('https://example.com/cat.png')
     end
   end
 end

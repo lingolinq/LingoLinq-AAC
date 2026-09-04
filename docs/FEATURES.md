@@ -39,7 +39,7 @@ Premium features require either **currently_premium** (active subscription/trial
 | Feature | Description | Role Restrictions |
 |---------|-------------|-------------------|
 | Speak Mode > 15 min | Extended speak session duration | Communicator only |
-| Adding Supervisors | Add supervisors to account | Communicator only |
+| Adding Supervisors | Add supervisors to account | Communicator can add supervisors directly; supporters can request access to a communicator by username/email (consent required via `supervisor_consent_flow`) |
 | Auto-Jump to Speak Mode | Open speak mode automatically | Communicator only |
 | Editing Boards | Create and edit boards | Communicator or supervisor with edit permission |
 | Premium Voices | Non-built-in TTS voices | Communicator only; modeling-only gets built-in only |

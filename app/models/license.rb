@@ -43,8 +43,30 @@ class License < ApplicationRecord
   def self.expire_stale_licenses!
     count = 0
     self.expired.find_each do |license|
+      old_user = license.user
+      old_org = license.organization
       license.update!(status: 'expired')
-      license.release_user! if license.user_id
+      if license.user_id
+        license.release_user!
+        # Automated seat expiry has no manager age attestation. Stamp family
+        # COPPA when school_authorization (or birth on file) indicates a minor.
+        if old_user
+          old_user.reload
+          reg = (old_user.settings || {})['registration'] || {}
+          compliance = (old_user.settings || {})['compliance'] || {}
+          birth_month = reg['offboarding_birth_month'] || compliance['birth_month']
+          birth_year = reg['offboarding_birth_year'] || compliance['birth_year']
+          school = (old_user.settings || {})['school_authorization']
+          force_under_13 = school.is_a?(Hash) && school.present? && birth_month.blank?
+          old_user.begin_family_offboarding_consents!(
+            org: old_org,
+            actor: 'system',
+            birth_month: birth_month,
+            birth_year: birth_year,
+            force_under_13: force_under_13
+          )
+        end
+      end
       count += 1
     end
     count

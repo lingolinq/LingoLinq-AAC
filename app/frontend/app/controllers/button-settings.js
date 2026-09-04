@@ -205,6 +205,12 @@ export default modal.ModalController.extend({
       label: this.get('model.label')
     });
   }),
+  vocalizationChanged: observer('model.vocalization', function() {
+    if(!this.get('handle_updates') || !this.get('model.id')) { return; }
+    editManager.change_button(this.get('model.id'), {
+      vocalization: this.get('model.vocalization')
+    });
+  }),
   update_hidden: observer(
     'model',
     'model.id',
@@ -689,7 +695,7 @@ export default modal.ModalController.extend({
     'model.video.start',
     'model.video.end',
     function() {
-      var host = window.default_host || capabilities.fallback_host;
+      var host = capabilities.video_player_host();
       if(this.get('model.video.id') && this.get('model.video.type')) {
         return host + "/videos/" + this.get('model.video.type') + "/" + this.get('model.video.id') + "?testing=true&start=" + (this.get('model.video.start') || '') + "&end=" + (this.get('model.video.end') || '');
       } else {
@@ -1058,6 +1064,12 @@ export default modal.ModalController.extend({
         this.send('clear_sound');
         this.send('clear_sound_work');
         this.set('model.sound_id', null);
+      }
+      if(this.get('model.id')) {
+        editManager.change_button(this.get('model.id'), {
+          vocalization: this.get('model.vocalization'),
+          sound_id: this.get('model.sound_id')
+        });
       }
       this.get('contentGrabbers').save_pending().then(function() {
         modal.close();

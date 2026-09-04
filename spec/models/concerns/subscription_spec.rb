@@ -2634,7 +2634,7 @@ describe Subscription, :type => :model do
       expect(u.purchase_credit_duration).to be < ((Time.now - added).to_i + 5)
       expect(u.fully_purchased?).to eq(true)
       expect(Organization.managed?(u)).to eq(true)
-      o.reload.remove_user(u.user_name)
+      o.reload.remove_user(u.user_name, birth_month: Time.now.utc.month, birth_year: Time.now.utc.year - 25)
       expect(u.reload.org_sponsored?).to eq(false)
       expect(u.purchase_credit_duration).to be > ((Time.now - added).to_i - 5)
       expect(u.purchase_credit_duration).to be < ((Time.now - added).to_i + 5)
@@ -2994,8 +2994,8 @@ describe Subscription, :type => :model do
       u.save
       d = Device.create(user: u)
       u.settings['subscription'] = {'eval_account' => true}
-      u.reset_eval(d.global_id, {'password' => 'bacon'})
-      expect(u.valid_password?('bacon')).to eq(true)
+      u.reset_eval(d.global_id, {'password' => 'bacon123'})
+      expect(u.valid_password?('bacon123')).to eq(true)
     end
 
   

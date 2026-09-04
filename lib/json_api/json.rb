@@ -85,6 +85,81 @@ module JsonApi::Json
     (@@running_hosts[Worker.thread_id] || {})['host'] || ENV['DEFAULT_HOST']
   end
 
+  # Absolute base URL -- scheme guaranteed -- for links handed to a HUMAN:
+  # emails, and anything else opened outside the app.
+  #
+  # `current_host` is not reliably absolute. Set from a web request it carries
+  # the protocol (`application_controller#set_host` uses
+  # "#{request.protocol}#{request.host_with_port}"), but its fallback
+  # ENV['DEFAULT_HOST'] is a BARE host by design -- .env.example documents it as
+  # e.g. "www.lingolinq.com". A link built as "#{current_host}/path" against that
+  # bare fallback reaches the recipient as "www.lingolinq.com/path" -- a RELATIVE
+  # url inside an <a href>, which a mail client resolves against its own base and
+  # cannot follow. That is the MECHANISM this method exists to prevent, and the
+  # mechanism is verified. It was REPORTED AS having occurred on the COPPA
+  # parental-consent approval link, i.e. the only way to activate a child's
+  # account; that specific delivered email has not itself been verified (see
+  # below), so treat the mechanism as established and the historical incident as
+  # reported.
+  #
+  # CORRECTED 2026-09-02. An earlier version of this comment explained that
+  # failure by asserting that mail is delivered from a Resque worker "and nothing
+  # restores the request host across the queue boundary (Worker.domain_id /
+  # Worker.set_domain_id exist but are called from nowhere)". THAT WAS FALSE, and
+  # it was false when written. boy_band appends "domain::<Worker.domain_id>" at
+  # enqueue (boy_band.rb:58) and pops it at perform to call Worker.set_domain_id
+  # (boy_band.rb:140-142), and lib/worker.rb:149-152 has that call set_host AND
+  # load_domain. The host DOES survive the queue. That behavior dates to
+  # de621007b4 (2019-04-16); the claim was written 2026-08-25. Round trip proven
+  # by spec/lib/worker_spec.rb:41-47.
+  #
+  # So this method is still correct and still needed -- a bare ENV['DEFAULT_HOST']
+  # is restored just as faithfully as an absolute one, and any chain ORIGINATING
+  # outside a request still yields relative links -- but do not cite the queue
+  # boundary as the reason. The actual trigger of the reported COPPA failure is
+  # NOT established, and neither is the delivered email itself. Note that consent delivery is NOT exclusively controller
+  # backed: user.rb:874 is reached request-lessly from
+  # app/workers/offboarding_coppa_expiration_worker.rb via
+  # User.process_expired_offboarding_consents!. See the N1 entry in
+  # docs/task-management/CLAIM-CHECK-BACKLOG.md, whose closure review is reopened.
+  #
+  # Deliberately a separate method rather than a change to current_host, which is
+  # also consumed as a bare identifier (job_stash.rb:64 ships it as a 'host'
+  # field; load_domain strips a scheme back off). Idempotent: a host that already
+  # carries a scheme is returned untouched, so request-context callers are
+  # unaffected and cannot end up double-prefixed.
+  def self.absolute_host
+    host = current_host.to_s.strip.sub(/\/+\z/, '')
+    if host.blank?
+      # No request host AND no ENV['DEFAULT_HOST']. Returning '' reproduces the
+      # exact defect this method exists to prevent -- every link built on it
+      # becomes relative and unfollowable from a mail client -- but raising here
+      # would take down mail delivery from a Resque worker for what is a
+      # configuration problem. Log it instead, so a misconfigured environment is
+      # findable in the logs rather than showing up as parents who cannot approve
+      # their child's account. Every deployment path sets DEFAULT_HOST
+      # (Dockerfile ARG, deploy-cloudrun.yml BOOT_SECRETS, .env.example), so this
+      # should be unreachable in practice.
+      Rails.logger.error('JsonApi::Json.absolute_host: no host available (ENV["DEFAULT_HOST"] unset and no request host) — generated links will be RELATIVE and unfollowable') rescue nil
+      return host
+    end
+    return host if host.match?(/\A[a-zA-Z][a-zA-Z0-9+.\-]*:\/\//)
+    "#{url_scheme_for(host)}#{host}"
+  end
+
+  # Loopback hosts are served over http in development; everything else is https.
+  #
+  # An already-absolute host is returned untouched by absolute_host above, http
+  # included -- deliberately, so that a request-context caller is never rewritten.
+  # That is safe in production because config/environments/production.rb sets
+  # `config.force_ssl = true`, so a request that reaches set_host has already been
+  # redirected to https and `request.protocol` is https. The http case is
+  # therefore development and self-hosting only.
+  def self.url_scheme_for(host)
+    return 'http://' if host.to_s.match?(/\A(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?\z/i)
+    'https://'
+  end
+
   def self.load_domain(host)
     host = host.split(/\/\//).pop.split(/\:/).first
     default_domain = JsonApi::Json.default_domain

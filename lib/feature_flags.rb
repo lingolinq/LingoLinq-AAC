@@ -28,9 +28,44 @@ module FeatureFlags
               'background_board_prefetch',
               'portrait_orientation_overlay', 'signup_default_library_boards',
               'english_first_board_generation', 'signup_spanish_library_boards',
+              'eval_single_library',
               'dashboard_drag_layout', 'boards_page_owner_dedup', 'edit_sidebar',
+              # Boards page: offers a selector for SIDE-BY-SIDE (Folders 1/4 left,
+              # Boards 3/4 right) versus TOP-DOWN (the original stacked order), so the
+              # two arrangements can be compared on the real page. CURRENTLY ALSO IN
+              # ENABLED_FRONTEND_FEATURES (forced ON for everyone) so the selector is
+              # visible without a per-user opt-in — see the TEMPORARY note there, and
+              # REMOVE IT FROM THAT LIST BEFORE PRODUCTION GO-LIVE, which returns this
+              # to the canonical AVAILABLE-only / beta-opt-in state. Off, the selector
+              # does not render and the page keeps the TOP-DOWN layout, which is the
+              # pre-existing behaviour. Read by
+              # app/frontend/app/templates/user/boards.hbs and applied by
+              # app/frontend/app/components/boards-layout-toggle.js.
+              'boards_side_by_side_layout',
               'sentence_bar_editing',
               'text_symbol_fallback',
+              # Board-detail Fitzgerald category grouping: renders a board's buttons
+              # inside per-category panels instead of the uniform grid, with a
+              # user-orderable category sequence. Off by default because it MOVES
+              # vocabulary out of the cells a user has built positional motor memory
+              # on -- that is a clinical change, not a cosmetic one, so it stays
+              # opt-in. Preference: preferences.board_category_grouping
+              # ({enabled, order}); registry: app/frontend/app/utils/board_categories.js.
+              # Only board CONTENT is regrouped; the sidebar and sentence bar are
+              # separate DOM outside the grid component and are never affected.
+              'board_category_grouping',
+              # Per-user session resume: return a user to the page they were last
+              # on when they log back in. Communicator-only accounts are exempt by
+              # design (they always land on their board). Read by
+              # app/frontend/app/routes/index.js#afterModel; the recording side
+              # (utils/session_history.js) runs regardless so flipping this on
+              # takes effect immediately.
+              'session_resume',
+              # Supporter-facing "Viewing <communicator>'s account" pill, fixed to
+              # the upper-left of any page that isn't the supporter's own. Read by
+              # app-state#supervising_context; with it OFF the computed returns
+              # null and the component renders nothing at all.
+              'supervising_context_banner',
               # EU launch (GDPR Art. 8): make the registration parental-consent
               # age gate jurisdiction-aware (EU under-16 vs default under-13).
               # AVAILABLE-only => OFF for everyone by default; with it OFF the
@@ -38,27 +73,39 @@ module FeatureFlags
               # ENABLED_FRONTEND_FEATURES to activate (see eu_consent_age_enabled?).
               'eu_consent_age',
               # EU AI Act Article 50(1) first-AI-use disclosure modal (Art50 Phase 5,
-              # RLL-01). Reaches the client via frontend_flags_for(user) ->
-              # appState.feature_flags.article_50_disclosure, which is the ONLY input
-              # utils/article50_gate.js#needsAcknowledgement reads before it will show
-              # the modal. AVAILABLE-only => OFF for everyone by default, so the whole
-              # Phase 3/4 disclosure path stays inert (the intended pre-2026-08-02
-              # state). Enabling it is a HARD release gate for the 2026-08-02 Article 50
-              # deadline: add to ENABLED_FRONTEND_FEATURES (or opt individual EU orgs in
-              # via per-user beta flag) ONLY on Scot's explicit sign-off, and only after
-              # the production deploy of Phases 3-5. Do NOT blanket-enable here.
+              # RLL-01). Reaches the client via frontend_flags_for(user) on the gate
+              # SUBJECT (art50Subject = sessionUser, the authenticated account),
+              # which is the ONLY input utils/article50_gate.js#needsAcknowledgement
+              # reads before it will show the modal. Do not read
+              # appState.feature_flags here: that computed is derived from
+              # currentUser and in speak mode is the communicator. CAUTION, corrected 2026-08-25: AVAILABLE-only describes the
+              # ENABLED_FRONTEND_FEATURES default, not production. Production resolves the
+              # effective list through SystemFeatureSettings.effective_enabled_for, where a
+              # default_enabled_features DB Setting REPLACES ENABLED_FRONTEND_FEATURES
+              # (system_feature_settings.rb:11). Membership in THIS constant
+              # (AVAILABLE_FRONTEND_FEATURES) is a hard CEILING the Setting is intersected
+              # against (`stored & AVAILABLE_FRONTEND_FEATURES`, system_feature_settings.rb:9):
+              # removing 'article_50_disclosure' from this list would silently TURN OFF the
+              # live production disclosure. Do not treat this list as inert against production. A direct
+              # audited read on 2026-08-23 found article_50_disclosure PRESENT in that
+              # Setting and feature_enabled_for? true for all 34 then-existing accounts.
+              # So the Phase 3/4 disclosure path is LIVE in production, NOT inert -- an
+              # earlier version of this comment said it "stays inert", which was true of
+              # this file and false of the running system. An org's
+              # settings['enabled_features'] still wins over the default row (even when
+              # empty), so a district override can disable it for that org's users.
+              # The 2026-08-02 release gate's OUTCOME is satisfied in the current
+              # production Setting; whether it was discharged by the explicit sign-off
+              # the gate required is unrecoverable, since Setting carries no version
+              # history. Do NOT blanket-enable here; change the Setting deliberately.
+              # See docs/legal/2026-08-23_article-50-production-flag-verification.md.
               'article_50_disclosure',
               # Privacy Compliance Kernel (lib/compliance/): segment + jurisdiction +
               # digital-consent-age profile. AVAILABLE-only => OFF by default so
               # registration / EuJurisdiction / coppa_consent_age stay identical to
               # today. Add to ENABLED_FRONTEND_FEATURES to persist settings.compliance
               # and expose Compliance::Profile in user JSON / domain_settings.
-              'compliance_workflow_kernel',
-              # Landing-page beta publish: hide Sign In / Register, block auth
-              # routes + self-registration API, show "In beta testing" badge.
-              # ENABLED while develop/beta publish keeps public auth closed;
-              # remove from ENABLED (or drop gates) when opening public auth again.
-              'landing_beta_closed']
+              'compliance_workflow_kernel']
   ENABLED_FRONTEND_FEATURES = ['subscriptions', 'assessments', 'custom_sidebar', 'snapshots',
               'video_recording', 'goals', 'modeling', 'geo_sidebar', 'edit_before_copying',
               'core_reports', 'lessonpix', 'translation', 'fast_render',
@@ -67,38 +114,23 @@ module FeatureFlags
               'find_multiple_buttons', 'new_speak_menu', 'swipe_pages', 'inflections_overlay',
               'ios_head_tracking', 'emergency_boards', 'evaluations',
               'vertical_ios_head_tracking', 'remote_modeling', 'auto_inflections', 'focus_word_highlighting',
-              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation',
-              # DEVELOP/TESTING SCOPE ONLY -- not production-ready. Enabling this
-              # here widens the runtime-AI surface to an ingress that has NO
-              # server-side EU AI Act Article 50(1) backstop.
-              #
-              # Of the five runtime-AI ingresses, exactly ONE carries a server-side
-              # disclosure gate: boards#generate_labels. words#predict,
-              # word_suggestions#create, integrations#focus_generate_words and
-              # eval_sessions#narrate each enforce only the flag + COPPA +
-              # EU-under-16 checks. The Article 50 disclosure on those four is
-              # CLIENT-SIDE ONLY (app/frontend/app/utils/article50_gate.js), so a
-              # caller holding a valid API token reaches them directly without
-              # ever rendering a notice.
-              #
-              # That is why production's first user AI call went through board
-              # generation and logged article_50_disclosure_shown=true: it is the
-              # one seam that can prove it. Do NOT carry this entry to `main`
-              # until the shared server-side guard lands at all five ingresses
-              # (plan item P1). Until then this flag means "testable on develop",
-              # not "compliant in production".
-              'ai_word_prediction',
+              'skin_tones', 'lessons', 'profiles', 'other_menu', 'ai_board_generation', 'ai_word_prediction',
+              'eval_single_library',
               'google_sso', 'quick_screen_eval', 'multi_user_board_import',
               'customize_menu', # TEMPORARY: forced ON for everyone during testing. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON (see the rollout policy above AVAILABLE_FRONTEND_FEATURES).
-              'home_tour', # TEMPORARY (spike — 2026-05-27): ON for everyone so Traci can validate the Shepherd.js home-page tour in the browser. REMOVE from this list before merging the spike out of traci/styling/styling-updates — the canonical state is AVAILABLE-only (beta opt-in per user).
+              'home_tour', # Default ON, PERMANENTLY — do NOT remove from this list. This was a temporary spike entry (2026-05-27), but the guided tour is now the ONBOARDING PATH, not a preview: the setup wizard was retired on 2026-08-15 (routes/setup.js blanket-redirects, and the Extras card / org-People toast / user-index action that reached it are gone), and the `intro` action's self-serve branch (components/dashboard/authenticated-view.js#intro) sets `auto_open_home_tour`, which only <GuidedTour /> consumes — and app-navbar-authenticated-inner.hbs gates that component on THIS flag. Removing it would leave a self-managing user who clicks "Learn about LingoLinq" in Getting Started bounced to the dashboard with no onboarding at all. Kept registered so it stays available for rollback through system feature settings, same as text_symbol_fallback below. Pinned by spec/lib/feature_flags_spec.rb.
               'portrait_orientation_overlay', # TEMPORARY (2026-05-29): forced ON for everyone to validate the ≤640px landscape-orientation overlay + immersive tool consolidation in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'background_board_prefetch',
               'signup_default_library_boards', 'english_first_board_generation',
               'dashboard_drag_layout', # TEMPORARY (2026-06-09): forced ON for everyone pre-production to validate the Getting Started drag-to-swap home layout. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'edit_sidebar', # TEMPORARY (2026-06-25): forced ON for everyone so Traci can validate the speak-mode "Edit Sidebar" panel in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'sentence_bar_editing', # TEMPORARY (2026-06-27): forced ON for everyone to validate the speak-bar active-edit controls (remove + reorder chips) in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'supervisor_consent_flow', # TEMPORARY (2026-08-12): forced ON for everyone to validate supervisor→communicator consent invites (request by username/email + approve). Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
               'text_symbol_fallback', # Default ON so imported OBF text-only buttons render their labels as symbols; keep registered for rollback through system feature settings.
-              'landing_beta_closed'] # TEMPORARY: ON while beta keeps Sign In/Register closed. Remove from ENABLED before opening public auth.
+              'board_category_grouping', # TEMPORARY (2026-08-17): forced ON for everyone so Traci can evaluate the Fitzgerald category-panel board layout in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES. NOTE: grouping MOVES vocabulary out of the cells a user has positional motor memory for, so the opt-in default matters more here than for a cosmetic flag. Flip together with the PRE-PRODUCTION markers in app/models/user.rb (preference_defaults) and components/board-detail-grid.js#groupingEnabled.
+              'supervising_context_banner', # TEMPORARY (2026-08-09): forced ON for everyone to validate the supporter "Viewing X's account" pill in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'session_resume', # TEMPORARY (2026-08-09): forced ON for everyone to validate per-user session resume in the browser. Before production go-live, gate for staged rollout — return to AVAILABLE-only (beta opt-in per user) instead of blanket-ON, per the rollout policy above AVAILABLE_FRONTEND_FEATURES.
+              'boards_side_by_side_layout'] # TEMPORARY (2026-08-16): forced ON for everyone so the Boards-page layout selector (side-by-side vs top-down) is visible for design comparison without a per-user opt-in. TURN THIS OFF BEFORE PRODUCTION GO-LIVE — remove from this list, returning to AVAILABLE-only (beta opt-in per user), per the rollout policy above AVAILABLE_FRONTEND_FEATURES. With it removed the selector stops rendering and the page falls back to the TOP-DOWN layout, which is the pre-existing behaviour.
   DISABLED_CANARY_FEATURES = []
   FEATURE_DATES = {
     'word_suggestion_images' => 'Jan 21, 2017',
@@ -128,8 +160,7 @@ module FeatureFlags
     'comprehensive_eval_ai' => 'May 12, 2026',
     'multi_user_board_import' => 'May 15, 2026',
     'compliance_workflow_kernel' => 'Jul 23, 2026',
-    'text_symbol_fallback' => 'Jul 28, 2026',
-    'landing_beta_closed' => 'Jul 14, 2026'
+    'text_symbol_fallback' => 'Jul 28, 2026'
   }
   AI_FEATURES = %w[ai_board_generation ai_word_prediction ai_board_suggestions
                    ai_symbol_search ai_compliance_logging comprehensive_eval_ai].freeze
@@ -234,12 +265,6 @@ module FeatureFlags
     ENABLED_FRONTEND_FEATURES.include?('compliance_workflow_kernel')
   end
 
-  # Landing-page beta publish: Sign In / Register closed for anonymous visitors.
-  # Mirrors eu_consent_age_enabled? — anonymous pages only see ENABLED.
-  def self.landing_beta_closed_enabled?
-    ENABLED_FRONTEND_FEATURES.include?('landing_beta_closed')
-  end
-
   # COPPA Final Rule (16 CFR 312.5) hard-gate. Default ON.
   # Set COPPA_AI_HARD_GATE=false in env for emergency rollback only.
   def self.coppa_ai_hard_gate_enabled?
@@ -272,11 +297,21 @@ module FeatureFlags
     user.eu_under_16? && !user.eu_ai_parental_consent_active?
   end
 
-  # Shared vocabulary for AI preference values. Keep this in sync with the
-  # frontend mirror in app/frontend/app/utils/ai_feature_gate.js.
+  # The ONE boolean vocabulary for AI preference values. Both the read gate below
+  # and the write path (User.normalize_ai_preference_value, which delegates here)
+  # use it, so a value that can be WRITTEN as an opt-out is always READ as one.
+  #
+  # These lists must stay in sync with the JS mirror in
+  # app/frontend/app/utils/ai_feature_gate.js.
   AI_PREF_TRUE_VALUES = [true, 'true', '1', 1].freeze
   AI_PREF_FALSE_VALUES = [false, 'false', '0', 0].freeze
 
+  # Interpret a stored AI preference: true, false, or nil when the value records
+  # no recognizable decision.
+  #
+  # Ruby keeps the two lists from colliding on their own: `1 == true` and
+  # `0 == false` are both false, so a numeric value can only ever match the list
+  # it is written in.
   def self.ai_pref_value(val)
     return true if AI_PREF_TRUE_VALUES.include?(val)
     return false if AI_PREF_FALSE_VALUES.include?(val)
@@ -284,19 +319,49 @@ module FeatureFlags
   end
 
   # Per-user AI preference gate.
-  # - Master absent (nil) => grandfather allowed for legacy users.
-  # - Master explicit opt-out or unrecognized => block all AI.
-  # - Master explicit opt-in => per-feature AI prefs require an explicit opt-in;
-  #   other AI features follow the master.
+  # - Master (ai_features_enabled) ABSENT (nil) => grandfathered allowed. These
+  #   rows predate the consent UI and have never carried a value.
+  # - Master an explicit opt-out (false/'false'/0/'0') => block all AI.
+  # - Master PRESENT but unrecognized ("", "maybe", a stray Hash) => block all
+  #   AI. A value we cannot read is not consent.
+  # - Master an explicit opt-in => USER_PREF_AI_FEATURES additionally require
+  #   prefs[feature] == true; other AI_FEATURES follow the master.
+  #
+  # The unrecognized-master case fails CLOSED on purpose, and that decision cost
+  # a review cycle to get right. Production holds 9 of 31 users with master=""
+  # (blocked from board generation), and the tempting fix — read "" as "never
+  # decided" and grandfather it — converts an unreadable value into an ALLOW.
+  # PaperTrail cannot say how those rows reached ""; `object_changes` is absent
+  # from the schema and `reify` raises on secure_serialize'd settings, so the
+  # intent behind the value is not merely unknown, it is unrecoverable. Writing
+  # "" back to nil has the same effect by another route: it lands the row in the
+  # grandfather bucket above. Neither is consent-preserving, so neither ships.
+  # The recovery path is the user checking the box in preferences, which writes
+  # a real boolean — an affirmative act, which is what consent has to be.
+  #
+  # A blank per-feature CHILD key under an explicitly-true master is likewise
+  # BLOCKED: that state is an INCOMPLETE opt-in, and reading it as permission
+  # would manufacture consent for a specific AI feature the user never gave.
   def self.user_pref_allows_ai?(feature, user)
     return true unless user
     prefs = user.settings && user.settings['preferences']
     return true unless prefs.is_a?(Hash)
     master = prefs['ai_features_enabled']
     return true if master.nil?
+    # `unless == true` (not `if == false`) so that BOTH an explicit opt-out and
+    # an unrecognized value deny, and they deny for EVERY AI feature. An earlier
+    # revision returned only on an explicit false, which let an unrecognized
+    # master fall through to the line below and allow the two features outside
+    # USER_PREF_AI_FEATURES — one of which is comprehensive_eval_ai, narration
+    # over student assessment data.
+    #
+    # Read through the shared vocabulary, NOT a literal `master == false ||
+    # master.to_s == 'false'`. That narrower test missed the numeric forms: a
+    # stored 0 or "0" is neither nil nor equal to false, so it read as allowed.
     return false unless ai_pref_value(master) == true
     return true unless USER_PREF_AI_FEATURES.include?(feature.to_s)
-    val = prefs[feature.to_s]
-    ai_pref_value(val) == true
+    # The child must be an explicit opt-IN. nil (absent, blank, or unrecognized)
+    # is an INCOMPLETE opt-in and stays blocked.
+    ai_pref_value(prefs[feature.to_s]) == true
   end
 end

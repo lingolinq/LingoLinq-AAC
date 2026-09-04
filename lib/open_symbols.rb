@@ -22,61 +22,57 @@ module OpenSymbols
     # @param high_contrast [Boolean] favor high-contrast results
     # @return [Array<Hash>] array of symbol objects
     def search(query, locale: 'en', safe: true, repo: nil, favor: nil, high_contrast: false)
-      return [] if query.blank?
-      
-      # Build search string with modifiers
+      search_result(query, locale: locale, safe: safe, repo: repo, favor: favor, high_contrast: high_contrast)[:results]
+    end
+
+    # Same request as search, but a 429 / timeout / non-2xx is not folded
+    # into an empty miss. Uploader.find_images must not cache those as
+    # add_missing_word (lib/uploader.rb write site).
+    # @return [Hash] {ok:, error:, results:} error is :throttled, :timeout, :http, or :auth
+    def search_result(query, locale: 'en', safe: true, repo: nil, favor: nil, high_contrast: false)
+      return {ok: true, error: nil, results: []} if query.blank?
+
       search_str = query.to_s
       search_str += " repo:#{repo}" if repo.present?
       search_str += " favor:#{favor}" if favor.present?
       search_str += " hc:1" if high_contrast
-      
+
       token = access_token
-      return [] unless token
-      
+      return {ok: false, error: :auth, results: []} unless token
+
       params = {
         q: search_str,
         locale: locale,
         safe: safe ? 1 : 0
       }
-      
+
       url = "https://www.opensymbols.org/api/v2/symbols"
-      
+
       begin
         response = Typhoeus.get(
           url,
           params: params,
           headers: { 'Authorization' => "Bearer #{token}" },
-          timeout: 10
+          timeout: search_timeout
         )
-        
+
         if response.code == 401
-          # Token expired, clear cache and retry once
           clear_token_cache
           token = generate_new_token
-          return [] unless token
-          
+          return {ok: false, error: :auth, results: []} unless token
+
           response = Typhoeus.get(
             url,
             params: params,
             headers: { 'Authorization' => "Bearer #{token}" },
-            timeout: 10
+            timeout: search_timeout
           )
         end
-        
-        if response.code == 429
-          Rails.logger.warn "OpenSymbols API throttled"
-          return []
-        end
-        
-        if response.success?
-          parse_search_results(JSON.parse(response.body))
-        else
-          Rails.logger.error "OpenSymbols API error: #{response.code} - #{response.body}"
-          []
-        end
+
+        classify_search_response(response)
       rescue => e
         Rails.logger.error "OpenSymbols API exception: #{e.message}"
-        []
+        {ok: false, error: :http, results: []}
       end
     end
 
@@ -88,17 +84,23 @@ module OpenSymbols
     # @param locale [String] locale code
     # @return [Hash] mapping of query to symbol object
     def defaults(library, queries, locale)
-      return {} if queries.blank?
+      defaults_result(library, queries, locale)[:results]
+    end
+
+    # Same mapping as defaults, plus per-word transport errors for the
+    # opensymbols/tawasol Hydra path. Uploader.default_images puts those
+    # keys on `_transport` so swap_images can skip find_images without
+    # treating a 429/timeout as `_missing`.
+    def defaults_result(library, queries, locale)
+      return {results: {}, errors: {}} if queries.blank?
       library = 'opensymbols' if library == 'original'
       words = queries.compact.reject(&:blank?)
-      return {} if words.blank?
+      return {results: {}, errors: {}} if words.blank?
 
-      # Map library to repo/favor params
       repo = nil
       favor = nil
       case library
       when 'opensymbols'
-        # No bulk endpoint for meta-repo; fall back to per-word search
       when 'tawasol'
         favor = 'tawasol'
       when 'noun-project', 'sclera', 'arasaac', 'mulberry', 'twemoji', 'pcs', 'symbolstix'
@@ -106,43 +108,162 @@ module OpenSymbols
       end
 
       if repo
-        fetch_defaults_bulk(repo, words, locale)
+        {results: fetch_defaults_bulk(repo, words, locale), errors: {}}
       else
-        # opensymbols or tawasol: no bulk endpoint, search each word
-        results = {}
-        words.each do |word|
-          symbols = search(word, locale: locale, repo: repo, favor: favor)
-          results[word] = symbols.first if symbols.any?
-        end
-        results
+        search_many(words, locale: locale, repo: repo, favor: favor)
       end
+    end
+
+    # Parallel per-word search. The combined opensymbols library has no
+    # bulk /defaults endpoint, so each uncached word is one HTTP call.
+    # Hydra runs them concurrently; a timed-out / 429 word is omitted
+    # (errors hash) rather than recorded as a hit.
+    def search_many(queries, locale: 'en', repo: nil, favor: nil)
+      words = Array(queries).compact.reject(&:blank?)
+      return {results: {}, errors: {}} if words.blank?
+
+      token = access_token
+      unless token
+        errors = {}
+        words.each { |word| errors[word] = :auth }
+        return {results: {}, errors: errors}
+      end
+
+      results, errors = run_search_hydra(words, locale: locale, repo: repo, favor: favor, token: token)
+
+      auth_failed = errors.select { |_word, err| err == :auth }.keys
+      if auth_failed.any?
+        clear_token_cache
+        token = generate_new_token
+        if token
+          retry_results, retry_errors = run_search_hydra(auth_failed, locale: locale, repo: repo, favor: favor, token: token)
+          auth_failed.each { |word| errors.delete(word) }
+          results.merge!(retry_results)
+          errors.merge!(retry_errors)
+        end
+      end
+
+      {results: results, errors: errors}
     end
     
     # Search for symbols and return in LingoLinq format
     # This maintains compatibility with the existing find_images interface
     def find_images(keyword, library, locale, protected_source: nil)
-      repo = nil
-      favor = nil
-      
-      # Map library names to OpenSymbols repo keys.
-      # 'original' means "keep the board's original symbols" and isn't a
-      # valid repo, so treat it like 'opensymbols' (search all).
+      mapped = repo_params_for(library)
+      return [] unless mapped
+
+      results = search(keyword, locale: locale, repo: mapped[:repo], favor: mapped[:favor])
+      format_lingolinq_images(results, protected_source)
+    end
+
+    def find_images_result(keyword, library, locale, protected_source: nil)
+      mapped = repo_params_for(library)
+      return {ok: true, error: nil, results: []} unless mapped
+
+      result = search_result(keyword, locale: locale, repo: mapped[:repo], favor: mapped[:favor])
+      {
+        ok: result[:ok],
+        error: result[:error],
+        results: format_lingolinq_images(result[:results], protected_source)
+      }
+    end
+    
+    private
+
+    def search_timeout
+      n = ENV['OPENSYMBOLS_SEQUENTIAL_SEARCH_TIMEOUT'].to_i
+      n = 10 if n <= 0
+      [n, 60].min
+    end
+
+    def hydra_search_timeout
+      n = ENV['OPENSYMBOLS_SEARCH_TIMEOUT'].to_i
+      n = 3 if n <= 0
+      [n, 30].min
+    end
+
+    def search_concurrency
+      n = ENV['OPENSYMBOLS_HYDRA_CONCURRENCY'].to_i
+      n = 6 if n <= 0
+      [n, 16].min
+    end
+
+    def run_search_hydra(words, locale:, repo:, favor:, token:)
+      results = {}
+      errors = {}
+      hydra = Typhoeus::Hydra.new(max_concurrency: search_concurrency)
+      words.each do |word|
+        hydra.queue(build_search_request(word, locale: locale, repo: repo, favor: favor, token: token) do |classified|
+          if classified[:ok]
+            results[word] = classified[:results].first if classified[:results].any?
+          else
+            errors[word] = classified[:error]
+          end
+        end)
+      end
+      hydra.run
+      [results, errors]
+    end
+
+    def build_search_request(query, locale:, repo:, favor:, token:, &on_classified)
+      search_str = query.to_s
+      search_str += " repo:#{repo}" if repo.present?
+      search_str += " favor:#{favor}" if favor.present?
+      request = Typhoeus::Request.new(
+        "https://www.opensymbols.org/api/v2/symbols",
+        method: :get,
+        params: {q: search_str, locale: locale, safe: 1},
+        headers: { 'Authorization' => "Bearer #{token}" },
+        timeout: hydra_search_timeout
+      )
+      request.on_complete do |response|
+        on_classified.call(classify_search_response(response))
+      end
+      request
+    end
+
+    def classify_search_response(response)
+      if response.respond_to?(:timed_out?) && response.timed_out?
+        Rails.logger.warn "OpenSymbols API timeout"
+        return {ok: false, error: :timeout, results: []}
+      end
+      if response.code == 429
+        Rails.logger.warn "OpenSymbols API throttled"
+        return {ok: false, error: :throttled, results: []}
+      end
+      if response.code == 401
+        Rails.logger.error "OpenSymbols API error: 401"
+        return {ok: false, error: :auth, results: []}
+      end
+      if response.success?
+        begin
+          {ok: true, error: nil, results: parse_search_results(JSON.parse(response.body))}
+        rescue JSON::ParserError, TypeError
+          Rails.logger.error "OpenSymbols API error: #{response.code} - non-JSON body"
+          {ok: false, error: :http, results: []}
+        end
+      else
+        body = response.body.to_s
+        body = body[0, 200] if body.length > 200
+        Rails.logger.error "OpenSymbols API error: #{response.code} - #{body}"
+        {ok: false, error: :http, results: []}
+      end
+    end
+
+    def repo_params_for(library)
       case library
       when 'opensymbols', 'original'
-        # No specific repo, search all
+        {repo: nil, favor: nil}
       when 'tawasol'
-        favor = 'tawasol'
-      when 'noun-project', 'sclera', 'arasaac', 'mulberry', 'twemoji'
-        repo = library
-      when 'pcs', 'symbolstix'
-        repo = library
+        {repo: nil, favor: 'tawasol'}
+      when 'noun-project', 'sclera', 'arasaac', 'mulberry', 'twemoji', 'pcs', 'symbolstix'
+        {repo: library, favor: nil}
       else
-        return []
+        nil
       end
-      
-      results = search(keyword, locale: locale, repo: repo, favor: favor)
-      
-      # Convert to LingoLinq format
+    end
+
+    def format_lingolinq_images(results, protected_source)
       results.map do |symbol|
         {
           'url' => symbol['image_url'],
@@ -166,8 +287,6 @@ module OpenSymbols
         }
       end
     end
-    
-    private
     
     def get_cached_token
       if defined?(RedisAccess) && RedisAccess.redis

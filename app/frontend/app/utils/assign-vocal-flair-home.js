@@ -4,6 +4,7 @@ import i18n from './i18n';
 import modal from './modal';
 import editManager from './edit_manager';
 import { findExistingUserCopy } from './board-copy';
+import { saveHomeBoard } from './home_board';
 
 function pickVocalFlair84(list) {
   var pick = function(re) {
@@ -25,25 +26,37 @@ function copyLibraryForUser(user) {
   return lib;
 }
 
-function saveHomeBoard(user, board, locale) {
-  user.set('preferences.home_board', {
-    id: board.get('id'),
-    key: board.get('key'),
-    locale: locale
-  });
-  return user.save();
+/* `saveHomeBoard` rejects when the server accepted the request but stored no
+   home board (utils/home_board.js), which reads differently to the user than a
+   copy that failed outright. */
+function errorMessageFor(err) {
+  if (err && err.error === 'home_board_not_saved') {
+    return i18n.t('set_as_home_failed', "Home board update failed unexpectedly");
+  }
+  return (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
 }
 
 function copyBoardAndSaveHome(board, user, lib, locale, onSuccess, onError) {
+  /* Held in the closure because `saveHomeBoard` resolves with the USER record,
+     not the board — reading its resolution value would hand onSuccess the wrong
+     object. */
+  var copied = null;
   return editManager.copy_board(board, 'links_copy_as_home', user, false, lib).then(function(copiedBoard) {
-    return saveHomeBoard(user, copiedBoard, locale).then(function() {
-      if (onSuccess) { onSuccess(copiedBoard); }
-      return copiedBoard;
-    });
-  }, function(err) {
-    var msg = (typeof err === 'string' && err) ? err : i18n.t('pick_board_copy_failed', "We couldn't set up your board. Please try again.");
-    onError(msg);
+    copied = copiedBoard;
+    return saveHomeBoard(user, copiedBoard, locale);
+  }).catch(function(err) {
+    /* `.catch` covers the COPY and the ASSIGNMENT — the old shape only had a
+       reject handler on copy_board, so a copy the server accepted whose
+       home-board assignment it then discarded resolved as a success.
+       It deliberately does NOT cover onSuccess (below): that callback drives
+       navigation and UI in its callers, and inside this guarded region a throw
+       there reported "We couldn't set up your board" for a board that had in
+       fact been copied and assigned. */
+    onError(errorMessageFor(err));
     return RSVP.reject(err);
+  }).then(function() {
+    if (onSuccess) { onSuccess(copied); }
+    return copied;
   });
 }
 
@@ -79,6 +92,12 @@ export function assignVocalFlair84AsHome(user, options) {
         return saveHomeBoard(user, existing, locale).then(function() {
           if (onSuccess) { onSuccess(existing); }
           return existing;
+        }, function(err) {
+          /* Was unhandled: the rejection travelled up to the caller's bare
+             `.catch`, which only cleared the in-flight flag — the button reset
+             itself and nothing told the user anything had gone wrong. */
+          onError(errorMessageFor(err));
+          return RSVP.reject(err);
         });
       }
       return copyBoardAndSaveHome(board, user, lib, locale, onSuccess, onError);

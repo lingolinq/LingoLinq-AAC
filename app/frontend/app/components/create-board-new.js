@@ -19,6 +19,7 @@ import { pick_aac_color } from '../utils/parts_of_speech';
 import { buttonSpacingPx, buttonBorderPx, buttonTextPx, BUTTON_SPACING_OPTIONS } from '../utils/display_prefs';
 import aiFeatureGate from '../utils/ai_feature_gate';
 import article50Gate from '../utils/article50_gate';
+import boardsPageListCache from '../utils/boards_page_list_cache';
 
 /**
  * Create Board (New) Modal Component
@@ -31,6 +32,17 @@ export default Component.extend({
   router: service('router'),
   store: service('store'),
   stashes: service('stashes'),
+  /* Shared with board-detail and the Display Style step so "Continue Anyway" on ANY
+     rotate-device overlay silences them all for the session. */
+  overlay_dismissals: service('overlay-dismissals'),
+
+  /* What the template actually gates on. A computed rather than reading the local flag
+     alone, so the overlay also disappears the moment the user turns helper messages off
+     in Preferences (or dismisses the message on another page) while this page is open —
+     the init seed below would otherwise be stale for the life of the component. */
+  orientation_overlay_hidden: computed('orientation_overlay_dismissed', 'overlay_dismissals.rotate_device_hidden', function() {
+    return !!(this.get('orientation_overlay_dismissed') || this.get('overlay_dismissals.rotate_device_hidden'));
+  }),
   appState: service('app-state'),
   tagName: '',
 
@@ -73,9 +85,9 @@ export default Component.extend({
       this.set('model.grid.labels_order', this.stashes.get('new_board_labels_order'));
     }
 
-    // Board vocabulary is always authored in English first so Fitzgerald
-    // key colors and part-of-speech lookup stay accurate; offer translation
-    // after save when the communicator prefers another language.
+    // Author in the communicator's language. english_first_board_generation
+    // means "look up symbols and POS in English, persist English as a
+    // stored locale" — not "make the user type English."
     var preferred_locale = null;
     var locale = ((i18n.langs || {}).preferred || window.navigator.language || 'en').replace(/-/g, '_');
     var pieces = locale.split(/_/);
@@ -92,8 +104,9 @@ export default Component.extend({
       }
     }
     this.set('preferred_communicator_locale', preferred_locale);
+    this.set('_label_english', {});
     if(this.appState.get('feature_flags.english_first_board_generation')) {
-      this.set('model.locale', 'en');
+      this.set('model.locale', preferred_locale || 'en');
     } else if(preferred_locale) {
       this.set('model.locale', preferred_locale);
     }
@@ -145,10 +158,11 @@ export default Component.extend({
     // board-detail speak mode's sentence box). Single-clicking a button appends
     // its label here and speaks it; the bar's Speak/Backspace/Clear act on it.
     this.set('_speak_words', []);
-    // ≤768px landscape-rotate overlay: shown via CSS media query; "Continue
-    // Anyway" flips this to dismiss it for the rest of this visit (resets on
-    // re-entry — see dismiss_orientation_overlay).
-    this.set('orientation_overlay_dismissed', false);
+    // ≤768px landscape-rotate overlay: shown via CSS media query; "Continue Anyway"
+    // dismisses it. Seeded from the SHARED session flag rather than hard `false`, so a
+    // dismissal made on another page (board-detail, the Display Style step) is already
+    // in effect on arrival instead of the overlay re-appearing here.
+    this.set('orientation_overlay_dismissed', this.get('overlay_dismissals.rotate_device_hidden'));
     // Create-method chooser: on entry to the create-board page, present three
     // animated options (Create My Own / Import / Generate with AI). Picking one
     // routes into that flow and dismisses the chooser.
@@ -281,6 +295,81 @@ export default Component.extend({
     }
   ),
 
+  /**
+   * UI opt-in before entering AI board generation. Server grandfather is
+   * unchanged; this only decides whether to show the enable popup, the EU
+   * parental-consent modal, or a blocked notice.
+   * Resolves { proceed: true } when generation may continue.
+   */
+  _ensureAiBoardGenerationAccess: function() {
+    var appState = this.get('appState');
+    var user = appState && appState.get && appState.get('currentUser');
+    var entry = aiFeatureGate.boardGenerationEntry(appState);
+    var stay = function() { return { proceed: false }; };
+
+    if(entry === 'allowed') {
+      return RSVP.resolve({ proceed: true });
+    }
+
+    if(entry === 'eu_consent') {
+      var parentEmail = '';
+      if(user && user.get) {
+        parentEmail = user.get('eu_ai_parental_consent_parent_email') || '';
+      }
+      return modalUtil.open('eu-ai-parental-consent', {
+        user: user,
+        triggeredPref: 'ai_board_generation',
+        parentEmail: parentEmail
+      }).then(stay, stay);
+    }
+
+    if(entry === 'blocked_flag' || entry === 'blocked_coppa') {
+      return modalUtil.open('enable-ai-features', {
+        blocked: true,
+        blockedReason: entry === 'blocked_coppa' ? 'coppa' : 'flag',
+        triggeredPref: 'ai_board_generation'
+      }).then(stay, stay);
+    }
+
+    return modalUtil.open('enable-ai-features', {
+      user: user,
+      triggeredPref: 'ai_board_generation'
+    }).then(function(result) {
+      var features = result && result.requested_features;
+      var boardGenOn = !!(features && features.ai_board_generation);
+      return { proceed: !!(result && result.saved && boardGenOn) };
+    }, stay);
+  },
+
+  _enterAiMode: function() {
+    this.send('set_create_mode', 'ai');
+    this.set('via_create_own', false);
+    this.set('show_create_chooser', false);
+  },
+
+  _requestEnterAiMode: function() {
+    var _this = this;
+    // The chooser is an in-page overlay at z-index 6000. Bootstrap .modal is
+    // 1050, so any ModalDialog opened while the chooser is up paints behind it
+    // and is blurred by the chooser's backdrop-filter. Other chooser actions
+    // (paste HTML / JSON bundle) already hide the overlay first. Hide it here
+    // too whenever a system modal will open; restore if the user does not proceed.
+    var fromChooser = !!this.get('show_create_chooser');
+    var entry = aiFeatureGate.boardGenerationEntry(this.get('appState'));
+    if(fromChooser && entry !== 'allowed') {
+      this.set('show_create_chooser', false);
+    }
+    return this._ensureAiBoardGenerationAccess().then(function(result) {
+      if(_this.isDestroyed || _this.isDestroying) { return result; }
+      if(result && result.proceed) {
+        _this._enterAiMode();
+      } else if(fromChooser) {
+        _this.set('show_create_chooser', true);
+      }
+      return result;
+    });
+  },
+
   paste_html_import_enabled: computed('appState.feature_flags.paste_html_import', function() {
     return !!this.appState.get('feature_flags.paste_html_import');
   }),
@@ -358,6 +447,32 @@ export default Component.extend({
   ai_labels_generated: false,
   ai_generating: false,
   ai_generate_error: null,
+
+  /* Core Words. Rides the generate_labels request as `include_core_words`, and the
+     Rails prompt builder swaps its WHOLE vocabulary instruction on it
+     (lib/ai_board_generator.rb:96) — on, it asks for 40-60% high-frequency core
+     words mixed with topic vocabulary; off, topic-specific only.
+
+     This switch is the only way to reach the topic-only prompt. The core-words
+     instruction is appended AFTER the user's description, so it overrides wording
+     like "animals, no core vocabulary" in the description itself — which is exactly
+     the bug this fixes: the page hard-coded `true` and a topic-only request still
+     came back full of I / want / go / more / help.
+
+     Defaults to true, matching the generate-board modal (generate-board.js:52), so
+     anyone who never touches it sees no change. */
+  include_core_words: true,
+
+  /* Same two strings the generate-board modal uses, deliberately — one behaviour,
+     one set of words. Double-quoted because they are user-facing and
+     i18n_generator.rb only registers keys whose default is double-quoted; the
+     modal's single-quoted copies are why neither key was ever in the locale files
+     (fixed in generate-board.js in the same change). */
+  core_words_tooltip: computed('include_core_words', function() {
+    return this.get('include_core_words')
+      ? i18n.t('core_words_tooltip_checked', "Include 40-60% high-frequency core words (I, want, go, more, stop, like, not, help, do, is, it, the, my, turn, fast, slow, etc.), rest topic-specific vocabulary")
+      : i18n.t('core_words_tooltip_unchecked', "Focus on topic-specific vocabulary only (nouns, topic verbs, descriptors, phrases unique to that context)");
+  }),
 
   // ── Display Preferences toolbar (ported from board-detail) ────────────
   // Dropdown open-state flags
@@ -1076,6 +1191,237 @@ export default Component.extend({
     return str;
   }),
 
+  /** 2-letter root of the language the user is authoring in. */
+  _authoring_locale_root() {
+    return ((this.get('model.locale') || 'en').split(/_|-/)[0] || 'en').toLowerCase();
+  },
+
+  /** True when we should translate labels to English for symbol/POS
+   *  lookup and persist both locales on save. */
+  _needs_english_lookup() {
+    if(!this.appState.get('feature_flags.english_first_board_generation')) {
+      return false;
+    }
+    return this._authoring_locale_root() !== 'en';
+  },
+
+  /** English string for a cached authoring-language label key, or the
+   *  key itself when we are authoring in English / have no mapping. */
+  _english_for_label(key) {
+    if(!key) { return key; }
+    if(!this._needs_english_lookup()) { return key; }
+    var mapped = (this.get('_label_english') || {})[key];
+    return mapped || key;
+  },
+
+  /** Batch-translate unseen labels to English. Caches identity on
+   *  failure so we do not retry forever. Does not change visible labels. */
+  _lookup_label_english() {
+    var _this = this;
+    if(this.isDestroyed || this.isDestroying) {
+      return RSVP.resolve();
+    }
+    if(!this._needs_english_lookup()) {
+      return RSVP.resolve();
+    }
+    var labels = this.get('parsed_labels') || [];
+    var cached = this.get('_label_english') || {};
+    var seen = {};
+    var to_lookup = [];
+    labels.forEach(function(l) {
+      var key = (l || '').toLowerCase();
+      if(!key || seen[key] || Object.prototype.hasOwnProperty.call(cached, key)) { return; }
+      seen[key] = true;
+      to_lookup.push(key);
+    });
+    if(to_lookup.length === 0) {
+      return RSVP.resolve();
+    }
+    var source = this._authoring_locale_root();
+    var gen = this._authoring_locale_gen || 0;
+    var lookup_promise = persistence.ajax('/api/v1/users/self/translate', {
+      type: 'POST',
+      data: {
+        words: to_lookup,
+        source_lang: source,
+        destination_lang: 'en'
+      }
+    }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if((_this._authoring_locale_gen || 0) !== gen) { return; }
+      if(_this._authoring_locale_root() !== source) { return; }
+      var trans = (data && data.translations) || {};
+      var next_map = Object.assign({}, _this.get('_label_english') || {});
+      to_lookup.forEach(function(word) {
+        var english = trans[word] || trans[word.toLowerCase()];
+        next_map[word] = (english && String(english).trim()) || word;
+      });
+      _this.set('_label_english', next_map);
+    }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if((_this._authoring_locale_gen || 0) !== gen) { return; }
+      var next_map = Object.assign({}, _this.get('_label_english') || {});
+      to_lookup.forEach(function(word) {
+        next_map[word] = word;
+      });
+      _this.set('_label_english', next_map);
+    });
+    this.set('_label_english_lookup_promise', lookup_promise);
+    lookup_promise.finally(function() {
+      if(!_this.isDestroyed && !_this.isDestroying && _this.get('_label_english_lookup_promise') === lookup_promise) {
+        _this.set('_label_english_lookup_promise', null);
+      }
+    });
+    return lookup_promise;
+  },
+
+  /** Waits for any in-flight English map, then translates remaining labels. */
+  _ensure_label_english() {
+    var _this = this;
+    if(!this._needs_english_lookup()) {
+      return RSVP.resolve();
+    }
+    var pending = this.get('_label_english_lookup_promise');
+    var wait = pending ? RSVP.resolve(pending) : RSVP.resolve();
+    return wait.then(function() {
+      return _this._lookup_label_english();
+    }, function() {
+      return _this._lookup_label_english();
+    });
+  },
+
+  /** Translate the board name to English once, for the translations blob. */
+  _ensure_board_name_english() {
+    var _this = this;
+    if(!this._needs_english_lookup()) {
+      return RSVP.resolve();
+    }
+    var name = (this.get('model.name') || '').trim();
+    if(!name) {
+      return RSVP.resolve();
+    }
+    if(this.get('_board_name_english')) {
+      return RSVP.resolve();
+    }
+    var source = this._authoring_locale_root();
+    var gen = this._authoring_locale_gen || 0;
+    return persistence.ajax('/api/v1/users/self/translate', {
+      type: 'POST',
+      data: {
+        words: [name],
+        source_lang: source,
+        destination_lang: 'en'
+      }
+    }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if((_this._authoring_locale_gen || 0) !== gen) { return; }
+      if(_this._authoring_locale_root() !== source) { return; }
+      var trans = (data && data.translations) || {};
+      var english = trans[name] || trans[name.toLowerCase()];
+      _this.set('_board_name_english', (english && String(english).trim()) || name);
+    }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      if((_this._authoring_locale_gen || 0) !== gen) { return; }
+      _this.set('_board_name_english', name);
+    });
+  },
+
+  /** When creating for a supervisee, use their locale if the list already
+   *  carries one. Otherwise leave the current authoring locale in place. */
+  _apply_supervisee_authoring_locale(userId) {
+    if(!this.appState.get('feature_flags.english_first_board_generation')) {
+      return;
+    }
+    if(!userId || userId === 'self') {
+      this._set_authoring_locale(this.get('preferred_communicator_locale') || 'en');
+      return;
+    }
+    var supers = this.appState.get('sessionUser.known_supervisees') ||
+      this.appState.get('currentUser.known_supervisees') || [];
+    var match = null;
+    for(var i = 0; i < supers.length; i++) {
+      var s = supers[i];
+      if(s && (s.id === userId || s.user_name === userId)) {
+        match = s;
+        break;
+      }
+    }
+    var loc = match && (match.locale || (match.preferences && match.preferences.locale));
+    if(loc) {
+      this._set_authoring_locale(loc);
+    }
+  },
+
+  /** Set model.locale and drop label-text caches when the 2-letter root
+   *  changes. Those maps are keyed only by label, so es "sombrero"→hat
+   *  would otherwise be reused after a switch to fr. */
+  _set_authoring_locale(loc) {
+    var previous = this.get('model.locale');
+    var prevRoot = ((previous || 'en').split(/_|-/)[0] || 'en').toLowerCase();
+    var nextRoot = ((loc || 'en').split(/_|-/)[0] || 'en').toLowerCase();
+    this.set('model.locale', loc);
+    if(prevRoot !== nextRoot) {
+      this._invalidate_authoring_locale_caches();
+    }
+  },
+
+  _invalidate_authoring_locale_caches() {
+    this._authoring_locale_gen = (this._authoring_locale_gen || 0) + 1;
+    this.set('_label_english', {});
+    this.set('_board_name_english', null);
+    this.set('_label_english_lookup_promise', null);
+    this.set('_label_colors', {});
+    this.set('_label_images', {});
+    this.set('_label_images_lookup_promise', null);
+    if((this.get('parsed_labels') || []).length) {
+      this._lookup_label_colors();
+      this._lookup_label_images();
+    }
+  },
+
+  /** Per-button + board-name translations for the authoring locale and English. */
+  _build_authoring_translations(buttons) {
+    if(!this._needs_english_lookup()) {
+      return null;
+    }
+    var list = buttons || [];
+    if(list.length === 0) {
+      return null;
+    }
+    var authoring = this.get('model.locale') || this._authoring_locale_root();
+    var authoringRoot = this._authoring_locale_root();
+    var englishMap = this.get('_label_english') || {};
+    var name = (this.get('model.name') || '').trim();
+    var translations = {
+      default: authoring,
+      current_label: authoring,
+      current_vocalization: authoring,
+      board_name: {}
+    };
+    if(name) {
+      translations.board_name[authoring] = name;
+      translations.board_name[authoringRoot] = name;
+      var englishName = this.get('_board_name_english');
+      if(englishName) {
+        translations.board_name.en = englishName;
+      }
+    }
+    list.forEach(function(btn) {
+      if(!btn || btn.id == null) { return; }
+      var label = btn.label || '';
+      var key = label.toLowerCase();
+      var english = englishMap[key] || label;
+      var entry = {};
+      entry[authoringRoot] = { label: label, vocalization: label };
+      if(authoring !== authoringRoot) {
+        entry[authoring] = { label: label, vocalization: label };
+      }
+      entry.en = { label: english, vocalization: english };
+      translations[String(btn.id)] = entry;
+    });
+    return translations;
+  },
+
   /** Whenever the parsed labels change, schedule a Fitzgerald color
    *  lookup for any unseen labels. Debounced so we don't hit the API on
    *  every keystroke as the user is typing. */
@@ -1088,44 +1434,54 @@ export default Component.extend({
    *  Cached results stay in _label_colors so re-typing the same word is
    *  instant. */
   _lookup_label_colors() {
-    if(this.isDestroyed || this.isDestroying) { return; }
-    var labels = this.get('parsed_labels') || [];
-    var cached = this.get('_label_colors') || {};
-    var seen = {};
-    var to_lookup = [];
-    labels.forEach(function(l) {
-      var key = (l || '').toLowerCase();
-      if(!key || seen[key] || cached.hasOwnProperty(key)) { return; }
-      seen[key] = true;
-      to_lookup.push(key);
-    });
-    if(to_lookup.length === 0) { return; }
     var _this = this;
-    var palette = LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors || [];
-    persistence.ajax('/api/v1/search/batch_parts_of_speech', {
-      type: 'GET',
-      data: { words: to_lookup.join(',') }
-    }).then(function(res) {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var gen = this._authoring_locale_gen || 0;
+    return this._ensure_label_english().then(function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
-      var results = (res && res.results) || {};
-      var next_map = Object.assign({}, _this.get('_label_colors') || {});
-      to_lookup.forEach(function(word) {
-        var data = results[word];
-        var entry = { fill: null, border: null, type: null };
-        if(data && data.types) {
-          var picked = pick_aac_color(data.types, palette, word);
-          if(picked) {
-            entry.fill = picked.color.fill;
-            entry.border = picked.color.border;
-            entry.type = picked.type;
-          }
-        }
-        // Cache even no-match results so we don't re-query the same word.
-        next_map[word] = entry;
+      if((_this._authoring_locale_gen || 0) !== gen) { return; }
+      var labels = _this.get('parsed_labels') || [];
+      var cached = _this.get('_label_colors') || {};
+      var seen = {};
+      var to_lookup = [];
+      labels.forEach(function(l) {
+        var key = (l || '').toLowerCase();
+        if(!key || seen[key] || Object.prototype.hasOwnProperty.call(cached, key)) { return; }
+        seen[key] = true;
+        to_lookup.push(key);
       });
-      _this.set('_label_colors', next_map);
-    }, function() {
-      // Fail silently — preview just stays default-colored.
+      if(to_lookup.length === 0) { return; }
+      var palette = LingoLinq.board_detail_keyed_colors || LingoLinq.keyed_colors || [];
+      var pos_words = to_lookup.map(function(word) {
+        return _this._english_for_label(word);
+      });
+      persistence.ajax('/api/v1/search/batch_parts_of_speech', {
+        type: 'GET',
+        data: { words: pos_words.join(',') }
+      }).then(function(res) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if((_this._authoring_locale_gen || 0) !== gen) { return; }
+        var results = (res && res.results) || {};
+        var next_map = Object.assign({}, _this.get('_label_colors') || {});
+        to_lookup.forEach(function(word, idx) {
+          var english = pos_words[idx];
+          var data = results[english] || results[word];
+          var entry = { fill: null, border: null, type: null };
+          if(data && data.types) {
+            var picked = pick_aac_color(data.types, palette, english);
+            if(picked) {
+              entry.fill = picked.color.fill;
+              entry.border = picked.color.border;
+              entry.type = picked.type;
+            }
+          }
+          // Cache even no-match results so we don't re-query the same word.
+          next_map[word] = entry;
+        });
+        _this.set('_label_colors', next_map);
+      }, function() {
+        // Fail silently — preview just stays default-colored.
+      });
     });
   },
 
@@ -1153,20 +1509,38 @@ export default Component.extend({
     if(this.isDestroyed || this.isDestroying) {
       return RSVP.resolve();
     }
+    return this._ensure_label_english().then(function() {
+      if(_this.isDestroyed || _this.isDestroying) {
+        return RSVP.resolve();
+      }
+      return _this._lookup_label_images_with_english();
+    });
+  },
+
+  /** Symbol search after the English map (if any) is ready. Queries
+   *  OpenSymbols with the English word and locale=en, then caches
+   *  under the authoring-language label key so the preview stays
+   *  in the user's language. */
+  _lookup_label_images_with_english() {
+    var _this = this;
+    if(this.isDestroyed || this.isDestroying) {
+      return RSVP.resolve();
+    }
     var labels = this.get('parsed_labels') || [];
     var cached = this.get('_label_images') || {};
     var seen = {};
     var to_lookup = [];
     labels.forEach(function(l) {
       var key = (l || '').toLowerCase();
-      if(!key || seen[key] || cached.hasOwnProperty(key)) { return; }
+      if(!key || seen[key] || Object.prototype.hasOwnProperty.call(cached, key)) { return; }
       seen[key] = true;
       to_lookup.push(key);
     });
     if(to_lookup.length === 0) {
       return RSVP.resolve();
     }
-    var locale = (this.get('model.locale') || 'en').split(/_|-/)[0];
+    var search_locale = this._needs_english_lookup() ? 'en' : this._authoring_locale_root();
+    var gen = this._authoring_locale_gen || 0;
     // Fire one request per label in parallel — the symbols endpoint is
     // single-word so we can't batch. RSVP.allSettled lets a single
     // 404/timeout not block the rest. Cap the parallel requests at a
@@ -1185,9 +1559,10 @@ export default Component.extend({
           return;
         }
         var promises = batch.map(function(word) {
+          var query = _this._english_for_label(word);
           return persistence.ajax(
-            '/api/v1/search/symbols?q=' + encodeURIComponent(word) +
-            '&safe=0&locale=' + encodeURIComponent(locale),
+            '/api/v1/search/symbols?q=' + encodeURIComponent(query) +
+            '&safe=0&locale=' + encodeURIComponent(search_locale),
             { type: 'GET' }
           ).then(function(results) {
             var pick = (results && results.length) ? results[0] : null;
@@ -1200,6 +1575,10 @@ export default Component.extend({
         });
         RSVP.allSettled(promises).then(function(states) {
           if(_this.isDestroyed || _this.isDestroying) {
+            resolve();
+            return;
+          }
+          if((_this._authoring_locale_gen || 0) !== gen) {
             resolve();
             return;
           }
@@ -1244,12 +1623,12 @@ export default Component.extend({
       : RSVP.resolve();
     var pending = this.get('_label_images_lookup_promise');
     var wait = pending ? RSVP.resolve(pending) : RSVP.resolve();
-    return wait_uploads.then(function() {
-      return wait.then(function() {
-        return _this._lookup_label_images();
-      }, function() {
-        return _this._lookup_label_images();
-      });
+    return this._ensure_label_english().then(function() {
+      return RSVP.allSettled([wait_uploads, wait, _this._ensure_board_name_english()]);
+    }).then(function() {
+      return _this._lookup_label_images();
+    }, function() {
+      return _this._lookup_label_images();
     });
   },
 
@@ -1281,7 +1660,8 @@ export default Component.extend({
       var i = label_images[k];
       return i && i.image_url;
     });
-    if(has_painted || has_auto || has_images) {
+    var needs_trans = this._needs_english_lookup() && (this.get('parsed_labels') || []).length > 0;
+    if(has_painted || has_auto || has_images || needs_trans) {
       var labels = this.get('parsed_labels') || [];
       var rows = parseInt(this.get('model.grid.rows'), 10) || 0;
       var cols = parseInt(this.get('model.grid.columns'), 10) || 0;
@@ -1346,12 +1726,25 @@ export default Component.extend({
       // don't auto-place" — combined with `buttons.length > 0` it
       // also bypasses the populate_from_labels path.
       this.set('model.grid.order', grid_order);
+      var translations = this._build_authoring_translations(buttons);
+      if(translations) {
+        this.set('model.translations', translations);
+      }
     }
     this.get('model').save().then(function(board) {
       board.set('button_locale', board.get('locale'));
       _this.appState.set('label_locale', board.get('locale'));
       _this.appState.set('vocalization_locale', board.get('locale'));
       _this.set('status', null);
+      /* Invalidate Mine-list snapshot so /boards re-queries after create. */
+      try {
+        var ownerId = _this.get('model.for_user_id') ||
+          (_this.appState.get('currentUser.id')) ||
+          (_this.appState.get('currentUser._actual_id'));
+        if (ownerId && ownerId !== 'self') { boardsPageListCache.clear(ownerId); }
+        var selfId = _this.appState.get('currentUser.id') || _this.appState.get('currentUser._actual_id');
+        if (selfId) { boardsPageListCache.clear(selfId); }
+      } catch (e) { /* non-critical */ }
       modalUtil.close(true);
       editManager.auto_edit(board.get('id'));
       _this.appState.set('referenced_board', {id: board.get('id'), key: board.get('key')});
@@ -1366,20 +1759,9 @@ export default Component.extend({
           _this.get('router').transitionTo('board', key);
         }
       };
-      var preferred = _this.get('preferred_communicator_locale');
-      var prefRoot = (preferred || 'en').split(/_|-/)[0];
-      if(_this.appState.get('feature_flags.english_first_board_generation') && preferred && prefRoot !== 'en') {
-        transition();
-        runLater(function() {
-          modalUtil.open('translation-select', {
-            board: board,
-            button_set: board.get('button_set'),
-            translate_locale: preferred
-          });
-        }, 500);
-      } else {
-        transition();
-      }
+      // Both languages are already on the create payload when the user
+      // authored in a non-English locale. Do not open translation-select.
+      transition();
     }, function() {
       _this.set('status', {error: true});
     });
@@ -1843,14 +2225,29 @@ export default Component.extend({
     // Legacy entry point — now just switches the page into AI mode
     // instead of opening the old generate-board modal.
     generateWithAi: function() {
-      this.send('set_create_mode', 'ai');
+      this._requestEnterAiMode();
+    },
+
+    request_ai_mode: function() {
+      this._requestEnterAiMode();
     },
 
     /** Segmented mode switch: 'regular' or 'ai'. Import stays its own
      *  button. Leaving AI mode keeps any generated labels so toggling
      *  back and forth doesn't lose work. */
     set_create_mode: function(mode) {
-      this.set('ai_mode', mode === 'ai');
+      var to_ai = (mode === 'ai');
+      /* LEAVING AI mode must clear what AI produced. `model.ai_generated` is the
+         server-signed EU AI Act Art.50(2) provenance marker: left in place, a user who
+         switched to regular mode and hand-replaced every label still saved a board that
+         is recorded and displayed as AI-generated — a false provenance claim on a
+         compliance marker. `ai_labels_generated` is cleared with it so the section
+         gating (`!ai_mode || ai_labels_generated`) returns to its regular-mode meaning. */
+      if(!to_ai && this.get('ai_mode')) {
+        this.set('ai_labels_generated', false);
+        if(this.get('model')) { this.set('model.ai_generated', null); }
+      }
+      this.set('ai_mode', to_ai);
       this.set('ai_generate_error', null);
     },
 
@@ -1871,23 +2268,26 @@ export default Component.extend({
         return;
       }
       this.set('ai_generate_error', null);
-      // EU AI Act Article 50(1): first-AI-use gate. BLOCK mode (D-03) -- this is a
-      // deliberate, non-time-critical user action, so it is safe to hold the request
-      // behind the disclosure modal. Resolves immediately when no acknowledgement is
-      // needed (flag off, already acknowledged, out of scope). If the modal is
-      // abandoned, this promise never resolves and the request below never fires.
-      article50Gate.presentBlockingGate(this.get('appState')).then(function() {
+      return this._ensureAiBoardGenerationAccess().then(function(access) {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(!access || !access.proceed) { return; }
+        // EU AI Act Article 50(1): first-AI-use gate. BLOCK mode (D-03) -- this is a
+        // deliberate, non-time-critical user action, so it is safe to hold the request
+        // behind the disclosure modal. Resolves immediately when no acknowledgement is
+        // needed (flag off, already acknowledged, out of scope). If the modal is
+        // abandoned, this promise never resolves and the request below never fires.
+        return article50Gate.presentBlockingGate(_this.get('appState')).then(function() {
         if(_this.isDestroyed || _this.isDestroying) { return; }
         _this.set('ai_generating', true);
         var payload = {
           prompt: prompt,
           rows: parseInt(_this.get('model.grid.rows'), 10) || 2,
           columns: parseInt(_this.get('model.grid.columns'), 10) || 4,
-          include_core_words: true,
+          include_core_words: _this.get('include_core_words'),
           labels_order: _this.get('model.grid.labels_order') || 'columns',
           locale: (_this.get('model.locale') || 'en')
         };
-        persistence.ajax('/api/v1/boards/generate_labels', {
+        return persistence.ajax('/api/v1/boards/generate_labels', {
           type: 'POST',
           contentType: 'application/json',
           dataType: 'json',
@@ -1924,6 +2324,7 @@ export default Component.extend({
         _this.set('ai_generating', false);
         _this.set('ai_generate_error', i18n.t('generate_disclosure_required', "Please review the AI transparency notice before generating a board with AI."));
       });
+      });
     },
     opening: function() {
       if (this.get('standalone')) { return; }
@@ -1946,8 +2347,27 @@ export default Component.extend({
       value = Math.min(Math.max(1, value), 20);
       this.set(attribute, value);
     },
+    /* Set both dimensions at once from <GridSizePicker>. Clamped to the same 1-20
+       range `plus_minus` above enforces, so the picker cannot reach a size the
+       steppers could not — 20x20 is also the MAX_GRID_LABELS (400) ceiling. */
+    setGridSize: function(rows, columns) {
+      var clamp = function(value) {
+        var n = parseInt(value, 10);
+        if (isNaN(n)) { return null; }
+        return Math.min(Math.max(1, n), 20);
+      };
+      var r = clamp(rows);
+      var c = clamp(columns);
+      if (r === null || c === null) { return; }
+      this.set('model.grid.rows', r);
+      this.set('model.grid.columns', c);
+    },
     setForUserId: function(userId) {
       this.set('model.for_user_id', userId);
+      this._apply_supervisee_authoring_locale(userId);
+    },
+    toggleIncludeCoreWords: function() {
+      this.set('include_core_words', !this.get('include_core_words'));
     },
     toggleCreatingForSomeoneElse: function() {
       var newValue = !this.get('creating_for_someone_else');
@@ -1955,13 +2375,14 @@ export default Component.extend({
       if(!newValue) {
         // Switching to "No" — board belongs to current user.
         this.set('model.for_user_id', 'self');
+        this._apply_supervisee_authoring_locale('self');
       }
     },
     setVisibility: function(value) {
       this.set('model.visibility', value);
     },
     setLocale: function(value) {
-      this.set('model.locale', value);
+      this._set_authoring_locale(value);
     },
     setLabelsOrder: function(value) {
       this.set('model.grid.labels_order', value);
@@ -2239,11 +2660,13 @@ export default Component.extend({
     speak_clear: function() {
       this.set('_speak_words', []);
     },
-    // "Continue Anyway" on the ≤1024px landscape-rotate overlay — dismiss it for
-    // the rest of THIS visit (accessibility escape for mounted / non-rotatable
-    // setups). State lives on the component, so it resets on a later visit, where
-    // the device orientation may well differ. Adds nb-orientation-overlay--dismissed,
-    // which beats the media query.
+    // "Continue Anyway" on the ≤1024px landscape-rotate overlay — dismiss it for the
+    // rest of the SESSION, app-wide (accessibility escape for mounted / non-rotatable
+    // setups). Adds nb-orientation-overlay--dismissed, which beats the media query.
+    // Previously this reset on every re-entry to the page; a user who had already said
+    // "Continue Anyway" still met the same overlay on the next visit and on other
+    // pages. The session flag lives in service:overlay-dismissals; it is still not
+    // persisted across a reload, so a genuinely new visit re-evaluates the device.
     //
     // Adversarial-review note ("a11y: SR users trapped if they can't rotate"): not a
     // trap — this is a real, keyboard/SR-reachable <button> that fully removes the
@@ -2253,6 +2676,8 @@ export default Component.extend({
     // the dismissal to a preference is a possible future nicety, not an a11y blocker.)
     dismiss_orientation_overlay: function() {
       this.set('orientation_overlay_dismissed', true);
+      // Session-wide, every page — see service:overlay-dismissals.
+      this.get('overlay_dismissals').dismiss('rotate_device');
     },
     // ── Create-method chooser actions ──────────────────────────────────
     // "Create My Own Board" → the regular create-board form (dismiss the chooser;
@@ -2291,11 +2716,9 @@ export default Component.extend({
       var el = document.getElementById('board_upload');
       if(el) { el.click(); }
     },
-    // "Generate with AI" → the in-page AI generation flow.
+    // "Generate with AI" → opt-in popup if needed, then the in-page AI flow.
     choose_ai: function() {
-      this.send('set_create_mode', 'ai');
-      this.set('via_create_own', false);
-      this.set('show_create_chooser', false);
+      this._requestEnterAiMode();
     },
     // "Other Create Board Methods" (regular form) → reopen the chooser so the
     // user can switch to Import / Generate with AI.

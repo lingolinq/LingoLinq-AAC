@@ -155,5 +155,39 @@ describe Api::WordsController, :type => :controller do
       json = assert_success_json
       expect(json).to eq({ 'words' => %w[play go eat help] })
     end
+
+    describe "article_50_disclosure backstop (LL-6723438462)" do
+      it "proceeds normally when feature_enabled_for? is false, regardless of jurisdiction or acknowledgement (code-default path, not the production state)" do
+        token_user
+        # Guard: pin the code-default explicitly so seeding a default_enabled_features
+        # row in test cannot silently invert this assertion.
+        expect(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).at_least(:once).and_return(false)
+        allow(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_word_prediction', anything).and_return(true)
+        allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+        allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(false)
+        allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
+        allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
+        expect(AiWordPredictor).to receive(:predict).and_return(%w[play go])
+
+        post 'predict', params: { 'sentence' => 'I want to' }
+        expect(response).to be_successful
+      end
+
+      it "returns 403 with a distinguishable error code and never calls the predictor when the flag is enabled, in scope, and unacknowledged" do
+        token_user
+        allow(FeatureFlags).to receive(:ai_feature_enabled_for?).with('ai_word_prediction', anything).and_return(true)
+        allow(FeatureFlags).to receive(:coppa_blocks_ai_for?).and_return(false)
+        allow(FeatureFlags).to receive(:eu_under16_blocks_ai_for?).and_return(false)
+        allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+        allow(FeatureFlags).to receive(:feature_enabled_for?).with('article_50_disclosure', anything).and_return(true)
+        allow(EuJurisdiction).to receive(:disclosure_required?).and_return(true)
+        allow_any_instance_of(User).to receive(:article_50_disclosure_shown?).and_return(false)
+        expect(AiWordPredictor).not_to receive(:predict)
+
+        post 'predict', params: { 'sentence' => 'I want to' }
+        expect(response.status).to eq(403)
+        assert_error('article_50_disclosure_required', 403)
+      end
+    end
   end
 end

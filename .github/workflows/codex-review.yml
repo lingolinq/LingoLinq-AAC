@@ -9,9 +9,11 @@ name: Codex Review
 # Fail-closed anchor (build spec section 1/6): `codex-review/deep-pass` is a
 # required branch-protection status check. This workflow sets it `pending`
 # as its FIRST step. Only a successful POST-and-verify to n8n W2 (job
-# success) or codex-watchdog.yml (on failure/timeout) ever resolves it away
-# from pending. A dead/crashed/timed-out run therefore blocks merge instead
-# of silently passing it.
+# success), this job's own terminal-status step (all exit paths, PR #702), or
+# codex-watchdog.yml ever resolves it away from pending. A
+# dead/crashed/timed-out run therefore blocks merge instead of silently passing
+# it. Note that watchdog recovery is BEST-EFFORT and unbounded in time (#710),
+# so it is the last resort, not the primary mechanism.
 on:
   workflow_dispatch:
     inputs:
@@ -68,12 +70,12 @@ jobs:
       # Codex review of this pipeline (PR #607) caught that the fail-closed
       # anchor was not actually first: the old single validate-inputs step
       # ran before the pending status existed, so a malformed dispatch input
-      # meant NO status was ever posted -- silently invisible to the 30-min
-      # watchdog sweep, which only detects a status stuck at `pending`. Fix:
+      # meant NO status was ever posted -- silently invisible to the watchdog
+      # sweep, which only detects a status stuck at `pending`. Fix:
       # validate only what's needed to safely address the status API
       # (head_sha), set pending, THEN validate everything else -- flipping
-      # the status straight to `failure` on bad input instead of leaving it
-      # for the watchdog to notice half an hour later.
+      # the status straight to `failure` on bad input instead of waiting on the
+      # watchdog, whose recovery is best-effort and unbounded in time (#710).
       - name: Validate head_sha (minimum needed before it is safe to use in the status API)
         run: |
           if ! [[ "$HEAD_SHA" =~ ^[0-9a-f]{7,40}$ ]]; then
@@ -343,9 +345,14 @@ jobs:
         run: |
           run_codex() {
             # $1 = output path for this run's review JSON
+            # gpt-5.6-terra per the approved-reviewer registry (CLAUDE.md, CI
+            # `codex-review` gate row: terra default, luna A/B). This is the
+            # whole-diff pass that produces the verdict directly, so it takes
+            # the balanced tier; the chunked path splits luna/terra by leg in
+            # scripts/codex-review-run-chunks.py.
             codex exec \
               --sandbox read-only \
-              -m gpt-5.5 \
+              -m gpt-5.6-terra \
               --output-schema .github/codex/review-schema.json \
               --output-last-message "$1" \
               < /tmp/prompt.md
@@ -355,7 +362,7 @@ jobs:
             if ! python3 -c "import json, sys; json.load(open(sys.argv[1]))" "$1" 2>/dev/null; then
               echo "Run produced invalid JSON; retrying with stricter instruction." >&2
               { cat /tmp/prompt.md; echo ""; echo "Output ONLY the JSON object. No prose, no markdown fences."; } \
-                | codex exec --sandbox read-only -m gpt-5.5 \
+                | codex exec --sandbox read-only -m gpt-5.6-terra \
                     --output-schema .github/codex/review-schema.json \
                     --output-last-message "$1"
             fi
@@ -390,6 +397,22 @@ jobs:
             --repository "${{ github.repository }}" \
             --run-url "${RUN_URL}" \
             --heartbeat
+          # Surface the models actually used so the envelope can record which
+          # approved reviewer produced the verdict. These come from constants in
+          # the script (not from any repo variable), but are still restricted to
+          # a model-id charset before reaching GITHUB_ENV: a value carrying a
+          # newline could otherwise define arbitrary further environment
+          # variables, and this write should not be the weak link if the source
+          # ever changes.
+          sanitize_model_id() {
+            printf '%s' "$1" | tr -cd 'A-Za-z0-9._-' | cut -c1-64
+          }
+          chunk_model="$(jq -r '.chunk_model // ""' /tmp/codex-review-results/run-summary.json)"
+          synthesis_model="$(jq -r '.synthesis_model // ""' /tmp/codex-review-results/run-summary.json)"
+          {
+            echo "CODEX_CHUNK_MODEL_EFFECTIVE=$(sanitize_model_id "$chunk_model")"
+            echo "CODEX_SYNTHESIS_MODEL_EFFECTIVE=$(sanitize_model_id "$synthesis_model")"
+          } >> "$GITHUB_ENV"
 
       - name: Run reviewer (Claude Sonnet 4.6 API, Tier 2 claude-deep route)
         id: review_claude_deep
@@ -497,7 +520,8 @@ jobs:
           # dispatch can post the same context on the same SHA, so key the
           # verification by target_url instead of taking the newest context.
           # codex-watchdog.yml is the independent backstop if this check
-          # itself never runs (job killed before this line).
+          # itself never runs (job killed before this line). Best-effort and
+          # unbounded in time (#710).
           # RUN_URL is job-level env (attempt-scoped); do not rebuild it here.
           for i in $(seq 1 6); do
             sleep 5
@@ -509,7 +533,7 @@ jobs:
             fi
           done
 
-          echo "codex-review/deep-pass still pending 30s after W2 POST succeeded; failing this job so it does not report false success. codex-watchdog.yml's workflow_run trigger will flip the status to failure." >&2
+          echo "codex-review/deep-pass still pending 30s after W2 POST succeeded; failing this job so it does not report false success. The terminal-status step below runs on all exit paths (if: always()) and resolves it. codex-watchdog.yml is only a backstop and cannot act until the status is 30+ minutes old (#710)." >&2
           exit 1
 
       # ------------------------------------------------------------------
@@ -520,7 +544,9 @@ jobs:
       # input-validation guards near the top of the job and the resolve step
       # above. Anything failing between them -- notably the reviewer auth step
       # -- left deep-pass `pending` and delegated the problem to
-      # codex-watchdog.yml, which by design waits 30 minutes before acting.
+      # codex-watchdog.yml, which cannot act until the status is at least 30
+      # minutes old and then only when a scheduled sweep actually runs. That
+      # wait is best-effort and has no upper bound (#710).
       # Observed 2026-07-28: auth failed in about 90 seconds while deep-pass
       # read "Codex review running" for 41-65 minutes on PRs #690, #696, #697.
       # The gate was not broken; it was lying about its own state.
@@ -532,6 +558,9 @@ jobs:
       #
       # codex-watchdog.yml remains the independent backstop for the one case
       # this step cannot cover: the runner dying before this step executes.
+      # That backstop is best-effort and has no upper bound on how long it takes
+      # to act (#710), which is precisely why this step exists rather than
+      # delegating to it.
       - name: Resolve codex-review/deep-pass to a terminal state (all exit paths)
         if: always()
         env:
@@ -572,7 +601,8 @@ jobs:
             # proceed. If the job DID succeed, the current status may be a
             # legitimate `success` and we cannot see it: refuse to guess.
             if [ "$JOB_STATUS" = "success" ]; then
-              echo "::error::Could not read the current codex-review/deep-pass status after 3 attempts, and this job succeeded. Refusing to overwrite a possibly-successful verdict. codex-watchdog.yml remains the backstop." >&2
+              echo "::error::ACTION REQUIRED: escalate to the tooling owner if deep-pass stays pending. Do not wait on the watchdog." >&2
+              echo "::notice::Could not read the current codex-review/deep-pass status after 3 attempts, and this job succeeded, so overwriting a possibly-successful verdict is refused. codex-watchdog.yml cannot act until the status is 30+ minutes old AND a scheduled sweep runs (best-effort, no upper bound, #710). deep-pass-admin-exception-policy.md condition 1 needs a failing Authenticate Codex CLI step; a successful job does not provide that. Tracking: #717." >&2
               exit 1
             fi
             echo "::warning::Could not read the current deep-pass status after 3 attempts; the job did not succeed, so writing failure is safe regardless." >&2
@@ -624,7 +654,8 @@ jobs:
 
           # Case 5: the status write itself failing must be loud, not silent.
           if [ -z "$posted" ]; then
-            echo "::error::Could not write a terminal codex-review/deep-pass status after 3 attempts. The status is left pending and codex-watchdog.yml is now the only backstop." >&2
+            echo "::error::ACTION REQUIRED: escalate to the tooling owner now. deep-pass is stuck pending and no automated path will clear it promptly. Do not wait on the watchdog." >&2
+            echo "::notice::Could not write a terminal codex-review/deep-pass status after 3 attempts, so it is left pending. codex-watchdog.yml is the only remaining automated recovery and is best-effort, not a 30-minute SLA: it acts once the status is 30+ minutes old AND a scheduled sweep runs, which GitHub does not guarantee (observed 77 minutes pending, #710). The watchdog has no workflow_dispatch trigger (#717). A pending status alone is not enough for deep-pass-admin-exception-policy.md, but if Authenticate Codex CLI already failed earlier in this run that evidence still satisfies condition 1 when the other four conditions hold." >&2
             exit 1
           fi
 

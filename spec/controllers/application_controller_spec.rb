@@ -170,6 +170,119 @@ describe ApplicationController, :type => :controller do
       expect(assigns[:true_user]).to eq(u)
       expect(response).to be_successful
     end
+
+    describe "masquerade AuditEvent disclosure" do
+      after(:each) { AuditEvent.delete_all }
+
+      it "writes an AuditEvent for a site-admin masquerade" do
+        o = Organization.create(:admin => true)
+        u = User.create
+        u2 = User.create
+        o.add_manager(u.user_name, true)
+        d = Device.create(:user => u)
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.to change { AuditEvent.count }.by(1)
+        expect(response).to be_successful
+        event = AuditEvent.last
+        expect(event.user_key).to eq(u.global_id)
+        expect(event.data['type']).to eq('masquerade')
+        expect(event.data['command']).to eq('authorize')
+        expect(event.data['acting_as']).to eq(u2.global_id)
+        expect(event.data['branch']).to eq('site_admin')
+      end
+
+      it "writes an AuditEvent for an org-manager masquerade" do
+        o = Organization.create()
+        u = User.create
+        u2 = User.create
+        o.add_manager(u.user_name, true)
+        o.add_user(u2.user_name, false, false)
+        d = Device.create(:user => u)
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.to change { AuditEvent.count }.by(1)
+        expect(response).to be_successful
+        event = AuditEvent.last
+        expect(event.user_key).to eq(u.global_id)
+        expect(event.data['acting_as']).to eq(u2.global_id)
+        expect(event.data['branch']).to eq('org_manager')
+      end
+
+      it "writes an AuditEvent when masquerading via X-As-User-Id" do
+        o = Organization.create(:admin => true)
+        u = User.create
+        u2 = User.create
+        o.add_manager(u.user_name, true)
+        d = Device.create(:user => u)
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+        request.headers['X-As-User-Id'] = u2.global_id
+
+        expect {
+          get :index, params: {:check_token => true}
+        }.to change { AuditEvent.count }.by(1)
+        expect(response).to be_successful
+        event = AuditEvent.last
+        expect(event.user_key).to eq(u.global_id)
+        expect(event.data['acting_as']).to eq(u2.global_id)
+        expect(event.data['branch']).to eq('site_admin')
+      end
+
+      it "deduplicates AuditEvents per operator/target within the Redis window" do
+        o = Organization.create(:admin => true)
+        u = User.create
+        u2 = User.create
+        o.add_manager(u.user_name, true)
+        d = Device.create(:user => u)
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        expect(response).to be_successful
+        expect(AuditEvent.count).to eq(1)
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.not_to change { AuditEvent.count }
+        expect(response).to be_successful
+        expect(assigns[:true_user]).to eq(u)
+        expect(assigns[:api_user]).to eq(u2)
+      end
+
+      it "does not write an AuditEvent for a denied org-manager masquerade" do
+        o = Organization.create()
+        u = User.create
+        u2 = User.create
+        o.add_manager(u.user_name, true)
+        d = Device.create(:user => u)
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+
+        expect {
+          get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        }.not_to change { AuditEvent.count }
+        assert_error("Invalid masquerade attempt")
+      end
+
+      it "refuses masquerade when the audit write does not persist (fail-closed)" do
+        o = Organization.create(:admin => true)
+        u = User.create
+        u2 = User.create
+        o.add_manager(u.user_name, true)
+        d = Device.create(:user => u)
+        request.headers['Authorization'] = "Bearer #{d.tokens[0]}"
+        allow(AuditEvent).to receive(:log_command).and_return(AuditEvent.new)
+
+        get :index, params: {:check_token => true, :as_user_id => u2.global_id}
+        expect(response.status).to eq(503)
+        json = JSON.parse(response.body)
+        expect(json['error']).to eq('Audit log write failed; masquerade refused')
+        expect(assigns[:true_user]).to eq(nil)
+        expect(assigns[:api_user]).to eq(u)
+      end
+    end
     
     it "should not allow disabled tokens" do
       u = User.create

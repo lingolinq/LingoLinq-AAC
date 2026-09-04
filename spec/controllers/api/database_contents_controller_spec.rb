@@ -220,6 +220,8 @@ describe Api::DatabaseContentsController, :type => :controller do
     # user: the read still succeeds because the real actor is an admin-org
     # manager, and the disclosure is attributed to that admin (not the target).
     # This would 403 if the gate evaluated the impersonated user.
+    # Masquerade authorization itself also writes one AuditEvent (type=masquerade),
+    # so the request produces two rows: authorize + contents disclosure.
     it 'should authorize and attribute to the real admin when masquerading as a non-admin' do
       admin_org = Organization.create(admin: true)
       token_user
@@ -229,10 +231,13 @@ describe Api::DatabaseContentsController, :type => :controller do
 
       expect {
         get :index, params: {table: 'organizations', as_user_id: target.global_id}
-      }.to change { AuditEvent.count }.by(1)
+      }.to change { AuditEvent.count }.by(2)
       expect(response.successful?).to eq(true)
-      event = AuditEvent.last
-      expect(event.user_key).to eq(@user.global_id)
+      masq = AuditEvent.where(user_key: @user.global_id).detect { |e| e.data['type'] == 'masquerade' }
+      expect(masq).to be_present
+      expect(masq.data['acting_as']).to eq(target.global_id)
+      event = AuditEvent.where(user_key: @user.global_id).detect { |e| e.data['type'] == 'database_contents' }
+      expect(event).to be_present
       expect(event.data['acting_as']).to eq(target.global_id)
     end
 

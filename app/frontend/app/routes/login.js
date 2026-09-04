@@ -4,28 +4,30 @@ import session from '../utils/session';
 
 export default Route.extend({
   router: service('router'),
-  appState: service('app-state'),
   title: "Login",
   beforeModel: function(transition) {
-    if(this.appState.get('feature_flags.landing_beta_closed')) {
-      // Allow device activation to complete even when public login is closed
-      if(!(transition && transition.to && transition.to.name === 'login.device')) {
-        this.appState.return_to_index();
-        return;
-      }
-    }
     // Allow staying on login.device to complete device activation (Trust / Shared device)
     if(transition && transition.to && transition.to.name === 'login.device') {
       return;
     }
-    // If user is authenticated and has a valid token, redirect away from login
-    // If token is invalid, allow them to stay on login to re-authenticate
-    if(session.get('isAuthenticated') && session.get('access_token')) {
-      // Don't redirect if token is known to be invalid
-      // This allows users with expired/invalid tokens to re-authenticate
-      if(!session.get('invalid_token')) {
-        this.router.transitionTo('index');
-      }
+    // Redirect away from the sign-in page ONLY when this session has been POSITIVELY
+    // validated against the server in the current runtime.
+    //
+    // `isAuthenticated` + `access_token` only mean a token is STORED, and `user_name` is
+    // restored from the stash too — none of them says the server still ACCEPTS it. That is
+    // known only once check_token() answers, which is async and typically has not returned
+    // when this hook runs.
+    //
+    // Redirecting on the stored token alone made a stale token UNRECOVERABLE: clicking
+    // "Sign In" bounced to index, index showed the "Preparing your workspace" loading state
+    // while it resolved, the token check then failed, and the user was dropped back on the
+    // landing page — with no way to reach the form and re-authenticate. Gating on
+    // `token_validated` (runtime-only, set by check_token) keeps the original intent — a
+    // genuinely signed-in user does not sit on the sign-in page — while a user whose token
+    // has gone stale gets the form IMMEDIATELY, with no loading screen in between.
+    if(session.get('isAuthenticated') && session.get('access_token') &&
+       !session.get('invalid_token') && session.get('token_validated')) {
+      this.router.transitionTo('index');
     }
   },
   setupController: function(controller) {

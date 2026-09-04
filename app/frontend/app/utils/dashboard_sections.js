@@ -101,6 +101,77 @@ function communicatorsNeedingAttention(user) {
   });
 }
 
+// SHORT badge label per attention status, for the caseload roster row. The full
+// LingoLinq.user_statuses labels ("Waiting for Recommendation from Eval",
+// "Temporary Solution, Waiting for Funding") are written to be read in a status
+// PICKER and are far too long for an inline row badge, so each attention state
+// gets a terse "<thing> needed" phrasing here instead. That deliberately matches
+// the existing "Board needed" badge beside it, so a row carrying two badges reads
+// as one family rather than two unrelated notices.
+//
+// 'no-home-board' is intentionally ABSENT: the row already renders a dedicated
+// "Board needed" badge for exactly that condition (templates/caseload.hbs), and
+// emitting both would say the same thing twice on the same row.
+//
+// Keys must stay a subset of ATTENTION_STATUS_IDS — anything flagged there but
+// missing here simply renders no row badge (the dashboard card still lists them),
+// which is why attentionBadgeFor returns null rather than falling back to the id.
+// The row badge for a single supervisee, or null when nothing is needed. Reads
+// `org_status.state` exactly the way communicatorsNeedingAttention does — plain
+// property access, because the supervisee entries the backend sends are plain
+// hashes on the user record, not Ember Data models — so the caseload row and the
+// dashboard's "Communicators Need Attention" card can never disagree about who is
+// flagged. Returns { label, hint } for the template to render.
+//
+// The i18n.t calls sit INSIDE the function, not in a module-level lookup table:
+// a table would evaluate every string once at import time, before i18n has
+// necessarily loaded its locale, and would then never re-translate when the user
+// switches language. Same reason helpers/home-pill-label.js resolves per call.
+// Written as literal key + double-quoted default calls so i18n_generator.rb's
+// static scanner can extract them.
+function attentionBadgeFor(supervisee) {
+  var state = supervisee && supervisee.org_status && supervisee.org_status.state;
+  if(!state) { return null; }
+  if(ATTENTION_STATUS_IDS.indexOf(state) === -1) { return null; }
+  if(state === 'unchecked') {
+    return { label: i18n.t('caseload_attention_status_needed', "Status needed"),
+             hint: i18n.t('caseload_attention_status_needed_hint', "This communicator has no status set yet — set one so their progress can be tracked.") };
+  }
+  if(state === 'hourglass') {
+    return { label: i18n.t('caseload_attention_eval_needed', "Eval needed"),
+             hint: i18n.t('caseload_attention_eval_needed_hint', "This communicator is waiting for an evaluation.") };
+  }
+  if(state === 'equalizer') {
+    return { label: i18n.t('caseload_attention_results_needed', "Results needed"),
+             hint: i18n.t('caseload_attention_results_needed_hint', "This communicator is waiting for a recommendation from their evaluation.") };
+  }
+  if(state === 'piggy-bank') {
+    return { label: i18n.t('caseload_attention_funding_needed', "Funding needed"),
+             hint: i18n.t('caseload_attention_funding_needed_hint', "This communicator is on a temporary solution while waiting for funding.") };
+  }
+  if(state === 'phone') {
+    return { label: i18n.t('caseload_attention_device_needed', "Device needed"),
+             hint: i18n.t('caseload_attention_device_needed_hint', "This communicator is waiting for their device.") };
+  }
+  if(state === 'exclamation-sign') {
+    return { label: i18n.t('caseload_attention_support_needed', "Support needed"),
+             hint: i18n.t('caseload_attention_support_needed_hint', "This communicator needs additional support.") };
+  }
+  /* 'no-home-board' normally returns null because the row's own "Board needed" badge
+     (templates/caseload.hbs:134) covers it — but that badge is wrapped in
+     `{{#unless supervisee.modeling_only}}`, so a MODELING-ONLY communicator with no home
+     board got neither marker. They are still listed on the dashboard's "Communicators
+     Need Attention" card (communicatorsNeedingAttention has no modeling_only exclusion),
+     so clicking through landed on a caseload row carrying nothing — breaking the
+     invariant both files document, that a communicator on that card is always flagged
+     here too. Reuse the row badge's own strings so there is one wording for one state. */
+  if(state === 'no-home-board' && supervisee && supervisee.modeling_only) {
+    return { label: i18n.t('caseload_board_needed', "Board needed"),
+             hint: i18n.t('caseload_board_needed_hint', "This communicator has no home board yet — choose one to finish setting them up.") };
+  }
+  return null;
+}
+
 // The subset of sections that exist for this user (in display order).
 function availableHomeSections(user) {
   return HOME_SECTIONS.filter(function(s) { return s.available(user); });
@@ -155,29 +226,40 @@ var AREA = { boards: 'boards', speak: 'speak', extras: 'extras', org: 'org_mgmt'
 var DEFAULT_ORDER = ['caseload', 'attention', 'rooms', 'org', 'speak', 'boards', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
 
 // Supervisor (non-communicator) Gentle default — distinct from the communicator
-// order so moving cards here never reshuffles a communicator's home. Boards sits
-// directly under My Organizations, and Speak Mode sits next as a FULL-WIDTH row
-// (see dashboardLayout's speak full-width handling for supervisors).
-var SUPERVISOR_DEFAULT_ORDER = ['caseload', 'attention', 'rooms', 'org', 'boards', 'speak', 'account', 'createboard', 'editdashboard', 'reports', 'extras'];
+// order so moving cards here never reshuffles a communicator's home. My Account and
+// Create a Board pair up as a two-up row DIRECTLY under My Caseload (the top
+// full-width row); the supervisor list cards (Attention/Rooms/Organizations), then
+// Boards and the FULL-WIDTH Speak Mode row follow (see dashboardLayout's speak
+// full-width handling for supervisors).
+var SUPERVISOR_DEFAULT_ORDER = ['caseload', 'account', 'createboard', 'attention', 'rooms', 'org', 'boards', 'speak', 'editdashboard', 'reports', 'extras'];
 
-// Focused View (focused) has its OWN default order. Speak becomes the full-width
-// hero and Extras is hidden, so those positions don't matter here; the rest packs
-// to (communicator): full-width Boards, My Account|Create a Board, Reports|Edit
-// Dashboard — with Caseload/Org slotted in for supervisors. Kept separate from
-// DEFAULT_ORDER so changing the Focused View default never affects Gentle View.
+// Focused View no longer has its own default ORDER: it now starts from the SAME
+// role-aware order as Gentle View (see defaultOrderFor / heroFirst), so a card sits
+// in the same relative place in both views and only the PACKING differs (Focused
+// stacks full-width rows, collapses the utility cards into one row and hides
+// Extras). Keeping two orders meant the same user saw two unrelated arrangements.
+//
+// This constant is retained only as the fallback base inside reorderForFocused()
+// for the case where no explicit defaultOrder is threaded in, and as a stable
+// full-order fixture for tests. It is NOT the live Focused default any more — do
+// not reach for it when you want "the order Focused View starts from".
+// ORG MANAGER Gentle default (2026-08-16, requested): My Organizations leads, then the
+// Account + Create-a-Board two-up row, then My Caseload, then Boards — everything after
+// that keeps the supervisor order it already had. An org manager's dashboard opens on the
+// organization they run rather than on a caseload, which is the same reasoning that makes
+// `focusedHeroKey` return 'org' for them in Focused View.
+// A THIRD constant rather than a reshuffle of SUPERVISOR_DEFAULT_ORDER: a plain supervisor
+// (no orgs) must keep leading with Caseload, and editing the shared array in place would
+// move every SLP's dashboard too.
+var ORG_DEFAULT_ORDER = ['org', 'account', 'createboard', 'caseload', 'boards', 'attention', 'rooms', 'speak', 'editdashboard', 'reports', 'extras'];
+
 var FOCUSED_DEFAULT_ORDER = ['speak', 'boards', 'caseload', 'attention', 'rooms', 'org', 'account', 'createboard', 'reports', 'editdashboard', 'extras'];
 
-// Role-aware default order — the SINGLE source both the live grid (dashboardLayout,
-// via its `vis`-based supervisor check) and the edit surface (display-style.js)
-// resolve their default from, so they can never disagree on a supervisor's order.
-// Focused View shares ONE order across roles (it lists every key; unavailable ones
-// are filtered by vis). Gentle View differs by role: a supervisor (any of
+// The Gentle View default order for a user: a supervisor (any of
 // caseload/rooms/attention/org available) gets SUPERVISOR_DEFAULT_ORDER, everyone
-// else DEFAULT_ORDER.
-function defaultOrderFor(user, layout) {
-  // Focused View defaults the role hero to the front (see focusedDefaultOrder);
-  // the drag preview + live grid both resolve their default here so they agree.
-  if (layout === 'focused') { return focusedDefaultOrder(focusedHeroKey(user)); }
+// else DEFAULT_ORDER. Split out from defaultOrderFor so Focused View can share the
+// exact same base rather than carrying a second, drifting order.
+function gentleDefaultOrder(user) {
   if (!user) { return DEFAULT_ORDER; } // no user → communicator default (matches prior behavior)
   // Match the live grid's supervisor test EXACTLY: dashboardLayout keys off `vis`,
   // where vis[key] = available AND NOT sectionHidden (authenticated-view.js). Using
@@ -189,7 +271,25 @@ function defaultOrderFor(user, layout) {
     .map(function(s) { return s.key; });
   var supervisor = keys.indexOf('caseload') !== -1 || keys.indexOf('rooms') !== -1 ||
                    keys.indexOf('attention') !== -1 || keys.indexOf('org') !== -1;
+  // Org managers get their own order, checked BEFORE the generic supervisor branch —
+  // they satisfy the supervisor test too, so the more specific case has to win.
+  // `hasOrgManagement` (a real manager role on an unrestricted org), not the mere presence
+  // of an org card: a user who is only a member of someone else's org is not an org
+  // manager and keeps the supervisor order.
+  if (hasOrgManagement(user) && keys.indexOf('org') !== -1) { return ORG_DEFAULT_ORDER; }
   return supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER;
+}
+
+// Role-aware default order — the SINGLE source both the live grid (dashboardLayout,
+// via its `vis`-based supervisor check) and the edit surface (display-style.js)
+// resolve their default from, so they can never disagree on a supervisor's order.
+// BOTH layouts now start from the same role-aware order; Focused View only pulls its
+// role hero to the front so that card packs as the top full-width showcase.
+function defaultOrderFor(user, layout) {
+  var base = gentleDefaultOrder(user);
+  // The drag preview + live grid both resolve their default here so they agree.
+  if (layout === 'focused') { return heroFirst(base, focusedHeroKey(user)); }
+  return base;
 }
 
 // The visible section keys in display order: start from the saved order (or the
@@ -246,7 +346,19 @@ function dashboardLayout(vis, order) {
   // full-width cards, like Boards), so both pick up the md-grid--fullspan-*
   // styling.
   var supervisor = !!(vis.caseload || vis.rooms || vis.attention || vis.org);
-  var def = supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER;
+  /* ORG MANAGERS get their own order, checked BEFORE the supervisor branch — they satisfy
+     the supervisor test too, so the more specific case has to win.
+     `vis.org` IS the org-manager signal: the section's own availability gate is
+     `hasOrgManagement(user)` (HOME_SECTIONS ~32), so the card is only ever visible to a
+     real manager of an unrestricted org. This function receives no `user`, which is why it
+     keys off `vis` — the same reasoning gentleDefaultOrder documents for its supervisor
+     test.
+     THIS IS THE LIVE GRID'S OWN CHOICE OF BASE ORDER. It does not call
+     gentleDefaultOrder/defaultOrderFor — those serve the edit + preview surfaces — so a new
+     order has to be added in BOTH places or the dashboard and its editor disagree. That is
+     exactly what happened when ORG_DEFAULT_ORDER was first wired into gentleDefaultOrder
+     alone: the preview reordered and the real page did not. */
+  var def = vis.org ? ORG_DEFAULT_ORDER : (supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER);
   var extraFull = supervisor ? ['speak'] : ['speak', 'extras'];
   return framed(packOrder(orderedVisible(vis, order, def), extraFull));
 }
@@ -276,27 +388,60 @@ function framedN(body, cols) {
 // cards EXPAND to fill the row instead of leaving empty cells. The utility row is
 // emitted at the position of the FIRST visible utility card so a whole row can be
 // repositioned above or below it.
-// Focused View default order with the role hero pulled to the FRONT so it packs
-// as the top full-width showcase. `heroKey` comes from focusedHeroKey(user):
-// 'speak' keeps the canonical order (communicator); 'caseload'/'org' move that
-// section first for supervisors/admins. The hero stays REORDERABLE (this only
-// sets the default), and the other cards keep their relative order.
-function focusedDefaultOrder(heroKey) {
-  if(!heroKey || heroKey === 'speak') { return FOCUSED_DEFAULT_ORDER; }
-  return [heroKey].concat(FOCUSED_DEFAULT_ORDER.filter(function(k) { return k !== heroKey; }));
+// A base order with the Focused View role hero pulled to the FRONT so it packs as
+// the top full-width showcase. `heroKey` comes from focusedHeroKey(user): 'caseload'
+// for supervisors, 'org' for admins, 'speak' for communicators. Already-first keys
+// pass through untouched, and every other card keeps its relative order, so this is
+// purely "promote the hero" on top of the shared Gentle order. The hero stays
+// REORDERABLE — this only sets the default.
+function heroFirst(base, heroKey) {
+  if(!heroKey || base[0] === heroKey) { return base; }
+  return [heroKey].concat(base.filter(function(k) { return k !== heroKey; }));
 }
 
 function focusedLayout(vis, order, heroKey) {
-  // Only Extras is force-hidden in Focused View; the hero stays in the ordered set
-  // so it packs AT ITS SAVED POSITION (default = the front, per focusedDefaultOrder).
+  // Extras is force-hidden in Focused View, and so is Speak Mode whenever Speak is
+  // NOT the hero. Speak has no non-hero presentation in Focused (app.scss hides
+  // .md-card--speak-as-button there unconditionally), so leaving its key in the
+  // order would reserve a full-width row + grid gap for an invisible card. For a
+  // supervisor the hero is Caseload and Speak is simply not part of their Focused
+  // dashboard. The hero itself stays in the ordered set so it packs AT ITS SAVED
+  // POSITION (default = the front, per heroFirst).
   var rest = Object.assign({}, vis, { extras: false });
-  var keys = orderedVisible(rest, order, focusedDefaultOrder(heroKey));
+  /* ORG DASHBOARDS PAIR CASELOAD + SPEAK ON ONE BOTTOM ROW (2026-08-16, requested):
+     My Caseload on the left, Speak Mode on the right. Everywhere else a non-Speak hero
+     drops the Speak card entirely (the line below), which is why an org dashboard used to
+     render Speak with no grid area at all — it was auto-placed into invented columns and
+     squashed the whole grid. Keeping it in `rest` gives it a real area again. */
+  var orgPair = heroKey === 'org' && !!vis.speak && !!vis.caseload;
+  if (heroKey && heroKey !== 'speak' && !orgPair) { rest.speak = false; }
+  // Same base order Gentle uses, so a card sits in the same relative place in both
+  // views. Classified off `vis` exactly like dashboardLayout does, because this
+  // function has no `user` — using availability here instead would drift for a
+  // supervisor who has hidden their supervisor cards.
+  var supervisor = !!(vis.caseload || vis.rooms || vis.attention || vis.org);
+  var base = supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER;
+  var keys = orderedVisible(rest, order, heroFirst(base, heroKey));
   var a = function(k) { return AREA[k]; };
   var actionKeys = keys.filter(function(k) { return FOCUSED_ACTION_KEYS.indexOf(k) !== -1; });
   var cols = Math.max(1, actionKeys.length);
   var fullN = function(name) { var r = []; for (var i = 0; i < cols; i++) { r.push(name); } return r.join(' '); };
+  /* The pair needs an EVEN column count to split down the middle. `cols` is the visible
+     utility-card count, so an odd number (1 or 3 hidden cards) cannot halve — in that case
+     the pair is abandoned and both cards keep their normal full-width rows rather than
+     emitting a lopsided or invalid areas string. */
+  var pairKeys = (orgPair && cols % 2 === 0) ? ['caseload', 'speak'] : null;
+  var halfRow = function() {
+    var r = [], half = cols / 2, i;
+    for (i = 0; i < half; i++) { r.push(a('caseload')); }
+    for (i = 0; i < half; i++) { r.push(a('speak')); }
+    return r.join(' ');
+  };
   var rowsOut = [], actionEmitted = false;
   keys.forEach(function(k) {
+    // Paired cards are emitted together at the END, so they are skipped here rather than
+    // taking their usual per-key row.
+    if (pairKeys && pairKeys.indexOf(k) !== -1) { return; }
     if (FOCUSED_ACTION_KEYS.indexOf(k) !== -1) {
       // All utility cards collapse into ONE row, emitted where the first one sits.
       if (!actionEmitted) { rowsOut.push(actionKeys.map(a).join(' ')); actionEmitted = true; }
@@ -305,6 +450,8 @@ function focusedLayout(vis, order, heroKey) {
       rowsOut.push(fullN(a(k)));
     }
   });
+  // Bottom row: Caseload left, Speak right.
+  if (pairKeys) { rowsOut.push(halfRow()); }
   var built = framedN(rowsOut, cols);
   built.cols = cols;
   return built;
@@ -340,19 +487,40 @@ function gridLayoutState(vis, order, layout, heroKey) {
   if (layout === 'focused') { classes.push('md-grid--hero-' + (heroKey || 'speak')); }
   var built = (layout === 'focused') ? focusedLayout(vis, order, heroKey) : dashboardLayout(vis, order);
   var areas = built.areas, rows = built.rows;
+  /* A card that is RENDERED but whose `grid-area` names no area in the template gets
+     auto-placed by the browser into an implicit track, which distorts the whole grid.
+     That happened to Speak on an org dashboard whose owner had hidden My Caseload:
+     `orgPair` needs both, so focusedLayout dropped speak from the areas — but it works
+     on a COPY of `vis`, and the card's own visibility comes from a separate path
+     (authenticated-view#cardHideStyle <- sectionVisibility), so the card still rendered.
+     Derived from the built areas rather than by re-deriving the condition, so it covers
+     any future case of visible-but-unplaced, not just this one. */
+  var speakPlaced = areas.some(function(row) { return row.split(' ').indexOf('speak') !== -1; });
+  if (vis.speak && !speakPlaced) { classes.push('md-grid--speak-unplaced'); }
   // Flag when Boards spans BOTH columns (a full-width 'boards boards' row) so the
   // CSS can let the board strip shrink to fit instead of horizontally scrolling.
   if (areas.some(function(row) { var t = row.split(' '); return t.length > 1 && t.every(function(c) { return c === 'boards'; }); })) { classes.push('md-grid--boards-full'); }
   // Flag a SMALL card that spans both columns (a lone card with no row-partner
   // renders as a full-width 'X X' row). The CSS gives that wide button the page
   // (md-shell) gradient and centres its content.
-  areas.forEach(function(row) {
-    var t = row.split(' ');
-    if (t[0] === t[1] && t[0] !== 'boards' && t[0] !== '.' && t[0] !== 'sup') {
-      var key = Object.keys(AREA).filter(function(k) { return AREA[k] === t[0]; })[0];
-      if (key) { classes.push('md-grid--fullspan-' + key); }
-    }
-  });
+  //
+  // GENTLE ONLY. The fullspan showcase is a Gentle-View concept: in Focused View
+  // EVERY non-action card is a full-width row by construction, so emitting these
+  // would hand the showcase treatment to whichever cards happen to stack — which
+  // is how Speak Mode ended up outranking the Caseload hero for supervisors.
+  // Focused styles its cards through .md-card--*-focused instead. This is a no-op
+  // for existing users: of the classes Focused could emit, only fullspan-speak has
+  // any styling at all, and its target (.md-card--speak-as-button) is display:none
+  // in Focused unless Caseload is the hero.
+  if (layout !== 'focused') {
+    areas.forEach(function(row) {
+      var t = row.split(' ');
+      if (t[0] === t[1] && t[0] !== 'boards' && t[0] !== '.' && t[0] !== 'sup') {
+        var key = Object.keys(AREA).filter(function(k) { return AREA[k] === t[0]; })[0];
+        if (key) { classes.push('md-grid--fullspan-' + key); }
+      }
+    });
+  }
   var areasValue = areas.map(function(row) { return '"' + row + '"'; }).join(' ');
   // Focused View pins the column count to the visible utility-card count (so the
   // utility row fills evenly); Gentle View leaves columns to the stylesheet (null).
@@ -400,5 +568,87 @@ function reorderForFocused(order, srcKey, dstKey, after, defaultOrder) {
   return reorderInsert(order, srcKey, dstKey, after, defaultOrder);
 }
 
-export { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, ATTENTION_STATUS_IDS, communicatorsNeedingAttention };
-export default { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, ATTENTION_STATUS_IDS, communicatorsNeedingAttention };
+// THE SINGLE DESCRIPTION OF A LAYOUT.
+//
+// Three surfaces render the home dashboard: the live page
+// (dashboard/authenticated-view), the Dashboard Design modal's live clone, and the
+// Display Style chooser's preview iframes. The two previews cannot simply COPY the
+// live page — each shows the layout the user is NOT currently in, so every input
+// that varies by layout has to be re-derived. Each surface used to re-derive them
+// separately, and they drifted: the preview iframes read the saved drag order
+// WITHOUT the feature-flag gate the other two apply, so a user with a stale saved
+// order and `dashboard_drag_layout` off saw previews packed in an order the real
+// page would never render.
+//
+// This is that derivation, once. Callers pass only what they alone can know: which
+// user is being previewed, whether the drag flag is on, and (for the modal, whose
+// checkboxes and drag state are live UI not saved prefs) explicit `vis`/`order`
+// overrides. Everything layout-dependent comes back from here. Anything that varies
+// by layout belongs in THIS function, not in a caller — that is what keeps the
+// previews honest.
+function layoutPresentation(user, layout, opts) {
+  opts = opts || {};
+  var name = (['gentle', 'focused'].indexOf(layout) === -1) ? 'gentle' : layout;
+  var focused = name === 'focused';
+
+  // Visibility: available to this user type AND not hidden by their saved
+  // `dashboard_sections` preference — unless the caller supplies live UI state.
+  var vis = {};
+  if (opts.vis) {
+    Object.keys(opts.vis).forEach(function(k) { vis[k] = opts.vis[k]; });
+  } else {
+    availableHomeSections(user).forEach(function(s) {
+      vis[s.key] = !sectionHidden(user, s.key);
+    });
+  }
+  // Focused View never shows Extras — Speak takes the focal full-width hero slot.
+  // Forced here so the grid matrix and the per-card hiding agree; a card left
+  // visible but unnamed in the areas lands in an implicit row of its own.
+  if (focused) { vis.extras = false; }
+
+  // Drag order, gated. `dashboard_order` is only ever SET by the flagged drag UI,
+  // so with the flag off the saved value must be ignored and the canonical default
+  // used instead. This gate is the one the preview iframes were missing.
+  var raw = (opts.order !== undefined && opts.order !== null)
+    ? opts.order
+    : (user && user.get ? user.get('preferences.dashboard_order') : null);
+  var order = (opts.dragEnabled && raw && raw.length) ? raw : null;
+
+  var heroKey = focusedHeroKey(user);
+
+  // Non-grid toggles (the welcome hero). Focused View also hides the hero in CSS,
+  // so the live page needs only the saved preference; the previews additionally
+  // need the gentleOnly rule expressed here because a cloned hero would otherwise
+  // depend on that CSS having been carried across.
+  var toggles = {};
+  EXTRA_HOME_TOGGLES.forEach(function(t) {
+    var on;
+    if (opts.vis) {
+      // Caller supplied live UI state: a key it does not offer stays UNDEFINED so the
+      // caller skips it, rather than being driven from a preference its UI can't see.
+      if (opts.vis[t.key] === undefined) { return; }
+      on = !!opts.vis[t.key];
+    } else {
+      on = !sectionHidden(user, t.key);
+    }
+    toggles[t.key] = on && !(t.gentleOnly && focused);
+  });
+
+  return {
+    layout: name,
+    // Document-level: 68 rules in _focused-view.scss are scoped `body.ll-layout-focused`,
+    // which is why a preview needs its own document (an iframe) rather than an
+    // off-screen node in this one.
+    bodyClass: focused ? 'll-layout-focused' : null,
+    gridClass: 'md-grid--layout-' + name,
+    shellFocused: focused,
+    vis: vis,
+    toggles: toggles,
+    order: order,
+    heroKey: heroKey,
+    grid: gridLayoutState(vis, order, name, heroKey)
+  };
+}
+
+export { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, ORG_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, layoutPresentation, ATTENTION_STATUS_IDS, communicatorsNeedingAttention, attentionBadgeFor };
+export default { HOME_SECTIONS, EXTRA_HOME_TOGGLES, RIGHT_SECTIONS, AREA, DEFAULT_ORDER, FOCUSED_DEFAULT_ORDER, FOCUSED_ACTION_KEYS, availableHomeSections, sectionHidden, sectionsMapFor, sectionLabel, hasOrgManagement, gridLayoutState, reorderInsert, reorderForFocused, defaultOrderFor, focusedHeroKey, layoutPresentation, ATTENTION_STATUS_IDS, communicatorsNeedingAttention, attentionBadgeFor };

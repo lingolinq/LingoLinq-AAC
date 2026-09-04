@@ -10,6 +10,7 @@ import app_state from '../../utils/app_state';
 import modal from '../../utils/modal';
 import Utils from '../../utils/misc';
 import Stats from '../../utils/stats';
+import ReportSummary from '../../utils/report_summary';
 import { observer } from '@ember/object';
 import { computed } from '@ember/object';
 import { inject as service } from '@ember/service';
@@ -58,24 +59,59 @@ export default Controller.extend({
       return !!((this.get('usage_stats.has_data') && !this.get('status')) || (this.get('usage_stats2.has_data') && !this.get('status2')));
     }
   ),
-  // Explicit display values so templates update when usage_stats is replaced (binding fix)
-  display_total_sessions: computed('usage_stats', 'usage_stats.total_sessions', function() { var s = this.get('usage_stats'); return s ? s.get('total_sessions') : undefined; }),
-  display_total_words: computed('usage_stats', 'usage_stats.total_words', function() { var s = this.get('usage_stats'); return s ? s.get('total_words') : undefined; }),
-  display_total_utterances: computed('usage_stats', 'usage_stats.total_utterances', function() { var s = this.get('usage_stats'); return s ? s.get('total_utterances') : undefined; }),
-  display_total_buttons: computed('usage_stats', 'usage_stats.total_buttons', function() { var s = this.get('usage_stats'); return s ? s.get('total_buttons') : undefined; }),
-  display_words_per_utterance: computed('usage_stats', 'usage_stats.words_per_utterance', function() { var s = this.get('usage_stats'); return s ? s.get('words_per_utterance') : undefined; }),
-  display_words_per_minute: computed('usage_stats', 'usage_stats.words_per_minute', function() { var s = this.get('usage_stats'); return s ? s.get('words_per_minute') : undefined; }),
-  display_utterances_per_minute: computed('usage_stats', 'usage_stats.utterances_per_minute', function() { var s = this.get('usage_stats'); return s ? s.get('utterances_per_minute') : undefined; }),
-  display_buttons_per_minute: computed('usage_stats', 'usage_stats.buttons_per_minute', function() { var s = this.get('usage_stats'); return s ? s.get('buttons_per_minute') : undefined; }),
-  // Right side (compare) display values
-  display_total_sessions2: computed('usage_stats2', 'usage_stats2.total_sessions', function() { var s = this.get('usage_stats2'); return s ? s.get('total_sessions') : undefined; }),
-  display_total_words2: computed('usage_stats2', 'usage_stats2.total_words', function() { var s = this.get('usage_stats2'); return s ? s.get('total_words') : undefined; }),
-  display_total_utterances2: computed('usage_stats2', 'usage_stats2.total_utterances', function() { var s = this.get('usage_stats2'); return s ? s.get('total_utterances') : undefined; }),
-  display_total_buttons2: computed('usage_stats2', 'usage_stats2.total_buttons', function() { var s = this.get('usage_stats2'); return s ? s.get('total_buttons') : undefined; }),
-  display_words_per_utterance2: computed('usage_stats2', 'usage_stats2.words_per_utterance', function() { var s = this.get('usage_stats2'); return s ? s.get('words_per_utterance') : undefined; }),
-  display_words_per_minute2: computed('usage_stats2', 'usage_stats2.words_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('words_per_minute') : undefined; }),
-  display_utterances_per_minute2: computed('usage_stats2', 'usage_stats2.utterances_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('utterances_per_minute') : undefined; }),
-  display_buttons_per_minute2: computed('usage_stats2', 'usage_stats2.buttons_per_minute', function() { var s = this.get('usage_stats2'); return s ? s.get('buttons_per_minute') : undefined; }),
+  // The former `display_*` computeds (totals and per-minute rates, both sides)
+  // were removed with the last template that read them: compare mode now renders
+  // from `compareMetrics` / `compareMetrics2`, which read the same usage_stats
+  // fields through utils/report_summary.js.
+  // "Communication progress" summary. All derivation lives in
+  // utils/report_summary.js (pure, unit-tested); the controller only exposes it.
+  // Single-period only — compare mode keeps its existing side-by-side panels.
+  report_summary: computed(
+    'usage_stats',
+    'usage_stats.has_data',
+    'usage_stats.days',
+    'usage_stats.total_utterances',
+    'usage_stats.total_sessions',
+    'usage_stats.words_per_utterance',
+    function() {
+      return ReportSummary.analyze(this.get('usage_stats'));
+    }
+  ),
+  formattedDateRange: alias('report_summary.formattedDateRange'),
+  /* Gated on `status` as well as the payload, the same way `some_data` gates the
+     detail block below. `report_summary.hasReportData` only knows whether the
+     stats object it was handed has data — but `load_charts` sets `status` and
+     leaves the PREVIOUS `usage_stats` in place until the new period resolves,
+     while `onPeriodChange` mutates `usage_stats.filter` immediately. A bare
+     alias therefore showed the old period's KPIs, insights and trend underneath
+     the newly-selected period's name for the whole request. */
+  hasReportData: computed('report_summary.hasReportData', 'status', function() {
+    return !!(this.get('report_summary.hasReportData') && !this.get('status'));
+  }),
+  comparisonAvailable: alias('report_summary.comparisonAvailable'),
+  comparisonPeriodLabel: alias('report_summary.comparisonPeriodLabel'),
+  comparisonBasis: alias('report_summary.comparisonBasis'),
+  primaryInsight: alias('report_summary.primaryInsight'),
+  summaryMetrics: alias('report_summary.summaryMetrics'),
+  reportInsights: alias('report_summary.reportInsights'),
+  hasInsights: alias('report_summary.hasInsights'),
+  secondaryMetrics: alias('report_summary.secondaryMetrics'),
+  reportTrend: alias('report_summary.trend'),
+  // Compare mode: the same eight figures per period the old panels showed,
+  // rendered with the summary's KPI card instead of a Bootstrap panel.
+  compareMetrics: computed('usage_stats', 'usage_stats.total_sessions', function() {
+    return ReportSummary.comparePanelMetrics(this.get('usage_stats'));
+  }),
+  compareMetrics2: computed('usage_stats2', 'usage_stats2.total_sessions', function() {
+    return ReportSummary.comparePanelMetrics(this.get('usage_stats2'));
+  }),
+  /** Icon for the primary takeaway — never color-only, and never a false "up". */
+  primaryInsightIcon: computed('report_summary.primaryInsight.tone', function() {
+    var tone = this.get('report_summary.primaryInsight.tone');
+    if(tone === 'positive') { return 'trend-up'; }
+    if(tone === 'negative') { return 'trend-down'; }
+    return 'activity';
+  }),
   wordPairsForSankey: computed('usage_stats.word_pairs', function() {
     var pairs = this.get('usage_stats.word_pairs') || {};
     var arr = Object.keys(pairs).map(function(k) {
@@ -160,7 +196,27 @@ export default Controller.extend({
   }),
   already_loaded: function(side, stats) {
     if(!stats) { return false; }
+    /* WHICH USER the loaded stats belong to. Without this the cache key is only
+       the date/device/location/snapshot filters, so switching communicator from
+       the Reports page itself — same route, same filters, different `model` —
+       looked "already loaded" and load_charts returned after merely redrawing
+       the PREVIOUS communicator's charts. Arriving from anywhere else worked
+       only because leaving the route fires resetController -> reset_params,
+       which nulls usage_stats and forces a fetch.
+
+       `last_model_id` was already being recorded by load_charts (below) for
+       exactly this purpose but was never read anywhere — the guard was
+       half-built. This is the missing half. */
     var suffix = side == 'left' ? '' : '2';
+    /* PER SIDE. `last_model_id` used to be one shared variable, which neutralised this
+       guard in compare mode: load_charts('left') writes the NEW subject to it before the
+       queued load_right_charts reads it, so side 2 always saw a match, never refetched
+       `usage_stats2`, and rendered the PREVIOUS communicator's word usage, core list and
+       geolocations under the new communicator's name. Each side now records and checks
+       its own subject. */
+    if(this.get('last_model_id' + suffix) && this.get('last_model_id' + suffix) != (this.get('model_id') || '_blank')) {
+      return false;
+    }
     var keys = ['device_id', 'location_id', 'snapshot_id', 'start', 'end'];
     var ref = this.get('status' + suffix) || this.get('usage_stats' + suffix);
     var matches = true;
@@ -175,7 +231,13 @@ export default Controller.extend({
   load_core: function() {
     var _this = this;
     if(!this.get('model.core_lists')) {
+      /* `model` is resolved at CALLBACK time, so a response issued for the previous
+         communicator would be written onto whichever record `model` points at when it
+         lands — and the `!core_lists` guard above then blocks any corrective fetch for
+         the rest of the session, scoring one child against another's core list. */
+      var request_model_id = this.get('model.id');
       persistence.ajax('/api/v1/users/' + this.get('model.id') + '/core_lists', {type: 'GET'}).then(function(res) {
+        if(_this.get('model.id') !== request_model_id) { return; }
         _this.set('model.core_lists', res);
       }, function(err) {
       });
@@ -229,7 +291,8 @@ export default Controller.extend({
       this.set('last_device_id', this.get('device_id') || "_blank");
       this.set('last_snapshot_id', this.get('snapshot_id') || "_blank");
       this.set('last_location_id', this.get('location_id') || "_blank");
-      pending_key_value = this.get('last_start') + ":" + this.get('last_end') + ":" + this.get('last_device_id') + ":" + this.get('last_location_id') + ":" + this.get('last_snapshot_id');
+      this.set('last_model_id', this.get('model_id') || "_blank");
+      pending_key_value = this.get('last_model_id') + ":" + this.get('last_start') + ":" + this.get('last_end') + ":" + this.get('last_device_id') + ":" + this.get('last_location_id') + ":" + this.get('last_snapshot_id');
     } else {
       pending_key_name = 'right_pending';
       this.set('last_start2', this.get('start2') || "_blank");
@@ -237,11 +300,16 @@ export default Controller.extend({
       this.set('last_device_id2', this.get('device_id2') || "_blank");
       this.set('last_snapshot_id2', this.get('snapshot_id2') || "_blank");
       this.set('last_location_id2', this.get('location_id2') || "_blank");
-      pending_key_value = this.get('last_start2') + ":" + this.get('last_end2') + ":" + this.get('last_device_id2') + ":" + this.get('last_location_id2') + ":" + this.get('last_snapshot_id2');
+      this.set('last_model_id2', this.get('model_id') || "_blank");
+      pending_key_value = this.get('last_model_id2') + ":" + this.get('last_start2') + ":" + this.get('last_end2') + ":" + this.get('last_device_id2') + ":" + this.get('last_location_id2') + ":" + this.get('last_snapshot_id2');
     }
+    /* The SUBJECT is part of the key (set per side above). Without it, switching
+       communicator while a request was in flight produced an identical key — every
+       filter is "_blank" by default — so this early return fired, NO request was ever
+       issued for the new communicator, and the previous one's response populated the
+       whole page under the new name, permanently for that visit. */
     if(pending_key_value && this.get(pending_key_name) == pending_key_value) { return; }
     this.set(pending_key_name, pending_key_value);
-    this.set('last_model_id', this.get('model_id') || "_blank");
     var controller = this;
     var args = {};
     ['start', 'end', 'location_id', 'device_id', 'snapshot_id'].forEach(function(key) {
@@ -268,10 +336,15 @@ export default Controller.extend({
     var status_key = side == 'left' ? 'status' : 'status2';
     var stats_key = side == 'left' ? 'usage_stats' : 'usage_stats2';
     controller.set(status_key, status);
+    /* Captured at ISSUE time. A response must never be written onto a different
+       communicator than the one it was requested for — the key guard above stops a
+       redundant request, this stops a late one from landing on the wrong subject. */
+    var request_model_id = controller.get('model.id');
     persistence.ajax('/api/v1/users/' + controller.get('model.id') + '/stats/daily', {type: 'GET', data: args}).then(function(data) {
       run(function() {
         try {
           if(controller.get(pending_key_name) == pending_key_value) { controller.set(pending_key_name, null); }
+          if(controller.get('model.id') !== request_model_id) { return; }
           // API returns flat JSON; allow wrapped payload if present
           var payload = data && (data.stats || data.data || data);
           if(!payload) { payload = {}; }

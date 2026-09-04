@@ -126,7 +126,7 @@
                   {{else}}
                     {{t "Supervisor - " key="supervisor_dash"}}
                   {{/if}}
-                  <em>{{this.start_code_ref.name}}</em>
+                  <em>{{display-name this.start_code_ref}}</em>
                 </h4>
                 <p>{{t "When you sign up using the provided start code, you will automatically be connected to the organization or user that invited you to join. Some default settings such as home board may also be set automatically for you." key="auto_start_code_explainer"}}</p>
               </div>
@@ -165,16 +165,24 @@
             <p class="register-step-copy">{{t "First, we need your date of birth to help us give you the best experience." key="register_birthdate_intro"}}</p>
             <div class="form-group">
               <label for="registration_country">{{t "Country" key="registration_country"}}</label>
-              <BoundSelect @select_class="form-control" @select_id="registration_country" @content={{this.countryOptions}} @selection={{this.registration_country}} @action={{mut this.registration_country}} />
+              <BoundSelect @select_class="form-control" @select_id="registration_country" @content={{this.countryOptions}} @selection={{this.registration_country}} @action={{mut this.registration_country}} @searchable={{true}} @prompt={{t "Select country…" key="select_country_placeholder"}} @search_placeholder={{t "Search countries..." key="search_countries"}} />
               {{#if this.countryMissing}}
                 <span class="text-danger">{{t "Please select your country." key="registration_country_required"}}</span>
               {{/if}}
             </div>
             <div class="form-group">
+              <label for="register_name_communicator">{{t "Full Name (optional)" key="full_name_optional"}}</label>
+              <input value={{this.model.name}} class="form-control" id="register_name_communicator" autocomplete="name" {{on "input" (set-field this "model.name")}} />
+            </div>
+            <div class="form-group">
+              <label for="register_locale_communicator">{{t "Preferred Language" key="preferred_language"}}</label>
+              <BoundSelect @select_class="form-control" @select_id="register_locale_communicator" @content={{this.localeList}} @selection={{this.model.preferences.locale}} @action={{mut this.model.preferences.locale}} @searchable={{true}} @search_placeholder={{t "Search languages..." key="search_languages"}} />
+            </div>
+            <div class="form-group">
               <label>{{t "Date of birth" key="date_of_birth"}}</label>
               <div class="register-date-row">
-                <BoundSelect @select_class="form-control" @select_id="birth_month" @content={{this.birthMonths}} @selection={{this.birth_month}} @action={{mut this.birth_month}} />
-                <BoundSelect @select_class="form-control" @select_id="birth_year" @content={{this.birthYears}} @selection={{this.birth_year}} @action={{mut this.birth_year}} />
+                <BoundSelect @select_class="form-control" @select_id="birth_month" @content={{this.birthMonths}} @selection={{this.birth_month}} @action={{mut this.birth_month}} @searchable={{true}} @grid={{true}} @gridColumns={{3}} @prompt={{t "Month" key="birth_month_placeholder"}} @search_placeholder={{t "Search months" key="search_months"}} />
+                <BoundSelect @select_class="form-control" @select_id="birth_year" @content={{this.birthYears}} @selection={{this.birth_year}} @action={{mut this.birth_year}} @searchable={{true}} @grid={{true}} @gridColumns={{4}} @prompt={{t "Year" key="birth_year_placeholder"}} @search_placeholder={{t "Search years" key="search_years"}} />
               </div>
               {{#if this.communicatorAgeRequired}}
                 <span class="text-danger">{{t "Please choose a birth month and year." key="birthdate_required"}}</span>
@@ -182,7 +190,11 @@
             </div>
             <div class="register-btn-wrap">
               <button type="button" class="register-btn register-btn--wide" {{on "click" (this.ctrlAction "continue_communicator_age")}}>
-                {{t "Next" key="next"}}
+                {{#if this.showsParentApprovalContinue}}
+                  {{t "Continue with parent approval" key="register_continue_parent_approval"}}
+                {{else}}
+                  {{t "Create your account" key="register_create_your_account"}}
+                {{/if}}
               </button>
             </div>
 
@@ -194,18 +206,46 @@
             <p class="register-step-copy">{{t "What kind of supporter account are you creating?" key="supporter_type_prompt"}}</p>
             <div class="form-group">
               <label for="registration_country_supporter">{{t "Country" key="registration_country"}}</label>
-              <BoundSelect @select_class="form-control" @select_id="registration_country_supporter" @content={{this.countryOptions}} @selection={{this.registration_country}} @action={{mut this.registration_country}} />
+              <BoundSelect @select_class="form-control" @select_id="registration_country_supporter" @content={{this.countryOptions}} @selection={{this.registration_country}} @action={{mut this.registration_country}} @searchable={{true}} @prompt={{t "Select country…" key="select_country_placeholder"}} @search_placeholder={{t "Search countries..." key="search_countries"}} />
               {{#if this.countryMissing}}
                 <span class="text-danger">{{t "Please select your country." key="registration_country_required"}}</span>
               {{/if}}
             </div>
-            <div class="register-supporter-types register-supporter-types--large" role="radiogroup" aria-label={{t "What kind of supporter are you?" key="supporter_type_group"}}>
-              {{#each this.supporter_types as |st|}}
-                <button type="button" role="radio"
-                  aria-checked={{if (is-equal this.model.preferences.registration_type st.id) "true" "false"}}
-                  class="register-supporter-type {{if (is-equal this.model.preferences.registration_type st.id) 'register-supporter-type--active'}}"
-                  {{on "click" (this.ctrlAction "select_supporter_type" st.id)}}>{{st.name}}</button>
-              {{/each}}
+            <div class="form-group">
+              <label for="register_name_supporter">{{t "Full Name (optional)" key="full_name_optional"}}</label>
+              <input value={{this.model.name}} class="form-control" id="register_name_supporter" autocomplete="name" {{on "input" (set-field this "model.name")}} />
+            </div>
+            <div class="form-group">
+              <label for="register_locale_supporter">{{t "Preferred Language" key="preferred_language"}}</label>
+              <BoundSelect @select_class="form-control" @select_id="register_locale_supporter" @content={{this.localeList}} @selection={{this.model.preferences.locale}} @action={{mut this.model.preferences.locale}} @searchable={{true}} @search_placeholder={{t "Search languages..." key="search_languages"}} />
+            </div>
+            <div class="form-group">
+              <label>{{t "Date of birth" key="date_of_birth"}}</label>
+              <div class="register-date-row">
+                <BoundSelect @select_class="form-control" @select_id="birth_month_supporter" @content={{this.birthMonths}} @selection={{this.birth_month}} @action={{mut this.birth_month}} @searchable={{true}} @grid={{true}} @gridColumns={{3}} @prompt={{t "Month" key="birth_month_placeholder"}} @search_placeholder={{t "Search months" key="search_months"}} />
+                <BoundSelect @select_class="form-control" @select_id="birth_year_supporter" @content={{this.birthYears}} @selection={{this.birth_year}} @action={{mut this.birth_year}} @searchable={{true}} @grid={{true}} @gridColumns={{4}} @prompt={{t "Year" key="birth_year_placeholder"}} @search_placeholder={{t "Search years" key="search_years"}} />
+              </div>
+              {{#if this.communicatorAgeRequired}}
+                <span class="text-danger">{{t "Please choose a birth month and year." key="birthdate_required"}}</span>
+              {{/if}}
+            </div>
+            <div class="form-group">
+              <div class="register-supporter-types" role="radiogroup" aria-label={{t "What kind of supporter are you?" key="supporter_type_group"}}>
+                {{#each this.supporter_types as |st|}}
+                  <label class="register-supporter-type {{if (is-equal this.model.preferences.registration_type st.id) 'register-supporter-type--active'}}" for={{concat "supporter_type_" st.id}}>
+                    <input type="radio"
+                      name="supporter_type"
+                      id={{concat "supporter_type_" st.id}}
+                      value={{st.id}}
+                      checked={{is-equal this.model.preferences.registration_type st.id}}
+                      {{on "change" (this.ctrlAction "select_supporter_type" st.id)}} />
+                    <span>{{st.name}}</span>
+                  </label>
+                {{/each}}
+              </div>
+              {{#if this.supporterTypeRequired}}
+                <span class="text-danger">{{t "Please choose a supporter type." key="supporter_type_required"}}</span>
+              {{/if}}
             </div>
             {{#if this.start_code}}
               <div class="form-group">
@@ -217,9 +257,18 @@
                 {{t "I have a start code" key="have_a_start_code"}}
               </button>
             {{/if}}
+            <div class="register-btn-wrap">
+              <button type="button" class="register-btn register-btn--wide" {{on "click" (this.ctrlAction "continue_supporter_type")}}>
+                {{#if this.showsParentApprovalContinue}}
+                  {{t "Continue with parent approval" key="register_continue_parent_approval"}}
+                {{else}}
+                  {{t "Create your account" key="register_create_your_account"}}
+                {{/if}}
+              </button>
+            </div>
 
           {{else if this.showUnder13Step}}
-            <button type="button" class="register-back-link" {{on "click" (this.ctrlAction "go_to_step" "communicator_age")}}>
+            <button type="button" class="register-back-link" {{on "click" (this.ctrlAction "go_to_step" this.under13BackStep)}}>
               <span class="glyphicon glyphicon-menu-left" aria-hidden="true"></span>
               {{t "Change date of birth" key="change_date_of_birth"}}
             </button>
@@ -243,7 +292,7 @@
               {{else if this.noSpacesName}}
                 <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
               {{else if this.user.user_name_check.exists}}
-                <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+                <span class='text-danger'>{{t "%{user_name} already exists" key="user_name_already_exists" user_name=this.user.user_name}}</span>
               {{/if}}
             </div>
             <div class="form-group">
@@ -255,9 +304,9 @@
             </div>
             <div class="form-group">
               <label for="password_under_13">{{t "Password" key="password"}}</label>
-              <PasswordField @id="password_under_13" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 6 characters" key="at_least_6_characters"}} @autocomplete="new-password" />
+              <PasswordField @id="password_under_13" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 8 characters" key="at_least_8_characters"}} @autocomplete="new-password" />
               {{#if this.shortPassword}}
-                <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
+                <span class='text-danger'>{{t "password must be at least 8 characters" key="min_password_lower_8"}}</span>
               {{/if}}
             </div>
             {{#if this.start_code}}
@@ -373,7 +422,7 @@
               <div class="register-checkboxes">
                 <div class="checkbox big_checkbox">
                   <label>
-                    <input type="checkbox" checked={{this.productImprovementOptIn}} {{on "change" (set-field this "productImprovementOptIn" "checkbox")}} />
+                    <input type="checkbox" checked={{this.productImprovementOptIn}} {{on "change" this.onProductImprovementChange}} />
                     {{t "Help improve LingoLinq by sharing usage, performance, and anonymized troubleshooting data." key="product_improvement_opt_in"}}
                   </label>
                 </div>
@@ -387,7 +436,7 @@
               {{else if this.noSpacesName}}
                 <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
               {{else if this.user.user_name_check.exists}}
-                <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+                <span class='text-danger'>{{t "%{user_name} already exists" key="user_name_already_exists" user_name=this.user.user_name}}</span>
               {{/if}}
             </div>
             <div class="form-group">
@@ -399,9 +448,9 @@
             </div>
             <div class="form-group">
               <label for="password_email_step">{{t "Password" key="password"}}</label>
-              <PasswordField @id="password_email_step" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 6 characters" key="at_least_6_characters"}} @autocomplete="new-password" />
+              <PasswordField @id="password_email_step" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 8 characters" key="at_least_8_characters"}} @autocomplete="new-password" />
               {{#if this.shortPassword}}
-                <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
+                <span class='text-danger'>{{t "password must be at least 8 characters" key="min_password_lower_8"}}</span>
               {{/if}}
             </div>
             {{#if this.start_code}}

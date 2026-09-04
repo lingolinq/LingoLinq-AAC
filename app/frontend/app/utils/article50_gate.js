@@ -10,10 +10,17 @@ import i18n from './i18n';
  * rather than reimplementing any of these checks inline).
  *
  * FEATURE FLAG SCOPE (important): this module only READS
- * feature_flags.article_50_disclosure. Registering that flag in
- * AVAILABLE_FRONTEND_FEATURES is Phase 5 (RLL-01), out of scope here. Because
- * the flag is not registered yet on this branch, needsAcknowledgement returns
- * false everywhere -- the intended inert state until the 2026-08-02 enable gate.
+ * feature_flags.article_50_disclosure on the gate SUBJECT (art50Subject),
+ * not appState.feature_flags (that computed follows currentUser / the
+ * communicator in speak mode). Registering that flag in
+ * AVAILABLE_FRONTEND_FEATURES was Phase 5 (RLL-01). CORRECTED 2026-08-25: that
+ * registration HAS landed (lib/feature_flags.rb), and production additionally
+ * enables the flag through the default_enabled_features DB Setting, verified by
+ * direct read 2026-08-23. So needsAcknowledgement does NOT return false
+ * everywhere -- it is live. An earlier version of this comment said the flag
+ * "is not registered yet on this branch" and described an "intended inert
+ * state"; both were false of the running system. See
+ * docs/legal/2026-08-23_article-50-production-flag-verification.md.
  */
 
 /**
@@ -50,17 +57,81 @@ export function art50DisclosureUrl() {
 }
 
 /**
+ * The account this gate speaks about: the AUTHENTICATED session user, not
+ * `currentUser`.
+ *
+ * Article 50(1) informs the human INTERACTING with the AI system, and the
+ * server evaluates exactly that account -- ApplicationController's
+ * article_50_disclosure_missing? tests @api_user, the token-authenticated user,
+ * which is only ever swapped for an explicit `as_user` masquerade and never for
+ * speak mode. `currentUser` is NOT that account in speak mode:
+ * app-state.js#set_current_user repoints it at `speakModeUser` whenever one is
+ * set. So a supporter speaking for a communicator had this gate evaluated
+ * against the COMMUNICATOR while the server refused the SUPPORTER, the two ends
+ * deciding about different people; and the acknowledgement POST in
+ * components/ai-disclosure.js then wrote an audited Article 50 disclosure onto a
+ * communicator who never saw the notice, while the supporter's own record stayed
+ * unacknowledged and kept collecting 403s.
+ *
+ * `currentUser` remains the fallback for the pre-session-record window where
+ * sessionUser is not yet assigned, the same ordering and the same reason as
+ * app-state.js#record_session_location. Falling back cannot open a hole: this
+ * gate is the PRESENTATION layer, and all five server-side backstops still
+ * refuse the authenticated account regardless of what the client decided.
+ *
+ * NOT to be confused with utils/ai_feature_gate.js, which reads `currentUser`
+ * deliberately and correctly: it answers "may this data subject's data be
+ * processed by AI at all", where the communicator IS the right subject. Two
+ * different questions about two different people; do not unify them.
+ */
+export function art50Subject(appState) {
+  if (!appState || typeof appState.get !== 'function') { return null; }
+  var user = appState.get('sessionUser');
+  if (user && typeof user.get === 'function') { return user; }
+  return appState.get('currentUser');
+}
+
+/**
+ * Backend id for an acknowledgement POST (and any other user-path URL).
+ *
+ * sessionUser is loaded as findRecord('user', 'self'). serializers/
+ * application.js pins that record's `.id` to the literal 'self' and parks the
+ * real global id on `_actual_id`; models/user.js#global_id exposes it.
+ * users_controller#article_50_disclosure_ack passes params['user_id'] to
+ * User.find_by_path, and a non-digit path is treated as a username
+ * (global_id.rb#find_by_path). Sending 'self' therefore 404s instead of
+ * acknowledging the authenticated account. Prefer global_id, then _actual_id,
+ * then .id; drop the 'self' sentinel. Same rule as eval-workbook.js#isAuthor.
+ */
+export function art50UserId(user) {
+  if (!user || typeof user.get !== 'function') { return null; }
+  var id = user.get('global_id') || user.get('_actual_id') || user.get('id');
+  if (!id || id === 'self') { return null; }
+  return id;
+}
+
+/**
  * True only when the article_50_disclosure feature flag is on AND there is a
- * current user AND that user's article_50_disclosure_required is true AND
- * article_50_disclosure_shown is false. Fail-safe direction per D-04: gates on
+ * gate subject (art50Subject above) AND that user's
+ * article_50_disclosure_required is true AND article_50_disclosure_shown is
+ * false. Fail-safe direction per D-04: gates on
  * EuJurisdiction.disclosure_required? (already true for :eu and :unknown), not
  * on the retention-column jurisdiction stamp.
+ *
+ * The flag is read from the SAME subject as the disclosure fields, not from
+ * appState.feature_flags. That computed property in services/app-state.js is
+ * derived from currentUser, which in speak mode is the communicator. Feature
+ * enablement can differ by managing-organization override, so pairing the
+ * communicator's flag with the supporter's acknowledgement state can skip a
+ * supporter the server will 403, or show the modal to a supporter whose org
+ * has the flag off. frontend_flags_for(user) on the server is per-account;
+ * this matches that.
  */
 export function needsAcknowledgement(appState) {
   if (!appState || typeof appState.get !== 'function') { return false; }
-  if (!appState.get('feature_flags.article_50_disclosure')) { return false; }
-  var user = appState.get('currentUser');
+  var user = art50Subject(appState);
   if (!user || typeof user.get !== 'function') { return false; }
+  if (!user.get('feature_flags.article_50_disclosure')) { return false; }
   if (!user.get('article_50_disclosure_required')) { return false; }
   if (user.get('article_50_disclosure_shown')) { return false; }
   return true;
@@ -101,12 +172,22 @@ export function presentBlockingGate(appState) {
   }
   return new RSVP.Promise(function(resolve, reject) {
     modal.open('ai-disclosure', { scannable: true }).then(function(result) {
-      if (!result || !result.replaced) {
-        resolve(result);
-      } else {
+      if (result && result.replaced) {
         // Bumped by another modal, not a genuine acknowledgement. The caller's
         // gated action must not proceed, but it DOES need to know why.
         reject({ art50_gate: GATE_NOT_ACKNOWLEDGED });
+      } else if (needsAcknowledgement(appState)) {
+        /* Resolved WITHOUT an acknowledgement being recorded. This branch used to
+           resolve positively on any non-`replaced` result, including `resolve(null)` —
+           and utils/modal.js#close resolves the pending promise with its `success`
+           argument, so a bare `modal.close()` anywhere (e.g. app-state#check_scanning,
+           which closes whatever modal is open) satisfied the gate and let an AI request
+           proceed for an EU user with no Art.50(1) acknowledgement on record.
+           Only `@uncloseable` on the disclosure template was holding that shut; the gate
+           now verifies the outcome itself, against the same predicate it entered on. */
+        reject({ art50_gate: GATE_NOT_ACKNOWLEDGED });
+      } else {
+        resolve(result);
       }
     }, function(err) {
       reject(err);
@@ -115,24 +196,53 @@ export function presentBlockingGate(appState) {
 }
 
 /**
- * Session-entry presentation opportunity (03-UI-SPEC.md 7.1). Opens the modal
- * only when the model is really_fresh AND acknowledgement is genuinely needed;
- * no-ops on a stale model (safety for the offline/stale case, 7.1 Case 2).
- * Reuses needsAcknowledgement (D-02: one shared implementation) by wrapping
- * `model` itself as the appState-shaped argument: article_50_disclosure_* and
- * feature_flags both live directly on the user model, so this is not a
- * parallel/forked check, just a different caller shape.
+ * Wraps a user model as the appState-shaped argument needsAcknowledgement wants
+ * (D-02: one shared implementation). article_50_disclosure_* and feature_flags
+ * both live directly on the user model, so this is not a parallel/forked check,
+ * just a different caller shape.
  */
-export function maybeShowSessionEntryGate(model) {
-  if (!model || typeof model.get !== 'function') { return; }
-  if (!model.get('really_fresh')) { return; }
-  var pseudoAppState = {
+function asAppState(model) {
+  return {
     get: function(key) {
-      if (key === 'currentUser') { return model; }
+      // BOTH identity keys resolve to the model. The caller has already handed
+      // us the one account it means: routes/index.js and routes/bento.js pass
+      // findRecord('user', 'self'), i.e. the authenticated account, which is
+      // exactly what art50Subject is looking for. Mapping only 'currentUser'
+      // here would make art50Subject read model.get('sessionUser') === undefined
+      // and then fall through to model.get('currentUser') === undefined, so
+      // needsAcknowledgement would return false and the session-entry gate would
+      // silently stop firing. That is a fail-OPEN regression that no other suite
+      // would catch; hence this shim and its dedicated test.
+      if (key === 'currentUser' || key === 'sessionUser') { return model; }
       return model.get(key);
     }
   };
-  if (!needsAcknowledgement(pseudoAppState)) { return; }
+}
+
+/**
+ * True when maybeShowSessionEntryGate() below would actually open the modal:
+ * the model is really_fresh AND acknowledgement is genuinely needed.
+ *
+ * Exported as a read-only companion so a caller that is about to redirect AWAY
+ * from one of the two gate-hosting routes (routes/index.js, routes/bento.js) can
+ * tell whether doing so would silently skip a pending disclosure — see
+ * routes/index.js#_land_on_default, which defers a supporter's caseload landing
+ * while a gate is outstanding. Shares this module's single implementation rather
+ * than forking the predicate at the call site.
+ */
+export function sessionEntryGatePending(model) {
+  if (!model || typeof model.get !== 'function') { return false; }
+  if (!model.get('really_fresh')) { return false; }
+  return needsAcknowledgement(asAppState(model));
+}
+
+/**
+ * Session-entry presentation opportunity (03-UI-SPEC.md 7.1). Opens the modal
+ * only when the model is really_fresh AND acknowledgement is genuinely needed;
+ * no-ops on a stale model (safety for the offline/stale case, 7.1 Case 2).
+ */
+export function maybeShowSessionEntryGate(model) {
+  if (!sessionEntryGatePending(model)) { return; }
   modal.open('ai-disclosure', { scannable: true });
 }
 
@@ -154,9 +264,12 @@ export default {
   ART50_CURRENT_VERSION: ART50_CURRENT_VERSION,
   ART50_DISCLOSURE_URL: ART50_DISCLOSURE_URL,
   art50DisclosureUrl: art50DisclosureUrl,
+  art50Subject: art50Subject,
+  art50UserId: art50UserId,
   GATE_NOT_ACKNOWLEDGED: GATE_NOT_ACKNOWLEDGED,
   needsAcknowledgement: needsAcknowledgement,
   presentBlockingGate: presentBlockingGate,
+  sessionEntryGatePending: sessionEntryGatePending,
   maybeShowSessionEntryGate: maybeShowSessionEntryGate,
   onlyIfGenuinelyResolved: onlyIfGenuinelyResolved
 };

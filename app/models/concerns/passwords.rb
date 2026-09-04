@@ -1,5 +1,21 @@
 module Passwords
   extend ActiveSupport::Concern
+
+  # NIST SP 800-63B minimum. Enforced on user-supplied writes (process_params,
+  # valet enable, eval-reset password). generate_password itself does NOT
+  # reject short strings: it is also the login rehash path, and existing
+  # accounts may still have 6-character passwords (LL-5617f4e17d).
+  MIN_PASSWORD_LENGTH = 8
+  HASHED_PASSWORD = /\Ahashed\?:\#/.freeze
+
+  def password_meets_minimum?(password)
+    return true if password.blank?
+    # Client-supplied prehashes cannot prove the original password met
+    # MIN_PASSWORD_LENGTH (SHA-512 hex is always long). Login rehash does
+    # not use this method (valid_password? -> generate_password).
+    return false if password.to_s.match?(HASHED_PASSWORD)
+    password.to_s.length >= MIN_PASSWORD_LENGTH
+  end
   
   def generate_password_reset
     clean_password_resets
@@ -167,6 +183,14 @@ module Passwords
       password_enabled = true
     elsif password == false
       self.settings.delete('valet_password')
+    elsif password.blank? && self.settings['valet_password']
+      # Blank password with one ALREADY in place is a no-op re-save, not a new
+      # enable. The client never echoes the valet secret back, so every ordinary
+      # profile save (including the PUT /users/self the app issues on login)
+      # arrives here with valet_login=true and valet_password=null. Falling
+      # through to the branch below silently ROTATED the user's valet password
+      # on every save — anyone holding the old one was locked out with no notice.
+      password_enabled = true
     else
       password = GoSecure.nonce('valet_temporary_password')[0, 10] if password.blank?
       password_enabled = true
@@ -175,7 +199,18 @@ module Passwords
       end
     end
     if password_enabled
-      self.assert_valet_mode!
+      # NOTE: deliberately does NOT call assert_valet_mode!. Configuring a valet
+      # password is not the same as authenticating AS the valet — that is set by
+      # the token/device path (device.rb) and by `model@…` logins
+      # (user.rb#find_for_login). Asserting it here put the CURRENT request into
+      # valet mode, and every supervisor permission rule is guarded by
+      # `&& !user.valet_mode?`, so the rest of the request computed the caller as
+      # having no `model`/`supervise` rights over their own supervisees. Worse,
+      # `permissions_for` then cached that under a key built only from
+      # user.cache_key (id + updated_at) with no valet marker, so the wrong answer
+      # was served to ordinary, non-valet requests for the next 30 minutes —
+      # the supervisor was locked out of their own communicators' logs and boards.
+      # The specs for this method assert valet mode themselves when they need it.
       # Notify the user that the valet login has been enabled or re-enabled
       self.settings['valet_password_disabled_since'] = [self.settings['valet_password_disabled'], self.settings['valet_password_at'], 0].compact.max
       UserMailer.schedule_delivery(:valet_password_enabled, self.global_id) if self.settings['valet_password_disabled'] || self.settings['valet_password_at'] || no_prior_password
