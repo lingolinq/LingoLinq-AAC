@@ -150,6 +150,21 @@
 > "everything in this section is live" framing was qualified to except controls explicitly marked
 > not operational. That is the last attested, externally authorized cut (DOC-03cb9fe91f).
 >
+> **2026-09-03 revision: the Google localization and speech flows are now disclosed here.** This
+> document described the Anthropic-on-Bedrock LLM path in detail and disclosed Google
+> Text-to-Speech, but said nothing about the two other Google flows that carry raw, unscrubbed user
+> content: **Cloud Translation** (board button labels) and **Cloud Speech-to-Text** (the user's own
+> voice recordings). The omission mattered most in the Voice recordings section, which told a reader
+> we do not use recordings to train AI without mentioning that recordings are sent to a third party
+> to be transcribed. Nothing about the flows themselves changed in this revision; only what this
+> document says about them. Both have been carried in the subprocessor register since 2026-07-21/22
+> (rows #15 and #18) and were triaged as accepted risk on 2026-07-23 (`LL-c38e7da48e`,
+> `LL-1eb9a2435b`), and both are already disclosed in the product itself: the privacy notice
+> (`app/frontend/app/templates/privacy.hbs:67`), the Translate Boards dialog
+> (`app/frontend/app/components/translation-select.hbs:82`), and the organization settings hint
+> (`app/frontend/app/templates/organization/settings.hbs:61`). This overview was the lagging
+> document, not the product.
+>
 > **Purpose:** this is the short, externally shareable overview of our program. It is the
 > honest, right-sized replacement for the aspirational 85-page draft. It does not replace the
 > internal attested program (`docs/legal/COMPLIANCE_PROGRAM.md`), which remains the internal
@@ -295,12 +310,45 @@ explicitly marked not operational.
 - Before text is sent to our external LLM providers for word prediction, board generation, or eval
   narration, our PII scrubber removes identifiers. This is **pseudonymization (scrubbing)**, and we
   describe it accurately: the result is scrubbed data that we still treat as personal data. We do
-  not call it de-identified or anonymized.
+  not call it de-identified or anonymized. **That scrubber governs the LLM paths named in this
+  bullet and nothing else.** The Google localization and speech flows described below are
+  deliberately unscrubbed, for the reasons given there.
 - Text-to-speech is a separate voice/audio feature. To synthesize spoken audio, the text being
   spoken is sent to the configured TTS provider (Google Text-to-Speech). Irish (Gaeilge) TTS via
   Abair was disabled 2026-07-23 (no DPA on file), so no spoken text is sent to a third-party Irish
   TTS service. This path does not run the LLM PII scrubber, because the text to be spoken is itself
   the payload.
+- **Board translation sends raw, unscrubbed text to Google Cloud Translation. Added 2026-09-03.**
+  When a user translates a board, the words on it (button labels, spoken phrases, and the board
+  name) are sent to Google Cloud Translation API v2. This is machine translation, not generative AI
+  and not a chatbot. The text does **not** pass through the PII scrubber, because redacting a label
+  would corrupt the translation the feature exists to produce, so a personalized label carries
+  whatever it contains, including a child's, family member's, teacher's, or school name. Only words
+  we have not already translated and stored are sent; cached words and non-word action tokens are
+  not. The feature is user-initiated, and the Translate Boards dialog says so before the user
+  proceeds. Tracked as LL-c38e7da48e (medium, accepted risk).
+- **Voice recordings are sent to Google Cloud Speech-to-Text to be transcribed, automatically.
+  Added 2026-09-03.** When a user records a sound, the audio is uploaded whole to Google Cloud
+  Speech-to-Text so the recording can carry a searchable text transcript. This happens automatically
+  when the recording is saved, not on request. Scrubbing is not available on this path: our scrubber
+  redacts text, and this payload is audio. The recording is the user's own voice, which is sensitive
+  on its face. We do not use it as a biometric identifier, so it is not special-category data on that
+  ground, but a recording of a communicator with a degenerative condition can still reveal health
+  information, which is special-category data under GDPR Article 9. On a successful transcription
+  the working audio copy made for transcription is deleted from our storage; the recording the user
+  keeps is unaffected. An organization can turn this off for everyone it manages (Organization
+  settings, external AI processing), which stops the call and leaves recordings working without a
+  transcript, and the switch fails closed for a user attached to more than one organization. **It is
+  on unless an organization turns it off, and it is not gated by individual consent today.** Tracked
+  as LL-1eb9a2435b (medium, accepted risk).
+- **Why those two are not scrubbed, stated plainly.** For translation, redaction would destroy the
+  output; for audio, a text scrubber cannot operate on the payload at all. The control that applies
+  is therefore contractual and disclosure-based rather than technical. All three Google flows
+  (translation, text-to-speech, speech-to-text) call generally available endpoints that Google lists
+  as HIPAA covered services, under the Google Cloud data-processing terms and BAA recorded in
+  `docs/legal/2026-08-16_subprocessor-register.md` (rows #15, #16, #18; covered-service status
+  verified against Google's covered-products list 2026-07-22). What we do not have on these flows is
+  a per-flow consent gate; that residual is stated in Section 3.
 - Our production AI vendors operate under Data Processing Agreements. The Anthropic models we use
   are eligible for zero data retention (no ZDR contract is signed today; see Section 3).
 - Runtime, user-facing AI calls (word prediction and board generation; eval narration is not
@@ -360,8 +408,20 @@ explicitly marked not operational.
 - Some users, particularly those with degenerative conditions, record their own voice for message
   banking so it can be played back on their devices. These recordings are the user's own voice and
   are stored encrypted at rest and in transit so they are available across the user's devices.
+- **These recordings are sent to Google Cloud Speech-to-Text to be transcribed. Added 2026-09-03.**
+  This section previously said only that we do not use recordings to train AI. That was true, but it
+  left a reader with the wrong impression, because it did not mention that the audio goes to a third
+  party at all. When a recording is saved, it is sent to Google Cloud Speech-to-Text so the sound can
+  carry a text transcript, under the Google Cloud BAA. It is automatic rather than on request, and it
+  is on unless the managing organization turns it off. The AI and PII handling section above states
+  the flow in full, including the limits of that control and the finding that tracks it
+  (LL-1eb9a2435b).
 - We do not create voiceprints, perform speaker identification, or use these recordings to train
-  AI. Users can delete recordings from the application, and account erasure also destroys owned
+  AI. Transcription, described above, is a separate matter from training: the recording is sent to
+  Google so the sound carries a text transcript in the user's own account. We do not use recordings
+  to train any model, and the flow runs under the Google Cloud data-processing terms recorded in the
+  subprocessor register. Users can delete recordings from the application, and account erasure also
+  destroys owned
   `ButtonSound` / `UserVideo` rows, scheduling removal of the primary recording, the transcription
   working copy, prior-transcode originals, the video thumbnail, and an abandoned/never-confirmed
   upload's raw object (see the Data lifecycle and deletion section above for the thumbnail's
@@ -383,8 +443,10 @@ explicitly marked not operational.
   data. These include AWS (storage **and the receiving processor for runtime AI prompts via Amazon
   Bedrock**, BAA signed), Anthropic (**model provider only; supplies Claude via Bedrock and does not
   receive the payload**, HIPAA-ready BAA executed), Google
-  Cloud Platform (live production hosting on Cloud Run, Cloud SQL, and Memorystore under the
-  accepted GCP CDPA / HIPAA BAA / SCCs), Render (superseded primary host, retained temporarily as a
+  Cloud Platform (live production hosting on Cloud Run, Cloud SQL, and Memorystore, **and, as
+  separate services, the receiving processor for board translation, text-to-speech, and
+  voice-recording transcription**, all under the accepted GCP CDPA / HIPAA BAA / SCCs), Render
+  (superseded primary host, retained temporarily as a
   write-frozen rollback fallback pending decommission), Sentry (error monitoring, configured with
   the child-data scrubber above), and HubSpot (marketing CRM and support, handling customer and
   prospect records only, no student data). When IP geolocation is enabled for registration,
@@ -413,6 +475,12 @@ trustworthy.
 - No contractual zero-data-retention agreement with the AI vendor (the models are eligible; no such
   contract is signed).
 - No differential privacy or mathematical anonymization on retained metrics.
+- **No per-flow consent gate on the Google localization and speech flows.** Board translation and
+  voice-recording transcription send raw, unscrubbed user content to Google under the covered-service
+  BAA. There is an organization-level off-switch for transcription and a notice in the Translate
+  Boards dialog, but there is no individual, per-flow consent step, and translation is not covered by
+  the organization off-switch at all. This is a consciously accepted residual (LL-c38e7da48e,
+  LL-1eb9a2435b), recorded for revisit before real tenant onboarding.
 - No native mobile apps yet, so no mobile-hardening claims (certificate pinning, jailbreak
   detection, code obfuscation).
 - Not SOC 2 or HITRUST certified; no completed, published VPAT yet.
