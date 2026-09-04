@@ -39,6 +39,16 @@ export default Component.extend({
      than automatic because every other BoundSelect in the app shares this component and
      most of their lists are short enough that two extra rows would be pure clutter. */
   scroll_buttons: false,
+  /* Opt-in MEASURED placement (registration month/year). Those sit near the bottom of
+     their step, so a downward panel runs past the fold and the page has to be scrolled to
+     see the whole thing. Opt-in for the same reason as above: ~200 other dropdowns open
+     downward correctly and must not start moving.
+
+     Measured rather than always-up: flipping unconditionally just trades a clipped bottom
+     for a clipped top on a short viewport. */
+  auto_flip: false,
+  /* The measured answer, recomputed each time the list opens. Never set by a caller. */
+  _flipped: false,
 
   isOpen: false,
   searchQuery: '',
@@ -106,6 +116,9 @@ export default Component.extend({
   close() {
     this.set('isOpen', false);
     this.set('searchQuery', '');
+    /* Cleared on close so the next open measures where the trigger is THEN. The page may
+       have scrolled, or the viewport resized, since the last time it was open. */
+    this.set('_flipped', false);
   },
 
   _clickOutside: null,
@@ -165,6 +178,47 @@ export default Component.extend({
     }
   },
 
+  /* Should the panel open upward?
+     Pure arithmetic, so the rule can be pinned without a stylesheet or a real layout --
+     `#ember-testing` applies a transform, which would make any assertion built on real
+     rects measure the harness as much as the component.
+
+     Prefers DOWN, and flips only when down cannot show the WHOLE panel and up has more
+     room. The second condition is what stops a short viewport trading a clipped bottom for
+     a clipped top. */
+  _shouldFlip(triggerTop, triggerBottom, need, viewportHeight, gap) {
+    const g = (gap == null) ? 6 : gap;
+    const below = viewportHeight - triggerBottom - g;
+    const above = triggerTop - g;
+    if (need <= below) { return false; }
+    return above > below;
+  },
+
+  /* How much room the panel COULD want, not how much it currently occupies.
+     The max-height cap wins when there is one, for two reasons: it answers the question
+     actually being asked ("would the page have to scroll to see all of it"), and it makes
+     the month and year pickers agree — both grid listboxes share one 360px cap, so a row
+     of them flips together instead of splitting apart at some viewport heights. */
+  _panelSpaceNeeded(maxHeightCss, contentHeight) {
+    const cap = parseFloat(maxHeightCss);
+    if (!isNaN(cap) && cap > 0) { return cap; }
+    return contentHeight;
+  },
+
+  /* Read the live geometry and record the decision. Runs in afterRender, so the list
+     exists to be measured; setting `_flipped` there re-renders within the same runloop
+     flush, before the browser paints, so the panel does not visibly jump. */
+  _measurePlacement() {
+    if (!this.get('auto_flip')) { return; }
+    if (!this.element) { return; }
+    const list = this.element.querySelector('.bound-select__list');
+    const trigger = this.element.querySelector('.bound-select__trigger');
+    if (!list || !trigger) { return; }
+    const rect = trigger.getBoundingClientRect();
+    const need = this._panelSpaceNeeded(window.getComputedStyle(list).maxHeight, list.scrollHeight);
+    this.set('_flipped', this._shouldFlip(rect.top, rect.bottom, need, window.innerHeight));
+  },
+
   _gridColumnCount() {
     var cols = parseInt(this.get('gridColumns'), 10);
     if(!cols || cols < 2) { return 3; }
@@ -211,7 +265,10 @@ export default Component.extend({
       this.toggleProperty('isOpen');
       if (this.get('isOpen')) {
         const self = this;
-        scheduleOnce('afterRender', this, function() { self._focusInitialControl(); });
+        scheduleOnce('afterRender', this, function() {
+          self._measurePlacement();
+          self._focusInitialControl();
+        });
       }
     },
     choose(item, ev) {

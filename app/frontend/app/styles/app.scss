@@ -90344,6 +90344,19 @@ span.md-board-detail-modeling-btn--badge {
   max-height: 320px;
   overflow-y: auto;
 }
+/* Upward listbox. Applied by MEASUREMENT, not by a caller: a dropdown that opts in with
+   `@auto_flip` measures on open and adds this class only when the panel cannot show all of
+   itself below and there is more room above (see bound-select.js#_shouldFlip). Used by the
+   registration month/year pickers, which sit near the BOTTOM of the date-of-birth step --
+   only an error line and Continue follow them -- so a downward grid panel would run past
+   the fold and force the page to be scrolled.
+   Safe to overflow upward here: the wrapper is the positioning context (`.bound-select`
+   is `position: relative`, :90255) and `.register-card` is explicitly `overflow: visible`
+   (:43277), so nothing clips it. */
+.bound-select--up .bound-select__list {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
 /* Opt-in grid listbox (register month/year). Large cells so eye-gaze
    and switch users can hit a month or year without scrolling a
    12- or 120-row list. Search / divider / empty rows span the grid. */
