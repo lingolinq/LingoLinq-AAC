@@ -768,6 +768,39 @@ button.ch-row--sync:focus-visible {
 // Tab strip
 // -----------------------------------------------------------------------------
 
+// The <=550px tab dropdown (requested 2026-09-03). Hidden by default and swapped in
+// below; `.ch-tabs` is hidden in the same breakpoint, so exactly one of the two is ever
+// visible. 44px tall to clear the WCAG 2.5.5 target minimum this file holds itself to.
+.ch-tabselect {
+  display: none;
+  // 75%, centred (requested 2026-09-03). Both live on the base rule rather than in the
+  // 550px block because this element is ONLY ever shown there -- a width in the media
+  // query would leave a 100% here that never applies, i.e. two values for one thing.
+  //
+  // `margin-inline: auto` and not `align-self: center`: the select's parent
+  // (`.ch-panel`) is a flex COLUMN, where `align-items` runs across the inline axis and
+  // is already `stretch`. Auto margins centre it without touching that, and keep working
+  // if the parent ever stops being a flex container.
+  width: 75%;
+  margin-inline: auto;
+  height: 44px;
+  padding: 0 36px 0 14px;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-cool-steel, 0.42);
+  background-color: rgba(255, 255, 255, 0.94);
+  // Chevron drawn as an inline SVG data URI: a <select> cannot host a ::after, and the
+  // native arrow is suppressed by `appearance: none`.
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%231B365D' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  font-size: 15px;
+  font-weight: 600;
+  color: $la-navy;
+  box-shadow: inset 0 1px 2px rgba($brand-blue-black, 0.05);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 .ch-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -969,9 +1002,10 @@ button.ch-tile:hover .ch-tile__chip {
 // apart — in particular the cue's glyph, the Extras chevron and its rotation, which were
 // previously desktop-only and would otherwise have to be repeated verbatim.
 //
-// `.ch-tile__more` is deliberately NOT revealed here. It stays `display: none` from the
-// rule above and is switched on only in the >1024px block: it is a full sentence of copy,
-// and there is no room for it on a small card (requested 2026-09-03).
+// `.ch-tile__more` is not revealed here either -- it stays `display: none` from the rule
+// above and is switched on per breakpoint: 16px in the >1024px block, 14px in the
+// <=1024px one (both requested 2026-09-03; it was desktop-only in between). The size is
+// the only difference, so the two rules deliberately share the same layout properties.
 .ch-tile--big {
   min-height: 124px;
 
@@ -1144,15 +1178,28 @@ $ch-speak-blue: #4D8DC5;
 // and warm, stormy teal is dark and desaturated, so at the same 0.30 they rendered
 // as rgb(252,228,218) vs rgb(193,212,212) and still read as different weights.
 .ch-tile--reports { @include ch-tile-tint($brand-stormy-teal, 0.46, 0.22); }
-// Modeling Ideas at reduced chroma (requested 2026-09-03). Derived from
-// $brand-soft-fawn (#C9AD7A) by cutting HSL saturation 42.2% -> 29.6% at the SAME
-// lightness, so the tile keeps the weight the alphas below were tuned to give it and
-// only its colourfulness drops. Lowering the alphas instead would have lightened it
-// out of step with Speak and Reports, which the note above deliberately matched.
+// Modeling Ideas, pushed from cream toward BEIGE and then muted further (both requested
+// 2026-09-03). From $brand-soft-fawn #C9AD7A: chroma 42.2% -> 24.7% -> 18.1%, and
+// lightness 63.3% -> 57.8%.
+//
+// Lightness is what separates cream from beige -- at 63% the wash was pale enough to read
+// as cream, and taking it down while holding the hue near 40deg lands it on beige without
+// tipping into tan. Chroma is then the separate "how muted" axis, dropped twice.
+//
+// 18% is close to the floor for this: below roughly 13% the hue stops registering at
+// these alphas and the tile reads grey-brown rather than beige.
+//
+// Alphas below are deliberately NOT touched: they were tuned to match this tile's weight
+// to Speak and Reports (see the note above), and lightening them instead would undo that.
+//
 // Local rather than a brand-token edit: $brand-soft-fawn also paints the caseload
 // Modeling Ideas card (_caseload.scss:793-794) and an extras-card icon
 // (app.scss:62386), and neither was asked to change.
-$ch-ideas-fawn: #BDAA86;
+//
+// CONTRAST: 3.82:1 at the gradient start, 4.40:1 at the end. It was ALREADY below the 4.5:1 floor before this change and is
+// tracked as its own defect -- the remedy is the sub-label's own 0.72 alpha, not the
+// tile colour, and raising that would clear every tile at once.
+$ch-ideas-fawn: #A79A80;
 .ch-tile--ideas   { @include ch-tile-tint($ch-ideas-fawn, 0.54, 0.26); }
 .ch-tile--learn   { @include ch-tile-tint($brand-stormy-teal); }
 .ch-tile--log     { @include ch-tile-tint($brand-blue-grey, 0.32, 0.14); }
@@ -2029,6 +2076,34 @@ button.ch-tile--silver:focus-visible {
     padding-bottom: 8px;
   }
 
+  // The tiles' descriptive sentence, at 14px (requested 2026-09-03). Restores it below
+  // 1025px, where it had been `display: none` -- it is real translated copy and not
+  // aria-hidden, so hiding it took the descriptions away from small-screen users
+  // entirely rather than just visually.
+  //
+  // `.ch-tile--big` covers BOTH sets the request names: the four Actions tiles and the
+  // ten in the Extras drawer all carry it (classic-view.hbs:672-811).
+  //
+  // Layout properties mirror the >1024px rule exactly so the two breakpoints differ only
+  // in type size: `margin-top: auto` is what pushes this into the card's bottom zone, and
+  // the 24ch measure scales with the font rather than holding a fixed width.
+  .ch-tile--big .ch-tile__more {
+    display: block;
+    position: relative;
+    margin-top: auto;
+    max-width: 24ch;
+    margin-inline: auto;
+    font-size: 14px;
+  }
+
+  // Same vertical centring the >1024px block gives the drawer tiles, which have no
+  // subheader above this line to balance against. Must sit AFTER the rule above -- both
+  // are (0,2,0), so source order alone decides.
+  .ch-tile--silver .ch-tile__more {
+    margin-top: auto;
+    margin-bottom: auto;
+  }
+
   // The four Actions cards form a 2x2 block rather than a single row of narrow tiles
   // (requested 2026-09-03), so each one widens instead of being squeezed.
   //
@@ -2094,6 +2169,50 @@ button.ch-tile--silver:focus-visible {
   // at (0,2,0), so source order alone decides. Moving this above it silently restores
   // the 18px.
   .ch-tile--silver .ch-tile__label { font-size: 16px; }
+}
+
+// 901-1024px: the four Actions tiles stretch so the grid's bottom edge lands level with
+// the rail's (requested 2026-09-03).
+//
+// BOUNDED BELOW AT 901px ON PURPOSE. At <=900px the block right after this one turns
+// `.ch-page` into a column, so the rail sits ABOVE the panel and there is no shared
+// bottom edge to match -- stretching there would be meaningless, not merely harmless.
+//
+// Four links, all required; the chain breaks if any one is missing:
+//   1. `.ch-page` stretches rather than `align-items: flex-start`, so `.ch-panel` takes
+//      the rail's full height instead of its own content height.
+//   2. `.ch-tabpanel` grows to fill `.ch-panel`.
+//   3. `.ch-grid` grows to fill what is left under the intro card.
+//   4. `grid-auto-rows: 1fr` divides that leftover height EQUALLY. This is the link that
+//      keeps the four the same height -- without it the row still sizes to its tallest
+//      tile's content and the extra space just sits unused below the grid.
+//
+// `:not(.ch-grid--extras)` keeps the ten Extras drawer tiles out of it: when the drawer
+// is open both grids sit inside the same tabpanel, and letting the drawer grow too would
+// split the height between them instead of giving it to the four.
+//
+// SIDE EFFECT worth knowing: `align-items: stretch` cuts both ways. On a tab where the
+// PANEL is the taller of the two (Communicators with several cards), the rail's glass
+// column now stretches down to match it rather than stopping after its last row.
+@media (min-width: 901px) and (max-width: 1024px) {
+  .ch-page { align-items: stretch; }
+
+  // min-height: 0 so the panel can actually shrink to its flex basis; without it a flex
+  // item's automatic minimum size is its content, and the grid cannot claim the height.
+  .ch-tabpanel { flex: 1 1 auto; min-height: 0; }
+
+  .ch-grid:not(.ch-grid--extras) {
+    flex: 1 1 auto;
+    grid-auto-rows: 1fr;
+  }
+}
+
+// <=550px: four tabs no longer fit on one row even at the 767px block's reduced padding
+// and font size, so the strip is replaced by the dropdown (requested 2026-09-03). The
+// two are mutually exclusive -- never both, never neither.
+@media (max-width: 550px) {
+  .ch-tabs { display: none; }
+  .ch-tabselect { display: block; }
 }
 
 @media (max-width: 900px) {
