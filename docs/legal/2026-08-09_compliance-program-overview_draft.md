@@ -159,11 +159,24 @@
 > to be transcribed. Nothing about the flows themselves changed in this revision; only what this
 > document says about them. Both have been carried in the subprocessor register since 2026-07-21/22
 > (rows #15 and #18) and were triaged as accepted risk on 2026-07-23 (`LL-c38e7da48e`,
-> `LL-1eb9a2435b`), and both are already disclosed in the product itself: the privacy notice
-> (`app/frontend/app/templates/privacy.hbs:67`), the Translate Boards dialog
-> (`app/frontend/app/components/translation-select.hbs:82`), and the organization settings hint
-> (`app/frontend/app/templates/organization/settings.hbs:61`). This overview was the lagging
-> document, not the product.
+> `LL-1eb9a2435b`), and both are disclosed in the product, **though only partly**: the privacy
+> notice (`app/frontend/app/templates/privacy.hbs:67`) names the Google services but says they are
+> "governed by their own settings", which overstates the position for translation, which has no
+> setting; the Translate Boards dialog
+> (`app/frontend/app/components/translation-select.hbs:82`) carries the disclosure, but the Copy
+> Board dialog reaches the same endpoint without it; and the organization settings hint
+> (`app/frontend/app/templates/organization/settings.hbs:61`) reaches managed accounts only.
+>
+> **2026-09-04 revision: corrections to the 2026-09-03 disclosure, from dual review.** The
+> disclosure added on 2026-09-03 carried three claims of its own that did not survive review, each of
+> the same "true sentence, false impression" kind it was written to remove. It said "all three Google
+> flows" when a fourth exists. It offered the translation cache as though sending less were a privacy
+> control, when the cache is a shared store that is not scoped to an account and is not cleared on
+> erasure. And it said the Translate Boards dialog carries the notice before the user proceeds, which
+> is true of that dialog and not of the Copy Board path that reaches the same endpoint. Each is
+> corrected in place below rather than quietly rewritten. The same review found that this document's
+> vendor list, and the subprocessor register it defers to, are **not a complete inventory of
+> third-party recipients**; that is now stated in the Vendors section and tracked as separate work.
 >
 > **Purpose:** this is the short, externally shareable overview of our program. It is the
 > honest, right-sized replacement for the aspirational 85-page draft. It does not replace the
@@ -323,15 +336,26 @@ explicitly marked not operational.
   name) are sent to Google Cloud Translation API v2. This is machine translation, not generative AI
   and not a chatbot. The text does **not** pass through the PII scrubber, because redacting a label
   would corrupt the translation the feature exists to produce, so a personalized label carries
-  whatever it contains, including a child's, family member's, teacher's, or school name. Only words
-  we have not already translated and stored are sent; cached words and non-word action tokens are
-  not. The feature is user-initiated, and the Translate Boards dialog says so before the user
-  proceeds. Tracked as LL-c38e7da48e (medium, accepted risk).
+  whatever it contains, including a child's, family member's, teacher's, or school name. Words we
+  have already translated are served from a stored cache rather than sent again, and non-word action
+  tokens are never sent. **That cache is not a privacy control and should not be read as one.**
+  Translated strings, including personalized labels, are kept in a shared dictionary that is not
+  scoped to the account that produced it, can be served to another account translating the same
+  string, and is not removed when an account is erased. That is a defect in its own right, it is
+  being filed as a register finding, and it is stated here rather than left implied by a sentence
+  about what we do not send. Translating a user's own boards is user-initiated and the Translate
+  Boards dialog carries the Google disclosure, but **the Copy Board dialog offers translation without
+  that notice, and the interface behind both does not require it.** Library and interface-locale
+  translation run as batch jobs over curated content rather than over a user's own boards. Tracked as
+  LL-c38e7da48e (medium, accepted risk).
 - **Voice recordings are sent to Google Cloud Speech-to-Text to be transcribed, automatically.
   Added 2026-09-03.** When a user records a sound, the audio is uploaded whole to Google Cloud
   Speech-to-Text so the recording can carry a searchable text transcript. This happens automatically
-  when the recording is saved, not on request. Scrubbing is not available on this path: our scrubber
-  redacts text, and this payload is audio. The recording is the user's own voice, which is sensitive
+  rather than on request: once our audio processing has produced the working copy the transcriber
+  needs, the upload is scheduled without the user asking for it. It is skipped where a transcript
+  already exists, and abandoned after two failed attempts. Scrubbing is not available on this path:
+  our scrubber redacts text, and this payload is audio. The recording is the user's own voice,
+  which is sensitive
   on its face. We do not use it as a biometric identifier, so it is not special-category data on that
   ground, but a recording of a communicator with a degenerative condition can still reveal health
   information, which is special-category data under GDPR Article 9. On a successful transcription
@@ -339,16 +363,28 @@ explicitly marked not operational.
   keeps is unaffected. An organization can turn this off for everyone it manages (Organization
   settings, external AI processing), which stops the call and leaves recordings working without a
   transcript, and the switch fails closed for a user attached to more than one organization. **It is
-  on unless an organization turns it off, and it is not gated by individual consent today.** Tracked
-  as LL-1eb9a2435b (medium, accepted risk).
+  on unless an organization turns it off, and it is not gated by individual consent today.** Two
+  limits of that control belong here rather than in a footnote. A family-owned account with no
+  managing organization, which is the default arrangement described in Section 1, has **no
+  off-switch at all**. And this flow does not run the gates that govern our other AI features: the
+  account-level AI opt-out, the COPPA parental-consent gate, and the EU under-16 gate all sit on the
+  LLM paths, and none of them reach transcription. Tracked as LL-1eb9a2435b (medium, accepted
+  risk).
 - **Why those two are not scrubbed, stated plainly.** For translation, redaction would destroy the
   output; for audio, a text scrubber cannot operate on the payload at all. The control that applies
-  is therefore contractual and disclosure-based rather than technical. All three Google flows
-  (translation, text-to-speech, speech-to-text) call generally available endpoints that Google lists
-  as HIPAA covered services, under the Google Cloud data-processing terms and BAA recorded in
+  is therefore contractual and disclosure-based rather than technical. The three flows described
+  above (translation, text-to-speech, speech-to-text) call generally available endpoints that Google
+  lists as HIPAA covered services, under the Google Cloud data-processing terms and BAA recorded in
   `docs/legal/2026-08-16_subprocessor-register.md` (rows #15, #16, #18; covered-service status
-  verified against Google's covered-products list 2026-07-22). What we do not have on these flows is
-  a per-flow consent gate; that residual is stated in Section 3.
+  verified against Google's covered-products list 2026-07-22). Two caveats belong with that sentence.
+  First, that BAA is recorded against the `lingolinq-prod` project, and we have not evidenced that
+  the API credential these particular calls use is bound to that project, so the coverage should be
+  read as an attested internal record rather than a demonstrated runtime fact. Second, **these are
+  not the only Google endpoints this application calls.** A place-lookup feature sends the user's
+  latitude and longitude to the Google Maps Places API; that flow has **no row in the subprocessor
+  register** and was **not** part of the 2026-07-22 covered-service verification. It is being filed
+  as a register finding rather than left unmentioned here. What we do not have on any of these flows
+  is a per-flow consent gate; that residual is stated in Section 3.
 - Our production AI vendors operate under Data Processing Agreements. The Anthropic models we use
   are eligible for zero data retention (no ZDR contract is signed today; see Section 3).
 - Runtime, user-facing AI calls (word prediction and board generation; eval narration is not
@@ -453,7 +489,13 @@ explicitly marked not operational.
   subscription, or supporter-routing context, iplocate.io receives the IP address for lookup.
   The authoritative register is `docs/legal/2026-08-16_subprocessor-register.md`, which supersedes
   `docs/legal/SUBPROCESSORS.md`; it is updated as services are enabled or retired. **Corrected
-  2026-08-26:** this named the superseded file as authoritative.
+  2026-08-26:** this named the superseded file as authoritative. **Completeness, stated 2026-09-04:**
+  this list and the register behind it are **not yet a complete inventory of third-party
+  recipients.** A review on 2026-09-04 identified live egress paths that neither document names,
+  including a symbol-search provider that receives typed search terms and board names, the payment
+  processor, a vocabulary service, and the Google place-lookup flow described in Section 2.
+  Completing that inventory is open work, tracked separately. Until it is done, this section should
+  not be read as an exhaustive list of who receives data.
 
 **Breach response**
 - We maintain a breach runbook (`docs/legal/BREACH_RUNBOOK.md`) and notify affected parties and
@@ -611,8 +653,13 @@ assessment results (including the coarse etiology category) in a clinical contex
 deployment. For a family-owned account we rely on explicit consent as the Art. 9 condition; in a
 school deployment the school holds its own Art. 9 condition and LingoLinq acts as its processor on
 documented instructions (Art. 28), which is not itself an Art. 9 condition. Voice recordings are the
-user's own communication content under consent, not a biometric identifier (we run no voiceprint or
-speaker recognition).
+user's own communication content, not a biometric identifier (we run no voiceprint or speaker
+recognition). **Amended 2026-09-04.** A recording can nonetheless reveal health information, so voice
+audio is itself a source of Art. 9 data, and it is sent to Google Cloud Speech-to-Text as Section 2
+describes. Our stated Art. 9 condition for a family-owned account is explicit consent, and that
+condition is **not currently met for this flow**: transcription runs without a per-flow consent step,
+and a family-owned account has no off-switch for it. Closing that gap is the open item. The position
+is stated here rather than left to be inferred from two sections that did not previously agree.
 
 ---
 
