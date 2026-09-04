@@ -266,7 +266,11 @@ $ch-identity-verdigris: #388F84;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  // 6px (tightened from 10px, requested 2026-09-03). Inherited by the <=900px rule,
+  // which re-declares this list as an auto-fit grid but sets no gap of its own -- so
+  // this single value is the row spacing in the column layout AND both axes of the
+  // grid one.
+  gap: 6px;
 }
 
 .ch-rail__item {
@@ -284,7 +288,11 @@ $ch-identity-verdigris: #388F84;
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 13px 14px;
+  // 10px top and bottom on large screens, 8px at <=1024px (requested 2026-09-03), down
+  // from 13px. The row's height is set by its 42px icon chip rather than by this, so
+  // rows land at ~62/~60px -- still clear of the 44px WCAG 2.5.5 target minimum this
+  // file holds itself to elsewhere.
+  padding: 10px 14px;
   box-sizing: border-box;
   border-radius: 16px;
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.72) 100%);
@@ -1960,12 +1968,22 @@ button.ch-tile--silver:focus-visible {
   .ch-boards__grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 }
 
-// The top inset steps down twice as the viewport narrows: 80 (base) -> 60 here -> 48 at
-// 900 (all requested 2026-09-03). MUST stay ABOVE the 900px block: both are single-class
-// selectors of equal specificity, so source order alone decides, and moving this below
-// would override the 48 with 60 at every width under 900.
+// The top inset steps down as the viewport narrows: 80 (base) -> 44 here (all requested
+// 2026-09-03). NOTE this is now TIGHTER than the 48px the 900px block sets, so that block
+// no longer steps the inset down -- it steps it back UP by 4px below 900. Kept as-is
+// because both values were asked for directly; collapse the 900px rule if that 4px
+// rebound is not wanted. MUST stay ABOVE the 900px block either way: both are
+// single-class selectors of equal specificity, so source order alone decides which wins.
 @media (max-width: 1024px) {
-  .ch-page { padding-top: 60px; }
+  .ch-page { padding-top: 44px; }
+
+  // Rail rows tighten from 10px to 8px here. padding-top/bottom rather than the
+  // shorthand so the base's 14px side padding is left alone; the 900px block below
+  // re-declares the full shorthand and still wins there on source order.
+  .ch-row {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
 
   // The four Actions cards form a 2x2 block rather than a single row of narrow tiles
   // (requested 2026-09-03), so each one widens instead of being squeezed.
@@ -2082,7 +2100,7 @@ button.ch-tile--silver:focus-visible {
 
   .ch-row {
     gap: 10px;
-    padding: 10px 12px;
+    padding: 8px 12px;
   }
 
   // 36px still clears the 22px glyph inside it with room to spare; the chip shrinks,
