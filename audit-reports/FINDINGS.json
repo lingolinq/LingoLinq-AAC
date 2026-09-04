@@ -7136,6 +7136,96 @@
         "attestation": ""
       },
       "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01; missed by the original audit, which cited this file for a different and partly incorrect claim. The component supplies id terms-agree-title on its heading at :8 specifically so a label association can be made, but never passes the argument. modal-dialog.hbs:6 binds aria-labelledby to this.labelledBy, which is undefined at modal-dialog.js:15, so Ember omits the attribute entirely and the id has no referent. WCAG 4.1.2 Name, Role, Value. Distinct from the generic modal shell rows LL-b06f063f85 and LL-58130aaefe, and distinct from LL-104bfa61dc, which correctly covers the switch-scanning gap in the same component. Note for triage: the audit's claim that this modal has a broken focus trap is FALSE. modal-dialog.js:104-135 implements a real Tab trap with wraparound and :61-85 sets initial focus, which terms-agree.hbs:4-8 opts into via data-autofocus."
+    },
+    {
+      "id": "LL-a8351c5b00",
+      "ruleKey": "log-phone-redaction-misses-e164-and-parenthesized-forms",
+      "title": "PiiScrubber log redaction never matches E.164 phone numbers and, contrary to its own docstring, fails the parenthesized form",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/pii_scrubber.rb",
+        "line": 37,
+        "snippet": "LOG_PHONE_PATTERN = ",
+        "sha": "cf5004909419e4c41420ad900fc6b0fce2e15653"
+      },
+      "firstSeen": "2026-09-04",
+      "lastSeen": "2026-09-04",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add an E.164 alternation to LOG_PHONE_PATTERN. A leading plus followed by ten to fifteen digits cannot collide with the bare-digit epoch timestamps the current pattern was deliberately written to skip, so the documented tradeoff at :268-277 is preserved rather than reopened. Separately, the leading word-boundary anchor prevents any match on the parenthesized area-code form, which the same docstring claims is covered; that half is an outright defect, not a tradeoff. Fix both in one change and add a table-driven spec asserting each documented format redacts, including the plus-prefixed international form that Pusher normalizes to.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "adversary",
+        "promotedDate": "2026-09-04"
+      },
+      "notes": "Promoted from adversary review on 2026-09-04. Surfaced while verifying an unrelated SMS proposal on 2026-09-04; independently reproduced by executing the pattern against representative inputs rather than by reading it. The pattern requires an explicit separator between digit groups, so any unseparated international-format number passes through unredacted. That format is exactly what lib/pusher.rb normalizes every outbound number to before publishing, and what AWS returns on inbound, so the SMS feature would generate the one shape this backstop cannot see. Two qualifications matter for triage. First, this is a documented BACKSTOP at :268-270 and per-call-site hygiene is the primary control, so severity rests on the backstop being relied upon where hygiene fails, not on it being the only control. Second, the skip of unseparated digit runs is deliberate and correct for epoch timestamps; only the international form and the parenthesized form are in scope, and the parenthesized failure contradicts the docstring at :274. Blast radius is every log line in the application, not the SMS path alone, because scrub_log_line is a general sink. Interacts with open finding LL-fba170716e, which records that the SNS callback logs its full payload before verifying the signature: under the default AWS toll-free configuration the app never receives keyword messages, so every payload on that line is ordinary conversational content carrying a number in the unredactable format."
+    },
+    {
+      "id": "LL-cb9f9c865a",
+      "ruleKey": "remote-target-rows-survive-account-deletion-with-salt-stored-in-row",
+      "title": "RemoteTarget rows survive account deletion, retaining a phone-number hash beside the per-row salt that reverses it (right-to-erasure gap)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/flusher.rb",
+        "line": 442,
+        "snippet": "PredictionEntry.where(user_id: user.id).each do |entry|",
+        "sha": "cf5004909419e4c41420ad900fc6b0fce2e15653"
+      },
+      "firstSeen": "2026-09-04",
+      "lastSeen": "2026-09-04",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add a RemoteTarget sweep to flush_user_content beside the LogSnapshot and PredictionEntry sweeps that already sit at :437-444, following the same flush_record shape since there are no S3 objects to reap. Consider also declaring the association on User with dependent destroy so the model is not reachable only through the flusher. Verify with a spec that creates a target, flushes the user, and asserts the row is gone.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "adversary",
+        "promotedDate": "2026-09-04"
+      },
+      "notes": "Promoted from adversary review on 2026-09-04. Surfaced while verifying an unrelated SMS proposal on 2026-09-04. Absence was checked rather than inferred, per the standing rule that a grep proving absence says nothing about whether a sibling mechanism survives: the model name appears nowhere in lib/flusher.rb or app/models/user.rb, RemoteTarget declares belongs_to user but User declares no inverse with dependent destroy, and db/schema.rb:574-587 shows a plain integer user_id column carrying only a target-sorting index, so there is no foreign-key cascade either. The residual rows retain the destination hash, the contact reference, the last-outbound timestamp, and critically the per-row salt in the SAME row, at db/schema.rb:577-578. A salted hash whose salt is stored beside it over a domain of roughly ten billion candidates is recoverable by exhaustive search, so these rows are not anonymized and their retention is not discharged by the hashing. This is the same class as LL-1e2ab28aab and LL-e8614c103f, both of which have flush sweeps in code at :437 and :442 with explanatory comments citing those ids, yet both still read open in the register. That register-versus-code discrepancy is a separate triage item for Scot and is noted here only because it is why this model was missed in that sweep. Currently zero rows exist in every environment because SMS was never provisioned, so remediating now costs nothing."
     }
   ]
 }
