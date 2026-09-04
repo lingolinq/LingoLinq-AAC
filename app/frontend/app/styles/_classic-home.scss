@@ -1157,6 +1157,50 @@ $ch-ideas-fawn: #BDAA86;
 .ch-tile--learn   { @include ch-tile-tint($brand-stormy-teal); }
 .ch-tile--log     { @include ch-tile-tint($brand-blue-grey, 0.32, 0.14); }
 
+// GLASSY SILVER ICON CHIPS on the four main Actions tiles (requested 2026-09-03).
+// Speak, Reports, Modeling Ideas and Extras now share one silver chip instead of each
+// echoing its own tile tint, so the icons read as a set and the tile colour is carried
+// by the card behind them.
+//
+// SCOPED TO `.ch-grid`, NOT to the tile modifiers. `.ch-tile--reports` and
+// `.ch-tile--ideas` are ALSO worn by the per-supervisee buttons on the Communicators
+// tab, and `.ch-tile--big` is worn by the ten tiles in the Extras drawer -- either would
+// have repainted chips well outside the four tiles this is for. `.ch-grid` is the
+// Actions row's own container (classic-view.hbs:656-712) and `:not(.ch-grid--extras)`
+// excludes the drawer, which reuses the class (:730).
+//
+// Overrides the per-tile chip fill the `ch-tile-tint` / `ch-tile-silver` mixins emit at
+// (0,2,0); this is (0,3,0), so it wins on specificity and needs no !important. A new
+// rule rather than an edit to those mixins because the mixins are shared with the
+// supervisee buttons and the drawer, which keep their tinted chips.
+//
+// Three layers make the glass read: a top-weighted white gloss, a silver body with a
+// slight bottom lift so it does not look flat, and inset edges -- light along the top,
+// shadow along the bottom -- for thickness.
+.ch-grid:not(.ch-grid--extras) .ch-tile__chip {
+  background:
+    linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.92) 0%,
+      rgba(255, 255, 255, 0.34) 46%,
+      rgba(255, 255, 255, 0) 64%),
+    linear-gradient(160deg,
+      rgba($brand-cool-steel, 0.34) 0%,
+      rgba($brand-cool-steel, 0.15) 55%,
+      rgba($brand-cool-steel, 0.28) 100%);
+  // 0.40, down from 0.92 (requested 2026-09-03): at full strength the white ring read as
+  // a drawn outline around the chip rather than as the edge of a glass surface. The top
+  // inset highlight below is left at full strength -- that one is the light ON the glass,
+  // not an outline around it, and it is what keeps the chip from looking flat.
+  border: 1px solid rgba(255, 255, 255, 0.40);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.98),
+    // Bottom inner shade at 0.05, down from 0.10 (requested 2026-09-03) -- enough to
+    // keep the lower edge from vanishing, not enough to read as a second outline under
+    // the softened white one above.
+    inset 0 -1px 2px rgba($brand-blue-black, 0.05),
+    0 4px 10px rgba($brand-blue-black, 0.10);
+}
+
 // -----------------------------------------------------------------------------
 // Extras — the toggle tile and the row it reveals
 // -----------------------------------------------------------------------------
