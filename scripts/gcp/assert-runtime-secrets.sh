@@ -170,6 +170,49 @@ if [ -n "$REQUIRED_LITERAL" ] && [ "${#REQUIRED_LITERAL_PAIRS[@]}" -eq 0 ]; then
   echo "assert-runtime-secrets: --required-literal parsed to zero entries" >&2; exit 2
 fi
 
+# VALIDATE THE ASSERTIONS THEMSELVES, before they are used to assert anything.
+#
+# `NAME=` (a name, an `=`, and nothing after it) parses to an EMPTY pattern, and `grep -Eq ""`
+# matches every non-empty value. The assertion silently degrades from "must equal production"
+# to "must be non-empty" and still prints OK. That is a fail-open in the one script whose
+# entire job is to not fail open, so it is rejected as a usage error rather than tolerated.
+#
+# The empty entries dropped by the `sed '/^$/d'` above are likewise a caller mistake
+# (`'A=^x,,B=^y'`, or an unset CI variable landing mid-list). Silently filtering them means a
+# caller can believe it passed N assertions while N-1 ran. Count the raw fields and refuse on
+# a mismatch. Caught in review 2026-09-03 alongside the four-of-five pin gap.
+if [ -n "$REQUIRED_LITERAL" ]; then
+  _raw_fields="$(printf '%s' "$REQUIRED_LITERAL" | awk -F',' '{print NF}')"
+  if [ "$_raw_fields" -ne "${#REQUIRED_LITERAL_PAIRS[@]}" ]; then
+    echo "assert-runtime-secrets: --required-literal has an empty entry (got $_raw_fields fields, ${#REQUIRED_LITERAL_PAIRS[@]} usable): '$REQUIRED_LITERAL'" >&2
+    exit 2
+  fi
+  for _pair in "${REQUIRED_LITERAL_PAIRS[@]}"; do
+    case "$_pair" in
+      # No `=` at all is the deliberate presence-only form, handled below. Allowed.
+      *=*)
+        [ -n "${_pair%%=*}" ] || {
+          echo "assert-runtime-secrets: --required-literal entry '$_pair' has an empty env var name" >&2; exit 2; }
+        [ -n "${_pair#*=}" ] || {
+          echo "assert-runtime-secrets: --required-literal entry '$_pair' has an EMPTY pattern. An empty ERE matches any non-empty value, which would silently reduce this assertion to a presence check. Write the pattern, or pass the bare name '${_pair%%=*}' if presence-only is what you mean." >&2
+          exit 2; }
+        ;;
+      "") echo "assert-runtime-secrets: --required-literal has an empty entry" >&2; exit 2 ;;
+    esac
+  done
+fi
+
+# Same empty-entry accounting for --required. Its consumer strips `=SECRET:version` and
+# de-duplicates, so a dropped field there is invisible in the parsed count too.
+if [ -n "$REQUIRED" ]; then
+  _raw_req="$(printf '%s' "$REQUIRED" | awk -F',' '{print NF}')"
+  _kept_req="$(printf '%s' "$REQUIRED" | tr ',' '\n' | sed '/^$/d' | grep -c '')"
+  if [ "$_raw_req" -ne "$_kept_req" ]; then
+    echo "assert-runtime-secrets: --required has an empty entry (got $_raw_req fields, $_kept_req usable): '$REQUIRED'" >&2
+    exit 2
+  fi
+fi
+
 failed=0
 
 # Assert required env vars on one already-fetched revision/worker-pool JSON document.

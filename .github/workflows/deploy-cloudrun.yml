@@ -482,11 +482,23 @@ jobs:
                 exit 1 ;;
             esac
             # Same reasoning for the data plane: a nonprod environment that inherited the prod
-            # Cloud SQL connection name or VPC would otherwise be stopped only by the nonprod
-            # runtime SA lacking cloudsql.client on lingolinq-prod, i.e. a control in another
-            # project. Reject it here instead.
+            # Cloud SQL connection name would otherwise be stopped only by the nonprod runtime
+            # SA lacking cloudsql.client on lingolinq-prod, i.e. a control in another project.
+            # Reject it here instead.
+            #
+            # WHAT THIS ACTUALLY CATCHES, stated honestly. The Cloud SQL half is the live
+            # control: prod's connection name is lingolinq-prod:us-central1:lingolinq-prod-pg,
+            # which carries the project id. The VPC half catches almost nothing on its own,
+            # because BOTH projects name their network `lingolinq-vpc` (verified 2026-09-03)
+            # and a bare `--network` name resolves within the DEPLOY project, so a nonprod
+            # deploy cannot reach prod's VPC by name alone. It is kept only for the Shared-VPC
+            # form `projects/<PROJECT>/global/networks/<NAME>`, where an id or a project NUMBER
+            # would appear -- hence the number below, matching the identity guard three lines
+            # up. An earlier version of this guard omitted the number and named GCP_VPC_NETWORK
+            # in its error as though it were protected; do not read the VPC half as more than
+            # the Shared-VPC case.
             case "$GCP_CLOUDSQL_INSTANCE:$GCP_VPC_NETWORK" in
-              *lingolinq-prod*)
+              *lingolinq-prod*|*549902645644*)
                 echo "::error::Environment '$ENV_NAME' resolved a PRODUCTION data-plane target (GCP_CLOUDSQL_INSTANCE='$GCP_CLOUDSQL_INSTANCE', GCP_VPC_NETWORK='$GCP_VPC_NETWORK'). Refusing to migrate or deploy against it."
                 exit 1 ;;
             esac
@@ -1031,18 +1043,28 @@ jobs:
             echo "::error::CANDIDATE_REV is unset; refusing to shift traffic."
             exit 1
           fi
+          # WRITTEN BEFORE THE MUTATION, DELIBERATELY. `gcloud` can fail CLIENT-side (poll
+          # timeout, transient 503, a dropped connection) on a shift the server already
+          # ACCEPTED. Writing the marker after the call means `set -euo pipefail` kills this
+          # step first, the output is never written, and the post-shift diagnostic below is
+          # skipped in precisely the window it exists to cover: users on new web code, worker
+          # still on the old image, nothing actionable in the log. So the marker records that
+          # the shift was ATTEMPTED, which is the condition the diagnostic actually needs.
+          # A false positive here costs one extra advisory block on a failed run; a false
+          # negative costs the operator the pin-back command during an incident.
+          # STEP OUTPUT, not $GITHUB_ENV: the diagnostic gates on this in an `if:`, and `if:`
+          # is evaluated through workflow contexts. Same reasoning as first_deploy above;
+          # writing it only to $GITHUB_ENV would repeat the exact pattern this commit removes.
+          echo "shift_attempted=true" >> "$GITHUB_OUTPUT"
           gcloud run services update-traffic "$WEB_SERVICE" \
             --region "$GCP_REGION" \
             --to-revisions "$CANDIDATE_REV=100" \
             --remove-tags candidate
-          # Marks the point after which users are on the NEW revision. Everything from here on
-          # (worker pool, scheduler Job, secret readback) can fail with traffic already shifted,
-          # which is exactly when an operator needs the pin-back command. See the failure step
-          # at the end of this job.
-          # STEP OUTPUT, not $GITHUB_ENV: the failure diagnostic below gates on this in an `if:`,
-          # and `if:` is evaluated through workflow contexts. Same reasoning as first_deploy above;
-          # writing it only to $GITHUB_ENV would repeat the exact pattern this commit removes.
-          echo "shift_done=true" >> "$GITHUB_OUTPUT"
+          # Past this point users are on the NEW revision. Everything from here on (worker pool,
+          # scheduler Job, secret readback) can fail with traffic already shifted, which is
+          # exactly when an operator needs the pin-back command. See the failure step at the
+          # end of this job.
+          echo "shift_confirmed=true" >> "$GITHUB_OUTPUT"
           # Read back who is serving. This read is LOAD-BEARING (it is the assert), so it is
           # guarded rather than left to `set -e`: a bare assignment failure would abort the step
           # between the completed traffic shift and the un-run worker deploy, stranding new web
@@ -1211,18 +1233,30 @@ jobs:
           if [ "$DEPLOY_WORKER_EFFECTIVE" = "true" ]; then
             worker_args=(--worker-pool "$WORKER_POOL")
           fi
-          # BEDROCK_EXPECTED_AWS_ACCOUNT is pinned in every environment. The four values below
+          # BEDROCK_EXPECTED_AWS_ACCOUNT is pinned in every environment. The FIVE values below
           # left this file for GitHub environment variables, where the only gate is non-blank:
           # a wrong-but-well-formed bucket, CDN origin or Sentry label would pass every check and
           # nobody reviewing a PR can see them. Pin PRODUCTION's by literal here, so the readback
           # that already runs proves what actually landed on the revision. Not circular: these
           # EREs live in the repo and are reviewed; the variables are not.
+          #
+          # COUNT THIS LIST AGAINST THE HEADER AT THE TOP OF THIS FILE. It names five moved
+          # values: two buckets, the CDN, the Sentry env, and REMOTE_EXTRA_DATA. A previous
+          # revision of this block pinned four and omitted REMOTE_EXTRA_DATA -- the one with a
+          # production incident behind it (see :397 and :644; its absence zeroed 1754 of 2061
+          # button sets in PR #724). The pre-deploy check at :649 proves the VARIABLE is
+          # non-blank; only this readback proves the env var LANDED on the revision. Adding a
+          # sixth moved value without a line here reopens exactly that gap.
           literal_args=(--required-literal 'BEDROCK_EXPECTED_AWS_ACCOUNT=^239044785114$')
           if [ "$ENV_NAME" = "production" ]; then
             literal_args+=(--required-literal 'UPLOADS_S3_BUCKET=^lingolinq-prod-uploads$')
             literal_args+=(--required-literal 'STATIC_S3_BUCKET=^lingolinq-prod-static$')
             literal_args+=(--required-literal 'UPLOADS_S3_CDN=^https://d34sa6lc5jfe66\.cloudfront\.net$')
             literal_args+=(--required-literal 'SENTRY_ENVIRONMENT=^production$')
+            # Ruby reads this as `!!ENV['REMOTE_EXTRA_DATA']`, i.e. PRESENCE (:411), so the
+            # assembly step OMITS the var when the variable is blank. A missing var therefore
+            # fails this assertion as MISSING rather than matching an empty value.
+            literal_args+=(--required-literal 'REMOTE_EXTRA_DATA=^1$')
           fi
           bash scripts/gcp/assert-runtime-secrets.sh \
             --project "$GCP_PROJECT_ID" \
@@ -1237,10 +1271,19 @@ jobs:
       # scheduler Job, secret readback -- can fail with users already on the new revision, and
       # before this step those failures printed nothing actionable: a red run, new web code live,
       # and possibly an old worker still draining the queue. This step fires only in that window.
+      # `cancelled()` is a SEPARATE status condition: `failure()` is false for a cancelled run,
+      # so gating on failure() alone loses the operator exactly when someone hits cancel during
+      # a deploy. Gate on the attempt marker, not on confirmed success -- see the comment at the
+      # shift step for why an ambiguous client-side failure is the case that matters most.
       - name: On failure after the traffic shift, print the rollback
-        if: failure() && steps.shift.outputs.shift_done == 'true'
+        if: (failure() || cancelled()) && steps.shift.outputs.shift_attempted == 'true'
         run: |
-          echo "::error::A step FAILED AFTER traffic was shifted. $WEB_SERVICE in $GCP_PROJECT_ID is serving ${CANDIDATE_REV:-the new revision} NOW."
+          if [ "${{ steps.shift.outputs.shift_confirmed }}" = "true" ]; then
+            echo "::error::A step FAILED AFTER traffic was shifted. $WEB_SERVICE in $GCP_PROJECT_ID is serving ${CANDIDATE_REV:-the new revision} NOW."
+          else
+            echo "::error::The traffic shift was ATTEMPTED but did not confirm. $WEB_SERVICE in $GCP_PROJECT_ID may be serving ${CANDIDATE_REV:-the new revision}, or may still be on ${PREV_REVISION:-the previous revision}. VERIFY BEFORE ACTING:"
+            echo "::error::  gcloud run services describe $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --format='value(status.traffic)'"
+          fi
           echo "::error::The worker pool and/or scheduler Job may still be on the PREVIOUS image, so web and worker can be running different code."
           if [ -n "${PREV_REVISION:-}" ]; then
             echo "::error::To put users back on the last known-good revision:"
