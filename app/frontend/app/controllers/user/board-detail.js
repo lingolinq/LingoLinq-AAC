@@ -207,7 +207,26 @@ export default Controller.extend(prefClasses, {
      compact mode and the ordering UI needs its own pass before it earns the space. Kept as
      one named flag rather than commenting the markup out, so bringing it back is a single
      `true` and the template still reads as one arrangement. The stored order itself is
-     untouched and still drives the panel layout when scrolling is on. */
+     untouched and still drives the panel layout when scrolling is on.
+
+     BEFORE FLIPPING THIS TO `true`, FIX THE ORDER PATH. It is not merely waiting — three
+     places disagree about where a board's category order comes from, and the disagreement
+     is unreachable today only because this flag is off:
+
+       * the RENDERED board reads the ACCOUNT-WIDE order directly
+         (`components/board-detail-grid.js:200-201`), and no template has ever passed
+         `@categoryOrder` — so a per-board order never reaches the grid at all;
+       * the PANEL reads the PER-BOARD resolution, via `board_category_settings`
+         (`category_order_list`, :6362);
+       * `move_category` (:6630) READS the account-wide order and WRITES the per-board slot,
+         so reordering on a board with its own entry permutes the wrong list.
+
+     How it happened: the grid's account-wide read dates from the original grouping feature
+     (e9370fd4a, 2026-08-17), when order was account-wide and that was correct. Per-board
+     resolution was retrofitted onto `board_category_settings` two days after this flag was
+     parked (3895e6a0a, 2026-08-26), and every consumer of that computed inherited it
+     silently — except the grid, which has its own reader. This flag has never been `true`,
+     so no reachable control could ever expose the split. */
   category_ordering_available: false,
 
   show_board_back_nav: computed('board_detail_history.[]', function() {
@@ -4112,18 +4131,23 @@ export default Controller.extend(prefClasses, {
      read and write must resolve the same account or the panel would describe one user
      and persist to another. */
   /*
-   * The grouping settings IN FORCE FOR THIS BOARD.
+   * The DISPLAY settings in force for this board.
    *
-   * `preferences.board_category_grouping` holds the user's default; `….boards[<board id>]`
-   * holds a per-board override in the same shape. A board with no entry uses the default,
-   * so nothing changes for boards nobody has configured.
+   * `preferences.board_category_grouping` holds the user's defaults; `….boards[<ref>]`
+   * holds a per-board override of the display keys only. A board with no entry uses the
+   * defaults, so nothing changes for boards nobody has configured.
    *
-   * Keyed on the board's GLOBAL ID, not its key: a key is `owner/slug` and changes when
-   * the board is renamed or the owner changes username, which would silently orphan the
-   * settings. The id does not move.
+   * NOT the on/off switch. `enabled` is PER-USER and resolves at the top level
+   * (`categorize_enabled`), and a per-board entry carries no `enabled` key at all — the
+   * server drops it (`user.rb#sanitize_board_category_grouping!`, `include_enabled`).
    *
-   * One resolver, and every consumer below reads it — the switch, the sub-options, the
-   * order list and the save all have to agree about which board they are describing.
+   * Keyed by board KEY, with the GLOBAL ID read only as a fallback for entries written
+   * before that switch — see `_board_category_ref` directly below, which is where the
+   * resolution actually happens. (This paragraph used to claim the opposite, that entries
+   * were keyed on the global id. They are not, and have not been since the key migration.)
+   *
+   * One resolver, and every consumer below reads it — the sub-options, the order list and
+   * the save all have to agree about which board they are describing.
    */
   /* Which entry in `boards` describes THIS board.
      By KEY (`username/board-slug`), because a global_id is stable only within one
@@ -4319,6 +4343,31 @@ export default Controller.extend(prefClasses, {
     // buttons back without restoring this term, so hiding the other four silently
     // took the lock control with them.
     return !s.button_levels || !s.sticky_board || !s.pause_logging || !s.modeling || !s.switch_communicators;
+  }),
+  /* "Pause Logging" as its own TOP-LEVEL row, for a communicator-only account.
+
+     speak_section_visible_session above returns false for such an account on its
+     first statement, before it considers any individual item, so the row rendered
+     inside the Session submenu is unreachable for them however the Customize Menu
+     is set. That gate stays exactly as it is — the board lock lives in the same
+     section and a locked communicator must not be able to release it — and this
+     drives a separate row outside it instead. The classic speak menu has always
+     offered the item to communicators (templates/application.hbs:1239, whose
+     enclosing blocks carry no role gate); this restores that parity in the
+     board-detail menu.
+
+     False for supporters and while a supervisor is modeling: both get the real
+     Session section, and rendering here as well would show the row twice.
+
+     superProtectedSpeakMode mirrors the {{#unless}} wrapping the Session-submenu
+     copy (board-detail.hbs:1244), and the hidden-set term keeps the Customize Menu
+     setting authoritative for communicators too. */
+  pause_logging_row_visible: computed('speak_menu_hidden_set', 'is_communicator_only_account', 'app_state.superProtectedSpeakMode', 'app_state.currentUser.preferences.logging', function() {
+    if(!this.get('is_communicator_only_account')) { return false; }
+    if(this.get('app_state.superProtectedSpeakMode')) { return false; }
+    if(!this.get('app_state.currentUser.preferences.logging')) { return false; }
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.pause_logging;
   }),
   // Visibility of the board-lock control itself, as opposed to the Session section
   // that contains it. Normally it follows the customize-menu setting like any other
@@ -4752,7 +4801,7 @@ export default Controller.extend(prefClasses, {
   // `portrait_overlay_dismissed` is the per-board arm-state; once they pick "Continue
   // Anyway", the service's `larger_screen_dismissed` suppresses it for the rest of the
   // session everywhere in the app, and keeps the per-board flag from re-arming.
-  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'overlay_dismissals.larger_screen_hidden', 'board_collection_open', 'edit_board_collection_open', function() {
+  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'overlay_dismissals.larger_screen_hidden', 'board_collection_open', 'edit_board_collection_open', 'grouping_active', function() {
     // Hidden because the user turned the helper messages off in Preferences, or because
     // they chose "Continue Anyway" anywhere in the app this session.
     if(this.get('overlay_dismissals.larger_screen_hidden')) { return false; }
@@ -4762,6 +4811,15 @@ export default Controller.extend(prefClasses, {
     // recommendation on a wide viewport. Suppress the overlay while a collection drawer is
     // open — the screen itself isn't small, so the recommendation doesn't apply.
     if(this.get('board_collection_open') || this.get('edit_board_collection_open')) { return false; }
+    /* Category grouping does the same thing to the measurement, for the same reason.
+       _sync_prediction_tile_size measures the first `.md-board-detail-grid__cell`, and
+       while grouping is in force the grid is packed into compact category columns
+       (BoardDetailGrid#compactCategories / pack_category_tiles) — so what gets measured is
+       a packed category tile, not a board button, and it trips the <35px floor and the
+       lopsided-aspect test on ANY viewport width. Suppressed here rather than in
+       portrait_overlay_eligible so the measurement keeps reporting what it measured, and
+       so the recommendation returns by itself the moment grouping goes back off. */
+    if(this.get('grouping_active')) { return false; }
     return this.get('portrait_overlay_eligible') && !this.get('portrait_overlay_dismissed');
   }),
 
@@ -6402,17 +6460,32 @@ export default Controller.extend(prefClasses, {
     return !!intent !== !!this.get('categorize_enabled');
   }),
 
-  categorize_enabled: computed('board_category_settings', function() {
-    // Must use the SAME test as BoardDetailGrid#groupingEnabled (`=== true`), or the
-    // Categorize switch reads On while the board it describes is ungrouped.
-    return (this.get('board_category_settings') || {}).enabled === true;
-  }),
+  /* PER-USER, not per-board — and deliberately NOT read through
+     `board_category_settings`, which still resolves the per-board entry for the DISPLAY
+     sub-preferences below it.
+
+     Grouping used to resolve per board with the account-wide value only as a fallback,
+     while the switch wrote nothing but the per-board slot. That combination made a stray
+     account-wide `enabled: true` unreachable: turning the switch off wrote
+     `boards[<key>] = {enabled:false}` and left the top level alone, so every board
+     WITHOUT an entry of its own kept falling back to it and came up grouped. Reading and
+     writing the same single value is what makes the switch able to turn grouping off. */
+  categorize_enabled: computed(
+    'app_state.referenced_user.preferences.board_category_grouping.enabled',
+    function() {
+      // Must use the SAME test as BoardDetailGrid#groupingEnabled (`=== true`), or the
+      // Categorize switch reads On while the board it describes is ungrouped.
+      return this.get('app_state.referenced_user.preferences.board_category_grouping.enabled') === true;
+    }
+  ),
 
   /* Persist the grouping preference. Follows the documented 3-touch idiom: the
      nested set alone does not reliably mark the raw `preferences` attr dirty, so
      `preferences.device.updated` is poked before save or ember-data may never
      ship the change (see LEARNINGS "a new user preference is a 3-touch change").
-     Writes the WHOLE sub-hash so enabled and order always move together. */
+     Writes the WHOLE sub-hash, so every sub-preference must be carried through. `enabled`
+     is PER-USER and lands at the top level; the display sub-preferences land in the
+     board's own slot. */
   _save_category_grouping: function(changes) {
     /* Write to the user the board is FOR — see the note in board-detail-grid.js. A
        supervisor modelling for a communicator changes THAT communicator's setting; on
@@ -6433,11 +6506,18 @@ export default Controller.extend(prefClasses, {
        cannot drift apart and disagree about the same board. */
     var write_ref = board_key || board_id;
     var current = ref.entry || all;
+    /* `enabled` is PER-USER: resolved from the top level (see categorize_enabled) and
+       therefore computed from `all`, never from this board's entry. `=== true`, matching
+       groupingEnabled. With `!== false` an ABSENT preference read as enabled, so saving an
+       order-only change (a move arrow, or Reset order) silently turned grouping ON for a
+       user who had never opted in. */
+    var next_enabled = changes.enabled === undefined ? (all.enabled === true) : !!changes.enabled;
+    /* NO `enabled` KEY. A board entry describes only how a grouped board is DISPLAYED;
+       whether grouping is on at all is per-user and lives at the top level. The server
+       drops the key from entries too (user.rb#sanitize_board_category_grouping!, the
+       `include_enabled` argument), so an entry written before this change loses it on its
+       next save. */
     var next = {
-      /* `=== true`, matching groupingEnabled. With `!== false` an ABSENT preference read
-         as enabled, so saving an order-only change (a move arrow, or Reset order)
-         silently turned grouping ON for a user who had never opted in. */
-      enabled: changes.enabled === undefined ? (current.enabled === true) : !!changes.enabled,
       order: changes.order || normalizeCategoryOrder(current.order),
       /* Sub-preferences MUST be carried through every save. This object REPLACES the
          stored hash wholesale, so a key omitted here is dropped — toggling Categorize
@@ -6447,9 +6527,10 @@ export default Controller.extend(prefClasses, {
 
          `!== false` here, NOT `=== true`: absent means TRUE for these two, because both
          describe what the grouped board already does (headers render, grid scrolls). The
-         `enabled` flag above is the opposite — absent means OFF — because turning
-         grouping on for someone who never asked is a clinical change, whereas keeping
-         today's rendering is the safe default. Same reasoning as the Rails defaults. */
+         account-wide `enabled` computed above is the opposite — absent means OFF — because
+         turning grouping on for someone who never asked is a clinical change, whereas
+         keeping today's rendering is the safe default. Same reasoning as the Rails
+         defaults. */
       show_category_names: changes.show_category_names === undefined
         ? (current.show_category_names !== false)
         : !!changes.show_category_names,
@@ -6461,45 +6542,44 @@ export default Controller.extend(prefClasses, {
        entry untouched. The whole hash is replaced (that is what makes the sub-key echo
        below necessary), so `boards` has to be rebuilt here rather than mutated in place. */
     var boards = {};
+    /* Other boards' entries are copied VERBATIM, so one written before the per-board
+       `enabled` was retired still carries the dead key through this save. The server strips
+       it from every entry on write (`sanitize_board_category_grouping!` sanitizes the whole
+       `boards` map, not just the one that changed), so scrubbing it again here would be
+       redundant. */
     Object.keys(all.boards || {}).forEach(function(k) { boards[k] = all.boards[k]; });
     var previous = user.get('preferences.board_category_grouping');
-    var written;
     if(write_ref) {
       boards[write_ref] = next;
       /* Retire the id-keyed entry this board used to be stored under, now that the same
          settings live under its key. Left in place it would be a second description of
          one board that the resolver never reads again. */
       if(ref.legacy && ref.ref && ref.ref !== write_ref) { delete boards[ref.ref]; }
-      written = {
-        enabled: all.enabled === true,
-        order: normalizeCategoryOrder(all.order),
-        show_category_names: all.show_category_names !== false,
-        vertical_scroll: all.vertical_scroll !== false,
-        boards: boards
-      };
-    } else {
-      /* NO BOARD REFERENCE -> WRITE NOTHING. This used to fall back to writing the USER
-         DEFAULT ("so the control still does something"), which is the wrong failure
-         direction and was the actual cause of categories switching themselves on:
+    } else if(changes.enabled === undefined) {
+      /* NO BOARD REFERENCE, and this change needs one -> WRITE NOTHING.
+         `write_ref` is `board_key || board_id`, and this save runs inside a double
+         requestAnimationFrame (see toggle_categorize), so mid-transition both can be null.
+         The DISPLAY sub-preferences below are stored per board and have nowhere to go
+         without one; writing them to the account default would apply one board's choice to
+         every board, which is how categories were once observed switching themselves on.
 
-           `write_ref` is `board_key || board_id`, and this save runs inside a double
-           requestAnimationFrame (see toggle_categorize). If the model is not resolved at
-           that moment — mid-transition, a board still loading — both are null, so a toggle
-           meant for ONE board silently rewrote `preferences.board_category_grouping.enabled`
-           at the TOP LEVEL. `board_category_settings` falls back to that top level for every
-           board WITHOUT an override, so one mistimed toggle turned grouping on for the whole
-           account: every board the user opened afterwards came up categorised, including
-           boards they had never touched and boards reached via "Try this Board".
-           (Observed: an account with top-level `enabled: true` and an EMPTY `boards` map —
-           the signature of this path rather than a normal per-board write.)
-
-         Grouping MOVES vocabulary out of the cells a communicator has motor memory for, so
-         the account-wide default must only ever change through a deliberate act on a real
-         board. If we cannot tell which board this is, the correct outcome is to do nothing. */
-      console.error('board-detail: ignoring a Categorize change with no board reference — ' +
-                    'refusing to write the account-wide default');
+         An `enabled` change is exempt because it is PER-USER: it has no per-board target to
+         be unsure of, so a missing board reference costs it nothing. Refusing it here would
+         only drop a legitimate account-wide toggle. */
+      console.error('board-detail: ignoring a per-board category change with no board ' +
+                    'reference — refusing to write it to the account default');
       return;
     }
+    /* One account-wide hash, built once for both paths. `enabled` is the user's, so it
+       takes `next_enabled`; the other three stay the account defaults and are overridden
+       per board through `boards` above. */
+    var written = {
+      enabled: next_enabled,
+      order: normalizeCategoryOrder(all.order),
+      show_category_names: all.show_category_names !== false,
+      vertical_scroll: all.vertical_scroll !== false,
+      boards: boards
+    };
     user.set('preferences.board_category_grouping', written);
     /* `preferences.device` may not exist on the record — setting a nested path through a
        missing object throws "object in path could not be found", which would abort this

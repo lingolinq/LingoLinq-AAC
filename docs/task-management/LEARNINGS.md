@@ -16622,3 +16622,58 @@ accusing — here the band was correct all along.
 
 Related: recording a bracketed value RAW rather than mapped makes a later phase look like it goes
 backwards, which then defeats any monotonicity assertion across the phase boundary.
+
+## Pattern: a setting that RESOLVES per-scope but only WRITES per-scope makes the fallback unreachable (2026-09-03)
+
+`board_category_grouping.enabled` resolved as `boards[<board>] || <account default>`, but the
+Categorize switch wrote ONLY `boards[<board>]` and copied the account default through
+verbatim (`board-detail.js#_save_category_grouping`). So a stray account-wide `true` could
+never be turned off: switching it off on the board in front of you wrote a per-board
+`false`, and every board WITHOUT an entry kept falling back to the untouched `true` and came
+up grouped. The user-visible symptom was "I turned it off and boards keep coming back
+categorised, sporadically" — sporadic because the variation is board-to-board.
+
+**Rule of thumb:** for any layered setting, write down the READ path and the WRITE path side
+by side and check they can reach the same cells. A value that is readable but not writable
+is a permanent stuck state, and no amount of using the UI will clear it. The tell in review
+is a writer that copies one layer through "unchanged" while editing another.
+
+**Corollary — making the bad layer INERT is not the same as removing it.** The first fix
+stopped READING the per-board `enabled`, which fixed the behaviour. But three writers still
+emitted the key (client, server sanitizer, seeding rake task), so stored data kept gaining a
+second, contradictory answer. Squashing it meant closing every writer. Where the server
+sanitizer REBUILDS a hash from scratch, dropping a key there also retires it from stored data
+on the next save of any preference — a free migration, but only if the client stops sending
+it too.
+
+## Gotcha: a per-scope override can be written, echoed and displayed while never reaching the render (2026-09-03)
+
+Tracing the same feature turned up per-board `order`, which is written by the seeding task,
+sanitized and stored by the server, and shown in the Categorize panel via
+`board_category_settings` — but the RENDERED board reads the ACCOUNT-WIDE order directly
+(`board-detail-grid.js#categoryOrder`), and `board-detail.hbs` passes no `@categoryOrder`.
+On top of that the ordering UI is gated off entirely (`category_ordering_available: false`,
+hardcoded), and `move_category` READS the account-wide order while WRITING the per-board
+slot. Panel, grid and writer disagree three ways, and the whole path is unreachable.
+
+**Rule of thumb:** "the setting is stored and the panel shows it" is not evidence it has any
+effect. Trace from the STORED value to the pixel — through the component argument that
+actually feeds the render — before treating an override as a working feature worth
+preserving. Storage, sanitization and a settings UI can all exist around something nothing
+renders.
+
+## Gotcha: measure a slow test before touching its timeout (2026-09-03)
+
+A new BoundSelect integration test timed out at QUnit's 15s default and it looked like the
+new scroll-button code was hanging. A throwaway probe with three bisecting tests — open
+only / open + one click / open + two clicks, each ending in `assert.ok(false, timings)` so
+the message prints — showed `trigger_click=5011ms` for the EXISTING trigger, with no new
+code involved, and `down=6184ms scrollTop=48` proving the new control worked exactly as
+designed. Three clicks simply did not fit the budget.
+
+**Rule of thumb:** when a test times out, bisect with fail-on-purpose probes that print
+timings before concluding anything about the code under test. And the same probe tells you
+whether raising the timeout is honest (a real per-click cost that predates your change) or a
+cover-up (your code hanging). Here it was the former — the app's IndexedDB layer boots
+during the run — so the budget was raised on the ONE test that needs three clicks, with the
+measurement recorded in the file, and no assertion was weakened.

@@ -16,6 +16,16 @@
           <input type="text" value={{this.searchQuery}} class="bound-select__search-input" placeholder={{this.search_placeholder}} aria-label={{this.search_placeholder}} {{on "keydown" this.onSearchKeydown}} {{on "input" (set-field this "searchQuery")}} />
         </li>
       {{/if}}
+      {{#if this.scroll_buttons}}
+        {{!-- Chrome, not choices: role="presentation" keeps a screen reader walking the
+              listbox from announcing these as two extra options. Same treatment as the
+              search row above. --}}
+        <li class="bound-select__scroll bound-select__scroll--up" role="presentation">
+          <button type="button" class="bound-select__scroll-btn" aria-label={{t "Scroll up" key="scroll_up"}} {{on "click" (this.ctrlActionNoBubble "scroll_list" "up")}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+        </li>
+      {{/if}}
       {{#if this.renderContent.length}}
         {{#each this.renderContent as |item|}}
           {{#if item._isDivider}}
@@ -48,6 +58,13 @@
             </svg>
           </span>
           <span class="bound-select__empty-text">{{t "No options available" key="bound_select_no_options"}}</span>
+        </li>
+      {{/if}}
+      {{#if this.scroll_buttons}}
+        <li class="bound-select__scroll bound-select__scroll--down" role="presentation">
+          <button type="button" class="bound-select__scroll-btn" aria-label={{t "Scroll down" key="scroll_down"}} {{on "click" (this.ctrlActionNoBubble "scroll_list" "down")}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
         </li>
       {{/if}}
     </ul>

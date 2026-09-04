@@ -1269,19 +1269,7 @@
                         {{/if}}
                         {{#unless (get this.speak_menu_hidden_set "pause_logging")}}
                         {{#if this.app_state.currentUser.preferences.logging}}
-                          <button type="button" class="md-board-detail-actions-menu__item" aria-pressed={{if this.app_state.logging_paused "true" "false"}} data-bd-action="toggle_pause_logging" {{on "click" (this.ctrlAction "toggle_pause_logging")}}>
-                            {{#if this.app_state.logging_paused}}
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <polygon points="5 3 19 12 5 21 5 3"/>
-                              </svg>
-                              <span>{{t "Resume Logging" key="resume_logging"}}</span>
-                            {{else}}
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
-                              </svg>
-                              <span>{{t "Pause Logging" key="pause_logging"}}</span>
-                            {{/if}}
-                          </button>
+                          <PauseLoggingButton @paused={{this.app_state.logging_paused}} @onToggle={{this.ctrlAction "toggle_pause_logging"}} />
                         {{/if}}
                         {{/unless}}
                       {{/unless}}
@@ -1317,6 +1305,26 @@
                     </div>
                   {{/if}}
                 </div>
+              </div>
+              {{/if}}
+
+              {{!-- Pause Logging, for a communicator-only account.
+
+                   The row proper lives in the Session submenu just above, and
+                   speak_section_visible_session returns false for a communicator-only
+                   account before it considers any single item (board-detail.js:4303) —
+                   deliberately, because the board lock lives in that section and a locked
+                   communicator must not be able to release it. So the item is offered here
+                   instead, as its own top-level row: the classic speak menu
+                   (application.hbs:1239) has always offered it to communicators with no role
+                   gate, and this restores that parity without opening the Session section.
+
+                   pause_logging_row_visible carries the whole condition — communicator-only,
+                   not super-protected, logging enabled, not hidden in the Customize Menu.
+                   Top-level rather than in a submenu, so it needs no expanding. --}}
+              {{#if this.pause_logging_row_visible}}
+              <div class="md-board-detail-actions-menu__section">
+                <PauseLoggingButton @paused={{this.app_state.logging_paused}} @onToggle={{this.ctrlAction "toggle_pause_logging"}} />
               </div>
               {{/if}}
 

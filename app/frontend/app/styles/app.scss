@@ -90361,8 +90361,46 @@ span.md-board-detail-modeling-btn--badge {
 }
 .bound-select--grid .bound-select__search,
 .bound-select--grid .bound-select__divider,
-.bound-select--grid .bound-select__empty {
+.bound-select--grid .bound-select__empty,
+.bound-select--grid .bound-select__scroll {
   grid-column: 1 / -1;
+}
+/* Opt-in scroll controls (`@scroll_buttons`), used by the registration year picker.
+   A switch or eye-gaze user has no wheel and cannot drag a scrollbar, so the list is
+   unreachable past its first screen without these. Sticky, so they stay on screen while
+   the options scroll under them. */
+.bound-select__scroll {
+  list-style: none;
+  position: sticky;
+  z-index: 1;
+  margin: 0;
+  padding: 2px 0;
+  background: #fff;
+}
+.bound-select__scroll--up { top: 0; }
+.bound-select__scroll--down { bottom: 0; }
+.bound-select__scroll-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  /* Matches the 48px grid cell below, which is the switch/eye-gaze hit target this
+     control exists to provide. */
+  min-height: 48px;
+  border: 1px solid rgba($la-navy, 0.10);
+  border-radius: 8px;
+  background: rgba($la-navy, 0.04);
+  color: $la-navy;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.bound-select__scroll-btn:hover {
+  background: rgba($la-navy, 0.09);
+}
+.bound-select__scroll-btn:focus-visible {
+  border-color: $brand-verdigris;
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
+  outline: none;
 }
 .bound-select--grid .bound-select__option {
   display: flex;

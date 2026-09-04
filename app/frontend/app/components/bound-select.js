@@ -35,6 +35,10 @@ export default Component.extend({
   // Ember classic uses `layout` for the compiled template.
   grid: false,
   gridColumns: 3,
+  /* Opt-in scroll controls inside the listbox (registration year picker). Opt-in rather
+     than automatic because every other BoundSelect in the app shares this component and
+     most of their lists are short enough that two extra rows would be pure clutter. */
+  scroll_buttons: false,
 
   isOpen: false,
   searchQuery: '',
@@ -229,6 +233,23 @@ export default Component.extend({
         self.close();
         self._focusTrigger();
       });
+    },
+    /** Scroll the open listbox by roughly one screen. A switch or eye-gaze user has no
+     *  wheel and cannot drag a scrollbar, so without these the list is unreachable past
+     *  its first screen of options.
+     *
+     *  `scrollTop` is assigned DIRECTLY rather than through
+     *  `scrollBy({behavior: 'smooth'})`: smooth scrolling settles asynchronously, so the
+     *  value this handler leaves behind is not the value the next read sees. */
+    scroll_list(direction) {
+      if(!this.element) { return; }
+      const list = this.element.querySelector('.bound-select__list');
+      if(!list) { return; }
+      /* A page-like jump that keeps a row of context. The floor matters when
+         `clientHeight` is 0 — a list rendered but not laid out — where a purely
+         proportional step would be a silent no-op. */
+      const step = Math.max(48, Math.round(list.clientHeight * 0.8));
+      list.scrollTop = list.scrollTop + ((direction === 'up' ? -1 : 1) * step);
     },
     /** Arrow/Enter/Escape navigation on a focused option. */
     option_keydown(item, ev) {

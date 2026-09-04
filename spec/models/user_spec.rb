@@ -535,6 +535,23 @@ describe User, :type => :model do
       expect(boards['marcus_williams_slp/vocal-flair-112']['vertical_scroll']).to eq(false)
     end
 
+    # `enabled` is a PER-USER setting: it resolves and is written at the TOP LEVEL only
+    # (controllers/user/board-detail.js#categorize_enabled). A per-board `enabled` is a
+    # second, contradictory answer to a question the account already settles -- and it is
+    # what made a stray account-wide `true` unreachable, because the switch wrote only the
+    # board slot and every board without one kept falling back to the top level.
+    it "drops a per-board enabled while keeping the entry's display settings" do
+      u = User.create
+      u.process({'preferences' => {'board_category_grouping' => {
+        'enabled' => false,
+        'boards' => {'someone/a-board' => {'enabled' => true, 'vertical_scroll' => false}}
+      }}})
+      g = u.settings['preferences']['board_category_grouping']
+      expect(g['enabled']).to eq(false)
+      expect(g['boards']['someone/a-board']).to_not have_key('enabled')
+      expect(g['boards']['someone/a-board']['vertical_scroll']).to eq(false)
+    end
+
     it "still keeps a legacy global_id-shaped per-board override" do
       u = User.create
       u.process({'preferences' => {'board_category_grouping' => {

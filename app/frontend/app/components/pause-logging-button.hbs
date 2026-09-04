@@ -1,0 +1,23 @@
+{{! The Pause / Resume Logging row from the board-detail options menu.
+
+    Extracted because it renders in two places: inside the Session submenu
+    (supporters) and as a top-level row for a communicator-only account, whose
+    Session section is hidden by speak_section_visible_session
+    (controllers/user/board-detail.js:4303). Both sites pass the same two args,
+    so the markup, icons and aria-pressed state cannot drift apart.
+
+    @paused    app_state.logging_paused — swaps the label and the icon.
+    @onToggle  the toggle_pause_logging action, as a closure from ctrlAction. }}
+<button type="button" class="md-board-detail-actions-menu__item" aria-pressed={{if @paused "true" "false"}} data-bd-action="toggle_pause_logging" {{on "click" @onToggle}}>
+  {{#if @paused}}
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <polygon points="5 3 19 12 5 21 5 3"/>
+    </svg>
+    <span>{{t "Resume Logging" key="resume_logging"}}</span>
+  {{else}}
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+    </svg>
+    <span>{{t "Pause Logging" key="pause_logging"}}</span>
+  {{/if}}
+</button>
