@@ -8446,5 +8446,7 @@
   "n_orgs": "0 orgs || 1 org || %{n} orgs",
   "org_name_lower": "org name",
   "admin_user_name_lower": "admin user name",
-  "add_org": "Add Organization"
+  "add_org": "Add Organization",
+  "previous_page": "Previous page",
+  "next_page": "Next page"
 }

@@ -178,7 +178,7 @@
               <label>{{t "Date of birth" key="date_of_birth"}}</label>
               <div class="register-date-row">
                 <BoundSelect @select_class="form-control" @select_id="birth_month" @content={{this.birthMonths}} @selection={{this.birth_month}} @action={{mut this.birth_month}} @searchable={{true}} @auto_flip={{true}} @grid={{true}} @gridColumns={{3}} @prompt={{t "Month" key="birth_month_placeholder"}} @search_placeholder={{t "Search months" key="search_months"}} />
-                <BoundSelect @select_class="form-control" @select_id="birth_year" @content={{this.birthYears}} @selection={{this.birth_year}} @action={{mut this.birth_year}} @searchable={{true}} @scroll_buttons={{true}} @auto_flip={{true}} @grid={{true}} @gridColumns={{4}} @prompt={{t "Year" key="birth_year_placeholder"}} @search_placeholder={{t "Search years" key="search_years"}} />
+                <BoundSelect @select_class="form-control" @select_id="birth_year" @content={{this.birthYears}} @selection={{this.birth_year}} @action={{mut this.birth_year}} @searchable={{true}} @paged={{true}} @auto_flip={{true}} @grid={{true}} @gridColumns={{4}} @prompt={{t "Year" key="birth_year_placeholder"}} @search_placeholder={{t "Search years" key="search_years"}} />
               </div>
               {{#if this.communicatorAgeRequired}}
                 <span class="text-danger">{{t "Please choose a birth month and year." key="birthdate_required"}}</span>
@@ -215,7 +215,7 @@
               <label>{{t "Date of birth" key="date_of_birth"}}</label>
               <div class="register-date-row">
                 <BoundSelect @select_class="form-control" @select_id="birth_month_supporter" @content={{this.birthMonths}} @selection={{this.birth_month}} @action={{mut this.birth_month}} @searchable={{true}} @auto_flip={{true}} @grid={{true}} @gridColumns={{3}} @prompt={{t "Month" key="birth_month_placeholder"}} @search_placeholder={{t "Search months" key="search_months"}} />
-                <BoundSelect @select_class="form-control" @select_id="birth_year_supporter" @content={{this.birthYears}} @selection={{this.birth_year}} @action={{mut this.birth_year}} @searchable={{true}} @scroll_buttons={{true}} @auto_flip={{true}} @grid={{true}} @gridColumns={{4}} @prompt={{t "Year" key="birth_year_placeholder"}} @search_placeholder={{t "Search years" key="search_years"}} />
+                <BoundSelect @select_class="form-control" @select_id="birth_year_supporter" @content={{this.birthYears}} @selection={{this.birth_year}} @action={{mut this.birth_year}} @searchable={{true}} @paged={{true}} @auto_flip={{true}} @grid={{true}} @gridColumns={{4}} @prompt={{t "Year" key="birth_year_placeholder"}} @search_placeholder={{t "Search years" key="search_years"}} />
               </div>
               {{#if this.communicatorAgeRequired}}
                 <span class="text-danger">{{t "Please choose a birth month and year." key="birthdate_required"}}</span>

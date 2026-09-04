@@ -90375,24 +90375,27 @@ span.md-board-detail-modeling-btn--badge {
 .bound-select--grid .bound-select__search,
 .bound-select--grid .bound-select__divider,
 .bound-select--grid .bound-select__empty,
-.bound-select--grid .bound-select__scroll {
+.bound-select--grid .bound-select__pager {
   grid-column: 1 / -1;
 }
-/* Opt-in scroll controls (`@scroll_buttons`), used by the registration year picker.
-   A switch or eye-gaze user has no wheel and cannot drag a scrollbar, so the list is
-   unreachable past its first screen without these. Sticky, so they stay on screen while
-   the options scroll under them. */
-.bound-select__scroll {
+/* Opt-in pager (`@paged`), used by the registration year picker. A switch or eye-gaze
+   user has no wheel and cannot drag a scrollbar, so a long list needs hit targets.
+
+   NOT sticky, and the paged list does NOT scroll. The previous version made these sticky
+   inside the scrolling listbox, which put option rows underneath them -- measured in a
+   browser, 2014-2011 were unreachable on any scroll position. A sticky element always has
+   content slide under it, so the controls sit in normal flow and the page renders only
+   what fits. */
+.bound-select--paged .bound-select__list {
+  max-height: none;
+  overflow-y: visible;
+}
+.bound-select__pager {
   list-style: none;
-  position: sticky;
-  z-index: 1;
   margin: 0;
   padding: 2px 0;
-  background: #fff;
 }
-.bound-select__scroll--up { top: 0; }
-.bound-select__scroll--down { bottom: 0; }
-.bound-select__scroll-btn {
+.bound-select__pager-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90407,10 +90410,14 @@ span.md-board-detail-modeling-btn--badge {
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
-.bound-select__scroll-btn:hover {
+.bound-select__pager-btn:hover:not(:disabled) {
   background: rgba($la-navy, 0.09);
 }
-.bound-select__scroll-btn:focus-visible {
+.bound-select__pager-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.bound-select__pager-btn:focus-visible {
   border-color: $brand-verdigris;
   box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.12);
   outline: none;

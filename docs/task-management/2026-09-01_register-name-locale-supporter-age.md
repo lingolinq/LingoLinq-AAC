@@ -86,3 +86,22 @@ eye-gaze / switch users.
   search-keydown integration test. Residual: authenticated
   `users#create` without an org can still omit birth (flag-only).
   Org-authored school exception unchanged.
+
+## Follow-up: Full Name moved to the account step (2026-09-03)
+
+The optional "Full Name" field was moved off the birthdate step and onto the account step,
+above Username (`register.hbs`, both the communicator and supporter paths). Rationale kept in
+a template comment: it is the friendliest thing to ask for first, and the account being
+created is what that step is for.
+
+Shipped in commit `067feab48`, whose message flagged it as **"NOT COVERED BY A TEST and not
+verified in a browser"** — it was carried along with other work rather than authored with its
+own test.
+
+**CORRECTION (2026-09-03): Traci confirmed the move in the running app.** The "not verified"
+half of that caveat is closed; recorded here because the commit message is already pushed and
+cannot be amended honestly. Still true and still open: **there is no automated test for it**,
+so a future refactor of the registration steps has nothing guarding this field's placement.
+
+Confirmed in the same pass: the registration YEAR picker shows the correct years — see
+`2026-09-03-bound-select-scroll-buttons.md` for the paging fix and its browser measurements.

@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { computed } from '@ember/object';
+import { computed, observer } from '@ember/object';
 import { next, run, scheduleOnce } from '@ember/runloop';
 
 /**
@@ -35,10 +35,21 @@ export default Component.extend({
   // Ember classic uses `layout` for the compiled template.
   grid: false,
   gridColumns: 3,
-  /* Opt-in scroll controls inside the listbox (registration year picker). Opt-in rather
-     than automatic because every other BoundSelect in the app shares this component and
-     most of their lists are short enough that two extra rows would be pure clutter. */
-  scroll_buttons: false,
+  /* Opt-in PAGING (registration year picker). Opt-in rather than automatic because every
+     other BoundSelect in the app shares this component and most of their lists are short
+     enough that paging would be pure clutter.
+
+     This replaced scroll-by-pixels, which was broken two ways at once. Sticky controls
+     INSIDE a scrollport have content slide underneath them, so whole rows of years were
+     unreadable at rest; and the pixel step was larger than the un-occluded band, so a row
+     was skipped on every click -- 2014-2011 could not be reached at all. Neither is
+     fixable by tuning the step, because content always slides under a sticky element. A
+     page renders only what fits, so there is no scrollport and nothing can hide. */
+  paged: false,
+  /* 12 = three rows of the 4-column year grid, which is exactly the band that was legible
+     before, so the first page still reads 2026..2015. */
+  pageSize: 12,
+  _page: 0,
   /* Opt-in MEASURED placement (registration month/year). Those sit near the bottom of
      their step, so a downward panel runs past the fold and the page has to be scrolled to
      see the whole thing. Opt-in for the same reason as above: ~200 other dropdowns open
@@ -113,12 +124,60 @@ export default Component.extend({
     });
   }),
 
+  _pageSize() {
+    var n = parseInt(this.get('pageSize'), 10);
+    return (!n || n < 1) ? 12 : n;
+  },
+
+  /* What the template renders. The whole filtered list when not paged, so the ~200
+     existing callers are untouched. */
+  pagedContent: computed('renderContent', 'paged', 'pageSize', '_page', function() {
+    var all = this.get('renderContent') || [];
+    if(!this.get('paged')) { return all; }
+    var size = this._pageSize();
+    var start = this.get('_page') * size;
+    return all.slice(start, start + size);
+  }),
+
+  pageCount: computed('renderContent', 'paged', 'pageSize', function() {
+    if(!this.get('paged')) { return 1; }
+    var total = (this.get('renderContent') || []).length;
+    return Math.max(1, Math.ceil(total / this._pageSize()));
+  }),
+
+  hasPrevPage: computed('_page', 'paged', function() {
+    return !!this.get('paged') && this.get('_page') > 0;
+  }),
+
+  hasNextPage: computed('_page', 'pageCount', 'paged', function() {
+    return !!this.get('paged') && this.get('_page') < this.get('pageCount') - 1;
+  }),
+
+  /* A filtered list is a different list, so a page number carried over from the old one is
+     meaningless -- it would show a search's third page as its first result. */
+  _resetPageOnSearch: observer('searchQuery', function() {
+    if(this.get('paged') && this.get('_page') !== 0) { this.set('_page', 0); }
+  }),
+
+  /* Open on the page holding the current selection, so a stored year is on screen rather
+     than several pages away with nothing indicating which way to go. */
+  _pageForSelection() {
+    if(!this.get('paged')) { return 0; }
+    var all = this.get('renderContent') || [];
+    var sel = this.get('selection');
+    if(sel == null || sel === '') { return 0; }
+    var i = all.findIndex(function(c) { return c && String(c.id) === String(sel); });
+    if(i < 0) { return 0; }
+    return Math.floor(i / this._pageSize());
+  },
+
   close() {
     this.set('isOpen', false);
     this.set('searchQuery', '');
     /* Cleared on close so the next open measures where the trigger is THEN. The page may
        have scrolled, or the viewport resized, since the last time it was open. */
     this.set('_flipped', false);
+    this.set('_page', 0);
   },
 
   _clickOutside: null,
@@ -265,6 +324,7 @@ export default Component.extend({
       this.toggleProperty('isOpen');
       if (this.get('isOpen')) {
         const self = this;
+        this.set('_page', this._pageForSelection());
         scheduleOnce('afterRender', this, function() {
           self._measurePlacement();
           self._focusInitialControl();
@@ -291,22 +351,18 @@ export default Component.extend({
         self._focusTrigger();
       });
     },
-    /** Scroll the open listbox by roughly one screen. A switch or eye-gaze user has no
-     *  wheel and cannot drag a scrollbar, so without these the list is unreachable past
-     *  its first screen of options.
+    /** Move one page. A switch or eye-gaze user has no wheel and cannot drag a scrollbar,
+     *  so a long list needs hit targets to move through it.
      *
-     *  `scrollTop` is assigned DIRECTLY rather than through
-     *  `scrollBy({behavior: 'smooth'})`: smooth scrolling settles asynchronously, so the
-     *  value this handler leaves behind is not the value the next read sees. */
-    scroll_list(direction) {
-      if(!this.element) { return; }
-      const list = this.element.querySelector('.bound-select__list');
-      if(!list) { return; }
-      /* A page-like jump that keeps a row of context. The floor matters when
-         `clientHeight` is 0 — a list rendered but not laid out — where a purely
-         proportional step would be a silent no-op. */
-      const step = Math.max(48, Math.round(list.clientHeight * 0.8));
-      list.scrollTop = list.scrollTop + ((direction === 'up' ? -1 : 1) * step);
+     *  Whole pages, never pixels: the boundary here is the same value the template slices
+     *  on, so the first item of the next page is BY CONSTRUCTION the one after the last
+     *  item of this page. That is the property the pixel version could not hold. */
+    page_move(direction) {
+      const pages = this.get('pageCount');
+      const at = this.get('_page');
+      const next = (direction === 'prev') ? at - 1 : at + 1;
+      if(next < 0 || next > pages - 1) { return; }
+      this.set('_page', next);
     },
     /** Arrow/Enter/Escape navigation on a focused option. */
     option_keydown(item, ev) {
