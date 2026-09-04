@@ -1238,6 +1238,7 @@ export default Component.extend({
       return RSVP.resolve();
     }
     var source = this._authoring_locale_root();
+    var gen = this._authoring_locale_gen || 0;
     var lookup_promise = persistence.ajax('/api/v1/users/self/translate', {
       type: 'POST',
       data: {
@@ -1247,6 +1248,8 @@ export default Component.extend({
       }
     }).then(function(data) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
+      if((_this._authoring_locale_gen || 0) !== gen) { return; }
+      if(_this._authoring_locale_root() !== source) { return; }
       var trans = (data && data.translations) || {};
       var next_map = Object.assign({}, _this.get('_label_english') || {});
       to_lookup.forEach(function(word) {
@@ -1256,6 +1259,7 @@ export default Component.extend({
       _this.set('_label_english', next_map);
     }, function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
+      if((_this._authoring_locale_gen || 0) !== gen) { return; }
       var next_map = Object.assign({}, _this.get('_label_english') || {});
       to_lookup.forEach(function(word) {
         next_map[word] = word;
@@ -1299,20 +1303,25 @@ export default Component.extend({
     if(this.get('_board_name_english')) {
       return RSVP.resolve();
     }
+    var source = this._authoring_locale_root();
+    var gen = this._authoring_locale_gen || 0;
     return persistence.ajax('/api/v1/users/self/translate', {
       type: 'POST',
       data: {
         words: [name],
-        source_lang: this._authoring_locale_root(),
+        source_lang: source,
         destination_lang: 'en'
       }
     }).then(function(data) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
+      if((_this._authoring_locale_gen || 0) !== gen) { return; }
+      if(_this._authoring_locale_root() !== source) { return; }
       var trans = (data && data.translations) || {};
       var english = trans[name] || trans[name.toLowerCase()];
       _this.set('_board_name_english', (english && String(english).trim()) || name);
     }, function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
+      if((_this._authoring_locale_gen || 0) !== gen) { return; }
       _this.set('_board_name_english', name);
     });
   },
@@ -1324,7 +1333,7 @@ export default Component.extend({
       return;
     }
     if(!userId || userId === 'self') {
-      this.set('model.locale', this.get('preferred_communicator_locale') || 'en');
+      this._set_authoring_locale(this.get('preferred_communicator_locale') || 'en');
       return;
     }
     var supers = this.appState.get('sessionUser.known_supervisees') ||
@@ -1339,7 +1348,34 @@ export default Component.extend({
     }
     var loc = match && (match.locale || (match.preferences && match.preferences.locale));
     if(loc) {
-      this.set('model.locale', loc);
+      this._set_authoring_locale(loc);
+    }
+  },
+
+  /** Set model.locale and drop label-text caches when the 2-letter root
+   *  changes. Those maps are keyed only by label, so es "sombrero"→hat
+   *  would otherwise be reused after a switch to fr. */
+  _set_authoring_locale(loc) {
+    var previous = this.get('model.locale');
+    var prevRoot = ((previous || 'en').split(/_|-/)[0] || 'en').toLowerCase();
+    var nextRoot = ((loc || 'en').split(/_|-/)[0] || 'en').toLowerCase();
+    this.set('model.locale', loc);
+    if(prevRoot !== nextRoot) {
+      this._invalidate_authoring_locale_caches();
+    }
+  },
+
+  _invalidate_authoring_locale_caches() {
+    this._authoring_locale_gen = (this._authoring_locale_gen || 0) + 1;
+    this.set('_label_english', {});
+    this.set('_board_name_english', null);
+    this.set('_label_english_lookup_promise', null);
+    this.set('_label_colors', {});
+    this.set('_label_images', {});
+    this.set('_label_images_lookup_promise', null);
+    if((this.get('parsed_labels') || []).length) {
+      this._lookup_label_colors();
+      this._lookup_label_images();
     }
   },
 
@@ -1400,8 +1436,10 @@ export default Component.extend({
   _lookup_label_colors() {
     var _this = this;
     if(this.isDestroyed || this.isDestroying) { return; }
+    var gen = this._authoring_locale_gen || 0;
     return this._ensure_label_english().then(function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
+      if((_this._authoring_locale_gen || 0) !== gen) { return; }
       var labels = _this.get('parsed_labels') || [];
       var cached = _this.get('_label_colors') || {};
       var seen = {};
@@ -1422,6 +1460,7 @@ export default Component.extend({
         data: { words: pos_words.join(',') }
       }).then(function(res) {
         if(_this.isDestroyed || _this.isDestroying) { return; }
+        if((_this._authoring_locale_gen || 0) !== gen) { return; }
         var results = (res && res.results) || {};
         var next_map = Object.assign({}, _this.get('_label_colors') || {});
         to_lookup.forEach(function(word, idx) {
@@ -1501,6 +1540,7 @@ export default Component.extend({
       return RSVP.resolve();
     }
     var search_locale = this._needs_english_lookup() ? 'en' : this._authoring_locale_root();
+    var gen = this._authoring_locale_gen || 0;
     // Fire one request per label in parallel — the symbols endpoint is
     // single-word so we can't batch. RSVP.allSettled lets a single
     // 404/timeout not block the rest. Cap the parallel requests at a
@@ -1535,6 +1575,10 @@ export default Component.extend({
         });
         RSVP.allSettled(promises).then(function(states) {
           if(_this.isDestroyed || _this.isDestroying) {
+            resolve();
+            return;
+          }
+          if((_this._authoring_locale_gen || 0) !== gen) {
             resolve();
             return;
           }
@@ -2338,7 +2382,7 @@ export default Component.extend({
       this.set('model.visibility', value);
     },
     setLocale: function(value) {
-      this.set('model.locale', value);
+      this._set_authoring_locale(value);
     },
     setLabelsOrder: function(value) {
       this.set('model.grid.labels_order', value);

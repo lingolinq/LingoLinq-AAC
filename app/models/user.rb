@@ -501,6 +501,17 @@ class User < ApplicationRecord
     [month, year]
   end
 
+  # School-official create: the org exists and the author has 'edit' on it
+  # (full manager or assistant). Used by api/users#create (birth-data gate)
+  # and process_params (COPPA skip + authored_organization_id stamp) so both
+  # layers share one predicate. Returns the Organization or nil.
+  def self.validated_org_author(author, organization_id)
+    return nil if author.nil? || organization_id.blank?
+    org = Organization.find_by_global_id(organization_id)
+    return nil unless org && org.allows?(author, 'edit')
+    org
+  end
+
   # Manager-attested birth month/year (same ambiguity rule as register.js):
   # cutoff month counts as still under the threshold.
   # Returns true / false / nil (nil when month/year incomplete).
@@ -722,6 +733,12 @@ class User < ApplicationRecord
   # claim (offboarding_export_started_at) also blocks until it goes stale so
   # concurrent callers cannot each run Exporter.export_user.
   OFFBOARDING_EXPORT_CLAIM_STALE = 6.hours
+  # How far back the offboarding sweep looks for candidates. Discovery runs over
+  # AuditEvent (user.settings is encrypted), so this is a bound on the audit
+  # scan, NOT on how long an account stays due: an offboarding that ages past
+  # this window drops out of the sweep permanently. Widen it, or move discovery
+  # onto user state, before relying on the sweep as the sole retention control.
+  OFFBOARDING_SWEEP_LOOKBACK = 90.days
 
   def coppa_offboarding_export_due?
     c = self.settings && self.settings['coppa']
@@ -797,7 +814,16 @@ class User < ApplicationRecord
       )
       res = true
     end
-    devices.each(&:invalidate_cached_keys) if res
+    # invalidate_keys!, NOT invalidate_cached_keys -- the same reasoning the
+    # comment in revoke_parental_consent! spells out. A DECLINE withdraws
+    # consent, so it has to end access already granted; invalidate_cached_keys
+    # only drops the Redis `user_token/...` entries and leaves settings['keys']
+    # intact, so a token minted before the decline simply re-validates from the
+    # database and the child stays signed in through the 36-hour window. The
+    # sibling sites that deliberately keep the cache-only form all want fresh
+    # permissions WITHOUT logging the user out (grant, parent-email submit,
+    # family offboarding); decline is not one of them.
+    devices.each(&:invalidate_keys!) if res
     if res
       if offboarding
         schedule_offboarding_export_then_delete!(reason: 'declined')
@@ -814,14 +840,23 @@ class User < ApplicationRecord
   # Claims under lock (offboarding_export_started_at) before the expensive
   # Exporter.export_user call so concurrent workers/manual declines cannot
   # each generate a full export for the same user.
-  def schedule_offboarding_export_then_delete!(reason:)
+  def schedule_offboarding_export_then_delete!(reason: nil)
     claimed = false
+    claimed_at = nil
+    resolved_reason = reason
     self.with_lock(requires_new: true) do
       next unless coppa_offboarding_export_due?
+      # Derived INSIDE the lock, where with_lock has just reloaded the record. A
+      # reason resolved at discovery time can be minutes stale on a long sweep --
+      # a parent who declines while the sweep is running would be recorded as
+      # 'expired'. An explicit reason: argument still wins, because the
+      # interactive decline path knows something the record does not yet.
+      resolved_reason ||= offboarding_export_reason
       self.settings ||= {}
       c = self.settings['coppa']
       next unless c.is_a?(Hash)
-      c['offboarding_export_started_at'] = Time.now.utc.iso8601
+      claimed_at = Time.now.utc.iso8601
+      c['offboarding_export_started_at'] = claimed_at
       self.settings['coppa'] = c
       self.save!
       claimed = true
@@ -829,10 +864,38 @@ class User < ApplicationRecord
     return false unless claimed
 
     upload = nil
+    export_error_class = nil
     begin
       upload = Exporter.export_user(self.global_id)
     rescue StandardError => e
-      Rails.logger.error("[COPPA offboarding export] user=#{global_id} #{e.class}: #{e.message}")
+      # CLASS ONLY, never e.message, and the class is what gets persisted.
+      # Exporter builds its S3 key from user.user_name (lib/exporter.rb:94), so an
+      # upload failure's message can carry a student's username straight into an
+      # immutable AuditEvent. Truncating it is not sanitising it, and
+      # PiiScrubber does not redact usernames by design (see its scrub_log_line
+      # note) -- so the message must not be persisted at all. Same posture as
+      # AuditEvent.log_command's own fallback. The message still reaches the log,
+      # scrubbed, where retention is bounded and an operator needs the detail.
+      export_error_class = e.class.name
+      Rails.logger.error(
+        PiiScrubber.scrub_log_line("[COPPA offboarding export] user=#{global_id} #{e.class}: #{e.message}")
+      )
+    end
+
+    # A FAILED export must NOT schedule the deletion. The whole point of
+    # export-then-delete is that the family receives a copy before the account is
+    # destroyed; proceeding on a nil upload destroys the data and breaks that
+    # promise in one step, with a single Rails.logger.error line as the only
+    # trace. Release the claim instead and let the next sweep retry --
+    # coppa_offboarding_export_due? stays true because offboarding_export_scheduled_at
+    # is never written. A Hash without :path counts as failure for the same
+    # reason a raise does: there is nothing to hand the parent.
+    unless upload.is_a?(Hash) && upload[:path].present?
+      return release_offboarding_export_claim!(
+        reason: resolved_reason,
+        error_class: export_error_class,
+        claimed_at: claimed_at
+      )
     end
 
     scheduled = false
@@ -845,11 +908,10 @@ class User < ApplicationRecord
       next if c['offboarding_export_scheduled_at'].present?
       now = Time.now.utc.iso8601
       c['offboarding_export_scheduled_at'] = now
-      c['offboarding_export_reason'] = reason.to_s
+      c['offboarding_export_reason'] = resolved_reason.to_s
       c.delete('offboarding_export_started_at')
-      if upload.is_a?(Hash) && upload[:path].present?
-        c['offboarding_export_path'] = upload[:path]
-      end
+      # Guaranteed present: a missing path returned above.
+      c['offboarding_export_path'] = upload[:path]
       self.settings['coppa'] = c
       self.schedule_deletion_at = 36.hours.from_now
       self.save!
@@ -858,7 +920,7 @@ class User < ApplicationRecord
         user_key: self.global_id,
         data: {
           'type' => 'parental_consent_offboarding_export_scheduled',
-          'reason' => reason.to_s,
+          'reason' => resolved_reason.to_s,
           'export_path_present' => c['offboarding_export_path'].present?,
           'scheduled_deletion_at' => self.schedule_deletion_at&.iso8601,
           'record_id' => record_id
@@ -879,24 +941,115 @@ class User < ApplicationRecord
     scheduled
   end
 
-  # Daily sweep: offboarding COPPA pending past deadline / declined → export-then-delete.
-  # Candidate discovery via AuditEvent (user.settings is encrypted).
-  def self.process_expired_offboarding_consents!
-    return 0 unless JsonApi::Json.coppa_parental_consent_enabled?
-    count = 0
-    user_keys = AuditEvent.where(event_type: 'parental_consent_offboarding_started')
-      .where('created_at > ?', 90.days.ago)
+  # Undo the claim schedule_offboarding_export_then_delete! took, so the account
+  # is left exactly as it was and the next sweep can try again. Always returns
+  # false: callers treat the return as "was a deletion scheduled?", and it was not.
+  #
+  # This writes an AuditEvent rather than only logging, because a failed export
+  # for a child account is a compliance event -- the record of the ATTEMPT is
+  # what shows the export obligation was honoured even when the deletion did not
+  # proceed. A Rails.logger.error line is not a record anyone can produce later.
+  def release_offboarding_export_claim!(reason:, error_class: nil, claimed_at:)
+    released = false
+    self.with_lock(requires_new: true) do
+      self.settings ||= {}
+      c = self.settings['coppa']
+      next unless c.is_a?(Hash)
+      # Another finisher won the race and completed the export; leave it alone.
+      next if c['offboarding_export_scheduled_at'].present?
+      # Clear only the claim THIS attempt took. After OFFBOARDING_EXPORT_CLAIM_STALE
+      # a retry can write a replacement started_at; deleting blindly would drop
+      # that live claim and let a third sweep start another concurrent export.
+      next unless claimed_at.present? && c['offboarding_export_started_at'] == claimed_at
+      c.delete('offboarding_export_started_at')
+      self.settings['coppa'] = c
+      self.save!
+      released = true
+    end
+    # Only record a failure when this call actually released a claim. Taking the
+    # branch above means another finisher DID schedule the export, and writing
+    # deletion_scheduled: false then would put a row in the audit trail that
+    # contradicts what happened.
+    return false unless released
+
+    record_id = SecureRandom.uuid
+    begin
+      AuditEvent.create!(
+        user_key: self.global_id,
+        data: {
+          'type' => 'parental_consent_offboarding_export_failed',
+          'reason' => reason.to_s,
+          # Exception CLASS only. The message is deliberately absent: see the
+          # rescue in schedule_offboarding_export_then_delete! for why an
+          # exporter message cannot go into an immutable audit row.
+          'error_class' => error_class.presence,
+          'deletion_scheduled' => false,
+          'record_id' => record_id
+        },
+        event_type: 'parental_consent_offboarding_export_failed',
+        record_id: record_id
+      )
+    rescue StandardError => e
+      # Best-effort, matching AuditEvent.log_command's posture: a failed audit
+      # write must not turn a handled export failure into a 500 on the parent's
+      # decline page, or abort the rest of the sweep. create! is kept rather than
+      # log_command because that helper leaves event_type nil, and this row has to
+      # stay queryable by event_type for the compliance register.
+      Rails.logger.error("[COPPA offboarding export] audit write failed user=#{global_id} #{e.class}: #{e.message}")
+    end
+    false
+  end
+
+  # Yields each account the offboarding sweep WOULD act on, with no mutation.
+  #
+  # Split out of process_expired_offboarding_consents! so the worker's `report`
+  # (dry-run) mode answers "how many accounts would this delete?" using the exact
+  # same selection the real run uses. Two implementations of that question is how
+  # a dry run ends up reassuring you about a different set than the one that gets
+  # deleted. Discovery goes through AuditEvent because user.settings is encrypted
+  # and cannot be queried.
+  #
+  # STREAMS deliberately: it yields one User at a time rather than returning an
+  # Array. The premise of the whole feature is a large accumulated backlog, and
+  # every User here carries a decrypted settings blob, so materialising N of them
+  # in a worker is an OOM waiting to happen. Callers that need a summary should
+  # accumulate the few fields they want, not the records.
+  def self.each_expired_offboarding_consent_candidate
+    return to_enum(:each_expired_offboarding_consent_candidate) unless block_given?
+    return unless JsonApi::Json.coppa_parental_consent_enabled?
+    AuditEvent.where(event_type: 'parental_consent_offboarding_started')
+      .where('created_at > ?', OFFBOARDING_SWEEP_LOOKBACK.ago)
       .distinct
       .pluck(:user_key)
-    user_keys.each do |key|
-      user = User.find_by_global_id(key)
-      next unless user && user.coppa_offboarding_export_due?
-      reason = if user.settings.dig('coppa', 'parent_consent_declined_at').present?
-        'declined'
-      else
-        'expired'
+      .each do |key|
+        user = User.find_by_global_id(key)
+        next unless user && user.coppa_offboarding_export_due?
+        yield user
       end
-      count += 1 if user.schedule_offboarding_export_then_delete!(reason: reason)
+  end
+
+  # 'declined' when the parent actively refused, 'expired' when the deadline just
+  # passed. Recorded on the AuditEvent and chosen by the mailer, so the two stay
+  # distinguishable after the fact -- and read the same way by the dry run and
+  # the real run.
+  def offboarding_export_reason
+    (self.settings || {}).dig('coppa', 'parent_consent_declined_at').present? ? 'declined' : 'expired'
+  end
+
+  # Daily sweep: offboarding COPPA pending past deadline / declined → export-then-delete.
+  #
+  # The per-user rescue is not defensive padding. On the failure path every user
+  # writes an AuditEvent, so a single S3 outage sends the whole backlog down it;
+  # without this, one raise would abandon every remaining candidate silently and
+  # the run would look like it simply found fewer accounts.
+  def self.process_expired_offboarding_consents!
+    count = 0
+    each_expired_offboarding_consent_candidate do |user|
+      begin
+        count += 1 if user.schedule_offboarding_export_then_delete!
+      rescue StandardError => e
+        Rails.logger.error("[COPPA offboarding sweep] user=#{user.global_id} #{e.class}: #{e.message}")
+      end
     end
     count
   end
@@ -2360,10 +2513,11 @@ class User < ApplicationRecord
     params.delete('admin') if params.respond_to?(:delete)
     params.delete(:admin)  if params.respond_to?(:delete)
     self.settings ||= {}
-    if params['name']
-      cleaned_name = params['name'].to_s.gsub(/[\x00-\x1F\x7F]/, '').strip
+    if params.key?('name') || params.key?(:name)
+      raw_name = params['name'] || params[:name]
+      cleaned_name = raw_name.to_s.gsub(/[\x00-\x1F\x7F]/, '').strip
       cleaned_name = cleaned_name[0, 200]
-      self.settings['name'] = process_string(cleaned_name) if cleaned_name.present?
+      self.settings['name'] = cleaned_name.present? ? process_string(cleaned_name) : nil
     end
     ['description', 'details_url', 'location', 'cell_phone'].each do |arg|
       self.settings[arg] = process_string(params[arg]) if params[arg]
@@ -2418,23 +2572,17 @@ class User < ApplicationRecord
     # param being non-blank while the org/author validation ran later (see below), so
     # a present-but-invalid or unauthorized org id bypassed the COPPA gate AND recorded
     # nothing. Compute the validated result once and reuse it for both decisions.
-    org_authorized = false
-    authoring_org = nil
-    if !self.id && params['authored_organization_id'].present?
-      authoring_org = Organization.find_by_global_id(params['authored_organization_id'])
-      # NOTE: 'edit' is satisfied by assistant-level managers, not only full managers
-      # (Organization adds 'edit' for assistant? at organization.rb:43; 'manage' is the
-      # full-manager-only level at :44). This preserves the pre-existing authoring scope.
-      # Whether the school-official exception should be restricted to full managers, and
-      # gated on a signed-contract/DPA flag, is the Phase 1 decision (see
-      # outputs/plans/2026-06-19-org-coppa-bypass-fix-scope.md); do not silently change
-      # the scope here. Any code path that sets settings['school_authorization'] below
-      # must also emit the school_authorization AuditEvent (today the only creator path
-      # is api/users#create, which does).
-      if authoring_org && non_user_params[:author] && authoring_org.allows?(non_user_params[:author], 'edit')
-        org_authorized = true
-      end
-    end
+    # NOTE: 'edit' is satisfied by assistant-level managers, not only full managers
+    # (Organization adds 'edit' for assistant? at organization.rb:43; 'manage' is the
+    # full-manager-only level at :44). This preserves the pre-existing authoring scope.
+    # Whether the school-official exception should be restricted to full managers, and
+    # gated on a signed-contract/DPA flag, is the Phase 1 decision (see
+    # outputs/plans/2026-06-19-org-coppa-bypass-fix-scope.md); do not silently change
+    # the scope here. Any code path that sets settings['school_authorization'] below
+    # must also emit the school_authorization AuditEvent (today the only creator path
+    # is api/users#create, which does).
+    authoring_org = (!self.id ? User.validated_org_author(non_user_params[:author], params['authored_organization_id']) : nil)
+    org_authorized = !!authoring_org
     # Use !org_authorized (not authored_organization_id.blank?) so an empty string OR a
     # present-but-invalid/unauthorized org id both fall through to the COPPA gate.
     if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && !org_authorized
@@ -2583,6 +2731,10 @@ class User < ApplicationRecord
     # current password". Only an explicitly-absent (nil) value is a no-op.
     unless params['valet_login'].nil?
       if process_boolean(params['valet_login'])
+        if params['valet_password'].present? && !password_meets_minimum?(params['valet_password'])
+          add_processing_error("password too short")
+          return false
+        end
         self.set_valet_password(params['valet_password'])
         self.settings['valet_long_term'] = process_boolean(params['valet_long_term']) if params['valet_long_term'] != nil
         self.settings['valet_prevent_disable'] = process_boolean(params['valet_prevent_disable']) if params['valet_prevent_disable'] != nil
@@ -2950,6 +3102,10 @@ class User < ApplicationRecord
     self.settings['public'] = !!params['public'] if params['public'] != nil
     self.settings['admin'] = !!non_user_params['admin'] if non_user_params['admin'] != nil
     if params['password'] && params['password'] != ""
+      if !password_meets_minimum?(params['password'])
+        add_processing_error("password too short")
+        return false
+      end
       if !self.settings['password'] || valid_password?(params['old_password']) || non_user_params[:allow_password_change]
         @password_changed = !!self.settings['password']
         # Remember whether this was a self-service change (old password verified)

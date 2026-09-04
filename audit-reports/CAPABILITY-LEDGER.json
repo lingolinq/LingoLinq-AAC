@@ -48,7 +48,7 @@
       "antiClaim": "NOT mandatory; do not claim enforced MFA for all users or admins.",
       "currentEvidence": {
         "file": "app/models/concerns/passwords.rb",
-        "line": 95,
+        "line": 111,
         "snippet": "totp = ROTP::TOTP.new(secret, issuer: \"LingoLinq\")"
       },
       "frameworks": [
@@ -168,7 +168,7 @@
       "antiClaim": "There is no automatic time-based wipe (no 48h/180d purge); deletion is on request / policy-driven.",
       "currentEvidence": {
         "file": "lib/flusher.rb",
-        "line": 418,
+        "line": 451,
         "snippet": "def self.flush_user_completely(user_id, user_name)"
       },
       "frameworks": [

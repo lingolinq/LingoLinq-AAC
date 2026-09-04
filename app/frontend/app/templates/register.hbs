@@ -284,7 +284,7 @@
               {{else if this.noSpacesName}}
                 <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
               {{else if this.user.user_name_check.exists}}
-                <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+                <span class='text-danger'>{{t "%{user_name} already exists" key="user_name_already_exists" user_name=this.user.user_name}}</span>
               {{/if}}
             </div>
             <div class="form-group">
@@ -296,9 +296,9 @@
             </div>
             <div class="form-group">
               <label for="password_under_13">{{t "Password" key="password"}}</label>
-              <PasswordField @id="password_under_13" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 6 characters" key="at_least_6_characters"}} @autocomplete="new-password" />
+              <PasswordField @id="password_under_13" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 8 characters" key="at_least_8_characters"}} @autocomplete="new-password" />
               {{#if this.shortPassword}}
-                <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
+                <span class='text-danger'>{{t "password must be at least 8 characters" key="min_password_lower_8"}}</span>
               {{/if}}
             </div>
             {{#if this.start_code}}
@@ -435,7 +435,7 @@
               {{else if this.noSpacesName}}
                 <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
               {{else if this.user.user_name_check.exists}}
-                <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+                <span class='text-danger'>{{t "%{user_name} already exists" key="user_name_already_exists" user_name=this.user.user_name}}</span>
               {{/if}}
             </div>
             <div class="form-group">
@@ -447,9 +447,9 @@
             </div>
             <div class="form-group">
               <label for="password_email_step">{{t "Password" key="password"}}</label>
-              <PasswordField @id="password_email_step" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 6 characters" key="at_least_6_characters"}} @autocomplete="new-password" />
+              <PasswordField @id="password_email_step" @class="form-control" @value={{this.model.password}} @onChange={{set-value this "model.password"}} @placeholder={{t "at least 8 characters" key="at_least_8_characters"}} @autocomplete="new-password" />
               {{#if this.shortPassword}}
-                <span class='text-danger'>{{t "password must be at least 6 characters" key="min_password_lower"}}</span>
+                <span class='text-danger'>{{t "password must be at least 8 characters" key="min_password_lower_8"}}</span>
               {{/if}}
             </div>
             {{#if this.start_code}}

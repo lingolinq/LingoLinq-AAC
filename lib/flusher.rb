@@ -112,6 +112,10 @@ module Flusher
         UserBoardConnection.left_joins(:board, :user).where(users: { id: nil })
       )
 
+    # Per-user AAC vocabulary rows left behind when a user was hard-deleted
+    # before LL-e8614c103f added them to flush_user_content. Not paper-trailed.
+    prediction_entry_scope = PredictionEntry.left_joins(:user).where(users: { id: nil })
+
     # 7. paper trail versions whose item_type no longer maps to any model class
     #    (e.g. a renamed/removed legacy model). REPORT-ONLY, not deleted: per
     #    docs/legal/DATA_RETENTION.md:30, authentication/audit-trail paper_trail
@@ -155,6 +159,7 @@ module Flusher
     log_session_board_ids = log_session_board_scope.pluck(:id)
     progress_ids = progress_scope.pluck(:id)
     user_board_connection_ids = user_board_connection_scope.pluck(:id)
+    prediction_entry_ids = prediction_entry_scope.pluck(:id)
 
     planned_counts = {
       'board_button_images' => board_button_image_ids.length,
@@ -162,6 +167,7 @@ module Flusher
       'log_session_boards' => log_session_board_ids.length,
       'progresses' => progress_ids.length,
       'user_board_connections' => user_board_connection_ids.length,
+      'prediction_entries' => prediction_entry_ids.length,
       'versions_stale_type_detected_not_deleted' => stale_version_count
     }
 
@@ -186,6 +192,7 @@ module Flusher
       'log_session_boards' => delete_and_record_category('log_session_boards', LogSessionBoard, log_session_board_ids),
       'progresses' => delete_and_record_category('progresses', Progress, progress_ids),
       'user_board_connections' => delete_and_record_category('user_board_connections', UserBoardConnection, user_board_connection_ids),
+      'prediction_entries' => delete_and_record_category('prediction_entries', PredictionEntry, prediction_entry_ids),
       # not deleted, see note above -- carried through for visibility only.
       'versions_stale_type_detected_not_deleted' => stale_version_count
     }
@@ -354,10 +361,31 @@ module Flusher
     UserVideo.where(user_id: source.id).update_all(user_id: target.id)
     # Move org seats with the user so the seat is not orphaned on merge.
     License.where(user_id: source.id).update_all(user_id: target.id)
+    # Unique on (user_id, locale, prefix, next_word). Merge colliding
+    # scores into the target row, then move the rest. A blanket
+    # update_all + rescue nil used to abort the whole transfer on one
+    # collision; reset_eval then flushed the leftover source rows.
+    transfer_prediction_entries(source, target)
 
     #invalidate any caches
     source.touch
     target.touch
+  end
+
+  def self.transfer_prediction_entries(source, target)
+    PredictionEntry.where(user_id: source.id).find_each do |entry|
+      existing = PredictionEntry.find_by(
+        user_id: target.id,
+        locale: entry.locale,
+        prefix: entry.prefix,
+        next_word: entry.next_word
+      )
+      if existing
+        existing.update_columns(score: existing.score + entry.score, updated_at: Time.current)
+        entry.delete
+      end
+    end
+    PredictionEntry.where(user_id: source.id).update_all(user_id: target.id)
   end
 
   def self.flush_user_content(user_id, user_name, except_device=nil, except_org_links=false)
@@ -408,6 +436,11 @@ module Flusher
     # (LL-1e2ab28aab). No S3 objects; flush_record is enough.
     LogSnapshot.where(user_id: user.id).each do |snapshot|
       flush_record(snapshot)
+    end
+    # Per-user AAC prefix/next_word rows; no User association and no FK cascade
+    # (LL-e8614c103f). No S3 objects; flush_record is enough.
+    PredictionEntry.where(user_id: user.id).each do |entry|
+      flush_record(entry)
     end
     License.where(user_id: user.id).each do |lic|
       lic.update!(user_id: nil, granted_at: nil)

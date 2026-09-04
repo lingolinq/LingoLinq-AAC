@@ -1,6 +1,11 @@
 require 'spec_helper'
 
 describe 'User org offboarding parental consent', type: :model do
+  # BEFORE, not after. AuditEvent commits outside the RSpec transaction here, so an
+  # after(:each) delete_all can itself be rolled back while the inserts survive and
+  # leak into later files' unscoped AuditEvent.count assertions. Matches the
+  # convention in user_spec.rb.
+  before(:each) { AuditEvent.delete_all }
   after(:each) { AuditEvent.delete_all }
 
   before(:each) do
@@ -26,7 +31,7 @@ describe 'User org offboarding parental consent', type: :model do
     u = User.process_new({
       'user_name' => "school_#{suffix}_#{SecureRandom.hex(4)}",
       'email' => "school_#{suffix}_#{SecureRandom.hex(4)}@example.com",
-      'password' => 'abcdef',
+      'password' => 'abcdefgh',
       'terms_agree' => true
     })
     u.settings['school_authorization'] = {
@@ -44,7 +49,7 @@ describe 'User org offboarding parental consent', type: :model do
     u = User.process_new({
       'user_name' => "eu_off_#{suffix}_#{SecureRandom.hex(4)}",
       'email' => "eu_off_#{suffix}_#{SecureRandom.hex(4)}@example.com",
-      'password' => 'abcdef',
+      'password' => 'abcdefgh',
       'terms_agree' => true,
       'country' => 'DE',
       'under_16' => true
@@ -97,7 +102,7 @@ describe 'User org offboarding parental consent', type: :model do
       u = User.process_new({
         'user_name' => "adult_#{SecureRandom.hex(4)}",
         'email' => "adult_#{SecureRandom.hex(4)}@example.com",
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true
       })
       expect(u.requires_coppa_offboarding?(attested_under_13: false)).to eq(false)
@@ -244,7 +249,7 @@ describe 'User org offboarding parental consent', type: :model do
       u = User.process_new({
         'user_name' => "rev_#{SecureRandom.hex(4)}",
         'email' => "rev_#{SecureRandom.hex(4)}@example.com",
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'old_parent@example.com'
@@ -396,7 +401,7 @@ describe 'User org offboarding parental consent', type: :model do
       u = User.process_new({
         'name' => 'signup_decl_model',
         'email' => "signup_decl_model_#{SecureRandom.hex(4)}@example.com",
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'signup_decl_model_parent@example.com'
@@ -411,8 +416,9 @@ describe 'User org offboarding parental consent', type: :model do
       expect(u.schedule_deletion_at).to be_present
     end
 
-    it 'process_expired_offboarding_consents! schedules delete after deadline' do
-      u = school_authorized_user!(suffix: 'expdue')
+    # Deadline-expired offboarding, past due and ready for the sweep.
+    def deadline_expired_user!(suffix:)
+      u = school_authorized_user!(suffix: suffix)
       o = Organization.create(settings: {'total_licenses' => 1})
       b = under13_birth
       u.begin_family_offboarding_consents!(org: o, birth_month: b[:month], birth_year: b[:year])
@@ -421,12 +427,33 @@ describe 'User org offboarding parental consent', type: :model do
       c['offboarding_deadline_at'] = 1.day.ago.utc.iso8601
       u.settings['coppa'] = c
       u.save!
-      expect(Exporter).to receive(:export_user).with(u.global_id).and_return(nil)
+      u
+    end
+
+    it 'process_expired_offboarding_consents! schedules delete after deadline' do
+      u = deadline_expired_user!(suffix: 'expdue')
+      # This stub used to be `and_return(nil)` while still asserting the deletion
+      # WAS scheduled -- i.e. the spec pinned the behaviour where a failed export
+      # deletes the child's account anyway. That is the defect; the export now
+      # has to succeed for the deletion to be scheduled, so the happy path needs
+      # a real path. The failure case is the example below.
+      expect(Exporter).to receive(:export_user).with(u.global_id).and_return({path: 'downloads/users/expdue.zip'})
       expect(User.process_expired_offboarding_consents!).to be >= 1
       u.reload
       expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_present
       expect(u.settings['coppa']['offboarding_export_reason']).to eq('expired')
       expect(u.schedule_deletion_at).to be_present
+    end
+
+    it 'process_expired_offboarding_consents! does NOT schedule delete when the export fails' do
+      u = deadline_expired_user!(suffix: 'expfail')
+      expect(Exporter).to receive(:export_user).with(u.global_id).and_return(nil)
+      expect(User.process_expired_offboarding_consents!).to eq(0)
+      u.reload
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+      expect(u.schedule_deletion_at).to be_blank
+      # Still due, so the next sweep retries rather than losing the account.
+      expect(u.coppa_offboarding_export_due?).to eq(true)
     end
 
     it 'claims under lock so a concurrent schedule_offboarding_export_then_delete! does not re-export' do
@@ -462,6 +489,255 @@ describe 'User org offboarding parental consent', type: :model do
       u.reload
       expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_present
       expect(u.settings['coppa']['offboarding_export_started_at']).to be_nil
+    end
+  end
+
+  describe 'export failure must not schedule deletion' do
+    # An offboarding account that is DUE for export-then-delete: parent declined,
+    # so coppa_offboarding_export_due? is true without waiting on a deadline.
+    def due_offboarding_user!(suffix:)
+      u = school_authorized_user!(suffix: suffix)
+      o = Organization.create(settings: {'total_licenses' => 1})
+      b = under13_birth
+      u.begin_family_offboarding_consents!(
+        org: o,
+        parent_email: "export_#{suffix}@example.com",
+        birth_month: b[:month],
+        birth_year: b[:year]
+      )
+      u.reload
+      u.settings['coppa']['parent_consent_declined_at'] = Time.now.utc.iso8601
+      u.settings['coppa'] = u.settings['coppa']
+      u.save!
+      u.reload
+      u
+    end
+
+    it 'does not schedule deletion when the exporter raises' do
+      u = due_offboarding_user!(suffix: 'raise')
+      expect(Exporter).to receive(:export_user).and_raise(StandardError.new('S3 throttled'))
+      expect(UserMailer).not_to receive(:schedule_parent_consent_delivery)
+      expect(u.schedule_offboarding_export_then_delete!(reason: 'declined')).to eq(false)
+      u.reload
+      expect(u.schedule_deletion_at).to be_blank
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+    end
+
+    it 'does not schedule deletion when the exporter returns no path' do
+      u = due_offboarding_user!(suffix: 'nopath')
+      expect(Exporter).to receive(:export_user).and_return({})
+      expect(u.schedule_offboarding_export_then_delete!(reason: 'declined')).to eq(false)
+      u.reload
+      expect(u.schedule_deletion_at).to be_blank
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+    end
+
+    it 'releases the claim so the next sweep retries' do
+      u = due_offboarding_user!(suffix: 'retry')
+      expect(Exporter).to receive(:export_user).and_raise(StandardError.new('boom'))
+      u.schedule_offboarding_export_then_delete!(reason: 'declined')
+      u.reload
+      expect(u.settings['coppa']['offboarding_export_started_at']).to be_blank
+      expect(u.coppa_offboarding_export_due?).to eq(true)
+    end
+
+    it 'records an AuditEvent for the failed export' do
+      u = due_offboarding_user!(suffix: 'audit')
+      expect(Exporter).to receive(:export_user).and_raise(StandardError.new('S3 throttled'))
+      u.schedule_offboarding_export_then_delete!(reason: 'declined')
+      ev = AuditEvent.where(event_type: 'parental_consent_offboarding_export_failed', user_key: u.global_id).last
+      expect(ev).to be_present
+      expect(ev.data['deletion_scheduled']).to eq(false)
+      expect(ev.data['reason']).to eq('declined')
+      expect(ev.data['error_class']).to eq('StandardError')
+    end
+
+    it 'never persists the exporter MESSAGE into the audit row' do
+      u = due_offboarding_user!(suffix: 'noleak')
+      # Exporter builds its S3 key from user.user_name, so a real upload failure's
+      # message can carry a student's username. The audit row is immutable, so the
+      # message must not reach it -- only the exception class.
+      expect(Exporter).to receive(:export_user)
+        .and_raise(StandardError.new("upload failed for downloads/users/#{u.user_name}/export.zip"))
+      u.schedule_offboarding_export_then_delete!(reason: 'declined')
+      ev = AuditEvent.where(event_type: 'parental_consent_offboarding_export_failed', user_key: u.global_id).last
+      expect(ev).to be_present
+      expect(ev.data.to_json).not_to include(u.user_name)
+      expect(ev.data.to_json).not_to include('upload failed')
+      expect(ev.data['error_class']).to eq('StandardError')
+    end
+
+    it 'does not clear a newer export claim when a stale attempt later fails' do
+      u = due_offboarding_user!(suffix: 'staleclaim')
+      newer = nil
+      expect(Exporter).to receive(:export_user) do
+        # A retry acquired a replacement claim after this attempt went stale.
+        other = User.find_by_global_id(u.global_id)
+        c = other.settings['coppa']
+        newer = (Time.now.utc + 1.hour).iso8601
+        c['offboarding_export_started_at'] = newer
+        other.settings['coppa'] = c
+        other.save!
+        raise StandardError, 'stale attempt failed'
+      end
+      u.schedule_offboarding_export_then_delete!(reason: 'declined')
+      u.reload
+      expect(u.settings['coppa']['offboarding_export_started_at']).to eq(newer)
+      expect(u.coppa_offboarding_export_due?).to eq(false)
+    end
+
+    it 'does not write a failure row when another finisher already scheduled the export' do
+      u = due_offboarding_user!(suffix: 'raced')
+      # Block only -- `and_raise` combined with a block makes the block dead code,
+      # so the simulated race would never actually happen.
+      expect(Exporter).to receive(:export_user) do
+        # The winning finisher lands while this one is still exporting.
+        other = User.find_by_global_id(u.global_id)
+        c = other.settings['coppa']
+        c['offboarding_export_scheduled_at'] = Time.now.utc.iso8601
+        other.settings['coppa'] = c
+        other.save!
+        raise StandardError, 'boom'
+      end
+      u.schedule_offboarding_export_then_delete!(reason: 'declined')
+      expect(AuditEvent.where(event_type: 'parental_consent_offboarding_export_failed', user_key: u.global_id).count).to eq(0)
+    end
+
+    it 'still schedules deletion when the export succeeds' do
+      u = due_offboarding_user!(suffix: 'ok')
+      expect(Exporter).to receive(:export_user).and_return({path: 'downloads/users/ok.zip'})
+      allow(UserMailer).to receive(:schedule_parent_consent_delivery)
+      expect(u.schedule_offboarding_export_then_delete!(reason: 'declined')).to eq(true)
+      u.reload
+      expect(u.schedule_deletion_at).to be_present
+      expect(u.settings['coppa']['offboarding_export_path']).to eq('downloads/users/ok.zip')
+    end
+  end
+
+  describe 'decline revokes access already granted' do
+    it 'clears persisted device keys, not just the Redis cache' do
+      u = User.process_new({
+        'name' => 'decline_tokens',
+        'email' => "decline_tokens_#{SecureRandom.hex(4)}@example.com",
+        'password' => 'abcdefgh',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'decline_tokens_parent@example.com'
+      }, {:pending => true})
+      d = Device.create(user: u, device_key: 'default', developer_key_id: 0)
+      d.generate_token!
+      d.reload
+      expect(d.settings['keys']).not_to be_empty
+
+      minted = d.settings['keys'].first['value']
+      expect(d.valid_token?(minted)).to eq(true)
+
+      tok = u.settings['coppa']['parent_consent_token']
+      expect(u.decline_parental_consent!(tok, ip: '1.2.3.4', user_agent: 'spec')).to eq(true)
+
+      d.reload
+      expect(d.settings['keys']).to eq([])
+      # The token captured BEFORE the decline. The earlier version of this asserted
+      # valid_token?(d.settings['keys'].first) AFTER keys was emptied, i.e.
+      # valid_token?(nil), which is false for any device and proved nothing.
+      expect(d.valid_token?(minted)).to eq(false)
+    end
+  end
+
+  # The dry run exists so the affected count can be trusted BEFORE anyone enables an
+  # irreversible backlog sweep. That makes the correctness of this selection the whole
+  # value of the feature, so it is covered against a real database rather than doubles.
+  describe '.each_expired_offboarding_consent_candidate' do
+    def offboarding_user!(suffix:, declined:)
+      u = school_authorized_user!(suffix: suffix)
+      o = Organization.create(settings: {'total_licenses' => 1})
+      b = under13_birth
+      u.begin_family_offboarding_consents!(
+        org: o, parent_email: "cand_#{suffix}@example.com",
+        birth_month: b[:month], birth_year: b[:year]
+      )
+      u.reload
+      if declined
+        c = u.settings['coppa']
+        c['parent_consent_declined_at'] = Time.now.utc.iso8601
+        u.settings['coppa'] = c
+        u.save!
+        u.reload
+      end
+      u
+    end
+
+    def candidate_ids
+      User.each_expired_offboarding_consent_candidate.map(&:global_id)
+    end
+
+    it 'yields accounts that are due and omits ones that are not' do
+      due = offboarding_user!(suffix: 'cdue', declined: true)
+      not_due = offboarding_user!(suffix: 'cnotdue', declined: false)
+      expect(not_due.coppa_offboarding_export_due?).to eq(false)
+      ids = candidate_ids
+      expect(ids).to include(due.global_id)
+      expect(ids).not_to include(not_due.global_id)
+    end
+
+    it 'omits an account whose started event has aged past the lookback window' do
+      aged = offboarding_user!(suffix: 'caged', declined: true)
+      expect(candidate_ids).to include(aged.global_id)
+      AuditEvent.where(event_type: 'parental_consent_offboarding_started', user_key: aged.global_id)
+        .update_all(created_at: (User::OFFBOARDING_SWEEP_LOOKBACK + 1.day).ago)
+      # Still due by its own state -- discovery is what drops it. This is the
+      # orphaning window called out on the OFFBOARDING_SWEEP_LOOKBACK constant.
+      expect(aged.reload.coppa_offboarding_export_due?).to eq(true)
+      expect(candidate_ids).not_to include(aged.global_id)
+    end
+
+    it 'yields nothing when COPPA parental consent is disabled' do
+      offboarding_user!(suffix: 'cflag', declined: true)
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(false)
+      expect(candidate_ids).to eq([])
+    end
+
+    it 'reports the same reason the sweep would record' do
+      declined = offboarding_user!(suffix: 'creason', declined: true)
+      expect(declined.offboarding_export_reason).to eq('declined')
+    end
+
+    it 'streams rather than materialising the whole backlog' do
+      expect(User.each_expired_offboarding_consent_candidate).to be_a(Enumerator)
+    end
+  end
+
+  describe 'worker report mode against real records' do
+    around(:each) do |example|
+      prior = ENV['COPPA_OFFBOARDING_SWEEP_ENABLED']
+      ENV['COPPA_OFFBOARDING_SWEEP_ENABLED'] = 'report'
+      example.run
+      prior.nil? ? ENV.delete('COPPA_OFFBOARDING_SWEEP_ENABLED') : ENV['COPPA_OFFBOARDING_SWEEP_ENABLED'] = prior
+    end
+
+    it 'finds the due account but mutates nothing' do
+      u = school_authorized_user!(suffix: 'repint')
+      o = Organization.create(settings: {'total_licenses' => 1})
+      b = under13_birth
+      u.begin_family_offboarding_consents!(
+        org: o, parent_email: 'repint@example.com',
+        birth_month: b[:month], birth_year: b[:year]
+      )
+      u.reload
+      c = u.settings['coppa']
+      c['parent_consent_declined_at'] = Time.now.utc.iso8601
+      u.settings['coppa'] = c
+      u.save!
+
+      expect(Exporter).not_to receive(:export_user)
+      allow(Rails.logger).to receive(:info)
+      expect(Rails.logger).to receive(:info).with(/mode=report would sweep user_global_id=#{u.global_id} reason=declined/)
+      expect(OffboardingCoppaExpirationWorker.perform).to eq(0)
+
+      u.reload
+      expect(u.schedule_deletion_at).to be_blank
+      expect(u.settings['coppa']['offboarding_export_scheduled_at']).to be_blank
+      expect(u.settings['coppa']['offboarding_export_started_at']).to be_blank
     end
   end
 end

@@ -1,5 +1,21 @@
 module Passwords
   extend ActiveSupport::Concern
+
+  # NIST SP 800-63B minimum. Enforced on user-supplied writes (process_params,
+  # valet enable, eval-reset password). generate_password itself does NOT
+  # reject short strings: it is also the login rehash path, and existing
+  # accounts may still have 6-character passwords (LL-5617f4e17d).
+  MIN_PASSWORD_LENGTH = 8
+  HASHED_PASSWORD = /\Ahashed\?:\#/.freeze
+
+  def password_meets_minimum?(password)
+    return true if password.blank?
+    # Client-supplied prehashes cannot prove the original password met
+    # MIN_PASSWORD_LENGTH (SHA-512 hex is always long). Login rehash does
+    # not use this method (valid_password? -> generate_password).
+    return false if password.to_s.match?(HASHED_PASSWORD)
+    password.to_s.length >= MIN_PASSWORD_LENGTH
+  end
   
   def generate_password_reset
     clean_password_resets

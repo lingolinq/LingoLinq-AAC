@@ -53,7 +53,13 @@ file (see [README.md](README.md)).
 - [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
 - [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
 - [Gotcha: public COPPA signup is classified from birth month/year, not the client flag](#gotcha-public-coppa-signup-is-classified-from-birth-monthyear-not-the-client-flag)
+- [Gotcha: the COPPA birth-data gate must use the same org-author predicate as process_params](#gotcha-the-coppa-birth-data-gate-must-use-the-same-org-author-predicate-as-process_params)
+- [Gotcha: SHA-512 prehashes are always long — reject the hashed prefix on write](#gotcha-sha-512-prehashes-are-always-long--reject-the-hashed-prefix-on-write)
+- [Gotcha: unique-index `update_all` plus `rescue nil` drops the whole transfer](#gotcha-unique-index-update_all-plus-rescue-nil-drops-the-whole-transfer)
+- [Gotcha: create-board label caches are keyed by label text, not locale](#gotcha-create-board-label-caches-are-keyed-by-label-text-not-locale)
 - [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
+- [Gotcha: an export-claim release must match the stamp this attempt wrote](#gotcha-an-export-claim-release-must-match-the-stamp-this-attempt-wrote)
+- [Gotcha: decline page state on revisit must re-read scheduled_at, not only declined_at](#gotcha-decline-page-state-on-revisit-must-re-read-scheduled_at-not-only-declined_at)
 - [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
 - [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
 - [Gotcha: a status-block lead must not over-claim "remaining" or "historical"](#gotcha-a-status-block-lead-must-not-over-claim-remaining-or-historical)
@@ -217,7 +223,9 @@ file (see [README.md](README.md)).
 - [Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller](#pattern-a-body-attribute-published-by-a-self-contained-component-is-the-cross-component-channel--observe-it-dont-widen-a-shared-controller)
 - [Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it](#pattern-a-mobile-select-standing-in-for-a-desktop-tab-row-must-mirror-it-optgroup-not-flatten-it)
 - [Sourcing external requirements (payer/clinical/legal) — 2026-08-25](#sourcing-external-requirements-payerclinicallegal--2026-08-25)
+- [Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there](#gotcha-generate_password-is-also-the-login-rehash-path--do-not-length-check-plaintext-there)
 - [Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam](#gotcha-a-new-scannerfind_elem-call-in-start-must-be-guarded--the-specs-stub-that-seam)
+- [Gotcha: modal scanning needs both `.modal_targets .btn` markup AND `scannable: true`](#gotcha-modal-scanning-needs-both-modal_targets-btn-markup-and-scannable-true)
 - [Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell](#pattern-loading-states-for-an-aac-prediction-panel--never-blank-delay-the-cue-dim-dont-spin-and-dont-swap-under-a-dwell)
 - [Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL](#pattern-to-line-a-sibling-up-with-the-board-grid-mirror-its-origin-margin--padding-not-just-its-height--and-remember-a-card-does-not-fill-its-cell)
 - [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
@@ -9229,7 +9237,7 @@ When `useAppNavbarInHeader` is true (dashboard, org, most user routes), `applica
 
 ## Gotcha: Flusher `transfer_user_content` is not a checklist for `flush_user_content`
 
-Merge reassignment (`transfer_user_content`) and hard-delete (`flush_user_content`) diverge. Models present only in transfer — historically `UserVideo`, `ButtonSound`, `ButtonImage` — will survive account erasure unless flush also sweeps them by `user_id`. Board flush only destroys media when join-table `full_flush` conditions hold, so off-board / message-bank `ButtonSound` rows are invisible to that path. Prefer explicit `Model.where(user_id:).each { flush_record }` over relying on `User` associations (`dependent: :destroy` is often missing). `flush_record` → `destroy` is what schedules Uploadable S3 `remote_remove`. Same class of gap later hit `LogSnapshot` (no transfer entry either — keyed by `user_id`, no FK cascade, no S3; LL-1e2ab28aab / issue #775). Ref: [`2026-07-31-flush-uservideo-buttonsound-erasure.md`](./2026-07-31-flush-uservideo-buttonsound-erasure.md) (LL-854b1d3853), [`2026-08-10-flusher-log-snapshot-sweep.md`](./2026-08-10-flusher-log-snapshot-sweep.md).
+Merge reassignment (`transfer_user_content`) and hard-delete (`flush_user_content`) diverge. Models present only in transfer — historically `UserVideo`, `ButtonSound`, `ButtonImage` — will survive account erasure unless flush also sweeps them by `user_id`. Board flush only destroys media when join-table `full_flush` conditions hold, so off-board / message-bank `ButtonSound` rows are invisible to that path. Prefer explicit `Model.where(user_id:).each { flush_record }` over relying on `User` associations (`dependent: :destroy` is often missing). `flush_record` → `destroy` is what schedules Uploadable S3 `remote_remove`. Same class of gap later hit `LogSnapshot` (no transfer entry either — keyed by `user_id`, no FK cascade, no S3; LL-1e2ab28aab / issue #775) and `PredictionEntry` (AAC prefix/next_word; absent from both flush and transfer until LL-e8614c103f). New per-user tables must be added to **both** lists, plus `flush_leftovers` if rows can already exist for deleted users. Ref: [`2026-07-31-flush-uservideo-buttonsound-erasure.md`](./2026-07-31-flush-uservideo-buttonsound-erasure.md) (LL-854b1d3853), [`2026-08-10-flusher-log-snapshot-sweep.md`](./2026-08-10-flusher-log-snapshot-sweep.md).
 
 ## Gotcha: stubbing `Uploader.remote_remove` still needs uploads-bucket URL shapes
 
@@ -16084,6 +16092,30 @@ written and deliberately NOT committed — an unwired util is dead code. It is p
 
 ---
 
+## Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there
+
+`Passwords#generate_password` is called from `valid_password?` after a successful login to
+re-hash outdated or newly-prehashed credentials (`passwords.rb` ~266-271). A length check
+inside `generate_password` would 500 existing 6-character accounts on login. Enforce NIST 8
+on user-supplied writes only (`process_params`, valet enable, eval-reset) and skip already
+`hashed?:#` values. Existing short passwords keep working until the user changes them.
+Specs that *write* a password through those user-supplied paths still need 8+ characters
+(`bacon`, `chicken`, `gemini` are all too short and fail as `"password too short"`).
+The Ember register gate (`emailStepSignupDisabled` at `register.js:351`) is the same:
+`secret6` is 7 characters and leaves the submit button disabled.
+
+**First seen in:** [2026-08-31-findings-triage-queue.md](./2026-08-31-findings-triage-queue.md) (LL-5617f4e17d)
+
+## Gotcha: modal scanning needs both `.modal_targets .btn` markup AND `scannable: true`
+
+The scanner selector is `.modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, ...`
+(`services/modal.js` / `utils/modal.js`). `scanner.start` only runs when that query is non-empty
+AND `modal.open` was called with `{ scannable: true }`. Markup alone is not enough; the flag
+alone is not enough. `ai-disclosure.hbs` is the working reference. Opening a second modal in the
+same `setupController` run loop (`intro` after `terms-agree`) replaces the first before it mounts.
+
+**First seen in:** [2026-08-31-findings-triage-queue.md](./2026-08-31-findings-triage-queue.md) (LL-104bfa61dc, LL-53cb93fab1)
+
 ## Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam
 
 **Surface:** adding any new selector lookup to `scanner.start()` (here, scanning the board-detail
@@ -16541,6 +16573,47 @@ stub objects (weakest -- patches one symptom of an unbounded global mutation).
 
 **First seen in:** PR #888 CI, 2026-08-30/31.
 
+
+## Gotcha: a spec can PIN the defect, so the red test is the fix working
+
+`spec/models/user_org_offboarding_consent_spec.rb` "process_expired_offboarding_consents!
+schedules delete after deadline" stubbed `Exporter.export_user` to return **`nil`** and
+then asserted `schedule_deletion_at` **was** present. That is the defect written down as
+a requirement: a failed export deletes the child's account anyway. Fixing the code turned
+the spec red, and the spec looked like the authority.
+
+Before "fixing" a newly red test, read what it ASSERTS, not just that it broke. If the
+assertion encodes the behaviour you were sent to remove, the spec is the thing to change,
+and the change needs a comment saying so or the next person will revert it. Split it
+rather than editing in place: one example for the happy path, one that pins the new
+refusal, so the corrected expectation cannot quietly regress back.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md)
+
+## Gotcha: `user_spec` needs a CLEAN test DB — orphan rows fake 14 failures
+
+`spec/models/user_spec.rb` has blocks that assert on UNSCOPED global counts
+(`expect(AuditEvent.count).to eq(0)`, `expect(Board.count).to eq(4)`) with no
+`before(:each) { AuditEvent.delete_all }` of their own — `add_premium_voice`,
+`track_protected_source` and `copy_board_links` are the three. Any row left in
+`lingolinq-test` by an earlier run makes all 14 fail, identically, standalone, in a way
+that looks exactly like a regression in whatever you just changed.
+
+Confirm before believing it:
+
+```bash
+DB_USER=scotw RAILS_ENV=test bundle exec rails runner \
+  'puts "AuditEvent=#{AuditEvent.count} Board=#{Board.count} User=#{User.count}"'
+```
+
+Non-zero on a supposedly idle DB is your answer (5/1/1 in the observed case). Clean with
+`AuditEvent.delete_all; Board.delete_all; User.delete_all` and re-run: 405 examples,
+0 failures. AuditEvent commits outside the RSpec transaction, so an `after(:each)`
+cleanup can be rolled back while the inserts survive — which is why the repo's own
+convention is `before(:each) { AuditEvent.delete_all }`, not after.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md)
+
 ## Gotcha: public COPPA signup is classified from birth month/year, not the client flag
 
 `User.process_params` treats a classifiable `birth_month` / `birth_year` as authoritative for the under-13 gate (`User.age_under_threshold?`, age 13). The Ember `coppa_under_13` flag is only a fallback when birth is missing (org New User, fixtures). Unauthenticated `POST /api/v1/users` requires birth when COPPA is on. Google register start accepts birth only on POST (`post auth/google/start`); GET register start ignores query birth so DOB is not in history, proxy logs, or the Google referrer. Complete raises `coppa_age`. Do not put the optional signup name on `/auth/google/start` as `&name=` — send `signup_name` on the complete POST.
@@ -16677,3 +16750,52 @@ whether raising the timeout is honest (a real per-click cost that predates your 
 cover-up (your code hanging). Here it was the former — the app's IndexedDB layer boots
 during the run — so the budget was raised on the ONE test that needs three clicks, with the
 measurement recorded in the file, and no assertion was weakened.
+## Gotcha: classic `observer()` fires SYNCHRONOUSLY here — a test that sets a flag and then "consumes" it by hand double-consumes
+
+`config/environment.js` does not set `_DEFAULT_ASYNC_OBSERVERS`, so on Ember 5.12 a classic `observer('appState.flag', ...)` runs inside the `set()` call that flips the flag. In a unit test with a live component instance, `appState.set('auto_open_home_tour', true)` had already been consumed by the component's watcher by the time the test called the consume helper explicitly; the helper then ran without a signal and scheduled anyway, and the "stale signal is dropped" case reported `runs: 1`. It read like a code bug. It was the test. Two rules: (1) when a test needs a signal to survive until a SPECIFIC reader sees it, park every live watcher first (here: `component.set('speakHost', true)`, whose watcher returns before consuming) or destroy the instance; (2) prefer exercising the real reader (`factoryFor(...).create({ _runAutoOpen: counter })` runs `init` with the override already in place) over calling the helper by hand. Corollary for the app code: a flag raised by one writer is consumed by the FIRST live watcher in the same call stack, so "the next instance's init will pick it up" is only true when no live instance is watching.
+
+Teardown timing that the same branch had to get right: `willDestroy` is a NON-eager destructor (`@ember/object/core.js:205`), so `component.destroy()` returns before it runs; a test must await a tick before asserting anything `willDestroy` wrote. Observers, by contrast, are deactivated by an EAGER destructor before `willDestroy`, so a `willDestroy` that writes to a service cannot re-trigger the dying instance's own watcher.
+
+**First seen in:** [2026-09-02_art50-notice-vs-guided-tour.md](./2026-09-02_art50-notice-vs-guided-tour.md) (PR #920).
+
+## Pattern: falsify by IN-PLACE mutation, not by reverting the whole file
+
+"7 of 8 fail on the pre-fix file" sounded like strong evidence and was mostly noise: with the fix reverted the method the tests stubbed did not exist, so the stub was inert and the counter stayed 0, and one case failed by THROWING on a destroyed component rather than by asserting. Mutating the fix in place (force the hold predicate false; delete the re-arm hook; delete the expiry check; drop the handoff) gave a per-mutation kill list where each mutation reddened exactly the cases that pin it. Report that list, not the revert count. Restore from a copy you saved, `cmp` it, never `git checkout`.
+
+**First seen in:** [2026-09-02_art50-notice-vs-guided-tour.md](./2026-09-02_art50-notice-vs-guided-tour.md) (PR #920, adversary finding A6).
+
+## Gotcha: an export-claim release must match the stamp this attempt wrote
+
+`offboarding_export_started_at` is a lease, not a mutex bit. After `OFFBOARDING_EXPORT_CLAIM_STALE` a retry overwrites it. If the original attempt later fails and deletes whichever stamp is stored, it clears the retry's live claim and a third sweep can start another concurrent export. Carry the claimed ISO8601 into `release_offboarding_export_claim!` and delete only on equality.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md) (PR #903).
+
+## Gotcha: decline page state on revisit must re-read scheduled_at, not only declined_at
+
+A successful offboarding decline whose export failed still writes `parent_consent_declined_at`. The first POST can render `:declined_export_pending` from `decline_outcome_state`, but a later GET/POST that keys only on `declined_at` shows `:already_declined` and tells the parent the account is scheduled for export and deletion. For declined offboarding, keep `:declined_export_pending` until `offboarding_export_scheduled_at` is present.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md) (PR #903).
+
+## Gotcha: the COPPA birth-data gate must use the same org-author predicate as process_params
+
+`@api_user.nil?` is the wrong skip. Any logged-in creator then omits birth, `age_under_threshold?` returns nil, and classification falls back to the client `coppa_under_13` flag. Share `User.validated_org_author(author, organization_id)` between `api/users#create` and `process_params`.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: SHA-512 prehashes are always long — reject the hashed prefix on write
+
+`password_meets_minimum?` returning true for `HASHED_PASSWORD` (or checking `length >= 8` on the hash string) does not enforce the original password length. A client can POST `hashed?:#sha512?:#` plus the digest of `"x"`. Login rehash does not call this method (`valid_password?` → `generate_password`). Reject prehashes on write; send plaintext from eval reset.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: unique-index `update_all` plus `rescue nil` drops the whole transfer
+
+`PredictionEntry` is unique on `(user_id, locale, prefix, next_word)`. One collision aborts the bulk `update_all`. `rescue nil` then looks like success, and a later `reset_eval` flush deletes the leftover source rows. Merge colliding scores, then move the rest.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: create-board label caches are keyed by label text, not locale
+
+`_label_english`, `_board_name_english`, `_label_colors`, and `_label_images` key only on the label string. Changing `model.locale` (supervisee switch or locale picker) without clearing them reuses the previous source language. Clear on 2-letter-root change and ignore in-flight writes from the old generation.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).

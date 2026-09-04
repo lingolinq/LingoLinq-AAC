@@ -502,4 +502,49 @@ describe Passwords, :type => :model do
     end
   end
 
+  describe "password_meets_minimum?" do
+    it "should reject plaintext shorter than NIST 8" do
+      u = User.new
+      expect(u.password_meets_minimum?("a")).to eq(false)
+      expect(u.password_meets_minimum?("1234567")).to eq(false)
+      expect(u.password_meets_minimum?("12345678")).to eq(true)
+    end
+
+    it "should reject client-supplied prehashes so a short password cannot skip the minimum" do
+      u = User.new
+      expect(u.password_meets_minimum?("hashed?:#sha512?:#abc")).to eq(false)
+      hashed_short = u.pre_hashed_password("x")
+      expect(hashed_short).to match(/\Ahashed\?:#/)
+      expect(u.password_meets_minimum?(hashed_short)).to eq(false)
+    end
+  end
+
+  describe "process_params password length" do
+    it "should reject a short password on write" do
+      u = User.create
+      expect(u.process_params({'password' => '1234567'}, {})).to eq(false)
+      expect(u.processing_errors).to include("password too short")
+    end
+
+    it "should reject a client-supplied hash of a short password on write" do
+      u = User.create
+      hashed = u.pre_hashed_password("x")
+      expect(u.process_params({'password' => hashed}, {:allow_password_change => true})).to eq(false)
+      expect(u.processing_errors).to include("password too short")
+    end
+
+    it "should accept an 8-character password" do
+      u = User.create
+      expect(u.process_params({'password' => '12345678'}, {:allow_password_change => true})).to eq(true)
+      expect(u.valid_password?('12345678')).to eq(true)
+    end
+
+    it "should still authenticate an existing short password (login rehash)" do
+      u = User.create
+      u.generate_password("bacon")
+      u.save
+      expect(u.reload.valid_password?("bacon")).to eq(true)
+    end
+  end
+
 end
