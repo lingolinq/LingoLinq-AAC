@@ -96487,8 +96487,9 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 /* ──────────────────────────────────────────────────────────────────
    Universal modal styling — applies to every modal in the app.
    Each per-modal rule above can still customize its inner content,
-   but these globals enforce a consistent 28px header/footer vertical
-   padding and the brand three-stop gradient skin on a light surface.
+   but these globals enforce a consistent 14px header/footer vertical
+   padding (reduced from 28px on 2026-09-03 to buy back vertical space in
+   every modal) and the brand three-stop gradient skin on a light surface.
    Defined at the very end of the file so source-order beats the
    per-modal `.la-*-wrap > .modal-header` rules at the same
    specificity (0,2,0).
@@ -96500,8 +96501,8 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 .modal .md-modal-header,
 .modal .md-getting-started-modal__header,
 .modal .la-modal-header {
-  padding-top: 28px;
-  padding-bottom: 28px;
+  padding-top: 14px;
+  padding-bottom: 14px;
   background: linear-gradient(135deg, rgba($brand-verdigris, 0.08), rgba($brand-dusty-denim, 0.08), rgba(123, 107, 173, 0.05)), $surface-100;
 }
 .modal-content > .modal-footer,
@@ -96516,8 +96517,8 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
 .modal .la-record-note-modal-footer,
 .modal .la-sync-details-modal-footer,
 .modal .la-valet-modal-footer {
-  padding-top: 28px;
-  padding-bottom: 28px;
+  padding-top: 14px;
+  padding-bottom: 14px;
   background: linear-gradient(135deg, rgba($brand-verdigris, 0.08), rgba($brand-dusty-denim, 0.08), rgba(123, 107, 173, 0.05)), $surface-100;
 }
 
@@ -96536,17 +96537,28 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
    Still opt-in: ~100 modal templates share the base classes, and only a template that
    asks for these modifiers gets them. Currently components/switch-communicators.hbs.
 
-   Note the base padding inside a modal is 28px (the cluster above), not the 32px on
+   Note the base padding inside a modal is 14px (the cluster above), not the 32px on
    the unscoped `.md-modal-header` rule — the earlier comments here cited the wrong
-   baseline because they were written against the unscoped rule. */
+   baseline because they were written against the unscoped rule.
+
+   The header variant now matches the 14px base exactly (2026-09-03): it was 16px,
+   which after the base dropped from 28px to 14px was LOOSER than the baseline it was
+   written to tighten. It is kept rather than deleted so the three modifiers stay a set
+   and a template asking for `--tight` keeps working. The footer variant (4px) is still
+   genuinely tighter than the base. */
 .modal .md-modal-header--tight {
-  padding-top: 16px;
-  padding-bottom: 16px;
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 /* The body variant needs no `.modal` scope to win (there is no `.modal .md-modal-body`
-   rule), but is kept with its siblings so the three are read and changed together. */
+   rule), but is kept with its siblings so the three are read and changed together.
+   24px top and bottom (2026-09-03). `padding-bottom` is set explicitly because the base
+   `.md-modal-body` is the shorthand `padding: 8px 24px 28px` (app.scss:87153) — without
+   it the body kept a 28px floor under a 24px ceiling. Side padding still comes from that
+   shorthand and is deliberately untouched. */
 .modal .md-modal-body--balanced {
-  padding-top: 28px;
+  padding-top: 24px;
+  padding-bottom: 24px;
 }
 .modal .md-modal-footer--tight {
   padding-top: 4px;
