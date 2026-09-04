@@ -63,6 +63,13 @@ export default AuthenticatedView.extend({
         self.send.apply(self, [actionName].concat(args));
       };
     };
+    // The <=550px tab dropdown needs the CHANGE EVENT's value, and `ctrlAction` above
+    // strips the event before dispatching -- so this one is wired directly rather than
+    // through it.
+    this.handleTabSelect = function(event) {
+      var v = event && event.target && event.target.value;
+      if(v) { self.send('set_index_nav', v); }
+    };
   },
 
   // The parent defines `update_selected` and `checkForBlankSlate` as OBSERVERS
@@ -100,6 +107,19 @@ export default AuthenticatedView.extend({
   // silently replaced by that empty record and the rail would render a blank name.
   classicUser: computed('appState.currentUser', function() {
     return this.appState.get('currentUser');
+  }),
+
+  // The active tab as a plain string, for the <=550px <select>. `index_nav` is a hash
+  // ({main: true}, {boards: true}, ...) and can also hold values the tab strip has no
+  // button for -- 'supervisors' (authenticated-view.js:883, :1711) and 'logging' (:1718).
+  // Falling through to 'main' for those mirrors the strip exactly, whose Actions button
+  // is styled active via `{{unless (or supervisees boards updates)}}`.
+  currentTab: computed('index_nav', function() {
+    var nav = this.get('index_nav') || {};
+    if(nav.supervisees) { return 'supervisees'; }
+    if(nav.boards) { return 'boards'; }
+    if(nav.updates) { return 'updates'; }
+    return 'main';
   }),
 
   // Which supervisee's action menu is open, by id. One at a time — opening a

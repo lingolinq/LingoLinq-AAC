@@ -340,6 +340,33 @@
       {{/unless}}
     </nav>
 
+    {{!-- Same four destinations as the tab strip above, as a native <select> for
+         <=550px, where four tabs no longer fit on one row. Both are in the DOM at every
+         width and _classic-home.scss swaps which one is shown.
+
+         A NATIVE select, not a custom menu: it gets the platform picker, keyboard
+         support and screen-reader semantics for free, on a page whose users include
+         switch-scanning and eye-gaze users. The `{{#unless}}` / `{{#if}}` gates are
+         copied verbatim from the strip so the two can never offer different options. --}}
+    <select class="ch-tabselect" aria-label={{t "Dashboard sections" key="classic_dashboard_sections"}} {{on "change" this.handleTabSelect}}>
+      <option value="main" selected={{is-equal this.currentTab "main"}}>{{t "Actions" key="actions"}}</option>
+      {{#unless this.app_state.currentUser.modeling_only}}
+        {{#if this.app_state.currentUser.supporter_role}}
+          <option value="supervisees" selected={{is-equal this.currentTab "supervisees"}}>{{t "Communicators" key="communicators"}}</option>
+        {{/if}}
+      {{/unless}}
+      <option value="boards" selected={{is-equal this.currentTab "boards"}}>{{t "Boards" key="boards"}}</option>
+      {{#unless this.app_state.currentUser.modeling_only}}
+        <option value="updates" selected={{is-equal this.currentTab "updates"}}>
+          {{~#if this.pending_updates.count~}}
+            {{t "Updates (%{n})" key="classic_tab_updates_n" n=this.pending_updates.count}}
+          {{~else~}}
+            {{t "Updates" key="updates"}}
+          {{~/if~}}
+        </option>
+      {{/unless}}
+    </select>
+
     {{!-- ── COMMUNICATORS ── People I Supervise --}}
     {{#if this.index_nav.supervisees}}
       <div class="ch-tabpanel" role="tabpanel">
