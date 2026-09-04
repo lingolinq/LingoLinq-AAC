@@ -573,25 +573,24 @@ class Api::BoardsController < ApplicationController
     unless FeatureFlags.ai_feature_enabled_for?('ai_board_generation', @api_user)
       return api_error(403, { error: 'Feature not available' })
     end
-    # EU AI Act Article 50(1) server-side backstop (Phase 3 Plan 03-04, T-03-04-01):
-    # a client that skips the ai-disclosure modal and calls this endpoint directly
-    # must still be refused. The feature-flag check comes FIRST and is load-bearing
-    # (T-03-04-02): 'article_50_disclosure' is not in AVAILABLE_FRONTEND_FEATURES on
-    # this branch (Phase 5 / RLL-01 owns that registration), so feature_enabled_for?
-    # returns false and this guard is inert until the 2026-08-02 enable gate.
-    # Shipping an active backstop before the modal is enabled would lock EU and
-    # unknown-jurisdiction users out of board generation with no way to unblock
-    # themselves. Gates on EuJurisdiction.disclosure_required? (D-04, true for :eu
-    # AND :unknown), never the retention-column jurisdiction stamp. Reads
-    # server-side state only (@api_user.article_50_disclosure_shown?), never a
-    # request field (T-03-04-06), and uses a distinct error code from the AI
-    # feature-flag refusal above so the client and the register can tell the two
-    # apart.
-    if FeatureFlags.feature_enabled_for?('article_50_disclosure', @api_user) &&
-       EuJurisdiction.disclosure_required?(@api_user) &&
-       !@api_user.article_50_disclosure_shown?
-      return api_error(403, { error: 'article_50_disclosure_required' })
-    end
+    # EU AI Act Article 50(1) server-side backstop (Phase 3 Plan 03-04, T-03-04-01;
+    # shared helper LL-6723438462): a client that skips the ai-disclosure modal and
+    # calls this endpoint directly must still be refused. The feature-flag check
+    # inside the helper is load-bearing (T-03-04-02). NOTE: 'article_50_disclosure'
+    # is registered AVAILABLE-only in lib/feature_flags.rb, but that describes CODE,
+    # not production. Production serves it from the default_enabled_features DB
+    # Setting, which overrides the code constant, and a direct read on 2026-08-23
+    # found the flag ENABLED for all 34 then-existing accounts. So this guard is
+    # LIVE in production, not inert. Two limits, per the sibling comment: an org's
+    # settings['enabled_features'] wins over the default row even when empty, so a
+    # district override can put this guard back to inert for that org's users; and
+    # the 2026-08-23 figure is a dated snapshot, not a guarantee that every future
+    # user or org inherits it. An earlier version of this comment said it was
+    # "inert until the flag is enabled"; that was true of the code and false of the
+    # running system. See docs/legal/2026-08-23_article-50-production-flag-verification.md
+    # and application_controller.rb#article_50_disclosure_missing? for the same note.
+    return unless require_article_50_disclosure!
+
     processed_params, json_body_source = board_json_body_params_source
     if json_body_source == :invalid_json_root
       return api_error(400, { error: 'JSON body must be an object' })
@@ -672,12 +671,35 @@ class Api::BoardsController < ApplicationController
         # User doesn't exist (might be deleted) - return error instead of silently defaulting
         return api_error(400, {error: "User not found", for_user_id: board_params['for_user_id']})
       end
-      return unless allowed?(user, 'edit')
+      # A supervise-only supervisor may COPY a board for a communicatee — that is
+      # how the board-picker home-board flow works (models/board.js create_copy
+      # posts create with parent_board_id + for_user_id) — but may NOT author a
+      # brand-new board owned by them. Keyed on parent_board_id because that is
+      # exactly what separates the two; without it the allowance would cover any
+      # board, any time, which is far broader than the picker needs.
+      #
+      # `allows?` is the PURE predicate. `allowed?` renders a 400 as a side
+      # effect before returning false, so an `allowed?(a) || allowed?(b)` chain
+      # renders on the first failure whatever the second says — which then
+      # double-renders (500) both when the second check passes and when it
+      # doesn't. Exactly one `allowed?` call may appear in this expression.
+      #
+      # Pass scopes explicitly: a bare `allows?` falls back to the RAW
+      # user.permission_scopes (permissable.rb:72), skipping the normalization
+      # api_permission_scopes does — blank (integration / dev-key devices) and a
+      # legacy lone '*' both become 'full', and without that neither intersects
+      # the 'full' supervision rules require, denying legitimate supervisors.
+      supervise_copy = board_params['parent_board_id'].present? &&
+                       user.allows?(@api_user, 'supervise', api_permission_scopes)
+      return unless supervise_copy || allowed?(user, 'edit')
       @board_user = user
     end
     if FeatureFlags.feature_enabled_for?('english_first_board_generation', @api_user)
       locale = board_params['locale'].to_s
       translations = board_params['translations']
+      # Create-board-new sends both locales in translations when the user
+      # authored in a non-English language. Keep that locale. Only rewrite
+      # to English when the payload has no translations (legacy clients).
       if locale.present? && !locale.match?(/^en/i) && translations.blank?
         board_params['locale'] = 'en'
       end

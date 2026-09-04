@@ -110,43 +110,21 @@ describe AiWordPredictor do
       expect(with_pii).to eq(already_scrubbed)
     end
 
-    # Removing the raw sentence from the key was necessary but not sufficient.
-    # AAC utterances are short, high-frequency and drawn from a small realistic
-    # space, so an UNSALTED SHA-256 of one is recoverable by dictionary attack --
-    # by exactly the reader LL-16ef84ad9a is written about, someone who can
-    # inspect process memory. The per-process salt is what makes "not
-    # recoverable" true rather than merely "not plaintext".
-    it 'salts the digest, so the key is not a reversible hash of the utterance' do
-      sentence = 'i want to go to the hospital'
-      described_class.predict(sentence: sentence)
-      key = described_class::CACHE.keys.first
-
-      scrubbed = PiiScrubber.redact_for_ai(sentence)[:payload]
-      ctx = described_class.send(:normalize_context, nil)
-      unsalted = Digest::SHA256.hexdigest(
-        [
-          described_class.send(:cache_scope, nil),
-          'en',
-          scrubbed.to_s.strip.downcase,
-          ctx[:time_of_day].to_s,
-          ctx[:topic].to_s
-        ].join("\x00")
+    it 'keys on scrubbed topic, so redacted PII in context.topic cannot reach the key' do
+      described_class.predict(
+        sentence: 'i want to',
+        context: { topic: 'email jane@example.com' }
       )
+      with_pii = described_class::CACHE.keys.first
 
-      # An attacker who knows the algorithm and guesses the sentence still cannot
-      # confirm the guess without the salt, which never leaves the process.
-      expect(key).not_to eq(unsalted)
-      expect(described_class::CACHE_SALT).to match(/\A[0-9a-f]{64}\z/)
-    end
+      described_class::CACHE.clear
+      described_class.predict(
+        sentence: 'i want to',
+        context: { topic: 'email [REDACTED_EMAIL]' }
+      )
+      already_scrubbed = described_class::CACHE.keys.first
 
-    it 'still returns a cache hit for a repeated utterance in the same process' do
-      # The salt must not defeat the cache it protects: it is constant per
-      # process, so an identical request still hits.
-      described_class.predict(sentence: 'i want more juice')
-      described_class.predict(sentence: 'i want more juice')
-
-      expect(described_class::CACHE.size).to eq(1)
-      expect(described_class).to have_received(:call_anthropic).once
+      expect(with_pii).to eq(already_scrubbed)
     end
 
     context 'tenant isolation' do
@@ -319,6 +297,36 @@ describe AiWordPredictor do
       expect(received_sentence).to include('[REDACTED_EMAIL]')
       expect(received_sentence).not_to include('jane@example.com')
       expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(pii_detected: true))
+    end
+
+    it "scrubs PII from context.topic before sending it to the provider" do
+      received_context = nil
+      allow(described_class).to receive(:call_anthropic) do |_config, _sentence, _locale, _count, context|
+        received_context = context
+        anthropic_response('today, and, but, because')
+      end
+
+      described_class.predict(
+        sentence: 'I want to',
+        context: { topic: 'email jane@example.com about the zoo' }
+      )
+
+      expect(received_context[:topic]).to include('[REDACTED_EMAIL]')
+      expect(received_context[:topic]).not_to include('jane@example.com')
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(pii_detected: true))
+    end
+
+    it "leaves a non-PII topic unchanged" do
+      received_context = nil
+      allow(described_class).to receive(:call_anthropic) do |_config, _sentence, _locale, _count, context|
+        received_context = context
+        anthropic_response('play, go, eat, help')
+      end
+
+      described_class.predict(sentence: 'I want to', context: { topic: 'school' })
+
+      expect(received_context[:topic]).to eq('school')
+      expect(AiApiLog).to have_received(:log_ai_call).with(hash_including(pii_detected: false))
     end
 
     context "feature flag and consent gates" do

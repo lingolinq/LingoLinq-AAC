@@ -5,8 +5,19 @@ procedure for the **production cutover** (tracker Phase 5), built on top of the 
 steps already shipped in `scripts/gcp/PHASE4-CUTOVER-DATA-RUNBOOK.md` (S1 setval + S2 secret
 preservation).
 
-> **Status (2026-07-15): the GCP stack is stood up and healthy on CURRENT `main`; the
-> irreversible cutover actions remain gated on Scot's explicit go.** The clean-DB rehearsal ran
+> **Status: the DNS cutover is DONE** (cut 2026-07-22, re-verified 2026-08-09), **and prod
+> holds no real users yet.** Both points are detailed further down this block. The remaining
+> infrastructure/decommission actions still gated (not yet run) are Cloud Run ingress, the
+> Cloud Armor preview-to-enforce flip, and Render decommission. Those are not the full
+> launch-gate list; credential rotation, Cloud SQL deletion protection, and the unchecked
+> pre-cutover checklist items remain open later in this block. After the snapshot paragraph,
+> the 2026-08-09 no-users status, the launch-gate checklist, and the still-gated actions
+> are current.
+>
+> The remainder of this paragraph is the 2026-07-15 pre-cutover snapshot, kept for history.
+> Read it as a record of what was true then, not as open work. At that point the GCP stack was stood up and
+> healthy on CURRENT `main` and the irreversible cutover actions remained gated on Scot's
+> explicit go. The clean-DB rehearsal ran
 > and passed (schema load + seed + Redis-TLS handshake, 2026-06-29; five-path smoke re-run
 > 2026-07-02/04 - see the checklist), and a fresh deploy from current `main` (image `f7e89fe2d`,
 > the Dockerfile npm-pin fix #594) redeployed `lingolinq-web` + `lingolinq-worker` and re-ran the
@@ -15,12 +26,49 @@ preservation).
 > hits the DB and returns 200), worker pool Ready. The external HTTPS LB + Cloud Armor front end
 > **is built and provisioned in preview** (step 8): LB IP `136.68.41.122`, policy `lingolinq-armor`
 > with WAF rules 1001-1004 (`deny 403`) + rate-limit 2000 all in `preview=true` (log-only, not
-> enforcing), verified live 2026-07-15. **What is still gated and has NOT run:** pointing real DNS
-> traffic at that LB / the ingress lockdown (only after the LB path is validated against live DNS),
-> the DNS cut (step 9), the WAF **enforce** flip (9c), and the Render decommission (9b). Those are
-> the HIPAA-relevant, hard-to-reverse actions; nothing in that set runs before sign-off, and the
-> hard constraints (no DNS, no Cloud Armor enforce, no ingress lockdown, no Render/SES changes)
-> stay in force until explicitly lifted.
+> enforcing), verified live 2026-07-15. **THE DNS CUT HAS HAPPENED (step 9 is DONE).** Verified
+> 2026-08-09: `app.lingolinq.com` resolves to `136.68.41.122` (the `lingolinq-https-fr` forwarding
+> rule) and `/api/v1/health` returns 200 through the LB. Step 9 and the "NXDOMAIN / create the
+> record" instructions below are historical, not to-do. The body at line ~634 records the cutover
+> itself as 2026-07-22; 2026-08-09 is only the date this was re-verified.
+>
+> **PROD HAS NO REAL USERS YET (Scot, 2026-08-09).** DNS being cut does not mean launched. The
+> LB path serves and `app.lingolinq.com` is live, but the only accounts on it are internal and
+> test. The other statements throughout this file that prod holds no real user data are CORRECT;
+> an earlier version of this block said "real district traffic is on GCP", which was inferred
+> from DNS resolving plus a 200 health check and was wrong. Prod is the environment that WILL
+> hold real districts; it does not yet, and it will not while migration issues are being worked.
+>
+> **What that buys, and what it does not.** It means the residual risks below are operational,
+> not FERPA/HIPAA incidents, and it makes this the cheapest possible window to exercise anything
+> risky, including the first run of the automated deploy pipeline. It does NOT make any of them
+> permanently acceptable. Everything in the next block is a hard gate on onboarding the first
+> real district, not a nice-to-have:
+>
+> - [ ] Rotate `lingolinq_admin` off the deliberately simple password. Its stated justification
+>       ("no real user data") expires the moment a real district exists, and the account will
+>       outlive the justification unless this is done deliberately.
+> - [ ] Ingress lockdown (`--ingress=internal-and-cloud-load-balancing`). Until then the
+>       `run.app` URL and any revision tag bypass the LB and Cloud Armor entirely. Read the
+>       coupling note in `scripts/gcp/phase5-frontend-lb.sh` first: it breaks the deploy
+>       pipeline's health probe.
+> - [ ] WAF enforce flip (9c). Rules 1001-1004 and 2000 are still `preview=true` / log-only.
+> - [ ] Cloud SQL `deletionProtection` on, and a pre-migration backup step in the deploy path.
+> - [ ] The unchecked `- [ ]` boxes in the pre-cutover checklist near the end of this file
+>       (DNS TTL lowered, operator quiet window, external writers enumerated and pause-tested,
+>       client 503 re-queue confirmed). The cut having happened does NOT mean those were all
+>       satisfied first; the checklist boxes remain authoritative.
+>
+> Treat that list as the launch gate. Once a real district is onboarded, every item on it turns
+> from an operational nicety into a Tier 1 compliance obligation.
+>
+> **What is still gated and has NOT run:** the ingress lockdown (the web service is still
+> `--ingress=all`, so the `run.app` URL bypasses the LB and Cloud Armor entirely), the WAF
+> **enforce** flip (9c), and the Render decommission (9b). Those remain the HIPAA-relevant,
+> hard-to-reverse actions; nothing in that set runs before sign-off, and those constraints (no
+> Cloud Armor enforce, no ingress lockdown, no Render/SES changes) stay in force until explicitly
+> lifted. Before the ingress lockdown specifically, read the coupling note at the LOCKDOWN GATE in
+> `scripts/gcp/phase5-frontend-lb.sh`: it breaks the deploy pipeline's health probe.
 
 > **Finding references in this runbook.** `audit-reports/FINDINGS.json` is the single source of
 > truth for the status of any `LL-*` finding. Notes below are dated, historical, and may cite a
@@ -419,7 +467,8 @@ reconciliation.
 Restore the dump whole into `lingolinq_production` on `lingolinq-prod-pg` (private IP
 `10.160.0.3`). Reconcile row counts, extensions, and schema against the baseline. The migrate Job
 later applies only **incremental** `db:migrate` on top; it never runs `db:prepare` (which could
-load `schema.rb` and drop tables; see `deploy-cloudrun.yml:118-124`).
+load `schema.rb` and drop tables; see the "Strictly incremental" comment on the
+"Run database migration (Cloud Run Job)" step in `deploy-cloudrun.yml`).
 
 ### 4. S1 - reset and verify sequences  (built, #424)
 
@@ -473,7 +522,12 @@ script, and is NOT in the deploy workflow `BOOT_SECRETS`. Decide before cutover:
 > workflow no-ops while `vars.GCP_PROJECT_ID` is empty, so dispatching first just no-ops. Steps 6
 > and 7 were swapped in the first draft; this is the corrected order.
 
-The deploy workflow no-ops while `vars.GCP_PROJECT_ID` is empty (`deploy-cloudrun.yml:65-71`).
+The deploy workflow no-ops while `vars.GCP_PROJECT_ID` is empty (the `guard` job, "Check
+migration readiness", in `deploy-cloudrun.yml`).
+Note: once PR #758 reaches `main`, a push to `main` also CREATES a production deployment
+automatically, which proceeds after a reviewer approves it in the `production` environment. A
+release merge into `main` is therefore itself a production deploy, and `gh workflow run` below
+becomes the manual redeploy path rather than the only path.
 "Un-inert" = set the deferred repo variables (Settings > Secrets and variables > Actions >
 Variables). Three are already set (`GCP_REGION=us-central1`, `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`,
 per tracker 1.10). Set the remaining four:
@@ -531,9 +585,19 @@ Then, BEFORE any DNS change:
 The web service currently serves on its `--allow-unauthenticated` `run.app` URL. The Option B LB +
 Cloud Armor path below **is already built and provisioned** (LB IP `136.68.41.122`, policy
 `lingolinq-armor`, WAF rules 1001-1004 + rate-limit 2000 all in `preview=true` / log-only, verified
-live 2026-07-15). What has NOT happened: no real DNS traffic points at the LB yet, ingress is not
-locked down, and the WAF is not enforcing - those remain gated (see the DNS cut in step 9, the
-ingress lockdown, and the enforce flip in step 9c).
+live 2026-07-15). **DNS IS CUT OVER.** Verified 2026-08-09: `app.lingolinq.com` resolves to
+`136.68.41.122` (the `lingolinq-https-fr` forwarding rule) and `/api/v1/health` returns 200
+through the LB. An earlier version of this paragraph said "no real DNS traffic points at the LB
+yet", which was true when written and is now false. Note what this does and does not establish:
+the LB path serves. It does NOT mean prod is launched. Prod has no real users yet (Scot,
+2026-08-09); see the Status block at the top for the gate list that must close before the first
+real district is onboarded. What genuinely remains gated: the ingress lockdown (the web service is still `--ingress=all`, so the
+`run.app` URL bypasses the LB and Cloud Armor entirely) and the WAF enforce flip (rules 1001-1004
+and 2000 are still `preview=true` / log-only). See the ingress lockdown and the enforce flip in
+step 9c.
+
+Before running the ingress lockdown, read the coupling note added at the LOCKDOWN GATE in
+`scripts/gcp/phase5-frontend-lb.sh`: it breaks the deploy pipeline's health probe.
 
 **DECISION (Scot, 2026-06-23): Option B - external HTTPS Load Balancer + Cloud Armor in front of
 Cloud Run, gated on building and smoke-testing the full LB + Cloud Armor path in the dress

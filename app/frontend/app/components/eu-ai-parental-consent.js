@@ -3,13 +3,11 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modal from '../utils/modal';
 import persistence from '../utils/persistence';
-
-var FEATURE_KEYS = [
-  'ai_board_generation',
-  'ai_word_prediction',
-  'ai_board_suggestions',
-  'ai_symbol_search'
-];
+import {
+  defaultRequestedFeatures,
+  consentPayload,
+  anyFeatureSelected as anySelected
+} from '../utils/eu_ai_consent';
 
 export default Component.extend({
   modal: service('modal'),
@@ -47,20 +45,7 @@ export default Component.extend({
     this.onClosing = function() { self.send('closing'); };
 
     var triggered = this.get('model.triggeredPref') || 'ai_features_enabled';
-    var features = {
-      ai_board_generation: false,
-      ai_word_prediction: false,
-      ai_board_suggestions: false,
-      ai_symbol_search: false
-    };
-    if(triggered === 'ai_features_enabled') {
-      FEATURE_KEYS.forEach(function(k) { features[k] = true; });
-    } else if(FEATURE_KEYS.indexOf(triggered) !== -1) {
-      features[triggered] = true;
-    } else {
-      FEATURE_KEYS.forEach(function(k) { features[k] = true; });
-    }
-    this.set('requested_features', features);
+    this.set('requested_features', defaultRequestedFeatures(triggered));
     this.set('parent_email', (this.get('model.parentEmail') || '').trim());
     this.set('email_missing', false);
     this.set('features_missing', false);
@@ -81,8 +66,7 @@ export default Component.extend({
     'requested_features.ai_board_suggestions',
     'requested_features.ai_symbol_search',
     function() {
-      var f = this.get('requested_features') || {};
-      return FEATURE_KEYS.some(function(k) { return !!f[k]; });
+      return anySelected(this.get('requested_features'));
     }
   ),
 
@@ -101,10 +85,7 @@ export default Component.extend({
       this.set('send_error', false);
       if(!email || !this.get('anyFeatureSelected')) { return; }
 
-      var payload = { ai_features_enabled: true };
-      FEATURE_KEYS.forEach(function(k) {
-        payload[k] = !!features[k];
-      });
+      var payload = consentPayload(features);
 
       var user = this.get('model.user');
       if(!user || !user.get('id')) {

@@ -110,7 +110,7 @@ describe UserMailer, :type => :mailer do
       u = User.process_new({
         'name' => 'mail_kid',
         'email' => 'kid_m@example.com',
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'parent_m@example.com'
@@ -121,6 +121,67 @@ describe UserMailer, :type => :mailer do
       expect(m.subject).to eq(I18n.t('parental_consent_mailer.subject', app_name: 'LingoLinq'))
       html = message_body(m, :html)
       expect(html).to match(/parental_consent\/complete/)
+      expect(html).to include(I18n.t('parental_consent_mailer.decline_prompt'))
+      expect(html).not_to include('prepare an export')
+    end
+
+    # The reason JsonApi::Json.absolute_host exists. Mail is delivered from a
+    # Resque worker, which has no request, so current_host falls back to
+    # ENV['DEFAULT_HOST'] -- a BARE host by design (.env.example documents it as
+    # "www.lingolinq.com"). Built as "#{current_host}/path" that reaches the
+    # parent as href="www.lingolinq.com/parental_consent/complete?...", which a
+    # mail client resolves against its own base and cannot follow -- breaking the
+    # only route to activating a child's account.
+    #
+    # Asserted on the RENDERED href rather than on the helper, so this fails if
+    # any of the three links regresses to current_host, independently of the
+    # unit coverage in spec/lib/json_api/absolute_host_spec.rb. The `not_to
+    # match` guards are the load-bearing half: a substring check for
+    # "parental_consent/complete" passes just as happily on a relative URL.
+    it "builds parent-facing links as ABSOLUTE urls when there is no request host" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      expect(JsonApi::Json).to receive(:current_host).at_least(:once).and_return('www.lingolinq.com')
+      u = User.process_new({
+        'name' => 'mail_abs_kid',
+        'email' => 'kid_abs@example.com',
+        'password' => 'abcdefgh',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_abs@example.com'
+      }, {:pending => true})
+      m = UserMailer.parental_consent_request(u.global_id)
+      [message_body(m, :html), message_body(m, :text)].each do |body|
+        expect(body).to match(%r{https://www\.lingolinq\.com/parental_consent/complete})
+        expect(body).to match(%r{https://www\.lingolinq\.com/parental_consent/decline})
+        expect(body).to match(%r{https://www\.lingolinq\.com/privacy})
+        # No bare-host occurrence anywhere: that is what a reverted call site
+        # would produce, and it is invisible to a plain substring assertion.
+        expect(body).to_not match(%r{(?<!//)www\.lingolinq\.com})
+      end
+    end
+
+    it "uses offboarding decline copy that mentions export when coppa.offboarding is set" do
+      allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
+      JsonApi::Json.load_domain('test.host')
+      u = User.process_new({
+        'name' => 'mail_off_kid',
+        'email' => 'kid_off_m@example.com',
+        'password' => 'abcdefgh',
+        'terms_agree' => true,
+        'coppa_under_13' => true,
+        'parent_consent_email' => 'parent_off_m@example.com'
+      }, {:pending => true})
+      c = u.settings['coppa']
+      c['offboarding'] = true
+      u.settings['coppa'] = c
+      u.save!
+      m = UserMailer.parental_consent_request(u.global_id)
+      html = message_body(m, :html)
+      text = message_body(m, :text)
+      expect(html).to include(I18n.t('parental_consent_mailer.offboarding_decline_prompt'))
+      expect(text).to include(I18n.t('parental_consent_mailer.offboarding_decline_prompt'))
+      expect(html).not_to include(I18n.t('parental_consent_mailer.decline_prompt'))
     end
 
     it "uses admin-edited i18n overrides in the email body" do
@@ -134,7 +195,7 @@ describe UserMailer, :type => :mailer do
       u = User.process_new({
         'name' => 'mail_kid2',
         'email' => 'kid_m2@example.com',
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'parent_m2@example.com'
@@ -153,7 +214,7 @@ describe UserMailer, :type => :mailer do
       u = User.process_new({
         'name' => 'mail_kid3',
         'email' => 'kid_m3@example.com',
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'parent_m3@example.com'
@@ -177,7 +238,7 @@ describe UserMailer, :type => :mailer do
       u = User.process_new({
         'name' => 'mail_kid_confirm',
         'email' => 'kid_confirm@example.com',
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'parent_confirm@example.com'
@@ -199,7 +260,7 @@ describe UserMailer, :type => :mailer do
       u = User.process_new({
         'name' => 'mail_kid_revoked',
         'email' => 'kid_revoked@example.com',
-        'password' => 'abcdef',
+        'password' => 'abcdefgh',
         'terms_agree' => true,
         'coppa_under_13' => true,
         'parent_consent_email' => 'parent_revoked@example.com'

@@ -20,22 +20,101 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`](#gotcha-merging-two-overlay-prs-is-a-union-of-tests-then-regenerate-eslint-todo)
+- [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
+- [Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`](#pattern-spanish-long-press-defaults-use-spanish_verb_grid-not-english--s-ed-ing)
+- [Gotcha: Spanish pronoun lookup must register subject keys before slot values](#gotcha-spanish-pronoun-lookup-must-register-subject-keys-before-slot-values)
+- [Pattern: Spanish inflections sidebar board uses `:es-*` actions, not translated English suffixes](#pattern-spanish-inflections-sidebar-board-uses-es--actions-not-translated-english-suffixes)
+- [Pattern: bilingual library boards store dest hashes with translate_set default false](#pattern-bilingual-library-boards-store-dest-hashes-with-translate_set-default-false)
+- [Pattern: user create boards author in the communicator language, look up symbols in English](#pattern-user-create-boards-author-in-the-communicator-language-look-up-symbols-in-english)
+- [Gotcha: assigning `persistence.ajax = fn` does not stub the Ember helper — use `stub()`](#gotcha-assigning-persistenceajax--fn-does-not-stub-the-ember-helper--use-stub)
+- [Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one](#gotcha-source_part_of_speech-is-not-a-locale--process_buttons-500s-if-treated-as-one)
+- [Gotcha: rake dest locale must not use raw ENV LANG](#gotcha-rake-dest-locale-must-not-use-raw-env-lang)
+- [Gotcha: dotenv leaves op:// refs in ENV — present? is not injected](#gotcha-dotenv-leaves-op-refs-in-env--present-is-not-injected)
+- [Gotcha: library translate must walk load_board links, not only downstream_board_ids](#gotcha-library-translate-must-walk-load_board-links-not-only-downstream_board_ids)
+- [Gotcha: spelling-key letters must not go to Google](#gotcha-spelling-key-letters-must-not-go-to-google)
+- [Gotcha: Google Translate maps AAC "who" to OMS, not quién](#gotcha-google-translate-maps-aac-who-to-oms-not-quién)
+- [Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep](#gotcha-the-boot-skeleton-is-ll-skel-progress-not-ll-premium-progress--and-a-shared-component-fix-has-no-siblings-left-to-sweep)
+- [Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`](#pattern-the-board-tile-board_action-is-a-contextual-remove-not-a-delete-button--gate-on-remove_type)
+- [Gotcha: the two categorised board variants do NOT space their categories the same way — one is ring-compensated, one is not](#gotcha-the-two-categorised-board-variants-do-not-space-their-categories-the-same-way--one-is-ring-compensated-one-is-not)
+- [Pattern: board categories are decided by COLOUR before part_of_speech — a label rule must only DOWNGRADE one verdict, never run ahead of colour](#pattern-board-categories-are-decided-by-colour-before-part_of_speech--a-label-rule-must-only-downgrade-one-verdict-never-run-ahead-of-colour)
+- [Gotcha: a layout SEARCH carries its own model of the renderer — change the renderer and the scorer silently starts optimising for a board that no longer exists](#gotcha-a-layout-search-carries-its-own-model-of-the-renderer--change-the-renderer-and-the-scorer-silently-starts-optimising-for-a-board-that-no-longer-exists)
+- [Gotcha: `label_fit` cannot fit a ONE-line box — `scrollHeight` counts the label's padding and the line budget does not](#gotcha-label_fit-cannot-fit-a-one-line-box--scrollheight-counts-the-labels-padding-and-the-line-budget-does-not)
+- [Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing](#gotcha-a-hard-coded-forcegroupingtrue-makes-a-preview-lie-about-the-preference-it-is-previewing)
+- [Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes](#gotcha-single-quoted-i18n-defaults-never-reach-the-locale-files--and-a-ui-control-is-only-fixed-when-the-payload-changes)
+- [Gotcha: a locale value without a leading `*** ` is treated as already translated](#gotcha-a-locale-value-without-a-leading---is-treated-as-already-translated)
+- [Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`](#gotcha-extrasjs-wraps-string-ajax-bodies-as-text-meta--html-fetchers-must-unwrap-text)
+- [Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it](#gotcha-melissas-render-api-key-is-lingolinq-prod-and-creating-a-one-off-job-starts-it)
+- [Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures](#gotcha-_missing-from-uploaderdefault_images-is-not-authoritative--it-hides-transient-api-failures)
+- [Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions](#gotcha-settingsswapped_library-is-a-provisioning-idempotency-key--wrong-in-both-directions)
+- [Pattern: collect `swap_images` lookup words with the same skip predicates as the button loop](#pattern-collect-swap_images-lookup-words-with-the-same-skip-predicates-as-the-button-loop)
+- [Gotcha: inserting at the top of an Ember `actions` hash shifts grandfathered eslint-todo lines](#gotcha-inserting-at-the-top-of-an-ember-actions-hash-shifts-grandfathered-eslint-todo-lines)
+- [Gotcha: Hydra `search_many` must classify and retry like `search_result`](#gotcha-hydra-search_many-must-classify-and-retry-like-search_result)
+- [Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised](#gotcha-save_subtly-used-to-leave-papertrail-off-if-save-raised)
+- [Technique: one control run on base does not prove a flake — re-run the identical tree](#technique-one-control-run-on-base-does-not-prove-a-flake--re-run-the-identical-tree)
+- [Gotcha: public COPPA signup is classified from birth month/year, not the client flag](#gotcha-public-coppa-signup-is-classified-from-birth-monthyear-not-the-client-flag)
+- [Gotcha: the COPPA birth-data gate must use the same org-author predicate as process_params](#gotcha-the-coppa-birth-data-gate-must-use-the-same-org-author-predicate-as-process_params)
+- [Gotcha: SHA-512 prehashes are always long — reject the hashed prefix on write](#gotcha-sha-512-prehashes-are-always-long--reject-the-hashed-prefix-on-write)
+- [Gotcha: unique-index `update_all` plus `rescue nil` drops the whole transfer](#gotcha-unique-index-update_all-plus-rescue-nil-drops-the-whole-transfer)
+- [Gotcha: create-board label caches are keyed by label text, not locale](#gotcha-create-board-label-caches-are-keyed-by-label-text-not-locale)
+- [Gotcha: COPPA decline copy must split signup vs offboarding on every surface](#gotcha-coppa-decline-copy-must-split-signup-vs-offboarding-on-every-surface)
+- [Gotcha: an export-claim release must match the stamp this attempt wrote](#gotcha-an-export-claim-release-must-match-the-stamp-this-attempt-wrote)
+- [Gotcha: decline page state on revisit must re-read scheduled_at, not only declined_at](#gotcha-decline-page-state-on-revisit-must-re-read-scheduled_at-not-only-declined_at)
+- [Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)](#gotcha-curated-obf-sound-import-rejects-dataaudio-image-only-data-uri-decoder)
+- [Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search](#gotcha-button-sound-upload-is-mime-only--emptyvideomp4-filetype-looks-like-a-failed-search)
+- [Gotcha: a status-block lead must not over-claim "remaining" or "historical"](#gotcha-a-status-block-lead-must-not-over-claim-remaining-or-historical)
+- [Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction](#gotcha-after_all_transactions_commit-is-not-a-durable-outbox--pair-it-with-a-same-transaction-remoteaction)
+- [Gotcha: authorizing the supervisee-list owner does not authorize the children inside it](#gotcha-authorizing-the-supervisee-list-owner-does-not-authorize-the-children-inside-it)
+- [Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates](#gotcha-sessionuserid-is-the-self-sentinel--compare-global_id-on-authorship-gates)
+- [Gotcha: `'self'` in a `/users/:id` URL is a username lookup, not the session user](#gotcha-self-in-a-usersid-url-is-a-username-lookup-not-the-session-user)
+- [Gotcha: `appState.feature_flags` follows `currentUser`, not the authenticated subject](#gotcha-appstatefeature_flags-follows-currentuser-not-the-authenticated-subject)
+- [Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if`](#gotcha-ruby-indent-is-not-control-flow--a-4-space-line-can-still-be-inside-the-if)
+- [Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register](#gotcha-contenthash-drift--attested-means-stop-unattested-means-regenerate-register)
+- [Gotcha: Notion rich_text is 2000 chars per object, not per property](#gotcha-notion-rich_text-is-2000-chars-per-object-not-per-property)
+- [Gotcha: primary source for the AI Act is CELEX 32024R1689, not artificialintelligenceact.eu](#gotcha-primary-source-for-the-ai-act-is-celex-32024r1689-not-artificialintelligenceacteu)
+- [Gotcha: "Scot re-attested" is not a pin on this branch until the row hash matches](#gotcha-scot-re-attested-is-not-a-pin-on-this-branch-until-the-row-hash-matches)
+- [Gotcha: staging → audit-register merge is a union, then regenerate](#gotcha-staging--audit-register-merge-is-a-union-then-regenerate)
+- [Gotcha: a dated successor must not inherit the predecessor's attestation dates](#gotcha-a-dated-successor-must-not-inherit-the-predecessors-attestation-dates)
+- [Gotcha: the metadata table is not the signed attestation — write the statement, then pin](#gotcha-the-metadata-table-is-not-the-signed-attestation--write-the-statement-then-pin)
+- [Gotcha: a Path A correction must convert leftover present-tense operational bullets, not only the headline claim](#gotcha-a-path-a-correction-must-convert-leftover-present-tense-operational-bullets-not-only-the-headline-claim)
+- [Gotcha: do not claim a finding is tracked until the register row exists](#gotcha-do-not-claim-a-finding-is-tracked-until-the-register-row-exists)
+- [Gotcha: a SHA-pinned citation must use the line numbers at that SHA, not HEAD](#gotcha-a-sha-pinned-citation-must-use-the-line-numbers-at-that-sha-not-head)
+- [Gotcha: flag-enabled is not proof the disclosure modal was shown](#gotcha-flag-enabled-is-not-proof-the-disclosure-modal-was-shown)
+- [Gotcha: appending a ledger correction leaves the heading stale](#gotcha-appending-a-ledger-correction-leaves-the-heading-stale)
+- [Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`](#gotcha-redact_for_ai-on-the-sentence-does-not-automatically-cover-interpolated-contexttopic)
+- [Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes](#gotcha-rails-reserves-paramsaction--consent-apis-must-use-decision-or-member-approvedeny-routes)
+- [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
+- [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
+- [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
+- [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
+- [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
+- [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
+- [Gotcha: `rem` is a trap in this codebase — the root font-size is 10px, so write px](#gotcha-rem-is-a-trap-in-this-codebase--the-root-font-size-is-10px-so-write-px)
+- [Pattern: derive report narrative in a pure util, never in the template or from absent data](#pattern-derive-report-narrative-in-a-pure-util-never-in-the-template-or-from-absent-data)
 - [Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled](#gotcha-ember-data-model-ids-in-tests-must-be-strings--numeric-setid-n-fails-throwonunhandled)
 - [Gotcha: batch-path nil is not “missing opts” — key presence vs value](#gotcha-batch-path-nil-is-not-missing-opts--key-presence-vs-value)
 - [Gotcha: compliance segment stamps must use validated org ids, not raw params](#gotcha-compliance-segment-stamps-must-use-validated-org-ids-not-raw-params)
 - [Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set](#gotcha-board-translation-google-egress-is-userstranslate--worddata-not-boardtranslate_set)
+- [Gotcha: Accept Translations as form-urlencoded trips Rack's 4096-param cap](#gotcha-accept-translations-as-form-urlencoded-trips-racks-4096-param-cap)
 - [Pattern: before adding a guard, grep the canonical path for one that already exists — with the exact flag name, in that file alone](#pattern-before-adding-a-guard-grep-the-canonical-path-for-one-that-already-exists--with-the-exact-flag-name-in-that-file-alone)
+- [Pattern: an accurate "this code is missing" grep does NOT prove the problem still exists](#pattern-an-accurate-this-code-is-missing-grep-does-not-prove-the-problem-still-exists)
 - [Pattern: deleting dead CSS is a text-surgery problem — `:not()` and multi-line selector lists are the two ways to silently break live styling](#pattern-deleting-dead-css-is-a-text-surgery-problem---not-and-multi-line-selector-lists-are-the-two-ways-to-silently-break-live-styling)
 - [Pattern: a "protected" flag on a media record is an ENTITLEMENT boundary — never relax its predicate to fix a rendering bug](#pattern-a-protected-flag-on-a-media-record-is-an-entitlement-boundary--never-relax-its-predicate-to-fix-a-rendering-bug)
 - [Gotcha: Textarea `@value` on a get-only computed crashes on keystroke — needs a setter/cache](#gotcha-textarea-value-on-a-get-only-computed-crashes-on-keystroke--needs-a-settercache)
 - [Gotcha: Ember `<Input>` checkboxes need `@type`, and bound-select must stopPropagation](#gotcha-ember-input-checkboxes-need-type-and-bound-select-must-stoppropagation)
 - [Gotcha: Ember strict-mode templates treat bare names as helpers — use `this.` for controller props](#gotcha-ember-strict-mode-templates-treat-bare-names-as-helpers--use-this-for-controller-props)
 - [Gotcha: AI feature flags are rollout; prefs turn AI on — Ember UI must AND both](#gotcha-ai-feature-flags-are-rollout-prefs-turn-ai-on--ember-ui-must-and-both)
+- [Gotcha: Generate-with-AI UI opt-in is explicit; server grandfather is not](#gotcha-generate-with-ai-ui-opt-in-is-explicit-server-grandfather-is-not)
 - [Gotcha: serialize rapid model saves — overlapping user.save() lose updates / trip "in flight"](#gotcha-serialize-rapid-model-saves--overlapping-usersave-lose-updates--trip-in-flight)
 - [Pattern: dedup an "already-owned copy" by parent lineage, never by slug convention](#pattern-dedup-an-already-owned-copy-by-parent-lineage-never-by-slug-convention)
 - [Pattern: phased board prefetch — shared planner, dual persistence files](#pattern-phased-board-prefetch--shared-planner-dual-persistence-files)
 - [Pattern: board-detail `/tree` blocks paint on the full descendant payload](#pattern-board-detail-tree-blocks-paint-on-the-full-descendant-payload)
 - [Pattern: board-preview latency is cold-cache, not the loading gate — warm on intent](#pattern-board-preview-latency-is-cold-cache-not-the-loading-gate--warm-on-intent)
+- [Pattern: boards-page Mine list — cache-first paint, atomic background refresh](#pattern-boards-page-mine-list--cache-first-paint-atomic-background-refresh)
+- [Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint](#gotcha-board-picker-category-tabs-share-one-category_boards-list--stale-loads-must-not-paint)
+- [Gotcha: board-picker category tabs must not drop brand-set sub-boards](#gotcha-board-picker-category-tabs-must-not-drop-brand-set-sub-boards)
+- [Gotcha: label click plus input change double-toggles a checkbox](#gotcha-label-click-plus-input-change-double-toggles-a-checkbox)
+- [Gotcha: Android “classic board” error may be stale packaged board-detail](#gotcha-android-classic-board-error-may-be-stale-packaged-board-detail)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
@@ -61,6 +140,7 @@ file (see [README.md](README.md)).
 - [Pattern: `organizations.admin` is a singleton boolean, not a normal flag](#pattern-organizationsadmin-is-a-singleton-boolean-not-a-normal-flag)
 - [Pattern: settings-backed API flags should be cast before Ember consumes them](#pattern-settings-backed-api-flags-should-be-cast-before-ember-consumes-them)
 - [Pattern: duplicate selectors in `app.scss` can leave stale layout constraints active](#pattern-duplicate-selectors-in-appscss-can-leave-stale-layout-constraints-active)
+- [Gotcha: seed privilege removals inside `SEEDING_ALREADY_DONE` never clean upgraded DBs](#gotcha-seed-privilege-removals-inside-seeding_already_done-never-clean-upgraded-dbs)
 - [Pattern: RESERVED_ROUTES blocks intended system usernames in seeds](#pattern-reserved_routes-blocks-intended-system-usernames-in-seeds)
 - [Pattern: Touch-device parity for hover-only affordances — thread context through the existing modal path](#pattern-touch-device-parity-for-hover-only-affordances--thread-context-through-the-existing-modal-path)
 - [Pattern: Pass-through actions silently truncate args when the wrapper's signature has fewer named params](#pattern-pass-through-actions-silently-truncate-args-when-the-wrappers-signature-has-fewer-named-params)
@@ -96,6 +176,7 @@ file (see [README.md](README.md)).
 - [Gotcha: persistence-sync Jasmine harness — wait for `sync_boards` tail / `syncSettled`, not only the `sync()` promise](#gotcha-persistence-sync-jasmine-harness--wait-for-sync_boards-tail--syncsettled-not-only-the-sync-promise)
 - [Pattern: Board-card click navigation has TWO surfaces — board-icon `pick_board` default branch + board-preview `visit`; everything else delegates](#pattern-board-card-click-navigation-has-two-surfaces--board-icon-pick_board-default-branch--board-preview-visit-everything-else-delegates)
 - [Pattern: Signup default library boards — copy via Progress, not copy_to_home_board](#pattern-signup-default-library-boards--copy-via-progress-not-copy_to_home_board)
+- [Pattern: curated system boards live on static S3 — prefer over OpenAAC](#pattern-curated-system-boards-live-on-static-s3--prefer-over-openaac)
 - [Pattern: beta seed baseline belongs to `lingolinq`, demo analytics are opt-in](#pattern-beta-seed-baseline-belongs-to-lingolinq-demo-analytics-are-opt-in)
 - [Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale](#pattern-word-prediction-locale-has-three-layers--display-locale-board-locale-cachesync-locale)
 - [Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching](#pattern-shared-ai-reuse-caches-need-exact-scrubbed-keys-before-recommendation-matching)
@@ -117,9 +198,170 @@ file (see [README.md](README.md)).
 - [Gotcha: `Worker.process_queues` destroys RemoteActions — assert RA rows after one wave, not two](#gotcha-workerprocess_queues-destroys-remoteactions--assert-ra-rows-after-one-wave-not-two)
 - [Gotcha: a single-quoted `i18n.t` default silently DELETES the key on the next generator run](#gotcha-a-single-quoted-i18nt-default-silently-deletes-the-key-on-the-next-generator-run)
 - [Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil](#gotcha-fail-closed-sentry-filters-must-not-collapse-lookup-failures-to-nil)
+- [Gotcha: git DOC-ids hash `canonicalLocation` — never rename a registered path in place](#gotcha-git-doc-ids-hash-canonicallocation--never-rename-a-registered-path-in-place)
 - [Gotcha: dual-key tag reads — check each key independently, never `a || b` before coercion](#gotcha-dual-key-tag-reads--check-each-key-independently-never-a--b-before-coercion)
+- [Gotcha: Flusher `transfer_user_content` is not a checklist for `flush_user_content`](#gotcha-flusher-transfer_user_content-is-not-a-checklist-for-flush_user_content)
+- [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
+- [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
+- [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
+- [Gotcha: an underscore is NOT a line-break opportunity — wrap identifiers with `<wbr>`, never `overflow-wrap: anywhere`](#gotcha-an-underscore-is-not-a-line-break-opportunity--wrap-identifiers-with-wbr-never-overflow-wrap-anywhere)
+- [Gotcha: styling an `<img>`'s own background paints it BEFORE the image — the loading flash is self-inflicted](#gotcha-styling-an-imgs-own-background-paints-it-before-the-image--the-loading-flash-is-self-inflicted)
+- [Gotcha: ember-shepherd passes a TYPELESS button straight through — that is how a custom `action` works](#gotcha-ember-shepherd-passes-a-typeless-button-straight-through--that-is-how-a-custom-action-works)
+- [Gotcha: `body.ll-layout-focused` scoping makes side-by-side layout comparison impossible in a clone](#gotcha-bodyll-layout-focused-scoping-makes-side-by-side-layout-comparison-impossible-in-a-clone)
+- [Pattern: a class the JS emits is not a class the CSS consumes — grep the stylesheet before trusting a "hook"](#pattern-a-class-the-js-emits-is-not-a-class-the-css-consumes--grep-the-stylesheet-before-trusting-a-hook)
+- [Gotcha: redirecting away from `routes/index.js` silently skips the session-entry compliance gates](#gotcha-redirecting-away-from-routesindexjs-silently-skips-the-session-entry-compliance-gates)
+- [Fact: "SLP" is not a distinguishable role on the frontend — `supporter_role` is the only gate](#fact-slp-is-not-a-distinguishable-role-on-the-frontend--supporter_role-is-the-only-gate)
+- [Fact: pill-nav order is plain template source order — unlike the dashboard card grid](#fact-pill-nav-order-is-plain-template-source-order--unlike-the-dashboard-card-grid)
+- [Gotcha: Focused View's hero is a bespoke ELEMENT, not hero styling applied to a card](#gotcha-focused-views-hero-is-a-bespoke-element-not-hero-styling-applied-to-a-card)
+- [Gotcha: `md-grid--hero-<key>` is only on the HOME tab — scope with `:not()`, not a positive match](#gotcha-md-grid--hero-key-is-only-on-the-home-tab--scope-with-not-not-a-positive-match)
+- [Gotcha: `ERR_REQUIRE_ESM` from `sass`/`ember test` means your shell is on the WRONG NODE, not that the tool is broken](#gotcha-err_require_esm-from-sassember-test-means-your-shell-is-on-the-wrong-node-not-that-the-tool-is-broken)
+- [Gotcha: "This board is not currently available." is board-detail's INLINE error, and it swallows every cause](#gotcha-this-board-is-not-currently-available-is-board-details-inline-error-and-it-swallows-every-cause)
+- [Pattern: an "already loaded?" cache key must include WHO/WHAT is being viewed, not just the filters](#pattern-an-already-loaded-cache-key-must-include-whowhat-is-being-viewed-not-just-the-filters)
+- [Gotcha: a deleted SURFACE leaves its BEM block behind in app.scss — grep for an orphan before authoring a "new" component style](#gotcha-a-deleted-surface-leaves-its-bem-block-behind-in-appscss--grep-for-an-orphan-before-authoring-a-new-component-style)
+- [Gotcha: a `parent > *` stretch rule silently defeats an absolutely-positioned badge's centering](#gotcha-a-parent---stretch-rule-silently-defeats-an-absolutely-positioned-badges-centering)
+- [Pattern: the subject of a board pick is `setup_user || currentUser` — surfaces that MARK it must resolve it the same way as the surface that WRITES it](#pattern-the-subject-of-a-board-pick-is-setup_user--currentuser--surfaces-that-mark-it-must-resolve-it-the-same-way-as-the-surface-that-writes-it)
+- [Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller](#pattern-a-body-attribute-published-by-a-self-contained-component-is-the-cross-component-channel--observe-it-dont-widen-a-shared-controller)
+- [Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it](#pattern-a-mobile-select-standing-in-for-a-desktop-tab-row-must-mirror-it-optgroup-not-flatten-it)
+- [Sourcing external requirements (payer/clinical/legal) — 2026-08-25](#sourcing-external-requirements-payerclinicallegal--2026-08-25)
+- [Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there](#gotcha-generate_password-is-also-the-login-rehash-path--do-not-length-check-plaintext-there)
+- [Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam](#gotcha-a-new-scannerfind_elem-call-in-start-must-be-guarded--the-specs-stub-that-seam)
+- [Gotcha: modal scanning needs both `.modal_targets .btn` markup AND `scannable: true`](#gotcha-modal-scanning-needs-both-modal_targets-btn-markup-and-scannable-true)
+- [Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell](#pattern-loading-states-for-an-aac-prediction-panel--never-blank-delay-the-cue-dim-dont-spin-and-dont-swap-under-a-dwell)
+- [Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL](#pattern-to-line-a-sibling-up-with-the-board-grid-mirror-its-origin-margin--padding-not-just-its-height--and-remember-a-card-does-not-fill-its-cell)
+- [Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design](#gotcha-buttontrackerlast_dwell_linger-is-the-last-dwell-target-not-a-dwell-in-progress--it-is-sticky-by-design)
+- [Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery](#pattern-a-container-that-stays-in-the-layout-while-empty-defeats-the-scanners-detachedzero-box-recovery)
+- [Decision: scanner `escape()` keeps its class allow-list — generalising it removes the switch user's guaranteed exit](#decision-scanner-escape-keeps-its-class-allow-list--generalising-it-removes-the-switch-users-guaranteed-exit)
+- [Gotcha: boards-layout-toggle global-failure flake (capabilities 2s auth-sync interval vs the per-test localStorage stub)](#gotcha-boards-layout-toggle-global-failure-flake-capabilities-2s-auth-sync-interval-vs-the-per-test-localstorage-stub)
 
 ---
+
+## Pattern: board categories are decided by COLOUR before part_of_speech — a label rule must only DOWNGRADE one verdict, never run ahead of colour
+
+`category_for_button` (`app/frontend/app/utils/board_categories.js`) resolves a button's
+category from `background_color` FIRST and only reads `part_of_speech` when no palette
+colour is within `COLOR_MATCH_MAX_DISTANCE` (45, in an HSL metric where hue dominates).
+This is deliberate: part_of_speech on imported boards is routinely a stale default, while
+the colour is what the author curated and what the user sees.
+
+**Two consequences that keep catching people out.**
+
+1. **"This word is typed `verb`, so it must be in Actions" is false.** On
+   `vocal-flair-112`, `do` / `is` / `can` / `will` all carry `part_of_speech: 'verb'` and
+   all render under **Questions**, because they are painted `rgb(226, 207, 255)` — 3.88
+   from the palette purple `#CCAAFF` and 171 from verb-green. Their part_of_speech is
+   never read. Same mechanism puts `done` (`#73CCFF`) in Describe. **Before proposing a
+   category change, measure the colour distance; do not reason from the type field.**
+   The board data is only readable through Rails — `boards.settings` is
+   `secure_serialize`d, so `psql` returns ciphertext and you need
+   `DB_USER=tracid bundle exec rails runner`.
+
+2. **A label-based override belongs AFTER the colour verdict, not before it, unless the
+   word has no homograph.** `YES_LABELS` and `TIME_LABEL_PATTERN` legitimately run ahead
+   of colour — nothing else is called "yes". Most words are not like that: "can" is also a
+   container, "will" is also a document. The safe shape is to let colour decide and then
+   redirect exactly ONE verdict:
+
+   ```js
+   function redirect_question_starter(key, base) {
+     if(key !== 'actions' || !base) { return key; }
+     return QUESTION_STARTER_LABELS.indexOf(base) >= 0 ? 'questions' : key;
+   }
+   ```
+
+   Applied to both the colour verdict and the part_of_speech verdict, since a board can
+   reach Actions by either route. An orange "can" keeps Things; only a green one moves.
+
+**Also:** match on `base_label` (the board's source-locale label), never `label` — a
+translated board rewrites `label` only, and a category that moves on translation is a bug.
+And keep such lists English-only unless the word translates cleanly everywhere: auxiliaries
+mostly do not exist as separate words in other languages, so a translated list is guesswork,
+and a non-match safely falls through to the colour verdict.
+
+## Gotcha: a layout SEARCH carries its own model of the renderer — change the renderer and the scorer silently starts optimising for a board that no longer exists
+
+`plan_bands` in `app/frontend/app/utils/board_categories.js` picks the board's bands by
+minimising a score. That score is not neutral arithmetic — every term in it is an assertion
+about how the result will be DRAWN. When the categorised-with-scrolling variant was
+re-architected from grid-placed tiles to flex rows, the renderer changed and the scorer did
+not, so it went on optimising for the old one. Nothing failed; the layout just quietly got
+worse, and it looked like a styling problem.
+
+Three assertions in that scorer that flex rows falsify:
+
+| term | true for a GRID band | false for a FLEX band |
+|---|---|---|
+| `dead` = unused columns x height, squared | unused columns really are bare board | `flex-grow: w` shares them out — slack is WIDTH, i.e. bigger buttons |
+| spare cells measured after `close_band_edge` stretched the last tile | the stretch happens, to close a gap | there is no gap; modelling one invents spare cells inside that ring |
+| `cells` (total rows) as the PRIMARY objective | rows are `1fr` under a definite height, so a row costs every button on the board | rows are `minmax(--bd-scroll-row-min, auto)`; the board just grows |
+
+The `dead` term alone was decisive: a 5-row band using 10 of 14 columns was charged
+**400**, against the **4** a 1-row band pays — so the search drew a 10-button category as a
+1x10 strip rather than the 2x5 block it should be. Fixing all three (flex scores
+`[empty^2, rows, bands]`; grid keeps `[cells, dead^2 + empty^2]`) made every ring come out
+exactly full AND cut 1-2 column "tower" tiles by 94% across a 3000-board sweep.
+
+**It is never just one site.** The same grid-era assumption was hiding a second time in
+`CONTROL_ROW_STRETCH`, which handed all of the controls row's unused columns to Time and the
+Keys folder "so the row does not read as ragged". Both are SINGLE BUTTONS, so on a 14-column
+board they took 3 and 4 columns of mostly empty ring around one 147px button while the four
+tiles holding real buttons stayed at their minimum — and that row is only ever rendered as a
+flex band, which was already willing to share those columns across all six. When you find one
+of these, grep for the others: `close_band_edge`, `CONTROL_ROW_STRETCH` and the scorer's
+`dead` term were three spellings of the same wrong belief.
+
+**Two habits this earns:**
+
+1. **When you change how something RENDERS, grep for whatever CHOSE it.** A search, a
+   packer, a heuristic scorer, an auto-layout — it encodes the old geometry and will keep
+   serving it without erroring.
+2. **Iterate a pure function through the function, not the browser.** The packer is pure;
+   driving it through ~90-second Puppeteer round trips was the previous session's single
+   biggest cost. Build a scratch harness that imports the module with its one non-pure
+   import stubbed (`i18n`), and A/B it against `git show HEAD:<file>` piped through the same
+   stub. That is how "the non-scrolling variant is untouched" became **0 differences across
+   4000 generated board shapes** instead of an assurance — and it runs in a second.
+   Generate REALISTIC inputs for the quality numbers, though: an early sweep of unconstrained
+   random boards (13 categories on an 8-column board) showed a scary 20 -> 32 row blow-up that
+   simply does not occur once totals are sized to the board.
+
+## Gotcha: `label_fit` cannot fit a ONE-line box — `scrollHeight` counts the label's padding and the line budget does not
+
+`fitWrapped` / `batchedFit` in `app/frontend/app/utils/label_fit.js` accept a size when
+
+    naturalPx <= boxLines * lhRatio * size + FIT_TOLERANCE_PX     // tolerance is 1px
+
+`naturalPx` is `el.scrollHeight`, which **includes the label's `padding: 3px 2px 5px`**. The
+right-hand side is pure line height. So every comparison is 8px pessimistic. At the default
+`-webkit-line-clamp: 3` that 8px disappears into the slack of two spare lines and nothing is
+ever noticed. Set the clamp to **1** — a reasonable thing to want for a wide, short button —
+and the test becomes **unsatisfiable at every size**, so the fitter walks the font all the way
+down.
+
+Both failure modes were measured on the same board, from the same rule:
+- at 3440px the loop reached `MIN_FONT_PX` and rendered the label at **9px**;
+- at 2560px the batched path ran out of rounds first (`maxRounds = Math.ceil(basePx) + 2`,
+  and `basePx` is the GRID's `--bd-button-text-size`, not the element's ceiling — so a 54px
+  ceiling gets 20 decrements and never arrives), leaving the ceiling in place and rendering
+  **132px of label inside a 76px card**.
+
+**Before reaching for a bigger font on a board button, work out the CARD's budget.** The
+fitter checks lines and word width; it does not know how tall the card is, so it will happily
+accept a size that overflows. On the categorised scrolling controls row the sum is
+`140px row = 16 group padding + 29 header + 86 body (8 padding)` -> a **76px card**, which is
+`2 * 1.15 * F + 8 <= 76` -> F <= 29.5px for two lines, or ~59px for one. If the wanted size
+does not fit that arithmetic, no amount of CSS on the label will produce it — the row has to
+get taller.
+
+## Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target
+
+`status.latestReadyRevisionName` is not “what users hit,” and neither is “the revision with
+the largest traffic percent.” Cloud Run can split traffic across multiple revisions (canary /
+rollback). A post-deploy secret-linkage check that inspects only one of them can pass while a
+smaller-percentage revision is missing required `secretKeyRef` mounts. Emit and assert every
+`status.traffic` entry with `percent > 0` (dedupe by revision name; fall back to
+`latestReadyRevisionName` only when no nonzero targets exist). See
+`scripts/gcp/assert-runtime-secrets.sh` and
+[`2026-08-05-assert-runtime-secrets-traffic-split.md`](./2026-08-05-assert-runtime-secrets-traffic-split.md).
 
 ## Pattern: shared AI reuse caches need exact scrubbed keys before recommendation matching
 
@@ -139,6 +381,11 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: a CSS background-image on a Shepherd popover (or any lazily-injected element) flashes blank on first open — preload it](#pattern-a-css-background-image-on-a-shepherd-popover-or-any-lazily-injected-element-flashes-blank-on-first-open--preload-it)
 - [Pattern: a guided-tour auto-open flag consumed at a single afterRender misses when the gating state (edit_mode) resolves on a promise microtask — poll the condition](#pattern-a-guided-tour-auto-open-flag-consumed-at-a-single-afterrender-misses-when-the-gating-state-edit_mode-resolves-on-a-promise-microtask--poll-the-condition)
 - [Pattern: `i18n_generator.rb --merge` does NOT refresh CHANGED English into existing locale placeholders — only adds MISSING keys](#pattern-i18n_generatorrb---merge-does-not-refresh-changed-english-into-existing-locale-placeholders--only-adds-missing-keys)
+- [Gotcha: a server-side guard on payload SHAPE must be written against what Ember actually sends](#gotcha-a-server-side-guard-on-payload-shape-must-be-written-against-what-ember-actually-sends)
+- [Gotcha: raw_events synthesizes clicks in modals — modern `{{on "click"}}` handlers then fire TWICE](#gotcha-raw_events-synthesizes-clicks-in-modals--modern-on-click-handlers-then-fire-twice)
+- [Gotcha: `Utils.uniq(list)` with no comparator used to throw — and this repo has Puppeteer, not Playwright](#gotcha-utilsuniqlist-with-no-comparator-used-to-throw--and-this-repo-has-puppeteer-not-playwright)
+- [Gotcha: `allowed?` RENDERS on denial — never put two of them in an `||`](#gotcha-allowed-renders-on-denial--never-put-two-of-them-in-an-)
+- [Pattern: removing a user-facing toggle has an artifact checklist — source removal is only half of it](#pattern-removing-a-user-facing-toggle-has-an-artifact-checklist--source-removal-is-only-half-of-it)
 - [Pattern: a Shepherd popover anchored to an element that gets removed mid-transition is flung to the top-left (0,0) by floating-ui — snap it out instantly](#pattern-a-shepherd-popover-anchored-to-an-element-that-gets-removed-mid-transition-is-flung-to-the-top-left-00-by-floating-ui--snap-it-out-instantly)
 - [Pattern: the app root font-size is 10px (62.5%) — `rem` font-sizes render at 62.5%; ALWAYS use px (or the $aac-font-size-* tokens), never rem](#pattern-the-app-root-font-size-is-10px-625--rem-font-sizes-render-at-625-always-use-px-or-the-aac-font-size--tokens-never-rem)
 - [Pattern: a click-to-speak container that holds the inline word-prediction buttons CANNOT be `role="button"`](#pattern-a-click-to-speak-or-click-to-act-container-that-holds-the-inline-word-prediction-buttons-cannot-be-rolebutton)
@@ -147,12 +394,50 @@ For user-entered AI prompts that become reusable data, scrub PII first, normaliz
 - [Pattern: auth-page (login/register) "content cut off / bg not full height" — page-bg must be a transparent box; mesh goes on the fixed full-viewport `#within_ember`](#pattern-auth-page-loginregister-content-cut-off--bg-not-full-height--page-bg-must-be-a-transparent-box-mesh-goes-on-the-fixed-full-viewport-within_ember)
 - [Pattern: blank username suggestions must be discarded before `clean_path`](#pattern-blank-username-suggestions-must-be-discarded-before-clean_path)
 - [Pattern: keyboard control vocalizations must survive translation overlay](#pattern-keyboard-control-vocalizations-must-survive-translation-overlay)
+- [Gotcha: Translate Boards must not send action tokens to Google](#gotcha-translate-boards-must-not-send-action-tokens-to-google)
+- [Gotcha: Translate Boards tree is not a labeled button set](#gotcha-translate-boards-tree-is-not-a-labeled-button-set)
+- [Gotcha: BoundSelect search typing is killed by ctrlAction preventDefault](#gotcha-boundselect-search-typing-is-killed-by-ctrlaction-preventdefault)
+- [Gotcha: Ember classic `layout` is the template, not a listbox mode](#gotcha-ember-classic-layout-is-the-template-not-a-listbox-mode)
+- [Pattern: supporter signup COPPA reuses `coppa_under_13`, not a role check](#pattern-supporter-signup-coppa-reuses-coppa_under_13-not-a-role-check)
+- [Pattern: board-detail Speak bar must speak vocalization, not just label](#pattern-board-detail-speak-bar-must-speak-vocalization-not-just-label)
+- [Pattern: board-detail Speak bar must play attached button sounds, not TTS-only](#pattern-board-detail-speak-bar-must-play-attached-button-sounds-not-tts-only)
+- [Pattern: long-running modal work that must survive dismissal belongs in a service + app-level component, not a "hidden" modal](#pattern-long-running-modal-work-that-must-survive-dismissal-belongs-in-a-service--app-level-component-not-a-hidden-modal)
+- [Gotcha: generic `.button` selectors in the CLASSIC board CSS leak onto the modern board-detail card](#gotcha-generic-button-selectors-in-the-classic-board-css-leak-onto-the-modern-board-detail-card)
+- [Gotcha: `cqmin` inside an `inline-size` container silently resolves to the viewport](#gotcha-cqmin-inside-an-inline-size-container-silently-resolves-to-the-viewport)
+- [Pattern: measure the real render before tuning a responsive coefficient](#pattern-measure-the-real-render-before-tuning-a-responsive-coefficient)
+- [Gotcha: "the symbol doesn't fill the button" is usually the ASSET, not CSS — measure the opaque box before touching object-fit](#gotcha-the-symbol-doesnt-fill-the-button-is-usually-the-asset-not-css--measure-the-opaque-box-before-touching-object-fit)
+- [Gotcha: percentage padding resolves against WIDTH — including padding-top/bottom](#gotcha-percentage-padding-resolves-against-width--including-padding-topbottom)
+- [Gotcha: a media query adds NO specificity — an un-nested rule can silently outrank your breakpoint fix](#gotcha-a-media-query-adds-no-specificity--an-un-nested-rule-can-silently-outrank-your-breakpoint-fix)
+- [Pattern: a viewport-filling `calc(100dvh - …)` must subtract every ancestor inset it sits inside](#pattern-a-viewport-filling-calc100dvh--must-subtract-every-ancestor-inset-it-sits-inside)
+- [Gotcha: a plain inline style LOSES to a CSS `!important` — JS "fit to size" silently no-ops](#gotcha-a-plain-inline-style-loses-to-a-css-important--js-fit-to-size-silently-no-ops)
+- [Gotcha: a self-rescheduling `runLater` makes every acceptance test hang — and the cause is never where the TODO says](#gotcha-a-self-rescheduling-runlater-makes-every-acceptance-test-hang--and-the-cause-is-never-where-the-todo-says)
+- [Gotcha: Mirage 3 needs a config parameter and explicit models — symptoms look like an app hang](#gotcha-mirage-3-needs-a-config-parameter-and-explicit-models--symptoms-look-like-an-app-hang)
+- [Gotcha: a skipped test's fixtures rot silently](#gotcha-a-skipped-tests-fixtures-rot-silently)
+- [Pattern: `store_url_now` can resolve WITHOUT a cached copy — `local_url || data_uri` then assigns undefined and destroys the source URL](#pattern-store_url_now-can-resolve-without-a-cached-copy--local_url--data_uri-then-assigns-undefined-and-destroys-the-source-url)
+- [Pattern: separate a real regression from this suite's wandering timeout by RE-RUNNING, not by reasoning](#pattern-separate-a-real-regression-from-this-suites-wandering-timeout-by-re-running-not-by-reasoning)
+- [Gotcha: "Died on test #N" is the jasmine shim's STEP number, not the Nth `it()`](#gotcha-died-on-test-n-is-the-jasmine-shims-step-number-not-the-nth-it)
+- [Gotcha: fit-to-box must measure BOTH axes — `word-break: keep-all` makes a long word overflow sideways, never down](#gotcha-fit-to-box-must-measure-both-axes--word-break-keep-all-makes-a-long-word-overflow-sideways-never-down)
 - [Pattern: per-user UI prefs must be read from `currentUser`, not the board-detail route's URL user](#pattern-per-user-ui-prefs-must-be-read-from-currentuser-not-the-board-detail-routes-url-user)
 - [Pattern: `.md-board-collection__*` is a light-base panel reusable on any page; dark theme is ancestor-scoped](#pattern-md-board-collection-is-a-light-base-panel-reusable-on-any-page-dark-theme-is-ancestor-scoped)
+- [Pattern: inside `.md-board-collection`, `data-bd-action` is the REAL handler — `@onSelect`/`@onBack` are decoration](#pattern-inside-md-board-collection-data-bd-action-is-the-real-handler--onselectonback-are-decoration)
+- [Pattern: a board's KEY is not stable — renaming a board rewrites it, so key-shape heuristics silently reclassify boards](#pattern-a-boards-key-is-not-stable--renaming-a-board-rewrites-it-so-key-shape-heuristics-silently-reclassify-boards)
+- [Pattern: `global_transition` runs `toggle_edit_mode()` on routeWillChange — an edit→edit transition re-opens the copy prompt](#pattern-global_transition-runs-toggle_edit_mode-on-routewillchange--an-editedit-transition-re-opens-the-copy-prompt)
 - [Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save](#pattern-a-new-user-preference-is-a-3-touch-change--whitelist--default--dirty-bit-save)
 - [Pattern: "order-dependent" spec failures on global counts are often orphaned committed rows in the test DB](#pattern-order-dependent-spec-failures-on-global-counts-are-often-orphaned-committed-rows-in-the-test-db)
 - [Gotcha: ember-data 5.3 relationship/store arrays are NOT EmberArrays — `firstObject` on a hasMany is silent undefined](#gotcha-ember-data-53-relationshipstore-arrays-are-not-emberarrays--firstobject-on-a-hasmany-is-silent-undefined)
 - [Pattern: reuse the audit-register machinery for non-compliance domains via a separate register file](#pattern-reuse-the-audit-register-machinery-for-non-compliance-domains-via-a-separate-register-file)
+- [Pattern: "it follows me when I scroll" — the app's scroll container is `#content`, so an overlay must live INSIDE it, not next to it](#pattern-it-follows-me-when-i-scroll--the-apps-scroll-container-is-content-so-an-overlay-must-live-inside-it-not-next-to-it)
+- [Gotcha: a rule in an `@use`d partial LOSES to an equal-specificity rule in app.scss — the partial is emitted first](#gotcha-a-rule-in-an-used-partial-loses-to-an-equal-specificity-rule-in-appscss--the-partial-is-emitted-first)
+- [Gotcha: legacy bare-element rules (`h1 { height: 60px }`) silently size modern components — a "gap" with no margin behind it](#gotcha-legacy-bare-element-rules-h1--height-60px--silently-size-modern-components--a-gap-with-no-margin-behind-it)
+- [Gotcha: a shared mixin's `!important` cosmetics beat your MORE SPECIFIC variant rule — the variant silently renders as the base](#gotcha-a-shared-mixins-important-cosmetics-beat-your-more-specific-variant-rule--the-variant-silently-renders-as-the-base)
+- [Gotcha: Bootstrap 3's `.dropdown-menu > li > a` (0,1,2) beats the app's flat `.md-settings-dropdown-item` — the modern skin's flex/gap silently never applies](#gotcha-bootstrap-3s-dropdown-menu--li--a-012-beats-the-apps-flat-md-settings-dropdown-item--the-modern-skins-flexgap-silently-never-applies)
+- [Gotcha: `overscroll-behavior: contain` on a NON-overflowing `overflow: auto` element swallows the wheel entirely](#gotcha-overscroll-behavior-contain-on-a-non-overflowing-overflow-auto-element-swallows-the-wheel-entirely)
+- [Pattern: an overlay gated on an ASYNC-resolved record belongs in a computed, not a flag the route sets](#pattern-an-overlay-gated-on-an-async-resolved-record-belongs-in-a-computed-not-a-flag-the-route-sets)
+- [Gotcha: Ember Data's `{reload: true}` NEVER reaches the network — the app's adapter is offline-first, use `persistence.force_reload`](#gotcha-ember-datas-reload-true-never-reaches-the-network--the-apps-adapter-is-offline-first-use-persistenceforce_reload)
+- [Gotcha: a 200 on the user PUT does not mean the home board was stored — the server discards invalid refs silently](#gotcha-a-200-on-the-user-put-does-not-mean-the-home-board-was-stored--the-server-discards-invalid-refs-silently)
+- [Gotcha: a translucent control RE-TINTS when its container's state changes — "it changes colour when I click it" is often the parent, not the button](#gotcha-a-translucent-control-re-tints-when-its-containers-state-changes--it-changes-colour-when-i-click-it-is-often-the-parent-not-the-button)
+- [Gotcha: a structural gate without negative fixtures is not a gate](#gotcha-a-structural-gate-without-negative-fixtures-is-not-a-gate)
+- [Gotcha: chmod +x does not reach the git index when core.fileMode is false](#gotcha-chmod-x-does-not-reach-the-git-index-when-corefilemode-is-false)
 
 ## Pattern: a new user preference is a 3-touch change — whitelist + default + dirty-bit save
 
@@ -171,6 +456,34 @@ places — miss one and it silently fails:
    mutating a nested key does not reliably mark the attr dirty, so without it
    ember-data may not send the change. Canonical example: `set_board_view_style`
    in controllers/board/index.js.
+
+   > **`set('preferences.device.updated', …)` THROWS when `device` is absent** —
+   > *"Property set failed: object in path 'preferences.device' could not be found"*.
+   > Every existing call site assumes the key exists; on a record whose preferences carry
+   > no `device` it raises **from inside the click handler**, i.e. after the optimistic
+   > `set()` has already updated the UI — so the change appears to work and then silently
+   > never persists, with only a console error. Create the container first:
+   > `if(!user.get('preferences.device')) { user.set('preferences.device', {}); }`
+   > (Found 2026-08-16 by a unit test whose stub happened to omit `device`.)
+
+4. **Constrain the value server-side** when the preference drives markup — a CSS class,
+   a `data-` attribute, an inline style. `dashboard_layout` and `boards_layout` both get a
+   sanitizer that DROPS an unrecognised value (`sanitize_boards_layout_preference!`,
+   user.rb) rather than persisting arbitrary client JSON; dropping makes the client fall
+   back to its own default, which is the behaviour you want anyway.
+
+**On step 2 — a server default is optional, and sometimes wrong.** `boards_layout`
+deliberately has NONE: absent means "never chosen" and the frontend constant
+(`SIDE_BY_SIDE`) is the single source of truth. Add a server default only when the server
+itself needs to reason about the value; otherwise it is a second copy that can drift from
+the client's — the exact hazard the `dashboard_layout` default carries a comment about.
+
+**Device-scoped vs user-scoped is a real decision.** localStorage alone means the choice
+does not follow the user to a new login or device; a user preference does. When both are
+used, make the PREFERENCE authoritative and localStorage a first-paint cache only —
+otherwise a stale device value beats the user's real choice. Re-resolve when the user
+record hydrates (it can arrive after the component renders), and serialize the saves if
+the control can be clicked twice quickly.
 
 For UI driven off the value, default in JS too (`|| 'dynamic'` + validate against a
 known set) so nil/unknown never breaks render before the backend backfills. Applied
@@ -254,7 +567,39 @@ the layout override it so switching back to Dynamic restores their Extras choice
 
 Keyboard boards use vocalizations as control protocols: `+a` composes spelling, `:space` completes the in-progress word, and `:shift` toggles capitalization. `Board#translated_buttons` must not replace those `:`/`+` vocalizations with visible labels when label and vocalization locales match, or controls start speaking words like “space”/“shift” and letters stop composing. If `lingolinq/keyboard` has stale locale metadata, default it back to English when no user locale or Switch Languages override exists, and repair the content board through `SystemSidebarBoards.ensure_for`.
 
-**First seen in:** [2026-06-03-keyboard-shift-space-default-language.md](./2026-06-03-keyboard-shift-space-default-language.md)
+**Import gotcha:** Vocal Flair / Open Board Format files store those protocols on the OBF `action` (or `actions`) field, not `vocalization`. `Converters::LingoLinq.vocalization_from_obf_button` copies them onto `vocalization` during import. A blank `actions` array is truthy in Ruby and used to hide `action`, so only treat `actions` as present when it has values. `SystemSidebarBoards.repair_utility_board` also restores missing `:shift` / `:space` / `+letter` vocalizations from `public/system-boards/keyboard.obz` when the live button has no vocalization (or only repeats the label).
+
+**First seen in:** [2026-06-03-keyboard-shift-space-default-language.md](./2026-06-03-keyboard-shift-space-default-language.md); import-side drop in [2026-08-22-keyboard-import-control-vocalizations.md](./2026-08-22-keyboard-import-control-vocalizations.md)
+
+## Gotcha: Translate Boards must not send action tokens to Google
+
+`Board#translate_set` already refuses to overwrite vocalizations matching `^[:+]`, but the Translate Boards review modal (`components/button-set.js`) was still pushing those vocalizations (`:space`, `:shift`, `+q`, `:suggestion`) into `/api/v1/users/self/translate`. The review UI then showed a second row for the token, and `_build_save_translations_map` could persist `':space' => 'espacio'`. Skip at collect / show / save with `shouldTranslateVocalization`; also drop `^[:+]` in `WordData.translate_batch` so Google never sees them even if a client sends them; and do not mirror a translated **label** onto an action vocalization when label and vocalization are both `:space`. Still translate the visible label (`space`, `[ space ]`).
+
+**First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: Translate Boards tree is not a labeled button set
+
+`BoardHierarchy.load_boards` can paint linked boards from `board.linked_boards` even when `button_set.buttons` is empty (no labels). Skip-reload then has nothing to keep, and a root-only fallback leaves the review list on Quick Core 24 while the red "Linked board labels could not be loaded" warning stays. After `load_buttons` still has no labels, `findRecord` each selected board and collect its `buttons` so linked labels reach review and save.
+
+**First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: BoundSelect search typing is killed by ctrlAction preventDefault
+
+`ctrlAction` always calls `preventDefault()` on the event. The searchable language list puts the filter `<input>` inside the `<ul>`, so a `{{on "keydown" (this.ctrlAction "list_keydown")}}` on that list cancelled every keystroke before the character was inserted. Use dedicated `onListKeydown` / `onSearchKeydown` handlers assigned in `init()` (same pattern as `modern-select`), and only `preventDefault` for Escape / ArrowDown / Enter.
+
+**First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: Ember classic `layout` is the template, not a listbox mode
+
+`@ember/component` already uses `layout` for the compiled template. Passing `@layout="grid"` on BoundSelect would replace the listbox template with the string `"grid"`. Opt-in grid mode is `@grid={{true}}` plus `@gridColumns`. Search keydown still must use `onSearchKeydown`, not `ctrlAction`.
+
+**First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
+
+## Pattern: supporter signup COPPA reuses `coppa_under_13`, not a role check
+
+The backend COPPA parent-email path keys off `coppa_under_13`, not communicator vs supporter. Collect supporter birth month/year, run the same `_classifyCommunicatorAge` / `_classifyUnder16` cutoffs, and send `under_16` for every role. Google `link['name']` is the Google profile name — carry the form name as `signup_name` or it overwrites the profile name used before create.
+
+**First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
 
 ## Pattern: Word prediction locale has three layers — display locale, board locale, cache/sync locale
 
@@ -292,9 +637,61 @@ Board-detail has `_auto_rename_board`, which POSTs `/rename` when `board.name` c
 
 **Fix recipe:** Two-phase load — `GET …/tree?root_only=1` first (lite root), paint, then ingest full `/tree` in the background via `ingest_tree(..., { force: false, warm_root_images: false })`. Server skips descendant load when `root_only` is set. Do not “fix” slow opens by only extending TTL or prefetch coverage.
 
+**Gotcha (prefetch root_only vs cache hit):** Session prefetch stores `/tree?root_only=1`. A board-detail cache hit used to return without warming the full tree, so folder taps that used to be warm after prefetch were cold. Mark those entries `root_only`; on cache hit (modern `board-detail` and classic `board-alt`) call `warm_full_tree_if_root_only` so the full `/tree` still lands in the background. A full-tree ingest clears the mark. Do not treat empty `descendants` as the signal — a board with no children is a valid full tree. Do not let a later root_only ingest downgrade a fresh full-tree entry.
+
 **Diag:** `localStorage.ll_board_cache_diag=1` → [`board_cache_diag.js`](../../app/frontend/app/utils/board_cache_diag.js) marks on board-detail.
 
 **First seen in:** [2026-07-23-speak-mode-board-cache-latency.md](./2026-07-23-speak-mode-board-cache-latency.md)
+
+## Pattern: boards-page Mine list — cache-first paint, atomic background refresh
+
+**Surface:** `/:user/boards` overlay gated on `model.my_boards.done` ([`user/boards.hbs`](../../app/frontend/app/templates/user/boards.hbs)); list load in [`generate_or_append_to_list`](../../app/frontend/app/controllers/user/index.js).
+
+**Gotcha:** Re-entering the boards page always re-queried `store.query('board', { user_id })`. Streaming partial pages onto `model.my_boards` cleared `.done` until the last page, so a background refetch re-showed “Preparing your workspace.” Server Redis on boards index only caches public search, not Mine `user_id` lists. Even after cache-first paint, a within-TTL revisit still re-downloaded the full owned library (buttons+grid per row) while session `catalog_board_prefetch` flooded `/tree` and starved Mine pagination.
+
+**Fix recipe:** (1) Persist a compact Mine snapshot in localStorage ([`boards_page_list_cache.js`](../../app/frontend/app/utils/boards_page_list_cache.js), 10m TTL). (2) Hydrate in [`routes/user/boards.js`](../../app/frontend/app/routes/user/boards.js) before `update_selected`. (3) When the visible list is already usable (`Array` + `.done`), accumulate pages in a side buffer and atomically swap only on the final page; never set `{loading:true}` over a usable empty list. (4) Clear snapshots in `appState.clear_user_state`. (5) **Within TTL, skip `store.query` entirely** when usable list + `hasFreshSnapshot`; clear snapshot on create/delete/copy so the next visit refreshes. (6) Paginated index JSON omits `buttons`/`grid`/`intro`/`background` (`args[:paginated]` in [`lib/json_api/board.rb`](../../lib/json_api/board.rb)). (7) Set `setMineListBusy` during Mine fetch; defer `board_detail_cache` phase-4 catalog `/tree` until clear. Distinct from `board_detail_cache` (speak `/tree`). (8) **Pass-2:** `setBoardsPageActive` on `user.boards` activate/deactivate; pause phase-1 home, phase-2 liked, phase-3 owned-list + phase-3/4 `/tree` and image warm while the route is active (TTL skip clears Mine busy, so Mine-busy-only deferral is not enough). Wait until deactivate — do not resume prefetch on a wall-clock cap while Boards is still open. (9) Prefetch `/tree?root_only=1` and mark the cache entry `root_only`; speak cache-hits call `warm_full_tree_if_root_only` so folder taps are not left cold. `collectPublicLookups` runs `filterBrandSetRootBoards` after wrapping plain API rows with `.get` (brand `test()` only reads `board.get('key')`). (10) Overlay/hero gate on `mineListPaintReady` (first page or `.done`), not last-page `.done`. (11) Gate `reload_logs` / `load_badges` / `load_goals` / `check_daily_use` on `isBoardsPageActive()` so boards visits do not fetch profile widgets; profile and account `setupController` still call them (including `check_daily_use`). Search may run on a partial library — show `boards_filter_library_loading` until `my_boards.done`.
+
+**Gotcha (list summary + locale):** Omitting button/content blobs must not skip `localized_name` / `localized_locale`. Index already eager-loads `board_content`; when `args[:locale]` is present, still load translations for `board_name` matching, but do not rewrite per-button labels (list payloads have no `buttons`). Gating the whole locale block behind `!list_summary` broke `Api::BoardsController index should return a localized board name`.
+
+**First seen in:** [2026-08-03-boards-page-cache-first.md](./2026-08-03-boards-page-cache-first.md); load-perf follow-up [2026-08-10-boards-page-load-perf.md](./2026-08-10-boards-page-load-perf.md); pass 2 [2026-08-17-boards-page-load-pass2.md](./2026-08-17-boards-page-load-pass2.md)
+
+## Gotcha: board-picker category tabs share one `category_boards` list — stale loads must not paint
+
+**Surface:** `/board-picker` `BoardPicker` with `searchAtTop` ([`components/board-picker.js`](../../app/frontend/app/components/board-picker.js)).
+
+**Gotcha:** All Available Boards waits for every mine/shared page plus the first public page before painting, so it is slow. The selected tab (`current_category`) and the grid (`category_boards`) are separate. Switching to Cause and Effect starts a new query but does not cancel the All Available requests. Those writers used to call `this.set('category_boards', …)` with no generation check, so the default list appeared under the new category.
+
+**Fix:** All Available uses its own `_available_load_id` so the first fetch can finish in the background. Results are snapshotted and reused when the user returns to the tab; they only paint `category_boards` while that tab is selected. Tagged categories still bump `_boards_load_id` so a late Cause and Effect response cannot overwrite All Available. Tests in `tests/unit/components/board-picker-category-race-test.js`.
+
+**First seen in:** [2026-08-20-board-picker-category-race.md](./2026-08-20-board-picker-category-race.md)
+
+## Gotcha: board-picker category tabs must not drop brand-set sub-boards
+
+**Surface:** `/board-picker` Keyboards (and other tagged categories) via [`_preparePickerBoardList`](../../app/frontend/app/components/board-picker.js).
+
+**Gotcha:** Mine and All Available correctly keep only brand-set *roots* (`filterBoardsPageTopLevelRoots` → `isBrandSetRoot`). That same helper used to run on tagged category results. The Keyboards API already returns boards such as `lingolinq/vocal-flair-112-keyboard`; the client then dropped them because the key matches Vocal Flair's `test()` but not `root_re` (`vocal-flair-\d+` or `-with-keyboard`, not `-keyboard`). Category tagging is an explicit "show this board here" opt-in, including keyboard pages inside a set.
+
+**Fix:** Pass `{ keepCategoryTagged: true }` for `_resolveCategoryBoards` and `more_for_category` so those lists use `filterRootBoards` (copies) but not the brand-root filter. Mine / All Available are unchanged. Tests in `tests/unit/components/board-picker-category-subboards-test.js`.
+
+**First seen in:** [2026-08-26-board-picker-category-subboards.md](./2026-08-26-board-picker-category-subboards.md)
+
+## Gotcha: label click plus input change double-toggles a checkbox
+
+**Surface:** Edit Board Details category checkboxes ([`edit-board-details.hbs`](../../app/frontend/app/components/edit-board-details.hbs)).
+
+**Gotcha:** Wrapping a checkbox in `<label>` already toggles it. Adding `{{on "click" toggle_category}}` on the label *and* `{{on "change" (set-field … "checkbox")}}` on the input means a click on the box fires both: `set-field` then `toggle_category` flips it back (looks dead). A click on the text `preventDefault`s the native toggle, so only `toggle_category` runs (looks like "only the words work").
+
+**Fix:** Same pattern as the other checkboxes in that modal and in `new-board.hbs`: `<label>` wrapping the input, bind only `change` via `set-field`. Do not add a label click handler.
+
+**First seen in:** [2026-08-26-board-picker-category-subboards.md](./2026-08-26-board-picker-category-subboards.md)
+
+## Gotcha: Android “classic board” error may be stale packaged board-detail
+
+**Surface:** Capacitor app loads packaged `lingolinq_mobile/www/` (usually `PACKAGE_SOURCE=prod`), not Ember `:8184`. Speak/home routing uses `transitionToBoardForCurrentUiStyle` — default `modern` → `user.board-detail`; `classic` preference → `user.board-alt` (reuses `board/index`); only `obf/` / `integrations/` / odd keys hit legacy `board`.
+
+**Gotcha:** A Try-Again-only offline screen on Android often looks like “classic” but is **board-detail’s old error UI** from a www snapshot built before the Home/Back escape-hatch PR. Confirm with UI chrome (`md-board-detail-error` + Bootstrap button vs plain `<a>`) and whether the APK was re-packaged after the fix. Still keep escape hatches on classic `board` / `board-alt` error templates — real classic sessions and legacy keys still hit them.
+
+**First seen in:** [2026-08-11-classic-board-error-escape.md](./2026-08-11-classic-board-error-escape.md)
 
 ## Pattern: supervisor caseload session prefetch reuses board_detail_cache, not offline sync
 
@@ -844,6 +1241,20 @@ frontend. See `lib/json_api/beta_feedback.rb` for the beta feedback admin case.
 
 ---
 
+## Gotcha: seed privilege removals inside `SEEDING_ALREADY_DONE` never clean upgraded DBs
+
+**Surface:** `db/seeds.rb` privilege grants gated by `SEEDING_ALREADY_DONE` (`User.exists?(user_name: 'example') && Organization.exists?(admin: true)`).
+
+**Symptom:** PR removes an `add_manager` / admin grant from the legacy seed block; fresh DBs are safe, but already-seeded environments keep the old `UserLink` and `Organization.admin_manager?(example)` stays true.
+
+**Root cause:** The already-seeded guard exits before the changed lines run. Deleting a grant is not the same as revoking an existing link.
+
+**Fix:** Put an idempotent revoke **outside** that guard (and outside `SEED_DEMO_DATA` if the bad link can exist without re-seeding demo data). Prefer `Organization#assistant?` + `#remove_manager` so any admin-org `org_manager` link is cleared.
+
+**First seen in:** [2026-08-11-revoke-example-admin-org-link-on-reseed.md](./2026-08-11-revoke-example-admin-org-link-on-reseed.md) (PR #776 Codex P1)
+
+---
+
 ## Pattern: RESERVED_ROUTES blocks intended system usernames in seeds
 
 **Surface:** `db/seeds.rb` creating users with `User.process_new`, especially the official `lingolinq` vocabulary account.
@@ -1037,6 +1448,208 @@ against the edit route's cache invalidation — verify freshly-saved edits appea
 
 ---
 
+## Pattern: inside `.md-board-collection`, `data-bd-action` is the REAL handler — `@onSelect`/`@onBack` are decoration
+
+**Surface:** any reuse of the `BoardCollection` panel on board-detail in a new
+context (the edit-mode "Board Collections" left drawer was the first). Applies
+to every board-detail chrome element that carries `data-bd-action`.
+
+**Symptom:** you pass `@onSelect` / `@onBack` closures to the component, they
+look wired, and the component's own `select_board` / `back` actions do call
+them — but clicking runs the OTHER context's behavior instead. In the edit
+drawer this read as two separate bugs: picking a board rendered it in SPEAK
+mode (`md-board-detail-grid board speak`), and the back button never committed
+to the previewed board.
+
+**Root cause:** clicks inside `.md-board-collection` on board-detail are never
+deferred to Ember — `raw_events` explicitly bails out of
+`defer_board_detail_chrome_click_to_ember` for that selector
+(`raw_events.js:2719`) and routes the release to `boardDetailChromeRelease`
+(`raw_events.js:1591-1595`). That resolves the action by walking the DOM for
+`data-bd-action` / `data-bd-arg` **first** (`raw_events.js:101-109`), before any
+class-based map, and sends it to `editManager.controller`. So the hardcoded
+attribute in the template wins over the component argument, every time.
+
+**Rule: when a shared board-detail component gains a second context, the
+`data-bd-action` values must become context-aware too — otherwise the new
+context silently dispatches the old context's controller actions.** Resolve the
+names ONCE on the component (a `computed('editContext')` returning the action
+name) and bind the attribute to it, so the attribute path and the `{{on}}` path
+can't drift. Then add the controller action for the new context and have it
+DELEGATE to the same handler the component argument points at — one behavior,
+one definition.
+
+**Corroborating smell to look for:** an action defined on the controller with
+zero references anywhere in the app (here, `close_edit_board_collection`) while
+the surface it belongs to "doesn't work". Nothing was ever wired to it, because
+the template was still emitting the other context's action name.
+
+**Generalization:** on board-detail, `data-bd-action` is not a fallback for
+dwell/eye-gaze — for co-located classic components it is the ONLY path. Grep
+`data-bd-action` in a template before assuming an `{{on "click"}}` handler is
+what actually runs.
+
+**Corollary — a control with NO `data-bd-action` inside such a panel is dead
+unless the branch re-dispatches a pass-through click.** `data-bd-action` routes
+to `editManager.controller`, i.e. board-detail CONTROLLER actions. Controls whose
+handler is COMPONENT-local (BoardCollection's "Show N more boards" →
+`toggle_my_boards_expanded`, the search `×` → `clear_search`) legitimately carry
+no attribute, so `boardDetailChromeRelease` resolves nothing — and the
+`event.preventDefault()` that precedes it swallows their click. They looked
+completely inert: no menu, no error, nothing. The sibling `.board-detail-view`
+branch already had the remedy; the `.md-board-collection` branch was missing it:
+
+```js
+if(!boardDetailChromeRelease(elem_wrap)) {
+  dispatchPassThroughClick(elem_wrap.dom, event.clientX, event.clientY);
+}
+```
+
+**Rule: any raw_events branch that calls `preventDefault()` before attempting a
+chrome dispatch MUST fall back to `dispatchPassThroughClick` when nothing
+resolves** — otherwise it silently eats every control the chrome map does not
+know about. It cannot double-fire, since the fallback is only reached when no
+action was resolved. Symptom to recognize: within one panel, some controls work
+and others are completely inert — split them by presence of `data-bd-action`.
+
+**CORRECTED 2026-08-04 — the pass-through fallback must NOT fire on a mouse
+release.** The paragraph above originally claimed the fallback "cannot
+double-fire", and inferred from the dead "Show more" that `{{on "click"}}` never
+fires inside `.md-board-collection`. Both are wrong, and the second is the
+textbook version of the trap the dual-dispatch entry below warns about: for a
+TOGGLE, firing twice is indistinguishable from never firing. `preventDefault()`
+in that branch lands on `mouseup`, which does **not** cancel the browser's
+follow-up `click`, so the control's own `{{on "click"}}` runs anyway — the
+synthetic click is a SECOND dispatch, and the toggle net-cancelled in both
+drawers. Nothing on that path calls `stopPropagation()` on the native click, and
+the modifier is an ordinary `addEventListener` (the same `ctrlAction` binding
+used by ~2130 click sites app-wide), so of course it fires.
+
+The corrected rule: **re-dispatch only when the browser will NOT deliver a
+native click** — touch (`preventDefault()` on `touchend` DOES cancel the
+synthesized click), dwell, eye-gaze, scanning. See
+`passThroughUnresolvedChromeClick` (`raw_events.js`), which skips the synthetic
+click when `event.type === 'mouseup'` **and** `elem_wrap.dom.contains(event.target)`.
+The `contains` half is required for `activation_location: 'start'`, where
+`elem_wrap` is reassigned to the *mousedown* element: on a press-A/release-B
+interaction the native click goes to their common ancestor and misses A, so
+those must still synthesize.
+
+**Meta-lesson:** a fix whose only evidence is "the symptom is consistent with my
+theory" is not diagnosed. The edit-mode branch already had the fallback while the
+pill was dead there — that fact alone refuted the "swallowed outright" diagnosis
+and was visible at the time.
+
+**First seen in:** [2026-08-03-edit-collections-drawer-dispatch-bug.md](./2026-08-03-edit-collections-drawer-dispatch-bug.md),
+corrected in [2026-08-04-board-collection-show-more-dead.md](./2026-08-04-board-collection-show-more-dead.md)
+
+---
+
+## Pattern: a board's KEY is not stable — renaming a board rewrites it, so key-shape heuristics silently reclassify boards
+
+**Surface:** anything that infers a board's ROLE from its key slug — most of all
+`isBrandSetRoot` / `filterBrandRoots` (`utils/board-brands.js`), which decides
+whether a board is a brand-set ROOT tile or a sub-board PAGE.
+
+**Symptom:** a user renames a board they own and it disappears from My Boards
+(Board Collection panel) and from the boards-page grid. Nothing was deleted; the
+board is still owned and still returned by the API.
+
+**Root cause:** saving a renamed board on board-detail auto-renames the KEY to
+match the new display name — `_auto_rename_board`
+(`controllers/user/board-detail.js`) posts `/api/v1/boards/:id/rename` and
+transitions the URL. So `<user>/sequoia-15` becomes
+`<user>/sequoia-15-changed-with-a-really-long-name`, which is shape-identical to a
+genuine sub-board page (`<user>/sequoia-15-animals`) and fails the
+`<brand>-<size>$` root pattern. The renamed ROOT is then filtered out as a
+sub-board. Only brand-family boards are affected — non-brand boards match no
+family and always pass.
+
+**Rule: classify a COPY by its PARENT's key (`parent_board_key`), not its own.**
+A copy of a set root has `parent_board_key = lingolinq/sequoia-15`; a copy of a
+page has `parent_board_key = lingolinq/sequoia-15-animals`; a rename never touches
+the parent. Fall back to the board's own key when there is no parent (originals,
+shallow clones, and the `:as_lite` serializations that omit the field — see
+`lib/json_api/board.rb`). `parent_board_key` is a declared attr on the Ember Board
+model and IS present on the non-lite boards-index payload.
+
+**Corollary — user-editable text must never be the only input to a visibility
+decision.** `name` (and, because of the auto-rename, `key`) are both user-editable,
+so any filter keyed on them can make a user's own board vanish through an ordinary
+edit. Prefer an immutable relation (`parent_board_id`/`parent_board_key`,
+`copy_id`) as the signal and keep the text pattern as the fallback.
+
+**The rename itself is link-safe — don't "fix" that part.** `Board#rename_to` writes an
+`OldKey` row, the server-rendered `/:user/:board` route resolves it via
+`find_by_possibly_old_path` and REDIRECTS to the new key, and the API `show` resolves
+old keys too. A collision aborts the rename (`@collision_error`) and leaves the key
+untouched — the `_1` suffix comes from `generate_unique_key` at CREATE, not from rename.
+What the rename does cost is a slow-queue `rename_deep_links` pass over every upstream
+board, shared user, UserLink, UserBoardConnection and LogSession referencing the board.
+So the guard worth having is not "stop renaming" but **"only rename the key when the key
+was already the slug of the OLD name"** — that leaves a deliberately-chosen URL (or a
+`_1` copy key, or a `my:` shallow-clone key) alone. Implemented in
+`controllers/user/board-detail.js#_auto_rename_board`.
+
+**Also check for a second copy of the loop.** This exact classifier existed twice —
+`board-brands.js#filterBrandRoots` (Board Collection) and
+`board-roots.js#isBrandSetRootBoard` (boards page) — so the bug shipped on both
+surfaces and had to be fixed twice until the duplicate was collapsed into one
+exported `isBrandSetRoot`.
+
+**First seen in:** [2026-08-04-renamed-brand-copy-vanishes-from-my-boards.md](./2026-08-04-renamed-brand-copy-vanishes-from-my-boards.md)
+
+---
+
+## Pattern: `global_transition` runs `toggle_edit_mode()` on routeWillChange — an edit→edit transition re-opens the copy prompt
+
+**Surface:** any flow that transitions from one board to another while
+`app_state.edit_mode` is true — the edit-mode Board Collections drawer preview,
+and the post-copy hop into a freshly-made copy from copy-to-edit.
+
+**Symptom:** copy-to-edit completes, lands correctly in edit mode of the new
+copy, and *then* "Edit this Board / You don't have permission to edit this board
+directly… Edit a Copy" (`confirm-needs-copying`) re-opens on top of it. Looks
+like the copy failed or the permissions did not refresh; neither is true.
+
+**Root cause:** `app-state.js#global_transition` ends with a bare
+
+```js
+if(this.get('edit_mode')) { this.toggle_edit_mode(); }
+```
+
+whose *intent* is "navigating away from a board while editing leaves edit mode."
+But `toggle_edit_mode` is the INTERACTIVE entry point — before it changes any
+mode it runs `assert_source()` and, when `!board.permissions.edit`, opens
+`confirm-needs-copying` (`app-state.js:1471-1478`). And `global_transition` is
+wired to **`routeWillChange`** (`routes/application.js:110`), so it fires BEFORE
+the destination's `model`/`setupController`: the board it inspects is the one
+still on screen — the ORIGINAL non-owned board — not the copy being navigated
+to. Awaiting `copiedBoard.reload(true)` cannot help, because the copy is never
+the board being checked.
+
+**Why it hides:** arriving from SPEAK mode, `edit_mode` is false at
+`routeWillChange`, so the call is never reached — the whole copy-to-edit flow is
+clean from speak mode and broken only from edit mode. Chasing the copy's
+freshness (reload, permissions, double-transition) is therefore a dead end; the
+distinguishing variable is the mode you STARTED in.
+
+**Fix:** skip the teardown when the destination is the edit route itself —
+`transition.to_route != 'user.board-detail.edit'` — since edit→edit navigation is
+staying in edit mode and `routes/user/board-detail/edit.js:64` re-asserts
+`current_mode='edit'` regardless. This mirrors the guard the `speak_mode`
+observer already uses for the same reason (`app-state.js:2865-2866`).
+
+**Rule: a lifecycle/cleanup hook must never call an INTERACTIVE entry point.**
+`toggle_edit_mode`, `toggleEditMode`, and friends open modals and can start a
+copy; hooks that just want to drop a mode should change the mode directly, or be
+gated so they cannot fire on a transition that is staying in that mode. Grep for
+bare calls to interactive actions inside observers and transition hooks.
+
+**First seen in:** [2026-08-03-edit-collections-drawer-dispatch-bug.md](./2026-08-03-edit-collections-drawer-dispatch-bug.md)
+
+---
+
 ## Pattern: dual-dispatch (raw_events fallback + Ember `{{on}}`) double-fires and net-cancels TOGGLE actions
 
 **Surface:** board-detail chrome. Clicks reach the controller by TWO routes —
@@ -1080,7 +1693,18 @@ over only where `{{on}}` genuinely misses events (non-'click' sources, touch
 releases, co-located classic components like `.md-board-collection`). See
 `defer_board_detail_chrome_click_to_ember` (`raw_events.js:2694`).
 
-**First seen in:** [2026-07-18-actions-toggle-dead-after-edit.md](./2026-07-18-actions-toggle-dead-after-edit.md)
+**Recurrence (2026-08-04) — same class, opposite direction.** The bug came back
+in `.md-board-collection` because a fix ADDED a second dispatch:
+`dispatchPassThroughClick` was called on `mouseup` for controls the chrome map
+does not resolve, on top of the native click. "Show N more boards" went dead in
+both drawers. **Checklist before adding any synthetic click in raw_events: is a
+native `click` still coming?** On `mouseup`, yes — always. Only `touchend`
+(and the no-native-click sources: dwell, gaze, scanning, switch) need one.
+Whenever a control in board-detail chrome "does nothing", count dispatches
+before assuming zero.
+
+**First seen in:** [2026-07-18-actions-toggle-dead-after-edit.md](./2026-07-18-actions-toggle-dead-after-edit.md),
+recurred in [2026-08-04-board-collection-show-more-dead.md](./2026-08-04-board-collection-show-more-dead.md)
 
 ---
 
@@ -3281,6 +3905,10 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 
 **Evidence:** task logs `2026-07-06-signup-boards-sidebar-copies.md`, `2026-07-28-staging-registration-timeout.md`.
 
+**Extension (2026-08-24) — VF84 + Senner-Baud as signup-only sidebar extras:** Do **not** put VF84 or Senner on `default_active_sidebar_boards`. Empty stored prefs stay the old utility list so a deploy does not change existing speak-mode sidebars or enqueue those trees as sync roots. Persist `User.signup_sidebar_boards` (utilities + VF84 + `lingolinq/senner-baud`) from `UserBoardProvisioner.apply_signup_sidebar!` at signup only. Replace the mbaud12 Social catalog slot with `lingolinq/senner-baud` and keep that key in `inactive_by_default_sidebar_keys` (disabled pool, not live sidebar). Do **not** add VF84/Senner to `sidebar_auto_add_keys` or `SIDEBAR_COPY_SLUGS`.
+
+**Evidence:** `User.signup_sidebar_boards`, `UserBoardProvisioner.apply_signup_sidebar!`; task log `2026-08-24-signup-sidebar-vf60-senner.md`.
+
 ---
 
 ## Pattern: custom lingolinq content boards — commit OBZ + `SystemBoardSources.ensure_*`
@@ -3290,6 +3918,25 @@ passed while the real rendered text was ~10px. Only DevTools (showing `1.18rem` 
 **Fix recipe:** Export with `Converters::LingoLinq.to_obz` → `public/system-boards/<slug>.obz`. Add slug to `SIGNUP_LIBRARY_SLUGS` if signup should copy it. Implement idempotent `ensure_<slug>!` via `from_obz` (mirror `openaac:import_vocabularies` post-import: public root, `generate_stats`, `save!` button set). Wire `db:seed` and optional `rake lingolinq:ensure_<slug>`. Sidebar defaults reference `SystemBoardSources.board_key(slug)` (public key), not the user's copy.
 
 **Evidence:** `lib/system_board_sources.rb`, `public/system-boards/crisis-vocabulary.obz`, task log `2026-06-01-crisis-vocabulary-defaults.md`.
+
+---
+
+## Pattern: curated system boards live on static S3 — prefer over OpenAAC
+
+**Surface:** large gallery / signup OBZs that must not live in git, and must not land as CoughDrop-branded OpenAAC copies on `lingolinq`.
+
+**Fix recipe:**
+1. Keep sources in `tmp/seed-boards/` (gitignored). Never commit multi‑MB OBZs.
+2. Catalog local → `system-boards/<key>` in `CuratedVocabularySources::CATALOG`.
+3. Upload: `rake lingolinq:upload_curated_boards`. Use `UPLOAD_STATIC_S3_BUCKET=lingolinq-staging-static` (or prod) — **not** a leading `STATIC_S3_BUCKET=` before `op run`, because `--env-file` wins over the shell and will reset it to the local/dev bucket. Pattern: `op run --env-file=.env.op.local -- env UPLOAD_STATIC_S3_BUCKET=… bundle exec rake …`.
+4. Senner signup set: `SystemBoardSources.ensure_senner_baud!` (S3 primary, `SENNER_BAUD_OBZ_PATH` / `tmp/seed-boards/SennerBaudSocialPages60ll.obz` local fallback). After `from_obz`, call `sync_load_board_keys!` so `load_board.key` matches the board resolved by id (avoids `_N` dead links after key collisions).
+5. Gallery curated sets: `rake lingolinq:import_curated_vocabularies` or `SEED_IMPORT_CURATED_VOCABULARIES=1`.
+6. OpenAAC import skips filenames in `CuratedVocabularySources.openaac_skip_files`; keep OpenAAC for non-overlapping sets (quick-core-*, vocal-flair-60, etc.).
+7. Quick Core **root descriptions** cannot be cleaned with find-and-replace: they contain `app.mycoughdrop.com/example/core-N` sibling links and a sentence that is *about* CoughDrop ("isn't unique to CoughDrop"). Stamp a hand-written overlay after `from_obz` (`lib/quick_core_descriptions.rb`). Child boards that only have `built with CoughDrop` can be rewritten to `built with LingoLinq`. Already-seeded DBs: `rake lingolinq:apply_quick_core_descriptions` (no OBZ re-download). Do not put this rewrite in `Converters::LingoLinq.from_external` — it would alter therapist CoughDrop migrations.
+
+**Evidence:** `lib/curated_vocabulary_sources.rb`, `lib/system_board_sources.rb`, `lib/quick_core_descriptions.rb`, `lib/tasks/system_boards.rake`, `lib/tasks/openaac.rake`; task logs `2026-08-13-curated-s3-system-board-seeds.md`, `2026-08-20-quick-core-import-descriptions.md`.
+
+**Collision note (2026-08-14):** Senner OBZ boards can occupy bare keys like `lingolinq/core-60`. OpenAAC Quick Core roots also import as `core-N`, while signup expects `lingolinq/quick-core-N`. Seed order is Senner then OpenAAC. After Senner import, `relinquish_bare_core_roots!` moves bare `core-N` → `senner-baud-core-N` (child keys like `core-60-when` stay shared). After each `quick-core-N.obz` import, `rekey_quick_core_root!` sets the root to `quick-core-N` and `sync_load_board_keys!` runs.
 
 ---
 
@@ -3356,6 +4003,126 @@ Use `SEED_ACCESSIBILITY_USERS=1` on `db:seed` or `rake lingolinq:seed_accessibil
 **Fix recipe:** Keep English Quick Core / Vocal Flair as canonical on `lingolinq/*`; `copy_for` → `WordData.translate_batch` → `translate_set` into `*-es` slugs so `image_id` is preserved. Provision with `rake lingolinq:provision_spanish_library_boards`; gate signup copies with `FeatureFlags.signup_spanish_library_boards_enabled?`.
 
 **Evidence:** `lib/spanish_library_boards.rb`, `lib/system_board_sources.rb`, `lib/user_board_provisioner.rb`; task log `2026-05-30-board-translation-fixes.md`.
+
+---
+
+## Pattern: user create boards author in the communicator language, look up symbols in English
+
+**Symptom:** A Spanish user creating a board either sees English labels (`english_first_board_generation` forced `locale=en`) or types Spanish and gets no symbols (OpenSymbols miss).
+
+**Fix recipe:** Keep visible labels in the authoring locale. Batch-translate to English via `POST /api/v1/users/self/translate`, search `/search/symbols` and `batch_parts_of_speech` with the English words, cache results under the Spanish key. Save one board with `locale` = authoring language and `translations` containing both `es` and `en`. Do not open `translation-select` after save. The create-time rewrite of locale to `en` in `boards_controller#create` is skipped when translations are present.
+
+**Evidence:** `app/frontend/app/components/create-board-new.js` (`_lookup_label_english`, `_lookup_label_images_with_english`, `_build_authoring_translations`); task log `2026-09-01-create-board-bilingual-labels.md`.
+
+---
+
+## Gotcha: assigning `persistence.ajax = fn` does not stub the Ember helper — use `stub()`
+
+`persistence` is an EmberObject whose `ajax` is also mirrored onto the test helper. `persistence.ajax = function() { ... }` does not replace the method the component actually calls, so lookups hit the real/helper ajax and the test sees identity translations or zero symbol requests. Use `stub(persistence, 'ajax', function(url, opts) { ... })` from `frontend/tests/helpers/jasmine`.
+
+**Evidence:** `app/frontend/tests/components/create-board-new-test.js` bilingual describe; `app/frontend/tests/helpers/jasmine.js` `stub`.
+
+---
+
+## Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`
+
+`fix/melissa-inflections-overlay` and staging `#880` (`feat/melissa-spanish-verb-inflections`) both edited `grid_for`, `edit_manager-test.js`, `LEARNINGS.md`, and `.eslint-todo`. Keep both behaviors: Language-tab `button.translations` lookup **and** Spanish empty-grid defaults. Conflicted tests are a union, not ours-or-theirs. `.eslint-todo` line numbers from either side are wrong after the combine; run `npm run lint:js:todo`. Task log: `2026-08-27-merge-staging-inflections-overlay.md`.
+
+Same pattern on 2026-08-28: `feat/melissa-spanish-inflections-board` + staging `#883` (`spanish_pronoun_grid`). Union `i18n.js` public API (sidebar `:es-*` helpers **and** `spanish_pronoun_grid`), union both `i18n-test.js` describes, keep both LEARNINGS index entries, regenerate `.eslint-todo`. Task log: `2026-08-28-merge-staging-spanish-pronouns.md`.
+
+---
+
+## Gotcha: long-press overlay reads Language-tab inflections from the button translations array
+
+Language-tab 3×3 edits write `trans.inflections` on the **button.translations array**. `grid_for` used to read only `board.translations[id][locale]` (often label-only until save) and `button.inflections` (Rails deletes that when translation inflections exist). A filled Spanish grid then returned null, the overlay never opened, and `return true` swallowed the tap. Hold tracking also cancelled when `event.target` moved between nested img/label and the card. Fix: prefer the slot that actually has inflections; cancel the hold only when leaving the same `.button`. Tests: `edit_manager-test.js` `grid_for`. Task log: `2026-08-27-inflections-long-press.md`.
+
+---
+
+## Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`
+
+English empty overlay slots are filled by `i18n.tense` (`-s`/`-ed`/`-ing`) when the locale is `en`. Spanish cannot reuse those suffixes. `grid_for` calls `i18n.spanish_verb_grid` / `spanish_noun_grid` / `spanish_adjective_grid` / `spanish_pronoun_grid` for `es` when the eight slots are empty (or still on generated defaults). Verbs: regular `-ar/-er/-ir`, boot stem-changers, irregular table. Nouns: plural (`gatos`, `luces`, `canciones`), `-o/-or` gender pair (`gata`, `profesora`; `mano` skipped), `no X`. Adjectives: agreement (`rojo/roja/rojos/rojas`), `más`/`menos`/`-ísimo`. Pronouns: person lookup table (`yo` → me/mi/mí/mío/conmigo), not English `'s` / `myself`. Unset POS still tries the verb infinitive path only. Evidence: `app/frontend/app/utils/i18n.js` `spanishVerbGrid` / `spanishPronounGrid`; `edit_manager.js` `grid_for` Spanish fallback.
+
+---
+
+## Gotcha: Spanish pronoun lookup must register subject keys before slot values
+
+`nosotros` has `e: nosotras` as a gender pair. If slot values are indexed in the same pass as subjects, `nosotras` is stored as an alias of `nosotros` and a **nosotras** button gets the nosotros grid (`e: nosotras` duplicating center). Index every canonical subject first (`yo`, `tú`, `nosotras`, …), then slot values and extras, first-wins. Same for `vosotras`. Shared `su`/`le`/`se` still resolve to `él` because those strings are not subject keys. Evidence: `indexSpanishPronounLookup` in `app/frontend/app/utils/i18n.js`. Task log: `2026-08-28-spanish-pronoun-inflections.md`.
+
+---
+
+## Pattern: Spanish inflections sidebar board uses `:es-*` actions, not translated English suffixes
+
+The English `lingolinq/inflections` board rewrites the last sentence-box word via `:plural` / `:ed` / `:ing`, which call English-only `i18n.pluralize` / `i18n.tense`. Copy-translating that board would still apply English `-s`/`-ed` to Spanish words. `lingolinq/inflections-es` is a generated 4×4 (`Flexiones`) whose vocalizations are `:es-yo`, `:es-plural`, `:es-feminine`, `:es-gerund`, and the other Spanish modifiers; those call `spanish_verb_grid` / `spanishPlural` helpers already used by the overlay. Verb persons (yo/tú/él/nosotros/ellos) are on the board; vosotros is omitted. Spanish-locale signup swaps the Inflections sidebar slot to this board. Do not put `inflections-es` in `SPANISH_SOURCE_MAP` (that path copy-translates English vocalizations). Evidence: `lib/templates/spanish_inflections_board.rb`; `button.js` `:es-*`; task log `2026-08-28-spanish-inflections-board.md`.
+
+**Gotcha (2026-08-28) — sidebar boards stay in their default language and reset QC40:** Add to Sidebar stores `locale` from the current session. A sidebar jump treated that stamp as a language switch: `locale: 'en'` cleared `override_label_locale` and persisted English. Board-detail setup then used each board's default unless Switch Languages was still set *and* `model.locales` listed Spanish. Flexiones often has an empty locales list (no translation hash), so Back to Quick Core 40 fell through to English. Inflections/Keyboard/Yes-No showed English for the same reason.
+
+Fix: every sidebar jump preserves session language. Back/Home restore the Switch Languages override (classic Home already did). Board load keeps the override when the locales list is empty ("unknown", not English). Evidence: `app-state.js` `sidebar_jump_preserves_session_locale` / `restore_session_locale_override`; `board_display_locale.js`.
+
+---
+
+## Pattern: bilingual library boards store dest hashes with translate_set default false
+
+**Symptom:** Library boards need English plus Spanish (and later languages) without multiplying `*-es` / `*-fr` copies.
+
+**Fix recipe:** Keep English as the visible default on `lingolinq/*`. Collect labels via `BoardTranslationWords` (skip `^[:+]` vocalizations). `WordData.translate_batch` then `Board#translate_set(..., 'default' => false)`. Dest strings live in `settings['translations']`; Switch Languages overlays them. Signup copies inherit the hashes through `BoardCloner`. Rake: `lingolinq:translate_library_boards` with `DEST_LANG=es` (not raw `LANG`). Skip save when the batch is empty so a missing `GOOGLE_TRANSLATE_TOKEN` does not look like success.
+
+**Evidence:** `lib/library_board_translator.rb`, `lib/board_translation_words.rb`; task log `2026-08-26-library-board-translations.md`.
+
+**Extension (2026-08-27) — SCOPE=seed for a reindex inventory:** A library rebuild seeds starter + sidebar + crisis + Senner + curated S3 + OpenAAC (~32 listed public roots; children are `unlisted`). `SCOPE=seed` discovers those listed public `lingolinq` roots instead of signup slugs only. Skip `*-es` copies and boards whose default locale is not English (local leftover `quick-core-24` was already `locale=es`). Staging apply is a Render **one-off job** on `lingolinq-staging` (same pattern as rebuild_library): creating the job starts it; do not add a Blueprint cron. The job inherits web-service env, so `GOOGLE_TRANSLATE_TOKEN` must already be set. Missing token raises outside test. Production (including Render staging) requires `ALLOW_PROD_TRANSLATE=1`; `SCOPE=seed` also requires `TRANSLATE_CONFIRM=1`. Do not share `BoardTranslationWords.board_ids` with `SpanishLibraryBoards`: that rake `copy_for`s only the root and calls `translate_set(default: true)`, so a tree walk would overwrite shared English children. The bilingual walk is owner-scoped and skips non-English locales before Google. The attested Subprocessor Register still names the older Translate callers; adding `lib/library_board_translator.rb` needs a Scot re-attest of `docs/legal/2026-08-16_subprocessor-register.md`, not an in-place edit of the pinned hash. Ref: `docs/ops/staging-translate-library-job.md`.
+
+---
+
+## Gotcha: source_part_of_speech is not a locale — process_buttons 500s if treated as one
+
+**Symptom:** Saving inflections on a translated library board (e.g. `lingolinq/core-40-tell` button "say"/decir) returns HTTP 500. Console shows `Error: error`. Local log: `IndexError (string not matched)` at `Board#process_buttons` `String#[]=`.
+
+**Root cause:** `Board#translate_set` writes `settings['translations'][button_id]['source_part_of_speech'] = 'verb'` as a **string sibling** of `en`/`es` hashes. The Ember Language tab iterates every key as a locale. `Object.keys("verb")` is truthy, so the client sends `{locale: 'source_part_of_speech', label: '...'}`. Rails then does `translations[id][loc] ||= {}` which does **not** replace the existing string, then `string['label'] =` raises.
+
+**Fix:** Skip non-locale keys in `process_buttons` and `JsonApi::Board` `translated_locales`. Ember: omit `source_part_of_speech` from `locales`, `translations_for_button`, and `update_translations`. Guard `rules.compact` so a leftover string does not 500 either.
+
+**Evidence:** `app/models/board.rb` (`translation_locale_key?`, `process_buttons`); `lib/json_api/board.rb`; `app/frontend/app/utils/button.js#update_translations`; task log `2026-08-27-board-save-500-inflection-rules.md`.
+
+**Testing corollary (PR 878 CI):** `update_translations` overwrites the current locale slot (`en` by default) from `button.label`. A skip-`source_part_of_speech` assertion that expects `en.label` from the hash will fail with `undefined` even when the skip is correct (two objects vs two objects; QUnit then diffs the labels). Match the sibling tests: expect `undefined` for the current-locale label unless the test also sets `button.label`.
+
+---
+
+## Gotcha: rake dest locale must not use raw ENV LANG
+
+Linux shells export `LANG=en_US.UTF-8`. A rake task that reads `ENV['LANG']` as the translation target will send `en_US.UTF-8` to Google. Accept `DEST_LANG` first, and treat `LANG` as a dest only when it looks like a language tag (no charset suffix).
+
+**Evidence:** `LibraryBoardTranslator.parse_dest_lang`; task log `2026-08-26-library-board-translations.md`.
+
+---
+
+## Gotcha: dotenv leaves op:// refs in ENV — present? is not injected
+
+Dotenv loads `.env.op.local` `op://` refs as literal strings. `ENV['GOOGLE_TRANSLATE_TOKEN'].present?` is then true, but Google gets a garbage key and `query_translations` returns []. Treat a token starting with `op://` as unset, and run the rake under `rails-dev` / `op run`.
+
+**Evidence:** `LibraryBoardTranslator.google_translate_token_injected?`; task log `2026-08-26-library-board-translations.md`.
+
+---
+
+## Gotcha: library translate must walk load_board links, not only downstream_board_ids
+
+`settings['downstream_board_ids']` is the async `track_downstream_boards!` closure. It can be empty while `load_board` buttons and `immediately_downstream_board_ids` still list children. `Board#translate_set` also skips any board not in the passed `board_ids` list (`reason: 'board not in list'`), so a root-only list translates only the top board. Walk `get_immediately_downstream_board_ids` plus button `load_board` ids (BFS) and pass that full list.
+
+**Evidence:** `lib/board_translation_words.rb#board_ids`; local `lingolinq/quick-core-60` had downstream=0, immediate=30; task log `2026-08-26-library-board-translations.md`.
+
+---
+
+## Gotcha: spelling-key letters must not go to Google
+
+Keyboard letter buttons use vocalization `+e`, `+n`, … to compose spelling. The visible label is still the grapheme `e`. Google Translate has no “this is a letter key” context, so it returns abbreviations and solfege (`e`→`mi`, `c`→`do`, `g`→`gramo`, `n`→`norte`, `m`→`metro`, `p`→`pag`, `u`→`tú`, `x`→`incógnita`). Do not send those labels to `WordData.translate_batch`. Identity-map them (`e`→`e`) so a re-run overwrites the dest hash. Still translate word labels like `space` (`:space` is the action; the label is a word).
+
+**Evidence:** `lib/board_translation_words.rb#letter_compose_key?`; local `lingolinq/keyboard_16`; task log `2026-08-26-library-board-translations.md`.
+
+---
+
+## Gotcha: Google Translate maps AAC "who" to OMS, not quién
+
+Bare English **who** on a board is the question word. Google Translate has no AAC context, so it often returns **OMS** (WHO, Organización Mundial de la Salud). `WordData.persist_translation` uses `||=`, so that poisoned cache never overwrites. Force `en→es` `who` → `quién` in `WordData::TRANSLATION_OVERRIDES` **before** cache and Google, persist with assignment (not `||=`), and count origin `override` as a hit in `LibraryBoardTranslator`. Exact stripped downcase only (`who's` is not `who`).
+
+**Evidence:** `app/models/word_data.rb` `TRANSLATION_OVERRIDES`; `lib/library_board_translator.rb`; task log `2026-08-28-spanish-inflections-board.md`.
 
 ---
 
@@ -3824,8 +4591,8 @@ resolves to the **board OWNER** (the `:user_id` in the URL), which is NOT the
 logged-in user when you open a board you don't own (anything outside "My
 Boards"). Every personal viewing preference toggle in
 `controllers/user/board-detail.js` (`set_folder_style`,
-`toggle_folder_colored_face`, `toggle_shrink_labels_to_fit`,
-`toggle_soft_borders`, `toggle_hide_speak_bar`, `set_speak_menu_item_hidden`)
+`toggle_folder_colored_face`, `toggle_soft_borders`,
+`toggle_hide_speak_bar`, `set_speak_menu_item_hidden`)
 **saves** to `app_state.currentUser.preferences.*`. The route's `setupController`
 was **reading** them back from `modelFor('user')` — so on another user's board
 they silently reverted to defaults (the owner has no such pref saved).
@@ -4270,7 +5037,7 @@ Keep `{{on}}` + `ctrlAction` in templates for keyboard/a11y and non–raw_events
 
 ## Pattern: co-located modal `{{on "click" (fn this.ctrlAction …)}}` — use `(this.ctrlAction …)`
 
-**Surface:** `speak-menu`, `button-settings`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
+**Surface:** `speak-menu`, `button-settings`, `copy-just-this-board`, route templates (`edit-sound`, etc.), and other co-located classic modals migrated to `ctrlAction` + `{{on}}` during Ember 5 upgrade.
 
 **Root cause:** `ctrlAction` returns a handler function. `(fn this.ctrlAction "x")` invokes `ctrlAction("x", …)` at click time and discards the returned handler, so the action never runs. Under speak mode, `raw_events` `dispatchPassThroughClick` still needs a bound handler — pass-through logs fire but close no-ops. Use `(this.ctrlAction "x")` (bind at render) for `{{on}}`, `modal-dialog` `action`/`opening`/`closing`, and `button-listener` `buttonEvent`. Classic `{{action "x"}}` also works; pair with `modalDialogClickRelease()` when pointer synthesis is suppressed.
 
@@ -4642,6 +5409,16 @@ util logic, verify by **exhaustive manual trace + eslint + `ember build`** (whic
 SCSS/templates/JS), not by trying to run the QUnit file. Still write the `-test.js` — it documents
 intent and will run if/when the unit suite is wired into CI — just don't expect it to gate here.
 
+> **UPDATE 2026-08-16 — partly superseded, and the workaround is now the convention.**
+> Unit tests DO execute, but **only when explicitly imported in `tests/test-helper.js`**
+> (the `/* eslint-disable ember/no-test-import-export */` block near the bottom). The
+> requirejs auto-loader still drops them, so an unregistered `tests/unit/**-test.js` is
+> lint-checked and **never run** — exactly as described above. Add the import line in the
+> same commit as the test file, then confirm with
+> `npx ember test --filter="<module name>"`: registered modules match by test NAME and
+> report real assertion counts, while an unregistered one still reports *"No tests
+> matched"*. Verified by adding three suites (17 tests) that run green.
+
 ## Pattern: dashboard "fill the row" needs an inline grid-template-columns = visible-item count
 
 To make N cards in a CSS-grid row **expand to fill** when some are hidden (no empty cells), you
@@ -5001,26 +5778,82 @@ in `ApiJsonBundle#coalesce_media` via `encode_import_url`.
 **Re-import required** after pulling the fix; existing pending images on a test
 account won't self-heal unless you re-import or run `upload_to_remote` again.
 
+### JSON bundle import: button sounds missing / silent after import
+
+**Symptom:** CoughDrop JSON-bundle import brings boards/images, but buttons with
+recorded sounds (rimshot, drumroll, laughter, sigh) don’t play.
+
+**Root causes (all verified):**
+1. Non-empty stub `sounds: [{id}]` skipped `sound_urls` synthesis (`coalesce_media`
+   only synthesized when `sounds.empty?`), so URLs never reached `ButtonSound`.
+2. `normalize_sound` dropped `data_url` / didn’t `encode_import_url`.
+3. `upload_to_remote` required `Content-Type: audio/*`; S3 often returns
+   `application/octet-stream` for `.mp3` → treated as fetch failure.
+4. Sound S3-failure path had no fallback (images store `data_uri` / CDN URL);
+   left `url: nil`, `pending: true`, `errored_pending_url` set.
+
+**Fix recipe:** Fill stub media urls from `board.sound_urls` / `image_urls`;
+normalize sound urls; accept octet-stream for audio-looking URLs; on S3 failure
+for sounds, keep the already-fetched source URL playable (no large audio
+`data_uri` in DB). Re-import affected boards after deploy.
+
+**Evidence:** `lib/converters/api_json_bundle.rb`, `Uploadable#store_downloaded_file_fallback!`,
+`acceptable_remote_content_type?`; task log `2026-08-04-json-bundle-import-sounds.md`.
+
 ### JSON bundle import: custom photos replaced by OpenSymbols after import
 
 **Symptom:** Imported custom button images (e.g. teacher photos) display
 correctly at first, then swap to stock symbols (e.g. dart for "Miss") minutes
-later or after reload.
+later or after reload. “Default symbols” in preferences does **not** restore
+them by itself.
 
-**Root cause:** `ButtonImage#ensure_library_url_for_skin!` runs on a slow job
-after board API load when `needs_library_url_enrichment?` is true (S3-hosted
-import copies). It searches OpenSymbols by button label and stores
-`library_alternates`. With `preferred_symbols: opensymbols` (default), the
-client renders the alternate URL, not the imported photo. `Board#swap_images`
-can also replace `image_id` by label lookup (only skips `lingolinq-usercontent`
-URLs).
+**Root cause (two layers):**
+1. `ButtonImage#ensure_library_url_for_skin!` (slow job) searches OpenSymbols by
+   label and stores `library_url_for_skin` / `library_alternates`.
+2. `JsonApi::Board` set `image_urls[id] = skin_url || url`, so the library match
+   became the **primary** board-detail URL even when
+   `preferred_symbols=original` (“Default symbols”). Board-detail paints that
+   primary key; it does not prefer `id-original`.
 
-**Fix:** JSON bundle import sets `ButtonImage#settings['preserve_source_image']`.
-That flag skips skin enrichment, keeps `settings_for` on the original URL, and
-skips `swap_images` replacement. Re-import affected boards after deploying.
+**Fix:** `Converters::LingoLinq#from_external` always sets `preserve_source_image`
+on new `ButtonImage` rows — shared by JSON-bundle, `.obf`, and `.obz`. That
+skips label-search enrichment. Serialization must not prefer `skin_url` when
+the user prefers original/default. For preserved images, `skin_capable_url`
+ignores enrichment `library_url_for_skin` swaps but still skins when the
+**imported URL itself** is already a skinnable `/libraries/` asset. Re-import
+after deploy for the import flag; Default symbols + JSON fix helps
+already-enriched boards without re-import.
 
-**Evidence:** `lib/converters/lingo_linq.rb`, `app/models/button_image.rb`,
-`app/models/board.rb#swap_images`, task log `2026-06-13-json-bundle-import.md`.
+**Evidence:** `lib/json_api/board.rb`, `lib/converters/lingo_linq.rb`,
+`app/models/button_image.rb`, task logs `2026-06-13-json-bundle-import.md`,
+`2026-08-10-preserve-imported-board-images.md`.
+
+### Speak vs edit: Default symbols still showed OpenSymbols in speak mode
+
+**Symptom:** Board edit grid shows imported/source images; speak mode shows
+OpenSymbols/ARASAAC matches despite Preferred Symbols = Default (`original`).
+
+**Root cause:** Speak-mode `board-detail` builds `image_map` with
+`img.skin_url || img.url`. Enrichment stored in `library_url_for_skin` becomes
+`skin_url` and wins. Edit mode uses Ember `Button` + `image.best_url`, which
+follows the Image `url` when preferred is original.
+
+**Fix:** JsonApi omits `images[].skin_url` (and does not prefer it in
+`image_urls`) when preferred is original; board-detail only applies `skin_url`
+when `_preferred_symbols` is a library id. Important: `JsonApi::Image.as_json`
+already stamps `skin_url`, so `JsonApi::Board` must `i.delete('skin_url')` under
+original prefs — merely skipping the re-assign leaves the Image-layer value and
+speak clients still paint enrichment matches.
+
+**Gotcha:** `.eslint-todo` fingerprints include line numbers. Adding comment
+lines above a one-line logic change in a grandfathered file makes every later
+finding look "new". Keep board-detail edits line-count-neutral (EOL comments).
+
+**Evidence:** `lib/json_api/board.rb`, `controllers/user/board-detail.js`
+`_build_from_raw`; task logs `2026-08-10-preserve-imported-board-images.md`,
+`2026-08-10-preserve-imported-images-ci-failures.md`.
+
+
 
 ---
 
@@ -5402,7 +6235,227 @@ rails-console step (`WordData.translate_locale_batch`). Always re-validate each
 file parses as JSON after a `sed` sweep (`ruby -e "require 'json'; JSON.parse(...)"`).
 Escape `&` as `\&` in the sed replacement.
 
-**First seen in:** [2026-06-15-board-detail-tour-tools-reword.md](./2026-06-15-board-detail-tour-tools-reword.md)
+**Corollary — `--merge` never PRUNES either.** The same additive-only loop
+(`new_json[key] ||= string unless skip_string`, i18n_generator.rb ~L322) copies
+every key already in a locale file forward unconditionally. So when you DELETE a
+string from the source tree, `--generate` correctly drops it from en.json but it
+survives forever in all 12 non-English locales as an orphan. Removing a
+user-facing feature is therefore never finished by regenerating: grep the key
+across `public/locales/` and delete it yourself.
+
+Do that with Ruby `JSON.parse` → `delete` → `JSON.pretty_generate` rather than
+`sed` — that is the exact serializer the generator writes with, so a no-op
+round-trip is byte-identical (verify this first) and the diff contains only the
+removed lines with no incidental reformatting. `sed` on these files risks a
+dangling comma when the key is last in its object.
+
+**First seen in:** [2026-06-15-board-detail-tour-tools-reword.md](./2026-06-15-board-detail-tour-tools-reword.md);
+prune corollary in [2026-08-07-remove-shrink-labels-to-fit-toggle.md](./2026-08-07-remove-shrink-labels-to-fit-toggle.md)
+
+---
+
+## Gotcha: a server-side guard on payload SHAPE must be written against what Ember actually sends
+
+**Surface:** any controller branch that inspects the request payload to decide
+authorization — "allow this weaker role, but only when they're changing X".
+
+**Symptom:** specs pass, the real UI 400s. The branch's supervise-only home-board
+guard required the payload to contain only `preferences`:
+`return false unless (top_keys - ['preferences']).empty?`.
+
+**Root cause:** Ember Data's `user.save()` serializes the **entire record**, not
+the dirty attribute. Captured off the running app, one home-board pick PUTs
+`user[user_name]`, `user[user_token]`, `user[link]`, `user[name]`, `user[email]`,
+`user[description]` and ~20 more alongside `preferences`. No real request can
+ever satisfy an "only this key" test. The spec passed because it hand-built a
+preferences-only payload — it encoded the assumption instead of testing it.
+
+**Fix recipe:** make the guard depend on what must be PRESENT, then **discard**
+everything else server-side rather than requiring the client to have sent
+nothing else. Safety comes from the slice, not from the shape test. Keep the
+deeper model-layer check (here `process_home_board`'s view/share gate) as the
+real boundary.
+
+**Also:** `!!value` is not a presence test for a Hash — `{}` is truthy in Ruby,
+so an empty `home_board` sailed through and persisted `preferences.home_board = {}`,
+leaving the user worse off than the `nil` they started with. Require the field
+you actually need (`home_board['id'].present?`).
+
+**When writing the spec:** capture a real payload first (Puppeteer
+`page.on('request')` → `r.postData()`) and use that shape. If the spec's payload
+is hand-written and tidy, assume it is lying.
+
+**First seen in:** [2026-08-07-pick-for-home-ui-e2e.md](./2026-08-07-pick-for-home-ui-e2e.md)
+
+---
+
+## Gotcha: raw_events synthesizes clicks in modals — modern `{{on "click"}}` handlers then fire TWICE
+
+**Surface:** any button inside `.modal-content` wired with `{{on "click"}}`
+(rather than classic `{{action}}`).
+
+**Symptom:** the handler runs twice per click. Invisible for idempotent actions
+(close), destructive for anything that creates: the board-picker CTA copied a
+board twice, the second `POST /boards` failed `400 board key already in use`, and
+the user saw an error *after* a copy had already been made.
+
+**Root cause:** `modalDialogClickRelease` (`utils/raw_events.js`) synthesizes a
+pass-through click on `mouseup` so classic `{{action}}` components — which don't
+receive pointer events under Ember 5 — still work. `preventDefault()` on a
+*mouseup* does NOT suppress the click event that follows, so a modern `{{on}}`
+listener gets both. Proven by tagging the events:
+synthetic = `{isTrusted:false, pass_through:true}`, native = `{isTrusted:true,
+pass_through:false}`.
+
+**Fix recipe:** skip the synthetic dispatch when the browser is certain to
+deliver a real click to that same element — `event.type === 'mouseup' &&
+el.contains(event.target)`. Touch, dwell, eye-gaze and scanning produce no native
+click and must still get the pass-through, so do not remove the synthesis
+outright. `passThroughUnresolvedChromeClick` in the same file already had this
+guard, scoped to `.md-board-collection`.
+
+**Diagnostic that settles it in one run:** attach a capture-phase listener to the
+element and log `e.isTrusted` per event. Two events with different `isTrusted`
+means dual dispatch, not a double user click.
+
+**First seen in:** [2026-08-07-pick-for-home-ui-e2e.md](./2026-08-07-pick-for-home-ui-e2e.md)
+
+---
+
+## Gotcha: `Utils.uniq(list)` with no comparator used to throw — and this repo has Puppeteer, not Playwright
+
+**Two traps that cost a full debugging session:**
+
+**1. `Utils.uniq` (utils/misc.js)** took `(list, compare)` and dereferenced
+`compare.toString()` before checking its type, so a one-argument call threw
+`Cannot read properties of undefined (reading 'toString')` the moment the list was
+non-empty. `User#org_board_keys` was the lone one-arg caller; because
+`edit_manager#copy_board` reads `org_board_keys` before copying, this killed the
+ENTIRE board-picker pick flow with a generic "we couldn't set up your board"
+toast and no network activity at all. Fixed to default to identity. (Two
+`persistence.js` call sites had been passing `function(i) { return i; }` to dodge
+it — a workaround in the codebase is a hint the primitive is wrong.)
+
+**2. Browser automation:** this repo commits **puppeteer** (`package.json`),
+NOT playwright. A committed QA script that does `import { chromium } from
+'playwright'` cannot run here — which is how a flow ships "verified" without ever
+having been executed. Check the import against `package.json` before trusting any
+E2E script's green/red status.
+
+**3. Background jobs:** flows that go through `Progress.schedule` (board copy →
+`copy_board_links`) need a **Resque worker** running. Rails + Ember alone leaves
+the progress pending forever and the completion callback never fires, which looks
+exactly like a frontend hang.
+
+**First seen in:** [2026-08-07-pick-for-home-ui-e2e.md](./2026-08-07-pick-for-home-ui-e2e.md)
+
+---
+
+## Gotcha: `allowed?` RENDERS on denial — never put two of them in an `||`
+
+**Surface:** widening any authorization check in `app/controllers/api/*`
+to accept a second permission ("also let supervisors do this").
+
+**Symptom:** the obvious edit — `allowed?(user,'edit') || allowed?(user,'supervise')`
+— produces `AbstractController::DoubleRenderError`. Both the DENY path
+(clean 400 becomes a 500) and, worse, the newly-ALLOWED path break: the
+action runs to completion, persists its record, then dies rendering.
+A supervise-only board create left an orphan board behind and 500'd.
+
+**Root cause:** `allowed?` is not a predicate. On denial it calls
+`api_error 400, res` and *then* returns false
+([`application_controller.rb:300`](../../app/controllers/application_controller.rb#L300)).
+So the first failing call has already rendered, whatever the second one
+answers.
+
+**Fix recipe:** use the PURE predicate `user.allows?(@api_user, '<perm>')`
+for every check but one, and let a single `allowed?` remain last to
+produce the error render:
+
+```ruby
+return unless user.allows?(@api_user, 'supervise') || allowed?(user, 'edit')
+```
+
+Invariant: **at most one `allowed?(user, …)` call per expression.**
+`allows?` is the model-side check on the permissions concern and takes
+the actor as its first argument — note the receiver/argument order is the
+inverse of `allowed?`. `users_controller#update` already used this form
+correctly one screen away from the site that broke.
+
+**Also:** when widening, scope to what the feature actually needs rather
+than to the permission name. The board-picker only needed to COPY a board
+for a communicatee, and `models/board.js create_copy` always sets
+`parent_board_id` — so gating on `parent_board_id.present?` enabled the
+flow while leaving "supervise-only cannot author a fresh board for a
+supervisee" intact. Check the existing deny-path specs before choosing the
+key: both of them posted *without* `parent_board_id`, which is what made
+the narrow gate free.
+
+**`allows?` is NOT a drop-in substitute — pass the scopes.**
+`allows?(user, action, relevant_scopes=nil)` falls back to the RAW
+`user.permission_scopes` (permissable.rb:72), but `allowed?` passes
+`api_permission_scopes`, which NORMALIZES: blank (integration / dev-key
+devices) and a legacy lone `'*'` both become `'full'`. Supervision rules
+require `'full'`, so a bare `allows?` silently DENIES callers that
+`allowed?` would allow. Always
+`user.allows?(@api_user, 'supervise', api_permission_scopes)`.
+This is easy to miss because the bare form reads fine and passes specs —
+the divergence only shows on integration tokens.
+
+**Sweep before you assume it's one site:**
+`grep -rn "allowed?(.*) || allowed?(" app/controllers/`
+Also grep `allows?(@api_user` for bare calls missing the scopes argument.
+
+**Proving it, rather than pattern-matching it:** the reachable trigger is
+a `'none'`-scoped token (permissable.rb:74 deliberately does not widen
+`['none']` with `'*'`, so every permission resolves false). Write the
+regression spec, `git stash` the fix, run it against the original — you
+want the actual `DoubleRenderError` with a stack line in YOUR file before
+you claim the bug. `logs_controller#index` already carried this fix with
+an explanatory comment while `#show`/`#eval_pdf` did not, which is worth
+remembering: **when you find one of these, grep the rest of the same file
+before concluding you've found the only one.**
+
+**First seen in:** [2026-08-07-allowed-double-render-and-supervise-scope.md](./2026-08-07-allowed-double-render-and-supervise-scope.md)
+
+---
+
+## Pattern: removing a user-facing toggle has an artifact checklist — source removal is only half of it
+
+**Surface:** deleting (or neutralizing) any preference switch — a Text Settings
+toggle, a feature checkbox, a settings row.
+
+**Symptom:** the switch is gone from the UI and every grep of
+`app/frontend/app` is clean, so the removal reads as done — but the i18n key
+lingers in 12 locale files, and any `LEARNINGS.md`/doc entry naming the removed
+action function is now pointing at something that no longer exists.
+
+**Checklist** (all verified by grep, not assumed):
+
+1. Template markup + `data-*-action` hook
+2. Controller property + `toggle_*` action
+3. Component `@arg` and any `--modifier` body class it drove
+4. Observers on the property (`observer('shrinkLabelsToFit', …)`)
+5. Consumers gating on the modifier class (here: `label-field.js` checked
+   `.md-board-detail-grid--shrink-labels` before re-fitting one label)
+6. The behavior gate itself in the util
+7. SCSS rules scoped to the modifier class
+8. Server-side preference whitelist (often absent — LingoLinq stores
+   `preferences.*` as an open blob, so nothing to remove in Rails)
+9. **`public/locales/*.json` in all 12 non-English locales** — see the prune
+   corollary above; the generator will not do this
+10. Docs/LEARNINGS entries that cite the removed function as a live example
+
+Steps 9 and 10 are the ones that get missed, because 1–8 are what a grep of the
+app source shows you and they come back clean.
+
+**Judgment call worth recording:** a toggle whose behavior became unconditional
+should be REMOVED, not left in place. On an AAC product a switch that controls
+nothing is a support burden — but note the stored `preferences.<key>` value on
+existing users is deliberately left alone; it's an inert key in an open blob, and
+deleting user data to tidy a schema is the riskier half of the trade.
+
+**First seen in:** [2026-08-07-remove-shrink-labels-to-fit-toggle.md](./2026-08-07-remove-shrink-labels-to-fit-toggle.md)
 
 ---
 
@@ -5716,6 +6769,18 @@ decrypt). Local fix (test DB only, regenerates on boot):
 `psql -U scotw -d lingolinq-test -c "delete from settings where key='encryption_hash'"`. Do not
 "fix" it by editing the dotenv load order in spec_helper.
 
+## Gotcha: controller AI endpoints must call `ai_feature_enabled_for?` before any shared-cache short-circuit (#762)
+
+`feature_enabled_for?` is rollout only. `ai_feature_enabled_for?` also enforces org
+`disable_ai_features`, COPPA, EU under-16, and user prefs. A controller that gates with the plain
+flag and then returns a warmed `AiFocusWordSet` (keyed only on scrubbed prompt + locale + core
+flag — no user/org scope) skips every consent check on a cache HIT; the generator's own
+`ai_feature_enabled_for?` only runs on MISS. Specs that only exercise the miss path pass against
+the broken code. Mutation-test cache-hit 403 examples: revert the controller gate, confirm red
+(200 + cached words), restore, confirm green. Mirror `boards_controller#generate_labels` for the
+gate + Article 50 backstop (`article_50_disclosure` is registered AVAILABLE-only in CODE, but production ENABLES it via the `default_enabled_features` DB Setting -- verified 2026-08-23, see `docs/legal/2026-08-23_article-50-production-flag-verification.md`; do not enable or disable it just to
+exercise the backstop). See `docs/task-management/2026-08-07-focus-words-consent-gate.md`.
+
 ## Pattern: every external-model call site must gate the same way (COPPA + org opt-out + PiiScrubber + AiApiLog)
 
 The canonical AI egress shape is fixed across call sites (`lib/ai_word_predictor.rb`,
@@ -5749,6 +6814,32 @@ turned prefs off. Do not bake prefs into the flags payload. Mirror pref semantic
 word-prediction UI through it. Master `nil` = grandfather allow; master false = block; master true
 = per-feature must be true for `USER_PREF_AI_FEATURES`. See
 `docs/task-management/2026-07-14-eu-ai-prefs-parental-consent.md`. (2026-07-15)
+
+## Gotcha: Generate-with-AI UI opt-in is explicit; server grandfather is not
+
+`prefAllowsAi` still grandfathers a nil master (the generate_labels API can succeed). The
+create-board chooser uses `prefExplicitlyEnabled` / `boardGenerationEntry` so unset prefs open
+`enable-ai-features` instead of letting the user fill the form and then see "Feature not
+available". Do not fold that stricter check into `aiFeatureEnabled` — other AI UI still relies on
+grandfather. Register the modal in `modal-container.hbs` **and** `convertedModals` (same trap as
+`eu-ai-parental-consent`). Cancel is `modal.close(false)`, which **rejects**; callers must
+`.then(stay, stay)` or cancel looks like an unhandled error. EU under-16 without consent opens
+`eu-ai-parental-consent` instead of self-enable.
+
+The create-board chooser (`.nb-create-chooser`) is an in-page `position:fixed` overlay at
+z-index 6000, above Bootstrap `.modal` (1050). Opening `enable-ai-features` (or EU consent)
+while the chooser is visible paints the system modal behind the chooser, and the chooser's
+`backdrop-filter` blurs it. Hide the chooser before `modal.open`, restore it if the user
+does not proceed — same pattern as `choose_paste_html` / `choose_json_bundle`. Do not raise
+global `.modal` z-index to beat the chooser.
+
+`applyAiFeaturePrefs` must only write `true` for requested keys (master + the triggered feature).
+Writing `false` for the other `USER_PREF_AI_FEATURES` overwrites siblings that were already on
+(e.g. word prediction). Clone the whole `preferences` object before `user.set('preferences', …)`
+so Ember Data `attr('raw')` dirties. Apply runs before `user.save()`, so Cancel and a rejected
+save must `rollbackAttributes()` or the next Generate with AI skips the popup with in-memory prefs
+on and the API can still 403. See
+`docs/task-management/2026-08-17-ai-enable-popup.md`. (2026-08-17)
 
 ## Gotcha: `EvalNarrator` shipped against the OLD `ruby-anthropic` API; the gem is official `anthropic ~> 1.23`
 
@@ -6353,17 +7444,22 @@ Before adding any "choose which sub-boards to copy" UI, know the infra is alread
 - **Frontend:** `utils/board_hierarchy.js` builds the downstream tree with per-board `selected`
   flags, `selected_board_ids()`, `root_deselected`, `set_downstream(id,'selected',bool)`, `toggle()`.
   The `{{board-hierarchy selectable=true hierarchy=…}}` component renders the selectable tree
-  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, and the `copying-board` modal).
+  (used by `confirm-delete-board`, `slice-locales`, `swap-images`, `copy-board`, and `copying-board`).
   `components/board-hierarchy.js` `select_all(state)` now honors `state` → `select_all false`
   is Deselect All (existing callers pass no arg, so they still select).
-- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols); the EXECUTION modal is
-  `copying-board`, which loads the hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all
-  selected by default) and passes `hierarchy.selected_board_ids()` as the include list.
+- **Copy flow:** the OPTIONS modal is `copy-board` (name/user/symbols). It also loads the
+  hierarchy (`copy_hierarchy_loader`, `expand_all:true`, all selected by default) and shows the
+  collapsed `md-modal-expander` picker under the linked-boards hint. Confirming a full-set copy
+  passes `skip_hierarchy_picker` + `board_ids_to_copy`. The EXECUTION modal is `copying-board`,
+  which then skips its picker and starts the copy (progress only). If hierarchy load is still
+  in flight or failed, omit the skip flag so `copying-board` keeps its fallback picker.
+  `keep_links` / `remove_links` never skip; they still start copying immediately.
 - **Backend:** the copy endpoint already accepts `expand_selected_board_ids` (users_controller →
   user.rb#2559 → relinking.rb `copy_board_links_for`), so partial copies are supported server-side.
 So "modernize the copy modal / default-all-selected / deselect some" = a UI disclosure around the
 existing `board-hierarchy`, NOT a new feature. (2026-06-27: collapsed the picker behind a
-`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`.)
+`md-modal-expander` disclosure + modern `md-modal-btn` footer in `copying-board`. 2026-08-21:
+moved that expander onto `copy-board` so linked-board copy is one decision screen.)
 
 ---
 
@@ -6957,6 +8053,46 @@ using a `.lint-todo` the linter had already corrupted. The only sound test is ag
 `git show HEAD:<path>` copy of **both** the source and the baseline. Restore from HEAD before
 concluding "not mine".
 
+## Gotcha: nested `app/frontend/.github/workflows` never runs on GitHub Actions
+
+Only the **repository-root** `.github/workflows/` is executed. A CI file under
+`app/frontend/.github/workflows/` (added during the Ember 4.12 upgrade with `lint:js && lint:hbs`)
+is dead decoration — it has never gated a PR. When auditing “is X in CI?”, read the **root**
+workflow end-to-end; do not trust a nested copy. The ESLint root gate landed separately as
+`npm run lint:js:ci` + `.eslint-todo` (see [`2026-08-07-eslint-ci-gate.md`](./2026-08-07-eslint-ci-gate.md)).
+
+## Gotcha: ESLint baseline must be `.eslint-todo`, not shared `.lint-todo`
+
+`ember-template-lint` owns and **rewrites** `app/frontend/.lint-todo` on a plain run. Putting
+ESLint fingerprints in that file would race with template lint. Use a separate
+`app/frontend/.eslint-todo` consumed only by `scripts/eslint-todo-gate.js` (`lint:js:ci` /
+`lint:js:todo`). CI never regenerates the baseline; intentional rebaselines are explicit commits.
+
+## Gotcha: `.eslint-todo` fingerprints include line numbers — edits look like “new” lints
+
+`eslint-todo-gate` fingerprints `file|ruleId|line|column|severity|messageHash`. Inserting imports,
+guards, or tests in a file that already has grandfathered findings (especially large ones like
+`board-detail.js` / `app-state.js`) produces a flood of `ember/no-runloop` “NEW” rows even when no
+new runloop call sites were added. Diagnose before migrating: compare counts of
+`file|ruleId|messageHash` (ignore line/column). Line-only churn → fix any truly new violations,
+then `npm run lint:js:todo`. Do not treat a line-shift storm as a mandate to adopt ember-lifeline
+in the same PR. Recurred on `perf/melissa-boards-page-pass2` (`new=41`, 3 truly new),
+`feat/melissa-copy-board-inline-picker` (`new=37`; truly new were the hierarchy tests plus one
+computed dep; the rest were `application.js` line shifts from three payload keys),
+`fix/melissa-translate-action-tokens-and-lang-search` merging staging (`new=7`; 3 `assert.expect`
+on new tests, one `model.board.id` computed dep, 3 line-shifted `runLater`/controller deps),
+`fix/melissa-inflections-overlay` (`new=49`; all line-shifted `runLater`/computed-dep/string-proto
+in `board.js`/`button.js`/`edit_manager.js`/`raw_events.js`; file|rule counts unchanged except
+one stale `icon-select.js|no-dupe-keys` pruned), and
+`feat/melissa-spanish-verb-inflections` (`new=13`; all line-shift: `edit_manager.js` +21,
+`i18n.js` +281; zero truly new). New unit tests
+must not copy `run`/`later` poll helpers from grandfathered files — use `settled()` from
+`@ember/test-helpers`. See
+[`2026-08-10-eslint-todo-line-shift-boards-perf.md`](./2026-08-10-eslint-todo-line-shift-boards-perf.md),
+[`2026-08-18-eslint-todo-line-shift-boards-page-pass2.md`](./2026-08-18-eslint-todo-line-shift-boards-page-pass2.md),
+[`2026-08-21-copy-board-eslint-todo-gate.md`](./2026-08-21-copy-board-eslint-todo-gate.md),
+and [`2026-08-27-eslint-todo-line-shift-inflections-overlay.md`](./2026-08-27-eslint-todo-line-shift-inflections-overlay.md).
+
 ## Pattern: fix `require-input-label` by wiring the EXISTING label with `{{unique-id}}` — not by promoting the placeholder
 
 The obvious fix (`aria-label` derived from `placeholder`) is wrong for a large subset, for two reasons.
@@ -7096,6 +8232,25 @@ after revoke. EU under-16 users get `apply_eu_ai_offboarding_reset!` (force `EU_
 false + invalidate consent) so AI stays off until a new parent grant. Do not require parent
 email to complete org remove — login dialog is the fallback. See
 `docs/task-management/2026-07-16-org-offboarding-parental-consent.md`.
+
+## Pattern: Offboarding COPPA remaining gaps (expire / birth / export-delete) (2026-08-03)
+
+`Organization#remove_user` alone was not enough for LL-f150e0e828. Three residual gaps:
+
+1. **`License.expire_stale_licenses!`** must call `begin_family_offboarding_consents!` after
+   `release_user!`, with `force_under_13: true` when `school_authorization` is present and no
+   birth month/year is on file (no manager attestation on automated expiry).
+2. **Server-require birth month/year** on `remove_user` when COPPA is enabled — UI already
+   required it; API omission skipped COPPA and could leave `school_authorization` on a consumer
+   trial. `ArgumentError` is caught by org `process_params` as a processing error.
+3. **Export-then-delete:** pending offboarding COPPA past `parent_consent_expires_at` /
+   `offboarding_deadline_at`, or explicit decline via `GET /parental_consent/decline`, runs
+   `Exporter.export_user` → parent mailer → `schedule_deletion_at` (36h) for
+   `Flusher.flush_deleted_users`. Discover candidates via
+   `AuditEvent` `parental_consent_offboarding_started` (settings are encrypted). Daily:
+   `OffboardingCoppaExpirationWorker` in `scheduler:dispatch`.
+
+See `docs/task-management/2026-08-03-offboarding-coppa-remaining-gaps.md`.
 
 ## Pattern: Org `settings['jurisdiction']` drives release-time age laws (2026-07-17)
 
@@ -7446,8 +8601,10 @@ share one code path. (2) The prompt-injection guard must scan **each chunk's own
 that chunk's reviewer actually saw), not a single global diff. (3) Make the cap/limit/concurrency
 repo `vars.` (`CODEX_MAX_DIFF_BYTES`, `CODEX_MAX_DIFF_CHUNKS`, `CODEX_REVIEW_CONCURRENCY`) so the
 tooling owner can tune runner cost/time without a code change. (4) Parallelizing the chunk loop is
-what keeps a large PR under the 30-min watchdog — serial passes (up to MAX_CHUNKS × 3 codex runs)
-can otherwise time out, which is still fail-closed but defeats the point of reviewing the big PR.
+what keeps a large PR under the watchdog's 30-minute staleness threshold — serial passes (up to
+MAX_CHUNKS × 3 codex runs) can otherwise go stale, which is still fail-closed but defeats the point
+of reviewing the big PR. (Threshold, not deadline: the watchdog acts once a status is 30 min old AND
+a sweep runs, and sweep timing is best-effort. See issue #710.)
 Files: `scripts/codex-review-chunk-diff.py`, `codex-review-one-chunk.sh` (per-chunk worker, both
 routes), `codex-review-assemble-manifest.py`, `codex-review-build-envelope.py` (`fold_across_chunks`
 + `--manifest`), `.github/workflows/codex-review.yml`.
@@ -7832,6 +8989,20 @@ blank source as `'lessonpix'` is the codebase's own evidence that such records e
 
 **First seen in:** [2026-07-26-adversarial-review-remediation.md](./2026-07-26-adversarial-review-remediation.md)
 
+## Gotcha: compliance status packages must Path-A supersede attested legal docs, not edit them
+
+**Symptom:** A `/compliance-status` done-vs-needed package refreshes
+`COMPLIANCE_POSTURE_REPORT.md` / `COMPLIANCE_PROGRAM.md` in place to update counts; CI
+`document-register-render --check` fails with "attested revision no longer exists."
+
+**Root cause:** Those files are attested legal artifacts. Editing them changes `contentHash`
+while `attestedContentHash` stays pinned. Overwriting the pin would burn the prior attestation.
+
+**Fix recipe:** Leave attested files untouched; write
+`docs/legal/<YYYY-MM-DD>_<kebab-slug>_draft.md` successors; register Path A
+`supersedes`/`supersededBy`; retarget live bundles; keep frozen binders on the predecessor.
+See [2026-08-09-compliance-done-needed-report.md](./2026-08-09-compliance-done-needed-report.md).
+
 ## Gotcha: re-attesting attested `docs/legal/**` must supersede, not overwrite `attestedContentHash`
 
 **Symptom:** A skill or agent "fixes" `document-register-render.rb --check` MISMATCH on an
@@ -7849,6 +9020,52 @@ passing is not the same as preserving the attested record.
 only for non-`docs/legal/**` git rows or explicit Scot-directed recovery after an already-landed
 in-place amend. Skill: `.claude/skills/re-attest-record/SKILL.md`. Example chain:
 `DOC-9f6a2412ad` → `DOC-ae3f9d06ef`.
+
+> **SUPERSESSION NOTE, 2026-08-10.** The filename pattern in the Fix recipe above is superseded. The
+> original wording is preserved as written, because this is a historical log rather than a live spec.
+> The successor path is now `docs/legal/<YYYY-MM-DD>_<kebab-slug>.<ext>` with **no status token**:
+> status is a mutable register-row property, and `docs/legal/README.md` rule 3 freezes an attested
+> file's name permanently, so a status encoded in the name either goes false at the first status
+> change or forces a rename that rule 3 forbids. **A record must never be attested at a `_draft`
+> path.** Four dated `_draft` records predating the rule are grandfathered in place while unattested,
+> and each must be renamed to the statusless path, with its references repaired, before it is
+> attested. Everything else in this entry (Path A versus Path B, supersession pointers, bundle
+> retargeting by location) still stands. Authority: `docs/legal/README.md` Naming section, approved
+> by Scot 2026-08-10.
+
+> **SUPERSESSION NOTE, 2026-08-11.** The 2026-08-10 note's "rename … before it is attested" clause
+> is itself superseded. In-place rename of an already-registered git path changes the DOC-id
+> (`expected_id` hashes `canonicalLocation`; render overwrites `id`), which breaks the register's
+> permanent-ID promise and makes Notion sync create a new row while orphaning/pruning the old one.
+> The four grandfathered `_draft` records stay at their paths while unattested; before attestation,
+> leave via **Path A supersession** to a **new** statusless dated file + new register row (attest
+> only the successor). Do not rename the registered `_draft` path in place. Authority:
+> `docs/legal/README.md` Naming → Transition rule; Codex P2 on PR #784.
+
+**Also retarget live bundles by location, not title.** `meta.bundleDefinitions.*.requiredDocs`
+bind by `canonicalLocation`; moving live membership to the successor without updating those
+locations fails `--check` as a missing required member. Frozen dated binders can stay on the
+predecessor. Worked example (PR #721 recovery): DOC-bff9acf51f → DOC-e62caf7fb9 and
+DOC-03cb9fe91f → DOC-90632edc44; see
+[2026-08-09-pr721-path-a-supersession.md](./2026-08-09-pr721-path-a-supersession.md). When the
+same PR moves `lib/flusher.rb` definitions, re-pin `CAPABILITY-LEDGER.json` `currentEvidence.line`
+before the register gate (otherwise capability-check stays masked behind the attested-hash fail).
+
+## Gotcha: git DOC-ids hash `canonicalLocation` — never rename a registered path in place
+
+**Symptom:** A policy says "rename the file, repair inbound references, then attest." After rename +
+render, the row's `id` changes; Notion sync creates a new Doc ID page; `supersedes` /
+`supersededBy` / notes that cited the old DOC-id go stale.
+
+**Root cause:** `expected_id` is `DOC-` + `sha256(canonicalLocation)[0,10]`, and render always
+overwrites `doc['id']` (`scripts/document-register-render.rb`; `meta.idAlgorithm`). For git rows,
+path *is* identity. Drive rows use `driveFileId` precisely because Drive IDs survive renames; git
+has no equivalent.
+
+**Fix recipe:** Path A — new statusless dated file + new register row that `supersedes` the old
+path; mark the old row `superseded`; retarget live bundles by location; attest only the successor.
+Do not `git mv` an already-registered `docs/legal/**` path and pretend the DOC-id survived.
+Authority: `docs/legal/README.md` Naming → Transition rule (PR #784 Codex P2).
 
 ## Gotcha: fail-closed Sentry filters must not collapse lookup failures to nil
 
@@ -7882,6 +9099,18 @@ feature reports "configured" then fails AccessDenied at invoke time.
    `Bedrock::Client` uses `aws_secret_key` — do not rename based on that older API.
 4. Provision a separate Bedrock Mantle IAM user + policy
    (`scripts/gcp/iam/lingolinq-bedrock-mantle-policy.json`); do not bolt invoke onto the S3/SES policy.
+5. Operator/dev diagnostics that list required env vars must mention **both** accepted
+   credential pairs (dedicated Bedrock + standard SDK). Omitting the SDK pair misleads
+   local setups that already have `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` and only
+   need a region. Keep calling out that `AWS_KEY`/`AWS_SECRET` are not accepted.
+6. **The two Bedrock planes are not interchangeable** (learned 2026-08-01). `bedrock-mantle`
+   and classic `bedrock-runtime` carry DIFFERENT model catalogs and SEPARATE entitlements.
+   Account 239044785114 is entitled only to classic; Mantle 403s every model even with admin
+   credentials and `bedrock-mantle:CreateInference` on `Resource: "*"`, so a 403 there is an
+   entitlement fact, not an IAM bug. Classic additionally REJECTS bare foundation-model ids
+   ("on-demand throughput isn't supported") and requires the `us.` cross-region inference-profile
+   form. Opus 4.7 is absent from the classic catalog entirely. Select the plane with
+   `BEDROCK_PLANE`; `AiClient.bedrock_model` maps the alias to the plane's wire id.
 
 Evidence: `lib/ai_client.rb`, `spec/lib/ai_client_spec.rb`,
 `docs/task-management/2026-07-27-ai-client-bedrock-credential-review.md`.
@@ -7950,7 +9179,13 @@ When a batch helper downloads once and fans out (`self.assert_priority` → `wd.
 
 ## Gotcha: board translation Google egress is users#translate / WordData, not Board#translate_set
 
-`Board#translate_set` only applies a client-supplied translation hash — it does not call Google. The frontend first POSTs words to `/api/v1/users/:id/translate` → `WordData.translate_batch` → `query_translations` (Typhoeus to `translation.googleapis.com`), then posts the result to boards#translate → `translate_set`. An org off-switch that only gates `translate_set` still lets labels leave to Google. Gate the users translate action (and optionally `translate_set` as belt-and-suspenders); do **not** gate `WordData.query_translations` globally because `translate_locale_batch` uses it for library locale files. Org toggles for this live as top-level `settings['external_ai_processing']` (same shape as `default_beta_program_access`), not under `settings['permissions']` (ACL). Check all attached orgs (managers/supervisors), not only `managing_organization` / org_user. Ref: [#691](https://github.com/lingolinq/LingoLinq-AAC/issues/691), [`2026-07-28-org-external-ai-processing-off-switch.md`](./2026-07-28-org-external-ai-processing-off-switch.md).
+`Board#translate_set` only applies a client-supplied translation hash — it does not call Google. The frontend first POSTs words to `/api/v1/users/:id/translate` → `WordData.translate_batch` → `query_translations` (Typhoeus to `translation.googleapis.com`), then posts the result to boards#translate → `translate_set`. An org off-switch that only gates `translate_set` still lets labels leave to Google. Do **not** gate `WordData.query_translations` globally because `translate_locale_batch` uses it for library locale files. Org toggles live as top-level `settings['external_ai_processing']` (same shape as `default_beta_program_access`), not under `settings['permissions']` (ACL). Check all attached orgs (managers/supervisors), not only `managing_organization` / org_user.
+
+**Extension (2026-08-27):** Board translation is no longer gated by `external_ai_processing`. That org toggle covers Google Speech-to-Text (voice transcription) only. The Translate Boards modal always shows a Google Cloud Translation disclaimer (`app/frontend/app/components/translation-select.hbs`). Do not re-add the skip in `users#translate`, `Board#translate_set`, or `LibraryBoardTranslator`. Ref: [#691](https://github.com/lingolinq/LingoLinq-AAC/issues/691), [`2026-07-28-org-external-ai-processing-off-switch.md`](./2026-07-28-org-external-ai-processing-off-switch.md), [`2026-08-27-translate-disclaimer-ungate.md`](./2026-08-27-translate-disclaimer-ungate.md).
+
+## Gotcha: Accept Translations as form-urlencoded trips Rack's 4096-param cap
+
+`POST /api/v1/boards/:id/translate` used to send the whole label map as `application/x-www-form-urlencoded` (`translations[hat]=sombrero&…`). Rack 3.2.6 rejects forms over **4096 parameters** (`QueryParser::QueryLimitError` → empty HTML 400, ~10ms, no `api_error` JSON). The Google lookups (`users#translate`, 100 words per POST) stay under the cap; Accept of a full linked set does not. Send that save as `contentType: 'application/json'` + `JSON.stringify` (same pattern as `generate_labels`). Do not raise the global form-param limit. JSON does not speed up the lookup batches. Ref: [`2026-08-26-board-translate-400-empty-body.md`](./2026-08-26-board-translate-400-empty-body.md).
 
 ## Gotcha: Ember Data model ids in tests must be strings — numeric `set('id', N)` fails throwOnUnhandled
 
@@ -7999,3 +9234,7233 @@ After the Ember 5 modal migration, `utils/modal.open` only drives `service:modal
 ## Gotcha: authenticated chrome is AppNavbar, not application.hbs #identity
 
 When `useAppNavbarInHeader` is true (dashboard, org, most user routes), `application.hbs` renders `<AppNavbar>` and **skips** the legacy `#identity` block. Header controls added only under `#identity` in `application.hbs` are invisible on those pages. Put authenticated-nav affordances (e.g. Stop Masquerading next to Upgrade) in `app-navbar-authenticated-inner.hbs` (and the mobile drawer). Ref: [`2026-07-30-org-directory-find-user-masquerade.md`](./2026-07-30-org-directory-find-user-masquerade.md).
+
+## Gotcha: Flusher `transfer_user_content` is not a checklist for `flush_user_content`
+
+Merge reassignment (`transfer_user_content`) and hard-delete (`flush_user_content`) diverge. Models present only in transfer — historically `UserVideo`, `ButtonSound`, `ButtonImage` — will survive account erasure unless flush also sweeps them by `user_id`. Board flush only destroys media when join-table `full_flush` conditions hold, so off-board / message-bank `ButtonSound` rows are invisible to that path. Prefer explicit `Model.where(user_id:).each { flush_record }` over relying on `User` associations (`dependent: :destroy` is often missing). `flush_record` → `destroy` is what schedules Uploadable S3 `remote_remove`. Same class of gap later hit `LogSnapshot` (no transfer entry either — keyed by `user_id`, no FK cascade, no S3; LL-1e2ab28aab / issue #775) and `PredictionEntry` (AAC prefix/next_word; absent from both flush and transfer until LL-e8614c103f). New per-user tables must be added to **both** lists, plus `flush_leftovers` if rows can already exist for deleted users. Ref: [`2026-07-31-flush-uservideo-buttonsound-erasure.md`](./2026-07-31-flush-uservideo-buttonsound-erasure.md) (LL-854b1d3853), [`2026-08-10-flusher-log-snapshot-sweep.md`](./2026-08-10-flusher-log-snapshot-sweep.md).
+
+## Gotcha: stubbing `Uploader.remote_remove` still needs uploads-bucket URL shapes
+
+Specs that `expect(Uploader).to receive(:remote_remove)` never hit the "scary delete" guard, so `http://www.example.com/...` fixtures can mask regressions. Use uploads-bucket HTTPS paths that match `/\w+\/.+\/\w+-\w+(\.\w+)?$/` after the bucket prefix is stripped (extension optional, end-anchored; `^extras` also allowed — see `lib/uploader.rb:223`). Keep `removable: false` fixtures on non-uploads URLs (e.g. opensymbols) — `check_for_removable` forces `removable=true` for uploads-bucket URLs. Ref: [`2026-07-31-flush-uservideo-buttonsound-erasure.md`](./2026-07-31-flush-uservideo-buttonsound-erasure.md).
+
+## Pattern: a missing env var can turn a storage optimization into silent data destruction
+
+**Surface:** `ExtraData` concern (`app/models/concerns/extra_data.rb`) plus any caller that
+stashes data into `@cached_extra_data` before calling `detach_extra_data`.
+
+**Gotcha:** `extra_data_too_big?` hard-returns false unless `ENV['REMOTE_EXTRA_DATA']` is set,
+and the upload block in `detach_extra_data` is gated on it. With the var unset the entire
+detach is a **silent no-op** that still returns `true`. Meanwhile
+`BoardDownstreamButtonSet#generate_defaults` was stripping `data['buttons']` into the in-memory
+`@cached_extra_data` for any set over 200 buttons. Nothing got uploaded, so that was the only
+copy, and because `generate_defaults` is a `before_save` callback that begins by nilling
+`@cached_extra_data`, the very next save recomputed `button_count = 0` and wrote the record
+empty. This zeroed 1754 of 2061 prod button sets. The variable appears in no tracked config
+anywhere in the repo, and does not appear in the 2026-06-30 45-var Render prod env
+accounting either, so its absence is a long-standing misconfiguration of unknown
+vintage rather than a cutover regression. (Do not assume "the migration dropped it"
+without checking the Render side; the 10 prod sets that carry a nonce come from
+`url_for`'s `detach_extra_data('force')` path, which bypasses the env gate at
+`extra_data.rb:28`, and are not evidence the var was ever set.)
+
+**Rule:** never move the only copy of data into a transient stash unless the destination is
+known to be writable. Gate the strip on the same predicate that gates the write. `LogSession`
+already did this correctly (`extra_data.rb:51-53` keeps events in the DB when upload fails);
+`BoardDownstreamButtonSet` did not, on the reasoning that button sets are regenerable, but
+regeneration hits the identical trap.
+
+**Diagnostic technique that cracked it:** look at the *distribution*, not one record. Every
+prod button set was under the 200-button threshold (`bc_max=194`, `bc_gt200=0`) in a library
+whose root boards legitimately produce 3717-button sets. A hard ceiling exactly at a constant
+in the code is a fingerprint pointing straight at the branch guarded by that constant. One
+broken record looks like corruption; the histogram names the line.
+
+**Also:** `extras:rebuild_button_sets` reported success while writing empty sets, which sent a
+prior triage session chasing S3 KMS and ImageMagick ghosts. A repair task that cannot detect
+its own no-op is worse than no task. It now preflights the storage config and reports roots
+that rebuild to zero.
+
+**First seen in:** `2026-08-01-prod-empty-button-sets.md` (PR #724)
+
+---
+
+## Flaky async test at ~position 595 (`ai_word_predictor` / `app_state`) — same singleton-pollution class, module not yet fenced (documented finding, no fix applied)
+
+**Symptom:** an intermittent failure that lands on either `ai_word_predictor` (~#595,
+"resolve cached predictions without duplicate fetches") or the adjacent `app_state`
+"inject settings" (~#597). Position hops run-to-run; **both pass in isolation**. This is
+the same flake *class* as the 2026-07-22 persistence-sync entry (shared-singleton async
+pollution: a prior test's late async bleeds into a later test) — but in a **different
+module** that the shipped persistence-sync fence/retry does **not** cover.
+
+**Why these two are the victims:** `ai_word_predictor-test` sorts immediately before
+`app_state-test` (`ai…` < `app…`), so a leaked async from an `ai_word_predictor` test
+fires during a later `ai_word_predictor` test *or* spills into the first `app_state` test.
+
+**Verified pollution surface (`app/utils/ai_word_predictor.js`):**
+- Module-level shared state: `_cache`, `_pending_timer`, `_pending_reject`.
+- The debounce `_pending_timer` (scheduled via `runLater`) fires `_fetch()` →
+  **real `persistence.ajax`**; `ai_word_predictor-test.js` does **not** stub ajax.
+- `clear_cache()` (the test's `beforeEach`) resets **only `_cache`** — it does NOT cancel
+  `_pending_timer` / null `_pending_reject`.
+- `cancelHarnessAsyncWork()` (jasmine `afterEach`, `tests/helpers/sync-test-cleanup.js`)
+  cancels persistence's `eventual_store_timer` but **knows nothing about `ai_word_predictor`**.
+- Net: an `ai_word_predictor` debounce timer / in-flight `_fetch` XHR is fenced by nothing,
+  so it resolves late onto whatever test is running.
+
+**Recommended fix (NOT yet applied — needs the LEARNINGS ≥30-iteration verification budget):**
+a **post-test** fence (never a `beforeEach` pre-cancel — that's a documented dead end from
+the persistence-sync entry): in `cancelHarnessAsyncWork()` cancel
+`ai_word_predictor._pending_timer` + null `_pending_reject`, and **stub `persistence.ajax`**
+in `ai_word_predictor-test.js` so `_fetch` never leaves a real XHR in flight. Test-harness
+only; production untouched — matches the shipped epoch-fence philosophy. A pragmatic
+alternative is extending the name-gated auto-retry in `jasmine.js` to also cover
+`ai_word_predictor` / `app_state` (masks rather than fixes).
+
+**Verification burden (why left as a finding):** per the persistence-sync entry, trusting
+any fix here requires ≥30 full-suite iterations (~15 min each); 15 green runs prove nothing.
+
+**First seen in:** this branch's CI (`traci/styling/styling-updates`), 2026-08-03. Related:
+the 2026-07-22 persistence-sync epoch-fencing entry.
+
+---
+
+## Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)
+
+`editManager.change_button` sync observers that watch only an object reference (`observer('model.book', …)`) do **not** refire when `set-field` mutates nested properties on that object. The video path already documents and implements this (`button-settings.js` `videoChanged` observes `model.video` + `model.video.popup|start|end`). Restoring TarHeel book checkboxes with `set-field` alone is incomplete unless `bookChanged` also observes `model.book.popup` / `.speech` / `.utterance` (or each control calls `change_button`). Separately: TarHeel init defaults are asymmetric — `speech: false`, `utterance: true` (`utils/button.js:163-175`) — so register impact text must not say both default falsy. Ref: [`2026-08-02-ember-register-book-options-codex-fixes.md`](./2026-08-02-ember-register-book-options-codex-fixes.md).
+
+## Gotcha: list-endpoint board records omit `permissions` → false "make a copy" prompt on your OWN board
+
+`Board.permissions` is `attr('raw')` (`models/board.js:900`), populated ONLY when the API response passes `:permissions => @api_user` (`lib/json_api/board.rb:120-122`). The **boards-index** endpoint (dashboard preview, boards page, My Boards picker, sidebar) does **not** pass it, so records loaded via those list surfaces have `permissions === undefined` (same gap the `starred_for_current_user` computed at `models/board.js:934` documents/works around for `starred`). The board-detail route serves the cached list-record via its cache-hit fast path (`routes/user/board-detail.js:116`) without reloading. Then any edit-entry gate that checks `!board.get('permissions.edit')` can't distinguish **"unknown"** (permissions absent) from **"can't edit"** (permissions present, edit=false), so it opens `confirm-needs-copying` on a board the user OWNS. A manual refresh fixes it only because full navigation reloads via the single-board endpoint (which includes permissions).
+
+**Two edit-entry gates had this bug — both fixed:** `app-state.js#toggle_edit_mode` (app-wide toggle) and `board-detail.js#enter_edit_mode` (options-menu "Edit Board", `board-detail.hbs:896`).
+
+**First attempt (reverted — didn't work):** reload the board when `permissions` was *entirely absent* (`!board.get('permissions')`). Failed because the cached list record can carry `permissions` **present but stale `edit:false`** (not undefined), so the `!permissions` guard never fired — AND a `reload()` may be served from the offline/persistence cache, so it isn't a reliable way to refresh permissions anyway.
+
+**Working fix — ownership check (no reload, cache-proof):** ownership is authoritative and ALWAYS available client-side — a board's `key` is `<owner>/<slug>` and `user_name` is the owner. Compute `owner_name = board.user_name || board.key.split('/')[0]`; if it equals `sessionUser.user_name`, the user can always edit directly, so OR it into the gate: prompt-to-copy only when `!permissions.edit && !owns_board`. Owning a board always implies edit rights (server enforces on save anyway), and non-owned-but-editable cases (supervisor/shared) still fall back to `permissions.edit`. The server `show` endpoint DOES send permissions (`boards_controller.rb:390 :permissions => @api_user`) — the gap is purely that LIST endpoints omit it and the board-detail route serves the cached list record. Ref: [`2026-08-04-ui-test-checklist.md`](./2026-08-04-ui-test-checklist.md).
+## Gotcha: merging staging into an attestation-correction PR must not take staging's `built` ledger flip
+
+When a compliance PR retracts an overclaim (e.g. #725 Bedrock credential attestation →
+`ai-features-anthropic` `partial` / not operational) and staging later lands the runtime fix
+that staging's own ledger marks `built` again (#719 mount + #727 classic plane), a naive
+"take theirs" on `CAPABILITY-LEDGER.json` undoes the PR thesis.
+
+**Resolution pattern:** keep the correction's status/claimLanguage; fold in the new technical
+facts (classic vs mantle, deploy-workflow mount) into antiClaim/notes; state explicitly that
+code landing ≠ operative-condition verified. Then regenerate — never hand-edit — with
+`ruby scripts/capability-check.rb` and `ruby scripts/document-register-render.rb`. Date-stamp
+historical evidence rows that staging's code change would otherwise falsify (e.g. "absent in
+deploy-cloudrun.yml" → "absent as of YYYY-MM-DD evidence gather (pre-#719)").
+
+Ref: `docs/task-management/2026-08-03-bedrock-attestation-staging-merge.md` (gitignored working log).
+
+## Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token
+
+Two different credentials share the name `user_token`. `User#user_token` is a permanent HMAC of `global_id` (login-serialized via `lib/json_api/user.rb`). Embed-frame's `data-user_token` is **not** that: `board.js` reads `tool.get('user_token')` from the integration serializer, which mints `UserIntegration#user_token` (integration-scoped, obfuscated user id + integration id + sig). When scoping permanent-token findings (e.g. LL-90045bb29c residual), do not fold embed-frame into `User#user_token` blast radius without verifying the mint site. Ref: [`2026-08-03-ll-90045bb29c-narrow-close.md`](./2026-08-03-ll-90045bb29c-narrow-close.md).
+
+## Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url
+
+`lingolinq-prod-uploads` blocks public access. Browser upload (SigV4 POST) can succeed while the worker-side import still fails: `Converters::Utils.remote_to_boards` used to `SafeHttp.get` the raw `https://bucket.s3.amazonaws.com/...` URL, get a 403 XML body, then feed it to rubyzip → misleading `Zip end of central directory signature not found` at progress ~0.22 / `processing_file`. JSON bundle import already signed via `Uploader.signed_internal_url` (`lib/converters/api_json_bundle.rb`); OBF/OBZ import and `Uploader.remote_zip` must do the same, and raise on non-success HTTP before parsing. Ref: [`2026-08-04-obz-import-signed-fetch.md`](./2026-08-04-obz-import-signed-fetch.md).
+
+## Gotcha: a compliance claim about runtime state expires; verify at the SHA and in prod, never from the diff
+
+PR #725 took nine review rounds. The same defect recurred four times, twice by the
+reviewer who was correcting it. The pattern is worth naming because it is not a
+compliance problem, it is an epistemics problem that any long-lived doc PR will hit.
+
+**The defect:** a runtime-state claim written as an unbounded absolute. "No revision
+carries a Bedrock credential." "Bedrock egress has never occurred." "AiClient.build has
+always returned nil." Each was true when written and false by merge, because production
+changed underneath the branch.
+
+**Why sweeps kept missing it:** grepping the phrasing you remember writing
+(`dormant|not operational|no data is sent`) will not match `never occurred`,
+`always returned nil`, `currently UNVERIFIED`, `has been since`, or
+`is present on any revision`. Enumerate by MEANING, not by phrase: find every line that
+mentions the subject alongside a state verb, then check each for an explicit time bound.
+
+**The rule that actually works:** every claim about runtime state carries the window it
+covers. Not "X never happened" but "X did not happen between <date/revision> and
+<date/revision>, the period this claim covers." An unbounded absolute in a compliance doc
+is a latent defect with a fuse on it.
+
+**Reviewers must read bytes, not working directories.** Twice in one session a confident
+finding came from a checkout that had drifted from the reviewed head (once the primary
+checkout, once an external reviewer's). Use `git show <sha>:<path>` or a fresh fetch.
+Corollary: before dismissing a reviewer's finding as stale, verify it against the SHA
+they actually reviewed — it may be valid there and already fixed downstream.
+
+**Configuration is not observation.** "Credentials are mounted" does not mean "calls
+happened," and "the feature is reachable" does not mean "the feature ran." The original
+retracted claim inferred runtime behaviour from deployment config; the correction then
+inferred dormancy from deployment config the same way. Separate verified / reachable /
+unexercised / unavailable explicitly. `AiApiLog` only records completed logged seam calls,
+so a zero-row result proves "no logged seam call completed," never "nothing egressed."
+
+**Regeneration is order-dependent.** `capability-check.rb` writes
+`docs/legal/CAPABILITY_LEDGER.md`, which `document-register-render.rb` then hashes. Running
+the register renderer first produces a spurious drift failure. Order: capability-check ->
+citation-check --render -> calendar -> notion -> document-register-render ->
+publication-status.
+
+Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the serving image.
+
+## Gotcha: nested `sound[user_id]=self` 404s on create (replace_helper_params is top-level only)
+
+`ApplicationController#replace_helper_params` rewrites top-level `id` / `*_id` placeholders like `user_id=self` → `@api_user.global_id`, but **not** nested hashes. `Api::SoundsController#create` resolves nested `sound[user_id]` with `User.find_by_path`, which treats non-digit strings as `user_name` — there is no user named `self`, so create returns **404 Record not found** before any `ButtonSound` insert. Images create never looks up nested `user_id`, so picture upload can still work while sound upload fails. Same class of bug as boards index `?user_id=self` (2026-07-15 learning). Fix: treat nested `'self'` as `@api_user` (boards already special-cases `for_user_id == 'self'`), ignore blank, and on the frontend never POST the literal `'self'` — use `currentUser._actual_id || id` or omit. Ref: [`2026-08-04-sound-upload-nested-self-404.md`](./2026-08-04-sound-upload-nested-self-404.md).
+
+## Gotcha: button sound upload is MIME-only — empty/`video/mp4` File.type looks like a failed search
+
+Button Settings → Sound → upload calls `contentGrabbers.file_selected('sound', files)`, which only kept files whose `type` matched `/^audio/`. Anything else `alert`s **"No valid sound found"** (`no_valid_sound_found`) — search-shaped copy for an upload that never reached `soundGrabber`. On Windows/WSL, `.mp3`/`.wav` often have an empty MIME type; `.m4a` is often `video/mp4`, and the `video/*` branch ran first so the sound picker still failed. No POST `/api/v1/sounds` happens. Classify with `looks_like_audio` (audio MIME **or** common audio extension) before the video branch. Same helper for drop and recordings upload. Distinct from the nested `user_id=self` 404 (that path already POSTs). Ref: [`2026-08-24-button-sound-upload-mime.md`](./2026-08-24-button-sound-upload-mime.md).
+
+## Pattern: board-detail Speak bar must speak vocalization, not just label
+
+**Surface:** board-detail Speak Mode — button with distinct `label` vs `vocalization` (e.g. joke boards: label "Money joke", vocalization = the joke text).
+
+**Symptom:** Button tap speaks the joke correctly; tapping the Speak bar text or mic speaks only the short label.
+
+**Root cause:** Two speak paths. Button tap uses `utterance.speak_button` (`vocalization || label`). Classic `#button_list` uses `utterance.vocalize_list` (same). Board-detail's `speak_sentence` was speaking local `sentence_text`, which joined **labels only**, and `sync_sentence_from_button_list` never copied `vocalization` onto `sentence_parts` chips. Demo speak already had the correct helper (`sentence_text_for` → `vocalization || label`).
+
+**Fix recipe:** Persist `vocalization` on each `sentence_parts` chip when mirroring `app_state.button_list`. Keep display `sentence_text` as labels (chip / text-strip UX). For Speak-bar / mic replay, call `utterance.vocalize_list` (same as classic) so **attached button sounds** play and TTS uses `vocalization || label`. Keep a TTS fallback (`sentence_speak_text`) only when `button_list` has nothing speakable (e.g. phrase-builder chips that never hit `add_button`). `vocalize_list` sets `list_vocalized` / honors `clear_on_vocalize` — that is intentional parity with classic Speak Mode.
+
+**Evidence:** task log [`2026-08-04-speak-bar-label-not-vocalization.md`](./2026-08-04-speak-bar-label-not-vocalization.md); follow-up [`2026-08-04-speak-bar-skips-button-sounds.md`](./2026-08-04-speak-bar-skips-button-sounds.md); `board-detail.js` `_speak_current_sentence` / `sentence_speak_text`; contrast `utterance.js` `speak_button` / `vocalize_list`.
+
+## Pattern: board-detail Speak bar must play attached button sounds, not TTS-only
+
+**Surface:** board-detail Speak Mode with buttons that have recorded `ButtonSound` audio (imported joke boards, rimshot, etc.).
+
+**Symptom:** Button tap plays the recording; Speak bar / mic speaks the label via TTS.
+
+**Root cause:** `speak_sentence` called `speecher.speak_text(...)`. Classic Speak Mode calls `utterance.vocalize_list`, which pushes `{sound: url}` into `speecher.speak_collection` when `button_list[i].sound` is set. The vocalization-text fix did not close this gap.
+
+**Fix recipe:** Route Speak-bar / mic through `utterance.vocalize_list` when `app_state.button_list` has speakable entries. Do **not** use that path for phrase-builder commit (local chips only — would replay a stale utterance).
+
+**Evidence:** [`2026-08-04-speak-bar-skips-button-sounds.md`](./2026-08-04-speak-bar-skips-button-sounds.md).
+
+
+## Pattern: long-running modal work that must survive dismissal belongs in a service + app-level component, not a "hidden" modal
+
+**Surface:** "Copying Board" progress modal — the copy must keep running when the
+user clicks outside it, and must report back later (background drawer → toast).
+
+**Why not the obvious approach:** the modal slot is single-tenant and short-lived.
+`services/modal.js#_openModal` destroys the current modal whenever another one
+opens, and `app_state.global_transition` closes all modals on every route change.
+So you can never "keep the modal open, just minimized" — the surface has to move
+out of the modal layer.
+
+**Fix recipe (three pieces, each single-responsibility):**
+1. A tiny **state service** (`services/copy-progress.js`): status / payload / a
+   dismiss timer, plus a monotonic **token** stamped when the job is backgrounded.
+   Result handlers only write if they still own the token, so a second job started
+   while the first is pending can't be reported under the wrong subject.
+2. An **app-level component** mounted in `templates/application.hbs` (next to
+   `<AppToast />`), which is the only region that survives route transitions.
+3. In the modal component, capture **every service into a local `const` before**
+   kicking off the promise chain, and thread a plain `{token: null}` closure object
+   through the handlers. The chain outlives the component — after `modal.close()`
+   the component is destroyed, so any `this.get(...)` in a settle handler is a
+   latent crash. Guard `this.set(...)` with `isDestroyed`/`isDestroying`.
+
+**Two traps found here:**
+- **Backdrop vs. Close are indistinguishable to a modal.** `modal-dialog.js`
+  `actions.close` computes `isBackdropClick` internally, then calls the same
+  `@action` for both. To branch, add an *opt-in* `@backdropAction` (same additive
+  pattern as the existing `@labelledBy`): present → backdrop calls it instead of
+  `@action`; absent → every other modal is byte-for-byte unchanged.
+- **`{{this.onFoo}}` handlers assigned in `didInsertElement` never bind.** Several
+  modal components assign `this.onClose = …` there with a plain (non-`set`)
+  assignment, but the child `<ModalDialog>` renders *before* the parent's
+  `didInsertElement`, so `@action` stays `undefined` forever (which is why
+  `modal-dialog` has a `modal.close()` fallback). Anything the template hands to a
+  child must be assigned in **`init()`**.
+
+**Corollary — an actionable notice must not auto-dismiss.** Once the finished
+card gained an "Open Board" button, the originally-specced 4 s auto-fade became a
+trap: the user has to notice it, read it, and land the click inside that window,
+and in an AAC app that motor assumption is exactly the one you cannot make. Timed
+fade is for notices that carry no action; anything offering a choice waits to be
+answered. (Bonus: dropping the timer removed the runloop entirely from the
+service.)
+
+**Evidence:** [`2026-08-06-copy-board-minimize-to-drawer.md`](./2026-08-06-copy-board-minimize-to-drawer.md);
+`components/copying-board.js` `minimize`/`start_copying`; `components/modal-dialog.js`
+`backdropAction`; `services/copy-progress.js`.
+
+## Gotcha: generic `.button` selectors in the CLASSIC board CSS leak onto the modern board-detail card
+
+The modern board-detail symbol card renders with `class="button md-board-detail-symbol-card …"`
+— it carries **`.button` too**. So every classic-renderer rule written as
+`.button …` (there are many; the classic board CSS is thousands of lines earlier
+in `app.scss`) silently applies to the modern page as well.
+
+Concrete bug: `@media (max-height: 800px) { .button img.symbol { transform:
+scale(clamp(0.6, 0.6 + (100vh - 400px)/1000px, 1)) } }` was shrinking every
+board-detail symbol on any viewport under 800px tall — `scale(0.968)` at 768px,
+`scale(0.6)` at 400px. The rule exists to compensate for the classic renderer's
+JS-sized `img_holder` (its own comment says so); the modern card has no such
+holder — its symbol is a `flex: 1 1 auto` child that already yields space to the
+label — so there the compensation is not just useless, it fights the layout.
+
+**Detection:** you cannot grep for this. The offending rule mentions neither
+`board-detail` nor `symbol-card`. Use CDP `CSS.getMatchedStylesForNode` (or
+DevTools' Computed → "matched rules") on the real element and read what actually
+matched. That is also how to catch the reverse case.
+
+**Fix shape:** exclude by class on the shared element —
+`.button:not(.md-board-detail-symbol-card) img.symbol` — rather than moving or
+rewriting the classic rule, so the classic board keeps its behavior
+byte-for-byte. Any time you touch a `.button …` rule, ask which of the two
+renderers you meant, and scope it.
+
+**Related:** the sibling gotcha is picking the wrong renderer entirely (patching
+`board.js#to_fast_html` for a board-detail bug) — see
+[`2026-08-04-board-button-image-font-ratio.md`](./2026-08-04-board-button-image-font-ratio.md).
+
+## Gotcha: `cqmin` inside an `inline-size` container silently resolves to the viewport
+
+`container-type: inline-size` exposes only the inline axis. Per spec the block
+axis is then unavailable, so `cqb`/`cqh` — and therefore **`cqmin`/`cqmax`** —
+fall back to the **small-viewport** units instead of the container. The rule
+still parses and still computes a number, so it fails silently: the font looks
+plausible on one screen and completely wrong on another.
+
+`cqmin` is only meaningful under `container-type: size` (both axes). The
+board-detail symbol card has `container-type: size` so `cqmin` is valid there;
+the word-prediction tile next to it has `container-type: inline-size`, so the
+rule that deliberately mirrors the board label had to stay on `cqw` with a
+matched coefficient. Two visually-paired components, two different correct units.
+
+**Rule of thumb:** before writing `cqmin`, confirm the nearest ancestor container
+is `container-type: size`. If it is `inline-size`, use `cqi`/`cqw`.
+
+## Pattern: measure the real render before tuning a responsive coefficient
+
+For "make it bigger on small screens" bugs, drive the actual page and read
+computed styles — do not reason from a screenshot. The committed Puppeteer works
+against the running dev stack (ember :8184 → rails :5000). Auth without a
+password: mint a browser `Device` token server-side and seed
+`localStorage['lingolinqStash-auth_settings']` in `evaluateOnNewDocument` before
+boot (`stashes.persist_raw`, `app/utils/_stashes.js:296`); destroy the temporary
+device afterwards.
+
+Why it pays: on the reported board the label was pinned to the clamp **floor**
+(10px) against a **35px** user preference — a 3.5× gap that reads as "a bit
+small" in a screenshot and tells you nothing about which of four competing
+rules to edit or by how much. Measuring also produces honest before/after
+numbers, which is what surfaces the real trade: from one fixed card, a bigger
+label and a bigger symbol are in direct competition (the symbol is `flex: 1 1
+auto` and gets only leftovers), so the growth has to be paid for out of
+**padding**, not out of the other element.
+
+**Evidence:** [`2026-08-06-small-screen-button-text-image-padding.md`](./2026-08-06-small-screen-button-text-image-padding.md).
+
+## Gotcha: "the symbol doesn't fill the button" is usually the ASSET, not CSS — measure the opaque box before touching object-fit
+
+Recurring report on board buttons: the symbol looks small and floats in empty
+space, so "remove the padding on the image." Before changing anything, measure.
+On the reported board the `__image` holder and the `<img>` both had `padding: 0`,
+`margin: 0`, no transform, and the img element box was **exactly** the holder box
+— CSS was already giving the symbol every available pixel. Two non-CSS causes:
+
+1. **Aspect-ratio letterboxing.** Symbols are square (250×250); the holder is
+   wide-and-short, so `object-fit: contain` fills the height and leaves side
+   margins. Not removable without cropping or distorting.
+2. **Transparent margin baked into the image file.** Render the symbol to a
+   canvas and compute its opaque bounding box (`getImageData`, alpha > 12). On
+   one sampled board the glyphs occupied **72–92%** of their canvas height, with
+   **1–14%** transparent margin per side.
+
+**Why `object-fit: cover` / a global upscale is the wrong fix:** it crops by a
+FIXED amount while the baked-in margin VARIES 1–14%. A ~15% crop is harmless on
+the median symbol and eats real artwork on the tight ones. For AAC the glyph
+outline is the recognition cue, so silently clipping a tenth of the drawing on an
+unpredictable subset of buttons is a worse defect than the whitespace.
+
+**What IS safe:** give the image more room instead of scaling it. `__image` is
+`flex: 1 1 auto` and the label is `flex-shrink: 0`, so every pixel of label
+padding/leading comes straight out of the symbol — trimming label padding and
+line-height on short cards enlarges a height-limited symbol with zero risk. The
+real fix for (2) is asset-side (trim the sources, or store a per-symbol opaque
+bbox and crop via `object-position`), not a stylesheet change.
+
+**Evidence:** [`2026-08-06-small-screen-button-text-image-padding.md`](./2026-08-06-small-screen-button-text-image-padding.md) (Round 2).
+
+## Gotcha: percentage padding resolves against WIDTH — including padding-top/bottom
+
+`padding: 1%` on a block does **not** mean "1% of my height" on the vertical
+sides. Per spec every percentage padding (and margin) resolves against the
+*containing block's inline size*, i.e. its WIDTH, on all four sides. So a
+wide-but-short element gets a vertical inset sized by its width.
+
+Bit us on board buttons: `padding: clamp(1px, 1%, 4px)` was a good fix for
+"padding should scale with the button, not the viewport" (a dense board on a wide
+screen never matched a `@media (max-width: 1024px)` rule and kept the full 4px).
+But on a 108x44 button it then spent ~1% of *108* on the top and bottom of a 44px
+box, leaving a dead band under the symbol. Correct form splits the axes:
+
+```scss
+padding: 1px clamp(1px, 1%, 4px);  /* vertical flat; horizontal scales — width IS its axis */
+```
+
+**Rule of thumb:** percentage padding is only meaningful on the horizontal sides.
+If you want a size-responsive *vertical* inset you need a container query
+(`cqh`/`cqmin`) or a flat value — never a percentage.
+
+**Related:** for making an element's own padding respond to its own size, a
+container cannot query ITSELF; percentage padding against the parent is usually
+the cheapest correct lever, since making the parent a container costs
+`contain: layout` (a stacking context) on every instance.
+
+**Evidence:** [`2026-08-06-small-screen-button-text-image-padding.md`](./2026-08-06-small-screen-button-text-image-padding.md) (Round 3).
+
+## Gotcha: a media query adds NO specificity — an un-nested rule can silently outrank your breakpoint fix
+
+Chased this for two iterations on board-detail. `@media (max-width: 820px) { .md-board-detail-layout { height: auto; min-height: calc(...) } }` looked like the rule that governed the layout height. It did not. An un-nested rule,
+`.md-shell--board-detail:not(.md-shell--board-detail-edit) .md-board-detail-layout { height: calc(100dvh - ...) }`,
+has specificity (0,3,0) versus the media rule's (0,1,0) — and **wrapping a rule
+in `@media` does not raise its specificity at all**. So the un-nested `height`
+won regardless of source order, and an explicit `height` beats `min-height`
+outright. Editing the media block changed the computed `min-height` to 373px
+while the used height stayed 375px — visibly nothing happened.
+
+**Detection:** if a responsive fix "does nothing", read the *computed* value AND
+the matched-rule list (CDP `CSS.getMatchedStylesForNode` / DevTools Computed),
+not the file. The winning rule is often the one with no breakpoint on it.
+
+**Rule of thumb:** the breakpoint block is rarely the authoritative owner of a
+property. Find the highest-specificity declaration first, and make the change
+there — or the breakpoint rule is dead code that merely looks like the fix.
+
+## Pattern: a viewport-filling `calc(100dvh - …)` must subtract every ancestor inset it sits inside
+
+`height: calc(100dvh - var(--topbar-height, 68px))` on a layout nested inside a
+shell with `padding-top: 2px` makes the page *always* exactly 2px taller than the
+viewport — a permanent scrollbar with nothing to scroll to. Harmless-looking on a
+desktop; on a 375px-tall phone it reads as "the board doesn't fit".
+
+**Fix shape:** publish the inset as a custom property **declared on the same rule
+as the padding it mirrors**, so the two cannot drift apart, and subtract it with a
+`0px` fallback so states that don't set the padding are unaffected:
+
+```scss
+.md-shell--board-detail:not(...) { padding-top: 2px; --bd-shell-pad-top: 2px; }
+.md-shell--board-detail:not(...) .md-board-detail-layout {
+  height: calc(100dvh - var(--topbar-height, 68px) - var(--bd-shell-pad-top, 0px));
+}
+```
+
+Check for this whenever a `100dvh`/`100vh` sizing rule lives below an ancestor
+with padding, a border, or a sticky header.
+
+**Evidence:** [`2026-08-06-board-detail-short-viewport-vertical-fit.md`](./2026-08-06-board-detail-short-viewport-vertical-fit.md).
+
+## Gotcha: a plain inline style LOSES to a CSS `!important` — JS "fit to size" silently no-ops
+
+`label_fit.js` sized board labels with `el.style.fontSize = px`. The responsive
+label rules in app.scss are `!important`
+(`@media (max-width: 1200px) { … font-size: clamp(…) !important }`), and **a
+plain inline declaration does not beat an `!important` one** — only an
+`!important` inline does. Two failures compounded and hid each other:
+
+1. The iterative measure loop set a trial size, but the element kept rendering at
+   the CSS-forced size, so `scrollWidth`/`scrollHeight` never changed. No trial
+   ever "fit", and every label bottomed out at the `MIN_FONT_PX` floor.
+2. The floor value it finally wrote was ignored too, so the visible result was
+   *no change at all*.
+
+Net effect: the "Shrink labels to fit" preference appeared to do nothing on any
+viewport under 1200px — for as long as those `!important` rules existed.
+
+**Detection:** compare the element's `style.fontSize` (inline) against
+`getComputedStyle(el).fontSize`. `inline=9px` + `computed=18px` is the signature
+— the JS ran, wrote, and was overruled.
+
+**Fix shape:** route every write through one helper using
+`el.style.setProperty('font-size', px + 'px', 'important')`, and clear with
+`removeProperty`. Do this in the MEASURE loop too, not just the final write, or
+the measurement is meaningless.
+
+**General rule:** any JS that measures-then-sizes must set its trial values at a
+priority that actually wins, or it is measuring a value it does not control.
+
+## Gotcha: fit-to-box must measure BOTH axes — `word-break: keep-all` makes a long word overflow sideways, never down
+
+`fitWrapped` iterated font-size against `scrollHeight` vs a 3-line box only. The
+board labels set `word-break: keep-all` + `overflow-wrap: normal` on purpose (for
+AAC, the shape of the whole word is the recognition cue, so never split one), so a
+single long word **cannot wrap**: it stays on one line, overflows horizontally,
+and `text-overflow: ellipsis` renders `color/visual` → `color/…`. One line always
+fits a 3-line box, so the height-only check reported "fits" and the label was
+silently truncated instead of shrunk.
+
+Add a width test (`scrollWidth <= boxW - safety`) alongside the height test.
+
+**Also:** the measure loop lifted `-webkit-line-clamp` / `max-height` / `overflow`
+to read natural height, and in that state `scrollWidth` reports a couple of px
+NARROWER than the restored box renders — so the loop stopped one step early and
+the label still ellipsised by 2-3px. A small width safety margin
+(`WRAP_WIDTH_SAFETY_PX`, mirroring the existing `INPUT_WIDTH_SAFETY = 0.9`)
+absorbs the skew. Derive it from a measurement, not a guess.
+
+**Evidence:** [`2026-08-06-text-symbol-labels-cut-off.md`](./2026-08-06-text-symbol-labels-cut-off.md).
+## Pattern: masquerade authorization must emit a fail-closed AuditEvent
+
+**Surface:** `ApplicationController#check_api_token` `as_user_id` / `X-As-User-Id` impersonation (site-admin and org-manager branches).
+
+**Symptom:** FERPA/HIPAA accounting-of-disclosures had no record that an admin viewed or acted inside a student account. PaperTrail whodunnit (`user:<op>:as:<target>`) is not enough (destroy-only / pruned / missing on some models).
+
+**Fix recipe:** On successful authorization, **before** swapping `@api_user`, call a helper that (1) Redis-dedups per operator/target for 30 minutes (`masq_audit/<op>/<target>`, separate from the org auth `masq/...` key), (2) writes `AuditEvent.log_command` with `type=masquerade`, `acting_as`, and `branch`, (3) **fail-closes** (503, no swap) if the row does not persist — same posture as database_schema/contents disclosure reads. Attribute `user_key` to the operator (pre-swap `@api_user`), never the target. Do not emit on denied attempts.
+
+**Evidence:** finding `LL-522c1a6d13`; [`2026-08-05-masquerade-audit-event.md`](./2026-08-05-masquerade-audit-event.md); prior art `schema_explorer.rb` `audit_user_key` / `audit_acting_as`.
+
+## Gotcha: Notion findings Owner is human-owned; FINDINGS.json owner does not sync
+
+`scripts/compliance-findings-notion-sync.rb` only PATCHes register-owned columns (severity, status, disposition, title, etc.). **Owner**, Target date, Program notes, and Needs Scot decision are left untouched so non-devs can manage the board. Setting `"owner": "Melissa"` in `FINDINGS.json` updates the register SSOT for developers but will **not** populate Notion Owner — set that field on the Notion card directly. Scot-only gates remain close / disposition / severity downgrade / accepted-risk. Ref: [`2026-08-05-masquerade-operator-indicator.md`](./2026-08-05-masquerade-operator-indicator.md).
+
+## Pattern: masquerade UI must name the operator, not only that a masquerade is active
+
+Stop Masquerading controls (PR #714) signal masquerade without naming the acting admin. Operator identity is already stashed as `session.original_user_name` (set at masquerade start, restored every `session.restore()`). Expose a stash-safe computed (`masqueradeOperatorName` / `masqueradeStopLabel` on `controllers/application.js`) and bind every chrome path (AppNavbar desktop + menu + drawer, legacy `#identity`, brief). Do not rely on `application.hbs` alone when `useAppNavbarInHeader` is true. Finding LL-cde54765c6. Ref: [`2026-08-05-masquerade-operator-indicator.md`](./2026-08-05-masquerade-operator-indicator.md).
+
+
+## Pattern: board-picker Cause and Effect uses home-board `settings.categories`, not folder tags
+
+**Surface:** `/board-picker` Cause and Effect tab.
+
+**Symptom:** Tagging a board "Cause and Effect" via Categorize Board only creates a Mine-page folder; the picker stayed empty / "Coming soon".
+
+**Root cause:** Two systems share the word category. (1) Personal folders = `user.settings.board_tags` via the tag-board modal. (2) Catalog browse = `board.settings.categories` with fixed ids (`cause_effect`, `robust`, …), set in Edit Board Details when "can be used as a home board" is checked. The tabbed picker also had a hard-coded coming-soon stub that skipped `_resolveCategoryBoards` for `cause_effect`.
+
+**Fix recipe:** Remove the stub; load via `_resolveCategoryBoards('cause_effect')`. Ensure the board is public + home_board + tagged `cause_effect`. Do not confuse with folder tags. PR #761 also removed the Keyboards "Coming soon" placeholders the same way (`_resolveCategoryBoards('keyboards')`). Traci's later picker rework (`f2cc29f13`, 2026-08-09) put those placeholders back; restored on `fix/melissa-board-picker-stale-category`.
+
+**Evidence:** [`2026-08-05-board-picker-cause-effect-catalog.md`](./2026-08-05-board-picker-cause-effect-catalog.md); `components/board-picker.js` / `.hbs`.
+
+## Gotcha: board-picker empty categories used to fall back to top popular public boards
+
+When `settings.categories` had no matches for a tab, `_resolveCategoryBoards` loaded uncategorized `public` + `home_popularity` (`per_page: 6`). Same ~6 boards (e.g. jokes) then appeared in Simple Starters / Functional / Phrase-Based. Removed that fallback — empty tabs show "None found"; only explicitly tagged home boards appear. Ref: [`2026-08-05-board-picker-cause-effect-catalog.md`](./2026-08-05-board-picker-cause-effect-catalog.md).
+
+## Gotcha: `(fn this.sendAction …)` with a factory helper never runs the action
+
+**Surface:** user boards page Folders accordion (`/u/:user/boards`, `available-boards-section`).
+
+**Symptom:** Clicking Folders header/chevron does nothing; folder filter / drag-drop wired the same way also no-op.
+
+**Root cause:** Same as the `(fn this.ctrlAction …)` factory gotcha. `sendAction` returned a handler function; template used `{{on "click" (fn this.sendAction "toggleFoldersExpanded")}}`, so click called the factory and discarded the returned handler.
+
+**Fix recipe:** The two halves must MATCH. The settled pairing in this component
+is **factory `sendAction` (returns a handler) + bare `(this.sendAction "x")`**,
+same as `ctrlAction`. Handlers that need the Event (`updateFolderFilter`,
+drag/drop) use `selfEventAction`, not `sendAction`.
+
+Both ways of breaking the pairing have been hit here:
+
+- `(fn this.sendAction "x")` against the factory — `fn` calls the FACTORY on
+  click and discards the handler it returns, so the action never runs. This was
+  the original symptom.
+- immediate-invoke `sendAction` against bare `(this.sendAction "x")` — a bare
+  sub-expression is a plain-function helper invocation, so Glimmer calls it
+  **during render**: `toggleFoldersExpanded` fired on every render pass and
+  `{{on "click" …}}` received its `undefined` return. Latent until something
+  re-rendered the component mid-transition, which surfaced as `Assertion Failed:
+  You attempted to update foldersExpanded … it had already been used previously
+  in the same computation` and ABORTED the transition — the visible symptom was
+  an unrelated link "not routing".
+
+**Tell for this class of bug:** an assertion naming a component property, with
+"first used: While rendering: (instance of an `on` modifier)". That phrase means
+the handler ran at render, not on the event.
+
+**Evidence:** [`2026-08-05-boards-folder-accordion-fn-sendaction.md`](./2026-08-05-boards-folder-accordion-fn-sendaction.md); related LEARNINGS entry on `(fn this.ctrlAction …)`. Re-verified 2026-08-10 when boards-page load testing hit the foldersExpanded assertion.
+
+
+## Gotcha: a self-rescheduling `runLater` makes every acceptance test hang — and the cause is never where the TODO says
+
+`await visit(...)` waits for a settled state, and Ember's test waiters track
+runloop timers. So ONE `runLater` callback that re-arms itself blocks every
+acceptance test in the app, forever. `app_state#refresh_user` did exactly that on
+a 15-minute cycle, which is why every acceptance test touching an authenticated
+route in this repo was `QUnit.skip`ped with a TODO blaming the session/auth
+bootstrap. The TODO was wrong, and building the auth stub it asked for would have
+fixed nothing.
+
+**Diagnose it, don't guess.** Call `visit()` WITHOUT awaiting, wait on a raw
+`setTimeout` (not waiter-tracked), then dump `getSettledState()` from
+`@ember/test-helpers`:
+
+```js
+visit('/some/route');                                  // deliberately not awaited
+await new Promise((r) => setTimeout(r, 9000));
+console.log(JSON.stringify(getSettledState()));        // debugInfo.timers has STACKS
+```
+
+`debugInfo.timers[].stack` names the exact function that scheduled each pending
+timer. Three plausible hypotheses (auth, persistence bootstrap, the scanner) were
+all wrong; the probe answered it in one run.
+
+**Fix shape:** long-period background polling belongs on a native `setTimeout` /
+`setInterval`, not `runLater` — a 15-minute refresh has no business in the runloop
+queue, and this codebase already uses native timers for its other pollers. Prefer
+that to an `isTesting()` early-return: the first attempt here guarded the
+reschedule with `isTesting()` and broke two existing unit tests that assert
+`refreshing_user` receives a fresh token. Native timers keep production behavior
+AND the token contract, with no test-only branch.
+
+**Related:** bounded retry chains (`resume_scanning`'s 10 attempts on a
+100–900ms backoff) do NOT hang the suite — they just make each `visit()` cost
+seconds. Only self-perpetuating timers are fatal.
+
+## Gotcha: Mirage 3 needs a config parameter and explicit models — symptoms look like an app hang
+
+Two failures that both present as "acceptance tests don't work", neither of them
+in app code:
+
+1. `Mirage config default exported function must at least one parameter` —
+   ember-cli-mirage 3.x calls the default export WITH its discovered config and
+   expects it to create the server. A 2.x-style `export default function() {
+   this.get(...) }` throws inside `startMirage`, i.e. in `beforeEach`, so the test
+   never reaches `visit()` at all. Shape:
+   `export default function (config) { return createServer({...config, routes}) }`
+   with the old body kept as `routes` (invoked with the server as `this`).
+2. **Factories are not models.** `mirage/factories/user.js` alone does not create
+   `schema.users`; without `mirage/models/user.js` any handler calling
+   `schema.users.findBy(...)` throws and Mirage answers **500**, which then fails
+   the route and reads like an app bug.
+
+Also: this API's `:id` segments are `find_by_path` values (global_id OR
+user_name), and `schema.users.find()` only knows record ids and THROWS on a miss.
+Match on `user_name` first and fall back to `find` only for a numeric segment.
+
+**Evidence:** [`2026-08-07-acceptance-test-harness-unblocked.md`](./2026-08-07-acceptance-test-harness-unblocked.md).
+
+## Gotcha: a skipped test's fixtures rot silently
+
+`board-detail-empty-state-test.js` created a board keyed `tester/view-only-empty`
+and then visited `/viewer/board-detail/view-only-empty`. Mirage looks boards up by
+`<user_name>/<boardname>` from the URL, so the lookup 404'd. The mismatch had been
+sitting there unnoticed because the test was skipped — nothing had ever executed
+it. When unskipping anything, expect its fixtures to be wrong, and budget for it.
+
+## Pattern: `store_url_now` can resolve WITHOUT a cached copy — `local_url || data_uri` then assigns undefined and destroys the source URL
+
+`persistence.store_url_now` does **not** always hand back something cacheable. It
+early-returns `RSVP.resolve({url: url, type: type})` — no `local_url`, no
+`data_uri` — whenever `!window.lingoLinqExtras || !window.lingoLinqExtras.ready`,
+or the url is `data:` / `file:` / localhost (`app/utils/persistence.js:1521-1526`,
+mirrored in `app/services/persistence.js`).
+
+So the idiom `thing[attr] = data.local_url || data.data_uri` silently assigns
+**undefined** and throws away the URL it was caching. It is not a no-op — it is
+destructive, and permanent for the lifetime of the singleton.
+
+Concretely (`app/utils/speecher.js`): `load_beep()` on app boot
+(`routes/application.js:186`) wiped all twelve CDN feedback-sound URLs to
+`undefined` whenever extras were not ready. Feedback sounds then go silent, and
+every later `load_sound` falls to its `else` and rejects
+`{error: "beep sound not saved: " + attr}`.
+
+**Rule: always keep the existing value as the final fallback** —
+`data.local_url || data.data_uri || thing[attr]`. A local cache is an
+optimisation; the URL is the thing you cannot regenerate. `load_sound`'s own
+error path already said so — *"Local cache is optional for UI feedback sounds;
+keep the CDN URL for playback"* — it just failed to apply it on the success path.
+Check the other `local_url || data_uri` call sites before assuming this is the
+only one.
+
+**Second-order effect worth predicting:** fixing it makes the app do *more* async
+work in tests, because the corrupted-and-fast-rejecting path was doing none.
+Expect timing-sensitive `waitsFor` tests to wobble afterwards, and see the
+re-run rule below before blaming yourself.
+
+**First seen in:** [2026-08-08-speecher-load-beep-suite-failure.md](./2026-08-08-speecher-load-beep-suite-failure.md)
+
+## Pattern: separate a real regression from this suite's wandering timeout by RE-RUNNING, not by reasoning
+
+This suite has a standing defect: async work leaks across QUnit module
+boundaries, and *some* later test dies on a ~5.5s `waitsFor` timeout. **Which**
+test changes every run — observed victims include `dbman`, `persistence
+DSAdapter`, `modal`, `progress_tracker`, `login-form`, `speecher`. `6c2b843fb`
+reduced it (acceptance modules now run the sync-heavy teardown) but did not
+eliminate it.
+
+The trap: you land a fix, the suite comes back with failures that were green in
+your baseline, and it looks exactly like you broke something.
+
+**Discriminator — one extra run, no code change:**
+- **Same tests fail again** → deterministic → it is yours. Fix or revert.
+- **Failing set MOVES or empties** → the ambient flake. Two runs of *identical*
+  code producing **disjoint** failure sets is proof on its own.
+
+Worked example: baseline `1 fail (speecher)` → with fix `3 fail (login-form,
+DSAdapter ×2)` → same code again `1 fail (modal)`. Zero overlap between the last
+two, so the fix was exonerated by evidence rather than by argument. Budget ~13
+min per full run and just do it — a `waitsFor` timeout in a module you did not
+touch is the signature.
+
+**Corollary:** never quote this suite's failure count as a single number. Quote
+it as *"N fail, of which M are the wandering timeout"*, or the next person
+inherits a false baseline — which is precisely how the previous hand-off came to
+claim 3 standing failures when only 1 was real.
+
+**First seen in:** [2026-08-08-speecher-load-beep-suite-failure.md](./2026-08-08-speecher-load-beep-suite-failure.md)
+
+## Gotcha: "Died on test #N" is the jasmine shim's STEP number, not the Nth `it()`
+
+A failure reading `Died on test #1: [object Object]` under the legacy jasmine
+shim (`tests/helpers/jasmine.js`) does **not** mean the first `it()` in the
+block. `#1` is the shim's internal step counter; the failing `it()` is named on
+the `not ok` line itself. Read the `not ok` line, ignore the `#N`.
+
+Two companions to that message:
+- **`[object Object]` means the thing thrown/rejected was a plain object** — look
+  for `RSVP.reject({...})` on the path, and grep the literal object shape to find
+  it. Here it was `{error: "beep sound not saved: " + attr}`.
+- **A "Died" is an escaping exception, not a failed assertion.** The usual cause
+  is an **unhandled** rejection: Ember's `setOnerror` rethrows under `isTesting()`
+  (`app/app.js:36-38`). So look for a `.then(success)` with **no** rejection
+  handler. Of the two `load_beep` tests, only the one lacking a rejection handler
+  died — the other saw the same rejection and passed.
+- Note `RSVP.all_wait` (`app/utils/misc.js:147-175`) rejects on the **first**
+  failure whenever `LingoLinq.all_wait` is falsy — and nothing in the codebase
+  ever sets it. One bad item sinks the whole batch immediately.
+
+**First seen in:** [2026-08-08-speecher-load-beep-suite-failure.md](./2026-08-08-speecher-load-beep-suite-failure.md)
+
+## Gotcha: `throttling_spec` 500s locally AFTER you build the frontend — the Ember build strips a `calc()` SassC needs (2026-08-23)
+
+`spec/features/throttling_spec.rb:87` does `get "/"` and expects a 200. Locally it can return **500**, and the cause is nowhere near throttling — `log/test.log` shows `SassC::SyntaxError (Error: Incompatible units: 'vw' and 'px')` on `padding: clamp(20px, 20px + 1vw, 40px)`. The SCSS **source is correct**: `app/frontend/app/styles/_eval_quick.scss:68` writes `clamp(20px, calc(20px + 1vw), 40px)`, exactly as CLAUDE.md's mixed-unit rule requires. The Ember build **strips the redundant `calc()`** on the way to `app/frontend/dist/assets/frontend.css`, which `rake extras:assert_js` symlinks in as `app/assets/stylesheets/frontend.css` — and the test environment (unlike production, which sets `config.assets.css_compressor = nil`, `config/environments/production.rb:38`) still runs the sprockets SassC compressor over it. So the CLAUDE.md rule is being silently undone downstream of the file it applies to.
+
+Three consequences worth knowing. It is **invisible in CI**: the `rspec` job never builds Ember, so `dist/` is absent and there is nothing for SassC to choke on. It is **invisible in production**: no css compressor. And it appears **only after you run `ember build`/`ember test` locally** and then `extras:assert_js` — i.e. exactly the sequence of a thorough local verification pass. If a page-rendering spec 500s locally and the diff cannot explain it, read `log/test.log` for the real exception before believing the spec name.
+
+## Gotcha: verify a CI job the way CI runs it — `TZ=UTC` — before believing a local red
+
+`spec/lib/stats_spec.rb` builds its window from `2.days.ago.utc` and
+`Date.today.to_time.utc`. `Date.today` is **local**. Run it after local midnight
+UTC (i.e. any evening in US timezones) and the window spans one fewer day, so
+**10 stats examples fail locally and pass in CI**. `organization_spec` "usage_stats"
+goes the same way. Under `TZ=UTC` the same 311 examples are green.
+
+Cost of not doing this: two full spec runs (~35 min each) and a confidently
+WRONG report that "rspec is red on staging today" — it was red on *this laptop*,
+at 22:5x MDT. Always reproduce a CI failure with the CI environment first:
+
+    TZ=UTC DB_USER=... bundle exec rspec
+
+## Gotcha: check the DIFF SCOPE before attributing a failure to your branch
+
+A `sharing_spec` example asserting `b2.allows?(u4, 'view')` failed on the branch
+and passed on staging — twice in a row, single-example runs, look conclusive.
+It was **not** a regression: re-running the same single example on the branch a
+third time passed. It is state/order dependent, and the "A/B" was measuring
+leftover database state, not code.
+
+The check that would have prevented the whole detour, in one second:
+
+    git diff --stat origin/staging...HEAD -- app/models/ lib/     # empty
+
+`allows?` lives in `app/models/concerns/permissions.rb`. The branch changed only
+three controllers. A model-level `allows?` regression was **impossible**, and no
+amount of A/B running should have been allowed to override that. Establish the
+blast radius from the diff FIRST; let it veto seductive-looking run results.
+
+Corollary: on a suite with known ordering flakiness, "fails on A, passes on B"
+across two single runs is NOT evidence. Re-run the failing side to confirm it
+reproduces before attributing anything.
+
+## Pattern: this repo's RSpec suite wanders too — ~4 random failures per full run
+
+Not just QUnit. Two consecutive full `TZ=UTC` runs of the same commit produced
+**completely disjoint** failure sets:
+
+| run | failures |
+|---|---|
+| 1 | board_spec:243, board_spec:5089, board_caching:118, boards_controller:474 |
+| 2 | sharing_spec:1161, subscription_spec:1174, subscription_spec:1235, board_set_copier:80 |
+
+Every one of them passes in isolation. They cluster on values written by
+deferred `Worker.schedule` work (`downstream_board_ids`, `sync_stamp`,
+`private_viewable_board_ids`), which is the same deferred-work-leaks-across-test-
+boundaries shape as the QUnit `waitsFor` timeout. Treat "N failures" from a full
+run as a distribution, not a fact: classify each one as
+isolation-reproducible vs wandering before acting on it.
+
+Aside: a full run once died with `[BUG] Segmentation fault` in
+`ethon-0.15.0/lib/ethon/easy/operations.rb:30` (libcurl, via Typhoeus) while
+three suites shared the machine. It did not recur on an idle box — treat a
+native crash there as resource contention before chasing it as a real bug.
+
+## Pattern: app-booting acceptance modules leak singleton state into later QUnit modules — and FOUR harness-level fixes do not work
+
+**Symptom:** a full `ember test` fails one random test per run with
+`condition failed for more than 5500ms`. The victim MOVES every run — observed:
+`modal`, `dbman`, `speecher`, `persistence DSAdapter` (four different tests),
+`login-form`, `contentGrabbers`. Each passes in isolation.
+
+**Trigger, proven by bisect:** the `setupApplicationTest` acceptance modules.
+Excluding them → **2/2 clean** full runs; with them → **4 of 5** runs flaked.
+Staging (2 acceptance modules) ran clean; the branch that ADDED a third
+(`board-lock-test`, real route transitions + Mirage) flakes.
+
+**Mechanism:** those modules boot the whole app (`routes/application.js` →
+`load_beep`, persistence timers, sync). Compounding it, the global `afterEach` in
+`tests/helpers/ember_helper.js` is imported **from the jasmine shim** — it pushes
+into `all_afters`, consumed only by the shim's own `test_wrap`. Real
+`QUnit.module` tests never run it, so `teardownSyncHeavyTestHarness` has never
+fired after an acceptance test. (`6c2b843fb` added `'Acceptance'` to the
+sync-heavy name list, but the hook reading that list is shim-only — so it never
+applied to acceptance modules at all.)
+
+**FOUR fixes that DO NOT work — do not repeat these:**
+
+1. **`QUnit.testDone` running the sync-heavy teardown** → **HANGS THE SUITE.** It
+   tears down persistence/sync state between two tests of the SAME acceptance
+   module; the next test's `visit()` waits forever. Symptom: log frozen at a
+   constant byte count for 20+ min, repeating `"scanning resume timed out"`.
+2. **`QUnit.moduleDone` running the same teardown** → **no effect.**
+   `cancelHarnessAsyncWork()` cancels TIMERS and clears QUEUES; it does **not
+   restore singleton state** the boot already mutated. Cleaning up after the
+   module is too late for damage done during it.
+3. **Excluding acceptance from the requirejs auto-loader so the bottom-of-file
+   explicit imports run last** → **no-op.** ES `import` statements are HOISTED and
+   evaluated before the module body, so acceptance still registered at positions
+   1-6 regardless of where the statements sit.
+4. **Dynamic `import()` before `start()` to defer registration** → **suite never
+   starts.** This build is AMD/requirejs, not native ESM; the `import()` promises
+   never resolve, so `start()` inside `.then()` never fires and zero tests run.
+
+**Counter-evidence against a 5th ("run acceptance last" via `req()` ordering):**
+during a botched bisect the acceptance modules ran at positions 73-77 and **five
+of them failed**. They pass at positions 1-6. They appear to be order-sensitive
+themselves, so moving them last risks trading one random unit failure for several
+deterministic acceptance failures.
+
+**What SHOULD work, and why:** identify the SPECIFIC singleton the boot dirties
+for the failing test and restore exactly that — the shape that fixed
+`speecher load_beep` (`7b8dd045c`), where `load_beep()` had permanently rewritten
+twelve CDN URLs. State restoration, not async cancellation, is the lever.
+
+**Bisect method note:** commenting out the explicit `import` lines is NOT enough
+to remove an acceptance module — the auto-loader re-requires it and it then runs
+at a different position and fails, producing a meaningless run. Exclude from BOTH
+paths and verify the TEST COUNT drops before believing any result.
+
+---
+
+## Pattern: cross-session per-user state must live OUTSIDE the `lingolinqStash-` prefix
+
+**Surface:** anything that has to be remembered across a logout — "where did this
+user leave off", per-user device preferences, resume/continue affordances.
+
+**The trap:** `stashes` looks like the natural home for it, and holds several
+suggestively-named keys (`root_board_state`, `current_mode`, `last_root`,
+`browse_history`, `prior_login`). None of them survive a logout.
+`session.invalidate()` calls `stashes.flush()` (`services/session.js:668`), and
+`flush` deletes **every** `localStorage` key starting with `stashes.prefix`
+(`utils/_stashes.js:191-206`, prefix `lingolinqStash-`, only `usage_log` exempt).
+So a "remember this for next login" value stored via `stashes.persist` is
+guaranteed to be gone at exactly the moment you want to read it.
+
+**The working shape** (predates this entry — `ll_last_board_<user_name>`, now
+consolidated in `utils/session_history.js`): a plain `localStorage` key outside
+the stash prefix, suffixed with `user_name` so a shared device keeps each user's
+state separate. `session_history.js` owns both `ll_last_board_*` and
+`ll_last_location_*`.
+
+**Related trap — `browse_history` / `boardHistory` are not a page history.** They
+are the speak/browse **board back-stack**, pushed and popped by
+`app_state.get_history`/`set_history` and reset to `[]` on every speak-mode
+activation (`app-state.js`, and ~14 call sites in `utils/eval.js`). They cannot
+answer "what page was the user on".
+
+**Where to record a route:** `app_state.finish_global_transition` (called from
+`routes/application.js#didTransition`). Its sibling `global_transition` runs on
+`routeWillChange`, where `router.currentURL` is still the **previous** URL — the
+GA pageview at `routes/application.js:176` reads `currentURL` from the
+`didTransition` side for the same reason.
+
+**Where the login landing decision lives:** `routes/index.js#afterModel`, gated by
+`appState._index_login_entry` (set in `beforeModel` from `transition.from`, true
+only on cold boot or a `login*` → `index` transition). Two safety notes for
+anyone adding a branch there: `routes/user/home.js` extends this route but fully
+overrides `afterModel` **without `_super`**, so a `replaceWith('user.home')`
+cannot re-enter your branch; and any route you might redirect *to* must be
+excluded from what you record, or you build a loop.
+
+**First seen in:** [2026-08-09-per-user-session-resume.md](./2026-08-09-per-user-session-resume.md)
+
+---
+
+## Pattern: the board PREVIEW and the board ITSELF are two different renderers — parity is not automatic
+
+**Surface:** anything that changes how a button looks on board-detail. The
+board-picker / board-preview modal draws the same board through a completely
+separate painter, so a board-detail styling change silently does NOT reach it.
+
+- Live board: **DOM + CSS** — `components/board-detail-grid.hbs` +
+  the `.md-board-detail-symbol-card--<pos>` rules in `app.scss`.
+- Preview: **canvas** — `components/board-preview-canvas.js`, a hand-written
+  painter that re-implements fill/border/label/image layout in canvas ops.
+
+**How they drifted (2026-08-09, reported by Melissa on keyboard boards):**
+
+1. **A colour source the preview couldn't see.** The live card's POS class reads
+   `part_of_speech || painted_part_of_speech || suggested_part_of_speech`
+   (`board-detail-grid.hbs:53`). `suggested_part_of_speech` does not exist in board
+   data — `board-detail.js#resolve_unknown_buttons` mints it at render time from
+   `/api/v1/search/batch_parts_of_speech`. The canvas read only the FIRST field, so
+   every button whose colour came from the lookup fell through to the neutral
+   fallback. Keyboard boards are the extreme case: single letters carry no author
+   colour and no stored type, but the dictionary types them (letters are nouns →
+   peach, "i" → pronoun → yellow, "x" → verb → green).
+2. **A hard-coded mode.** The preview passed `@dark_mode={{true}}`; the real board's
+   dark mode is the `preferences.board_dark_mode` user pref, default OFF.
+3. **A CSS rule with no canvas counterpart.**
+   `.md-board-detail--dark .md-board-detail-symbol-card--no-color` (two classes)
+   out-specifies every one-class POS rule, so on a DARK board an author-uncoloured
+   button is near-white — POS colours only apply in LIGHT mode.
+
+**Rules that fall out of this:**
+
+- When a button's appearance depends on a value computed at render time rather than
+  stored on the button, the preview needs the same computation. Put it in a shared
+  util (here `utils/parts_of_speech.js`) and have both renderers call it — do not
+  re-derive it in the canvas.
+- Before assuming a preview/live mismatch is a palette bug, check specificity in
+  `app.scss`. `LingoLinq.board_detail_keyed_colors` is built at runtime from the
+  same `--fitzgerald-*` custom properties the CSS rules read (`app.js:465`,
+  `_variables.scss`), so the palettes cannot drift — only the *inputs* can.
+- A hard-coded `@dark_mode={{true}}` (or any mode flag) on a preview is a parity bug
+  waiting to happen; mirror the pref the real surface reads.
+
+**Making a network-dependent value cheap enough for a preview:** cache by word at
+module scope, cache MISSES as well as hits, and batch. AAC boards repeat the same
+closed-class vocabulary, so after the first board a session's lookups are free —
+which sped the live board up on re-entry as a side effect. Then hold the first paint
+on a `Promise.race([lookup, timeout])`: the preview's loading overlay is already held
+until every symbol image settles, so the lookup costs nothing in wall clock, and the
+timeout guarantees a wedged request degrades to the old appearance instead of an
+empty canvas.
+
+**First seen in:** [2026-08-09-board-preview-styling-parity.md](./2026-08-09-board-preview-styling-parity.md)
+
+---
+
+## Pattern: "whose page is this?" comes from `permissions.user_id`, not from comparing to `currentUser`
+
+**Surface:** any app-level chrome that must behave differently when a supporter is
+inside a communicator's account — context banners, guard rails, confirmation
+copy, audit prompts.
+
+**The tempting wrong answer:** compare the page's user to
+`app_state.currentUser`. `currentUser` is not stable for this — it is swapped by
+speak-mode / "speak as" flows, and `referenced_user` is a speak-mode concept too
+(`app-state.js#referenced_user` returns `currentUser` unless modeling). Neither
+answers "whose account does this ROUTE belong to".
+
+**The reliable answer, already in the payload.** Every user record is serialized
+with permissions scoped to the requester (`lib/json_api/user.rb:31` →
+`user.permissions_for(viewer)`):
+
+- `permissions.user_id` — the **viewer's** global id, not the record's. It differs
+  from the record's `id` exactly when you're on someone else's page.
+- `permissions.supervise` / `.model` / `.edit` — present only when the viewer holds
+  a supervisory link (`app/models/user.rb:61-66`). A stranger on a public profile
+  gets only `view_existence` / `view_detailed`.
+
+Verified in the dev DB (2026-08-09): stranger → `["user_id","view_existence",
+"view_detailed"]`; self → `user_id == id`; supporter → `supervise/model/edit` all
+true with `user_id` = the supporter. So the test is `id != permissions.user_id`
+**AND** one of `edit|supervise|model`. Dropping the second half announces
+supervision to strangers.
+
+`permissions_for` lives in the `permissable` gem (via
+`app/models/concerns/permissions.rb`), so there is no local `def permissions_for`
+to read — check the shape empirically with `rails runner` rather than grepping.
+
+**Publishing it to app-level chrome:** set the page's user on `app_state` from the
+PARENT `:user_id` route (`routes/user.js#setupController`), and clear it in
+`resetController` when `isExiting`. That one pair covers all ~20 child routes;
+setting it per-child is both redundant and a leak waiting to happen. Flows that
+address a communicator WITHOUT being under `/:user_id` (the standalone
+board-picker) carry `app_state.setup_user` instead — a complete answer has to
+consider both, and the classic `/board/*key` route has neither.
+
+**First seen in:** [2026-08-09-supervising-context-pill.md](./2026-08-09-supervising-context-pill.md)
+
+---
+
+## Gotcha: `computed.reads(...)` (and friends) throw at MODULE EVALUATION on Ember 5 — a white screen, and `ember build` won't catch it
+
+**Symptom:** the whole app renders blank, console shows
+
+```
+Error occurred:
+ - While rendering:
+   -top-level
+     application
+_object.computed.reads is not a function   TypeError
+  at Module.callback (assets/frontend.js)
+  at requireModule (assets/vendor.js)
+  at Resolver.resolve …
+```
+
+**Cause:** `import { computed } from '@ember/object'` gives you the `computed`
+FUNCTION. It has no `.reads` / `.alias` / `.or` / `.equal` / … properties — those
+macros live in `@ember/object/computed` and must be imported by name:
+
+```js
+import { reads } from '@ember/object/computed';   // correct
+context: reads('appState.supervising_context'),
+
+import { computed } from '@ember/object';         // WRONG
+context: computed.reads('appState.supervising_context'),
+```
+
+The whole codebase already uses the correct form (`import { alias } from
+'@ember/object/computed'` in ~a dozen components); the broken form is the trap
+when writing from memory of pre-3.x Ember.
+
+**Why it is so destructive:** the call runs while the module is being EVALUATED,
+not when the component renders. The resolver evaluates the module during the
+top-level `application` render, so one bad macro in ANY component that
+application.hbs reaches blanks the entire app — not just that component.
+
+**Why the build is green anyway:** `ember build` only compiles modules; it never
+evaluates them. A clean build says nothing about `computed.reads`. The same is
+true of eslint. Catching this needs the app actually loaded in a browser, or a
+test that renders it.
+
+**Grep to check a change before shipping it:**
+```
+grep -rnE "computed\.(reads|alias|and|or|not|equal|bool|empty|notEmpty|gt|lt|oneWay|readOnly|sort|mapBy|filterBy)\b" app/frontend/app --include=*.js
+```
+
+**Also note:** in `@ember/object/computed`, `reads` is an alias export of `oneWay`
+(`ember-source/dist/packages/@ember/object/computed.js`) — one-way binding, so
+setting the local property does not write back through the path.
+
+**First seen in:** [2026-08-09-supervising-context-pill.md](./2026-08-09-supervising-context-pill.md)
+
+## Pattern: "it follows me when I scroll" — the app's scroll container is `#content`, so an overlay must live INSIDE it, not next to it
+
+**Symptom:** a banner/pill/badge stays glued to the viewport while the page
+scrolls under it, when it was supposed to sit at the top of the page.
+
+**The trap:** changing `position: fixed` → `absolute` fixes nothing on its own.
+In this app the DOCUMENT never scrolls on any page that renders a page footer
+(i.e. every non-board page — `footer` = `!currentBoardState`,
+controllers/application.js:150):
+
+```
+#within_ember:has(.page-footer) { position: fixed; inset: 0; overflow: hidden }   /* app.scss ~l.502 */
+#within_ember:has(.page-footer) #content:has(.md-shell) { overflow-y: auto }      /* app.scss ~l.973 */
+```
+
+`#content` is the scroll container. An element rendered as a SIBLING of `#content`
+(e.g. straight after `</header>` in `application.hbs`) is outside the scrollport,
+so it hovers no matter which positioning scheme it uses. Same reason
+`guided-tour.js` treats `#content` as "the app's scroll container", and why
+`scrollIntoView` moves an `overflow:hidden` `#content` 0→712.
+
+**The fix shape** — render it inside `#content` and give it a containing block
+there:
+
+```hbs
+<div id="content">
+  <MyOverlay />        {{!-- before the {{outlet}} --}}
+  {{ outlet }}
+</div>
+```
+```scss
+.my-overlay-anchor { position: relative; height: 0; }  /* 0-basis flex item, no layout impact */
+.my-overlay        { position: absolute; top: 12px; left: 16px; pointer-events: none; }
+```
+
+The zero-height anchor is the load-bearing part: without a positioned ancestor
+inside the scroller, an `absolute` child resolves against `#within_ember` again
+and you are back where you started.
+
+**Offset math — do NOT add `var(--topbar-height)`.** `top` is measured from the
+anchor, which sits at `#content`'s CONTENT-box top, i.e. after the layout's top
+padding. `#within_ember #content { padding-top: calc(var(--topbar-height) + 3rem + var(--speak-bar-extra, 0px)) }`
+(app.scss ~l.1197, specificity 0-2-0) beats the later `#content { padding: 0 }`
+(0-1-0), so nearly every page ALREADY pads past its fixed header; the bento rules
+(~l.633/881) restate the same calc. The layouts that zero that padding
+(`.board-detail-view`, `.content--no-top-padding`) also zero or hide the header.
+So a small constant offset clears the chrome on every page, and a
+`--topbar-height`-based one double-counts and drops the element too low.
+
+**Stacking is unaffected by the move:** `#content` sets no `z-index`/`transform`
+(and `overflow` alone does not create a stacking context), so the element still
+paints in `#within_ember`'s stacking context — above page content at `z-index:
+900`, below the `z-index: 1000` fixed header it now scrolls under.
+
+**First seen in:** [2026-08-09-supervising-context-pill.md](./2026-08-09-supervising-context-pill.md)
+
+## Gotcha: a rule in an `@use`d partial LOSES to an equal-specificity rule in app.scss — the partial is emitted first
+
+`app/frontend/app/styles/app.scss` pulls its partials at the TOP (`@use "board_picker"`
+is line 13), and Sass emits a module's CSS **before** the using file's own rules.
+So every partial rule lands tens of thousands of lines earlier than anything in
+app.scss. At equal specificity, later wins — which means **app.scss always beats
+the partial** unless the partial out-specifies it.
+
+Seen in `_board_picker.scss`: the compact-grid rule was written as
+
+```scss
+.md-shell--board-picker .md-home-boards-picker__grid--compact { … }   /* (0,2,0) */
+```
+
+with a comment stating the `.md-shell--board-picker` ancestor was added so the
+page's own grid rule would not win. But that ancestor only produced a TIE with
+
+```scss
+.md-shell--board-picker .md-home-boards-picker__grid { … }            /* (0,2,0), app.scss ~5259 */
+```
+
+so `grid-template-columns`, `justify-content` AND `gap` in the compact rule were
+all inert, and the compact grid silently rendered with the detailed grid's
+280px-tile columns and 1.5rem gutters.
+
+**Fix shape:** chain both classes on the same element rather than adding an
+override block or `!important` —
+`.md-shell--board-picker .md-home-boards-picker__grid.md-home-boards-picker__grid--compact`
+is (0,3,0) and wins on merit, wherever it sits in the emit order.
+
+**How to check before believing a partial rule is live** (compile and compare
+byte offsets — the later offset wins a specificity tie):
+
+```js
+const css = require('sass').compile('app/styles/app.scss', {loadPaths:['app/styles']}).css;
+['<partial selector> {', '<app.scss selector> {'].forEach(s => console.log(css.indexOf(s), s));
+```
+
+**Related:** the sibling trap where a media query adds no specificity, above.
+
+**First seen in:** [2026-08-09-supervising-context-pill.md](./2026-08-09-supervising-context-pill.md) (board-picker styling pass)
+
+## Gotcha: legacy bare-element rules (`h1 { height: 60px }`) silently size modern components — a "gap" with no margin behind it
+
+**Symptom:** visible space between two elements whose CSS says there is none.
+The board-picker page head reads `margin: 0` on both the `h1` and the subtitle,
+with a comment saying they deliberately touch — yet ~37px sat between them.
+
+**Cause:** `app.scss` ~1826 carries a bare `h1 { display: inline-block; height:
+60px; margin: 5px 0 0 5px; }` from the old nav-header logo row. Modern component
+rules override `margin` (`.md-hero__title { margin: 0 !important }`) but nothing
+overrode **height**, so the (0,0,1) element rule was the only `height` declaration
+in play: the heading box was pinned at 60px with its text at the top, and the dead
+space below read as a gap. `display: inline-block` from the same rule is why such
+a heading's DevTools box hugs its text instead of filling the row — a useful tell.
+
+**How to spot it:** if a box's measured height doesn't match `font-size ×
+line-height` and no margin explains the space, grep the compiled CSS for
+BARE-ELEMENT rules on that tag, not just class rules:
+
+```js
+const css = require('sass').compile('app/styles/app.scss', {loadPaths:['app/styles']}).css;
+// print every rule whose selector is/contains a bare `h1` with a box declaration
+```
+
+**Fix shape:** neutralise it in the component's OWN rule (`display: block;
+height: auto`) — never by editing the legacy rule, which the old header still
+needs. Same family as the `.button` leak onto board-detail cards, above.
+
+**First seen in:** [2026-08-09-supervising-context-pill.md](./2026-08-09-supervising-context-pill.md) (board-picker styling pass)
+
+## Gotcha: a shared mixin's `!important` cosmetics beat your MORE SPECIFIC variant rule — the variant silently renders as the base
+
+**Symptom:** a "compact"/"quiet"/"flat" variant renders with the base component's
+look — big radius, big shadow, big hover lift — even though the variant rule is
+clearly more specific and clearly sets its own values.
+
+**Cause:** `!important` beats non-important **at any specificity**. This codebase's
+`@mixin board-card-modern` (app.scss ~94) declares `border-radius`, `border`,
+`background`, `box-shadow`, `transition` and its `:hover` shadow/border with
+`!important`, and is included at `.md-home-boards-picker__board
+.btn.simple_board_icon`. The board-picker's compact-row rule at (0,4,0) set the
+same properties plainly — so every one of them was dead, and "compact" rows kept
+the gallery tile's 28px radius, `0 8px 20px` shadow and `translateY(-3px)` hover.
+
+Two extras from the same mixin that a variant usually also wants to answer:
+- a decorative `::before` hairline (kill with `display: none`, not by fighting it)
+- `height: 100%` on the host rule, which together with grid/flex `stretch` makes
+  every card in a row as tall as its tallest sibling. A variant that wants
+  per-item height needs `height: auto` AND `align-items: start` AND
+  `align-self: start` on the wrapper (the page rule often sets `stretch`).
+
+**Rule of thumb:** before writing a variant of a mixin-styled component, grep the
+mixin for `!important` and match it property-for-property, with a comment saying
+why. Partial-file precedent: `_board_picker.scss` already did this for `img` and
+`.name` ("must answer in kind at (0,5,0)") — the shell rule just never did.
+
+**How to confirm rather than guess:** compile and read the emitted rules, then
+compare specificity among the `!important` declarations only:
+
+```js
+const css = require('sass').compile('app/styles/app.scss', {loadPaths:['app/styles']}).css;
+// grep the compiled text for the property and count which rules carry !important
+```
+
+**First seen in:** [2026-08-09-board-picker-compact-refinement.md](./2026-08-09-board-picker-compact-refinement.md)
+
+## Gotcha: Bootstrap 3's `.dropdown-menu > li > a` (0,1,2) beats the app's flat `.md-settings-dropdown-item` — the modern skin's flex/gap silently never applies
+
+**Symptom:** A menu wearing the modern dropdown skin renders items with the
+glyph jammed against the label (zero gap) and sitting on the text baseline
+rather than centred — even though `.md-settings-dropdown-item` clearly declares
+`display: flex; align-items: center; gap: 8px`. DevTools shows the `gap` as
+"computed" but with no effect, because the box is not a flex container.
+
+**Cause:** Any menu that keeps `dropdown-menu` on the `<ul>` (needed whenever
+Bootstrap's JS owns open/close via `data-toggle="dropdown"`) inherits vendored
+Bootstrap 3.4.1's
+`.dropdown-menu>li>a{display:block;padding:3px 20px;…}` at specificity
+`(0,1,2)`. The skin class is a flat `(0,1,0)`, so `display`, `padding` and every
+box-model property lose — `gap` is inert in block layout, and an inline `<svg>`
+aligns to the baseline. `font-size`/`color`-only skin properties still win, so
+the item looks *almost* right, which is why this reads as a spacing bug rather
+than a cascade bug.
+
+**Fix recipe:** put the layout properties on a selector that out-specifies
+Bootstrap's element chain — `<menu-class> > li > a.<item-class>` is `(0,2,2)` —
+and, per Rule #0.7, reuse the one that already exists for that menu rather than
+adding a second. These menus usually already have such a rule for
+`text-decoration`, for exactly this reason.
+
+**Applies to:** every `<ul class="dropdown-menu md-settings-dropdown-menu">` in
+the app. A menu that does NOT carry `dropdown-menu` (custom open/close via
+`md-settings-dropdown-wrap`) is unaffected — the flat class works there, which
+is why the same markup behaves differently in two places.
+
+**How to confirm rather than guess:** read `display` off the anchor, not `gap`:
+
+```js
+getComputedStyle(document.querySelector('.md-settings-dropdown-item')).display
+// "block" => Bootstrap won; "flex" => the skin applies
+```
+
+**First seen in:** [2026-08-09-extras-dropdown-icon-alignment.md](./2026-08-09-extras-dropdown-icon-alignment.md)
+
+## Gotcha: `overscroll-behavior: contain` on a NON-overflowing `overflow: auto` element swallows the wheel entirely
+
+**Symptom:** "Scrolling is not allowed once the menu is open." The page is fine
+everywhere else — it only freezes while the pointer sits over the open
+panel/menu, which makes it read as a global scroll lock and sends you hunting
+for `body { overflow: hidden }` or a modal backdrop that does not exist.
+
+**Cause:** `overflow-y: auto` makes an element a scroll container **whether or
+not it actually overflows**. Pair it with `overscroll-behavior: contain` and a
+container with nothing to scroll still counts the wheel as an overscroll, which
+`contain` refuses to chain to the ancestor scroller (`#content` here) — so the
+gesture is absorbed and nothing moves. The containment does its intended job
+only in the rarer state where the content DOES overflow.
+
+**Fix:** drop `overscroll-behavior: contain` from height-capped menus/popovers.
+Default chaining scrolls the element first and the page once it bottoms out,
+which is the expected behaviour anyway. Keep `contain` only for panels that
+overflow essentially always (a long log/list pane), not for one whose cap is a
+safety valve.
+
+**How to confirm rather than guess** (a `file://` repro with the real vendor CSS
+is enough; no app boot needed):
+
+```js
+await page.mouse.move(cx, cy); await page.mouse.wheel({deltaY: 400});
+await page.evaluate(() => document.querySelector('#content').scrollTop);
+// 0 over the menu but 400 over plain page => the menu is eating the wheel
+```
+
+**First seen in:** [2026-08-09-extras-dropdown-icon-alignment.md](./2026-08-09-extras-dropdown-icon-alignment.md)
+
+## Pattern: an overlay gated on an ASYNC-resolved record belongs in a computed, not a flag the route sets
+
+**Surface:** any "show this panel/overlay/prompt on entry, but only for case X"
+where case X depends on a record the route fetches — a supervisee, an org, a
+subscription.
+
+**The trap:** `setupController` looks like the place to set
+`controller.set('show_thing', true)`. Two things break it, and both are silent:
+
+1. **It runs before the record resolves.** `routes/board-picker#setupController`
+   calls `_resolve_setup_user`, which fires a `findRecord` — `setup_user` is
+   still null when the flag is being set, so anything the panel needs from that
+   record (a name to title it) is missing, and any "is this someone else's
+   account" test answers wrong.
+2. **Re-entry short-circuits.** The resolver skips its own work when the id has
+   not changed (`if (user_id != setup_user.id)`), and the controller is a
+   SINGLETON, so state left over from the previous visit is still there. A flag
+   set inside that branch never fires again for the same user.
+
+**The working shape:** derive visibility, and keep only the DISMISSAL mutable.
+
+```js
+_options_dismissed: false,                    // route resets this on entry
+show_picker_options: computed('for_self', 'setup_user.id', '_options_dismissed', function() {
+  if (this.get('_options_dismissed')) { return false; }
+  if (this.get('for_self')) { return false; }  // returns TRUE while the record is null
+  return !!this.get('setup_user.id');          // ...so nothing flashes during the load
+})
+```
+
+The `for_self`-style guard defaulting to `true` on a null record is what
+suppresses the flash — worth checking that any such helper you lean on defaults
+to the SAFE answer rather than to `false`.
+
+**Related:** dismissing an overlay that sits over already-rendered content should
+not be a route change. Lowering it is what lets a "return to options" control
+raise it again with no reload.
+
+**First seen in:** [2026-08-10-board-picker-supervisor-options-overlay.md](./2026-08-10-board-picker-supervisor-options-overlay.md)
+
+## Gotcha: Ember Data's `{reload: true}` NEVER reaches the network — the app's adapter is offline-first, use `persistence.force_reload`
+
+**Symptom:** a lookup written to be authoritative silently answers from cache. A
+record deleted on the server (or on another device) keeps resolving, so
+"does this already exist?" logic decides YES and skips the work — and the code
+comment above it confidently claims the opposite.
+
+**Cause:** the app replaces ED's adapter with its own
+(`utils/persistence.js#findRecord`, mixed in via `adapters/application.js`
+`persistence.DSExtend`). It sets `start_with_local = true` unconditionally and
+calls `check_remote()` ONLY when the local db had nothing. ED's `reload` option
+is never consulted, so `store.findRecord(type, id, {reload: true})` is a local
+read whenever anything is cached.
+
+**The app's actual opt-out** is `persistence.force_reload`, keyed
+`<modelName>_<id>` and checked before the local lookup — the switch
+`models/base.js#reload` flips. Set it around the call and restore it:
+
+```js
+var force_key = 'board_' + expectedKey;
+var prior = persistence.force_reload;
+persistence.force_reload = force_key;
+var restore = function() {
+  if(persistence.force_reload === force_key) { persistence.force_reload = prior; }
+};
+LingoLinq.store.findRecord('board', expectedKey, {reload: true}).then(restore_and_use, restore_and_null);
+```
+
+Two details that make this work: the module exports a **Proxy** whose `get` trap
+prefers `window.persistence` but which has NO `set` trap, so the write lands on
+the same target object the adapter reads (neither class declares `force_reload`,
+so nothing shadows it); and a 404 is NOT in the adapter's `local_fallback` list
+(only token/5xx/connection/401 are), so a genuinely-missing record still rejects.
+
+**How to confirm rather than guess:** grep the dev log for the request. If the
+GET isn't there, the adapter answered locally.
+
+**First seen in:** [2026-08-10-quick-assign-phantom-copy.md](./2026-08-10-quick-assign-phantom-copy.md)
+
+## Gotcha: a 200 on the user PUT does not mean the home board was stored — the server discards invalid refs silently
+
+**Symptom:** the flow completes, the success modal shows, the app navigates to
+the boards page — and the user has no home board.
+
+**Cause:** `User#process_home_board` (app/models/user.rb ~2921) validates the
+reference and can store nothing while still returning success:
+
+- board can't be resolved (deleted / bad id) -> it DELETES the preference and
+  `return true`;
+- board exists but is neither viewable by the user nor shareable by the updater
+  -> no branch assigns it, and the write is simply skipped.
+
+Both come back as a clean 200, so `user.save().then(success)` is not evidence of
+anything.
+
+**Fix shape:** read the value back off the SAVED record and reject if it isn't
+ours (`utils/home_board.js#saveHomeBoard`). The response carries the truth —
+`lib/json_api/user.rb:76` serializes the authoritative `preferences.home_board`,
+`preferences` is `attr('raw')` on the user model, and the adapter applies the
+server payload to the record on save.
+
+**Generalize:** for any write the server may sanitize rather than reject, the
+client's success test must be "did the server echo what I sent", not "did the
+request resolve".
+
+**First seen in:** [2026-08-10-quick-assign-phantom-copy.md](./2026-08-10-quick-assign-phantom-copy.md)
+
+## Gotcha: a translucent control RE-TINTS when its container's state changes — "it changes colour when I click it" is often the parent, not the button
+
+**Symptom:** a button visibly changes appearance when it is clicked/selected, but
+NO rule targets its selected state — no `--active` descendant rule, no
+`[aria-expanded]` styling, nothing on `.touched`.
+
+**Cause:** the button's background is a bare translucent tint
+(`linear-gradient(rgba(hue,.08), rgba(hue,.26))` with no opaque layer). Its
+CONTAINER changes background on selection — here `.md-caseload__list-row--active`
+paints a verdigris tint + glow across the whole row — and that new background
+composites straight through the button. The button's own CSS never changed; what
+you see is the parent showing through it.
+
+**Fix:** give the tint an opaque floor — `background: linear-gradient(…), #fff;`.
+The gradient still reads, but the parent can no longer contribute.
+
+**How to confirm rather than guess** — two measurements, in this order:
+
+1. Click, then move the pointer AWAY and re-read the computed style. If it now
+   matches the resting state, nothing sticks to the button and `:hover` is a red
+   herring (this is the step that is easy to stop at — it disproves one cause
+   without finding the real one).
+2. Render the control inside BOTH container states and sample the PAINTED pixel,
+   not the computed style. Computed style is identical in both cases — that is
+   the whole point — so only the rendered colour shows the difference:
+
+```js
+const png = await page.screenshot({clip: {x, y, width: 1, height: 1}, encoding: 'base64'});
+// inflate the IDAT chunk -> raw[1..3] is the pixel's RGB
+```
+
+**First seen in:** [2026-08-10-caseload-row-actions-match-panel-tiles.md](./2026-08-10-caseload-row-actions-match-panel-tiles.md)
+
+## Gotcha: a blanket `svg * { stroke: … }` silently flattens every two-tone icon under it
+
+**Symptom:** icons that are two-tone in the markup (neutral navy shape + one
+brand accent — the repo convention, see `_focused-view.scss:681`,
+`getting-started-icon.hbs`) render as a single flat hue, and nothing in the
+markup explains it. Re-colouring the SVG paths changes nothing.
+
+**Cause:** a container-level rule such as
+
+```scss
+.md-caseload__quick-action svg *       { stroke: $la-navy; }
+.md-caseload__quick-action:hover svg * { stroke: $brand-dusty-denim-aa; }
+```
+
+The SVG carries its colours as **presentation attributes**, which sit at the very
+bottom of the cascade — ANY CSS declaration beats them. So one rule two levels up
+overrides every accent stroke in every glyph it contains, at rest and on hover.
+
+**Fix:** don't set stroke at the container level. Size icons there
+(`svg { width; height }`) and let the markup own colour. Scope a single-ink
+stroke ONLY to the ranks that genuinely need one — an icon on a filled/dark
+button (white), or an unavailable/disabled control (grey).
+
+**Check the hover rule too.** The resting rule is the obvious one; a matching
+`:hover svg *` will re-flatten the glyph the moment the pointer lands, which
+reads as "the icon changes colour on hover" rather than as the same bug.
+
+**Generalize:** when a styling change must reach markup-set SVG attributes, grep
+for `svg *` and `svg path` at every ancestor level before editing the glyph.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Technique: verify a base-rule change by specificity, not by reading the file top to bottom
+
+**Situation:** changing a BASE rule (e.g. `.md-caseload__quick-action`) that a
+dozen modifier ranks build on. The risk is a rank that was silently relying on
+the base value — or one that sits EARLIER in the file and looks overridden but
+isn't.
+
+**Why source order misleads:** in `_caseload.scss` the `--empty` placeholder
+rules sit ~500 lines ABOVE the base rule, yet still win, because
+`.md-caseload__list-quick .md-caseload__quick-action--empty` is `(0,2,0)` against
+the base's `(0,1,0)`. Reading downward suggests the opposite.
+
+**Method:** compile and enumerate the emitted selectors, then score each rank:
+
+```js
+const sass = require('sass');
+const r = sass.compile('app/styles/app.scss', {loadPaths: ['app/styles'], quietDeps: true});
+r.css.split('\n').forEach((l, i) => { if (/md-caseload__quick-action/.test(l)) console.log(i, l); });
+```
+
+Any rank at `(0,2,0)`+ survives a `(0,1,0)` base edit; anything at the base's own
+specificity needs source order checked. Also confirm each rank overrides every
+property the base change touches — a rank that overrides `background` but not
+`box-shadow` inherits the new shadow.
+
+**Note:** the `sass` CLI in `app/frontend/node_modules/.bin` is broken in this
+env (`ERR_REQUIRE_ESM` from chokidar). The JS API above works fine and is the
+fastest way to compile-check a SCSS edit without a full `ember build`.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Gotcha: `min-width` + `white-space: normal` does NOT make a flex item's label wrap
+
+**Symptom:** a button is given `white-space: normal` so its two-word label will
+wrap to the shared tile width, and a `min-width` to match its neighbours — and it
+still renders one line wide, visibly wider than the button it is meant to match.
+
+**Cause:** for a flex item with `flex: 0 1 auto`, the flex **base size** resolves
+from `width: auto` → the item's **max-content** size. The max-content size of a
+wrapping label is still its full *unwrapped* line. So the item lays out at the
+one-line width and only shrinks if the flex container actually runs out of room.
+`min-width` is a floor; nothing here supplies a ceiling.
+
+**Fix:** give the item a **definite basis** — `flex: 0 0 <n>px` (or an explicit
+`width`). That is what forces the label to wrap inside the box rather than
+inflating it. Pair it with `overflow-wrap: break-word` so a locale whose single
+word exceeds the inner width breaks instead of spilling.
+
+**Generalize:** "make these two the same width" in a flex row is a *basis*
+question, not a *min-width* question. Reach for min-width only when you want a
+floor and are happy for content to grow past it.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Gotcha: an ancestor-class rule later in the file beats the modifier rule you are editing
+
+**Symptom:** you edit `.block__el--variant:hover` (or its mixin), the compiled CSS
+shows exactly what you wrote, and the browser still renders the old effect.
+
+**Cause:** a *shorter* selector at the SAME specificity sitting later in the file.
+In `_caseload.scss`, `.md-caseload__action:hover { box-shadow: 0 1px 4px … }`
+sat ~75 lines after `.md-caseload__action--tile:hover`. Both are `(0,2,0)`, so
+source order decided it, and the base-class rule flattened every tile's hover
+lift. It read as harmless because its comment described what it *didn't* do
+("no background override") rather than what it did.
+
+**How to catch it:** before editing a modifier's state rule, grep for the BASE
+class with the same pseudo-class — `grep -n '\.block__el:hover' file.scss` — not
+just the modifier. If both exist, the later one wins at equal specificity.
+
+**How to resolve it safely:** check whether the base class ever appears WITHOUT
+the modifier in markup (`grep -o 'md-caseload__action[a-z-]*' template.hbs | sort
+| uniq -c`). If every occurrence carries the modifier, the base rule is dead
+weight and should be deleted rather than out-specified.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Technique: a translucent badge/button must be measured on its DARKEST host row state, not on white
+
+**Situation:** a spec hands you a tint + ink pair (e.g. `rgba(42,157,143,0.10)`
+background, `#1A7B7A` text). You check it against white, it clears 4.5:1, you
+ship it.
+
+**The miss:** the component does not sit on white. In `_caseload.scss` the badge
+sits inside a row that paints a verdigris wash on `:hover`, `:focus-within` and
+`--active`. The badge's own background is translucent, so that wash composites
+straight through it and darkens the backdrop — dropping `#1A7B7A` from 4.54:1 to
+**4.27:1**, i.e. it fails precisely while the user is pointing at the row.
+
+**Method:** enumerate every state the ANCESTOR can be in (resting / hover /
+focus-within / selected / dark), composite the translucent layers in that order,
+and measure the worst one. Same trap applies to a border alpha that has to meet
+1.4.11's 3:1 — measure it against the fill on one side AND the row on the other.
+
+**Also:** never put a white radial "highlight" over a saturated fill that carries
+white text or white icon strokes. An 8% white wash lifted a 4.75:1 teal to ~4.0:1
+locally — and highlights are conventionally placed top-left, which is exactly
+where a stacked icon sits.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Gotcha: `flex: 0 0 auto` on a wrapping toolbar causes horizontal page scroll
+
+**Symptom:** you pin a toolbar to its natural width so it starts at the same x in
+every row. At desktop it is perfect; at tablet the whole page scrolls sideways.
+
+**Cause:** `0 0 auto` means "base size = max-content, never shrink". The toolbar's
+own `flex-wrap: wrap` can only wrap its buttons if the toolbar is allowed to get
+narrower — with shrink disabled it holds one long line and overflows.
+
+**Fix:** `flex: 0 1 auto` + `min-width: 0`. Shrink stays available for negative
+space only, so at wide widths the item still sits at max-content (identical
+width row to row, which was the goal) and at narrow widths it shrinks and its
+children wrap.
+
+**Related:** to make sibling A absorb a row's slack, set `flex-grow` on A rather
+than removing shrink from B. Grow and shrink answer different questions.
+
+**First seen in:** [2026-08-10-caseload-row-tiles-match-home-room-cards.md](./2026-08-10-caseload-row-tiles-match-home-room-cards.md)
+
+## Pattern: demoting UI options to text links — reuse `.md-link-btn`, don't hand-roll a reset
+
+**Surface:** create-board-new chooser (`.nb-create-chooser`), but applies to any "promote two
+options, demote the rest" restyle.
+
+**Recipe:** `.md-link-btn` (app.scss ~49610) already exists for `<button>` elements that must
+*look* like inline links while keeping button semantics — added 2026-04-11 per WCAG audit when
+converting `<a href="#" {{action}}>` to real buttons. Compose it (`class="md-link-btn
+<block>__alt-link"`) and add only the block-specific scale/color. Keep them `<button>`s: these
+fire actions (file picker, import modals), they do not navigate.
+
+**Two traps:**
+1. **`.md-link-btn:hover` sets `text-decoration: none`** (shorthand). Any `text-decoration-color`
+   you write in your own `:hover` is dead — the shorthand already zeroed the line. Set only
+   `color` on hover; underline-at-rest / none-on-hover is the app-wide convention.
+2. **Composition relies on source order, not specificity.** Both selectors are (0,1,0). Your
+   overrides win only because your rule sits later in `app.scss`. Verify by compiling and
+   comparing output line numbers — don't assume, and don't reach for `!important` (rule 7).
+
+**Also:** when the demoted options leave a stacked list, check whether a feature-flag `{{#if}}`
+existed *purely* to vary inline `animation-delay`. In this case the AI button was duplicated
+across both branches of `{{#if paste_html_import_enabled}}` for exactly that reason; once the
+delays converged it collapsed to one button.
+
+**Verify SCSS with Dart Sass, not SassC.** `app/frontend/ember-cli-build.js:31` pins
+`implementation: require('sass')`. A `SassC::Engine` check fails at ~line 681 on `color.adjust`
+(a Dart-only module function) — that failure is pre-existing noise, not your change. Compile with
+`npx sass --load-path=app/styles app/styles/app.scss <out>`, or via the Node API
+(`node -e "require('sass').compile('app/styles/app.scss',{loadPaths:['app/styles']})"`).
+
+**If `npx sass` dies with `ERR_REQUIRE_ESM` (chokidar), you are on the wrong Node.** See the
+Node-version entry below — this repo needs Node 22; the API entry point happens to survive on
+Node 16, which makes it easy to misread a version problem as a broken tool.
+
+**Evidence:** [`2026-08-07-create-board-chooser-primary-secondary.md`](./2026-08-07-create-board-chooser-primary-secondary.md).
+
+## Gotcha: Playwright specs against LingoLinq mutate the signed-in user's persisted prefs
+
+**Surface:** `app/frontend/e2e/` — anything driving the board-detail / create-board-new
+Edit Tools rail.
+
+**Symptom:** A spec passes on first run and fails on every run after. Or worse, a spec that
+has passed for several runs starts failing while an unrelated one is being fixed.
+
+**Root cause:** The rail writes REAL device preferences (`preferences.device.*`) which
+persist server-side. Two failure shapes:
+- Fixed target: `pick("Huge")` is a no-op once Huge is already selected.
+- Fixed stepper direction: repeated `Looser` / `Increase rows` walks the pref to its bound,
+  where the button carries `disabled` and the click silently does nothing.
+
+**Fix recipe:** Make assertions order- and history-independent — select whatever is
+currently *unselected* (`[aria-selected="false"]`, `[aria-checked="false"]`) or click
+whichever stepper half is currently *enabled*, then assert state MOVED (`.not.toBe(before)`)
+rather than that it reached a specific value. Verify by running the suite 3× consecutively;
+a single green run proves nothing here.
+
+**Two Playwright traps found alongside it:**
+- `[aria-checked="false"]` as both click target and assertion target can never pass — the
+  element leaves the selector the moment the click succeeds. Resolve `aria-label` first.
+- `.filter({hasNot: X})` excludes elements that *contain* X, not elements that *are* X.
+
+## Gotcha: board-detail's light-mode styles are ancestor-scoped — reused surfaces silently miss them
+
+**Surface:** any view that reuses the `md-board-detail-*` classes outside the board-detail
+page. Found twice on the create-board-new live preview.
+
+**Symptom:** the reused surface looks right in DARK mode and wrong in LIGHT mode.
+
+**Root cause:** board-detail's dark rules are written as `.md-board-detail--dark .x`
+(ancestor-free, so they follow the class anywhere), but its LIGHT rules are written as
+`.md-shell--board-detail:not(...):not(.md-board-detail--dark) .x`. Anything without a
+`.md-shell--board-detail` ancestor gets the BASE rule instead — and several base rules are
+authored for the opposite surface brightness, so they fail in the worst way: legible
+markup, invisible pixels.
+
+**Known members of this family (all now also scoped to `.new-board-mockup-wrap`):**
+`.md-board-detail-sentence-bar`, `.md-board-detail-home-btn`,
+`.md-board-detail-sentence-bar__tool-btn`, `.md-board-detail-sentence-bar__btn--speak svg`,
+`.md-board-detail-symbol-card--empty`.
+
+**Fix recipe:** add the new surface as a second selector on the EXISTING light rule (rule
+7) — never a parallel override. Then sweep for the rest before declaring done:
+```
+grep -n "md-shell--board-detail[^ ,{]*:not(.md-board-detail--dark)" app.scss
+```
+and for each hit check whether the target class exists in the reusing template.
+
+**The trap that cost a round trip:** changing a container's background WITHOUT auditing the
+children means children whose wash assumed the old brightness disappear. `--empty` cards
+have three variants (navy wash for light surfaces, white for dark mode, white for
+speak-light); flipping the canvas to `$brand-charcoal-dark` while leaving the base navy
+wash made every blank card invisible. **Computed-style assertions passed the whole time** —
+the card was "visible" with a background — so only a rendered screenshot caught it.
+
+**Evidence:** [`2026-08-07-create-board-chooser-primary-secondary.md`](./2026-08-07-create-board-chooser-primary-secondary.md).
+
+## Gotcha: "my changes vanished" is usually a side branch that only ever merged INWARD
+
+**Symptom:** a shipped, verified UI change is back to its old form on the working branch, with a
+clean tree, no stash, and no conflict debris in the history.
+
+**Root cause shape:** a side branch (`traci/styling/new-work`) was merged into the working branch
+on day 1, received more commits on day 3, and ended day 3 by merging `staging` *in*. That last
+merge feels like "syncing up" and leaves the branch looking current — but it moves code toward the
+side branch, never out of it. The new commits stay stranded and the working branch never regresses,
+it simply never advanced.
+
+**Find the change without guessing** — enumerate every blob of the file across all refs AND the
+reflog, then score each for the shape you remember:
+
+```sh
+for c in $(git rev-list --all --reflog); do
+  git rev-parse -q --verify "$c:path/to/file"
+done | sort -u | while read b; do
+  echo "$b $(git cat-file blob $b | grep -c 'class-you-remember')"
+done
+```
+
+The odd one out is your commit; `git rev-list --all --reflog | ... grep <blob>` names the commit.
+Beats `log -S` when you don't know the removed string, and beats `fsck --lost-found` when the
+commit is reachable but unmerged.
+
+**Then scope it before panicking.** `git log --oneline HEAD..<branch>` per candidate branch turns
+"I lost a lot of work" into an exact count — here, one commit out of five branches checked.
+
+**Prevention:** after committing on a side branch, merge it back out the same session, or don't
+merge `staging` in at all — the inward merge is what makes a stranded branch look finished.
+
+**Evidence:** [`2026-08-10-recover-stranded-new-work-commit.md`](./2026-08-10-recover-stranded-new-work-commit.md).
+
+## Gotcha: grepping SCSS for a full BEM class name gives false "unstyled" reads — the rules are nested as `&__…`
+
+**Symptom:** `grep -c "ub-boards-page__folder-filter" app.scss` → 0, so you conclude a whole UI
+section lost its styling. It didn't. `app.scss` writes these as nested selectors:
+
+```scss
+.ub-boards-page {
+  &__folders-section { … }
+  &__folder-filter-input { … }
+}
+```
+
+The literal string `ub-boards-page__folder-filter-input` **never appears in the source** — Sass
+composes it at compile time. `grep -rn "&__folder"` finds 101 such rules where the full-name grep
+found 0.
+
+**Sound check — test membership against the COMPILED OUTPUT, not the source:**
+
+```sh
+node -e "
+const sass=require('sass'), fs=require('fs');
+const css=sass.compile('app/styles/app.scss',{loadPaths:['app/styles'],quietDeps:true}).css;
+const used=new Set(fs.readFileSync('<template>.hbs','utf8').match(/<block>__[a-z-]*/g));
+console.log([...used].filter(c=>!css.includes('.'+c)));
+"
+```
+
+**Why it matters here:** this is the *primary* dead-CSS / missing-CSS audit in this repo, and the
+naive grep produces a confident false positive in both directions — "unstyled" for nested rules,
+and "styled" for a class that only appears inside a comment. Always compile.
+
+**Corollary for rule 7 (edit the original rule, don't stack a new one):** when you "can't find the
+existing selector," search for the `&__` suffix under its block before concluding none exists —
+otherwise you add a duplicate flat rule that competes with a nested one.
+
+**Evidence:** [`2026-08-10-recover-stranded-new-work-commit.md`](./2026-08-10-recover-stranded-new-work-commit.md).
+
+## Gotcha: `ERR_REQUIRE_ESM` from testem/sass/anything means the shell is on Node 16, not that the tool is broken
+
+**Symptom:** `ember test` builds fine, then dies before launching a browser:
+
+```
+require() of ES Module .../testem/node_modules/execa/index.js
+from .../testem/lib/utils/fileutils.js not supported.
+```
+
+`npx sass` fails the same way via `chokidar`. Both read as "this dependency shipped a breaking
+ESM release."
+
+**Actual cause:** the shell's default Node. `nvm`'s default here is **16**, but this repo requires
+**22** (`app/frontend/package.json` engines `>=22.0.0 <23.0.0`; both `.nvmrc` files say `22`).
+Node 22.12+ supports `require()` of an ES module; Node 16 does not. Same command, same
+`node_modules`, different Node → works or throws.
+
+**Fix — take the Node version first, before diagnosing anything else:**
+
+```sh
+export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22
+```
+
+`bin/ember-server` already does this, which is why the dev server works while a bare
+`npx ember test` in the same shell does not.
+
+**Why it misleads:** the failure names a third-party file and a real Node limitation, so it looks
+like a dependency bug worth pinning or patching. Two wasted moves it invites: adding a resolution
+to pin `execa`/`chokidar` back, and writing a Node-API workaround for a CLI that was never broken.
+`node -v` first — one second, versus a plausible fix to shared config that would have broken CI.
+
+**Evidence:** [`2026-08-10-recover-stranded-new-work-commit.md`](./2026-08-10-recover-stranded-new-work-commit.md).
+
+## Gotcha: helper-factory vs immediate-invoke must match the TEMPLATE binding form — mixing halves kills the handler
+
+**Surface:** `available-boards-section` folders accordion, but applies to every `this.xAction`
+wrapper in a classic component.
+
+Two valid, mutually exclusive contracts:
+
+| Template binding | Component helper must |
+|---|---|
+| `{{on "click" (this.x "name")}}` | **return** a handler (factory) |
+| `{{on "click" (fn this.x "name")}}` | invoke `send()` **immediately** |
+
+The bare subexpression is evaluated at RENDER time (plain-functions-as-helpers, Ember 4.5+). So
+pairing a bare binding with an immediate-invoke helper does two bad things at once: it fires the
+action **during render**, and it passes `{{on}}` an `undefined` handler, so the control is dead.
+
+**Diagnostic signature** — this exact assertion means you have the mismatch, not a state bug:
+
+```
+You attempted to update `foo` ... it had already been used previously in the same computation.
+  `foo` was first used: While rendering: (instance of a `on` modifier)
+```
+
+**How it happens:** the two halves get fixed in separate commits. Here `f7e52b33e` (08-05) switched
+the helper to immediate-invoke to match 24 `(fn …)` bindings — correct at the time — and
+`8b1274820` (08-06) rewrote the markup to the bare form (matching the file's five other helpers)
+without reverting the helper. Each commit was self-consistent; the pair was not.
+
+**Prefer the factory** when a component has several such wrappers: one contract for all of them,
+and the odd one out is what invites this regression.
+
+**The linter will NOT catch it.** `lingolinq/no-fn-handler-factory` only flags the mirror-image
+misuse (`(fn factory …)`), and only for a hardcoded name list that does not include `sendAction`.
+Cover it with a rendering test that actually clicks —
+`tests/integration/available-boards-folders-test.js`.
+
+**Test-fixture trap found writing that test:** Glimmer's `{{#if}}` treats an **empty array as
+falsy**, so a stub like `board_list: {results: []}` skips the entire section and every assertion
+fails with "element does not exist" — looking like a broken component rather than a thin fixture.
+
+**Evidence:** [`2026-08-10-recover-stranded-new-work-commit.md`](./2026-08-10-recover-stranded-new-work-commit.md).
+
+## Gotcha: a callback assigned in `didInsertElement` is `undefined` for the whole first render
+
+**Surface:** classic components that build `this.onClose = function(){...}` style handlers.
+Found on three modals; `speak-mode-intro` had already hit it and fixed it in `init()`.
+
+`didInsertElement` runs AFTER the template renders, so anything the template reads during
+render sees `undefined`. Plain assignment (not `this.set`) notifies nothing, so there is no
+re-render to repair it. **Three different symptoms, one cause:**
+
+| How the template uses it | Symptom |
+|---|---|
+| `{{on "click" this.onClose}}` | `TypeError: Cannot read properties of undefined (reading 'bind')` at modifier install — hard render error, button dead |
+| `@action={{this.onClose}}` passed to a child | silently undefined; child falls back or does nothing |
+| `@onClose={{this.onClose}}` + child does `{{#if @onClose}}` | **the control is never RENDERED at all** |
+
+That third one is the nasty one: there is no error and no dead button to click — the button
+simply is not there, so it reads as a design choice.
+
+**Fix:** assign in `init()`. It runs before render, and for handler closures there is no
+reason to wait for the DOM. Keep genuinely DOM-dependent work (focus, measurement) and
+"the user has now SEEN this" side effects in `didInsertElement`.
+
+**Detection:** a source grep only finds the shape you already know. Grepping
+`{{on "click" this.onClose}}` found the first two and would never have found the third,
+whose handlers are passed as arguments. What found it was opening every modal in a real
+browser and asking "is there a close button, and does clicking it work" —
+`app/frontend/scripts/modal-audit-qa.mjs`.
+
+**Cheap regression test, no rendering required:** the contract is "handlers exist on a
+freshly constructed component", so `owner.factoryFor('component:x').create()` then
+`typeof component.onClose === 'function'` catches all three shapes in ~10ms. Rendering the
+real modal to test this costs 8-27s and flakes against QUnit's 15s ceiling.
+
+**Evidence:** [`2026-08-10-modal-scroll-and-close-app-wide.md`](./2026-08-10-modal-scroll-and-close-app-wide.md).
+
+## Gotcha: Puppeteer's `page.click()` silently delivers NOTHING inside this app's modals
+
+**Symptom:** an automated sweep reports every modal's close button as broken, while the same
+buttons work fine by hand. Capture listeners on the button record zero mousedown, mouseup AND
+click — yet `elementFromPoint` at the button's centre returns an element *inside* the button,
+so nothing is overlaying it.
+
+**Cause:** puppeteer runs `scrollIntoViewIfNeeded` and then clicks measured coordinates.
+Modals here sit in nested scroll containers — `modal-dialog.js` didRender gives
+`.modal-content` an inline `max-height` + `overflow:auto`, and `.modal` is `overflow-y:auto`
+whenever `body.modal-open` is set — so the target can move between measure and click.
+
+**Do not conclude the handler is broken.** Distinguish the two:
+
+```js
+await page.click(sel);                                   // trusted, real coordinates
+if (stillOpen) { await page.evaluate(() => el.click()); } // untrusted, but a real DOM event
+```
+
+Both fail -> the handler really is dead. Only the first fails -> automation artifact; report
+it as information, never as a defect. `el.click()` still exercises the `{{on "click"}}`
+binding, which is what handler-wiring defects break, so it is a sound fallback — it just does
+not exercise the trusted-pointer path (`raw_events.js` buttonTracker), so it cannot catch
+double-dispatch style regressions.
+
+**Also:** `page.waitForTimeout()` was REMOVED in Puppeteer 24. Written as
+`await page.waitForTimeout?.(500)` it is a silent no-op, not a wait — which left a whole sweep
+running against the `/login/device` interstitial instead of the app. Assert you reached the
+app (URL no longer matches `/login`) rather than trusting a sleep.
+
+**Evidence:** [`2026-08-10-modal-scroll-and-close-app-wide.md`](./2026-08-10-modal-scroll-and-close-app-wide.md).
+
+---
+
+## Pattern: a new per-variant style must be `:not()`-guarded when its class is ALSO on the disabled variant
+
+**Where this bites:** the caseload row's quick actions. `.md-caseload__quick-action--speak`
+appears on three elements: the live `<button>` AND both `<span role="note">` unavailable
+placeholders, which carry `--empty` as well (`caseload.hbs` ~155-171). The same shape exists
+for any `--empty` / `--<action>` pair in that row.
+
+**The trap:** `--empty`'s flat-grey disabled surface is declared at (0,2,0)
+(`.md-caseload__list-quick .md-caseload__quick-action--empty`) near the TOP of
+`_caseload.scss`. A new variant rule written the way its siblings are written —
+`.md-caseload__quick-action.md-caseload__quick-action--<action>`, also (0,2,0) — lands ~1000
+lines LATER, so **equal specificity resolves on source order and the new colour silently
+repaints the disabled placeholders too.** Nothing errors; the disabled state just stops
+looking disabled, which is an accessibility regression (the row communicates unavailability
+with surface + ink + border, deliberately not with opacity).
+
+**Do this:** scope the variant so it *cannot* match the disabled element, on the base rule and
+on every state:
+
+```scss
+.md-caseload__list-quick .md-caseload__quick-action--speak:not(.md-caseload__quick-action--empty) { … }
+/* …and the same guard on :hover and :active */
+```
+
+Verify by grepping the COMPILED css for the new colour and confirming every selector carrying
+it also carries the guard — reading the SCSS is not enough, because the failure is an
+ordering effect you cannot see in one rule.
+
+**Two companions in the same row:**
+- The row has a shared `:hover` / `:active` that tints EVERY button verdigris. Any variant
+  with its own hue must restate both states in its own hue or it flips teal mid-interaction.
+- Light tints are ~1.3:1 against the white row, so the BORDER carries WCAG 1.4.11 (3:1), not
+  the fill. Alphas do not transfer between hues: `#4C86D8` at 0.62 clears 3:1 but
+  `#4E8060` (sage) at 0.62 measures only 2.36:1 and needs 0.80. Compute per hue.
+
+**Evidence:** [`2026-08-12-caseload-speak-sage-glass.md`](./2026-08-12-caseload-speak-sage-glass.md).
+
+---
+
+## Gotcha: a variant with its own `:hover` but no `:active` has NO press feedback for mouse users
+
+**Symptom:** a button visibly arms on hover but nothing happens when you click and hold — the
+pane never pushes in. Keyboard activation of the same button flashes the WRONG hue.
+
+**Cause — one omission, two opposite cascade failures.** Found on the caseload row's Model
+button, which had `--model` base + `:hover` rules but no `:active` of its own, so presses fell
+through to the row's shared `.md-caseload__quick-action:active` (0,2,0):
+
+- **Mouse:** a mouse-down is *also* a hover. `--model:hover` is (0,3,0) and outranks the shared
+  (0,2,0) `:active`, so the hover declarations simply persist through the press. The press rule
+  never paints. Higher-specificity `:hover` **silently swallows** a lower-specificity `:active`.
+- **Keyboard** (Space/Enter — no hover): shared `:active` (0,2,0) ties the variant's BASE rule
+  (0,2,0) and sits later in source, so it wins — repainting the button in the shared state's
+  hue (verdigris here), not the variant's.
+
+**Rule of thumb:** in a family where the shared `:hover`/`:active` carry a hue, any variant that
+overrides `:hover` **must** also override `:active`, at specificity ≥ its own `:hover`, placed
+AFTER the `:hover` block so it wins the same-specificity tie during a press. Overriding one
+state and not the other is never correct.
+
+**Cheap way to spot it:** list the variant's emitted selectors in the COMPILED css and check
+each hue-bearing rank has base → `:hover` → `:active` in that order. In `_caseload.scss`,
+`--choose-board` and `--speak` both had the full set; `--model` was the one missing a press
+state, which is what made "it's an omission, not a design choice" verifiable rather than a
+guess.
+
+**Evidence:** [`2026-08-12-caseload-speak-sage-glass.md`](./2026-08-12-caseload-speak-sage-glass.md).
+
+---
+
+## Gotcha: `backdrop-filter` over an OPAQUE backdrop is visually inert but still costs a compositing layer
+
+**Symptom:** elements don't paint until you scroll them in and out of view, then appear.
+Worst on lists, where the cost multiplies per row.
+
+**Check before adding OR keeping `backdrop-filter`:** what is actually behind the element?
+In `_caseload.scss` the row buttons sit on `.md-caseload__list-row`, whose background is
+`linear-gradient(180deg, #ffffff, rgba($la-navy, 0.02))` — flat and opaque. Blurring flat
+white renders nothing, and `saturate()` has no saturation to boost on white. The filter was
+pure cost: one compositing layer per button per row.
+
+**The trap is that it looks load-bearing.** These rules are commented as "GLASS", so the
+filter reads as the thing making them glassy. It isn't — the gloss sweep (a white
+`linear-gradient` fading to transparent) and the inset rim do all the visible work.
+Removing `backdrop-filter` from all seven `.md-caseload__quick-action` rules changed nothing
+on screen.
+
+**Rule of thumb:** `backdrop-filter` earns its cost only over VARIED or SEMI-TRANSPARENT
+content — a modal veil over a board, a bar over scrolling content. Over a solid card, delete it.
+
+**Fast audit** (maps every declaration to its owning rule, so you can see which sit on solid
+backgrounds):
+```
+python3 - <<'PY'
+import re
+sel=''
+for i,l in enumerate(open('app/frontend/app/styles/_caseload.scss'),1):
+    if l.rstrip().endswith('{'): sel=l.strip()
+    if re.match(r'\s*-?(webkit-)?backdrop-filter:\s*blur', l): print(i, sel, l.strip())
+PY
+```
+
+**Evidence:** [`2026-08-12-caseload-speak-sage-glass.md`](./2026-08-12-caseload-speak-sage-glass.md).
+
+## Gotcha: `rem` is a trap in this codebase — the root font-size is 10px, so write px
+
+`app.scss` inherits bootstrap's `html { font-size: 10px }` (called out in a comment at
+`app/frontend/app/styles/app.scss:5366`). Every `rem` therefore renders at **62.5% of the
+usual size**: `1rem` is 10px, not 16px; `3rem` is 30px, not 48px.
+
+This bites hardest when importing a design spec written against a normal 16px base. A new
+Reports partial authored straight from such a spec rendered with 9.5px body text (below the
+14px WCAG floor and far below this app's AAC type requirement) and a 30px-tall primary CTA
+(below the 44×44 minimum target). Nothing errored, nothing warned, and the mistake is
+invisible in the SCSS — only measuring the rendered page exposes it.
+
+**Rules:**
+1. Write **px** in new partials. The existing partials (`_modern_pages.scss` has zero `rem`)
+   already do this deliberately.
+2. If porting a spec that uses `rem`, multiply every value by 16 to get the intended px.
+3. `rem` inside **media query** parameters is unaffected — media queries evaluate against the
+   *initial* 16px root font-size, not the document's. So `@media (max-width: 70rem)` really is
+   1120px while `min-height: 3rem` in the same file is 30px. That inconsistency is exactly why
+   px-everywhere is the safer convention here.
+4. Verify by measuring, not by reading: `getComputedStyle(document.documentElement).fontSize`
+   returning `10px` is the tell, and a quick Puppeteer pass over
+   `getBoundingClientRect()` catches undersized targets that the stylesheet looks fine about.
+
+**Recurrence (2026-08-15) — it also hides in blocks you are already editing.** The
+board-detail error page shipped `font-size: 1.05rem` on its action buttons and `1rem` on its
+retry link — **10.5px and 10px rendered**. These were pre-existing and survived a full restyle
+of that block, because a `rem` value reads as plausible and the surrounding declarations were
+in px. Rule 5: **when you touch a rule block, convert any `rem` you find in it to px in the
+same pass** — you will not get a second look at it, and a "1rem" sitting next to "font-size:
+19px" two lines up is exactly how a sub-14px control survives a redesign.
+
+**Evidence:** [`2026-08-12-reports-summary-redesign.md`](./2026-08-12-reports-summary-redesign.md).
+
+## Pattern: derive report narrative in a pure util, never in the template or from absent data
+
+The Reports summary needs sentences ("Communication increased this period", "↑ 18%"). Two
+traps, both avoided by putting the derivation in a plain module (`app/frontend/app/utils/
+report_summary.js`) that takes a Stats object and returns a fully-formed view model:
+
+1. **Only claim what the pipeline actually measures.** `lib/stats.rb` has no prompting or
+   independence metric anywhere (`modeled_*` is *partner modeling*, not prompting), so any
+   "becoming more independent" phrasing would be fabricated. Grep the server-side derivation
+   before writing a sentence about it.
+2. **There is no previous-period payload in single-period mode.** `usage_stats2` only exists
+   in explicit compare mode. Rather than firing a second `/stats/daily` request or inventing a
+   baseline, the summary splits the selected range's `days` payload in half and compares later
+   vs earlier — and every generated string *names the earlier half's dates*, so the claim is
+   exact instead of implying a period that was never fetched. Guard rails: needs ≥4 days and a
+   non-empty earlier half, and a ±5% dead band so noise reads as "steady".
+
+A pure util also makes all of this unit-testable without rendering (12 QUnit tests, no Mirage,
+no `setupApplicationTest`) — which is the only practical way to lock down "never claims X".
+
+**Evidence:** [`2026-08-12-reports-summary-redesign.md`](./2026-08-12-reports-summary-redesign.md).
+
+## Pattern: restyling markup that carries a SHARED global class — keep the class, answer every compound bucket
+
+CLAUDE.md says to preserve existing styling class names, so a restyle usually adds its own
+class *alongside* the legacy one rather than replacing it. That works, but only if you enumerate
+the legacy rule's compound variants — a single base override silently leaks the rest.
+
+The Reports core word list renders `class="report-word-chip weighted_word weight_N"`, where
+`weighted_word` / `weight_N` come from `utils/stats.js:134` and are also used by the word cloud
+and `Stats::WeightedWords`. app.scss styles them as **one base plus five compound rules**
+(`.weighted_word`, then `.weighted_word.weight_10, .weighted_word.weight_9`, `…8, …7`, `…6, …5`,
+`…4, …3`, `…0` — app.scss:18515-18543). Because `_reports.scss` is `@use`d and therefore emitted
+*first*, a chip rule at `.report-chart-card .report-word-chip` (0,2,0) beats the bare base
+(0,1,0) but **ties** with every `.weighted_word.weight_N` (0,2,0) — and a tie loses to source
+order. Buckets 3-10 and 0 would have kept app.scss's greys while 1-2 took the new skin.
+
+**Recipe:**
+1. Grep the legacy selector for compounds, not just the base: `grep -n "\.weighted_word" app.scss`
+   — and remember nested SCSS hides them as `&.weight_10`, so grep the *compiled* CSS when unsure.
+2. Give every compound bucket a matching rule one level more specific
+   (`.report-chart-card .report-word-chip.weight_9`, 0,3,0). Buckets with no compound rule
+   (here `weight_1` / `weight_2`) can fall through to your base.
+3. Verify from the rendered page, not the stylesheet: group the live nodes by bucket and read
+   back `getComputedStyle` per bucket. Six buckets appeared on real data; all six resolved to the
+   new scale, which is the only proof that nothing fell through.
+
+Same shape applies when composing a shared reset like `.md-link-btn` from a partial: the reset
+lives in app.scss (emitted later), so the partial's rules must be compound to win — do not reach
+for `!important` (rule 7).
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Gotcha: a hand-rolled `margin-top: 56px` on a chart is a MISSING HEADING, not a layout offset
+
+`core-fringe.hbs` and `parts-of-speech-pie.hbs` each wrapped their chart in
+`<div style="margin-top: 56px">`. The number was not geometry — it was the height of the *sibling*
+card's `<h3>`, hand-copied so the untitled charts would line up with the titled one. Two costs:
+the cards had no accessible name at all, and the offset broke the moment the neighbour's title
+wrapped. Giving each chart a real card head deleted the magic number and named the card. When you
+find a bare pixel offset on an untitled panel, check whether the panel is missing its heading
+before treating the number as a spacing decision.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Gotcha: `{{t "Some Text" key="existing_key"}}` silently renders the LOCALE value, not your text
+
+`i18n.t` (`app/frontend/app/utils/i18n.js:50-54`) prefers `langs[preferred][key]` and only falls
+back to the inline string when the key is absent. So reusing a key that already means something
+else makes the inline default dead code: `sankey-parts-of-speech.hbs` read
+`{{t "Parts of Speech Flow" key="parts_of_speech"}}` and had always rendered **"Parts of Speech"**,
+because `en.json` defines `parts_of_speech` as `"Parts of Speech"`. Nobody noticed until a second
+card legitimately claimed that title and the page showed the same heading twice. When adding a
+heading, grep `public/locales/en.json` for the key you are about to reuse and confirm its value
+matches the words you typed. The corollary is the safe part: a key that exists in `en.json` but
+not in other locales falls back to the inline string, so adding en-only keys never breaks a locale.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Technique: batch the edits, verify ONCE — a Puppeteer round on this app costs ~3-4 minutes
+
+Live-checking a Reports change means: launch Chrome, load `/login`, seed the fields,
+sign in, wait out the token round-trip, then reload the page once per viewport with a
+~10s settle for the charts. That is 3-4 minutes per run, and it does not get cheaper by
+checking fewer things. Verifying one CSS variable at a time turns a twenty-minute task
+into an hour.
+
+**Do:** make every edit the diagnosis calls for, then run one script that measures ALL of
+them across ALL widths and screenshots each. **Don't:** re-run the harness after each
+single-property change to see whether that one landed.
+
+Two corollaries that saved rounds once adopted:
+- **Measure the whole chain in one probe.** When a box is the wrong width, walk
+  `el.parentElement` to the viewport in a single `page.evaluate` and dump
+  `width / left / right / min-width / flex / display` for every ancestor. The culprit
+  (here: an Ember component's `div.ember-view` sitting as a flex item with the default
+  `min-width: auto`) shows up immediately; guessing at it costs a round each time.
+- **Byte-identical numbers across two runs mean the CSS did not rebuild, not that the
+  fix failed.** Confirm with `curl -s localhost:8184/assets/frontend.css | grep -A5 '<selector>'`
+  before re-diagnosing — that check is seconds, a re-run is minutes.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Gotcha: an Ember classic component's `div.ember-view` is a flex item with `min-width: auto`
+
+`Stats::DataFilter` renders `<div class="ember-view"><div class="md-stats-filter">…`, and
+that outer wrapper — which appears in no template and therefore in no stylesheet — becomes
+a flex item of whatever row it is dropped into. Its default `min-width: auto` resolves to
+the min-content width of everything inside (here the whole period row on one line, 381px),
+so at 390px it held the header open at 381px and pushed the page sideways while every
+element *inside* it reported `min-width: 0` and looked innocent.
+
+Whenever a flex row containing a classic component overflows, style the wrapper:
+`.<row> > .ember-view { min-width: 0 }`. Same trap for `overflow: hidden` and `flex: 1`
+that you meant to apply to the component's own root element.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Gotcha: a control with its own `min-width` OVERFLOWS the wrapper you let shrink
+
+Making a flex wrapper shrinkable (`min-width: 0`) does not narrow a control inside it that
+carries its own floor. `.md-stats-period-select__trigger { min-width: 128px }` inside a wrap
+that collapsed to 46px simply drew 128px wide, centred, spilling ~40px to the LEFT and
+landing on top of the label beside it. The rendered symptom reads as clipped text, so it is
+easy to chase as an overflow/z-index problem; the measurement (`trigger.left < label.right`)
+names it instantly.
+
+**Rule:** exactly one box in the pair owns the width. Either the wrap owns it (wrap
+`flex: 1 1 auto; min-width: <floor>`, control `min-width: 0; width: 100%`) or the control
+does (wrap `flex: 0 0 auto`). Splitting the floor across both is what produces the overflow.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Gotcha: a two-column grid row puts a full-width child on its OWN row — DOM order decides who lands where
+
+`.report-bar-list__row` is `grid-template-columns: 1fr auto` with three children: label,
+value, and a track carrying `grid-column: 1 / -1`. Written label → track → value, the track
+auto-places on row 2 and the value is pushed to row 3 — the row silently renders at 64px
+instead of 32px (`grid-template-rows: 21.42px 8px 21.42px` is the tell), and a 9-row list
+comes out 576px instead of 292px. Nothing errors; the list just scrolls.
+
+Put the full-width spanning child LAST in the markup, or place everything explicitly with
+`grid-row`. And when a list is unexpectedly tall, read `getComputedStyle(row).gridTemplateRows`
+before touching any gap or font size — it says how many rows you actually got.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+
+## Technique: run the chart palette through a validator before restyling a chart
+
+The Reports parts-of-speech pie derived nine slice colors at runtime from the Fitzgerald key
+(`stats_colors.partsOfSpeechColor` = `tinycolor(fill).saturate(10).darken(20)`). Computing the
+nine hexes and checking them took two minutes and settled the design question outright:
+`article` and `other` resolve to the SAME color (`#a38f8f` — `other` matches no `types` entry
+and falls back to the same `#ccc` fill as `article`), `conjunction` is the neighbouring grey,
+worst adjacent CVD separation ΔE 4.3, six of nine below 3:1 on the card. The chart could not
+be read no matter how it was skinned, so the fix was the FORM (sorted, directly-labelled bars
+in one hue), not the paint.
+
+Domain color coding — Fitzgerald part-of-speech colors are a real AAC convention and match the
+user's own boards — is a genuine reason to keep a palette, but only where something else
+carries identity. On a labelled bar list the label carries it; on a nine-slice pie nothing does.
+
+**Evidence:** [`2026-08-12-reports-core-parts-of-speech-cards.md`](./2026-08-12-reports-core-parts-of-speech-cards.md).
+## Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready
+
+**Surface:** Capacitor shell (`lingolinq_mobile`) + Ember `dbman` / `capabilities.storage`.
+
+`installed_app: true` alone does not enable Cordova offline. Without `window.sqlitePlugin`, `dbman` falls back to IndexedDB and logs `should be using sqlite but using indexeddb instead`. Without filesystem (`cordova.file` or `window.file_storage`), `storage.status.available` stays false and sync cannot cache symbol/sound blobs for speak mode.
+
+**Working pattern (2026-08):** keep Ember sync logic; install Cordova-shaped shims before `app.js` in the shell (`www/sqlite_bridge.js` → `@capacitor-community/sqlite`, `www/filesystem_bridge.js` → `@capacitor/filesystem` + `Capacitor.convertFileSrc`). Ember backup: `capacitor_bridge.js` + shims imported from `capabilities.js`. Serve speak-mode media via `convertFileSrc`, never raw `file://`. Prod-packaged `app.js` still needs the **shell** bridges.
+
+See `docs/native-apps/capacitor-7-kickoff.md` and task log `2026-08-10-capacitor-offline-boards.md`.
+
+## Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys
+
+**Surface:** `app/frontend/app/utils/capabilities.js` `storage.status`, test `capabilities.storage status - should resolve correctly on windows/node`.
+
+Callers (and jasmine `toEqual` tests) treat the resolved object as `{available, requires_confirmation}`. Adding an unused `capacitor: isNativeCapacitor()` key on the `window.file_storage` branch broke CI even when the value was `false` (Electron/desktop also uses `file_storage`). Keep Capacitor native on `capacitor_bridge` / `capabilities.capacitor_native`, not on this status payload.
+
+## Gotcha: Ember unit tests must import app modules as `frontend/...`, not relative `../../app/...`
+
+**Surface:** Ember test module map (`app/frontend/tests/**`).
+
+Relative imports like `../../app/utils/foo` from `tests/unit/utils/` resolve as `frontend/tests/app/utils/foo` and fail to load (`Could not find module`). Use the app module prefix: `import … from 'frontend/utils/foo'`. Example miss: `board-attribution-test.js` (merged in #771).
+
+## Gotcha: contentHash drift — ATTESTED means stop; unattested means regenerate-register
+
+**Surface:** CI `audit-artifacts-integrity` → `document-register-render.rb --check` (post-#766 messaging).
+
+Two different failures share “contentHash drift” wording. **Attested** rows have
+`attestation.attestedBy` + pinned `attestedContentHash` (what Scot signed). **Unattested** rows
+have empty `attestation: {}` — only a living `contentHash`.
+
+- Unattested drift → `scripts/regenerate-register.sh`, commit JSON + `.md`. Safe.
+- Attested drift → do **not** run render (bumps hash, dirties register, fails next as “attested
+  revision no longer exists” — the #721 footgun). Revert the file or Scot `/re-attest-record`
+  (Path A supersede for `docs/legal/**`).
+
+Example this session: Capability Ledger (`docs/legal/CAPABILITY_LEDGER.md`) is unattested; line
+drift from `feature_flags.rb` only needed regenerate after the ledger JSON line bump. Skills:
+`.claude/skills/re-attest-record/SKILL.md`, `promote-finding/SKILL.md`; guide:
+`docs/legal/COMPLIANCE_DOCS_GUIDE.md`.
+
+## Gotcha: "Scot re-attested" is not a pin on this branch until the row hash matches
+
+**Surface:** CI `audit-artifacts-integrity` on an attested `docs/legal/**` file (PR #737,
+`PARENTAL_CONSENT_EMAIL.md`).
+
+Scot's last pin of that row is still 2026-07-23 (`d7c935ce4743…`, PR #672). His later attest
+PRs (#832, #839) covered other documents. A Slack/chat "I re-attested" does not change
+`attestation.attestedContentHash` on this branch. Confirm with `sha256sum` of the file vs the
+row pin. If they differ, the author reverts the attested file (or Scot runs `/re-attest-record`
+Path A). Do not run render. Task log:
+`docs/task-management/2026-08-22-pr737-attested-parental-consent-drift.md`.
+
+## Gotcha: Rails reserves `params['action']` — consent APIs must use `decision` or member approve/deny routes
+
+**Surface:** `Api::SupervisorRelationshipsController#consent_response`, Ember `consent-response` / `pending-consent-requests`.
+
+`params['action']` is always the controller action name (`consent_response`, `approve`, …). A body field named `action` does not carry the client's approve/deny intent. Ship `decision` / `consent_action`, or call `PUT …/approve` / `PUT …/deny` so `action_name` is the decision. Treating `params['id']` as a consent token when the client sent a relationship global id silently breaks in-app approve/deny; authenticated party approve needs `approve_as_party` / `deny_as_party` by global id. See task log `2026-08-12-supervisor-consent-ship.md`.
+
+## Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead
+
+**Surface:** Ember `user.pending_supervisor_requests` attr + `PendingConsentRequests`.
+
+The User model exposes `pending_supervisor_requests`, but `lib/json_api/user.rb` never populates it. Enabling `supervisor_consent_flow` alone shows an empty pending list. Load pending rows from `GET /api/v1/supervisor_relationships?role=communicator&status=pending` and map into the UI shape (`id`, `requester_name`, `requester_avatar_url`, `permission_level`).
+
+## Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist
+
+**Surface:** `button-settings` Sound → Speak (`model.vocalization`).
+
+`set-field` updates only the in-modal Button. Board save serializes `board.buttons`, so Speak edits disappear unless synced with `editManager.change_button` (same class of bug as `urlChanged` / `labelChanged`). Closing can also hit `pictureGrabber.clear_image_preview` during teardown; unguarded `controller.set('image_preview', null)` throws “calling set on destroyed object”, which the image-save error path surfaces as a misleading **upload failed** alert. Guard destroyed controllers in clear, and flush vocalization on close. Task log: `2026-08-13-button-settings-vocalization-save.md`.
+
+## Gotcha: a singleton controller + `deactivate`-only teardown leaves global state null on the SECOND visit
+
+**Surface:** `/board-picker?user_id=X`, but the shape applies to any route that mirrors
+controller state into a service.
+
+`routes/board-picker.js#deactivate` nulled `appState.setup_user`; the controller kept
+its own `setup_user`, because Ember controllers are singletons and nothing cleared it.
+The resolver then guarded on `if (user_id != setup_user.id)` — a cheap "already
+loaded, skip the fetch" test — so on a second visit to the same id the ids matched,
+the whole block was skipped, and the *service* copy stayed null for the entire visit.
+Consumers split: the page header read the controller (right name), while
+`board-preview-overlay#pick_for_home` read `appState.setup_user || currentUser` and
+silently fell through to the supervisor. A supporter's pick was written to their own
+account while the page said otherwise.
+
+**Rule:** if teardown clears a mirrored copy, the resolver must RE-ASSERT it on every
+pass, not only when the source has to be re-fetched. Keep the fetch guarded; never
+guard the assignment. And clear both copies in the same hook — asymmetric teardown is
+what makes visit 2 differ from visit 1, which is why this class never shows up in a
+single-visit manual test.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Gotcha: Ember query params are STICKY per controller — a bare transition inherits the last value
+
+`queryParams: ['user_id']` with no `resetController` means Ember restores the previous
+value on any later transition that does not specify one. In this repo that meant a
+supporter who opened the picker for a communicator (`?user_id=X`) and later opened it
+**for themselves** from any of six links that pass no query — `getting-started.hbs:52`,
+`modeling-ideas.hbs:89`, `guided-tour.js:556/633/800`, `create-board-new.js:1805`,
+`controllers/user/index.js:1537` — landed back in the supervisee flow. Two callers
+(`dashboard-user-boards.hbs:44`, `user/boards.hbs:97`) pass `user_id=null` explicitly,
+which masked it on the common paths and is why it survived review.
+
+**Rule:** any query param that scopes WHO an action writes to needs a `resetController`
+clearing it on `isExiting`. Passing `user_id=null` at some call sites is not a fix — it
+is a per-caller workaround that hides the default.
+
+**The trap inside the fix:** clearing the param notifies its observer, and **Ember
+observers are async** — they fire on the next flush, after the hook returns, on a route
+you have already left. Here that late pass re-resolved the setup user to the *current*
+user and would have re-introduced the very wrong-target write being fixed. Gate the
+resolver on a `_route_active` flag set in `setupController` and cleared as the FIRST
+statement of `resetController`; do not rely on `deactivate` vs `resetController`
+ordering.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Technique: check whether a server flag is reachable from the CLIENT before fixing the branch it guards
+
+An adversarial review flagged `user.rb:2949-2957` — the org home-board copy takes an
+async `Progress.schedule` early return without writing `home_board`, so the client
+would resolve the user's OLD board. Real code, real early return, wrong conclusion:
+`grep -rn "'async'" app/ lib/ --include=*.rb` shows `non_user_params['async']` is set
+only by `organization.rb:1875` (true) and `subscription.rb:656` (false) — both
+server-side. No controller ever puts it in `non_user_params`, so a browser PUT always
+takes the sync branch, which does write the preference and save.
+
+**Rule:** when a finding depends on a flag being set, grep for every PRODUCER of that
+flag, not just its consumers, before writing the fix. One grep separated a real bug
+(the unconfirmed write on the same path) from a phantom, and stopped a fix being
+written for an unreachable branch — which would have been untestable and would have
+implied a defect that does not exist.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Gotcha: the class a template writes is not always the method that "decides" it — check the template, not the helper
+
+An adversarial review reported that the board PREVIEW colours folder buttons the live
+board leaves white, and prescribed skipping part-of-speech colour for folders because
+`board-detail.js#pos_css_class` returns `'folder'` before it looks at POS. The premise
+was right, the prescription was wrong: `board-detail-grid.hbs:53` never calls
+`pos_css_class`. It writes
+`md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}}`
+straight from the raw fields. `pos_css_class` gates one thing only —
+`resolve_unknown_buttons` (`:3738`), which filters on `pos === 'default'` — so folders
+are excluded from the LOOKED-UP type and nothing else. An authored `part_of_speech` on
+a folder paints on the live board, and the prescribed fix would have stopped the
+preview painting it: a new parity bug in the opposite direction.
+
+**Rule:** when a finding says "X decides the colour/class", grep the TEMPLATE for the
+class it actually emits before changing anything. A well-named method often turns out
+to gate a narrower step than its name suggests.
+
+**Same file, second instance:** the preview suppressed POS whenever `border_color` was
+set, its comment claiming to mirror the board. The board's suppressor is
+`{{unless btn.background_color '…--no-color'}}` — `background_color` only — and
+`--no-color` (`app.scss:80413`) sets `outline-color: transparent` and nothing else, so
+it never fights the POS background at all. Read the RULE BODY before believing a class
+name suppresses anything.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Pattern: a "feature unavailable" lock must match what the UI actually does
+
+The caseload row rendered a locked `<span role="note">` for modeling-only links saying
+More Actions was unavailable — while the row header's own click handler opened the
+panel regardless. Two things were wrong, and only one of them was the lock: the panel
+is legitimately available on a modeling-only link (it carries Speak, Home Board and
+Modeling Ideas, all granted by `model`), and the items that genuinely are restricted
+already carried their own "not available when you are linked as modeling-only" copy
+inside it.
+
+**Rule:** before gating a container on a permission, check what is INSIDE it. Gating
+the panel would have removed capability the link actually has; the honest fix was to
+delete the false lock and leave the per-item gating that was already correct. A lock
+the next click contradicts is worse than no lock — it teaches users to ignore locks.
+
+Note the boundary that made this a UI defect and not a leak: the server still refuses
+the restricted data (`allowed?` → 400), so nothing was exposed. Check where the real
+enforcement is before rating a UI affordance as a data-protection finding.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Gotcha: bucketing a time series forward from index 0 puts the short bucket on the NEWEST point
+
+`report_summary.js#buildTrend` opened a weekly bucket every 7 rows counting from the
+start, so any range that is not a multiple of 7 ended on a partial bucket: a 60-day
+range plotted a 4-day sum beside 7-day sums — a ~43% fall created entirely by bucket
+width, on the most recent point of a communicator's progress chart.
+
+**Rule:** anchor buckets to the END of the range (`remainder = rows.length % size`,
+first boundary at `remainder`), so the short bucket is the oldest point, where a reader
+is least likely to read it as a trend. Carry the bucket's span (`days`) on each point
+so a consumer can disclose it. Do not "fix" this by averaging unless the legend and the
+data table change units with it, and never by dropping the remainder — that silently
+discards real days.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Gotcha: an overlay's z-index is chosen against the wrong neighbour
+
+`.bp-options` sat at `z-index: 5900` with a comment explaining the choice — entirely in
+terms of the create-board chooser's 6000. Nobody had compared it to Bootstrap's modal
+layer (`.modal-backdrop` 1040 / `.modal` 1050), which every button in that overlay can
+open. `check_for_needing_purchase()` returns a promise that settles ONLY when the user
+dismisses `premium-required`, so painting that dialog behind the scrim hung the flow
+with no exit but a reload.
+
+**Rule:** a full-viewport overlay's z-index has to be justified against everything it
+can SUMMON, not just the sibling it visually competes with. When the comment names only
+one neighbour, that is the tell. Check whether the overlay's own actions can open a
+modal, a flash, or an error dialog — and if the answer is yes, it belongs below the
+modal layer, not above it.
+
+**Evidence:** [`2026-08-13-branch-vs-staging-adversarial-review.md`](./2026-08-13-branch-vs-staging-adversarial-review.md).
+
+## Click-testing UI fixes: how a browser probe passes without testing anything (2026-08-14)
+
+From click-testing the adversarial-review fixes (H4/H5/H3/M2/M9) on
+`traci/styling/styling-updates`. Every item below cost real time in that session.
+
+1. **`el.click()` cannot detect a z-index/overlay bug — it bypasses hit testing.**
+   For anything about stacking, covering scrims, or "is this actually clickable",
+   dispatch a REAL mouse click at the element's centre (Puppeteer `elementHandle.click()`
+   / CDP) so the topmost element receives it, and assert with
+   `document.elementFromPoint()` that the node you hit is the element or a descendant.
+   A probe using `el.click()` passes cleanly against the broken build.
+
+2. **A probe that never observes its window must FAIL, not pass.** Make the
+   observation itself an assertion: "≥N in-flight frames sampled or FAIL". Two M2 runs
+   reported a spotless DOM while testing nothing — first by selecting "Custom Filter"
+   (which fires no request), then by re-selecting the period already displayed. Only the
+   frame-count guard exposed them. Same shape for races: assert the late response
+   actually arrived late AND carried the wrong data, or the race was never created.
+
+3. **Widen the window instead of racing it.** Request interception with a fixed delay
+   on the specific URL (`/stats/daily`, `/badges?user_id=<A>`) turns an unobservable
+   millisecond window into a deterministic multi-second one. This is what made H5's race
+   reproducible after the register had recorded it as "fixed by inspection, not reproduced".
+
+4. **Negative-control in place, no git needed.** While the dialog was open, forcing
+   `.bp-options` back to its pre-fix `z-index: 5900` re-covered the close button —
+   proving the check bites. Cheap, and the only evidence a passing check is not vacuous.
+
+5. **`aria-selected` is not a reliable "currently selected" signal in this app.**
+   `Stats::PeriodSelect` binds it to `is-equal this.selection item.id`, and
+   `usage_stats.filter` is UNSET on a default load (`controllers/user/stats.js:296`
+   treats absent and `'last_2_months'` as the same), so nothing is marked selected while
+   that period is on screen. Compare against the trigger's visible label instead.
+
+6. **Check the finding is even testable against seed data BEFORE writing the probe.**
+   M9 needed >10 badges across the caseload and H5 needed two DISTINGUISHABLE badges;
+   the seeded demo caseload has 16 communicators and exactly ONE badge, and `db/seeds.rb`
+   creates no badges at all. Similarly H4 needs an expired/modeling-only supporter and
+   all three seeded SLPs are `org_sponsored_supporter`. Survey the data first; a probe
+   written against absent data reports SKIP at best and a false PASS at worst.
+
+7. **Client-side gates can be armed in-page instead of mutating the DB — when the
+   defect is client-side.** H4 needs `modeling_only`, a computed; setting its plain
+   dependency `modeling_session` on `appState.sessionUser` arms the exact code path
+   (`models/user.js:414`) without touching data. Legitimate because H4's defect is
+   stacking + promise settlement, and the account state is only the trigger. It would
+   NOT be legitimate for something like M9, where server paging is the thing under test.
+
+8. **Two states that come from the same template branch can never disagree — don't
+   assert on them.** The caseload badge caption's name and the panel id both derive from
+   `{{#if (is-equal supervisee.user_name this.selectedSupervisee)}}`, so comparing them
+   would "pass" forever. H5 is only visible as "panel is B's but the BADGE is A's",
+   which is why the seeded badges carry per-user names.
+
+9. **Dev DB access recipe** (the obvious guesses all fail): `DB_USER=tracid` with **no**
+   password over the unix socket (`psql -h localhost` forces TCP and fails md5), plus
+   `SECURE_NONCE_KEY` / `SECURE_ENCRYPTION_KEY`, which `GoSecure.validate_encryption_key`
+   demands at boot (`config/environment.rb:27`). Read them off the running server with
+   `tr '\0' '\n' < /proc/<pid>/environ`. `User` has `billing_state` / `modeling_only?` /
+   `premium_supporter?` — there is no `expired?` or `currently_premium?`.
+
+## Permission testing in this codebase: three grants that silently invalidate your test subject (2026-08-14)
+
+Trying to exercise a permission DENIAL (`view_detailed` false) took four candidate
+accounts before one worked, because three separate grants keep it true:
+
+1. **Org managers bypass the modeling-only split.** `user.rb:87` grants
+   `view_detailed`/`supervise`/`set_goals` on `Organization.manager_for?` with **no**
+   `modeling_only_for?` condition, so an org manager keeps full access on a
+   modeling-only link. `sarah_chen_slp` is a manager — never use her to test a denial.
+2. **`settings['public'] == true` grants `view_detailed` to EVERYONE** (`user.rb:58`),
+   including users with no relationship at all — verify with an unrelated user before
+   trusting any allow result. Several seeded demo communicators are public
+   (`aiden_parker`, `bella_martinez`, `charlie_kim`, `luna_garcia`).
+3. **`modeling_only_for?` has three independent triggers** (`supervising.rb:121-125`):
+   the supporter's own `modeling_only?`, the relationship's `permission_level`, and a
+   per-link `state['modeling_only']` flag. Only the third is per-link.
+
+Corollaries:
+- **Check for pre-existing fixtures before creating any.** A seeded modeling-only link
+  (`marcus_williams_slp` → `ethan_brown`) already existed; the survey missed it because
+  the query filtered on a **non-existent `link_type` column** and silently matched
+  nothing. `UserLink` stores `record_code` as a real COLUMN and `type`/`state` inside
+  `data` — filtering on the wrong one returns empty rather than erroring.
+- **Not every seeded account can log in.** `elena_rodriguez_slp` fails
+  `valid_password?('demo2025!')` while the other two SLPs pass. Check
+  `valid_password?` in the console before blaming the probe.
+- Mutating a `UserLink`'s serialized `data` needs a **reassignment**
+  (`l.data = l.data.deep_dup.tap{...}`); in-place mutation may not mark the column
+  dirty. Follow with `touch` on both users to bust the permission cache.
+
+## Ember Data 5.3: `toArray()` is gone, and a defensive guard turns that into a false NEGATIVE (2026-08-14)
+
+`store.query(...)` results have **no `toArray`** in Ember Data 5.3 (`typeof` is
+`undefined`), though `.length` still works. Code written defensively as
+`rows.toArray ? rows.toArray().map(...) : []` therefore yields `[]` — and a check
+asking "does this endpoint leak data?" answered **"0 records, no leak"** when the true
+answer was 8 records including the leaked one. `Array.from(rows)` works.
+
+The general rule this is an instance of: **a read that cannot be performed must FAIL
+loudly, not fall back to an empty value.** An empty fallback inside a security or
+regression check converts "I could not look" into "there is nothing there". Always log
+HOW the read succeeded (length, access path) alongside the result, so a vacuous read is
+visible in the output rather than indistinguishable from a clean one.
+
+## Pattern: LingoLinq has TWO eval pipelines — check which one produced the page before "fixing" a report (2026-08-14)
+
+"The new report isn't showing on `/:user/logs/last-eval`" is almost never a broken
+render. There are two independent evals and they end in different places:
+
+| | Tiered eval | Full eval |
+|---|---|---|
+| Entry | `eval.quick` route (caseload link) | speak-mode boards, `app_state.eval_mode`, `obf/eval-*` |
+| Engine | `utils/eval_session.js` + `utils/eval_recommend.js` | `utils/eval.js` |
+| Ends at | `user.logs` list after `session.persist()` | **`user.log` / `last-eval`** (`eval.js:221`) |
+| Renderer | `eval-quick-report` / `eval-saved-summary` | `templates/user/log.hbs` raw trial tables |
+
+`routes/user/log.js:13` builds an **in-memory** log for `last-eval` with no
+`tiered_eval`, so the `{{#if this.model.tiered_eval_type}}` branch at `log.hbs:2`
+can never match there — it always falls through to the legacy `processed_assessment`
+renderer. Anything built only for the tiered flow is invisible on that page **by
+construction**, not by regression. Confirm which pipeline ran before diagnosing:
+a tiered eval leaves a `log_sessions` row, a full eval may leave nothing (memory +
+an IndexedDB `eval_progress_<uid>` snapshot only).
+
+Two traps when bridging them:
+
+1. **`analyze()` overwrites the raw access key with a localized label**
+   (`eval.js:892-903` — `res = Object.assign({}, assessment)` then
+   `res.access_method = <translated>`). Anything that needs to *branch* on the access
+   method must read the raw key, so `analyze()` now also emits `access_method_key`.
+   Same shape of trap anywhere a display label is written back over its own source value.
+2. **`GRID_BANDS[].band` labels describe the Quick Screen's EXTRAPOLATION, not a size.**
+   The Quick Screen probes stop at 4×6, so 24 demonstrated cells recommend the
+   84-button band. The full eval tests 1×2 → 8×14 directly (`eval.js:1099-1137`, clusters
+   24/60/112 = 4×6, 6×10, 8×14) and reports the largest grid actually mastered — so the
+   demonstrated grid IS the recommendation, and reusing the band label prints a mastered
+   4×6 as `tiny`. Share `GRID_BANDS` for *which published sizes exist*; do not carry its
+   labels across. Bonus: those clusters line up 1:1 with `VOCAL_FLAIR_BUTTON_COUNTS`
+   (24/40/60/84/112), so the page-set recommendation needs no heuristic.
+
+## Gotcha: an AAC eval report is TWO documents with conflicting rules — brand naming is the fork (2026-08-14)
+
+Per `docs/AAC_EVALUATION_STANDARDS.md` §2, a medical/funding report **must** name
+manufacturer + product + HCPCS, and a school/IEP report **must not** — naming a product
+in an IEP obligates the district to provide that exact product. So any recommendation UI
+that names a board/page set (`eval-page-set-card`, "Vocal Flair 84") is medical-mode only
+and must be replaced by feature language in school mode. This is a hard content rule, not
+a display preference: a single "eval report" that always names the product is wrong half
+the time. Related §6 rule — do not print a fabricated confidence number for a battery with
+no fixed denominator; report data volume (scored trials, accuracy, latency) instead.
+
+## Gotcha: a saved eval can only be rewritten by RE-SENDING it — and a mismatch silently forks the record (2026-08-14)
+
+There is no merge-into-a-saved-eval endpoint. `PUT /api/v1/logs/:id` reaches
+`LogSession#process_params` with `update_only`, which writes **only** `highlighted` and
+per-event notes (`log_session.rb:1678-1730`); `data['eval']` lives in the other branch and
+is unreachable on update. The client also never learns an eval's log id — evals are pushed
+as events through a `JobStash` and the response is a synthetic `fake-…/pending` record
+(`json_api/log.rb:13-18`), with the real LogSession created later in Resque. (Hence the
+long-standing `// TODO: how to get log_session_id for in-memory evaluation` in
+`controllers/user/log.js`.)
+
+The one supported rewrite is the resume path: **re-send the whole eval event**. The server
+matches it to the existing record by `log_session_id` (exact, unbounded) or by `ref_id` (a
+Ruby-side scan over evals created in roughly the last 72h — `data` is encrypted, so no SQL
+match is possible), then calls `s.process({eval: ...})`, which **replaces `data['eval']`
+wholesale** (`log_session.rb:1058-1077`, `1810`).
+
+Three consequences, all load-bearing:
+
+1. **Send the complete blob, never a patch** — and start from the RAW eval, not
+   `evaluation.analyze()`'s return value, which is an `Object.assign` copy carrying derived
+   display fields that must not be persisted. (This is why `controllers/user/log.js` now
+   has a `raw_assessment` computed that `processed_assessment` derives from.)
+2. **Authorship is a data-integrity boundary, not a permission nicety.** The reattach
+   requires `s.user == user && s.author == self.author`; when it fails the server does not
+   error — it creates a **duplicate eval LogSession** (`log_session.rb:1108`). Verified by
+   negative-control spec: a mismatched `ref_id` produced 2 eval logs and the new data never
+   reached the original. Any UI that re-sends an eval must gate on authorship first.
+3. **The write is asynchronous and unconfirmable** (stash → 10s-throttled push → Resque),
+   so UI must say "saved, syncing", never a bare "saved".
+
+Anything stored inside the eval blob (e.g. `data['eval']['report_workbook']`) rides along
+for free and reads back under `json['evaluation']` (`json_api/log.rb:102`) — no server
+change needed. But do NOT write `eval_mode` onto a legacy eval record: both
+`generate_defaults` (`log_session.rb:286-315`) and the serializer (`json_api/log.rb:82-104`)
+branch on it before `data['eval']`, so it would silently switch the record's date derivation
+and JSON shape.
+
+## Gotcha: `stashes.online` is seeded ONLY by an observer that never fires on a machine that starts online (2026-08-14)
+
+Symptom: nothing is ever logged to the server — no sessions, no evals, no assessments.
+`log_sessions` gets no new rows, `job_stashes` gets none, Resque queues sit empty, and
+`log/development.log` records **zero** `POST /api/v1/logs`. Everything piles up in
+`localStorage['lingolinqStash-usage_log']` instead, silently.
+
+Root cause: `push_log`'s guard is `this.get('online')` on the **stashes service**
+(`services/stashes.js`), which is a DIFFERENT flag from `persistence.get('online')`.
+The only thing that propagated a value into it was persistence's `on_connect`, an
+`observer('online', ...)` (`utils/persistence.js:3959`, `services/persistence.js:3945`).
+Observers fire on CHANGE. Persistence initializes its own flag from `navigator.onLine`,
+so when a machine is online at boot and stays online, that flag never changes, the
+observer never fires, and `stashes.online` stays **`undefined`** — falsy — for the whole
+session. Every push returns silently at the guard.
+
+Observed directly with Playwright against the running dev app (no user console needed):
+```
+navigator.onLine          -> true
+persistence.get('online') -> true
+stashes.get('online')     -> undefined     <-- every push silently dropped
+```
+
+Fix: seed it in `services/stashes.js#setup()` from the same source persistence uses
+(`this.set('online', navigator.onLine)`); the observer still keeps them in step afterwards.
+
+Two general lessons:
+1. **Two flags with the same name on two objects will drift.** `persistence.online`,
+   `stashes.online` and `navigator.onLine` are three separate things here; verifying one
+   in the console proves nothing about the one the write path actually reads.
+2. **A guard seeded only by an observer has no value until the observed thing CHANGES.**
+   If the initial state is already the steady state, the observer never runs. Seed
+   explicitly; don't let an observer be the sole initializer.
+
+Debugging technique worth reusing: browser-only state is observable from the shell with
+`npx playwright` against `localhost:8184` (chromium is already installed; log in via
+`/login`, fields `#identification` / `#password`). Far better than asking the user to run
+console commands and relay results.
+
+## Gotcha: `adapters/application.js` overrode `ajax()` and silently form-encoded every write (2026-08-15)
+
+`RESTAdapter#ajax` is not just a transport call — it is what invokes `ajaxOptions()`,
+and `ajaxOptions()` is what sets `contentType: application/json`, `dataType: 'json'`
+and `JSON.stringify(data)`. An override that calls `$.ajax(options)` directly (added in
+`248150d15`, 2026-01-18, to make extras.js' Authorization patch apply) skips it, and
+jQuery then form-encodes the body. Nothing warns; the request still succeeds.
+
+Form encoding loses three things the API can never recover:
+
+* **Arrays become index-keyed objects.** Rails builds an Array only for `a[]=`;
+  `log[events][0][type]` parses as `{'events' => {'0' => …}}`. Downstream
+  `params['events'].map{|e| e['user_id']}` then yields `['0', {...}]` and raises
+  `TypeError: no implicit conversion of String into Integer`.
+* **Numbers become strings** — `event['window_width'] > 0` →
+  `ArgumentError: comparison of String with 0 failed`.
+* **Booleans become strings** — `false` arrives as `"false"`, truthy in **both** Ruby
+  and JS. This is the one that forces a client-side fix: no server-side coercion can
+  tell the boolean from the string, so a failed eval trial silently reads as passed.
+
+Lessons:
+
+1. **When overriding a framework method to inject one concern, call the framework's own
+   option builder — don't hand it your raw input.** `$.ajax(this.ajaxOptions(url, type, options))`
+   keeps both the auth patch and the request semantics.
+2. **`extend({useFetch: false})` does NOT override a native class field.** Upstream
+   declares `useFetch = true` as a class field; field initializers run on the instance
+   after the prototype is built, so the `extend` property is overwritten before the first
+   request. Assign it in `init()` instead. The failure mode is nasty: `ajaxOptions` takes
+   the fetch branch and returns `{body}`, jQuery ignores `body` and form-encodes `data`
+   anyway, so the body is form-encoded while the header claims JSON and Rails answers
+   `ActionDispatch::Http::Parameters::ParseError`.
+3. **A 200 from an endpoint that enqueues work proves nothing.** `process_as_follow_on`
+   returns a synthetic `fake-…/pending` record and the real write happens in Resque. When
+   the job raises, the queues drain to empty and look healthy. Check
+   `redis-cli llen lingolinq-development:failed`, not queue depth.
+
+## Gotcha: `""` is truthy in Ruby, and a serialized client model sends `""` for every unset attribute (2026-08-15)
+
+`user_id = params['user_id'] || params['log']['user_id']; user = user_id ? find_by_path(user_id) : @api_user`
+looks safe and is not. The Ember client serializes the whole model, so an unset
+`user_id` arrives as `""` rather than being omitted — `""` is truthy, so it reached
+`find_by_path("")`, got nil, and `allowed?(nil, …)` rejected the request as
+`Not authorized`. Use `.presence`, not truthiness, on any id that comes from a
+serialized client model.
+
+Diagnostic tell worth remembering: `allowed?` adds `resource_class` / `resource_id` to
+its error body **only when the object is non-nil**. Their absence in a captured 400 says
+the object was nil — i.e. a lookup MISS, not a permission denial. That distinction was
+the whole difference between "the SLP lacks permission" and "we looked up the empty
+string".
+
+## Gotcha: permissions are Redis-cached, so `allows?` can disagree with the DB (2026-08-15)
+
+`Permissable` caches permission sets in Redis for 30 minutes
+(`app/models/concerns/permissions.rb` → `Permissable.permissions_redis`). A `rails
+runner` process and the running server can therefore return **different** answers for
+the same `allows?` call, and a stale entry survives edits to the underlying links.
+
+Before concluding that supervisor data was lost, check the durable state directly:
+`UserLink.where(user_id: communicator.id)`, `user.permissions_for(other)`, and
+`GET /api/v1/users/self`. If those look right and `allows?` says false, it is the cache.
+`u.touch` on both users changes the cache key and forces a recompute.
+
+Corollary for this repo: a browser login currently re-poisons that cache — see
+`HANDOFF-evals-not-saving.md`, "Environment problem". Open, unowned, pre-existing.
+
+## Pattern: a recompute that returns fresh objects will destroy the input the user is typing in (2026-08-15)
+
+`{{#each}}` keys on `@identity`. A computed that maps over a schema and returns **new
+plain objects** each time therefore forces Ember to tear down and rebuild every item's
+DOM whenever it invalidates — including a focused `<input>`. In `eval-workbook`,
+`writeField` called `notifyPropertyChange('workbook')` on every keystroke to refresh the
+"started" badges, so each field accepted exactly ONE character before the element was
+destroyed and focus fell back to `<body>`. The form was unusable, and it compiled, linted
+and passed static review.
+
+Fix shape: **separate stable structure from reactive status.** The structural computed
+depends only on structural keys; the per-keystroke status (badges, counters) hangs off a
+`revision` counter the writer increments, and the template reads it from a side map
+(`{{get this.startedMap section.id}}`). Genuinely structural edits — adding or removing a
+repeating row — still invalidate the structure, which is correct because nobody is
+mid-keystroke when they click a button.
+
+Detection technique, since this is invisible to unit tests and to `fill()`-style test
+helpers (which set `.value` and fire one event):
+
+```js
+await p.focus(sel);
+await p.evaluate(s => { document.querySelector(s).__mark = 'M'; }, sel);
+for (const ch of 'board') { await p.keyboard.type(ch); await p.waitForTimeout(120); }
+// same_node false / still_focused false / value === 'b'  => the node is being rebuilt
+```
+
+General lesson: **"it renders" and "it can be used" are different claims.** Only typing
+character by character, with focus assertions, distinguishes them.
+
+## Gotcha: a transient instance flag that changes permissions but not the cache key (2026-08-15)
+
+`User#valet_mode?` is `!!@valet_mode` — a per-instance, per-request flag, not a column.
+Nearly every rule in `User` is guarded by `&& !user.valet_mode?`, so it changes the answer
+completely. But Permissable keys its permission cache on `user.cache_key`
+(id + `updated_at`) plus the scopes, and the flag is in **neither**. A valet-mode
+computation and an ordinary one therefore share one Redis slot for 30 minutes, and
+whichever ran first wins.
+
+How it surfaced: every login PUTs the whole user model to `/users/self`; a user with a
+valet password configured sends `valet_login: true` with `valet_password: null` (the UI
+never echoes the secret back), which made `set_valet_password` treat a no-op re-save as a
+fresh enable — regenerating the secret AND calling `assert_valet_mode!` on the in-memory
+user. The rest of that request then computed permissions as a valet, and
+`JsonApi::User.build_json` cached "no model, no supervise" for every supervisee. Ordinary
+requests read it and 400'd for the next half hour: the supervisor was locked out of their
+own communicators.
+
+Lessons:
+
+1. **If a value changes what a cached computation returns, it belongs in the cache key.**
+   Folding it into the scopes works when the cache key already includes scopes, and is
+   safe when no rule declares that scope name (a scope match needs one intersection hit,
+   so an extra unmatched entry partitions the cache without granting anything).
+2. **Configuring a credential is not authenticating with it.** `set_valet_password`
+   asserting valet mode conflated "this account has a valet login" with "this request IS
+   the valet." The existing specs called `assert_valet_mode!` themselves, which is the tell
+   that the method was never meant to do it.
+3. **The direction you observe is not the only direction.** Here a restricted computation
+   denied a legitimate user. The inverse — a valet session reading the permissive entry a
+   normal session cached — is privilege escalation through the same slot.
+
+Debugging technique that broke the deadlock: **instrument the cache WRITE, not the read.**
+Logging inside `permissions_for` after `super` reports the inputs at read time, which look
+perfectly healthy on a cache hit and sent me chasing phantom data loss. `set_cached` only
+runs on a miss, so logging there — with the user stashed in a `Thread.current` by a thin
+`permissions_for` override — captured `valet=true` and the exact `caller` in one run.
+
+Corollary bug found alongside: `Permissable#allows?` appends `'*'` to the scopes and then
+passes the already-appended array to `permissions_for`, which appends it AGAIN. So
+`allows?` reads `scopes_full,*,*` while a direct `permissions_for` reads `scopes_full,*` —
+two cache entries for one question, free to disagree indefinitely, because a correct value
+computed via one path never repairs the other. If `allows?` and `permissions_for` ever
+disagree at the same instant, this is why.
+
+## Gotcha: Rails controller specs stringify scalar params — a green suite proves nothing about the JSON contract (2026-08-15)
+
+`post :create, params: {:x => true, :y => 4}` in a controller spec does **not** deliver a
+boolean and an integer. Rails' test harness flattens scalars to Strings, so the controller
+receives `"true"` and `"4"`. Nested Arrays and Hashes keep their structure. Probed directly
+against `Api::BoardsController`:
+
+```
+params: {:board => {:public => true, :rows => 4, :tags => ['a','b']}}
+  => "public"=>"true" (String), "rows"=>"4" (String), "tags"=>Array
+body:   {...}.to_json  + request.headers['Content-Type'] = 'application/json'
+  => "public"=>true (TrueClass), "rows"=>4 (Integer), "tags"=>Array
+```
+
+Consequences, both of which bit on this branch:
+
+1. **The `params:` style tests the form-encoded shape, not the JSON one.** After
+   `6df5b1bbc` restored JSON request bodies, the entire backend suite still exercised the
+   old wire format for scalars. A handler that accepts only `params['x'] == 'true'` passes
+   every spec in the repo and fails in the browser. Arrays are the exception — preserved
+   in both modes — which is why index-keyed-Hash handling *was* genuinely covered.
+2. **It silently launders type bugs into passing assertions.** The tell is a spec that
+   coerces before asserting: `expect(log.data['duration_s'].to_i).to eq(42)`. The `.to_i`
+   is there because the harness stringified it. Over a real JSON body the value is an
+   Integer and needs no coercion — so the `.to_i` was hiding the fact that the type was
+   never being tested.
+
+To pin a JSON contract, post a raw body:
+
+```ruby
+request.headers['Content-Type'] = 'application/json'
+put :update, params: {:id => b.global_id}, body: {:board => {...}}.to_json
+```
+
+`params:` still supplies path params (`:id`); the body is parsed and merged.
+
+**Always run the negative control.** Re-post the same assertions the `params:` way; only
+the ones that FAIL are regression detectors. Of nine specs added here, six failed the
+control (numbers, `false`, `duration_s`, button ids, numeric preferences, the no-clobber
+guard) and three passed it — because `board.rb`'s flag normalization and
+`process_boolean` already repair the string forms. Those three are contract pins, worth
+keeping but not worth counting as coverage. Without the control you cannot tell the two
+apart, and a "passing" spec that would pass either way proves nothing about the change
+it was written for.
+
+The control also produces evidence you cannot get any other way: posting an omitted
+preference the `params:` way showed a stored `750` being **overwritten with `""`**,
+confirming from observed behavior — not from reading the code — that under form encoding
+every unset attribute clobbered its setting on every save (`user.rb` PREFERENCE_PARAMS is
+guarded by `!= nil`, and `""` passes that guard while `nil` does not).
+
+See `docs/task-management/2026-08-15-adapter-json-blast-radius.md` for the full sweep.
+
+## Technique: replay the REAL captured request body — a hand-built payload tests nothing (2026-08-15)
+
+Probing an authorization boundary with a payload you constructed from reading the code is
+close to worthless, because the most likely outcome is that your payload is malformed and
+the request dies *before* reaching the decision you meant to test — while returning the
+same 200 a correct refusal would.
+
+Concretely: a hand-built eval-hijack POST put the blob at `log.data.eval`, returned
+`200 {"pending":true}`, and changed nothing. That reads exactly like "the server refused."
+It wasn't. `redis-cli llen lingolinq-development:failed` went 3497 → 3498 with
+`no valid events to process out of 0` — the job never reached an author check. The real
+client sends the eval inside `log.events[0].eval` (`utils/eval#save_workbook` →
+`stashes.log_event`, so it is an EVENT, not a `data` key).
+
+The reliable method:
+
+1. drive the real UI with Playwright and capture the request:
+   `p.on('request', rq => { if (rq.method()==='POST') body = rq.postData(); })`
+2. write it to disk, mutate only the one field you are attacking,
+3. replay with `curl --data-binary @body.json` under the other account's token.
+
+Only then does a "nothing happened" result mean refusal. Pair it with the failed-queue
+delta every time — in this codebase the HTTP response is a synthetic
+`fake-…/pending` record and the real write is a Resque job, so the queue counter is the
+only thing that distinguishes "refused" from "died".
+
+## Gotcha: before guarding against a behaviour, check whether a spec SPECIFIES it (2026-08-15)
+
+A non-author's eval save was forking the record, so the obvious fix was to refuse the
+write when `s.author != self.author`. That broke `log_session_spec.rb:1171` — "should
+create a new copy if the eval was resumed by a different author" — which specifies the
+fork as intended: two clinicians can each hold their own eval of the same communicator,
+and the second author's work must not overwrite the first's.
+
+The real defect was narrower than the behaviour it lived inside: the fork inherited the
+original's `ref_id`, and `utils/eval#find_saved_log_id` matches on `ref_id` and takes the
+first hit. Two records answering to one id made "which record does a workbook save bind
+to" list-order dependent, for BOTH accounts. In the pre-existing spec the fork carries no
+`ref_id`, which is exactly why that spec never caught it.
+
+Fix: drop only the inherited identifier, keep the fork. Rule of thumb — when a guard you
+add breaks an existing test, the test is usually describing a case you did not know
+about; re-scope the guard to the actual harm rather than deleting the test. RULE #0 §3.
+
+## Gotcha: `window.app_state` does not exist — it is `window.LingoLinq.appState` (2026-08-15)
+
+`utils/app_state.js` resolves the singleton via `LingoLinq.appState`, and `app.js:1006`
+exposes only `window.LingoLinq`. A Playwright probe reading `window.app_state.get(...)`
+returns `null` for everything, silently — including values you can see are set on screen.
+
+Two consequences worth internalising beyond the specific global:
+
+- **A probe that reports `null` for something you KNOW is set is broken, not evidence.**
+  Always include a control field (`currentUser` while plainly logged in). If the control
+  is null, throw the run away rather than interpreting it.
+- **Don't select a button by its CSS class alone when the class is shared.**
+  `.md-board-preview__action--primary` is worn by whichever primary CTA that footer
+  branch rendered; clicking it "worked" while pressing the wrong control entirely. Match
+  on the accessible text instead, and assert the label you matched.
+
+Working probe:
+
+```js
+const flags = () => p.evaluate(() => {
+  const as = window.LingoLinq && window.LingoLinq.appState;
+  const nm = (u) => (u && u.get) ? u.get('user_name') : (u === null ? null : String(u));
+  return { setup_user: nm(as.get('setup_user')), currentUser: nm(as.get('currentUser')) };
+});
+```
+
+## Gotcha: a DB read taken right after a backgrounded write is not a verdict (2026-08-15)
+
+Picking a home board for a supervisee schedules a `Progress`-backed copy (95 boards, in
+this case). Reading `settings['preferences']['home_board']` seconds later returned `NONE`
+twice, and I twice concluded the UI was reporting success while nothing persisted.
+
+It was persisting; my reads were racing the job. The thing that settled it was the full
+request trace — `PUT /api/v1/users/1_33` sent
+`{"id":"hannah_lee/vocal-flair-60","key":...}` and the server returned
+`{"id":"1_1458","key":...,"locale":"en_US"}`, a RESOLVED id, which is proof of a kept
+write in a way a racing `SELECT` is not.
+
+Order of evidence for "did this save?": the server's response body first, then a fresh
+reload, then the failed-queue delta. A bare model read immediately after a scheduled job
+is the weakest of the four and the easiest to misread as a bug.
+
+Related trap in the same flow: `saveHomeBoard` (`utils/home_board.js`) verifies the save
+by re-reading `preferences.home_board` off the SAVED record. That is only meaningful
+because the server re-serializes from its own record — had the response omitted the key,
+Ember Data would have kept the optimistic local value and the check would have verified
+its own write.
+
+## Gotcha: i18n_generator.rb silently drops any `i18n.t` call whose `)` is on the next line (2026-08-15)
+
+The parser extracts the key and the English string, then scans for the closing `)`
+**on the same line** (`i18n_generator.rb:124-134`). A call formatted like this:
+
+```js
+return i18n.t('workbook_progress', "%{n} of %{t} sections started", {
+  n: this.get('startedCount'), t: this.get('sectionCount')
+});
+```
+
+never finds it, so the key is counted MISSING. Two consequences, both quiet:
+
+1. **Generation is blocked entirely.** `if dups > 0 || missing > 0` prints
+   "FOUND ISSUES, SO NO GENERATION" and no locale file is written — so ONE badly
+   wrapped call stops every other new string from reaching every locale.
+2. **A regenerate DELETES the key.** en.json is rebuilt from the source scan, so a
+   key that was added by hand (and therefore looks fine in the app, because
+   `i18n.t` falls back to its English 2nd argument) vanishes on the next
+   `--generate`, and can never be translated in the meantime.
+
+Six keys on the eval-report branch were in exactly this state. Fix is formatting:
+keep the whole call on one line. The `)` inside the STRING does not help — the scan
+starts after the closing quote.
+
+Run `ruby i18n_generator.rb` with no arguments before finishing any string work: it
+writes nothing and prints `TOTAL DUPS / TOTAL MISSING / TOTAL STRINGS`. Anything
+other than 0/0 needs fixing before the file is committed.
+
+Related: the generator scans BOTH `app/frontend/app/**/*.js` (`:10`) and
+`**/*.hbs` (`:142`), so template-only keys are safe. And it now pins
+`Encoding.default_external = UTF-8` itself — it previously died on the first read of
+en.json in any shell without LANG/LC_ALL set (`"\xE2" on US-ASCII`), which is most
+non-interactive shells.
+
+## Gotcha: an Ember dependency key only works on a real PROPERTY, not a module import (2026-08-15)
+
+`controllers/user/log.js` had:
+
+```js
+import app_state from '../../utils/app_state';
+...
+same_author: computed('model.author.id', 'app_state.sessionUser.id', function() {
+  return this.get('model.author.id') == app_state.get('sessionUser.id');
+}),
+```
+
+The KEY was the bug that day — Ember cannot observe a module import. The BODY
+was not fully correct: it compared `sessionUser.id`, which is often the `'self'`
+sentinel. That second bug is the 2026-08-18 gotcha below.
+
+This fails silently in both directions — no error, no warning, and the value is
+CORRECT on first read, which is what makes it survive review. Grep for it:
+
+```bash
+grep -rn "computed(" app/frontend/app | grep -E "'(app_state|persistence|modal|capabilities)\."
+```
+
+Any dependency key naming a module import rather than an injected service is dead.
+Fix by injecting (`appState: service('app-state')`) and reading through
+`this.get(...)` so the watched path and the read path are the same object —
+`services/app-state.js:70` assigns `LingoLinq.appState = this` and
+`utils/app_state.js` is a Proxy onto it, so this is the same instance, not a second.
+
+**Test it with a mutation, not a value.** Asserting `same_author === true` passes on
+the broken version too. The only test that catches it reads once, changes
+`sessionUser`, and reads again — of 3 specs written here, that is the single one the
+negative control failed.
+
+## Gotcha: `sessionUser.id` is the `'self'` sentinel — compare `global_id` on authorship gates (2026-08-18)
+
+Fixing the `same_author` *watch* path (injected `appState`, key
+`'appState.sessionUser.id'`) left the *comparison* broken.
+`serializers/application.js` pins the session-user record id to the literal
+`'self'` so Ember Data never re-keys the identifier. `models/user.js#global_id`
+is the real backend id. `model.author.id` is a real global id like `'1_24'`.
+`'1_24' == 'self'` is always false, so "Resume Evaluation" stayed hidden from
+the eval's own author.
+
+It is a window, not a constant: a later local-storage read can close it and put
+the real id on `.id`. While the window is open, `.id` comparisons fail. Mirror
+`eval-workbook.js#isAuthor`: prefer `sessionUser.global_id`, fall back to `.id`,
+drop the `'self'` sentinel, fail closed.
+
+A test that stubs `{ id: '1_24' }` will not catch this. Stub `{ id: 'self',
+global_id: '1_24' }` — that is the network load path.
+
+## Gotcha: `'self'` in a `/users/:id` URL is a username lookup, not the session user (2026-08-29)
+
+The same `'self'` window that breaks authorship comparisons also breaks
+`User.find_by_path`. For `User`, a path that does not start with a digit is
+`find_by(:user_name => path.downcase)` (`global_id.rb`). POSTing
+`/api/v1/users/self/article_50_disclosure_ack` therefore looks up a username
+`self` and 404s. Use `art50UserId` / `user.global_id` (then `_actual_id`, then
+`.id`, drop `'self'`) for any user-path URL. Evidence:
+`app/frontend/app/utils/article50_gate.js` `art50UserId`;
+`app/frontend/app/components/ai-disclosure.js` `acknowledge`.
+
+## Gotcha: `appState.feature_flags` follows `currentUser`, not the authenticated subject (2026-08-29)
+
+`services/app-state.js#feature_flags` is computed from
+`currentUser.feature_flags`. In speak mode `currentUser` is the communicator.
+Org `enabled_features` overrides are per-account, and the server evaluates
+`frontend_flags_for(@api_user)`. Pairing the communicator's flag with the
+supporter's acknowledgement fields can skip a modal the server will 403, or
+show one the server will not enforce. Article 50 predicates must read
+`art50Subject(...).feature_flags.article_50_disclosure`. Leave
+`ai_feature_gate.js` on `currentUser` — that is the data-subject question.
+Task log: `2026-08-29_art50-codex-followup.md`.
+
+## Gotcha: Ruby indent is not control flow — a 4-space line can still be inside the `if` (2026-08-18)
+
+`supervisor_relationships_controller.rb` had `channel` / `actor_id` at 4 spaces
+inside a 6-space `if` body. That looks like they escaped the guard. They did
+not: Ruby uses `if`/`end`, not indent. `AuditEvent.log_command` stayed inside
+the same `end`, so unresolvable tokens still wrote no audit row (the spec
+already asserted this). Re-indent for humans; do not "fix" control flow that
+is already correct.
+
+## Gotcha: a test that leaks state into a SHARED service hangs the run, it does not fail it (2026-08-15)
+
+A new unit test set `sessionUser` on the `app-state` service to a stub and never
+restored it. `app-state` is a singleton shared by every test in the run, so the stub
+outlived the module and reached the user-scoped `persistence` suite — where it did
+not fail an assertion. It **hung the browser**:
+
+```
+not ok 1513 PuppeteerChrome - error
+  Error: Browser timeout exceeded: 120s
+  Error while executing test: persistence: persistence find - should update freshness of results as applicable
+```
+
+testem killed the run at test 1513 of 1995, so ~480 tests never executed.
+
+Two things make this genuinely hard to spot:
+
+1. **It reads as flaky infrastructure, not a test defect.** "Browser timeout" plus
+   Chrome's GPU/GCM noise in the log looks like an environment problem, and the
+   machine really was loaded. The temptation is to shrug and re-run.
+2. **The truncated summary looks plausible.** It reported `1 fail` and `15 skip`.
+   The skip count is the tell — this suite has 38 skips, and a skip count can only
+   go DOWN if the run ended early. Always compare tests/pass/**skip** against a
+   known-complete baseline; `fail: 1` alone hides that 480 tests never ran.
+
+Fix is the cleanup hook, restoring the PRIOR value rather than blanking it:
+
+```js
+hooks.beforeEach(function() {
+  const app = this.owner.lookup('service:app-state');
+  this._priorSessionUser = app ? app.get('sessionUser') : null;
+});
+hooks.afterEach(function() {
+  const app = this.owner.lookup('service:app-state');
+  if (app) { app.set('sessionUser', this._priorSessionUser || null); }
+});
+```
+
+Rule: any test that writes to `app-state` (`sessionUser`, `currentUser`,
+`setup_user`, `tour_board_picker_active`, …), `stashes`, or `persistence` needs a
+matching `afterEach`. The board-preview spec in the same session already did this
+for `tour_board_picker_active`; the controller spec did not, and that asymmetry was
+the whole bug.
+
+Confirmed by re-running: with the hooks added the suite completed at 1995/1956/38
+skip/0 fail with zero browser timeouts, and `persistence find` ran normally.
+
+## Technique: negative-control the CHECK, not just the fix — a check that cannot fail is not a check (2026-08-15)
+
+Fixing the `%%` double-percent in the eval reports, I loaded the rendered report at
+`/hannah_lee/logs/1_5383`, found zero `%%` on the page, and nearly called it verified.
+Then ran a control with the bug deliberately restored in both templates: **also zero**.
+That eval carries no motor-map / dynamic-assessment / literacy data, so the blocks holding
+those strings never render. The "passing" check could not have failed.
+
+`EvalSavedSummary` really does render on that route (`templates/user/log.hbs:15`), which is
+what made the check look sound. Rendering the COMPONENT is not the same as rendering the
+BRANCH the string lives in.
+
+**Technique:** after a green check, break the thing on purpose and confirm the check goes
+red. If it stays green, the check is measuring nothing. Cheap, and it caught two worthless
+verifications in one session — the other being feeding the OLD literal into `i18n.t` and
+reporting it still showed `%%`, which only proves `i18n.t` returns the default you hand it.
+
+The verification that actually worked: parse every percent-bearing `{{t "..." key=...}}`
+literal straight out of the templates on disk, push each through the live in-page
+`i18n.t`, assert no `%%`. 24/24, nothing hardcoded, so it cannot drift from the source.
+
+## Gotcha: a truncated Testem run looks exactly like a failing one — `# skip` is the tell (2026-08-15)
+
+Three full `ember test` runs this session; two aborted early and both printed:
+
+```
+# tests 6      <- suite is 1995
+# pass  5
+# skip  0      <- suite has 38
+# fail  1
+Testem finished with non-zero exit code. Tests failed.
+```
+
+That reads as a regression. It is not — the run died at test 6 on
+`Browser timeout exceeded: 120s` and never reached the rest. **The discriminator is
+`# skip`:** a complete run of this suite reports 38, a truncated one reports 0. `# fail 1`
+is the timeout being counted, not an assertion.
+
+I reported "1 failure" before checking, and the conclusion would have been wrong. Check
+`# skip` against the known suite shape BEFORE reporting any regression. Better: have the
+progress monitor assert `# skip 38` and label the result COMPLETE vs TRUNCATED itself.
+
+## Gotcha: `tests/acceptance/board-lock-test.js` times out under machine load (2026-08-15)
+
+Both aborted runs above died inside this one file, on a DIFFERENT test each time. Run in
+isolation it is clean: `ember test --filter "board lock"` gives 3/3 pass. The hangs
+correlate with `ember serve` being up and browser probes hammering it concurrently.
+
+Not a real failure and not branch-specific. If a full run dies here, re-run with the dev
+server quiet before investigating anything else.
+
+## Technique: poll the built asset for a marker before probing — never sleep and hope (2026-08-15)
+
+Every browser probe against the dev server races the Ember rebuild. Sleeping a fixed
+interval either wastes time or silently tests the OLD bundle, which is how a negative
+control quietly turns into a false pass.
+
+Put a unique string in the edit and poll for it:
+
+```bash
+for i in $(seq 1 60); do
+  if curl -s http://localhost:8184/assets/frontend.js --max-time 30 | grep -q "MARKER"; then break; fi
+done
+```
+
+Note the bundle is `/assets/frontend.js` (not `lingolinq-aac.js`), and dev builds keep
+comments, so a comment marker works. Poll for the marker's ABSENCE to confirm a revert.
+
+## Gotcha: `(this.ctrlAction this.onRemove)` only works under a route controller, not angle-bracket invocation (2026-08-15)
+
+`board-preview.hbs` invoked its remove button as `(this.ctrlAction this.onRemove)`. That
+form assumes `onRemove` is an action NAME string and that `send()` will bubble from the
+component to a route controller acting as its `target` — the pre-overlay design, where
+`controllers/board-preview.js` was the target.
+
+The live path is `<BoardPreview>` rendered by `board-preview-overlay.hbs`. Angle-bracket
+invocation does not set `target`, and the passed `onRemove` is a CLOSURE, so `send(fn)`
+fails with:
+
+```
+Assertion Failed: <board-preview> had no action handler for: function () {...}
+```
+
+Match the file's own idiom instead: `(this.ctrlAction "remove")` plus a `remove` action
+that calls `this.onRemove()` if it is a function — exactly how `select`/`pick_for_home`
+already work in that component.
+
+## Pattern: when a template binding looks dead, check the SERVICE before blaming the template (2026-08-15)
+
+`board-preview.hbs`'s `{{#if this.removeContext}}` block never rendered. First diagnosis:
+`board-preview-overlay.hbs` does not pass `@removeContext`. True, but incomplete — the
+chain was broken in FOUR places, and the primary break was upstream of every template:
+
+1. `services/modal.js#_openBoardPreview` built its `boardPreview` object without copying
+   `options.remove`, so `boardPreview.remove` was ALWAYS undefined. `utils/modal.js:564,572`
+   dutifully computed and passed it; the service dropped it on the floor.
+2. the overlay did not forward `@removeContext` / `@onRemove`;
+3. the overlay had no `remove` action;
+4. the component invoked it in the route-controller form (above).
+
+Each link alone is enough to kill the feature, so fixing any one of them changes nothing
+observable — which is exactly why it stayed broken. Trace producer -> transport -> consumer
+and confirm the VALUE survives each hop, rather than stopping at the first missing binding.
+Corroborating evidence that the design was intended: `controllers/board-preview.js:123-134`
+(dead route-era code) already had the correct `remove` action.
+
+## Gotcha: `%%` in an i18n string renders doubled — this i18n layer has no printf escaping (2026-08-15)
+
+`utils/i18n.js` interpolates `%{name}` (regex at :40, substitution at :68) plus a few
+`%app_name%` tokens. There is no `%%` -> `%` unescape anywhere, so a literal `%%` reaches
+the DOM as `%%`:
+
+```
+i18n.t('report_motor_map_pct', "%{p}%% accurate", {p:42})  ->  "42%% accurate"
+i18n.t('__nope',               "%{p}% accurate",  {p:42})  ->  "42% accurate"
+```
+
+A bare `%` is safe: the interpolation regex only consumes `%` when followed by `{word}`.
+`i18n_generator.rb` has no `%%` handling either, confirming it was never a convention —
+`git log -S'%{p}%%'` traces all 8 sites to the Ember 5.12 upgrade (#490), a codemod
+applying printf-style escaping this layer does not use.
+
+Write a single `%`. When fixing, do the locale files too (13 x the same keys) or
+translators inherit the artifact.
+
+## Gotcha: `a || b ? c : d` parses as `(a || b) ? c : d` — bit `utils/modal.js` for years (2026-08-15)
+
+```js
+option: board.preview_option || board.get ? board.get('preview_option') : undefined,
+```
+
+Intent was "read preview_option, tolerating boards with no `.get`". Actual behaviour: `||`
+binds tighter than `?:`, so a plain-object board carrying a truthy `preview_option` took
+the TRUE branch and threw `board.get is not a function`. Ember-record callers never
+noticed because `.get` always exists for them.
+
+Branch on the RECEIVER, not the value: `board.get ? board.get('preview_option') : board.preview_option`.
+Note `preview_option` is always assigned as a PLAIN property even onto Ember Data records
+(`button-settings.js:1392`, `board-icon.js:318/399`) — it is not a model attr — so reading
+it as one is faithful.
+
+## Gotcha: `ember test` truncations are `browser_disconnect_timeout`, not failing tests (2026-08-16)
+
+Four of six full runs in one session died with:
+
+```
+Error: Browser timeout exceeded: 120s
+# tests 1428   <- suite is 1995
+# skip  14     <- suite has 38
+# fail  1
+Testem finished with non-zero exit code. Tests failed.
+```
+
+...in a DIFFERENT place each time (board-lock twice, speecher, misc). None of the accused
+tests fail in isolation. That is `testem.js`'s `browser_disconnect_timeout: 120` reaping a
+headless browser that stalled for 120s — typically because `ember serve` and/or browser
+probes are competing for the same machine. The `# fail 1` is the reaping, not an assertion.
+
+Two things follow:
+
+1. **`# skip` is the completeness tell.** A complete run of this suite reports 38. Anything
+   less means the run died early and the tally is meaningless. Check it BEFORE reporting a
+   regression — a truncated run mimics a failing one exactly (non-zero exit, a `# fail`
+   line, a named test).
+2. **Don't blind-retry — raise the timeout.** Wrap the repo config instead of editing it:
+
+```js
+const base = require('/abs/path/app/frontend/testem.js');
+module.exports = Object.assign({}, base, { browser_disconnect_timeout: 900 });
+```
+
+```bash
+npx ember test --config-file /abs/path/to/testem-patient.js
+```
+
+That turned a 4-in-6 truncation rate into a clean 7-minute run.
+
+**But do NOT raise it in the committed `testem.js`** — I recommended that before checking,
+and the evidence says otherwise. Across the last 30 `ci.yml` runs the Ember test step
+failed ZERO times (the 6 failures were audit-artifact checks x3, rspec, Ember lint, and
+the capability ledger). CI is not hitting this. And the 120s value is deliberate: the
+workflow comment at `.github/workflows/ci.yml:126-129` wants a wedged runner to "fail fast
+instead of burning the 6h Actions ceiling", backed by a 50-minute step cap. Raising it to
+900s would make a genuinely hung browser burn 15 minutes before reporting instead of 2.
+
+So this is a LOCAL problem with a local cause: `ember serve` and browser probes competing
+with the test run on the same box. Cheapest real fix is to not run them concurrently. The
+wrapped-config trick is a workaround for when you must.
+
+## Pattern: a sentinel used as an identity compares equal to itself across accounts (2026-08-16)
+
+`serializers/application.js` pins the session user's record id to the literal string
+`'self'` so Ember Data never re-keys the identifier, parking the real id in `_actual_id`.
+Any code that then treats `sessionUser.id` as an identity is comparing a CONSTANT, and
+`'self' === 'self'` is true for every pair of accounts.
+
+This produced two bugs on the same gate, in opposite directions:
+
+- **False deny.** `models/user.js` never declared `_actual_id`, so Ember Data dropped it
+  and the record had no usable id during the window. The eval's own author read as
+  not-the-author and got the read-only banner. Fix: declare the attr, add a `global_id`
+  computed (`_actual_id || id`, matching `board.js`/`buttonset.js`), compare with that.
+- **False allow — the dangerous one.** `utils/eval.js` stamped `assessment.author_id`
+  from `sessionUser.id`, so an eval started inside the window recorded its author as
+  `'self'`. A second SLP on a shared device, also inside the window, matched it and was
+  granted edit on the first SLP's eval — exactly the fork the stamp existed to prevent.
+
+Three things generalize:
+
+1. **A sentinel is not an identity.** Reject it explicitly on BOTH sides of a comparison
+   (`if (x === 'self') { x = null; }`), do not merely prefer the real id. Old persisted
+   data still carries the sentinel long after the writer stops emitting it.
+2. **Fail closed on an ambiguous stamp.** A stored `'self'` cannot be attributed, so the
+   gate refuses it even for the legitimate author. Bounded by
+   `EVAL_PROGRESS_MAX_AGE_S` (24h); retyping a workbook beats forking a clinical record.
+3. **Check the write side, not just the read side.** The read-side fix (`global_id`) was
+   correct and shipped first, and the gate still trusted a poisoned stamp because nothing
+   had audited what WROTE `author_id`. When you fix an identity comparison, grep for every
+   place that persisted that identity.
+
+The window is short (seconds) and that is what hides it — sampling at 9s showed 5/5
+healthy, sampling at 250ms caught it live in 2 of 3 loads. See also the entry on
+negative-controlling the check.
+
+**Removing a fallback is a behaviour change.** Tightening `global_id || id` to `global_id`
+alone broke two passing tests: plain-`EmberObject` test stubs have no `global_id` computed,
+and the old `|| id` had been carrying them. The fix is `global_id || id` with the sentinel
+stripped from whichever answered — preserving every case except the one being excluded.
+---
+
+## Gotcha: attestation hash claims must pin retrievable git bytes
+
+Do not invent or retain a content-hash prefix in runbook/register prose unless that exact
+blob is reachable from merged ancestry (usually `git show <commit>:docs/legal/...` → sha256).
+`priorAttestations` stores dates only, so a wrong hash in prose has no mechanical check and
+becomes an unverifiable attestation pin. On BREACH_RUNBOOK, a claimed `fbdf49a1...` v2.2 pin
+had no matching blob; the git-canonical #703 bytes are `0ee1b92e...` @ `456b673`. Prefer
+`version + full sha256 + commit` (and a distinct label per attested byte set — e.g.
+`v2.2.1-interim` vs `v2.2.1`) over truncated prefixes alone. Ref: PR #722 Codex review,
+[`2026-08-02-breach-runbook-codex-review-fixes.md`](./2026-08-02-breach-runbook-codex-review-fixes.md).
+
+## Gotcha: Melissa's Render API key is LingoLinq Prod, and creating a one-off job starts it
+
+`op://LingoLinq Admin/Render API/credential` is not a vault Melissa can see. The key that works is `op://LingoLinq Prod/RENDER_API_KEY/credential`. A Render one-off job starts the moment `POST /v1/services/{id}/jobs` returns 201; there is no deploy-then-execute step like Cloud Run Jobs. `lingolinq-staging` still has `RAILS_ENV=production`, shares `lingolinq-dev-staging-db` with `lingolinq-dev`, and needs `ALLOW_PROD_REBUILD=1` plus `plan-srv-013` (16 GB) for `lingolinq:rebuild_library`. Empty `STAGING_SRV` / `RENDER_API_KEY` makes curl look like it did nothing (exit 0, no body). Ref: [`2026-08-24-render-staging-rebuild-library-job.md`](./2026-08-24-render-staging-rebuild-library-job.md).
+
+## Gotcha: `_missing` from `Uploader.default_images` is not authoritative — it hides transient API failures
+
+`defaults['_missing']` reads like the symbol library declaring "there is no symbol
+for this word." It is not. `Uploader.find_images` caches an **empty** result as a
+miss whenever `cache_forever` is set:
+
+```ruby
+cache.add_missing_word(keyword, cache_forever) if cache_forever   # lib/uploader.rb:1015
+```
+
+and `cache_forever` is `important_board` at both call sites in `Board#swap_images`.
+`OpenSymbols.search` returns `[]` on a 429, on any non-2xx, and on its 10s timeout
+— indistinguishable from a genuine miss. So an outage while provisioning a
+*suggested-list* board writes a miss stamped `6.months.from_now`
+(`LibraryCache#add_missing_word:141`), which `LibraryCache#find_words:208-209`
+reads back as `{'missing' => true}` **with no expiry check at all**, and
+`lib/uploader.rb:775-778` folds into `_missing`. The future `added` stamp only
+stops `add_missing_word` from refreshing; it does not age the miss out.
+
+Net: `_missing` conflates "no such symbol" with "the API was down when we asked,"
+and does so *only* on the highest-value boards — the ones flagged important. Never
+treat membership in `_missing` as proof that work is complete or that a retry is
+futile. Using it to skip a redundant lookup within one run is fine; using it as a
+terminal state is not. The write-site conflation was closed on
+`perf/melissa-copy-swap-lookups`: `Uploader.find_images` only calls
+`add_missing_word` when the lookup is `ok` (a genuine empty 200). A 429 / timeout
+/ non-2xx is `OpenSymbols.search_result` `:throttled` / `:timeout` / `:http` and
+is not cached. A malformed HTTP 200 on the v1 fallback (`JSON.parse rescue []`)
+used to look like a genuine miss and still stamp six months; that parse failure
+is now `:http` as well. Historical `missing` rows written before that fix can still sit
+until their stamp ages out.
+
+## Gotcha: `settings['swapped_library']` is a provisioning idempotency key — wrong in both directions
+
+`User#copy_to_home_board` and `User#copy_board_to_library` gate on
+`(swapped_library || 'original') == (symbol_library || 'original')`
+(`app/models/user.rb:3065,3088,3095`). A nil marker is a **library mismatch**:
+those methods `copy_for` a second board set. They do **not** re-run `swap_images`
+on the existing copy. That makes the field hazardous *both* ways, which is what
+made #861 take three attempts plus an adversary pass:
+
+- **Withhold it when the copy-path swap finished** → next `copy_to_home_board`
+  mints a duplicate set and can retarget `home_board`.
+- **Record it when some buttons are still unresolved, with no other flag** →
+  `current_library` returns the marker, the `@skip_swapped` outer gate skips the
+  whole loop, and those buttons are frozen.
+
+Do not use one field for both jobs. `swapped_library` is copy idempotency: record
+it when the copy-path swap ran (already-in-library skip and/or `@buttons_changed`).
+Completeness is `settings['swap_incomplete']`, which re-enters the swap loop even
+when `current_library` already matches, and which `copy_to_home_board` /
+`copy_board_to_library` honor by calling `retry_incomplete_library_swap` on the
+existing board. Trace **both** `swapped_library` writers (`@buttons_changed` and
+the no-op `elsif`) before changing either.
+
+A related trap on #861: do **not** persist `swap_incomplete` on a board that never
+recorded `swapped_library`. The root bubble used to call `save_subtly` whenever
+`@had_unresolved` differed from the stored flag. A found-nothing swap (empty
+lookups, no skip, no button change) still sets `@had_unresolved`, so the bubble
+saved a board the old spec treats as a no-op (`board_spec.rb` "should do nothing
+when no images found"). That `save` is also how PaperTrail got stuck off in CI
+(see the next entry). Gate the bubble on `swapped_library == library`.
+
+## Pattern: collect `swap_images` lookup words with the same skip predicates as the button loop
+
+`#861` repaired the already-in-library skip, but `Uploader.default_images` still
+ran first for every label (`board.rb` used to build `words` from all labels at
+what is now the filtered list). An already-correct board still paid one
+OpenSymbols HTTP call per word. Collect only `label || vocalization` for buttons
+the loop will actually look up (`swap_skips_button?`, `swap_keeps_existing_image?`,
+`swap_image_already_in_library?` in `app/models/board.rb`). If every button is
+skippable, do not call `default_images` at all — an empty list still hits the
+cache / v1 POST (`lib/uploader.rb`). Remaining opensymbols lookups go through
+`OpenSymbols.search_many` (Hydra, default 3s). Sequential `search_result` stays
+at 10s so interactive symbol search is not shortened by the Hydra default.
+Index `known_button_images` once by `global_id` and reuse that hash in both
+loops — a second `bis.detect` per button is O(buttons × images).
+
+## Gotcha: inserting at the top of an Ember `actions` hash shifts grandfathered eslint-todo lines
+
+`scripts/eslint-todo-gate.js` fingerprints `file|ruleId|line|column|severity|messageHash`.
+Adding three lines at the top of `actions` in `user/index.js` (#904 Try Again)
+moved pre-existing `ember/no-runloop` and `lingolinq/no-orphaned-action` hits
+off their todo rows. CI then reported them as NEW. The linter's
+"use ember-lifeline" hint is a red herring — this app does not depend on
+ember-lifeline (`caseload.js`). Put a new action at the **end** of the hash
+(lookup is by name) so grandfathered lines stay put. Do not convert nearby
+`schedule` / `runLater` calls just to silence a shift.
+
+## Gotcha: Hydra `search_many` must classify and retry like `search_result`
+
+`search_result` wraps `JSON.parse` and retries 401 with `clear_token_cache` +
+`generate_new_token`. `search_many` is the opensymbols defaults path and used to
+do neither: a non-JSON 200 raised out of `hydra.run` and aborted `swap_images`
+before `swapped_library` was written (duplicate board set), and a stale cached
+token failed the whole batch as `:http` until Redis TTL died. Both paths now go
+through `classify_search_response` (`lib/open_symbols.rb`). Hydra 401s are
+`:auth` and get one requeue with a fresh token. Specs that stub `hydra.run` and
+never fire `on_complete` cannot catch this; stub the HTTP (Typhoeus.stub) so the
+callback runs.
+
+Hydra transport errors are returned on `defaults_result[:errors]` and copied to
+`defaults['_transport']`. `swap_images` skips `find_images` for those words in
+the same pass (no retry storm) and still sets `swap_incomplete`. Do not fold
+them into `_missing`.
+
+## Gotcha: `save_subtly` used to leave PaperTrail off if `save` raised
+
+`Board#save_subtly` (`app/models/concerns/upstream_downstream.rb`) turns
+`PaperTrail.enabled` off, then calls `save_without_post_processing`. Until #861
+the restore was a statement after the call, not an `ensure`. A raise inside that
+window (the `:save` mock on the found-nothing swap spec) left versions disabled
+for every later example in the process: version counts of `0`, "no valid version
+found" on `DeletedBoard#restore!`. Pair the PaperTrail toggle **and**
+`@skip_post_process` with `ensure`. A process-global flag that a spec mock can
+trip is a suite-wide failure, not a local one.
+
+## Technique: one control run on base does not prove a flake — re-run the identical tree
+
+A red example plus a green run on stashed changes feels like proof the change is at
+fault. It is not — it is two samples from two different trees, and a load-sensitive
+test can flip either one. In #861, `board_spec.rb:1343`
+(`Worker`/`RemoteAction` scheduling, never calls `swap_images`) failed once with the
+change, passed on base, then passed again **on the identical failing tree**:
+
+| Run | Tree | Result | Wall |
+|---|---|---|---|
+| 1 | changed | 1 failure `:1343` | 4m26s |
+| 2 | base | 0 failures | 4m28s |
+| 3 | changed (same as 1) | 0 failures | 1m12s |
+
+Only run 3 settled it. The 4m26s → 1m12s swing is the tell: machine load, not code.
+Pair this with RULE #0.10 — reconcile the example **count** against baseline first
+(284 here, matching, so the run completed), then re-run the same tree before
+attributing a failure to your diff *or* dismissing it as noise.
+
+## Gotcha: COPPA decline copy must split signup vs offboarding on every surface
+
+Signup `decline_parental_consent!` schedules deletion only. Offboarding runs
+`schedule_offboarding_export_then_delete!`. Email templates already branch on
+`@offboarding` (`decline_prompt` vs `offboarding_decline_prompt`). The
+post-click landing page (`parental_consents/decline.html.erb`) must do the same;
+a shared `decline_thanks_body` that mentions export will lie to signup parents.
+When Copilot flags the emails, grep `prepare an export` across mailers *and*
+`app/views/parental_consents/`. Ref:
+[`2026-08-17-copilot-coppa-review-comments.md`](./2026-08-17-copilot-coppa-review-comments.md).
+
+## Gotcha: COPPA offboarding is flag-gated, not just the birth-date check
+
+**Surface:** `User#requires_coppa_offboarding?`, `User.process_expired_offboarding_consents!`, `Organization#remove_user`.
+
+`JsonApi::Json.coppa_parental_consent_enabled?` is a domain settings row (DB override, not `lib/feature_flags.rb`). It does more than require birth month/year on seat reclaim. When the flag is off, `requires_coppa_offboarding?` returns false at `user.rb:514`, so `begin_family_offboarding_consents!` never stamps COPPA pending, and the expiry sweep returns 0 at `user.rb:878`. `Organization#remove_user` still reclaims the seat. The original LL-f150e0e828 gap (minor converted to a consumer trial with no parental re-consent) therefore still occurs if production has the setting disabled. Do not write "the flow is fixed regardless of the flag" or move that row to `verified-closed` until the live production setting is read as enabled. **CORRECTED 2026-08-30, twice over. (a) The flag read is NECESSARY BUT NOT SUFFICIENT.** Following this lesson exactly still produced a wrongful `verified-closed`: the live flag was read as enabled, the row was closed, and the closure was false because the REMEDIATION IS NOT DEPLOYED. `a0b9df3ec` is not an ancestor of `origin/main`, and `origin/main` is the tag production serves, so 27 files of fix (including `app/workers/offboarding_coppa_expiration_worker.rb`, `config/routes.rb`, `lib/tasks/scheduler.rake` and the consent mailer set) are unreleased. Add the deployment precondition: before closing ANY row on production behaviour, assert `git merge-base --is-ancestor <fix-sha> origin/main` AND that a revision running that image is serving. **(b) The "domain settings row (DB override)" claim above is WRONG.** `coppa_parental_consent_enabled?` reads `current_domain['settings']['coppa_parental_consent']`, which for the default domain resolves purely from `ENV['COPPA_PARENTAL_CONSENT']` via `coppa_parental_consent_from_env?` (`lib/json_api/json.rb:202-207`, defaulting TRUE unless explicitly 0/false/no/off). `SystemAppDefaults` cannot reach the key: `EDITABLE_FIELDS` is five fields and the merge is `.slice()`d to them. The only DB path is a per-org custom domain, and production has zero. Ref: Codex review of PR #887; task log [`2026-08-30-high-findings-triage-staging-merge.md`](./2026-08-30-high-findings-triage-staging-merge.md).
+
+## Gotcha: staging → audit-register merge is a union, then regenerate
+
+When `staging` lands on a findings-register branch, do not pick one side of
+`FINDINGS.json` / `DOCUMENT-REGISTER.json`. Rebuild from `git show HEAD` +
+`MERGE_HEAD`: keep this branch's unique findings and docs, add staging-only
+rows, and for a shared id keep the longer staging notes/remediation trail
+without changing status, severity, or disposition. Then run
+`scripts/regenerate-register.sh` so the `.md` mirrors and publication status
+are derived, not hand-merged. If citation-check says `file not found at sha`,
+`git fetch` that evidence commit before re-anchoring the pin. Attested
+`attestedContentHash` pins stay untouched **once they have landed**; an
+in-progress attestation PR that has not merged is different: if staging
+expanded the same `docs/legal/**` file, keep the staging body and retarget
+the pin to the merged bytes. Restoring `--ours` would clobber staging on
+merge-back; keeping staging's "NOT YET ATTESTED" table would drop the
+attestation. Task logs:
+[`2026-08-17-code-hygiene-auditor-staging-merge.md`](./2026-08-17-code-hygiene-auditor-staging-merge.md),
+[`2026-08-24-pr857-staging-merge-conflicts.md`](./2026-08-24-pr857-staging-merge-conflicts.md).
+
+## Gotcha: a dated successor must not inherit the predecessor's attestation dates
+
+Copying `**Attestation history:** re-attested 2026-08-08` onto a `draft` successor makes the new bytes look reviewed. Label it **Predecessor attestation history** and state that this record has none. Same defect for Related links: point at the operative dated register (`2026-08-16_subprocessor-register.md`), not the frozen `SUBPROCESSORS.md`. Ref: `docs/legal/2026-08-17_ai-data-flow-classification.md`.
+
+## Gotcha: the metadata table is not the signed attestation — write the statement, then pin
+
+Flipping a successor's banner, register `status`, and `attestedContentHash` does not attest it if Section 15 still says the new version is unattested and only reproduces the predecessor's first-person statement. The metadata table is not part of what was signed. Live `requiredDocs` also stay on the predecessor until they are retargeted by `canonicalLocation` in the same change. Write the dated statement, remove leftover "unattested / awaiting attestation" language, move `school-dpa-package` / `security-review` / `grant` onto the successor, then pin. Codex P1/P2 on PR #857; task log: [2026-08-24-pr857-attestation-comment-fixes.md](./2026-08-24-pr857-attestation-comment-fixes.md).
+
+## Gotcha: a Path A correction must convert leftover present-tense operational bullets, not only the headline claim
+
+Correcting a superseded claim in place (e.g. "gated OFF" → "ENABLED IN PRODUCTION") leaves the successor as the live operational document. Any remaining present-tense bullets in the same section that still say enabling is a future gate, or that keeping the flag OFF is the accepted posture, are mutually exclusive instructions, not history. Convert those bullets to dated history in the same edit, or rewrite them to the verified state. The same class of defect: bumping an evidence count ("two sessions" → "six") without updating the execution inventory and the document-register `notes` in the same change. Do not invent missing Cloud Run IDs; name every retained execution and disclose any count-delta rows that cannot be bound. Ref: PR #856, `docs/legal/2026-08-24_ai-governance-memo.md` §5.2, `docs/legal/2026-08-23_article-50-production-flag-verification.md`.
+
+## Gotcha: `redact_for_ai` on the sentence does not automatically cover interpolated `context.topic`
+
+`AiWordPredictor.predict` used to scrub `sentence` then interpolate `context.topic` into `system_prompt` unsanitized (`lib/ai_word_predictor.rb`; forwarded by `Api::WordSuggestionsController`). Closed 2026-08-18: `scrub_context` runs `redact_for_ai` on topic before the cache key and before `call_anthropic`. Durable rule: every user-derived field that reaches the vendor prompt is an egress surface and must be scrubbed at the same choke point as the primary input, not only inventoried.
+
+## Gotcha: BREACH_RUNBOOK vendor contacts live in §7, not §11
+
+§7 is Vendor Notification List; §11 is Appendix: Key References. Changelog / header /
+register `correctionNote` text that says "§11 vendor contacts" sends responders to the wrong
+procedure. When correcting Anthropic/OpenAI/Google contact rows, cite §7.
+
+---
+
+## Gotcha: redirecting away from `routes/index.js` silently skips the session-entry compliance gates
+
+**Surface:** any change that lands a user somewhere other than the dashboard on
+login — a "default landing page", a role-specific home, a deep-link resume.
+
+`routes/index.js#setupController` is the **only** host, besides
+`routes/bento.js`, for the two session-entry gates: the **terms-agree** modal
+(`index.js:189, 207`) and the **EU AI Act Art.50** disclosure
+(`maybeShowSessionEntryGate`, `index.js:195, 271`). `grep -rn
+"maybeShowSessionEntryGate" app/frontend/app` returns those two routes and
+nothing else.
+
+The trap is that this is invisible from `afterModel`. `replaceWith(...)` there
+aborts the transition, so index's `setupController` never runs — and the reason
+the historical `replaceWith('user.home', ...)` fallback was safe is a
+non-obvious inheritance detail: **`routes/user/home.js` extends `IndexRoute`**
+and inherits its `setupController` (it overrides `model`/`afterModel` only, with
+no `_super`, which is also why it does not re-trigger index's `afterModel` and
+loop). Redirect anywhere *else* — `caseload`, a board, an org page — and the
+gates are gone with no error, no test failure, and no visible symptom.
+
+**Note the hole pre-exists** on the session-resume path (`replaceWith(last.url)`,
+`index.js:98-115`, resumes to arbitrary routes). Finding a pre-existing bypass is
+not licence to widen it: converting "gate fires on first login" into "gate never
+fires for this population" is a real regression, and first-login users are
+exactly who terms-agree exists for.
+
+**How to apply:** before adding any new post-login destination, check whether a
+session-entry gate is pending and defer to the dashboard while one is — the user
+satisfies the gate once and gets the new destination from the next login onward.
+Check the gate with the shared predicate, never a forked copy:
+
+```js
+import { sessionEntryGatePending } from '../utils/article50_gate';
+// terms-agree uses index.js's own predicate; Art.50 uses the shared one
+if (model.get('id') && model.get('user_name') && !model.get('terms_agree')) { return true; }
+return sessionEntryGatePending(model);
+```
+
+`utils/article50_gate.js` states its own design rule — *"D-02: ONE shared source
+of gate logic"* — so when you need a *read-only* version of a gate check, add an
+exported predicate to that module and have the existing opener call it, rather
+than re-deriving `needsAcknowledgement`'s appState-shaped wrapper at the call
+site.
+
+**Related trap in the same file:** auto-open-speak-mode
+(`index.js:190`) is gated on `!supporter_view`, and `supporter_role` implies
+`supporter_view` (`models/user.js:513`). So supporters have *never* auto-spoken —
+worth confirming before assuming a supporter-facing landing change breaks it.
+
+**First seen in:** [2026-08-14-slp-caseload-default-and-pill-order.md](./2026-08-14-slp-caseload-default-and-pill-order.md)
+
+---
+
+## Fact: "SLP" is not a distinguishable role on the frontend — `supporter_role` is the only gate
+
+`preferences.role` is a **two-value** enum, `communicator` | `supporter`
+(picker source of truth: `controllers/user/preferences.js:481-484`), exposed as
+`supporter_role` (`models/user.js:507-509`).
+
+"Therapist / SLP" exists **only** as a signup-time `registration_type`
+(`app.js:265-285`). The backend collapses `therapist|parent|teacher|other|
+manually-added-supervisor` → `role = 'supporter'` on first save
+(`app/models/user.rb:2307-2314`). `registration_type` *is* retained in
+preferences (`user.rb:139-143`, whitelisted at `user.rb:1959`) and the backend
+reads it via `supporter_registration?`, but **no frontend code reads it as a UI
+predicate** — so the Ember app cannot tell an SLP from a parent or a teacher.
+
+This is not a gap to work around; it is the existing convention. Every
+SLP-flavored surface already gates on `supporter_role`: the Caseload pill
+(`user-pill-nav.hbs`), the Caseload card
+(`utils/dashboard_sections.js:29`), and the component literally named the **"SLP
+hero"** (`authenticated-view.hbs`, `authenticated-view.js:56-89` —
+whose `roleName` resolves to Admin / Manager / Supervisor, never "Therapist").
+
+**How to apply:** when a request says "for SLP users", implement it as
+`supporter_role` and say so. Do **not** add an `slp`/`therapist` boolean or start
+reading `registration_type` on the frontend — that would split one population
+into two inconsistent ones (e.g. a Caseload pill that is visible for parents but
+ordered differently for therapists) for no user-visible benefit. Companion to
+[the `!supporter_role` communicator-gate pattern](#pattern-supporter_role-is-the-canonical-communicator-gate--never-invent-a-communicator_role-boolean).
+
+**First seen in:** [2026-08-14-slp-caseload-default-and-pill-order.md](./2026-08-14-slp-caseload-default-and-pill-order.md)
+
+---
+
+## Fact: pill-nav order is plain template source order — unlike the dashboard card grid
+
+Two different ordering mechanisms live one file apart; do not apply the wrong rule.
+
+- **Dashboard cards** (`.md-grid`) are placed by named `grid-template-areas` per
+  breakpoint × variant — reorder in SCSS, never in the DOM (see [that
+  pattern](#pattern-dashboard-card-order-is-driven-by-grid-template-areas-per-breakpoint--variant--reorder-there-never-the-dom)).
+- **Pill-nav** (`.md-pillnav`) is a plain flex `<nav>` whose order **is** DOM
+  order. Nothing data-driven feeds it: `sectionOrder` /
+  `preferences.dashboard_order` reorder *cards* only. To move a pill, move the
+  block in the template.
+
+There are **three** render sites that must stay in sync, and missing one makes
+the order silently revert at narrow widths:
+1. `components/user-pill-nav.hbs` — shared nav for the user-level pages
+   (consumed by `organizations.hbs`, `user/stats.hbs`, `caseload.hbs`,
+   `user/boards.hbs`).
+2. `components/dashboard/authenticated-view.hbs` — the desktop `<nav>`.
+3. `components/dashboard/authenticated-view.hbs` — the
+   `.md-pillnav-dropdown` `<ul role="listbox">` responsive mirror of #2.
+
+Also note the two navs use **different gate expressions for the same pill**:
+`user-pill-nav.hbs` reads `currentUser.supporter_role` directly, while
+`authenticated-view.hbs` reads `sectionAvailable.caseload` (availability, which
+ignores the user's hide preference) — both bottom out at `supporter_role` today,
+but they are not interchangeable, and the card uses `sectionVisibility` instead.
+
+**Free win when reordering a conditionally-rendered pill:** if the pill only
+renders for a subset of users (Caseload → supporters), moving it to the front is
+automatically a no-op for everyone else — no new conditional, no duplicated
+markup.
+
+**First seen in:** [2026-08-14-slp-caseload-default-and-pill-order.md](./2026-08-14-slp-caseload-default-and-pill-order.md)
+
+---
+
+## Gotcha: Focused View's hero is a bespoke ELEMENT, not hero styling applied to a card
+
+**Surface:** the home dashboard Focused View (`.md-grid--layout-focused`).
+
+The obvious mental model — "one card gets promoted to hero" — is wrong. Focused
+View's hero is a **separate, always-rendered element** with its own markup:
+`.md-card--speak-focused` (a "Hey \<name\>" greeting bar that IS the Speak button,
+`authenticated-view.hbs`), shown by `app.scss` only under
+`.md-grid--layout-focused`, which simultaneously sets
+`.md-card--speak-as-button { display: none }`. The card and its hero are two
+different DOM nodes that swap.
+
+Consequences that will mislead you:
+- The generic `md-grid--fullspan-speak` showcase rules look like the hero, but are
+  **inert in Focused** — their only target (`--speak-as-button`) is hidden.
+  Diagnosing "speak is the hero" by finding those rules gives the wrong cause.
+- `md-grid--fullspan-caseload` is deliberately scoped `.md-grid--layout-gentle`
+  (explicit comment in app.scss: *"so Focused keeps its existing caseload treatment
+  until its own supervisor view is built"*). A supervisor's Caseload had **no**
+  Focused hero — nothing was overriding it, the view had never been built.
+- **`md-grid--fullspan-*` is a GENTLE-View concept.** In Focused every non-action
+  card is full-width by construction, so emitting fullspan hands the showcase to
+  whatever happens to stack. It is now suppressed for `layout === 'focused'` in
+  `gridLayoutState`.
+
+**How to add a Focused hero for another section:** add a `md-card--<key>-focused`
+element next to the card, comma-append its selectors to the EXISTING
+`--speak-focused` rule blocks (one authoritative rule per visual, per Rule #0.7),
+and swap on `md-grid--hero-<key>`.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: `md-grid--hero-<key>` is only on the HOME tab — scope with `:not()`, not a positive match
+
+`gridLayoutState` emits `md-grid--hero-<key>` (focusedHeroKey: caseload/org/speak),
+but the template applies the two class sources **asymmetrically**
+(`authenticated-view.hbs`, the `.md-grid` element):
+
+```hbs
+class="md-grid … {{this.dashboardLayoutClass}} … {{if (is-equal this.activeTab "home") this.gridClassString}}"
+```
+
+`dashboardLayoutClass` (`md-grid--layout-focused`) is applied **always**;
+`gridClassString` — which carries `md-grid--hero-*`, `md-grid--fullspan-*`,
+`md-grid--boards-full` — only when `activeTab == "home"`. The inline `gridStyle`
+(grid-template-areas) is gated the same way.
+
+So on the Boards / Reports / Extras tabs the grid is `layout-focused` with **no hero
+class at all**. Re-scoping an existing focused rule to a positive
+`.md-grid--hero-speak` therefore silently drops it on every non-home tab. Use
+`:not(.md-grid--hero-<other>)` instead: the match set stays identical everywhere
+except the genuinely new case, and specificity rises rather than falls.
+
+Same reasoning applies to any future per-hero or per-fullspan CSS.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: `ERR_REQUIRE_ESM` from `sass`/`ember test` means your shell is on the WRONG NODE, not that the tool is broken
+
+**CORRECTED 2026-08-17.** This entry previously said the `sass` CLI "is broken in this
+repo". It is not — the shell was on the wrong Node version. Verified both ways:
+
+```
+node -v → v16.20.2   npx sass … → ERR_REQUIRE_ESM        (sass.js require()s ESM-only chokidar)
+                     npx ember test → ERR_REQUIRE_ESM    (testem require()s ESM-only execa)
+node -v → v22.23.2   npx sass … → exit 0, 3.7MB of CSS
+                     npx ember test → 2027 tests, runs clean
+```
+
+`.nvmrc` (both root and `app/frontend/`) pins **Node 22**; `require()` of an ESM module
+is only supported from Node 22.12. A shell that has not run `nvm use` lands on whatever
+is default and every ESM-importing dev tool fails identically, which reads as "the repo's
+tooling is broken" rather than "wrong interpreter". Check `node -v` FIRST when a JS tool
+dies this way. `bin/ember-server` already wraps nvm for this reason; ad-hoc `npx`
+invocations do not, so prefix them:
+
+```bash
+export PATH="$HOME/.nvm/versions/node/v22.23.2/bin:$PATH"
+```
+
+The JS API below is still the better choice for **syntax-checking and inspecting output
+specificity** (and it works on any Node), but note the CLI's other trap: on the
+`ERR_REQUIRE_ESM` crash it exits **0**, so a CI-style `&& echo ok` reports success while
+having compiled nothing.
+
+Use the JS API instead — this is the fastest way to prove an `app.scss` edit compiles
+and, more usefully, to check **real** specificity/source order in the OUTPUT rather
+than eyeballing nesting:
+
+```bash
+cd app/frontend && node -e "
+const sass=require('sass');
+const r=sass.compile('app/styles/app.scss',{loadPaths:['app/styles'],style:'expanded'});
+require('fs').writeFileSync('/tmp/out.css', r.css); console.log('OK', r.css.length);
+"
+grep -n '^\.md-grid \.md-card\.md-card--caseload {' /tmp/out.css   # then compare line numbers
+```
+
+Comparing compiled line numbers is the only reliable way to settle the recurring
+[equal-specificity-source-order](#pattern-important-does-not-beat-source-order-at-equal-specificity--bump-specificity-with-a-compound-selector-instead)
+question in this 60k-line stylesheet. Note dart-sass is not the production compiler
+(SassC), so treat it as a syntax/ordering check, not a byte-for-byte guarantee.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: "This board is not currently available." is board-detail's INLINE error, and it swallows every cause
+
+The string `error_not_available` has one live producer/renderer pair:
+`controllers/user/board-detail.js#error_message` → `templates/user/board-detail.hbs`
+(route `user.board-detail`). It is **not** a page of its own — only `<main>` is
+replaced by `div.md-board-detail-error`, so the board chrome stays.
+
+The three look-alike sites are dead ends: `templates/board.hbs` renders different
+messages (`board_deleted` / `board_doesnt_exist` / `no_permissions` /
+`board_not_synced`); `templates/user/board-alt/index.hbs` is **shadowed** (its route
+sets `templateName: 'board/index'`); and the `error_message` computeds in
+`routes/board/index.js` / `routes/user/board-alt/index.js` live on the **Route** and
+are never aliased onto the controller, so the template renders them empty. Don't waste
+a debugging pass on them.
+
+**Why it is a bad error:** the route tries `/boards/<key>/tree?root_only=1` then falls
+back to `/boards/<key>`; if both fail the model resolves to `{error: true}`. There is
+**no status discrimination, no retry, and no timeout** — 401/403/404/5xx/network abort
+and the offline short-circuit (`services/persistence.js`, `{offline: true,
+short_circuit: true}`) all render the same sentence. Worse, the message picks its
+wording from `persistence.online` at RENDER time while the request was short-circuited
+at MODEL time, so an offline cause can display the online wording.
+
+**Two traps worth remembering:** `board_key` is built from
+`modelFor('user').user_name`, **not** `params.user_id` — and `routes/user.js` documents
+that the API may return the current user for a different requested path, so a boot race
+can produce a wrong-owner key. And `session_history`'s SKIP_ROUTES excludes
+`user.board-detail.edit` but **not** `user.board-detail`, so a supporter can be resumed
+onto a dead board; the resume-failure fallback never fires because the model always
+*resolves* (with the error POJO) rather than rejecting.
+
+**Diagnose with:** `localStorage.ll_board_cache_diag = 1` → `utils/board_cache_diag.js`
+emits `model:cache_miss` / `model:root_only_response` / `model:tree_fallback_show` /
+`model:background_tree_fail`.
+
+**First seen in:** [2026-08-14-slp-dashboard-label-focused-order-and-hero.md](./2026-08-14-slp-dashboard-label-focused-order-and-hero.md)
+
+---
+
+## Gotcha: an underscore is NOT a line-break opportunity — wrap identifiers with `<wbr>`, never `overflow-wrap: anywhere`
+
+**Surface:** any place a username/identifier is displayed in a narrow box — the
+`user_select` cards (`app.scss` ~92600 / ~92762), the caseload roster name
+(`_caseload.scss` `.md-caseload__list-name`).
+
+**Symptom:** `aiden_parker` wraps as `aiden_parke` / `r` — split mid-word, one
+character onto the second line.
+
+**Why it happens:** per the Unicode line-breaking algorithm (UAX #14) `_` is class
+**AL — an ordinary letter**. So are `.`, `@` and `+` mid-token. Only hyphens are real
+break opportunities. `aiden_parker` is therefore ONE unbreakable run: it either
+overflows its box, or — with `overflow-wrap: anywhere` — the browser fills the line
+greedily and breaks wherever it happens to run out. `anywhere` is what produces the
+mid-word split; it is not a fix, it is the cause of the ugly break.
+
+A comment in `app.scss` asserted the opposite ("modern browsers honor underscores /
+hyphens as break candidates") — that claim was wrong and had been load-bearing for the
+`anywhere` value. Don't trust it if you see it restated elsewhere.
+
+**Fix recipe:** CSS cannot express "prefer the underscore", so put the break
+opportunity in the MARKUP and let CSS prefer it:
+
+1. Emit `<wbr>` after each separator run — `helpers/break-on-separators.js` does this
+   (`{{break-on-separators supervisee.user_name}}`). `<wbr>` renders nothing and does
+   **not** land in the clipboard, unlike a zero-width space (U+200B), which is a real
+   character that pollutes copy/paste and search.
+2. Set `overflow-wrap: break-word` — **not** `anywhere`. `break-word` splits a token
+   mid-word only when it has no break opportunity at all, so a real `<wbr>` wins;
+   `anywhere` would still break greedily before reaching one.
+3. Set `hyphens: manual`. `auto` will render `aiden_par-ker`, inventing a character
+   that is not in the name — actively wrong for an identifier.
+
+**Escape before inserting.** The helper HTML-escapes first, then inserts only literal
+`<wbr>` tags, so a hostile username cannot inject markup. Pick a separator set that
+shares no characters with the escaped entities (`&amp;` `&lt;` `&gt;` `&quot;` `&#39;`)
+or escaping can manufacture a false break.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Gotcha: styling an `<img>`'s own background paints it BEFORE the image — the loading flash is self-inflicted
+
+**Surface:** the caseload roster avatar (`_focused-view.scss`
+`.md-shell--caseload .md-caseload__list-avatar`), and any avatar/thumbnail where a
+photo branch and a placeholder branch share one class.
+
+**Symptom:** a bold coloured disc appears first and the avatar pops in on top of it a
+moment later. Reported as "the badge renders before the image".
+
+**Root cause:** an `<img>` paints its **background and border at layout time**, but its
+bitmap only paints after the network fetch *and* decode. So any `background` you put on
+the `<img>` element itself is guaranteed to be visible alone for the whole load. Give it
+a loud gradient and you have built a conspicuous two-stage render.
+
+This bites specifically when a rule targets a class shared by BOTH branches — here the
+photo `<img>` and the placeholder `<span>` both carry `.md-caseload__list-avatar`. The
+placeholder wants a filled disc (it is inline SVG, paints in one go, never flashes); the
+`<img>` must not have one. The original comment even anticipated the fill showing
+"through transparency or a failed load" — it just never considered the *loading* state.
+
+**Fix recipe:** put the decorative fill on the **placeholder** branch only, and give the
+`<img>` branch a quiet near-neutral fill (here `$surface-100`, the Gentle baseline,
+whose loading window nobody had ever complained about). Trade-off to state out loud: an
+avatar *with transparency* then shows the neutral colour behind it rather than the
+accent.
+
+**Then check the asset, not just the CSS** — see the companion finding: those avatars
+were 256×256 / ~41.8KB PNGs with 1,689 unique colours, quantised to 256 colours for
+**7.9KB (−81%)** at 2.8% RMSE. Verify the LARGEST render before resizing (here 132px at
+`.md-hero--user__avatar`, so 256×256 had to stay — only the compression changed). And
+check `app/frontend/public/` actually has the directory: `avatars/` was missing there
+entirely, so the Ember dev server never served it and `dist/` shipped without it.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Gotcha: ember-shepherd passes a TYPELESS button straight through — that is how a custom `action` works
+
+**Surface:** any Shepherd step in this repo whose footer needs a button that is not a
+plain next/back/cancel — e.g. the display-style modal's "Done" (completes from a
+non-final step) and its "Customize your dashboard" link.
+
+**The mechanism (`node_modules/ember-shepherd/dist/utils/buttons.js`):**
+
+```js
+function makeButton(button) {
+  const { classes, disabled, label, secondary, text, type } = button;
+  if (!type) { return button; }            // <-- passed through untouched
+  assert(`'type' must be one of 'back', 'cancel', or 'next'`, …);
+  const action = bind(this, function () { this[type](); });
+  return { action, classes, … };
+}
+```
+
+So: **omit `type`** and your `action` survives to Shepherd verbatim. Supplying both is
+pointless — `type` overwrites `action`.
+
+**Drive the tour through the SERVICE, not `this`.** The ember-shepherd tour service
+exposes `next()`, `back()`, `cancel()` and `complete()` (each forwarding to
+`tourObject`). Capture the component in a closure (`var component = this;` at the top of
+the steps builder) and call `component.get('tour').complete()`. That avoids depending on
+how Shepherd binds button callbacks — the same `_this`-capture convention CLAUDE.md
+already mandates for promise executors and plain-object methods.
+
+**Two traps when you change a step's primary button:**
+1. Gates usually key off the **class**, not the type — here `refreshGate` finds
+   `.shepherd-footer .md-tour__btn--primary`. Keep that class on whatever becomes the
+   primary or the disabled-until-valid gate silently stops working.
+2. Any NEW button that advances the flow needs the **same gate applied to it**, or it
+   becomes a way around the disabled primary.
+
+**Steps are built per tour-open** (`_startDisplayStyle` → `_buildSteps()`), so a DOM
+check inside the builder legitimately reflects the current page — that is how the modal
+collapses to a single step when opened off the dashboard.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Gotcha: `body.ll-layout-focused` scoping makes side-by-side layout comparison impossible in a clone
+
+**Surface:** any "show the user Gentle vs Focused next to each other" idea — e.g.
+previewing the CURRENT page in both styles inside the display-style modal.
+
+**The constraint:** Focused View is applied app-wide by a **body class**
+(`sync_layout_scope` in `services/app-state.js` → `LingoLinq.set_layout_scope`), and
+every per-page focused rule is written `body.ll-layout-focused .md-shell--caseload …`
+(see the scoping contract at the top of `styles/_focused-view.scss`). A clone rendered
+inside the modal is still inside that same `<body>`, so it inherits whichever state the
+body is currently in. **Two clones would render identically** — you would show the user
+their current view twice and call it a comparison.
+
+**Where it DOES work:** the home dashboard, because the grid's variant is a class on the
+grid element itself (`md-grid--layout-gentle` / `--layout-focused`), which the preview
+already toggles per clone (`display-style.js` `gridEl.classList.toggle('md-grid--layout-'
++ name, …)`). Element-scoped variants can be compared; body-scoped ones cannot.
+
+**Options when this comes up:** (a) restrict the comparison to the dashboard;
+(b) always preview the dashboard regardless of page, accepting that it is not "this
+page"; (c) refactor the focused overlay from `body.ll-layout-focused` to a container
+class — real work across a 40KB partial, and it risks the "Gentle View is the UNTOUCHED
+baseline" guarantee that partial is built on. Do not promise (a)+(b) semantics without
+saying which one you built.
+
+**Generalisation:** before designing any side-by-side variant preview, check whether the
+variant is toggled by an **ancestor/body** class or an **element** class. Only the latter
+can appear twice on one page.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Pattern: a class the JS emits is not a class the CSS consumes — grep the stylesheet before trusting a "hook"
+
+**Surface:** `gridLayoutState` (`utils/dashboard_sections.js`) emits
+`md-grid--hero-<key>` for the Focused View hero, and `authenticated-view.js` documents
+it as driving "which section gets the full-width hero showcase".
+
+**The finding:** `grep -rn "md-grid--hero" app/frontend/app/styles/` returned **nothing**.
+The class had been emitted, commented as load-bearing, and consumed by no rule at all —
+so the "hero" was actually produced by a completely different mechanism (a purpose-built
+`.md-card--speak-focused` element plus `display:none` on the normal Speak card). Reading
+only the JS and its comments would have produced a confidently wrong diagnosis.
+
+**Why it matters twice over:** an inert class is not just dead weight, it is a *decoy* —
+it makes the next person believe there is a supported hook. It is also an opportunity:
+wiring it up is often the cleanest fix, because the emit side and the naming already
+exist (that is exactly how the caseload hero was implemented, by finally giving
+`md-grid--hero-caseload` rules rather than inventing a new mechanism).
+
+**Rule:** when a comment says a class "drives" something, verify BOTH ends —
+`grep` the emit site *and* the stylesheet — before building on it or explaining it to
+someone. Same discipline as the "same-named computeds diverge" entry above: the name is
+not the contract.
+
+**First seen in:** [2026-08-15-reports-picker-display-modal-and-board-error-page.md](./2026-08-15-reports-picker-display-modal-and-board-error-page.md)
+
+---
+
+## Pattern: deleting a route in this app does NOT 404 — `/:user_id` swallows the URL
+
+**Surface:** a proposed removal of the retired onboarding wizard would have deleted
+`this.route('setup', { path: '/setup'})` from `app/frontend/app/router.js`. (The deletion
+itself was **reverted** — see the entry below — but the routing fact stands and applies to
+any future retirement.)
+
+**The trap:** `this.route('user', { resetNamespace: true, path: '/:user_id' })` is a
+single-segment **catch-all**. Delete any top-level route above it and that path stops
+404-ing and starts resolving as *a user whose id is the route name* — the page renders
+"Error loading user, please make sure you have permission to support this user" instead
+of erroring or redirecting. The router file even documents the ordering requirement
+inline ("Setup must come before user so /setup matches the wizard, not user with id
+'setup'"), which is easy to read as a note about ordering and miss as a note about
+deletion.
+
+**Rule:** when retiring a top-level route whose path is a single segment, keep the route
+entry and reduce it to a **redirect-only stub** (`beforeModel` → `appState.return_to_index()`
++ `RSVP.reject`). Delete the controller, template and components; keep the 20-line guard.
+The same applies to `intro`, `eval`, `board-picker`, `speech`, `demo` — anything declared
+before the `user` route.
+
+**Generalisation:** in any router with a greedy dynamic segment, "delete the route" and
+"make the URL stop working" are different operations. Check what the URL falls through
+*to* before removing an entry.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Pattern: "retire the access points" ≠ "delete the pages" — confirm which one before removing files
+
+**Surface:** a session handoff recorded that Traci had "confirmed the wizard AND the
+symbol-layout editor are both being deleted." Acting on it removed 41 files
+(`controllers/setup.js`, `templates/setup.hbs`, all 18 `app/components/setup/**`). Traci's
+actual position: *"We shouldn't have a setup deletion → only comments so there are no
+access points. We're not ready to delete the setup pages yet."* Everything was reverted.
+
+**The distinction that got flattened:** closing off a feature has two very different
+end-states, and the code looked identical from the inside —
+* **Access points closed** (what was wanted): route guard refuses every mode, entry points
+  commented out, files stay on disk so the flow can be revived or reworked.
+* **Pages deleted** (what was done): the implementation is gone and reconstructing it means
+  going back through git history.
+
+Comments left in the code by the earlier pass genuinely read as deletion authorisation —
+`routes/setup.js` said *"When the setup pages are finally deleted, this route … go
+together"* and `board-actions.js` said *"Delete this block outright in the same change that
+removes routes/setup.js."* Those were a **plan**, not a decision, and a second-hand handoff
+note is not consent.
+
+**Rule:** a deletion recorded only in a handoff or a code comment is a hypothesis. Re-confirm
+irreversible removals with the person directly, at the time, before running `rm`. Cheap to
+ask; the revert here cost two builds and a careful file-by-file classification.
+
+**What made the revert safe** (worth copying): before any `git checkout`, classify every
+changed file into *"I alone made this dirty"* (safe to `git checkout HEAD --`) vs *"this
+already contained the user's uncommitted work"* (hand-revert only). On a branch with 40+
+uncommitted files a blanket checkout would have destroyed real work. Diff the current
+`git status` against the session-start status to build that split mechanically — and count
+the entries afterwards to prove you landed back on the original shape.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Pattern: prove "pre-existing failure" with a baseline build — never by reasoning alone
+
+**Surface:** deleting the wizard touched `routes/user/board-detail.js`, where two
+always-true `if (!board_layout_mode)` guards were unwrapped. The legacy `app_state`
+suite then reported 4 failures, three reading
+`calling set on destroyed object: <…user/board-detail::ember353>.paint_mode = false`.
+`paint_mode` was literally on the touched lines.
+
+**Why reasoning was not enough:** the static case was strong — the `= false` setter is
+`utils/edit_manager.js:1679`, `board_layout_mode` appears nowhere in `tests/`, and the
+unwrapped branches were provably always taken. All true, and still only an argument.
+
+**The technique (cheap, ~8 min, no git writes):**
+1. `cp` every file you edited to the scratchpad.
+2. Restore the ones that were **clean at HEAD** with `git show HEAD:<path> > <path>`;
+   hand-revert edits in files that were already dirty in the working tree.
+3. Build to a *separate* output dir (`--output-path .../build-baseline`) and re-run the
+   same filter against it.
+4. Restore from the scratchpad copies, then re-grep for every removed symbol to confirm.
+
+Result here: 86 tests / 4 failed / 246-of-250 assertions, same four test names, same
+assertion text — **byte-identical**, so pre-existing. Note step 2's split: `git show HEAD`
+is only the pre-edit state for files that were clean before you started; on a branch with
+30+ uncommitted files that is a real distinction.
+
+**Rule:** a failure that names a symbol you touched is not pre-existing until a baseline
+build says so. Never `git stash` to get one — this repo requires explicit approval for
+every git write, and a stash mid-task risks the other uncommitted work.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Gotcha: a zero-match QUnit filter reports "1 tests … 1 failed"
+
+**Surface:** with `ember test` broken here (`require() of ES Module … execa` in testem),
+suites are driven by a Puppeteer harness that takes a QUnit filter string.
+
+**The trap:** filtering on a string that matches **no** test does not report "0 tests" —
+it reports `1 tests completed … with 1 failed`, `0 assertions of 1 passed`. That looks
+exactly like a real regression. Filtering `"dashboard-sections"` (the *filename*) produced
+this; the module is `Unit | Utility | dashboard sections` — **spaces, not hyphens**.
+
+**How to tell in one step:** re-run with a deliberately impossible filter
+(`"zzz-no-such-test"`). Identical output ⇒ your filter matched nothing. Then get the real
+name from the source: `grep -n "module(" <test-file>`.
+
+**Related:** killing a Puppeteer run leaves Chrome processes behind that make every
+*subsequent* run hang to timeout. Run one filter per invocation on its own port rather
+than looping several in one `for` loop, and `pkill` stray chrome after any interrupted run.
+
+**First seen in:** [2026-08-15-delete-setup-pages.md](./2026-08-15-delete-setup-pages.md)
+
+---
+
+## Pattern: to preview a body-scoped style variant, render it in an iframe — not a clone
+
+**Surface:** the Display Style modal had to show the CURRENT page rendered in both Gentle
+and Focused View, side by side. Focused View's rules live in `styles/_focused-view.scss`
+scoped under **`body.ll-layout-focused`**, so two clones inside the same `<body>` inherit
+the same state and render identically. That is why the modal previously showed only ONE
+preview, swapped on selection.
+
+**The fix:** give each preview its own `<iframe>` — its own document, its own `<body>`,
+its own class. Copy the parent's `link[rel=stylesheet]` + `<style>` tags (same URLs ⇒
+cache-served, so it costs a parse, not a download) and `document.write` the markup in.
+`_focused-view.scss` is not touched at all, so its "Gentle View is the UNTOUCHED baseline"
+guarantee stays structurally safe.
+
+**Rejected alternative, and why it matters:** adding a `.ll-scope--focused` container
+scope to that file looks cheaper (~9 top-level selectors). It fails on two counts —
+(1) **specificity**: the file is `@use`d so it emits FIRST and must win by specificity;
+`body.ll-layout-focused` is (0,2,0) and a bare container class is (0,1,0), so it would
+LOSE to base rules; (2) ~24 of its rules key off document-level ancestors such as
+`#within_ember #content.modern-dashboard:has(.md-shell--caseload)`, which cannot resolve
+inside a container — and those are precisely the rules that restyle the caseload page.
+
+**Three traps the iframe approach has of its own — all found by RUNNING it:**
+1. **Do not copy the whole `body.className` blindly.** It contains transient modal state.
+   `md-ds-active` (added while this very modal runs) carries
+   `body.md-ds-active .md-workspace {visibility:hidden}`, which blanked every preview to
+   a bare gradient. Filter out `md-ds-active`, `shepherd-*`, `md-tour-*`.
+2. **Rebuild the ANCESTOR CHAIN, not just the element.** Shallow-clone each ancestor up to
+   `<body>` (ids/classes intact) and nest the deep-cloned shell inside, or every rule that
+   reaches for `#within_ember` / `#content` / `:has()` silently stops matching.
+3. **Body class is not the whole variant.** Element-level classes bound to the saved
+   preference (`md-shell--layout-focused`, `md-grid--layout-gentle|focused`) come along
+   from the clone unchanged, so both frames render the SAME layout. Re-point them per
+   preview. Note a swap alone cannot add a modifier that has no counterpart — the shell
+   only ever gains `--layout-focused` — so toggle that one explicitly.
+
+**Scale to WIDTH and crop, don't fit.** Fit-to-both letterboxes badly when the slot is far
+wider than tall (two previews stacked in a modal): the page rendered at 0.27 with a third
+of the slot blank. Width-scale + crop keeps the top of the page, which is where the
+variants differ. Render the iframe at true viewport width, too — a narrow iframe trips the
+app's width breakpoints and previews the MOBILE layout.
+
+**Honest limitation to state:** this previews CSS only. Anything computed in JS
+(`gridLayoutState` card ordering, `md-grid--hero-<key>`) is not reflected.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: `!important` does not beat `!important` — specificity still decides
+
+**Surface:** making a cloned page expand inside a preview iframe needed the app's
+viewport-pinned scroller to release its height. `#content{height:auto !important}` was
+injected last in the document and still lost — the element kept `css-height: 950px` with
+2071px of content inside it.
+
+**Why:** the app's own rule is *also* `!important`, at higher specificity. Between two
+`!important` declarations the normal cascade resumes: specificity first, source order
+only as the tie-break. A bare `#content` (1,0,0) loses to anything like
+`#within_ember #content` (2,0,0) regardless of who is later in the file.
+`html body #within_ember #content` (2,0,2) wins.
+
+**The tell:** when one property from an injected block applies and another does not
+(here `overflow` took effect but `height` did not), it is not "my CSS isn't loading" — it
+is a per-property fight, and only the contested property has a higher-specificity rival.
+That is a much faster diagnosis than re-checking whether the stylesheet is present.
+
+**Related trap in the same fix:** an injected `html,body{overflow:hidden}` (added to hide
+scrollbars, which an iframe's `scrolling="no"` already handles) silently **capped
+`documentElement.scrollHeight` at the frame height**, so every page-height measurement
+read exactly one viewport. If a scroll measurement suspiciously equals the container
+height, look for an overflow rule you added yourself.
+
+**When ancestors are pinned, stop asking them how tall they are.** Even after relaxing
+overflow, `#within_ember` / `#content` / `body` all still laid out at one viewport while
+their content spilled visibly — so `documentElement.scrollHeight`, `body.scrollHeight`
+and the root child's bounding box ALL under-read. Measuring the **lowest bottom edge of
+any element** (`max(rect.bottom)` over `body.querySelectorAll('*')`) is the one
+measurement a constrained ancestor cannot distort.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: `margin: … auto …` on a FLEX ITEM shrink-wraps it
+
+**Surface:** `.md-ds-options` carries `margin: 8px auto 0` — harmless centring while it
+was a block. Once its parent became a flex column, both preview rows collapsed to their
+content width and the previews rendered narrow and portrait-shaped inside a full-bleed
+modal.
+
+**Why:** `auto` side margins on a flex item absorb the free space *and* stop the item
+stretching, so `align-self: stretch` never applies. The item ends up shrink-wrapped and
+centred — which looks like "my width rule isn't working".
+
+**Rule:** when converting a container to flex, audit its children for `margin: … auto`
+and `max-width` first. Neutralise them on the variant (`margin-inline: 0; width: 100%;
+align-self: stretch`) rather than fighting it with `!important` widths.
+
+**Related, same fix:** `height: 100%` on a child of a flex-grown parent resolves against
+*nothing* — the parent's height comes from growing, not from a definite value. Use
+`flex: 1 1 auto` on the child (and `min-height: 0`, or it refuses to shrink below its
+content and overflows the container).
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: `animation: none` hides anything revealed by an entrance animation
+
+**Surface:** the display-style preview injects motion-suppressing CSS into its iframe.
+`*{animation:none !important}` looked obviously safe. It made the caseload page's header
+and subheader vanish from the preview entirely.
+
+**Why:** this codebase reveals hero text with an entrance animation over an initially
+hidden element —
+
+```scss
+.md-hero--dashboard .md-hero__title .md-hero__title--from-left {
+  opacity: 0;
+  animation: la-hero-title-from-left 1s … forwards;   /* `forwards` supplies opacity 1 */
+}
+```
+
+The resting state is `opacity: 0`; the *animation* is what makes it visible. Removing the
+animation removes the only thing that ever set opacity to 1. Same trap for anything using
+`transform: translateX(-100%)` + `forwards`.
+
+**The fix — suppress the motion, keep the result:**
+```css
+*{animation-duration:0s !important; animation-delay:0s !important;}
+```
+Each animation still runs, completes immediately, and applies its `forwards` fill. Use
+this anywhere motion is being stripped (previews, print styles, screenshot harnesses,
+reduced-motion handling) rather than `animation: none`.
+
+**Symptom to recognise:** an element is present in the DOM, has a sensible computed size,
+and reserves layout space — but renders blank. Check `getComputedStyle(el).opacity` before
+suspecting fonts, colour, or a failed clone.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Technique: measure a page's "ink box" from LEAF elements, not containers
+
+**Surface:** scaling a cloned page into a preview panel needs its true content extent.
+Container-based measurements gave two visible defects at once — a white band above the
+content, and a tall blank tail below it.
+
+**Why containers lie at both ends:**
+* **Top** — `.md-shell` / `.md-workspace` / `#content` all start at `y = 0`, so any
+  container measurement reports a content top of 0 and no gap to crop. But the layout
+  still reserves space for a fixed app header that the clone does not include, so the
+  first thing actually *visible* is well below 0.
+* **Bottom** — the shell keeps running to full page height past the last visible row, so
+  a short layout measures just as tall as a long one.
+
+**The measurement that works** — walk elements with no element children, take the
+topmost `rect.top` and lowest `rect.bottom`:
+
+```js
+Array.prototype.forEach.call(doc.body.querySelectorAll('*'), function(n) {
+  if (n.firstElementChild) { return; }        // containers via their leaves
+  var r = n.getBoundingClientRect();
+  if (!r.height || !r.width) { return; }
+  if (r.top < top) { top = r.top; }
+  if (r.bottom > bottom) { bottom = r.bottom; }
+});
+```
+
+Add a few px of bleed (≈8 top / 16 bottom) so a card's border, shadow or padding just
+past its last leaf is not shaved. Then shift the frame by `-top × scale` and size the
+box to `(bottom - top) × scale`.
+
+**Keep ONE scale across sibling previews, but let each box take its own height.** Shared
+scale keeps the two pictures comparable (different zooms would defeat a side-by-side
+comparison); per-box height removes the blank tail under the shorter one. Those are
+independent decisions — it is tempting to conflate them.
+
+**Feedback-loop guard:** measure available space from an ancestor the fit function never
+writes to. Once the routine sets both `width` and `height` on the box, reading either back
+next pass feeds the calculation its own output and the size drifts.
+
+**First seen in:** [2026-08-15-display-style-side-by-side-preview.md](./2026-08-15-display-style-side-by-side-preview.md)
+
+---
+
+## Gotcha: a component arg that reads like STYLING can carry behaviour — `@compactRow` hijacked the click
+
+**Surface:** the Boards page reused `<BoardIcon @compactRow={{…}}>` to get the picker's
+compact row look. Every card on the page then stopped opening its board — clicking one
+opened a preview instead. Found only because Traci noticed one odd row.
+
+**Why:** `compactRow` was doing double duty. It gated the compact markup *and* a branch in
+`board-icon.js` that turned the click into a preview — behaviour that only ever made sense
+inside the board **picker**, where picking a board is the point. Importing the look
+imported the behaviour.
+
+**Fix shape:** split the flag by responsibility rather than special-casing the new caller —
+`compactRow` = the compact LOOK, `pickOpensPreview` = the picker's click behaviour
+([board-icon.js:366-374](../../app/frontend/app/components/board-icon.js#L366-L374)). The
+picker passes both ([board-picker.hbs:197](../../app/frontend/app/components/board-picker.hbs#L197));
+the Boards page passes only `compactRow`.
+
+**The general check:** before reusing a component flag for its appearance, grep the
+component's **JS** for that flag, not just its template. A flag with hits in both files is
+two features wearing one name. And when a shared component is reused on a new page,
+click-test the *unchanged* mode too — the regression here was in the default (detailed)
+path, which nobody thought to re-test.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Gotcha: a `%`-positioned background moves when CONTENT height changes — and a `background:` shorthand `!important` blocks the longhand fix
+
+**Surface:** the board-picker page background visibly changed when toggling Compact ↔
+Detailed. The background declaration is byte-identical in both states.
+
+**Why:** `.md-shell`'s mesh is six radial-gradients positioned in **percentages**, and the
+shell's height is content-driven (measured 1269px compact vs 2550px detailed). Percentage
+positions resolve against the painting area, so the whole mesh re-positions and re-stretches
+when the list gets shorter. `background-attachment: fixed` resolves it against the viewport
+instead. Scope it to the page that flips content height in place — fixed attachment is
+expensive to repaint while scrolling on some mobile browsers.
+
+**Two traps in landing that one-line fix**
+([`_board_picker.scss:55-80`](../../app/frontend/app/styles/_board_picker.scss#L55-L80)):
+1. **A `background:` shorthand resets every sub-property.** `.md-shell`'s background is an
+   `!important` shorthand, so it also sets `background-attachment: scroll !important` — a
+   plain longhand loses silently. The flag is required, not decoration.
+2. **`!important` alone still was not enough.** The partial is `@use`d, so it emits before
+   app.scss; at an equal (0,1,0) tie with both sides `!important`, source order decided and
+   app.scss won. `.md-shell.md-shell--board-picker` (0,2,0) wins outright. Same family as
+   [the `@use`d-partial gotcha](#gotcha-a-rule-in-an-used-partial-loses-to-an-equal-specificity-rule-in-appscss--the-partial-is-emitted-first),
+   which bit **three** times in this one session.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Technique: when a COLUMN is narrow but the viewport is wide, media queries are inert — use `@container`
+
+Splitting the Boards page into a 1/4 folders column and a 3/4 boards column put content into
+a ~300px column on a 1400px screen. Every `@media (max-width: …)` rule written for it was
+dead: the viewport was never narrow. `container-type: inline-size` on the column plus
+`@container <name> (max-width: …)` is the tool, and it is **already used in `app.scss`**
+(e.g. [`app.scss:51002`](../../app/frontend/app/styles/app.scss#L51002)) — no new dependency,
+no polyfill question.
+
+**The tell:** a breakpoint rule that "does nothing" while the element is visibly narrow.
+Check what the rule is measuring — the viewport, or the box.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Technique: diff eslint against a HEAD baseline — this repo has grandfathered errors
+
+`npx eslint <file>` on a touched frontend file returns errors that were already there. A
+clean run is not the bar; **no new errors** is. Compare against the same file at HEAD:
+
+```bash
+git show HEAD:app/frontend/app/components/board-icon.js \
+  | npx eslint --stdin --stdin-filename app/frontend/app/components/board-icon.js
+```
+
+Baselines measured 2026-08-16: `available-boards-section.js` 5, `board-picker.js` 6,
+`board-icon.js` 6. Same discipline as
+[proving a pre-existing failure with a baseline build](#pattern-prove-pre-existing-failure-with-a-baseline-build--never-by-reasoning-alone).
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Gotcha: two asset bundles exist — check WHICH one loaded before believing a change is absent
+
+A live browser session loads the Ember dev output (`/assets/frontend.js` + `.css`). A plain
+request can instead be served Sprockets-fingerprinted `application.debug-<hash>` assets,
+which can be **stale**. "My CSS/JS change isn't showing" is as often the wrong bundle as a
+wrong rule. Confirm first, from the console:
+
+```js
+[...document.scripts].map(s => s.src).filter(s => /assets/.test(s))
+```
+
+**Related:** static assets returning 500 means the backend is down or restarting — images
+cannot fail for application reasons, so don't debug the app for it.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Fact: "Orphan Boards id:…" rows are a SYNTHETIC record, not a board
+
+[`controllers/user/index.js:770`](../../app/frontend/app/controllers/user/index.js#L770)
+does `createRecord('board', {name: "Orphan Boards id:" + id})` to cluster boards whose
+parent is missing. It has no key, no real record behind it, and its label is a raw
+untranslated string. Treat it as a UI grouping artifact: do not chase it as a data bug, do
+not assume clicking it can work, and remember that **hiding those rows removes the only
+entry point to the boards inside them** — flatten the children or give the row a real
+i18n'd label + action if that access matters.
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Technique: layout offsets across breakpoints are MEASURED, not derived — use a per-width QA probe
+
+Aligning the pill-nav across five pages and splitting the Boards page into columns both
+produced values that cannot be reasoned out of the stylesheet: the contributing padding is
+non-monotonic (Gentle view runs 40 → 52 → 40 across widths), and the winning rule is often
+in a different file from the one being edited. Both were settled by sweeping real widths in
+a headless browser and reading computed values.
+
+Two committed probes now exist — run from `app/frontend` on Node 22:
+
+```bash
+node scripts/focused-layout-qa.mjs   # pill-nav offsets + page backgrounds, per width/view
+node scripts/boards-columns-qa.mjs   # boards 1/4-3/4 split, per width/view
+```
+
+**Re-measure after any change to the surrounding padding; do not carry the numbers forward
+by assumption.** Six defects in one session were caught only by measuring — including a
+*false-pass* pixel test that sampled dead space, so also assert the probe is sampling a
+node that actually has ink (see
+[measure a page's "ink box" from LEAF elements](#technique-measure-a-pages-ink-box-from-leaf-elements-not-containers)).
+
+**First seen in:** [2026-08-16-focused-view-colour-and-pillnav-alignment.md](./2026-08-16-focused-view-colour-and-pillnav-alignment.md)
+
+---
+
+## Gotcha: a fixed sleep in a click probe manufactures BOTH false passes and false failures
+
+**Surface:** a Puppeteer sweep clicking every Boards-page card sampled the outcome 1.8s
+after each click. It reported most cards as broken — `url` unchanged, no preview — while
+two cards in the same sweep passed. Nothing was wrong with the app.
+
+**Why:** opening a board raises the "preparing workspace" overlay *before* the route
+transitions. At a fixed sample a slow card is indistinguishable from a dead one. The tell
+was the inconsistency: the gate under test is a per-component flag, so it **cannot** vary
+card to card — when a per-component behaviour appears to differ per item, suspect the
+harness, not the code.
+
+**Fix shape:** poll for the outcome instead of sampling for it, and report what was on
+screen when the deadline expired.
+
+```js
+async function outcome(page, startUrl) {
+  const deadline = Date.now() + 15000;
+  for (;;) {
+    const s = await snapshot(page);                      // url + previewOpen + working
+    if (s.url !== startUrl || s.previewOpen) { return s; }
+    if (Date.now() > deadline) { return Object.assign(s, { timedOut: true }); }
+    await new Promise((r) => setTimeout(r, 250));
+  }
+}
+```
+
+A fixed delay fails in both directions: too short and the right outcome hasn't happened
+yet (false failure); too long and a *wrong* fast outcome has already been replaced by a
+right slow one (false pass). Related: indices into a list go stale across a round trip —
+re-count each iteration rather than trusting a count taken before the first click.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Pattern: every NEGATIVE assertion needs a positive control proving the detector still fires
+
+**Surface:** a click sweep asserted, per card, "the route changed **and** no preview modal
+opened". The second clause is a negative — it passes when a selector matches nothing.
+If `.md-board-details-modal` were ever renamed, every card would still pass, and the probe
+would look green while testing half of what it claimed.
+
+**The guard:** exercise the same detector on a surface where the thing is *supposed* to
+happen, and fail loudly if it doesn't. Here the board-PICKER is the surface that opens a
+preview on card click, so it doubles as the control:
+
+```js
+check(res.previewOpen,
+  'CONTROL: clicking a PICKER card opens a preview (detector verified live)',
+  'if this fails, every "no preview" result above is unproven');
+```
+
+It earned its place immediately: the first run failed the control (the picker grid paints
+a "Loading boards…" message before its cards, so waiting on the grid raced the data) —
+which correctly reported the negatives as *unproven* rather than passing them. Wait for
+the **cards**, not the container.
+
+**Generalises:** any "X did not happen" assertion — no error toast, no console error, no
+modal, no request — needs a companion test that makes X happen.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: a self-reverting command must anchor its paths to the REPO ROOT
+
+Proving a regression test actually fails means reintroducing the bug, running, and
+reverting — ideally in one command so the revert cannot be forgotten:
+
+```bash
+sed -i 's/&&/||/' app/frontend/app/components/board-icon.js
+cd app/frontend && npx ember test --filter="…"
+git checkout app/frontend/app/components/board-icon.js     # <-- FAILS: wrong cwd
+```
+
+The `cd` earlier in the chain made the checkout path resolve against `app/frontend`, so it
+exited 128 (`pathspec … did not match`) and **left the deliberate bug in the working
+tree**. The test output looked like a clean negative control while the repo was dirty.
+
+Use `git -C "$REPO_ROOT" checkout -- <path>`, or a path relative to wherever the command
+actually runs — and verify with `git status --short` in the same breath rather than
+assuming the revert took.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: a card with no name in `grid-template-areas` invents COLUMNS and squashes the whole grid
+
+**Surface:** the Focused dashboard rendered "squished into two weird columns" for one account
+and was perfect for another. The inline style was correct in both cases —
+`grid-template-columns: repeat(4, 1fr)` with four tokens per area row — yet the computed
+columns came back as **six**: `97.7px 97.7px 97.7px 97.7px 0px 493.1px`.
+
+**Why:** `utils/dashboard_sections.js` builds the areas string from the account's VISIBLE
+section list, but the template renders every AVAILABLE card. A card that is rendered while
+unnamed in the areas is placed outside the explicit grid, so the browser creates implicit
+tracks to hold it — and every named card is then squeezed into what's left. Here the Speak
+hero took a 493px invented column and Extras a 0px one.
+
+**The tell:** the computed `grid-template-columns` has MORE tracks than the inline/authored
+value. If those disagree, look for a grid item that isn't in the areas — not for a broken
+column rule. Cards that render at `w=0` beside a card that renders far too wide is the same
+signal.
+
+**Two fixes, and they are different:**
+* *Cause* — give the card an area (for org dashboards, Speak now shares a bottom row with
+  Caseload via the `orgPair` branch in `focusedLayout`).
+* *Resilience* — `grid-column: 1 / -1` on the cards most likely to be unnamed. `1 / -1`
+  resolves to the explicit grid's own first and last lines, so it cannot itself create a
+  track. Keep it scoped OFF any layout where the card now has a real area, or it overrides
+  the placement.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: `align-items: stretch` absorbs a negative margin by GROWING the item
+
+Giving a grid item `margin-top: -10px` to lift it 10px made it 10px TALLER instead —
+measured 170px against its row-mate's 160px, tops offset by exactly the margin.
+
+A stretched grid item is sized so its **margin box** fills the row, so
+`height = row − margin-top − margin-bottom`. A negative top margin therefore *adds* to the
+height rather than moving the box.
+
+Three ways out, and the choice matters:
+
+| Want | Do |
+|---|---|
+| move it, keep the row's spacing | `margin-top: -10px` **+** `margin-bottom: 10px` (they cancel) |
+| move it, keep it the same height as its row-mate | `align-self: start` + `height: 100%` |
+| move it and let it grow | the negative margin alone — which is what you get by accident |
+
+`height: 100%` on a start-aligned grid item resolves against the grid AREA, so the item
+tracks whichever sibling sizes the row without hard-coding a pixel height.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: a later `gap` SHORTHAND silently resets an earlier `row-gap` at equal specificity
+
+`.md-grid.md-grid--hero-org { row-gap: 38px !important }` measured as **14px** on the page —
+the rule was completely inert. Two compounding reasons, both invisible in the source:
+
+1. `.md-grid.md-grid--layout-focused { gap: 14px !important }` has the SAME specificity
+   (0,2,0) and is emitted **~260k characters later** in the compiled sheet, so it wins on
+   source order — the same "equal specificity, decided by emit order" trap this file already
+   records for `@use`d partials, arriving from the other direction.
+2. It sets the `gap` SHORTHAND, which resets `row-gap` and `column-gap` together. Even a
+   winning `row-gap` elsewhere is wiped by a later shorthand.
+
+Also note the base was **not** the value it appeared to be: `.md-grid { gap: 28px }` is
+overridden to 14px for this view, so an increment computed from 28 was wrong twice over.
+
+**Rule:** before adjusting one axis of a gap, compile and find EVERY rule that sets `gap` or
+`row-gap` for that element, and check which is last. Then out-specify it rather than matching
+it — here, chaining `.md-grid--layout-focused` into the selector took it to (0,3,0) and it
+applied. Verify on the page: a computed value that equals the untouched base is the tell.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+---
+
+## Gotcha: the dashboard has TWO order resolvers — the live grid does not use `defaultOrderFor`
+
+Adding a new role-based card order to `gentleDefaultOrder()` reordered the dashboard's
+EDIT/PREVIEW surfaces and left the real page unchanged.
+
+`utils/dashboard_sections.js` resolves the default card order in two independent places:
+
+| Function | Serves | Chooses its base by |
+|---|---|---|
+| `gentleDefaultOrder` → `defaultOrderFor(user, layout)` | display-style.js — the drag preview and the style chooser | takes a `user`, calls `availableHomeSections` / `sectionHidden` |
+| `dashboardLayout(vis, order)` | **the live grid** | its own `supervisor ? SUPERVISOR_DEFAULT_ORDER : DEFAULT_ORDER` line — it never calls the other two |
+
+`focusedLayout` has the same local `var base = supervisor ? … : …`. So a new order must be
+added in **every** place that picks a base, or the dashboard and its own editor disagree —
+and the editor is what the user is looking at while deciding, which makes the disagreement
+especially confusing.
+
+**The packers take `vis`, not `user`**, so a role test there has to be expressible in
+visibility terms. That is usually fine because a section's availability gate IS the role
+test: `vis.org` is true exactly when `hasOrgManagement(user)` is (HOME_SECTIONS entry for
+`org`), so keying off `vis.org` in `dashboardLayout` matches `hasOrgManagement` in
+`gentleDefaultOrder` without threading a user through. Check the section's `available:`
+function before assuming a `vis` flag is a safe proxy.
+
+**Order the branches most-specific-first.** An org manager satisfies the generic supervisor
+test too (`vis.org` is one of its terms), so the org branch has to be evaluated before it or
+it can never be reached.
+
+**First seen in:** [2026-08-16-automating-the-visual-checklist.md](./2026-08-16-automating-the-visual-checklist.md)
+
+## Pattern: a preview of "the other state" is a DERIVATION, not a copy — give it one source
+
+The Display Style chooser shows two thumbnails; one of them necessarily depicts the layout
+the user is *not* in. That thumbnail cannot be a clone, because every input derived from the
+saved preference is wrong in the clone. We fixed it five times — body class, element classes,
+inline `grid-template-*`, engine state classes, card visibility — each fix a real bug, each
+found by a user looking at a wrong picture.
+
+**The fix that ends the series is structural:** one function that answers "what does layout
+L look like for this user" (`dashboard_sections#layoutPresentation`), called by the live page
+AND by every preview surface. Callers pass only what they alone know (which user; whether a
+feature flag is on; live UI state the preview is editing). Anything that varies by the thing
+being previewed belongs in that function — a caller deriving it privately is the bug.
+
+**How to know you have this problem:** count the surfaces that re-derive the same state. Here
+it was three (live page, modal clone, preview iframes), and consolidating them exposed two
+bugs nobody had reported yet — a missing feature-flag gate on the saved drag order, and a
+stale-class sweep whose regex was missing one prefix that the other copy had.
+
+**Corollary — passing live UI state through the shared function needs an "unset" channel.**
+The modal's checkboxes are live state, not preferences. Returning a preference-derived value
+for a toggle the caller's UI doesn't render would silently override that UI; returning
+`undefined` lets the caller skip it. Encode "my UI doesn't offer this" distinctly from "off".
+
+## Gotcha: layout is DOCUMENT-scoped here — 68 rules hang off `body.ll-layout-focused`
+
+Before proposing "just render the other variant off-screen and screenshot it", check what the
+variant is keyed on. `_focused-view.scss` documents `body.ll-layout-focused .foo` as the
+DEFAULT convention and relies on its specificity to beat the gentle base; `grep -c` finds 68
+such rules. Two layouts therefore cannot coexist in one document at all — the preview needs
+its own document (an iframe), which is why the existing design already used one.
+
+**And check what a second app instance would drag along before "just booting the real app"
+in that iframe.** For this repo that is a second `stashes`/`persistence` pair —
+`services/stashes.js:631` pushes logs on startup and persistence opens the offline DB. On an
+AAC app, a decorative modal that writes usage logs and contends for the local DB is a worse
+bug than the one being fixed. "Authoritative by construction" is only better if its side
+effects are acceptable.
+
+## Technique: when a new invariant test fails, verify the behaviour before "fixing" it
+
+A new test asserting "no section is visible but unplaced in the grid" failed on
+`supervisor / focused: speak`. The tempting read is a sixth preview bug. The code says
+otherwise: `app.scss` full-spans an unplaced Speak/Extras card with `grid-column: 1 / -1`
+(which resolves to the explicit grid's existing lines and so cannot create a track), and the
+comment states that a supervisor's dashboard drops Speak from the areas deliberately.
+
+The *invariant* was wrong, not the code. Narrowed it to a named exception set
+(`FULLSPAN_SAFETY_NET`) and asserted the genuinely-broken half separately (Extras must never
+be visible on Focused). A too-strong invariant that gets "fixed" in the source is how a
+working behaviour gets regressed by its own test suite.
+
+**First seen in:** [2026-08-16-display-style-preview-single-source.md](./2026-08-16-display-style-preview-single-source.md)
+
+---
+
+## Gotcha: a deleted SURFACE leaves its BEM block behind in app.scss — grep for an orphan before authoring a "new" component style
+
+When a feature's markup is removed, its stylesheet block usually is not. `26b4b4426`
+("Replace My Boards modal with route transition to user.boards") deleted ~165 lines of
+modal markup and ~500 lines of controller state, and left the entire `.board-picker__*`
+block — `__item`, `__item--home`, `__home-badge`, `__current-badge`, `__thumb`, `__name` —
+sitting in `app.scss` with **zero** template references. Its stale comment still described
+"the My Boards picker", a surface that no longer exists.
+
+The cost is silent duplication: the same "HOME BOARD" pill had already been re-authored as
+`.ub-boards-page__board-item-home-badge` and `.md-strip__home-badge`, so a fourth was one
+"just add a badge" away. Before writing a new component style, grep the SCSS for a block
+that already does it:
+
+```bash
+grep -rn "home-badge" app/frontend/app/styles/
+grep -rn "board-picker__item" app/frontend/app --include=*.hbs --include=*.js   # → orphan if empty
+```
+
+Reviving an orphan is usually better than a fresh variant — but attach only the MODIFIER
+you need, not the base block. `.board-picker__item` sets `display: block`, which would have
+overridden the live wrapper's `display: flex; flex-direction: column`;
+`.board-picker__item--home` is `position: relative` alone, which is inert everywhere else.
+Deleting the orphan instead is a separate decision and needs its own consent — see the
+`:not()`/selector-list text-surgery entry near the top of this file.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Gotcha: a `parent > *` stretch rule silently defeats an absolutely-positioned badge's centering
+
+Grid/flex tile wrappers in this codebase often carry a "stretch every child" rule so the
+card fills its cell:
+
+```scss
+.md-shell--board-picker .md-home-boards-picker__board > * {   /* 0,3,0 */
+  flex: 1 1 auto; width: 100%; …
+}
+```
+
+Add an absolutely-positioned badge as a sibling of the tile and it matches `> *` too. The
+flex properties are correctly ignored (abspos children are out of flow) — but `width: 100%`
+is **not**, and it resolves against the wrapper, so `left: 50% / transform: translateX(-50%)`
+centers a full-width bar instead of a pill. The badge's own rule
+(`.board-picker__home-badge`, 0,1,0) cannot win.
+
+Fix by narrowing the ORIGINAL selector rather than stacking a `width: auto` override on the
+badge (Rule #0.7):
+
+```scss
+.md-shell--board-picker .md-home-boards-picker__board > *:not(.board-picker__home-badge) {
+```
+
+Check for this whenever you add an absolutely-positioned child to an existing tile: grep
+the SCSS for `<wrapper-class> > *` first. It is invisible in review and only shows up in a
+browser at the one breakpoint where the rule applies.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Pattern: the subject of a board pick is `setup_user || currentUser` — surfaces that MARK it must resolve it the same way as the surface that WRITES it
+
+Every board-picking surface is either choosing for YOU or, when a supporter arrives via
+`?user_id=X`, for a communicator. `appState.setup_user` is set only in the second case, so
+"setup_user (with a real id), else currentUser" is the standing rule. It is what
+`board-preview-overlay#pick_for_home` (`:266`) uses when the pick is actually persisted,
+and what `board-selection-tool` and `tour-board-picker` use.
+
+The trap is asymmetry: a surface that MARKS state (a "Home Board" badge, a preselected
+row) must resolve the subject identically to the surface that WRITES it, or the badge
+points at the supporter's own home board while the pick sets the communicator's — a wrong
+answer that looks completely plausible on screen.
+
+Now shared, so the two cannot drift:
+[`utils/subject_home_board.js`](../../app/frontend/app/utils/subject_home_board.js) —
+`subjectHomeBoardKey(appState)` plus `SUBJECT_HOME_BOARD_DEPS` for the computed's dependent
+keys. Require a real `setup_user.id`: the controller briefly holds a
+`{loading: true}` placeholder while the record resolves.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Pattern: a body attribute published by a self-contained component is the cross-component channel — observe it, don't widen a shared controller
+
+`boards-layout-toggle` deliberately keeps its state off `controllers/user/index` (shared
+with the account page, already overloaded) and publishes the choice as
+`data-boards-layout` on `<body>` — the same pattern `app-state#sync_layout_scope` uses for
+`body.ll-layout-focused`. That makes the attribute the contract, and consumers should read
+it rather than reach for the controller.
+
+For a consumer that must REACT (not just read once), `resize` is not enough: the layout also
+changes on a toggle click and when a late-hydrating user record supplies a stored
+preference. All such paths funnel through the toggle's `_reflect()`, so one observer catches
+every one:
+
+```js
+new MutationObserver(fn).observe(document.body, {
+  attributes: true, attributeFilter: ['data-boards-layout']
+});
+```
+
+Two repo-specific constraints: disconnect it in `willDestroyElement`, and call your handler
+**bare, not wrapped in `run()`** — `ember/no-runloop` is enforced, and the neighbouring
+resize handler already sets component properties from a plain `setTimeout`.
+
+Also worth copying: the "default, not a lock" shape that
+`available-boards-section#_syncNarrowFoldersCollapse` / `#_syncSideBySideFoldersExpand`
+share. Act ONCE per transition behind a re-armable flag, and never write the user's stored
+preference — an automatic adjustment must not overwrite a deliberate choice, or a narrow
+visit silently destroys what they set on a desktop.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+---
+
+## Pattern: a mobile `<select>` standing in for a desktop tab row must MIRROR it (optgroup), not flatten it
+
+The boards page swaps `.ub-boards-page__tabs` for a native `<select>` at ≤640px. The desktop
+row is two pills plus a `[More ▾]` dropdown; the select had been written as one flat list of
+every section — two different information architectures for one control depending on
+viewport width. Use `<optgroup>` so the collapsed form keeps the same shape, same order,
+same permission gates.
+
+Flattening also hides divergence. Because the two lists were maintained separately, the
+select had silently lost the user's `board_tags` (present in the desktop dropdown), making
+tagged views **unreachable** on a phone, and its group members had no `selected` attribute,
+so opening the picker while viewing e.g. Liked showed the wrong current value.
+
+Two mechanics worth reusing:
+- The `<optgroup label>` must be a STATIC string (`more_ellipsis`), not the `more_label`
+  computed — that computed swaps to whichever item is currently selected, which is right for
+  a dropdown TRIGGER and wrong for a group heading.
+- When the row's items dispatch to two different actions (sections → `set_selected`, tags →
+  `set_tag`), namespace the values (`tag:<name>`) and unwrap in the change handler. Safe as a
+  sentinel because every non-tag value is a fixed key written in the template, never user
+  input — and a tag literally named `tag:x` still round-trips correctly.
+
+Keep it a NATIVE select. `.modern-select` exists but is a custom trigger/list widget; at
+phone width the OS picker sheet is better, and native stays a single accessible source of
+truth with no toggle JS. "Modernise" it by restyling the native element to match
+`.md-add-supervisor__select` / `.md-stats-filter__select` — and set the chevron via
+`background-image`, never the `background` shorthand, so hover/focus rules cannot wipe it.
+
+**First seen in:** [2026-08-17-picker-badge-boot-skeleton-folders-tabs.md](./2026-08-17-picker-badge-boot-skeleton-folders-tabs.md)
+
+
+---
+
+## Pattern: an "already loaded?" cache key must include WHO/WHAT is being viewed, not just the filters
+
+`controllers/user/stats.js#already_loaded` short-circuits `load_charts` when the
+report is deemed current. Its key was `['device_id', 'location_id', 'snapshot_id',
+'start', 'end']` — every FILTER, but not the **subject**. Switching communicator from
+the Reports page (same route, same filters, different `model`) therefore looked
+"already loaded", and the page redrew the PREVIOUS communicator's charts.
+
+**The tell, and why it misleads:** it works when you arrive from another route and
+fails only when you switch subject IN PLACE. That asymmetry sends you hunting the
+navigation/picker code, which is fine — Ember's `resetController(controller,
+isExiting)` runs `reset_params` only when LEAVING the route, so arriving fresh always
+has a nulled cache and refetches. Switching subject never exits, so the stale cache
+survives. **A "works from over there, not from here" bug on a route that can navigate
+to ITSELF is a cache-invalidation smell, not a routing smell.**
+
+**Second lesson — grep for READS, not just writes.** The fix was already half-built:
+`load_charts` recorded `this.set('last_model_id', ...)` for exactly this purpose, and
+`model_id` was a real computed. But `last_model_id` was never read anywhere. Seeing
+the value recorded makes the guard look present; only
+`grep -rn "last_model_id" | grep -v "set("` shows it is dead. Whenever a guard
+"exists" but does not fire, check that its stored value is actually consulted.
+
+**Related:** this is the same family as the eslint/baseline discipline elsewhere in
+this file — the code LOOKS like it handles the case, so verify the behaviour rather
+than the presence of the code.
+
+**First seen in:** Reports not reloading on communicator switch, 2026-08-17.
+## Gotcha: `after_all_transactions_commit` is not a durable outbox — pair it with a same-transaction RemoteAction
+
+Deferring `schedule_once` until after commit closes the Redis-vs-Postgres ordering race (a worker must not recompute `available_private_board_ids` from the pre-commit snapshot). It does not close the crash/Redis-down window after commit: the relationship change is already durable, the callback cannot roll it back, and a missed enqueue leaves a revoked supervisor's persisted board-id list stale until some unrelated refresh. `RemoteAction` with `action: 'update_available_boards'` is this app's outbox (`board_caching.rb`, `organization.rb`); write it in the same transaction as the link change, keep post-commit `schedule_once` as the fast path, and let hourly `Uploader.remote_remove_batch` drain the fallback. Pull an existing delayed row's `act_at` forward on revoke so a prior 30-minute RA cannot outlive the unlink. Ref: `app/models/concerns/supervising.rb` `schedule_board_cache_refresh`.
+
+## Gotcha: authorizing the supervisee-list owner does not authorize the children inside it
+
+"Modeling only" means two different things, and conflating them breaks a whole tier. `modeling_only?` is a GLOBAL BILLING state — `billing_state` returns `:modeling_only` as the final fall-through for any supporter who is not premium, trialing, org-sponsored, an org supporter, or a manager. A PER-LINK modeling-only restriction is a property of one relationship. `modeling_only_for?` returns true for both, because it opens `return true if self.modeling_only?`. Every permission rule already encodes the right granularity for itself: `'supervise'` excludes modeling-only outright, `'set_goals'` excludes per-link but deliberately KEEPS a billing-lapsed supporter (the carve-out is written into the rule body). Layering `&& !caller.modeling_only_for?(x)` on top of `allows?` applies the coarse test to both and silently overrides that carve-out — it emptied badge feeds and caseloads for lapsed supporters, and a spec was written asserting the broken result. Do not re-implement a permission's own policy at the call site; pass the right permission and let the rule decide. CI cannot catch this class on its own: a freshly-created account is `:trialing_supporter` for 60 days, so a test must drive the state (`expires_at = 2.days.ago`) to reach it at all.
+
+`allowed?(user, 'supervise')` on a therapist says nothing about the communicators inside `user.supervisees`. A district manager holds that permission on in-org therapists (`user.rb:87`), and a supporter asking about themselves always passes, so the gate admits the whole caseload — including a contracting SLP's private out-of-org children. Exclusion filters (`!modeling_only_for?`, `!private_logging?`) make it worse: no relationship returns false and the negation lets the stranger through. The check must be affirmative per child, and it must be the RIGHT check: roster identity uses `User#listable_as_supervisee_by?` / `supervisee_listable?` ('model'), while a disclosure ABOUT the child uses `User#readable_as_supervisee_by?` / `supervisee_readable?` ('set_goals' for progress, 'supervise' for usage). Using the data predicate for a roster empties the caseload of every billing-lapsed supporter, because 'supervise' carries a modeling-only conjunct and `billing_state` falls through to `:modeling_only` for any supporter who is not premium, trialing, org-sponsored, an org supporter, or a manager. HTTP list endpoints are not the only copy — `JsonApi::User` nests the first 10 with `limited_identity` (name, avatar, unread counts, org_status) on user show, which is the caseload source for <10 communicators, and `users#ws_settings` emits ids. Withholding identity is not sufficient on its own: the same payload carried the child's home board and full downstream board-id set via `board_set_ids(include_supervisees: true)`, which re-derived from the unfiltered list, and board ids are directly fetchable. `limited_identity` is not a redaction. Grep `user.supervisees` in `app/controllers` and `lib/json_api` before calling the class closed.
+
+## Gotcha: one CLI flag carrying two meanings silently corrupts the register's evidence anchors
+
+`scripts/audit-merge.rb --sha` used to do two unrelated jobs: stamp `meta.auditedSha` (the claim "an `/audit-run` audited the WHOLE tree at this SHA", a governance act needing Scot's sign-off per `meta.auditedShaPriorNote`) **and** overwrite every incoming finding's `evidence.sha`. Adding a finding outside a full run therefore had no correct invocation: passing the true commit falsely restamped the audit pointer, and passing the register's existing `auditedSha` to dodge that restamp silently re-anchored the new evidence to a commit it was never verified against. The second is the dangerous one — `citation-check.rb` matches per LINE, so when the snippet happens to sit on the same line in both commits it passes **green with a wrong anchor**; PR #742's session only caught it because line 182 vs 152 happened to differ. Fix: `--no-restamp` (evidence anchors at `--sha`, `meta` untouched), mirroring `promote-finding.rb`, which never touches the pointer for exactly this reason. General rule: when a flag feeds two sinks that only coincide in one workflow, the workflow that separates them is the one that gets corrupted silently. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
+
+## Gotcha: `audit-artifacts-integrity` green proves renders match JSON, NOT that the register is loadable
+
+Every check in that CI job compares a generated markdown against its JSON source; none of them reads the field *shapes* the register's consumers depend on. A finding whose `source` was written as a bare String instead of an object merged fully green and then hard-crashed `promote-finding.rb` (`Hash#dig': String does not have #dig method (TypeError)`) for the **entire** register weeks later — `citation-check.rb` exited 0 on it too, since it only validates evidence. Closed with two complementary gates: `scripts/register-lint.rb` (predicted shapes, enums, id uniqueness — precise error messages) and `scripts/tests/register-consumer-smoke-test.sh` (runs the real consumers over each committed register with empty input, asserting exit 0 **and** byte-identical output — catches whatever the predicate list failed to anticipate). When adding a validator for a data file, gate on *consumability*, not just on render consistency. Ref: [`2026-08-04-audit-merge-sha-decoupling.md`](./2026-08-04-audit-merge-sha-decoupling.md).
+
+## A silently-null accessor turns a negative control into a false bug report (2026-08-17)
+
+From click-testing the copy-board minimize-to-drawer feature. The first run of the
+probe reported **3 of 4 checks failing**, and every one of them was the probe's fault.
+Had it been believed, it would have filed three defects against working code.
+
+One root cause: the probe read app state through
+`window.LingoLinq.__container__.lookup('service:copy-progress')`, wrapped in
+`try/catch` returning `null`. **`window.LingoLinq` exposes no usable owner in this
+app** — `utils/modal.js#_getService` gets one via `getOwner(this.route)`, which is
+not reachable from page context. So the lookup silently yielded `null`, and:
+
+* the status assertion failed against a drawer that was *visibly on screen*, i.e. the
+  probe contradicted itself and still reported the app as broken;
+* `clearDrawer()` used the SAME accessor, so it never cleared anything — the drawer
+  from phase A survived into phases B and C, and both then "failed" by observing it.
+
+**Rules that fall out of this:**
+
+1. **A `try/catch` that returns `null` is not an accessor, it is a lie generator.**
+   If a probe's read path can silently yield nothing, a failure means "could not
+   observe", never "the app is wrong". Make it throw, or assert reachability once up
+   front and abort.
+2. **When the probe contradicts itself, suspect the probe.** "Drawer visible, status
+   null" is impossible — `copy-progress-drawer.hbs` is gated `{{#if
+   this.copy_progress.status}}`. That contradiction WAS the diagnosis, and reading it
+   as an app defect was one step away.
+3. **Read state from the DOM the app actually rendered.** The template writes
+   `ll-copy-drawer--{{status}}`, so the service's status is legible off the element's
+   own class list — no container access, no owner, nothing to go stale.
+4. **Teardown between phases must be verified, not fired and forgotten.** `clearDrawer`
+   now returns a boolean and the run aborts if it is false, and every phase asserts
+   "no drawer on screen" BEFORE acting. A leftover artifact from phase N is otherwise
+   indistinguishable from phase N+1's own result.
+5. **Prefer a real app state as the negative control over neutering a binding.** The
+   first attempt stripped `@backdropAction` off the live `ModalDialog` with
+   `component.set(...)`; a named arg is re-supplied on the next re-render, so the
+   control silently did nothing. Clicking the *same backdrop* in a state where the
+   feature is not armed (the hierarchy step) is a genuine control that cannot be
+   undone by a re-render — and it doubled as the answer to the user's report.
+
+**Evidence:** [`2026-08-17-copy-minimize-drawer-click-test.md`](./2026-08-17-copy-minimize-drawer-click-test.md).
+
+## Two adjacent modal states that look identical to the user, and one that moves them (2026-08-17)
+
+`copying-board` arms its minimize-to-drawer only while `copying && !error`
+(`copying-board.js:351`), and `copying` is set exclusively inside `start_copying()`.
+For a board with linked boards the modal OPENS on the board-picker step, where the
+flag is still false. So "click outside the copy modal" does two different things
+depending on a state the UI does not distinguish — plain dismiss before the copy
+starts, minimize-to-drawer after — and a user testing the feature at the first screen
+concludes it is broken. Verified both ways in a browser.
+
+Worth generalising: **when a behaviour is gated on an internal flag, check what the
+user can see of that flag.** If two states render nearly the same chrome and respond
+differently to the same gesture, the bug report you get will be "it doesn't work",
+not "it works only in state B".
+
+Same feature, related: the modal's **X button is not the backdrop path**. It calls the
+modal SERVICE close, which leaves `utils/modal._component_based_template` set, so
+`modal.is_open('copying-board')` still reports true and the settled copy takes the
+FOREGROUND branch — measured live, it navigated `/caseload ->
+/marcus_williams_slp/board-detail/one_4`. A user who dismisses an in-flight copy
+expecting to keep working gets moved to the new board instead.
+
+**Evidence:** [`2026-08-17-copy-minimize-drawer-click-test.md`](./2026-08-17-copy-minimize-drawer-click-test.md).
+
+## One bug can MASK another, so fixing it alone ships a regression (2026-08-17)
+
+Fixing the copy-board modal turned up a pair that had to land together, and the
+order of reasoning is the reusable part.
+
+`components/copying-board.js` had two independent defects:
+
+1. `actions.close()` called the modal **service** close, which leaves
+   `utils/modal._component_based_template` set. `modal.is_open('copying-board')`
+   therefore kept reporting true, and a copy still running when the user dismissed
+   took the FOREGROUND branch of the settle handler — measured live, dismissing an
+   in-flight copy with the X navigated the user `/caseload -> /<user>/board-detail/one_4`.
+2. `onClose` / `onOpening` / `onClosing` were assigned in `didInsertElement`, i.e.
+   AFTER `<ModalDialog>`'s first render, so `@action` was `undefined` — the same
+   bind-before-assign class fixed for three other modals in `650d30685`.
+
+The trap: **defect 2 was hiding defect 1 on the Escape path.** With `@action`
+undefined, modal-dialog falls back to `utils/modal.close()` — which is precisely the
+call that clears the flag — so Escape behaved correctly *by accident*. Fixing the
+binding alone would have made `@action` resolve, routed Escape into the broken
+`close()`, and given Escape a navigation bug it never had. A tidy-looking
+"bind the handlers properly" commit would have been a regression.
+
+**Generalisation.** When a fix makes a previously-dead code path live, that path's
+correctness has never been exercised — treat it as new code, not as existing
+behaviour. Ask "what was running *instead* of this, and was it doing something the
+new path does not?" before landing the binding fix. Here the answer was a fallback
+that was strictly more correct than the handler it was standing in for.
+
+**Also worth keeping:** the X and the backdrop are deliberately different gestures
+here (backdrop minimizes to the drawer, X dismisses). The fix preserved that split
+rather than collapsing them — the defect was that dismissal did not *stick*, not that
+the X failed to minimize. Check the original design intent before "unifying" two
+paths that look redundant; `539a3d9b3`'s message states the split explicitly.
+
+**Evidence:** [`2026-08-17-copy-minimize-drawer-click-test.md`](./2026-08-17-copy-minimize-drawer-click-test.md).
+
+
+## Gotcha: the boot skeleton is `.ll-skel-progress`, not `.ll-premium-progress` — and a shared-component fix has no siblings left to sweep
+
+Two traps, both hit while checking whether the account page and dashboard boards card
+needed the same "Preparing your workspace" fix the boards page got.
+
+**1. There are two unrelated progress-card classes.** `.ll-premium-progress` is the
+EMBER chrome (`app-loading-overlay.hbs`, `index-loading.hbs`, `board-icon.hbs`).
+`.ll-skel-progress`, inside `#loading_box`, is the PRE-EMBER shell skeleton in
+`app/frontend/app/index.html` and `app/views/boards/index.html.erb`. They render an
+identical-looking full-screen card with identical copy. A probe that queries only
+`.ll-premium-progress` reports "no overlay in any frame" for frames where a
+full-screen "Preparing your workspace" is plainly on screen. Always detect
+`#loading_box` separately and classify those frames as pre-Ember rather than blank —
+otherwise every hard-load measurement is wrong in one direction or the other.
+
+**2. Fixing a shared component fixes every host at once.** The 2026-08-17 boards-page
+work made two changes: it deleted a route-local overlay in `templates/user/boards.hbs`,
+and it widened the loading branch in `components/available-boards-section.hbs`. Only
+the first was route-specific. The handoff then listed the account page and dashboard
+card as "the natural next two, since they share `<AvailableBoardsSection>`" — but
+sharing the component is exactly why there was nothing left to do: both were verified
+already correct, 10/10, without a line changed.
+
+**Generalisation.** Before sweeping "the other surfaces with this bug", write down the
+two sets explicitly — surfaces with the SYMPTOM, and surfaces sharing the FIXED CODE —
+and check the intersection is non-empty. "It shares the component" argues against a
+follow-up sweep, not for one.
+
+**Probe preconditions this cost.** The dashboard boards card only exists when
+`activeTab == 'boards'` (`components/dashboard/authenticated-view.hbs:91`); landing on
+`/:user/home` and recording "the section never rendered" measures the Home tab, not a
+defect. And "no loading window observed" is the IDEAL result when the grid is already
+painted from cache — a probe must tell that apart from "observed nothing at all", or
+a cache-first paint reads as a failure.
+
+**Evidence:** [`2026-08-18-account-dashboard-workspace-loading.md`](./2026-08-18-account-dashboard-workspace-loading.md),
+probe `app/frontend/scripts/workspace-overlay-qa.mjs`.
+
+
+## Pattern: the board-tile `.board_action` is a CONTEXTUAL remove, not a delete button — gate on `remove_type`
+
+The hover button on a board tile in `components/available-boards-section.hbs` looks like
+a delete button on the Boards page, but its icon, label and action are all supplied by
+`board_list.remove_type` (`controllers/user/index.js:650-687`), which varies by tab:
+`delete` (Mine / Public / Private / Root / Prior home), `unstar` (Liked), `unlink`
+(Shared with Me), `untag` (a board tag). Deleting the button to "remove the trash can"
+silently removes three non-destructive actions on other tabs. Gate the variant:
+
+```hbs
+{{#if (and board.board.id (not (is-equal this.boardsCtrl.board_list.remove_type "delete")))}}
+```
+
+**Three related traps in the same area:**
+
+1. **There are two byte-identical tile blocks** — the main grid and the folder drill-in
+   grid. Fixing the one you found first leaves the other live. `grep -n board_action`
+   before editing; a third site (the orphan-cluster row) is behind
+   `showOrphanClusters: false` and never renders.
+2. **`@removeCallback` is load-bearing beyond the tile.** `board-icon.js:330-340` turns it
+   into `board.preview_remove`, which is what renders the touch-reachable remove inside
+   the board-preview modal (`board-preview.hbs:97-107`). Remove the hover button but KEEP
+   the callback, or the delete path disappears from touch devices entirely.
+3. **Board tiles default to compact, and compact suppresses both preview triggers**
+   (`compactBoards: true`, `available-boards-section.js:24`; `board-icon.hbs:63,88` gate
+   on `compactRow`). Any probe that looks for `button.info` or `.board-icon__info` must
+   flip the density segmented control first, or it reports a false absence — this cost
+   two runs.
+
+**And a reporting trap:** a modal component having a `delete()` action does not mean the
+modal can delete. `components/board-details.js:107` has one; `board-details.hbs` wires
+nothing to it. Same for `routes/application.js:205 confirmDeleteBoard`, which no template
+references. Before naming an entry point in an answer, grep the TEMPLATE for the trigger,
+not just the JS for the action (CLAUDE.md 0.11).
+
+**Evidence:** [`2026-08-18-remove-board-tile-hover-trash.md`](./2026-08-18-remove-board-tile-hover-trash.md),
+probe `app/frontend/scripts/boards-tile-delete-removed-qa.mjs`.
+
+
+## Gotcha: a hard-coded `@forceGrouping={{true}}` makes a preview lie about the preference it is previewing
+
+The Categorize panel renders its live preview with the SAME `BoardDetailGrid` the real
+board uses — good, because what is previewed cannot drift from what ships — but it
+passed `@forceGrouping={{true}}`. `BoardDetailGrid#groupingEnabled` short-circuits on
+that flag *before* it consults `preferences.board_category_grouping.enabled`, so
+unchecking the panel's own Categorize box persisted the preference, changed the real
+board, and left the preview grouped. The control read as broken while the thing it
+controlled was working perfectly.
+
+**The general shape:** when a preview reuses the production component, any `force*` /
+`override*` argument you pass to make the preview render is a BYPASS of the exact state
+the preview is supposed to be showing. Bind it to that state
+(`@forceGrouping={{this.categorize_enabled}}`) instead of pinning it true, and check
+what the computed falls through to when it is false — here `editMode` is already false
+for the preview, so it lands on the preference, which is the answer you want.
+
+**Two smaller things from the same change:**
+
+- A control that gates other controls has to hide them. With grouping off, the category
+  ORDER list and "Reset order" have nothing to act on — gate them in the template, not
+  in CSS, so they leave the tab order instead of becoming invisible tab stops. And check
+  the hint copy: the ON text said "use the arrows", which described a control that was
+  no longer rendered.
+- To make a checkbox prominent, repaint it — never replace it. Keep the
+  `<input type="checkbox">` inside its `<label>` and hide it with `opacity: 0` (never
+  `display: none`, which drops it from the tab order), draw a track/knob beside it, and
+  move the focus ring onto the track with `input:focus-visible + .track`. Drive the
+  off-state paint from an Ember-set class rather than `:not(:checked)`: `checked={{…}}`
+  sets the DOM property, and one source of truth keeps paint and state together across
+  re-render as well as user input.
+
+**Evidence:** [`2026-08-18-categorize-switch-prominence-and-off-state.md`](./2026-08-18-categorize-switch-prominence-and-off-state.md),
+probe `app/frontend/scripts/board-categorize-toggle-qa.mjs` (6/6).
+
+
+## Gotcha: single-quoted i18n defaults never reach the locale files — and a UI control is only fixed when the PAYLOAD changes
+
+Two independent lessons from adding the Core Words switch to the Create Board AI page.
+
+**1. The string-quoting convention is load-bearing, and breaking it fails SILENTLY.**
+`generate-board.js` wrote `i18n.t('core_words_tooltip_checked', 'Include 40-60%…')` with
+a SINGLE-quoted default. `i18n_generator.rb` is a static parser that only registers keys
+whose default is double-quoted, so both tooltip keys were missing from all 13 locale
+files — for as long as that modal has shipped. Nothing breaks visibly: `i18n.t` falls
+back to the inline default, so English looks perfect and every other locale silently
+shows English. When reusing an existing key, CHECK IT IS ACTUALLY REGISTERED
+(`grep '"key"' public/locales/en.json`) rather than assuming a live `i18n.t` call means
+a live key.
+
+**2. For a control that changes a request, the assertion is the request body.** A toggle
+that flips `aria-checked` while the payload still sends the old value is exactly the bug
+being fixed, and every DOM-level assertion passes anyway. Intercept the request, read the
+body, and ABORT it — aborting keeps the check deterministic and, when the endpoint calls
+a model, avoids spending on every run:
+
+```js
+page.on('request', (req) => {
+  if (req.method() === 'POST' && /generate_labels/.test(req.url())) {
+    captured = JSON.parse(req.postData() || '{}');
+    req.abort();            // payload is all we need
+    return;
+  }
+  req.continue();
+});
+```
+
+**Reaching the AI flows at all** (cost four probe runs):
+- `.nb-generate-ai-btn` is MODAL-only — `{{#unless this.standalone}}`. The standalone
+  `/create-board-new` page enters AI mode via the create chooser
+  (`.nb-create-chooser__btn--ai`).
+- `choose_ai` does not enter AI mode by itself: `boardGenerationEntry` returns
+  `needs_opt_in` unless `preferences.ai_board_generation` is explicitly true, and the app
+  opens the enable-ai-features modal first. A probe must complete that modal.
+- Account choice is a precondition. `marcus_williams_slp` has `ai_features_enabled: ""`,
+  which the gate fails CLOSED on by design (unrecognized = blocked). `sarah_chen_slp` has
+  it absent, which is grandfathered. If a probe opts an account in, DELETE the keys
+  afterwards to leave dev data as found.
+
+**Restarting the dev stack without 1Password:** `bin/fresh_start_op` requires `op run`,
+and `op whoami` fails with no active session. Machine-local start works —
+`PORT=5000 DB_USER=tracid PGPASSWORD=password bundle exec puma -C config/puma.rb` plus
+`bin/ember-server` — but `PORT=5000` is mandatory: `config/puma.rb:9` defaults to 3000
+while `app/frontend/.ember-cli:15` proxies to 5000, so without it the frontend has no
+API and every probe dies at login. Also: never pipe a long-running server through
+`| tail -N` — output buffers until exit, so the log looks empty while the server is fine.
+
+**Evidence:** [`2026-08-20-create-board-core-words-control.md`](./2026-08-20-create-board-core-words-control.md),
+probe `app/frontend/scripts/create-board-core-words-qa.mjs` (5/5).
+
+## Changing a component's markup idiom? Grep the component JS for the OLD class names first
+**Surface:** swapping one presentation for another in a component (tiles → rows, cards → list)
+where the old markup had interactive states.
+
+**Trap:** state classes are frequently applied IMPERATIVELY from the component JS via
+`classList.add/remove` and `document.querySelector`, so they are invisible when you read the
+template. Replacing the markup leaves the JS writing classes onto elements that no longer
+exist — a silent no-op with no console error and no lint failure.
+
+**Concrete case (folders tiles → rows, `available-boards-section`):** 12 references across 6
+class names would have broken drag-hover feedback and the post-drop folder animation:
+`ub-boards-page__tag-folder--dropping`, `--animating`, `-name`, and
+`ub-boards-page__folder-strip--no-hover` / `.ub-boards-page__folder-strip`.
+
+**Recipe:** before swapping markup, `grep -rn '<old-block-class>' app/frontend --include=*.js
+--include=*.mjs --include=*.hbs` and classify every hit: template, imperative JS state, or QA
+probe selector. Port the state styles to the new block (a row has no layered card, so the
+tile's lift/flash becomes a border + tint), then repoint the JS and the probes in the same
+change. Verify with a compile (`sass.compile`) asserting the NEW modifiers are present and the
+dead ones absent.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## A batched commit makes file-level revert unsafe — classify hunks with `git diff -w` first
+**Surface:** "revert feature X" when X shipped inside a large batched commit alongside
+unrelated fixes to the SAME files.
+
+**Trap:** `git checkout <commit>^ -- <file>` looks like a clean revert and silently discards
+every unrelated fix that rode along in that file. In one case this would have reverted a
+blank-page guard AND re-introduced a factually wrong code comment that a review had just
+corrected — in a file whose diff *looked* like one contiguous restructure.
+
+**Recipe:** diff the file with `-w` (kills reindent noise, leaves genuine edits), list the
+hunks with `grep '^@@'`, and classify each as feature-under-revert vs keep. Rebuild the file
+from the parent version and RE-APPLY the keepers programmatically with assertions on the
+match count (`assert patched == 2`) so a silent miss fails loudly. Then diff the result back
+against the parent: the remaining hunk count must equal the number of keepers, exactly.
+
+**Corollary:** before attributing any probe/test failure to your change, run the same probe
+against a stashed HEAD. In this task 2 of 2 "new" failures were already red at baseline, and
+the change actually fixed a third.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## Boards-page QA probe gotchas (`app/frontend/scripts/*-qa.mjs`)
+- Run them from `app/frontend`, not the repo root.
+- `qa-helpers.mjs` exposes **`OPTS.BASE` / `OPTS.USER` (uppercase)**. Using `OPTS.user`
+  yields `undefined` in the URL and the failure surfaces as a misleading
+  `waitForSelector ... failed` timeout that reads like a broken component.
+- **`await page.setViewport({width: 1920, height: 1000})` before waiting on any folders
+  selector.** The folders section auto-collapses at narrow widths (`_collapsedForNarrow`),
+  and puppeteer's 800x600 default trips it — again surfacing as a selector timeout.
+- Write screenshots to the scratchpad, never into `app/frontend/` (untracked repo litter).
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## Never sync component state onto a controller during render — it blanks the component
+**Surface:** a component owns UI state (a panel's expanded flag, a density toggle) that a
+controller's computed property also needs.
+
+**Trap:** the obvious fix — mirror it from `didReceiveAttrs` (or `init`, or a `didInsertElement`
+write) — runs DURING render. Setting a property that a rendered computed depends on, after the
+template already consumed that computed in the same pass, makes Ember discard the component's
+entire output. The page renders BLANK, with **no `pageerror`** to point at it, so it reads like
+a data-loading failure rather than a reactivity violation.
+
+**Worse, it is intermittent by construction.** It only fires when the pushed value actually
+DIFFERS from the controller's default, so it passes in a fresh browser (empty localStorage,
+values agree) and fails only once a stored preference diverges. Four states can look correct
+and the fifth is blank.
+
+**Recipe:** do not write across the boundary at startup at all. Give both sides the SAME source
+of truth and have each READ its own initial value (a small util wrapping the storage key +
+guarded try/catch), so they already agree on first paint. Keep an observer for LATER changes
+only — user toggles and auto-collapse fire outside render and are safe. As a bonus this kills
+the duplicated localStorage try/catch.
+
+**Detection:** if a component renders nothing while its gating properties all read TRUE
+(`foldersEnabled:true` but `section:false`), suspect a render-time invalidation, not the data.
+Check whether the outer template has an `{{#if (or (not x) x.loading)}}` branch it is now stuck
+in.
+
+**Evidence:** `app/frontend/app/utils/folders_panel_state.js`; task log
+`2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## Folders on the boards page are a MOVE, not a label
+`controllers/user/index.js#board_list` (~909) deliberately removes tagged boards from the main
+Mine grid — filing a board into a folder is a move, and the home board is the one exemption.
+Before "fixing" a board that seems missing from the grid, check `model.board_tag_map`.
+
+**Two things mask this and will mislead a diagnosis:** a same-name UNTAGGED duplicate copy can
+occupy the grid slot (so a tagged board looks present when what you see is its twin), and the
+home board is exempt. Only a tagged board with no twin that is not the home board actually
+disappears — which is why it looks like an intermittent bug affecting some folders and not
+others. Dump `{name, global_id, folder}` for every board before concluding anything.
+
+The exclusion is now scoped to `mineFoldersEnabled && mineFoldersPanelExpanded`: when the
+folders panel is collapsed the grid is the only view, so it shows everything.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md`.
+
+## A cache snapshot must carry every field its CONSUMERS classify on, not just what renders
+**Surface:** a compact list snapshot persisted to localStorage to paint a page fast, storing an
+explicit attribute allow-list.
+
+**Trap:** the allow-list gets chosen from "what does the tile DISPLAY" — id, key, name, image.
+But downstream code CLASSIFIES those records (is this a root or a sub-board? does it belong to a
+brand set?), and classification reads fields the tile never shows. Drop one and the hydrated
+record silently classifies differently from the live one, so the page is correct on the first
+visit and wrong on every cached visit inside the TTL.
+
+**Concrete case:** `boards_page_list_cache.js#SNAPSHOT_ATTRS` omitted `parent_board_key`.
+`board-brands#brandRootMatchKey` matches a board against its PARENT's key first and falls back to
+the board's own key — that fallback is exactly what lets a RENAMED copy still register as a brand
+root. Without the field every renamed copy of a Quick Core / Sequoia / CommuniKate / Vocal Flair
+board read as a sub-board and vanished from the owner's grid on visit 2+.
+
+**The failure mode is what makes it expensive:** the fallback is silent and plausible, so there is
+no error — just a board that is there, then isn't. It also looks like a *different* bug depending
+on which page you were on when you noticed (it was first reported, and first mis-diagnosed by me,
+as "exiting a folder loses a board").
+
+**Recipe:** when adding or reviewing a snapshot allow-list, grep every consumer of the hydrated
+records for `get('...')` and reconcile against the list — display fields are the minority. Then
+prove it by loading twice: first visit is the live query, second is the cache, and the two must
+produce identical rows. Diffing every field of ONE record across those two visits is what located
+this in minutes after inference had failed.
+
+**Related:** a cap on such a snapshot should count the units the page actually renders. `MAX_BOARDS`
+sliced the first N rows in server order, letting sub-board pages (never tiles) crowd out top-level
+boards (always tiles). It now budgets top-level boards only, with an absolute row backstop — a
+snapshot that overruns the localStorage quota throws on `setItem` and is lost entirely, which is
+worse than storing a partial tail.
+
+**Evidence:** task log `2026-08-20-boards-renamed-brand-copy-vanishes-on-second-visit.md`.
+
+## Test doubles for board classification MUST have a `get` shim
+Family matchers in `utils/board-brands.js` read a board's key only via `board.get('key')` (unlike
+`brandRootMatchKey`, which also accepts plain properties). A plain-object fixture therefore has no
+key from the matcher's point of view, matches NO brand family, and falls through to "not a known
+brand — treat as root". Every fixture classifies as top-level and any sub-board branch silently
+never executes — the test passes for the wrong reason.
+
+Use `Object.assign({}, attrs, { get(k) { return this[k]; } })` for board fixtures.
+
+**Also:** `ember test` cannot launch in this environment (`testem`'s vendored `execa` is ESM while
+testem `require()`s it — same class of breakage as the `sass` CLI). Do NOT patch shared config to
+work around it. Run the real module in the browser instead via the app's AMD loader against the
+running dev server: `window.require('frontend/utils/<module>').default`. That executes the actual
+shipped code, and it is what caught the wrong-reason pass above.
+
+**Evidence:** task log `2026-08-20-boards-renamed-brand-copy-vanishes-on-second-visit.md`.
+
+## Renaming a container class? Grep the LAYOUT rules that size it, not just the ones that paint it
+**Surface:** swapping a component's container element/class (tile strip -> rows list, grid -> flex
+column) while other rules elsewhere in the stylesheet size or stretch that container by name.
+
+**Trap:** the visible styling gets ported because it is obvious when it is missing — colours,
+padding, borders. What silently does not get ported is the *structural* rule authored far away:
+a `flex: 1 1 auto; min-height: 0` in a LAYOUT block that made the panel fill its card. Nothing
+looks broken; the panel just stops growing, and the card floats above a band of dead space that
+reads as a spacing bug rather than a stale selector.
+
+**Concrete case:** `.ub-boards-page__folder-strip` was replaced in the DOM by
+`.ub-boards-page__folder-list`, but the side-by-side fill rule still named the strip. Result:
+183px of empty card at 1920px, and a QA check red across multiple sessions while looking like a
+pre-existing layout quirk.
+
+**Detection:** when a "dead space" / "does not fill" symptom appears, read the computed
+`flex-grow` on the inner element. `flexGrow: 0` where a rule claims to set `flex: 1 1 auto` means
+the rule is not matching — the selector is stale, not the value wrong. Then
+`grep -n '<old-class>' app/frontend/app/styles/` and check every hit for a rule that SIZES rather
+than paints.
+
+**Recipe:** at rename time, grep the old class across the whole stylesheet and triage each hit as
+paint (port or drop) vs layout/sizing (must port). Keep the old selector alongside the new one if
+the dead CSS removal is a separate decision — an extra selector is inert, a missing one is a bug.
+
+**Evidence:** task log `2026-08-20-folders-revert-accordion-to-drill-in.md` section 5b.
+
+## Batch DOM writes and reads ACROSS items, not within one — the per-item loop is the trap
+**Surface:** any pass that measures-then-sizes many elements (shrink-to-fit labels, autosizing
+inputs, canvas-free text fitting) written as "for each element: write a style, read a layout".
+
+**The trap is that the obvious optimisations all miss.** On `utils/label_fit.js`, a full pass
+over 96 labels cost 4776ms and SIX attempts to speed it up delivered nothing:
+
+| attempt | result |
+|---|---|
+| bisection: ~26 size probes -> ~5 | 1/96 labels changed size — reverted |
+| batch the signature reads | no change |
+| fit only on-screen labels, defer the rest | no change (whole grid was on screen) |
+| memoise results by signature | 7/96 labels changed — reverted |
+| hoist the width read above the style writes *within* the function | 4776 -> 4093ms only |
+| batch `clearFont` + base-size reads across labels | no change |
+
+**Why:** the cost was never the algorithm. Profiling showed ~1.2 probes per label — 89 of 96
+labels fit at their base size and stop on the first try. Every millisecond was a layout READ
+that follows a style WRITE, each flush ~23ms on a complex (grouped) grid. Relocating or
+removing one read just moves which read pays for the flush; the flush is unavoidable while
+writes and reads alternate per element.
+
+**The fix that worked (14.8x on the pass, 41x on the interaction it dominated):** restructure
+into rounds ACROSS all elements —
+```
+WRITE clear/prepare every element
+READ  every element's geometry            <- one layout total
+LOOP  round N: WRITE candidate to all unresolved
+               READ  all measurements      <- one layout per round
+               decide in pure JS
+WRITE apply final values
+```
+Same per-element candidate sequence and predicate, so output is identical; only the
+interleaving changes. ~200 forced layouts became ~5.
+
+**Gate any attempt on OUTPUT EQUALITY, not on the probe passing.** Capture every element's
+computed result before and after and diff them. That gate caught three separate wrong
+answers here, including one where the "faster" version produced a label that overflowed its
+box, and one where a refactor silently stopped fitting anything (the caller stamped the cache
+key, then the callee re-checked that same key and returned early).
+
+**And profile before optimising.** Three of the six failures were aimed at a search loop that
+runs 1.2 times per element.
+
+**Evidence:** task log `2026-08-21-categorize-toggle-perceived-unresponsive.md`.
+
+## Gotcha: `npm ci --dry-run` DELETES `node_modules` before it validates anything (2026-08-23)
+
+**Symptom:** you run `--dry-run` to check whether `npm ci` is safe. It fails at a postinstall
+(`sh: 1: patch-package: not found`) and leaves `node_modules` **empty** — 0 packages. The dev
+environment is now broken by the command you ran to avoid breaking it.
+
+**Cause:** `npm ci` removes the tree as its FIRST step. `--dry-run` does not make that step
+inert. There is no "check only" mode for `npm ci`.
+
+**Fix / avoidance:**
+- To compare the installed tree against the lockfile, READ both — never invoke `npm ci` to find out:
+  `node -e "console.log(require('./node_modules/<pkg>/package.json').version)"` vs the
+  `packages['node_modules/<pkg>'].version` entry in `package-lock.json`.
+- Recovery is `npm install` (see the next entry for which one this repo actually wants).
+
+**Related and equally important — this repo's CI runs `npm install`, NOT `npm ci`**
+(`.github/workflows/ci.yml:97`). So a tree that differs from `package-lock.json` is **expected**,
+not corruption. Do not "fix" drift you have not proven harmful: `testem@3.20.1` with a nested
+ESM `execa@9.6.1` is what CI installs too, and it works there because CI is on **Node 22**.
+
+**Cost when this was learned:** two failed installs and a destroyed `node_modules`, chasing a
+"lockfile drift" theory that was wrong in its premise.
+
+## Gotcha: reinstalling on Node 22 needs a `python` shim for `sqlite3` (2026-08-23)
+
+`sqlite3@4.2.0` (a **dev** transitive of `websql`) has no prebuilt for Node 22's ABI (`node-v127`),
+so npm compiles it from source. The build's own makefile invokes bare `python`, and this box has
+only `python3`:
+
+```
+/bin/sh: 1: python: not found
+make: *** [deps/action_before_build.target.mk:13: ...sqlite3.c] Error 127
+```
+
+Machine-local fix, no repo changes:
+
+```sh
+mkdir -p /tmp/pyshim && ln -sf /usr/bin/python3 /tmp/pyshim/python
+export PATH="/tmp/pyshim:$PATH" npm_config_python=/usr/bin/python3
+npm install
+```
+
+A tree installed under Node 16 keeps a `node-v93` binding, which is the WRONG ABI for Node 22 —
+CI's cache key carries the Node major for exactly this reason (`ci.yml:81-84`).
+
+## The `token_validated` async leak: phantom suite failures attributed to random tests (2026-08-23)
+
+**Symptom:** `ember test` fails 6-7 tests, and the NAMES change between identical runs. The
+assertion is never about the test's own subject:
+
+```
+Error: Assertion Failed: calling set on destroyed object:
+  <frontend@service:session::ember1753>.token_validated = false
+```
+
+Timings cluster tightly (593ms, 594ms) because it is the same orphaned operation each time.
+
+**Cause:** every write to `token_validated` in `app/frontend/app/services/session.js`
+(`:287 :294 :298 :363 :382 :390`) is inside an async token-check promise handler. When one
+resolves after its test container is torn down, Ember throws, and QUnit charges the **global
+failure to whichever test is running at that moment**.
+
+**How to tell it from a real regression — run a BASELINE, do not reason about it.** Revert your
+change in the working tree (a one-token edit like `if(cond)` -> `if(true)` is enough; no git
+needed) and run the full suite again:
+
+| | with change | with change reverted |
+|---|---|---|
+| pass | 2111 | 2111 |
+| fail | 7 | 7 |
+| victims | `set_speak_mode_user` x2 | `toggle_mode`, `boards-layout-toggle` |
+
+**Identical counts, different victims = flaky, not a regression.** A real regression fails the
+SAME tests deterministically. Five failures (setup-guard x4, article50 gate) appeared in both and
+are the genuinely deterministic ones.
+
+Corollary: **you cannot attribute a suite failure without a baseline.** Two runs at the same
+commit tell you nothing about what your change did.
+
+## Process failure worth more than any of the above (2026-08-23)
+
+The Node-16/`ERR_REQUIRE_ESM` gotcha above was written on **2026-08-10** and already contained
+the exact fix. On 2026-08-23 a handoff nonetheless asserted "testem cannot launch in this
+environment at all", and the next session believed it, skipped the suite twice, and then burned
+an hour rediscovering it — including the two wasted moves that entry explicitly warns about.
+
+**The entry was not the problem. Not reading it was.** `Rule #0.8` says to skim LEARNINGS
+**before** diagnosing. Skimming for the topic you expect ("perf") is not skimming it; grep it for
+the ERROR TEXT you are actually looking at:
+
+```sh
+grep -n -i "<the exact error string>" docs/task-management/LEARNINGS.md
+```
+
+And when a handoff and LEARNINGS disagree, **LEARNINGS wins** — handoffs are one session's
+snapshot, are gitignored, and are never reviewed.
+
+## `display: contents` makes a group's region a STAIRCASE — you cannot ring it, only its cells
+
+If a wrapper is `display: contents` so its children join the parent grid, the wrapper has no
+box: it cannot take a border, background, outline, padding or placement. A category whose
+buttons flow across row boundaries therefore occupies a staircase, and the only ring available
+is one per CELL — which reads as N outlined buttons, not as one group. To ring the group you
+must give it a real box, which means giving it a RECTANGLE, which means packing.
+
+Two corollaries that bit on `board-detail-grid` (2026-08-24):
+
+1. **Inline `grid-row`/`grid-column` on a child escapes into whatever grid is actually above
+   it.** The QWERTY keys carry `grid-row: 1..3; grid-column: 1..10` from `qwerty_positions`.
+   In panel mode those resolved against the keyboard's `__group-body`; in compact mode that
+   container was `display: contents`, so the same values resolved against the BOARD grid and
+   pinned the whole keyboard to the board's top-left corner. The bug looks like a placement
+   bug and is really a *containing-block* bug — check which box the placement lands on.
+2. **A tile that re-creates board cells must have ZERO padding.** For a tile spanning `w`
+   columns, buttons stay board-sized only if the inner grid is `repeat(w, 1fr)` at the SAME
+   gap with no padding: with padding `p`, button width becomes `colW - 2p/w`, i.e. a function
+   of the span, so buttons change size with the category they landed in. Draw the group's ring
+   with `outline` (no layout cost) in the gap, and reserve grid padding for it — a
+   `--grouped-no-scroll` grid sets `overflow-y: hidden`, which makes overflow-x compute to
+   `auto`, so an unpadded outward ring both clips and can raise a horizontal scrollbar.
+
+Cost to know up front: rectangles waste cells a free flow does not, so a tiled board needs
+more rows than the board authored. That is only affordable because the grid holds a definite
+height with `minmax(0, 1fr)` rows — extra rows spend button HEIGHT, never scrolling.
+
+## Stretching a tile to close a ragged edge inverts past ~25% of the width
+
+Absorbing leftover columns into the last tile of a band is tidier than leaving a notch in the
+board — until the leftover is large. A 5-button category stretched across a 14-column board is
+a ring that is two-thirds empty, which reads as buttons having gone missing, not as a category
+with room. Cap the stretch (`columns / 4` worked) and leave a bigger gap as plain board.
+Same rule applies to filling a reserved region: pack it RECURSIVELY with the same packer
+against the narrower width instead of giving each category a full-height column, or a
+one-button category ends up inside a four-cell ring.
+
+## A "staggered columns" probe must exclude a column CSS deliberately spans full-width
+
+`category-bottoms-qa` reported a 158px stagger across four columns. Three were the vocabulary
+columns (flush at 1501px); the fourth was the keyboard panel, which
+`--has-keyboard-panel .__column:last-child { grid-column: 1 / -1 }` puts BELOW them on
+purpose. The probe predated the keyboard panel. Before calling a geometry probe's red a
+regression, dump what the outlier element actually IS — here `getComputedStyle(c).gridColumn`
+named it immediately. Filter by the property that makes it different (it spans), never by index.
+
+## Two modifier classes on ONE element = a source-order bug waiting to happen (2026-08-24)
+
+`board-detail-grid.hbs` puts BOTH `--compact` and `--compact-scroll` on the grid root
+(`compactCategories` is `groupingEnabled`; `compactScroll` is `groupingEnabled &&
+categoryScrollEnabled`). The two root rules are the same specificity (0,1,0), so the LATER one
+won `height` and `grid-template-rows` — and it was the wrong one. The scrolling board kept the
+non-scrolling geometry (definite height, `minmax(0, 1fr)` rows), every tile came out
+`k x height/rows` tall while its `__group-body` held a 76px row floor, and the buttons painted
+46px below their own tinted background.
+
+The author had already hit this one level down — the `__group` / `__group-body` pair carries a
+comment saying the scroll rules are "placed AFTER those shared rules deliberately". The ROOT pair
+was simply missed.
+
+- **When a component can emit two modifiers together, order their rules by specialisation**
+  (general first, specialised second) and say so in a comment at the specialised rule. Grep the
+  template for `{{if …'--a'}} {{if …'--b'}}` on one element before trusting either rule.
+- The tell in a probe: `getComputedStyle(grid).gridTemplateRows` with a SPREAD of 0 across N
+  tracks means `1fr`; content-sized tracks vary.
+
+## A definite height collapses `minmax(floor, auto)` rows onto the floor (2026-08-24)
+
+Corollary of the above, and the reason the same bug survived in EDIT mode after the root rules
+were reordered: `.md-shell--board-detail-edit … .md-board-detail-grid { height: … !important }`
+is (0,3,0), so a mode root at (0,1,0) cannot answer it.
+
+Why the rows collapse rather than grow: the category tiles carry `min-height: 0`, so a track's
+BASE size is the declared floor and only the `auto` MAX can grow it — and an auto max grows only
+into an INDEFINITE height. Under a definite height smaller than the content, every track sits at
+exactly the floor and the content overflows. Measured: 9 x 76px tracks in a 637px grid.
+
+- A scrolling mode and a fixed-height mode cannot share a height rule. Exempt the scrolling one
+  explicitly (`.a.b { height: auto !important }` as a separate state rule, or `:not(.b)` on the
+  clamp) and check what the exemption's specificity now beats — a `:not(.class)` costs a class,
+  which here would have made the clamp outrank a deliberately tighter short-viewport rule.
+- Look for EVERY clamp, not just the one you found: the same collapse was latent in the two
+  `@media (max-height: …)` speak rules.
+
+## `display: block` on a header turns its label into an inline box — and kills every fix for it (2026-08-24)
+
+A category name would neither ellipsise nor shrink: it ran out of its tile and was sheared by the
+grid's clip ("QUESTIO"). The name span had `white-space: nowrap; overflow: hidden; text-overflow:
+ellipsis; min-width: 0` — all correct, all INERT, because a mode rule re-showing the header used
+`display: block` where the shared rule sets `display: flex`. On a non-replaced INLINE box
+`overflow`, `text-overflow` and `min-width` do nothing, and `clientWidth` reads 0 — which also
+made `utils/label_fit.js` bail (it treats a 0 box as "not laid out").
+
+- When a rule undoes a `display: none`, restore the value the base rule sets, not a plausible one.
+- Symptom to recognise: text overflowing with NO ellipsis, despite an ellipsis rule. Check
+  `getComputedStyle(el).display` on the label AND its parent before touching the fitter.
+
+## A shrink-to-fit flex item's `clientWidth` is its TEXT width, not its room (2026-08-24)
+
+`utils/label_fit.js` fits by comparing measured text against `el.clientWidth`. That is right for
+an input or a stretched label, and wrong for a flex item that shrink-wraps: its clientWidth IS the
+text, so the fit shrinks exactly one step and then "fits" the smaller self it just produced —
+every category header came out 15px, including ones with 230px of room. The budget has to come
+from the PARENT's content box less its other children (`availableWidth`).
+
+Two more canvas-measurement blind spots fixed alongside it, both of which report a label as
+fitting when it does not: `ctx.measureText` applies neither `text-transform` (a user PREFERENCE
+here — `--bd-button-text-transform`) nor `letter-spacing`. Resolve the transform on the string and
+add `spacing x length` before comparing.
+
+## Bleeding a box outside its container: three things must agree (2026-08-24)
+
+To let the board run past `<main>` on the edit page:
+1. the ancestor that clips has to stop clipping — `<main>` is `overflow-x: hidden`, which shears
+   the bleed off. `overflow-x: clip` + `overflow-clip-margin` is the only value that allows a
+   measured amount of paint outside the padding box, and unlike `hidden` it does not make the box
+   a scroll container (so no horizontal scrollbar);
+2. the bleeding element's own clip has to allow whatever it paints outside its padding box — here
+   the category rings, which are spread-only box-shadows drawn `--bd-ring` past the tile;
+3. the negative margin must go on a box whose margins you actually own. The grid's belong to
+   `#within_ember.board-detail-view .md-board-detail-grid.board { margin: 0 }` — an ID selector at
+   (1,2,0) — so the margin went on the WRAP instead. Check for an ID rule before assuming a class
+   rule can move something.
+
+And size the bleed from a STRUCTURAL number, not a measured one: 12px here is the edit layout's
+own column gap, so the board lands on the rail's edge at any rail width. A first pass used the
+layout's 20px side padding and put the outer categories 4px under each rail.
+
+## Probe the RIGHT rail — speak-mode and edit-mode chrome share a naming family (2026-08-24)
+
+`.md-board-detail-sidebar` / `.md-board-detail-right-panel` are the SPEAK rails and render at 0
+width on the edit page; the edit rails are `.md-board-edit-panel` /
+`.md-board-edit-right-panel`. A probe measuring the first pair reports every board as clear of
+the rails while the board is visibly running under them. Confirm a probe's selector matches a
+NON-ZERO box before trusting a green "no overlap" result.
+
+## A board key suffix rule must tolerate the copy suffix `_<n>` (2026-08-24)
+
+`category_for_button` identified a keyboard folder with `/(^|[-_/])keyboard$/i`, matching how the
+rest of the app spots these boards. It worked on the library original and failed on every COPY:
+`generate_unique_key` (app/models/concerns/processable.rb:147-150) disambiguates board keys with a
+trailing `_<n>`, so a copied set turns `…-keyboard` into `…-keyboard_1`. The folder fell through to
+the colour rule, and grey files under Connectors — the exact bug the rule existed to prevent, back
+again for anyone who copied the board rather than opened the original.
+
+- Any `key$`-anchored rule on a Board key needs `(_\d+)?` before the anchor. Keep it digits-only so
+  it stays a suffix rule (`keyboard_notes` must not match).
+- Test the COPY, not just the original: a fixture keyed `…-keyboard` proves nothing about what real
+  users have.
+- Evidence beat inference here: `psql -U <you> -d lingolinq-development` over a UNIX SOCKET (peer
+  auth — the TCP password in the docs does not work) answered in one query what reading the
+  categoriser could only have guessed at. Board `settings` are `secure_serialize`d and unreadable
+  from SQL, but the `boards.key` column is plaintext and was enough.
+
+## A memoised fit must key on the box that decides the answer (2026-08-24)
+
+`utils/label_fit.js` skips a label whose signature (`text | cardW x cardH | basePx`) is unchanged.
+The signature looked up `closest('.md-board-detail-symbol-card') || closest('…__cell')` — and a
+CATEGORY HEADER is inside neither, so its signature was `text|0x0|basePx`: a constant. The fit ran
+once and never again, so a name shrunk on a narrow board stayed shrunk after the board widened.
+
+The fitter was already capable of growing it back — it clears the inline size and re-measures from
+the CSS size on every run — which is the point: "it doesn't grow back" was a CACHE bug, not a
+sizing one. When a fit refuses to re-run, check what its cache key resolves to for THAT element
+before touching the measurement code. The same trap had already been hit once for folder-tab
+labels (they sit in a sibling of the card), and the comment recording it was two lines above the
+lookup that missed the header.
+
+## Gotcha: the two categorised board variants do NOT space their categories the same way — one is ring-compensated, one is not
+
+**Surface:** `.md-board-detail-grid--compact` (Categorize ON, scrolling OFF) and
+`.md-board-detail-grid--compact-scroll` (Categorize ON, scrolling ON). The grid root
+carries BOTH classes when scrolling is on.
+
+**The trap:** the space between two categories is `--bd-compact-gap + 2 x --bd-tile-margin`,
+not the gap alone — each tile also carries `margin: var(--bd-tile-margin)`. What FILLS that
+space then differs by variant:
+
+- `--compact` paints the category ring as a spread-only `box-shadow` `--bd-ring` OUTSIDE
+  the tile, so two neighbouring rings MEET in the channel. The clear space is
+  `gap + 2 x margin - 2 x ring`, and the gap cannot drop below `2 x ring` without the
+  rings overlapping. That is why the `@media (max-width: 950px)` block moves
+  `--bd-compact-gap` and `--bd-ring` TOGETHER and the clear channel stays 4px.
+- `--compact-scroll` sets `box-shadow: none` and uses the tinted tray as the boundary.
+  There is no ring, so the whole `gap + 2 x margin` is dead space and the 950px block
+  barely changes what a user sees.
+
+Measured on `vocal-flair-84` with scrolling ON: 16px horizontal / 14px vertical between
+categories at every width down to 1024px, with nothing drawn in any of it.
+
+**Fix recipe:** to change category spacing, decide which variant you mean and scope to it.
+Two further constraints, both load-bearing:
+
+1. A scroll-scoped block must be declared **BELOW** the `@media (max-width: 950px)` block.
+   Both selectors are (0,1,0) and a media query adds no specificity, so at =<950px source
+   order alone decides which wins the variables (styling-recurring-problems #4).
+2. `--bd-tile-margin` has a floor of **2px**, not 0: the per-category downward stretch sets
+   `margin-bottom: calc(var(--bd-tile-margin) - 2px)`, so a 0 margin computes to -2px and
+   pulls eight categories 2px INTO the one below.
+
+**Verify by MEASURING, not by reading declarations.** `scripts/category-gap-qa.mjs` reports
+the smallest edge-to-edge distance between any two rendered
+`.md-board-detail-grid__group` boxes at a list of widths, and takes `--no-scroll` to run the
+other variant as a regression control.
+
+## A grid-PLACED tile's button width is capped by the NARROWEST tile sharing its columns (2026-08-25)
+
+**Surface:** `.md-board-detail-grid--compact-scroll`, the keyboard region (the 30-key block
+plus the notch of small categories beside it). Its buttons measured 133.7px against the
+vocabulary bands' 162.8px at 2280, and the keyboard's tray left 216px of dead board — all of
+it on the RIGHT.
+
+Both come from one fact. A placed tile holds a tray of `w*A + (w-1)*B` (A = button, B = the
+4px gap inside a category) inside a grid area of `w*colW + (w-1)*boardGap`, and `boardGap` is
+28px. The tray is short by `(w-1)*(boardGap - B)` — which grows with the span, so the
+ten-column keyboard pays nine helpings of it.
+
+The trap is the fix that looks obvious: spend the shortfall on a wider button. Per BUTTON it
+is `(w-1)/w` of it — **zero at one column**. One one-column tile anywhere in the region
+(here the "Keys" folder) therefore pins `--bd-btn-w` for every tile that shares those
+columns, keyboard included. Verified both directions: raising A to the bands' value overflows
+the 2-column notch tiles by 19px and the keyboard by 55px.
+
+- **Uniform buttons + trays that fill + equal columns: pick two.** The fixed per-tile chrome
+  (`2*trayPad + 2*tilePad`) cannot be divided by the span, so on EQUAL tracks a filling tray
+  gives `A + chrome*(w-1)/w` — per-span drift. Fixing the tray width instead buys uniformity
+  and pays for it in dead board.
+- **The third option is to stop using the board's columns.** Give the sub-layout its own
+  track list — one button-wide track per small column plus one track for the wide tile —
+  and charge the chrome once per TRACK. Then solve for the A at which the tracks add up to
+  the row rather than tuning it. Here: `A = (row - (n+1)*P - n*g - (kb-1)*B) / (n + kb)`.
+  It stays a grid, so a genuinely 2D sub-layout (a key block with a notch alongside) survives
+  where a flex row cannot express it.
+- **A fixed-width tray in a flex COLUMN is left-aligned, not centred** — `align-items:
+  stretch` does nothing to an item with an explicit width, and the cross-axis start is the
+  left edge. A comment claiming the tray "centres itself" was describing an intent no
+  declaration implemented; 216px piled up on one side for as long as nobody measured it.
+- **A layout dump cannot see this class of bug.** It reports the TILE box, and the tile was
+  the right size — it was the tray inside that was not. Probe the inner box and the slack on
+  each side separately (`scripts/category-region-qa.mjs` prints `slack L/R` per tile for
+  exactly this reason).
+- **`repeat(var(--n), …)` is fine; `repeat(0, …)` is invalid** and takes the whole
+  declaration with it. If the count can be zero — here, a board too narrow for a QWERTY row
+  has no notch — emit a different track LIST from JS, not a different number.
+- A custom property substitutes its own `var()`s at the element it is DECLARED on, so
+  anything a solved-in-CSS width references has to be inherited THERE. Moving
+  `--bd-tray-pad` / `--bd-tile-pad-x` from `__group` up to the grid root was the whole cost
+  of putting the solve on the region column — check the move is a no-op by measuring an
+  untouched consumer, not by reading the declaration.
+
+## Two ragged-edge guards for the same idea must not share a threshold across scales (2026-08-25)
+
+`close_band_edge` (vocabulary bands) and `fill_region` (the keyboard notch) both close a
+row's ragged edge by widening its last tile. The band guard refuses when the tile would end
+up MORE than half empty; the notch had no guard at all, and inherited the same threshold when
+one was added.
+
+Exactly-half is the boundary, and where it falls depends on the scale of the tiles:
+
+- A band tile is 3-5 columns wide, so half-empty is a stretch nobody makes and the boundary
+  is never reached.
+- A notch tile is one or two columns, so the ONLY stretch available is a one-button category
+  widened to two cells — always exactly 50% blank, with the blank cell as big as the button
+  beside it. It reads as a category whose buttons went missing, which is the very thing the
+  band guard exists to prevent.
+
+The two variants had already disagreed about the same tile without anyone noticing: the
+non-scrolling notch row happened to fill exactly with three tiles, so `yes` was one column
+there and two columns in the scrolling view, from one shared function.
+
+- **When one policy serves two scales, check where its boundary case lands in each.** A
+  threshold that is unreachable in the large case is the ONLY case in the small one.
+- **Fix the caller that is wrong, not the shared predicate** — moving `close_band_edge`'s
+  threshold would have re-laid every band to fix a notch tile.
+- **A refused stretch leaves a dead track, and a sub-layout with its OWN track list must
+  size to what is USED, not to what was planned.** On the parent grid the unused column is
+  bare board either way; in a private track list it is a gap in the middle of the block.
+  Sizing to `max(col + w - 1)` handed that width to the wide tile instead — and, because it
+  put the region on the same 13 of 14 columns the bands use, it closed the last 8% of the
+  button-width difference as a side effect. Worth checking for: removing wasted space can
+  beat a constraint you had already written off as geometry.
+
+## Gotcha: a QA probe's assertions age with the layout it was written for (2026-08-25)
+
+`edit-grid-bleed-qa.mjs` reported 5/7 on the scrolling categorised board and it looked like a
+regression. Run against the variant the change did not touch it reported **4/7** — the
+assertions had gone stale for the whole edit page, not for the new code.
+
+- **Before attributing a probe FAIL, run it against a surface your change cannot reach.** A
+  probe that fails on the control is not an oracle for the experiment. Same discipline as
+  reconciling a test suite against a baseline (LEARNINGS 2026-08-23) — probes need it too.
+- When the working tree already holds ANOTHER session's uncommitted work, reverting your own
+  change does not give you a baseline. Say the attribution is reasoned from the declarations
+  rather than measured, and name which is which.
+
+## A layout post-pass that RESHAPES bands must run after the passes that READ them (2026-08-25)
+
+`pack_category_tiles` runs three post-passes over the band plan, and they are not
+commutative:
+
+1. `lift_column_tiles` — only fires on a band holding MORE THAN ONE tile (a one-column tile
+   alone in a band is already a row).
+2. `continue_into_lifted_row` — only fills a row that step 1 created.
+3. `lift_own_row_tiles` — splits a band around a category marked `own_row`.
+
+Adding (3) at the FRONT looked harmless and broke the board. Splitting band 1 first left
+Questions alone in a five-row band one column wide; step 1 then skipped it (single tile) and
+step 2 had no lifted row to fill. The flex band stretched that lone tile to the full width —
+**one button 1556px across**, measured.
+
+- **A pass with a "only if the band has company" guard is a READER of band shape.** Anything
+  that changes the shape has to run after it, or the guard silently stops matching.
+- **A band that uses far fewer columns than the board is the failure mode to watch for** in
+  any fills-the-row layout: `flex-grow` divides the whole row between however few tracks
+  the tile has. One column in a 14-column row is a 1500px button. Any new pass that can
+  leave a short band needs to say what fills it.
+- The tell in a layout dump is a `btnW` an order of magnitude off the others — not a missing
+  tile, not an overflow. Sort the distinct button widths and look at the outlier.
+
+## A fixture that does not FAIL without the fix is not a test (2026-08-25)
+
+Pinning the prediction slots to the end of the notch's foot run was a one-line change, and
+the first test written for it asserted exactly the right thing — "Predictions sits below
+Social" — on a fixture reused from a neighbouring test. It passed. It also passed with the
+change reverted: at those category sizes `fill_region` placed Predictions last anyway, so the
+assertion was measuring arithmetic, not the rule.
+
+A sweep over fixture variants found 16 combinations that DO distinguish the two orders. The
+one now in the suite (`predictions=2, social=1, no_not=2, questions=4`) puts Predictions at
+the top of the notch when unpinned, with Social two rows below it.
+
+- **Run every new layout test against the reverted code before believing it.** In a packer,
+  the same assertion can be satisfied by the packing arithmetic or by the rule under test,
+  and only the negative control tells you which. Reusing a nearby test's fixture makes this
+  MORE likely, not less — it was chosen to exercise some other rule.
+- **When a fixture does not discriminate, search for one that does rather than weakening the
+  assertion.** Sweeping a few counts over the categories that shape the notch took one
+  script and turned a decorative test into a real one.
+- **A module whose only import is a leaf can be driven under plain node.** `board_categories.js`
+  imports `./i18n` and nothing else, so stubbing that one file makes the whole packer
+  scriptable — before/after layouts, width sweeps, and fixture searches, with no Ember, no
+  browser, and no `ember test` cycle. Worth checking the import list before assuming a UI
+  module needs the full harness.
+
+## The notch-level equivalent of a band flag is the FOOT RUN, not another pass (2026-08-25)
+
+`own_row` gives a category a band to itself. It is acted on by `lift_own_row_tiles`, which
+splits a BAND — so it is inert for any category that never reaches band planning.
+`pack_category_tiles` splices the trailing categories into `notch_groups` BEFORE planning
+(`board_categories.js:1598`), which means a notch member can never claim a row that way.
+
+Inside the notch, order is decided by `notch_tail_order`: it pins a foot run named by
+`NOTCH_TAIL_KEYS` and hands it to `fill_region` as `pinned`, and a pinned group may only
+close its OWN rows. Everything else opens the next free row. So "put this last in the notch"
+is already expressible — add the key to the foot run — and adding a third post-pass to say
+it would have been a second mechanism for a decision one mechanism already owns.
+
+- **Before adding a pass, check whether the structure already has a slot for the decision.**
+  The tell here was that the notch had a concept named "foot", with an explicit ORDER
+  documented in its comment.
+- **Measure what a reorder costs before assuming it is free.** The render pack picks the
+  narrowest notch width that still fits in `kb_h`, so a reorder CAN cost the keyboard a
+  column. Here it did not — width 3, 3 rows, 11 keyboard columns, before and after — but that
+  is a measurement, not a property of reordering.
+## Gotcha: `overflow-x: hidden` silently makes the OTHER axis a scroll box — and kills descendant `position: sticky` (2026-08-23)
+
+`.md-shell` (`app.scss:43771`) declares only `overflow-x: hidden !important` and never mentions `overflow-y`. Per CSS spec a `visible` value computes to `auto` when its partner is `hidden`, so the shell becomes a **scrolling box on Y** that never actually scrolls. `position: sticky` resolves against the nearest scrolling box, so a sticky bar inside it is pinned to a scrollport that cannot move — the declaration applies and does nothing. Verified live on `/u/:id/preferences`: computed `overflowY: "auto"` with `scrollHeight === clientHeight === 2138`, the real scroller two levels up (`div.with_user.new_index`, 2184 → 800), and the "sticky" bar rendering at its natural `y=2026` in an 800px viewport. Fix is `overflow-x: clip`, which still prevents horizontal overflow but establishes **no** scroll container, so `overflow-y` stays `visible`. When sticky "doesn't work," walk the ancestor chain for any `overflow` value — including one declared on the *other* axis. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
+
+## Gotcha: `min-height: 0` on a flex item that is ITSELF the scroller is a no-op — the famous fix does not apply there (2026-08-23)
+
+The well-known "flex item needs `min-height: 0` or `overflow` won't engage" rule has a precondition most write-ups omit: per Flexbox §4.5, a flex item's *automatic minimum size* (`min-height: auto` resolving to content height) applies **only when the item's computed overflow in that axis is `visible`**. An element that already declares `overflow-y: auto` therefore already has `min-height: auto` resolving to zero, and adding `min-height: 0` changes nothing. This produced a confident-but-wrong diagnosis: `.md-modal-body--tour-picker` was "fixed" by adding `min-height: 0`, and a browser A/B (toggling the declaration on the live modal) showed **identical** `clientHeight` 511 / `scrollHeight` 1822 / `scrollable: true` both ways — the modal had never been broken. The cited "working/broken pair" (`.md-board-details-modal__body` has `min-height: 0` and scrolls) was correlation: it scrolls because of `overflow: auto`, and its `min-height: 0` is equally redundant. The rule applies to an **ancestor** flex item with visible overflow that *contains* a scroller, not to the scroller itself. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
+
+## Pattern: CSS that applies is not CSS that works — a computed style is not a verdict (2026-08-23)
+
+Two same-session CSS diagnoses were both wrong from source-reading alone, in opposite directions: one declaration was inert but looked correct (`position: sticky` present, `bottom: 0px`, bar still at y=2026), and one "fix" was redundant but looked load-bearing (`min-height: 0` on an element that already had `overflow-y: auto`). Reading a property and inferring behavior skips the part that decides it — the ancestor chain and the spec preconditions on that property. The cheap discriminator is a browser measurement plus an **A/B**: toggle the declaration in-page via `el.style.<prop>` and re-measure. If the numbers do not move, the rule is not doing the work, regardless of how good the causal story sounds. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
+
+## Gotcha: `utils/modal#open()` returns a promise that settles only on CLOSE — it hangs Playwright `evaluate` (2026-08-23)
+
+`modal.open('<template>', {})` returns an RSVP promise resolved when the modal is *dismissed*. Handing it to Playwright with an implicit arrow return — `p.evaluate(() => modal.open('tour-board-picker', {}))` — makes `evaluate` await that promise forever; four scripted runs hung with no output and no error. Use a block body returning a sentinel: `p.evaluate(() => { modal.open(...); return 'ok'; })`. Two debugging notes that generalize: piped `console.log` from node is buffered and showed nothing, so synchronous `fs.appendFileSync` step tracing is what located the hang; and `modal.open` needs `modal.setup(route)` to have run (`services/app-state.js:437`), so it only works once the app has booted a route. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
+
+## Pattern: a placeholder that is not a null value defeats every guard written against it (2026-08-23)
+
+`User#generate_defaults` seeded `settings['name'] = "No name"` because signup collects no name. The codebase is full of guards written correctly for an absent name — `name || user_name` in `Utterance#share_with`, `sharer_name` in the share mailer, `display_name` on the Ember model — and **every one of them silently failed**, because a non-empty string is truthy. The bug was never in the guards; it was in the value. Symptoms ranged from cosmetic ("Hi No name") to an SMS delivered to a communicator's family reading **"from No name - I want juice"** (`app/models/utterance.rb:271`), which no amount of client-side fixing could reach. Removing the seed made ~10 sites correct at once without touching any of them.
+
+Three things that made the removal safe, each verified rather than assumed: `Mail::Address` normalizes `" <a@b.com>"` to a bare address, so a blank name does **not** break mail (an earlier claim that it would was wrong); `Processable#generate_user_name` already `blank?`-guards and falls through to the email prefix then `"person"`; and the nil-unsafe `settings['name'].<method>` call sites are all on Board/Device records, while the User ones (`lib/eval_pdf.rb:650`, `app/controllers/session_controller.rb:1075`) already fall back to the handle. The one real behaviour change is that a user with no name, handle, **and** email now generates `person_N` instead of `no-name_N`.
+
+Two traps if you do this again. **Empty string is not absent**: `self.settings[arg] = ... if params[arg]` (`user.rb:2044`) treats `''` as present and `||=` will not re-seed it, so a blank save persists permanently — which is fine here, but means `''` and `nil` are not interchangeable. And **removing a seed does not clean existing rows**: every account created before the change keeps the string, so a backfill is part of the work, not a follow-up (`rake extras:clear_no_name_placeholder`, dry-run by default). Prefer absent over a sentinel; if a sentinel already exists, deleting it fixes more than guarding against it.
+
+## Gotcha: removing a placeholder fixes the BROKEN consumers and breaks the ones that had no fallback (2026-08-23)
+
+Deleting the `"No name"` seed repaired ten sites without touching them — every consumer written as `name || user_name` (eight supervisor mailer templates, the Open Graph title in `app/models/concerns/meta_record.rb:9`, the utterance SMS) simply started working. But four consumers had **no fallback at all**, and for those the same change traded a bad string for an empty one: `app/mailers/user_mailer.rb:99` opened an email with `" just posted a message…"` and `app/views/user_mailer/log_message.*.erb` rendered "…to the log of ". A blank reads as broken software in a way "No name" does not. When removing a value that was previously guaranteed non-nil, grep for consumers that **lack** a guard, not just ones whose guard was defeated — the defeated ones fix themselves, the unguarded ones regress. Note also that a frontend-only sweep cannot find these: mailer views, Open Graph tags and SMS bodies are rendered server-side, so `app/frontend` was clean the whole time. Fixed by adding `User#display_name` as a server-side mirror of `app/frontend/app/utils/display_name.js`.
+
+## Gotcha: a "passing" spec may be asserting a placeholder's length by accident (2026-08-23)
+
+`spec/controllers/api/users_controller_spec.rb` "should not allow blank user name" posted `user_name: ''` and then asserted `json['user']['name'].length > 5` — on **name**, not user_name. It only ever passed because the seeded placeholder `"No name"` happens to be 7 characters. Removing the seed turned it into `NoMethodError: undefined method 'length' for nil`, which reads like a regression and is actually the test finally being honest. When a spec breaks on a value change, check whether it was asserting the thing its own description names before "fixing" it — the right repair here was to assert `user_name`, the actual subject.
+
+## Gotcha: every account carries the literal name "No name" — use `display_name`, never `name`, for display (2026-08-23)
+
+Signup never collects a name, so `User#generate_defaults` (`app/models/user.rb:1537`) seeds `settings['name'] = "No name"` and `lib/json_api/user.rb:328` serializes it as `name`. Guards of the form `name || user_name` or `(name || '').trim() || 'Friend'` therefore **never** fire — the sentinel is a non-empty string. It surfaced as "Hi No name" on the beta welcome, "NO NAME" in the account menu, and "Choose No name's home board" in the board picker. **SUPERSEDED 2026-08-24 — the seed was removed.** This entry originally concluded "do **not** change it" because the value was asserted in 7 spec locations; that was a reason to change the specs, not a reason to keep shipping a sentinel to users. `generate_defaults` no longer seeds a name, `rake extras:clear_no_name_placeholder` backfills existing rows to nil, and `User#display_name` / `User#placeholder_name?` are the server-side resolution. The sentinel check survives in both `display_name_for` and `placeholder_name?` because un-backfilled accounts and cached offline payloads still carry the string. Removing a placeholder is only half the job: every consumer that had **no fallback** now renders blank, which is how the welcome email came to open with an empty line — see CLAIM-CHECK-BACKLOG.md section A2. Use `display_name` anywhere a name is rendered; `name` remains correct for round-tripping to the server. The rule now lives in one place, `app/frontend/app/utils/display_name.js`, with the `{{display-name}}` helper and the model's `display_name` computed both delegating to it. Ref: `2026-08-21-claim-check-quick-wins.md` (working log, **not committed** — gitignored by `.gitignore:149`; the entry above is self-contained).
+
+## Gotcha: a computed property on the user model cannot fix most name displays — most users arrive as raw JSON (2026-08-23)
+
+The `display_name` computed above only runs on an Ember-Data **record**, and the majority of users rendered in this app never are one. `limited_identity` payloads — `board.shared_users` (`concerns/sharing.rb:174`), `utterance.user` (`json_api/utterance.rb:37`), the org roster (`organizations_controller.rb:37`), and `supervisors`/`supervisees`, which are declared `attr('raw')` on the user model (`models/user.js:180`/`:183`) — are all plain objects. On those, `user.display_name` silently renders **empty**, which is worse than the bug it replaces. Check whether the binding is a record or a raw payload *before* reaching for a model computed; if either shape is possible, the logic belongs in a util that reads through an `obj.get ? obj.get(k) : obj[k]` shim, with a template helper wrapping it. Note this failure is invisible to both a green build and a unit test — helper lookup happens at render time, so `tests/integration/display-name-helper-test.js` is what actually guards it.
+
+## Gotcha: `name` on the wire is not always a user's name field — check the serializer per site before a sweep (2026-08-23)
+
+Sweeping for raw `.name` renders produced more false positives than real ones, and each had a different reason. Contacts are not users and carry real, user-entered names: `utterance.hbs:44`, `speak-menu.hbs:261`, and `user/log.hbs:345` all bind `author`/`contact` objects built by `msg[:contact].slice('id','name','image_url')` (`json_api/utterance.rb:32`). Alerts go further and emit the *handle* under the `name` key — `'name' => alert.author.user_name` (`json_api/alert.rb:25`, `:36`) — so `inbox.hbs:29` is already correct. `user-select.hbs:7` looks identical to a broken site but its list is synthesized client-side as `name: supervisee.user_name` (`components/user-select.js:29`). And organizations legitimately own a `name` with no handle to fall back to (`application.hbs:712`, `start-codes.hbs:4`, which renders an org *or* a user through one slot). Write-path bindings must also stay raw: `new-user.hbs:11` and `add-supervisor.hbs:49` bind `name` as an editable `<input value=>`, where substituting a display value would write the handle into the name field on save. Resolve each hit to its serializer before editing; the sentinel only ever comes from `User#generate_defaults`.
+
+## Pattern: a grep keyed on variable NAMES is not a sweep — enumerate the accessor, then classify (2026-08-23)
+
+Hunting the "No name" sentinel, the first pass grepped for `.name` on variables containing `user`, `author`, `supervisor`, `supervisee`, `communicator`, or `member`, and reported the work complete. It had missed nine sites, including the `<h1>` on the **user profile page** (`templates/user/index.hbs:15`, bound as `this.model.name`) and the Stripe checkout dialog title (`utils/subscription.js:800`) — because the binding is named for the *route's model*, not for what it holds. The reliable shape is the inverse: enumerate **every** occurrence of the accessor (`grep -rnoE "[a-zA-Z_][a-zA-Z_0-9.]*\.name" --include='*.hbs'`, then `sort | uniq -c`, ~117 distinct bindings here), and classify that list by hand against the serializer. Cheap, and the count is a check on itself. Two further gaps a template-only grep leaves open: display strings assembled in **JS** (`sessionUser.get('name') + ' <' + email + '>'` in `components/support.js:64` — the same broken guard, invisible to any `.hbs` search), and the fact that "is it fixed everywhere?" cannot be answered from the diff alone. Note also that four of the nine were found only *after* being asked the question directly — treat "did you get all of them?" as a prompt to re-derive the list from scratch, not to re-read the one you already produced.
+
+## Gotcha: a client-side fallback needs the fallback VALUE to be in the payload (2026-08-23)
+
+`display_name_for` resolves the "No name" sentinel by falling back to `user_name`, which works everywhere the client holds a `limited_identity` payload — those carry both fields. The start-code lookup does not: `organizations_controller.rb:140-149` hand-builds its JSON with `name: code[:target].settings['name']` and no handle at all. Applying the helper there would have swapped "Invited By Supervisor - No name" for "Invited By Supervisor - " *blank*, trading a bad string for a worse one, and it would have looked correct in the diff. Fixed by emitting `json[:user_name]` for User targets (additive; the endpoint's specs assert per-field, not whole-payload equality, so nothing broke). Before reaching for a display-side fallback, confirm the field it falls back to is actually on the wire for that specific endpoint — hand-rolled controller JSON does not inherit what `JsonApi::User` provides.
+
+## Pattern: verify placement fixes at the RENDERED element — specificity and default state defeat correct-looking diffs (2026-08-23)
+
+A Playwright pass over three "fixed" claim-check items (D1 `7692d3c08`, D2 `231bdcaeb`, D10 `868193344`) found **two of the three were not fixed**, and both failed the same way: a correct, well-reasoned source change that a pre-existing higher-precedence rule silently overrode. Neither was catchable by reading the diff, and both had passing unit tests.
+
+**D10** moved `.beta-feedback-drawer-tab` from `left: 50%` to `right: 16px`, then deliberately re-added `left: 50%; transform: translateX(-50%)` to the `--navbar` variant on the stated premise that the variant "is `position: absolute` inside the navbar, not over the page". That premise is false at runtime: `#within_ember:not(.board-alt-view):not(.board-detail-view) .beta-feedback-drawer-tab--navbar { position: fixed; top: 0 }` (`app.scss:89818`, id+class specificity) forces it back to page-level `fixed`. Since **every** render site carries `--navbar`, the new base rule never applies and the re-centring re-creates the exact defect. Measured: box centre 720px of a 1440px viewport — 0px off centre, i.e. before and after are pixel-identical.
+
+**D1** added Set as Home / Make a Copy to `.md-board-detail-header__actions` to escape the edit-only left panel. But `.md-shell--board-collapsed .md-board-detail-header { display: none }` (`app.scss:76138`) hides that header, and `board_collapsed: true` is the controller default (`controllers/user/board-detail.js:267`), flipped to `false` **only** by entering edit mode (`routes/user/board-detail/edit.js:57`). The one control that expands it, `toggle_board_collapsed`, is itself inside the hidden header (measured 0x0) — so view-mode users cannot reveal it. The actions moved from one edit-mode-only container to another.
+
+The generalisable rule: when a fix is about **where something appears**, the diff cannot tell you whether it worked. Before shipping, resolve the *computed* style and box on the actual rendered node, and check the *default* value of any component state that gates its container. Two cheap checks that would have caught both: `grep -n '<class>' app.scss` and read **every** hit for specificity (not just the rule you edited), and confirm which variant/class combination the element actually renders with. A useful tell for the class of bug: if a variant modifier re-states a property the base rule just changed, one of the two is dead code — find out which.
+
+## Gotcha: board-detail hides its whole header by default, and gates itself behind a screen-size overlay (2026-08-23)
+
+Two independent things make `.md-board-detail-header` invisible, and both will make a browser test report every header control as 0x0 for reasons that have nothing to do with the control:
+
+1. **A full-viewport "Larger screen recommended" overlay** (`.md-board-detail-portrait-overlay`, z-index 450) renders at viewports as large as 1280x800 and sets the header to `display: none` while up. Dismiss it via `button[data-bd-action="dismiss_portrait_overlay"]` before measuring anything, or raise the viewport (1440x900 still triggers it for large grids).
+2. **`board_collapsed` defaults to `true`** (`controllers/user/board-detail.js:267`), applying `.md-shell--board-collapsed`, which hides the header outright (`app.scss:76138`). This is the canonical speak-mode look and is intentional — but it means **the board-detail header is not a place view-mode UI can live.** Anything that must be reachable without entering edit mode belongs in the toolbar, the sentence bar, or the options menu, all of which stay visible.
+
+A first run reported the D1 buttons as simply "not visible", which read as a failed gate and was wrong — the gates were fine. Always walk the ancestor chain for a `display: none` before concluding a control did not render: in-DOM-but-0x0 and absent-from-DOM are different bugs with different fixes.
+
+## Pattern: a negative control is what makes a browser test evidence rather than decoration (2026-08-23)
+
+Both D1 and D10 were re-verified by reverting the fix (`git checkout HEAD -- <file>`, wait for the ember/sass rebuild, re-run, restore from a scratchpad copy) and confirming the harness goes **red**. This is cheap and it is the only thing that distinguishes "my assertions pass" from "my assertions can fail". It paid for itself twice:
+
+- **D1's negative control failed exactly 3 of 6 assertions** — `set_as_home` unreachable, label reads "Copy", dead buttons still in a hidden container — while `make_a_copy-reachable` **passed** on the pre-fix build. That pass is a finding, not noise: it independently confirmed that Copy had been reachable all along (Options → Share & Print), so only ONE of the two actions was genuinely missing. A harness that only ever runs green cannot tell you that.
+- **D10's negative control** failed `not-page-centred` at 0px off centre while the three regression guards still passed, which is the correct shape: those guards protect the FIX, they do not restate the DEFECT.
+
+Corollary: pin the page under test. D10's hit-test check failed spuriously because the post-login landing `/` can come up with a welcome modal (`div.modal.fade.in`, z-index 1050) over the tab. Navigating explicitly to `/<user>/home` removed it. When a browser assertion fails, rule out page state before blaming the change.
+
+## Gotcha: corner-anchoring a floating control can trade one mis-tap risk for another — measure the corner first (2026-08-23)
+
+D10 asked for the beta-feedback tab to stop being a centred fixed tap target. Anchoring it `right: 16px` while it was still pinned to `top: 0` put it directly over **Settings, Support and the online-status control**. Simulating candidate boxes against the live navbar at 1440px, before committing to one:
+
+| anchor | collides with |
+|---|---|
+| centred, top:0 (the reported defect) | nothing |
+| right:16, top:0 | Settings, Support, online |
+| left:16, top:0 | the logo link |
+| right:16, below the navbar | nothing |
+
+The *reported* position was the collision-free one — so "move it to a corner" is not automatically an improvement, and the accessibility win has to be checked against what already occupies that corner. The reusable technique is to enumerate `a, button, input, select, [role="button"]`, intersect each rect with a hypothetical box, and additionally run `document.elementFromPoint` at the box centre — the hit test is decisive where rect maths is only suggestive.
+
+Second trap in the same fix: `top: 100%` means "100% of the containing block". Under `position: absolute` inside a `position: relative` navbar that is "just below the navbar"; under `position: fixed` it resolves against the **viewport** and parks the element at y=viewportHeight, off-screen. A long-standing `top: 0` override had been masking a latent `top: 100%`, so removing the override — which looked like a pure deletion — moved the element off-screen. When deleting a positioning override, check what the element's own rule then falls back to.
+
+## Gotcha: a collision detector must exclude inert / aria-hidden / pointer-events:none, then be re-validated against a true positive (2026-08-23)
+
+Checking whether a repositioned overlay covers other controls, a naive sweep of `a, button, input, select, textarea, [role="button"]` intersected with the overlay's rect produced two confident false failures. The culprit: the CLOSED beta-feedback drawer keeps its whole form in the DOM, and its file input (`.la-contact-input--file` inside `.la-beta-feedback__dropzone`) reports an on-screen `getBoundingClientRect()` even though the drawer itself is transformed to y=-1106. It is `pointer-events: none`, inside an `[inert]` subtree, and inside an `aria-hidden="true"` subtree — unreachable by pointer, keyboard or AT. Filter on all three before counting an overlap.
+
+The important half is what comes next: **after loosening a detector, prove it still catches the real thing.** Here that meant `page.addStyleTag` injecting the known-bad placement (`position: fixed; top: 0`) and confirming Settings / Support / the online control were still reported. Without that step, "0 collisions" is indistinguishable from "detector switched off" — and the loosening had been written specifically to make failures go away.
+
+## Gotcha: there may be no vertical gap for a floating control — measure the gap against the control's height before choosing a placement (2026-08-23)
+
+Seating the beta-feedback tab below the navbar is clean at 1440 and 390 but clips a control between ~700 and ~820px. The reason is not the anchor, it is arithmetic: in that band the home page's secondary nav row starts 28px below the navbar's bottom edge, and the tab is 34-36px tall. **No vertical position exists that clears both.** At 1440 and 390 the same gap is 72-76px, which is why the fix looked complete when verified at one size.
+
+Two transferable moves. First, before picking a spot for a floating element, compute `firstInteractiveRowTop - navbarBottom` and compare it to the element's height — if the gap is smaller, every vertical option is a trade and you should say so rather than iterate. Second, when the vertical axis is impossible, the horizontal one may not be: the row's right edge scales with the viewport while a right-anchored element's left edge is `100vw - offset - width`, so *narrowing* the element clears the row without moving it. Extending the existing compact sizing up through the band fixed 760-820 and cut the 721 overlap from 41px to 10px.
+
+Also worth knowing: collisions here were **height-dependent as well as width-dependent** — 712px was clean at viewport height 1000 and colliding at 1138, because the surrounding layout reflows. A single height per width will under-report.
+## Gotcha: curated OBF sound import rejects `data:audio/*` (image-only data-URI decoder)
+
+`lingolinq/jokes` (and similar curated `.obf`s) embed rimshot/drumroll/laughter/sigh as `data:audio/mpeg;base64,...`. `Uploadable#upload_to_remote` decoded every data URI through `SvgSanitizer.decode_image_data_uri_payload`, which returns nil unless the URI is `data:image/`. Audio was `invalid_data_uri`; `ButtonSound#process_params` also ignores non-http urls, so the button kept a `sound_id` with no playable `url` and Speak Mode TTS'd the label. Fix: decode `data:audio/*` in `Uploadable#decode_data_uri_body`; leave the image sanitizer unchanged. After deploy, re-import only `jokes` (not a full library rebuild). Ref: [`2026-08-22-jokes-sounds-not-playing.md`](./2026-08-22-jokes-sounds-not-playing.md).
+
+## Gotcha: a status-block lead must not over-claim "remaining" or "historical"
+
+A runbook lead that says "the remaining gates are A, B, C" reads as exhaustive. If a later authoritative list also requires D and E, an operator skimming the lead can onboard with those still open. Same failure mode for "the rest of this block is historical / not as open work" when later paragraphs in the same block are live checklists. Narrow the lead (e.g. "remaining infrastructure/decommission actions") and scope the historical label to the dated snapshot paragraph only. Ref: PR #840 Codex P1s, `scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md`, [`2026-08-21-phase5-runbook-review-comments.md`](./2026-08-21-phase5-runbook-review-comments.md).
+
+## Pattern: an accurate "this code is missing" grep does NOT prove the problem still exists
+
+**Surface:** triaging an old branch, a stale-looking doc, or any "is this still
+broken?" question by grepping current `staging` for the symbol that would fix it.
+
+This is the companion to [the guard/flag entry above](#pattern-before-adding-a-guard-grep-the-canonical-path-for-one-that-already-exists--with-the-exact-flag-name-in-that-file-alone).
+That one is about a grep that was *wrong*. This one is about greps that were
+**right** and still produced wrong conclusions three times in one session
+(2026-08-19..22, stale-clone branch triage):
+
+1. **The doc looked stale; it corrected itself further down.**
+   `scripts/gcp/PHASE5-CUTOVER-RUNBOOK.md` opened with "the irreversible cutover
+   actions remain gated on Scot's explicit go" (dated 2026-07-15), so it read as a
+   month out of date. Ten lines into the same block: "**THE DNS CUT HAS HAPPENED
+   (step 9 is DONE).**" Only the first paragraph had been read. The real defect was
+   much smaller than "the doc is wrong" — a stale *lead sentence* on a block that
+   was otherwise current (fixed in #840).
+
+2. **The fix was genuinely absent, and genuinely unnecessary.** A May branch added
+   stalled-row cleanup to `Progress.clear_old_progresses`; that code really was
+   not on `staging`. But `Flusher.flush_leftovers` (`lib/flusher.rb`) had closed the
+   gap months earlier from the other direction — an unconditional
+   `created_at < 1.month.ago` sweep that runs daily and catches never-started rows —
+   and its own comment said so explicitly. A grep for the *symbol* could not see a
+   fix that shares no identifiers with it.
+
+3. **The branch that looked like the fix was missing the file's later corrections.**
+   A WIP branch proposed rewriting that runbook block. Its factual statements about LB
+   routing were fine, and the file affirms them ("`app.lingolinq.com` resolves to
+   `136.68.41.122` ... `/api/v1/health` returns 200 through the LB"). The problem was
+   what it *dropped*: it predated, and therefore omitted, both the "PROD HAS NO REAL
+   USERS YET" paragraph (which exists precisely to stop readers inferring real
+   district traffic from DNS resolving plus a 200 health check) and the launch-gate
+   checklist. Porting it wholesale would have deleted two later corrections in the act
+   of "fixing" the block. Being *newer than the defect* is not the same as being
+   *newer than the file*: check what landed in between.
+
+**Why this keeps happening:** the repo evolves by *replacing* mechanisms, not by
+filling in the originally-proposed one. The second implementation usually shares no
+method name, file, or vocabulary with the first, so a name-based grep is structurally
+blind to it. Old branches are therefore superseded far more often than they are
+pending.
+
+**Checklist before acting on an absence:**
+
+- **Read the whole block, not the lead.** Long status blocks in this repo accrete
+  dated corrections at the bottom. The newest sentence is usually the true one and it
+  is rarely first.
+- **Search for the problem, not the symbol.** Grep the behavior (`created_at`,
+  `delete_all`, the table name) and check sibling mechanisms (`Flusher`, the
+  `scheduler.rake` tasks, `flush_leftovers`) before concluding nothing handles it.
+- **Use `gh pr list --state all --head <branch>`, never a bounded
+  `gh pr list --limit N`.** A `--limit 300` sweep silently missed PRs #242, #266 and
+  #381 and made three already-merged branches look orphaned. **`--state all` is not
+  optional here:** `gh pr list` defaults to `--state open`, so the bare `--head` form
+  returns `[]` for a merged branch and reproduces the exact false-orphan conclusion
+  this checklist exists to prevent. Verified against `gh pr list --help` ("default
+  \"open\"") and by running both forms against a known-merged branch.
+- **Read the caller before editing a method.** `Progress.clear_old_progresses` reads
+  like a nightly cron task and is actually invoked from inside `Progress.schedule`
+  (`app/models/progress.rb`), i.e. on every scheduled job. The May branch's per-row
+  `Rails.logger.error` loop would have landed in that hot path, where a
+  null-`settings` row raises `NoMethodError` and breaks scheduling app-wide.
+
+**One-line version:** missing code is evidence about *code*. It says nothing about
+whether the *problem* survived.
+
+## Gotcha: naming a one-shot review subagent silently discards its entire report
+
+**Surface:** spawning `adversary`, any `*-auditor`, or any read-only review agent
+via the Agent tool and passing a `name`, for addressability or nicer progress
+output.
+
+Two adversary reviews of PR #848 produced nothing on 2026-08-23. Both agents ran,
+read the whole component, and then reported themselves **idle / available**. No
+error, no timeout, no missing-output warning. Asking each one directly for its
+findings produced another idle notification and no text.
+
+A controlled experiment settled it. The same agent type, same prompt shape,
+spawned **without** a name, returned its text in 2.4 seconds:
+
+| Spawn | Becomes | Delivery channel | Result |
+|---|---|---|---|
+| unnamed | one-shot async subagent | final text auto-returned in the task notification | works |
+| **named** | persistent addressable teammate | `SendMessage` **only** | **silently lost** |
+
+The mechanism: passing `name` converts a fire-and-forget subagent into a teammate
+whose output must be delivered by calling `SendMessage`. Every read-only review
+agent in this repo declares tools that do **not** include `SendMessage`
+(`adversary`: `Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__github`; the
+`*-auditor` agents are `Read, Grep, Glob, Bash` plus MCP reads). So a named review
+agent is physically incapable of returning its findings. The work happens, lands in
+its own transcript, and dies there.
+
+**Why this is worse than a crash:** the failure presents as success. `ListAgents`
+shows the agent `idle`, which reads as "finished." A dual-review that loses its
+adversary leg still reports as a completed dual review. For `/audit-run`, a named
+finder fleet would produce an empty findings register that reads as *clean*.
+
+**Rule:** never pass `name` to a one-shot review or audit agent. Name it only if
+you also grant it `SendMessage`. If a named agent goes idle without returning text,
+do not re-ask it — respawn unnamed.
+
+**Corollary for the reviewer, not just the spawner:** when a review leg produces
+nothing, say the leg did not run. Substituting your own analysis is weaker by
+construction when you are reviewing your own changes, and reporting it as a
+completed review launders that weakness.
+
+## Gotcha: a test double that satisfies one access style routes the test through a different branch
+
+**Surface:** stubbing an injected Ember service as a plain object in a unit test.
+
+Writing specs for the Article 50 gate (#848), two new cases failed and the failure
+looked exactly like a product bug: the component took its "no refreshable user"
+branch and produced the wrong message. The stub was:
+
+```js
+component.set('appState', { get: function(key) { /* returns currentUser */ } });
+```
+
+`utils/article50_gate.js` calls `appState.get('currentUser')` **explicitly as a
+method**, so `needsAcknowledgement()` worked and the pre-request specs passed. But
+the component reads the Ember path `this.get('appState.currentUser')`, and Ember's
+path `get` on a **plain object** is a property lookup — it never calls that
+object's own `.get()`. So `currentUser` resolved `undefined`, and the specs
+silently exercised a different branch than the one under test.
+
+In the real app `appState` is a service (`focus-words.js:29`), so the path resolves
+correctly and the component is fine. The bug was entirely in the double.
+
+**Rule:** a stub must satisfy **every** access style its consumers actually use.
+Grep for both shapes before trusting a red test — `svc.get('x')` and
+`this.get('svc.x')` are not the same lookup. Give POJO stubs the real properties
+*and* the method:
+
+```js
+component.set('appState', {
+  currentUser: user,                               // for this.get('appState.currentUser')
+  feature_flags: { article_50_disclosure: flagOn },
+  get: function(key) { /* for appState.get('currentUser') */ }
+});
+```
+
+**Tell:** the failing branch is a fallback / defensive branch you did not intend to
+reach. Suspect the double before the code.
+
+## Pattern: partial preservation across a state boundary is worse than none
+
+**Surface:** any flow that captures state, tears a component down, and restores it
+— modal replacement, route transition, offline queue, resume-after-auth.
+
+PR #848 had to carry the user's draft across `modal.open()`, which **replaces** the
+current modal and destroys the component. It took **five** rounds to get right, and
+**four of the five defects were introduced by the fix for a previous one**:
+
+1. Payload carried only `ai_prompt` / `ai_word_count` → lost the "Save for Re-Use"
+   checkbox and typed list name.
+2. Fix 1 restored `words` but not `ai_focus_word_set_id` → `record_ai_focus_usage()`
+   returned early and metrics undercounted.
+3. Fix 1 also missed `search_term` (authored text at `focus-words.hbs:130`).
+4. Fix 1 carried `existing` but not `navigated`, which `pick_set` sets **together**
+   with it → produced `existing=true / navigated=false`, a combination no user action
+   can reach, rendering a picked set alongside the "get started by pasting text"
+   explainer.
+
+Each individual patch was correct. The failure was maintaining **two hand-written
+lists that silently drift**: `opening()` cleared 16 fields, the payload carried 8,
+and nothing reconciled them. Every round asserted "the authored draft is preserved
+as a unit" while getting the membership of that unit wrong.
+
+**What actually closed it** was mechanical enumeration instead of another guess:
+diff the set the teardown clears against the set the payload carries, then check
+each remaining field for a template input binding. That bounded the problem — it
+proved exactly one authored field was still missing rather than leaving an
+open-ended series.
+
+**Rule:** when you restore state across a boundary, enumerate both sets explicitly
+and record a preserve-or-discard decision for *every* field, in a comment next to
+the teardown. Prefer a structural argument over a semantic one: "the Generate button
+is unreachable while `browse` is set, because the template nests the AI panel inside
+its `{{else}}`" is checkable; "`browse` is navigational" is an opinion.
+
+**And beware the comment itself.** Two of the five rounds shipped an *invariant
+comment that was wrong*, each time in the same direction as the defect it described
+— one grouped the authored `search_term` with the derived `search` results object,
+another claimed `search_term` renders in the same conditional branch as the list-name
+field when it is the mutually exclusive `{{else}}` arm. A wrong invariant comment in
+a file like this is the next defect's seed, because it is what the next maintainer
+follows.
+
+## Gotcha: the local Codex model can drift off the approved-reviewer registry
+
+**Surface:** running `/review-pr`, `/dual-review`, or `~/bin/codex-review` and
+assuming the reviewer is the model the registry approves.
+
+On 2026-08-23 `~/.codex/config.toml` was pinned to `model = "gpt-5.6-luna"`. The
+approved-reviewer registry in `~/.claude/CLAUDE.md` lists **`gpt-5.6-terra`**
+(default) / `gpt-5.6-sol` (careful) for the interactive Codex row, and explicitly
+rejects `luna` for the CI row with a specific rationale: the chunk leg is the only
+leg that reads raw code, so a defect the cheap tier misses is *unreachable* rather
+than merely unreported. Nothing warns you; the review simply runs on an unapproved
+model and reports normally.
+
+Override per-run rather than reviewing on the wrong tier:
+
+```bash
+~/bin/codex-review --base staging -c model='"gpt-5.6-terra"' --title "..."
+```
+
+**Two related path facts, both of which cost time:**
+
+- The PII pre-flight guard is **not** in this repo. `CLAUDE.md` cites
+  `scripts/codex-review-guard.sh`, but `scripts/` here holds thirteen *other*
+  `codex-review-*` scripts and not that one. It lives at
+  `~/ai-company-brain/scripts/codex-review-guard.sh`, and it takes a **base ref**
+  (`... origin/staging`), appending `...HEAD` itself.
+- `chatgpt-codex-connector[bot]` PR reviews and the `codex-review` GitHub Action are
+  **different billing routes**. The bot is the Codex cloud GitHub App (ChatGPT
+  subscription); the workflow authenticates with `secrets.CODEX_OPENAI_API_KEY` via
+  `codex login --with-api-key` (pay-per-use platform key,
+  `.github/workflows/codex-review.yml:333,338`). Commenting `@codex review` does not
+  touch the platform key.
+
+**Also:** the bot does not always pick up a new head. It reviewed three pushes on
+#848 within ~5 minutes each, then never reviewed the fourth. Zero inline findings on
+a head are *inconclusive* — a successful clean review also produces none. Check the
+review list's `commit_id` before reading silence as a skip *or* as approval.
+
+## Gotcha: a SHA-pinned citation must use the line numbers at that SHA, not HEAD
+
+On PR #863 Codex flagged `lib/feature_flags.rb:147` / `:170-173` in three 2026-08-22
+successors that explicitly scoped the claim to commit `64cdccba1`. At that commit
+`effective_enabled_for` is on line 132 and `feature_enabled_for?` is at 155-158;
+HEAD had moved because this branch inserted comments above those methods. Updating
+a pinned citation to "wherever it is now" makes the pin a lie. Either keep the
+historical range with the historical SHA, or attach the new range to a new SHA.
+`git show <sha>:path | nl` is the check.
+
+## Gotcha: flag-enabled is not proof the disclosure modal was shown
+
+`User#article_50_disclosure_shown?` is a settings bit
+(`app/models/user.rb:1538-1545`). The allowlisted writers are `modal_ack` and
+`admin_backfill` (`:1550`); `users_controller#article_50_disclosure_ack` (`:957-967`)
+records `modal_ack` with only an edit-permission check. A production read that
+counts that bit, or `AiApiLog.article_50_disclosure_shown`, does not prove the UI
+rendered and does not by itself prove the feature flag was on. Enablement evidence
+is `Setting.get('default_enabled_features')` plus `feature_enabled_for?`. Display
+evidence would be acknowledgement AuditEvents or UI telemetry.
+
+## Gotcha: appending a ledger correction leaves the heading stale
+
+`audit-reports/CAPABILITY-LEDGER.json` `capability` is the row heading in
+`docs/legal/CAPABILITY_LEDGER.md`. An appended `[CORRECTED …]` on `claimLanguage`
+does not change what consumers see first. Rewrite the primary fields
+(`capability`, `claimLanguage`, `antiClaim`) to present-tense dated status; keep
+history in those fields rather than as a contradicting trailer.
+
+### A source-level fix plus a green unit test is not evidence that a user path works
+
+Six of the seven High findings in the 2026-08-24 adversarial review of
+`fix/traci-claim-check-quick-wins` were **correct source changes defeated by something outside the
+diff**, and every one of them had shipped with a passing test and a backlog row marked "Done — do not
+re-open". Reading the diff could not have found any of them. The defeating mechanism each time:
+
+| Fix | Defeated by |
+|---|---|
+| `overflow-x: clip` on `.md-shell` | a `@media (max-width: 1024px)` block ~17,000 lines later re-declaring `overflow-x: hidden !important` at equal specificity |
+| once-per-user tour suppression | the manual "Take a tour" trigger writing the **same** hand-off flag as the auto-open |
+| search-box `mut` → action | the route: the controller's own refetch guard was bypassed by `setupController` re-running on the URL change the controller itself caused |
+| `current_host` → `absolute_host` (~130 sites) | the test fixture: `DEFAULT_HOST` was already absolute, so every assertion was a no-op |
+| corner-anchoring the feedback tab | putting it on the **base** rule, so the unrelated `--speak` variant inherited it onto the board grid |
+| removing the `"No name"` seed | the consumers that had no fallback, which went from wrong to blank |
+
+Three habits that would have caught them, cheapest first:
+
+1. **Grep for the property, not just the selector.** Before trusting a CSS fix, `grep` the whole
+   stylesheet for every other declaration of that property on that element — especially inside media
+   queries, which sit far from the base rule and usually carry `!important`. Same for any shared
+   runtime flag: `git grep <flag_name>` and read *every* writer, not only the one you added.
+2. **Ask what the test would do if the fix were reverted.** If you cannot answer concretely, the test
+   is decoration. Actually revert the line and watch it go red — that took under a minute here and
+   was the only thing that proved the COPPA link coverage was real. Check the **fixtures** too: a
+   fixture that is friendlier than production silently disables whole classes of assertion.
+3. **Vary the axis the fix depends on.** A viewport-sensitive fix needs more than one viewport; a
+   worker-vs-request fix needs both contexts; a per-user gate needs a second user *and* a second
+   invocation. The sticky harness ran one 1280x800 viewport and reported green while the fix was
+   dead on every tablet and phone.
+
+Corollary for the backlog: **"do not re-open" is a claim about a whole user path.** Close a row only
+after exercising the surface a user touches, and when the evidence is a script, make the script
+runnable by someone else — no hardcoded scratchpad paths, no uncommitted fixtures.
+
+### One breakpoint is not the breakpoint: re-declared shorthands defeat a narrower fix
+
+`overflow-x: clip` was added to `.md-shell` and to the `@media (max-width: 1024px)` scroll-guard
+block to stop the shell capturing `position: sticky`. Both edits were correct, both were reasoned
+from the spec, and the Preferences Save bar was still dead on every phone and portrait tablet —
+because two NARROWER blocks re-declare the **shorthand** on the same element:
+
+```
+@media (max-width: 950px)  .md-workspace { overflow: hidden !important; }
+@media (max-width: 820px)  .md-workspace { overflow: hidden !important; }
+```
+
+`overflow: hidden` sets both axes, so it overwrites an `overflow-x` fix completely. Measured:
+`.md-workspace` computed `clip/visible` at 1024px wide (bar pinned at y=685..768) and
+`hidden/hidden` at 768px (bar at y=1936 in a 1024px viewport). 2116 Ember tests reported `# fail 0`
+throughout.
+
+Three things to take from it:
+
+1. **Grep the PROPERTY across every breakpoint, not just the one you are fixing.** A media query
+   narrower than yours is still "later in the cascade" for the viewports it covers, and the fix you
+   verified at 1024px tells you nothing about 768px. Enumerate every declaration of that property
+   on that selector and check each one's media context.
+2. **A shorthand beats a longhand fix.** `overflow: hidden` silently reverts `overflow-x: clip`.
+   When patching one axis, search for the shorthand too — they will not look like the same rule.
+3. **`overflow: clip` is usually what these rules meant.** Where `overflow: hidden` pairs with
+   `border-radius` the intent is clipping the corners, not scrolling; `clip` does that and creates
+   no scroll container, so it cannot capture sticky. Keep `hidden` first as the pre-Safari-16
+   fallback.
+
+The general lesson, which is the same one A2 records: a CSS change verified at one viewport is
+verified at one viewport. Vary the axis the fix depends on, or you have tested the fix rather than
+the bug.
+
+## board-detail builds display buttons TWICE — speak mode and edit mode take different code (2026-08-25)
+
+`controllers/user/board-detail.js` has two makers, chosen by `use_ember`:
+
+- `_make_btn` — a plain object assembled from a **hand-picked field list** (speak mode). Its
+  own comment warns that anything omitted "silently vanishes on every re-render".
+- `_make_ember_btn` — `editManager.Button.create(display_btn, more_args)` (edit mode).
+
+A field added to one does not appear in the other, and `Button.create` does NOT reliably
+carry a plain field through even though it is handed the whole hash — `text_symbol`,
+`hide_label` and now `suggestion_slot` are all `set()` explicitly right after the create,
+and the `hide_label` line has carried a comment saying so for some time.
+
+- **Any per-button fact the grid needs must be added to BOTH makers**, and the Ember one
+  needs an explicit `set()`, not a property on the create hash.
+- **Verify in the mode the user is in.** A change confirmed in speak mode was reported done
+  and was not: the reporter was working in edit mode, which took the other maker. Predictions
+  also do not run in edit mode, so the very same buttons read differently in the two modes
+  ("give/need/use" authored, "i/you/we" once the predictor has dressed them) — enough to make
+  two correct observations look like a contradiction.
+- Related trap in the same file: `_localized_button_fields` overwrites a button's
+  vocalization with its label when both locales match, `:suggestion` and other special
+  actions included (`board.js#translated_buttons` guards the identical assignment with
+  `has_special_vocalization`; this one does not). Anything keyed on a special vocalization
+  downstream of it — `app-state.js`'s `== ':suggestion'` prediction action included — cannot
+  fire on board-detail. Carry a separate flag rather than reading the vocalization.
+
+## A localized payload can DELETE a special vocalization, and take a feature with it (2026-08-25)
+
+`lib/json_api/board.rb`, inside the `args[:locale]` branch, did
+
+```ruby
+button['vocalization'] = btn_tran[matching]['vocalization']
+```
+
+unconditionally. A translation entry carrying only a `label` therefore set the vocalization to
+**nil** — including on buttons whose vocalization is an ACTION rather than a word: `:suggestion`
+(a word-prediction slot), `+s` (append a letter). It is the only place in `lib/json_api/` that
+writes that field.
+
+The visible damage was not the obvious one. `Board#refresh_suggestions` finds prediction slots
+by `vocalization == ':suggestion'`, so on any session that requested a locale AND had a
+translation row for those buttons, **word prediction silently stopped working** — no error, the
+slots just render as ordinary buttons.
+
+- **A `^[:+]` vocalization is an action, not a string to translate.** Guard every write of it.
+  The client had guarded the identical assignment for years
+  (`board.js#translated_buttons`, `has_special_vocalization`); the server did not, and the two
+  disagreed silently.
+- **When a client-side marker is missing, check whether the SERVER sent it** before adding more
+  client plumbing. Two rounds of frontend fixes here were correct and verified and still did not
+  help, because the field was already nil by the time it reached the browser. One console line
+  reading the raw model (`voc: undefined` where the dev server returned `':suggestion'`) located
+  it immediately — worth asking for before the second speculative fix, not after.
+- **"Verified on my data" is not "verified".** Neither board on the dev server carried the
+  translation entries needed to trigger it, so every probe came back green. The spec that
+  reproduces it had to construct the translation rows by hand — and a spec for a
+  data-conditional bug must be negative-controlled (revert the fix, watch it fail) or it proves
+  nothing.
+
+## `key LIKE '%/board-name'` hides the COPIES, and a copy is what the user is on (2026-08-25)
+
+Eight rounds of "works here, not for me" came down to one SQL predicate. Checking which boards
+existed, I ran
+
+```sql
+select key from boards where key like '%/vocal-flair-112';
+```
+
+got two rows, and told the reporter that only two copies existed and both were correct. The
+board she was actually on was `marcus_williams_slp/vocal-flair-112_1` — copies are
+disambiguated with a trailing `_<n>` (`generate_unique_key`,
+`app/models/concerns/processable.rb`), and an exact-suffix LIKE excludes every one of them.
+`key ~ 'vocal-flair-112(_[0-9]+)?$'` returns three.
+
+- **Match the copy suffix whenever you enumerate boards** — the same trap the keyboard-folder
+  rule in `board_categories.js` already carries a comment about. A copied set is the common
+  case, not an edge one.
+- **The Rails log is the fastest way to find out what the user is actually looking at**:
+  `grep 'Started GET "/api/v1/boards/' log/development.log | tail`. Two minutes of that would
+  have saved several rounds of console ping-pong, and it does not depend on the reporter
+  running anything.
+- **"I could not reproduce it" is a claim about YOUR setup, not theirs.** Before concluding
+  the data is fine, confirm you are querying the same record — a board KEY, not a board name.
+- Corollary worth checking on any board that behaves oddly: count the buttons carrying a
+  vocalization. A board with 112 buttons and 0 vocalizations, where its sibling copy has 33,
+  is not a rendering problem.
+
+## "Vocalization same as label ⇒ drop it" destroys every SPECIAL vocalization on save (2026-08-25)
+
+`edit_manager.process_for_saving` stores a button's vocalization only when it differs from the
+label — reasonable, since "same as the label" means the button has none of its own. But a
+special vocalization (`:suggestion`, `+q`, `:shift`, `:space`) is an ACTION, and board-detail's
+`_localized_button_fields` had a rule that replaced it with the label first. Together:
+
+    +q  --(localizer: "locales match, so vocalization = label")-->  q
+    q   --(save: "vocalization == label, so drop it")-->            (deleted)
+
+One save removed all 33 special vocalizations from a core board: every QWERTY key stopped
+typing, shift and space stopped acting, prediction slots stopped being slots. No error, no
+warning, and unrecoverable without the parent board.
+
+- **A "same as X, so we don't need it" optimisation must exempt values that are not of X's
+  kind.** An action is not a word, and it is not redundant with a label it happens to equal.
+- **Two builders can serve the same mode.** Edit mode is reached either by URL
+  (`process_for_displaying`, from `contextualized_buttons` — guards specials) or by the in-app
+  "Edit Board" control (the controller's `_build_from_raw` → `_make_ember_btn` — did not). The
+  URL is what a probe uses and the control is what a user clicks, so the safe path is the one
+  you test by default. **Reproduce a save bug through the UI control, not the route.**
+- **`process_for_saving()` is a safe dry run** — it builds the payload and persists nothing.
+  Call it from the console and diff the result against `model.buttons` before suspecting a
+  save; that turned a hypothesis into a measurement in one step, with no risk to the board.
+- Guard at the source AND at the destructive step. Here the localizer was fixed and the save
+  still restores a special vocalization the original button had, because the failure mode is
+  silent permanent loss of a user's data.
+
+## Repairing a copied board: fix the OVERRIDE, never rewrite the buttons (2026-08-25)
+
+Copies share a `BoardContent` row — `boards.board_content_id` is the same for the original and
+every copy — and each board stores only `settings['content_overrides']['buttons']`, a
+`{button_id => {field => value}}` map layered on top. In `BoardContent.load_content`, an
+override value of `nil` **deletes** that field.
+
+So a board that has "lost" data has usually not had its buttons rewritten; it has acquired
+override entries nulling them. Repair by deleting those override keys and the shared value
+reappears — surgical, and every other edit on the copy survives untouched. Writing a fresh
+button array instead would detach the board from the shared content and discard the
+difference layer.
+
+- **Check `board.settings['buttons']` before saving a repair.** `check_content_overrides` ->
+  `BoardContent.track_differences` recomputes the whole override map, but only when the board
+  has its OWN `settings['buttons']`. On a fully-shared board it is skipped and your edit
+  saves verbatim; on a partly-detached one it would be rewritten under you.
+- **Scope the repair by a predicate, and count what it matched.** Here: remove the key only
+  when the override value is `nil` AND the base content's button has a `^[:+]` vocalization.
+  33 matched, 0 skipped, override FIELDS 605 -> 572 and ENTRIES unchanged at 112 — the field
+  delta being exactly the expected count is what proves nothing else moved.
+- Verify the SIBLINGS afterwards. Shared content means a careless write reaches every copy and
+  the original.
+
+## One bug in a shared idiom means N copies of it — enumerate the idiom, not the bug (2026-08-25)
+
+Fixing "a special (`^[:+]`) vocalization gets flattened to its label and then deleted" in the
+two places it was found left FOUR more live destroyers, each an independent path to the same
+permanent data loss:
+
+| Layer | Site |
+|---|---|
+| client, board-detail save | non-default-locale branch nulls then restores from a translation entry that has no vocalization |
+| client, CLASSIC editor | byte-for-byte twin of the above |
+| server, `translate_set` | deletes any vocalization it cannot translate, with fallbacks on |
+| server, `relinking#update_default_locale!` | reassigns from the new locale's entry, deletes when nil |
+
+They share one wrong assumption — *"a vocalization is a word, so a translation can replace it
+and its absence means there isn't one"* — expressed four times by different authors.
+
+- **When you find a bug in a shared idiom, grep for the IDIOM and enumerate every instance
+  before declaring it fixed.** Here: every write of `vocalization` across client and server.
+  Two of the four were on the server, which a frontend-shaped search would never have reached.
+- **A "likely safe, not tested" claim about a parallel code path is a guess.** I wrote that
+  about the classic editor; it carried the identical bug. Either test it or say it is unknown.
+- **A guard that restores data must distinguish corruption from intent.** "Restore the
+  original whenever the value looks wrong" also blocks the user from legitimately clearing the
+  field. Key the restore on the corruption's SIGNATURE (here: non-blank AND equal to the
+  label) so a deliberate clear still gets through.
+- Reviewing your own fix adversarially is worth a full round. Four HIGH findings, all
+  confirmed against source, in code I had just told the user was thoroughly fixed.
+
+## A damage scan must enumerate how each destroyer WRITES, not just what it destroys (2026-08-25)
+
+A scan for "boards that lost a special (`^[:+]`) vocalization" was written against the one
+storage shape the first repair had exposed: a `content_overrides['buttons'][id]['vocalization']
+= nil` over an intact shared content row. Two of the six destroyers were confirmed *after* it
+was written, and they do not write that shape at all:
+
+| Destroyer | What it leaves on disk |
+|---|---|
+| board-detail / edit_manager / classic editor | override `=> nil` over intact content |
+| `translate_set` | key **deleted** from the board's OWN `settings['buttons']` |
+| `relinking#update_default_locale!` | key deleted, **original preserved in the translations map** |
+
+Three consequences that a single-shape scan gets wrong, all of them silent:
+
+- **`load_content` PREFERS `board.settings['buttons']`** when non-blank (`board_content.rb:57`)
+  and then skips the override merge entirely. A board can serve damaged buttons while its
+  content row is *perfectly intact* — so "compare board to content" finds nothing.
+- **`track_differences` normalises a deleted key into `override => nil`
+  (`board_content.rb:217`) only for a board that HAS a `board_content`** (`board.rb:627`). On a
+  board without one, the deletion never becomes the shape you are looking for. The old scope
+  `where.not(board_content_id: nil)` skipped 11% of the dev DB, and those were exactly the
+  boards where the un-normalised shapes survive.
+- **The destroyer may have saved the original somewhere.** `update_default_locale!` writes
+  `btn_trans[old_locale]['vocalization'] = btn['vocalization']` at `relinking.rb:176` *before*
+  overwriting it. That makes the translations map both the detector and the repair source —
+  and the only one that works on a board with no content row at all.
+
+Generalise: before trusting a data-loss scan, list every writer, read what each one actually
+persists, and confirm the scan has a probe for each persisted shape. "What the bug destroys"
+is one question; "what the record looks like afterwards" is a different one per code path.
+
+- **A scanner that reports zero is worthless without a positive control.** Extract the
+  classification into pure functions with no DB, then build each damage shape the way the
+  destroyer writes it and assert the detector fires — each with a negative twin (an override
+  nulling a NON-special; a word button whose vocalization legitimately equals its label;
+  reserved translation keys like `default`/`board_name` that are not button ids). 17 fixtures
+  cost minutes and are the only reason a clean 5699-board result means anything.
+- **Edit history is the cheapest discriminator between damage and authorship.** Every
+  destroyer runs through a save, so `versions.count == 0` means a board CANNOT have been
+  damaged by one. Two heuristic hits on the dev DB were imported boards whose letters were
+  never special. Attach the count to the finding rather than suppressing the heuristic —
+  suppression risks hiding a real hit, annotation lets the list triage itself.
+- **A "needs an ancestor" check must walk more than one level, and must accept PARTIAL loss.**
+  Checking only `parent_board_id` misses a board whose parent was damaged by the same sweep,
+  and requiring zero surviving specials misses the shape `update_default_locale!` actually
+  produces (it only rewrites buttons that have an entry for the new locale).
+- **`load_content` memoises decrypted content in `Thread.current[:board_content_cache]` and
+  nothing reaps it inside a `rails runner`.** Clear it per batch or a full-table scan
+  accumulates every content row it touched. `Board#settings` is `secure_serialize`d, so there
+  is no SQL prefilter available — every board is loaded and decrypted, and the memory shape of
+  the scan is the whole cost.
+
+---
+
+## Sourcing external requirements (payer/clinical/legal) — 2026-08-25
+
+From verifying every claim in `docs/AAC_EVALUATION_STANDARDS.md` against published
+sources. All four lessons are about *retrieval*, and each one produced a confidently
+wrong answer before it was caught.
+
+**1. Never cite an external requirement from a vendor's "reprint."** Both
+misattributions in that file arrived through documents that looked authoritative.
+Tobii Dynavox publishes a PDF headed *"Reprinted from Minnesota Medicaid Provider
+Manual Chapter 17"* in which genuine state text and **vendor commentary** sit
+adjacent, separated only by a leading `**` that is lost on copy-paste — and the
+commentary recommends the publisher's own product by name. Separately, our
+">=10 messages" rule turned out to be PRC-Saltillo's funding template. In both
+cases the vendor's own hedge ("if possible", "preferred, but not always necessary")
+had been hardened into a mandate on the way in. Retrieve from the issuing body's
+own domain, or mark the claim `[UNSOURCED]`.
+
+**2. Verify the quote exists before trusting the section number.** New York
+renumbered its SGD guidance in 2019. Our "§10 / §6" citations pointed at a document
+retired seven years earlier and stayed plausible the whole time, because a section
+number is unfalsifiable on its face. Match on the sentence, then record the number —
+and record the document's effective date next to it.
+
+**3. Grep the section, not the document.** NY's DME manual is ~773k characters
+covering every category of durable medical equipment. A whole-file search for
+`four-week` "confirmed" a four-week SGD trial that is actually in the **lymphedema**
+section. Slice to the relevant block first, by searching for a distinctive nearby
+phrase, then count.
+
+**4. Normalise whitespace before matching a multi-word phrase.** Searching an
+extracted PDF for the literal `speed and accuracy` returned NOT FOUND while the
+phrase was plainly present — the extracted text had a line break between the words.
+Use `' '.join(text.split())` before matching, or a real quote reads as absent. This
+is the same failure family as the ad-hoc shell-loop misreports recorded above:
+**the tool said "absent" and the tool was wrong.** A "0 occurrences" result is a
+claim about your regex at least as much as about the document.
+
+**Retrieval notes.** macOS has no `pdftotext`; Ghostscript is already a repo
+dependency and works: `gs -q -dNOPAUSE -dBATCH -sDEVICE=txtwrite -sOutputFile=out.txt in.pdf`.
+Several payer sites (eMedNY, mass.gov, ED) return 403 to a browser-style fetch but
+**200 to a plain `curl` with no UA override** — the block keys on the client's
+fingerprint, not the user-agent string, so swapping UAs in a blocked client is
+wasted effort. A prior revision of the standards doc asserted the opposite and would
+have sent the next person down that path.
+
+**On subagent reports.** Per rule 9 these are evidence, not findings. Re-verifying
+each one against the retrieved source was not ceremony: one report asserted NY
+requires a four-week SGD trial, and the grep behind it had matched the lymphedema
+section (lesson 3). Another reported a phrase absent from a PDF that contained it
+(lesson 4). Both would have shipped as sourced facts.
+
+## Gotcha: `{{on "evt" this.someMethod}}` does NOT bind `this` — the repo's idiom is a factory bound in `init`
+
+`{{on}}` hands the raw function to `addEventListener`, so inside a bare class-body method
+`this` is the DOM element, not the component. The first `this.get(...)` throws
+`TypeError: this.get is not a function` — and if the handler already called
+`event.preventDefault()`, the key is swallowed AND the action never runs, which reads as
+"the control is dead" rather than as an error.
+
+Every other `{{on "keydown"}}` in this codebase goes through a binding factory —
+`this.eventAction`, `this.ctrlAction`, `this.invokeAttr` — or an `init`-bound closure:
+
+```js
+init() {
+  this._super(...arguments);
+  var self = this;
+  this.onGridKeydown = function(ev) { self.send('grid_keydown', ev); };  // components/grid-size-picker.js:56
+}
+```
+
+Found the hard way: `components/boards-layout-toggle.hbs:14` bound `this.onGroupKeydown`
+bare (2026-08-26 review). Combined with a roving tabindex — where only the CHECKED radio has
+`tabindex="0"` — it made the control completely keyboard-inoperable, because Tab+Enter only
+ever re-selects the value that is already selected. Unit tests were green: they called the
+component's methods directly and never dispatched a DOM event.
+
+**Check before shipping any `{{on}}`:** grep the component JS for the handler name and confirm
+it is assigned in `init`. If it appears only as an object-literal method, it is unbound.
+A unit test that calls the method directly will NOT catch this — it needs a rendering test
+that dispatches the real event.
+
+## Gotcha: a guard added to ONE handler does not cover keys another handler claims first
+
+`raw_events.js` has TWO `keydown` handlers. The first returns early for everything in
+`special_keys` — which includes `Backspace`, `Escape`, `Delete`, `Tab` and the arrows — so a
+guard added inside that handler *structurally cannot* apply to those keys; the second handler
+is where they are actually processed.
+
+`typing_into_a_field()` was added in 2026-08 to stop physical-keyboard typing from leaking into
+the vocalization box, and was used as the justification for defaulting
+`preferences.device.external_keyboard` to `true` for every existing account. It was applied at
+one call site. Escape (`:clear`) and Backspace (`:backspace`) in the second handler were left
+unguarded, so typing in a speak-mode text field (the Phrase Builder search box) could delete
+from — or wipe — a communicator's composed utterance.
+
+**Rule:** when you add a predicate to make a default safe, enumerate every handler that can
+observe the event, not just the one you were reading. For `raw_events.js` specifically:
+grep `check('keyboard_listen')` and confirm the guard appears at EVERY hit.
+
+## Technique: prove a "new lint/suppression regression" with a per-file+rule NET delta, never the raw `+` count
+
+`.eslint-todo` is keyed `file|rule|line|col|hash`, so ANY line shift in an existing file
+produces a remove+add pair. A branch that merely grew some files showed **+224** added app-code
+entries — which looks like 224 newly-grandfathered violations and is not.
+
+Compute the net instead:
+
+```bash
+git show <base>:app/frontend/.eslint-todo | grep -v '^#' | cut -d'|' -f1,2 | sort | uniq -c > /tmp/old
+grep -v '^#' app/frontend/.eslint-todo      | cut -d'|' -f1,2 | sort | uniq -c > /tmp/new
+# then diff the counts per file|rule key
+```
+
+Real answer for that branch: net **+75**, of which 73 were qunit style rules in NEW TEST files
+and 2 were `ember/no-runloop` in one component. Same discipline as the baseline rule for test
+runs (rule 10) — reconcile against a baseline before claiming a delta.
+## Gotcha: extras.js wraps string AJAX bodies as `{text, meta}` — HTML fetchers must unwrap `.text`
+
+`app/frontend/app/utils/extras.js` patches `$.ajax` and, on success, turns a
+string body into `{text: data}` then attaches `data.meta`. JSON API callers
+already expect an object. An HTML/text fetch that passes the resolved value
+straight into `{{safe}}` / `htmlSafe` stringifies it to `[object Object]`.
+
+The Article 50 modal (`ai-disclosure.js#fetchDisclosure`) hit this: the
+notice HTML was in `.text`, and the template rendered the wrapper object.
+`persistence.remote_json` already reads `data.text`; new `dataType: 'html'`
+or `'text'` callers must do the same. Tests that stub `persistence.ajax` with
+a raw string will not catch this — also resolve the extras.js `{text, meta}`
+shape.
+
+**First seen in:** [2026-08-26-ai-disclosure-object-object.md](./2026-08-26-ai-disclosure-object-object.md)
+
+## Pattern: quoted predecessor date windows must be compared as written
+
+When a correction refutes a predecessor claim with telemetry, use the
+predecessor's own interval. A longer bucket that includes days after the
+claimed window (especially after a documented credential restoration) cannot
+refute the original count, and "the event is on the wrong dates" does not
+follow from that mismatch. Report the queried bucket separately from the
+quoted window; do not silently extend the dates in parentheses.
+
+**First seen in:** [2026-08-27-overview-draft-verification-window.md](./2026-08-27-overview-draft-verification-window.md)
+
+## Gotcha: rescoping a findings row in place is a merge hazard, and no gate can see it
+
+`audit-merge.rb` derives a finding id as `SHA256(ruleKey|file)` (`scripts/audit-merge.rb:151-153`),
+and `citation-check.rb:72-96` already re-derives it and hard-FAILS on a mismatch, for every row
+regardless of status. **CORRECTED 2026-08-27: that check is NOT CI-gated.** `ci.yml:153` says so
+explicitly ("citation-check.rb is intentionally NOT gated here"); it runs only locally, via
+`scripts/regenerate-register.sh`. An earlier version of this entry called it "CI-blocking", which
+was wrong and is exactly the kind of unverified gating claim this file exists to stop. The only
+CI-gated structural check on findings rows is `register-lint.rb`, inside `audit-artifacts-integrity`.
+
+That is exactly why rescoping a row in place slips through. On PR #867 a row was rewritten from
+"the disclosure represents an unenforced purge as enforced" to an Article 50 legal-basis question
+while KEEPING its ruleKey. `id == SHA256(ruleKey|file)` still held, so citation-check stayed green
+-- what drifted was the SEMANTIC relationship: the row's content no longer described what its key
+said. A finder re-emitting the old key would then merge into a row about a different subject, and a
+correctly keyed finding would land as a duplicate.
+
+Two things follow:
+
+1. **When the subject of a finding changes, mint a NEW ruleKey and let the id change.** Editing
+   title/notes in place is only safe while the row still means what its key says. If the row has
+   already merged, you cannot simply delete it either (that is a closure, and only Scot closes) --
+   restore the old row's title to match its key, mark it withdrawn, and open the correctly keyed
+   row alongside it.
+2. **Do not propose an "identity invariant" gate for this.** It exists, it is green, and it would
+   not have caught the defect. Check whether a gate exists before recommending one; a redundant
+   gate that cannot detect the failure it is named for is worse than none, because it reads like
+   coverage.
+
+Related, and this one IS mechanically checkable: `evidence.sha` must be a full 40-hex commit id.
+`citation-check` resolves a prefix happily (`git show <prefix>:<path>` works), so a short sha passes
+the day it is written and silently becomes ambiguous as the repo grows. `audit-merge.rb` writes
+whatever `--sha` it is handed, so the abbreviation enters at the call site, not in the merger.
+`register-lint.rb` now rejects a non-40-hex sha, and REQUIRES one on every `code`/`doc` row --
+blank is permitted only for known non-checkable evidence (`runtime`, `attestation`). Unknown
+types (a mistype like `"cod"`, or an empty string) must not inherit that exemption:
+`citation-check.rb` SKIPs every type other than `code`/`doc`, so a file-backed row with a
+typoed type and a blank sha would otherwise be unanchored and uninspected by both the CI
+gate and the local citation check. The linter allowlists `evidence.type` against
+`code|doc|runtime|attestation` before applying the blank-sha exemption, and treats a blank
+type the same as a missing one (derive `code` if a file is present). That strictness
+matters precisely because citation-check is not in CI: register-lint is the only gate that runs.
+
+---
+
+## Gotcha: `generate_password` is also the login rehash path — do not length-check plaintext there
+
+`Passwords#generate_password` is called from `valid_password?` after a successful login to
+re-hash outdated or newly-prehashed credentials (`passwords.rb` ~266-271). A length check
+inside `generate_password` would 500 existing 6-character accounts on login. Enforce NIST 8
+on user-supplied writes only (`process_params`, valet enable, eval-reset) and skip already
+`hashed?:#` values. Existing short passwords keep working until the user changes them.
+Specs that *write* a password through those user-supplied paths still need 8+ characters
+(`bacon`, `chicken`, `gemini` are all too short and fail as `"password too short"`).
+The Ember register gate (`emailStepSignupDisabled` at `register.js:351`) is the same:
+`secret6` is 7 characters and leaves the submit button disabled.
+
+**First seen in:** [2026-08-31-findings-triage-queue.md](./2026-08-31-findings-triage-queue.md) (LL-5617f4e17d)
+
+## Gotcha: modal scanning needs both `.modal_targets .btn` markup AND `scannable: true`
+
+The scanner selector is `.modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, ...`
+(`services/modal.js` / `utils/modal.js`). `scanner.start` only runs when that query is non-empty
+AND `modal.open` was called with `{ scannable: true }`. Markup alone is not enough; the flag
+alone is not enough. `ai-disclosure.hbs` is the working reference. Opening a second modal in the
+same `setupController` run loop (`intro` after `terms-agree`) replaces the first before it mounts.
+
+**First seen in:** [2026-08-31-findings-triage-queue.md](./2026-08-31-findings-triage-queue.md) (LL-104bfa61dc, LL-53cb93fab1)
+
+## Gotcha: a new `scanner.find_elem(...)` call in `start()` must be guarded — the specs stub that seam
+
+**Surface:** adding any new selector lookup to `scanner.start()` (here, scanning the board-detail
+word-prediction rail). Two scanner specs died with
+`TypeError: Cannot read properties of undefined (reading 'length')` thrown from `Class.start`.
+
+**Root cause:** `find_elem` is the seam `tests/utils/scanner-test.js` stubs. The shared
+`scannerFindElemStub` helper has a `domStub(0)` fallback for unknown selectors, but several tests
+hand-roll a stub that answers only the selectors it knows about and returns `undefined` for
+everything else. Copying the shape of the neighbouring `#word_suggestions` block
+(`if(scanner.find_elem("#word_suggestions").length)`) is what leads you into this — that selector IS
+in the shared stub's known list, so the unguarded `.length` is safe there and nowhere else.
+
+**Fix:** `var $x = scanner.find_elem(sel); if($x && $x.length) { … }`, and guard `.find` the same way
+inside any `reload_children`. Fix the code, not the stub — a new selector must never be able to take
+the whole of `start()` down.
+
+**Also worth knowing about scan rows:** `scan_content()` builds the board rows solely from
+`model.grid.order`, and the header row sweeps `#speak button:visible`. Anything that is neither a
+board button nor a descendant of `#speak` is invisible to scanning until it is pushed as its own row
+— which is how board-detail's prediction rail (a SIBLING of `#speak`) shipped unreachable by
+scanning in its default placement. When adding such a row, `:visible` is load-bearing: the JShim
+constructor strips it and filters on `offsetParent`/`offsetWidth`/`offsetHeight`, and without it a
+`display:none` control is still in the DOM and becomes a scan stop on nothing.
+
+---
+
+## Pattern: loading states for an AAC prediction panel — never blank, delay the cue, dim don't spin, and don't swap under a dwell
+
+**Surface:** the word-prediction panel (board-detail rail or in-bar group) between word selections,
+especially on deployment where a lookup is slow enough to see.
+
+The panel is a **motor-planning surface**, not a content feed, which inverts several normal web
+loading-state habits. In priority order:
+
+1. **Never blank it.** Keep the previous words visible and live until the new set arrives
+   (stale-while-revalidate). A stale but valid word is a far better outcome for someone already
+   reaching for it than an empty panel — and if the panel is a fixed-width sibling of the flexible
+   board grid, unmounting it also resizes every board button.
+2. **Show no cue below ~400ms.** Most lookups resolve locally in a few ms; a cue that flashes on and
+   off is more disruptive than none, actively so with CVI or attention differences. Delay the CUE,
+   never the DATA.
+3. **Dim, don't spin, never resize.** A spinner inside a targetable tile changes what the target
+   looks like mid-reach. Opacity only.
+4. **Never disable a stale tile.** A dead target that swallows a dwell or switch hit gives no
+   feedback and costs a re-acquisition — worse than inserting a slightly stale word.
+5. **Never swap the words under an active dwell or scan of the panel.** This is the one genuinely
+   dangerous moment: the user selects a word they never chose. Hold the new set while the panel is
+   the live target (`scanner.actively_scanning()` + `scanner.current_element`, and
+   `buttonTracker.last_dwell_linger`), and bound the hold three ways — skip it when the word sequence
+   is unchanged, cap the total hold, and retract the loading cue as soon as the lookup finishes so a
+   held swap does not leave the panel dimmed. Treat both state reads as advisory: if either throws,
+   commit, because a stuck panel is worse than a rare mistimed swap.
+6. **Key the `{{#each}}` on the word.** Without a key, Ember rebuilds every tile (and re-decodes
+   every symbol) on each lookup even for words that carried over. A keyed each needs unique keys, so
+   de-dupe the list — with array membership, not an object map: `seen['constructor']` is truthy on a
+   bare `{}` and silently drops that word.
+
+**Evidence:** `controllers/user/board-detail.js` (`_begin_suggestion_lookup`, `_commit_suggestions`,
+`_prediction_panel_targeted`, `suggestions_loading_visible`, `prediction_suggestions`);
+`app.scss` `.md-board-detail-prediction-rail--is-loading`; task log
+`2026-08-28-prediction-rail-alignment-and-width-stability.md`.
+
+---
+
+## Pattern: to line a sibling up with the board grid, mirror its ORIGIN (margin + padding), not just its height — and remember a CARD does not fill its CELL
+
+**Surface:** the word-prediction rail — a fixed-width flex sibling of the board grid — whose tiles are
+supposed to sit exactly beside the board buttons. Reported as "the prediction words don't line up
+with the board buttons on all folder settings".
+
+**Read the deltas before theorising.** Equal `dHeight` with a CONSTANT `dTop` across every row means
+the row math is right and the ORIGIN is wrong — a margin or padding, not a gap or a track count. A
+varying `dTop` would mean the opposite. This one measurement separates the two whole classes of cause.
+
+**Two independent causes, and the second was invisible until measured:**
+
+1. **A card does not fill its cell.** Every folder setting reserves a different slice of cell top
+   space for the tab: default-with-folders `calc(var(--bd-cell-min) * 0.14)` on EVERY cell, Show-
+   Labels-on-Tab 8/10px plus a `calc(100% - 18px)` translated card, colored-corner 0, folder-less
+   boards none. A rail tile that fills its row band edge-to-edge therefore floats above the card
+   beside it by exactly that reserve — and the offset changes with the folder setting, which is what
+   made it look like a folder bug.
+2. **The grid has its own `margin-top`.** `.md-board-detail-grid.board.speak` sets
+   `margin-top: 6px !important` (reset to `0 !important` at `max-height:820px` / `max-width:768px`).
+   Pinning the rail to the grid's HEIGHT and mirroring its PADDING still leaves it starting at the
+   flex row's top while the grid starts one margin lower.
+
+**Fix for both: publish measured values, never constants.** `_sync_prediction_tile_size` already
+measures a representative card, so it also publishes the card's offset within its cell
+(`--prediction-tile-inset-top`), the card's height (`--prediction-tile-h`), and the grid's computed
+`padding-top` and `margin-top` (`--prediction-rail-pad-top`, `--prediction-rail-margin-top`). A
+`getBoundingClientRect` reading captures transforms too, so one rule covers every folder mode with no
+per-mode CSS branch. Every one of these values is dynamic across breakpoints — a hardcoded `4px` top
+inset and an unmirrored `6px` margin were both already-shipped bugs of exactly this kind.
+
+**Not circular** (cf. the sizing-a-flex-sibling entry above): these are read FROM the grid/card and
+applied to the rail's INNER geometry, so they never re-enter the flex width distribution. Note the
+grid's own ResizeObserver does NOT fire when only the cell reserve changes (the grid's box is
+unchanged), so the folder-style property must be an explicit re-measure dependency.
+
+**Verify by measuring, not by looking.** `scripts/prediction-rail-qa.mjs` pairs each tile with the
+card in its row band and asserts `|dTop|` and `|dHeight|` within 2px, per folder style. It caught
+cause 2 on its first run, after cause 1 had already been "fixed" and eyeballed as done.
+
+**Evidence:** `controllers/user/board-detail.js#_sync_prediction_tile_size`; `app.scss`
+`.md-board-detail-prediction-rail` + `.md-board-detail-grid.board.speak` (margin) +
+`.md-board-detail-grid--has-folders …__cell` (reserve); task log
+`2026-08-28-prediction-rail-alignment-and-width-stability.md`.
+
+---
+## Gotcha: a structural gate without negative fixtures is not a gate
+
+`register-lint.rb` is the only CI structural gate on findings rows. Running it against the
+committed registers proves those files are currently clean, not that any given rule still
+fires. Last week two defects (an abbreviated `evidence.sha`, then a blank sha still legal
+on `code`/`doc` rows) slipped through that gate and were caught by human review; the sha
+family got a harness in #873, and the remaining families (object-field shapes, enums,
+duplicate ids) had none until `scripts/tests/register-lint-shape-test.sh`. A test that
+stays green against a deliberately broken rule is worse than no test. Meta-test by copying
+the linter, disabling one family, and confirming the harness goes red (duplicate-id: 1
+fail; object-fields: 6; enums: 6) before calling coverage real.
+`scripts/regenerate-register.sh verify_all` must stay a superset of
+`audit-artifacts-integrity`; the sha harness was omitted from the wrapper when it
+landed in CI, so the wrapper could go green while CI still ran a step the wrapper
+did not.
+
+**First seen in:** [2026-08-31-register-lint-shape-harness.md](./2026-08-31-register-lint-shape-harness.md)
+
+## Gotcha: chmod +x does not reach the git index when core.fileMode is false
+
+CI invokes `scripts/tests/*.sh` harnesses with no interpreter prefix, so the git mode must
+be `100755`. `chmod +x` only changes the worktree; with `core.fileMode=false` (or a
+`chmod` after `git add` that the index ignores) the file ships as `100644` and the job
+fails with permission denied. After adding a new CI-invoked script, run
+`git update-index --chmod=+x path` and confirm `git ls-files -s path` starts with `100755`.
+Observed on the sha harness in #873 before this same fix.
+
+**First seen in:** [2026-08-31-register-lint-shape-harness.md](./2026-08-31-register-lint-shape-harness.md)
+
+## Gotcha: Notion rich_text is 2000 chars per object, not per property
+
+Notion caps `text.content` at 2000 characters **per rich_text object**, not per property. A property value is an array of those objects (max 100). The findings and document-register Notion syncs used to send a single `t[0, 1900]` slice, which silently dropped the tail of counsel-length remediations (`LL-b3e3a0b99c` was 2,872 characters; the EUR-Lex URL, transitional caveat, five-year guidance, and version-bump mechanism never reached the board). Split via `scripts/notion_rich_text.rb`. Do not shorten the register SSOT to fit the mirror.
+
+**First seen in:** [2026-08-27-art50-counsel-pointer-review.md](./2026-08-27-art50-counsel-pointer-review.md)
+
+## Gotcha: primary source for the AI Act is CELEX 32024R1689, not artificialintelligenceact.eu
+
+`artificialintelligenceact.eu` is a third-party reproduction. The authentic OJ text of Regulation (EU) 2024/1689 is https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:32024R1689. EUR-Lex consolidations (CELEX ids starting with `0`) are editorial and not authentic; cite the original act plus the amending OJ texts (for example Regulation (EU) 2026/1744) instead. A register row that says "verified against primary sources" must link those official texts, not the reproduction.
+
+**First seen in:** [2026-08-27-art50-counsel-pointer-review.md](./2026-08-27-art50-counsel-pointer-review.md)
+
+---
+
+## Gotcha: `buttonTracker.last_dwell_linger` is the LAST dwell target, not a dwell in progress — it is sticky by design
+
+**Surface:** any feature that wants to know "is the user dwelling on this right now?" — here, holding a
+word-prediction swap while the panel is the live dwell target.
+
+**The trap:** the name reads like live state. It is not. In `dwell_selection == 'button'` (and
+`'expression'`) mode `last_dwell_linger` is **never nulled**:
+
+- `linger_clear_later` (`raw_events.js` ~:2415) calls `clear_dwell` only `if(!dwell_no_cutoff &&
+  dwell_selection)`, where the LOCAL `dwell_selection` (~:2282) is
+  `buttonTracker.dwell_selection != 'button' && != 'expression'` — i.e. **false** in exactly those modes;
+- and `clear_dwell` itself (~:3053) *deliberately keeps* the linger in `'button'` mode, trimming only
+  its `events`, so the switch press can still release it.
+
+So once a dwell+switch user's gaze has rested on an element, a naive read returns "targeted" forever
+with no further input. Anything gated on it stays gated permanently — for the exact user population
+dwell features exist for.
+
+**How to read it safely:** require the linger to be genuinely live — dwell enabled
+(`buttonTracker.check('dwell_enabled')`), the element still in the document
+(`document.body.contains`), and activity within the dwell window (`linger.updated` is stamped on each
+linger event; `linger.started` is the fallback). A detached node is correctly not a live target.
+
+**General rule:** before gating behaviour on another subsystem's state, read that subsystem's
+lifecycle for where the state is CLEARED, not just where it is set. A field with no clear path is a
+latch, not a signal.
+
+---
+
+## Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery
+
+**Surface:** switch scanning drills into a group (the word-prediction rail) whose children then empty
+out; the scanner cycles a single level-up stub over an empty box, and `escape()` quits scanning
+instead of backing out.
+
+**Root cause:** `scanner.next_element` recovers a vanished level with
+`if(!document.body.contains(elem.dom[0]) || (bounds.width == 0 && bounds.height == 0))` and then
+auto-`level_up()`s. That worked by ACCIDENT for every group so far, because an emptied group's
+container had also left the DOM. A container deliberately kept mounted to hold layout width — which is
+what the prediction rail now does — is attached and has a non-zero box, so the recovery never fires.
+
+**Fix:** handle it where the level is built, not where it is measured. In `scanner.load_children`, if
+the reloaded children are empty and a `higher_level` exists, `level_up(parent, true)` instead of
+building a level containing only its own stub.
+
+**Scope, stated precisely — an earlier version of this entry said "strictly better for every caller"
+and that was wrong.** The RECOVERY path already handled the empty case (it reaches the
+`elements.length == 1 && higher_level` check and levels up), so the behaviour that actually changes
+is the `pick` path, where the old code left the user on a level holding only its own level-up stub.
+The commit message of `3bd34f706` still carries the overclaim; `757f0ceb7` retracts it.
+
+**The second argument is load-bearing and was learned two rounds later.** `level_up` returns to
+`higher_level_index` — the row just left. Without `advance`, an emptied group is re-picked by
+`scanning_auto_select` every interval and levels up to itself: the user NEVER REACHES THE BOARD, and
+the only exit is the cancel switch, which stops scanning outright. Of the four `level_up` call sites
+only the empty-children one passes `advance`. Note this trap is not specific to the prediction rail:
+`origin/staging` pushes the classic `#word_suggestions` row with no children guard and board-alt
+renders it with visible "Loading word suggestions…" text, so the same loop ships there at two ticks
+per cycle instead of one.
+
+**Also check `escape()`:** it levels up only for containers whose class it recognises, and falls
+through to `scanner.stop()` otherwise — so a new drill-in level must be added there too, or escaping
+out of it quits scanning altogether.
+
+**Wider lesson:** "keep it mounted so the layout doesn't move" is a good fix with a blast radius. Grep
+for everything that reasons about the element's PRESENCE — scanning, dwell hit-testing, `:empty` CSS,
+a11y tree, layout math — before assuming presence is free.
+
+---
+
+## Decision: scanner `escape()` keeps its class allow-list — generalising it removes the switch user's guaranteed exit
+
+**Status:** tried, reverted, do not retry without the two guards below. `utils/scanner.js#escape`
+points here.
+
+`escape()` levels up only for a parent stub whose dom carries `md-board-detail-sentence-row` or
+`md-board-detail-prediction-rail`, and calls `scanner.stop()` for everything else. That IS
+incoherent — of roughly eight drill-in levels, two go back and six quit, including board rows in
+both UIs, the classic header row, the `#identity` menu and the classic `#word_suggestions` row —
+and every level added later silently defaults to quit.
+
+Generalising it to `if(parent && parent.higher_level) { level_up }` looks obviously right and is
+worse. Two confirmed regressions, both hitting switch users specifically:
+
+1. **It revives a STOPPED scanner.** `scanner.stop()` does not clear `scanner.elements`, and
+   `modal.open` calls `scanner.stop()` for every non-scannable modal. So with the general rule a
+   cancel press behind an open modal runs `level_up` -> `next_element` and resumes scanning on the
+   board underneath — with `scanner.scanning` still false — and with `scanning_auto_select` a
+   button the user cannot see can be picked. The allow-list has the same hole, but for two levels
+   instead of eight.
+2. **It makes `stop()` unreachable in bounded presses.** `level_up` sets
+   `element_index = higher_level_index`, i.e. it puts the highlight back on the row just escaped,
+   and `next_element` re-arms auto-select. So escape -> re-drill -> escape -> re-drill: stopping
+   needs two presses INSIDE ONE SCAN INTERVAL, which is exactly what a long interval exists to
+   avoid for a slow-motor user. Under the allow-list, one press from a board row hits `stop()`,
+   terminal and guaranteed.
+
+**The trade to weigh:** the incoherence is a *coherence* problem; these are *"the switch user
+cannot reliably quit"* problems. Coherence loses.
+
+**What a real fix needs first:** a scanning-state guard in `escape()` (`if(!scanner.scanning) {
+scanner.stop(); return; }`, or the modal check `raw_events.js` already applies on the select
+branch), and suppression of the next auto-select after an escape-driven `level_up`. Both want
+their own tests. `tests/utils/scanner-test.js` now has a test named for the guaranteed exit that
+will fail if someone generalises this again without them.
+
+**Evidence:** `utils/scanner.js#stop` (does not clear `elements`), `#level_up`, `#escape`;
+`utils/modal.js:126,188`; `services/app-state.js` (`scanning_auto_select`); task log
+`2026-08-28-prediction-rail-alignment-and-width-stability.md`.
+
+## Pattern: a guard keyed on a MONOTONIC global silently collapses to its other term
+
+**Surface:** board-detail word-prediction freeze. `restart_placed` suppressed the swap-freeze when
+`scanner.started >= _last_prediction_commit_at && scanner.element_index === 0`.
+
+**Root cause:** `scanner.started` is written only in `start()` (`utils/scanner.js:197`) and never
+cleared — `stop()` leaves it — and `pick_elem` restarts after EVERY selection. So after the user's
+first prediction commit the first term was permanently true and the conjunction degenerated to
+`element_index === 0`. That index is not unique to a post-commit restart: `load_children` sets it on
+every drill-in (`:1187`) and `next()` wraps to it every cycle (`:1228`), so the freeze was disabled
+exactly on prediction tile #1 — the tile a user is most likely committing to.
+
+**Fix:** the intent ("do not withhold the refresh the user's own commit triggered") was one LOOKUP
+GENERATION wide, not a scanner index. Moved to a one-shot armed at commit and consumed in the
+observer. Two placement facts that were NOT obvious and each would have shipped a bug: the one-shot
+cannot live in the predicate, because the release poll calls it too and would consume it; and it
+must be consumed at the first *materially different, non-blanking* write, because between a commit
+and its result the panel takes a loading write plus one republish per resolved symbol, all carrying
+the SAME words — "consume on the next write" is eaten before the result arrives.
+
+**Rule of thumb:** when a guard ANDs a monotonic global against a specific condition, ask what the
+guard degenerates to once the global is permanently true. If the answer is "the other term", it is
+not a conjunction, it is that term with decoration.
+
+**Evidence:** `controllers/user/board-detail.js#_prediction_panel_targeted`, `#_prediction_freeze_watch`,
+`#_note_prediction_commit`; `utils/scanner.js:197, 1187, 1228`.
+
+## Pattern: cancellation that RESOLVES lands on the success path, not the failure path
+
+**Surface:** a superseded AI lookup blanked the prediction panel under a live dwell/scan reach.
+
+**Root cause:** `utils/ai_word_predictor.js` cancels a pending debounced call with
+`_pending_reject = function() { resolve([]); }`. It RESOLVES with an empty array. So the superseded
+generation ran the SUCCESS continuation and committed `{ready:true, list:[]}` — indistinguishable
+from a genuine "no words", which the freeze watcher correctly treats as a cleared sentence and
+releases on.
+
+**Two traps found in the obvious remedies.** (a) "Make it reject instead" is a strict NO-OP for the
+symptom: the rejection handler commits the identical `{ready:true, list:[]}`. It is also actively
+harmful — the predictor's promise is merged with `RSVP.all` in `utils/word_suggestions.js`, so
+rejecting destroys the LOCAL non-AI results that had already resolved, and contradicts the module's
+documented silent-degrade contract. (b) A generation guard on the continuation is necessary but not
+sufficient: three ABANDONMENT paths blanked `suggestions` and returned WITHOUT advancing the
+generation, so a cleared sentence left the in-flight continuation still matching and it repopulated
+the panel that had just been cleared.
+
+**Rule of thumb:** a generation counter must be advanced on every path that ENDS a lookup, not only
+on every path that starts one. And before "make it reject", check what the rejection handler
+actually does and what the promise is composed with.
+
+**Evidence:** `utils/ai_word_predictor.js` `_pending_reject`; `controllers/user/board-detail.js`
+`#_apply_suggestion_results`, `#_invalidate_suggestion_lookup`; `utils/word_suggestions.js` RSVP.all.
+
+## Pattern: EMBER UNIT TESTS GIVE YOU REAL LAYOUT — use them instead of asking for a console paste
+
+**Surface:** "the prediction tiles do not match the board buttons" — three candidate causes and no
+way to tell which without measuring.
+
+**What works:** `tests/index.html` loads `assets/frontend.css`, so a fixture appended to
+`document.body` in a unit test is laid out by the REAL stylesheet and `getBoundingClientRect()`
+returns real numbers. Building a board+rail fixture and calling the actual measure function turned
+a guess into a table (card vs tile height/width/top per button shape). This is far cheaper than the
+Puppeteer probe, which needs live servers.
+
+**The trap, and it produced a FALSE bug report before it was caught:** the code under test resolves
+its targets with `document.querySelector`. A fixture left in the DOM from a previous loop iteration
+is the one it measures, while the assertions read the current fixture — producing confident,
+completely wrong deltas. The tell was that the reported tile width was exactly the CSS fallback
+(`84px`), i.e. the measurement had never landed at all. Tear fixtures down between iterations, and
+treat "the value equals its fallback" as evidence the code never ran.
+
+**Rule of thumb:** when a measured value equals its declared fallback, do not report the delta —
+find out why the measurement did not land.
+
+**Evidence:** `tests/unit/controllers/user-board-detail-prediction-hold-test.js` (`boardAndRailFixture`,
+`measureParity`); `app/styles/app.scss` `--prediction-tile-w` fallback.
+
+## Pattern: this repo has TWO test frameworks — check the file before writing a test
+
+`tests/utils/scanner-test.js` is jasmine-style (`describe` / `it` / `expect(x).toBe(y)` / a local
+`stub` helper). `tests/unit/controllers/user-board-detail-prediction-hold-test.js` is QUnit
+(`module` / `test(name, function(assert))` / `assert.strictEqual`, with a local `buildController()`).
+A test written in the wrong idiom does not fail loudly — it simply never runs as intended. Also note
+`qunit/no-assert-equal` and `qunit/no-assert-logical-expression` are enforced: use `strictEqual`, and
+never put `||`/`===` inside an assertion.
+
+## Pattern: `--update-todo` will silently GRANDFATHER the violations you just introduced
+
+`scripts/eslint-todo-gate.js --update-todo` rewrites the whole baseline. Because the fingerprint
+includes the LINE NUMBER, any edit shifts hundreds of rows and the regenerate looks like noise — so
+a genuinely new violation of yours disappears into it unnoticed. The reliable check is to compare
+RULE IDENTITY across the rebaseline, ignoring line drift:
+
+    git show HEAD:app/frontend/.eslint-todo | grep -v '^#' | awk -F'|' '{print $1"|"$2"|"$5"|"$6}' | sort > before
+    node scripts/eslint-todo-gate.js --update-todo
+    grep -v '^#' .eslint-todo | awk -F'|' '{print $1"|"$2"|"$5"|"$6}' | sort > after
+    diff before after     # must be empty
+
+This caught three separate self-introduced lint findings in one session that the regenerate had
+already absorbed. Use the same technique to resolve an `.eslint-todo` MERGE CONFLICT: regenerate
+against the merged tree and prove the identity multiset is unchanged, rather than hand-merging.
+
+## Pattern: a red test can silently SELECT a candidate fix
+
+A red test written to be "candidate-agnostic" was not. Its guard assertion (`escape()` levels up out
+of this level) relied on a precondition the `beforeEach` did not establish — `scanner.scanning` is
+false at the start of every test — so under the fix that guards on `scanning`, the GUARD would have
+failed and the test would have appeared to rule that candidate out. It passed only under the one
+candidate that happened not to read the flag.
+
+**Rule of thumb:** for every assertion in a red test, ask which preconditions it depends on and
+whether the CANDIDATE FIXES change them. A guard assertion that fails under a proposed fix is not
+evidence against that fix; it is a bug in the test.
+
+**Related, from the same session:** replacing a RANGE in a test file deleted three tests that had
+been inserted between the two anchors. The count drop (24 → 21) was the only signal. Print what is
+inside a range before replacing it, and prefer insertion at a single anchor (CLAUDE.md rule 14.4).
+## Gotcha: do not claim a finding is tracked until the register row exists
+
+Moving forensic detail out of an externally shareable overview is correct, but pointing at
+`audit-reports/FINDINGS.json` is a claim. Grep the register for the issue (not just nearby
+Bedrock rows) before writing "the finding is tracked." If the row does not exist, file it first
+via `promote-finding.rb` (Critical/High, code/path evidence, no source addresses) and cite the
+id; do not leave a pointer to a missing row after deleting the prose that used to carry the
+detail. Same class of error: a Section 2 "everything is live unless marked not operational"
+page that drops the only "not operational" mark for a seam (`EvalNarrator` Opus default vs
+classic-plane Haiku-only `CLASSIC_PROFILE_IDS`) re-asserts that the seam works.
+
+**First seen in:** [2026-08-30-pr886-review-comments.md](./2026-08-30-pr886-review-comments.md)
+
+## Gotcha: a locale value without a leading `*** ` is treated as already translated
+
+`i18n.t` (`app/frontend/app/utils/i18n.js:448`) and `WordData.translate_locale_batch` (`app/models/word_data.rb:718`) both key off a leading `*** `. A value stored as English with no prefix — e.g. `"edit_dashboard_sub": "Customize your Dashboard"` — is shown as-is and skipped by the batch. Mixed Spanish/English on the dashboard was untranslated `***` placeholders (and one English-without-prefix key), not missing `{{t}}` in the templates. Fill via `rake extras:translate_ui_locales LOCALE=es` under `op run`, or write `Translation [[ English`. Treat `op://` tokens as unset (see the dotenv gotcha).
+
+**First seen in:** [2026-08-31-dashboard-i18n-locale-placeholders.md](./2026-08-31-dashboard-i18n-locale-placeholders.md)
+## Gotcha: boards-layout-toggle global-failure flake (capabilities 2s auth-sync interval vs the per-test localStorage stub)
+
+**Symptom:** `build-and-test` fails on exactly one `Unit | Component | boards-layout-toggle`
+test (first seen: "re-choosing the SAME mode does not save again"), on a run that completed at
+full baseline (`# tests 2396 / # skip 38 / # fail 1`, so not a truncation). The TAP entry says
+`global failure: TypeError: localStorage.getItem is not a function` with a stack in
+`capabilities.sync_access_token` -- the test's own assertions never ran red.
+
+**Mechanism (traced 2026-08-31; each step labeled):**
+- CONFIRMED: `app/frontend/app/utils/capabilities.js:320-326` starts a `setInterval` calling
+  `capabilities.sync_access_token()` every 2000ms; `_auth_sync_interval` is never cleared
+  anywhere (grep: only :320,321), so once started it runs for the life of the page.
+- CONFIRMED: the throwing line is `capabilities.js:305`, verbatim:
+  `if(window.LingoLinq && (window.LingoLinq.DEBUG || (typeof localStorage !== 'undefined' && localStorage.getItem('debug_tokens') === 'true'))) {`
+  The `typeof` check passes for a plain-object stub (it is not undefined), and the
+  `window.LingoLinq.DEBUG` short-circuit never saves it because `DEBUG` is read in two files
+  but ASSIGNED nowhere under `app/frontend/app/`.
+- CONFIRMED: two more gates must ALSO open before :305 runs: the early return at
+  `capabilities.js:301-303` (skip when the new token is empty and a valid one is cached) and
+  the `if(new_token !== capabilities.access_token)` wrapper at `:304`. A tick that finds an
+  unchanged token returns without touching localStorage. This is why the flake is rare, not
+  (stub window / 2000ms) common.
+- CONFIRMED: `boards-layout-toggle-test.js:41` replaces the PAGE-GLOBAL `window.localStorage`
+  per test with plain objects that have NO `getItem` (`stubStorage` / `throwingStorage`),
+  restored in an `afterEach` whose restore failure is swallowed by a bare `catch` (`:29-38`).
+- PLAUSIBLE (the one unproven link): that the interval is actually running during this
+  `setupTest` module. Nothing in the test file starts it; the only trigger in the codebase is
+  `extras.advance.watch('device', ...)` dispatching `method: 'init'` (`extras.js:530-531`),
+  which is module-level and order-dependent, so whether the tick fires here depends on what ran
+  earlier in the same browser page. Test-order dependence also better explains the observed
+  rarity than the 2s timing alone.
+- CONFIRMED: when the tick does throw, QUnit charges the uncaught error as a
+  **global failure to whichever test is running**. Same victim-charging class as the
+  `token_validated` leak entry above, different leak source.
+
+**Corroboration:** on PR #888 (run 33343382237, attempt 1, commit `8b0105a8a`) the only diff
+from the branch's previous fully-green frontend run was one line in `app/models/user.rb`, which
+the Ember suite never compiles. Identical frontend code, different outcome; attempt 2 passed.
+
+**Handling -- key on the STACK FRAME, not the message:** a solo boards-layout-toggle failure at
+full baseline whose stack is in `capabilities.sync_access_token` is this flake; rerun with
+`gh run rerun --failed`. BUT the identical message (`localStorage.getItem is not a function`)
+can also come from `extras.js:241,248`, which has the same call with NO `typeof` guard on the
+ajax request path -- that one is request-driven, fires on any XHR issued while the global is
+stubbed, and will NOT clear on rerun. Check the stack frame before rerunning. If the rerun
+fails on a DIFFERENT test, stop and treat it as signal. Do not "fix" it by weakening the
+test's stubs blindly.
+
+**Fix candidates (NOT applied; need the >=30-iteration verification budget):** stop replacing
+the page-global (inject a storage adapter, or make the `afterEach` restore THROW instead of the
+silent `catch` at `boards-layout-toggle-test.js:32` -- if a restore ever fails, the next
+`beforeEach` captures the stub as "real" and installs it for the rest of the suite with no
+diagnostic); guard or try/catch the debug reads at `capabilities.js:305` AND `extras.js:241,248`;
+have the test harness cancel `capabilities._auth_sync_interval`; or add a no-op `getItem` to the
+stub objects (weakest -- patches one symptom of an unbounded global mutation).
+
+**First seen in:** PR #888 CI, 2026-08-30/31.
+
+
+## Gotcha: a spec can PIN the defect, so the red test is the fix working
+
+`spec/models/user_org_offboarding_consent_spec.rb` "process_expired_offboarding_consents!
+schedules delete after deadline" stubbed `Exporter.export_user` to return **`nil`** and
+then asserted `schedule_deletion_at` **was** present. That is the defect written down as
+a requirement: a failed export deletes the child's account anyway. Fixing the code turned
+the spec red, and the spec looked like the authority.
+
+Before "fixing" a newly red test, read what it ASSERTS, not just that it broke. If the
+assertion encodes the behaviour you were sent to remove, the spec is the thing to change,
+and the change needs a comment saying so or the next person will revert it. Split it
+rather than editing in place: one example for the happy path, one that pins the new
+refusal, so the corrected expectation cannot quietly regress back.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md)
+
+## Gotcha: `user_spec` needs a CLEAN test DB — orphan rows fake 14 failures
+
+`spec/models/user_spec.rb` has blocks that assert on UNSCOPED global counts
+(`expect(AuditEvent.count).to eq(0)`, `expect(Board.count).to eq(4)`) with no
+`before(:each) { AuditEvent.delete_all }` of their own — `add_premium_voice`,
+`track_protected_source` and `copy_board_links` are the three. Any row left in
+`lingolinq-test` by an earlier run makes all 14 fail, identically, standalone, in a way
+that looks exactly like a regression in whatever you just changed.
+
+Confirm before believing it:
+
+```bash
+DB_USER=scotw RAILS_ENV=test bundle exec rails runner \
+  'puts "AuditEvent=#{AuditEvent.count} Board=#{Board.count} User=#{User.count}"'
+```
+
+Non-zero on a supposedly idle DB is your answer (5/1/1 in the observed case). Clean with
+`AuditEvent.delete_all; Board.delete_all; User.delete_all` and re-run: 405 examples,
+0 failures. AuditEvent commits outside the RSpec transaction, so an `after(:each)`
+cleanup can be rolled back while the inserts survive — which is why the repo's own
+convention is `before(:each) { AuditEvent.delete_all }`, not after.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md)
+
+## Gotcha: public COPPA signup is classified from birth month/year, not the client flag
+
+`User.process_params` treats a classifiable `birth_month` / `birth_year` as authoritative for the under-13 gate (`User.age_under_threshold?`, age 13). The Ember `coppa_under_13` flag is only a fallback when birth is missing (org New User, fixtures). Unauthenticated `POST /api/v1/users` requires birth when COPPA is on. Google register start accepts birth only on POST (`post auth/google/start`); GET register start ignores query birth so DOB is not in history, proxy logs, or the Google referrer. Complete raises `coppa_age`. Do not put the optional signup name on `/auth/google/start` as `&name=` — send `signup_name` on the complete POST.
+
+**First seen in:** [2026-09-01_register-name-locale-supporter-age.md](./2026-09-01_register-name-locale-supporter-age.md)
+
+## Gotcha: classic `observer()` fires SYNCHRONOUSLY here — a test that sets a flag and then "consumes" it by hand double-consumes
+
+`config/environment.js` does not set `_DEFAULT_ASYNC_OBSERVERS`, so on Ember 5.12 a classic `observer('appState.flag', ...)` runs inside the `set()` call that flips the flag. In a unit test with a live component instance, `appState.set('auto_open_home_tour', true)` had already been consumed by the component's watcher by the time the test called the consume helper explicitly; the helper then ran without a signal and scheduled anyway, and the "stale signal is dropped" case reported `runs: 1`. It read like a code bug. It was the test. Two rules: (1) when a test needs a signal to survive until a SPECIFIC reader sees it, park every live watcher first (here: `component.set('speakHost', true)`, whose watcher returns before consuming) or destroy the instance; (2) prefer exercising the real reader (`factoryFor(...).create({ _runAutoOpen: counter })` runs `init` with the override already in place) over calling the helper by hand. Corollary for the app code: a flag raised by one writer is consumed by the FIRST live watcher in the same call stack, so "the next instance's init will pick it up" is only true when no live instance is watching.
+
+Teardown timing that the same branch had to get right: `willDestroy` is a NON-eager destructor (`@ember/object/core.js:205`), so `component.destroy()` returns before it runs; a test must await a tick before asserting anything `willDestroy` wrote. Observers, by contrast, are deactivated by an EAGER destructor before `willDestroy`, so a `willDestroy` that writes to a service cannot re-trigger the dying instance's own watcher.
+
+**First seen in:** [2026-09-02_art50-notice-vs-guided-tour.md](./2026-09-02_art50-notice-vs-guided-tour.md) (PR #920).
+
+## Pattern: falsify by IN-PLACE mutation, not by reverting the whole file
+
+"7 of 8 fail on the pre-fix file" sounded like strong evidence and was mostly noise: with the fix reverted the method the tests stubbed did not exist, so the stub was inert and the counter stayed 0, and one case failed by THROWING on a destroyed component rather than by asserting. Mutating the fix in place (force the hold predicate false; delete the re-arm hook; delete the expiry check; drop the handoff) gave a per-mutation kill list where each mutation reddened exactly the cases that pin it. Report that list, not the revert count. Restore from a copy you saved, `cmp` it, never `git checkout`.
+
+**First seen in:** [2026-09-02_art50-notice-vs-guided-tour.md](./2026-09-02_art50-notice-vs-guided-tour.md) (PR #920, adversary finding A6).
+
+## Gotcha: an export-claim release must match the stamp this attempt wrote
+
+`offboarding_export_started_at` is a lease, not a mutex bit. After `OFFBOARDING_EXPORT_CLAIM_STALE` a retry overwrites it. If the original attempt later fails and deletes whichever stamp is stored, it clears the retry's live claim and a third sweep can start another concurrent export. Carry the claimed ISO8601 into `release_offboarding_export_claim!` and delete only on equality.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md) (PR #903).
+
+## Gotcha: decline page state on revisit must re-read scheduled_at, not only declined_at
+
+A successful offboarding decline whose export failed still writes `parent_consent_declined_at`. The first POST can render `:declined_export_pending` from `decline_outcome_state`, but a later GET/POST that keys only on `declined_at` shows `:already_declined` and tells the parent the account is scheduled for export and deletion. For declined offboarding, keep `:declined_export_pending` until `offboarding_export_scheduled_at` is present.
+
+**First seen in:** [2026-08-31_coppa-offboarding-safety.md](./2026-08-31_coppa-offboarding-safety.md) (PR #903).
+
+## Gotcha: the COPPA birth-data gate must use the same org-author predicate as process_params
+
+`@api_user.nil?` is the wrong skip. Any logged-in creator then omits birth, `age_under_threshold?` returns nil, and classification falls back to the client `coppa_under_13` flag. Share `User.validated_org_author(author, organization_id)` between `api/users#create` and `process_params`.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: SHA-512 prehashes are always long — reject the hashed prefix on write
+
+`password_meets_minimum?` returning true for `HASHED_PASSWORD` (or checking `length >= 8` on the hash string) does not enforce the original password length. A client can POST `hashed?:#sha512?:#` plus the digest of `"x"`. Login rehash does not call this method (`valid_password?` → `generate_password`). Reject prehashes on write; send plaintext from eval reset.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: unique-index `update_all` plus `rescue nil` drops the whole transfer
+
+`PredictionEntry` is unique on `(user_id, locale, prefix, next_word)`. One collision aborts the bulk `update_all`. `rescue nil` then looks like success, and a later `reset_eval` flush deletes the leftover source rows. Merge colliding scores, then move the rest.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: create-board label caches are keyed by label text, not locale
+
+`_label_english`, `_board_name_english`, `_label_colors`, and `_label_images` key only on the label string. Changing `model.locale` (supervisee switch or locale picker) without clearing them reuses the previous source language. Clear on 2-letter-root change and ignore in-flight writes from the old generation.
+
+**First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).

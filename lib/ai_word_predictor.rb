@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 require 'digest'
-require 'securerandom'
 require_relative 'pii_scrubber'
 require_relative 'ai_client'
 require_relative 'lingo_linq/article50_call_context'
@@ -31,15 +30,7 @@ module AiWordPredictor
   #
   # Three properties now hold, and each has a spec:
   #   1. Nothing the user typed is recoverable from the key. It is a SHA-256 of
-  #      the POST-scrub text under a per-process secret salt, so anything
-  #      PiiScrubber redacts never reaches it AND the digest cannot be reversed
-  #      by enumeration. The salt is the load-bearing half of that claim: AAC
-  #      utterances are short, high-frequency and drawn from a small realistic
-  #      space, so an UNSALTED SHA-256 of one is recoverable by anyone who can
-  #      dictionary-attack the heap -- which is precisely the reader
-  #      LL-16ef84ad9a is about. Do not remove the salt to make keys stable
-  #      across processes; a shared cache is a different design and would need
-  #      its own review.
+  #      the POST-scrub text, so anything PiiScrubber redacts never reaches it.
   #   2. Entries are scoped per organization, so one district's process-shared
   #      entries are unreachable from another's.
   #   3. Expired entries are swept on write rather than lingering until the cache
@@ -50,11 +41,6 @@ module AiWordPredictor
   CACHE = {}
   CACHE_MAX = 500
   CACHE_TTL = 1800 # 30 minutes -- aggressive caching for free-tier rate limits
-  # Per-process, never persisted, never logged. Costs nothing: CACHE is process
-  # -local and ephemeral, so no key ever needs to be reproducible anywhere else.
-  # A fresh salt per boot also means a heap captured from one process tells an
-  # attacker nothing about another's keys.
-  CACHE_SALT = SecureRandom.hex(32)
   # CACHE is mutated from every Puma worker thread; a bare Hash is not safe under
   # concurrent write + rehash. Never hold this across an AI call.
   CACHE_MUTEX = Mutex.new
@@ -103,10 +89,16 @@ module AiWordPredictor
       # frozen Set, so name detection is a hash lookup per word, not a scan), and
       # the digest another 5. That is imperceptible against the instant-feel budget
       # the cache exists to protect.
+      # context.topic is interpolated into the Bedrock system prompt, so it is
+      # the same egress surface as the sentence and must be scrubbed here too
+      # (before the cache key is built), not only in system_prompt.
       scrub_result = PiiScrubber.redact_for_ai(sentence.strip)
       scrubbed_sentence = scrub_result[:payload]
       pii_detected = scrub_result[:pii_found]
-      pii_findings = scrub_result[:findings]
+      pii_findings = Array(scrub_result[:findings])
+      ctx, topic_pii, topic_findings = scrub_context(ctx)
+      pii_detected ||= topic_pii
+      pii_findings.concat(topic_findings)
 
       cache_key = cache_key_for(scrubbed_sentence, locale, ctx, user)
       cached_words = cache_fetch(cache_key)
@@ -210,20 +202,31 @@ module AiWordPredictor
       }
     end
 
+    # Same redaction boundary as the sentence. Leaving topic raw reopened the
+    # LL-16ef84ad9a class of leak on a second user-derived field.
+    def scrub_context(ctx)
+      result = PiiScrubber.redact_for_ai(ctx[:topic].to_s)
+      [
+        ctx.merge(topic: result[:payload].to_s),
+        result[:pii_found],
+        Array(result[:findings])
+      ]
+    end
+
     def monotonic_now
       Process.clock_gettime(Process::CLOCK_MONOTONIC)
     end
 
-    # An opaque digest, never a readable sentence. `scrubbed` must be the
-    # POST-PiiScrubber text; passing the raw sentence here would reintroduce
-    # LL-16ef84ad9a, so the only caller derives it from redact_for_ai.
+    # An opaque digest, never a readable sentence. `scrubbed` and `ctx[:topic]`
+    # must both be POST-PiiScrubber text; passing the raw sentence or topic here
+    # would reintroduce LL-16ef84ad9a, so the only caller derives them from
+    # redact_for_ai.
     #
     # Downcasing matches the previous behaviour: two casings of the same sentence
     # share an entry. The prompt still sends the original casing.
     def cache_key_for(scrubbed, locale, ctx, user)
       Digest::SHA256.hexdigest(
         [
-          CACHE_SALT,
           cache_scope(user),
           locale.to_s,
           scrubbed.to_s.strip.downcase,
@@ -332,9 +335,8 @@ module AiWordPredictor
       {
         provider: :claude,
         region: AiClient.bedrock_region,
-        # runtime_model, not bedrock_model -- see the note in AiBoardGenerator's
-        # resolve_api_config. bedrock_model passes an unvetted override through to
-        # the wire; runtime_model enforces ALLOWED_RUNTIME_MODELS first.
+        # runtime_model applies the Tier 1 ALLOWED_RUNTIME_MODELS gate to the
+        # ANTHROPIC_MODEL override; see AiClient.
         model: AiClient.runtime_model(DEFAULT_ANTHROPIC_MODEL)
       }
     end

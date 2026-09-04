@@ -493,7 +493,7 @@
                       <li class="md-board-collection__row">
                         <button type="button" class="md-board-collection__item" {{on "click" (this.ctrlAction "selectFoundBoard" board)}}>
                           <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" onerror="button_broken_image(this);">
-                          <span class="md-board-collection__item-name">{{board.name}}</span>
+                          <BoardListItemLabel @board={{board}} @name={{board.name}} />
                           {{#if (board-language-label board)}}<span class="md-board-collection__item-lang">{{board-language-label board}}</span>{{/if}}
                           {{#if board.grid.rows}}<span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>{{/if}}
                         </button>
@@ -512,7 +512,7 @@
                       <li class="md-board-collection__row">
                         <button type="button" class="md-board-collection__item" {{on "click" (this.ctrlAction "selectFoundBoard" board)}}>
                           <img class="md-board-collection__item-icon" src={{board.icon_url_with_fallback}} alt="" onerror="button_broken_image(this);">
-                          <span class="md-board-collection__item-name">{{board.name}}</span>
+                          <BoardListItemLabel @board={{board}} @name={{board.name}} />
                           {{#if (board-language-label board)}}<span class="md-board-collection__item-lang">{{board-language-label board}}</span>{{/if}}
                           {{#if board.grid.rows}}<span class="md-board-collection__item-count md-board-collection__item-count--grid" aria-label={{t "%{rows} by %{columns} grid" rows=board.grid.rows columns=board.grid.columns key="board_collection_grid_size"}}>{{board.grid.rows}} x {{board.grid.columns}}</span>{{/if}}
                         </button>
@@ -569,6 +569,9 @@
                 </div>
                 <div class="md-bs-choose__preview-info">
                   <div class="md-bs-choose__preview-name" title={{board.name}}>{{board.name}}</div>
+                  {{#if (board-attribution-owner board)}}
+                    <div class="md-bs-choose__preview-owner">{{t "by" key="by"}} {{board-attribution-owner board}}</div>
+                  {{/if}}
                   {{#if board.grid.rows}}<div class="md-bs-choose__preview-grid">{{board.grid.rows}} × {{board.grid.columns}} {{t "layout" key="layout_lower"}}</div>{{/if}}
                   <button type="button" class="btn md-bs-choose__preview-btn" {{on "click" (this.ctrlAction "preview_confirm_board" board)}}>{{t "Preview" key="preview"}}</button>
                 </div>
@@ -1551,8 +1554,10 @@
             <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
               <input class="form-control" value={{locale.inflections_hash.se}} placeholder={{locale.inflections_suggestions.se}} aria-label={{t "Inflection, bottom right" key="inflection_bottom_right"}}  {{on "input" (set-field locale "inflections_hash.se")}}/>
             </div>
-            <div>
-              <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}} aria-label={{t "Inflection overrides" key="inflection_overrides"}}  {{on "input" (set-field locale "rules_string")}}>{{locale.rules_string}}</textarea>
+            <div style='clear: both;'>
+              <label for={{concat "inflection_overrides_" locale.locale}} class="control-label">{{t "Automatic replacements" key="automatic_replacements"}}</label>
+              <p class='form-control-static'>{{t "Optional. When Automatic Inflections is on, words already in the sentence can change this button. One rule per line: previous words = new form." key="automatic_replacements_description"}}</p>
+              <textarea id={{concat "inflection_overrides_" locale.locale}} class="form-control" placeholder={{this.inflection_overrides_placeholder}} {{on "input" (set-field locale "rules_string")}}>{{locale.rules_string}}</textarea>
             </div>
           </div>
         </div>
@@ -1674,8 +1679,10 @@
               <div style='float: left; width: calc(33% - 10px); margin: 5px;'>
                 <input value={{this.inflections_hash.se}} class="form-control" placeholder={{this.inflections_suggestions.se}} aria-label={{t "Inflection, bottom right" key="inflection_bottom_right"}} {{on "input" (set-field this "inflections_hash.se")}} />
               </div>
-              <div>
-                <textarea class="form-control" placeholder={{this.inflection_overrides_placeholder}} aria-label={{t "Inflection overrides" key="inflection_overrides"}} {{on "input" (set-field this "rules_string")}}>{{this.rules_string}}</textarea>
+              <div style='clear: both;'>
+                <label for="inflection_overrides" class="control-label">{{t "Automatic replacements" key="automatic_replacements"}}</label>
+                <p class='form-control-static'>{{t "Optional. When Automatic Inflections is on, words already in the sentence can change this button. One rule per line: previous words = new form." key="automatic_replacements_description"}}</p>
+                <textarea id="inflection_overrides" class="form-control" placeholder={{this.inflection_overrides_placeholder}} {{on "input" (set-field this "rules_string")}}>{{this.rules_string}}</textarea>
               </div>
             {{/if}}
           </div>

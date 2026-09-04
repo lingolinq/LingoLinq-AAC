@@ -1,6 +1,6 @@
-Hello <%= @communicator.settings['name'] || @communicator.display_user_name %>,<br/><br/>
+Hello <%= @communicator.display_name %>,<br/><br/>
 
-<b><%= @supervisor.settings['name'] || @supervisor.display_user_name %></b><% if @org %>, at <b><%= @org.settings['name'] %></b><% end %>, is requesting <b><%= @permission_description %></b> access to your <%= app_name %> account.<br/><br/>
+<b><%= @supervisor.display_name %></b><% if @org %>, at <b><%= @org.settings['name'] %></b><% end %>, is requesting <b><%= @permission_description %></b> access to your <%= app_name %> account.<br/><br/>
 
 This means they would be able to help support your communication by viewing and interacting with your account at the requested level.<br/><br/>
 
@@ -11,7 +11,7 @@ This means they would be able to help support your communication by viewing and 
 
 This link will expire in 14 days. If you did not expect this request, you can safely ignore this email or deny the request.<br/><br/>
 
-If you have questions, please <a href="<%= JsonApi::Json.current_host %>/contact">contact us</a>.<br/><br/>
+If you have questions, please <a href="<%= JsonApi::Json.absolute_host %>/contact">contact us</a>.<br/><br/>
 
 Thanks!<br/>
 <%= email_signature %>

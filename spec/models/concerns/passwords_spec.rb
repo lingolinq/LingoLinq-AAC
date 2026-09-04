@@ -338,6 +338,70 @@ describe Passwords, :type => :model do
       expect(u.settings['valet_password_at']).to eq(nil)
       expect(u.settings['valet_password_disabled']).to eq(nil)
     end
+
+    it "should NOT put the current request into valet mode" do
+      # Configuring a valet password is not the same as authenticating AS the
+      # valet. Asserting it here left the rest of the request believing the
+      # caller was a valet, and every supervisor permission rule in User is
+      # guarded by `&& !user.valet_mode?`.
+      u = User.create
+      expect(u.valet_mode?).to eq(false)
+      u.set_valet_password("baconator")
+      expect(u.valet_mode?).to eq(false)
+      u.set_valet_password(nil)
+      expect(u.valet_mode?).to eq(false)
+    end
+
+    it "should NOT re-generate the password on a blank re-save when one is already set" do
+      # The client never echoes the valet secret back, so an ordinary profile
+      # save (including the PUT /users/self the app issues on login) arrives with
+      # valet_login=true and valet_password=null. Regenerating there silently
+      # rotated the secret out from under anyone holding it.
+      u = User.create
+      u.set_valet_password("baconator")
+      hash = u.settings['valet_password']
+      expect(hash).to_not eq(nil)
+      u.set_valet_password(nil)
+      expect(u.settings['valet_password']).to eq(hash)
+      u.set_valet_password('')
+      expect(u.settings['valet_password']).to eq(hash)
+      # still the working password, not a fresh random one
+      u.assert_valet_mode!
+      expect(u.valid_password?("baconator")).to eq(true)
+    end
+
+    it "should still generate a temporary password when enabling with none set" do
+      u = User.create
+      expect(u.settings['valet_password']).to eq(nil)
+      expect(GoSecure).to receive(:nonce).with('valet_temporary_password').and_return("abcdefghijklmnop")
+      u.set_valet_password(nil)
+      u.assert_valet_mode!
+      expect(u.valid_password?("abcdefghij")).to eq(true)
+    end
+  end
+
+  describe "valet permission caching" do
+    it "should not let a valet-mode computation poison the non-valet cache" do
+      # Permissable keys its cache on user.cache_key (id + updated_at) + scopes,
+      # and valet_mode? is a transient instance flag in neither. Without folding
+      # it into the scopes, whichever ran first won the slot for 30 minutes —
+      # denying a supervisor model/supervise over their own communicators, or (in
+      # the inverse direction) handing a valet session a full permission set.
+      com = User.create
+      sup = User.create
+      User.link_supervisor_to_user(sup, com, nil, true)
+      com.reload; sup.reload
+
+      expect(com.allows?(sup, 'model')).to eq(true)
+
+      valet_sup = User.find_by_global_id(sup.global_id)
+      valet_sup.assert_valet_mode!
+      expect(com.allows?(valet_sup, 'model')).to eq(false)
+
+      # the valet answer must not have overwritten the ordinary one
+      fresh_sup = User.find_by_global_id(sup.global_id)
+      expect(com.allows?(fresh_sup, 'model')).to eq(true)
+    end
   end
   
   describe "valet_password_used!" do
@@ -435,6 +499,51 @@ describe Passwords, :type => :model do
       
       expect(GoSecure).to receive(:generate_password).with("hashed?:#sha512?:#628e5bdc3a64db65f14447a68796223925dcd0465c26cb3f86e16776552e0959ecd9a1a9140980593392e969e0027d49300bd64bbf9e28de351228e8ef047b93").and_return({})
       User.new.generate_valet_password("bacon")
+    end
+  end
+
+  describe "password_meets_minimum?" do
+    it "should reject plaintext shorter than NIST 8" do
+      u = User.new
+      expect(u.password_meets_minimum?("a")).to eq(false)
+      expect(u.password_meets_minimum?("1234567")).to eq(false)
+      expect(u.password_meets_minimum?("12345678")).to eq(true)
+    end
+
+    it "should reject client-supplied prehashes so a short password cannot skip the minimum" do
+      u = User.new
+      expect(u.password_meets_minimum?("hashed?:#sha512?:#abc")).to eq(false)
+      hashed_short = u.pre_hashed_password("x")
+      expect(hashed_short).to match(/\Ahashed\?:#/)
+      expect(u.password_meets_minimum?(hashed_short)).to eq(false)
+    end
+  end
+
+  describe "process_params password length" do
+    it "should reject a short password on write" do
+      u = User.create
+      expect(u.process_params({'password' => '1234567'}, {})).to eq(false)
+      expect(u.processing_errors).to include("password too short")
+    end
+
+    it "should reject a client-supplied hash of a short password on write" do
+      u = User.create
+      hashed = u.pre_hashed_password("x")
+      expect(u.process_params({'password' => hashed}, {:allow_password_change => true})).to eq(false)
+      expect(u.processing_errors).to include("password too short")
+    end
+
+    it "should accept an 8-character password" do
+      u = User.create
+      expect(u.process_params({'password' => '12345678'}, {:allow_password_change => true})).to eq(true)
+      expect(u.valid_password?('12345678')).to eq(true)
+    end
+
+    it "should still authenticate an existing short password (login rehash)" do
+      u = User.create
+      u.generate_password("bacon")
+      u.save
+      expect(u.reload.valid_password?("bacon")).to eq(true)
     end
   end
 

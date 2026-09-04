@@ -334,7 +334,29 @@ end
 # freshness guard, so concurrent/queued rebuilds of overlapping board trees race
 # and can produce empty sets. One board at a time is the correct, prod-proven mode
 # (this mirrors the button-set half of extras:fix_prod_setup).
+#
+# Runs in two passes. Pass 1 rebuilds true roots (no upstream, has downstream). Pass 2
+# sweeps every remaining board whose set is empty but whose board HAS buttons -- copied
+# trees, leaves, and standalone boards are all structurally unreachable from pass 1. See
+# the pass-2 comment for why. Exits nonzero if any board with buttons ends up empty.
 task "extras:rebuild_button_sets" => :environment do
+  # Preflight. Without REMOTE_EXTRA_DATA the detach-to-S3 path is a no-op, and this
+  # task used to run to "completion" while writing button_count=0 for every set over
+  # 200 buttons (1754 of 2061 prod sets, 2026-08-01). Refuse rather than silently
+  # rebuild the library into empty sets. Set REBUILD_BUTTON_SETS_ALLOW_INLINE=1 to
+  # proceed anyway and store every set inline in Postgres.
+  if !ENV['REMOTE_EXTRA_DATA'] && !ENV['REBUILD_BUTTON_SETS_ALLOW_INLINE']
+    abort <<~MSG
+      REFUSING TO RUN: REMOTE_EXTRA_DATA is not set.
+      Button sets over 200 buttons cannot be persisted to S3 in this environment and
+      would be stored inline in Postgres instead. Set REMOTE_EXTRA_DATA=1 (with working
+      S3 credentials), or set REBUILD_BUTTON_SETS_ALLOW_INLINE=1 to accept inline storage.
+    MSG
+  end
+  if ENV['REMOTE_EXTRA_DATA'] && ENV['UPLOADS_S3_BUCKET'].blank?
+    abort 'REFUSING TO RUN: REMOTE_EXTRA_DATA is set but UPLOADS_S3_BUCKET is empty.'
+  end
+
   # Clear the per-board traversal coordination cache so every root gets a clean rebuild.
   cache_keys = RedisInit.default.keys('traversed/button_set/*')
   cache_keys.each { |k| RedisInit.default.del(k) }
@@ -357,7 +379,7 @@ task "extras:rebuild_button_sets" => :environment do
   end
 
   puts "  Root boards to rebuild: #{root_boards.length}"
-  processed = 0; errored = 0
+  processed = 0; errored = 0; empty = []
   root_boards.each_with_index do |board, i|
     children = (board.settings['immediately_downstream_board_ids'] || []).length
     print "  [#{i + 1}/#{root_boards.length}] #{board.key} (#{children} children)..."
@@ -368,6 +390,9 @@ task "extras:rebuild_button_sets" => :environment do
       cnt = bs && bs.data['button_count']
       inc = bs && (bs.data['included_board_ids'] || []).length
       puts " done (boards=#{inc} buttons=#{cnt})"
+      # A root board with children that rebuilds to zero buttons is a failure, not a
+      # success. Track it so the summary cannot read as green when the library is empty.
+      empty << board.key if cnt.to_i == 0
       processed += 1
     rescue => e
       puts " ERROR: #{e.class}: #{e.message}"
@@ -375,7 +400,66 @@ task "extras:rebuild_button_sets" => :environment do
     end
   end
   puts "\nRebuilt #{processed} root boards (#{errored} errors)."
-  puts "Sub-boards reference their root's set via source_id, so the whole tree is covered."
+
+  # Pass 2: sweep boards the root pass cannot reach.
+  #
+  # The root selection above requires `upstream.empty? && downstream.any?`. A COPIED tree
+  # never satisfies that: every board in it carries an upstream link back to the original
+  # it was copied from, so nothing in the copy qualifies as a root. Nor do those boards
+  # inherit a source_id, because the ORIGINAL root's linked_board_ids reference its own
+  # children, not the copies. Leaf boards (no downstream) and standalone boards (no links
+  # at all) are unreachable for the same structural reason.
+  #
+  # This used to be papered over with "sub-boards reference their root's set via source_id,
+  # so the whole tree is covered", which is simply false for those shapes: after a full
+  # root rebuild of prod on 2026-08-02, 144 boards that HAD buttons still reported
+  # button_count=0 (copies owned by bob/scotw/melissaoneil/prodtest, plus
+  # lingolinq/crisis-vocabulary). Rebuilding them directly repaired 144/144.
+  #
+  # A set is only legitimately empty when its board genuinely has no buttons.
+  puts "\nPass 2: sweeping boards unreachable from any root..."
+  swept = 0; swept_ok = 0; swept_errored = 0
+  stubborn = []
+  BoardDownstreamButtonSet.find_each do |bs|
+    next unless (bs.data['button_count'] || 0) == 0
+    board = (bs.board rescue nil)
+    next unless board
+    next if (board.buttons.length rescue 0) == 0
+    swept += 1
+    begin
+      BoardDownstreamButtonSet.update_for(board.global_id, true)
+      fresh = board.reload.board_downstream_button_set
+      if (fresh && (fresh.data['button_count'] || 0)).to_i > 0
+        swept_ok += 1
+      else
+        stubborn << board.key
+      end
+    rescue => e
+      swept_errored += 1
+      puts "  ERROR #{board.key}: #{e.class}: #{e.message}"
+    end
+  end
+  puts "  Swept #{swept} unreachable board(s): #{swept_ok} repaired, #{stubborn.length} still empty, #{swept_errored} errors."
+
+  if stubborn.any?
+    puts "\nWARNING: #{stubborn.length} board(s) have buttons but their set still reports zero:"
+    stubborn.first(20).each { |k| puts "  #{k}" }
+    puts "  ...and #{stubborn.length - 20} more" if stubborn.length > 20
+  end
+  errored += swept_errored
+  empty += stubborn
+
+  if empty.any? || errored > 0
+    puts "\nFAILED: #{empty.length} board(s) rebuilt to button_count=0, #{errored} raised:"
+    empty.first(20).each { |k| puts "  #{k}" }
+    puts "  ...and #{empty.length - 20} more" if empty.length > 20
+    puts "A root board with children that rebuilds to zero buttons is a failure, not a success."
+    puts "This usually means extra-data storage is not persisting. Check REMOTE_EXTRA_DATA and S3 credentials."
+    # Exit nonzero so an automated caller cannot read this as a clean run. Silently
+    # "succeeding" while writing empty sets is what sent a prior triage session
+    # chasing S3 KMS and ImageMagick ghosts for two days.
+    exit 1
+  end
 end
 
 task "extras:reindex_public_boards" => :environment do
@@ -834,4 +918,104 @@ task "extras:fix_vocabulary_organization" => :environment do
   puts "=============================================="
   puts "Done!"
   puts "=============================================="
+end
+
+# One-time backfill for the "No name" placeholder removal.
+#
+# User#generate_defaults used to seed settings['name'] with the literal string
+# "No name" because signup collects no name. That is not a null value, so every
+# `name || user_name` guard in the codebase silently failed -- it surfaced as
+# "Hi No name" in the UI and, worse, as an SMS to a family member reading
+# "from No name - <message>" (Utterance#share_with). The seed is gone, but
+# existing accounts still carry the string, so their guards still fail.
+#
+# settings is GoSecure-encrypted at rest, so it cannot be queried in SQL --
+# every user has to be loaded and checked in Ruby.
+#
+#   rake extras:clear_no_name_placeholder            # report only, changes nothing
+#   rake extras:clear_no_name_placeholder FRD=1      # actually write
+task "extras:clear_no_name_placeholder" => :environment do
+  frd = ENV['FRD'] == '1'
+  puts "=============================================="
+  puts frd ? "Clearing the \"No name\" placeholder" : "DRY RUN -- pass FRD=1 to write"
+  puts "=============================================="
+
+  total = User.count
+  checked = 0
+  matched = 0
+  updated = 0
+  errors = 0
+
+  User.find_each do |user|
+    checked += 1
+    print "\r  Checked #{checked}/#{total}, found #{matched}...      " if checked % 100 == 0
+    begin
+      next unless user.settings && user.settings['name'] == 'No name'
+      matched += 1
+      next unless frd
+      user.settings['name'] = nil
+      # Plain settings mutation: before_save generate_defaults no longer seeds a
+      # name, and both after_save hooks early-return (track_boards needs
+      # @do_track_boards; notify_of_changes needs @password_changed /
+      # @email_changed / @opt_out). So this sends no mail and queues no jobs.
+      user.save!
+      updated += 1
+    rescue => e
+      errors += 1
+      puts "\n  ERROR on #{user.global_id}: #{e.class}: #{e.message}"
+    end
+  end
+
+  puts "\n  Checked #{checked} users"
+  puts "  Carrying the placeholder: #{matched}"
+  puts frd ? "  Cleared: #{updated} (#{errors} errors)" : "  Cleared: 0 (dry run)"
+  puts "=============================================="
+end
+
+# Google-translate UI chrome placeholders in public/locales/*.json.
+# This is NOT the AAC board translator (lingolinq:translate_library_boards).
+# It loops WordData.translate_locale_batch (100 *** keys per call) until a
+# pass has nothing eligible left. Values that Google echoes as English stay
+# *** (brands/cognates). Requires GOOGLE_TRANSLATE_TOKEN.
+#
+#   op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales
+#   op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales LOCALE=es
+#   op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales LOCALE=all
+desc 'Google-translate *** placeholders in public/locales/*.json (LOCALE=es default, or all). Requires GOOGLE_TRANSLATE_TOKEN.'
+task "extras:translate_ui_locales" => :environment do
+  token = ENV['GOOGLE_TRANSLATE_TOKEN'].to_s.strip
+  # dotenv can load .env.op.local without resolving op:// refs (LEARNINGS).
+  if token.empty? || token.start_with?('op://')
+    raise "GOOGLE_TRANSLATE_TOKEN is missing or still an op:// reference. Run under: " \
+          "op run --env-file=.env.op.local -- bundle exec rake extras:translate_ui_locales LOCALE=es"
+  end
+
+  requested = (ENV['LOCALE'] || 'es').to_s.strip
+  locales = if requested == 'all'
+    Dir[Rails.root.join('public/locales/*.json')].map { |p| File.basename(p, '.json') }.reject { |l| l == 'en' }.sort
+  else
+    [requested]
+  end
+
+  locales.each do |locale|
+    fn = Rails.root.join('public', 'locales', "#{locale}.json")
+    raise "No locale file: #{fn}" unless File.file?(fn)
+
+    puts "Translating UI locale #{locale}..."
+    nopes = []
+    loop do
+      json = JSON.parse(File.read(fn))
+      leftover = json.count { |_k, v| v.is_a?(String) && v.match?(/^\*\*\*\s/) }
+      eligible = json.count { |k, v| v.is_a?(String) && v.match?(/^\*\*\*\s/) && !nopes.include?(k) }
+      if eligible == 0
+        puts "  done. leftover *** (Google echo/fail): #{leftover}"
+        break
+      end
+
+      nopes = WordData.translate_locale_batch(locale, nopes)
+      after = JSON.parse(File.read(fn))
+      after_star = after.count { |_k, v| v.is_a?(String) && v.match?(/^\*\*\*\s/) }
+      puts "  batch: #{leftover - after_star} translated, #{after_star} still ***, #{nopes.length} nopes"
+    end
+  end
 end

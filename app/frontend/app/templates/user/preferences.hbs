@@ -130,7 +130,7 @@
     <div class="form-group">
       <label for="locale" class="col-sm-3 control-label">{{t "Preferred Language" key='preferred_language'}}</label>
       <div class="col-sm-5">
-        <BoundSelect @select_class="form-control" @select_id="locale" @content={{readonly this.localeList}} @selection={{this.pending_preferences.locale}} @action={{mut this.pending_preferences.locale}} />
+        <BoundSelect @select_class="form-control" @select_id="locale" @content={{readonly this.localeList}} @selection={{this.pending_preferences.locale}} @action={{mut this.pending_preferences.locale}} @searchable={{true}} @search_placeholder={{t "Search languages..." key="search_languages"}} />
       </div>
     </div>
     <div class="form-group">
@@ -1081,7 +1081,7 @@
           <div style='margin-top: 12px;'>
             <button type='button' {{on "click" (this.ctrlAction 'modify_core')}} class='btn btn-default'>{{t "Modify Core Word List" key='modify_core_word_list'}}</button>
             <span style='padding-left: 12px; font-size: 14px; color: #5a6a85;'>
-              {{t "core word" count=this.core_lists.for_user.length}}
+              {{t "core word" key="core_word" count=this.core_lists.for_user.length}}
               {{t "listed" key='listed'}}
             </span>
           </div>
@@ -1341,6 +1341,24 @@
       <label for="button_spacing" class="col-sm-3 control-label">{{t "Button Spacing" key='button_spacing'}}</label>
       <div class="col-sm-5">
         <BoundSelect @select_class="form-control" @select_id="button_spacing" @content={{this.buttonSpacingList}} @selection={{this.pending_preferences.device.button_spacing}} @action={{mut this.pending_preferences.device.button_spacing}} />
+      </div>
+    </div>
+    {{!-- Turns off the on-screen size/orientation helper overlays ("Larger screen
+         recommended" on a board, "Landscape mode recommended" on Create Board and the
+         Display Style step). Checked = hidden. Lives here rather than under a session
+         dismissal because "Continue Anyway" only lasts until the next reload, and a user
+         on a permanently small or fixed-orientation setup should not have to dismiss the
+         same advice forever. Device-scoped like the rest of this section: the advice is
+         about the screen in front of you, so a phone and a desktop can differ. --}}
+    <div class="form-group">
+      <label for="hide_screen_helpers" class="col-sm-3 control-label">{{t "Screen Helper Messages" key='screen_helper_messages'}}</label>
+      <div class="col-sm-5">
+        <div class="checkbox big_checkbox">
+          <label>
+            <input type="checkbox" checked={{this.pending_preferences.device.hide_screen_helpers}} id="hide_screen_helpers" {{on "change" (set-field this "pending_preferences.device.hide_screen_helpers" "checkbox")}} />
+            {{t "Don't show screen size or rotate-device suggestions" key='hide_screen_helpers'}}
+          </label>
+        </div>
       </div>
     </div>
     {{#if this.advanced}}

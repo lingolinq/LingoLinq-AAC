@@ -295,6 +295,13 @@ export default Controller.extend({
       if(this.get('results.list')) {
         this.get('results.list').forEach(function(user) {
           var columns = [];
+          // Deliberately raw `name`, NOT display_name_for. This is a data
+          // EXPORT, not a display: the handle is already the very next column,
+          // so substituting would duplicate it and lose fidelity on what the
+          // server actually holds. A nameless account now exports an empty Name
+          // cell rather than the old "No name" placeholder, which is the honest
+          // value — User#generate_defaults no longer seeds it.
+          // See app/utils/display_name.js.
           columns.push(user.name);
           columns.push(user.user_name);
           columns.push(user.email);

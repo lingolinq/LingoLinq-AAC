@@ -86,8 +86,8 @@
         <div class="la-edit-board-field">
           <p class="la-edit-board-hint">{{t "Select any categories that this home board may fit well into." key="select_categories"}}</p>
           {{#each this.board_categories as |category|}}
-            <label class="la-edit-board-checkbox" {{on "click" (this.ctrlAction "toggle_category" category this.preventDefault)}}>
-              <input type="checkbox" checked={{category.selected}} class="la-edit-board-check"  {{on "change" (set-field category "selected" "checkbox")}}/>
+            <label class="la-edit-board-checkbox">
+              <input type="checkbox" checked={{category.selected}} class="la-edit-board-check" {{on "change" (set-field category "selected" "checkbox")}} />
               <span>{{category.name}}</span>
             </label>
           {{/each}}

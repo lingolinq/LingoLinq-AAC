@@ -108,6 +108,7 @@ class BoardCloner < Clowne::Cloner
     source.current_library if !source.settings['common_library'] && !source.settings['swapped_library']
     record.settings['common_library'] = source.settings['common_library'] if source.settings['common_library']
     record.settings['swapped_library'] = source.settings['swapped_library'] if source.settings['swapped_library']
+    record.settings['swap_incomplete'] = source.settings['swap_incomplete'] if source.settings['swap_incomplete']
 
     # Remaining settings (relinking.rb:117-121)
     record.settings['word_suggestions'] = source.settings['word_suggestions']

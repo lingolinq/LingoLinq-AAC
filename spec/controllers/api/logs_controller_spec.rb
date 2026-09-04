@@ -119,6 +119,47 @@ describe Api::LogsController, :type => :controller do
       expect(json['meta']['next_url']).to eq(nil)
     end
 
+    it "should not return a supporter's supervisees' logs to a caller with no relationship to them" do
+      # Same defect class as the badge-progress leak, on communication content.
+      # The caller manages an org that S belongs to, which grants `supervise` on
+      # S (user.rb:87). S separately supervises a communicator OUTSIDE that org --
+      # a contracting SLP with a private caseload. Before the per-supervisee
+      # check, ?user_id=<S>&supervisees=true returned that child's logs.
+      token_user
+      supporter = User.create
+      outside = User.create
+
+      org = Organization.create(:settings => {'total_licenses' => 2})
+      org.add_manager(@user.user_name, true)
+      org.add_user(supporter.user_name, false, false)
+      supporter.reload
+      @user.reload
+
+      User.link_supervisor_to_user(supporter, outside)
+      d = Device.create(:user => outside)
+      3.times do |i|
+        LogSession.process_new({
+          :events => [
+            {'timestamp' => (i.days.ago + i).to_i, 'type' => 'button', 'button' => {'label' => 'private', 'board' => {'id' => '1_1'}}}
+          ]
+        }, {:user => outside, :device => d, :author => outside})
+      end
+      Worker.process_queues
+
+      # Preconditions, so this cannot pass vacuously: the caller DOES reach the
+      # endpoint (holds supervise on the supporter), and does NOT hold supervise
+      # on the third-party communicator.
+      expect(supporter.reload.allows?(@user.reload, 'supervise')).to eq(true)
+      expect(outside.reload.allows?(@user, 'supervise')).to eq(false)
+      expect(supporter.reload.supervisees.map(&:global_id)).to eq([outside.global_id])
+
+      get :index, params: {:user_id => supporter.global_id, :supervisees => true}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['log'].map{|l| l['author']['id'] }).to_not include(outside.global_id)
+      expect(json['log']).to eq([])
+    end
+
     it "should not return supervisee sessions that are before the user's login_cutoff" do
       users = [User.create, User.create, User.create]
       token_user
@@ -497,6 +538,142 @@ describe Api::LogsController, :type => :controller do
       Worker.process_queues
       log = LogSession.last
       expect(log.data['event_summary']).to eq('cool')
+    end
+
+    it "should treat a blank log[user_id] as absent rather than as a lookup" do
+      # The Ember client serializes the WHOLE Log model on every push, so an
+      # unset user_id arrives as "" instead of being omitted. "" is truthy in
+      # Ruby, so this used to reach find_by_path(""), come back nil, and reject
+      # the push with "Not authorized (permission: model)" — which silently
+      # blocked every log push from the web app.
+      token_user
+      post :create, params: {:log => {
+        :user_id => '',
+        :events => [{'user_id' => @user.global_id, 'timestamp' => 5.hours.ago.to_i, 'type' => 'button', 'button' => {'label' => 'blank-uid', 'spoken' => true, 'board' => {'id' => '1_1'}}}]
+      }}
+      expect(response).to be_successful
+      Worker.process_queues
+      expect(LogSession.last.data['event_summary']).to eq('blank-uid')
+    end
+
+    it "should still reject a log[user_id] that names a user who does not exist" do
+      # The blank-string allowance above must not turn into "any unresolvable
+      # user_id falls back to the caller".
+      token_user
+      post :create, params: {:log => {:user_id => 'no_such_user_at_all', :events => []}}
+      assert_unauthorized
+    end
+
+    it "should accept events that arrive as an index-keyed hash" do
+      # A form-encoded body (`log[events][0][type]=…`) parses into
+      # {'events' => {'0' => …}}, not an Array — Rails only builds an Array for
+      # `a[]=`. Every consumer iterates events as an Array, so an unnormalized
+      # Hash raised TypeError deep in the background job: the POST answered 200
+      # and the push then vanished with no user-visible error.
+      token_user
+      post :create, params: {:log => {:events => {
+        '0' => {'user_id' => @user.global_id, 'timestamp' => 5.hours.ago.to_i, 'type' => 'button', 'button' => {'label' => 'first', 'spoken' => true, 'board' => {'id' => '1_1'}}},
+        '1' => {'user_id' => @user.global_id, 'timestamp' => 5.hours.ago.to_i + 10, 'type' => 'button', 'button' => {'label' => 'second', 'spoken' => true, 'board' => {'id' => '1_1'}}}
+      }}}
+      expect(response).to be_successful
+      Worker.process_queues
+      log = LogSession.last
+      # Order preserved by numeric index, not by hash insertion or string sort.
+      expect(log.data['event_summary']).to eq('first second')
+    end
+
+    # The Ember adapter sends JSON request bodies again as of 6df5b1bbc; between
+    # 248150d15 (2026-01-18) and that fix it form-encoded every write, which
+    # flattens every scalar to a String.
+    #
+    # These specs use a raw `body:` deliberately, because the `params:` style used
+    # by every other spec in this file CANNOT cover the JSON contract: Rails'
+    # controller-test harness stringifies scalar params, so `params: {:x => true}`
+    # reaches the controller as "true" and `:x => 4` as "4". Nested Arrays and
+    # Hashes keep their structure either way, which is why the index-keyed-hash
+    # spec above is meaningful — but a handler that only accepts the STRING form
+    # of a boolean or number passes the whole `params:` suite and still fails in
+    # the browser. Only these specs would catch that.
+    describe "create with a raw JSON body" do
+      it "should keep event numbers as numbers, not strings" do
+        # log_session.rb's stats derivation compares window_width against 0
+        # directly. A form-encoded body delivers "1024", and String > Integer
+        # raises "comparison of String with 0 failed" deep in the background job
+        # — the POST answers 200 and the push then vanishes with nothing
+        # user-visible.
+        token_user
+        request.headers['Content-Type'] = 'application/json'
+        post :create, params: {}, body: {
+          :log => {
+            :events => [
+              {'user_id' => @user.global_id, 'timestamp' => 5.hours.ago.to_i, 'type' => 'button',
+               'window_width' => 1024, 'window_height' => 768,
+               'button' => {'label' => 'wide', 'spoken' => true, 'board' => {'id' => '1_1'}}}
+            ]
+          }
+        }.to_json
+        expect(response).to be_successful
+        Worker.process_queues
+        log = LogSession.last
+        expect(log.data['event_summary']).to eq('wide')
+        expect(log.data['stats']['window_width']).to eq(1024)
+        expect(log.data['stats']['window_width']).to be_a(Integer)
+        expect(log.data['stats']['window_height']).to eq(768)
+      end
+
+      it "should keep false as false rather than the truthy string 'false'" do
+        # This is the fault no server-side coercion can repair: "false" is truthy
+        # in BOTH Ruby and JavaScript, so a form-encoded eval blob reads every
+        # failed trial as passed. The scored result is silently wrong rather than
+        # missing.
+        token_user
+        request.headers['Content-Type'] = 'application/json'
+        post :create, params: {}, body: {
+          :log => {
+            :log_type => 'eval',
+            :user_id => @user.global_id,
+            :data => {
+              :eval_mode => 'comprehensive',
+              :duration_s => 42,
+              :events => [
+                {'ts' => Time.now.to_i * 1000, 'subtest' => 'stage_probe', 'correct' => false, 'trials' => 3},
+                {'ts' => Time.now.to_i * 1000, 'subtest' => 'stage_probe', 'correct' => true,  'trials' => 3}
+              ]
+            }
+          }
+        }.to_json
+        expect(response).to be_successful
+        log = LogSession.last
+        expect(log.log_type).to eq('eval')
+        expect(log.data['events'][0]['correct']).to eq(false)
+        expect(log.data['events'][1]['correct']).to eq(true)
+        # eq(false) alone would not catch "false" -> class assertions make the
+        # failure mode explicit if this ever regresses.
+        expect(log.data['events'][0]['correct']).to be_a(FalseClass)
+        expect(log.data['events'][0]['trials']).to eq(3)
+        expect(log.data['events'][0]['trials']).to be_a(Integer)
+      end
+
+      it "should store duration_s as a number, not a numeric string" do
+        # The sibling tiered-eval spec above has to write `duration_s.to_i`
+        # precisely because `params:` stringifies it. Over a real JSON body it
+        # arrives as an Integer and needs no coercion — and started_at is derived
+        # from it, so the type is not merely cosmetic.
+        token_user
+        request.headers['Content-Type'] = 'application/json'
+        post :create, params: {}, body: {
+          :log => {
+            :log_type => 'eval',
+            :user_id => @user.global_id,
+            :data => {:eval_mode => 'comprehensive', :duration_s => 42, :events => []}
+          }
+        }.to_json
+        expect(response).to be_successful
+        log = LogSession.last
+        expect(log.data['duration_s']).to eq(42)
+        expect(log.data['duration_s']).to be_a(Integer)
+        expect(log.started_at).to be_within(1.minute).of(Time.now - 42.seconds)
+      end
     end
 
     it "should persist a tiered eval report's data through the real create path" do
@@ -1195,6 +1372,26 @@ describe Api::LogsController, :type => :controller do
           {'timestamp' => 3.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'never mind', 'board' => {'id' => '1_1'}}}
         ]
       }, {:user => u, :device => d, :author => u})
+      get :show, params: {:id => log.global_id}
+      assert_unauthorized
+    end
+
+    # Regression: `allowed?` RENDERS a 400 before returning false, so the old
+    # `(self && (allowed?(view_detailed) || allowed?(model))) || allowed?(supervise)`
+    # chain rendered more than once and raised AbstractController::DoubleRenderError
+    # — a 500 where a clean 401 belongs. A 'none'-scoped token on your OWN log is
+    # the reachable trigger: permissable.rb:74 deliberately does not widen ['none']
+    # with '*', so view_detailed, model and supervise all resolve false for self.
+    it 'should return a single clean unauthorized (not a double render) for a none-scoped token on your own log' do
+      token_user
+      log = LogSession.process_new({
+        :events => [
+          {'timestamp' => 4.seconds.ago.to_i, 'type' => 'button', 'button' => {'label' => 'ok', 'board' => {'id' => '1_1'}}}
+        ]
+      }, {:user => @user, :device => @device, :author => @user})
+      @device.developer_key_id = 1
+      @device.settings['permission_scopes'] = ['none']
+      @device.save
       get :show, params: {:id => log.global_id}
       assert_unauthorized
     end

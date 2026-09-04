@@ -97,6 +97,46 @@ describe Converters::ApiJsonBundle do
       expect(image).to be_present
       expect(image.settings['preserve_source_image']).to eq(true)
       expect(image.needs_library_url_enrichment?).to eq(false)
+      expect(image.skin_capable_url).to eq(nil)
+    end
+
+    it 'imports button sounds when sounds[] stubs are filled from sound_urls' do
+      user = User.create
+      sound_url = 'https://example.com/rimshot.mp3'
+      allow(SafeHttp).to receive(:get).and_return(
+        OpenStruct.new(success?: true, code: 200, body: 'ID3fake', headers: { 'Content-Type' => 'audio/mpeg' })
+      )
+      allow(Typhoeus).to receive(:post).and_return(OpenStruct.new(success?: true, code: 200, body: 'ok'))
+
+      bundle = {
+        'root' => 'source/joke',
+        'boards' => [
+          {
+            'key' => 'source/joke',
+            'data' => {
+              'board' => {
+                'id' => '1_100_root',
+                'key' => 'source/joke',
+                'name' => 'Joke',
+                'locale' => 'en',
+                'buttons' => [{ 'id' => 1, 'label' => 'rimshot', 'sound_id' => '1_99_snd' }],
+                'grid' => { 'rows' => 1, 'columns' => 1, 'order' => [[1]] },
+                'sound_urls' => { '1_99_snd' => sound_url }
+              },
+              'images' => [],
+              'sounds' => [{ 'id' => '1_99_snd' }]
+            }
+          }
+        ]
+      }
+
+      boards = described_class.import(bundle, user)
+      button = boards.first.buttons.first
+      expect(button['sound_id']).to be_present
+      sound = ButtonSound.find_by_global_id(button['sound_id'])
+      expect(sound).to be_present
+      expect(sound.url).to be_present
+      expect(sound.settings['pending']).to eq(false)
     end
   end
 
@@ -204,6 +244,25 @@ describe Converters::ApiJsonBundle do
       normalized = described_class.normalize_sound({ 'id' => 42, 'url' => 'https://example.com/a.mp3' })
       expect(normalized['id']).to eq('42')
     end
+
+    it 'encodes sound urls and preserves data: URIs' do
+      normalized = described_class.normalize_sound({
+        'id' => '1_9',
+        'url' => 'https://example.com/path with spaces/a.mp3',
+        'data_url' => 'data:audio/mpeg;base64,AAA'
+      })
+      expect(normalized['url']).to include('path%20with%20spaces')
+      expect(normalized['data']).to eq('data:audio/mpeg;base64,AAA')
+    end
+
+    it 'does not promote authed /api/v1/sounds data_urls into fetchable urls' do
+      normalized = described_class.normalize_sound({
+        'id' => '1_9',
+        'data_url' => 'https://app.mycoughdrop.com/api/v1/sounds/1_9'
+      })
+      expect(normalized['url']).to be_nil
+      expect(normalized['data']).to be_nil
+    end
   end
 
   describe '.entry_payload' do
@@ -226,6 +285,27 @@ describe Converters::ApiJsonBundle do
       expect(payload[:images].length).to eq(1)
       expect(payload[:images][0]['id']).to eq('1_555_img')
       expect(payload[:images][0]['url']).to include('lunch%202.svg')
+    end
+
+    it 'fills stub sounds[] urls from board.sound_urls' do
+      entry = {
+        'key' => 'source/joke',
+        'data' => {
+          'board' => {
+            'id' => '1_100_root',
+            'key' => 'source/joke',
+            'buttons' => [{ 'id' => 1, 'label' => 'rimshot', 'sound_id' => '1_99_snd' }],
+            'sound_urls' => { '1_99_snd' => 'https://example.com/rimshot.mp3' }
+          },
+          'images' => [],
+          'sounds' => [{ 'id' => '1_99_snd' }]
+        }
+      }
+
+      payload = described_class.entry_payload(entry)
+      expect(payload[:sounds].length).to eq(1)
+      expect(payload[:sounds][0]['id']).to eq('1_99_snd')
+      expect(payload[:sounds][0]['url']).to eq('https://example.com/rimshot.mp3')
     end
   end
 
@@ -253,6 +333,32 @@ describe Converters::ApiJsonBundle do
       content = described_class.build_nested_content(described_class.validate!(bundle))
       expect(content['images'].length).to eq(1)
       expect(content['boards'][0]['images_hash']['1_555_img']).to be_present
+    end
+
+    it 'collects filled stub sounds into the top-level sounds array' do
+      bundle = {
+        'root' => 'source/joke',
+        'boards' => [
+          {
+            'key' => 'source/joke',
+            'data' => {
+              'board' => {
+                'id' => '1_100_root',
+                'key' => 'source/joke',
+                'buttons' => [{ 'id' => 1, 'label' => 'rimshot', 'sound_id' => '1_99_snd' }],
+                'sound_urls' => { '1_99_snd' => 'https://example.com/rimshot.mp3' }
+              },
+              'images' => [],
+              'sounds' => [{ 'id' => '1_99_snd' }]
+            }
+          }
+        ]
+      }
+
+      content = described_class.build_nested_content(described_class.validate!(bundle))
+      expect(content['sounds'].length).to eq(1)
+      expect(content['sounds'][0]['url']).to eq('https://example.com/rimshot.mp3')
+      expect(content['boards'][0]['sounds_hash']['1_99_snd']['url']).to eq('https://example.com/rimshot.mp3')
     end
   end
 end

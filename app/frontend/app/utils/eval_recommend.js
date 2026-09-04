@@ -194,8 +194,15 @@ function computeConfidence(events, access, library) {
   // "110% confidence" bug). Clamp the upper bound to 0.95 to match
   // the Targeted-eval cap downstream — once we know there's a clear
   // library winner + plenty of events, 95% is honest; 100%+ isn't.
-  const base = Math.min(events.length / 12, 1);
-  const libraryBonus = (library.margin || 0) >= 0.2 ? 0.1 : 0;
+  // The denominator is the number of events a COMPLETE session is expected to
+  // produce. library_compare contributes 4 of them, so when that subtest is not
+  // in the flow (single-library deployments — see the eval_single_library flag)
+  // the target drops to 8 and the library bonus is not reachable. Keying off the
+  // events themselves rather than the flag keeps a session scored by the same
+  // rule that generated it, including saved sessions recorded before the change.
+  const libraryRan = events.some(function(e) { return e.subtest === 'library_compare'; });
+  const base = Math.min(events.length / (libraryRan ? 12 : 8), 1);
+  const libraryBonus = (libraryRan && (library.margin || 0) >= 0.2) ? 0.1 : 0;
   const secondaryPenalty = access.secondary ? -0.05 : 0;
   const raw = base + libraryBonus + secondaryPenalty;
   const clamped = Math.max(0, Math.min(0.95, raw));
@@ -206,7 +213,9 @@ function promotionReasons(events, access, library, stage) {
   const reasons = [];
   if (events.length < 8) { reasons.push('low_event_count'); }
   if (access.secondary) { reasons.push('access_ambiguous'); }
-  if (library.winner && library.margin < 0.1) { reasons.push('library_tie'); }
+  // Only a session that actually ran the bake-off can have an ambiguous winner.
+  if (events.some(function(e) { return e.subtest === 'library_compare'; }) &&
+      library.winner && library.margin < 0.1) { reasons.push('library_tie'); }
   if (stage === 3 || stage === 4) { reasons.push('stage_borderline'); }
   return reasons;
 }

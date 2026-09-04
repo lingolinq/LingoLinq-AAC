@@ -8,6 +8,34 @@ import ApplicationSerializer from './application';
  * live record (register route sets them immediately before save). Patching only
  * serializeIntoHash proved unreliable across Ember Data versions/paths.
  */
+/*
+ * `_actual_id` is deliberately NOT listed in `attrs` below as `serialize: false`,
+ * even though it is a response-only field and looks exactly like the five that
+ * ARE listed. Traced before deciding, because the obvious cleanup is wrong:
+ *
+ *   - `serialize: false` takes effect in `serialize()`, which is reached by
+ *     `serializeIntoHash` -> `persistence#convert_model_to_json`
+ *     (services/persistence.js:3691 — the LIVE copy; utils/persistence.js:3713
+ *     mirrors it and differs only in the receiver of `temporary_id()`).
+ *   - That function is used by the OFFLINE branches of createRecord /
+ *     updateRecord / deleteRecord (services/persistence.js:4701, 4740, 4765) to
+ *     write the record into local storage. It is the only writer of the local
+ *     copy when a save happens offline.
+ *   - The session user is keyed 'self' (serializers/application.js), so a local
+ *     copy WITHOUT `_actual_id` has no usable backend id at all — exactly the
+ *     state that locked the eval's own author out of their workbook, and what
+ *     `models/user.js#global_id` exists to resolve.
+ *
+ * So dropping it from serialization would reintroduce that bug for anyone who
+ * saves while offline. Sending it to the server is harmless by comparison:
+ * `User#process_params` is a whitelist with no mass-assignment, so the server
+ * reads the key nowhere and discards it. (The ONLINE fetch path stores the raw
+ * network response via store_eventually, not serializer output, which is why
+ * this only bites the offline-save case.)
+ *
+ * Verified rather than assumed — see PR #807, where this was deferred as
+ * untraced, and the follow-up branch that traced it.
+ */
 export default ApplicationSerializer.extend({
   // Server sets these on responses; never send on create/update (was defaulting to false and looked like a COPPA bug).
   attrs: {
@@ -51,6 +79,10 @@ export default ApplicationSerializer.extend({
       } else if (u16 === false) {
         json.under_16 = false;
       }
+      var bm = record.get('birth_month');
+      var by = record.get('birth_year');
+      if (bm != null && bm !== '') { json.birth_month = bm; }
+      if (by != null && by !== '') { json.birth_year = by; }
     }
     return json;
   },

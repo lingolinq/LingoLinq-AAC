@@ -30,9 +30,7 @@
             <h3>{{t "Get Started" key="about_get_started"}}</h3>
             <p>{{t "Start with our free tier. No credit card, no hardware, no commitment." key="landing_cta_subtitle_intro"}} <strong>{{t "Just communication tools that work." key="landing_cta_subtitle_closer"}}</strong></p>
             <div class="la-about-hero-actions">
-              {{#unless this.app_state.feature_flags.landing_beta_closed}}
-                <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key="landing_try_free"}} &rarr;</LinkTo>
-              {{/unless}}
+              <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key="landing_try_free"}} &rarr;</LinkTo>
               <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Contact Us" key="contact_us"}}</LinkTo>
             </div>
           </div>
@@ -139,9 +137,7 @@
           <hr class="la-about-hero-separator" aria-hidden="true">
           <p class="la-cta-description">{{t "Start with our free tier. No credit card, no hardware, no commitment." key="landing_cta_subtitle_intro"}} <strong class="la-challenge-cta">{{t "Just communication tools that work." key="landing_cta_subtitle_closer"}}</strong></p>
           <div class="la-cta-buttons">
-            {{#unless this.app_state.feature_flags.landing_beta_closed}}
-              <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
-            {{/unless}}
+            <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key="landing_cta_start"}} &rarr;</LinkTo>
             <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Contact Us" key="contact_us"}}</LinkTo>
           </div>
         </div>

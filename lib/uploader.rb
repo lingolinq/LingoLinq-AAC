@@ -215,12 +215,162 @@ module Uploader
     total
   end
 
+  # Elastic Transcoder's own {count} substitution (verified against AWS's SDK
+  # docs) makes a real thumbnail key <video_key>.mp4.NNNNN.<fmt>: a five-digit
+  # sequence starting at 00001, plus the preset's thumbnail format (ETS only
+  # ever produces jpg or png) -- two extension-like segments after the media
+  # stem, where the generic rule below intentionally allows just one. Rather
+  # than loosen that shared rule (it gates every remote_remove caller in the
+  # app) for one AWS-shaped exception, recognize this exact shape on its own:
+  # same LingoLinq media-object prefix/stem constraint as the generic rule,
+  # 'videos/' (the only file_type a UserVideo -- the only source of thumbnails
+  # -- ever uses, see Uploadable#file_type), '.mp4' (the only container
+  # Transcoder.convert_video produces), an exact five-digit counter, and only
+  # the two formats ETS can actually generate. Anchored start-to-end, so a
+  # trailing suffix, a wrong digit count, or an unsupported format can't sneak
+  # through.
+  def self.elastic_transcoder_thumbnail_key?(remote_path)
+    !!remote_path.to_s.match(/\Avideos\/.+\/\w+-\w+\.mp4\.\d{5}\.(jpg|png)\z/)
+  end
+
+  # Read-only, caller-bounded prefix listing -- used by MediaObject's
+  # thumbnail-family erasure sweep to discover the actual Elastic
+  # Transcoder-generated objects for one record (count and format are not
+  # reliably knowable ahead of time; see media_object.rb) without turning
+  # remote_remove into a generic prefix-delete mechanism. Never raises: an
+  # AccessDenied (ListBucket may not be granted to this app's S3 credentials
+  # even though GetObject/PutObject/DeleteObject already are -- it's a
+  # separate IAM permission, unverified in this environment) or any other
+  # S3 error here must not propagate into Flusher's after_destroy_commit
+  # sweep. Returns nil on failure, which callers must treat differently from
+  # an empty array (a genuine "no objects under this prefix" result, e.g.
+  # because an earlier lifecycle step already deleted them). Pages through
+  # the full result set (S3 truncates at 1000 keys/page and only sets
+  # is_truncated -- silently taking page one would leave later pages, and
+  # therefore later real thumbnails, undiscovered and undeleted). Bounded by
+  # BOTH overall_cap (total keys) and max_pages (total requests): overall_cap
+  # alone doesn't backstop a response that reports is_truncated with empty
+  # Contents, which would never advance keys.length and loop until S3 stops
+  # sending a token -- max_pages is the actual iteration-count safety net.
+  # Neither is a normal case: one record's own thumbnail family is expected
+  # to be a handful of objects at most.
+  def self.list_remote_keys_with_prefix(prefix, overall_cap: 1000, max_pages: 25)
+    config = remote_upload_config
+    unless config[:access_key] && config[:secret] && config[:bucket_name].present?
+      Rails.logger.warn("Uploader.list_remote_keys_with_prefix skipped for prefix=#{prefix}: S3 not configured")
+      return nil
+    end
+    client = s3_client(config)
+    keys = []
+    token = nil
+    pages = 0
+    loop do
+      resp = client.list_objects_v2(bucket: config[:bucket_name], prefix: prefix, max_keys: 1000, continuation_token: token)
+      keys.concat((resp.contents || []).map(&:key))
+      pages += 1
+      if resp.is_truncated && !resp.next_continuation_token.present?
+        Rails.logger.error("Uploader.list_remote_keys_with_prefix: S3 reported truncated with no continuation_token for prefix=#{prefix} -- results may be incomplete")
+      end
+      break unless resp.is_truncated && resp.next_continuation_token.present?
+      if keys.length >= overall_cap || pages >= max_pages
+        Rails.logger.error("Uploader.list_remote_keys_with_prefix hit pagination cap (keys=#{keys.length}/overall_cap=#{overall_cap}, pages=#{pages}/max_pages=#{max_pages}) for prefix=#{prefix} with more results remaining -- results are incomplete")
+        break
+      end
+      token = resp.next_continuation_token
+    end
+    keys
+  rescue StandardError => e
+    # e.class/e.message is the actual diagnostic; the caller (remote_remove_thumbnail_family)
+    # sees only nil and can't tell an AccessDenied from a timeout from anything
+    # else, so it must not assert a specific cause on our behalf.
+    Rails.logger.error("Uploader.list_remote_keys_with_prefix failed for prefix=#{prefix}: #{e.class}: #{e.message}")
+    nil
+  end
+
+  # Worker-invoked (via Worker.schedule from MediaObject#remove_derivative_remote_data,
+  # never called synchronously from a commit callback -- listing is a network
+  # call same as any delete, so it belongs in the background same as those).
+  # `stem` is the record-owned thumbnail prefix (see MediaObject#thumbnail_stem);
+  # everything returned under it is re-checked against the exact AWS thumbnail
+  # grammar before any delete is attempted, so listing only ever informs --
+  # it is never itself the safety boundary, and every matched key still goes
+  # through remote_remove's own "scary delete" guard.
+  # Fallback used only when listing itself fails (see below): tries a short,
+  # contiguous, bounded sequence of guessed indices in both formats ETS can
+  # produce, stopping as soon as an index comes back empty in both. This is
+  # NOT a durable retry mechanism (no persistence, no future re-attempt,
+  # single synchronous pass) -- it only widens the same best-effort guess a
+  # single hardcoded key would have made, using remote_remove's existing
+  # head_object precheck as the "does this exist" signal. FALLBACK_MAX_GUESS
+  # bounds it so a permanently-denied ListBucket can't turn into an unbounded
+  # guessing loop.
+  FALLBACK_MAX_GUESS = 5
+
+  def self.remote_remove_thumbnail_family(stem, owner_class_name=nil, owner_global_id=nil)
+    owner = "#{owner_class_name}:#{owner_global_id}"
+    found = list_remote_keys_with_prefix("#{stem}.")
+    if found.nil?
+      # Enumeration failing (e.g. s3:ListBucket not granted -- a separate IAM
+      # permission from GetObject/PutObject/DeleteObject, unverified in this
+      # environment; could also be a timeout or any other S3 error, see the
+      # list_remote_keys_with_prefix log line above for the actual cause)
+      # must not silently drop thumbnail coverage to a single guessed key
+      # when the family may hold more.
+      Rails.logger.error("Uploader.remote_remove_thumbnail_family enumeration failed owner=#{owner} stem=#{stem}; falling back to a bounded guessed-sequence delete")
+      deleted = 0
+      (1..FALLBACK_MAX_GUESS).each do |n|
+        count = n.to_s.rjust(5, '0')
+        found_this_index = false
+        errored_this_index = false
+        ['png', 'jpg'].each do |ext|
+          key = "#{stem}.#{count}.#{ext}"
+          begin
+            if remote_remove(key)
+              found_this_index = true
+              deleted += 1
+            end
+          rescue StandardError => e
+            # remote_remove itself already treats a confirmed-absent object
+            # (head_object 404) as a clean nil return, never a raise -- so
+            # anything landing here is a genuine error (permission, network,
+            # throttling), not proof this index doesn't exist. Stopping on it
+            # the same way as a clean "not found" would silently truncate the
+            # guess sequence on a transient blip, defeating the whole point
+            # of this fallback (see the enumeration-failure log line above).
+            errored_this_index = true
+            Rails.logger.error("Uploader.remote_remove_thumbnail_family fallback delete failed owner=#{owner} stem=#{stem} key=#{key}: #{e.class}: #{e.message}")
+          end
+        end
+        break if !found_this_index && !errored_this_index
+      end
+      Rails.logger.info("Uploader.remote_remove_thumbnail_family fallback owner=#{owner} stem=#{stem} deleted=#{deleted}")
+      return
+    end
+    strict = /\A#{Regexp.escape(stem)}\.\d{5}\.(jpg|png)\z/
+    matched = found.select { |k| k.match?(strict) }
+    if matched.empty?
+      Rails.logger.info("Uploader.remote_remove_thumbnail_family found no matching objects owner=#{owner} stem=#{stem}")
+      return
+    end
+    deleted = 0
+    matched.each do |key|
+      begin
+        deleted += 1 if remote_remove(key)
+      rescue StandardError => e
+        Rails.logger.error("Uploader.remote_remove_thumbnail_family delete failed owner=#{owner} stem=#{stem} key=#{key}: #{e.class}: #{e.message}")
+      end
+    end
+    Rails.logger.info("Uploader.remote_remove_thumbnail_family owner=#{owner} stem=#{stem} matched=#{matched.length} deleted=#{deleted}")
+  end
+
   def self.remote_remove(url, checksum=nil)
     remote_path = url.sub(/^https:\/\/#{ENV['UPLOADS_S3_BUCKET']}\.s3\.amazonaws\.com\//, '')
     remote_path = remote_path.sub(/^https:\/\/s3\.amazonaws\.com\/#{ENV['UPLOADS_S3_BUCKET']}\//, '')
     remote_path = remote_path.sub(/^#{ENV['UPLOADS_S3_CDN']}/, '')
     remote_path = remote_path.sub(/^\//, '')
-    raise "scary delete, not a path I'm comfortable deleting: #{remote_path}" unless remote_path.match(/\w+\/.+\/\w+-\w+(\.\w+)?$/) || remote_path.match(/^extras/)
+    unless remote_path.match(/\w+\/.+\/\w+-\w+(\.\w+)?$/) || remote_path.match(/^extras/) || elastic_transcoder_thumbnail_key?(remote_path)
+      raise "scary delete, not a path I'm comfortable deleting: #{remote_path}"
+    end
 
     do_remove = true
     if checksum
@@ -416,7 +566,11 @@ module Uploader
   def self.remote_zip(url, &block)
     result = []
     Progress.update_current_progress(0.1, :downloading_file)
-    response = SafeHttp.get(url)
+    # Private uploads bucket: unsigned GET 403s; sign before fetch (see
+    # Converters::Utils.remote_to_boards / signed_internal_url).
+    fetch_url = signed_internal_url(url).presence || url
+    response = SafeHttp.get(fetch_url)
+    raise "failed to download zip (#{response.code})" unless response.success?
     Progress.update_current_progress(0.2, :processing_file)
     file = Tempfile.new('stash')
     file.binmode
@@ -571,6 +725,7 @@ module Uploader
     found_words = cache.find_words(words, user) if cache && (!user || !user.subscription_hash['skip_cache'])
     if ['noun-project', 'sclera', 'arasaac', 'mulberry', 'tawasol', 'twemoji', 'opensymbols', 'pcs', 'symbolstix'].include?(library)
       list = words - found_words.keys
+      transport_words = []
 
       # Use OpenSymbols v2 API if OPENSYMBOLS_SECRET is configured
       if ENV['OPENSYMBOLS_SECRET'].present?
@@ -583,19 +738,11 @@ module Uploader
           protected_source = 'symbolstix'
         end
         
-        results = {}
-        
-        if library == 'opensymbols'
-          # The 'opensymbols' meta-repo doesn't support the defaults endpoint,
-          # iterate and search for each word individually
-          list.each do |word|
-            search_results = OpenSymbols.search(word, locale: locale)
-            results[word] = search_results.first if search_results.any?
-          end
-        else
-          # Use the bulk defaults endpoint for specific repositories
-          results = OpenSymbols.defaults(library, list, locale)
-        end
+        # opensymbols (and tawasol) have no bulk defaults endpoint;
+        # OpenSymbols.defaults_result parallelizes those per-word searches.
+        lookup = OpenSymbols.defaults_result(library, list, locale)
+        results = lookup[:results] || {}
+        transport_words = (lookup[:errors] || {}).keys
       else
         # Fallback to v1 API with OPENSYMBOLS_TOKEN
         token = ENV['OPENSYMBOLS_TOKEN']
@@ -658,6 +805,7 @@ module Uploader
           }
         }        
       end
+      hash['_transport'] = transport_words if transport_words.any?
       cache.save_if_added
       return hash
     elsif found_words
@@ -673,6 +821,7 @@ module Uploader
   def self.find_images(keyword, library, locale, user, alt_user=nil, batch=false, cache_forever=false)
     return false if (keyword || '').strip.blank? || (library || '').strip.blank?
     list = nil
+    transport_error = nil
     if library == 'ss'
       return false
     elsif library == 'lessonpix'
@@ -802,7 +951,9 @@ module Uploader
         
         # Use the new OpenSymbols v2 API module
         require 'open_symbols' unless defined?(OpenSymbols)
-        list = OpenSymbols.find_images(keyword, library, locale, protected_source: protected_source)
+        lookup = OpenSymbols.find_images_result(keyword, library, locale, protected_source: protected_source)
+        list = lookup[:results]
+        transport_error = lookup[:error] unless lookup[:ok]
       else
         # Fall back to v1 API (legacy)
         str = keyword.to_s
@@ -821,7 +972,16 @@ module Uploader
           protected_source = 'symbolstix'
         end
         res = Typhoeus.get("https://www.opensymbols.org/api/v1/symbols/search?q=#{CGI.escape(str)}&search_token=#{token}", timeout: 5)
-        results = JSON.parse(res.body) rescue []
+        transport_error = classify_opensymbols_transport(res)
+        results = []
+        if !transport_error
+          begin
+            results = JSON.parse(res.body)
+          rescue JSON::ParserError, TypeError
+            transport_error = :http
+            results = []
+          end
+        end
         results.each do |result|
           next unless result.is_a?(Hash)
           if result['extension']
@@ -859,12 +1019,23 @@ module Uploader
     library.instance_variable_set('@library_cache', cache)
     if cache && list && list[0]
       cache.add_word(keyword, list[0], cache_forever)
-    else
-      # Only cache missing words if they're on an "important" board (for now)
-      cache.add_missing_word(keyword, cache_forever) if cache_forever
+    elsif cache_forever && !transport_error
+      # Genuine empty result only. A 429 / timeout / non-2xx must not stamp
+      # missing 6 months forward (library_cache.rb:141) or swap_incomplete
+      # retries stay blocked until the stamp ages out.
+      cache.add_missing_word(keyword, cache_forever)
     end
     cache.save_if_added
     return list || false
+  end
+
+  def self.classify_opensymbols_transport(res)
+    return :timeout if res.respond_to?(:timed_out?) && res.timed_out?
+    code = res.respond_to?(:code) ? res.code.to_i : 0
+    return nil if code == 0 && !(res.respond_to?(:success?) && res.success? == false)
+    return :throttled if code == 429
+    return :http if code >= 400 || code == 0
+    nil
   end
   
   def self.find_resources(query, source, user)

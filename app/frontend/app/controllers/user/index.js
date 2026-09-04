@@ -12,6 +12,7 @@ import { computed } from '@ember/object';
 import { htmlSafe } from '@ember/template';
 import session from '../../utils/session';
 import { getOwner } from '@ember/application';
+import { readFoldersExpanded } from '../../utils/folders_panel_state';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import {
@@ -25,6 +26,7 @@ import {
 } from '../../utils/board-roots';
 import { filterBrandRoots } from '../../utils/board-brands';
 import boardDetailCache from '../../utils/board_detail_cache';
+import boardsPageListCache from '../../utils/boards_page_list_cache';
 
 function invertBoardTagMap(map) {
   var inv = {};
@@ -53,6 +55,27 @@ function allTaggedGlobalIds(map) {
 }
 
 export default Controller.extend({
+  /* Folder drill-in lives in the URL as `?folder=<tag>`.
+     WHY A QUERY PARAM rather than a popstate listener: drilling into a folder is a
+     view change the user reads as navigation, so the browser Back button has to undo
+     it. Back is handled client-side by the Ember router (verified in a browser: an
+     in-app transition followed by Back never reloads the document), so a routed
+     param gets Back, Forward, refresh-persistence and a shareable URL for free, and
+     it does not fight the router's own history handling the way a hand-rolled
+     pushState/popstate pair would — this app installs no popstate listener anywhere.
+
+     MAPPED onto the EXISTING `mineTagFolderDrillIn` property rather than adding a new
+     one, so all ~8 existing `set('mineTagFolderDrillIn', …)` call sites in
+     components/available-boards-section.js keep working untouched and there is no
+     second source of truth to keep in sync.
+
+     Default is `null` (declared at `mineTagFolderDrillIn:` below), so the param is
+     omitted from the URL entirely until the user actually opens a folder — including
+     on `/:user`, which shares this controller and also renders <BoardsBrowser>. Ember
+     pushes a history entry for a query-param change by default, which is exactly the
+     entry Back needs to pop. */
+  queryParams: [{ mineTagFolderDrillIn: 'folder' }],
+
   store: service('store'),
   router: service('router'),
   appState: service('app-state'),
@@ -60,8 +83,33 @@ export default Controller.extend({
   app_state: alias('appState'),
   persistence: service('persistence'),
 
+  /* "Help me Choose" on the Boards page hands the board-picker the account it is
+     picking for. The picker keys its whole supervisor flow off this `user_id`
+     query param (controllers/board-picker#_resolve_setup_user → setup_user →
+     for_self → the "Choose <name>'s home board" title and the back link), so a
+     supporter on a communicator's Boards page has to arrive with it or the
+     picker will run the SELF flow and offer to set THEIR own home board.
+
+     Null on your own page — Ember drops a query param that equals the
+     controller's default, so the URL stays a clean /board-picker and the picker
+     resolves setup_user to currentUser on its own.
+
+     Global id, not user_name: _resolve_setup_user both does
+     `store.findRecord('user', user_id)` and compares the param against
+     `setup_user.id`, so a handle would re-resolve on every recompute. */
+  homeBoardPickerUserId: computed('model.id', 'appState.currentUser.id', function() {
+    var page_user_id = this.get('model.id');
+    if(!page_user_id || page_user_id === this.get('appState.currentUser.id')) { return null; }
+    return page_user_id;
+  }),
+
   init() {
     this._super(...arguments);
+    /* Read the stored folders-panel preference HERE rather than in the class body, so it
+       reflects the value at instantiation. `available-boards-section` reads the same
+       function in its own `init`, which is what keeps the two in agreement on first paint
+       without either writing across the boundary. */
+    this.set('mineFoldersPanelExpanded', readFoldersExpanded());
     var self = this;
     this.ctrlAction = function(actionName) {
       var bound = Array.prototype.slice.call(arguments, 1);
@@ -125,6 +173,19 @@ export default Controller.extend({
   // controller (line 172, 196, 237) — `@each.public` on a non-array
   // value (e.g. Promise during initial render) can throw and break
   // the whole boards page below.
+  /* Overlay / hero gate: first Mine page or a completed list (including
+     empty). Distinct from my_boards.done, which still waits for the last
+     pagination page so copy-cluster and the library-complete hint can
+     use the full list. Search itself runs on pages loaded so far. */
+  mineListPaintReady: computed(
+    'model.my_boards.done',
+    'model.my_boards.paint_ready',
+    'model.my_boards.loading',
+    'model.my_boards.length',
+    function() {
+      return boardsPageListCache.isPaintReady(this.get('model.my_boards'));
+    }
+  ),
   public_boards_count: computed('model.my_boards.[]', function() {
     var boards = this.get('model.my_boards');
     if(!boards) { return 0; }
@@ -153,6 +214,7 @@ export default Controller.extend({
     return (now - lastSync) > (7 * 24 * 60 * 60 * 1000);
   }),
   check_daily_use: observer('model.user_name', 'model.id', 'model.permissions', 'appState.sessionUser.id', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     var current_user_name = this.get('daily_use.user_name');
     var user_name = this.get('model.user_name');
     // Don't make request if user_name is undefined or empty
@@ -213,6 +275,22 @@ export default Controller.extend({
   filterStringDebounced: '',
   /** When set, Mine tab shows boards tagged with this folder name (flat folders). */
   mineTagFolderDrillIn: null,
+
+  /* Mirrors the folders panel's expanded/collapsed state from
+     components/available-boards-section.js (which owns it, persists it to
+     localStorage, and syncs it here). The controller needs it because `board_list`
+     hides foldered boards ONLY while the panel is actually presenting them — see the
+     tagged-board filter in board_list.
+
+     Initialised from the SAME stored preference the component restores from, so both
+     agree on first paint without anyone writing across the boundary mid-render. The
+     component's observer carries changes after that.
+
+     Seeded in `init()`, NOT here as a class-body default: a call in the class body runs
+     once at MODULE EVAL, in import order, so it froze whatever localStorage held at app
+     boot rather than what it holds when this controller is instantiated. `null` here means
+     "not yet seeded" and init fills it in. */
+  mineFoldersPanelExpanded: null,
   _scheduleFilterDebounce: observer('filterString', function() {
     var _this = this;
     debounce(this, function() {
@@ -224,6 +302,23 @@ export default Controller.extend({
       }
     }, 300);
   }),
+  /* A `?folder=` value can outlive the folder it names — rename or delete pushes a
+     history entry carrying the OLD name, so Back restores a tag that no longer exists.
+     Without this the page rendered a folder card titled with the dead name, containing
+     zero boards, with live Rename and Delete buttons; and when board_tag_map was empty
+     the drill filter was skipped entirely so the FULL board list rendered inside a card
+     labelled with the bogus folder.
+
+     Only clears once the map has actually loaded and is non-empty — an absent map means
+     "not fetched yet", and clearing then would break a legitimate deep link. */
+  _clearStaleFolderDrillIn: observer('mineTagFolderDrillIn', 'model.board_tag_map', function() {
+    var tag = this.get('mineTagFolderDrillIn');
+    if(!tag) { return; }
+    var map = this.get('model.board_tag_map');
+    if(!map || Object.keys(map).length === 0) { return; }
+    if(!map[tag]) { this.set('mineTagFolderDrillIn', null); }
+  }),
+
   mineFoldersEnabled: computed(
     'selected',
     'parent_object',
@@ -504,20 +599,26 @@ export default Controller.extend({
     'boardsPageSearchRows.[]',
     'parent_object',
     'mineTagFolderDrillIn',
+    'boards_page_raw_list',
+    'boards_page_raw_list.done',
+    'model.my_boards.done',
+    'model.public_boards.done',
     function() {
       /* Folder drill-in hides the Boards Filter UI but keeps any
          prior filterStringDebounced — show the folder grid only. */
       if (this.get('mineTagFolderDrillIn')) {
-        return { results: this.get('filtered_results') || [], truncated: false };
+        return { results: this.get('filtered_results') || [], truncated: false, incomplete: false };
       }
       var filter = (this.get('filterStringDebounced') || '').trim();
       if (!filter) {
-        return { results: this.get('filtered_results') || [], truncated: false };
+        return { results: this.get('filtered_results') || [], truncated: false, incomplete: false };
       }
       var q = filter.toLowerCase();
       var rows = this.get('boardsPageSearchRows') || [];
       var matches = [];
       var truncated = false;
+      var sourceList = this.get('boards_page_raw_list') || [];
+      var incomplete = !sourceList.done;
       if (rows.length) {
         for (var i = 0; i < rows.length; i++) {
           if (rows[i].haystack.indexOf(q) === -1) { continue; }
@@ -527,7 +628,7 @@ export default Controller.extend({
           }
           matches.push({ board: rows[i].board, children: [] });
         }
-        return { results: matches, truncated: truncated };
+        return { results: matches, truncated: truncated, incomplete: incomplete };
       }
       var fallbackRows = this.get('filtered_results') || [];
       for (var j = 0; j < fallbackRows.length; j++) {
@@ -541,7 +642,7 @@ export default Controller.extend({
         }
         matches.push({ board: row.board, children: row.children || [] });
       }
-      return { results: matches, truncated: truncated };
+      return { results: matches, truncated: truncated, incomplete: incomplete };
     }
   ),
   boards_page_visible_results: computed('boardsPageSearchState', function() {
@@ -551,6 +652,10 @@ export default Controller.extend({
   boards_page_search_truncated: computed('boardsPageSearchState', function() {
     var state = this.get('boardsPageSearchState');
     return !!(state && state.truncated);
+  }),
+  boards_page_search_incomplete: computed('boardsPageSearchState', function() {
+    var state = this.get('boardsPageSearchState');
+    return !!(state && state.incomplete);
   }),
   boards_page_search_limit: computed(function() {
     return BOARDS_PAGE_SEARCH_LIMIT;
@@ -564,6 +669,7 @@ export default Controller.extend({
     'model.id',
     'model.board_tag_map',
     'mineTagFolderDrillIn',
+    'mineFoldersPanelExpanded',
     'model.my_boards',
     'model.prior_home_boards',
     'model.public_boards',
@@ -811,7 +917,23 @@ export default Controller.extend({
             });
             // Children stay nested under their root, exactly as in the
             // main boards grid — no flattening, no second render.
-          } else {
+          } else if (this.get('mineFoldersEnabled') && this.get('mineFoldersPanelExpanded')) {
+            /* Foldered boards are held out of the main grid ONLY while the folders
+               panel is open — filing a board into a folder MOVES it there, so showing a
+               second loose copy in the grid would defeat the point.
+
+               When the panel is COLLAPSED (or folders are not enabled on this tab) the
+               grid is the only view of the library on the page, so holding boards out of
+               it makes them unreachable with nothing on screen to hint they exist. That
+               is exactly what "the folder content disappears" was: collapsing the panel
+               from inside a folder both exited the folder and hid everything filed in
+               one. A board with no untagged twin — and that is not the home board, which
+               is exempted below — vanished from the page entirely.
+
+               So the exclusion is scoped to the state where folders are visibly the
+               alternative home for those boards. Same condition the template uses to
+               decide whether the drilled-in grid is rendering at all, which keeps the
+               two in agreement. */
             /* Home board must ALWAYS render in the main boards grid,
                even when categorized into a folder — it's the user's
                anchor board and hiding it behind a folder turns the
@@ -912,6 +1034,14 @@ export default Controller.extend({
           new_list = dedupeBoardRows(new_list, { preferUserNames: preferOwners });
         }
       }
+      /* Orphan CLUSTER rows are synthetic placeholders that the Boards page does NOT
+         render (components/available-boards-section.js#showOrphanClusters is false, and
+         the template skips them). They were still counted here, so a page could show
+         well under 18 tiles while "More" remained visible and each click revealed fewer
+         boards than expected. Drop them BEFORE the slice so the counts match what the
+         user actually sees. If showOrphanClusters is ever flipped back on, this filter
+         has to come off with it — they are one decision. */
+      new_list = (new_list || []).filter(function(row) { return !(row && row.orphan); });
       /* if(this.get('filterString')) {
         var re = new RegExp(this.get('filterString'), 'i');
         new_list = new_list.filter(function(i) {
@@ -951,6 +1081,7 @@ export default Controller.extend({
   },
   reload_logs: observer('persistence.online', 'model.permissions', function() {
     if(!this || typeof this.get !== 'function') { return; }
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     var _this = this;
     var persistenceService = this.get('persistence') || this.persistence;
     if(!persistenceService || typeof persistenceService.get !== 'function' || !persistenceService.get('online')) { return; }
@@ -984,6 +1115,7 @@ export default Controller.extend({
     });
   }),
   load_badges: observer('model.permissions', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     if(this.get('model.permissions')) {
       var _this = this;
       if(!(_this.get('model.badges') || {}).length) {
@@ -999,6 +1131,7 @@ export default Controller.extend({
     }
   }),
   load_goals: observer('model.permissions', function() {
+    if(boardsPageListCache.isBoardsPageActive()) { return; }
     if(this.get('model.permissions')) {
       var _this = this;
       if(!(_this.get('model.goals') || {}).length) {
@@ -1035,45 +1168,128 @@ export default Controller.extend({
     if(!args.per_page) { args.per_page = 50; }
     var prior = _this.get(list_name) || [];
     if(prior.error || prior.loading) { prior = []; }
-    if(!append && !prior.length) {
+    /* When a usable completed list is already on screen (SPA re-entry or
+       localStorage hydrate), keep it painted and accumulate pages in a
+       side buffer. Assigning partial pages onto list_name would clear
+       `.done` and re-trigger the boards-page overlay. */
+    var backgroundRefresh = boardsPageListCache.isUsableList(prior);
+    var bufferKey = list_name + ':' + list_id;
+    var isMineList = list_name === 'model.my_boards';
+    /* Within TTL, a usable on-screen Mine list + fresh localStorage
+       snapshot means skip the full-library re-download — the point of the snapshot is to
+       avoid re-fetching a whole library on every visit (a ~250-board account is 5
+       paginated round-trips).
+
+       KNOWN BOUND, stated rather than implied: this skips the query ENTIRELY, so the list
+       is only as fresh as the last thing that invalidated the snapshot. Local mutations do
+       invalidate it — create, delete, copy, remove and now RENAME (which changes a tile's
+       `key`, so a stale tile would 404). A change made on ANOTHER DEVICE does not, and
+       cannot: there is no signal here to notice it. Such a change surfaces after the TTL
+       expires, or after any local mutation. That is the deliberate trade; do not read this
+       branch as "the list is current". */
+    if(isMineList && !append && backgroundRefresh && boardsPageListCache.hasFreshSnapshot(_this.get('model.id'))) {
+      boardsPageListCache.setMineListBusy(false);
+      return;
+    }
+    /* Do not clobber a usable empty list (`[].done`) with {loading:true}. */
+    if(!append && !backgroundRefresh && !prior.length) {
       _this.set(list_name, {loading: true});
     }
+    if(!append && backgroundRefresh) {
+      _this._boards_list_refresh_buffers = _this._boards_list_refresh_buffers || {};
+      _this._boards_list_refresh_buffers[bufferKey] = [];
+    }
+    if(isMineList && !append) {
+      boardsPageListCache.setMineListBusy(true);
+    }
     _this.store.query('board', args).then(function(boards) {
-      if(_this.get('list_id') == list_id) {
-        if(!append && prior.length) {
-          prior = [];
-        }
+      /* Stale page for a superseded list_id: do not clear Mine busy —
+         a newer Mine fetch may own the flag. */
+      if(_this.get('list_id') != list_id) { return; }
 
-        var chunk = boards.slice();
-        if (append && prior.length) {
-          prior = prior.concat(chunk);
+      var chunk = boards.slice();
+      var meta = _this.persistence.meta('board', boards); //_this.store.metadataFor('board');
+
+      if(backgroundRefresh) {
+        var buf = (_this._boards_list_refresh_buffers && _this._boards_list_refresh_buffers[bufferKey]) || [];
+        if(append && buf.length) {
+          buf = buf.concat(chunk);
         } else {
-          prior = chunk;
+          buf = chunk;
         }
-        prior.user_id = _this.get('model.id');
-        _this.set(list_name, prior);
-        var meta = _this.persistence.meta('board', boards); //_this.store.metadataFor('board');
+        buf.user_id = _this.get('model.id');
+        _this._boards_list_refresh_buffers = _this._boards_list_refresh_buffers || {};
+        _this._boards_list_refresh_buffers[bufferKey] = buf;
         if(meta && meta.more) {
           args.per_page = meta.per_page;
           args.offset = meta.next_offset;
-          /* Throttle subsequent pages so a 5-page sweep doesn't fire as
-             a single back-to-back burst (which read as a network
-             "flood" in the dev tools, and competed with foreground
-             traffic like board-preview image loads). 200ms is small
-             enough that the full list still finishes streaming in ~1s
-             for typical cases, and large enough that the requests
-             interleave cleanly with user-initiated work. The list_id
-             check at the top of the function still guards against tab
-             changes during the gap. */
           runLater(function() {
             if(_this.isDestroyed || _this.isDestroying) { return; }
             _this.generate_or_append_to_list(args, list_name, list_id, true);
           }, 200);
         } else {
-          _this.set(list_name + '.done', true);
+          buf.done = true;
+          buf.user_id = _this.get('model.id');
+          _this.set(list_name, buf);
+          if(_this._boards_list_refresh_buffers) {
+            delete _this._boards_list_refresh_buffers[bufferKey];
+          }
+          if(isMineList) {
+            boardsPageListCache.write(_this.get('model.id'), buf);
+            boardsPageListCache.setMineListBusy(false);
+          }
+        }
+        return;
+      }
+
+      if(!append && prior.length) {
+        prior = [];
+      }
+
+      if (append && prior.length) {
+        prior = prior.concat(chunk);
+      } else {
+        prior = chunk;
+      }
+      prior.user_id = _this.get('model.id');
+      if(isMineList) {
+        prior.paint_ready = true;
+      }
+      _this.set(list_name, prior);
+      if(meta && meta.more) {
+        args.per_page = meta.per_page;
+        args.offset = meta.next_offset;
+        /* Throttle subsequent pages so a 5-page sweep doesn't fire as
+           a single back-to-back burst (which read as a network
+           "flood" in the dev tools, and competed with foreground
+           traffic like board-preview image loads). 200ms is small
+           enough that the full list still finishes streaming in ~1s
+           for typical cases, and large enough that the requests
+           interleave cleanly with user-initiated work. The list_id
+           check at the top of the function still guards against tab
+           changes during the gap. */
+        runLater(function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          _this.generate_or_append_to_list(args, list_name, list_id, true);
+        }, 200);
+      } else {
+        _this.set(list_name + '.done', true);
+        if(isMineList) {
+          _this.set(list_name + '.paint_ready', true);
+          boardsPageListCache.write(_this.get('model.id'), _this.get(list_name));
+          boardsPageListCache.setMineListBusy(false);
         }
       }
     }, function() {
+      if(isMineList && _this.get('list_id') == list_id) {
+        boardsPageListCache.setMineListBusy(false);
+      }
+      if(backgroundRefresh) {
+        if(_this._boards_list_refresh_buffers) {
+          delete _this._boards_list_refresh_buffers[bufferKey];
+        }
+        return;
+      }
       if(_this.get('list_id') == list_id && !prior.length) {
         _this.set(list_name, {error: true});
       }
@@ -1187,20 +1403,22 @@ export default Controller.extend({
   external_device_or_no_home: computed('model.external_device', 'model.preference.home_board', function() {
     return this.get('model.external_device') || this.get('model.preferences.home_board');
   }),
-  /* "Set / Change Home Board" selection mode — mirrors the home-board-
-     selection flow that previously lived on the My Boards modal (now
-     removed; that modal was replaced by a route transition in 2026-05-23).
-     When ON, clicking a board tile sets that board as the currentUser's
-     home board (see open_board_in_user_view) and jumps into speak mode
-     instead of opening the board. */
-  selectingHome: false,
-  hasHomeBoard: computed('appState.referenced_user.preferences.home_board.key', function() {
-    return !!this.appState.get('referenced_user.preferences.home_board.key');
+  /* The label on the "Set / Change Home Board" link (available-boards-section.hbs:621),
+     which routes to the board picker. It reads the VIEWED profile, so a supervisor on a
+     communicator's boards page sees the wording that matches that communicator.
+
+     There is deliberately no tile-click selection mode behind it any more: setting a home
+     board happens in exactly three places — board-detail speak mode ("Set as Home Board"),
+     the board picker, and this link into the picker. The old `selectingHome` mode that set
+     the home board by clicking a board tile was removed on 2026-08-26; nothing had set its
+     flag since the My Boards modal it mirrored was replaced by a route transition on
+     2026-05-23, so the branch had been unreachable, and it wrote `preferences.home_board`
+     straight onto `app_state.currentUser` — the SIGNED-IN user, never the profile being
+     viewed — while this label described the communicator. */
+  hasHomeBoard: computed('model.preferences.home_board.key', function() {
+    return !!this.get('model.preferences.home_board.key');
   }),
-  setHomeButtonLabel: computed('hasHomeBoard', 'selectingHome', function() {
-    if(this.get('selectingHome')) {
-      return i18n.t('cancel_set_home_board', "Cancel");
-    }
+  setHomeButtonLabel: computed('hasHomeBoard', function() {
     return this.get('hasHomeBoard')
       ? i18n.t('change_home_board', "Change Home Board")
       : i18n.t('set_home_board', "Set Home Board");
@@ -1216,12 +1434,27 @@ export default Controller.extend({
       console.debug('syncing because manually triggered');
       this.persistence.sync(this.get('model.id'), 'all_reload').then(null, function() { });
     },
+    // Runs against the PROFILE being viewed (`model.id`), which may be a
+    // supervisee — so this goes to the standalone board picker for THAT user, not
+    // to the current user's home tour. The picker is the decoupled replacement for
+    // the wizard's board step and "mirrors setup's user_id / setup_user
+    // resolution" (controllers/board-picker.js:10), so it lands on exactly the
+    // screen the wizard used to open for this person.
+    // `homeBoardPickerUserId` (above) is the established param source: a GLOBAL id,
+    // and null when the profile IS the current user, so a self-visit opens the
+    // plain picker rather than a redundant ?user_id round-trip.
     setup: function() {
+      var other_user_id = this.get('homeBoardPickerUserId');
       if(window.ga) {
-        window.ga('send', 'event', 'Setup', 'start', 'Setup started');
+        window.ga('send', 'event', 'Onboarding', 'start', other_user_id ? 'Board picker opened' : 'Home tour started');
       }
-      this.appState.set('auto_setup', false);
-      this.router.transitionTo('setup', { queryParams: { page: null, user_id: this.get('model.id') } });
+      if(other_user_id) {
+        this.router.transitionTo('board-picker', { queryParams: { user_id: other_user_id } });
+      } else {
+        // Own profile — the home tour is the self-onboarding path.
+        this.appState.set('auto_open_home_tour', true);
+        this.appState.return_to_index();
+      }
     },
     quick_assessment: function() {
       var _this = this;
@@ -1381,31 +1614,6 @@ export default Controller.extend({
       if(!board) { return; }
       var key = board.get ? board.get('key') : board.key;
       if(!key) { return; }
-      var _this = this;
-      /* Set-Home selection-mode branch — mirrors the modal's pickBoard
-         branch (see controllers/application.js#pickBoard). Clicking a
-         tile while selecting-home sets the picked board as currentUser's
-         home, saves the user, and home-in-speak-mode lands the user on
-         their new home. Falls through to the standard open flow if the
-         save chain can't proceed. */
-      if(this.get('selectingHome')) {
-        var user = this.appState.get('currentUser');
-        var board_id = board.get ? board.get('id') : board.id;
-        if(user && user.set && user.save) {
-          user.set('preferences.home_board', {
-            key: key,
-            id: board_id,
-            locale: this.appState.get('label_locale')
-          });
-          user.save().then(function() {
-            _this.set('selectingHome', false);
-            _this.appState.home_in_speak_mode({user: user});
-          }, function() {
-            /* Save failed — leave selection mode on so the user can retry. */
-          });
-          return;
-        }
-      }
       var parts = key.split('/');
       if(parts.length !== 2) { return; }
       var pref = this.get('appState.currentUser.preferences.board_view_style');
@@ -1437,10 +1645,17 @@ export default Controller.extend({
         transition.catch(function() { _appState.hide_loading_overlay(); });
       }
     },
-    /* Toggle the "Set / Change Home Board" selection mode. Mirrors the
-       modal's `toggleSetHomeMode` (see controllers/application.js). */
+    /* Legacy entry point — boards page now links to /board-picker instead
+       of inline selection mode. Kept so any stale callers still land on
+       the dedicated picker. */
     toggleSetHomeMode: function() {
-      this.toggleProperty('selectingHome');
+      var modelId = this.get('model.id');
+      var currentId = this.appState.get('currentUser.id');
+      if (modelId && currentId && modelId != currentId) {
+        this.get('router').transitionTo('board-picker', { queryParams: { user_id: modelId } });
+      } else {
+        this.get('router').transitionTo('board-picker');
+      }
     },
     nothing: function() {
     },
@@ -1456,23 +1671,29 @@ export default Controller.extend({
     },
     remove_board: function(action, board) {
       var _this = this;
+      var refreshMine = function() {
+        /* Drop the TTL snapshot so update_selected re-queries instead of
+           treating the pre-mutation list as still fresh. */
+        boardsPageListCache.clear(_this.get('model.id'));
+        _this.update_selected();
+      };
       if(action == 'delete') {
         modal.open('confirm-delete-board', {board: board, redirect: false}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       } else if(action == 'delete_orphans') {
         board.name = board.board.name;
         modal.open('confirm-delete-board', {board: board, redirect: false, orphans: true}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       } else {
         modal.open('confirm-remove-board', {action: action, tag: _this.get('current_tag'), board: board, user: this.get('model')}).then(function(res) {
           if(res && res.update) {
-            _this.update_selected();
+            refreshMine();
           }
         });
       }
@@ -1632,6 +1853,9 @@ export default Controller.extend({
     },
     profile_preview: function() {
       modal.open('modals/profiles', {user: this.get('model')});
+    },
+    retry_board_list: function() {
+      this.update_selected();
     }
   }
 });

@@ -1,7 +1,7 @@
 <ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
   <div class="md-modal-header">
     <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>&times;</button>
-    <h3 class="md-modal-title">{{t "Manage Start Codes" key="manage_start_codes"}} — {{this.org_or_user.name}}</h3>
+    <h3 class="md-modal-title">{{t "Manage Start Codes" key="manage_start_codes"}} — {{display-name this.org_or_user}}</h3>
   </div>
   <div class="md-modal-body" style="text-align: left;">
     {{#if this.link_code}}

@@ -616,6 +616,357 @@ describe Uploader do
       res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/images/abcdefg/asdf-asdf.asdf", "bad_chksum")
       expect(res).to eq(false)
     end
+
+    it "should remove a real Elastic Transcoder thumbnail key via the bounded thumbnail exception" do
+      key = 'videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.png'
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: key).and_return(true)
+      res = Uploader.remote_remove("https://#{uploads_bucket}.s3.amazonaws.com/#{key}")
+      expect(res).to eq(true)
+    end
+  end
+
+  # Standalone regex-level coverage for the narrow thumbnail exception, kept
+  # separate from the full remote_remove integration test above so every
+  # boundary case (right/wrong digit count, format, prefix, trailing junk) is
+  # cheap to assert without stubbing S3 for each one.
+  describe "elastic_transcoder_thumbnail_key?" do
+    it "should accept the verified real Elastic Transcoder thumbnail shape" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.png')).to eq(true)
+    end
+
+    it "should accept a jpg-format thumbnail" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.jpg')).to eq(true)
+    end
+
+    it "should accept a later sequence number (00002) if a preset ever produces more than one thumbnail" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00002.png')).to eq(true)
+    end
+
+    it "should reject a four-digit counter" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.0001.png')).to eq(false)
+    end
+
+    it "should reject a six-digit counter" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.000012.png')).to eq(false)
+    end
+
+    it "should reject a key missing the video container extension" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.00001.png')).to eq(false)
+    end
+
+    it "should reject a thumbnail format Elastic Transcoder can't produce" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.gif')).to eq(false)
+    end
+
+    it "should reject an arbitrary double-extension file that isn't a thumbnail" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('sounds/1/2/3/1_5-abcdef.tar.gz')).to eq(false)
+    end
+
+    it "should reject a suffix trailing the thumbnail extension" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4.00001.png.bak')).to eq(false)
+    end
+
+    it "should reject a key outside the 'videos/' prefix UserVideo actually uses" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('sounds/1/2/3/1_5-abcdefv1723500000.mp4.00001.png')).to eq(false)
+    end
+
+    it "should reject a real (non-thumbnail) primary media key" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?('videos/1/2/3/1_5-abcdefv1723500000.mp4')).to eq(false)
+    end
+
+    it "should reject nil" do
+      expect(Uploader.elastic_transcoder_thumbnail_key?(nil)).to eq(false)
+    end
+  end
+
+  describe "list_remote_keys_with_prefix" do
+    let(:uploads_bucket) { 'spec-uploads-for-list' }
+
+    before do
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return({
+        access_key: 'test_key', secret: 'test_secret', bucket_name: uploads_bucket, static_bucket_name: 'spec-static'
+      })
+    end
+
+    it "should return the keys found under the prefix" do
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:list_objects_v2).with(bucket: uploads_bucket, prefix: 'videos/1/2/3/x.mp4.', max_keys: 1000, continuation_token: nil).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(contents: [
+          Aws::S3::Types::Object.new(key: 'videos/1/2/3/x.mp4.00001.png'),
+          Aws::S3::Types::Object.new(key: 'videos/1/2/3/x.mp4.00002.png')
+        ])
+      )
+      expect(Uploader.list_remote_keys_with_prefix('videos/1/2/3/x.mp4.')).to eq([
+        'videos/1/2/3/x.mp4.00001.png', 'videos/1/2/3/x.mp4.00002.png'
+      ])
+    end
+
+    it "should page through a truncated result set until every key is collected" do
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:list_objects_v2).with(bucket: uploads_bucket, prefix: 'videos/1/2/3/x.mp4.', max_keys: 1000, continuation_token: nil).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(
+          contents: [Aws::S3::Types::Object.new(key: 'videos/1/2/3/x.mp4.00001.png')],
+          is_truncated: true,
+          next_continuation_token: 'page2token'
+        )
+      )
+      expect(s3_client).to receive(:list_objects_v2).with(bucket: uploads_bucket, prefix: 'videos/1/2/3/x.mp4.', max_keys: 1000, continuation_token: 'page2token').and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(
+          contents: [Aws::S3::Types::Object.new(key: 'videos/1/2/3/x.mp4.00002.png')],
+          is_truncated: false
+        )
+      )
+      expect(Uploader.list_remote_keys_with_prefix('videos/1/2/3/x.mp4.')).to eq([
+        'videos/1/2/3/x.mp4.00001.png', 'videos/1/2/3/x.mp4.00002.png'
+      ])
+    end
+
+    it "should stop and log once overall_cap is reached, rather than paginating forever" do
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(s3_client).to receive(:list_objects_v2).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(
+          contents: [Aws::S3::Types::Object.new(key: 'videos/1/2/3/x.mp4.00001.png')],
+          is_truncated: true,
+          next_continuation_token: 'nexttoken'
+        )
+      )
+      allow(Rails.logger).to receive(:error)
+      res = Uploader.list_remote_keys_with_prefix('videos/1/2/3/x.mp4.', overall_cap: 2)
+      expect(res.length).to eq(2)
+      expect(Rails.logger).to have_received(:error).with(/overall_cap=2/)
+    end
+
+    it "should stop via max_pages even when Contents is empty and overall_cap could never trip" do
+      # overall_cap only counts accumulated keys; a response that reports
+      # is_truncated with an empty Contents page never advances that count,
+      # so max_pages is the actual iteration-count backstop against an
+      # infinite loop.
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(s3_client).to receive(:list_objects_v2).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(contents: [], is_truncated: true, next_continuation_token: 'sametoken')
+      )
+      allow(Rails.logger).to receive(:error)
+      res = Uploader.list_remote_keys_with_prefix('videos/1/2/3/x.mp4.', max_pages: 3)
+      expect(res).to eq([])
+      expect(s3_client).to have_received(:list_objects_v2).exactly(3).times
+      expect(Rails.logger).to have_received(:error).with(/pages=3\/max_pages=3/)
+    end
+
+    it "should log when S3 reports truncated with no continuation_token" do
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(s3_client).to receive(:list_objects_v2).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(
+          contents: [Aws::S3::Types::Object.new(key: 'videos/1/2/3/x.mp4.00001.png')],
+          is_truncated: true,
+          next_continuation_token: nil
+        )
+      )
+      allow(Rails.logger).to receive(:error)
+      res = Uploader.list_remote_keys_with_prefix('videos/1/2/3/x.mp4.')
+      expect(res).to eq(['videos/1/2/3/x.mp4.00001.png'])
+      expect(Rails.logger).to have_received(:error).with(/truncated with no continuation_token/)
+    end
+
+    it "should return an empty array (not nil) when nothing is found" do
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:list_objects_v2).and_return(Aws::S3::Types::ListObjectsV2Output.new(contents: []))
+      expect(Uploader.list_remote_keys_with_prefix('videos/1/2/3/x.mp4.')).to eq([])
+    end
+
+    it "should return nil (not an empty array) and log when S3 raises, e.g. ListBucket denied" do
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:list_objects_v2).and_raise(Aws::S3::Errors::AccessDenied.new(nil, 'denied'))
+      allow(Rails.logger).to receive(:error)
+      expect(Uploader.list_remote_keys_with_prefix('videos/1/2/3/x.mp4.')).to eq(nil)
+      expect(Rails.logger).to have_received(:error).with(/list_remote_keys_with_prefix failed/)
+    end
+
+    it "should return nil without attempting a call when S3 isn't configured, and should warn (not error) so it isn't mistaken for a real failure" do
+      allow(Uploader).to receive(:remote_upload_config).and_return({access_key: nil, secret: nil, bucket_name: nil})
+      expect(Aws::S3::Client).to_not receive(:new)
+      allow(Rails.logger).to receive(:warn)
+      expect(Uploader.list_remote_keys_with_prefix('videos/1/2/3/x.mp4.')).to eq(nil)
+      expect(Rails.logger).to have_received(:warn).with(/not configured/)
+    end
+  end
+
+  describe "remote_remove_thumbnail_family" do
+    let(:uploads_bucket) { 'spec-uploads-for-thumb-family' }
+
+    before do
+      Uploader.instance_variable_set('@remote_upload_config', nil)
+      allow(Uploader).to receive(:remote_upload_config).and_return({
+        access_key: 'test_key', secret: 'test_secret', bucket_name: uploads_bucket, static_bucket_name: 'spec-static'
+      })
+    end
+
+    it "should delete every strictly-matching object found under the stem" do
+      stem = 'videos/1/2/3/1_5-familyv1723500000.mp4'
+      s3_client = instance_double(Aws::S3::Client)
+      # remote_remove builds its own client per call (once for the list, once
+      # per matched delete), so this must tolerate multiple constructions.
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:list_objects_v2).with(bucket: uploads_bucket, prefix: "#{stem}.", max_keys: 1000, continuation_token: nil).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(contents: [
+          Aws::S3::Types::Object.new(key: "#{stem}.00001.png"),
+          Aws::S3::Types::Object.new(key: "#{stem}.00002.jpg")
+        ])
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00001.png").and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.00001.png").and_return(true)
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00002.jpg").and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.00002.jpg").and_return(true)
+      Uploader.remote_remove_thumbnail_family(stem, 'UserVideo', '1_5')
+    end
+
+    it "should reject a returned key that doesn't strictly match this stem's grammar" do
+      stem = 'videos/1/2/3/1_5-strictv1723500000.mp4'
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:list_objects_v2).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(contents: [
+          Aws::S3::Types::Object.new(key: "#{stem}.00001.png"),
+          Aws::S3::Types::Object.new(key: "#{stem}extra-unrelated.00001.png"),
+          Aws::S3::Types::Object.new(key: "#{stem}.0001.png"),
+          Aws::S3::Types::Object.new(key: "#{stem}.00001.png.bak")
+        ])
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00001.png").and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.00001.png").and_return(true)
+      expect(s3_client).to_not receive(:head_object).with(bucket: uploads_bucket, key: "#{stem}extra-unrelated.00001.png")
+      Uploader.remote_remove_thumbnail_family(stem, 'UserVideo', '1_5')
+    end
+
+    it "should let a real, bounded fallback delete a genuine multi-thumbnail family when enumeration fails" do
+      # Stubs only Aws::S3::Client (not Uploader.remote_remove itself), so the
+      # real "scary delete" guard actually executes on every guessed key --
+      # matching the higher-fidelity pattern used elsewhere in this file,
+      # rather than a mock that would still pass if the guard regressed.
+      # First call (the listing attempt) raises; every call after that is a
+      # real remote_remove -> real S3 client, so this also proves the
+      # fallback recovers a SECOND thumbnail via the bounded guess sequence,
+      # not just the first, and stops once an index is empty in both formats.
+      stem = 'videos/1/2/3/1_5-fallbackfamilyv1723500000.mp4'
+      s3_client = instance_double(Aws::S3::Client)
+      call_count = 0
+      allow(Aws::S3::Client).to receive(:new) do
+        call_count += 1
+        raise Aws::S3::Errors::AccessDenied.new(nil, 'denied') if call_count == 1
+        s3_client
+      end
+      allow(Rails.logger).to receive(:error)
+      allow(Rails.logger).to receive(:info)
+
+      exists = ["#{stem}.00001.png", "#{stem}.00002.png"]
+      exists.each do |key|
+        allow(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_return(Aws::S3::Types::HeadObjectOutput.new)
+        allow(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: key).and_return(true)
+      end
+      missing = ["#{stem}.00001.jpg", "#{stem}.00002.jpg", "#{stem}.00003.png", "#{stem}.00003.jpg"]
+      missing.each do |key|
+        allow(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
+      end
+
+      Uploader.remote_remove_thumbnail_family(stem, 'UserVideo', '1_5')
+
+      exists.each { |key| expect(s3_client).to have_received(:delete_object).with(bucket: uploads_bucket, key: key) }
+      # Bounded: stops after index 3 comes back empty in both formats, never
+      # probes index 4 -- proves this isn't an unbounded guessing loop.
+      expect(s3_client).to_not have_received(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00004.png")
+      expect(Rails.logger).to have_received(:info).with(/fallback.*deleted=2/)
+    end
+
+    it "should not raise when a fallback guessed delete itself errors, and should still try the next index" do
+      # A genuine delete error (permission, network, throttling) is not proof
+      # an index doesn't exist -- remote_remove already returns a clean nil
+      # for a confirmed-absent object (head_object 404), so anything that
+      # raises here is a real error. Stopping on it the same way as a clean
+      # "not found" would silently truncate the guess sequence on a transient
+      # blip; this proves index 2 is still attempted (and recovered) despite
+      # index 1 erroring on both extensions.
+      stem = 'videos/1/2/3/1_5-deniedfailv1723500000.mp4'
+      s3_client = instance_double(Aws::S3::Client)
+      call_count = 0
+      allow(Aws::S3::Client).to receive(:new) do
+        call_count += 1
+        raise Aws::S3::Errors::AccessDenied.new(nil, 'denied') if call_count == 1
+        s3_client
+      end
+      allow(Rails.logger).to receive(:error)
+      allow(Rails.logger).to receive(:info)
+
+      errored = ["#{stem}.00001.png", "#{stem}.00001.jpg"]
+      errored.each do |key|
+        allow(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_raise(Aws::S3::Errors::ServiceUnavailable.new(nil, 'unavailable'))
+      end
+      allow(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00002.png").and_return(Aws::S3::Types::HeadObjectOutput.new)
+      allow(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.00002.png").and_return(true)
+      absent = ["#{stem}.00002.jpg", "#{stem}.00003.png", "#{stem}.00003.jpg"]
+      absent.each do |key|
+        allow(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: key).and_raise(Aws::S3::Errors::NotFound.new(nil, 'Not Found'))
+      end
+
+      expect { Uploader.remote_remove_thumbnail_family(stem, 'UserVideo', '1_5') }.to_not raise_error
+
+      expect(s3_client).to have_received(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.00002.png")
+      expect(Rails.logger).to have_received(:error).with(/fallback delete failed/).twice
+      expect(Rails.logger).to have_received(:info).with(/fallback.*deleted=1/)
+      # Bounded: stops after index 3 comes back cleanly empty in both
+      # formats (not the errored index 1), never probes index 4.
+      expect(s3_client).to_not have_received(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00004.png")
+    end
+
+    it "should log a positive success-path summary with matched/deleted counts" do
+      stem = 'videos/1/2/3/1_5-summaryv1723500000.mp4'
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      allow(s3_client).to receive(:list_objects_v2).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(contents: [Aws::S3::Types::Object.new(key: "#{stem}.00001.png")])
+      )
+      allow(s3_client).to receive(:head_object).and_return(Aws::S3::Types::HeadObjectOutput.new)
+      allow(s3_client).to receive(:delete_object).and_return(true)
+      allow(Rails.logger).to receive(:info)
+      Uploader.remote_remove_thumbnail_family(stem, 'UserVideo', '1_5')
+      expect(Rails.logger).to have_received(:info).with(/matched=1 deleted=1/)
+    end
+
+    it "should log at info (not error) and attempt no delete when nothing matches" do
+      s3_client = instance_double(Aws::S3::Client)
+      expect(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:list_objects_v2).and_return(Aws::S3::Types::ListObjectsV2Output.new(contents: []))
+      expect(s3_client).to_not receive(:delete_object)
+      allow(Rails.logger).to receive(:info)
+      Uploader.remote_remove_thumbnail_family('videos/1/2/3/x.mp4', 'UserVideo', '1_5')
+      expect(Rails.logger).to have_received(:info).with(/found no matching objects/)
+    end
+
+    it "should not let one matching object's delete failure suppress an attempt at its sibling" do
+      stem = 'videos/1/2/3/1_5-siblingv1723500000.mp4'
+      s3_client = instance_double(Aws::S3::Client)
+      allow(Aws::S3::Client).to receive(:new).and_return(s3_client)
+      expect(s3_client).to receive(:list_objects_v2).and_return(
+        Aws::S3::Types::ListObjectsV2Output.new(contents: [
+          Aws::S3::Types::Object.new(key: "#{stem}.00001.png"),
+          Aws::S3::Types::Object.new(key: "#{stem}.00002.png")
+        ])
+      )
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00001.png").and_raise(Aws::S3::Errors::AccessDenied.new(nil, 'denied'))
+      expect(s3_client).to receive(:head_object).with(bucket: uploads_bucket, key: "#{stem}.00002.png").and_return(Aws::S3::Types::HeadObjectOutput.new)
+      expect(s3_client).to receive(:delete_object).with(bucket: uploads_bucket, key: "#{stem}.00002.png").and_return(true)
+      allow(Rails.logger).to receive(:error)
+      expect { Uploader.remote_remove_thumbnail_family(stem, 'UserVideo', '1_5') }.to_not raise_error
+    end
   end
 
   describe 'remote_touch' do
@@ -1242,6 +1593,69 @@ describe Uploader do
       expect(cache.data['fallbacks']['cheddar']['data']).to_not eq(nil)
     end
 
+    it "should surface Hydra transport errors on _transport rather than as _missing" do
+      allow(ENV).to receive(:[]).and_call_original
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('secret')
+      allow(OpenSymbols).to receive(:defaults_result).and_return({
+        results: {
+          'cat' => {
+            'image_url' => 'https://example.com/cat.png',
+            'extension' => 'png',
+            'id' => '1',
+            'license' => 'CC',
+            'width' => 10,
+            'height' => 10
+          }
+        },
+        errors: {'hat' => :timeout}
+      })
+      hash = Uploader.default_images('opensymbols', ['hat', 'cat'], 'en', nil)
+      expect(hash['_transport']).to eq(['hat'])
+      expect(hash['cat']['url']).to eq('https://example.com/cat.png')
+      expect(hash['_missing']).to eq(nil).or eq([])
+    end
+
+    it "should not cache a throttled result as a missing word even when cache_forever" do
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('secret')
+      allow(OpenSymbols).to receive(:find_images_result).and_return({
+        ok: false, error: :throttled, results: []
+      })
+      expect(Uploader.find_images('bacon', 'opensymbols', 'en', nil, nil, false, true)).to eq([])
+      cache = LibraryCache.find_by(library: 'opensymbols', locale: 'en')
+      expect(cache).to eq(nil).or satisfy { |c| c.data['missing'].blank? || c.data['missing']['bacon'].nil? }
+    end
+
+    it "should not cache a timeout as a missing word even when cache_forever" do
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('secret')
+      allow(OpenSymbols).to receive(:find_images_result).and_return({
+        ok: false, error: :timeout, results: []
+      })
+      expect(Uploader.find_images('bacon', 'opensymbols', 'en', nil, nil, false, true)).to eq([])
+      cache = LibraryCache.find_by(library: 'opensymbols', locale: 'en')
+      expect(cache).to eq(nil).or satisfy { |c| c.data['missing'].blank? || c.data['missing']['bacon'].nil? }
+    end
+
+    it "should still cache a genuine empty result as missing when cache_forever" do
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return('secret')
+      allow(OpenSymbols).to receive(:find_images_result).and_return({
+        ok: true, error: nil, results: []
+      })
+      expect(Uploader.find_images('bacon', 'opensymbols', 'en', nil, nil, false, true)).to eq([])
+      cache = LibraryCache.find_by(library: 'opensymbols', locale: 'en')
+      expect(cache).to_not eq(nil)
+      expect(cache.data['missing']['bacon']).to_not eq(nil)
+    end
+
+    it "should not cache a malformed 200 as a missing word on the v1 path" do
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_SECRET').and_return(nil)
+      allow(ENV).to receive(:[]).with('OPENSYMBOLS_TOKEN').and_return('tok')
+      res = double(success?: true, timed_out?: false, code: 200, body: '<html>')
+      expect(Typhoeus).to receive(:get).and_return(res)
+      expect(Uploader.find_images('bacon', 'opensymbols', 'en', nil, nil, false, true)).to eq([])
+      cache = LibraryCache.find_by(library: 'opensymbols', locale: 'en')
+      expect(cache).to eq(nil).or satisfy { |c| c.data['missing'].blank? || c.data['missing']['bacon'].nil? }
+    end
+
     it "should cache as missing to the library if long-term" do
       expect(Uploader).to receive(:lessonpix_credentials).with(nil).and_return(nil)
       expect(Uploader.find_images('bacon', 'lessonpix', 'en', nil)).to eq(false)
@@ -1691,11 +2105,30 @@ describe Uploader do
   describe "remote_zip" do
     it "should call the block with the loaded zip" do
       expect(OBF::Utils).to receive(:load_zip).and_yield({zipper: true})
-      res = OpenStruct.new(body: 'abc')
+      res = OpenStruct.new(body: 'abc', success?: true, code: 200)
       expect(SafeHttp).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
       Uploader.remote_zip('http://www.example.com/import.zip') do |zipper|
         expect(zipper).to eq({zipper: true})
       end
+    end
+
+    it "should fetch uploads-bucket URLs via signed_internal_url" do
+      uploads_bucket = ENV['UPLOADS_S3_BUCKET'] || 'lingolinq-dev-uploads'
+      raw = "https://#{uploads_bucket}.s3.amazonaws.com/imports/sounds/bank.zip"
+      signed = "#{raw}?X-Amz-Signature=test"
+      expect(Uploader).to receive(:signed_internal_url).with(raw).and_return(signed)
+      expect(OBF::Utils).to receive(:load_zip).and_yield({zipper: true})
+      res = OpenStruct.new(body: 'abc', success?: true, code: 200)
+      expect(SafeHttp).to receive(:get).with(signed).and_return(res)
+      Uploader.remote_zip(raw) { |zipper| expect(zipper).to eq({zipper: true}) }
+    end
+
+    it "should raise when the download is not successful" do
+      res = OpenStruct.new(body: 'AccessDenied', success?: false, code: 403)
+      expect(SafeHttp).to receive(:get).with('http://www.example.com/import.zip').and_return(res)
+      expect {
+        Uploader.remote_zip('http://www.example.com/import.zip') { }
+      }.to raise_error('failed to download zip (403)')
     end
   end
  

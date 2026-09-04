@@ -60,7 +60,7 @@ module SystemFeatureRegistry
     'background_board_prefetch' => { name: 'Background board prefetch', category: 'Boards', description: 'Background board prefetch' },
     'portrait_orientation_overlay' => { name: 'Portrait orientation overlay', category: 'UI', description: 'Portrait orientation overlay on small screens' },
     'signup_default_library_boards' => { name: 'Signup default library boards', category: 'Signup', description: 'Copy default library boards on signup', server_gated: true, env_override: 'SIGNUP_DEFAULT_LIBRARY_BOARDS' },
-    'english_first_board_generation' => { name: 'English-first board generation', category: 'Boards', description: 'Generate boards in English first' },
+    'english_first_board_generation' => { name: 'English-first board generation', category: 'Boards', description: 'Look up symbols and POS in English; persist English as a stored locale' },
     'signup_spanish_library_boards' => { name: 'Signup Spanish library boards', category: 'Signup', description: 'Spanish library boards on signup for es locale', server_gated: true, env_override: 'SIGNUP_SPANISH_LIBRARY_BOARDS' },
     'eu_consent_age' => { name: 'EU consent age injection', category: 'Compliance', description: 'Inject jurisdiction-aware coppa_consent_age into domain_settings' },
     'article_50_disclosure' => { name: 'Article 50 disclosure', category: 'Compliance', description: 'EU AI Act Article 50(1) first-AI-use disclosure modal' },

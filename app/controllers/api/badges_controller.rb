@@ -5,15 +5,49 @@ class Api::BadgesController < ApplicationController
     user = User.find_by_path(params['user_id'])
     return unless exists?(user, params['user_id'])
     return unless allowed?(user, 'view_detailed')
+    return unless require_progress_visible!(user)
     if !user.allows?(@api_user, 'supervise')
       params['highlighted'] = true
     end
     # TODO: sharding
     if params['recent']
-      supervisees = user.supervisees
+      # This branch returns badges for the supporter AND every supervisee in one
+      # response, so each supervisee needs its own check — the gate above only
+      # covers `user`, and when a supporter asks about themselves it passes
+      # unconditionally. Without this the endpoint handed back badge data for
+      # communicators the per-user branch refuses.
+      #
+      # The check must be AFFIRMATIVE. `progress_visible_to_api_user?` is an
+      # exclusion filter, which is the right shape for the single-user gate above
+      # (a stranger legitimately falls through to the public highlighted
+      # showcase), but the wrong shape here: these are THIRD parties reached
+      # through someone else's supervisee list, and supervising.rb:121 returns
+      # false for a caller with no relationship at all, so the negation admitted
+      # every stranger. See ApplicationController#supervisee_readable?.
+      supervisees = user.supervisees.select{|s| supervisee_readable?(s, 'set_goals') }
       # TODO: sharding
       user_ids = [user.id] + supervisees.map(&:id)
-      badges = UserBadge.where(:user_id => user_ids).where(['(earned = ? AND updated_at > ?) OR (earned = ? AND superseded = ?)', true, 2.weeks.ago, false, false])
+      # `disabled: false` matches the else-branch at the same gate. Without it a
+      # disabled-but-highlighted badge on a public account was served here while
+      # the non-recent path hid it — a residual sliver of the same leak class.
+      badges = UserBadge.where(:user_id => user_ids, :disabled => false).where(['(earned = ? AND updated_at > ?) OR (earned = ? AND superseded = ?)', true, 2.weeks.ago, false, false])
+      # The `highlighted` downgrade forced above was silently dropped on this
+      # branch, so an unauthorized caller received the target's un-highlighted
+      # badges here while the else-branch correctly limited them to the public
+      # showcase.
+      #
+      # It applies to `user`'s OWN badges only, because that is the relationship
+      # it was computed from: `user.allows?(@api_user,'supervise')`. Each
+      # supervisee in this list has already passed its own affirmative
+      # `supervisee_readable?` check, so downgrading them on the strength
+      # of the caller's relationship to a DIFFERENT account would hide records the
+      # caller is independently entitled to read — an org manager holding
+      # `set_goals` on a supervisee, but no `supervise` on the account whose list
+      # it appeared in.
+      if params['highlighted']
+        # An empty supervisee list degrades to plain highlighted-only.
+        badges = badges.where('user_badges.highlighted = ? OR user_badges.user_id IN (?)', true, supervisees.map(&:id))
+      end
     else
       badges = UserBadge.where(:user_id => user.id, :disabled => false)
       if params['goal_id']
@@ -43,6 +77,10 @@ class Api::BadgesController < ApplicationController
     badge = UserBadge.find_by_path(params['id'])
     return unless exists?(badge, params['id'])
     return unless allowed?(badge, 'view')
+    # UserBadge#view is granted through `model` (user_badge.rb:20), which is the
+    # one permission a modeling-only link DOES hold, so `allowed?` alone would
+    # hand the record over. Gate it on the same policy the index uses.
+    return unless require_progress_visible!(badge.user)
     render json: JsonApi::Badge.as_json(badge, :wrapper => true, :permissions => @api_user).to_json
   end
   
@@ -57,5 +95,43 @@ class Api::BadgesController < ApplicationController
     else
       api_error(400, {error: "badge update failed", errors: badge.processing_errors})
     end
+  end
+
+  private
+
+  # Badge progress is goal data, and a modeling-only link must never read it.
+  # No existing permission expresses that on its own:
+  #   * `view_detailed` is granted to EVERYONE for a public account (user.rb:58),
+  #     so it lets a modeling-only link through for any public communicator;
+  #   * `model` — which UserBadge#view accepts (user_badge.rb:20) — is precisely
+  #     the permission a modeling-only link DOES hold;
+  #   * `supervise` would work, but it is absent for legitimate
+  #     `basic_supervision`-scoped callers (which this controller already treats
+  #     as a soft signal at index, not a denial), so it would deny real users.
+  # Hence an explicit check. Self is always visible: a supporter whose OWN account
+  # is modeling-only still sees their own badges.
+  #
+  # This is deliberately an EXCLUSION filter, and only sound where a caller with
+  # no relationship at all should still be served: #index falls through to the
+  # public highlighted showcase (UserBadge#view, user_badge.rb:19) and #show is
+  # already gated by that same permission. Do NOT reuse it to authorize a read of
+  # a third party's record — use the shared supervisee_readable? for that.
+  def progress_visible_to_api_user?(communicator)
+    return false unless communicator && @api_user
+    return true if communicator.id == @api_user.id
+    !@api_user.modeling_only_for?(communicator)
+  end
+
+  def require_progress_visible!(communicator)
+    return true if progress_visible_to_api_user?(communicator)
+    api_error(400, {
+      error: "Not authorized",
+      unauthorized: true,
+      permission: 'view_progress',
+      modeling_only: true,
+      resource_class: 'User',
+      resource_id: (communicator && communicator.global_id)
+    })
+    false
   end
 end

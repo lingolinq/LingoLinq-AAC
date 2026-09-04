@@ -1,5 +1,5 @@
 import { get as emberGet } from '@ember/object';
-import { BRAND_FAMILIES } from './board-brands';
+import { isBrandSetRoot } from './board-brands';
 
 /** Cap live boards-page filter results (also used in i18n truncation hint). */
 export var BOARDS_PAGE_SEARCH_LIMIT = 50;
@@ -164,18 +164,14 @@ export function dedupeByName(boards, options) {
 }
 
 /* True when a board is a brand-set ROOT tile (not a sub-board page).
-   Non-brand boards pass through as roots. Uses the same `root_re`
-   patterns as board-collection / board-brands — do NOT use server
-   `root: true` for public originals. */
+   Non-brand boards pass through as roots. Delegates to the ONE definition
+   in board-brands so the boards page and the Board Collection panel cannot
+   drift — this used to be a second copy of the same loop, and it carried the
+   same rename bug (a renamed copy of a brand root read as a sub-board and
+   disappeared from its owner's list). Do NOT use server `root: true` for
+   public originals. */
 export function isBrandSetRootBoard(board) {
-  if (!board) { return false; }
-  var key = emberGet(board, 'key') || '';
-  for (var i = 0; i < BRAND_FAMILIES.length; i++) {
-    var family = BRAND_FAMILIES[i];
-    if (!family.test(board)) { continue; }
-    return !!(family.root_re && family.root_re.test(key));
-  }
-  return true;
+  return isBrandSetRoot(board);
 }
 
 /* Keep only brand-set root tiles from a flat board list. */
@@ -270,6 +266,36 @@ export function sortByNameNatural(boards) {
     var an = (emberGet(a, 'name') || '').toString();
     var bn = (emberGet(b, 'name') || '').toString();
     return an.localeCompare(bn, undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
+/* Rank for a typed Find Boards query. Lower is better:
+     0 — name starts with the query ("quick" → "Quick Core 24")
+     1 — name contains the query
+     2 — key contains the query
+     3 — no name/key match
+   Used after a name-natural sort so ties stay 24-before-112. */
+export function searchQueryRank(board, query) {
+  var q = (query || '').trim().toLowerCase();
+  if (!q || !board) { return 3; }
+  var name = ((emberGet(board, 'name') || '') + '').toLowerCase();
+  var key = ((emberGet(board, 'key') || '') + '').toLowerCase();
+  if (name.indexOf(q) === 0) { return 0; }
+  if (name.indexOf(q) !== -1) { return 1; }
+  if (key.indexOf(q) !== -1) { return 2; }
+  return 3;
+}
+
+/* Sort a board list for a header search query. Empty query → name-natural
+   (same as the unfiltered catalog). Non-empty → prefix name matches first,
+   then other name matches, then key matches, then the rest; natural name
+   order within each rank. */
+export function sortBySearchQuery(boards, query) {
+  var named = sortByNameNatural(boards);
+  var q = (query || '').trim();
+  if (!q) { return named; }
+  return named.slice().sort(function(a, b) {
+    return searchQueryRank(a, q) - searchQueryRank(b, q);
   });
 }
 

@@ -108,6 +108,8 @@ class SessionController < ApplicationController
     end
     if !error && user && user.coppa_parental_consent_revoked?
       error = 'parental_consent_revoked'
+    elsif !error && user && user.coppa_parental_consent_declined?
+      error = 'parental_consent_declined'
     elsif !error && user && user.coppa_needs_parent_email?
       error = 'parent_email_required'
     elsif !error && user && user.coppa_parental_consent_pending?
@@ -531,6 +533,9 @@ class SessionController < ApplicationController
         if u.coppa_parental_consent_revoked?
           return api_error 400, {error: 'parental consent revoked', coppa_parental_consent_revoked: true}
         end
+        if u.coppa_parental_consent_declined?
+          return api_error 400, {error: 'parental consent declined', coppa_parental_consent_declined: true}
+        end
         if u.coppa_needs_parent_email?
           return api_error 400, {error: 'parent email required', coppa_parent_email_required: true}
         end
@@ -742,9 +747,6 @@ class SessionController < ApplicationController
       return render inline: 'Google sign-in is not available', status: :not_found
     end
     flow = params['flow'].to_s == 'register' ? 'register' : 'login'
-    if FeatureFlags.landing_beta_closed_enabled?
-      return redirect_to google_frontend_redirect('/', nil), allow_other_host: true
-    end
     code = GoSecure.nonce('google_oauth_state')
     config = {
       'flow' => flow,
@@ -764,6 +766,26 @@ class SessionController < ApplicationController
       under_16 = ActiveModel::Type::Boolean.new.cast(params['under_16'])
       config['country'] = country
       config['under_16'] = under_16
+      config['locale'] = sanitize_google_signup_locale(params['locale'])
+      if JsonApi::Json.coppa_parental_consent_enabled?
+        # Birth is COPPA PII. Accept it only on POST so it is not stored in
+        # browser history, proxy logs, or the referrer on the Google redirect.
+        # GET register start ignores query birth (same as missing).
+        birth_month, birth_year = request.post? ? User.signup_birth_from_params(params) : [nil, nil]
+        classified_under_13 = User.age_under_threshold?(
+          birth_month: birth_month,
+          birth_year: birth_year,
+          age: JsonApi::Json::DEFAULT_COPPA_CONSENT_AGE
+        )
+        if classified_under_13.nil?
+          return redirect_to google_frontend_redirect('/register?google_error=birthdate_required', return_origin.present? ? { 'return_origin' => return_origin } : nil), allow_other_host: true
+        end
+        if classified_under_13
+          return redirect_to google_frontend_redirect('/register?google_error=coppa_age', return_origin.present? ? { 'return_origin' => return_origin } : nil), allow_other_host: true
+        end
+        config['birth_month'] = birth_month.to_i
+        config['birth_year'] = birth_year.to_i
+      end
       # EU under-16: never carry product-improvement opt-in through Google signup.
       eu_under_16 = !!(country && LingoLinq::Jurisdiction.eu?(country) && under_16)
       pi = ActiveModel::Type::Boolean.new.cast(params['product_improvement_opt_in'])
@@ -928,9 +950,6 @@ class SessionController < ApplicationController
   end
 
   def google_signup_complete
-    if FeatureFlags.landing_beta_closed_enabled?
-      return api_error 403, {error: 'registration is not available during beta testing', landing_beta_closed: true}
-    end
     unless google_sso_available?
       return api_error 404, {error: 'not available'}
     end
@@ -963,7 +982,11 @@ class SessionController < ApplicationController
         terms_agree: params['terms_agree'].presence || link['terms_agree'],
         product_improvement_opt_in: eu_under_16 ? false : pi,
         country: country,
-        under_16: under_16
+        under_16: under_16,
+        signup_name: sanitize_google_signup_name(params['signup_name'].presence || link['signup_name']),
+        locale: link['locale'],
+        birth_month: link['birth_month'],
+        birth_year: link['birth_year']
       )
     rescue GoogleOAuth::Error => e
       error = e.message == 'user_creation_failed' ? 'registration_failed' : e.message
@@ -1014,6 +1037,17 @@ class SessionController < ApplicationController
     GoogleOAuth.enabled?
   end
 
+  def sanitize_google_signup_name(name)
+    s = name.to_s.gsub(/[\x00-\x1F\x7F]/, '').strip
+    return nil if s.blank?
+    s[0, 200]
+  end
+
+  def sanitize_google_signup_locale(locale)
+    s = locale.to_s.strip.downcase
+    s.match?(/\A[a-z]{2,8}\z/) ? s : 'en'
+  end
+
   def google_auth_error_redirect(error_code, config = nil)
     google_frontend_redirect("/login?google_error=#{CGI.escape(error_code.to_s)}", config)
   end
@@ -1021,6 +1055,9 @@ class SessionController < ApplicationController
   def google_finish_login(user, config)
     if user.coppa_parental_consent_revoked?
       return redirect_to google_frontend_redirect('/login?coppa_revoked=1', config), allow_other_host: true
+    end
+    if user.coppa_parental_consent_declined?
+      return redirect_to google_frontend_redirect('/login?coppa_declined=1', config), allow_other_host: true
     end
     if user.coppa_needs_parent_email?
       return redirect_to google_frontend_redirect('/login?coppa_parent_email=1', config), allow_other_host: true
@@ -1060,7 +1097,11 @@ class SessionController < ApplicationController
       'terms_agree' => config['terms_agree'],
       'product_improvement_opt_in' => config['product_improvement_opt_in'],
       'country' => config['country'],
-      'under_16' => config['under_16']
+      'under_16' => config['under_16'],
+      'signup_name' => config['signup_name'],
+      'locale' => config['locale'],
+      'birth_month' => config['birth_month'],
+      'birth_year' => config['birth_year']
     }
     link['single_candidate'] = true if single_candidate
     if unlinked_candidates.any?
@@ -1078,7 +1119,9 @@ class SessionController < ApplicationController
   end
 
   def google_link_user_display_name(user)
-    (user.settings && user.settings['name'].presence) || user.display_user_name
+    # display_name, not `name.presence || display_user_name`: that guard cannot
+    # filter the legacy "No name" sentinel, which is a non-empty string.
+    user.display_name
   end
 
   def google_link_user_candidate(user, include_user_id: false)

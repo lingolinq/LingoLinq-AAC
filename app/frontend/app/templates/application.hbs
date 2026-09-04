@@ -2,6 +2,7 @@
 <div id="audio"></div>
 <AppLoadingOverlay />
 <AppToast />
+<CopyProgressDrawer />
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}} {{if this.hide_header "header--hidden"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
@@ -745,11 +746,7 @@
               <LinkTo @route="about" class="la-topbar-link" role="menuitem">{{t "About" key='fsa_nav_about'}}</LinkTo>
             </div>
             <div class="la-topbar-right header-unauth-right">
-              {{#if this.app_state.feature_flags.landing_beta_closed}}
-                <span class="la-section-eyebrow-badge app-navbar__beta-badge">{{t "In beta testing" key="landing_beta_testing_badge"}}</span>
-              {{else}}
-                <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
-              {{/if}}
+              <LinkTo @route="register" class="la-topbar-cta">{{t "Try Free" key='fsa_try_free'}}</LinkTo>
               <button class="la-topbar-hamburger" type="button" aria-label={{t "Open menu" key='fsa_open_menu'}} {{on "click" this.toggleLandingNav}}>
                 <span class="la-topbar-hamburger__bar"></span>
                 <span class="la-topbar-hamburger__bar"></span>
@@ -760,15 +757,10 @@
               <LinkTo @route="features" class="la-mobile-drawer__link">{{t "Features" key='fsa_nav_features'}}</LinkTo>
               {{!-- <LinkTo @route="pricing" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "Pricing" key='fsa_nav_pricing'}}</LinkTo> --}}
               <LinkTo @route="about" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "About" key='fsa_nav_about'}}</LinkTo>
-              {{#unless this.app_state.feature_flags.landing_beta_closed}}
-                <div class="la-mobile-drawer__divider"></div>
-                <LinkTo @route="login" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "Sign In" key='login'}}</LinkTo>
-                <LinkTo @route="register" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "Register" key='register'}}</LinkTo>
-                <LinkTo @route="register" class="la-mobile-drawer__cta" {{on "click" this.closeLandingNav}}>{{t "Try Free" key='fsa_try_free'}} →</LinkTo>
-              {{else}}
-                <div class="la-mobile-drawer__divider"></div>
-                <span class="la-section-eyebrow-badge app-navbar__beta-badge app-navbar__beta-badge--drawer">{{t "In beta testing" key="landing_beta_testing_badge"}}</span>
-              {{/unless}}
+              <div class="la-mobile-drawer__divider"></div>
+              <LinkTo @route="login" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "Sign In" key='login'}}</LinkTo>
+              <LinkTo @route="register" class="la-mobile-drawer__link" {{on "click" this.closeLandingNav}}>{{t "Register" key='register'}}</LinkTo>
+              <LinkTo @route="register" class="la-mobile-drawer__cta" {{on "click" this.closeLandingNav}}>{{t "Try Free" key='fsa_try_free'}} →</LinkTo>
             </LaMobileDrawer>
           {{/unless}}
         {{/unless}}
@@ -935,8 +927,8 @@
             </LinkTo>
             {{/if}}
             {{#if this.isMasquerading}}
-            <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
-              {{t "Stop Masquerading" key="stop_masquerading"}}
+            <button type="button" class="md-pillnav__stop-masquerade" aria-label={{this.masqueradeStopLabel}} title={{this.masqueradeStopLabel}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
+              {{this.masqueradeStopLabel}}
             </button>
             {{/if}}
             {{#unless this.app_state.currentBoardState.id}}
@@ -1144,7 +1136,7 @@
           {{/if}}
           {{#unless this.app_state.limited_speak_mode_options}}
             {{#if this.isSessionAuthenticated}}
-              <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
+              <li class="dropdown-header">{{this.app_state.currentUser.display_name}}</li>
               {{#unless this.app_state.index_or_landing_view}}
                 <li role="presentation">
                   <LinkTo @route="index">{{t "Dashboard" key="dashboard"}}</LinkTo>
@@ -1283,27 +1275,21 @@
                 </LinkTo></li>
               {{/if}}
               {{#if this.isMasquerading}}
-                <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{t "Stop Masquerading" key="stop_masquerading"}}</a></li>
+                <li><a href="#" {{on "click" (this.ctrlAction "stopMasquerading")}}>{{this.masqueradeStopLabel}}</a></li>
               {{/if}}
               {{#unless this.app_state.speak_mode}}
                 <li><a href="#" {{on "click" (this.ctrlAction "invalidateSession")}}>{{t "Sign Out" key="logout"}}</a></li>
               {{/unless}}
             {{else}}
-              {{#unless this.app_state.feature_flags.landing_beta_closed}}
-                <li role="presentation">
-                  <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
-                </li>
-                {{#unless this.app_state.no_linky}}
-                  {{#if this.app_state.domain_settings.full_domain}}
-                    <li role="presentation">
-                      <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
-                    </li>
-                  {{/if}}
-                {{/unless}}
-              {{else}}
-                <li role="presentation" class="app-navbar__beta-badge-item">
-                  <span class="la-section-eyebrow-badge app-navbar__beta-badge">{{t "In beta testing" key="landing_beta_testing_badge"}}</span>
-                </li>
+              <li role="presentation">
+                <LinkTo @route="login">{{t "Sign In" key="login"}}</LinkTo>
+              </li>
+              {{#unless this.app_state.no_linky}}
+                {{#if this.app_state.domain_settings.full_domain}}
+                  <li role="presentation">
+                    <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
+                  </li>
+                {{/if}}
               {{/unless}}
               {{#if this.app_state.feature_flags.emergency_boards}}              
                 <li role="presentation">
@@ -1317,8 +1303,8 @@
       {{/unless}}
       {{else}}
     {{#if this.isMasquerading}}
-      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{t "Stop Masquerading" key="stop_masquerading"}} title={{t "Stop Masquerading" key="stop_masquerading"}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
-        {{t "Stop Masquerading" key="stop_masquerading"}}
+      <button type="button" class="md-pillnav__stop-masquerade" aria-label={{this.masqueradeStopLabel}} title={{this.masqueradeStopLabel}} {{on "click" (this.ctrlAction "stopMasquerading")}}>
+        {{this.masqueradeStopLabel}}
       </button>
     {{/if}}
     {{#unless this.app_state.currentBoardState.id}}
@@ -1386,7 +1372,7 @@
         <span class="caret"></span>
       </a>
       <ul class="dropdown-menu" role="menu" aria-labelledby="dLabel" style="right: 0; left: auto; text-align: left;">
-        <li class="dropdown-header">{{this.app_state.currentUser.name}}</li>
+        <li class="dropdown-header">{{this.app_state.currentUser.display_name}}</li>
         {{!-- Exit Boards (identity dropdown, board-alt ≤1024px) — gives
              the user a way out when they're on board-alt normal mode and
              the dropdown is the only menu surface visible. Class
@@ -1467,9 +1453,6 @@
       </ul>
       {{else}}
       {{#unless this.useAppNavbarInHeader}}
-      {{#if this.app_state.feature_flags.landing_beta_closed}}
-      <span class="la-section-eyebrow-badge app-navbar__beta-badge">{{t "In beta testing" key="landing_beta_testing_badge"}}</span>
-      {{else}}
       <a class={{if (persistence-online) "btn btn-default online" "btn btn-default offline"}} id="identity_button" href="#" data-toggle="dropdown" aria-label={{t "Sign In" key="login"}}>
         {{t "Sign In" key="login"}}
         <span class="caret"></span>
@@ -1487,7 +1470,6 @@
           <LinkTo @route="register">{{t "Register" key="register"}}</LinkTo>
         </li>
       </ul>
-      {{/if}}
       {{/unless}}
       {{/if}}
     </span>
@@ -1497,6 +1479,13 @@
   </div>
 </header>
 {{#if (or this.app_state.currentUser this.app_state.sessionUser)}}
+  {{!-- TEMPORARY (2026-07-27): the beta-feedback drawer + its bottom-center tab are
+       suppressed on board-detail SPEAK mode only (route user.board-detail.index).
+       Every other surface — board-detail EDIT mode, classic board speak/edit, the
+       home dashboard, all other authenticated pages — still renders it.
+       TO RESTORE: remove this {{#unless}} wrapper (and its {{/unless}} below), and
+       delete `hide_beta_feedback_temporarily` from controllers/application.js. --}}
+  {{#unless this.hide_beta_feedback_temporarily}}
   {{#if this.showBetaFeedbackDrawer}}
     {{#if (or this.app_state.speak_mode this.app_state.edit_mode this.on_board_detail)}}
       <button type="button" class="beta-feedback-drawer-tab beta-feedback-drawer-tab--speak {{if this.betaFeedbackDrawerOpen "beta-feedback-drawer-tab--open"}}" {{on "click" this.onToggleBetaFeedbackDrawer}} aria-expanded={{if this.betaFeedbackDrawerOpen "true" "false"}} aria-controls="beta-feedback-top-drawer">
@@ -1511,8 +1500,16 @@
       </aside>
     </div>
   {{/if}}
+  {{/unless}}{{!-- TEMPORARY (2026-07-27) — remove with the {{#unless}} above --}}
 {{/if}}
 <div id="content" class="{{this.content_class}} {{if this.hide_header "content--no-top-padding"}}">
+  {{!-- Supervising context pill. It lives INSIDE #content on purpose: #content is
+       the app's scroll container (#within_ember is fixed/overflow:hidden on the
+       page-footer layout), so a pill rendered outside it would hover over the
+       page as you scroll. Its own wrapper is zero-height and the pill is
+       absolutely positioned, so it adds nothing to this flex column. Self-
+       suppressing — renders nothing on your own pages or with the flag off. --}}
+  <SupervisingContextPill />
   {{ outlet }}
 </div>
 {{#if this.app_state.eval_paused}}

@@ -42,6 +42,32 @@ export default Controller.extend(prefClasses, {
   board_view_style: computed('appState.currentUser.preferences.board_view_style', function() {
     return this.get('appState.currentUser.preferences.board_view_style') === 'classic' ? 'classic' : 'modern';
   }),
+  /* Broken/unsynced board recovery (classic speak shell). Same roles as
+     board-detail: Home/Back for everyone; Exit Speak for supervisors. */
+  error_show_home: computed(
+    'appState.referenced_user.preferences.home_board.key',
+    'appState.currentUser.preferences.home_board.key',
+    'stashes.root_board_state.key',
+    'stashes.temporary_root_board_state.key',
+    function() {
+      if(this.get('appState.referenced_user.preferences.home_board.key')) { return true; }
+      if(this.get('appState.currentUser.preferences.home_board.key')) { return true; }
+      if(this.get('stashes.temporary_root_board_state.key')) { return true; }
+      return !!this.get('stashes.root_board_state.key');
+    }
+  ),
+  error_show_back: computed('appState.empty_board_history', function() {
+    return !this.get('appState.empty_board_history');
+  }),
+  error_show_exit_speak: computed(
+    'appState.speak_mode',
+    'appState.currentUser.supporter_role',
+    'appState.modeling',
+    function() {
+      if(!this.get('appState.speak_mode')) { return false; }
+      return !!(this.get('appState.currentUser.supporter_role') || this.get('appState.modeling'));
+    }
+  ),
   title: computed('model.name', function() {
     var name = this.get('model.name');
     var title = "Board";
@@ -238,7 +264,14 @@ export default Controller.extend(prefClasses, {
         trans = trans || ((_this.get('model.translations') || {})[btn.id] || {})[_this.get('model.locale')];
         if(trans) {
           // Either find it in the translations hash...
-          emberSet(btn, 'vocalization', null);
+          /* NOT a special vocalization. ':suggestion', '+q', ':shift' and ':space' are
+             ACTIONS with no translation, so the source-locale entry below holds a label and
+             no vocalization — nulling first and restoring from it deletes the action. This
+             runs AFTER process_for_saving, so without the check it overwrites that guard and
+             the loss is what gets persisted. */
+          if(!/^[:+]/.test(String(emberGet(btn, 'vocalization') || ''))) {
+            emberSet(btn, 'vocalization', null);
+          }
           emberSet(btn, 'inflections', null);
           for(var key in trans) {
             if(key != 'code' && key != 'locale') {
@@ -1408,6 +1441,20 @@ export default Controller.extend(prefClasses, {
 
 
   actions: {
+    error_go_home: function() {
+      this.get('appState').jump_to_root_board({index_as_fallback: true});
+    },
+    error_go_back: function() {
+      this.get('appState').back_one_board();
+    },
+    error_exit_speak_mode: function() {
+      var appState = this.get('appState');
+      var ready = appState.open_speak_mode_exit_pin('none');
+      ready.then(function(res) {
+        if(!res || !res.correct_pin) { return; }
+        appState.toggle_speak_mode('off');
+      }, function() { });
+    },
     // Persist the user's preferred board UI shell. 'classic' = this
     // board-alt grid, 'modern' = board-detail. Saves only — navigation
     // is the separate go_to_modern_edit action so flipping the

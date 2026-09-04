@@ -28,7 +28,7 @@
           </div>
           <div class="la-hero-subtitle-badges-wrap">
             <p class="la-hero-subtitle">
-              {{t "LingoLinq is an AI-powered AAC platform that gives every person a voice." key='landing_hero_subtitle_line1'}} {{t "It combines personalized symbol boards with adaptive AI that learns each communicator's unique needs, making the right words instantly accessible on any device—online or offline." key='landing_hero_subtitle_how'}}
+              {{t "LingoLinq is an AI-powered AAC platform that ensures every voice is heard." key='landing_hero_subtitle_line1'}} {{t "It combines personalized symbol boards with adaptive AI that learns each communicator's unique needs, making the right words instantly accessible on any device—online or offline." key='landing_hero_subtitle_how'}}
             </p>
             <p class="la-hero-trust-line">{{t "Thoughtfully designed with continuous user feedback" key='landing_hero_trust_line'}}</p>
             <div class="la-hero-section la-hero-badges-section">
@@ -56,9 +56,12 @@
           </div>
           <div class="la-hero-section la-hero-actions-section">
           <div class="la-hero-actions">
-            {{#unless this.appState.feature_flags.landing_beta_closed}}
-              <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key='landing_try_free'}} →</LinkTo>
-            {{/unless}}
+            <LinkTo @route="register" class="la-btn la-btn--primary">{{t "Try LingoLinq Free" key='landing_try_free'}} →</LinkTo>
+            {{!-- Routes to the live demo, same destination as the navbar's "Try a Demo"
+                 (app-navbar.hbs) — demo.speak with board/source cleared so it always
+                 opens the manifest root (Project Core 36) rather than inheriting a
+                 board from the current query params. Was an <a href="#la-demo">, which
+                 was dead: no element with that id exists on the page. --}}
             <LinkTo @route="demo.speak" @query={{hash board=null source=null}} class="la-btn la-btn--ghost">{{t "Try a Demo" key="demo_try_speak_mode"}}</LinkTo>
           </div>
           </div>
@@ -200,7 +203,10 @@
           <div class="la-plan-text">
             <span class="la-section-eyebrow-badge">{{t "Included in every plan" key='fsa_included_plan'}}</span>
             <h2 class="la-plan-title">{{t "Everything you need," key='fsa_plan_title_1'}} <em>{{t "nothing you don't" key='fsa_plan_title_2'}}</em></h2>
-            <p class="la-plan-subtitle">{{t "Every LingoLinq plan includes robust features with options to upgrade at any time." key='fsa_plan_subtitle'}}</p>
+            {{!-- `--compact` sets this paragraph to 16px. It needs its own modifier because
+                 .la-plan-subtitle is SHARED with the SLP and devices spotlight bodies on
+                 this page AND with about.hbs, none of which change size. --}}
+            <p class="la-plan-subtitle la-plan-subtitle--compact">{{t "Every LingoLinq plan includes robust features with options to upgrade at any time." key='fsa_plan_subtitle'}}</p>
           </div>
           <ul class="la-plan-grid">
             <li class="la-plan-item">
@@ -254,7 +260,10 @@
         <div class="la-plan-text">
           <span class="la-section-eyebrow-badge">{{t "Your privacy" key='landing_privacy_eyebrow'}}</span>
           <h2 class="la-plan-title">{{t "Your data stays" key='landing_privacy_title_1'}} <em>{{t "yours" key='landing_privacy_title_2'}}</em></h2>
-          <p class="la-a11y-display-text">{{t "We never sell or share your information, and we never use it to train AI models. Our AI tools and analytics — including Real Analytics for IEPs — are strictly opt-in, and you can turn any of them off at any time." key='landing_privacy_statement'}}</p>
+          {{!-- `--compact` sets this paragraph to 16px. It needs its own modifier because
+               .la-a11y-display-text is SHARED with the Accessibility Statement paragraph
+               below, which keeps its larger display size. --}}
+          <p class="la-a11y-display-text la-a11y-display-text--compact">{{t "We never sell or share your information, and we never use it to train AI models. Our AI tools and analytics — including Real Analytics for IEPs — are strictly opt-in, and you can turn any of them off at any time." key='landing_privacy_statement'}}</p>
         </div>
         </div>
         </div>
@@ -303,9 +312,7 @@
           <h2 class="la-cta-headline">{{t "Give every person" key='landing_cta_title_1'}} <em>{{t "a voice" key='landing_cta_title_2'}}</em></h2>
           <p class="la-cta-description">{{t "Start with our free tier. No credit card, no hardware, no commitment. Just communication tools that work." key='landing_cta_subtitle'}}</p>
           <div id="la-cta-buttons" class="la-cta-buttons">
-            {{#unless this.appState.feature_flags.landing_beta_closed}}
-              <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key='landing_cta_start'}} &rarr;</LinkTo>
-            {{/unless}}
+            <LinkTo @route="register" class="la-btn la-btn--primary la-btn--lg">{{t "Start Free Today" key='landing_cta_start'}} &rarr;</LinkTo>
             <LinkTo @route="contact" class="la-btn la-btn--ghost">{{t "Schedule a District Demo" key='landing_cta_demo'}}</LinkTo>
           </div>
         </div>
@@ -328,9 +335,7 @@
             <div class="la-footer-col">
               <h4>{{t "Resources" key='landing_footer_resources'}}</h4>
               <nav aria-label={{t "Resources" key="fsa_nav_resources"}}>
-              {{#unless this.appState.feature_flags.landing_beta_closed}}
-                <LinkTo @route="register">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
-              {{/unless}}
+              <LinkTo @route="register">{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
               <LinkTo @route="support" class="la-footer-link-btn">{{t "Help Center" key='landing_footer_help'}}</LinkTo>
               <LinkTo @route="faq" class="la-footer-link-btn">{{t "Guides & FAQs" key='landing_footer_how_tos'}}</LinkTo>
               {{#if this.appState.showFooterGithubLinks}}
@@ -358,9 +363,7 @@
             {{!-- <LinkTo @route="pricing" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Pricing" key='landing_footer_pricing'}}</LinkTo> --}}
             <div class="la-mobile-drawer__divider"></div>
             <div class="la-mobile-drawer__header">{{t "Resources" key='landing_footer_resources'}}</div>
-            {{#unless this.appState.feature_flags.landing_beta_closed}}
-              <LinkTo @route="register" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
-            {{/unless}}
+            <LinkTo @route="register" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Getting Started" key='landing_footer_getting_started'}}</LinkTo>
             <LinkTo @route="support" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Help Center" key='landing_footer_help'}}</LinkTo>
             <LinkTo @route="faq" class="la-mobile-drawer__link" {{on "click" f.closeDrawer}}>{{t "Guides & FAQs" key='landing_footer_how_tos'}}</LinkTo>
             {{#if this.appState.showFooterGithubLinks}}

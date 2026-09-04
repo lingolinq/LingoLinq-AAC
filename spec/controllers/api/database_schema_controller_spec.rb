@@ -156,6 +156,8 @@ describe Api::DatabaseSchemaController, :type => :controller do
     # user: the read still succeeds because the real actor is an admin-org
     # manager, and the disclosure is attributed to that admin (not the target).
     # This would 403 if the gate evaluated the impersonated user.
+    # Masquerade authorization itself also writes one AuditEvent (type=masquerade),
+    # so the request produces two rows: authorize + schema disclosure.
     it 'should authorize and attribute to the real admin when masquerading as a non-admin' do
       admin_org = Organization.create(admin: true)
       token_user
@@ -164,18 +166,23 @@ describe Api::DatabaseSchemaController, :type => :controller do
 
       expect {
         get :index, params: {as_user_id: target.global_id}
-      }.to change { AuditEvent.count }.by(1)
+      }.to change { AuditEvent.count }.by(2)
       expect(response.successful?).to eq(true)
-      event = AuditEvent.last
-      expect(event.user_key).to eq(@user.global_id)
+      masq = AuditEvent.where(user_key: @user.global_id).detect { |e| e.data['type'] == 'masquerade' }
+      expect(masq).to be_present
+      expect(masq.data['acting_as']).to eq(target.global_id)
+      event = AuditEvent.where(user_key: @user.global_id).detect { |e| e.data['type'] == 'database_schema' }
+      expect(event).to be_present
       expect(event.data['acting_as']).to eq(target.global_id)
     end
 
     # A non-admin who is merely able to masquerade (an org manager viewing as one
     # of their users) must NOT inherit schema-explorer access just because the
     # impersonated target happens to be privileged. The gate authorizes the
-    # acting non-admin (@true_user), who fails, so the read is denied and nothing
-    # is disclosed or logged. Guards the escalation direction of the same gate.
+    # acting non-admin (@true_user), who fails, so the read is denied and no
+    # schema disclosure is logged. Masquerade authorization still writes its
+    # own AuditEvent (type=masquerade). Guards the escalation direction of the
+    # same gate.
     it 'should deny a non-admin who masquerades as a privileged target' do
       token_user
       org = Organization.create
@@ -187,8 +194,13 @@ describe Api::DatabaseSchemaController, :type => :controller do
 
       expect {
         get :index, params: {as_user_id: target.global_id}
-      }.not_to change { AuditEvent.count }
+      }.to change { AuditEvent.count }.by(1)
       expect(response.status).to eq(403)
+      event = AuditEvent.last
+      expect(event.user_key).to eq(@user.global_id)
+      expect(event.data['type']).to eq('masquerade')
+      expect(event.data['acting_as']).to eq(target.global_id)
+      expect(AuditEvent.where(user_key: @user.global_id).none? { |e| e.data['type'] == 'database_schema' }).to eq(true)
     end
   end
 end

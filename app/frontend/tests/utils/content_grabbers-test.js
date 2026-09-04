@@ -546,6 +546,37 @@ describe("contentGrabbers", function() {
       contentGrabbers.file_selected('bacon', []);
       expect(alert_message).toEqual("bad file");
     });
+    it("should treat audio files with empty or video MIME as sounds by extension", function() {
+      var chosen = [];
+      stub(soundGrabber, 'file_selected', function(file) {
+        chosen.push(file);
+      });
+      stub(window, 'alert', function() { });
+      var emptyMp3 = {type: '', name: 'beep.mp3'};
+      contentGrabbers.file_selected('sound', [emptyMp3]);
+      expect(chosen).toEqual([emptyMp3]);
+      chosen = [];
+      var m4aAsVideo = {type: 'video/mp4', name: 'clip.m4a'};
+      contentGrabbers.file_selected('sound', [m4aAsVideo]);
+      expect(chosen).toEqual([m4aAsVideo]);
+      chosen = [];
+      var wavOctet = {type: 'application/octet-stream', name: 'drum.wav'};
+      contentGrabbers.file_selected('sound', [wavOctet]);
+      expect(chosen).toEqual([wavOctet]);
+    });
+    it("should still reject non-audio files for sound upload", function() {
+      var called = false;
+      stub(soundGrabber, 'file_selected', function() {
+        called = true;
+      });
+      var alert_message = null;
+      stub(window, 'alert', function(message) {
+        alert_message = message;
+      });
+      contentGrabbers.file_selected('sound', [{type: 'image/png', name: 'pic.png'}]);
+      expect(called).toEqual(false);
+      expect(alert_message).toEqual("No valid sound found");
+    });
 
     it("should call recording_selected when appropriate", function() {
       var file = null;

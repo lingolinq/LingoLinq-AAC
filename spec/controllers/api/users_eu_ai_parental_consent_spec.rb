@@ -7,7 +7,7 @@ describe Api::UsersController, 'request_eu_ai_parental_consent', type: :controll
     User.process_new({
       'name' => "api_eu_#{suffix}",
       'email' => "api_eu_#{suffix}@example.com",
-      'password' => 'abcdef',
+      'password' => 'abcdefgh',
       'terms_agree' => true,
       'country' => 'DE',
       'under_16' => true,
@@ -64,7 +64,7 @@ describe Api::UsersController, 'request_eu_ai_parental_consent', type: :controll
     u = User.process_new({
       'name' => 'api_adult',
       'email' => 'api_adult@example.com',
-      'password' => 'abcdef',
+      'password' => 'abcdefgh',
       'terms_agree' => true,
       'country' => 'US',
       'under_16' => false

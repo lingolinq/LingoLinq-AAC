@@ -84,7 +84,7 @@ export default Component.extend({
   },
 
   // Persist a single preference field to the user and save. Mirrors the
-  // board-detail toggle pattern (toggle_shrink_labels_to_fit, etc.), but
+  // board-detail toggle pattern (toggle_soft_borders, etc.), but
   // SERIALIZES saves: each save is chained onto the previous in-flight one so
   // two never overlap and a stale write can't clobber a newer value when several
   // settings change in quick succession (LEARNINGS "serialize rapid model

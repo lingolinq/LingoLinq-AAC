@@ -401,20 +401,31 @@ var contentGrabbers = Service.extend({
       }
     }
   },
+  // Browser File.type is often empty on Windows/WSL, or video/mp4 for .m4a.
+  // MIME-only matching then alerts "No valid sound found" on a real upload.
+  looks_like_audio: function(file) {
+    if(!file) { return false; }
+    var mime = (file.type || '').toLowerCase();
+    if(mime.indexOf('audio/') === 0 || mime === 'application/ogg') { return true; }
+    var name = (file.name || file.localURL || '').split('?')[0].toLowerCase();
+    return /\.(mp3|mp2|mpga|wav|m4a|m4b|aac|ogg|oga|opus|flac|weba|aiff|aif|wma|mid|midi)$/.test(name);
+  },
   file_selected: function(type, files) {
     var image = null, sound = null, board = null, video = null, zip = null;
     for(var idx = 0; idx < files.length; idx++) {
-      if(!image && files[idx].type.match(/^image/)) {
+      var mime = (files[idx].type || '');
+      var filename = (files[idx].name || '');
+      if(!image && mime.match(/^image/)) {
         image = files[idx];
-      } else if(!sound && files[idx].type.match(/^audio/)) {
+      } else if(!sound && this.looks_like_audio(files[idx])) {
         sound = files[idx];
-      } else if(!video && files[idx].type.match(/^video/)) {
+      } else if(!video && mime.match(/^video/)) {
         video = files[idx];
       } else {
-        if(!board && files[idx].name.match(/\.(obf|obz)$/)) {
+        if(!board && filename.match(/\.(obf|obz)$/)) {
           board = files[idx];
         }
-        if(!zip && files[idx].name.match(/\.zip$/)) {
+        if(!zip && filename.match(/\.zip$/)) {
           zip = files[idx];
         }
       }
@@ -470,9 +481,10 @@ var contentGrabbers = Service.extend({
       var files = dataTransfer.files;
       var image = null, sound = null;
       for(var idx = 0; idx < files.length; idx++) {
-        if(!image && files[idx].type.match(/^image/)) {
+        var mime = (files[idx].type || '');
+        if(!image && mime.match(/^image/)) {
           image = files[idx];
-        } else if(!sound && files[idx].type.match(/^audio/)) {
+        } else if(!sound && this.looks_like_audio(files[idx])) {
           sound = files[idx];
         }
       }
@@ -858,8 +870,10 @@ var pictureGrabber = EmberObject.extend({
   },
   clear: function() {
     this.clear_image_preview();
-    this.controller.set('image_search', null);
-    var stream = this.controller.get('webcam.stream');
+    var controller = this.controller;
+    if(!controller || controller.isDestroyed || controller.isDestroying) { return; }
+    controller.set('image_search', null);
+    var stream = controller.get('webcam.stream');
     if(stream && stream.stop) {
       stream.stop();
     } else if(stream && stream.getTracks) {
@@ -869,15 +883,17 @@ var pictureGrabber = EmberObject.extend({
         }
       });
     }
-    this.controller.set('webcam', null);
-    this.controller.set('webcam', null);
+    controller.set('webcam', null);
+    controller.set('webcam', null);
     var vid = document.getElementById('webcam_video');
     if(vid) { vid.srcObject = null; vid.removeAttribute('src'); }
     var upload = document.getElementById('image_upload');
     if(upload) { upload.value = ''; }
   },
   clear_image_preview: function() {
-    this.controller.set('image_preview', null);
+    var controller = this.controller;
+    if(!controller || controller.isDestroyed || controller.isDestroying) { return; }
+    controller.set('image_preview', null);
   },
   normalize_preview_license: function(preview) {
     var license = preview && preview.license;
@@ -2400,9 +2416,9 @@ var soundGrabber = EmberObject.extend({
     var _this = this;
 
     var type = null;
-    if(file && file.type.match(/^audio/)) {
+    if(window.cg.looks_like_audio(file)) {
       type = 'sound';
-    } else if(file && file.name.match(/\.zip$/)) {
+    } else if(file && file.name && file.name.match(/\.zip$/)) {
       type = 'zip';
     }
 
@@ -2651,17 +2667,28 @@ var soundGrabber = EmberObject.extend({
       a.src = preview.url;
     });
 
+    // Nested sound[user_id] is not rewritten by Rails replace_helper_params.
+    // Never send the literal 'self' (or a blank) — find_by_path treats it as a
+    // user_name and 404s. Prefer a real global id; omit to default to @api_user.
     var user_id = this.controller && this.controller.get('user_id');
+    if(user_id === 'self' || !user_id) {
+      var current = appStateService && appStateService.get('currentUser');
+      user_id = (current && (current.get('_actual_id') || current.get('id'))) || null;
+      if(user_id === 'self') { user_id = null; }
+    }
     var save_sound = sound_load.then(function(data) {
-      var sound = LingoLinq.store.createRecord('sound', {
+      var attrs = {
         content_type: preview.content_type || '',
         url: preview.url,
         name: preview.name,
         duration: data.duration,
         transcription: preview.transcription,
-        license: preview.license,
-        user_id: user_id
-      });
+        license: preview.license
+      };
+      if(user_id) {
+        attrs.user_id = user_id;
+      }
+      var sound = LingoLinq.store.createRecord('sound', attrs);
 
       return window.cg.save_record(sound);
     });

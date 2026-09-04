@@ -68,7 +68,8 @@ gem 'aws-sdk-elastictranscoder', '~> 1'
 gem 'aws-sdk-cloudfront', '~> 1'
 gem 'aws-sdk-s3', '~> 1'
 # Required by Anthropic::BedrockClient (classic Bedrock plane, see lib/ai_client.rb).
-# The gem hard-requires this at construction; signing still uses aws-sdk-core.
+# The gem hard-`require`s this at construction as a guard; the actual signing uses
+# Aws::Sigv4::Signer from aws-sdk-core, already present via aws-sdk-s3.
 gem 'aws-sdk-bedrockruntime', '~> 1'
 gem 'http-2'
 gem 'resque', '~> 3.0'

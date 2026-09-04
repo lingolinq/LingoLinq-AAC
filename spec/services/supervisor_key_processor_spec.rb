@@ -186,6 +186,10 @@ describe SupervisorKeyProcessor, :type => :model do
     it "should return false when feature is not enabled" do
       u = User.create
       u2 = User.create
+      # supervisor_consent_flow is TEMPORARY in ENABLED_FRONTEND_FEATURES; stub off
+      # so this still covers the FeatureFlags gate in process_request_supervision.
+      allow(FeatureFlags).to receive(:feature_enabled_for?).and_call_original
+      allow(FeatureFlags).to receive(:feature_enabled_for?).with('supervisor_consent_flow', u).and_return(false)
       result = SupervisorKeyProcessor.new(u, "request_supervision-#{u2.global_id}").call
       expect(result).to eq(false)
     end

@@ -263,6 +263,55 @@ describe Api::UsersController, :type => :controller do
       expect(json['user']['id']).to eq(u.global_id)
       expect(json['user']['preferences']).to_not eq(nil)
     end
+
+    it "should not nest supervisees the caller has no relationship with" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect((json['user']['supervisees'] || []).map { |s| s['id'] }).to_not include(outside.global_id)
+    end
+
+    it "should nest supervisees the caller independently supervises" do
+      token_user
+      supporter = User.create
+      shared = User.create
+      User.link_supervisor_to_user(supporter, shared)
+      User.link_supervisor_to_user(@user, shared)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect((json['user']['supervisees'] || []).map { |s| s['id'] }).to eq([shared.global_id])
+    end
+
+    it "should not nest a district manager's therapist's out-of-org caseload" do
+      token_user
+      supporter = User.create
+      inside = User.create
+      outside = User.create
+      o = Organization.create(:settings => {'total_licenses' => 4})
+      o.add_manager(@user.user_name, true)
+      o.add_supervisor(supporter.user_name, false)
+      o.add_user(inside.user_name, false)
+      User.link_supervisor_to_user(supporter, inside)
+      User.link_supervisor_to_user(supporter, outside)
+      @user.reload
+      supporter.reload
+
+      get :show, params: {:id => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      ids = (json['user']['supervisees'] || []).map { |s| s['id'] }
+      expect(ids).to include(inside.global_id)
+      expect(ids).to_not include(outside.global_id)
+    end
   end
   
   describe "index" do
@@ -467,6 +516,19 @@ describe Api::UsersController, :type => :controller do
       post :update, params: {:id => u.global_id, :reset_token => token, :user => {'password' => '98765432'}}
       assert_unauthorized
     end
+
+    it "should reject a short password on reset (LL-5617f4e17d)" do
+      u = User.create
+      u.generate_password('oldpass1')
+      u.save
+      u.generate_password_reset
+      token = u.reset_token_for_code(u.password_reset_code)
+      post :update, params: {:id => u.global_id, :reset_token => token, :user => {'password' => '1234567'}}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['errors']).to include("password too short")
+      expect(u.reload.valid_password?('oldpass1')).to eq(true)
+    end
     
     it "should let admins reset passwords for users" do
       token_user
@@ -475,10 +537,12 @@ describe Api::UsersController, :type => :controller do
       o.add_manager(@user.user_name, true)
       o.add_user(u.user_name, false)
       
-      post :update, params: {:id => u.global_id, :reset_token => 'admin', :user => {'name' => 'fred', 'password' => '2345654'}}
+      post :update, params: {:id => u.global_id, :reset_token => 'admin', :user => {'name' => 'fred', 'password' => '23456540'}}
       expect(response).to be_successful
-      expect(u.reload.valid_password?('2345654')).to eq(true)
-      expect(u.settings['name']).to eq('No name')
+      expect(u.reload.valid_password?('23456540')).to eq(true)
+      # The reset path must ignore the other params it was sent, so `name`
+      # stays as it was -- unset, since signup never collected one.
+      expect(u.settings['name']).to eq(nil)
     end
     
     it "should not let non-admins reset passwords for users" do
@@ -588,6 +652,68 @@ describe Api::UsersController, :type => :controller do
       expect(b.reload.shared_with?(u2)).to eq(false)
     end
 
+    # Ember's user.save() serializes the WHOLE record, not just the dirty attribute —
+    # verified against the running app, a real supervisor pick PUTs user_name,
+    # user_token, link, name, email, description and ~20 more keys alongside
+    # preferences. Keep this payload realistic: an earlier guard required the payload
+    # to contain ONLY preferences, which passed a preferences-only spec while every
+    # real pick 400'd.
+    it "should allow a supervise-only supervisor to set home board from a full user payload" do
+      token_user
+      u2 = User.create
+      b = Board.create(:user => u2)
+      User.link_supervisor_to_user(@user, u2, nil, false)
+      put :update, params: {:id => u2.global_id, :user => {
+        :user_name => u2.user_name,
+        :name => 'Hannah Lee',
+        :email => 'someone@example.com',
+        :description => 'AAC user',
+        :public => false,
+        :preferences => {
+          :home_board => {:id => b.global_id, :key => b.key},
+          :skin => 'default',
+          :progress => {:setup_done => true}
+        }
+      }}
+      expect(response).to be_successful
+      expect(u2.reload.settings['preferences']['home_board']['id']).to eq(b.global_id)
+    end
+
+    it "should not let a supervise-only supervisor change anything but the home board" do
+      token_user
+      u2 = User.create
+      b = Board.create(:user => u2)
+      original_name = u2.settings['name']
+      User.link_supervisor_to_user(@user, u2, nil, false)
+      put :update, params: {:id => u2.global_id, :user => {
+        :name => 'Hijacked Name',
+        :email => 'attacker@example.com',
+        :preferences => {:home_board => {:id => b.global_id, :key => b.key}}
+      }}
+      expect(response).to be_successful
+      u2.reload
+      expect(u2.settings['preferences']['home_board']['id']).to eq(b.global_id)
+      expect(u2.settings['name']).to eq(original_name)
+      expect(u2.settings['email']).to_not eq('attacker@example.com')
+    end
+
+    it "should not allow a supervise-only supervisor to update without a home board in preferences" do
+      token_user
+      u2 = User.create
+      User.link_supervisor_to_user(@user, u2, nil, false)
+      put :update, params: {:id => u2.global_id, :user => {:preferences => {:skin => 'default'}}}
+      expect(response).not_to be_successful
+    end
+
+    it "should not accept an empty home_board hash from a supervise-only supervisor" do
+      token_user
+      u2 = User.create
+      User.link_supervisor_to_user(@user, u2, nil, false)
+      put :update, params: {:id => u2.global_id, :user => {:preferences => {:home_board => {}}}}
+      expect(response).not_to be_successful
+      expect(u2.reload.settings['preferences']['home_board']).to eq(nil)
+    end
+
     it "should allow updating token timeouts for the current device" do
       token_user
       expect(@device.settings['long_token']).to eq(nil)
@@ -598,60 +724,170 @@ describe Api::UsersController, :type => :controller do
       expect(@device.reload.settings['long_token']).to eq(true)
       expect(@device.inactivity_timeout).to eq(14.days.to_i)
     end
+
+    # `PUT /api/v1/users/self` is the hottest Ember Data write in the app, and
+    # Ember serializes the WHOLE record on every save. As of 6df5b1bbc the body
+    # is JSON again rather than form-encoded, so preference scalars arrive with
+    # their real types.
+    #
+    # A raw `body:` is required to cover this: Rails' controller-test harness
+    # stringifies `params:` scalars, so every other spec in this block asserts
+    # against the old form-encoded shape. User#process_params converts the
+    # strings "true"/"false" back to booleans, but does NOT convert numeric
+    # strings — so a numeric preference is the sharpest probe of the contract.
+    describe "update with a raw JSON body" do
+      it "should store numeric preferences as numbers, not numeric strings" do
+        token_user
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:preferences => {:scanning_interval => 750, :activation_minimum => 100}}
+        }.to_json
+        expect(response).to be_successful
+        prefs = @user.reload.settings['preferences']
+        expect(prefs['scanning_interval']).to eq(750)
+        expect(prefs['scanning_interval']).to be_a(Integer)
+        expect(prefs['activation_minimum']).to eq(100)
+        expect(prefs['activation_minimum']).to be_a(Integer)
+      end
+
+      it "should store boolean preferences as booleans" do
+        token_user
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:preferences => {:vocalize_buttons => false, :clear_on_vocalize => true}}
+        }.to_json
+        expect(response).to be_successful
+        prefs = @user.reload.settings['preferences']
+        expect(prefs['vocalize_buttons']).to eq(false)
+        expect(prefs['vocalize_buttons']).to be_a(FalseClass)
+        expect(prefs['clear_on_vocalize']).to eq(true)
+        expect(prefs['clear_on_vocalize']).to be_a(TrueClass)
+      end
+
+      it "should not clobber an existing preference when the client omits it" do
+        # An attribute the client never set serializes to null (or is omitted)
+        # rather than to "". PREFERENCE_PARAMS is guarded by `!= nil`, so under
+        # the form-encoded shape every unset preference arrived as "" and passed
+        # that guard, overwriting the stored value on every save. Under JSON the
+        # guard correctly skips it.
+        token_user
+        @user.settings['preferences']['scanning_interval'] = 750
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:preferences => {:scanning_interval => nil, :vocalize_buttons => true}}
+        }.to_json
+        expect(response).to be_successful
+        prefs = @user.reload.settings['preferences']
+        expect(prefs['vocalize_buttons']).to eq(true)
+        expect(prefs['scanning_interval']).to eq(750)
+      end
+
+      # `settings['public']` is a VISIBILITY control, and user.rb:2549 sets it
+      # with `!!params['public']`, not `process_boolean`. That distinction is the
+      # whole point: process_boolean maps the strings 'true'/'1' to true and
+      # everything else to false, so it is safe under either encoding, whereas
+      # `!!` treats ANY non-empty string as true — including "false". The three
+      # specs below pin the flag in the direction that actually matters, which is
+      # a user NOT becoming publicly visible when the client said not to.
+      it "should keep public false rather than coercing the string \"false\" to true" do
+        token_user
+        @user.settings['public'] = false
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:public => false}
+        }.to_json
+        expect(response).to be_successful
+        expect(@user.reload.settings['public']).to eq(false)
+        expect(@user.settings['public']).to be_a(FalseClass)
+      end
+
+      it "should set public true when sent as a real boolean" do
+        token_user
+        @user.settings['public'] = false
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:public => true}
+        }.to_json
+        expect(response).to be_successful
+        expect(@user.reload.settings['public']).to eq(true)
+      end
+
+      it "should not change public when the client omits it" do
+        # The `!= nil` guard is what protects an omitted flag. Under the
+        # form-encoded shape an unset `public` arrived as "", which passed that
+        # guard and then `!!""` is false — so a public profile was silently made
+        # private on an unrelated save. Under JSON it arrives as null and is
+        # skipped.
+        token_user
+        @user.settings['public'] = true
+        @user.save
+        request.headers['Content-Type'] = 'application/json'
+        put :update, params: {:id => @user.global_id}, body: {
+          :user => {:public => nil, :preferences => {:vocalize_buttons => true}}
+        }.to_json
+        expect(response).to be_successful
+        expect(@user.reload.settings['public']).to eq(true)
+        expect(@user.settings['preferences']['vocalize_buttons']).to eq(true)
+      end
+    end
   end
   
   describe "create" do
-    # Open-registration examples exercise create behavior. This branch enables
-    # landing_beta_closed by default; stub it off here and cover the gate below.
-    before do
-      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(false)
-    end
-
-    it "rejects self-registration when landing_beta_closed is enabled" do
-      allow(FeatureFlags).to receive(:landing_beta_closed_enabled?).and_return(true)
-      post :create, params: {:user => {'name' => 'fred'}}
-      expect(response).not_to be_successful
-      expect(response.status).to eq(403)
-      json = JSON.parse(response.body)
-      expect(json['error']).to eq("registration is not available during beta testing")
-      expect(json['landing_beta_closed']).to eq(true)
+    def adult_birth_params(extra = {})
+      {'birth_month' => 1, 'birth_year' => Time.now.utc.year - 20}.merge(extra)
     end
 
     it "should not require api token" do
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
+    end
+
+    it "should reject a short password on create (LL-5617f4e17d)" do
+      post :create, params: {:user => adult_birth_params('name' => 'fred', 'password' => '1234567')}
+      expect(response).not_to be_successful
+      json = JSON.parse(response.body)
+      expect(json['errors']).to include("password too short")
     end
 
     it "should provision default library boards on signup when enabled" do
       expect(UserBoardProvisioner).to receive(:provision_for).and_return([])
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
     end
     
     it "should schedule delivery of a welcome message" do
       expect(UserMailer).to receive(:schedule_delivery).exactly(2).times
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['user']['name']).to eq('fred')
     end
     
     it "should not allow  blank user name" do
-      post :create, params: {:user => {'user_name' => ''}}
+      post :create, params: {:user => adult_birth_params('user_name' => '')}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['user']['name'].length).to be > 5
+      # This asserted on `name` and only ever passed because generate_defaults
+      # seeded the 7-character placeholder "No name" -- an accident, in a test
+      # whose subject is the USER NAME. Assert what it means: a blank user_name
+      # is replaced by a generated handle (see Processable#generate_user_name).
+      expect(json['user']['user_name']).to_not eq(nil)
+      expect(json['user']['user_name']).to_not eq('')
+      expect(json['user']['user_name'].length).to be > 5
     end
 
     it "should include access token information" do
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['meta']['access_token']).not_to be_nil
     end
     
     it "should have correct defaults" do
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       user = json['user']
@@ -664,7 +900,7 @@ describe Api::UsersController, :type => :controller do
     
     it "should error gracefully on user create fail" do
       expect_any_instance_of(User).to receive(:process_params){|u| u.add_processing_error("bacon") }.and_return(false)
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).not_to be_successful
       json = JSON.parse(response.body)
       expect(json['error']).to eq("user creation failed")
@@ -673,13 +909,13 @@ describe Api::UsersController, :type => :controller do
     
     it "should track the new user externally" do
       expect(ExternalTracker).to receive(:track_new_user)
-      post :create, params: {:user => {'name' => 'fred'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred')}
       expect(response).to be_successful
     end
 
     describe "user_creation audit trail" do
       it "records a user_creation AuditEvent for plain self-registration" do
-        post :create, params: {:user => {'name' => 'fred'}}
+        post :create, params: {:user => adult_birth_params('name' => 'fred')}
         json = assert_success_json
         u = User.find_by_path(json['user']['id'])
         ev = AuditEvent.where(:event_type => 'user_creation').where("user_key = ?", u.global_id).first
@@ -692,7 +928,7 @@ describe Api::UsersController, :type => :controller do
       it "records the authoring organization when created via a valid start code" do
         o = Organization.create
         code = Organization.activation_code(o, {'user_type' => 'communicator'})
-        post :create, params: {:user => {'name' => 'fred', 'start_code' => code}}
+        post :create, params: {:user => adult_birth_params('name' => 'fred', 'start_code' => code)}
         json = assert_success_json
         u = User.find_by_path(json['user']['id'])
         ev = AuditEvent.where(:event_type => 'user_creation', :record_id => o.global_id).first
@@ -710,7 +946,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'school_kid_both_events',
           'email' => 'school_kid_both_events@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
@@ -724,7 +960,7 @@ describe Api::UsersController, :type => :controller do
       it "does not orphan or 500 the account when the user_creation audit fails (fail-open)" do
         allow(AuditEvent).to receive(:create!).and_call_original
         expect(AuditEvent).to receive(:create!).with(hash_including(:event_type => 'user_creation')).and_raise(StandardError.new('boom'))
-        post :create, params: {:user => {'name' => 'audit_fail_plain'}}
+        post :create, params: {:user => adult_birth_params('name' => 'audit_fail_plain')}
         expect(response).to be_successful
         json = JSON.parse(response.body)
         u = User.find_by_path(json['user']['id'])
@@ -733,6 +969,9 @@ describe Api::UsersController, :type => :controller do
     end
 
     describe "COPPA parental consent" do
+      let(:child_birth) { {'birth_month' => Time.now.utc.month, 'birth_year' => Time.now.utc.year} }
+      let(:adult_birth) { {'birth_month' => 1, 'birth_year' => Time.now.utc.year - 20} }
+
       before do
         allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
       end
@@ -742,17 +981,37 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid_blank_org',
           'email' => 'kid_blank_org@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => '',
           'coppa_under_13' => true,
           'parent_consent_email' => 'parent_blank_org@example.com'
-        }}
+        }.merge(child_birth)}
         expect(response).to be_successful
         json = JSON.parse(response.body)
         expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
         u = User.find_by_path(json['user']['id'])
         expect(u.coppa_parental_consent_pending?).to eq(true)
+      end
+
+      it "creates a pending minor for a supporter registration type" do
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
+        post :create, params: {:user => {
+          'name' => 'coppa_supporter',
+          'email' => 'kid_supporter@example.com',
+          'password' => 'abcdefgh',
+          'terms_agree' => true,
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'parent_supporter@example.com',
+          'preferences' => {'registration_type' => 'teacher'}
+        }.merge(child_birth)}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(true)
+        expect(u.settings['preferences']['registration_type']).to eq('teacher')
+        expect(u.settings['preferences']['role']).to eq('supporter')
       end
 
       it "creates a pending minor without access token and emails the parent" do
@@ -763,11 +1022,11 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid',
           'email' => 'kid_coppa@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'parent_coppa@example.com'
-        }}
+        }.merge(child_birth)}
         expect(response).to be_successful
         json = JSON.parse(response.body)
         expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
@@ -784,10 +1043,12 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid_dash',
           'email' => 'kid_dash@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa-under-13' => true,
-          'parent-consent-email' => 'parent_dash@example.com'
+          'parent-consent-email' => 'parent_dash@example.com',
+          'birth-month' => Time.now.utc.month,
+          'birth-year' => Time.now.utc.year
         }}
         expect(response).to be_successful
         json = JSON.parse(response.body)
@@ -801,10 +1062,12 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid_camel',
           'email' => 'kid_camel@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppaUnder13' => true,
-          'parentConsentEmail' => 'parent_camel@example.com'
+          'parentConsentEmail' => 'parent_camel@example.com',
+          'birthMonth' => Time.now.utc.month,
+          'birthYear' => Time.now.utc.year
         }}
         expect(response).to be_successful
         json = JSON.parse(response.body)
@@ -817,10 +1080,10 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid2',
           'email' => 'kid2@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => true
-        }}
+        }.merge(child_birth)}
         expect(response).not_to be_successful
         json = JSON.parse(response.body)
         expect(json['errors']).to include('parent consent email required for under-13 registration')
@@ -830,11 +1093,11 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid3',
           'email' => 'same@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'same@example.com'
-        }}
+        }.merge(child_birth)}
         expect(response).not_to be_successful
         json = JSON.parse(response.body)
         expect(json['errors']).to include('parent consent email must be different from the account email')
@@ -844,11 +1107,11 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid4',
           'email' => 'kid4@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'coppa_under_13' => true,
           'parent_consent_email' => 'parent4@example.com'
-        }}
+        }.merge(child_birth)}
         expect(response).to be_successful
         u = User.find_by_path(JSON.parse(response.body)['user']['id'])
         code = u.registration_code
@@ -865,14 +1128,72 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid_bogus_org',
           'email' => 'kid_bogus_org@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => 'invalid_org_999',
           'coppa_under_13' => true
-        }}
+        }.merge(child_birth)}
         expect(response).not_to be_successful
         json = JSON.parse(response.body)
         expect(json['errors']).to include('parent consent email required for under-13 registration')
+      end
+
+      it "rejects unauthenticated signup without a birth month and year" do
+        post :create, params: {:user => {
+          'name' => 'coppa_no_birth',
+          'email' => 'no_birth@example.com',
+          'password' => 'abcdefgh',
+          'terms_agree' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('birth month and year required')
+      end
+
+      it "requires birth data from an authenticated creator who is not a validated org author" do
+        token_user
+        post :create, params: {:user => {
+          'name' => 'auth_no_birth',
+          'email' => 'auth_no_birth@example.com',
+          'password' => 'abcdefgh',
+          'terms_agree' => true
+        }}
+        expect(response).not_to be_successful
+        json = JSON.parse(response.body)
+        expect(json['errors']).to include('birth month and year required')
+      end
+
+      it "does not honor a client under-13 flag when birth month/year is 13 or over" do
+        post :create, params: {:user => {
+          'name' => 'coppa_adult_flag',
+          'email' => 'adult_flag@example.com',
+          'password' => 'abcdefgh',
+          'terms_agree' => true,
+          'coppa_under_13' => true,
+          'parent_consent_email' => 'parent_ignored@example.com'
+        }.merge(adult_birth)}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to be_falsey
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(false)
+      end
+
+      it "treats a classifiable under-13 birth as pending even when the client flag is false" do
+        expect(UserMailer).to receive(:schedule_parent_consent_delivery).with(:parental_consent_request, anything).once
+        post :create, params: {:user => {
+          'name' => 'coppa_child_no_flag',
+          'email' => 'child_no_flag@example.com',
+          'password' => 'abcdefgh',
+          'terms_agree' => true,
+          'coppa_under_13' => false,
+          'parent_consent_email' => 'parent_from_birth@example.com'
+        }.merge(child_birth)}
+        expect(response).to be_successful
+        json = JSON.parse(response.body)
+        expect(json['meta']['coppa_parental_consent_pending']).to eq(true)
+        u = User.find_by_path(json['user']['id'])
+        expect(u.coppa_parental_consent_pending?).to eq(true)
       end
 
       it "treats an unauthorized author's authored_organization_id as NO authorization (COPPA still applies)" do
@@ -882,11 +1203,11 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'coppa_kid_unauth_org',
           'email' => 'kid_unauth_org@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
-        }}
+        }.merge(child_birth)}
         expect(response).not_to be_successful
         json = JSON.parse(response.body)
         expect(json['errors']).to include('parent consent email required for under-13 registration')
@@ -899,7 +1220,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'school_kid',
           'email' => 'school_kid@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
@@ -930,7 +1251,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'assistant_authored_kid',
           'email' => 'assistant_kid@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
@@ -950,7 +1271,7 @@ describe Api::UsersController, :type => :controller do
         post :create, params: {:user => {
           'name' => 'audit_fail_kid',
           'email' => 'audit_fail_kid@example.com',
-          'password' => 'abcdef',
+          'password' => 'abcdefgh',
           'terms_agree' => true,
           'authored_organization_id' => o.global_id,
           'coppa_under_13' => true
@@ -968,7 +1289,7 @@ describe Api::UsersController, :type => :controller do
     end
 
     it "ignores blank start code (optional field may submit empty string)" do
-      post :create, params: {:user => {'name' => 'reg_blank_start_code', 'start_code' => ''}}
+      post :create, params: {:user => adult_birth_params('name' => 'reg_blank_start_code', 'start_code' => '')}
       expect(response).to be_successful
       json = JSON.parse(response.body)
       expect(json['user']['id']).to be_present
@@ -977,7 +1298,7 @@ describe Api::UsersController, :type => :controller do
     it "should allow adding a start code" do
       o = Organization.create
       code = Organization.activation_code(o, {'user_type' => 'communicator'})
-      post :create, params: {:user => {'name' => 'fred', 'start_code' => code}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred', 'start_code' => code)}
       json = assert_success_json
       u = User.find_by_path(json['user']['id'])
       expect(u).to_not eq(nil)
@@ -989,7 +1310,7 @@ describe Api::UsersController, :type => :controller do
       o = Organization.create
       code = Organization.activation_code(o, {'user_type' => 'communicator'})
       Organization.remove_start_code(o, code)
-      post :create, params: {:user => {'name' => 'fred', 'start_code' => code}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred', 'start_code' => code)}
       assert_error('invalid start code')
     end
 
@@ -1001,14 +1322,14 @@ describe Api::UsersController, :type => :controller do
       expect(o.home_board_keys).to eq([b.key])
       
       code = Organization.activation_code(o, {'user_type' => 'communicator', 'locale' => 'fr', 'symbol_library' => 'symbolstix', 'supervisors' => [s.global_id], 'home_board_key' => b.key})
-      post :create, params: {:user => {
+      post :create, params: {:user => adult_birth_params({
         'name' => 'fred', 
         'preferences' => {
           'locale' => 'es', 
           'preferred_symbols' => 'pcs', 
         },
         'start_code' => code
-      }}
+      })}
       json = assert_success_json
       u = User.find_by_path(json['user']['id'])
       expect(u).to_not eq(nil)
@@ -1033,7 +1354,7 @@ describe Api::UsersController, :type => :controller do
       o.settings['default_beta_program_access'] = false
       o.save!
       code = Organization.activation_code(o, {'user_type' => 'communicator'})
-      post :create, params: {:user => {'name' => 'fred_no_beta', 'start_code' => code}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred_no_beta', 'start_code' => code)}
       json = assert_success_json
       u = User.find_by_path(json['user']['id'])
       expect(u.settings['preferences']['beta_program_access']).to eq(false)
@@ -1041,7 +1362,7 @@ describe Api::UsersController, :type => :controller do
     end
 
     it "should default beta_program_access to true for registrations without a start code" do
-      post :create, params: {:user => {'name' => 'fred_beta_default'}}
+      post :create, params: {:user => adult_birth_params('name' => 'fred_beta_default')}
       json = assert_success_json
       u = User.find_by_path(json['user']['id'])
       expect(u.settings['preferences']['beta_program_access']).to eq(true)
@@ -1059,7 +1380,7 @@ describe Api::UsersController, :type => :controller do
 
       it "sets app when X-INSTALLED-LINGOLINQ is true" do
         request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
-        post :create, params: {:user => {'name' => 'reg_hdr_app'}}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_hdr_app')}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['app']).to eq(true)
@@ -1068,7 +1389,7 @@ describe Api::UsersController, :type => :controller do
 
       it "sets browser when X-INSTALLED-LINGOLINQ is false" do
         request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
-        post :create, params: {:user => {'name' => 'reg_hdr_browser'}}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_hdr_browser')}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['browser']).to eq(true)
@@ -1076,7 +1397,7 @@ describe Api::UsersController, :type => :controller do
       end
 
       it "sets app when installed_app param is true and header is absent" do
-        post :create, params: {:user => {'name' => 'reg_param_app'}, :installed_app => 'true'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_param_app'), :installed_app => 'true'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['app']).to eq(true)
@@ -1085,7 +1406,7 @@ describe Api::UsersController, :type => :controller do
 
       it "treats header false as authoritative when it conflicts with installed_app param" do
         request.headers['X-INSTALLED-LINGOLINQ'] = 'false'
-        post :create, params: {:user => {'name' => 'reg_hdr_wins'}, :installed_app => 'true'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_hdr_wins'), :installed_app => 'true'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['browser']).to eq(true)
@@ -1094,7 +1415,7 @@ describe Api::UsersController, :type => :controller do
 
       it "matches session-style resolution when header is true (param ignored)" do
         request.headers['X-INSTALLED-LINGOLINQ'] = 'true'
-        post :create, params: {:user => {'name' => 'reg_hdr_over_param'}, :installed_app => 'false'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_hdr_over_param'), :installed_app => 'false'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['app']).to eq(true)
@@ -1102,7 +1423,7 @@ describe Api::UsersController, :type => :controller do
       end
 
       it "sets browser when installed_app param is false and header is absent" do
-        post :create, params: {:user => {'name' => 'reg_param_browser'}, :installed_app => 'false'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_param_browser'), :installed_app => 'false'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['browser']).to eq(true)
@@ -1111,7 +1432,7 @@ describe Api::UsersController, :type => :controller do
 
       it "ignores non-canonical header and uses installed_app param for app" do
         request.headers['X-INSTALLED-LINGOLINQ'] = 'yes'
-        post :create, params: {:user => {'name' => 'reg_garbage_app'}, :installed_app => 'true'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_garbage_app'), :installed_app => 'true'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['app']).to eq(true)
@@ -1120,7 +1441,7 @@ describe Api::UsersController, :type => :controller do
 
       it "ignores non-canonical header and uses installed_app param for browser" do
         request.headers['X-INSTALLED-LINGOLINQ'] = '1'
-        post :create, params: {:user => {'name' => 'reg_garbage_browser'}, :installed_app => 'false'}
+        post :create, params: {:user => adult_birth_params('name' => 'reg_garbage_browser'), :installed_app => 'false'}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['browser']).to eq(true)
@@ -1136,7 +1457,7 @@ describe Api::UsersController, :type => :controller do
           d.save! if d.persisted?
           d
         end
-        post :create, params: {:user => {'name' => 'stale_app_cleared_reg'}}
+        post :create, params: {:user => adult_birth_params('name' => 'stale_app_cleared_reg')}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['app']).to eq(nil)
@@ -1152,7 +1473,7 @@ describe Api::UsersController, :type => :controller do
           d.save! if d.persisted?
           d
         end
-        post :create, params: {:user => {'name' => 'stale_browser_cleared_reg'}}
+        post :create, params: {:user => adult_birth_params('name' => 'stale_browser_cleared_reg')}
         expect(response).to be_successful
         d = device_for_create_response
         expect(d.settings['browser']).to eq(nil)
@@ -2739,6 +3060,94 @@ describe Api::UsersController, :type => :controller do
       expect(json['user'].length).to eq(1)
       expect(json['user'][0]['id']).to eq(u.global_id)
     end
+
+    # The gate above authorizes the caller against the LIST OWNER. Every account
+    # inside that list is a third party the caller may have no standing with, and
+    # `limited_identity` is not a redaction -- json_api/user.rb:327 emits the
+    # child's real name, avatar, unread message/alert counts, external device and
+    # org_status. Same defect class as badges#index and logs#index.
+    it "should not return supervisees the caller has no relationship with" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to_not include(outside.global_id)
+      expect(json['user']).to eq([])
+    end
+
+    # Positive control, so the example above cannot pass by hiding everything: the
+    # same list, same caller, same list owner -- the only difference is that the
+    # caller now independently supervises the communicator.
+    it "should return supervisees the caller independently supervises" do
+      token_user
+      supporter = User.create
+      shared = User.create
+      User.link_supervisor_to_user(supporter, shared)
+      User.link_supervisor_to_user(@user, shared)
+      User.link_supervisor_to_user(@user, supporter)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to eq([shared.global_id])
+    end
+
+    # Regression guard for the fix above over-reaching. `supervise` (the
+    # permission the first version of this filter used) carries a
+    # modeling_only conjunct, and modeling_only_for? returns true for ANY
+    # supervisee once the caller's own billing_state is :modeling_only -- the
+    # fall-through state for a lapsed free supporter. That emptied a whole
+    # tier's caseload on their OWN request. CI could not see it because a
+    # freshly-created account is :trialing_supporter for 60 days, so the
+    # billing state has to be forced.
+    it "should return a billing-lapsed supporter's own supervisees" do
+      token_user
+      communicator = User.create
+      User.link_supervisor_to_user(@user, communicator)
+      # Drive the REAL billing fall-through rather than stubbing modeling_only?:
+      # a supporter with no subscription and a past expiry lands on
+      # :modeling_only (subscription.rb:832). Stubbing would also mark the
+      # communicator modeling-only, which is a different relationship and would
+      # let this pass for the wrong reason.
+      @user.settings['preferences']['role'] = 'supporter'
+      @user.expires_at = 2.days.ago
+      @user.save
+      expect(@user.reload.billing_state).to eq(:modeling_only)
+
+      get 'supervisees', params: {'user_id' => @user.global_id}
+      expect(response).to be_successful
+      json = JSON.parse(response.body)
+      expect(json['user'].map{|u| u['id']}).to eq([communicator.global_id])
+    end
+
+    # ...and the leak stays closed for that same caller: modeling-only does not
+    # become a way back into someone else's roster. Here the refusal lands one
+    # step earlier than the row filter -- 'supervise' on the LIST OWNER is what
+    # the endpoint gate demands (:621), and that permission does carry the
+    # modeling_only conjunct -- so the request never reaches the fan-out at all.
+    # Asserted as a denial rather than an empty list, because that is what the
+    # code actually does; an empty-list assertion here would be describing a
+    # response shape that is never produced.
+    it "should refuse another supporter's roster to a billing-lapsed caller" do
+      token_user
+      supporter = User.create
+      outside = User.create
+      User.link_supervisor_to_user(supporter, outside)
+      User.link_supervisor_to_user(@user, supporter)
+      @user.settings['preferences']['role'] = 'supporter'
+      @user.expires_at = 2.days.ago
+      @user.save
+      expect(@user.reload.billing_state).to eq(:modeling_only)
+
+      get 'supervisees', params: {'user_id' => supporter.global_id}
+      expect(response).to_not be_successful
+      expect(response.body).to_not include(outside.global_id)
+    end
   end
   
   describe "GET 'sync_stamp'" do
@@ -2799,20 +3208,18 @@ describe Api::UsersController, :type => :controller do
       expect(json).to eq({'a' => 'a'})
     end
 
-    it "should skip Google and return empty translations when org disables external AI processing" do
+    it "should still call Google when org disables external AI processing" do
       token_user
       o = Organization.create(settings: {'total_licenses' => 1, 'external_ai_processing' => false})
       o.add_user(@user.user_name, false, true)
       @user.reload
       words = ['a', 'b', 'c']
-      expect(WordData).not_to receive(:translate_batch)
-      expect(Typhoeus).not_to receive(:get)
-      expect(Organization).to receive(:log_external_ai_processing_skip).with(@user, 'translation')
+      expect(WordData).to receive(:translate_batch).with(words.map{|w| {:text => w} }, 'en', 'es').and_return({a: 'a'})
+      expect(Organization).not_to receive(:log_external_ai_processing_skip)
       post 'translate', params: {:user_id => @user.global_id, :words => words, :source_lang => 'en', :destination_lang => 'es'}
       expect(response).to be_successful
       json = JSON.parse(response.body)
-      expect(json['translations']).to eq({})
-      expect(json['external_ai_processing']).to eq(false)
+      expect(json).to eq({'a' => 'a'})
     end
   end
   
@@ -3549,6 +3956,30 @@ describe Api::UsersController, :type => :controller do
       expect(json['supervisees'][0]['ws_user_id']).to_not eq(nil)
       expect(json['supervisees'][0]['my_device_id']).to eq(nil)
       expect(json['supervisees'][0]['verifier']).to eq(nil)
+    end
+
+    it "should not list a district manager's therapist's out-of-org caseload" do
+      token_user
+      supporter = User.create
+      inside = User.create
+      outside = User.create
+      o = Organization.create(:settings => {'total_licenses' => 4})
+      o.add_manager(@user.user_name, true)
+      o.add_supervisor(supporter.user_name, false)
+      o.add_user(inside.user_name, false)
+      User.link_supervisor_to_user(supporter, inside)
+      User.link_supervisor_to_user(supporter, outside)
+      @user.reload
+      supporter.reload
+
+      get 'ws_settings', params: {user_id: supporter.global_id}
+      json = assert_success_json
+      ids = (json['supervisees'] || []).map { |s| s['user_id'] }
+      expect(ids).to include(inside.global_id)
+      expect(ids).to_not include(outside.global_id)
+      (json['supervisees'] || []).each do |row|
+        expect(row['verifier']).to eq(nil)
+      end
     end
 
     it 'should have a consistent iv for multiple requests in the same session' do

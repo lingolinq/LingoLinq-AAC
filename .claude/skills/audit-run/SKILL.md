@@ -32,6 +32,15 @@ light run**. The cadence is tracked in `audit-reports/compliance-calendar.json`
     finder either runs its FULL frontend scope or is skipped entirely - it is never passed the
     diff scope. If it is skipped in a light run, say so in the run-log `runs.jsonl` line
     (`skipped: ["accessibility"]`) so its absence is explicit, not silent.
+  - **Exception - `code-hygiene-auditor` also never runs diff-only, for the same reason as
+    accessibility, plus one more.** A "dead code" claim requires proving zero reachable
+    references ANYWHERE in the tree, not just within the diff - restricting its own reads to the
+    diff would make every dead-code verification unreliable. So in a monthly light run it either
+    runs its FULL scope (heavier than the other light-run finders, since "full scope" here means
+    "grep the whole tree for every candidate," not just "read more files") or is skipped
+    entirely, following the exact same `skipped: ["code-hygiene"]` run-log convention as
+    accessibility above. There is no cheaper middle ground for this domain; do not try to invent
+    a diff-scoped mode for it.
 
 Either way the register `FINDINGS.json` is updated mechanically and citation-check must stay
 green; only Scot closes, downgrades, or accepts risk.
@@ -53,7 +62,7 @@ SHA so `scripts/citation-check.rb` can validate snippets against the exact tree 
    must anchor to a committed SHA).
 
 ## Step 2: Fan out the read-only finders (parallel)
-Spawn the five domain finders concurrently with the Agent tool, passing each the `auditedSha`.
+Spawn the six domain finders concurrently with the Agent tool, passing each the `auditedSha`.
 They are read-only (no Edit/Write; a PreToolUse guard blocks mutating Bash) and emit
 register-shaped findings with `status: "open"`.
 
@@ -79,6 +88,7 @@ register-shaped findings with `status: "open"`.
 | `api-auditor`           | api           | api-contract-audit |
 | `dependency-auditor`    | dependency    | dependency-audit |
 | `accessibility-auditor` | accessibility | accessibility-audit |
+| `code-hygiene-auditor`  | code-hygiene  | code-hygiene-audit |
 
 Prompt each with: the `auditedSha`, the scan scope from its skill, and
 "cross-check `audit-reports/FINDINGS.json` first; reference an existing `id` rather than
@@ -103,12 +113,20 @@ ruby scripts/audit-merge.rb \
   --sha <auditedSha> --ref <auditedRef> --date <YYYY-MM-DD> \
   --in /tmp/finder-privacy.json --in /tmp/finder-infra.json \
   --in /tmp/finder-api.json --in /tmp/finder-dependency.json \
-  --in /tmp/finder-accessibility.json \
+  --in /tmp/finder-accessibility.json --in /tmp/finder-code-hygiene.json \
   --out audit-reports/FINDINGS.json --summary /tmp/audit-summary.json
 ```
 
 The merge NEVER sets `verified-closed` and NEVER downgrades an existing finding. New findings
 land as `open`; regressions land as `open` with `regression: true` and a loud note for Scot.
+
+> **`--sha` restamps `meta.auditedSha` — that is correct HERE and nowhere else.** This is a
+> whole-tree scan, so the audit pointer legitimately moves to the audited commit (a governance act:
+> record the move and the intervening-commit analysis in `meta.auditedShaPriorNote` for Scot's
+> sign-off). If you are adding a finding OUTSIDE a full `/audit-run`, add `--no-restamp` so evidence
+> anchors at the true commit while `meta` stays untouched. Never pass the register's existing
+> `auditedSha` to dodge the restamp: that anchors the new evidence to a commit it was never verified
+> against and passes citation-check green whenever the line numbers happen to coincide.
 
 ## Step 4: Adversary verification (fresh context per batch)
 For each NEW or REGRESSED finding (from the merge summary), spawn the brain `adversary` agent

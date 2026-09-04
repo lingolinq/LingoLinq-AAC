@@ -24,6 +24,50 @@ describe('ApplicationController', 'controller:application', function() {
     expect(this).not.toEqual(window);
   });
 
+  describe('masqueradeOperatorName / masqueradeStopLabel', function() {
+    it('reads operator from session and includes it in the stop label', function() {
+      var controller = testOwner.lookup('controller:application');
+      controller.set('session', EmberObject.create({
+        as_user_id: '1_99',
+        original_user_name: 'admin'
+      }));
+      expect(controller.get('masqueradeOperatorName')).toEqual('admin');
+      expect(controller.get('masqueradeStopLabel')).toMatch(/admin/);
+      expect(controller.get('masqueradeStopLabel')).toMatch(/Stop Masquerading/);
+    });
+
+    it('falls back to auth_settings stash when session.original_user_name is blank', function() {
+      var controller = testOwner.lookup('controller:application');
+      controller.set('session', EmberObject.create({
+        as_user_id: '1_99',
+        original_user_name: null
+      }));
+      controller.set('stashes', EmberObject.create({
+        get_object: function(key) {
+          if (key === 'auth_settings') {
+            return { as_user_id: '1_99', original_user_name: 'siteadmin' };
+          }
+          return null;
+        }
+      }));
+      expect(controller.get('masqueradeOperatorName')).toEqual('siteadmin');
+      expect(controller.get('masqueradeStopLabel')).toMatch(/siteadmin/);
+    });
+
+    it('uses plain Stop Masquerading when operator name is unavailable', function() {
+      var controller = testOwner.lookup('controller:application');
+      controller.set('session', EmberObject.create({
+        as_user_id: '1_99',
+        original_user_name: null
+      }));
+      controller.set('stashes', EmberObject.create({
+        get_object: function() { return {}; }
+      }));
+      expect(controller.get('masqueradeOperatorName')).toEqual(null);
+      expect(controller.get('masqueradeStopLabel')).toEqual('Stop Masquerading');
+    });
+  });
+
   describe('invalidateSession', function() {
     var savedLingoSession;
     var savedControllerSession;
@@ -202,17 +246,28 @@ describe('ApplicationController', 'controller:application', function() {
   });
 
   describe('copy_and_edit_board', function() {
+    // copy_and_edit_board's completion no longer does jump_to_board (speak) +
+    // toggle_edit_mode. It transitions STRAIGHT to the copy's edit route, because
+    // toggle_edit_mode re-checks permissions.edit, which is still stale/false on a
+    // brand-new copy and re-showed the "Edit this Board" prompt. These tests
+    // therefore wait on the transition, not on a toggle. `router` must be stubbed:
+    // in a unit test the real service has no routing microlib, so a live
+    // transitionTo throws "Cannot read properties of undefined (reading 'hasRoute')".
     it('passes the resolved source board into the copy flow', function() {
       var controller = testOwner.lookup('controller:application');
       var sourceBoard = EmberObject.create({ id: '2_2', key: 'example/current-top' });
       var copiedBoard = EmberObject.create({ id: '3_3', key: 'me/current-top' });
       var copiedSource = null;
-      var toggled = false;
+      var transitioned = null;
 
       controller.set('appState', EmberObject.create({
         check_for_needing_purchase: function() { return RSVP.resolve(); },
         jump_to_board: function() { },
-        toggle_edit_mode: function() { toggled = true; }
+        toggle_edit_mode: function() { }
+      }));
+      controller.set('stashes', EmberObject.create({ persist: function() { } }));
+      controller.set('router', EmberObject.create({
+        transitionTo: function() { transitioned = Array.prototype.slice.call(arguments); }
       }));
       controller.copy_board = function(decision, for_editing, selected_user_name, copy_finished, source_board) {
         copiedSource = source_board;
@@ -221,9 +276,12 @@ describe('ApplicationController', 'controller:application', function() {
 
       controller.send('copy_and_edit_board', sourceBoard);
 
-      waitsFor(function() { return toggled; });
+      waitsFor(function() { return transitioned; });
       runs(function() {
         expect(copiedSource).toEqual(sourceBoard);
+        expect(transitioned[0]).toEqual('user.board-detail.edit');
+        expect(transitioned[1]).toEqual('me');
+        expect(transitioned[2]).toEqual('current-top');
       });
     });
 
@@ -232,12 +290,16 @@ describe('ApplicationController', 'controller:application', function() {
       var sourceBoard = EmberObject.create({ id: '2_2', key: 'example/current-top' });
       var copiedBoard = EmberObject.create({ id: '3_3', key: 'me/current-top' });
       var skipped = null;
-      var toggled = false;
+      var transitioned = null;
 
       controller.set('appState', EmberObject.create({
         check_for_needing_purchase: function() { return RSVP.resolve(); },
         jump_to_board: function() { },
-        toggle_edit_mode: function() { toggled = true; }
+        toggle_edit_mode: function() { }
+      }));
+      controller.set('stashes', EmberObject.create({ persist: function() { } }));
+      controller.set('router', EmberObject.create({
+        transitionTo: function() { transitioned = Array.prototype.slice.call(arguments); }
       }));
       controller.copy_board = function(decision, for_editing, selected_user_name, copy_finished, source_board, skip_source_resolution) {
         skipped = skip_source_resolution;
@@ -246,7 +308,7 @@ describe('ApplicationController', 'controller:application', function() {
 
       controller.send('copy_and_edit_board', sourceBoard, true);
 
-      waitsFor(function() { return toggled; });
+      waitsFor(function() { return transitioned; });
       runs(function() {
         expect(skipped).toEqual(true);
       });

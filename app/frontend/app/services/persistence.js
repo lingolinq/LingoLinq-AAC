@@ -61,6 +61,22 @@ function extrasIsReady() {
   return !!e.ready;
 }
 
+// Clear the negative-lookup cache for a store on the root that ran the write
+// AND on window.persistence when that is a distinct live object, since find()
+// reads known_missing off whichever of those it is called on.
+function clear_known_missing(root, store_name) {
+  var roots = [];
+  if(root) { roots.push(root); }
+  var win = window.persistence;
+  if(win && win !== root && typeof win.get === 'function' && !win.isDestroyed && !win.isDestroying) {
+    roots.push(win);
+  }
+  roots.forEach(function(r) {
+    r.known_missing = r.known_missing || {};
+    r.known_missing[store_name] = {};
+  });
+}
+
 function schedule_sync_board_step(callback, delay) {
   if (typeof LingoLinq !== 'undefined' && LingoLinq.sync_testing) {
     if (delay && delay > 0) {
@@ -693,8 +709,7 @@ var persistence = Service.extend({
     if(!root || typeof root.known_missing === 'undefined') {
       root = window.persistence || this;
     }
-    root.known_missing = root.known_missing || {};
-    root.known_missing[store] = {};
+    clear_known_missing(root, store);
 
     var _this = this;
 
@@ -745,18 +760,33 @@ var persistence = Service.extend({
         RSVP.all(promises).then(function() {
           // Completely clear known_missing for the store when a new
           // record is persisted
-          root.known_missing = root.known_missing || {};
-          root.known_missing[store] = {};
+          clear_known_missing(root, store);
           root.stores.push({object: obj});
           root.log = root.log || [];
           root.log.push({message: "Successfully stored object", object: obj, store: store, key: key});
+          // Only report the save as complete once the local write has actually
+          // landed; resolving earlier lets a find() issued by the caller race
+          // the write, miss, and poison known_missing for that record.
+          resolve(obj);
         }, function(error) {
           root.errors = root.errors || [];
           root.errors.push({error: error, message: "Failed to store object", object: obj, store: store, key: key});
+          // Deliberately resolve, not reject. store() has never rejected on a
+          // failed write (see "should not reject (but log an error) on a failed
+          // storage attempt"), and several callers fire-and-forget the returned
+          // promise, so rejecting here would surface as an unhandled rejection.
+          // Changing that contract is deferred to PERSIST-ARCH-02. What this
+          // phase does change is the TIMING: the settlement now happens after
+          // the write attempt has finished rather than before it has started.
+          // Not resolving here at all would leave the promise pending forever,
+          // which is strictly worse than the original bug.
+          resolve(obj);
         });
+      } else {
+        // Unchanged pre-existing behavior: with extras not ready there is no
+        // write to wait on, so store() resolves immediately as it always has.
+        resolve(obj);
       }
-
-      resolve(obj);
     });
   },
   normalize_url: function(url) {

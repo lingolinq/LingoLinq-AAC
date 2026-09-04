@@ -35,7 +35,7 @@ class ButtonSound < ApplicationRecord
     # TODO: sharding
     BoardButtonSound.where(:button_sound_id => self.id).delete_all
   end
-  
+
   def protected?
     # Same string-"false" pitfall as ButtonImage — see that model's protected?.
     process_boolean(self.settings && self.settings['protected'])
@@ -82,6 +82,13 @@ class ButtonSound < ApplicationRecord
           else
             self.settings['transcription_uncertain'] = true
           end
+          # Preserve the outgoing key in prior_full_filenames (already swept by
+          # MediaObject#remove_derivative_remote_data on destroy) BEFORE
+          # clearing secondary_output, so a failed or no-op remote_remove call
+          # below (S3 misconfig, network error, an exception) doesn't leave
+          # this WAV with no pointer anywhere in settings.
+          self.settings['prior_full_filenames'] ||= []
+          self.settings['prior_full_filenames'] << ref['filename'] if ref && ref['filename']
           self.settings['secondary_output'] = nil
           self.save
           Uploader.remote_remove(secondary_url)

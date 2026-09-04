@@ -3,6 +3,7 @@ import { inject as service } from '@ember/service';
 import { computed } from '@ember/object';
 import modal from '../utils/modal';
 import i18n from '../utils/i18n';
+import { display_name_for } from '../utils/display_name';
 
 /**
  * Support modal component (Phase 2: non-modals/ prefix).
@@ -61,10 +62,10 @@ export default Component.extend({
     if (sessionUser) {
       list.push({
         id: sessionUser.id,
-        name: sessionUser.get('name') + ' <' + sessionUser.get('email') + '>'
+        name: display_name_for(sessionUser) + ' <' + sessionUser.get('email') + '>'
       });
       (sessionUser.get('supervisors') || []).forEach(function(sup) {
-        list.push({ id: sup.id, name: sup.name + ' (' + sup.user_name + ')' });
+        list.push({ id: sup.id, name: display_name_for(sup) + ' (' + sup.user_name + ')' });
       });
     }
     list.push({ id: 'custom', name: i18n.t('other_account', 'Other Account') });

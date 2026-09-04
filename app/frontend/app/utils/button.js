@@ -714,13 +714,16 @@ var Button = EmberObject.extend({
     var hash = _this.get('translations_hash') || {};
     var idx = 0;
     for(var code in hash) {
-      if(Object.keys(hash[code]).length > 0 || !code.match(/-|_/) || code == label_locale) {
-        var label = hash[code].label || this.get('label');
+      var entry = hash[code];
+      if(!entry || typeof entry !== 'object' || Array.isArray(entry)) { continue; }
+      if(!String(code).match(/^[a-z]{2,3}([_-][A-Za-z0-9]+)?$/i)) { continue; }
+      if(Object.keys(entry).length > 0 || !code.match(/-|_/) || code == label_locale) {
+        var label = entry.label || this.get('label');
         if(label_locale == code) { label = _this.get('label'); }
-        var vocalization = hash[code].vocalization;
+        var vocalization = entry.vocalization;
         if(vocalization_locale == code) { vocalization = _this.get('vocalization'); }
-        var inflections = hash[code].inflections;
-        var rules = hash[code].rules;
+        var inflections = entry.inflections;
+        var rules = entry.rules;
         if(res[idx]) {
           emberSet(res[idx], 'label', label);
           emberSet(res[idx], 'vocalization', vocalization);
@@ -1468,6 +1471,21 @@ var sample = function(range) {
   return Math.ceil(Math.random() * (range - .01) + .01);
 };
 
+function spanishInflectionAction(action, key, description, types, formFn) {
+  var spec = {
+    action: action,
+    modifier: true,
+    description: i18n.t(key, description),
+    alter: function(text, prior_text, prior_label, altered, addition) {
+      altered.vocalization = formFn(prior_text);
+      altered.label = formFn(prior_label);
+      altered.in_progress = false;
+    }
+  };
+  if(types) { spec.types = types; }
+  return spec;
+}
+
 Button.load_actions = function() {
   if(!LingoLinq || LingoLinq.special_actions) { return; }
   LingoLinq.find_special_action = function(mod) {
@@ -1876,6 +1894,20 @@ Button.load_actions = function() {
         altered.in_progress = false;
       }
     },
+    spanishInflectionAction(':es-yo', 'es_verb_yo', "Make the verb first person (yo)", ['verb'], function(s) { return i18n.spanish_verb_slot(s, 'nw'); }),
+    spanishInflectionAction(':es-tu', 'es_verb_tu', "Make the verb second person (tú)", ['verb'], function(s) { return i18n.spanish_verb_slot(s, 'n'); }),
+    spanishInflectionAction(':es-el', 'es_verb_el', "Make the verb third person (él/ella)", ['verb'], function(s) { return i18n.spanish_verb_slot(s, 'ne'); }),
+    spanishInflectionAction(':es-nosotros', 'es_verb_nosotros', "Make the verb first person plural (nosotros)", ['verb'], function(s) { return i18n.spanish_verb_slot(s, 'w'); }),
+    spanishInflectionAction(':es-ellos', 'es_verb_ellos', "Make the verb third person plural (ellos)", ['verb'], function(s) { return i18n.spanish_verb_slot(s, 'e'); }),
+    spanishInflectionAction(':es-gerund', 'es_verb_gerund', "Make the verb gerund (-ndo)", ['verb'], function(s) { return i18n.spanish_verb_slot(s, 's'); }),
+    spanishInflectionAction(':es-participle', 'es_verb_participle', "Make the verb past participle (-ado/-ido)", ['verb'], function(s) { return i18n.spanish_verb_slot(s, 'se'); }),
+    spanishInflectionAction(':es-plural', 'es_pluralize', "Make the word plural", ['noun', 'adjective'], function(s) { return i18n.spanish_pluralize(s); }),
+    spanishInflectionAction(':es-feminine', 'es_feminine', "Make the word feminine", ['noun', 'adjective'], function(s) { return i18n.spanish_feminine(s); }),
+    spanishInflectionAction(':es-negation', 'es_negation', "Negate the word with no", ['noun', 'verb', 'adjective'], function(s) { return i18n.spanish_negation(s); }),
+    spanishInflectionAction(':es-mas', 'es_mas', "Add más (comparative)", ['adjective', 'adverb'], function(s) { return i18n.spanish_mas(s); }),
+    spanishInflectionAction(':es-isimo', 'es_isimo', "Add -ísimo (superlative)", ['adjective', 'adverb'], function(s) { return i18n.spanish_isimo(s); }),
+    spanishInflectionAction(':es-question', 'es_question', "Wrap with Spanish question marks", null, function(s) { return i18n.spanish_question(s); }),
+    spanishInflectionAction(':es-exclaim', 'es_exclaim', "Wrap with Spanish exclamation marks", null, function(s) { return i18n.spanish_exclaim(s); }),
     {
       action: ':bleep',
       inline: true,

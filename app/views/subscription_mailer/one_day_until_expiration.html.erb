@@ -1,7 +1,7 @@
 Hello! This is a final reminder that the <%= @user.grace_period? ? "free trial" : "premium cloud extras access" %> for the <%= app_name %> 
 user account <b><%= @user.user_name %></b> is about to expire. It is set to expire 
 <b><%= long_ordinal_date(@user.expires_at) %></b>. Please
-<a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">update your billing settings</a> 
+<a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">update your billing settings</a> 
 so you don't lose out on <%= app_name %>'s rich set of communication and tracking
 tools.<br/><br/>
 
@@ -15,12 +15,12 @@ a difference a team-enabling tool like <%= app_name %> can make in helping commu
 be heard, and we need your help spreading that vision. Your purchase doesn't
 just help you, it can help fund the app for families in need, and also supports
 initiatives for more openness and interoperability in AAC. We hope you'll consider
-<a href="<%= JsonApi::Json.current_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">supporting us with a paid account</a>
+<a href="<%= JsonApi::Json.absolute_host %>/<%= @user.user_name %>/subscription?confirmation=<%= @user.registration_code %>">supporting us with a paid account</a>
 to help in this good work.<br/><br/>
 
 If you need help finding a funding solution yourself, please don't be afraid to reach out to us, 
 we're willing to work with individuals to find a good solution. Just 
-<a href="<%= JsonApi::Json.current_host %>/contact">contact us and let us know how we can help</a>.
+<a href="<%= JsonApi::Json.absolute_host %>/contact">contact us and let us know how we can help</a>.
 <br/><br/>
 
 Thanks!<br/>

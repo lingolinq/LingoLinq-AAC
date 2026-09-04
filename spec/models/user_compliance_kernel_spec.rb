@@ -7,6 +7,10 @@ describe 'User compliance kernel stamp' do
     allow(JsonApi::Json).to receive(:coppa_parental_consent_enabled?).and_return(true)
   end
 
+  # process_params classifies COPPA-13 from birth month/year. A 2015
+  # birth is under 13 in 2026 and requires parent_consent_email. These
+  # examples test the compliance stamp, not pending COPPA, so they use
+  # an over-13 year (2010) unless an authoring org skips the gate.
   def create_user(extra = {})
     User.process_new({
       'user_name' => "comp_#{SecureRandom.hex(4)}",
@@ -19,7 +23,7 @@ describe 'User compliance kernel stamp' do
 
   it 'does not stamp settings.compliance when the flag is OFF' do
     expect(FeatureFlags.compliance_workflow_kernel_enabled?).to eq(false)
-    u = create_user('country' => 'US', 'birth_month' => 3, 'birth_year' => 2015)
+    u = create_user('country' => 'US', 'birth_month' => 3, 'birth_year' => 2010)
     expect(u).to be_a(User)
     expect(u.errored?).to eq(false)
     expect(u.settings['compliance']).to be_nil
@@ -53,7 +57,7 @@ describe 'User compliance kernel stamp' do
       'country' => 'CA',
       'jurisdiction_declaration' => 'CA-QC',
       'birth_month' => 6,
-      'birth_year' => 2015
+      'birth_year' => 2010
     )
     expect(u.settings['compliance']['jurisdiction']['code']).to eq('CA-QC')
     expect(u.settings['compliance']['digital_consent_age']).to eq(14)
@@ -67,7 +71,7 @@ describe 'User compliance kernel stamp' do
       'country' => 'US',
       'authored_organization_id' => 'invalid_org_999',
       'birth_month' => 3,
-      'birth_year' => 2015
+      'birth_year' => 2010
     )
     expect(u.errored?).to eq(false)
     expect(u.settings['authored_organization_id']).to be_nil

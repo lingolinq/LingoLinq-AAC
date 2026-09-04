@@ -11,6 +11,50 @@ import sys
 
 CI_MARKER_RE = re.compile(r"<!--\s*/?\s*CI_INJECT:[A-Z_]+\s*-->")
 
+# Reviewer models. The approved-reviewer registry row for the CI `codex-review`
+# gate is mirrored in .github/codex/README.md ("Approved reviewer models") so
+# this citation is resolvable from inside the repo. gpt-5.6-sol is approved only
+# for the interactive/local Codex row and must NOT be used here.
+#
+# BOTH legs run terra. An earlier version put the cheap tier on the chunk leg on
+# the theory that convergence, not single-pass strength, carried reliability
+# there. That was wrong, for two reasons worth recording so it is not retried:
+#
+#   1. Synthesis never sees the diff. Its prompt takes the manifest, chunk
+#      verdicts, and the CI-computed structural index (.github/codex/
+#      synthesis-prompt.md), and codex-review-build-envelope.py says it plainly:
+#      "Synthesis receives model-authored chunk summaries, not raw PR diff."
+#      A defect the chunk pass does not report is therefore not merely
+#      unreported, it is unreachable. The chunk leg is the ONLY leg that reads
+#      code, so it must carry the strongest approved model, not the weakest.
+#   2. Convergence re-samples the SAME model on the SAME prompt (runs 2 and 3
+#      below). That corrects sampling variance, not a systematic blind spot.
+#      Three runs of a model that cannot see a subtle regression approve three
+#      times and converge confidently on the wrong answer.
+#
+# Cost was the argument for the cheap tier and it does not hold either:
+# .github/codex/evidence-policy.json caps a run at 16 chunks of ~40KB, so a
+# full-terra run is single-digit dollars against the project spend limit. A
+# weaker model also drives invocation count UP, not down, because run 2 fires
+# only on APPROVE and run 3 only on self-disagreement.
+#
+# Deliberately NOT runtime-overridable. An earlier revision of this change read
+# both ids from repo variables so a bad pin could be corrected without shipping a
+# PR through the gate the pin was breaking. Review rejected that: a repo variable
+# is settable with no PR and no review, so the hatch let anyone move the
+# code-reading leg onto a weaker model, silently and with no approval, which is
+# the exact defect this file exists to prevent. A convenience lever that can
+# disable the control it protects is worth less than the control.
+#
+# If terra itself ever becomes unusable, the levers that remain are
+# CODEX_REVIEW_EVIDENCE_MODE=bounded, CODEX_REVIEW_CHUNKED_SCOPE=none, and the
+# documented admin exception. Changing a reviewer model stays a reviewed change.
+DEFAULT_CHUNK_MODEL = "gpt-5.6-terra"
+DEFAULT_SYNTHESIS_MODEL = "gpt-5.6-terra"
+
+CHUNK_MODEL = DEFAULT_CHUNK_MODEL
+SYNTHESIS_MODEL = DEFAULT_SYNTHESIS_MODEL
+
 
 def defang_ci_markers(body):
     return CI_MARKER_RE.sub(
@@ -119,14 +163,14 @@ def heartbeat(args, description):
     )
 
 
-def run_model(args, prompt_path, schema_path, output_path, heartbeat_description=None):
+def run_model(args, prompt_path, schema_path, output_path, heartbeat_description=None, *, model):
     command = [
         "codex",
         "exec",
         "--sandbox",
         "read-only",
         "-m",
-        "gpt-5.5",
+        model,
         "--output-schema",
         str(schema_path),
         "--output-last-message",
@@ -263,6 +307,7 @@ def main():
             ".github/codex/chunk-review-schema.json",
             first_output,
             f"Codex review running chunk {index}/{len(manifest['chunks'])} run 1",
+            model=CHUNK_MODEL,
         ):
             write_invalid_review(first_output, args.head_sha, chunk)
         run_paths.append(first_output)
@@ -276,6 +321,7 @@ def main():
                 ".github/codex/chunk-review-schema.json",
                 second_output,
                 f"Codex review running chunk {index}/{len(manifest['chunks'])} run 2",
+                model=CHUNK_MODEL,
             ):
                 write_invalid_review(second_output, args.head_sha, chunk)
             run_paths.append(second_output)
@@ -287,6 +333,7 @@ def main():
                     ".github/codex/chunk-review-schema.json",
                     third_output,
                     f"Codex review running chunk {index}/{len(manifest['chunks'])} run 3",
+                    model=CHUNK_MODEL,
                 ):
                     write_invalid_review(third_output, args.head_sha, chunk)
                 run_paths.append(third_output)
@@ -298,21 +345,25 @@ def main():
     build_synthesis_prompt(synthesis_template, live_state, manifest_md, prior_loop, chunk_result_groups, synthesis_prompt)
     synthesis_paths = []
     synthesis_1 = out_dir / "synthesis-1.json"
-    if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_1, "Codex review running synthesis run 1"):
+    if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_1, "Codex review running synthesis run 1", model=SYNTHESIS_MODEL):
         write_invalid_review(synthesis_1, args.head_sha)
     synthesis_paths.append(synthesis_1)
     if review_kind(load_json(synthesis_1)) == "approved":
         synthesis_2 = out_dir / "synthesis-2.json"
-        if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_2, "Codex review running synthesis run 2"):
+        if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_2, "Codex review running synthesis run 2", model=SYNTHESIS_MODEL):
             write_invalid_review(synthesis_2, args.head_sha)
         synthesis_paths.append(synthesis_2)
         if needs_tiebreak(synthesis_paths):
             synthesis_3 = out_dir / "synthesis-3.json"
-            if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_3, "Codex review running synthesis run 3"):
+            if not run_model(args, synthesis_prompt, ".github/codex/synthesis-schema.json", synthesis_3, "Codex review running synthesis run 3", model=SYNTHESIS_MODEL):
                 write_invalid_review(synthesis_3, args.head_sha)
             synthesis_paths.append(synthesis_3)
 
     summary = {
+        # Recorded so the envelope (and therefore the audit artifact) can name
+        # which approved reviewer model actually produced this verdict.
+        "chunk_model": CHUNK_MODEL,
+        "synthesis_model": SYNTHESIS_MODEL,
         "chunk_reviews": [str(path) for path in chunk_result_paths],
         "canonical_chunk_reviews": [str(path) for path in canonical_chunk_result_paths],
         "chunk_result_groups": chunk_result_groups,

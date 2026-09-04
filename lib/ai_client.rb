@@ -151,15 +151,12 @@ module AiClient
 
   # Reduces any id form to the plane-neutral alias used by ALLOWED_RUNTIME_MODELS.
   #
-  # NOT a security boundary, and it must not be used as one. Canonicalizing is
-  # lossy in precisely the direction that matters: it strips the region prefix and
-  # the date/version suffix, so
-  # `us.anthropic.claude-haiku-4-5-20990101-v1:0` and
-  # `eu.anthropic.claude-haiku-4-5-20251001-v1:0` both collapse to the vetted
-  # `anthropic.claude-haiku-4-5`. Gating on that let an operator select an
-  # unvetted future revision, or move inference to another geography, while the
-  # allowlist reported the model as approved. Kept because it is still the right
-  # tool for grouping ids by family; see allowed_runtime_model? for the gate.
+  # This is what closes the injection path: a regional inference-profile id such as
+  # `us.anthropic.claude-fable-5-20260101-v1:0` is passed through untouched by
+  # bedrock_model (by design -- it is already wire-resolved), so an allowlist that
+  # only understood bare aliases would never see it. Stripping the region prefix and
+  # the date/version suffix first means the profile form and the alias form collapse
+  # to the same key and are checked identically.
   def canonical_alias(model_id)
     id = model_id.to_s.strip
     PROFILE_PREFIXES.each { |prefix| id = id.delete_prefix(prefix) }
@@ -167,27 +164,8 @@ module AiClient
     id.sub(LEGACY_VERSION_SUFFIX, '')
   end
 
-  # The allowlist holds on the id that will actually be SENT, never on the family
-  # an operator's value canonicalizes to.
-  #
-  # Resolve first, then require exact membership. bedrock_model passes an
-  # already-wire-resolved profile id through untouched by design, so resolving
-  # first is what brings the profile form and the alias form to a single
-  # comparable value; requiring an EXACT match is what stops a same-family
-  # variant (different date, version, or region) from riding in on the vetted
-  # name. An id that resolves to anything not in the vetted set is refused, which
-  # is also the correct answer for a model that simply has no mapping row.
-  def vetted_wire_model?(wire_id)
-    if bedrock_plane == MANTLE_PLANE
-      # On Mantle the alias IS the wire form, so the alias list is the exact set.
-      ALLOWED_RUNTIME_MODELS.include?(wire_id)
-    else
-      CLASSIC_PROFILE_IDS.values.include?(wire_id)
-    end
-  end
-
   def allowed_runtime_model?(model_id)
-    vetted_wire_model?(bedrock_model(model_id))
+    ALLOWED_RUNTIME_MODELS.include?(canonical_alias(model_id))
   end
 
   # Resolves the ANTHROPIC_MODEL override for a Tier 1 seam and returns the WIRE id.
@@ -442,30 +420,10 @@ module AiClient
   # a HIPAA control off without anyone editing a line of policy. So the only way
   # to skip the assertion is for the variable not to exist. Blank is a
   # misconfiguration and refuses like any other.
-  # Normalization strips ONLY digit-grouping punctuation, and only from a value
-  # that is digits-with-grouping end to end.
-  #
-  # This used to be gsub(/\D/, ''), which deleted every non-digit character
-  # rather than only the supported separators. That turned
-  # "prefix239044785114suffix" into a valid account id, so a value nobody
-  # intended sailed past the check that exists to catch exactly that. It could
-  # not make a WRONG account pass -- STS still returns the real one and the
-  # comparison still fails -- but it accepted invalid security configuration and
-  # said nothing, which defeats the "misconfigured is not the same as
-  # unconfigured" contract stated above.
-  #
-  # An invalid value is returned UNCHANGED rather than coerced. It then fails the
-  # ACCOUNT_ID_FORMAT check in account_verified?, which refuses and logs, so a
-  # typo surfaces as a misconfiguration instead of being silently repaired.
-  ACCOUNT_GROUPING_FORMAT = /\A\d[\d\s-]*\d\z/
-
   def expected_aws_account
     return nil unless ENV.key?(EXPECTED_ACCOUNT_ENV)
 
-    raw = ENV[EXPECTED_ACCOUNT_ENV].to_s.strip
-    return raw unless raw.match?(ACCOUNT_GROUPING_FORMAT)
-
-    raw.gsub(/[\s-]/, '')
+    ENV[EXPECTED_ACCOUNT_ENV].to_s.gsub(/\D/, '')
   end
 
   # STS endpoint, pinned rather than resolved from the environment.

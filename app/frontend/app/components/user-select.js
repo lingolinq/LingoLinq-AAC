@@ -14,40 +14,75 @@ export default Component.extend({
   appState: service('app-state'),
   persistence: service('persistence'),
   action: function() { return this; },
+  /* The roster options, built from the session user's supervisees. Extracted from
+     didInsertElement so it can be rebuilt when the roster arrives — that method also
+     fires `action('self')` and loads org users, which must NOT re-run. */
+  _supervisee_options: function() {
+    var _this = this;
+    var appState = this.get('appState');
+    var supervisees = [];
+    (appState.get('sessionUser.known_supervisees') || []).forEach(function(supervisee) {
+      var sup = {
+        name: supervisee.user_name,
+        image: supervisee.local_avatar_url || supervisee.avatar_url,
+        disabled: !_this.get('allow_all') && !supervisee.edit_permission,
+        id: supervisee.id
+      };
+      supervisees.push(sup);
+      if(LingoLinq.remote_url(supervisee.avatar_url) && !supervisee.local_avatar_url) {
+        _this.get('persistence').find_url(supervisee.avatar_url, 'image').then(function(url) {
+          emberSet(supervisee, 'local_avatar_url', url);
+          emberSet(sup, 'image', url);
+        }, function(err) { });
+      }
+    });
+    if(supervisees.length > 0 || _this.get('has_extra_users') || appState.get('sessionUser.communicator_in_supporter_view')) {
+      supervisees.unshift({
+        name: i18n.t('me', "me"),
+        id: 'self',
+        disabled: _this.get('skip_me'),
+        self: true,
+        image: appState.get('sessionUser.avatar_url_with_fallback')
+      });
+    }
+    return supervisees;
+  },
+
+  /* `lib/json_api/user.rb` embeds only the first 10 supervisees; the rest need
+     `load_all_connections`. Only the stats route set it, so the SAME dialog listed 10
+     or all 30 depending on whether the supporter had visited Reports first — and before
+     that visit, communicator #22 was simply unreachable with no error. Requesting it
+     here makes every consumer behave identically. */
+  _ensure_full_roster: function() {
+    var session_user = this.get('appState.sessionUser');
+    if(!session_user || !session_user.set) { return; }
+    if((session_user.get('supervisees.length') || 0) < 10) { return; }
+    if(!session_user.get('load_all_connections')) {
+      session_user.set('load_all_connections', true);
+    }
+  },
+
+  /* The load above is asynchronous and this component builds its list once, so without
+     a rebuild the late pages never appear — the original bug, just later. Guarded on
+     `_built_users` so a caller-supplied `users` is never overwritten. */
+  _rebuild_users_on_roster_change: observer('appState.sessionUser.known_supervisees.[]', function() {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    if(!this.get('_built_users')) { return; }
+    this.set('users', this._supervisee_options());
+  }),
+
   didInsertElement: function() {
     var supervisees = [];
     var _this = this;
     var appState = this.get('appState');
+    this._ensure_full_roster();
     var has_supervisees = appState.get('sessionUser.known_supervisees') || appState.get('sessionUser.managed_orgs.length') > 0;
     var show_options = has_supervisees || appState.get('sessionUser.communicator_in_supporter_view');
     _this.set('has_extra_users', appState.get('sessionUser.managed_orgs.length') > 0);
     _this.set('extra_users', null);
     _this.set('extra_user', null);
     if(!this.get('users') && show_options) {
-      (appState.get('sessionUser.known_supervisees') || []).forEach(function(supervisee) {
-        var sup = {
-          name: supervisee.user_name,
-          image: supervisee.local_avatar_url || supervisee.avatar_url,
-          disabled: !_this.get('allow_all') && !supervisee.edit_permission,
-          id: supervisee.id
-        };
-        supervisees.push(sup);
-        if(LingoLinq.remote_url(supervisee.avatar_url) && !supervisee.local_avatar_url) {
-          _this.get('persistence').find_url(supervisee.avatar_url, 'image').then(function(url) {
-            emberSet(supervisee, 'local_avatar_url', url);
-            emberSet(sup, 'image', url);
-          }, function(err) { });
-        }
-      });
-      if(supervisees.length > 0 || _this.get('has_extra_users') || appState.get('sessionUser.communicator_in_supporter_view')) {
-        supervisees.unshift({
-          name: i18n.t('me', "me"),
-          id: 'self',
-          disabled: this.get('skip_me'),
-          self: true,
-          image: appState.get('sessionUser.avatar_url_with_fallback')
-        });
-      }
+      supervisees = this._supervisee_options();
       if(!this.get('buttons') && !this.get('selection')) {
         var actionFn = this.get('action');
         if (actionFn && typeof actionFn === 'function') {
@@ -66,7 +101,9 @@ export default Component.extend({
         }
       }
     }
-    this.set('users', this.get('users') || supervisees);
+    var provided_users = this.get('users');
+    this.set('users', provided_users || supervisees);
+    this.set('_built_users', !provided_users);
     // Reflect a pre-set `selection` (e.g. copy-board defaulting to "me") onto the
     // per-user `currently_selected` flag the buttons template highlights on — the
     // `select` action only sets that flag on click, so without this an initial

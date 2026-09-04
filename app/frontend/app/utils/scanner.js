@@ -35,9 +35,7 @@ class JShim {
         }
         this.elements = Array.from(document.querySelectorAll(sel));
         if (filterVis) {
-          this.elements = this.elements.filter(function(el) {
-            return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
-          });
+          this.elements = this.elements.filter(function(el) { return scanner.is_visible(el); });
         }
       } else if (arg instanceof Element || arg === window || arg === document) {
         this.elements = [arg];
@@ -72,9 +70,7 @@ class JShim {
       }
     });
     if(filterVisible) {
-      res = res.filter(function(el) {
-        return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
-      });
+      res = res.filter(function(el) { return scanner.is_visible(el); });
     }
     return new JShim(res);
   }
@@ -263,7 +259,15 @@ var scanner = EmberObject.extend({
             'clear_button': i18n.t('clear', "Clear")
           };
           var $elem = scanner.find_elem(this);
-          var label = id_labels[$elem.attr('id')] || "";
+          /* Fall back to the ACCESSIBLE NAME, then to visible text. `id_labels` only knows
+             the six legacy ids, and on board-detail most of this row carries no id at all —
+             Home, Back, Back-to-picker, the modeling toggles and every word-prediction tile
+             are identified by aria-label alone (templates/user/board-detail.hbs:619+). They
+             were therefore scanned with label "", and next_element speaks
+             `vocalization || label`, so an auditory-scanning user heard SILENCE on each of
+             them and had to count steps. The id_labels lookup stays first so the six named
+             buttons keep their existing wording verbatim. */
+          var label = id_labels[$elem.attr('id')] || $elem.attr('aria-label') || $elem.text() || "";
           row.children.push({
             dom: $elem,
             label: label
@@ -326,6 +330,52 @@ var scanner = EmberObject.extend({
         row.children = row.reload_children();
 
         rows.push(row);
+      }
+
+      /* Board-detail's word-prediction RAIL is a SIBLING of #speak — it sits beside the
+         board grid, not inside the sentence row — so neither the header row's
+         "#speak button:visible" sweep nor the #word_suggestions block above (that id
+         exists only in the classic board UI) reaches it. With the default `side_rail`
+         placement that left a scanning user unable to select a prediction at all.
+         Scanned as its own row here, between the header and the board, mirroring how
+         the classic suggestions row is built.
+
+         `:visible` is load-bearing, not defensive: the rail is `display:none` at
+         >1024px in the `auto` placement (the in-bar group is used there instead, and
+         that one IS inside #speak), and a display:none control is still in the DOM —
+         without the filter the scanner would stop on an invisible row. The rail is also
+         mounted whenever word prediction is on, including while it holds no words, so
+         the row is only pushed when it actually has children to scan. */
+      /* Guarded rather than `.length` straight off the call: find_elem is a seam the
+         scanner specs stub, and some of those stubs answer only the selectors they know
+         about and return undefined for everything else. A new selector must not take
+         the whole of start() down with it. */
+      var $prediction_rail = scanner.find_elem(".md-board-detail-prediction-rail:visible");
+      if($prediction_rail && $prediction_rail.length) {
+        var prediction_row = {
+          children: [],
+          dom: $prediction_rail,
+          header: true,
+          label: i18n.t('suggestions', "Suggestions"),
+          reload_children: function() {
+            var res = [];
+            var $rail = scanner.find_elem(".md-board-detail-prediction-rail:visible");
+            if($rail && $rail.find) {
+              $rail.find(".md-board-detail-sentence-bar__prediction").each(function() {
+                var $elem = scanner.find_elem(this);
+                res.push({
+                  dom: $elem,
+                  label: $elem.text()
+                });
+              });
+            }
+            return res;
+          }
+        };
+        prediction_row.children = prediction_row.reload_children();
+        if(prediction_row.children.length > 0) {
+          rows.push(prediction_row);
+        }
       }
       var content = scanner.scan_content();
 
@@ -564,6 +614,15 @@ var scanner = EmberObject.extend({
     scanner.scan_axes('clear');
     scanner.scanning_distances = {x: 0, y: 0};
   },
+  /* Is the element actually RENDERED? The single definition of that question for the whole
+     scanning/prediction feature — the JShim `:visible` filter above and
+     board-detail.js#_prediction_panel_targeted all route through here. It previously existed as
+     three separate copies, and the controller's copy silently disagreed with these two: it had no
+     visibility test at all, so a `display:none` placement still counted as "targeted". */
+  is_visible: function(el) {
+    if(!el || el.nodeType !== 1) { return false; }
+    return el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0;
+  },
   actively_scanning: function() {
     return scanner.interval && scanner.current_element && document.body.contains(scanner.current_element.dom[0])
   },
@@ -609,6 +668,16 @@ var scanner = EmberObject.extend({
     }
   },
   pick: function(ref) {
+    /* A STOPPED scanner is inert. stop() (:598) leaves scanner.elements, element_index and
+       options intact, and the switch surface gates on the `scanning_enabled` PREFERENCE
+       rather than on this flag (raw_events.js:675) — so a press behind an open modal reaches
+       here with scanning false and would re-highlight and re-arm auto-select over a board the
+       user cannot see. escape() guards only its level-up BRANCH, because a cancel press must
+       still fall through to stop()'s cleanup; these two have no such duty, so they return.
+       `scanning` has exactly two writers (false at :598, true at :641), and step scanning
+       (auto_start false) keeps it TRUE — scan_elements sets it before the auto_start branch —
+       so no legitimate switch action is blocked. */
+    if(!scanner.scanning) { return; }
     var elem = scanner.current_element;
     if(scanner.options && scanner.options.scan_mode != 'axes') {
       if(!elem && scanner.options && !scanner.options.auto_start) {
@@ -662,9 +731,27 @@ var scanner = EmberObject.extend({
       }
     }
   },
-  level_up: function(elem) {
+  level_up: function(elem, advance) {
     scanner.elements = elem.higher_level;
     scanner.element_index = elem.higher_level_index;
+    /* `advance`: the level we are returning FROM had nothing left to scan, so putting the
+       highlight back on the row that just failed to open is a closed loop. With
+       scanning_auto_select the row is re-picked every interval, re-levels-up to itself, and the
+       user NEVER REACHES THE BOARD — the only exit is the cancel switch, which stops scanning
+       outright. This is not specific to the prediction rail: origin/staging pushes the classic
+       #word_suggestions row with no children guard and board-alt renders it with visible
+       "Loading word suggestions..." text, so the same trap ships there today, at two ticks per
+       cycle instead of one.
+
+       Deliberately NOT scanner.next(): that re-enters next_element synchronously (its recovery
+       can call back into load_children), and its ignore_until/reset_until debounce guards can
+       return early with scanner.interval already null — leaving no highlight and no armed
+       timer, i.e. scanning silently stopped. That is a worse outcome than the loop. */
+    if(advance) {
+      scanner.element_index = scanner.element_index + 1;
+      if(scanner.element_index >= scanner.elements.length) { scanner.element_index = 0; }
+      scanner.element_index_advanced = true;
+    }
     runCancel(scanner.interval);
     scanner.interval = runLater(function() {
       scanner.next_element();
@@ -680,7 +767,42 @@ var scanner = EmberObject.extend({
       // Find the trailing parent stub appended by load_children — its
       // `higher_level` array points back to the previous level.
       var parent = els[els.length - 1];
-      if(parent && parent.higher_level && parent.dom && parent.dom.hasClass && parent.dom.hasClass('md-board-detail-sentence-row')) {
+      /* REVERTED to an explicit allow-list. Generalising this to "any level with a
+         higher_level" was tried and backed out, because it cost switch users more than the
+         inconsistency it fixed:
+
+         1. stop() does NOT clear scanner.elements, and modal.open calls scanner.stop() for
+            every non-scannable modal. With the general rule, a cancel press behind an open
+            modal ran level_up -> next_element and RESUMED scanning on the board underneath —
+            scanner.scanning still false — so with scanning_auto_select a button the user
+            could not see could be picked. The allow-list has the same hole, but for two
+            levels rather than all eight.
+         2. level_up puts the highlight back on the row just escaped, and next_element
+            re-arms auto-select. So for an auto-select user, escape -> re-drill -> escape ->
+            re-drill: stopping needed two presses inside ONE scan interval, which is exactly
+            what a long interval exists to avoid. Previously one press from a board row hit
+            stop(), terminal and guaranteed.
+
+         The inconsistency is real and still here — of roughly eight drill-in levels, these
+         two level up and the rest stop — but it is a coherence problem, while the above are
+         "the switch user cannot reliably quit" problems. Fixing it properly needs a
+         scanning-state guard and auto-select suppression, both of which want their own tests;
+         it is not a drive-by. See LEARNINGS. */
+      /* `scanner.scanning` FIRST. stop() (:598) nulls interval/scanning/current_element but
+         leaves scanner.elements and element_index, and every non-scannable modal calls it
+         (services/modal.js:115, utils/modal.js:126/188). The switch surface gates on the
+         `scanning_enabled` PREFERENCE, not on this flag (raw_events.js:675), so a cancel
+         press still arrives here with scanning false — and levelling up from a stale level
+         re-highlights and re-arms auto-select underneath the open modal, activating a button
+         the user cannot see. Guarding the BRANCH rather than the function is deliberate: a
+         cancel press while stopped must still fall through to stop() below, which re-runs
+         modal.close_highlight() and sweeps stray .highlight nodes (:602-605). That
+         cancel-always-cleans-up guarantee is what a top-of-function return would delete.
+         `scanning` has exactly two writers — false at :598, true at :641 — so it is false
+         only before the first start() or after a stop(), and no legitimate switch action
+         occurs in either window. */
+      if(scanner.scanning && parent && parent.higher_level && parent.higher_level.length && parent.dom && parent.dom.hasClass &&
+         (parent.dom.hasClass('md-board-detail-sentence-row') || parent.dom.hasClass('md-board-detail-prediction-rail'))) {
         scanner.level_up(parent);
         return;
       }
@@ -1051,9 +1173,45 @@ var scanner = EmberObject.extend({
     }
   },
   load_children: function(elem, elements, index) {
-    var parent = Object.assign({higher_level: elements, higher_level_index: index}, elem);
+    /* Defaults LAST so the level we were handed always wins. I could not construct a path
+       where `elem` already carries higher_level (pick short-circuits such elements to
+       level_up before reaching here, and the recovery passes the drilled element, not the
+       stub) — this is correct-by-construction hygiene, not a fix for an observed bug. */
+    var parent = Object.assign({}, elem, {higher_level: elements, higher_level_index: index});
     if(elem.reload_children) {
       elem.children = elem.reload_children();
+    }
+    /* Normalise before the checks below: a group with no `children` at all reached
+       `elem.children.concat(...)` and threw. */
+    if(!elem.children) { elem.children = []; }
+    /* A group whose children have ALL gone (a word-prediction lookup that came back
+       empty, a menu that closed) has nothing left to scan, and building a level that
+       holds only the level-up stub strands the user on an empty box.
+
+       This used to self-heal by accident: such a container had usually left the DOM as
+       well, so next_element's recovery (`!document.body.contains(elem.dom[0]) ||
+       zero-box`) levelled up for us. A container that stays in the LAYOUT while empty —
+       which the word-prediction rail now deliberately does, to hold the board's width —
+       is attached and has a non-zero box, so that recovery never fires. Go back up here
+       instead.
+
+       Scope, stated precisely rather than as "strictly better": the RECOVERY path already
+       handled the empty case (it reaches the `elements.length == 1 && higher_level` check
+       below and levels up), so the behaviour that actually changes is the `pick` path, where
+       the old code left the user on a level holding only its own level-up stub.
+
+       `.length` on higher_level: an empty array is truthy, and level_up would then set
+       scanner.elements = [] and next_element would dereference elements[0].dom and die. Both
+       real call sites pass a non-empty level, so this is defensive, not a rescue of an
+       observed crash.
+
+       Returns true so next_element's recovery can tell we already levelled up and skip its
+       own `elements.length == 1` level-up. That check is not currently reachable after this
+       branch (this function no longer produces single-stub levels), so the signal is
+       belt-and-braces against a future path that does. */
+    if(elem.children.length === 0 && parent.higher_level && parent.higher_level.length) {
+      scanner.level_up(parent, true);
+      return true;
     }
     scanner.elements = elem.children.concat([parent]);
     scanner.elements.reload = elem.children.reload
@@ -1065,6 +1223,7 @@ var scanner = EmberObject.extend({
     });
   },
   next: function(reverse) {
+    if(!scanner.scanning) { return; }   // see pick() above
     var auto = false;
     if(reverse == 'auto') {
       auto = true;
@@ -1154,7 +1313,11 @@ var scanner = EmberObject.extend({
       var last = this.elements[this.elements.length - 1];
       if(last && last.higher_level) {
         if(last.reload_children) {
-          scanner.load_children(last.higher_level[last.higher_level_index], last.higher_level, last.higher_level_index);
+          /* If load_children levelled up on its own (children came back empty) we are already
+             at the right level — running the single-stub check below would level up again. */
+          if(scanner.load_children(last.higher_level[last.higher_level_index], last.higher_level, last.higher_level_index) === true) {
+            return;
+          }
         } else {
           // if load_children won't work, at least clear empties
           var items = [];

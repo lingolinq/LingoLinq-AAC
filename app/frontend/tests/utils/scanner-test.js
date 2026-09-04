@@ -119,6 +119,15 @@ describe('scanner', function() {
   });
 
   afterEach(function() {
+    /* restoreStubs FIRST. Five tests in this file stub `scanner.stop`, and the hook calls
+       scanner.stop() below — so with restore last, those tests silently skipped the real
+       teardown entirely (runCancel(scanner.interval), modal.close_highlight(), the
+       .highlight/.scanning_highlight DOM sweep, scan_axes('clear')). That is the async-leak
+       shape CLAUDE.md rule 10 documents. Restoring first also stops the old trailing
+       restoreStubs() from writing back over the resets below it. Note restoreStubs is GLOBAL
+       (one module-level stash), so do not copy this ordering into a file whose afterEach does
+       more work before its own cleanup. */
+    restoreStubs();
     scanner.stop();
     scanner.last_options = null;
     scanner.current_element = null;
@@ -129,7 +138,6 @@ describe('scanner', function() {
     modal.highlight2_settings = null;
     modal.highlight_controller = null;
     modal.highlight2_controller = null;
-    restoreStubs();
   });
 
   describe("setup", function() {
@@ -1017,6 +1025,7 @@ describe('scanner', function() {
       scanner.current_element = {
         dom: { hasClass: function() { return false; } }
       };
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(called).toEqual(true);
     });
@@ -1026,6 +1035,7 @@ describe('scanner', function() {
       stub(modal, 'highlight_contoller', null);
       var tracked = false;
       stub(buttonTracker, 'track_selection', function() { tracked = true; });
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(tracked).toEqual(false);
     });
@@ -1051,6 +1061,7 @@ describe('scanner', function() {
         });
       });
       stub(scanner, 'load_children', function() { });
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(dispatched.length).toBeGreaterThan(0);
       expect(dispatched[0].pass_through).toEqual(true);
@@ -1070,6 +1081,7 @@ describe('scanner', function() {
       stub(scanner, 'next_element', function() {
         nexted = true;
       });
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       waitsFor(function() { return nexted; });
       runs(function() {
@@ -1090,6 +1102,7 @@ describe('scanner', function() {
           hasClass: function(str) { return false; }
         }
       };
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(children_load).toEqual(scanner.current_element);
     });
@@ -1132,6 +1145,7 @@ describe('scanner', function() {
           attr: function() { return 'button_id'; }
         }
       };
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(picked_button).toNotEqual(null);
     });
@@ -1150,6 +1164,7 @@ describe('scanner', function() {
           hasClass: function(str) { return str === 'integration_target'; }
         }
       };
+      scanner.scanning = true;   // asserts RUNNING-scanner behaviour
       scanner.pick();
       expect(evented).toEqual(true);
     });
@@ -1169,6 +1184,7 @@ describe('scanner', function() {
         scanner.elements = [{}, {}];
         scanner.interval = runLater(function() {}, 10000);
         stub(scanner, 'next_element', function() { });
+        scanner.scanning = true;   // asserts RUNNING-scanner behaviour
         scanner.next();
         expect(scanner.interval).toEqual(null);
       });
@@ -1179,8 +1195,10 @@ describe('scanner', function() {
         scanner.elements = [{}, {}];
         scanner.element_index = 0;
         stub(scanner, 'next_element', function() { });
+        scanner.scanning = true;   // asserts RUNNING-scanner behaviour
         scanner.next();
         expect(scanner.element_index).toEqual(1);
+        scanner.scanning = true;   // asserts RUNNING-scanner behaviour
         scanner.next();
         expect(scanner.element_index).toEqual(0);
       });
@@ -1478,6 +1496,277 @@ describe('scanner', function() {
       scanner.listen_for_input();
       expect(inputShim.selected).toEqual(undefined);
       expect(inputShim.focused).toEqual(undefined);
+    });
+  });
+
+  describe('escape', function() {
+    /* escape() had NO test before this. It decides, on a switch user's cancel press, between
+       "go back a level" and "quit scanning entirely" — and quitting costs them the highlight
+       and usually a caregiver's help to restart, so the distinction is not cosmetic. */
+    it('levels up out of a recognised drill-in level', function() {
+      var levelled = null, stopped = false;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+      stub(scanner, 'stop', function() { stopped = true; });
+
+      var top = [{ label: 'row 1' }, { label: 'row 2' }];
+      var stubElem = {
+        label: 'the prediction rail', higher_level: top, higher_level_index: 1,
+        dom: { hasClass: function(c) { return c === 'md-board-detail-prediction-rail'; } }
+      };
+      scanner.elements = [{ label: 'child' }, stubElem];
+      scanner.scanning = true;   // this test asserts RUNNING-scanner behaviour
+
+      scanner.escape();
+      expect(levelled).toBe(stubElem);
+      expect(stopped).toBe(false);
+    });
+
+    it('does not resurrect a scanner that was STOPPED behind a modal', function() {
+      /* H2. stop() (scanner.js:595-608) nulls interval/scanning/current_element but LEAVES
+         scanner.elements, element_index and options. Every non-scannable modal calls it
+         (services/modal.js:115, utils/modal.js:126/188). The switch surface gates on the
+         `scanning_enabled` PREFERENCE, not on scanner.scanning (raw_events.js ~675), so a
+         cancel press still reaches escape() with scanning already false — and levelling up
+         from there re-highlights and re-arms the auto-select timer underneath the open
+         modal, which for a scanning_auto_select user activates a button they cannot see.
+
+         This branch widened the exposure: staging allow-listed one class, HEAD added
+         md-board-detail-prediction-rail as a second (scanner.js:774).
+
+         Calls the REAL stop() rather than stubbing it, because stop() is what sets
+         scanning=false — the mechanism under test supplies its own precondition, which makes
+         this a mechanism test rather than a description test. */
+      var levelled = null;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+
+      var top = [{ label: 'row 1' }, { label: 'row 2' }];
+      var stubElem = {
+        label: 'the prediction rail', higher_level: top, higher_level_index: 1,
+        dom: { hasClass: function(c) { return c === 'md-board-detail-prediction-rail'; } }
+      };
+      scanner.elements = [{ label: 'child' }, stubElem];
+      scanner.scanning = true;   // a RUNNING scanner, drilled into the rail
+      /* Guard: prove this level IS one escape would otherwise level up out of, so the
+         assertion below cannot pass merely because the fixture was unrecognised. The
+         beforeEach leaves scanning false, so without the line above this guard would fail
+         under the very fix it is written for — and the test would silently be selecting a
+         different fix. */
+      scanner.escape();
+      expect(levelled).toBe(stubElem);
+
+      levelled = null;
+      scanner.elements = [{ label: 'child' }, stubElem];
+      scanner.stop();            // a modal opened
+      scanner.escape();          // the user presses cancel to dismiss it
+      expect(levelled).toBe(null);
+    });
+
+    it('STOPS from an unrecognised level — the guaranteed exit switch users depend on', function() {
+      /* Generalising escape to "any level with a higher_level" was tried and reverted. It
+         removed this guarantee: level_up puts the highlight back on the row just escaped and
+         next_element re-arms auto-select, so an auto-select user had to press twice inside one
+         scan interval to stop — exactly what a long interval exists to avoid. It also revived a
+         STOPPED scanner behind an open modal, because stop() does not clear scanner.elements.
+         This test locks the exit in place; changing it is a deliberate product decision that
+         needs a scanning-state guard and auto-select suppression first. */
+      var levelled = null, stopped = false;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+      stub(scanner, 'stop', function() { stopped = true; });
+
+      var top = [{ label: 'row 1' }, { label: 'row 2' }];
+      var stubElem = { label: 'a board row', higher_level: top, higher_level_index: 1, dom: {} };
+      scanner.elements = [{ label: 'child' }, stubElem];
+
+      scanner.escape();
+      expect(levelled).toBe(null);
+      expect(stopped).toBe(true);
+    });
+
+    it('stops when there is nowhere to go back to', function() {
+      var levelled = null, stopped = false;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+      stub(scanner, 'stop', function() { stopped = true; });
+
+      /* The trailing stub carries a VALID, allow-listed dom and a running scanner, so the
+         only thing standing between it and level_up is the absent `higher_level`. The
+         previous fixture ({label} only) failed the guard for two independent reasons at once
+         — no higher_level AND no dom — so no single-conjunct mutation could redden it, and a
+         test named for the higher_level term covered it not at all. */
+      scanner.elements = [{ label: 'row 1' }, {
+        label: 'a level with nowhere above it',
+        dom: { hasClass: function(c) { return c === 'md-board-detail-sentence-row'; } }
+      }];
+      scanner.scanning = true;
+      scanner.escape();
+      expect(levelled).toBe(null);
+      expect(stopped).toBe(true);
+    });
+
+    it('stops rather than levelling up into an EMPTY parent level', function() {
+      /* higher_level: [] is truthy. Levelling into it sets scanner.elements = [] and
+         next_element then dereferences elements[0].dom and dies with no recovery. */
+      var levelled = null, stopped = false;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+      stub(scanner, 'stop', function() { stopped = true; });
+
+      scanner.elements = [{ label: 'child' }, {
+        higher_level: [], higher_level_index: 0,
+        dom: { hasClass: function(c) { return c === 'md-board-detail-prediction-rail'; } }
+      }];
+      scanner.escape();
+      expect(levelled).toBe(null);
+      expect(stopped).toBe(true);
+    });
+  });
+
+  describe('prediction rail scan row', function() {
+    /* The rail row had NO headless coverage: deleting the whole block from start() left the suite
+       green, because scannerFindElemStub returns domStub(0) for selectors it does not know. If it
+       regressed, a scanning user could not reach any prediction in the DEFAULT placement — the bug
+       this branch exists to fix.
+
+       A delegating wrapper rather than teaching the SHARED helper the selector: doing that makes
+       14 existing tests fail, because every simple_header() test asserts an exact rows.length and
+       positional rows[n], and the rail row is pushed before scan_content() so it shifts each index
+       by one. The wrapper also handles the per-tile find_elem(this) calls, which a plain override
+       cannot — reload_children passes the element object, which would fall through to domStub(0)
+       and yield empty labels. */
+    var railFindElem = function(tile_count) {
+      var base = scannerFindElemStub({
+        '.md-board-detail-prediction-rail:visible': domStub(1, {
+          hasClass: function(cls) { return cls === 'md-board-detail-prediction-rail'; },
+          find: function(sel) {
+            if(sel !== '.md-board-detail-sentence-bar__prediction') { return domStub(0); }
+            return domStub(tile_count, {
+              each: function(cb) {
+                for(var i = 0; i < tile_count; i++) { cb.call({prediction_index: i}); }
+              }
+            });
+          }
+        })
+      });
+      return function(str) {
+        if(str && str.prediction_index !== undefined) {
+          return domStub(1, { text: function() { return ['cream', 'crunch'][str.prediction_index]; } });
+        }
+        return base(str);
+      };
+    };
+
+    it('registers the rail as its own scan row, with its tiles as children', function() {
+      var rows = null;
+      stub(scanner, 'find_elem', railFindElem(2));
+      stubScannerModalClosed();
+      stub(scanner, 'scan_content', function() { return { rows: 0, columns: 0, order: [[]] }; });
+      stub(scanner, 'scan_elements', function(r) { rows = r; });
+
+      scanner.start({});
+
+      var rail = (rows || []).filter(function(r) {
+        return r.dom && r.dom.hasClass && r.dom.hasClass('md-board-detail-prediction-rail');
+      })[0];
+      expect(!!rail).toEqual(true);
+      expect(rail.children.length).toEqual(2);
+      expect(rail.children[0].label).toEqual('cream');
+    });
+
+    it('does NOT register the row when the rail has no tiles', function() {
+      /* The children.length guard is what stops the scan loop parking a user on an empty
+         "Suggestions" row. The simple_header tests cannot reach it — they fail the outer
+         `if` with length 0 — so it needs its own case. */
+      var rows = null;
+      stub(scanner, 'find_elem', railFindElem(0));
+      stubScannerModalClosed();
+      stub(scanner, 'scan_content', function() { return { rows: 0, columns: 0, order: [[]] }; });
+      stub(scanner, 'scan_elements', function(r) { rows = r; });
+
+      scanner.start({});
+      /* Assert by CLASS, not by a row count. The count was load-bearing on stub internals: with
+         content.rows === 0, start() collapses rows to the header row's children, so the `1` was
+         actually the #identity menu — adding a second header child flipped it to 3 with production
+         code untouched. */
+      var railRows = (rows || []).filter(function(r) {
+        return r.dom && r.dom.hasClass && r.dom.hasClass('md-board-detail-prediction-rail');
+      });
+      expect(railRows.length).toEqual(0);
+    });
+  });
+
+  describe('load_children', function() {
+    /* load_children is stubbed out in every other test in this file, so its body was never
+       executed by the suite. */
+    it('levels back up when the reloaded children are all gone', function() {
+      var levelled = null;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+
+      var top = [{ label: 'row 1' }, { label: 'row 2' }];
+      var group = { label: 'predictions', children: [{ label: 'old' }], reload_children: function() { return []; } };
+      var result = scanner.load_children(group, top, 1);
+
+      /* Before this, an emptied group produced a level holding only its own level-up stub —
+         the user cycled an empty box. It self-healed only when the container ALSO left the
+         DOM, which a container kept mounted to hold layout width never does. */
+      expect(!!levelled).toBe(true);
+      expect(levelled.higher_level).toBe(top);
+      expect(levelled.higher_level_index).toBe(1);
+      expect(result).toBe(true);
+    });
+
+    it('builds the child level normally when children remain', function() {
+      var levelled = null;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+
+      var top = [{ label: 'row 1' }];
+      var group = { label: 'predictions', reload_children: function() { return [{ label: 'a' }, { label: 'b' }]; } };
+      scanner.load_children(group, top, 0);
+
+      expect(levelled).toBe(null);
+      expect(scanner.elements.length).toBe(3); // two children plus the level-up stub
+      expect(scanner.elements[2].higher_level).toBe(top);
+    });
+
+    it('ADVANCES past a group whose children are all gone, instead of re-entering it', function() {
+      /* Deliberately does NOT stub level_up. The sibling test above stubs it, so it passes
+         identically with and without this behaviour and is not coverage for it.
+
+         Without the advance, `pick('auto')` on an emptied group levels up to the SAME index,
+         re-highlights the row that just failed to open, and auto-select picks it again — one
+         iteration per scan interval, for ever. A switch user never reaches the board. */
+      stub(scanner, 'next_element', function() { });
+      var rows = [{ label: 'header' }, { label: 'suggestions' }, { label: 'row 1' }];
+      var group = { label: 'suggestions', children: [{ label: 'old' }], reload_children: function() { return []; } };
+      scanner.element_index = 1;
+
+      scanner.load_children(group, rows, 1);
+      expect(scanner.elements).toBe(rows);
+      expect(scanner.element_index).toBe(2);   // NOT 1 — 1 is the closed loop
+    });
+
+    it('wraps to the first row when the dead level was the last one', function() {
+      stub(scanner, 'next_element', function() { });
+      var rows = [{ label: 'header' }, { label: 'suggestions' }];
+      var group = { label: 'suggestions', children: [], reload_children: function() { return []; } };
+
+      scanner.load_children(group, rows, 1);
+      expect(scanner.element_index).toBe(0);
+    });
+
+    it('pins higher_level to the level it was PASSED, not one the element already carried', function() {
+      /* Object.assign defaults must come last: with the element last, a stub fed back in
+         would override the level we were given and level up to the wrong place. */
+      var levelled = null;
+      stub(scanner, 'level_up', function(elem) { levelled = elem; });
+
+      var real = [{ label: 'real row' }];
+      var stale = [{ label: 'stale row' }];
+      var group = {
+        label: 'predictions', higher_level: stale, higher_level_index: 99,
+        reload_children: function() { return []; }
+      };
+      scanner.load_children(group, real, 0);
+
+      expect(levelled.higher_level).toBe(real);
+      expect(levelled.higher_level_index).toBe(0);
     });
   });
 

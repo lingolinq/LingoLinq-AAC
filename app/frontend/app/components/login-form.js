@@ -40,6 +40,7 @@ export default Component.extend({
     var googleError = params.get('google_error');
     var googlePopout = params.get('google_popout');
     var coppaRevoked = params.get('coppa_revoked');
+    var coppaDeclined = params.get('coppa_declined');
     if(!googleLink) {
       try { googleLink = sessionStorage.getItem('google_link_nonce'); } catch (e) { /* ignore */ }
     }
@@ -57,6 +58,14 @@ export default Component.extend({
       this.set('coppa_awaiting_parent', false);
       this.set('coppa_needs_parent_email', true);
       this.set('login_error', i18n.t('coppa_login_blocked_parent_consent_revoked', "A parent or guardian withdrew consent for this account. It cannot be used until consent is given again."));
+    }
+    // Google SSO finish redirects here with ?coppa_declined=1 (session_controller#google_finish_login).
+    // Mirror the password-login API error path so parents who declined see the blocked message
+    // without needing a subsequent token grant failure.
+    if(coppaDeclined && !this.get('login_error')) {
+      this.set('coppa_awaiting_parent', false);
+      this.set('coppa_needs_parent_email', false);
+      this.set('login_error', i18n.t('coppa_login_blocked_parent_consent_declined', "A parent or guardian declined consent for this account. It is scheduled for deletion and cannot be used."));
     }
     var coppaParentEmail = params.get('coppa_parent_email');
     if(coppaParentEmail && !this.get('login_error')) {
@@ -1200,6 +1209,10 @@ export default Component.extend({
             _this.set('coppa_awaiting_parent', false);
             _this.set('coppa_needs_parent_email', true);
             _this.set('login_error', i18n.t('coppa_login_blocked_parent_consent_revoked', "A parent or guardian withdrew consent for this account. It cannot be used until consent is given again."));
+          } else if(err.coppa_parental_consent_declined) {
+            _this.set('coppa_awaiting_parent', false);
+            _this.set('coppa_needs_parent_email', false);
+            _this.set('login_error', i18n.t('coppa_login_blocked_parent_consent_declined', "A parent or guardian declined consent for this account. It is scheduled for deletion and cannot be used."));
           } else if(err.coppa_parent_email_required) {
             _this.set('coppa_awaiting_parent', false);
             _this.set('coppa_needs_parent_email', true);

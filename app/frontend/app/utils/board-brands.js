@@ -115,28 +115,55 @@ export function groupBoardsByBrand(boards) {
   return groups;
 }
 
-/* Drop brand-family SUB-boards (the page copies that ride along inside a copied
-   set, e.g. "CommuniKate alcohol", "CommuniKate bodyparts") while keeping the
-   brand ROOT tile and every non-brand board untouched. This is the KEY-pattern
-   classifier the speak-menu brand sections already use (board-collection.js) —
-   it works even when the records have no `copy_id`, which is exactly the case
-   `filterRootBoards` (copy_id-based) misses. A board is a brand sub-board when it
-   matches a family's `test()` (brand marker in key/name) but NOT that family's
-   `root_re` (the `<brand>-<size>` root shape). Non-brand boards always pass. */
+/* Which key `root_re` should be matched against for a given board.
+
+   NOT always the board's own key. A copy keeps the source slug only until its
+   owner renames it: the board-detail save flow auto-renames the KEY to match the
+   new display name (`controllers/user/board-detail.js#_auto_rename_board` → POST
+   `/api/v1/boards/:id/rename`). So renaming a copy of "Sequoia 15" turns
+   `<user>/sequoia-15` into `<user>/sequoia-15-changed-with-a-really-long-name`,
+   which by key SHAPE alone is indistinguishable from a genuine sub-board page
+   like `<user>/sequoia-15-animals` — and the renamed ROOT then vanished from the
+   owner's own My Boards list.
+
+   The parent's key is the stable signal: a copy of the set ROOT has
+   `parent_board_key = lingolinq/sequoia-15` (root-shaped), a copy of a page has
+   `parent_board_key = lingolinq/sequoia-15-animals` (not), and a rename never
+   touches the PARENT. Boards with no parent — originals, shallow clones, and the
+   lite serializations that omit the field — fall back to their own key, i.e. the
+   previous behavior. */
+function brandRootMatchKey(board) {
+  var parentKey = (board.get && board.get('parent_board_key')) || board.parent_board_key;
+  if (parentKey) { return parentKey; }
+  return (board.get && board.get('key')) || board.key || '';
+}
+
+/* True when a board is a brand-set ROOT tile (or not a brand board at all).
+   A board is a brand SUB-board — the page copies that ride along inside a copied
+   set, e.g. "CommuniKate alcohol", "Sequoia 15 animals" — when it matches a
+   family's `test()` (brand marker in key/name) but its `brandRootMatchKey` does
+   NOT match that family's `root_re` (the `<brand>-<size>` root shape). This is
+   the KEY-pattern classifier the speak-menu brand sections use; it works even
+   when the records have no `copy_id`, which is exactly the case `filterRootBoards`
+   (copy_id-based) misses. Non-brand boards always pass. */
+export function isBrandSetRoot(board) {
+  if (!board) { return false; }
+  var key = brandRootMatchKey(board);
+  for (var i = 0; i < BRAND_FAMILIES.length; i++) {
+    var fam = BRAND_FAMILIES[i];
+    if (fam.test(board)) {
+      // Brand board: keep only the root; drop the descriptive-suffix sub-boards.
+      return fam.root_re ? fam.root_re.test(key) : true;
+    }
+  }
+  return true; // not a known brand — leave it alone
+}
+
+/* Drop brand-family SUB-boards while keeping the brand ROOT tile and every
+   non-brand board untouched. */
 export function filterBrandRoots(boards) {
   if (!boards || !boards.filter) { return boards || []; }
-  return boards.filter(function(b) {
-    if (!b) { return false; }
-    var key = (b.get && b.get('key')) || b.key || '';
-    for (var i = 0; i < BRAND_FAMILIES.length; i++) {
-      var fam = BRAND_FAMILIES[i];
-      if (fam.test(b)) {
-        // Brand board: keep only the root; drop the descriptive-suffix sub-boards.
-        return fam.root_re ? fam.root_re.test(key) : true;
-      }
-    }
-    return true; // not a known brand — leave it alone
-  });
+  return boards.filter(isBrandSetRoot);
 }
 
 export default BRAND_FAMILIES;

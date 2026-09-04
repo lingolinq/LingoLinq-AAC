@@ -10,6 +10,7 @@ import persistence from '../../utils/persistence';
 import capabilities from '../../utils/capabilities';
 import boardDetailCache from '../../utils/board_detail_cache';
 import boardCacheDiag from '../../utils/board_cache_diag';
+import { available_board_langs, resolve_board_display_locale } from '../../utils/board_display_locale';
 
 export default Route.extend({
   store: service('store'),
@@ -132,8 +133,15 @@ export default Route.extend({
       } catch (e) { /* best-effort; serializer edge cases shouldn't block nav */ }
       boardCacheDiag.span('model:start', 'model:cache_hit', {
         board_key: board_key,
-        button_count: (cached_raw.buttons && cached_raw.buttons.length) || 0
+        button_count: (cached_raw.buttons && cached_raw.buttons.length) || 0,
+        root_only: boardDetailCache.is_root_only(board_key)
       });
+      /* Prefetch stores /tree?root_only=1. Paint from that hit, then
+         ingest the full tree so folder taps are not left cold. */
+      if (boardDetailCache.is_root_only(board_key)) {
+        boardCacheDiag.mark('model:cache_hit_root_only_warm', { board_key: board_key });
+        boardDetailCache.warm_full_tree_if_root_only(board_key);
+      }
       return RSVP.resolve(cached_record);
     }
 
@@ -149,7 +157,8 @@ export default Route.extend({
         var raw_copy = JSON.parse(JSON.stringify(boardData));
         _this.set('_raw_board_data', raw_copy);
         // force: network response is authoritative for this navigation.
-        boardDetailCache.set(raw_copy, { force: true });
+        // root_only: lite /tree and show fallback have no descendants yet.
+        boardDetailCache.set(raw_copy, { force: true, root_only: true });
         var store = _this.store;
         var normalized = store.normalize('board', boardData);
         var record = store.push(normalized);
@@ -169,28 +178,48 @@ export default Route.extend({
       var warmFullTreeInBackground = function() {
         var tree_started = Date.now();
         boardCacheDiag.mark('model:background_tree_start', { board_key: board_key });
-        persistence.ajax('/api/v1/boards/' + board_key + '/tree', { type: 'GET' }).then(function(data) {
-          boardCacheDiag.mark('model:background_tree_response', {
-            board_key: board_key,
-            ms: Date.now() - tree_started,
-            descendant_count: (data && data.descendants && data.descendants.length) || 0
-          });
-          if (!data || !data.root || !data.root.board) { return; }
-          // Root is already painted/cached; do not force-replace it or
-          // re-warm its images. Descendants still get cached + pushed.
-          boardDetailCache.ingest_tree(data, null, {
-            force: false,
-            warm_root_images: false
-          });
-          boardCacheDiag.mark('model:descendants_cached', {
-            board_key: board_key,
-            descendant_count: (data.descendants && data.descendants.length) || 0
-          });
-        }, function() {
-          boardCacheDiag.mark('model:background_tree_fail', { board_key: board_key });
+        boardDetailCache.warm_full_tree_if_root_only(board_key).then(function(result) {
+          result = result || {};
+          if (result.warmed) {
+            boardCacheDiag.mark('model:background_tree_response', {
+              board_key: board_key,
+              ms: Date.now() - tree_started,
+              descendant_count: result.descendant_count || 0
+            });
+            boardCacheDiag.mark('model:descendants_cached', {
+              board_key: board_key,
+              descendant_count: result.descendant_count || 0
+            });
+          } else {
+            boardCacheDiag.mark('model:background_tree_fail', { board_key: board_key });
+          }
         });
       };
 
+      // Both board fetches were single-shot: `/tree?root_only=1` falls back to
+      // `/boards/<key>`, and if THAT also fails the model resolves straight to the
+      // error POJO — the "This board is not currently available." page. On a login
+      // entry these fire inside a burst (findRecord('user','self') + the parent
+      // user queryRecord + this pair + prime_caches), so a single transient 5xx or
+      // dropped connection is enough to dead-end a user whose board is perfectly
+      // fine. That matches the reported symptom: intermittent, and "Go to Home
+      // Board" (which re-requests the SAME key) then works.
+      //
+      // So retry ONCE before giving up. This is deliberately NOT a guess at which
+      // transient cause fires — it closes the structural gap (no retry at all)
+      // that makes every one of them fatal.
+      //
+      // Not retried: a definitive answer from the server (404/403/401 — the board
+      // is gone or not ours, and a retry would only delay a correct error), and
+      // the offline short-circuit (persistence.ajax rejects instantly with
+      // `short_circuit` when offline; there is no request to repeat, and
+      // reload_on_connect already refreshes when connectivity returns).
+      var fallbackAttempted = false;
+      var isDefinitive = function(err) {
+        if (!err) { return false; }
+        if (err.short_circuit || err.offline) { return true; }
+        return err.status === 404 || err.status === 403 || err.status === 401;
+      };
       var fallbackSingleBoard = function() {
         boardCacheDiag.mark('model:tree_fallback_show', { board_key: board_key });
         persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
@@ -202,7 +231,22 @@ export default Route.extend({
             resolved = true;
             resolve({ error: true, boardname: params.boardname });
           }
-        }, function() {
+        }, function(err) {
+          if (!resolved && !fallbackAttempted && !isDefinitive(err)) {
+            fallbackAttempted = true;
+            boardCacheDiag.mark('model:fallback_retry', { board_key: board_key });
+            // Short pause so the retry lands after the login burst rather than
+            // adding to it. Guarded again on `resolved` because the background
+            // tree warm can resolve the model while this is pending.
+            // `setTimeout`, not `runLater`, on purpose: the callback only re-fires
+            // an ajax and touches promise-local state (no route/component
+            // mutation), so it needs none of the run-loop scheduling guarantees —
+            // and a new `runLater` here would add an `ember/no-runloop` violation
+            // beyond the file's grandfathered baseline. Same pattern as the
+            // debounced save timer in components/display-style.js.
+            setTimeout(function() { if (!resolved) { fallbackSingleBoard(); } }, 600);
+            return;
+          }
           if (!resolved) {
             resolved = true;
             resolve({ error: true, boardname: params.boardname });
@@ -304,7 +348,7 @@ export default Route.extend({
     // These are personal VIEWING preferences of whoever is using the app
     // right now, not properties of the board's author. Every toggle that
     // writes them (set_folder_style, toggle_folder_colored_face,
-    // toggle_shrink_labels_to_fit, toggle_soft_borders, toggle_hide_speak_bar,
+    // toggle_soft_borders, toggle_hide_speak_bar,
     // set_speak_menu_item_hidden) saves to `app_state.currentUser`, so the
     // read here must mirror that source. Reading from `user`
     // (modelFor('user') === the URL/board-owner) made these revert to their
@@ -327,7 +371,6 @@ export default Route.extend({
     var folder_colored_face_saved = pref_user && pref_user.get && pref_user.get('preferences.folder_colored_face');
     controller.set('folder_colored_face', folder_colored_face_saved == null ? true : !!folder_colored_face_saved);
     controller.set('folder_dropdown_open', false);
-    controller.set('shrink_labels_to_fit', !!(pref_user && pref_user.get && pref_user.get('preferences.shrink_labels_to_fit')));
     // Soft borders default to ON for every user. Only the explicit
     // saved value of `false` turns them off; an undefined / unset
     // preference (new users, existing users who never touched the
@@ -415,8 +458,9 @@ export default Route.extend({
     }
 
     // Set currentBoardState
-    var board_langs = (model.get('locales') || []);
-    var model_locale = model.get('locale') || 'en';
+    var raw_for_langs = _this.get('_raw_board_data') || {};
+    var board_langs = available_board_langs(model, raw_for_langs);
+    var model_locale = model.get('locale') || raw_for_langs.locale || 'en';
     var board_key = model.get('key') || '';
     var user_locale = _this.appState.get('currentUser.preferences.locale') ||
       _this.appState.get('sessionUser.preferences.locale');
@@ -435,26 +479,17 @@ export default Route.extend({
       translatable: board_langs.length > 1
     });
 
-    // Configure locales — honor explicit Switch Languages overrides; otherwise
-    // follow the board's default locale so translated boards speak the target language.
-    var stripped_langs = board_langs.map(function(l) { return l.split(/-|_/)[0]; });
+    // Honor Switch Languages for the whole session. An empty locales list
+    // (Flexiones, a cache hit before translations hydrate) must not drop
+    // Spanish back to the board default.
     var has_locale_override = _this.stashes.get('override_label_locale') || _this.stashes.get('override_vocalization_locale');
     ['label_locale', 'vocalization_locale'].forEach(function(loc_type) {
-      if(!has_locale_override) {
-        _this.appState.set(loc_type, keyboard_default_locale);
-      } else if(_this.stashes.get(loc_type)) {
-        var preferred = _this.stashes.get(loc_type);
-        var stripped = preferred.split(/-|_/)[0];
-        if(stripped_langs.indexOf(stripped) == -1) {
-          _this.appState.set(loc_type, keyboard_default_locale);
-        } else if(board_langs.indexOf(preferred) == -1) {
-          _this.appState.set(loc_type, stripped);
-        } else {
-          _this.appState.set(loc_type, _this.stashes.get(loc_type));
-        }
-      } else {
-        _this.appState.set(loc_type, keyboard_default_locale);
-      }
+      _this.appState.set(loc_type, resolve_board_display_locale({
+        boardDefault: keyboard_default_locale,
+        boardLangs: board_langs,
+        override: has_locale_override,
+        preferred: _this.stashes.get(loc_type) || _this.stashes.get('override_' + loc_type) || has_locale_override
+      }));
     });
 
     // Set up editManager for edit mode operations. ordered_buttons was
@@ -549,6 +584,14 @@ export default Route.extend({
 
   resetController: function(controller, isExiting) {
     if(isExiting) {
+      /* Drop the "Try this Board" marker on ANY exit from board-detail. The Back
+         control it drives is scoped to a single trial, so leaving by the sidebar,
+         the Home button, a browser Back, or anything else ends that trial just as
+         much as pressing Back does -- and a marker that survived would put a
+         stale "Back to picker" on some unrelated board later in the session.
+         Clearing it here rather than in each exit path means new exits get the
+         behaviour for free. */
+      this.appState.set('board_detail_try_origin', null);
       var board_layout = this.appState.get('board_layout_mode');
       controller.set('ordered_buttons', null);
       controller.set('active_category', 'all');

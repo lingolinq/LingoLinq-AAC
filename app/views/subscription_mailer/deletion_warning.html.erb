@@ -6,14 +6,14 @@ currently scheduled for deletion. This is your <%= @attempt == 1 ? 'first' : 'fi
 <b>If you do nothing, your <%= app_name %> account will be deleted soon</b>.
 If you would like to prevent this from happening, all you need to do
 is 
-<a href="<%= JsonApi::Json.current_host %>/login">log in to your account</a> 
+<a href="<%= JsonApi::Json.absolute_host %>/login">log in to your account</a> 
 and the deletion will be canceled. Alternately, if you would like
 to delete your account right away, you can log in, go to your profile
 page and hit "Delete My Account" to have it deleted.<br/><br/>
 
 We are grateful to you for giving <%= app_name %> a try. If we can answer
 any questions for you please feel free to 
-<a href="<%= JsonApi::Json.current_host %>/contact">contact us</a>
+<a href="<%= JsonApi::Json.absolute_host %>/contact">contact us</a>
 and we'll be happy to work with you.<br/><br/>
 
 Thanks!<br/>

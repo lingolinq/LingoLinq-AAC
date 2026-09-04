@@ -8,13 +8,35 @@
 #
 # USER_KEY tags PaperTrail changes with the operator's identity
 # (config/initializers/auditing.rb), which attributes record WRITES made during
-# the session. NOTE: the per-session / per-command AuditEvent logging this
-# wrapper is meant to feed is NOT currently operative -- the Readline hook is
-# bypassed by Reline on Ruby 3.4, and the un-keyed-console refusal never fires
-# because ARGV_COMMAND is undefined at boot. That control gap is tracked as
-# finding LL-7f7372e3eb; this platform-agnostic wrapper is a prerequisite for
-# that fix, not the whole fix. USER_KEY is still requested so write-attribution
-# works and the path is ready once the control is restored.
+# the session, and it is also what the audited-session control requires: those
+# same hooks write a session-open AuditEvent and, in production, refuse the
+# session outright when the key is absent. The control IS operative (finding
+# LL-7f7372e3eb, verified-closed 2026-08-29). The old Readline monkeypatch that
+# Reline bypassed on Ruby 3.4 was replaced by the Rails console/runner hooks,
+# which are line-editor agnostic and fire once per session.
+#
+# The guard is not specific to this wrapper. `bundle exec rails console` re-execs
+# through bin/rails (Rails::AppLoader.exec_app), which runs
+# Audit::ConsoleGuard.enforce_pre_boot! before the app boots; that refuses an
+# un-keyed console/runner in production and refuses db/dbconsole there outright.
+# This wrapper's job is to PROMPT for USER_KEY so you supply it up front instead
+# of hitting the refusal.
+#
+# SCOPE. Stated as a general rule, because enumerating the bypasses under-counts
+# them: the audit hooks are Rails.application.console and .runner, so ONLY
+# `rails console` and `rails runner` are audited. EVERY OTHER ROUTE TO THE
+# PRODUCTION DATABASE IS NOT. Non-exhaustively: bin/rake (requires config/boot
+# directly, no guard); any other bin/rails subcommand, e.g. db:migrate, which
+# ConsoleGuard.classify returns as :other so it passes enforce_pre_boot!, boots
+# fully and fires neither hook; a direct boot (ruby -r./config/environment);
+# and a non-Ruby client such as psql "$DATABASE_URL" or `gcloud sql connect`,
+# which sits outside the guard entirely and makes the `rails dbconsole` HIPAA
+# refusal largely decorative. All get database access with no AuditEvent, no
+# refusal and no attribution, in production included.
+#
+# Residual, recorded in LL-7f7372e3eb's closure evidence: USER_KEY is
+# self-asserted free text, not an authenticated principal, so the attributed
+# actor is spoofable by anyone who already has a shell on the app.
 set -e
 
 # Identity for attribution. Honor an already-exported USER_KEY (e.g. one set in

@@ -56,7 +56,11 @@
       <span class="board-icon__lang-marker-text">{{this.translated_language_label}}</span>
     </span>
   {{/if}}
-  {{#unless this.noinfo}}
+  {{!-- compactRow suppresses BOTH nested buttons: in the compact board-picker
+       row the whole card is the preview target (board-icon.js#pick_board), so a
+       Preview button inside it would be an interactive element nested in
+       another. The chevron below is the affordance instead. --}}
+  {{#unless (or this.noinfo this.compactRow)}}
     <button type="button" {{on "click" (this.ctrlActionNoBubble "board_preview" this.board_record)}} class='info' style="cursor: pointer;" aria-label={{t "Preview board" key="preview_board"}}>
       {{#if this.override_count}}
         <span class="label label-default" style='border-radius: 20px;'>
@@ -83,7 +87,7 @@
        button below. When the board has no grid metadata (rare), the
        chip falls back to icon-only and the --with-size modifier is
        not applied so it stays a circle. --}}
-  {{#unless this.noinfo}}
+  {{#unless (or this.noinfo this.compactRow)}}
     <button
       type="button"
       class='board-icon__info {{if this.board_record.grid.rows "board-icon__info--with-size"}}'
@@ -124,18 +128,25 @@
          routed through i18n to keep the no-raw-strings convention. --}}
     <div class="board-icon__credit">{{t "CC-By OpenAAC" key="cc_by_openaac"}}</div>
   {{/if}}
-  <div class={{if this.noinfo "name compact" "name"}}>
+  <div class={{if this.noinfo "name compact" "name"}} title={{this.best_name}}>
   {{this.best_name}}
   </div>
-  {{!-- Author/count line: for folder boards the count now lives
-       inside the Preview pill (PREVIEW · N boards), so the line
-       only renders for leaf boards (showing "by Username"). --}}
-  {{#unless this.children}}
+  {{#if this.compactRow}}
+    {{!-- Directional affordance for the compact row. Decorative only — the card
+         itself carries role="button" and the accessible name, so this must not
+         be announced separately. --}}
+    <span class="board-icon__row-chevron" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>
+    </span>
+  {{/if}}
+  {{!-- Owner credit — every tile (leaf and folder). Folder child
+       count lives in the Preview pill (PREVIEW · N boards). --}}
+  {{#if this.board_attribution_owner}}
     <div class='author'>
       <span class="author__label">{{t "by" key="by"}}</span>
-      <span class={{if this.long_username "author__username author__username--long" "author__username"}}>{{this.board_record.user_name}}</span>
+      <span class={{if this.long_username "author__username author__username--long" "author__username"}}>{{this.board_attribution_owner}}</span>
     </div>
-  {{/unless}}
+  {{/if}}
 </div>
 {{!-- Loading overlay — fires when EITHER the corner "i" info button
      OR the bottom-center Preview button is clicked. Uses the shared

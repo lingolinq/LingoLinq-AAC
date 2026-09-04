@@ -111,7 +111,12 @@ module Converters::Utils
   def self.remote_to_boards(user, url)
     result = []
     Progress.update_current_progress(0.1, :downloading_file)
-    response = SafeHttp.get(url)
+    # Uploads bucket blocks public access; unsigned GETs return 403 XML which
+    # rubyzip misreports as "Zip end of central directory signature not found".
+    # Same signing path as Converters::ApiJsonBundle (JSON board import).
+    fetch_url = Uploader.signed_internal_url(url).presence || url
+    response = SafeHttp.get(fetch_url)
+    raise "failed to download board file (#{response.code})" unless response.success?
     file = Tempfile.new('stash')
     file.binmode
     file.write response.body

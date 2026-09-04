@@ -501,4 +501,64 @@ module('Unit | Controller | copying-board', function(hooks) {
       modal.is_open = originalIsOpen;
     }
   });
+
+  test('skip_hierarchy_picker starts copying without loading the picker', async function(assert) {
+    assert.expect(4);
+
+    const originalCopyBoard = editManager.copy_board;
+    const originalLoadButtonSet = BoardHierarchy.load_with_button_set;
+    const originalLoadLiveLinks = BoardHierarchy.load_from_live_links;
+    let buttonsetCalled = false;
+    const selectedIds = ['root-board', 'child-board'];
+    const board = EmberObject.create({
+      id: 'root-board',
+      key: 'example/board',
+      locale: 'en',
+      linked_boards: [{ id: 'child-board', key: 'example/child' }]
+    });
+
+    BoardHierarchy.load_with_button_set = function() {
+      buttonsetCalled = true;
+      return RSVP.reject('picker should not load when skip_hierarchy_picker is set');
+    };
+    BoardHierarchy.load_from_live_links = function() {
+      buttonsetCalled = true;
+      return RSVP.reject('picker should not load when skip_hierarchy_picker is set');
+    };
+    editManager.copy_board = function() {
+      return new RSVP.Promise(function() { /* leave pending */ });
+    };
+
+    try {
+      this.owner.register('service:modal', Service.extend({
+        getSettingsFor() { return null; },
+        isOpen() { return true; },
+        close() {}
+      }));
+      this.owner.register('service:app-state', Service.extend({
+        jump_to_board() {}
+      }));
+      const component = this.owner.factoryFor('component:copying-board').create({
+        model: {
+          action: 'links_copy',
+          skip_hierarchy_picker: true,
+          board_ids_to_copy: selectedIds,
+          expand_selected_board_ids_to_copy: true,
+          board: board,
+          user: EmberObject.create({ id: 'self' }),
+          symbol_library: 'original'
+        }
+      });
+
+      assert.false(buttonsetCalled, 'does not load hierarchy when the first modal already chose boards');
+      assert.deepEqual(board.get('downstream_board_ids_to_copy'), selectedIds, 'passes the selected board ids into the copy');
+      assert.true(board.get('expand_selected_board_ids_to_copy'), 'keeps the live-links expand flag from the first modal');
+      assert.notOk(component.get('hierarchy'), 'does not show the second-screen picker');
+      component.destroy();
+    } finally {
+      editManager.copy_board = originalCopyBoard;
+      BoardHierarchy.load_with_button_set = originalLoadButtonSet;
+      BoardHierarchy.load_from_live_links = originalLoadLiveLinks;
+    }
+  });
 });

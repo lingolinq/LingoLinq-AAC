@@ -261,10 +261,8 @@ module Uploadable
       self.settings['source_url'] = url if !rasterize
       fetch_url = Uploader.sanitize_url(url) || url.to_s
       res = SafeHttp.get(fetch_url)
-      re = /^audio/
-      re = /^image/ if file_type == 'images'
-      re = /^video/ if file_type == 'videos'
-      if res.success? && res.headers['Content-Type'].match(re)
+      response_content_type = res.headers && res.headers['Content-Type']
+      if res.success? && acceptable_remote_content_type?(response_content_type, url)
         body = res.body.to_s
         if body.bytesize > SvgSanitizer::MAX_BYTES
           record_upload_rejection(url, 'too_large')
@@ -273,7 +271,7 @@ module Uploadable
         if file_type == 'images' && SvgSanitizer.looks_like_svg?(body)
           self.settings['content_type'] = 'image/svg+xml'
         else
-          self.settings['content_type'] = res.headers['Content-Type']
+          self.settings['content_type'] = stored_content_type_for_download(response_content_type, url)
         end
         file.write(body)
 
@@ -363,14 +361,49 @@ module Uploadable
     `convert -background none -density 300 -resize 400x400 -gravity center -extent 400x400 #{path} #{path}.raster.png`
   end
 
+  # Images stay on SvgSanitizer (image/* only, SVG XSS path). Audio data URIs
+  # from curated OBF/OBZ imports (e.g. jokes.obf rimshot) are data:audio/mpeg
+  # and must not go through the image decoder or upload_to_remote rejects them
+  # as invalid_data_uri and the button falls back to TTS of the label.
   def decode_data_uri_body(data_uri)
-    SvgSanitizer.decode_image_data_uri_payload(data_uri)
+    str = data_uri.to_s
+    if str.match?(/\Adata:audio\//i)
+      decode_audio_data_uri_payload(str)
+    else
+      SvgSanitizer.decode_image_data_uri_payload(str)
+    end
   end
 
-  # When S3 is unavailable, keep imported symbol-library images usable by storing
-  # the already-downloaded bytes or retaining the public CDN URL.
+  def decode_audio_data_uri_payload(data_uri)
+    str = data_uri.to_s
+    return nil unless str.match?(/\Adata:audio\//i)
+
+    payload = str.sub(/\Adata:[^,]*,/, '')
+    if str.match?(/;base64,/i)
+      Base64.strict_decode64(payload)
+    else
+      URI.decode_www_form_component(payload)
+    end
+  rescue StandardError
+    nil
+  end
+
+  # When S3 is unavailable, keep imported media usable:
+  # - images: data_uri (≤512KB) or trusted symbol CDN URL
+  # - sounds: keep the already-fetched source URL playable (no DB data_uri —
+  #   audio blobs are often large; signed source URLs may expire later)
   def store_downloaded_file_fallback!(file, source_url)
-    # Only images can be stored as data_uri or trusted CDN URLs; sounds/videos need S3.
+    if file_type == 'sounds'
+      kept = encode_source_url_for_fetch(source_url)
+      return false if kept.blank? || !kept.match?(%r{\Ahttps?://}i)
+
+      self.url = kept
+      self.settings['pending'] = false
+      self.settings['pending_url'] = nil
+      self.settings['errored_pending_url'] = nil
+      return true
+    end
+
     return false unless file_type == 'images'
 
     file.rewind
@@ -397,6 +430,50 @@ module Uploadable
     self.settings['pending_url'] = nil
     self.settings['errored_pending_url'] = nil
     true
+  end
+
+  # S3/CloudFront often serves mp3/wav as application/octet-stream. Accept those
+  # for sounds when the URL extension or declared content_type is clearly audio.
+  def acceptable_remote_content_type?(content_type, source_url)
+    ct = content_type.to_s
+    case file_type
+    when 'images'
+      ct.match?(/\Aimage\b/i)
+    when 'videos'
+      ct.match?(/\Avideo\b/i)
+    when 'sounds'
+      return true if ct.match?(/\Aaudio\b/i)
+      return false unless ct.match?(%r{\A(application|binary)/octet-stream\b}i)
+
+      declared = (settings && settings['content_type']).to_s
+      return true if declared.match?(/\Aaudio\b/i)
+      source_url.to_s.match?(/\.(mp3|wav|ogg|m4a|aac|webm)(?:\?|#|$)/i)
+    else
+      ct.present?
+    end
+  end
+
+  def stored_content_type_for_download(response_content_type, source_url)
+    ct = response_content_type.to_s
+    return ct if file_type != 'sounds'
+    return ct if ct.match?(/\Aaudio\b/i)
+
+    declared = (settings && settings['content_type']).to_s
+    return declared if declared.match?(/\Aaudio\b/i)
+
+    inferred_audio_content_type(source_url) || 'audio/mpeg'
+  end
+
+  def inferred_audio_content_type(source_url)
+    case source_url.to_s
+    when /\.wav(?:\?|#|$)/i then 'audio/wav'
+    when /\.ogg(?:\?|#|$)/i then 'audio/ogg'
+    when /\.m4a(?:\?|#|$)/i then 'audio/mp4'
+    when /\.aac(?:\?|#|$)/i then 'audio/aac'
+    when /\.webm(?:\?|#|$)/i then 'audio/webm'
+    when /\.mp3(?:\?|#|$)/i then 'audio/mpeg'
+    else nil
+    end
   end
 
   def importable_symbol_cdn_url?(url)

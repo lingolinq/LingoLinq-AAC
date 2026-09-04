@@ -1,0 +1,4 @@
+<span class="md-board-collection__item-name">{{@name}}</span>
+{{#if (board-attribution-owner @board)}}
+  <span class="md-board-collection__item-owner">{{t "by" key="by"}} {{board-attribution-owner @board}}</span>
+{{/if}}

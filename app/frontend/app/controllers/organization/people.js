@@ -279,17 +279,25 @@ export default Controller.extend({
           LingoLinq.store.findRecord('user', user_name).then(function(user) {
             user.reload().then(function(user) {
               var opts = {};
-              if(user.get('permissions.edit')) {
-                opts = {
-                  timeout: 15000,
-                  action: {
-                    text: i18n.t('run_setup', "Run Setup Wizard"),
-                    callback: function() {
-                      _this.router.transitionTo('setup', {queryParams: {user_id: user.get('id')}});
-                    }
-                  }
-                };
-              }
+              // COMMENTED OUT 2026-08-15 — the "Run Setup Wizard" action on this
+              // toast was one of the last UI entry points into the retired
+              // onboarding wizard, and routes/setup.js now guards the route, so
+              // the button would bounce straight back to the manager's home page.
+              // Kept rather than deleted because the toast's `opts.action` shape
+              // (timeout + action{text, callback}) is the only example of a
+              // modal.success action button in this controller — useful if a
+              // replacement follow-up action is wanted here later.
+              // if(user.get('permissions.edit')) {
+              //   opts = {
+              //     timeout: 15000,
+              //     action: {
+              //       text: i18n.t('run_setup', "Run Setup Wizard"),
+              //       callback: function() {
+              //         _this.router.transitionTo('setup', {queryParams: {user_id: user.get('id')}});
+              //       }
+              //     }
+              //   };
+              // }
               modal.success(i18n.t('user_added', "User \"%{un}\" added!", {un: user_name}), false, false, opts);
             });
           });

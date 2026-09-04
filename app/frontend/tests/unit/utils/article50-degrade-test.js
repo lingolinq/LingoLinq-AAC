@@ -19,10 +19,20 @@ function makeUser(attrs) {
   var data = Object.assign({
     preferences: {},
     article_50_disclosure_required: false,
-    article_50_disclosure_shown: false
+    article_50_disclosure_shown: false,
+    feature_flags: { article_50_disclosure: false }
   }, attrs || {});
   return {
     get: function(key) {
+      if(key.indexOf('.') !== -1) {
+        var parts = key.split('.');
+        var val = data;
+        for(var i = 0; i < parts.length; i++) {
+          if(val == null) { return null; }
+          val = val[parts[i]];
+        }
+        return val;
+      }
       return data[key];
     }
   };
@@ -46,6 +56,37 @@ function makeAppState(opts) {
   };
 }
 
+/* SPEAK MODE, supporter modeling for a communicator: app-state#set_current_user
+   has repointed currentUser at speakModeUser (the communicator) while
+   sessionUser is still the authenticated supporter.
+
+   Word prediction is the highest-traffic surface the Article 50 subject change
+   touches, and it is the one place where the two gates in is_enabled()
+   deliberately resolve to DIFFERENT people:
+     - article50_gate#needsAcknowledgement -> the SUPPORTER (art50Subject), the
+       operator the server's backstop also judges;
+     - ai_feature_gate#aiFeatureEnabled    -> the COMMUNICATOR (currentUser),
+       the data subject whose preferences and opt-outs govern whether their data
+       may be processed by AI at all.
+   These fixtures let one scenario assert both halves at once. */
+function makeSpeakModeAppState(opts) {
+  opts = opts || {};
+  var flags = Object.assign({
+    ai_word_prediction: true,
+    article_50_disclosure: true
+  }, opts.flags || {});
+  return {
+    get: function(key) {
+      if(key.indexOf('feature_flags.') === 0) {
+        return flags[key.slice('feature_flags.'.length)];
+      }
+      if(key === 'sessionUser') { return opts.sessionUser; }
+      if(key === 'currentUser') { return opts.currentUser; }
+      return null;
+    }
+  };
+}
+
 module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
   hooks.afterEach(function() {
     ai_word_predictor.clear_cache();
@@ -57,6 +98,7 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
       user: makeUser({
         article_50_disclosure_required: true,
         article_50_disclosure_shown: false,
+        feature_flags: { article_50_disclosure: true },
         preferences: { ai_features_enabled: true, ai_word_prediction: true }
       })
     });
@@ -80,7 +122,11 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
   test('acknowledgement (shown true) re-enables prediction automatically, since is_enabled is evaluated per call', function(assert) {
     var appState = makeAppState({
       flags: { ai_word_prediction: true, article_50_disclosure: true },
-      user: makeUser({ article_50_disclosure_required: true, article_50_disclosure_shown: true })
+      user: makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: true,
+        feature_flags: { article_50_disclosure: true }
+      })
     });
     assert.true(ai_word_predictor.is_enabled(appState));
   });
@@ -93,7 +139,11 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
 
     var appState = makeAppState({
       flags: { ai_word_prediction: true, article_50_disclosure: true },
-      user: makeUser({ article_50_disclosure_required: true, article_50_disclosure_shown: false })
+      user: makeUser({
+        article_50_disclosure_required: true,
+        article_50_disclosure_shown: false,
+        feature_flags: { article_50_disclosure: true }
+      })
     });
 
     ai_word_predictor.predict('hello there', { appState: appState, immediate: true }).then(function(words) {
@@ -105,6 +155,74 @@ module('Unit | Utility | ai_word_predictor article50 degrade', function(hooks) {
       $.ajax = originalAjax;
       assert.ok(false, 'predict() should not reject in the degraded case');
       done();
+    });
+  });
+
+  /* The Article 50 subject change is largest here: word prediction runs
+     constantly in speak mode, so this is where a wrong subject silently
+     enables or disables an AI feature for real sessions. */
+  module('speak mode: supporter modeling for a communicator', function() {
+    var enabledPrefs = { ai_features_enabled: true, ai_word_prediction: true };
+
+    test('degrades on the SUPPORTER who has not acknowledged, even though the communicator has', function(assert) {
+      var appState = makeSpeakModeAppState({
+        sessionUser: makeUser({
+          article_50_disclosure_required: true,
+          article_50_disclosure_shown: false,
+          feature_flags: { article_50_disclosure: true },
+          preferences: enabledPrefs
+        }),
+        currentUser: makeUser({
+          article_50_disclosure_required: true,
+          article_50_disclosure_shown: true,
+          feature_flags: { article_50_disclosure: true },
+          preferences: enabledPrefs
+        })
+      });
+      assert.false(ai_word_predictor.is_enabled(appState),
+        'the server refuses the supporter, so predicting here would only burn a request on a guaranteed 403');
+    });
+
+    test('does NOT degrade on a supporter who HAS acknowledged, even though the communicator has not', function(assert) {
+      var appState = makeSpeakModeAppState({
+        sessionUser: makeUser({
+          article_50_disclosure_required: true,
+          article_50_disclosure_shown: true,
+          feature_flags: { article_50_disclosure: true },
+          preferences: enabledPrefs
+        }),
+        currentUser: makeUser({
+          article_50_disclosure_required: true,
+          article_50_disclosure_shown: false,
+          feature_flags: { article_50_disclosure: true },
+          preferences: enabledPrefs
+        })
+      });
+      assert.true(ai_word_predictor.is_enabled(appState),
+        'Article 50(1) informs the operator, and the supporter has been informed');
+    });
+
+    /* The two gates must keep resolving to DIFFERENT people. If a future change
+       "tidies" ai_feature_gate onto art50Subject, this test fails: the
+       communicator's AI opt-out would stop being honored while a supporter
+       drives their session. */
+    test('the communicator preference opt-out still wins even when the supporter is fully acknowledged', function(assert) {
+      var appState = makeSpeakModeAppState({
+        sessionUser: makeUser({
+          article_50_disclosure_required: true,
+          article_50_disclosure_shown: true,
+          feature_flags: { article_50_disclosure: true },
+          preferences: enabledPrefs
+        }),
+        currentUser: makeUser({
+          article_50_disclosure_required: true,
+          article_50_disclosure_shown: true,
+          feature_flags: { article_50_disclosure: true },
+          preferences: { ai_features_enabled: false, ai_word_prediction: false }
+        })
+      });
+      assert.false(ai_word_predictor.is_enabled(appState),
+        'the data subject governs whether their data may be processed, regardless of who is operating');
     });
   });
 });

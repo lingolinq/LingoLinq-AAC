@@ -3,16 +3,20 @@
 > Generated from `audit-reports/FINDINGS.json` by `scripts/citation-check.rb --render`.
 > Do not hand-edit; edit the JSON (the source of truth) and re-render.
 
-**Audited:** `traci/styling/styling-updates` @ `8708d1a9e59d21f13a45a746461aa67273c32a0b` on 2026-07-22  
+**Audited:** `staging` @ `b5fd83fd22da7fe6ad1634ccfd62d7f44c55f00a` on 2026-07-29  
 **Seed:**   
-**Headline (open + remediated-unverified):** 0 Critical / 0 High
+**Headline (open + remediated-unverified):** 0 Critical / 1 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (4)
+## Open (8)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
+| LL-bd7745db40 |  | high |  | untriaged | audit-run | Button Settings lost the per-button "Show only text (as large as fits)" checkbox in the Ember 5.12 tab-template consolidation; model.text_only is still persisted server-side but no longer settable from any UI | `app/frontend/app/components/button-settings.hbs`:292 |
+| LL-64cd8cc85a |  | medium |  | untriaged | audit-run | Button Settings lost all three TarHeel book option checkboxes (book.popup / book.speech / book.utterance) in the Ember 5.12 consolidation, leaving a live bookChanged observer syncing a model no UI can edit | `app/frontend/app/components/button-settings.js`:347 |
+| LL-7a992d1782 |  | medium |  | untriaged | audit-run | Button Settings lost the per-button skin-tone control (model.no_skin) in the Ember 5.12 consolidation; the property is now only ever set automatically when copying a button, never by an author | `app/frontend/app/utils/edit_manager.js`:2197 |
+| LL-02e3d2c875 |  | medium |  | untriaged | audit-run | Button Settings lost the 'Require menu action to return from linked board' checkbox (model.meta_home) in the Ember 5.12 consolidation; it can now only be inherited on copy, never set | `app/frontend/app/utils/edit_manager.js`:2257 |
 | LL-ae11e67651 |  | low |  | untriaged | audit-run | Router-class on('didTransition') GA pageview handler never fires in Ember 5.12 | `app/frontend/app/router.js`:36 |
 | LL-fadeb0e5fc |  | low |  | untriaged | audit-run | @babel/core peer and directly-referenced @babel transform plugins undeclared in package.json (satisfied only by hoisting) | `app/frontend/ember-cli-build.js`:8 |
 | LL-44aae2db6b |  | low |  | untriaged | audit-run | No deprecation surfacing (ember-cli-deprecation-workflow / RAISE_ON_DEPRECATION) despite EXTEND_PROTOTYPES:false and 6.0 trajectory | `app/frontend/config/environment.js`:14 |
@@ -37,4 +41,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_16 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_20 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
