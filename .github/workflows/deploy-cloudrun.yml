@@ -1236,27 +1236,40 @@ jobs:
           # BEDROCK_EXPECTED_AWS_ACCOUNT is pinned in every environment. The FIVE values below
           # left this file for GitHub environment variables, where the only gate is non-blank:
           # a wrong-but-well-formed bucket, CDN origin or Sentry label would pass every check and
-          # nobody reviewing a PR can see them. Pin PRODUCTION's by literal here, so the readback
-          # that already runs proves what actually landed on the revision. Not circular: these
-          # EREs live in the repo and are reviewed; the variables are not.
+          # nobody reviewing a PR can see them. Assert PRODUCTION's here, so the readback that
+          # already runs proves what actually landed on the revision. Not circular: these
+          # assertions live in the repo and are reviewed; the variables are not.
+          # Four are pinned to an exact ERE. REMOTE_EXTRA_DATA is asserted present-and-non-empty
+          # instead, because that is precisely what the app tests -- pinning a value there would
+          # be stricter than the runtime and would fail a working deploy. Match the assertion to
+          # the semantics of the consumer, not to the tidiest-looking regex.
           #
           # COUNT THIS LIST AGAINST THE HEADER AT THE TOP OF THIS FILE. It names five moved
           # values: two buckets, the CDN, the Sentry env, and REMOTE_EXTRA_DATA. A previous
           # revision of this block pinned four and omitted REMOTE_EXTRA_DATA -- the one with a
-          # production incident behind it (see :397 and :644; its absence zeroed 1754 of 2061
-          # button sets in PR #724). The pre-deploy check at :649 proves the VARIABLE is
-          # non-blank; only this readback proves the env var LANDED on the revision. Adding a
-          # sixth moved value without a line here reopens exactly that gap.
+          # production incident behind it (its absence zeroed 1754 of 2061 button sets in
+          # PR #724). The "Assemble runtime env vars" step proves the VARIABLE is non-blank;
+          # only this readback proves the env var LANDED on the revision. Adding a sixth moved
+          # value without a line here reopens exactly that gap.
+          #
+          # Cite STEP NAMES here, never line numbers. The previous version of this comment
+          # pointed at :644 and :649, and the very commit that wrote it shifted those lines to
+          # `done` and `fi`. A locator that rots is worse than no locator.
           literal_args=(--required-literal 'BEDROCK_EXPECTED_AWS_ACCOUNT=^239044785114$')
           if [ "$ENV_NAME" = "production" ]; then
             literal_args+=(--required-literal 'UPLOADS_S3_BUCKET=^lingolinq-prod-uploads$')
             literal_args+=(--required-literal 'STATIC_S3_BUCKET=^lingolinq-prod-static$')
             literal_args+=(--required-literal 'UPLOADS_S3_CDN=^https://d34sa6lc5jfe66\.cloudfront\.net$')
             literal_args+=(--required-literal 'SENTRY_ENVIRONMENT=^production$')
-            # Ruby reads this as `!!ENV['REMOTE_EXTRA_DATA']`, i.e. PRESENCE (:411), so the
-            # assembly step OMITS the var when the variable is blank. A missing var therefore
-            # fails this assertion as MISSING rather than matching an empty value.
-            literal_args+=(--required-literal 'REMOTE_EXTRA_DATA=^1$')
+            # PRESENCE, not a value pin, because that is exactly what the app does:
+            # app/models/concerns/extra_data.rb reads `!!ENV['REMOTE_EXTRA_DATA']`, and EVERY
+            # non-empty string is truthy in Ruby -- "0" and "false" included. A `^1$` pin was
+            # therefore STRICTER THAN THE RUNTIME: a working `true` would pass the non-blank
+            # pre-deploy gate, run correctly, and then fail here in the LAST step, after
+            # traffic had already shifted. That converts benign config drift into a red
+            # production deploy with users on the new revision. The bare-name form asserts
+            # present-and-non-empty, which is the exact condition PR #724 lost.
+            literal_args+=(--required-literal 'REMOTE_EXTRA_DATA')
           fi
           bash scripts/gcp/assert-runtime-secrets.sh \
             --project "$GCP_PROJECT_ID" \
@@ -1278,10 +1291,18 @@ jobs:
       - name: On failure after the traffic shift, print the rollback
         if: (failure() || cancelled()) && steps.shift.outputs.shift_attempted == 'true'
         run: |
-          if [ "${{ steps.shift.outputs.shift_confirmed }}" = "true" ]; then
-            echo "::error::A step FAILED AFTER traffic was shifted. $WEB_SERVICE in $GCP_PROJECT_ID is serving ${CANDIDATE_REV:-the new revision} NOW."
+          # "cancelled" is not "failed": a run can be cancelled after a perfectly successful
+          # shift, with no step having failed at all. Saying "A step FAILED" there sends the
+          # operator hunting for a failure that does not exist.
+          if [ "${{ job.status }}" = "cancelled" ]; then
+            WHY="was CANCELLED"
           else
-            echo "::error::The traffic shift was ATTEMPTED but did not confirm. $WEB_SERVICE in $GCP_PROJECT_ID may be serving ${CANDIDATE_REV:-the new revision}, or may still be on ${PREV_REVISION:-the previous revision}. VERIFY BEFORE ACTING:"
+            WHY="had a step FAIL"
+          fi
+          if [ "${{ steps.shift.outputs.shift_confirmed }}" = "true" ]; then
+            echo "::error::This run $WHY AFTER traffic was shifted. $WEB_SERVICE in $GCP_PROJECT_ID is serving ${CANDIDATE_REV:-the new revision} NOW."
+          else
+            echo "::error::This run $WHY. The traffic shift was ATTEMPTED but did not confirm. $WEB_SERVICE in $GCP_PROJECT_ID may be serving ${CANDIDATE_REV:-the new revision}, or may still be on ${PREV_REVISION:-the previous revision}. VERIFY BEFORE ACTING:"
             echo "::error::  gcloud run services describe $WEB_SERVICE --project $GCP_PROJECT_ID --region $GCP_REGION --format='value(status.traffic)'"
           fi
           echo "::error::The worker pool and/or scheduler Job may still be on the PREVIOUS image, so web and worker can be running different code."

@@ -64,11 +64,6 @@ task :expire_stale_supervisor_consent_requests => :environment do
 end
 
 desc "Unified scheduler dispatch for Render cron job - runs all hourly tasks, daily tasks at 6 AM UTC"
-# Loaded HERE, not inside the task body. A LoadError raised mid-dispatch is a ScriptError, which
-# would abort the whole run and skip every task queued after it; loaded at definition time it
-# fails loudly before any task has run. The rescue below still covers ScriptError for anything
-# that loads lazily deeper in a task.
-require_relative '../data_policy_enforcer'
 task "scheduler:dispatch" => :environment do
   # One task's failure must not skip the rest (that is why each is rescued), but the RUN must
   # still fail. Before this, every task could raise and the process still exited 0.
@@ -167,6 +162,15 @@ task "scheduler:dispatch" => :environment do
     end
 
     run_task.call("enforce_data_retention_policies") do
+      # Deliberately loaded HERE, inside the task, not at rake-file load time. Rake loads every
+      # .rake file for ANY invocation (`rake -T`, asset tasks, unrelated tasks) BEFORE the
+      # :environment prerequisite runs, so a top-level require makes this file a load-time
+      # dependency of the whole rake surface: the day it gains a Rails-dependent top-level
+      # reference, every rake task in the app breaks, and breaks before any rescue here can
+      # see it. Keeping it in the body bounds the blast radius to this one task, and the
+      # `rescue StandardError, ScriptError` above now records a LoadError and lets the
+      # remaining tasks run -- which is what the earlier hoist was reaching for.
+      require_relative '../data_policy_enforcer'
       count = DataPolicyEnforcer.enforce_retention!
       "#{count} stale sessions purged"
     end

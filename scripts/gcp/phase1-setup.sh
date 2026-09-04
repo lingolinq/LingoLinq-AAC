@@ -335,6 +335,9 @@ WIF_MAPPING="google.subject=assertion.sub,attribute.repository=assertion.reposit
 #   lingolinq-prod    -> refs/heads/main
 #   lingolinq-nonprod -> refs/heads/staging,refs/heads/develop
 # deploy-cloudrun.yml's `resolve` map must agree with these lists; change them together.
+# Remember whether the CALLER supplied this, before a default fills it in. The unknown-project
+# gate below must distinguish "operator passed a list" from "script chose the default".
+WIF_ALLOWED_REFS_EXPLICIT="${WIF_ALLOWED_REFS:-}"
 case "${WIF_ALLOWED_REFS:-}" in
   "") case "$PROJECT_ID" in
         lingolinq-prod)    WIF_ALLOWED_REFS="refs/heads/main" ;;
@@ -376,6 +379,26 @@ case "$PROJECT_ID" in
       echo "  This is deploy-gate 3. Re-run with CONFIRM_WIF_REF_CHANGE=1 only if you intend to change it," >&2
       echo "  and update deploy-cloudrun.yml's branch map in the same change." >&2
       exit 1
+    fi ;;
+  *)
+    # UNKNOWN PROJECT. An earlier review round argued this needed no gate, on the grounds that
+    # an unknown project is a first-time bootstrap with no prior control to widen. That argument
+    # is WRONG and was withdrawn: this script RECONCILES an existing provider with update-oidc
+    # (see the describe/update branch below), so an unknown project id can perfectly well have a
+    # live provider whose branch lock this run would rewrite. The gate therefore keys on what
+    # actually matters -- whether a provider already exists -- not on whether the project is one
+    # of the two hard-coded names.
+    if [ -n "${WIF_ALLOWED_REFS_EXPLICIT:-}" ] && [ "${CONFIRM_WIF_REF_CHANGE:-0}" != "1" ]; then
+      if gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
+           --project "$PROJECT_ID" --location=global --workload-identity-pool="$WIF_POOL" \
+           >/dev/null 2>&1; then
+        echo "ERROR: refusing to set WIF_ALLOWED_REFS='$WIF_ALLOWED_REFS' on $PROJECT_ID." >&2
+        echo "  A workload-identity provider ALREADY EXISTS there, so this run would rewrite a live" >&2
+        echo "  branch lock rather than bootstrap a new one. Re-run with CONFIRM_WIF_REF_CHANGE=1" >&2
+        echo "  only if you intend to change it, and update deploy-cloudrun.yml's branch map in the" >&2
+        echo "  same change." >&2
+        exit 1
+      fi
     fi ;;
 esac
 # Render the ref clause in the exact shape the live providers carry (verified 2026-09-03):
