@@ -76,7 +76,7 @@ export default modal.ModalController.extend({
         }, function() {
           _this.set('progress', {
             status: 'errored',
-            result: i18n.t("Download failed unexpectedly", 'board_download_failed')
+            result: i18n.t('board_download_failed', "Download failed unexpectedly")
           });
         });
       }

@@ -292,7 +292,7 @@
               {{else if this.noSpacesName}}
                 <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
               {{else if this.user.user_name_check.exists}}
-                <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+                <span class='text-danger'>{{t "%{user_name} already exists" key="user_name_already_exists" user_name=this.user.user_name}}</span>
               {{/if}}
             </div>
             <div class="form-group">
@@ -436,7 +436,7 @@
               {{else if this.noSpacesName}}
                 <span class='text-danger'>{{t "user names can't have spaces, dots or quotes" key="no_spaces_user_name"}}</span>
               {{else if this.user.user_name_check.exists}}
-                <span class='text-danger'>{{t "%{user_name} already exists" user_name=this.user.user_name}}</span>
+                <span class='text-danger'>{{t "%{user_name} already exists" key="user_name_already_exists" user_name=this.user.user_name}}</span>
               {{/if}}
             </div>
             <div class="form-group">

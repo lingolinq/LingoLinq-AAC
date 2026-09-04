@@ -174,7 +174,7 @@
     <div class="la-board-details-section">
       <h4 class="la-board-details-section__heading">{{t "Additional Licenses" key="additional_license"}}</h4>
       {{#unless this.showing_licenses}}
-        <a href="#" {{on "click" (this.ctrlAction "show_licenses")}}>{{t "show additional licenses" class="show_additiona"}}</a>
+        <a href="#" {{on "click" (this.ctrlAction "show_licenses")}}>{{t "show additional licenses" key="show_additional_licenses" class="show_additiona"}}</a>
       {{else}}
         <ul class="list-unstyled">
         {{#each this.images_with_license as |image|}}

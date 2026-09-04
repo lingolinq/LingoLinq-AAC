@@ -1,11 +1,30 @@
 <div class="box">
   <% app_name = (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %>
-  <% if @success && @already_declined %>
+  <%# :confirm is the state a GET stops at. The decline itself happens on the
+      POST below, so a link scanner or prefetch that fetches this URL sees only
+      this page and changes nothing. See ParentalConsentsController. %>
+  <% if @state == :confirm %>
+    <h1><%= t('parental_consent.decline_confirm_title') %></h1>
+    <p><%= t(@offboarding ? 'parental_consent.offboarding_decline_confirm_body' : 'parental_consent.decline_confirm_body') %></p>
+    <%= form_tag parental_consent_decline_path, method: :post do %>
+      <%= hidden_field_tag :user_id, params[:user_id] %>
+      <%= hidden_field_tag :token, params[:token] %>
+      <button type="submit" class="btn btn-danger"><%= t('parental_consent.decline_confirm_button') %></button>
+    <% end %>
+  <% elsif @state == :already_declined %>
     <h1><%= t('parental_consent.decline_already_title') %></h1>
     <p><%= t(@offboarding ? 'parental_consent.offboarding_decline_already_body' : 'parental_consent.decline_already_body') %></p>
-  <% elsif @success %>
+  <% elsif @state == :declined %>
     <h1><%= t('parental_consent.decline_thanks_title') %></h1>
     <p><%= t(@offboarding ? 'parental_consent.offboarding_decline_thanks_body' : 'parental_consent.decline_thanks_body') %></p>
+  <%# The decline landed but the export did not. Saying "we will export and delete"
+      here would be false, so this state says what is actually true. %>
+  <% elsif @state == :declined_export_pending %>
+    <h1><%= t('parental_consent.decline_export_pending_title') %></h1>
+    <p><%= t('parental_consent.decline_export_pending_body') %></p>
+  <% elsif @state == :not_declinable %>
+    <h1><%= t('parental_consent.decline_not_declinable_title') %></h1>
+    <p><%= t('parental_consent.decline_not_declinable_body') %></p>
   <% else %>
     <h1><%= t('parental_consent.decline_invalid_title') %></h1>
     <p><%= t('parental_consent.decline_invalid_body') %></p>

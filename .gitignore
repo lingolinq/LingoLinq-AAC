@@ -148,6 +148,12 @@ docs/CI_TEST_FAILURES_ANALYSIS.md
 # YYYY-MM-DD-*.md file anywhere in the tree.
 [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*.md
 
+# PR body drafts (docs/task-management/PR-BODY-*.md). Written to compose a pull
+# request description and then pasted into it; the PR itself is where the text
+# lives, so keeping a copy in the tree would just go stale. Same rationale as
+# the dated working logs above.
+PR-BODY-*.md
+
 # Session handoff notes (docs/task-management/HANDOFF-*.md). Same rationale as
 # the dated working logs above: written for the next session to pick up a task,
 # superseded once it does, and not a durable record. Durable lessons belong in

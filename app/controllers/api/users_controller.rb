@@ -259,13 +259,15 @@ class Api::UsersController < ApplicationController
       code = Organization.parse_activation_code(user_data['start_code'])
       return api_error(400, {error: "invalid start code", start_code_error: true}) if !code || code[:disabled]
     end
-    # Unauthenticated public signup cannot omit birth to skip COPPA. Org-authored
-    # creates (@api_user present + valid authored_organization_id) still skip
-    # the gate inside process_params.
-    if JsonApi::Json.coppa_parental_consent_enabled? && @api_user.nil? && user_data
-      month, year = User.signup_birth_from_params(user_data)
-      if User.age_under_threshold?(birth_month: month, birth_year: year, age: JsonApi::Json::DEFAULT_COPPA_CONSENT_AGE).nil?
-        return api_error(400, {error: "user creation failed", errors: ['birth month and year required']})
+    # Public signup and authenticated non-org creates cannot omit birth to
+    # skip COPPA classification. Only a validated org-authored create
+    # (same predicate process_params uses) skips this gate.
+    if JsonApi::Json.coppa_parental_consent_enabled? && user_data
+      unless User.validated_org_author(@api_user, user_data['authored_organization_id'])
+        month, year = User.signup_birth_from_params(user_data)
+        if User.age_under_threshold?(birth_month: month, birth_year: year, age: JsonApi::Json::DEFAULT_COPPA_CONSENT_AGE).nil?
+          return api_error(400, {error: "user creation failed", errors: ['birth month and year required']})
+        end
       end
     end
     user = User.process_new(user_data, {:pending => true, :author => @api_user})

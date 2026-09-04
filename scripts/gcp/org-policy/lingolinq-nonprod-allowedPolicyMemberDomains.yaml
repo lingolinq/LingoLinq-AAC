@@ -1,0 +1,25 @@
+# Project-scoped Domain Restricted Sharing exception for lingolinq-nonprod (project number
+# 703699008241). Byte-for-byte the same rule lingolinq-prod has carried since 2026-06-30:
+# resources tagged 307791011610/allUsersIngress=true (org tag value tagValues/281480705272406)
+# may receive allUsers IAM members (public Cloud Run ingress); everything else stays locked to
+# the lingolinq.com Workspace customer (C026v3fh2).
+#
+# Apply (org-owner, orgpolicy.policyAdmin). The target is the `name:` below, NOT the active
+# gcloud project; the read-back and the tag-binding check are part of the procedure:
+#   gcloud org-policies set-policy scripts/gcp/org-policy/lingolinq-nonprod-allowedPolicyMemberDomains.yaml
+#   gcloud org-policies describe iam.allowedPolicyMemberDomains --project lingolinq-nonprod --format='yaml(spec.rules)'
+#   for s in n8n lingolinq-web-staging lingolinq-web-dev; do
+#     gcloud resource-manager tags bindings list --location=us-central1 \
+#       --parent=//run.googleapis.com/projects/lingolinq-nonprod/locations/us-central1/services/$s --format='value(tagValue)'
+#   done   # each must print tagValues/281480705272406 BEFORE granting allUsers
+name: projects/703699008241/policies/iam.allowedPolicyMemberDomains
+spec:
+  rules:
+  - allowAll: true
+    condition:
+      title: allow-public-ingress-tagged
+      description: Exempt resources tagged allUsersIngress=true from DRS (public Cloud Run ingress). Mirrors lingolinq-prod (2026-06-30).
+      expression: resource.matchTag('307791011610/allUsersIngress', 'true')
+  - values:
+      allowedValues:
+      - C026v3fh2

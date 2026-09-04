@@ -34,8 +34,8 @@
       {{#if this.model.integration.access_token}}
         <p>{{t "The following tokens are necessary for this connected tool to access and receive information from LingoLinq. You should copy these tokens down, as they will not be visible again in the future." key="connected_tool_details"}}</p>
         <div style='width: 90%; overflow :auto;'>
-          {{t "API Access Token: %{token}" token=this.model.integration.access_token}} <br><br>
-          {{t "Webhook Token: %{token}" token=this.model.integration.token}}
+          {{t "API Access Token: %{token}" key="api_access_token_value" token=this.model.integration.access_token}} <br><br>
+          {{t "Webhook Token: %{token}" key="webhook_token_value" token=this.model.integration.token}}
         </div>
       {{/if}}
     {{/if}}

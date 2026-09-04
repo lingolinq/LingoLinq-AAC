@@ -424,7 +424,7 @@ describe Flusher do
       u1 = User.create
       u2 = User.create
       ref = {}
-      expect(ref).to receive(:update_all).with(user_id: u2.id).and_return(1).exactly(12).times
+      expect(ref).to receive(:update_all).with(user_id: u2.id).and_return(1).exactly(11).times
       expect(NfcTag).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(UserIntegration).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(UserGoal).to receive(:where).with(:user_id => u1.id).and_return(ref)
@@ -436,8 +436,23 @@ describe Flusher do
       expect(ButtonImage).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(UserVideo).to receive(:where).with(:user_id => u1.id).and_return(ref)
       expect(License).to receive(:where).with(:user_id => u1.id).and_return(ref)
-      expect(PredictionEntry).to receive(:where).with(:user_id => u1.id).and_return(ref)
       Flusher.transfer_user_content(u1.global_id, u1.user_name, u2.global_id, u2.user_name)
+    end
+
+    it "should merge colliding PredictionEntry rows instead of dropping the transfer" do
+      u1 = User.create
+      u2 = User.create
+      shared_source = PredictionEntry.create!(user: u1, locale: 'en', prefix: 'i', next_word: 'want', score: 2)
+      shared_target = PredictionEntry.create!(user: u2, locale: 'en', prefix: 'i', next_word: 'want', score: 3)
+      unique_source = PredictionEntry.create!(user: u1, locale: 'en', prefix: 'i', next_word: 'help', score: 1)
+
+      Flusher.transfer_user_content(u1.global_id, u1.user_name, u2.global_id, u2.user_name)
+
+      expect(PredictionEntry.where(user_id: u1.id).count).to eq(0)
+      expect(PredictionEntry.where(user_id: u2.id).count).to eq(2)
+      expect(shared_target.reload.score).to eq(5)
+      expect(PredictionEntry.where(id: shared_source.id).count).to eq(0)
+      expect(unique_source.reload.user_id).to eq(u2.id)
     end
 
     it "should transfer license seats so they are not orphaned on merge" do

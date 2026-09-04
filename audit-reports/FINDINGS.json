@@ -6666,6 +6666,476 @@
       "source": {
         "kind": "audit-run"
       }
+    },
+    {
+      "id": "LL-1baffd92d5",
+      "ruleKey": "claim-user-no-target-authorization-cross-tenant-takeover",
+      "title": "Organization claim_user authorizes only the requesting org manager and performs no check on the target user, allowing any manager with a free seat to take over any account by username, including one another district already manages",
+      "severity": "critical",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "GDPR",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/organizations_controller.rb",
+        "line": 245,
+        "snippet": "return unless allowed?(@org, 'manage')",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Require an organization-scoped invitation or enrollment code that the target user (or their parent/guardian) holds, and reject a target that already carries a managing_organization_id belonging to another org. Perform the ownership transition atomically and record both the prior and new managing org on the AuditEvent. Alternative: keep the manager-initiated flow but move the user into a pending-claim state that requires target-side acceptance before licenses.user_id and managing_organization_id are written.",
+        "timeframe": "24-72h"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by a dual review of the 2026-09-01 Codex whole-tree audit; both the Claude and Codex passes independently reached the same conclusion and both raised it above the audit's original High. claim_user resolves the target with User.find_by_path(params['user_id']) and never checks enrollment, invitation, consent, pending state, or another organization's existing control. Organization#claim_user then runs user.update!(managing_organization_id: self.id, expires_at: license.expires_at) unconditionally at app/models/organization.rb:29, overwriting any prior managing org AND the account's expires_at, and generates a sponsored UserLink which Organization#admin_manager? at app/models/organization.rb:15-16 treats as license to read that user's data. Preconditions: manager, upstream manager, or global admin of any org holding at least one free active seat of the requested seat_type. Detectable after the fact: an AuditEvent of type license_claim is written at organizations_controller.rb:249-256. This is the mandatory district data-isolation boundary. DISTINCT from the three closed claim_user rows, which cover throttling (LL-e65d34f109), the access-log gap (LL-3ccbf9b54a), and license JSON exposure (LL-55baae6d40); none of them examined target-side authorization."
+    },
+    {
+      "id": "LL-4f1eb5fd0a",
+      "ruleKey": "lesson-check-url-ssrf-bypasses-safehttp",
+      "title": "Lesson#check_url fetches a user-supplied URL with raw Typhoeus and unbounded redirect following, bypassing the repository's own SafeHttp DNS/IP and redirect validation",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/lesson.rb",
+        "line": 146,
+        "snippet": "res = Typhoeus.head(normalized, followlocation: true)",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Route the check through SafeHttp, which already performs DNS/IP validation and per-hop redirect revalidation (lib/safe_http.rb), and add a timeout. Alternative if the frame-header probe needs behaviour SafeHttp does not expose: extend SafeHttp with a head-with-headers helper rather than reintroducing a raw client, so there stays exactly one guarded egress path.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. Reached via after_save :check_url at app/models/lesson.rb:10, which schedules itself onto a Resque worker, so the request originates from the worker's network position rather than the web tier. No IP or DNS validation and followlocation: true means an attacker-controlled host can redirect the worker to an internal destination. Blind: HEAD only, and only checked_url.noframe is persisted, so this is a probe and pivot rather than a data-exfiltration path; res.code is never stored. Reachable by any authenticated non-valet user, since Lesson create with user_id set to self satisfies the supervise permission. Severity kept at high rather than medium on the Codex counter-argument that a blind result does not warrant a downgrade while egress controls are unconfirmed. SafeHttp is used at eleven other call sites in this repo; this is the outlier. The original audit cited lessons_controller.rb:41-64,105-112 for this, which contain no HTTP call; the sink is here."
+    },
+    {
+      "id": "LL-135ee6ca59",
+      "ruleKey": "ai-data-sharing-consent-documented-but-never-enforced-by-the-gate",
+      "title": "User#ai_consent_granted? has no runtime caller, so the separate AI data-sharing consent promised to parents on the privacy page is never enforced by the AI feature gate",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "GDPR",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/feature_flags.rb",
+        "line": 242,
+        "snippet": "def self.ai_feature_enabled_for?(feature, user)",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Either add a current-version AI consent check to ai_feature_enabled_for? for the routes the disclosure covers, failing closed when consent is absent or stale, or obtain counsel-approved privacy-page wording that accurately describes the control that actually exists. Do not close this by deleting ai_consent_granted?: the disclosure and the consent-capture path both already ship.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01, independently confirmed by both passes. User#ai_consent_granted? is defined at app/models/user.rb:1364 and a repo-wide search outside spec and markdown returns only its own definition and surrounding comments plus references in lib/lingo_linq/ai_consent_disclosures.rb comments. The gate that actually decides AI feature access, FeatureFlags.ai_feature_enabled_for? at lib/feature_flags.rb:242-249, checks AI_FEATURES membership, the org opt-out, the COPPA marker, the EU under-16 marker and user prefs, and never consults consent. The promise to parents is at app/frontend/app/templates/privacy.hbs:76 and is now also published in eleven machine-translated locales. DISTINCT from LL-47117a3443 (audit trail on consent grant, closed) and LL-b3e3a0b99c (the disclosure's stated legal basis)."
+    },
+    {
+      "id": "LL-c7bbfa452a",
+      "ruleKey": "school-authorized-signup-skips-coppa-marker-the-ai-gate-reads",
+      "title": "School-authorized account creation skips the COPPA block entirely, so settings coppa is never written and the under-13 AI gate that reads it passes for exactly the accounts it was written to protect",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "COPPA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/user.rb",
+        "line": 2423,
+        "snippet": "if !self.id && JsonApi::Json.coppa_parental_consent_enabled? && !org_authorized",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Decide, with counsel, whether the school-official exception is intended to waive the AI-routing gate or only the parental-consent capture. If only the latter, still write a marker on the school-authorized path so coppa_parental_consent_blocks_access? can distinguish 'consent not required' from 'consent never evaluated', and have the AI gate read that distinction explicitly rather than inferring it from an absent key.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. org_authorized is set at app/models/user.rb:2404-2418; the guard at :2423 then skips the whole COPPA block when it is true, so settings coppa is never written, so User#coppa_parental_consent_blocks_access? at app/models/user.rb:417-421 returns false, so the gate at lib/feature_flags.rb:245 passes. No sibling guard covers it: settings school_authorization is read only by app/models/license.rb:59, app/models/user.rb:577 and lib/compliance/segment_resolver.rb:37, none of which is an AI path. Counsel must approve the intended school-official exception before this is closed. Adjacent to but distinct from LL-f150e0e828, which covers seat reclaim converting an under-13 account to a consumer trial."
+    },
+    {
+      "id": "LL-933e61efd7",
+      "ruleKey": "privacy-page-retention-and-deletion-promises-have-no-implementing-code",
+      "title": "Five specific retention and deletion promises on the public privacy page have no implementing mechanism, and the scheduled jobs that would partially back them have not run in production since the 2026-07-21 cutover",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/templates/privacy.hbs",
+        "line": 97,
+        "snippet": "<li>{{t \"Inactive accounts: accounts inactive for 12 months are flagged for automatic deletion, subject to a 10-day grace period for accidenta",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Reconcile each promise against executable behaviour: either implement the mechanism or amend the page. The five are the inactive-account grace period (privacy.hbs:97 promises 10 days; app/models/subscription.rb:1230 implements 36 hours), the 3-year org default (:103, absent from lib/compliance/data_policy_enforcer.rb:22-27 and app/models/organization.rb:105-125), contract-end deletion (:104, no mechanism), the age-18 transition (:105, no mechanism), and the post-restore purge (:107, no job). Amending the page is the faster remedy and must also cover the twelve locale files.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. These are public statements to parents and districts, so the exposure is the statement rather than the missing job alone. Compounded by two live facts: DataPolicyEnforcer skips non-org users entirely at lib/compliance/data_policy_enforcer.rb:22-24, and the production scheduler that would run any of the deletion sweeps has been suspended since 2026-07-21 (filed separately), so even the partially-implemented promises are not executing. The same copy now ships in twelve locale files after PR #901."
+    },
+    {
+      "id": "LL-400adcead5",
+      "ruleKey": "machine-translated-compliance-disclosures-ship-outside-the-guard-language-coverage",
+      "title": "PR #901 machine-translated the AI data-sharing, Article 50, COPPA and retention disclosures into twelve locale files, and the guard that checks those claims covers only English and Spanish, by its own admission",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "COPPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "spec/support/ai_disclosure_claims.rb",
+        "line": 79,
+        "snippet": "honest copy -- nor any third language. Translated compliance copy still",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Have counsel or a qualified human translator review the disclosure keys in the eleven non-English locale files before they are treated as approved, or revert those keys to the English source pending review. Then either extend AiDisclosureClaims with per-language patterns for the locales actually shipped, or add a guard that fails when a disclosure key is translated without a recorded human review, so the coverage gap becomes visible rather than silent.",
+        "timeframe": "15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01; missed by the original audit, which reviewed the whole tree but produced no finding about the commit it targeted. The rake task at lib/tasks/extras.rake performs the translation through Google Translate. The affected keys carry legally operative content: the signed BAA assertion, the PII-filter caveat, the explicit refusal to claim zero data retention, the named model, the under-13 consent gate, and the claim that evaluation summaries are inactive. The guard at spec/lib/lingo_linq/ai_disclosure_surfaces_spec.rb does read public/locales/*.json, but each value carries the English original after a double-bracket separator and the matcher reads that half, while app/frontend/app/utils/i18n.js:449 renders only the half BEFORE the separator. So the text that ships to users is precisely the text no pattern checks, and the suite stays green. Poland is the live exposure: pl.json is among the twelve and Polish beta invites are held pending Article 50. Note the translated copy asserts the under-13 consent gate that a separate finding on this same review shows is not enforced."
+    },
+    {
+      "id": "LL-3e36a18199",
+      "ruleKey": "production-scheduler-dispatch-has-no-trigger-since-gcp-cutover",
+      "title": "rake scheduler:dispatch is the single entrypoint for every recurring job and nothing has triggered it in production since 2026-07-21, so all retention, purge, flush and expiry work is stopped",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/tasks/scheduler.rake",
+        "line": 67,
+        "snippet": "task \"scheduler:dispatch\" => :environment do",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Provision a trigger on the production platform, either a Cloud Scheduler job invoking a Cloud Run job that runs scheduler:dispatch hourly, or re-enable the suspended Render cron if Render remains the fallback. Whichever is chosen, add a liveness check that alerts when dispatch has not run within its interval, because the failure mode here was silent for six weeks. Until a trigger exists, the retention and deletion claims on the privacy page should be treated as unmet.",
+        "timeframe": "24-72h"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "claude-senior-dev",
+        "promotedDate": "2026-09-02"
+      },
+      "notes": "Promoted from claude-senior-dev review on 2026-09-02. Verified live on 2026-09-01 and corroborated by an independent session the same day. Cloud Scheduler API is not enabled on the production GCP project (SERVICE_DISABLED, never used); no Workflows or Eventarc APIs are enabled; the eight Cloud Run jobs that exist are diagnostic and migration utilities and none dispatches the scheduler. The Render cron that previously ran this task hourly shows suspended with a user suspender and an updatedAt of 2026-07-21, the day before the GCP cutover, and nothing replaced it. There is no cron gem in Gemfile.lock, no scheduler process in the Procfile, and no cron in render.yaml. Consequently Flusher.flush_deleted_users has not run either, so deleted users are not actually being flushed, which is a direct GDPR Article 17 exposure. This finding also reframes the retention-precedence questions raised by the 2026-09-01 Codex audit: the EU purge and the HIPAA floor cannot conflict because neither executes."
+    },
+    {
+      "id": "LL-20703f4fa8",
+      "ruleKey": "ai-api-log-error-message-persisted-unscrubbed-and-unbounded",
+      "title": "AiApiLog.error_message is assigned raw provider exception text into an unbounded column and is excluded from the before_validation scrub that covers the request and response summaries",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/ai_api_log.rb",
+        "line": 90,
+        "snippet": "log.error_message = params[:error_message]",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add error_message to the scrub_summary_columns before_validation callback and truncate it to a bounded length. Alternative, if the raw text has diagnostic value: store a scrubbed and truncated message on the record and route the full text to the error tracker instead, which is already wired.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. The before_validation :scrub_summary_columns callback at app/models/ai_api_log.rb:20-26 covers response_summary and request_summary only. error_message is assigned raw at :90 from callers including lib/ai_word_predictor.rb:137 and lib/eval_narrator.rb:211, lands in a text column with no length bound, and is re-emitted by to_audit_hash at :275. A provider exception can echo request content, so a prompt fragment can reach the log unscrubbed. The original Codex audit rated this High; both review passes agreed Medium is correct because the egress scrubber still runs on the prompt itself and the exposure is second-order."
+    },
+    {
+      "id": "LL-fba170716e",
+      "ruleKey": "sns-subscription-confirmation-unverified-and-sms-payload-logged-before-verification",
+      "title": "The SNS callback logs the full payload before verifying it on the SMS branch, performs no signature verification at all on the SubscriptionConfirmation branch, and reads the request body with no size bound",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/controllers/api/callbacks_controller.rb",
+        "line": 15,
+        "snippet": "Rails.logger.warn(json_body.to_json)",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Move the SMS branch payload log to after the authenticity check so it mirrors the transcoding branch, add MessageVerifier to the SubscriptionConfirmation branch rather than relying on the topic ARN allowlist alone, and bound the body read. Also delete the stale TODO comment at line 8, which claims signature confirmation is outstanding and is almost certainly what led the 2026-09-01 Codex audit to report the whole endpoint as unauthenticated.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. This is deliberately NARROWER than the audit's original High, which claimed an unauthenticated callback. That claim is wrong and would have cast doubt on an attested closure: both Notification branches do verify before processing, returning 401 at :28-29 before Transcoder.handle_event at :32 and at :42-43 before RemoteTarget.process_inbound at :46, exactly as recorded in the closure of LL-6d8314e37b. What survives verification is three narrow residuals. First, the SubscriptionConfirmation branch at :10-19 gates only on an SNS_ARNS allowlist and logs the payload at :15 with no signature check. Second, the SMS branch logs the payload at :40 BEFORE verifying at :41-44, unlike the transcoding branch which logs after. Third, request.body.read at :6 has no size bound and the route is absent from the throttling initializer. Unauthenticated reachability, but a forged confirmation token still fails at AWS."
+    },
+    {
+      "id": "LL-d033b27acd",
+      "ruleKey": "document-register-overdue-window-frozen-to-generated-date-reports-none-overdue",
+      "title": "The document register anchors its overdue-for-review window to meta.generatedDate rather than the current date, so the rendered register printed none overdue while two records were genuinely past their review dates",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "scripts/document-register-render.rb",
+        "line": 154,
+        "snippet": "if meta.key?('generatedDate')",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Keep the deterministic render for CI, but add a separate freshness check that evaluates review dates against the current date and fails or warns when a record is overdue, so the blind window between the frozen anchor and HEAD cannot hide an overdue record. Alternative: keep one code path and render the overdue section against Date.today while excluding it from the contentHash comparison, so determinism is preserved where it matters.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. The anchoring is deliberate and documented in the comment above the cited line, so CI renders stay deterministic; the defect is that nothing else evaluates freshness. With the anchor frozen at the July generation date, DOCUMENT-REGISTER.md printed 'Overdue for review: none' while two records were overdue as of the reviewed commit: DOC-1ea9f75b4f Incident Log, due 2026-08-27, last reviewed 2026-05-27, status approved; and DOC-771d214850 EU AI Act Article 50 Implementation Milestone Plan, due 2026-08-02, status draft. The register does not merely carry an old date, it affirmatively reports the wrong answer. Note this is NOT the same as the 2026-09-01 Codex audit's claim that meta.auditedSha is internally stale, which misreads the audit-pointer governance convention documented in audit-reports/README.md:42-60."
+    },
+    {
+      "id": "LL-37860cbcfa",
+      "ruleKey": "github-actions-unpinned-by-digest-in-production-deploy-job-holding-id-token-write",
+      "title": "No GitHub Action in the repository is pinned by commit digest, including the authentication action inside the production deploy job that holds id-token write permission",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": ".github/workflows/deploy-cloudrun.yml",
+        "line": 309,
+        "snippet": "uses: google-github-actions/auth@v3",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Pin every third-party action to a full commit digest with the tag retained as a trailing comment, starting with the actions inside jobs that hold id-token write or otherwise touch production credentials. Add a CI check or Dependabot configuration so the pins stay current rather than silently ageing.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01. Every action reference in the repository is tag-based: actions/checkout at v6 across fourteen call sites, ruby/setup-ruby at v1 across five, and google-github-actions/auth at v3 in the production deploy job whose permissions block at .github/workflows/deploy-cloudrun.yml:191 grants id-token write. A tag repoint by a third party, whether through compromise or maintainer error, therefore executes attacker-controlled code in the job that mints the production workload identity token. The original Codex audit noted tag-based references in passing while rating a gitleaks download issue higher; the ordering is inverted, since that path is already tracked as LL-33d756b764 and this one was not tracked at all."
+    },
+    {
+      "id": "LL-84c67d758d",
+      "ruleKey": "terms-agree-modal-dialog-invoked-without-labelledby-orphaning-its-title-id",
+      "title": "The terms-agree modal invokes ModalDialog without labelledBy, so the dialog ships with role dialog and aria-modal but no accessible name, and the title id added for that purpose is orphaned",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "WCAG"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/components/terms-agree.hbs",
+        "line": 1,
+        "snippet": "<ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}} @uncloseable=\"true\">",
+        "sha": "164e1c6c80639a87192d2ad0bb615b81ddb3cae5"
+      },
+      "firstSeen": "2026-09-02",
+      "lastSeen": "2026-09-02",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Pass the labelledBy and describedBy arguments the way app/frontend/app/components/ai-disclosure.hbs:7 already does; it was cloned from this component and gets it right. Consider a development-time assertion in modal-dialog.js when labelledBy is absent, so the next clone cannot repeat it silently.",
+        "timeframe": "60d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01; missed by the original audit, which cited this file for a different and partly incorrect claim. The component supplies id terms-agree-title on its heading at :8 specifically so a label association can be made, but never passes the argument. modal-dialog.hbs:6 binds aria-labelledby to this.labelledBy, which is undefined at modal-dialog.js:15, so Ember omits the attribute entirely and the id has no referent. WCAG 4.1.2 Name, Role, Value. Distinct from the generic modal shell rows LL-b06f063f85 and LL-58130aaefe, and distinct from LL-104bfa61dc, which correctly covers the switch-scanning gap in the same component. Note for triage: the audit's claim that this modal has a broken focus trap is FALSE. modal-dialog.js:104-135 implements a real Tab trap with wraparound and :61-85 sets initial focus, which terms-agree.hbs:4-8 opts into via data-autofocus."
     }
   ]
 }

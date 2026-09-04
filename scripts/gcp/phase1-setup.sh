@@ -324,10 +324,39 @@ fi
 # would never reach an already-created provider and a stale/wrong lock would persist silently.
 # (PR #353 adversary review - the "re-runs are safe" claim was overstated for this resource.)
 WIF_MAPPING="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.repository_id=assertion.repository_id,attribute.repository_owner_id=assertion.repository_owner_id"
-# Must match the live production provider (verified 2026-08-30). This script
-# unconditionally reconciles via update-oidc, so omitting the ref lock would
-# silently strip it from prod on any Phase 1 re-run (LL-1e7b568ef3).
-WIF_CONDITION="assertion.repository_owner_id == '${GH_OWNER_ID}' && assertion.repository_id == '${GH_REPO_ID}' && assertion.repository == '${GH_REPO}' && assertion.ref == 'refs/heads/main' && assertion.ref_type == 'branch'"
+# BRANCH LOCK (2026-09-03; supersedes the prod-only hardcode from #918 / LL-1e7b568ef3, which
+# would have written main-only onto the NONPROD provider on a re-run there).
+# The repo lock alone lets ANY ref of this repo mint a deploy token,
+# and this reconciler REPLACES the live condition on every re-run, so a repo-only condition here
+# would silently erase the branch restriction deploy-cloudrun.yml relies on as safety gate 3
+# (found by Codex review of PR #919). WIF_ALLOWED_REFS is the comma-separated list of refs the
+# provider admits; the default is derived from PROJECT_ID so a re-run against a known project
+# cannot widen the lock, and any other project must set it explicitly (fail closed).
+#   lingolinq-prod    -> refs/heads/main
+#   lingolinq-nonprod -> refs/heads/staging,refs/heads/develop
+# deploy-cloudrun.yml's `resolve` map must agree with these lists; change them together.
+case "${WIF_ALLOWED_REFS:-}" in
+  "") case "$PROJECT_ID" in
+        lingolinq-prod)    WIF_ALLOWED_REFS="refs/heads/main" ;;
+        lingolinq-nonprod) WIF_ALLOWED_REFS="refs/heads/staging,refs/heads/develop" ;;
+        *) echo "ERROR: WIF_ALLOWED_REFS is not set and PROJECT_ID=$PROJECT_ID has no default. Refusing to write a WIF condition without a branch lock." >&2; exit 1 ;;
+      esac ;;
+esac
+# Render the ref clause in the exact shape the live providers carry (verified 2026-09-03):
+# one ref  -> assertion.ref == 'X' && assertion.ref_type == 'branch'
+# several  -> assertion.ref_type == 'branch' && assertion.ref in ['A', 'B']
+wif_ref_clause() {
+  local list="$1" n first quoted
+  n="$(printf '%s' "$list" | tr ',' '\n' | grep -c .)"
+  if [ "$n" -eq 1 ]; then
+    printf "assertion.ref == '%s' && assertion.ref_type == 'branch'" "$list"
+  else
+    quoted="$(printf '%s' "$list" | tr ',' '\n' | sed "s/.*/'&'/" | paste -sd, | sed 's/,/, /g')"
+    printf "assertion.ref_type == 'branch' && assertion.ref in [%s]" "$quoted"
+  fi
+}
+WIF_CONDITION="assertion.repository_owner_id == '${GH_OWNER_ID}' && assertion.repository_id == '${GH_REPO_ID}' && assertion.repository == '${GH_REPO}' && $(wif_ref_clause "$WIF_ALLOWED_REFS")"
+echo "    WIF condition: repo lock + branch lock on [${WIF_ALLOWED_REFS}]"
 if gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
      --project="$PROJECT_ID" --location=global --workload-identity-pool="$WIF_POOL" >/dev/null 2>&1; then
   echo "    reconciling existing WIF provider attribute-mapping + condition"
@@ -354,6 +383,17 @@ gcloud iam service-accounts add-iam-policy-binding "$DEPLOY_SA" \
 WIF_PROVIDER_RESOURCE="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL}/providers/${WIF_PROVIDER}"
 echo "    WIF provider: $WIF_PROVIDER_RESOURCE"
 echo "    impersonation locked to principalSet .../attribute.repository/${GH_REPO}"
+# Read back and assert: the live condition must be exactly what was intended, or stop here.
+LIVE_COND="$(gcloud iam workload-identity-pools providers describe "$WIF_PROVIDER" \
+  --project="$PROJECT_ID" --location=global --workload-identity-pool="$WIF_POOL" \
+  --format='value(attributeCondition)')"
+if [ "$LIVE_COND" != "$WIF_CONDITION" ]; then
+  echo "ERROR: live WIF attribute-condition differs from the intended one." >&2
+  echo "  intended: $WIF_CONDITION" >&2
+  echo "  live:     $LIVE_COND" >&2
+  exit 1
+fi
+echo "    verified live WIF condition == intended (repo + branch lock)"
 
 # ---------------------------------------------------------------------------------------
 # 7. [BILLABLE] Artifact Registry repo - name MUST be `lingolinq` (deploy-cloudrun.yml).

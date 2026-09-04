@@ -1,4 +1,5 @@
 require 'json'
+require_relative 'scripts/i18n_string_scanner'
 
 # The locale files and the source strings are UTF-8 (em-dashes, accents, CJK, RTL).
 # Ruby picks its default external encoding from the shell's locale, so in any shell
@@ -26,6 +27,11 @@ files = Dir.glob('app/frontend/app/**/*.js')
 strings = {}
 dups = 0
 missing = 0
+# Translatable calls the extractor can SEE but cannot record, because they carry no usable key.
+# These are invisible to TOTAL DUPS and TOTAL MISSING — neither counts them — which is how four
+# untranslatable `{{t}}` calls sat in the tree through clean runs. A string with no key never
+# reaches the locale files and renders in English in every language, silently.
+keyless = []
 priority_presets = [
   {level: 10, regex: /app\/controllers\/organization/},
   {level: 10, regex: /app\/templates\/organization/},
@@ -96,7 +102,7 @@ end
 files.each do |fn|
   next unless File.file?(fn)
   # puts fn
-  File.readlines(fn).each do |line|
+  File.readlines(fn).each_with_index do |line, line_no|
     # i18n.t('seconds_ago', "second", {hash: {count: seconds}});
     # i18n.t('n_boards', "board", {count: starters.length})
     position = 0
@@ -107,6 +113,12 @@ files.each do |fn|
         next
       end
       idx += 6
+      peek = idx + 1
+      peek += 1 while line[peek] == ' '
+      if line[peek] == '"'
+        preview, = I18nStringScanner.read_quoted(line, peek)
+        keyless << { fn: fn, line: line_no + 1, form: 'i18n.t', str: preview }
+      end
       while line[idx] && line[idx] != "'"
         idx += 1
       end
@@ -125,17 +137,7 @@ files.each do |fn|
           idx += 1
         end
         if line[idx]
-          str = ""
-          idx += 1
-          while line[idx] && line[idx] != "\""
-            str += line[idx]
-            idx += 1
-            if line[idx] == "\\"
-              idx += 1
-              str += line[idx]
-              idx += 1
-            end
-          end
+          str, idx = I18nStringScanner.read_quoted(line, idx)
           while line[idx] && line[idx] != ")"
             idx += 1
           end
@@ -157,7 +159,7 @@ end.length
 files = Dir.glob('app/frontend/app/**/*.hbs')
 files.each do |fn|
   next unless File.file?(fn)
-  File.readlines(fn).each do |line|
+  File.readlines(fn).each_with_index do |line, line_no|
     position = 0
     while position != nil
       idx = line.index(/(\{\{|\()t\s+/, position)
@@ -171,17 +173,7 @@ files.each do |fn|
       count_idx = nil
       str = ""
       if idx
-        quote = line[idx]
-        idx += 1
-        while line[idx] && line[idx] != quote
-          str += line[idx]
-          idx += 1
-          if line[idx] == "\\"
-            idx += 1
-            str += line[idx]
-            idx += 1
-          end
-        end
+        str, idx = I18nStringScanner.read_quoted(line, idx)
         end_bracket = line.index(close_regex, idx)
         count_idx = line.index(/count=/, idx)
         idx = line.index(/key=(\'|\")/, idx)
@@ -190,6 +182,9 @@ files.each do |fn|
         count_key = false
         if count_idx && count_idx < end_bracket
           count_key = true
+        end
+        if !(idx && idx < end_bracket) && str.length > 0
+          keyless << { fn: fn, line: line_no + 1, form: 'template', str: str }
         end
         if idx && idx < end_bracket
           idx += 5
@@ -254,6 +249,14 @@ levels << ["private_license","cc_by_license","cc_by_sa_license","public_domain_l
 puts "TOTAL DUPS #{dups}"
 puts "TOTAL MISSING #{missing}"
 puts "TOTAL STRINGS #{strings.keys.length}"
+puts "TOTAL KEYLESS #{keyless.length}"
+if keyless.any?
+  puts "KEYLESS translatable calls — these can never be translated:"
+  keyless.each do |k|
+    puts "  #{k[:fn]}:#{k[:line]} (#{k[:form]})"
+    puts "    #{k[:str][0, 90]}"
+  end
+end
 # To approve manually-reviewed translations above a specific line number
 # (i.e. to mark them at not computed-generated translations)
 # ruby i18n_generator.rb --confirm [locale] [approve-up-to-line]

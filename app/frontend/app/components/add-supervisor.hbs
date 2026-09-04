@@ -52,7 +52,7 @@
             <input value={{this.model.supervisor.user_name}} class="md-add-supervisor__input" placeholder="User name" aria-label={{t "User Name" key="user_name"}} autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" {{on "input" (set-field this "model.supervisor.user_name")}} />
             {{#if this.model.supervisor.user_name_check.checking}}
             {{else if this.model.supervisor.user_name_check.exists}}
-              <span class="md-add-supervisor__error">{{t "\"%{user_name}\" already exists" user_name=this.model.supervisor.user_name}}</span>
+              <span class="md-add-supervisor__error">{{t "\"%{user_name}\" already exists" key="user_name_already_exists_quoted" user_name=this.model.supervisor.user_name}}</span>
             {{/if}}
           </div>
           <div class="md-add-supervisor__field">

@@ -10,7 +10,10 @@ module Passwords
 
   def password_meets_minimum?(password)
     return true if password.blank?
-    return true if password.to_s.match?(HASHED_PASSWORD)
+    # Client-supplied prehashes cannot prove the original password met
+    # MIN_PASSWORD_LENGTH (SHA-512 hex is always long). Login rehash does
+    # not use this method (valid_password? -> generate_password).
+    return false if password.to_s.match?(HASHED_PASSWORD)
     password.to_s.length >= MIN_PASSWORD_LENGTH
   end
   

@@ -247,6 +247,48 @@ describe('CreateBoardNewComponent', 'component:create-board-new', function() {
       expect(blob.board_name.en).toEqual('My board');
     });
 
+    it('clears translation caches when the supervisee locale root changes', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true }),
+        sessionUser: EmberObject.create({
+          known_supervisees: [
+            { id: 'u-es', locale: 'es' },
+            { id: 'u-fr', locale: 'fr' }
+          ]
+        })
+      }));
+      c.set('model.locale', 'es');
+      c.set('_label_english', { sombrero: 'hat' });
+      c.set('_board_name_english', 'My board');
+      c.set('_label_colors', { sombrero: { fill: '#f00' } });
+      c.set('_label_images', { sombrero: { image_url: 'https://example.com/hat.png' } });
+      c._apply_supervisee_authoring_locale('u-fr');
+      expect(c.get('model.locale')).toEqual('fr');
+      expect(c.get('_label_english')).toEqual({});
+      expect(c.get('_board_name_english')).toEqual(null);
+      expect(c.get('_label_colors')).toEqual({});
+      expect(c.get('_label_images')).toEqual({});
+    });
+
+    it('keeps translation caches when the supervisee locale root is unchanged', function() {
+      var c = makeComponent();
+      c.set('appState', EmberObject.create({
+        feature_flags: EmberObject.create({ english_first_board_generation: true }),
+        sessionUser: EmberObject.create({
+          known_supervisees: [
+            { id: 'u-es', locale: 'es' },
+            { id: 'u-es-mx', locale: 'es_MX' }
+          ]
+        })
+      }));
+      c.set('model.locale', 'es');
+      c.set('_label_english', { sombrero: 'hat' });
+      c._apply_supervisee_authoring_locale('u-es-mx');
+      expect(c.get('model.locale')).toEqual('es_MX');
+      expect(c.get('_label_english.sombrero')).toEqual('hat');
+    });
+
     it('does not build translations for an English authoring locale', function() {
       var c = makeComponent();
       c.set('appState', stubEnglishFirstAppState(true));

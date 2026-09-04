@@ -361,12 +361,31 @@ module Flusher
     UserVideo.where(user_id: source.id).update_all(user_id: target.id)
     # Move org seats with the user so the seat is not orphaned on merge.
     License.where(user_id: source.id).update_all(user_id: target.id)
-    # Unique on (user_id, locale, prefix, next_word); collision possible on merge.
-    PredictionEntry.where(user_id: source.id).update_all(user_id: target.id) rescue nil
+    # Unique on (user_id, locale, prefix, next_word). Merge colliding
+    # scores into the target row, then move the rest. A blanket
+    # update_all + rescue nil used to abort the whole transfer on one
+    # collision; reset_eval then flushed the leftover source rows.
+    transfer_prediction_entries(source, target)
 
     #invalidate any caches
     source.touch
     target.touch
+  end
+
+  def self.transfer_prediction_entries(source, target)
+    PredictionEntry.where(user_id: source.id).find_each do |entry|
+      existing = PredictionEntry.find_by(
+        user_id: target.id,
+        locale: entry.locale,
+        prefix: entry.prefix,
+        next_word: entry.next_word
+      )
+      if existing
+        existing.update_columns(score: existing.score + entry.score, updated_at: Time.current)
+        entry.delete
+      end
+    end
+    PredictionEntry.where(user_id: source.id).update_all(user_id: target.id)
   end
 
   def self.flush_user_content(user_id, user_name, except_device=nil, except_org_links=false)

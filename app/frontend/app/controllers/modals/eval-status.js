@@ -21,7 +21,6 @@ import persistence from '../../utils/persistence';
 import session from '../../utils/session';
 import progress_tracker from '../../utils/progress_tracker';
 import { computed, get as emberGet } from '@ember/object';
-import RSVP from 'rsvp';
 
 export default modal.ModalController.extend({
   opening: function() {
@@ -123,36 +122,29 @@ export default modal.ModalController.extend({
           return
         } else {
           _this.set('status', {resetting: true});
-          var pw_gen = RSVP.resolve(null);
-          var pw = _this.get('reset_password');
-          if(_this.get('reset_password')) {
-            pw_gen = session.hashed_password(_this.set('reset_password'));
-          }
-          pw_gen.then(function(password) {
-            persistence.ajax('/api/v1/users/' + _this.get('user.id') + '/evals/reset', {
-              type: 'POST',
-              data: {
-                expires: _this.get('eval_expires'),
-                password: pw,
-                email: _this.get('reset_email'),
-                symbol_library: _this.get('symbol_library'),
-                home_board_key: _this.get('home_board_key')
+          // Send plaintext so the server can enforce MIN_PASSWORD_LENGTH.
+          // hashed_password is for login, not writes.
+          persistence.ajax('/api/v1/users/' + _this.get('user.id') + '/evals/reset', {
+            type: 'POST',
+            data: {
+              expires: _this.get('eval_expires'),
+              password: _this.get('reset_password') || null,
+              email: _this.get('reset_email'),
+              symbol_library: _this.get('symbol_library'),
+              home_board_key: _this.get('home_board_key')
+            }
+          }).then(function(res) {
+            progress_tracker.track(res.progress, function(event) {
+              if(event.status == 'errored') {
+                _this.set('status', {reset_error: true});
+              } else if(event.status == 'finished') {
+                _this.set('status', {reset_finished: true});
+                runLater(function() {
+                  location.reload();
+                }, 2000);
               }
-            }).then(function(res) {
-              progress_tracker.track(res.progress, function(event) {
-                if(event.status == 'errored') {
-                  _this.set('status', {reset_error: true});
-                } else if(event.status == 'finished') {
-                  _this.set('status', {reset_finished: true});
-                  runLater(function() {
-                    location.reload();
-                  }, 2000);
-                }
-              });
-            }, function(error) {
-              _this.set('status', {reset_error: true});
             });
-          }, function(err) {
+          }, function(error) {
             _this.set('status', {reset_error: true});
           });
           // api/v1/users/id/evals/reset

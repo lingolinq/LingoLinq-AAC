@@ -91,15 +91,15 @@
           {{t "The organization will also sponsor this account, meaning it will be free as long as the organization remains a sponsor." key="org_sponsored"}}
         {{/if}}
         <br><br>
-        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_approve")}}>{{t "Approve %{org}" org=this.model.pending_org.name}}</button>
-        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_reject")}}>{{t "Deny Access"}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_approve")}}>{{t "Approve %{org}" key="approve_org" org=this.model.pending_org.name}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "user_reject")}}>{{t "Deny Access" key="deny_access"}}</button>
       </div>
     {{else if this.model.pending_supervision_org}}
       <div class='alert alert-info'>
         {{t "%{org} wants to add you as a supervisor to their organization. Organization admins will be able to see your basic profile information, including the communicators in the organization that you are currently supervising." key="confirm_pending_supervision_org" org=this.model.pending_supervision_org.name}}
         <br><br>
-        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "supervisor_approve")}}>{{t "Approve %{org}" org=this.model.pending_supervision_org.name}}</button>
-        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "supervisor_reject")}}>{{t "Deny Access"}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "supervisor_approve")}}>{{t "Approve %{org}" key="approve_org" org=this.model.pending_supervision_org.name}}</button>
+        <button class="btn btn-default" {{on "click" (this.ctrlAction "approve_or_reject_org" "supervisor_reject")}}>{{t "Deny Access" key="deny_access"}}</button>
       </div>
     {{else if this.show_welcome_notice}}
       <div class="ll-welcome-notice ll-welcome-notice--long" role="status">
@@ -228,12 +228,12 @@
               {{#if this.model.permissions.edit}}
                 {{#unless this.model.permissions.delete}}
                   {{#if this.external_device_or_no_home}}
-                    <button type="button" class="md-acct-card" {{on "click" (this.ctrlAction "external_device")}} aria-label={{t "Update Device"}}>
+                    <button type="button" class="md-acct-card" {{on "click" (this.ctrlAction "external_device")}} aria-label={{t "Update Device" key="update_device"}}>
                       <span class="md-acct-card__icon" aria-hidden="true">
                         <svg class="md-acct-card__glyph" viewBox="0 0 24 24" fill="none" stroke="#4C86D8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>
                       </span>
                       <span class="md-acct-card__body">
-                        <span class="md-acct-card__title">{{t "Update Device"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
+                        <span class="md-acct-card__title">{{t "Update Device" key="update_device"}} <span class="md-acct-card__arrow" aria-hidden="true">→</span></span>
                         <span class="md-acct-card__sub">{{t "Set the AAC device" key="update_device_sub"}}</span>
                       </span>
                     </button>

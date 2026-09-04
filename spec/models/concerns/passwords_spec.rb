@@ -510,9 +510,12 @@ describe Passwords, :type => :model do
       expect(u.password_meets_minimum?("12345678")).to eq(true)
     end
 
-    it "should accept already-hashed values so login rehash is not blocked" do
+    it "should reject client-supplied prehashes so a short password cannot skip the minimum" do
       u = User.new
-      expect(u.password_meets_minimum?("hashed?:#sha512?:#abc")).to eq(true)
+      expect(u.password_meets_minimum?("hashed?:#sha512?:#abc")).to eq(false)
+      hashed_short = u.pre_hashed_password("x")
+      expect(hashed_short).to match(/\Ahashed\?:#/)
+      expect(u.password_meets_minimum?(hashed_short)).to eq(false)
     end
   end
 
@@ -520,6 +523,13 @@ describe Passwords, :type => :model do
     it "should reject a short password on write" do
       u = User.create
       expect(u.process_params({'password' => '1234567'}, {})).to eq(false)
+      expect(u.processing_errors).to include("password too short")
+    end
+
+    it "should reject a client-supplied hash of a short password on write" do
+      u = User.create
+      hashed = u.pre_hashed_password("x")
+      expect(u.process_params({'password' => hashed}, {:allow_password_change => true})).to eq(false)
       expect(u.processing_errors).to include("password too short")
     end
 

@@ -56,7 +56,7 @@ Default retention windows apply unless a customer data processing addendum speci
 | Pen-test reports and security assessments | 6 years | HIPAA evaluation requirements; SOC program expectations | Secure document store with periodic review | Also retained if required for legal hold |
 | Vendor agreements, DPAs, BAAs | Term plus 7 years after termination | Contract statute of limitations; tax | Contract repository retention | Includes AWS BAA, HubSpot DPA, Render DPA |
 | Employment and contractor records | 7 years after separation | FLSA, IRS, state employment law | HR system retention | Includes time entries in Clockify |
-| Children's data (users under 13) | Parent-controllable at any time; automatic purge at age 18 or after 2 years of inactivity, whichever is sooner | COPPA 16 CFR § 312.10 | `Flusher` with child-flag path; age-threshold sweeper | Parental deletion requests processed within 30 days |
+| Children's data (users under 13) | Account and content are not automatically deleted solely because a user turns 18 | COPPA 16 CFR § 312.10 | Explicit user or verified parental deletion path; no age-based deletion mechanism | Verified parental deletion requests processed within 30 days; applicable legal holds and consent-age requirements remain controlling |
 | Supervisor consent records (`SupervisorConsentService`) | Life of the relationship plus 2 years | COPPA, FERPA; accountability | Flusher cascade when parent user is deleted | Token-based, 14 day token TTL |
 | Deleted-user tombstones | Indefinite (identifier only, no PII) | Integrity, prevent replay | Tombstones stored outside live tables | Used to prevent recreating deleted identifiers |
 
