@@ -8688,14 +8688,23 @@ body > .popover.bottom {
   text-align: center;
   white-space: nowrap;
   height: 55px;
-  /* Image-chip variant (eval word bar): the chips otherwise sit flush against
-     the header. Add top breathing room. border-box, so grow the height by the
-     same 16px to keep the 105px content row un-clipped. Scoped to .with_images
-     so the plain 55px row (which board sizing reserves via a hardcoded +55 in
-     controllers/board/index.js) is untouched. */
+  /* Image-chip variant (eval word bar). The 16px of top breathing room was removed
+     on 2026-09-03 (requested), and the height comes down with it: 121px was 105px of
+     content plus exactly that padding, on border-box, so keeping 121 would have moved
+     the gap from above the chips to below them rather than removing it. 105px is the
+     content row itself.
+
+     Only the CLASSIC board renders this element -- `<div id="word_suggestions"
+     class={{suggestion_class}}>` appears in templates/board/index.hbs:51 and
+     templates/user/board-alt/index.hbs:51 and nowhere else; the modern board's
+     `show_word_suggestions` branch builds different markup. So this is not shared.
+
+     Still scoped to .with_images so the plain 55px row (which board sizing reserves via
+     a hardcoded +55 in controllers/board/index.js:521) is untouched. Note that +55 does
+     NOT track this variant's height and did not track the old 121 either -- a
+     pre-existing mismatch, unchanged here. */
   &.with_images {
-    height: 121px;
-    padding-top: 16px;
+    height: 105px;
   }
 }
 #word_suggestions .suggestion {
