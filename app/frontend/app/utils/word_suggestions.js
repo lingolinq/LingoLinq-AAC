@@ -1375,6 +1375,62 @@ word_suggestions.lookup_board_ids = function(appState, stashes, extra_ids) {
   (extra_ids || []).forEach(push);
   return ids;
 };
+/* Which button sets have been IN SCOPE for which user, this session:
+   `{ <user global id>: { <set global id>: true } }`.
+
+   The widened pass below searches sets that are merely RESIDENT, and the Ember store
+   accumulates them across communicators inside ONE supervisor login -- `unloadAll` runs only on
+   logout (services/session.js:761, :793), never on a speak-as or modelling switch. Without a
+   record of whose vocabulary each set is, that pass hands one communicator's symbol to another,
+   and it does not stop at the screen: the url is written onto the utterance button
+   (utils/utterance.js:589 -> utils/button.js:1694), persisted to working_vocalization
+   (utils/utterance.js:314), and logged to the server against the OTHER communicator
+   (services/stashes.js:801-805).
+
+   Recorded HERE, at the loader, rather than on the store records: the store has at least five
+   writers, and a stamp applied when a set is FETCHED never fires for one that is already
+   resident. This function is the single place that decides "these sets are in scope for whoever
+   is speaking now", so recording what it returns captures every route in. */
+var scoped_set_ids = {};
+/* The bucket name, or null when there is no usable one.
+
+   `referenced_user`, NOT `currentUser`: under modelling app-state.js:2325-2332 nulls
+   `speakModeUser`, so the `currentUser := speakModeUser` branch at :2601 never fires and
+   `currentUser` stays the SUPERVISOR -- while the log is attributed to the communicator
+   (services/stashes.js:801-805). `referenced_user` (app-state.js:3939-3950) is the communicator
+   in both modelling and speak-as, so it matches the write target.
+
+   `global_id`, NOT `id`: the session user's record id is pinned to the literal string 'self'
+   (serializers/application.js:52-60), which is the same for EVERY user, so two people in one
+   SPA session would share a bucket. models/user.js:67 states the rule outright. 'self' is
+   rejected rather than used, so a record caught before `_actual_id` resolves fails closed
+   instead of joining that shared bucket. */
+var scope_key_for = function(appState) {
+  if(!appState || !appState.get) { return null; }
+  var id = appState.get('referenced_user.global_id') || appState.get('referenced_user.id');
+  if(!id || id === 'self') { return null; }
+  return id;
+};
+/* No key -> record nothing. The reader fails closed on the same condition, so an unidentifiable
+   user searches only what the scoped pass already found. Returns `sets` so it can wrap a
+   return expression without changing what the caller sees. */
+var record_scoped_sets = function(appState, sets) {
+  var key = scope_key_for(appState);
+  if(!key) { return sets; }
+  var bucket = scoped_set_ids[key] = scoped_set_ids[key] || {};
+  (sets || []).forEach(function(bs) {
+    if(!bs || !bs.get) { return; }
+    var id = bs.get('global_id') || bs.get('id');
+    if(id) { bucket[id] = true; }
+  });
+  return sets;
+};
+/* Exposed for tests -- the map is module-local, so stamps would otherwise carry between tests
+   in one run. Also called from services/app-state.js#reset and #clear_user_state so a long
+   session does not accumulate ids indefinitely. */
+word_suggestions._reset_scoped_sets = function() {
+  scoped_set_ids = {};
+};
 word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra_ids) {
   var ids = word_suggestions.lookup_board_ids(appState, stashes, extra_ids);
   var warmed = word_suggestions.button_sets_for_board_ids(ids);
@@ -1398,7 +1454,7 @@ word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra
   });
   var missing = ids.filter(function(id) { return id && !covered[id]; });
   if(!missing.length) {
-    return RSVP.resolve(warmed);
+    return RSVP.resolve(record_scoped_sets(appState, warmed));
   }
   return RSVP.all_wait(missing.filter(function(id) { return !!id; }).map(function(id) {
     return LingoLinq.Buttonset.load_button_set(id).then(function(bs) { return bs; }, function() { return null; });
@@ -1412,7 +1468,9 @@ word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra
       seen[bs_id] = true;
       all.push(bs);
     });
-    return all;
+    /* The FETCH path records too. Stamping only the early return would leave every cold
+       lookup unrecorded, silently disabling the widened pass for boards reached by fetch. */
+    return record_scoped_sets(appState, all);
   });
 };
 var _exact_button_candidates_for_label = function(label, sets) {
@@ -1447,31 +1505,48 @@ word_suggestions._exact_button_candidates_for_label = _exact_button_candidates_f
 word_suggestions._best_exact_button_for_label = function(label, sets) {
   return _exact_button_candidates_for_label(label, sets)[0] || null;
 };
-/* Every button set already IN MEMORY, minus the ones just searched.
+/* The resident button sets this user has had IN SCOPE this session, minus the ones just
+   searched.
    A button set covers its board's DOWNSTREAM tree only, so from a sub-board the parent's
-   symbols are structurally unreachable through the sub-board's own set — and
+   symbols are structurally unreachable through the sub-board's own set - and
    `lookup_board_ids` returns only a fixed handful of roots (home, current, sidebar, starred,
    root_board_state), so a board opened from the collection drawer can have none of its tree
    in scope at all.
    Fetching every board's set to close that gap would put network calls on a path that runs as
-   the user types. Sets already loaded cost nothing to search, and were simply never offered
-   to the matcher — this returns them so they can serve as a FALLBACK. */
-word_suggestions.loaded_button_sets_beyond = function(searched) {
+   the user types. Sets already loaded cost nothing to search, so they are offered to the
+   matcher as a FALLBACK - but ONLY the ones recorded against this user by
+   `load_vocabulary_button_sets`. Resident is not the same as theirs: the store holds every
+   communicator whose board was opened since login, and an unscoped result here is stored
+   against the wrong person, not merely shown to them (see `scoped_set_ids` above).
+   The cost of that restriction, stated plainly: a set that is resident but was never in scope
+   for this user - a board PREFETCHED in the background and never visited - is no longer
+   searched. A board the user actually opened was `currentBoardState` at the time, so it was
+   recorded and still is. */
+word_suggestions.loaded_button_sets_beyond = function(searched, appState) {
   var seen = {};
   (searched || []).forEach(function(bs) {
     if(bs && bs.get && bs.get('id')) { seen[bs.get('id')] = true; }
   });
   var out = [];
   try {
+    /* INSIDE the try, deliberately. An appState that cannot answer must degrade to "nothing
+       widened"; if this threw it would escape the function, reject the .then chain in
+       attach_image_for_label, and take the generic word fallback below down with it. */
+    var scope = scope_key_for(appState);
+    if(!scope) { return out; }
+    var in_scope = scoped_set_ids[scope] || {};
     LingoLinq.store.peekAll('buttonset').forEach(function(bs) {
       if(!bs || !bs.get) { return; }
       var id = bs.get('id');
       if(!id || seen[id]) { return; }
-      /* A set with no buttons covers nothing — the same rule load_vocabulary_button_sets uses. */
+      /* global_id, matching how the set was recorded and how redepth matches buttons (:1424).
+         A set loaded by KEY carries the key as its record id, so `id` alone would miss it. */
+      if(!in_scope[bs.get('global_id') || id]) { return; }
+      /* A set with no buttons covers nothing - the same rule load_vocabulary_button_sets uses. */
       if(!((bs.get('buttons') || []).length)) { return; }
       out.push(bs);
     });
-  } catch(e) { /* advisory read — a missing store must never break symbol resolution */ }
+  } catch(e) { /* advisory read - a missing store must never break symbol resolution */ }
   return out;
 };
 
@@ -1486,6 +1561,11 @@ word_suggestions.attach_image_for_label = function(label, board_ids, on_image, c
       on_image(img, word);
     }
   };
+  /* Without an appState there is no user to scope against, so this branch gets the scoped
+     pass only: `loaded_button_sets_beyond` fails closed and the widened pass yields nothing.
+     Deliberate - a caller that cannot say who is speaking must not borrow symbols from
+     whatever happens to be resident. All four production callers DO pass one
+     (utils/utterance.js:592, controllers/user/board-detail.js:1288, :1591, :8685). */
   var load_sets = appState ?
     word_suggestions.load_vocabulary_button_sets(appState, stashes, lookup_ids) :
     RSVP.resolve(word_suggestions.button_sets_for_board_ids(lookup_ids));
@@ -1534,7 +1614,7 @@ word_suggestions.attach_image_for_label = function(label, board_ids, on_image, c
       return walk(candidates).then(function(found) {
         if(found) { return found; }
         var widened = word_suggestions._exact_button_candidates_for_label(
-          label, word_suggestions.loaded_button_sets_beyond(sets));
+          label, word_suggestions.loaded_button_sets_beyond(sets, appState));
         if(!widened.length) { return null; }
         return walk(widened);
       /* And only when NEITHER pass resolved a symbol do we fall back to the generic word

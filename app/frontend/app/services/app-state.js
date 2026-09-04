@@ -413,6 +413,10 @@ export default Service.extend({
     this.refresh_user();
   },
   reset: function() {
+    /* Symbol scoping is keyed by user global id, so a stale bucket can never be read under a
+       different user -- this is memory hygiene, not a correctness dependency
+       (utils/word_suggestions.js#scoped_set_ids). */
+    word_suggestions._reset_scoped_sets();
     this.set('currentBoardState', null);
     this.set('currentUser', null);
     this.set('sessionUser', null);
@@ -2104,6 +2108,9 @@ export default Service.extend({
     // Called from services/session.js#invalidate when the auth_spa_transition
     // feature flag is enabled. SPEC R5.
     // SAFE to call when no user is logged in — every set is unconditional.
+
+    // Symbol scoping (see the note in #reset).
+    word_suggestions._reset_scoped_sets();
 
     // Core per-user identity
     this.set('sessionUser', null);

@@ -19,14 +19,32 @@ function buttonSet(id, buttons) {
   });
 }
 
-/* A predicted word must be able to borrow a symbol from ANY board already loaded — most
+/* The widened pass is scoped to the speaking user, so these fixtures must name one. Only
+   `referenced_user.global_id` is answered: the record id of a session user is pinned to the
+   literal 'self' (serializers/application.js:52-60), so `id` is not a usable key and a fix
+   reading it must not pass -- see prediction-symbol-user-scope-test.js. */
+function speaking_user(global_id) {
+  return EmberObject.create({
+    get: function(key) {
+      if(key === 'referenced_user.global_id') { return global_id; }
+      return null;
+    }
+  });
+}
+
+/* A predicted word must be able to borrow a symbol from a board already loaded -- most
    importantly the PARENT, which a sub-board can never reach through its own button set
    because a set covers a board's DOWNSTREAM tree only.
    `lookup_board_ids` returns a fixed handful (home, current, sidebar, starred, root), so a
    board reached from the collection drawer can have none of its tree in scope. Fetching every
-   board's set to fix that would put network calls on a keystroke-adjacent path — but sets
-   already in memory cost nothing to search, and today they are ignored unless their id
-   happens to be in that list. */
+   board's set to fix that would put network calls on a keystroke-adjacent path -- but a set
+   that has ALREADY BEEN IN SCOPE for this user costs nothing to search.
+   "Already been in scope", not merely "already in memory": the store accumulates button sets
+   across every communicator opened since login, so an unscoped search hands one user's symbol
+   to another and stores it against them (see prediction-symbol-user-scope-test.js). Each test
+   below therefore puts the borrowed-from board in scope FIRST -- which is what visiting it
+   does -- before looking up from somewhere else. A board that was only ever PREFETCHED in the
+   background, never visited, is deliberately not searchable. */
 module('Unit | Utility | prediction symbol from any loaded board', function(hooks) {
   hooks.beforeEach(function() {
     this._o = {
@@ -35,12 +53,12 @@ module('Unit | Utility | prediction symbol from any loaded board', function(hook
       store: LingoLinq.store,
       fix: LingoLinq.Buttonset && LingoLinq.Buttonset.fix_image
     };
-    // No set is in SCOPE — this is the sub-board case.
-    word_suggestions.load_vocabulary_button_sets = function() { return RSVP.resolve([]); };
+    word_suggestions._reset_scoped_sets();
     word_suggestions.lookup = function() { return RSVP.resolve([]); };
     if(LingoLinq.Buttonset) { LingoLinq.Buttonset.fix_image = function() { return RSVP.resolve(); }; }
   });
   hooks.afterEach(function() {
+    word_suggestions._reset_scoped_sets();
     word_suggestions.load_vocabulary_button_sets = this._o.load;
     word_suggestions.lookup = this._o.lookup;
     LingoLinq.store = this._o.store;
@@ -63,45 +81,56 @@ module('Unit | Utility | prediction symbol from any loaded board', function(hook
     const parent = buttonSet('bs-parent', [
       { label: 'you', image_id: 'img-1', image: 'https://example.test/you.png', depth: 1 }
     ]);
-    word_suggestions.load_vocabulary_button_sets = function() { return RSVP.resolve([inScope]); };
     LingoLinq.store = {
       peekAll: function(type) { return type === 'buttonset' ? A([inScope, parent]) : A([]); },
-      peekRecord: function() { return null; }
+      peekRecord: function(type, id) {
+        if(type !== 'buttonset') { return null; }
+        return id === 'bs-parent' ? parent : (id === 'bs-scoped' ? inScope : null);
+      }
     };
+    const appState = speaking_user('u1');
 
-    let delivered = null;
-    word_suggestions.attach_image_for_label('you', ['sub-board-only'], function(url) {
-      delivered = url;
-    }, { appState: EmberObject.create({ get: function() { return null; } }) }).then(function() {
-      assert.strictEqual(delivered, 'https://example.test/you.png',
-        'a placeholder-only match in scope does not block the real symbol elsewhere');
-      done();
-    }, function() { assert.strictEqual(delivered, 'threw', 'lookup rejected'); done(); });
+    /* The parent board was visited earlier in this session, which is what puts its set in
+       scope for this user. Calls the REAL loader (the stub below replaces it afterwards). */
+    this._o.load(appState, null, ['bs-parent']).then(() => {
+      word_suggestions.load_vocabulary_button_sets = function() { return RSVP.resolve([inScope]); };
+      let delivered = null;
+      return word_suggestions.attach_image_for_label('you', ['sub-board-only'], function(url) {
+        delivered = url;
+      }, { appState: appState }).then(function() {
+        assert.strictEqual(delivered, 'https://example.test/you.png',
+          'a placeholder-only match in scope does not block the real symbol elsewhere');
+        done();
+      });
+    }, function(e) { assert.ok(false, 'setup rejected: ' + e); done(); });
   });
 
   test('a symbol on a loaded but out-of-scope board is still found', function(assert) {
     assert.expect(1);
     const done = assert.async();
-    // The parent board's set IS in memory (visited earlier, or prefetched) but its id is not
-    // in lookup_board_ids for this sub-board.
+    /* The parent board's set IS in memory and WAS in scope earlier in this session, but its
+       id is not in lookup_board_ids for this sub-board. */
     const parent = buttonSet('bs-parent', [
       { label: 'you', image_id: 'img-1', image: 'https://example.test/you.png', depth: 0 }
     ]);
     LingoLinq.store = {
       peekAll: function(type) { return type === 'buttonset' ? A([parent]) : A([]); },
-      peekRecord: function() { return null; }
+      peekRecord: function(type, id) {
+        return (type === 'buttonset' && id === 'bs-parent') ? parent : null;
+      }
     };
+    const appState = speaking_user('u1');
 
-    let delivered = null;
-    word_suggestions.attach_image_for_label('you', ['sub-board-only'], function(url) {
-      delivered = url;
-    }, { appState: EmberObject.create({ get: function() { return null; } }) }).then(function() {
-      assert.strictEqual(delivered, 'https://example.test/you.png',
-        'the parent board\'s symbol is borrowed even though its board id is out of scope');
-      done();
-    }, function() {
-      assert.strictEqual(delivered, 'https://example.test/you.png', 'lookup rejected');
-      done();
-    });
+    this._o.load(appState, null, ['bs-parent']).then(() => {
+      word_suggestions.load_vocabulary_button_sets = function() { return RSVP.resolve([]); };
+      let delivered = null;
+      return word_suggestions.attach_image_for_label('you', ['sub-board-only'], function(url) {
+        delivered = url;
+      }, { appState: appState }).then(function() {
+        assert.strictEqual(delivered, 'https://example.test/you.png',
+          'the parent board\'s symbol is borrowed even though its board id is out of scope');
+        done();
+      });
+    }, function(e) { assert.ok(false, 'setup rejected: ' + e); done(); });
   });
 });
