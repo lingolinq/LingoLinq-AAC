@@ -119,6 +119,18 @@
 // Identity — avatar + username, links to My Account
 // -----------------------------------------------------------------------------
 
+// The identity wash at 25% reduced chroma (requested 2026-09-03). Derived from
+// $brand-dusty-denim (#4C86D8) and $brand-verdigris (#2A9D8F) by cutting HSL
+// saturation 25% at the SAME lightness. Local, not a brand-token edit: both tokens are
+// shared across 13 stylesheets, so editing them would repaint the board picker,
+// reports, badges, caseload and the modern pages.
+//
+// CONTRAST RE-CHECKED, because the block below calls this wash the binding constraint
+// on `.ch-rail__identity-sub`. Measured against the page wash the sub reads 4.56:1 at
+// the denim start and 5.03:1 at the verdigris end today; desaturated it reads 4.64:1
+// and 4.87:1. Both still clear WCAG AA, and the tighter of the two (the start) gains.
+$ch-identity-denim:     #5D89C6;
+$ch-identity-verdigris: #388F84;
 .ch-rail__identity {
   position: relative;
   overflow: hidden;
@@ -134,7 +146,7 @@
   // WCAG AA 4.5:1 floor. The next step up, 0.40/0.32, drops it to 4.27:1 and fails.
   // If this needs to go darker, raise the sub-label's opacity or drop the 0.75 first.
   // (The username itself is full-strength navy at 8.38:1 and is not the constraint.)
-  background: linear-gradient(150deg, rgba($brand-dusty-denim, 0.52) 0%, rgba($brand-verdigris, 0.44) 100%);
+  background: linear-gradient(150deg, rgba($ch-identity-denim, 0.52) 0%, rgba($ch-identity-verdigris, 0.44) 100%);
   // Same outline as the Actions tab's My Account tile (`.ch-tile--account`, which
   // takes `ch-tile-tint($brand-teal-blue)`): both are the door to the same page, so
   // they carry the same edge. Kept as the literal rgba the mixin emits rather than
@@ -173,11 +185,12 @@
   border-radius: 50%;
   object-fit: cover;
   background: #fff;
-  // Silver ring, same $brand-cool-steel family as the rail rows' outline but a
-  // little stronger (0.5 vs 0.34): this sits on top of a photo rather than on flat
-  // glass, so at row strength it disappeared against lighter avatars. Replaces a
-  // near-white ring, which read as a gap rather than an edge.
-  border: 2px solid rgba($brand-cool-steel, 0.5);
+  // Dark-grey ring (requested 2026-09-03), replacing the silver
+  // rgba($brand-cool-steel, 0.5). Kept at 2px: the width is not the change, and the
+  // note that earned it still holds -- this sits on top of a photo rather than on flat
+  // glass, and a thinner ring disappeared against lighter avatars. $brand-blue-black at
+  // 0.42 reads as dark grey over the identity wash rather than as a hard black outline.
+  border: 2px solid rgba($brand-blue-black, 0.42);
   box-shadow: 0 4px 12px rgba($brand-blue-black, 0.14);
 }
 
@@ -387,17 +400,32 @@ button.ch-row:focus-visible .ch-row__arrow {
 
 // Rows representing an unfinished setup step (no home board, logging off) carry a
 // warm cast so what still needs doing is visible at a glance.
+// The two ATTENTION states on the rail, at 20% reduced chroma (requested 2026-09-03):
+// `--todo` (license, logging off, no supervisors) and `--sync`. Derived from
+// $brand-honey-bronze (#F2B95A) and $brand-peach (#F5A184) by cutting HSL saturation
+// 20% at the SAME lightness. `--logging-on` is deliberately NOT included: teal is the
+// healthy state, not a warning.
+//
+// Local, not brand-token edits. $brand-honey-bronze is shared with badges, caseload,
+// goals, eval-quick, focused-view and app.scss; $brand-peach happens to be used only
+// here today, but it is still a palette token and is kept intact for consistency.
+//
+// Contrast re-checked on both washes: the row title holds at ~10:1 and the sub-label at
+// 4.77-4.68:1, both effectively unchanged, because desaturating at constant lightness
+// barely moves luminance on a wash this light.
+$ch-warn-honey: #E3B569;
+$ch-warn-peach: #EAA68F;
 .ch-row--todo {
   // Same treatment as .ch-row--sync: the honey is KEPT, just shown less, so the row
   // reads mostly white with the colour as a hint (0.20 -> 0.13 / 0.08 -> 0.045).
   // The icon chip below stays at full strength and carries the accent instead.
-  background: linear-gradient(155deg, rgba($brand-honey-bronze, 0.13) 0%, rgba($brand-honey-bronze, 0.045) 100%);
+  background: linear-gradient(155deg, rgba($ch-warn-honey, 0.13) 0%, rgba($ch-warn-honey, 0.045) 100%);
   // Keeps the shared silver edge from .ch-row — this used to re-set the border to
   // white, which would have cancelled it on exactly the rows that matter most.
 }
 
 .ch-row--todo .ch-row__icon {
-  background: linear-gradient(160deg, rgba($brand-honey-bronze, 0.28) 0%, rgba($brand-honey-bronze, 0.12) 100%);
+  background: linear-gradient(160deg, rgba($ch-warn-honey, 0.28) 0%, rgba($ch-warn-honey, 0.12) 100%);
 }
 
 // Logging ON is a healthy state — teal, matching the online dot.
@@ -416,17 +444,17 @@ button.ch-row:focus-visible .ch-row__arrow {
 // Written out rather than @include-ing ch-tile-tint because that mixin also styles a
 // `.ch-tile__chip`, which a rail ROW does not have.
 .ch-row--sync {
-  background: linear-gradient(155deg, rgba($brand-peach, 0.18) 0%, rgba($brand-peach, 0.06) 100%);
-  // Outline is a 50/50 blend of $brand-peach (#F5A184) and $brand-cool-steel
+  background: linear-gradient(155deg, rgba($ch-warn-peach, 0.18) 0%, rgba($ch-warn-peach, 0.06) 100%);
+  // Outline is a 50/50 blend of $ch-warn-peach (#EAA68F) and $brand-cool-steel
   // (#9CA3AF) — peach pulled toward grey so the edge reads as a quiet border rather
   // than a coloured one. Written as the resolved hex, NOT color.mix(): the mix keeps
   // fractional channels (200.5, 162, 153.5) and Sass then emits a fractional rgba(),
   // which a Cordova/Electron webview that cannot parse it will drop entirely.
-  border-color: rgba(#C8A29A, 0.55);
+  border-color: rgba(#C3A59F, 0.55);
   // Tight shadow, not a spread glow: this row sits at the bottom of the rail and a
   // 20px bloom made it float off the panel.
   box-shadow:
-    0 2px 6px rgba($brand-peach, 0.16),
+    0 2px 6px rgba($ch-warn-peach, 0.16),
     0 1px 2px rgba($brand-blue-black, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
@@ -434,13 +462,13 @@ button.ch-row:focus-visible .ch-row__arrow {
 button.ch-row--sync:hover,
 button.ch-row--sync:focus-visible {
   box-shadow:
-    0 5px 12px rgba($brand-peach, 0.22),
+    0 5px 12px rgba($ch-warn-peach, 0.22),
     0 1px 3px rgba($brand-blue-black, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .ch-row--sync .ch-row__icon {
-  background: linear-gradient(160deg, rgba($brand-peach, 0.26) 0%, rgba($brand-peach, 0.12) 100%);
+  background: linear-gradient(160deg, rgba($ch-warn-peach, 0.26) 0%, rgba($ch-warn-peach, 0.12) 100%);
 }
 
 .ch-row--minor {
@@ -630,6 +658,88 @@ button.ch-row--sync:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+// Panel heading row: title left, filter right. Wraps on narrow screens rather than
+// squeezing the input, which at 767px would leave it too small to type into.
+.ch-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+}
+
+// Communicators filter. Deliberately quieter than a rail row: it is a tool for finding
+// a card, not one of the cards. 44px tall to clear the WCAG 2.5.5 target minimum this
+// file sets for itself at .ch-tour__btn -- switch and eye-gaze users have to hit it too.
+.ch-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 0 1 260px;
+  min-width: 180px;
+  height: 44px;
+  padding: 0 8px 0 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba($brand-cool-steel, 0.42);
+  box-shadow: inset 0 1px 2px rgba($brand-blue-black, 0.05);
+}
+
+.ch-filter__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: $la-navy;
+  // 0.55 on white is 4.6:1 -- this is the only cue that the field is a filter, so it
+  // clears the 3:1 non-text minimum with room rather than sitting at it.
+  opacity: 0.55;
+}
+
+.ch-filter__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0 6px;
+  font-size: 14px;
+  color: $la-navy;
+  // Clears Safari's default search-field chrome, which otherwise draws its own inset
+  // box and cancel button inside this one.
+  -webkit-appearance: none;
+  appearance: none;
+
+  &::placeholder {
+    color: $la-navy;
+    // 0.62 measures 4.51:1 on this field -- placeholder text is real content until the
+    // user types, so it is held to 4.5:1 rather than treated as decoration.
+    opacity: 0.62;
+  }
+  &::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+}
+
+.ch-filter__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: $la-navy;
+  opacity: 0.6;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+    background: rgba($brand-cool-steel, 0.20);
+  }
 }
 
 .ch-panel__title {
@@ -988,7 +1098,7 @@ button.ch-tile--primary:focus-visible { color: #fff; }
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 
   .ch-tile__chip {
-    background: linear-gradient(160deg, rgba($color, 0.26) 0%, rgba($color, 0.12) 100%);
+    background: linear-gradient(160deg, rgba($color, 0.16) 0%, rgba($color, 0.07) 100%);
     border-color: rgba(255, 255, 255, 0.85);
   }
 
@@ -1026,7 +1136,16 @@ $ch-speak-blue: #4D8DC5;
 // and warm, stormy teal is dark and desaturated, so at the same 0.30 they rendered
 // as rgb(252,228,218) vs rgb(193,212,212) and still read as different weights.
 .ch-tile--reports { @include ch-tile-tint($brand-stormy-teal, 0.46, 0.22); }
-.ch-tile--ideas   { @include ch-tile-tint($brand-soft-fawn, 0.54, 0.26); }
+// Modeling Ideas at reduced chroma (requested 2026-09-03). Derived from
+// $brand-soft-fawn (#C9AD7A) by cutting HSL saturation 42.2% -> 29.6% at the SAME
+// lightness, so the tile keeps the weight the alphas below were tuned to give it and
+// only its colourfulness drops. Lowering the alphas instead would have lightened it
+// out of step with Speak and Reports, which the note above deliberately matched.
+// Local rather than a brand-token edit: $brand-soft-fawn also paints the caseload
+// Modeling Ideas card (_caseload.scss:793-794) and an extras-card icon
+// (app.scss:62386), and neither was asked to change.
+$ch-ideas-fawn: #BDAA86;
+.ch-tile--ideas   { @include ch-tile-tint($ch-ideas-fawn, 0.54, 0.26); }
 .ch-tile--learn   { @include ch-tile-tint($brand-stormy-teal); }
 .ch-tile--log     { @include ch-tile-tint($brand-blue-grey, 0.32, 0.14); }
 
@@ -1046,7 +1165,7 @@ $ch-speak-blue: #4D8DC5;
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 
   .ch-tile__chip {
-    background: linear-gradient(160deg, rgba($brand-cool-steel, 0.26) 0%, rgba($brand-cool-steel, 0.12) 100%);
+    background: linear-gradient(160deg, rgba($brand-cool-steel, 0.16) 0%, rgba($brand-cool-steel, 0.07) 100%);
   }
 }
 
@@ -1144,7 +1263,12 @@ button.ch-tile--silver:focus-visible {
   border-radius: 50%;
   object-fit: cover;
   background: #fff;
-  border: 2px solid rgba(255, 255, 255, 0.95);
+  // Thin dark-grey ring (requested 2026-09-03), replacing the white
+  // rgba(255,255,255,0.95). 1px, not the identity avatar's 2px: these sit at 52px in a
+  // list of them, so the heavier ring read as a row of targets. Same
+  // rgba($brand-blue-black, 0.42) as `.ch-rail__avatar` so the two avatars on this page
+  // carry one edge colour.
+  border: 1px solid rgba($brand-blue-black, 0.42);
   box-shadow: 0 4px 12px rgba($brand-blue-black, 0.12);
 }
 

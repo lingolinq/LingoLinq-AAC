@@ -120,6 +120,39 @@ export default AuthenticatedView.extend({
     });
   }),
 
+  // Communicators-tab filter. Mirrors the caseload page's `superviseeFilter` /
+  // `filteredSupervisees` / `clearSuperviseeFilter` trio (controllers/caseload.js:113,
+  // :201, :482) rather than inventing a second filtering idiom for the same data — the
+  // two pages render the same `known_supervisees` list and should behave the same.
+  superviseeFilter: '',
+
+  // Case-insensitive substring match against the two things this card actually shows:
+  // the user_name (classic-view.hbs:354) and the goal summary (:356). Caseload also
+  // matches `displayed_goal_summary` and `active_goals`; neither is present on the raw
+  // `known_supervisees` payload this page renders, so matching them here would be dead
+  // code. Entries are PLAIN objects (Object.assign copies above), so this reads
+  // properties directly and must not use `.get()`.
+  filteredSupervisees: computed('decoratedSupervisees', 'superviseeFilter', function() {
+    var list = this.get('decoratedSupervisees') || [];
+    var q = (this.get('superviseeFilter') || '').trim().toLowerCase();
+    if(!q) { return list; }
+    return list.filter(function(s) {
+      if(!s) { return false; }
+      var name = (s.user_name ? String(s.user_name) : '').toLowerCase();
+      if(name.indexOf(q) !== -1) { return true; }
+      var goal = (s.goal && s.goal.summary ? String(s.goal.summary) : '').toLowerCase();
+      return goal.indexOf(q) !== -1;
+    });
+  }),
+
+  // Hidden for a single supervisee — one card needs no filter — but kept visible once
+  // there is text in it, so narrowing to one match cannot pull the input out from under
+  // the person still typing. Same rule and the same reason as caseload.js:233.
+  showSuperviseeFilter: computed('decoratedSupervisees', 'superviseeFilter', function() {
+    var count = (this.get('decoratedSupervisees') || []).length;
+    return count > 1 || (this.get('superviseeFilter') || '').length > 0;
+  }),
+
   // Home board lives on preferences.  // Home board lives on preferences. `home_board_pending` covers the window where
   // a board was picked and is still being copied server-side, which must NOT read
   // as "no home board yet" — that would send the user back to the picker mid-copy.
@@ -249,6 +282,10 @@ export default AuthenticatedView.extend({
       }, function() {
         modal.error(i18n.t('error_loading_user2', "There was an unexpected error trying to load the user"));
       });
+    },
+
+    clearSuperviseeFilter: function() {
+      this.set('superviseeFilter', '');
     },
 
     // Notifications + recent sessions, reachable once logging is producing them.

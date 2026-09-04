@@ -343,10 +343,32 @@
     {{!-- ── COMMUNICATORS ── People I Supervise --}}
     {{#if this.index_nav.supervisees}}
       <div class="ch-tabpanel" role="tabpanel">
-        <h2 class="ch-panel__title">{{t "People I Supervise" key="people_i_supervise"}}</h2>
+        {{!-- Heading and filter share one row; the filter sits to the right of the
+             title. Markup mirrors the caseload page's filter (templates/caseload.hbs:31)
+             so the two supervisee surfaces read the same. --}}
+        <div class="ch-panel__head">
+          <h2 class="ch-panel__title">{{t "People I Supervise" key="people_i_supervise"}}</h2>
+          {{#if this.showSuperviseeFilter}}
+            <div class="ch-filter" role="search">
+              <span class="ch-filter__icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              </span>
+              {{!-- Scope is named in BOTH the placeholder and the accessible name: the
+                   app header's global "Search Boards" field looks similar, and a
+                   placeholder is neither a label nor visible once the user has typed. --}}
+              <input type="search" value={{this.superviseeFilter}} class="ch-filter__input" placeholder={{t "Filter by name or goal" key="filter_supervisees_placeholder"}} aria-label={{t "Filter the people you supervise" key="filter_supervisees"}} autocomplete="off" {{on "input" (set-field this "superviseeFilter")}} />
+              {{#if this.superviseeFilter}}
+                <button type="button" class="ch-filter__clear" {{on "click" (this.ctrlAction "clearSuperviseeFilter")}} aria-label={{t "Clear filter" key="clear_filter"}} title={{t "Clear filter" key="clear_filter"}}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              {{/if}}
+            </div>
+          {{/if}}
+        </div>
         {{#if this.decoratedSupervisees}}
+          {{#if this.filteredSupervisees}}
           <div class="ch-comms">
-            {{#each this.decoratedSupervisees as |supervisee|}}
+            {{#each this.filteredSupervisees as |supervisee|}}
               <article class="ch-comm">
                 <div class="ch-comm__head">
                   <img src={{supervisee.avatar_url}} alt="" class="ch-comm__avatar">
@@ -367,13 +389,13 @@
                        set_speak_mode_user falls back to the SUPPORTER's own board.
                        Same gate the caseload page applies. --}}
                   {{#if supervisee.resolved_home_board_key}}
-                    <button type="button" class="ch-tile ch-tile--primary" {{on "click" (this.ctrlAction "homeInSpeakMode" supervisee.id true)}}>
+                    <button type="button" class="ch-tile ch-tile--primary" aria-label={{concat (t "Model for" key="model_for") " " supervisee.user_name}} {{on "click" (this.ctrlAction "homeInSpeakMode" supervisee.id true)}}>
                       <svg class="ch-tile__icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="20"/></svg>
-                      <span class="ch-tile__label">{{t "Model for" key="model_for"}}<br>{{supervisee.user_name}}</span>
+                      <span class="ch-tile__label">{{t "Model" key="caseload_qa_model"}}</span>
                     </button>
-                    <button type="button" class="ch-tile ch-tile--speak" {{on "click" (this.ctrlAction "homeInSpeakMode" supervisee.id)}}>
+                    <button type="button" class="ch-tile ch-tile--speak" aria-label={{concat (t "Speak as" key="speak_as") " " supervisee.user_name}} {{on "click" (this.ctrlAction "homeInSpeakMode" supervisee.id)}}>
                       <svg class="ch-tile__icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="10.5 5 6 9 2.5 9 2.5 15 6 15 10.5 19 10.5 5"/><path d="M14.2 9.4a3.6 3.6 0 0 1 0 5.2"/><path d="M17.2 6.8a7.4 7.4 0 0 1 0 10.4"/></svg>
-                      <span class="ch-tile__label">{{t "Speak as" key="speak_as"}}<br>{{supervisee.user_name}}</span>
+                      <span class="ch-tile__label">{{t "Speak" key="speak_short"}}</span>
                     </button>
                   {{else if supervisee.modeling_only}}
                     <span class="ch-tile ch-tile--locked" role="note">
@@ -433,6 +455,11 @@
               </article>
             {{/each}}
           </div>
+          {{else}}
+            {{!-- Filter matched nothing. Distinct from the "no supervisees at all"
+                 explainer below, which is about permissions, not the filter. --}}
+            <p class="ch-empty">{{t "No one matches that filter." key="no_matching_supervisees"}}</p>
+          {{/if}}
           {{#if this.app_state.currentUser.all_connections.loading}}
             <p class="ch-empty">{{t "Loading more..." key="loading_more"}}</p>
           {{else if this.app_state.currentUser.all_connections.error}}
