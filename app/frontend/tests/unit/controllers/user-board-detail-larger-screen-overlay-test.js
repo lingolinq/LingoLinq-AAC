@@ -5,7 +5,7 @@ import EmberObject from '@ember/object';
 /*
  * "Larger screen recommended" vs category grouping.
  *
- * portrait_overlay_eligible (controllers/user/board-detail.js:4751) fires purely on the
+ * portrait_overlay_eligible (controllers/user/board-detail.js:4872) fires purely on the
  * LIVE-MEASURED cell size published by _sync_prediction_tile_size, which measures the
  * first `.md-board-detail-grid__cell` in the DOM. While grouping is active the grid is
  * packed into compact category columns (BoardDetailGrid#compactCategories), so that

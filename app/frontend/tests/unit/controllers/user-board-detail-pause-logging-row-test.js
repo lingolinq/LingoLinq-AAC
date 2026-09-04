@@ -6,7 +6,7 @@ import EmberObject from '@ember/object';
  * "Pause Logging" for a COMMUNICATOR-ONLY account.
  *
  * The row lives in the Session submenu, and speak_section_visible_session
- * (controllers/user/board-detail.js:4303) returns false on its FIRST statement
+ * (controllers/user/board-detail.js:4321) returns false on its FIRST statement
  * for a communicator-only account -- before any per-item consideration. So the
  * per-item guard in board-detail.hbs:1270 is unreachable for a communicator and
  * the row simply is not there, even though the classic speak menu

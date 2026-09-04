@@ -8,7 +8,7 @@ import * as QUnit from 'qunit';
  * It exists because that row now has TWO homes in board-detail.hbs: inside the
  * Session submenu (supporters, as it has always been) and as a top-level row for
  * a communicator-only account, whose Session section is hidden by
- * speak_section_visible_session (controllers/user/board-detail.js:4303).
+ * speak_section_visible_session (controllers/user/board-detail.js:4321).
  * Duplicating ~18 lines of markup across those two sites is what this avoids.
  */
 QUnit.module('Integration | Component | pause-logging-button', function(hooks) {

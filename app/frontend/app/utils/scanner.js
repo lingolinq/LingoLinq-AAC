@@ -827,7 +827,25 @@ var scanner = EmberObject.extend({
     scanner.last_spoken_elem = null;
     var reset_now = true;
 
-    if(dom && (dom.hasClass('speak_menu_button') || dom.hasClass('md-speak-menu__btn') || dom.hasClass('md-speak-menu__bottom-btn'))) {
+    /* `id` is REQUIRED to take this branch, because the id IS the routing: `speakmenuselect`
+       is only handled by <ButtonListener> (components/button-listener.js:64), and
+       `button_event` dispatches on `e.button_id`. An element with no id dispatches an event
+       that nothing can route -- and in speak-menu.hbs the <ButtonListener> regions are lines
+       22-52 and 56-299 while the bottom bar opens at :430, so FOURTEEN scannable controls
+       sat outside every listener with no id and had their press silently swallowed. Among
+       them `set_speak_mode_user` and `pick_speak_mode_user` -- switching which communicator
+       you speak as -- which a switch user could not reach at all.
+       Without an id they now fall to the generic pass-through click at the end of this
+       chain, which is the same path `.md-speak-menu__phrase-page-btn` already takes and the
+       same precedent raw_events.js:1712 uses on the pointer path. Verified before changing:
+       ZERO id-less elements matching these classes sit INSIDE a listener, so nothing that
+       routes correctly today is affected.
+       ORDER MATTERS: the class tests come FIRST so `attr` is only called on an element that
+       already matched. Putting the id test first evaluates `attr` on EVERY scanned element,
+       which throws for any dom shape that lacks it -- it broke the frame_listener case, whose
+       stub defines `hasClass` and not `attr`, and which the old condition never reached
+       because the class tests short-circuited. */
+    if(dom && (dom.hasClass('speak_menu_button') || dom.hasClass('md-speak-menu__btn') || dom.hasClass('md-speak-menu__bottom-btn')) && dom.attr('id')) {
       var e = new CustomEvent( 'speakmenuselect', { bubbles: true, cancelable: true } );
       e.button_id = dom.attr('id');
       dom[0].dispatchEvent(e);
