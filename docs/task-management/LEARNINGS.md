@@ -204,6 +204,7 @@ file (see [README.md](README.md)).
 - [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 - [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
 - [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
+- [Gotcha: private uploads bucket — `/upload_success` must use authenticated head_object](#gotcha-private-uploads-bucket--upload_success-must-use-authenticated-head_object)
 - [Gotcha: an underscore is NOT a line-break opportunity — wrap identifiers with `<wbr>`, never `overflow-wrap: anywhere`](#gotcha-an-underscore-is-not-a-line-break-opportunity--wrap-identifiers-with-wbr-never-overflow-wrap-anywhere)
 - [Gotcha: styling an `<img>`'s own background paints it BEFORE the image — the loading flash is self-inflicted](#gotcha-styling-an-imgs-own-background-paints-it-before-the-image--the-loading-flash-is-self-inflicted)
 - [Gotcha: ember-shepherd passes a TYPELESS button straight through — that is how a custom `action` works](#gotcha-ember-shepherd-passes-a-typeless-button-straight-through--that-is-how-a-custom-action-works)
@@ -9361,6 +9362,10 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 ## Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url
 
 `lingolinq-prod-uploads` blocks public access. Browser upload (SigV4 POST) can succeed while the worker-side import still fails: `Converters::Utils.remote_to_boards` used to `SafeHttp.get` the raw `https://bucket.s3.amazonaws.com/...` URL, get a 403 XML body, then feed it to rubyzip → misleading `Zip end of central directory signature not found` at progress ~0.22 / `processing_file`. JSON bundle import already signed via `Uploader.signed_internal_url` (`lib/converters/api_json_bundle.rb`); OBF/OBZ import and `Uploader.remote_zip` must do the same, and raise on non-success HTTP before parsing. Ref: [`2026-08-04-obz-import-signed-fetch.md`](./2026-08-04-obz-import-signed-fetch.md).
+
+## Gotcha: private uploads bucket — `/upload_success` must use authenticated head_object
+
+Same private-bucket class as the OBZ import gotcha, different caller. Browser SigV4 POST of a button sound (or image/video file) succeeds; `GET /api/v1/sounds/:id/upload_success` then did `Typhoeus.head` of the raw `https://bucket.s3.amazonaws.com/...` URL. Prod Block Public Access returns 403; the action reports **`File not found`** (exactly 46 bytes). Confirmation key was already accepted. Staging can still pass if its bucket allows public `GetObject` — the Rails file was identical on main and staging. Fix: `Uploader.remote_upload_exists?` (`lib/uploader.rb:537`, IAM `head_object`). Do not HEAD the CloudFront URL (nonprod has no CDN; a new object can miss the distribution). Residual: `verify_stored_s3_upload!` still unsigned-GETs for SVG images. Ref: [`2026-09-04-prod-sound-upload-success-400.md`](./2026-09-04-prod-sound-upload-success-400.md).
 
 ## Gotcha: a compliance claim about runtime state expires; verify at the SHA and in prod, never from the diff
 

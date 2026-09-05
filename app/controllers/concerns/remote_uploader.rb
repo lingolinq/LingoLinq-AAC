@@ -10,8 +10,9 @@ module RemoteUploader
     if record && record.confirmation_key == params['confirmation']
       config = Uploader.remote_upload_config
       url = config[:upload_url] + record.full_filename
-      res = Typhoeus.head(url)
-      if res.success?
+      # IAM head_object (lib/uploader.rb:537). Unsigned Typhoeus.head of this
+      # URL 403s when the uploads bucket blocks public access.
+      if Uploader.remote_upload_exists?(url)
         unless !record.is_a?(ButtonImage) || record.verify_stored_s3_upload!(url)
           render json: {confirmed: false, message: "Upload rejected"}.to_json, status: 400
           return
