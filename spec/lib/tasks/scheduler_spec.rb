@@ -50,6 +50,42 @@ describe 'scheduler:dispatch rake task' do
     end
   end
 
+  # These cover the failure-handling contract added on 2026-09-04, which previously shipped
+  # untested: the run must go non-zero when a task fails, must keep running the REMAINING
+  # tasks, and must survive a ScriptError (a LoadError from an in-task require is not a
+  # StandardError, so a bare `rescue` would let it kill the whole dispatch and silently skip
+  # the retention purges queued after it).
+  context 'failure handling in the daily window' do
+    before do
+      allow(Time).to receive(:now).and_return(Time.utc(2026, 4, 27, 6, 0, 0))
+      stub_hourly_collaborators
+      stub_daily_collaborators
+    end
+
+    it 'aborts non-zero when a task raises, naming the failed task' do
+      allow(DataPolicyEnforcer).to receive(:enforce_retention!).and_raise(StandardError, 'boom')
+      expect { Rake::Task['scheduler:dispatch'].invoke }
+        .to raise_error(SystemExit)
+        .and output(/enforce_data_retention_policies/).to_stdout
+    end
+
+    it 'still runs the tasks queued AFTER a failing one' do
+      allow(DataPolicyEnforcer).to receive(:enforce_retention!).and_raise(StandardError, 'boom')
+      expect(License).to receive(:expire_stale_licenses!).and_return(0)
+      expect { Rake::Task['scheduler:dispatch'].invoke }.to raise_error(SystemExit)
+    end
+
+    it 'survives a ScriptError and still runs the later retention purges' do
+      allow(DataPolicyEnforcer).to receive(:enforce_retention!).and_raise(LoadError, 'cannot load such file')
+      expect(OffboardingCoppaExpirationWorker).to receive(:perform).and_return(0)
+      expect { Rake::Task['scheduler:dispatch'].invoke }.to raise_error(SystemExit)
+    end
+
+    it 'exits zero when every task succeeds' do
+      expect { Rake::Task['scheduler:dispatch'].invoke }.not_to raise_error
+    end
+  end
+
   context 'when run outside the 6 AM UTC daily window' do
     before do
       allow(Time).to receive(:now).and_return(Time.utc(2026, 4, 27, 14, 0, 0))
