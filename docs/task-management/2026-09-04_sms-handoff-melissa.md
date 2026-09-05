@@ -206,9 +206,32 @@ Both are filed, open, and NOT gated on SMS provisioning. Neither is yours to clo
 
 ## Still open, and not engineering questions
 
-- **Counsel:** is LingoLinq's use conversational/transactional rather than marketing? CTIA requires double opt-in for marketing programs, and the answer changes what the consent page must say. A student texting a family member is arguably conversational, but that needs a ruling, not an assumption.
-- **Counsel:** the FCC one-to-one consent rule took effect January 2026. Does it reach this use case?
-- **Scot and counsel:** a communicator may be under 13. The consent here is the *recipient's*, but the *sender* can be a child. Whether that raises anything under COPPA has not been assessed, and it is the kind of thing that is much cheaper to answer now than after launch.
+**Corrected 2026-09-04.** An earlier version of this section listed three questions.
+Two of them were wrong or overstated and are struck below. Only the third stands.
+
+- ~~Is the use conversational rather than marketing?~~ **Not a counsel question. It is
+  conversational.** The content is a person speaking to their own contact. The axis
+  carriers actually classify on is A2P versus P2P, not marketing versus conversational,
+  and LingoLinq is unambiguously A2P because the application sends from a LingoLinq
+  number with a `LingoLinq:` prefix rather than from the user's own handset. A2P plus
+  conversational content is an ordinary, well-understood category. It still requires
+  opt-in consent, which is exactly what this build collects, but it does NOT pull in
+  the marketing-specific layer on top, including CTIA's double opt-in requirement.
+  What remains is a form-filling task, not a legal one: state the use case and sample
+  messages accurately on the registration so it is vetted in the right category.
+- ~~Does the FCC one-to-one consent rule reach this?~~ **Struck. That rule does not
+  exist.** It was vacated by the Eleventh Circuit in *Insurance Marketing Coalition v.
+  FCC* on 2025-01-24, days before it would have taken effect; the FCC declined to
+  challenge that ruling in April 2025 and formally eliminated the requirement by final
+  rule in September 2025. It was a telemarketing and lead-generation rule and would not
+  have reached this use case even had it survived. The earlier claim here that it "took
+  effect January 2026" came from a secondary marketing source and was not verified
+  before it was written down.
+- **STANDS. Scot and counsel:** a communicator may be under 13. The consent collected
+  here is the *recipient's*, but the *sender* can be a child. Whether that raises
+  anything under COPPA has not been assessed. This is the one genuinely open question,
+  it is specific to LingoLinq rather than to SMS generally, and it is much cheaper to
+  answer now than after launch.
 
 ## Repo conventions
 
