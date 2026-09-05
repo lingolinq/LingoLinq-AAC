@@ -25,8 +25,11 @@ must be it.
 ## Modes
 - **full** (default): all seven slices.
 - **diff** (`/ember-audit-run diff`): slices restricted to files in
-  `git diff --name-only origin/develop...HEAD -- app/frontend/` (plus their twin files —
-  the twin rule in the finder skill still applies). Cheap post-merge regression check.
+  `git diff --name-only $(jq -r '.meta.auditedSha' audit-reports/ember-upgrade/FINDINGS-EMBER.json) HEAD -- app/frontend/`
+  (plus their twin files — the twin rule in the finder skill still applies). Cheap post-merge
+  regression check. Scope from this register's own `meta.auditedSha`, NOT from a base branch:
+  this mode runs POST-MERGE on `develop`, so `origin/develop...HEAD` is empty and would restrict
+  every slice to nothing. Two dots, not three.
 - **runtime** (`/ember-audit-run runtime`): static slices PLUS Step 4's crawl ingest
   (requires the app running; usually a local run, not remote).
 

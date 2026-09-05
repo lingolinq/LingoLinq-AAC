@@ -106,7 +106,7 @@ npm audit --omit=dev                       # frontend CVEs (prod deps only)
 
 # Secrets — quick sweep
 cd ..
-git diff --name-only main...HEAD | xargs gitleaks detect --no-git --redact -s 2>&1 | head -20
+git diff --name-only develop...HEAD | xargs gitleaks detect --no-git --redact -s 2>&1 | head -20
 
 # i18n — verify generator picks up your new keys
 ruby i18n_generator.rb --dry-run            # see §2.4
@@ -124,7 +124,7 @@ If any of these fail, **stop and fix before continuing to Tier 2**. The Tier 2 s
 
 | Check | How |
 |---|---|
-| New template blocks for end-users? | `git diff main...HEAD -- '*.hbs'` — for any new visible UI, grep [`lib/feature_flags.rb`](../lib/feature_flags.rb) for a flag that wraps it. If none exists, ADD one to `AVAILABLE_FRONTEND_FEATURES` and conditionally to `ENABLED_FRONTEND_FEATURES`, then gate the template + JS. |
+| New template blocks for end-users? | `git diff develop...HEAD -- '*.hbs'` — for any new visible UI, grep [`lib/feature_flags.rb`](../lib/feature_flags.rb) for a flag that wraps it. If none exists, ADD one to `AVAILABLE_FRONTEND_FEATURES` and conditionally to `ENABLED_FRONTEND_FEATURES`, then gate the template + JS. |
 | New action handler called from a user-triggered button? | Wrap the handler in `if(this.get('app_state.feature_flags.<flag>'))` or refuse the action when flag is off. |
 | New API endpoint that exposes new functionality? | Backend-side flag check at controller entry. |
 
@@ -149,7 +149,7 @@ If any of these fail, **stop and fix before continuing to Tier 2**. The Tier 2 s
 
 **Why:** Past Sec 1 Critical: PR #284 said boardPicker was removed but [`application.js:147-785`](../app/frontend/app/controllers/application.js) and [`tests/controllers/application-test.js:256-345`](../app/frontend/tests/controllers/application-test.js) still hold picker state + assertions on staging head. See LEARNINGS pattern [Removing a UI feature is incomplete until every coupled site is removed](task-management/LEARNINGS.md#pattern-removing-a-ui-feature-is-incomplete-until-every-coupled-site-is-removed) — distilled from [2026-05-27-create-board-remove-license.md](task-management/2026-05-27-create-board-remove-license.md).
 
-**Diagnostic shortcut:** `git diff main...HEAD --name-only -- '*.hbs' | xargs -I {} basename {} | sed 's/\.hbs$//'` to list the templates you removed UI from, then `grep -rn "<feature-name>"` across the entire repo for each. If results are in (a) the same file's other locations or (b) the matching JS controller, those are orphans. If they're in unrelated components, those are SEPARATE consumers — leave them.
+**Diagnostic shortcut:** `git diff develop...HEAD --name-only -- '*.hbs' | xargs -I {} basename {} | sed 's/\.hbs$//'` to list the templates you removed UI from, then `grep -rn "<feature-name>"` across the entire repo for each. If results are in (a) the same file's other locations or (b) the matching JS controller, those are orphans. If they're in unrelated components, those are SEPARATE consumers — leave them.
 
 ---
 
@@ -159,8 +159,8 @@ If any of these fail, **stop and fix before continuing to Tier 2**. The Tier 2 s
 
 | Check | Threshold |
 |---|---|
-| Files changed in this PR | Run `git diff --stat main...HEAD app/frontend/app/components/ app/controllers/` |
-| New tests added in this PR | Run `git diff --stat main...HEAD app/frontend/tests/ spec/` |
+| Files changed in this PR | Run `git diff --stat develop...HEAD app/frontend/app/components/ app/controllers/` |
+| New tests added in this PR | Run `git diff --stat develop...HEAD app/frontend/tests/ spec/` |
 | Ratio | If <changed files> ≥ 5 AND <new tests> ≤ 1, this is a BLOCK — same pattern Scot called Sec 1 High on PR #281 |
 
 **Why:** PR #281 shipped 60+ frontend files with ~1 new test. Scot's High finding: no integration coverage for `create-board-new`, `board-preview-canvas`, `dashboard`, SPA-transition. The minimum bar is **one happy-path test per significant user flow that the PR touches**.
@@ -170,7 +170,7 @@ If any of these fail, **stop and fix before continuing to Tier 2**. The Tier 2 s
 - Frontend acceptance: `app/frontend/tests/acceptance/<flow>-test.js`
 - Backend model/controller: `spec/models/`, `spec/controllers/`
 
-**Diagnostic shortcut:** `git diff main...HEAD --name-only | grep -E "(components|controllers)/" | wc -l` vs `git diff main...HEAD --name-only | grep -E "tests/|spec/" | wc -l`.
+**Diagnostic shortcut:** `git diff develop...HEAD --name-only | grep -E "(components|controllers)/" | wc -l` vs `git diff develop...HEAD --name-only | grep -E "tests/|spec/" | wc -l`.
 
 ---
 
@@ -180,10 +180,10 @@ If any of these fail, **stop and fix before continuing to Tier 2**. The Tier 2 s
 
 | Check | How |
 |---|---|
-| New user-facing strings hard-coded without i18n | `git diff main...HEAD -- '*.hbs' '*.js' | grep -E '^\+' | grep -vE 'key=|i18n\.t|aria-label.*\{\{t ' | grep -E '[A-Z][a-z]+ [A-Z][a-z]+'` — quick heuristic for two-word capitalized strings that look like UI copy |
-| Dynamic `{{t group.section ...}}` keys | `git diff main...HEAD -- '*.hbs' | grep -E '\{\{t [a-z][a-zA-Z._]*[^"\}]'` — anything starting with `{{t ` followed by a property reference instead of a literal string |
+| New user-facing strings hard-coded without i18n | `git diff develop...HEAD -- '*.hbs' '*.js' | grep -E '^\+' | grep -vE 'key=|i18n\.t|aria-label.*\{\{t ' | grep -E '[A-Z][a-z]+ [A-Z][a-z]+'` — quick heuristic for two-word capitalized strings that look like UI copy |
+| Dynamic `{{t group.section ...}}` keys | `git diff develop...HEAD -- '*.hbs' | grep -E '\{\{t [a-z][a-zA-Z._]*[^"\}]'` — anything starting with `{{t ` followed by a property reference instead of a literal string |
 | Translation file coverage | After authoring strings, run `ruby i18n_generator.rb` and `git diff app/frontend/public/locales/en.json` — every new key should appear |
-| Single vs double quote convention | `git diff main...HEAD -- '*.js' | grep "^\+" | grep "i18n\.t([^']" ` — user-facing must use double quotes |
+| Single vs double quote convention | `git diff develop...HEAD -- '*.js' | grep "^\+" | grep "i18n\.t([^']" ` — user-facing must use double quotes |
 
 **Why:** PR #284 used dynamic `{{t group.section...}}` keys for the Customize Menu — `i18n_generator.rb` parses templates statically and can only see literal keys. Only 3 of 23 keys made it into `en.json`. Non-English locales now miss 20 strings. Scot's High finding.
 
@@ -222,7 +222,7 @@ If any of these fail, **stop and fix before continuing to Tier 2**. The Tier 2 s
 
 | Check | How |
 |---|---|
-| Did this PR change any controller that returns a list (index actions, search results, paginated feeds)? | `git diff main...HEAD --name-only -- 'app/controllers/**index*.rb' 'app/models/**.rb' 'lib/json_api/**.rb'` |
+| Did this PR change any controller that returns a list (index actions, search results, paginated feeds)? | `git diff develop...HEAD --name-only -- 'app/controllers/**index*.rb' 'app/models/**.rb' 'lib/json_api/**.rb'` |
 | If yes — does the controller `.includes(...)` every association the JSON serializer reads? | Read the serializer in `lib/json_api/<model>.rb`, list every `.<association>` access, confirm each is in the controller's `.includes(...)` |
 | Is there a query-count spec? | `grep -rn "query_count\|assert_queries\|expect.*queries\|prosopite" spec/controllers/` |
 
@@ -240,7 +240,7 @@ If any of these fail, **stop and fix before continuing to Tier 2**. The Tier 2 s
 
 | Check | How |
 |---|---|
-| Templates: gating on supporter/communicator role | `git diff main...HEAD -- '*.hbs' | grep -E "currentUser\.role|sessionUser\.role|preferences\.role"` — these are NOT the canonical guard; use `supporter_role` instead |
+| Templates: gating on supporter/communicator role | `git diff develop...HEAD -- '*.hbs' | grep -E "currentUser\.role|sessionUser\.role|preferences\.role"` — these are NOT the canonical guard; use `supporter_role` instead |
 | Compound role gates | If the condition combines two boolean checks, prefer inline `{{#if (and X Y)}}` over a new computed property (codebase convention) |
 | `sessionUser` vs `currentUser` choice | Boot-early components (e.g. create-board-new) use `sessionUser`; settled-route components use `currentUser`. Match the surrounding code |
 
@@ -264,7 +264,7 @@ If any of these fail, **stop and fix before continuing to Tier 2**. The Tier 2 s
 
 **Why:** Scot's Accessibility category called out missing `_focus.scss` mixins, unpaired `outline: none` rules, and missing keyboard activation. AAC users disproportionately rely on assistive tech; an accessibility regression here is a feature regression.
 
-**Diagnostic shortcut:** `git diff main...HEAD -- '*.hbs' | grep -E "^\+.*\{\{action " | grep -v -E "(button|<a |<input|role=\"button\")"` — any `{{action}}` on a non-button without `role="button"` is a likely violation.
+**Diagnostic shortcut:** `git diff develop...HEAD -- '*.hbs' | grep -E "^\+.*\{\{action " | grep -v -E "(button|<a |<input|role=\"button\")"` — any `{{action}}` on a non-button without `role="button"` is a likely violation.
 
 ---
 
@@ -274,11 +274,11 @@ If any of these fail, **stop and fix before continuing to Tier 2**. The Tier 2 s
 
 | Check | How |
 |---|---|
-| New `!important` declarations | `git diff main...HEAD -- 'app/frontend/app/styles/app.scss' | grep "^+" | grep "!important"` — every match needs a comment explaining why no other approach works |
+| New `!important` declarations | `git diff develop...HEAD -- 'app/frontend/app/styles/app.scss' | grep "^+" | grep "!important"` — every match needs a comment explaining why no other approach works |
 | New override-of-existing-selector blocks | If your change targets an element that already has rules elsewhere in `app.scss`, find the existing selector and edit it in place rather than adding a more-specific override. Per CLAUDE.md Rule #0.7 |
 | Duplicate selectors | `grep -n "^\.md-board-detail-symbol-card {" app/frontend/app/styles/app.scss` (substitute your selector) — if more than one match, the LATER copy wins, the earlier is dead. See LEARNINGS pattern [`app.scss contains byte-identical duplicate rules`](task-management/LEARNINGS.md#pattern-appscss-contains-byte-identical-duplicate-rules--the-later-copy-wins) |
-| Mixed-unit `clamp()` math | `git diff main...HEAD -- 'app/frontend/app/styles/' | grep -E "clamp\([^)]*[a-z]+ *\+" | grep -vE "calc\("` — SassC can't evaluate `px + vw` etc. unless wrapped in `calc()`. Per CLAUDE.md "CSS / SCSS" |
-| Sass `lighten()` / `darken()` calls | `git diff main...HEAD -- '*.scss' | grep "^+.*\(lighten\|darken\)("` — deprecated; use `color.adjust()` per Scot's Miscellaneous note |
+| Mixed-unit `clamp()` math | `git diff develop...HEAD -- 'app/frontend/app/styles/' | grep -E "clamp\([^)]*[a-z]+ *\+" | grep -vE "calc\("` — SassC can't evaluate `px + vw` etc. unless wrapped in `calc()`. Per CLAUDE.md "CSS / SCSS" |
+| Sass `lighten()` / `darken()` calls | `git diff develop...HEAD -- '*.scss' | grep "^+.*\(lighten\|darken\)("` — deprecated; use `color.adjust()` per Scot's Miscellaneous note |
 
 **Why:** SCSS hygiene fails are silent — they compile and render, but they leave the next person debugging cascade conflicts. The most expensive instance was [LEARNINGS pattern `duplicate selectors in app.scss can leave stale layout constraints active`](task-management/LEARNINGS.md#pattern-duplicate-selectors-in-appscss-can-leave-stale-layout-constraints-active).
 
@@ -355,11 +355,11 @@ Open the PR description (or scratch file) and produce these lists from the diff:
 
 | Surface | Question | How to enumerate |
 |---|---|---|
-| New endpoints | What controller actions / API routes did this PR add? | `git diff main...HEAD -- 'config/routes.rb' 'app/controllers/'` and grep new `def <action>` lines |
-| New UI flows | What new user-triggerable actions were added? | `git diff main...HEAD -- '*.hbs' \| grep -E '^\+.*\{\{action '` |
-| New data fields | What model/serializer fields were added or surfaced? | `git diff main...HEAD -- 'app/models/' 'lib/json_api/' 'db/migrate/'` |
+| New endpoints | What controller actions / API routes did this PR add? | `git diff develop...HEAD -- 'config/routes.rb' 'app/controllers/'` and grep new `def <action>` lines |
+| New UI flows | What new user-triggerable actions were added? | `git diff develop...HEAD -- '*.hbs' \| grep -E '^\+.*\{\{action '` |
+| New data fields | What model/serializer fields were added or surfaced? | `git diff develop...HEAD -- 'app/models/' 'lib/json_api/' 'db/migrate/'` |
 | New trust boundaries | What new "client → server" or "user A → user B" data flows were added? | Manually trace each new endpoint: who is the caller, who is the data subject, are they the same person? |
-| Removed code paths | What was deleted? What was that code preventing? | `git diff main...HEAD \| grep -E '^-' \| grep -E 'def \|function \|sanitize\|allowed\?\|permit\(\|secure_serialize\|encrypt'` — focus on anything that looked like a guard |
+| Removed code paths | What was deleted? What was that code preventing? | `git diff develop...HEAD \| grep -E '^-' \| grep -E 'def \|function \|sanitize\|allowed\?\|permit\(\|secure_serialize\|encrypt'` — focus on anything that looked like a guard |
 
 **Why this BLOCKs:** an adversary will produce this list themselves and run §3.2–3.7 against it. If you can't produce the list, you can't have audited the change you wrote.
 
@@ -405,11 +405,11 @@ Failures the adversary will find:
 
 ```bash
 # Find new controller actions without a visible permission check
-git diff main...HEAD -- 'app/controllers/' | grep -E '^\+\s*def ' | head
-git diff main...HEAD -- 'app/controllers/' | grep -E 'allowed\?|permit_attributes|require_owner'
+git diff develop...HEAD -- 'app/controllers/' | grep -E '^\+\s*def ' | head
+git diff develop...HEAD -- 'app/controllers/' | grep -E 'allowed\?|permit_attributes|require_owner'
 
 # Find new params.permit usage — review each for over-allowlisting
-git diff main...HEAD -- 'app/controllers/' | grep -E '^\+.*params.*permit'
+git diff develop...HEAD -- 'app/controllers/' | grep -E '^\+.*params.*permit'
 ```
 
 ---
@@ -442,8 +442,8 @@ For LingoLinq specifically:
 **Diagnostic shortcut for templates:**
 ```bash
 # Find any new {{safe-style}}, innerHTML, or Ember triple-stash {{{...}}} that could be XSS vectors
-git diff main...HEAD -- '*.hbs' | grep -E '^\+.*(safe-style|innerHTML|\{\{\{)'
-git diff main...HEAD -- '*.js' | grep -E '^\+.*\.innerHTML\s*='
+git diff develop...HEAD -- '*.hbs' | grep -E '^\+.*(safe-style|innerHTML|\{\{\{)'
+git diff develop...HEAD -- '*.js' | grep -E '^\+.*\.innerHTML\s*='
 ```
 
 ---
@@ -520,10 +520,10 @@ Per LEARNINGS [`Removing a UI feature is incomplete until every coupled site is 
 
 ```bash
 # Surface every deleted line that LOOKS like a guard or validation
-git diff main...HEAD | grep -E '^-' | grep -E 'allowed\?|sanitize|secure_serialize|AuditEvent|validates|permit\(|rate_limit|feature_flags' | head -40
+git diff develop...HEAD | grep -E '^-' | grep -E 'allowed\?|sanitize|secure_serialize|AuditEvent|validates|permit\(|rate_limit|feature_flags' | head -40
 
 # Surface every deleted method definition
-git diff main...HEAD | grep -E '^-\s+(def |function )' | head -20
+git diff develop...HEAD | grep -E '^-\s+(def |function )' | head -20
 ```
 
 For each match, you must either justify the removal (the guard is redundant because upstream X already does it) or restore it.
@@ -574,10 +574,10 @@ Per CLAUDE.md "Security" section, user data is privacy-regulated. Per the existi
 
 ```bash
 # Find any new logging that includes user-identifying expressions
-git diff main...HEAD | grep -E '^\+' | grep -E 'logger\.(debug|info|warn|error).*user\.(email|name|phone|date_of_birth|address|location)' | head -10
+git diff develop...HEAD | grep -E '^\+' | grep -E 'logger\.(debug|info|warn|error).*user\.(email|name|phone|date_of_birth|address|location)' | head -10
 
 # Find any new URLs that take user-identifying params
-git diff main...HEAD -- 'config/routes.rb' | grep -E '^\+.*(:email|:phone|:name)'
+git diff develop...HEAD -- 'config/routes.rb' | grep -E '^\+.*(:email|:phone|:name)'
 ```
 
 ---
@@ -610,7 +610,7 @@ npx ember build --environment=production
 
 | Check | How |
 |---|---|
-| Did this PR add any new gem / npm package? | `git diff main...HEAD -- 'Gemfile' 'Gemfile.lock' 'app/frontend/package.json' 'app/frontend/package-lock.json'` |
+| Did this PR add any new gem / npm package? | `git diff develop...HEAD -- 'Gemfile' 'Gemfile.lock' 'app/frontend/package.json' 'app/frontend/package-lock.json'` |
 | For each new dep: maintained? | Check the repo's last release date, open-issue count, weekly downloads |
 | For each new dep: CVE history? | Search [advisory-db](https://github.com/rubysec/ruby-advisory-db) for the gem, or `npm audit` for the npm dep |
 | For each new dep: license compatible? | Project is AGPLv3 — verify the new dep doesn't have a more-restrictive license (MIT/BSD/Apache are fine; GPL-only without dual-license is a problem) |
@@ -625,7 +625,7 @@ npx ember build --environment=production
 
 | Probe | How |
 |---|---|
-| Is there a new migration? | `git diff main...HEAD -- 'db/migrate/'` |
+| Is there a new migration? | `git diff develop...HEAD -- 'db/migrate/'` |
 | Is `down` (rollback) defined? | If `change` doesn't auto-reverse (e.g. `change_column`, raw SQL), explicit `up`/`down` is required |
 | Long-running migrations on large tables | Adding a column with a non-null default to a 50M-row table without `add_column_with_default :null => true, :default => …, :update_in_batches => true` will lock the table — use `disable_ddl_transaction!` and batch the backfill |
 | Data loss risk | `remove_column` is destructive AND irreversible after deploy. Stage the removal: PR 1 stop writing, PR 2 stop reading, PR 3 remove column |
@@ -642,12 +642,12 @@ This is the meta-check the adversarial reviewer applies to the test suite itself
 
 | Probe | How |
 |---|---|
-| Coverage of the actual changed lines | Run RSpec / Ember test with coverage; verify the new/changed lines are covered. `git diff --unified=0 main...HEAD -- 'app/'` to get the changed line numbers; cross-check against coverage report |
-| Tests that contain `pending` / `skip` / `xit` / `it.skip` | `git diff main...HEAD -- 'spec/' 'app/frontend/tests/' \| grep -E '^\+.*(pending\|skip\|xit\b)'` — every such case must have a reason |
+| Coverage of the actual changed lines | Run RSpec / Ember test with coverage; verify the new/changed lines are covered. `git diff --unified=0 develop...HEAD -- 'app/'` to get the changed line numbers; cross-check against coverage report |
+| Tests that contain `pending` / `skip` / `xit` / `it.skip` | `git diff develop...HEAD -- 'spec/' 'app/frontend/tests/' \| grep -E '^\+.*(pending\|skip\|xit\b)'` — every such case must have a reason |
 | Tests that have empty bodies | A common adversarial finding: a test scaffolded then never written. `grep -A2 'it ".*" do$' new_spec.rb \| grep -B1 '^  end'` |
 | Tests that don't actually call the changed function | If the changed function is named `foo`, `grep -l "foo" spec/` should include the new tests |
 | Tests that mock the thing they're testing | A test that mocks `User#supporter_role` to return true and then asserts the gate works — it tested the mock, not the gate. Mock at the boundary, not at the unit under test |
-| Tests that pass before the change too | Run the test against `main` (`git stash; git checkout main; rspec <new spec>; git checkout -; git stash pop`). If the new test passes without your change, it's not testing your change |
+| Tests that pass before the change too | Run the test against the base (`git stash; git checkout develop; rspec <new spec>; git checkout -; git stash pop`). If the new test passes without your change, it's not testing your change |
 | Flaky tests introduced | New test depends on time, randomness, network, file order, or test execution order? Adversary will find a way to make it fail |
 
 ---
@@ -692,28 +692,28 @@ git branch --show-current
 
 ### 4.3 PR description matches the actual diff (claims audit)
 
-**🔴 BLOCK** — Every assertion the PR description makes must be verifiable against `git diff main...HEAD`. This is the meta-check that catches the same failure mode as Scot's Sec 1 Critical on PR #284 (description claimed `boardPicker` was removed, but the diff didn't actually remove it). The adversarial reviewer reads the description first, then verifies every claim — if the claim is false, the PR is bounced.
+**🔴 BLOCK** — Every assertion the PR description makes must be verifiable against `git diff develop...HEAD`. This is the meta-check that catches the same failure mode as Scot's Sec 1 Critical on PR #284 (description claimed `boardPicker` was removed, but the diff didn't actually remove it). The adversarial reviewer reads the description first, then verifies every claim — if the claim is false, the PR is bounced.
 
 **Concrete claims to verify before opening:**
 
 ```bash
 # 1. Files-touched claim
-git diff main...HEAD --stat | tail -1
+git diff develop...HEAD --stat | tail -1
 
 # 2. "Removed X" claims — for every "remove*" / "delete*" / "drop*" verb in the PR description,
 #    extract the identifier and grep the diff to confirm it's actually deleted, not just hidden
-git log main..HEAD --oneline
-git diff main...HEAD | grep -E '^-' | grep -E '<identifier-name>' | head    # should show deletions
+git log develop..HEAD --oneline
+git diff develop...HEAD | grep -E '^-' | grep -E '<identifier-name>' | head    # should show deletions
 git grep '<identifier-name>'                                                  # should return nothing OR
                                                                               # only intentional separate-consumer matches
 
 # 3. "Added X" claims — confirm the diff actually adds it, not just stubs it
-git diff main...HEAD | grep -E '^\+' | grep -E '<identifier-name>'
+git diff develop...HEAD | grep -E '^\+' | grep -E '<identifier-name>'
 
 # 4. "Behind feature flag" claims — confirm BOTH AVAILABLE_FRONTEND_FEATURES AND ENABLED_FRONTEND_FEATURES
 #    are updated, and the template/JS actually gate on the flag
 grep -E 'AVAILABLE_FRONTEND_FEATURES|ENABLED_FRONTEND_FEATURES' lib/feature_flags.rb | grep '<flag-name>'
-git diff main...HEAD | grep '<flag-name>'
+git diff develop...HEAD | grep '<flag-name>'
 
 # 5. "No regression in X" claims — these are not provable from a diff alone; either point at the
 #    test that locks the behavior, or weaken the claim to "tested manually in scenarios A/B/C"
@@ -721,7 +721,7 @@ git diff main...HEAD | grep '<flag-name>'
 
 **Anti-pattern:** PR descriptions written from an outline of what you *intended* to do, then never reconciled with what was *actually* committed. Two ways to avoid:
 
-1. Write the PR description LAST, AFTER running `git diff main...HEAD` and reading every hunk. Treat the diff as the source of truth; the description summarizes it.
+1. Write the PR description LAST, AFTER running `git diff develop...HEAD` and reading every hunk. Treat the diff as the source of truth; the description summarizes it.
 2. If you wrote a description in advance, run the description through this audit before opening. Strike claims the diff can't substantiate.
 
 ### 4.4 Task-management log exists
@@ -750,7 +750,7 @@ git diff main...HEAD | grep '<flag-name>'
 
 ```bash
 # Quick check for sensitive paths in your diff:
-git diff main...HEAD --name-only | grep -E "(feature_flags|mailers/|app/models/board|app/models/board_content|lib/slow_worker|global_id|app/jobs/.*tree|bulk)" | head
+git diff develop...HEAD --name-only | grep -E "(feature_flags|mailers/|app/models/board|app/models/board_content|lib/slow_worker|global_id|app/jobs/.*tree|bulk)" | head
 ```
 
 If any results, **flag in the PR description** that dual review is required. **Run Tier 3 on yourself first** — the adversarial reviewer is going to.
