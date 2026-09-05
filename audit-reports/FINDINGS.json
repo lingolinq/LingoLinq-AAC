@@ -7136,6 +7136,52 @@
         "attestation": ""
       },
       "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01; missed by the original audit, which cited this file for a different and partly incorrect claim. The component supplies id terms-agree-title on its heading at :8 specifically so a label association can be made, but never passes the argument. modal-dialog.hbs:6 binds aria-labelledby to this.labelledBy, which is undefined at modal-dialog.js:15, so Ember omits the attribute entirely and the id has no referent. WCAG 4.1.2 Name, Role, Value. Distinct from the generic modal shell rows LL-b06f063f85 and LL-58130aaefe, and distinct from LL-104bfa61dc, which correctly covers the switch-scanning gap in the same component. Note for triage: the audit's claim that this modal has a broken focus trap is FALSE. modal-dialog.js:104-135 implements a real Tab trap with wraparound and :61-85 sets initial focus, which terms-agree.hbs:4-8 opts into via data-autofocus."
+    },
+    {
+      "id": "LL-b5ac82d846",
+      "ruleKey": "speech-to-text-hardcoded-english-language-code",
+      "title": "ButtonSound transcription hardcodes languageCode 'en', so a non-English communicator's voice recording is uploaded to Google Speech-to-Text and transcribed as English: personal voice data is processed for a purpose it cannot achieve (GDPR Art. 5(1)(c) minimisation, Art. 5(1)(d) accuracy)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/button_sound.rb",
+        "line": 64,
+        "snippet": "            languageCode: 'en',",
+        "sha": "61aec8394519520e536174f8df87a7af8e37b764"
+      },
+      "firstSeen": "2026-09-05",
+      "lastSeen": "2026-09-05",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "ButtonSound#schedule_transcription builds the Speech-to-Text request config at app/models/button_sound.rb:60-66 with languageCode hardcoded to 'en'. The owning user's locale is available and is used elsewhere in the codebase (user.settings['preferences']['locale'], e.g. app/models/user.rb:2338), and the board carries its own locale, so the correct value is reachable at the call site. Consequences for a non-English communicator: (1) the recognizer is told the wrong language, so the returned transcript is wrong or empty; (2) where the wrong-language result still returns confidence above the 0.3 threshold at :79-82, a meaningless transcript is STORED on the sound as settings['transcription']; (3) the recording is uploaded anyway, so the highest-sensitivity flow in the subprocessor register (row #18, raw voice audio) runs with no achievable benefit for that user, which is a data-minimisation problem rather than only a quality bug; (4) the retry at :100 means up to two uploads per recording before transcription_errors reaches the limit at :45. Options: (a) pass the user's or board's locale into the config and map it to a BCP-47 tag Speech-to-Text accepts; (b) where no reliable locale is known, skip transcription rather than defaulting to English, so no audio is sent for a request that cannot succeed; (c) consider alternateLanguageCodes for genuinely multilingual accounts; (d) treat a low-confidence result as a failure rather than storing it. Note that sampleRateHertz: 44100 at :63 is NOT part of this finding: the transcoder emits a 44100 Hz WAV (lib/transcoder.rb), so that value is consistent.",
+        "timeframe": "medium 30-60d (correctness plus minimisation; no cross-account exposure)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "claude-code",
+        "promotedDate": "2026-09-05"
+      },
+      "notes": "Surfaced 2026-09-05 while verifying the Speech-to-Text mechanics for the compliance-overview disclosure in PR #931, and filed at Scot's direction. Code-verified at origin/develop 61aec8394: languageCode is the literal 'en' with no locale lookup anywhere in the method, and the owning user's locale is reachable via self.user. SEVERITY IS PROPOSED, NOT DECIDED. The case for LOW: it is a correctness bug on a flow whose egress is already disclosed and already accepted as a risk (LL-1eb9a2435b), and production carries only synthetic accounts. The case for HIGH: it means the one flow the register calls its highest-sensitivity flow is, for every non-English user, processing a voice recording for a purpose it structurally cannot achieve, which is harder to defend under GDPR Art. 5(1)(c) than the flow's disclosed English-language use, and LingoLinq sells into European clients where non-English is the norm rather than the exception. Medium is filed as the midpoint; only Scot triages, sets severity, or closes. Related: LL-1eb9a2435b (the flow itself, accepted-risk) and LL-400adcead5 (machine-translated disclosures in twelve locales), which together suggest the i18n assumptions in this codebase deserve a sweep rather than one-off fixes."
     }
   ]
 }
