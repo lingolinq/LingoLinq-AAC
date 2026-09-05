@@ -1,8 +1,17 @@
 # SentencePic command injection — PROPOSAL for adversarial review (NOT implemented)
 
 Branch `fix/traci-sentence-pic-command-injection`, off `develop` @ 61aec8394.
-Supersedes the proposal section of `2026-09-04_sentence-pic-command-injection.md`, which
-carried the diagnosis and a first adversarial round. Nothing below is written to code yet.
+Nothing below is written to code yet.
+
+An earlier diagnosis and first adversarial round for this bug were written on the unrelated
+branch `traci/fix/restore-speak-options` and are deliberately NOT part of this history, so this
+document is self-contained. The one finding from that round that must not be lost is restated
+here because it shaped the test design: the FIRST red test written for this bug was **hollow**.
+It used the existing three-button fixture, and at three or more buttons `text_limit` is 10
+(`lib/sentence_pic.rb:28-30`), which truncated every payload into harmless text -- so the test
+passed against a vulnerability that was still live. Any execution-proof arm must therefore use
+ONE button (`text_limit` 25) and a payload inside that budget. That constraint is carried into
+the test section below and into a comment in the spec itself.
 
 ## Vulnerability — RE-PROVEN BY EXECUTION on this branch, 2026-09-05
 

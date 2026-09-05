@@ -16495,7 +16495,7 @@ At argv level, with no shell involved (all measured with `compare -metric AE` on
 
 The blueprint's worker (`LingoLinq-AAC-Worker`, `RESQUE_WORKER=true`, `bundle install --deployment`, `INTERVAL=1.0`) matches **no** live service. The real worker is `lingolinq-dev-staging-worker`, whose start command omits `RESQUE_WORKER` entirely. A whole exploitability analysis was nearly written backwards off that file. Read live state (Render API/MCP) before any claim about production, per rule #0.11 — and note that applying `render.yaml` to the live worker would set `RESQUE_WORKER=true`, which kills boot at `config/environment.rb:33` (`AppSearcher` is in `lib/`, and `config/application.rb:63` skips `autoload_lib` under that flag).
 
-**First seen in:** [2026-09-05-sentence-pic-command-injection.md](./2026-09-05-sentence-pic-command-injection.md).
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
 
 ## Gotcha: inside a double-quoted shell word only `$(…)` and backticks execute
 
@@ -16564,4 +16564,4 @@ that did not exist; comparing rendered output against a control with different l
 Countermeasure: state the oracle before running, and include a POSITIVE control that must fail —
 if nothing in the probe can come out "bad", the probe proves nothing.
 
-**First seen in:** [2026-09-05-sentence-pic-command-injection.md](./2026-09-05-sentence-pic-command-injection.md).
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
