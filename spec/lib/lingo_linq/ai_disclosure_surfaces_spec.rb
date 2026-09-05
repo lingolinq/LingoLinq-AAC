@@ -63,6 +63,13 @@ describe 'AI disclosure rendered surfaces' do
       expect(privacy_template).to match(/evaluation summaries are currently inactive/i)
     end
 
+    it 'allows valid district authorization to cover approved school-purpose AI' do
+      expect(privacy_template).to match(/district may authorize LingoLinq, including its approved AI supports/i)
+      expect(privacy_template).to match(/school-authorized educational purpose and no other commercial purpose/i)
+      expect(privacy_template).not_to match(/school-curriculum use of LingoLinq with no AI features/i)
+      expect(privacy_template).not_to match(/regardless of school enrollment/i)
+    end
+
     # The honest disclaimer must SURVIVE the guard above -- this pins the
     # distinction between denying a guarantee and making one.
     it 'declines rather than asserts a zero-retention guarantee' do
