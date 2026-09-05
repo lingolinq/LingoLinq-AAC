@@ -1216,3 +1216,48 @@ File restored from a hand-made copy, md5 verified identical.
 **Still not run: the FULL `ember test` suite** (handoff item 7). `ember serve` is still live,
 and CLAUDE.md rule #0.10 is explicit that a full run under that contention is untrustworthy.
 Nothing here should be called verified against the whole suite until that runs.
+
+---
+
+# FULL `ember test` SUITE — RUN AND COMPLETE (handoff item 7 closed)
+
+Run with `ember serve` STOPPED (all four processes in its chain killed and verified gone),
+which is what previous sessions could not do and why every prior attempt truncated.
+
+```
+NODE VERSION FOR THIS RUN: v22.23.2      <- checked BEFORE reading any output (rule #0.10)
+# tests 2593
+# pass  2554
+# skip  38
+# todo  1
+# fail  0
+Browser timeout exceeded: 0 occurrences
+```
+
+**Completeness checks, done before looking at any failure:**
+- `# skip 38` — matches the near-constant baseline exactly. This is the reliable tell; a
+  truncated run shows the same skip line with a much smaller total.
+- Arithmetic reconciles: 2554 + 38 + 1 = **2593**. No tests unaccounted for.
+- **Zero** `Browser timeout exceeded`, the signature of testem reaping a silent browser under
+  load. Stopping `ember serve` removed the contention that caused it.
+
+**A non-zero exit that is NOT a failure — worth recording, because it is rule #0.10's trap in
+reverse.** The task reported "exited with code 1", but that is my WRAPPER script's status: its
+final command was `grep -c 'Browser timeout exceeded'`, which exits 1 when it finds nothing.
+`ember test`'s own status is the `EXIT=0` line in the output. A red-looking exit code, a green
+run. Check what actually produced the code before reporting a failure.
+
+**Total delta, stated honestly.** The last recorded complete run was 2412; this is 2593, i.e.
+**+181**. Seven of those are mine (4 cold-fetch + 3 user-scope). The remaining ~174 are
+consistent with the 25-commit staging merge (`1c2bb2333`), which landed AFTER the 2412 run and
+for which no full suite had ever completed — but I have NOT audited that delta commit by
+commit, so treat "the merge accounts for it" as reasoned, not verified.
+
+**All new and repaired tests ran and passed** — confirmed by name in the output:
+`1155-1158` (freshly fetched board x4), `1173-1175` (scoped to the speaking user x3), plus the
+two re-pointed `from any loaded board` tests.
+
+=> Units B and F are verified against the whole suite, not just a filter. No regression.
+
+**`ember serve` is left STOPPED.** Restart when needed:
+`cd app/frontend && npx ember server --port 8184 --proxy http://127.0.0.1:5000` (Node 22).
