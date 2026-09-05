@@ -18,3 +18,36 @@
 # rewritten without a force-push (denied by repo policy, see
 # .claude/settings.local.json).
 8187bc5e61660ff26aef905e7c92b2e74b6070db:scripts/n1-consent-fixtures.rb:generic-api-key:34
+
+# ---------------------------------------------------------------------------
+# The three entries below are a DIFFERENT category from the one above, and the
+# difference matters. The entry above was a real (if inert) hardcoded password
+# that was fixed forward in the same PR. These three were never credentials at
+# all -- they are rule false positives -- so there is nothing to fix forward,
+# and the "fixed forward" half of the admission standard does not apply. They
+# still meet the part that does: none is a live credential.
+#
+# Surfaced by PR #938. That PR records `staging` as an ancestor of `develop`
+# and introduces no content, but it made gitleaks scan 1,366 staging commits as
+# a single range for the first time. Each finding was reproduced locally with
+# gitleaks 8.30.1 (the pinned version) and read at its source line before being
+# listed here.
+#
+# Why they passed CI when they landed: the secret-detection job prefers the
+# LATEST gitleaks release and only falls back to the pin, so its rule set drifts
+# with upstream. `curl-auth-user` and this shape of `generic-api-key` did not
+# flag these at the time. That drift is being fixed separately.
+
+# `curl -u sk_OLD_KEY:` inside a fenced code block showing how to confirm an old
+# Stripe key returns 401 after rotation. `sk_OLD_KEY` is a literal placeholder,
+# not a key -- it is the string a reader replaces. Still present verbatim at
+# HEAD, same line.
+9f702ae2548076ff10d0190377e0078c9b03741f:docs/ROTATING_KEYS.md:curl-auth-user:152
+
+# `self.consent_response_token = GoSecure.nonce('supervisor_consent_token')`.
+# The generic-api-key rule matches the `<something>_token =` assignment shape;
+# the assigned value here is a method call that MINTS a fresh nonce at runtime,
+# not a literal. There is no secret in the source. Same for the spec, where the
+# match is `consent_token_expires_at: 7.days.from_now` -- a timestamp.
+8c285497713f3f7077596e538d73bcbc1d9ffbc6:app/models/supervisor_relationship.rb:generic-api-key:43
+8c285497713f3f7077596e538d73bcbc1d9ffbc6:spec/models/supervisor_relationship_spec.rb:generic-api-key:216
