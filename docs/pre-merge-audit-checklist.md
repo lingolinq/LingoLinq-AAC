@@ -1,7 +1,7 @@
 # Pre-Merge Audit Checklist
 
 A pre-emptive sweep to run against every PR **before** opening it for
-review against `staging`. Designed to surface the class of findings
+review against `develop`. Designed to surface the class of findings
 that have historically blocked merges in this repo (feature-flag
 gaps, orphan refs after removals, dynamic i18n keys, missing tests,
 N+1 regressions, role-gate omissions, accessibility regressions) so
@@ -67,7 +67,7 @@ they get fixed by the author rather than caught by the reviewer.
 
 | Trigger | Run | Why |
 |---|---|---|
-| Before opening a PR against `staging` | Tier 1 + Tier 2 + Tier 4 | Catch hygiene blockers before review |
+| Before opening a PR against `develop` | Tier 1 + Tier 2 + Tier 4 | Catch hygiene blockers before review |
 | Before opening a PR touching a [sensitive path](#46-dual-review-for-sensitive-paths) (security / AI / user data / feature flags / mailers / tree/bulk/global_id/board/board_content/SlowWorker) | Tier 1 + Tier 2 + **Tier 3** + Tier 4 | Dual-review will run Tier 3 on you; better to find it first |
 | Before opening any PR ≥ 10 files | Tier 1 + Tier 2 + **Tier 3** + Tier 4 | Large PRs have more attack surface than the author can comprehensively self-audit; Tier 3 is the methodology that catches what skimming misses |
 | After every round of review fixes | Re-run whichever tier(s) the review touched | Fixes can introduce new debris, and a fix to a Tier 3 finding can introduce a Tier 2 regression |
@@ -898,7 +898,7 @@ This doc is intended as a **living artifact**. Update it when:
 - The `/audit-run` skill ([`.claude/skills/audit-run/SKILL.md`](../.claude/skills/audit-run/SKILL.md)) - as the lightweight per-PR sibling
 - PR template (if/when one is added to `.github/pull_request_template.md`)
 
-**Authority:** This doc represents accumulated team knowledge from the LingoLinq-AAC review process; it is binding for branches targeting `staging` and `main`. Disagreements with a specific check → raise on the PR with rationale; consensus updates land here.
+**Authority:** This doc represents accumulated team knowledge from the LingoLinq-AAC review process; it is binding for branches targeting `develop`, `staging`, and `main`. Disagreements with a specific check → raise on the PR with rationale; consensus updates land here.
 
 ---
 
