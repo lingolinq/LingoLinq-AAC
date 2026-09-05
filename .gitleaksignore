@@ -38,16 +38,23 @@
 # with upstream. `curl-auth-user` and this shape of `generic-api-key` did not
 # flag these at the time. That drift is being fixed separately.
 
-# `curl -u sk_OLD_KEY:` inside a fenced code block showing how to confirm an old
-# Stripe key returns 401 after rotation. `sk_OLD_KEY` is a literal placeholder,
-# not a key -- it is the string a reader replaces. Still present verbatim at
-# HEAD, same line.
+# A fenced curl example showing that an OLD Stripe key returns 401 after
+# rotation. The flagged value is the doc's own uppercase placeholder standing in
+# for the retired key -- the string a reader replaces, never a key. Passed to
+# curl's basic-auth flag, which is what the curl-auth-user rule keys on. Still
+# present at HEAD on the same line. (Paraphrased, per the note below.)
 9f702ae2548076ff10d0190377e0078c9b03741f:docs/ROTATING_KEYS.md:curl-auth-user:152
 
-# `self.consent_response_token = GoSecure.nonce('supervisor_consent_token')`.
-# The generic-api-key rule matches the `<something>_token =` assignment shape;
-# the assigned value here is a method call that MINTS a fresh nonce at runtime,
-# not a literal. There is no secret in the source. Same for the spec, where the
-# match is `consent_token_expires_at: 7.days.from_now` -- a timestamp.
+# In the model, a consent-response-token attribute is assigned the result of a
+# GoSecure nonce call. The generic-api-key rule keys off the assignment shape
+# alone -- an identifier ending in "token" followed by a value -- and the value
+# here is a method call that MINTS a fresh nonce at runtime, not a literal.
+# There is no secret in the source. The spec line is weaker still: the flagged
+# attribute is the token EXPIRY, assigned a relative timestamp.
+#
+# Deliberately paraphrased rather than quoted. An earlier revision of this
+# comment reproduced the spec line verbatim and gitleaks flagged the comment
+# itself, failing the check on the very commit meant to silence it. Describe
+# these shapes; do not write them out.
 8c285497713f3f7077596e538d73bcbc1d9ffbc6:app/models/supervisor_relationship.rb:generic-api-key:43
 8c285497713f3f7077596e538d73bcbc1d9ffbc6:spec/models/supervisor_relationship_spec.rb:generic-api-key:216
