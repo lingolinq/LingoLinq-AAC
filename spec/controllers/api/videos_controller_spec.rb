@@ -90,8 +90,7 @@ describe Api::VideosController, type: :controller do
       token_user
       v = UserVideo.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
-      res = OpenStruct.new(:success? => false)
-      expect(Typhoeus).to receive(:head).with(config[:upload_url] + v.full_filename).and_return(res)
+      expect(Uploader).to receive(:remote_upload_exists?).with(config[:upload_url] + v.full_filename).and_return(false)
       get :upload_success, params: {:video_id => v.global_id, :confirmation => v.confirmation_key}
       expect(response).not_to be_successful
       json = JSON.parse(response.body)
@@ -102,8 +101,7 @@ describe Api::VideosController, type: :controller do
       token_user
       v = UserVideo.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
-      res = OpenStruct.new(:success? => true)
-      expect(Typhoeus).to receive(:head).with(config[:upload_url] + v.full_filename).and_return(res)
+      expect(Uploader).to receive(:remote_upload_exists?).with(config[:upload_url] + v.full_filename).and_return(true)
       get :upload_success, params: {:video_id => v.global_id, :confirmation => v.confirmation_key}
       json = JSON.parse(response.body)
       expect(response).to be_successful
