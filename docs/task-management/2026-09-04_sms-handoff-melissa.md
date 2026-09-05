@@ -1,6 +1,7 @@
 # SMS texting: handoff to Melissa
 
-**Status:** ready to start. App-side work has NO AWS dependency and can begin today.
+**Status:** ready to start, with NO open compliance questions and NO AWS dependency
+on the app-side work. Nothing is waiting on anyone else.
 **Author:** Scot (via Claude), 2026-09-04.
 **Read with:** `2026-09-03_sms-optin-stop-help-gaps.md` (the original proposal, now
 partly superseded, marked BLOCKED) and `2026-09-03_sms-dual-review-findings.md`
@@ -25,6 +26,7 @@ the AWS work, not the other way round.**
 | Consent is collected on a WEB PAGE, not by texting the recipient | Scot, 2026-09-04 | No text is ever sent to a number that has not consented. Also means this whole flow is buildable with zero AWS access. |
 | AWS and the carrier own STOP and HELP. Self-managed opt-outs stays OFF. | Scot, 2026-09-04 | The app writes NO keyword handling. See "the trap" below. |
 | No grandfather clause for contacts predating consent | Scot, 2026-09-03 | The guard blocks unconditionally. No migration, no backfill, no `created_at` comparison. |
+| COPPA does not apply to a child sending to a consented adult | Counsel, via Scot, 2026-09-04 | The last open compliance question. Nothing gates the build. See the closed-questions section for the limits of this entry. |
 
 **Two AWS settings that sound like one, and are not.** Two-way SMS must be **ENABLED**
 (it is what delivers ordinary replies back to the app, which is the entire feature).
@@ -204,10 +206,12 @@ Both are filed, open, and NOT gated on SMS provisioning. Neither is yours to clo
 - `LL-cb9f9c865a` — `RemoteTarget` is missing from `lib/flusher.rb`'s deletion sweep, and the rows keep the hash beside its own salt. Relevant because your consent table must not repeat the pattern.
 - `LL-a8351c5b00` — `PiiScrubber`'s `LOG_PHONE_PATTERN` (`lib/pii_scrubber.rb:37`) never matches E.164, which is exactly the format `Pusher.sms` normalizes to. Relevant because SMS will generate the one shape the log backstop cannot see. Compounds with open finding `LL-fba170716e`, where the SNS callback logs its payload before verifying the signature.
 
-## Still open, and not engineering questions
+## Compliance questions: all closed
 
-**Corrected 2026-09-04.** An earlier version of this section listed three questions.
-Two of them were wrong or overstated and are struck below. Only the third stands.
+**Updated 2026-09-04. Nothing here blocks the build.** This section listed three
+questions when it was written. Two were wrong or overstated, and the third has since
+been answered by counsel. All three are recorded below rather than deleted, so a
+future reader can see what was asked and why it closed.
 
 - ~~Is the use conversational rather than marketing?~~ **Not a counsel question. It is
   conversational.** The content is a person speaking to their own contact. The axis
@@ -227,11 +231,15 @@ Two of them were wrong or overstated and are struck below. Only the third stands
   have reached this use case even had it survived. The earlier claim here that it "took
   effect January 2026" came from a secondary marketing source and was not verified
   before it was written down.
-- **STANDS. Scot and counsel:** a communicator may be under 13. The consent collected
-  here is the *recipient's*, but the *sender* can be a child. Whether that raises
-  anything under COPPA has not been assessed. This is the one genuinely open question,
-  it is specific to LingoLinq rather than to SMS generally, and it is much cheaper to
-  answer now than after launch.
+- ~~Does a communicator under 13 sending to a consented adult raise anything under
+  COPPA?~~ **CLOSED 2026-09-04. Counsel advised that it does not touch COPPA**,
+  reported by Scot. The question was worth asking because the consent collected here
+  is the *recipient's* while the *sender* may be a child, which is specific to
+  LingoLinq rather than to SMS generally. Recording the limit of this entry honestly:
+  the ruling was relayed as a conclusion and counsel's reasoning was not captured, so
+  do not infer a rationale from it or extend it by analogy to a different feature. If
+  the design changes such that a child's own data, rather than their authored message,
+  leaves the platform, ask again rather than relying on this line.
 
 ## Repo conventions
 
