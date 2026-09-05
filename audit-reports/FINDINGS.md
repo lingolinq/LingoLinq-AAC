@@ -9,7 +9,7 @@
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (126)
+## Open (127)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -93,6 +93,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-d033b27acd |  | medium | SOC2 | untriaged | audit-run | The document register anchors its overdue-for-review window to meta.generatedDate rather than the current date, so the rendered register printed none overdue while two records were genuinely past their review dates | `scripts/document-register-render.rb`:154 |
 | LL-37860cbcfa |  | medium | SOC2 | untriaged | audit-run | No GitHub Action in the repository is pinned by commit digest, including the authentication action inside the production deploy job that holds id-token write permission | `.github/workflows/deploy-cloudrun.yml`:309 |
 | LL-84c67d758d |  | medium | WCAG | untriaged | audit-run | The terms-agree modal invokes ModalDialog without labelledBy, so the dialog ships with role dialog and aria-modal but no accessible name, and the title id added for that purpose is orphaned | `app/frontend/app/components/terms-agree.hbs`:1 |
+| LL-b5ac82d846 |  | medium | GDPR, FERPA, COPPA, HIPAA | untriaged | manual | ButtonSound transcription hardcodes languageCode 'en', so a non-English communicator's voice recording is uploaded to Google Speech-to-Text and transcribed as English: personal voice data is processed for a purpose it cannot achieve (GDPR Art. 5(1)(c) minimisation, Art. 5(1)(d) accuracy) | `app/models/button_sound.rb`:64 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | **accepted** | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | **accepted** | audit-run | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
 | LL-310b464be4 | P2-8 | medium | FERPA | **accepted** | audit-run | protected_image accepts user_token via URL parameter | `app/controllers/api/users_controller.rb`:945 |
@@ -238,4 +239,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_202 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_203 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
