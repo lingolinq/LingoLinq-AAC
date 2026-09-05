@@ -18,3 +18,43 @@
 # rewritten without a force-push (denied by repo policy, see
 # .claude/settings.local.json).
 8187bc5e61660ff26aef905e7c92b2e74b6070db:scripts/n1-consent-fixtures.rb:generic-api-key:34
+
+# ---------------------------------------------------------------------------
+# The three entries below are a DIFFERENT category from the one above, and the
+# difference matters. The entry above was a real (if inert) hardcoded password
+# that was fixed forward in the same PR. These three were never credentials at
+# all -- they are rule false positives -- so there is nothing to fix forward,
+# and the "fixed forward" half of the admission standard does not apply. They
+# still meet the part that does: none is a live credential.
+#
+# Surfaced by PR #938. That PR records `staging` as an ancestor of `develop`
+# and introduces no content, but it made gitleaks scan 1,366 staging commits as
+# a single range for the first time. Each finding was reproduced locally with
+# gitleaks 8.30.1 (the pinned version) and read at its source line before being
+# listed here.
+#
+# Why they passed CI when they landed: the secret-detection job prefers the
+# LATEST gitleaks release and only falls back to the pin, so its rule set drifts
+# with upstream. `curl-auth-user` and this shape of `generic-api-key` did not
+# flag these at the time. That drift is being fixed separately.
+
+# A fenced curl example showing that an OLD Stripe key returns 401 after
+# rotation. The flagged value is the doc's own uppercase placeholder standing in
+# for the retired key -- the string a reader replaces, never a key. Passed to
+# curl's basic-auth flag, which is what the curl-auth-user rule keys on. Still
+# present at HEAD on the same line. (Paraphrased, per the note below.)
+9f702ae2548076ff10d0190377e0078c9b03741f:docs/ROTATING_KEYS.md:curl-auth-user:152
+
+# In the model, a consent-response-token attribute is assigned the result of a
+# GoSecure nonce call. The generic-api-key rule keys off the assignment shape
+# alone -- an identifier ending in "token" followed by a value -- and the value
+# here is a method call that MINTS a fresh nonce at runtime, not a literal.
+# There is no secret in the source. The spec line is weaker still: the flagged
+# attribute is the token EXPIRY, assigned a relative timestamp.
+#
+# Deliberately paraphrased rather than quoted. An earlier revision of this
+# comment reproduced the spec line verbatim and gitleaks flagged the comment
+# itself, failing the check on the very commit meant to silence it. Describe
+# these shapes; do not write them out.
+8c285497713f3f7077596e538d73bcbc1d9ffbc6:app/models/supervisor_relationship.rb:generic-api-key:43
+8c285497713f3f7077596e538d73bcbc1d9ffbc6:spec/models/supervisor_relationship_spec.rb:generic-api-key:216
