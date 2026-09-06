@@ -7229,6 +7229,38 @@
         "promotedDate": "2026-09-04"
       },
       "notes": "Surfaced 2026-09-04 in the PR #931 dual review: the Codex senior-dev pass independently flagged OpenSymbols, Stripe and workshop.openaac.org, and the Claude adversary pass independently flagged Google Maps Places plus YouTube, Zendesk, Apple and Google OAuth. This session verified the register grep (zero matches across all 270 lines), the live secret provisioning at deploy-cloudrun.yml:373, and the Places, OpenSymbols and openaac.org call sites directly. Stripe and iplocate.io are already recorded as identified-but-unrowed at register :127 and are NOT part of this finding except as evidence that the 2026-08-08 method under-reported. The defect being recorded here is not any single missing vendor but that the periodic review which exists to catch exactly this class of omission asserted a complete enumeration and produced an incomplete one, and that assertion still stands in the change log. Only Scot triages, sets severity, or closes. | SEVERITY CONFIRMED high by Scot Wahlquist 2026-09-04, on review of the PR #931 dual-review findings. This supersedes the proposed severity in the paragraph above: high is now the CEO's own determination, not this session's recommendation. DISPOSITION REMAINS UNTRIAGED: no risk acceptance, remediation commitment, timeframe, or closure has been decided, and none should be inferred from the severity confirmation."
+    },
+    {
+      "id": "LL-676f91f26b",
+      "ruleKey": "command-injection-sentence-pic-label",
+      "title": "Command injection via utterance button label in the sentence-preview worker",
+      "severity": "critical",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/sentence_pic.rb",
+        "line": 40,
+        "snippet": "`montage #{image_commands.join(' ')} -tile #{columns}x#{rows} -shadow -pointsize 16 -geometry #{width}x#{height}+3+10 -border 2 -bordercolor \"#888\" #{montage}`",
+        "sha": "61aec8394519520e536174f8df87a7af8e37b764"
+      },
+      "firstSeen": "2026-09-05",
+      "lastSeen": "2026-09-05",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Execute montage/convert with an explicit argv instead of a backticked shell string, and escape ImageMagick's own -label sigils ('%' -> '%%', '\\\\' -> '\\\\\\\\', leading '@' -> '\\\\@' after C isspace() bytes). Fix proposed in PR #944 (branch fix/traci-sentence-pic-command-injection); NOT merged at time of filing, so develop/staging/main all still carry the vulnerable line.",
+        "timeframe": "immediate"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by manual finder on 2026-09-05. Proven by execution, not by reading: a button label of '$(touch pwned)' creates the file through the real SentencePic.generate. lib/sentence_pic.rb:33 escapes only the double quote, so $(...) and backticks survive inside the double-quoted shell word at :37/:40. The truncation cap is NOT a mitigation: :33 leaves a TRAILING backslash unescaped, so a label ending in '\\\\' escapes its own closing quote and the next label lands unquoted, chaining payloads across buttons at any count. Reachable in two HTTP calls from an anonymous origin: POST /api/v1/users is exempt from require_api_token (users_controller.rb:5) and returns a bearer token; POST /api/v1/utterances then needs only that token, and with no user_id the allowed?(user,'model') branch is skipped (utterances_controller.rb:20-26). process_params stores button_list verbatim (utterance.rb:331) with no validation, and after_save :generate_preview_later (utterance.rb:14) schedules the job. Second sink: a share log event reaches the same Utterance.process_new at log_session.rb:1159. Executes in the Resque worker. NOTE: the claim that the worker env holds SECURE_ENCRYPTION_KEY/SECURE_NONCE_KEY is sourced from render.yaml, which describes NO deployed service (live worker name, startCommand and buildCommand all differ) -- treat as UNVERIFIED against the live service; DATABASE_URL is confirmed by behaviour. Brakeman already flagged this file (3 Command Injection warnings, lines 40/43/45) in audit-reports/brakeman_report.json, scan dated 2026-02-20."
     }
   ]
 }

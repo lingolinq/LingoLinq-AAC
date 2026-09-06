@@ -180,7 +180,7 @@ expect_fail() {
   out="$(bash "$GUARD" --root "$root" 2>&1)"; rc=$?
   if [ $rc -eq 0 ]; then
     fail "$name (guard exited 0; it should have refused)"
-  elif ! printf '%s' "$out" | grep -qi -- "$needle"; then
+  elif ! grep -qi -- "$needle" <<< "$out"; then
     fail "$name (refused, but not for the expected reason; wanted /$needle/)"
     printf '%s\n' "$out" | sed 's/^/         /' | head -6
   else
@@ -818,12 +818,12 @@ RUBY
   expect_pass "git-backed discovery: gitignored build output is not scanned" "$G"
 
   scope="$(bash "$GUARD" --root "$G" --list-scope 2>/dev/null)"
-  if printf '%s\n' "$scope" | grep -qxF 'lib/tasks/generate_predictions.rake'; then
+  if grep -qxF 'lib/tasks/generate_predictions.rake' <<< "$scope"; then
     pass "git-backed discovery: .rake files are in the runtime scope"
   else
     fail "git-backed discovery: .rake files are missing from the runtime scope"
   fi
-  if printf '%s\n' "$scope" | grep -qxF 'config/initializers/warmup.rb'; then
+  if grep -qxF 'config/initializers/warmup.rb' <<< "$scope"; then
     pass "git-backed discovery: config/ files are in the runtime scope"
   else
     fail "git-backed discovery: config/ files are missing from the runtime scope"
@@ -845,7 +845,7 @@ seams="$(bash "$GUARD" --root "$REPO_ROOT" --list-seams 2>/dev/null)"
 for known in lib/ai_word_predictor.rb lib/ai_prediction_generator.rb \
              lib/ai_board_generator.rb lib/eval_narrator.rb lib/ai_client.rb \
              config/puma.rb; do
-  if printf '%s\n' "$seams" | grep -qxF "$known"; then
+  if grep -qxF "$known" <<< "$seams"; then
     pass "current runtime seam $known is discovered by the guard"
   else
     fail "current runtime seam $known is NOT discovered by the guard"
@@ -858,14 +858,21 @@ else
   fail "runtime scope is implausibly small ($(printf '%s\n' "$scope" | grep -c .) files)"
 fi
 for included in 'db/migrate/' 'Rakefile' 'config.ru'; do
-  if printf '%s\n' "$scope" | grep -qF "$included"; then
+  if grep -qF "$included" <<< "$scope"; then
     pass "runtime scope includes $included (not just app/ lib/ config/)"
   else
     fail "runtime scope is missing $included"
   fi
 done
+# NOTE: these comparisons use a herestring, not `printf ... | grep -q`. With `set -o pipefail`
+# (line 27) that pipeline is unsound: grep -q exits on first match and closes the pipe, printf
+# takes SIGPIPE and exits 141, and pipefail makes the whole pipeline non-zero DESPITE the match.
+# For the `included` loop above that surfaces as a false FAIL (seen in CI: "runtime scope is
+# missing Rakefile", which matches on line 1 so grep exits soonest). Here the polarity is
+# inverted -- a match means fail -- so the same race yields a false PASS, and a genuine scope
+# violation is reported as clean. Measured on a ~2MB scope: 30/30 wrong before, 0/30 after.
 for excluded in '^app/frontend/' '^spec/' '^scripts/' '_spec\.rb$'; do
-  if printf '%s\n' "$scope" | grep -qE "$excluded"; then
+  if grep -qE "$excluded" <<< "$scope"; then
     fail "runtime scope wrongly includes $excluded"
   else
     pass "runtime scope excludes $excluded"
