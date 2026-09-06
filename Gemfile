@@ -77,9 +77,12 @@ gem 'puma', '~> 7.2', '>= 7.2.1' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-477
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
-# OBF uses Zip::File::CREATE (rubyzip) for reading ZIPs.
-# zip_kit handles all ZIP writing (streaming, flat memory).
-gem 'rubyzip', '~> 2.3'
+# rubyzip is the READ/extract path only (OBF::Utils.load_zip); zip_kit handles all
+# ZIP writing (streaming, flat memory) via config/initializers/zip_kit_patch.rb.
+# Pinned >= 3.4 for CVE-2026-85396 / GHSA-47m2-wp7j-p9vc, a High path-traversal in
+# pre-3.4.0 extraction. That is exactly the path .obz import uses on untrusted
+# user uploads, so it is a reachable exposure, not a theoretical one.
+gem 'rubyzip', '~> 3.4'
 gem 'zip_kit', '~> 6.3'
 gem 'accessible-books'
 gem 'sentry-ruby'
