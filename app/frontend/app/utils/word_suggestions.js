@@ -1351,9 +1351,56 @@ word_suggestions.lookup_board_ids = function(appState, stashes, extra_ids) {
     if(id && ids.indexOf(id) === -1) { ids.push(id); }
   };
   if(appState && appState.get) {
-    push(appState.get('currentUser.preferences.home_board.id'));
+    /* `referenced_user`, NOT `currentUser`. Under "Model for", set_speak_mode_user's
+       `keep_as_self` branch nulls `speakModeUser` (services/app-state.js:2333), so the
+       `currentUser := speakModeUser` assignment in set_current_user never fires and `currentUser`
+       stays the SUPERVISOR -- while the symbol these ids resolve is written onto the utterance
+       button (utils/utterance.js:589), rendered in THAT communicator's sentence box and kept in
+       `working_vocalization` across app restarts. Searching the supervisor's home, sidebar and
+       starred boards therefore puts one person's vocabulary into another person's sentence.
+
+       This makes the function agree with its neighbours rather than introducing a new rule. Two
+       are genuine precedents, predating this work: `appState.sidebar_boards`, read below at
+       :1414, has resolved through `referenced_user` since 2026-01-20
+       (services/app-state.js:3870-3878 -> `current_sidebar_boards` at :3844-3846; the
+       `window.user_preferences` fallback at :3876 fires only when that is UNDEFINED, and
+       `sidebar_boards_with_fallbacks` returns [], which is truthy, so it never fires for a
+       logged-in user); and the caller gate reads `referenced_user.preferences.word_suggestions`
+       (controllers/user/board-detail.js:3457, controllers/board/index.js:159). `scope_key_for`
+       below (:1455) buckets on `referenced_user` too -- but it is a SIBLING, not a precedent: it
+       landed on this same branch in 76b6e339a (2026-09-04). Its relevance is that the supervisor's
+       sets were being stamped into the communicator's bucket, not that it settled the convention.
+
+       LIMIT, so nobody reads this as more than it is: on the top-nav Speak Mode dropdown path the
+       home-board half of this change is neutralised. `set_speak_mode_user` with keep_as_self falls
+       to its else branch, which calls toggle_speak_mode, whose `preferred` is
+       `speakModeUser.preferences.home_board || currentUser.preferences.home_board`
+       (services/app-state.js:1435) -- and keep_as_self has just NULLED speakModeUser, so that
+       resolves to the SUPERVISOR's home board and is persisted as `root_board_state`
+       (:1726), which :1420 below pushes on a line this change does not touch.
+
+       Safe outside modelling: `referenced_user` (services/app-state.js:3946-3957) returns
+       `currentUser` unless BOTH `modeling_for_user` and `referenced_speak_mode_user` are set, so
+       every caller that is not modelling gets a byte-identical list. "Not modelling" is NOT the
+       same as "not in speak mode": `modeling_for_user` is
+       `speak_mode && ... || modeling_for_self` (services/app-state.js:1233-1235), so
+       `modeling_for_self` alone satisfies it with `speak_mode` false. The non-speak-mode
+       `:suggestion` button path (models/board.js:1521 via services/app-state.js:3295) is
+       therefore scoped to the referenced user in that combination too, which is the intent.
+
+       The two sidebar reads are NOT interchangeable, even though both now resolve through
+       `referenced_user`: `sidebar_boards_with_fallbacks` drops `hidden` entries
+       (models/user.js:690) while the raw `preferences.sidebar_boards` read at :1395
+       does not. Both are kept deliberately; `push` de-dupes.
+
+       NOT fixed here, and deliberately so -- `controllers/board/index.js:187` hand-builds its own
+       prediction id list from `currentUser.preferences.home_board.id` and never calls this
+       function, so the classic speak page still has this bug. Its gate at :159 is cited above as
+       precedent for `referenced_user`, which makes the untouched read below it the more
+       conspicuous; it is a separate unit with its own red test, not an oversight. */
+    push(appState.get('referenced_user.preferences.home_board.id'));
     push(appState.get('currentBoardState.id'));
-    var user = appState.get('currentUser');
+    var user = appState.get('referenced_user');
     if(user) {
       (user.get('preferences.sidebar_boards') || []).forEach(function(b) {
         if(b && b.key) { push(b.key); }
