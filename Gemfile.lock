@@ -493,7 +493,7 @@ GEM
       nokogiri (>= 1.13.10)
       rexml
     ruby2_keywords (0.0.5)
-    rubyzip (2.4.1)
+    rubyzip (3.6.0)
     sanitize (7.0.0)
       crass (~> 1.0.2)
       nokogiri (>= 1.16.8)
@@ -636,7 +636,7 @@ DEPENDENCIES
   ruby-lsp-rails
   ruby-openai (~> 7.0)
   ruby-saml (>= 1.18.0)
-  rubyzip (~> 2.3)
+  rubyzip (~> 3.4)
   sanitize
   sass-rails (~> 6.0)
   sdoc
