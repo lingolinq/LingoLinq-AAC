@@ -7136,6 +7136,131 @@
         "attestation": ""
       },
       "notes": "Surfaced by dual-review-2026-09-01 finder on 2026-09-02. Verified at the evidence sha by dual review on 2026-09-01; missed by the original audit, which cited this file for a different and partly incorrect claim. The component supplies id terms-agree-title on its heading at :8 specifically so a label association can be made, but never passes the argument. modal-dialog.hbs:6 binds aria-labelledby to this.labelledBy, which is undefined at modal-dialog.js:15, so Ember omits the attribute entirely and the id has no referent. WCAG 4.1.2 Name, Role, Value. Distinct from the generic modal shell rows LL-b06f063f85 and LL-58130aaefe, and distinct from LL-104bfa61dc, which correctly covers the switch-scanning gap in the same component. Note for triage: the audit's claim that this modal has a broken focus trap is FALSE. modal-dialog.js:104-135 implements a real Tab trap with wraparound and :61-85 sets initial focus, which terms-agree.hbs:4-8 opts into via data-autofocus."
+    },
+    {
+      "id": "LL-06d36ffeeb",
+      "ruleKey": "translation-cache-unscoped-user-content-retention",
+      "title": "Board translation writes raw user-authored label text into the global word_data dictionary, which has no user_id or organization_id: translated personal labels are served cross-account as cache hits and survive account erasure (GDPR Art. 5(1)(f)/17, FERPA, district data isolation)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/word_data.rb",
+        "line": 858,
+        "snippet": "      word ||= WordData.find_or_create_by(:word => text.downcase.strip, :locale => source_lang) rescue nil",
+        "sha": "cf5004909419e4c41420ad900fc6b0fce2e15653"
+      },
+      "firstSeen": "2026-09-04",
+      "lastSeen": "2026-09-04",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "WordData.persist_translation (app/models/word_data.rb:855-878) writes the SOURCE STRING of every translated button label into the shared word_data table via find_or_create_by(word:, locale:), in both translation directions. db/schema.rb:813-824 shows word_data carries NO user_id and NO organization_id and is unique on (word, locale), so the row is global. translate_batch (:665-709) then serves those rows back to ANY account as origins:'cache' via find_word_record (:352-363), which applies no account scope and no allowlist. lib/flusher.rb never references WordData, and could not scope such a sweep even if it did, because no ownership predicate exists on the row. Net effect: a personalized label such as a child's, family member's, teacher's or school name, which the compliance overview explicitly concedes may appear in a label, is persisted verbatim into a permanent cross-account dictionary and is not removed by account erasure. Options: (1) stop persisting user-sourced strings entirely and cache only curated vocabulary, translating user labels on demand without storing them; (2) add user/organization scoping to the cache and sweep it in Flusher on erasure; (3) restrict persistence to strings that already appear in the curated vocabulary list, so free-typed personal labels are never written; (4) at minimum, disclose the store in the externally shareable overview (done in PR #931) and gate any cross-account cache read.",
+        "timeframe": "high 14-30d (data-isolation and right-to-erasure defect; disclosure half landed in PR #931, code fix outstanding)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 931,
+        "reviewer": "claude-adversary",
+        "promotedDate": "2026-09-04"
+      },
+      "notes": "Surfaced 2026-09-04 by the Claude adversary pass in the PR #931 dual review, and independently verified in that session against origin/staging cf5004909: schema columns confirmed absent, persist_translation write confirmed at :857-878, cross-account cache read confirmed at :352-363 and :684-693, and no WordData reference found anywhere in lib/flusher.rb. Rated HIGH rather than CRITICAL on the adversary's reasoning, which this session accepts: there is no enumeration endpoint (app/controllers/api/words_controller.rb:5-6 requires admin and priority > 0), and lingolinq-prod still carries only synthetic/test accounts, so no real learner content is known to be in the store yet. This is materially worse than the sibling retention findings LL-1e2ab28aab and LL-e8614c103f, which at least key their rows by user. The trigger for discovery was that PR #931's own prose offered the cache as a minimization control ('only words we have not already translated and stored are sent'), which is true about egress and misleading about storage; that sentence was corrected in the same PR. Only Scot triages, sets severity, or closes. | SEVERITY CONFIRMED high by Scot Wahlquist 2026-09-04, on review of the PR #931 dual-review findings. This supersedes the proposed severity in the paragraph above: high is now the CEO's own determination, not this session's recommendation. DISPOSITION REMAINS UNTRIAGED: no risk acceptance, remediation commitment, timeframe, or closure has been decided, and none should be inferred from the severity confirmation."
+    },
+    {
+      "id": "LL-10409152d2",
+      "ruleKey": "undisclosed-third-party-egress-subprocessor-register-incomplete",
+      "title": "The 2026-08-08 quarterly subprocessor review claims every external host in lib/, app/models/, app/controllers/ and config/ was enumerated and found only two omissions, but at least five further live third-party egress paths are absent from the register (Google Maps Places, OpenSymbols, workshop.openaac.org, YouTube, Zendesk)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA",
+        "HIPAA",
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "doc",
+        "file": "docs/legal/2026-08-16_subprocessor-register.md",
+        "line": 120,
+        "snippet": "reconciled the table above against every external host referenced in `lib/`, `app/models/`,",
+        "sha": "cf5004909419e4c41420ad900fc6b0fce2e15653"
+      },
+      "firstSeen": "2026-09-04",
+      "lastSeen": "2026-09-04",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "The register states at :118-123 that it 'is not currently complete, and says so rather than implying otherwise', and grounds that on a 2026-08-08 quarterly review whose stated METHOD was enumerating every external host referenced in lib/, app/models/, app/controllers/ and config/. That review reported exactly two omissions (Stripe, iplocate.io). A grep of all 270 lines of the register for zendesk|itunes|apple|opensymbols|openaac|lessonpix|workshop|maps.googleapis|nearbysearch|youtube returns ZERO matches, while .github/workflows/deploy-cloudrun.yml:373 provisions GOOGLE_PLACES_TOKEN, OPENSYMBOLS_SECRET, YOUTUBE_API_KEY, STRIPE_SECRET_KEY and IPLOCATE_API_KEY as live Cloud Run secrets. Paths identified 2026-09-04: (a) Google Maps Places, lib/geolocation.rb:8, sends the user's latitude and longitude, reached from app/controllers/api/users_controller.rb:58; (b) OpenSymbols, lib/open_symbols.rb:35-55 sends typed search terms, plus app/models/board.rb:1662 which sends the board NAME and app/models/button_image.rb:139; (c) workshop.openaac.org, four sites: app/models/log_session.rb:1562 (payload includes modeling_word, :1545-1551), app/models/user_integration.rb:280, app/controllers/api/search_controller.rb:110, app/models/word_data.rb:499; (d) YouTube, live API key, no row; (e) Zendesk, app/models/contact_message.rb:221-222,271, sends name, email and free text, environment-gated and possibly inert. Options: (1) re-run the enumeration properly and draft rows for each, with DPA status per vendor; (2) correct the 2026-08-08 change-log entry so the enumeration claim is not left standing as true; (3) disclose the incompleteness in the externally shareable overview (done in PR #931) and treat the register as non-exhaustive until the sweep is redone; (4) add an automated check that greps the codebase for external hosts and diffs them against the register table, since this class of drift has now recurred and no CI check reads prose.",
+        "timeframe": "high 30d (blocks external attestation of the compliance overview and of this register)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": 931,
+        "reviewer": "claude-adversary",
+        "promotedDate": "2026-09-04"
+      },
+      "notes": "Surfaced 2026-09-04 in the PR #931 dual review: the Codex senior-dev pass independently flagged OpenSymbols, Stripe and workshop.openaac.org, and the Claude adversary pass independently flagged Google Maps Places plus YouTube, Zendesk, Apple and Google OAuth. This session verified the register grep (zero matches across all 270 lines), the live secret provisioning at deploy-cloudrun.yml:373, and the Places, OpenSymbols and openaac.org call sites directly. Stripe and iplocate.io are already recorded as identified-but-unrowed at register :127 and are NOT part of this finding except as evidence that the 2026-08-08 method under-reported. The defect being recorded here is not any single missing vendor but that the periodic review which exists to catch exactly this class of omission asserted a complete enumeration and produced an incomplete one, and that assertion still stands in the change log. Only Scot triages, sets severity, or closes. | SEVERITY CONFIRMED high by Scot Wahlquist 2026-09-04, on review of the PR #931 dual-review findings. This supersedes the proposed severity in the paragraph above: high is now the CEO's own determination, not this session's recommendation. DISPOSITION REMAINS UNTRIAGED: no risk acceptance, remediation commitment, timeframe, or closure has been decided, and none should be inferred from the severity confirmation."
+    },
+    {
+      "id": "LL-676f91f26b",
+      "ruleKey": "command-injection-sentence-pic-label",
+      "title": "Command injection via utterance button label in the sentence-preview worker",
+      "severity": "critical",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/sentence_pic.rb",
+        "line": 40,
+        "snippet": "`montage #{image_commands.join(' ')} -tile #{columns}x#{rows} -shadow -pointsize 16 -geometry #{width}x#{height}+3+10 -border 2 -bordercolor \"#888\" #{montage}`",
+        "sha": "61aec8394519520e536174f8df87a7af8e37b764"
+      },
+      "firstSeen": "2026-09-05",
+      "lastSeen": "2026-09-05",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Execute montage/convert with an explicit argv instead of a backticked shell string, and escape ImageMagick's own -label sigils ('%' -> '%%', '\\\\' -> '\\\\\\\\', leading '@' -> '\\\\@' after C isspace() bytes). Fix proposed in PR #944 (branch fix/traci-sentence-pic-command-injection); NOT merged at time of filing, so develop/staging/main all still carry the vulnerable line.",
+        "timeframe": "immediate"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by manual finder on 2026-09-05. Proven by execution, not by reading: a button label of '$(touch pwned)' creates the file through the real SentencePic.generate. lib/sentence_pic.rb:33 escapes only the double quote, so $(...) and backticks survive inside the double-quoted shell word at :37/:40. The truncation cap is NOT a mitigation: :33 leaves a TRAILING backslash unescaped, so a label ending in '\\\\' escapes its own closing quote and the next label lands unquoted, chaining payloads across buttons at any count. Reachable in two HTTP calls from an anonymous origin: POST /api/v1/users is exempt from require_api_token (users_controller.rb:5) and returns a bearer token; POST /api/v1/utterances then needs only that token, and with no user_id the allowed?(user,'model') branch is skipped (utterances_controller.rb:20-26). process_params stores button_list verbatim (utterance.rb:331) with no validation, and after_save :generate_preview_later (utterance.rb:14) schedules the job. Second sink: a share log event reaches the same Utterance.process_new at log_session.rb:1159. Executes in the Resque worker. NOTE: the claim that the worker env holds SECURE_ENCRYPTION_KEY/SECURE_NONCE_KEY is sourced from render.yaml, which describes NO deployed service (live worker name, startCommand and buildCommand all differ) -- treat as UNVERIFIED against the live service; DATABASE_URL is confirmed by behaviour. Brakeman already flagged this file (3 Command Injection warnings, lines 40/43/45) in audit-reports/brakeman_report.json, scan dated 2026-02-20."
     }
   ]
 }

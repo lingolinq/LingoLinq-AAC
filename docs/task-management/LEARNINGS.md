@@ -204,6 +204,7 @@ file (see [README.md](README.md)).
 - [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 - [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
 - [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
+- [Gotcha: private uploads bucket — `/upload_success` must use authenticated head_object](#gotcha-private-uploads-bucket--upload_success-must-use-authenticated-head_object)
 - [Gotcha: an underscore is NOT a line-break opportunity — wrap identifiers with `<wbr>`, never `overflow-wrap: anywhere`](#gotcha-an-underscore-is-not-a-line-break-opportunity--wrap-identifiers-with-wbr-never-overflow-wrap-anywhere)
 - [Gotcha: styling an `<img>`'s own background paints it BEFORE the image — the loading flash is self-inflicted](#gotcha-styling-an-imgs-own-background-paints-it-before-the-image--the-loading-flash-is-self-inflicted)
 - [Gotcha: ember-shepherd passes a TYPELESS button straight through — that is how a custom `action` works](#gotcha-ember-shepherd-passes-a-typeless-button-straight-through--that-is-how-a-custom-action-works)
@@ -9362,6 +9363,10 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 
 `lingolinq-prod-uploads` blocks public access. Browser upload (SigV4 POST) can succeed while the worker-side import still fails: `Converters::Utils.remote_to_boards` used to `SafeHttp.get` the raw `https://bucket.s3.amazonaws.com/...` URL, get a 403 XML body, then feed it to rubyzip → misleading `Zip end of central directory signature not found` at progress ~0.22 / `processing_file`. JSON bundle import already signed via `Uploader.signed_internal_url` (`lib/converters/api_json_bundle.rb`); OBF/OBZ import and `Uploader.remote_zip` must do the same, and raise on non-success HTTP before parsing. Ref: [`2026-08-04-obz-import-signed-fetch.md`](./2026-08-04-obz-import-signed-fetch.md).
 
+## Gotcha: private uploads bucket — `/upload_success` must use authenticated head_object
+
+Same private-bucket class as the OBZ import gotcha, different caller. Browser SigV4 POST of a button sound (or image/video file) succeeds; `GET /api/v1/sounds/:id/upload_success` then did `Typhoeus.head` of the raw `https://bucket.s3.amazonaws.com/...` URL. Prod Block Public Access returns 403; the action reports **`File not found`** (exactly 46 bytes). Confirmation key was already accepted. Staging can still pass if its bucket allows public `GetObject` — the Rails file was identical on main and staging. Fix: `Uploader.remote_upload_exists?` (`lib/uploader.rb:537`, IAM `head_object`). Do not HEAD the CloudFront URL (nonprod has no CDN; a new object can miss the distribution). Residual: `verify_stored_s3_upload!` still unsigned-GETs for SVG images. Ref: [`2026-09-04-prod-sound-upload-success-400.md`](./2026-09-04-prod-sound-upload-success-400.md).
+
 ## Gotcha: a compliance claim about runtime state expires; verify at the SHA and in prod, never from the diff
 
 PR #725 took nine review rounds. The same defect recurred four times, twice by the
@@ -16799,3 +16804,104 @@ A successful offboarding decline whose export failed still writes `parent_consen
 `_label_english`, `_board_name_english`, `_label_colors`, and `_label_images` key only on the label string. Changing `model.locale` (supervisee switch or locale picker) without clearing them reuses the previous source language. Clear on 2-letter-root change and ignore in-flight writes from the old generation.
 
 **First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: backticks route through /bin/sh only when the command has METACHARACTERS
+
+Not word count. Measured: `nosuchbin -a -b -c` (four words, no metacharacters) **raises `Errno::ENOENT`** because Ruby exec's it directly; `nosuchbin -a "q" -c` returns `""` with rc=127 because the quote forces `/bin/sh`. `system(*argv)` returns `nil` and never raises. This decides real behaviour: in `sentence_pic.rb` the old montage line contained `"#888"` and so failed silently, while the old `convert #{montage} -gravity ...` line had no metacharacters and RAISED when convert was absent. Converting such a line to `system(*argv)` therefore turns a loud failure into a silent one — and here that let `utterance.rb:55` latch `large_image_url_attempted`, so the utterance would never get a preview again. Re-raise `Errno::ENOENT` on a `nil` return to preserve it.
+
+(An earlier version of this entry claimed the rule was word count. That was FALSE and is corrected here; the argument it was used to support — "the old code degraded silently, so the new one may too" — was wrong in the same move.)
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: `system(*args)` with a ONE-element array is Ruby's shell form
+
+Any helper written to remove the shell must reject a degenerate argv, or it silently reintroduces the thing it exists to prevent — `args.flatten` makes that reachable from a nested array too. `ImageMagickRunner.run` raises `ArgumentError` below two elements. Verified: a one-element call executed `touch`.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: an EMPTY argv element makes ImageMagick read stdin and hang the worker
+
+`montage -label x "" out.png` with an inherited stdin never returns (`rc=124`); the shell form this replaced was safe only because word-splitting ate the empty word. Converting a backticked command to argv therefore *introduces* a hang wherever an interpolated path can be nil or `""`. Always pass `:in => File::NULL` when spawning from a Resque path, and guard with `blank?` — not `unless x`, since `""` is truthy and `map(&:to_s)` turns `nil` into `""` before any nil check can fire.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Pattern: removing the shell is NOT sufficient — ImageMagick `-label` has its own interpreter
+
+At argv level, with no shell involved (all measured with `compare -metric AE` on rendered PNGs, IM 6.9.12): `%` starts a format specifier, so `%[fx:1+1]` renders as `2` (an expression evaluator, and no `MAGICK_TIME_LIMIT` is set); a lone `\` is consumed, so `a\b` renders `ab`; a LEADING `@` reads a file and renders its contents. Content-preserving escapes exist for all three — `%%`, `\\`, `\@` — so AAC vocabulary in any locale is unchanged. `Shellwords.escape` does not help with any of them. The `@` block seen locally comes from `/etc/ImageMagick-6/policy.xml`, Debian packaging rather than this repo, and `MAGICK_CONFIGURE_PATH` does not override it on IM6.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: `render.yaml` is NOT the deployed configuration — never reason about production from it
+
+The blueprint's worker (`LingoLinq-AAC-Worker`, `RESQUE_WORKER=true`, `bundle install --deployment`, `INTERVAL=1.0`) matches **no** live service. The real worker is `lingolinq-dev-staging-worker`, whose start command omits `RESQUE_WORKER` entirely. A whole exploitability analysis was nearly written backwards off that file. Read live state (Render API/MCP) before any claim about production, per rule #0.11 — and note that applying `render.yaml` to the live worker would set `RESQUE_WORKER=true`, which kills boot at `config/environment.rb:33` (`AppSearcher` is in `lib/`, and `config/application.rb:63` skips `autoload_lib` under that flag).
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: inside a double-quoted shell word only `$(…)` and backticks execute
+
+`;`, `|`, `&&` and a literal newline are INERT there. A command-injection test that asserts on those four is green against the live bug and counts as coverage it does not provide. Verified against the real vulnerable construct before writing the test: `$(touch p1)` and `` `touch p2` `` fired, the other four did not. Keep them as labelled regression guards, never as proof arms — and remember the truncation budget (`text_limit` is 10 at 3+ buttons, 25 at one), which silently defuses any payload longer than the limit.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: a behavioural test for a HANG falsifies by hanging the suite, not by failing it
+
+Removing the `:in => File::NULL` guard made the stdin test block until the harness timeout — proof the guard works, but useless as a regression test since CI would hang rather than report. Assert on the spawn option instead (`expect(...).to receive(:system).with(..., :in => File::NULL)`); it fails fast and still pins the mechanism. Falsification is what surfaced this: the mutation's *manner* of failing is itself a finding.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: `start_with?('@')` is NOT ImageMagick's predicate — it skips whitespace first
+
+An `-label` guard that escapes a leading `@` to stop IM's file-read primitive is bypassed by prefixing **one space**. IM's `InterpretImageProperties` skips C `isspace()` bytes and *then* tests for `@`, so `" @config/master.key"` (a 20-char label, well inside the 25-char `text_limit`) reaches the read, and its contents render into the preview PNG that gets uploaded to S3 and handed back to the poster. The exact trigger set was measured by sweeping every ASCII byte as a prefix and asking montage which ones reach `InterpretImageProperties`: exactly `9, 10, 11, 12, 13, 32`. No non-ASCII whitespace (NBSP, U+1680, U+3000, U+2028, U+0085) qualifies, so Ruby's `\s` is wrong in both directions. Correct form keeps the whitespace and inserts the escape in front of the `@`: `sub(/\A([ \t\n\v\f\r]*)@/) { "#{Regexp.last_match(1)}\\@" }`.
+
+This is the rule-#0.13(a) failure mode in its purest form — a guard that reads correctly and does not fire — and it survived the author's own byte-level check because that check tested `@home` and `e@x` but never a leading space.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: a shell-injection payload can be defused by the COMMAND it lands in, not by your fix
+
+Four "regression guard" payloads (`x;touch p3`, `x|touch p4`, …) stayed green even against a deliberately shell-reintroducing implementation, because the shell then ran `touch p3 in.png -tile 1x1 …` and GNU touch rejects `-tile` before creating anything. They looked like coverage and provided none. Terminate such payloads with `#` so the rest of the command line is commented out, and always falsify a security test against an implementation that is actually vulnerable — not merely against the original bug.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Pattern: for a SANITISER, curated example tests are structurally inadequate — sweep against a real oracle
+
+Three fix rounds on `escape_label` produced two defects, and **both were missed by hand-picked
+inputs and would each have been caught by one mechanical sweep**:
+
+- round 2: `start_with?('@')` vs IM's whitespace-skip — the examples were `@home` and `e@x`, never a leading space;
+- round 3: a `Regexp` raising `ArgumentError` on invalid UTF-8 — invalid encodings were never in the example list.
+
+A curated list tests what the author already thought of, which is by definition not where the bug
+is. Two sweeps now live in `spec/lib/image_magick_runner_spec.rb` and were verified to catch each
+historical bug on their own by replaying the old implementations:
+
+1. **Non-raising sweep** (no external binary, fast): every byte 0-255 in leading, middle and
+   trailing position, plus ASCII-8BIT, a lone low surrogate, and US-ASCII — assert no raise.
+2. **Oracle sweep** (skipped where the binary is absent): every ASCII byte as a prefix before
+   `@file`, asserting montage never reaches `InterpretImageProperties`. **Ask the tool, do not
+   encode your own model of the tool** — the whitespace set came from IM, not from intuition.
+
+Applies to any escaping/quoting/sanitising function: the assertion belongs against the real
+consumer, and the input set must be enumerated rather than sampled.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Pattern: two distinct self-inflicted failure modes — enumeration gaps, and contaminated probes
+
+Worth separating, because they need different countermeasures.
+
+**(a) Incomplete state enumeration** (rule #0.13(b)) caused every substantive defect: a guard on
+`nil` defeated by a `""` the author's own `map(&:to_s)` created; a leading-`@` check that never
+saw a leading space; a Regexp that never saw invalid UTF-8; a reused array whose arity changed
+from 1-per-button to 3-per-button under a threshold that counted it. Countermeasure: sweeps, and
+naming the WRITER of each reachable state.
+
+**(b) Contaminated measurement** — changing the thing being measured. Real cases: appending
+`2>/dev/null` inside a backtick while testing *whether backticks use a shell* (the redirection
+IS a metacharacter, so it forced the shell and inverted the answer); quoting a payload while
+simulating an implementation that does not quote; sweeping for a file-read against a target file
+that did not exist; comparing rendered output against a control with different label text.
+Countermeasure: state the oracle before running, and include a POSITIVE control that must fail —
+if nothing in the probe can come out "bad", the probe proves nothing.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
