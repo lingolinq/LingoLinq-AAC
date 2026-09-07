@@ -159,7 +159,7 @@ Return:
   `scripts/sync-render-env.js`, `scripts/gcp/**`, `.env.op.template`, the Cloud Run and Render
   workflows, and the endpoint guard. Reviewer-only credential scripts are intentionally outside
   this runtime scan. The pattern covers both the sanctioned Bedrock clients and direct vendor
-  endpoints, so widen it whenever a new vendor or naming convention lands. At the current staging
+  endpoints, so widen it whenever a new vendor or naming convention lands. At the current `develop`
   head, the designated runtime surface is:
   - `lib/ai_client.rb` -- the sanctioned construction point. `BEDROCK_PLANE` selects the classic
   `Anthropic::BedrockClient` or `Anthropic::BedrockMantleClient` (`bedrock-mantle`) path.
