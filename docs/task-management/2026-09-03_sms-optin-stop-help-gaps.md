@@ -1,7 +1,11 @@
 # SMS opt-in, STOP/HELP and the global block-list bug
 
-**Status:** PROPOSAL. No code written. Per RULE #0 item 12, these fixes go through
-adversarial review before anything is edited.
+**Status:** BLOCKED / SUPERSEDED. Do not implement this proposal. Dual review
+returned BLOCK (`2026-09-03_sms-dual-review-findings.md`). The replacement
+build plan is `2026-09-04_sms-handoff-melissa.md`. The four fixes below
+(argument-order "correction", app-side STOP/HELP, contact-keyed consent, and
+the global block-list write) are the rejected plan; implementing them is
+unsafe.
 
 **Date:** 2026-09-03
 **Author-Model:** opus-5
@@ -9,10 +13,6 @@ adversarial review before anything is edited.
 `cf5004909` on 2026-09-03. This doc was drafted while on
 `scot/compliance/audit-findings-2026-09-01` and moved here because it is
 unrelated to that branch's work.
-
-**Status:** PROPOSAL. Per RULE #0 item 12, nothing in `app/` or `lib/` is edited
-until this has been through adversarial review. Findings 1 and 2 are High and so
-need two independent reviewers (RULE #0 item 14.5).
 
 ---
 

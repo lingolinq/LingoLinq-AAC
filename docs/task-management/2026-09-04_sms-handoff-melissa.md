@@ -83,18 +83,24 @@ A contact-keyed guard therefore either fails open on the second path, or fails c
 and silently kills text notifications for every supporter who chose that preference.
 There is no third outcome.
 
-**Key the consent on the phone number itself, in its own table**, so the guard works
-on every path because it keys on the value the send actually reads.
+**Key the consent on the hashed phone number plus the requesting communicator**,
+in its own table. The guard still reads the number the send actually uses (so
+both `deliver_to` and the `share_notifications` path work), but it must not
+treat one recipient consent as a platform-wide grant. Two communicator accounts
+can store the same number; the consent page names who is asking, so a yes to
+communicator A must not authorize communicator B.
 
-Use the existing hashing primitive rather than a new one. `RemoteTarget.salted_hash`
-(`app/models/remote_target.rb:56-59`) as a CLASS method defaults its salt to
-`ENV['SMS_ENCRYPTION_KEY']` and its ref to `'global'`, which gives a stable,
-globally-keyed digest you can look up by. Two cautions:
+Use the existing hashing primitive for the number, not a new one.
+`RemoteTarget.salted_hash` (`app/models/remote_target.rb:56-59`) as a CLASS
+method defaults its salt to `ENV['SMS_ENCRYPTION_KEY']`. Do **not** use the
+default `ref` of `'global'` as the whole lookup key. Hash the canonical number,
+and store or look up that digest together with the requesting communicator's
+user id (or an equivalent sender scope). Two cautions:
 
 - Canonicalize first, with `RemoteTarget.canonical_target('sms', number)`, arguments in that order.
-- **Do NOT copy the per-row `salt` column pattern from `remote_targets`.** Storing a row's own salt beside its hash is what makes those rows recoverable by exhaustive search, and it is now an open register finding (`LL-cb9f9c865a`). Use the global key and store no per-row salt.
+- **Do NOT copy the per-row `salt` column pattern from `remote_targets`.** Storing a row's own salt beside its hash is what makes those rows recoverable by exhaustive search, and it is now an open register finding (`LL-cb9f9c865a`). Use the global hashing key and store no per-row salt.
 
-Record at minimum: the hashed number, the state, the timestamp, the request IP, and
+Record at minimum: the hashed number, the requesting communicator id, the state, the timestamp, the request IP, and
 **the version of the disclosure text that was displayed.** The version is what turns
 a boolean into evidence. If the wording changes later you must still be able to say
 what each person actually agreed to.
