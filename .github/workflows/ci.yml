@@ -347,13 +347,16 @@ jobs:
         run: |
           set -o pipefail
           # PINNED DELIBERATELY -- do not restore the "fetch latest release"
-          # lookup that used to sit here. This job is a REQUIRED check, and
-          # resolving the newest gitleaks at run time made its rule set drift
-          # with upstream: the same commits scanned clean when they landed and
-          # dirty months later, with nothing in this repo having changed.
-          # Three such false positives blocked PR #938 and had to be triaged
-          # into .gitleaksignore. A required gate must be reproducible, so the
-          # version moves only when someone bumps it here on purpose.
+          # lookup that used to sit here. This job is a REQUIRED check, so the
+          # ruleset that decides a merge should not be whatever upstream shipped
+          # that morning. .gitleaksignore entries are anchored to a rule id and a
+          # start line, and a release that renames a rule or shifts a reported
+          # line unmatches them, reddening an untouched PR. Pinning keeps future
+          # scans and those fingerprint anchors reproducible.
+          #
+          # NOT the reason: rule drift did not cause the three false positives
+          # triaged for #938. That job was advisory when those commits landed.
+          # See .gitleaksignore for the traced history.
           #
           # Bumping: raise GITLEAKS_VERSION, let CI run, and triage anything
           # new the way .gitleaksignore documents.
