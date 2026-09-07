@@ -7261,6 +7261,52 @@
         "attestation": ""
       },
       "notes": "Surfaced by manual finder on 2026-09-05. Proven by execution, not by reading: a button label of '$(touch pwned)' creates the file through the real SentencePic.generate. lib/sentence_pic.rb:33 escapes only the double quote, so $(...) and backticks survive inside the double-quoted shell word at :37/:40. The truncation cap is NOT a mitigation: :33 leaves a TRAILING backslash unescaped, so a label ending in '\\\\' escapes its own closing quote and the next label lands unquoted, chaining payloads across buttons at any count. Reachable in two HTTP calls from an anonymous origin: POST /api/v1/users is exempt from require_api_token (users_controller.rb:5) and returns a bearer token; POST /api/v1/utterances then needs only that token, and with no user_id the allowed?(user,'model') branch is skipped (utterances_controller.rb:20-26). process_params stores button_list verbatim (utterance.rb:331) with no validation, and after_save :generate_preview_later (utterance.rb:14) schedules the job. Second sink: a share log event reaches the same Utterance.process_new at log_session.rb:1159. Executes in the Resque worker. NOTE: the claim that the worker env holds SECURE_ENCRYPTION_KEY/SECURE_NONCE_KEY is sourced from render.yaml, which describes NO deployed service (live worker name, startCommand and buildCommand all differ) -- treat as UNVERIFIED against the live service; DATABASE_URL is confirmed by behaviour. Brakeman already flagged this file (3 Command Injection warnings, lines 40/43/45) in audit-reports/brakeman_report.json, scan dated 2026-02-20."
+    },
+    {
+      "id": "LL-b5ac82d846",
+      "ruleKey": "speech-to-text-hardcoded-english-language-code",
+      "title": "ButtonSound transcription hardcodes languageCode 'en', so a non-English communicator's voice recording is uploaded to Google Speech-to-Text and transcribed as English: personal voice data is processed for a purpose it cannot achieve (GDPR Art. 5(1)(c) minimisation, Art. 5(1)(d) accuracy)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/button_sound.rb",
+        "line": 64,
+        "snippet": "            languageCode: 'en',",
+        "sha": "b399330aa6a5541a0e78f011bbf7e7b8380f5380"
+      },
+      "firstSeen": "2026-09-05",
+      "lastSeen": "2026-09-07",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "ButtonSound#schedule_transcription builds the Speech-to-Text request config at app/models/button_sound.rb:60-66 with languageCode hardcoded to 'en'. The owning user's locale is available and is used elsewhere in the codebase (user.settings['preferences']['locale'], e.g. app/models/user.rb:2338), and the board carries its own locale, so the correct value is reachable at the call site. Consequences for a non-English communicator: (1) the recognizer is told the wrong language, so the returned transcript is wrong or empty; (2) where the wrong-language result still returns confidence above the 0.3 threshold at :79-82, a meaningless transcript is STORED on the sound as settings['transcription']; (3) the recording is uploaded anyway, so the highest-sensitivity flow in the subprocessor register (row #18, raw voice audio) runs with no achievable benefit for that user, which is a data-minimisation problem rather than only a quality bug; (4) the retry at :100 means up to two uploads per recording before transcription_errors reaches the limit at :45. Options: (a) pass the user's or board's locale into the config and map it to a BCP-47 tag Speech-to-Text accepts; (b) where no reliable locale is known, skip transcription rather than defaulting to English, so no audio is sent for a request that cannot succeed; (c) consider alternateLanguageCodes for genuinely multilingual accounts; (d) treat a low-confidence result as a failure rather than storing it. Note that sampleRateHertz: 44100 at :63 is NOT part of this finding: the transcoder emits a 44100 Hz WAV (lib/transcoder.rb), so that value is consistent.",
+        "timeframe": "medium 30-60d (correctness plus minimisation; no cross-account exposure)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "claude-code",
+        "promotedDate": "2026-09-05"
+      },
+      "notes": "Surfaced 2026-09-05 while verifying the Speech-to-Text mechanics for the compliance-overview disclosure in PR #931, and filed at Scot's direction. Code-verified at origin/develop 61aec8394: languageCode is the literal 'en' with no locale lookup anywhere in the method, and the owning user's locale is reachable via self.user. SEVERITY IS PROPOSED, NOT DECIDED. The case for LOW: it is a correctness bug on a flow whose egress is already disclosed and already accepted as a risk (LL-1eb9a2435b), and production carries only synthetic accounts. The case for HIGH: it means the one flow the register calls its highest-sensitivity flow is, for every non-English user, processing a voice recording for a purpose it structurally cannot achieve, which is harder to defend under GDPR Art. 5(1)(c) than the flow's disclosed English-language use, and LingoLinq sells into European clients where non-English is the norm rather than the exception. Medium is filed as the midpoint; only Scot triages, sets severity, or closes. Related: LL-1eb9a2435b (the flow itself, accepted-risk) and LL-400adcead5 (machine-translated disclosures in twelve locales), which together suggest the i18n assumptions in this codebase deserve a sweep rather than one-off fixes."
     }
   ]
 }
