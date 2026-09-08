@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2026_09_08_170000) do
+ActiveRecord::Schema[7.2].define(version: 2026_09_08_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "btree_gin"
   enable_extension "plpgsql"
@@ -593,6 +593,16 @@ ActiveRecord::Schema[7.2].define(version: 2026_09_08_170000) do
     t.datetime "updated_at", precision: nil, null: false
     t.text "data"
     t.index ["key"], name: "index_settings_on_key", unique: true
+  end
+
+  create_table "sms_consent_invites", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.string "token", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["token"], name: "idx_sms_consent_invites_token", unique: true
+    t.index ["user_id"], name: "index_sms_consent_invites_on_user_id"
   end
 
   create_table "sms_consents", force: :cascade do |t|
