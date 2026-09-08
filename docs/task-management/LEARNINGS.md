@@ -87,6 +87,7 @@ file (see [README.md](README.md)).
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
 - [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
 - [Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash](#gotcha-sms-consent-hash-must-not-include-communicator-global_id--merge-remaps-user_id-and-cannot-rehash)
+- [Gotcha: a deliver_to SMS spec does not cover handle_notification utterance_shared](#gotcha-a-deliver_to-sms-spec-does-not-cover-handle_notification-utterance_shared)
 - [Gotcha: do not `json.dumps` FINDINGS.json — it escapes `§` and dirties unrelated notes](#gotcha-do-not-jsondumps-findingsjson--it-escapes--and-dirties-unrelated-notes)
 - [Gotcha: utterance share "upstream gates" are path-scoped, not general](#gotcha-utterance-share-upstream-gates-are-path-scoped-not-general)
 - [Gotcha: a zero row count plus no app destroy path is not a lifetime claim](#gotcha-a-zero-row-count-plus-no-app-destroy-path-is-not-a-lifetime-claim)
@@ -16607,6 +16608,12 @@ if nothing in the probe can come out "bad", the probe proves nothing.
 `SmsConsent` hashes the canonical number with `RemoteTarget.salted_hash(..., ENV['SMS_ENCRYPTION_KEY'], 'global')` and pairs that digest with `user_id` on every lookup. Putting `communicator.global_id` into the hash would stop a hash-only lookup bug, but `Flusher.transfer_user_content` only remaps `user_id` and does not rewrite hashes; after merge `granted?(target, number)` would rehash with the new global id and miss. The query invariant (`user_id` + `target_hash` + `state: granted`) is what keeps one recipient consent from becoming platform-wide. Raise in `SmsConsent` when `SMS_ENCRYPTION_KEY` is blank — `RemoteTarget.salted_hash` will not.
 
 **First seen in:** [2026-09-08-sms-consent-record.md](./2026-09-08-sms-consent-record.md).
+
+## Gotcha: a deliver_to SMS spec does not cover handle_notification utterance_shared
+
+`Utterance#deliver_to` (`app/models/utterance.rb:212`) passes `contact['cell_phone']`. `User#handle_notification('utterance_shared')` (`app/models/user.rb:4229`) has no contact; `cell` comes from `recipient_user.settings['cell_phone']`. A `share_with` / `deliver_to` example does not execute that path. The send-path consent guard must sit after `cell` is assigned (`utterance.rb:274`) and before `RemoteTarget.find_or_assert` (`:288` before the guard landed; later `:302`). `FeatureFlags.sms_recipient_consent_enabled?(nil)` is false, so fixtures that omit `ref_user` stay on the old send-without-consent path.
+
+**First seen in:** [2026-09-08-sms-send-guard.md](./2026-09-08-sms-send-guard.md).
 
 ## Gotcha: do not `json.dumps` FINDINGS.json — it escapes `§` and dirties unrelated notes
 
