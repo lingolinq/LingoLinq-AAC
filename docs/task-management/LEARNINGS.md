@@ -16570,3 +16570,9 @@ Countermeasure: state the oracle before running, and include a POSITIVE control 
 if nothing in the probe can come out "bad", the probe proves nothing.
 
 **First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash
+
+`SmsConsent` hashes the canonical number with `RemoteTarget.salted_hash(..., ENV['SMS_ENCRYPTION_KEY'], 'global')` and pairs that digest with `user_id` on every lookup. Putting `communicator.global_id` into the hash would stop a hash-only lookup bug, but `Flusher.transfer_user_content` only remaps `user_id` and does not rewrite hashes; after merge `granted?(target, number)` would rehash with the new global id and miss. The query invariant (`user_id` + `target_hash` + `state: granted`) is what keeps one recipient consent from becoming platform-wide. Raise in `SmsConsent` when `SMS_ENCRYPTION_KEY` is blank — `RemoteTarget.salted_hash` will not.
+
+**First seen in:** [2026-09-08-sms-consent-record.md](./2026-09-08-sms-consent-record.md).

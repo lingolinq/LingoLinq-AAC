@@ -115,6 +115,7 @@ module Flusher
     # Per-user AAC vocabulary rows left behind when a user was hard-deleted
     # before LL-e8614c103f added them to flush_user_content. Not paper-trailed.
     prediction_entry_scope = PredictionEntry.left_joins(:user).where(users: { id: nil })
+    sms_consent_scope = SmsConsent.left_joins(:user).where(users: { id: nil })
 
     # 7. paper trail versions whose item_type no longer maps to any model class
     #    (e.g. a renamed/removed legacy model). REPORT-ONLY, not deleted: per
@@ -160,6 +161,7 @@ module Flusher
     progress_ids = progress_scope.pluck(:id)
     user_board_connection_ids = user_board_connection_scope.pluck(:id)
     prediction_entry_ids = prediction_entry_scope.pluck(:id)
+    sms_consent_ids = sms_consent_scope.pluck(:id)
 
     planned_counts = {
       'board_button_images' => board_button_image_ids.length,
@@ -168,6 +170,7 @@ module Flusher
       'progresses' => progress_ids.length,
       'user_board_connections' => user_board_connection_ids.length,
       'prediction_entries' => prediction_entry_ids.length,
+      'sms_consents' => sms_consent_ids.length,
       'versions_stale_type_detected_not_deleted' => stale_version_count
     }
 
@@ -193,6 +196,7 @@ module Flusher
       'progresses' => delete_and_record_category('progresses', Progress, progress_ids),
       'user_board_connections' => delete_and_record_category('user_board_connections', UserBoardConnection, user_board_connection_ids),
       'prediction_entries' => delete_and_record_category('prediction_entries', PredictionEntry, prediction_entry_ids),
+      'sms_consents' => delete_and_record_category('sms_consents', SmsConsent, sms_consent_ids),
       # not deleted, see note above -- carried through for visibility only.
       'versions_stale_type_detected_not_deleted' => stale_version_count
     }
@@ -366,6 +370,7 @@ module Flusher
     # update_all + rescue nil used to abort the whole transfer on one
     # collision; reset_eval then flushed the leftover source rows.
     transfer_prediction_entries(source, target)
+    transfer_sms_consents(source, target)
 
     #invalidate any caches
     source.touch
@@ -386,6 +391,24 @@ module Flusher
       end
     end
     PredictionEntry.where(user_id: source.id).update_all(user_id: target.id)
+  end
+
+  def self.transfer_sms_consents(source, target)
+    SmsConsent.where(user_id: source.id).find_each do |row|
+      existing = SmsConsent.find_by(user_id: target.id, target_hash: row.target_hash)
+      if existing
+        if row.state == 'revoked' && existing.state != 'revoked'
+          existing.update_columns(
+            state: 'revoked',
+            disclosure_version: row.disclosure_version,
+            request_ip: row.request_ip,
+            updated_at: Time.current
+          )
+        end
+        row.delete
+      end
+    end
+    SmsConsent.where(user_id: source.id).update_all(user_id: target.id)
   end
 
   def self.flush_user_content(user_id, user_name, except_device=nil, except_org_links=false)
@@ -441,6 +464,9 @@ module Flusher
     # (LL-e8614c103f). No S3 objects; flush_record is enough.
     PredictionEntry.where(user_id: user.id).each do |entry|
       flush_record(entry)
+    end
+    SmsConsent.where(user_id: user.id).each do |row|
+      flush_record(row)
     end
     License.where(user_id: user.id).each do |lic|
       lic.update!(user_id: nil, granted_at: nil)
