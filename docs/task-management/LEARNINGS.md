@@ -117,6 +117,7 @@ file (see [README.md](README.md)).
 - [Gotcha: label click plus input change double-toggles a checkbox](#gotcha-label-click-plus-input-change-double-toggles-a-checkbox)
 - [Gotcha: Android “classic board” error may be stale packaged board-detail](#gotcha-android-classic-board-error-may-be-stale-packaged-board-detail)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
+- [Gotcha: reversed `canonical_target` on STOP is a platform-wide kill switch — delete, do not swap args](#gotcha-reversed-canonical_target-on-stop-is-a-platform-wide-kill-switch--delete-do-not-swap-args)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
 - [Gotcha: tagless GuidedTour — one init, host-gated pending consumers, body is not a scroll target](#gotcha-tagless-guidedtour--one-init-host-gated-pending-consumers-body-is-not-a-scroll-target)
@@ -16591,6 +16592,12 @@ Countermeasure: state the oracle before running, and include a POSITIVE control 
 if nothing in the probe can come out "bad", the probe proves nothing.
 
 **First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: reversed `canonical_target` on STOP is a platform-wide kill switch — delete, do not swap args
+
+`RemoteTarget.canonical_target(type, target_str)` only canonicalizes when `type == 'sms'`. The STOP write (`RemoteTarget.process_inbound`) and the `Pusher.sms` check both passed `(phone, 'sms')`, so they stored and consulted the literal key `'sms'`. One STOP then made every later send return `[]`. There is no unblock (`Setting.block_cell!` is append-only). Swapping the arguments looks like a one-line fix and is wrong: AWS owns START/UNSTOP, which the app never sees, so a working `blocked_cells` list would permanently suppress people who re-opted in. Delete the write and the check together. Leave `Setting.block_cell!` and the org extras reader for a later unit.
+
+**First seen in:** [2026-09-08-sms-stop-block-list-delete.md](./2026-09-08-sms-stop-block-list-delete.md).
 
 ## Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash
 
