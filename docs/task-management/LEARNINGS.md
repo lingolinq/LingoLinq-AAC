@@ -87,6 +87,9 @@ file (see [README.md](README.md)).
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
 - [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
 - [Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash](#gotcha-sms-consent-hash-must-not-include-communicator-global_id--merge-remaps-user_id-and-cannot-rehash)
+- [Gotcha: do not `json.dumps` FINDINGS.json — it escapes `§` and dirties unrelated notes](#gotcha-do-not-jsondumps-findingsjson--it-escapes--and-dirties-unrelated-notes)
+- [Gotcha: utterance share "upstream gates" are path-scoped, not general](#gotcha-utterance-share-upstream-gates-are-path-scoped-not-general)
+- [Gotcha: a zero row count plus no app destroy path is not a lifetime claim](#gotcha-a-zero-row-count-plus-no-app-destroy-path-is-not-a-lifetime-claim)
 - [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
 - [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
@@ -16604,3 +16607,21 @@ if nothing in the probe can come out "bad", the probe proves nothing.
 `SmsConsent` hashes the canonical number with `RemoteTarget.salted_hash(..., ENV['SMS_ENCRYPTION_KEY'], 'global')` and pairs that digest with `user_id` on every lookup. Putting `communicator.global_id` into the hash would stop a hash-only lookup bug, but `Flusher.transfer_user_content` only remaps `user_id` and does not rewrite hashes; after merge `granted?(target, number)` would rehash with the new global id and miss. The query invariant (`user_id` + `target_hash` + `state: granted`) is what keeps one recipient consent from becoming platform-wide. Raise in `SmsConsent` when `SMS_ENCRYPTION_KEY` is blank — `RemoteTarget.salted_hash` will not.
 
 **First seen in:** [2026-09-08-sms-consent-record.md](./2026-09-08-sms-consent-record.md).
+
+## Gotcha: do not `json.dumps` FINDINGS.json — it escapes `§` and dirties unrelated notes
+
+Python `json.dumps` rewrites `§` as `\u00a7` across every notes field. A one-sentence edit then looks like a six-finding rewrite. Do a raw text replace of the exact sentence, then `scripts/regenerate-register.sh`.
+
+**First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
+
+## Gotcha: utterance share "upstream gates" are path-scoped, not general
+
+`share_notifications` (default `email`) is read only in `User#handle_notification('utterance_shared')` at `app/models/user.rb:4226`. A saved contact with `contact_type` sms goes through `Utterance#deliver_to` → `deliver_message(contact['contact_type'], …)` at `app/models/utterance.rb:210-223` and never reads that pref. The premium check at `app/controllers/api/utterances_controller.rb:45` keys on `params['user_id']` only; `share_with` treats `supervisor_id` as the same recipient (`utterance.rb:89`) and skips the check.
+
+**First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
+
+## Gotcha: a zero row count plus no app destroy path is not a lifetime claim
+
+A Cloud Run `RemoteTarget.count` is a point-in-time snapshot. Grep showing no `destroy`/`delete`/`dependent:` in `app`/`lib`/`db`/`config` only rules out an application sweep. It does not prove rows were never created: a restore or operational SQL can empty the table without appearing in those trees. Do not write "zero now means none were ever created."
+
+**First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
