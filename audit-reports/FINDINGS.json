@@ -7261,6 +7261,115 @@
         "attestation": ""
       },
       "notes": "Surfaced by manual finder on 2026-09-05. Proven by execution, not by reading: a button label of '$(touch pwned)' creates the file through the real SentencePic.generate. lib/sentence_pic.rb:33 escapes only the double quote, so $(...) and backticks survive inside the double-quoted shell word at :37/:40. The truncation cap is NOT a mitigation: :33 leaves a TRAILING backslash unescaped, so a label ending in '\\\\' escapes its own closing quote and the next label lands unquoted, chaining payloads across buttons at any count. Reachable in two HTTP calls from an anonymous origin: POST /api/v1/users is exempt from require_api_token (users_controller.rb:5) and returns a bearer token; POST /api/v1/utterances then needs only that token, and with no user_id the allowed?(user,'model') branch is skipped (utterances_controller.rb:20-26). process_params stores button_list verbatim (utterance.rb:331) with no validation, and after_save :generate_preview_later (utterance.rb:14) schedules the job. Second sink: a share log event reaches the same Utterance.process_new at log_session.rb:1159. Executes in the Resque worker. NOTE: the claim that the worker env holds SECURE_ENCRYPTION_KEY/SECURE_NONCE_KEY is sourced from render.yaml, which describes NO deployed service (live worker name, startCommand and buildCommand all differ) -- treat as UNVERIFIED against the live service; DATABASE_URL is confirmed by behaviour. Brakeman already flagged this file (3 Command Injection warnings, lines 40/43/45) in audit-reports/brakeman_report.json, scan dated 2026-02-20."
+    },
+    {
+      "id": "LL-a6be800a86",
+      "ruleKey": "user-export-s3-key-guessable-username-and-minute-timestamp",
+      "title": "Full user export archive, including non-anonymized log data, is stored under an S3 key derived only from the username and a minute-granularity timestamp",
+      "severity": "high",
+      "confidence": "medium",
+      "frameworks": [
+        "COPPA",
+        "FERPA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/exporter.rb",
+        "line": 94,
+        "snippet": "\"downloads/users/#{CGI.escape(Time.now.iso8601[0, 16].sub(/:/, '-'))}/#{user.user_name}/lingolinq-export-#{user.user_name}.zip\"",
+        "sha": "df8c75dde54238edaa38fdcc89cd10df22885fcb"
+      },
+      "firstSeen": "2026-09-06",
+      "lastSeen": "2026-09-06",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Option A (preferred, matches the sibling code in the same file): key the export on an unguessable value instead of the username -- reuse user.anonymized_identifier the way lib/exporter.rb:44/:66/:158 already do, or a fresh GoSecure.nonce persisted with the export record, and keep the human-readable filename inside the archive or in a Content-Disposition rather than in the key. This removes the plaintext username from the key path as well, which is a separate identifier leak. Risk: the key is persisted in settings['coppa']['offboarding_export_path'] (app/models/user.rb:914) and mailed as a presigned URL, so already-issued paths keep working; only new exports change shape. Option B (independent, and correct regardless of A): make the download namespace unreadable without a signature -- confirm the uploads bucket blocks public access AND restrict the CloudFront distribution so no cache behavior serves downloads/ anonymously (path-pattern behavior with a trusted key group, or exclude the prefix from the distribution entirely), leaving Uploader.presigned_url_for_uploads as the only read path. This is a live-config change, not a code change, and its necessity is what the unverified premise in the notes turns on. Rejected simpler alternative: adding a random suffix to the filename only. It leaves the username in the key path, so the identifier leak survives, and it does nothing about an anonymous read channel. FIRST ACTION, before any code is written: run the console check -- does an unauthenticated GET of a known downloads/ key succeed through the CDN hostname, and through the raw bucket URL? That single answer decides whether this is an active disclosure or a defense-in-depth hardening.",
+        "timeframe": "high: 15-30d (advisory, per meta.remediationSLA); the read-channel console check should happen immediately since it determines whether this is live exposure"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "claude-opus-manual-review",
+        "promotedDate": "2026-09-06"
+      },
+      "notes": "CONFIRMED IN CODE. (1) lib/exporter.rb:94 builds the S3 key for a full user export as downloads/users/<Time.now.iso8601[0,16] with its first colon replaced by a hyphen>/<user.user_name>/lingolinq-export-<user.user_name>.zip. Both variable segments are plaintext and low-entropy: the timestamp resolves to one value per MINUTE and the other two segments are the same login username, so the entire key space for a known username is one guess per minute. CGI.escape is a no-op here because .sub already removed the only colon in the 16-character prefix. The key is NOT transformed downstream: Uploader.remote_upload passes it through unchanged when no checksum is given (lib/uploader.rb:47-48, and remote_upload_params sends key: remote_path at :485). (2) The archive is NOT anonymized: lib/exporter.rb:90 calls export_logs(user.global_id, false, zipper), and lib/exporter.rb:6-9 shows the false argument selects the '.obl' full-fidelity log export rather than the '.obla' anonymized one; lib/exporter.rb:88-89 additionally writes the full JsonApi::User payload built with :permissions => user, and lib/exporter.rb:92 adds every board the user owns. (3) SIBLING CODE IN THE SAME FILE DOES THIS CORRECTLY: lib/exporter.rb:44, :66 and :158 key their download objects on user.anonymized_identifier / log_session.anonymized_identifier. That value is a NESTED DOUBLE HMAC-SHA512 (GoSecure.lite_hmac): the record identity (global_id + created_at) is HMAC'd under a per-record nonce held in settings['anonymized_identifier'], and that digest is HMAC'd again under the app-wide encryption key (app/models/user.rb:1813-1821). :158 is the closest comparison: same CGI.escape(Time.now...) timestamp segment, keyed on anonymized_identifier where :94 uses user_name. The remedy is correspondingly small, but not literally one line -- the two keys also differ in prefix (downloads/logs/log/ vs downloads/users/), and :94 repeats the username in the FILENAME, which the remediation below says must move as well. SCOPE OF THE CONTRAST, CORRECTED: line 94 is NOT the only downloads/ producer with a guessable segment -- app/models/word_data.rb:69 builds downloads/exports/words-<locale>-<epoch>.json with no digest at all, and app/models/log_session.rb:2212 uses the same downloads/users/<minute>/ prefix with a plaintext 'global' segment. Those carry translation and aggregate data rather than a single child's full export, so they are at most separately-filable Low. The contrast that holds is the narrow one: within lib/exporter.rb itself, three sibling upload sites key on anonymized_identifier and only line 94 does not. (4) REACHABILITY: Exporter.export_user has exactly one non-spec caller, app/models/user.rb:869 inside schedule_offboarding_export_then_delete!. Two triggers, and only ONE is live by default: the COPPA parental-consent decline (app/models/user.rb:829, POST /parental_consent/decline, config/routes.rb:52), which fires only when the account is flagged for offboarding (:828) and the request carries a valid, unexpired, unconsumed parent_consent_token (:778-787) -- the route is ungated, the sink is not -- while the daily expired-offboarding sweep (app/models/user.rb:1045-1049) is gated by OffboardingCoppaExpirationWorker.mode, which returns :disabled unless COPPA_OFFBOARDING_SWEEP_ENABLED is 'true' or 'report' (app/workers/offboarding_coppa_expiration_worker.rb:41-47). The affected population is CHILD accounts being offboarded, and a decline gives an attacker who triggered or observed it a minute-accurate timestamp. (5) INTENDED ACCESS CONTROL IS A PRESIGNED GET, NOT THE KEY: app/mailers/user_mailer.rb:348-349 hands the parent Uploader.presigned_url_for_uploads(offboarding_export_path). The key was never designed to be the boundary, which is exactly why an anonymous read channel turns it into one. READ CHANNEL: this register already carries live evidence. LL-9a09771121 (verified-closed) records in the VERIFIER NOTE of its closure evidence -- note this is the verifier note, NOT the attestation, which covers the SigV4 upload remediation and says nothing about CloudFront: 'a repaired object serves 200 image/png via CloudFront (d34sa6lc5jfe66.cloudfront.net) while the raw bucket URL still 403s.' So (a) read DIRECTLY from the uploads bucket is CLOSED -- the raw URL 403s, consistent with lib/uploader.rb:443-448 and the private-bucket model in .github/workflows/deploy-cloudrun.yml:384-387 -- and (b) the same object served 200 through the production CloudFront host pinned at deploy-cloudrun.yml:1262, which fronts the private bucket via Origin Access Control (:390-392). That the GET carried no signature is an INFERENCE, not something the verifier note states: it is supported by the absence of any CloudFront signer in runtime code (aws-sdk-cloudfront is used only for create_invalidation, lib/uploader.rb:119-142) and by the same block's stated requirement for stable, non-presigned URLs. The observation dates to 2026-07-05/06 and is not re-verified here. No CloudFront signer exists in runtime code (aws-sdk-cloudfront is used only for create_invalidation, lib/uploader.rb:119-142), and Uploader.fronted_url (lib/uploader.rb:398-409) rewrites ANY uploads-bucket URL to that host with no prefix restriction. docs/INFRASTRUCTURE.md:126-138, which describes the bucket as 'Public read on *', is the STALE source here and should be reconciled separately; that block dates to 2026-02-11 (git blame a54b1cf23), EARLIER than the deploy workflow's 2026-07-05, so recency points the same way as the live check. THE REMAINING OPEN QUESTION IS NARROW, AND IS STILL UNVERIFIED: the attested 200 was observed on an image object, so it establishes that the distribution serves this bucket without a signature, NOT specifically that a key under downloads/ is served. If the distribution carries a path-pattern cache behavior that excludes or restricts downloads/, impact drops to defense-in-depth and severity should be revisited; if its only behavior is the CloudFront default '*', downloads/ is served anonymously and this is a live unauthenticated disclosure. That single console check is the FIRST action. Related: LL-2ea0b804e7, whose own closure note recommends a live AWS bucket-policy spot-check, and LL-9a09771121 above. IDENTIFIER LEAK, INDEPENDENT OF THE BODY: the plaintext username sits in the key path itself. A related but NOT identical concern is already recorded at app/models/user.rb:871-878, which cites lib/exporter.rb:94 by name -- that comment is about an upload failure's exception MESSAGE carrying a username into an immutable AuditEvent, not about the key at rest. EXPOSURE WINDOW: no application code deletes the export object -- a grep across app/ and lib/ for offboarding_export_path finds only the writer (app/models/user.rb:914), the audit flag (:924) and the mailer read, and no Flusher or RemoteAction path covers the downloads/ prefix -- while the account itself is hard-deleted 36 hours later (app/models/user.rb:916). The archive therefore outlives the record it was taken from. An S3 lifecycle expiration rule may exist (lib/uploader.rb:156-161 parses an expiry-date response header), but that is console state and is UNVERIFIED here."
+    },
+    {
+      "id": "LL-ed9316b6d9",
+      "ruleKey": "prediction-sync-queue-attributed-to-token-holder-not-selecting-user",
+      "title": "Word-prediction selections are stored under device-global keys and synced to whichever account holds the token at flush time, so one communicator's vocabulary is written into another's server-side prediction profile",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "FERPA",
+        "COPPA",
+        "GDPR"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/utils/word_suggestions.js",
+        "line": 19,
+        "snippet": "var SYNC_QUEUE_KEY = 'lingolinq_prediction_sync_queue';",
+        "sha": "d7a6da161fca211988e053425bdc2ca79fc482b9"
+      },
+      "firstSeen": "2026-09-07",
+      "lastSeen": "2026-09-07",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Option A (preferred): namespace the three localStorage keys per user and give each queued entry an explicit owner. Derive the key suffix from the SPEAKING user (app_state referenced_user global_id, the same source utils/word_suggestions.js scope_key_for already uses for symbol scoping), not from the session account, so that modelling attributes selections to the communicator rather than the supervisor. Add the owner id to each queue entry and have Api::PredictionEntriesController#sync reject or re-scope entries whose owner does not match the token holder, instead of silently trusting it -- app/models/prediction_entry.rb:47 currently keys find_or_initialize_by on user_id: user.id with no payload-side owner at all, so the server cannot correct a mis-attributed batch even in principle. Option B (narrower, does not fix modelling): leave the keys global but clear all three on logout and on speak-mode user switch, and drop the pending queue rather than flushing it across a user boundary. This shrinks the window but still mis-attributes anything selected while modelling, because the flush is authenticated as the supervisor. Option C (defence in depth, independent of A/B): treat an unattributed queue as unsendable -- refuse to POST entries that carry no owner id, so a legacy queue left in localStorage by an older build is discarded rather than credited to the next person who signs in.",
+        "timeframe": "next-sprint"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-09-07. Chain traced end to end at this sha, client through server. (1) The three prediction stores are device-global with no user component: FREQ_STORAGE_KEY, BIGRAM_STORAGE_KEY and SYNC_QUEUE_KEY at utils/word_suggestions.js:17-19. (2) Nothing anywhere in app/ ever clears them -- those three names appear only at their declarations; there is no removeItem and no reset helper. (3) Queue entries carry only locale, prefix, next_word, delta and source (utils/word_suggestions.js:1259-1266), i.e. no owner field, so correct attribution is impossible downstream. (4) The flush is scheduled 5s after a selection (:1271-1274) and POSTs through persistence.ajax (:1284), i.e. under whichever token is current when it fires; on failure the handler at :1292 is empty, so the queue is RETAINED and re-sent later, widening rather than closing the window. (5) Server side, Api::PredictionEntriesController#sync calls PredictionEntry.sync_for_user(@api_user, entries) and app/models/prediction_entry.rb:47 does find_or_initialize_by(user_id: user.id, ...), so the row is credited to the token holder; #index then serves predictions back per user. Two distinct exposures follow: on a shared device (the normal AAC classroom/clinic deployment) a pending queue can cross a user switch, and under Model for the communicator's selections are attributed to the supervisor because the flush authenticates as the supervisor. Same harm class as LL-a6be800a86's sibling prediction-scope work, but persistent and server-side rather than in-memory. NOT introduced by the current branch: git log -S shows the code arriving in 78a12c050 (Omer/feature/wordprediction, PR #298) with 4e25aa2bb extending the freq/bigram learning, and it is present on origin/develop, origin/staging and origin/main -- i.e. live. SCOPE OF CONFIDENCE: the mechanism is CONFIRMED in code; how often a queue actually survives a user switch in the field is NOT measured and should not be read as an observed incident count. HIPAA was not tagged because whether prediction vocabulary is PHI depends on deployment context; a clinic deployment likely brings it in scope and that should be assessed before the framework list is treated as final."
+    },
+    {
+      "id": "LL-29cc341f8c",
+      "ruleKey": "prediction-sync-client-queue-cap-exceeds-server-max-batch",
+      "title": "Client caps the prediction sync queue at 200 entries while the server rejects batches over 100, so any queue above 100 fails permanently and is never drained",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "SOC2"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/frontend/app/utils/word_suggestions.js",
+        "line": 1263,
+        "snippet": "if(queue.length > 200) { queue = queue.slice(-200); }",
+        "sha": "d7a6da161fca211988e053425bdc2ca79fc482b9"
+      },
+      "firstSeen": "2026-09-07",
+      "lastSeen": "2026-09-07",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Option A (preferred): make the client cap match the server contract -- cap the queue at MAX_SYNC_BATCH (100) rather than 200, so a full queue is always sendable. Option B (more robust, and correct even if the caps drift again): have flush_sync_queue send in chunks of at most 100 and clear only the entries the server acknowledged, rather than treating the queue as one all-or-nothing batch. Option C (independent of A/B, and needed regardless): stop discarding the failure -- the handler at utils/word_suggestions.js:1292 is an empty function, so a 400 is indistinguishable from success at the call site and the queue silently stalls forever. Log it, and drop or truncate a batch the server has definitively rejected so a poisoned queue cannot persist indefinitely.",
+        "timeframe": "next-sprint"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "notes": "Surfaced by privacy finder on 2026-09-07. The client truncates its pending queue to the newest 200 entries at utils/word_suggestions.js:1263, but Api::PredictionEntriesController enforces MAX_SYNC_BATCH = 100 (app/controllers/api/prediction_entries_controller.rb:6) and returns a 400 'Too many prediction entries' for anything larger (:25-26) BEFORE the model is reached, so PredictionEntry.sync_for_user's own defensive first(MAX_SYNC_BATCH) truncation never applies on this path. Any queue that grows past 100 therefore fails every attempt. Because the client's rejection handler at :1292 is an empty function, the queue is not cleared, so the failure is permanent and silent: prediction learning stops syncing for that device with no error surfaced. Filed separately from the attribution finding because it is an independent contract mismatch with its own fix, but note it AMPLIFIES that finding -- a permanently stalled queue keeps accumulating entries across user sessions, which widens the cross-user attribution window instead of closing it. Tagged SOC2 for processing integrity rather than a privacy framework; the privacy impact is carried by the attribution finding, not this one. NOT introduced by the current branch: both halves of the mismatch are present on origin/main (client 200 at :1185 of that revision, server MAX_SYNC_BATCH = 100)."
     }
   ]
 }
