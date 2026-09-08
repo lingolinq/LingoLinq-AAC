@@ -86,6 +86,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
 - [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
+- [Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash](#gotcha-sms-consent-hash-must-not-include-communicator-global_id--merge-remaps-user_id-and-cannot-rehash)
 - [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
 - [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
@@ -9410,6 +9411,26 @@ publication-status.
 
 Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the serving image.
 
+## Gotcha: adding lines above `Flusher.flush_user_completely` reds `hard-delete-on-request`
+
+That capability cites a present-tense HEAD line in `audit-reports/CAPABILITY-LEDGER.json`.
+A content sweep inserted earlier in `flush_user_content` (or a new helper above the
+method) shifts the `def` without changing the snippet. Update `currentEvidence.line` on
+the branch that introduced the shift, then render: `ruby scripts/capability-check.rb`
+then `ruby scripts/document-register-render.rb`. Do not copy a later stacked-PR line
+number (the #950 invite sweep sits further down than #949). The document-register row
+for `docs/legal/CAPABILITY_LEDGER.md` is unattested, so a hash restamp is the intended
+fix. Ref: PR #949 CI (`capability-check.rb --check`).
+
+## Gotcha: `N.ago.to_i` computed twice can fail an equality by one second
+
+`Lesson decorate_completion should update lesson list with user completions` stores
+`6.years.ago.to_i` on `UserExtra`, then expects a freshly computed `6.years.ago.to_i`.
+`decorate_completion` copies the stored `ts` (`app/models/lesson.rb:336`). On a slow CI
+`User.create` + `UserExtra.save` the two integers differ by 1. This repo has no Timecop;
+capture the integers once and reuse them. Develop can stay green while a loaded runner
+reds the same spec. Ref: PR #949 rspec.
+
 ## Gotcha: nested `sound[user_id]=self` 404s on create (replace_helper_params is top-level only)
 
 `ApplicationController#replace_helper_params` rewrites top-level `id` / `*_id` placeholders like `user_id=self` → `@api_user.global_id`, but **not** nested hashes. `Api::SoundsController#create` resolves nested `sound[user_id]` with `User.find_by_path`, which treats non-digit strings as `user_name` — there is no user named `self`, so create returns **404 Record not found** before any `ButtonSound` insert. Images create never looks up nested `user_id`, so picture upload can still work while sound upload fails. Same class of bug as boards index `?user_id=self` (2026-07-15 learning). Fix: treat nested `'self'` as `@api_user` (boards already special-cases `for_user_id == 'self'`), ignore blank, and on the frontend never POST the literal `'self'` — use `currentUser._actual_id || id` or omit. Ref: [`2026-08-04-sound-upload-nested-self-404.md`](./2026-08-04-sound-upload-nested-self-404.md).
@@ -16570,3 +16591,9 @@ Countermeasure: state the oracle before running, and include a POSITIVE control 
 if nothing in the probe can come out "bad", the probe proves nothing.
 
 **First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash
+
+`SmsConsent` hashes the canonical number with `RemoteTarget.salted_hash(..., ENV['SMS_ENCRYPTION_KEY'], 'global')` and pairs that digest with `user_id` on every lookup. Putting `communicator.global_id` into the hash would stop a hash-only lookup bug, but `Flusher.transfer_user_content` only remaps `user_id` and does not rewrite hashes; after merge `granted?(target, number)` would rehash with the new global id and miss. The query invariant (`user_id` + `target_hash` + `state: granted`) is what keeps one recipient consent from becoming platform-wide. Raise in `SmsConsent` when `SMS_ENCRYPTION_KEY` is blank — `RemoteTarget.salted_hash` will not.
+
+**First seen in:** [2026-09-08-sms-consent-record.md](./2026-09-08-sms-consent-record.md).
