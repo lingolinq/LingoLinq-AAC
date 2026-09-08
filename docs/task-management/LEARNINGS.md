@@ -233,6 +233,8 @@ file (see [README.md](README.md)).
 - [Pattern: a container that stays in the LAYOUT while empty defeats the scanner's detached/zero-box recovery](#pattern-a-container-that-stays-in-the-layout-while-empty-defeats-the-scanners-detachedzero-box-recovery)
 - [Decision: scanner `escape()` keeps its class allow-list — generalising it removes the switch user's guaranteed exit](#decision-scanner-escape-keeps-its-class-allow-list--generalising-it-removes-the-switch-users-guaranteed-exit)
 - [Gotcha: boards-layout-toggle global-failure flake (capabilities 2s auth-sync interval vs the per-test localStorage stub)](#gotcha-boards-layout-toggle-global-failure-flake-capabilities-2s-auth-sync-interval-vs-the-per-test-localstorage-stub)
+- [Pattern: a membership assertion cannot distinguish your fix from the fix you rejected as harmful — assert the EXACT list](#pattern-a-membership-assertion-cannot-distinguish-your-fix-from-the-fix-you-rejected-as-harmful--assert-the-exact-list)
+- [Gotcha: board-detail passes BOTH board_ids and button_sets — button_sets WINS](#gotcha-board-detail-passes-both-board_ids-and-button_sets--button_sets-wins)
 
 ---
 
@@ -16905,3 +16907,104 @@ Countermeasure: state the oracle before running, and include a POSITIVE control 
 if nothing in the probe can come out "bad", the probe proves nothing.
 
 **First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+---
+
+## Pattern: a membership assertion cannot distinguish your fix from the fix you rejected as harmful — assert the EXACT list
+
+**Surface:** any test over a computed list of ids/keys/classes, where the fix changes WHICH entries
+appear (prediction `board_ids`, scope buckets, dependency arrays).
+
+A test written as "contains X, does not contain Y" constrains nothing about length or extra
+entries. On the classic speak page the proposal rejected one candidate in writing as actively
+harmful — call the shared `word_suggestions.lookup_board_ids`, which also pushes
+`root_board_state` and re-introduces the supervisor's home board — and the accompanying
+membership test passed that exact variant green. The weakest state that satisfies
+`contains 'kiddo/home' && !contains 'sup/home'` is `['kiddo/home', ...anything]`.
+
+**Fix recipe:** `assert.deepEqual(actual_list, expected_list)`, quantified over EVERY captured
+call rather than the first or last one, with an `assert.true(captured.length > 0)` first — an
+all-empty capture makes both `deepEqual([], [])` and any `every()` guard vacuously green, so
+without that length check the remaining assertions prove nothing. Then deliberately seed the stub
+with the value the rejected variant would reach for — here `root_board_state` in the stashes stub,
+which the correct code never reads — so the harmful shape has something to go red on.
+
+**Seed it with a DISTINCT value, and this is the part that bites.** The first attempt seeded
+`root_board_state` with the supervisor's own home board, which is what production actually holds
+there. But `lookup_board_ids` de-dupes (`word_suggestions.js:1379`), so in the non-modelling case
+the extra push collapsed into the entry already present and the list came out byte-identical to
+the expected one: the control passed the very delegation it was written to reject, and its comment
+claimed a discrimination it did not have. A sentinel id belonging to nothing else makes the extra
+entry visible. Verified by running an actual delegation to the shared helper: with the realistic
+value one test caught it; with the distinct sentinel, both do.
+
+The general rule — falsify against an implementation that is actually wrong, not merely against the
+original bug — is already recorded twice: see "Gotcha: a shell-injection payload can be defused by
+the COMMAND it lands in, not by your fix" and "Pattern: a red test can silently SELECT a candidate
+fix". What is new here is the assertion SHAPE that satisfies it for list-valued results.
+
+**First seen in:** [2026-09-06-board-index-prediction-scope.md](./2026-09-06-board-index-prediction-scope.md)
+
+---
+
+## Gotcha: board-detail passes BOTH board_ids and button_sets — button_sets WINS
+
+The two speak pages do NOT take different inputs — that framing is wrong and hides a live read.
+board-detail passes **both**, in one options literal: `board_ids: lookup_board_ids(...)` at
+`controllers/user/board-detail.js:2943` AND `button_sets: warmed_sets` at `:2958`. What separates
+them is **precedence**: `word_suggestions.js:830` is `if(options.button_sets)` with `else if
+(options.board_ids)` at `:834`, so `button_sets` wins whenever it is present. The classic page
+(the `board_ids:` entry in `updateSuggestions`, `controllers/board/index.js`) passes
+`board_ids` only, so it takes the else branch.
+
+Consequence when tracing: `from_board_id = options.board_ids[0]` (`:1076`, `:1109`) is **live on
+board-detail** — it is the `redepth` root, so it drives word content and sort order — and inert on
+the classic page only because `sets` is empty there. "board_ids has one live effect" is
+path-specific, never universal. Note `:830` tests truthiness and `[]` is truthy, so an EMPTY
+`warmed_sets` suppresses `board_ids` entirely rather than falling back to it.
+
+"Make the classic page call the shared helper" is the obvious-looking fix and is wrong twice over:
+
+1. `lookup_board_ids` pushes `root_board_state` (`word_suggestions.js:1448`), which on the top-nav
+   "Model for" path IS the supervisor's home board (`app-state.js:1435` -> `toggle_mode`'s
+   `override_state` -> `:1714` -> `:1726`). Copying the helper re-introduces the leak you are fixing.
+2. It grows the list from 2 ids to ~8, and the `board_ids` branch calls `load_button_set` per id per
+   lookup on a path that runs on every button press. **The cost is NOT network.** `load_button_set`
+   caches: `models/buttonset.js:1284-1290` returns `found.load_buttons(force)` for a resident set,
+   whose ajax guard at `:152` requires `!buttons_loaded`, so a warm set resolves at `:327` with no
+   request. The real per-keystroke cost is the `process_buttonset` re-walk plus the `load_buttons`
+   observer/image churn that `word_suggestions.js:823-829` was written to stop. Two places in-repo
+   already say it caches — `controllers/user/board-detail.js:1163-1165` and that comment — so do not
+   restate this as network I/O.
+
+On the classic path specifically, the read that PRODUCES THE SYMBOL is the `load_button_set` loop at `:840`,
+which stamps `original_image` (`:807`) that `complete_word` copies onto the utterance button
+(the `complete_word` action in `controllers/board/index.js`). The `:547`/`:636` guards fire but
+their bodies are inert there,
+because both vocab collectors iterate `options.button_sets || []` (`:1075`, `:1108`).
+It is NOT the only reader of `board_ids` in `lookup`, though: the memo key builds from it at
+`:509` and the stamping block is gated on it at `:729`. "Only live read" is wrong — say
+"the one that produces the symbol".
+
+Two caveats the point-of-change comment (`controllers/board/index.js:199`) owns in full, repeated
+here only because omitting them makes this entry read as a clean fix. The stamp reaches the
+sentence box on a delay you have to trace, and the timing is a RACE — do not restate it as a
+certainty in either direction. The AI predictor's feature flag
+(`lib/feature_flags.rb:109-117`) is NECESSARY BUT NOT SUFFICIENT: `ai_word_predictor.is_enabled`
+also requires `!needsAcknowledgement(state)` (the EU AI Act Art. 50 gate) and
+`aiFeatureGate.aiFeatureEnabled(state, 'ai_word_prediction')`. When AI is OFF, `lookup_with_ai`
+returns `localPromise` unchanged (`word_suggestions.js:1206-1207`) and the caller holds the memo
+array itself, so the stamp reaches the UI with no merge copy at all — immediately. When AI is ON,
+merge runs on `RSVP.all([...])` (`:1218`), whose AI leg carries a hard 300ms debounce
+(`utils/ai_word_predictor.js` `_debounce_ms`) plus a POST, while the stamp chain resolves from a
+WARM buttonset cache — so the stamp usually lands BEFORE merge and `original_image` is copied
+through on the FIRST lookup. Only when the AI leg returns fast (cache hit, backoff, budget
+exhausted) does the first lookup miss and the leak defer to the memo hit (`:713` parks the array,
+`:807` mutates it in place, `:850` returns it). Either way the leak is real; assuming the deferred
+branch UNDERSTATES it.
+And scoping the home-board entry does **not** make the classic page clean:
+`temporary_root_board_state` can itself be a supervisor-owned board
+(`services/app-state.js:2362-2364`), and it is written whenever `set_speak_mode_user` is called
+with `jump_home` false (`:2364`) — which includes every `switch-communicators` path.
+
+**First seen in:** [2026-09-06-board-index-prediction-scope.md](./2026-09-06-board-index-prediction-scope.md)

@@ -93,6 +93,12 @@ export default Controller.extend(prefClasses, {
       'en';
   },
   set_suggestions: function(updates) {
+    /* Every write to `suggestions` funnels through here, and three of `updateSuggestions`'
+       continuations reach it asynchronously: the `.then` and rejection handler of
+       `lookup_with_ai`, and the 200ms follow-up timer. Each can land after this controller is
+       gone. Guarding the funnel covers all three at the single point where the write happens,
+       rather than repeating the same line at each call site. */
+    if(this.isDestroyed || this.isDestroying) { return; }
     var current = this.get('suggestions') || {};
     this.set('suggestions', Object.assign({}, current, updates));
   },
@@ -173,6 +179,12 @@ export default Controller.extend(prefClasses, {
         _this.set_suggestions({ ready: false });
       }
       runLater(function() {
+        /* Separate from the guard in `set_suggestions`, and NOT redundant with it: this body runs
+           BEFORE any write, and issues the lookup itself. Without this, a controller destroyed
+           between the observer firing and this flush still reads `model`, `stashes` and the
+           `appState.referenced_user` computed, and still sends a prediction request — measured at
+           2 lookups per destroyed controller — for a board the user has already left. */
+        if(_this.isDestroyed || _this.isDestroying) { return; }
         var sentence = button_list.map(function(b) {
           return (b.vocalization || b.label || '').replace(/^:/, '');
         }).join(' ').trim();
@@ -184,7 +196,37 @@ export default Controller.extend(prefClasses, {
           locale: _this.word_prediction_locale(),
           board_locale: (_this.get('model') && _this.get('model.locale')) || 'en',
           translations: (_this.get('model') && _this.get('model.translations')) || null,
-          board_ids: [_this.appState.get('currentUser.preferences.home_board.id'), _this.stashes.get('temporary_root_board_state.id')]
+          /* `referenced_user`, NOT `currentUser`. Under "Model for" the logged-in account is the
+             SUPERVISOR: set_speak_mode_user's keep_as_self branch nulls `speakModeUser`
+             (services/app-state.js:2333), so the guard at :2608 is false and the
+             `currentUser := speakModeUser` assignment at :2609 never fires, while
+             `referenced_user` resolves to the communicator (services/app-state.js:3946-3957).
+             The gate on this same observer (:165) already reads `referenced_user`; this makes the
+             lookup agree with the gate that enables it.
+
+             This list is not inert. It is read at utils/word_suggestions.js:840, where each id is
+             resolved and walked by `process_buttonset`, which stamps a symbol onto the matching
+             suggestion (:807); the `complete_word` action below copies that url onto the utterance
+             button and speaks it. Searching the supervisor's home board therefore put one person's
+             symbols into another person's sentence. (`board_ids` has other readers inside `lookup`
+             -- the memo key at :509 and the gate at :729 -- so this is not its only consumer, just
+             the one that produces the symbol.)
+
+             NOT changed to the shared `word_suggestions.lookup_board_ids`: that helper also pushes
+             `root_board_state` (word_suggestions.js:1448), which on the top-nav Speak Mode path IS
+             the supervisor's home board (services/app-state.js:1435 -> toggle_mode's
+             `override_state` -> :1714 -> :1726), so delegating would re-introduce here exactly what
+             this line removes.
+
+             SCOPE -- this corrects entry 1 ONLY. Entry 2, `temporary_root_board_state`, is written
+             by set_speak_mode_user (services/app-state.js:2364) and can be the SUPERVISOR's own
+             board whenever that call passes `jump_home` false -- which includes the top-nav picker
+             and every `switch-communicators` path, since that component derives `jump_home` from
+             `model.stay !== true` (components/switch-communicators.js:46). So this is NOT "the
+             classic speak page no longer leaks": entry 2 is a separate unit, owned by app-state.
+             The last test in tests/unit/controllers/board-index-prediction-scope-test.js
+             characterises that residual. */
+          board_ids: [_this.appState.get('referenced_user.preferences.home_board.id'), _this.stashes.get('temporary_root_board_state.id')]
         }).then(function(result) {
           // this delay prevents a weird use case on android
           // where it hits the next button before listeners are

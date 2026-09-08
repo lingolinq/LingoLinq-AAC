@@ -485,7 +485,35 @@ var word_suggestions = EmberObject.extend({
       }
 
       var do_cap = appState.get('shift') || (word_in_progress && utterance.capitalize(word_in_progress) == word_in_progress);
-      if(_this.last_finished_word != last_finished_word || _this.word_in_progress != word_in_progress || _this.second_to_last_word != second_to_last_word || _this.last_shift != last_shift || _this.last_time_bucket != time_bucket || _this.last_topic_context != normalized_topic || _this.last_locale != locale) {
+      /* WHOSE result is this? The memo below parks its array on the module singleton (:713), the
+         symbol stamp mutates that array IN PLACE and asynchronously (:807), and a key match hands
+         it back verbatim. So the key must include the two things that decide whose vocabulary and
+         whose symbols the array contains, or one communicator's symbol is served to the next --
+         controllers/board/index.js:1673-1675 then writes it onto their utterance button.
+
+         `scope_key` is the speaking user. It FAILS CLOSED: `scope_key_for` returns null when the
+         id is absent or still the literal 'self' (models/user.js:55-65 documents that window),
+         and two nulls must never compare equal, so a null forces a recompute rather than
+         matching another unidentified user.
+
+         `searched_sig` is the vocabulary actually searched, mirroring the precedence at :830 vs
+         :834 -- `button_sets` wins when present, and `[]` is truthy, so an empty array is a real
+         choice and not a fallthrough. Sets are keyed by `global_id || id` the same way
+         process_buttonset (:753) and loaded_button_sets_beyond (:1640) key them.
+
+         NOT keyed here, deliberately, and a separate pre-existing defect: `max_results`,
+         `board_locale` and `translations` also change the result and are shared across the four
+         consumers of this one memo slot. That is a wrong-shape bug, not a wrong-owner bug; it is
+         recorded rather than fixed in the same pass. */
+      var scope_key = scope_key_for(appState);
+      var searched_sig = (options.button_sets || options.board_ids || []).map(function(s) {
+        if(!s) { return ''; }
+        if(typeof s === 'string') { return s; }
+        return (s.get && (s.get('global_id') || s.get('id'))) || '';
+      }).join(',');
+      if(!scope_key || _this.last_scope_key !== scope_key || _this.last_searched_sig !== searched_sig || _this.last_finished_word != last_finished_word || _this.word_in_progress != word_in_progress || _this.second_to_last_word != second_to_last_word || _this.last_shift != last_shift || _this.last_time_bucket != time_bucket || _this.last_topic_context != normalized_topic || _this.last_locale != locale) {
+        _this.last_scope_key = scope_key;
+        _this.last_searched_sig = searched_sig;
         _this.last_finished_word = last_finished_word;
         _this.last_shift = last_shift;
         _this.second_to_last_word = second_to_last_word;
@@ -714,7 +742,7 @@ var word_suggestions = EmberObject.extend({
             /* GLOBAL id, not the record id. `redepth` walks `board_id` (models/buttonset.js:379-401)
                and every button carries a GLOBAL board id (board_downstream_button_set.rb:584 via
                json_api/button_set.rb:11-12). But lookup_board_ids pushes sidebar board KEYS
-               (:1345-1347 below), and the application serializer rewrites a buttonset's record id
+               (:1433-1435 below), and the application serializer rewrites a buttonset's record id
                to whatever was REQUESTED, parking the real one on `_actual_id`
                (serializers/application.js:100-108). So for a key-loaded set the record id is
                'example/keyboard', no button matches it, redepth returns [], and the ENTIRE set —
@@ -769,8 +797,8 @@ var word_suggestions = EmberObject.extend({
                      did so late, as a microtask, so it also clobbered symbols that had already
                      resolved correctly.
                      Every other writer into a suggestion's image already filters through
-                     is_placeholder_image (:1287, :1401, controllers/user/board-detail.js:1146
-                     and :1442). This was the only one that did not. */
+                     is_placeholder_image (:1656, :1689, controllers/user/board-detail.js:1118
+                     and :1467). This was the only one that did not. */
                   if(word_suggestions.is_placeholder_image(button.image)) {
                     word.depth = prev_depth;
                     return;
@@ -1211,11 +1239,11 @@ word_suggestions.lookup_with_ai = function(options) {
       locale: locale
     });
     /* Give every suggestion an image. AI words arrive as bare strings and become
-       `{ word, source }` (:1086); server entries the same (:1166). merge_suggestions only
+       `{ word, source }` (:1145); server entries the same (:1231). merge_suggestions only
        COPIES an image from a local item, it never supplies one — so those suggestions reached
        the template with no `image`, the `{{#if suggestion.image}}` gate rendered no <img> at
        all, and the tile showed an empty box.
-       `lookup()` has always stamped the placeholder on its own results (:686); this brings the
+       `lookup()` has always stamped the placeholder on its own results (:714); this brings the
        AI path in line rather than inventing a second mechanism. Only fills what is MISSING, so
        a real symbol is never overwritten. */
     return word_suggestions.fallback_url().then(function(url) {
@@ -1361,13 +1389,13 @@ word_suggestions.lookup_board_ids = function(appState, stashes, extra_ids) {
 
        This makes the function agree with its neighbours rather than introducing a new rule. Two
        are genuine precedents, predating this work: `appState.sidebar_boards`, read below at
-       :1414, has resolved through `referenced_user` since 2026-01-20
+       :1442, has resolved through `referenced_user` since 2026-01-20
        (services/app-state.js:3870-3878 -> `current_sidebar_boards` at :3844-3846; the
        `window.user_preferences` fallback at :3876 fires only when that is UNDEFINED, and
        `sidebar_boards_with_fallbacks` returns [], which is truthy, so it never fires for a
        logged-in user); and the caller gate reads `referenced_user.preferences.word_suggestions`
-       (controllers/user/board-detail.js:3457, controllers/board/index.js:159). `scope_key_for`
-       below (:1455) buckets on `referenced_user` too -- but it is a SIBLING, not a precedent: it
+       (controllers/user/board-detail.js:3457, controllers/board/index.js:165). `scope_key_for`
+       below (:1483) buckets on `referenced_user` too -- but it is a SIBLING, not a precedent: it
        landed on this same branch in 76b6e339a (2026-09-04). Its relevance is that the supervisor's
        sets were being stamped into the communicator's bucket, not that it settled the convention.
 
@@ -1377,7 +1405,7 @@ word_suggestions.lookup_board_ids = function(appState, stashes, extra_ids) {
        `speakModeUser.preferences.home_board || currentUser.preferences.home_board`
        (services/app-state.js:1435) -- and keep_as_self has just NULLED speakModeUser, so that
        resolves to the SUPERVISOR's home board and is persisted as `root_board_state`
-       (:1726), which :1420 below pushes on a line this change does not touch.
+       (:1726), which :1448 below pushes on a line this change does not touch.
 
        Safe outside modelling: `referenced_user` (services/app-state.js:3946-3957) returns
        `currentUser` unless BOTH `modeling_for_user` and `referenced_speak_mode_user` are set, so
@@ -1390,14 +1418,14 @@ word_suggestions.lookup_board_ids = function(appState, stashes, extra_ids) {
 
        The two sidebar reads are NOT interchangeable, even though both now resolve through
        `referenced_user`: `sidebar_boards_with_fallbacks` drops `hidden` entries
-       (models/user.js:690) while the raw `preferences.sidebar_boards` read at :1395
+       (models/user.js:690) while the raw `preferences.sidebar_boards` read at :1433
        does not. Both are kept deliberately; `push` de-dupes.
 
-       NOT fixed here, and deliberately so -- `controllers/board/index.js:187` hand-builds its own
-       prediction id list from `currentUser.preferences.home_board.id` and never calls this
-       function, so the classic speak page still has this bug. Its gate at :159 is cited above as
-       precedent for `referenced_user`, which makes the untouched read below it the more
-       conspicuous; it is a separate unit with its own red test, not an oversight. */
+       The classic speak page does NOT call this function: the `board_ids:` entry in
+       `updateSuggestions` (controllers/board/index.js:229) hand-builds its own two-entry list.
+       It was fixed in its own unit to read `referenced_user` the same way this does; the comment
+       there records why it deliberately does not delegate here (this helper also pushes
+       `root_board_state`, :1448 below). Its gate at controllers/board/index.js:165 reads it too. */
     push(appState.get('referenced_user.preferences.home_board.id'));
     push(appState.get('currentBoardState.id'));
     var user = appState.get('referenced_user');
@@ -1508,7 +1536,7 @@ word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra
      that follows silently discarded every set this call had just fetched -- the whole reason
      the fetch happened. The symptom was a predicted word showing its placeholder instead of
      its symbol on the lookup that triggered the fetch, and a smaller suggestion vocabulary
-     with it, since `lookup` short-circuits on a truthy-but-empty `button_sets` (:802).
+     with it, since `lookup` short-circuits on a truthy-but-empty `button_sets` (:830).
      `all` is equivalent here for two independent reasons:
        - `all_wait`'s distinctive behaviour, waiting through failures rather than rejecting on
          the first, is gated on `LingoLinq.all_wait` (utils/misc.js:155) -- which has NO writer
@@ -1518,10 +1546,10 @@ word_suggestions.load_vocabulary_button_sets = function(appState, stashes, extra
          return non-thenables.
      The per-promise error handler is load-bearing, not decorative: `load_button_set` returns
      `RSVP.reject()` for any id matching /^b/ or /^i/ (models/buttonset.js:1261-1263), which a
-     real board KEY beginning with "b" does, and lookup_board_ids pushes keys (:1359). It turns
+     real board KEY beginning with "b" does, and lookup_board_ids pushes keys (:1434). It turns
      that into a null, which the `!bs || !bs.get` guard below drops.
      `all` also resolves in INPUT order. That matters downstream: candidates are sorted by depth
-     alone (:1494) and Array#sort is stable, so array order is the tie-break deciding which of
+     alone (:1590) and Array#sort is stable, so array order is the tie-break deciding which of
      two equal-depth symbols the user actually sees. Settlement order would make that vary with
      network timing. */
   return RSVP.all(missing.filter(function(id) { return !!id; }).map(function(id) {
@@ -1607,7 +1635,7 @@ word_suggestions.loaded_button_sets_beyond = function(searched, appState) {
       if(!bs || !bs.get) { return; }
       var id = bs.get('id');
       if(!id || seen[id]) { return; }
-      /* global_id, matching how the set was recorded and how redepth matches buttons (:1424).
+      /* global_id, matching how the set was recorded and how redepth matches buttons (:1498).
          A set loaded by KEY carries the key as its record id, so `id` alone would miss it. */
       if(!in_scope[bs.get('global_id') || id]) { return; }
       /* A set with no buttons covers nothing - the same rule load_vocabulary_button_sets uses. */

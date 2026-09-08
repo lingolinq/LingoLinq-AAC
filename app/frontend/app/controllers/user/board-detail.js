@@ -1111,7 +1111,7 @@ export default Controller.extend(prefClasses, {
          Reading image_url alone meant this matcher found nothing for precisely the buttons
          whose symbol was already painted on screen — a predicted word that IS on the board
          rendered blank. Every other consumer reads the pair (application.js:1880,
-         board/index.js:315, edit_manager.js:178, button-preview.js:78); this was the outlier.
+         board/index.js:357, edit_manager.js:178, button-preview.js:78); this was the outlier.
          A button showing the missing-image placeholder still offers nothing to borrow, so the
          loop keeps looking rather than returning it. */
       var url = btn.local_image_url || btn.image_url;
