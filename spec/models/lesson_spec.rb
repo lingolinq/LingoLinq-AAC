@@ -454,13 +454,21 @@ describe Lesson, :type => :model do
       expect(Lesson.decorate_completion(nil, {a: 1})).to eq({a: 1})
     end
     it "should update lesson list with user completions" do
+      # Capture once. decorate_completion copies the stored ts
+      # (app/models/lesson.rb:336); a later 6.years.ago.to_i can be one second
+      # newer after User.create + UserExtra.save.
+      six_years_ago = 6.years.ago.to_i
+      six_minutes_ago = 6.minutes.ago.to_i
+      three_months_ago = 3.months.ago.to_i
+      six_months_ago = 6.months.ago.to_i
+      four_months = 4.months.to_i
       u = User.create
       ue = UserExtra.create(user: u)
       ue.settings['completed_lessons'] = [
-        {'id' => 'a', 'ts' => 6.years.ago.to_i, 'rating' => 3},
-        {'id' => 'b', 'ts' => 6.minutes.ago.to_i},
-        {'id' => 'f', 'ts' => 3.months.ago.to_i, 'url' => 'asdf'},
-        {'id' => 'g', 'ts' => 6.months.ago.to_i, 'url' => 'qwer', 'rating' => 1}
+        {'id' => 'a', 'ts' => six_years_ago, 'rating' => 3},
+        {'id' => 'b', 'ts' => six_minutes_ago},
+        {'id' => 'f', 'ts' => three_months_ago, 'url' => 'asdf'},
+        {'id' => 'g', 'ts' => six_months_ago, 'url' => 'qwer', 'rating' => 1}
 
       ]
       ue.save
@@ -468,15 +476,15 @@ describe Lesson, :type => :model do
         {'id' => 'a'},
         {'id' => 'c'},
         {'id' => 'd'},
-        {'id' => 'm', 'url' => 'asdf', 'past_cutoff' => 4.months.to_i},
-        {'id' => 'n', 'url' => 'qwer', 'past_cutoff' => 4.months.to_i},
+        {'id' => 'm', 'url' => 'asdf', 'past_cutoff' => four_months},
+        {'id' => 'n', 'url' => 'qwer', 'past_cutoff' => four_months},
       ]
       expect(Lesson.decorate_completion(u, json)).to eq([
-        {'id' => 'a', 'completed' => true, 'completed_ts' => 6.years.ago.to_i, 'rating' => 3},
+        {'id' => 'a', 'completed' => true, 'completed_ts' => six_years_ago, 'rating' => 3},
         {'id' => 'c'},
         {'id' => 'd'},
-        {'id' => 'm', 'completed' => true, 'completed_ts' => 3.months.ago.to_i, 'url' => 'asdf', 'past_cutoff' => 4.months.to_i},
-        {'id' => 'n', 'completed_ts' => 6.months.ago.to_i, 'url' => 'qwer', 'past_cutoff' => 4.months.to_i},
+        {'id' => 'm', 'completed' => true, 'completed_ts' => three_months_ago, 'url' => 'asdf', 'past_cutoff' => four_months},
+        {'id' => 'n', 'completed_ts' => six_months_ago, 'url' => 'qwer', 'past_cutoff' => four_months},
       ])
     end
   end
