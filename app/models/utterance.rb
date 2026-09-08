@@ -272,19 +272,22 @@ class Utterance < ApplicationRecord
       text = args['text'] || self.data['sentence']
       if args['cell_phone'] || (recipient_user && recipient_user.settings && recipient_user.settings['cell_phone'])
         cell = args['cell_phone'] || (recipient_user && recipient_user.settings && recipient_user.settings['cell_phone'])
-        if FeatureFlags.sms_recipient_consent_enabled?(ref_user) && !SmsConsent.granted?(ref_user, cell)
-          if record && record.data
-            record.reload
-            record.data['sms_attempts'] ||= []
-            record.data['sms_attempts'] << {
-              cell: cell,
-              timestamp: Time.now.to_i,
-              pushed: false,
-              reason: 'no_consent'
-            }
-            record.save
+        enforce_for = ref_user || self.user
+        if FeatureFlags.sms_recipient_consent_enabled?(enforce_for)
+          unless ref_user && SmsConsent.granted?(ref_user, cell)
+            if record && record.data
+              record.reload
+              record.data['sms_attempts'] ||= []
+              record.data['sms_attempts'] << {
+                cell: cell,
+                timestamp: Time.now.to_i,
+                pushed: false,
+                reason: ref_user ? 'no_consent' : 'unknown_sender'
+              }
+              record.save
+            end
+            return
           end
-          return
         end
         if args['text_only']
           msg = text

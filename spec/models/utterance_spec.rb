@@ -735,6 +735,43 @@ describe Utterance, :type => :model do
         expect(RemoteTarget.where(user_id: communicator.id).count).to eq(targets_before)
       end
 
+      it "blocks when the utterance author flag is on and ref_user is missing" do
+        author = enable_sms_consent_flag!(User.create)
+        recipient = User.create
+        recipient.settings['cell_phone'] = '5558675309'
+        utterance = Utterance.create(user: author, data: {'button_list' => [{'label' => 'howdy'}]})
+        targets_before = RemoteTarget.count
+        utterance.deliver_message('text', recipient, {'sharer' => {'name' => 'bob'}})
+        utterance.reload
+        expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
+          {'cell' => '5558675309', 'pushed' => false, 'reason' => 'unknown_sender'}
+        )
+        expect(utterance.data['sms_attempts'][0]['timestamp']).to be > 10.seconds.ago.to_i
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '5558675309', 'from bob - howdy', nil)).to eq(false)
+        expect(RemoteTarget.count).to eq(targets_before)
+      end
+
+      it "blocks handle_notification when the sharer cannot be resolved" do
+        communicator = enable_sms_consent_flag!(User.create)
+        recipient = User.create
+        recipient.settings['cell_phone'] = '5558675309'
+        recipient.settings['preferences'] ||= {}
+        recipient.settings['preferences']['share_notifications'] = 'text'
+        recipient.save
+        utterance = Utterance.create(user: communicator, data: {'button_list' => [{'label' => 'hello'}]})
+        targets_before = RemoteTarget.where(user_id: communicator.id).count
+        recipient.handle_notification('utterance_shared', utterance, {
+          'text' => 'hello',
+          'sharer' => {'user_id' => '1_missing_sharer'}
+        })
+        utterance.reload
+        expect(utterance.data['sms_attempts'][0].except('timestamp')).to eq(
+          {'cell' => '5558675309', 'pushed' => false, 'reason' => 'unknown_sender'}
+        )
+        expect(Worker.scheduled_for?('priority', Pusher, :sms, '5558675309', 'from someone - hello', nil)).to eq(false)
+        expect(RemoteTarget.where(user_id: communicator.id).count).to eq(targets_before)
+      end
+
       it "does not treat communicator A's grant as consent for communicator B on the same number" do
         alice = enable_sms_consent_flag!(User.create)
         bob = enable_sms_consent_flag!(User.create)

@@ -16611,7 +16611,7 @@ if nothing in the probe can come out "bad", the probe proves nothing.
 
 ## Gotcha: a deliver_to SMS spec does not cover handle_notification utterance_shared
 
-`Utterance#deliver_to` (`app/models/utterance.rb:212`) passes `contact['cell_phone']`. `User#handle_notification('utterance_shared')` (`app/models/user.rb:4229`) has no contact; `cell` comes from `recipient_user.settings['cell_phone']`. A `share_with` / `deliver_to` example does not execute that path. The send-path consent guard must sit after `cell` is assigned (`utterance.rb:274`) and before `RemoteTarget.find_or_assert` (`:288` before the guard landed; later `:302`). `FeatureFlags.sms_recipient_consent_enabled?(nil)` is false, so fixtures that omit `ref_user` stay on the old send-without-consent path.
+`Utterance#deliver_to` (`app/models/utterance.rb:212`) passes `contact['cell_phone']`. `User#handle_notification('utterance_shared')` (`app/models/user.rb:4229`) has no contact; `cell` comes from `recipient_user.settings['cell_phone']`. A `share_with` / `deliver_to` example does not execute that path. The send-path consent guard must sit after `cell` is assigned (`utterance.rb:274`) and before `RemoteTarget.find_or_assert`. `FeatureFlags.sms_recipient_consent_enabled?(nil)` is false, so the flag must be read from `ref_user || utterance.user`. If that flag is on and `ref_user` is missing, fail closed with `reason: 'unknown_sender'`. Flag-off fixtures that omit `ref_user` still send.
 
 **First seen in:** [2026-09-08-sms-send-guard.md](./2026-09-08-sms-send-guard.md).
 
