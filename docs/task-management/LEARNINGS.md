@@ -89,6 +89,7 @@ file (see [README.md](README.md)).
 - [Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash](#gotcha-sms-consent-hash-must-not-include-communicator-global_id--merge-remaps-user_id-and-cannot-rehash)
 - [Gotcha: do not `json.dumps` FINDINGS.json — it escapes `§` and dirties unrelated notes](#gotcha-do-not-jsondumps-findingsjson--it-escapes--and-dirties-unrelated-notes)
 - [Gotcha: utterance share "upstream gates" are path-scoped, not general](#gotcha-utterance-share-upstream-gates-are-path-scoped-not-general)
+- [Gotcha: a zero row count plus no app destroy path is not a lifetime claim](#gotcha-a-zero-row-count-plus-no-app-destroy-path-is-not-a-lifetime-claim)
 - [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
 - [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
@@ -16609,5 +16610,11 @@ Python `json.dumps` rewrites `§` as `\u00a7` across every notes field. A one-se
 ## Gotcha: utterance share "upstream gates" are path-scoped, not general
 
 `share_notifications` (default `email`) is read only in `User#handle_notification('utterance_shared')` at `app/models/user.rb:4226`. A saved contact with `contact_type` sms goes through `Utterance#deliver_to` → `deliver_message(contact['contact_type'], …)` at `app/models/utterance.rb:210-223` and never reads that pref. The premium check at `app/controllers/api/utterances_controller.rb:45` keys on `params['user_id']` only; `share_with` treats `supervisor_id` as the same recipient (`utterance.rb:89`) and skips the check.
+
+**First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
+
+## Gotcha: a zero row count plus no app destroy path is not a lifetime claim
+
+A Cloud Run `RemoteTarget.count` is a point-in-time snapshot. Grep showing no `destroy`/`delete`/`dependent:` in `app`/`lib`/`db`/`config` only rules out an application sweep. It does not prove rows were never created: a restore or operational SQL can empty the table without appearing in those trees. Do not write "zero now means none were ever created."
 
 **First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
