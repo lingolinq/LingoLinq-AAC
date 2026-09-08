@@ -9422,6 +9422,15 @@ number (the #950 invite sweep sits further down than #949). The document-registe
 for `docs/legal/CAPABILITY_LEDGER.md` is unattested, so a hash restamp is the intended
 fix. Ref: PR #949 CI (`capability-check.rb --check`).
 
+## Gotcha: `N.ago.to_i` computed twice can fail an equality by one second
+
+`Lesson decorate_completion should update lesson list with user completions` stores
+`6.years.ago.to_i` on `UserExtra`, then expects a freshly computed `6.years.ago.to_i`.
+`decorate_completion` copies the stored `ts` (`app/models/lesson.rb:336`). On a slow CI
+`User.create` + `UserExtra.save` the two integers differ by 1. This repo has no Timecop;
+capture the integers once and reuse them. Develop can stay green while a loaded runner
+reds the same spec. Ref: PR #949 rspec.
+
 ## Gotcha: nested `sound[user_id]=self` 404s on create (replace_helper_params is top-level only)
 
 `ApplicationController#replace_helper_params` rewrites top-level `id` / `*_id` placeholders like `user_id=self` → `@api_user.global_id`, but **not** nested hashes. `Api::SoundsController#create` resolves nested `sound[user_id]` with `User.find_by_path`, which treats non-digit strings as `user_name` — there is no user named `self`, so create returns **404 Record not found** before any `ButtonSound` insert. Images create never looks up nested `user_id`, so picture upload can still work while sound upload fails. Same class of bug as boards index `?user_id=self` (2026-07-15 learning). Fix: treat nested `'self'` as `@api_user` (boards already special-cases `for_user_id == 'self'`), ignore blank, and on the frontend never POST the literal `'self'` — use `currentUser._actual_id || id` or omit. Ref: [`2026-08-04-sound-upload-nested-self-404.md`](./2026-08-04-sound-upload-nested-self-404.md).
