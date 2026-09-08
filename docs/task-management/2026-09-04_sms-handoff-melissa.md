@@ -139,8 +139,8 @@ repo convention.
 
 ### 3. The guard
 
-Place it at **`app/models/utterance.rb:273`**, immediately after `cell` is resolved at
-`:274`, keyed on the resolved `cell` value.
+Place it immediately after `cell` is resolved at **`app/models/utterance.rb:274`**,
+inside the `if` opened at `:273`, keyed on the resolved `cell` value.
 
 It must sit **before `RemoteTarget.find_or_assert` at `:288`**, not merely before the
 `Worker.schedule_for` at `:301`. Between those two points the code writes
@@ -178,7 +178,7 @@ Remaining:
 2. Request a toll-free number.
 3. File the registration, using the consent-page screenshot as `optInImage` (PNG/JPG/PDF, 500 KB max).
 4. Confirm two-way SMS ENABLED and self-managed opt-outs OFF, and record that you confirmed it. No code asserts this setting, so it is invisible from the repo.
-5. Subscribe the SNS topic to `POST /api/v1/callback` (singular, `config/routes.rb:161`).
+5. Subscribe the SNS topic to `POST /api/v1/callback` (singular, `config/routes.rb:169`).
 6. Open the support case to exit the SMS sandbox.
 7. Raise the monthly spend limit, which is still at the untouched $1 default.
 8. Set `SMS_ORIGINATORS`, `SNS_ARNS` and `SNS_REGION`. They are absent from all 8 services. **On Cloud Run, `--set-env-vars` replaces the entire environment**, so use `--update-env-vars` or you will silently drop the other ~45 variables.
@@ -249,7 +249,9 @@ future reader can see what was asked and why it closed.
 
 ## Repo conventions
 
-Branch from `staging`, target `staging`. Name it `melissa/<type>/<kebab>` or
+Branch from `develop`, target `develop` (the base moved from `staging` on
+2026-09-04, PR #929; confirm with `gh pr view <n> --json baseRefName` rather than
+assuming). Name it `melissa/<type>/<kebab>` or
 `<type>/melissa-<kebab>`. Node 22. RSpec for backend, QUnit for frontend, both
 required. Per RULE #0 item 12, write the candidate fixes down and get them reviewed
 **before** editing code; the SMS proposal that preceded this document was blocked in
