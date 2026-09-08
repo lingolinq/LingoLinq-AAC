@@ -116,6 +116,18 @@ describe FeatureFlags do
       expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
     end
 
+    it "does not treat a district-sponsored user with school authorization as pending parental consent" do
+      u = User.new(settings: {
+        'school_authorization' => {
+          'basis' => 'school_official',
+          'organization_id' => '1_1',
+          'authorized_by' => '1_2',
+          'authorized_at' => Time.now.utc.iso8601
+        }
+      })
+      expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(false)
+    end
+
     it "returns true when user has pending parental consent" do
       u = User.new(settings: { 'coppa' => { 'pending_parent_consent' => true } })
       expect(FeatureFlags.coppa_blocks_ai_for?(u)).to eq(true)
