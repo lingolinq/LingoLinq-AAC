@@ -168,7 +168,7 @@
       "antiClaim": "There is no automatic time-based wipe (no 48h/180d purge); deletion is on request / policy-driven.",
       "currentEvidence": {
         "file": "lib/flusher.rb",
-        "line": 477,
+        "line": 485,
         "snippet": "def self.flush_user_completely(user_id, user_name)"
       },
       "frameworks": [
@@ -287,7 +287,7 @@
       "antiClaim": "This gate is NOT the same as signup COPPA (settings['coppa']) or second-tier AI data-sharing VPC (settings['ai_consent'] / government-ID). It only covers EU under-16 AI enablement.",
       "currentEvidence": {
         "file": "lib/feature_flags.rb",
-        "line": 292,
+        "line": 307,
         "snippet": "def self.eu_under16_blocks_ai_for?(user)"
       },
       "frameworks": [
