@@ -10,9 +10,6 @@ module Pusher
     if phone.match(/,/)
       return  phone.split(/,/).map{|p| Pusher.sms(p, message)[0]}
     end
-    if Setting.blocked_cell?(RemoteTarget.canonical_target(phone, 'sms'))
-      return []
-    end
     if !phone.match(/^\+\d/)
       phone = RemoteTarget.canonical_target('sms', phone)
     end
