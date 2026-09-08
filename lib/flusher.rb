@@ -116,6 +116,7 @@ module Flusher
     # before LL-e8614c103f added them to flush_user_content. Not paper-trailed.
     prediction_entry_scope = PredictionEntry.left_joins(:user).where(users: { id: nil })
     sms_consent_scope = SmsConsent.left_joins(:user).where(users: { id: nil })
+    sms_consent_invite_scope = SmsConsentInvite.left_joins(:user).where(users: { id: nil })
 
     # 7. paper trail versions whose item_type no longer maps to any model class
     #    (e.g. a renamed/removed legacy model). REPORT-ONLY, not deleted: per
@@ -162,6 +163,7 @@ module Flusher
     user_board_connection_ids = user_board_connection_scope.pluck(:id)
     prediction_entry_ids = prediction_entry_scope.pluck(:id)
     sms_consent_ids = sms_consent_scope.pluck(:id)
+    sms_consent_invite_ids = sms_consent_invite_scope.pluck(:id)
 
     planned_counts = {
       'board_button_images' => board_button_image_ids.length,
@@ -171,6 +173,7 @@ module Flusher
       'user_board_connections' => user_board_connection_ids.length,
       'prediction_entries' => prediction_entry_ids.length,
       'sms_consents' => sms_consent_ids.length,
+      'sms_consent_invites' => sms_consent_invite_ids.length,
       'versions_stale_type_detected_not_deleted' => stale_version_count
     }
 
@@ -197,6 +200,7 @@ module Flusher
       'user_board_connections' => delete_and_record_category('user_board_connections', UserBoardConnection, user_board_connection_ids),
       'prediction_entries' => delete_and_record_category('prediction_entries', PredictionEntry, prediction_entry_ids),
       'sms_consents' => delete_and_record_category('sms_consents', SmsConsent, sms_consent_ids),
+      'sms_consent_invites' => delete_and_record_category('sms_consent_invites', SmsConsentInvite, sms_consent_invite_ids),
       # not deleted, see note above -- carried through for visibility only.
       'versions_stale_type_detected_not_deleted' => stale_version_count
     }
@@ -371,6 +375,7 @@ module Flusher
     # collision; reset_eval then flushed the leftover source rows.
     transfer_prediction_entries(source, target)
     transfer_sms_consents(source, target)
+    SmsConsentInvite.where(user_id: source.id).update_all(user_id: target.id)
 
     #invalidate any caches
     source.touch
@@ -467,6 +472,9 @@ module Flusher
     end
     SmsConsent.where(user_id: user.id).each do |row|
       flush_record(row)
+    end
+    SmsConsentInvite.where(user_id: user.id).each do |invite|
+      flush_record(invite)
     end
     License.where(user_id: user.id).each do |lic|
       lic.update!(user_id: nil, granted_at: nil)

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><%= t('parental_consent.page_title') %> — <%= (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %></title>
+  <title><%= content_for?(:page_title) ? yield(:page_title) : t('parental_consent.page_title') %> — <%= (JsonApi::Json.current_domain['settings'] || {})['app_name'] || 'LingoLinq' %></title>
   <style>
     :root {
       --ll-indigo: #1b2a4a;
@@ -65,6 +65,37 @@
       margin: 0.5rem auto 0;
       max-width: 42ch;
     }
+    .box form { margin-top: 1.25rem; text-align: left; }
+    .box form p { max-width: none; }
+    .box label { display: block; font-size: 1.0625rem; font-weight: 500; }
+    .box input[type="tel"] {
+      display: block;
+      width: 100%;
+      min-height: 48px;
+      margin-top: 0.35rem;
+      padding: 0.6rem 0.75rem;
+      font-size: 1.0625rem;
+      border: 1px solid #9ca3af;
+      border-radius: 8px;
+    }
+    .box input[type="checkbox"] {
+      width: 1.25rem;
+      height: 1.25rem;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+    }
+    .box button[type="submit"] {
+      min-height: 48px;
+      padding: 0.7rem 1.5rem;
+      font-size: 1.0625rem;
+      font-weight: 600;
+      color: #fff;
+      background: var(--ll-button);
+      border: 0;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+    .box [role="alert"] { color: #9b1c1c; font-weight: 600; }
     /* Home link → pill button (it's always the card's last paragraph). */
     .box > p:last-child { margin-top: 1.75rem; }
     .box > p:last-child a {

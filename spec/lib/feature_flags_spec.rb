@@ -162,6 +162,23 @@ describe FeatureFlags do
     end
   end
 
+  describe "sms_recipient_consent" do
+    it "is registered as available but OFF by default" do
+      expect(FeatureFlags::AVAILABLE_FRONTEND_FEATURES).to include('sms_recipient_consent')
+      expect(FeatureFlags::ENABLED_FRONTEND_FEATURES).not_to include('sms_recipient_consent')
+    end
+
+    it "follows the communicator's frontend flags, not a blanket ENABLED on" do
+      allow(SystemFeatureSettings).to receive(:beta_opt_in_features).and_return(FeatureFlags::AVAILABLE_FRONTEND_FEATURES)
+      allow(SystemFeatureSettings).to receive(:effective_enabled_for).and_return([])
+      u = User.create
+      expect(FeatureFlags.sms_recipient_consent_enabled?(u)).to eq(false)
+      u.settings['feature_flags'] = {'sms_recipient_consent' => true}
+      expect(FeatureFlags.sms_recipient_consent_enabled?(u)).to eq(true)
+      expect(FeatureFlags.sms_recipient_consent_enabled?(nil)).to eq(false)
+    end
+  end
+
   describe "boards_layout preference" do
     # The Boards-page arrangement is persisted per USER so the choice follows them to a
     # new login. Two things have to hold for that: the key must be in the preference

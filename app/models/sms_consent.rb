@@ -2,6 +2,7 @@ class SmsConsent < ApplicationRecord
   belongs_to :user
 
   STATES = ['granted', 'revoked'].freeze
+  DISCLOSURE_VERSION = '2026-09-08.1'
 
   validates :user, :target_hash, :state, :disclosure_version, presence: true
   validates :state, inclusion: { in: STATES }
