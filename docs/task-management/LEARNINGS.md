@@ -9411,6 +9411,17 @@ publication-status.
 
 Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the serving image.
 
+## Gotcha: adding lines above `Flusher.flush_user_completely` reds `hard-delete-on-request`
+
+That capability cites a present-tense HEAD line in `audit-reports/CAPABILITY-LEDGER.json`.
+A content sweep inserted earlier in `flush_user_content` (or a new helper above the
+method) shifts the `def` without changing the snippet. Update `currentEvidence.line` on
+the branch that introduced the shift, then render: `ruby scripts/capability-check.rb`
+then `ruby scripts/document-register-render.rb`. Do not copy a later stacked-PR line
+number (the #950 invite sweep sits further down than #949). The document-register row
+for `docs/legal/CAPABILITY_LEDGER.md` is unattested, so a hash restamp is the intended
+fix. Ref: PR #949 CI (`capability-check.rb --check`).
+
 ## Gotcha: nested `sound[user_id]=self` 404s on create (replace_helper_params is top-level only)
 
 `ApplicationController#replace_helper_params` rewrites top-level `id` / `*_id` placeholders like `user_id=self` → `@api_user.global_id`, but **not** nested hashes. `Api::SoundsController#create` resolves nested `sound[user_id]` with `User.find_by_path`, which treats non-digit strings as `user_name` — there is no user named `self`, so create returns **404 Record not found** before any `ButtonSound` insert. Images create never looks up nested `user_id`, so picture upload can still work while sound upload fails. Same class of bug as boards index `?user_id=self` (2026-07-15 learning). Fix: treat nested `'self'` as `@api_user` (boards already special-cases `for_user_id == 'self'`), ignore blank, and on the frontend never POST the literal `'self'` — use `currentUser._actual_id || id` or omit. Ref: [`2026-08-04-sound-upload-nested-self-404.md`](./2026-08-04-sound-upload-nested-self-404.md).
