@@ -62,8 +62,7 @@ describe Api::ImagesController, :type => :controller do
       token_user
       s = ButtonImage.create(:user => @user, :settings => {'content_type' => 'audio/mp3'})
       config = Uploader.remote_upload_config
-      res = OpenStruct.new(:success? => false)
-      expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)
+      expect(Uploader).to receive(:remote_upload_exists?).with(config[:upload_url] + s.full_filename).and_return(false)
       get :upload_success, params: {:image_id => s.global_id, :confirmation => s.confirmation_key}
       expect(response).not_to be_successful
       json = JSON.parse(response.body)
@@ -74,8 +73,7 @@ describe Api::ImagesController, :type => :controller do
       token_user
       s = ButtonImage.create(:user => @user, :settings => {'content_type' => 'image/png'})
       config = Uploader.remote_upload_config
-      res = OpenStruct.new(:success? => true)
-      expect(Typhoeus).to receive(:head).with(config[:upload_url] + s.full_filename).and_return(res)
+      expect(Uploader).to receive(:remote_upload_exists?).with(config[:upload_url] + s.full_filename).and_return(true)
       expect(Typhoeus).to receive(:get).with(
         config[:upload_url] + s.full_filename,
         headers: { 'Range' => "bytes=0-#{SvgSanitizer::SNIFF_BYTES - 1}" }

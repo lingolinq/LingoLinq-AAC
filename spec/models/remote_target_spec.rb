@@ -348,6 +348,17 @@ describe RemoteTarget, :type => :model do
         })).to eq(false)
       end
 
+      it "should not write STOP into Setting.blocked_cells" do
+        expect(Setting).not_to receive(:block_cell!)
+        expect(RemoteTarget.process_inbound({
+          'originationNumber' => '+15558675309',
+          'destinationNumber' => '+15551234567',
+          'messageBody' => 'STOP'
+        })).to eq(false)
+        expect(Setting.blocked_cells).to eq([])
+        expect(Setting.blocked_cell?('sms')).to eq(false)
+      end
+
       it "should return true if target found" do
         u = User.create
         t = RemoteTarget.new(target_type: 'sms', user: u)

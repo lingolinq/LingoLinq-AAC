@@ -50,6 +50,48 @@ describe 'scheduler:dispatch rake task' do
     end
   end
 
+  # These cover the failure-handling contract added on 2026-09-04, which previously shipped
+  # untested: the run must go non-zero when a task fails, must keep running the REMAINING
+  # tasks, and must survive a ScriptError (a LoadError from an in-task require is not a
+  # StandardError, so a bare `rescue` would let it kill the whole dispatch and silently skip
+  # the retention purges queued after it).
+  context 'failure handling in the daily window' do
+    before do
+      allow(Time).to receive(:now).and_return(Time.utc(2026, 4, 27, 6, 0, 0))
+      stub_hourly_collaborators
+      stub_daily_collaborators
+    end
+
+    # Asserts STDERR and the exit STATUS, not stdout. The first version of this example matched
+    # /enforce_data_retention_policies/ on STDOUT, which cannot fail: run_task puts
+    # "[<name>] starting..." unconditionally before the block runs, so the pattern is present in
+    # every daily-window example whether or not anything failed. Proven by stubbing the task to
+    # SUCCEED and watching the assertion still pass. `abort` writes to stderr, and the status is
+    # the thing Cloud Run Jobs actually reads.
+    it 'aborts with status 1 and names the failed task in the failure summary' do
+      allow(DataPolicyEnforcer).to receive(:enforce_retention!).and_raise(StandardError, 'boom')
+      expect { Rake::Task['scheduler:dispatch'].invoke }
+        .to raise_error(SystemExit) { |e| expect(e.status).to eq(1) }
+        .and output(/task\(s\) FAILED:.*enforce_data_retention_policies/).to_stderr
+    end
+
+    it 'still runs the tasks queued AFTER a failing one' do
+      allow(DataPolicyEnforcer).to receive(:enforce_retention!).and_raise(StandardError, 'boom')
+      expect(License).to receive(:expire_stale_licenses!).and_return(0)
+      expect { Rake::Task['scheduler:dispatch'].invoke }.to raise_error(SystemExit)
+    end
+
+    it 'survives a ScriptError and still runs the later retention purges' do
+      allow(DataPolicyEnforcer).to receive(:enforce_retention!).and_raise(LoadError, 'cannot load such file')
+      expect(OffboardingCoppaExpirationWorker).to receive(:perform).and_return(0)
+      expect { Rake::Task['scheduler:dispatch'].invoke }.to raise_error(SystemExit)
+    end
+
+    it 'exits zero when every task succeeds' do
+      expect { Rake::Task['scheduler:dispatch'].invoke }.not_to raise_error
+    end
+  end
+
   context 'when run outside the 6 AM UTC daily window' do
     before do
       allow(Time).to receive(:now).and_return(Time.utc(2026, 4, 27, 14, 0, 0))

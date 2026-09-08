@@ -402,7 +402,8 @@ special-LTS + 5.x update blog posts; emberjs/data #5638 #7192 #8684 #8791.
 - **Where Node is pinned in this repo (update together — all bumped to 22 on
   2026-07-16):** `/.nvmrc` + `app/frontend/.nvmrc`, `app/frontend/package.json`
   `engines: >= 22`, `.github/workflows/ci.yml:75` + `:177`, `Dockerfile:4`
-  (`node:22-bullseye`, tag existence verified on Docker Hub) + `Dockerfile:43`
+  (`node:22-bookworm`, tag existence verified on Docker Hub; bullseye left
+  after Debian 11 LTS ended 2026-08-31) + `Dockerfile:43`
   (`setup_22.x`; the `npm@10` pin retained), `bin/ember-server` (nvm install/use/which
   22). Render builds follow `.nvmrc` via `bin/render-build.sh`.
 - **OpenSSL 3 md4 crash** (`error:0308010C` / `ERR_OSSL_EVP_UNSUPPORTED`): webpack 4
