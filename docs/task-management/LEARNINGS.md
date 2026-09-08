@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: `node:22-bullseye` cannot apt-get after Debian 11 LTS ended 2026-08-31](#gotcha-node22-bullseye-cannot-apt-get-after-debian-11-lts-ended-2026-08-31)
 - [Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`](#gotcha-merging-two-overlay-prs-is-a-union-of-tests-then-regenerate-eslint-todo)
 - [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
 - [Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`](#pattern-spanish-long-press-defaults-use-spanish_verb_grid-not-english--s-ed-ing)
@@ -16632,3 +16633,9 @@ Python `json.dumps` rewrites `§` as `\u00a7` across every notes field. A one-se
 A Cloud Run `RemoteTarget.count` is a point-in-time snapshot. Grep showing no `destroy`/`delete`/`dependent:` in `app`/`lib`/`db`/`config` only rules out an application sweep. It does not prove rows were never created: a restore or operational SQL can empty the table without appearing in those trees. Do not write "zero now means none were ever created."
 
 **First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
+
+## Gotcha: `node:22-bullseye` cannot apt-get after Debian 11 LTS ended 2026-08-31
+
+The Cloud Run image build's frontend-builder stage (`Dockerfile` `FROM node:22-bullseye`) runs `apt-get update` against `deb.debian.org/debian-security/dists/bullseye-security`. Debian 11 LTS ended 2026-08-31 ([announcement](https://www.debian.org/News/2026/20260831)); that InRelease is no longer refreshed, so the build fails with "Release file ... is expired". The Ruby stage (`ruby:3.4.4-slim`, bookworm) keeps working in the same log. Do not "fix" this with `Acquire::Check-Valid-Until=false` or `archive.debian.org` — those still build on an unpatched EOL distro. Move the stage to `node:22-bookworm`.
+
+**First seen in:** release PR #952 (2026-09-08 Cloud Run dev deploy).
