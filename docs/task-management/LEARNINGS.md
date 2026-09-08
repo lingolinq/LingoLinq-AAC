@@ -86,6 +86,7 @@ file (see [README.md](README.md)).
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
 - [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
+- [Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash](#gotcha-sms-consent-hash-must-not-include-communicator-global_id--merge-remaps-user_id-and-cannot-rehash)
 - [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
 - [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
