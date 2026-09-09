@@ -1,6 +1,30 @@
 require 'spec_helper'
 
 describe Pusher do
+  it 'should still publish when Setting.blocked_cells has the legacy STOP key or the destination number' do
+    Setting.block_cell!('sms')
+    Setting.block_cell!('+15558675309')
+    cred = OpenStruct.new
+    sms = OpenStruct.new
+    expect(Aws::Credentials).to receive(:new).and_return(cred)
+    expect(Aws::SNS::Client).to receive(:new).and_return(sms)
+    expect(sms).to receive(:publish).with({
+      phone_number: '+15558675309',
+      message: "LingoLinq: hello friend",
+      message_attributes: {
+        "AWS.SNS.SMS.MaxPrice" => {
+          data_type: "Number",
+          string_value: "1.0"
+        },
+        "AWS.SNS.SMS.SenderID" => {
+          data_type: "String",
+          string_value: "LingoLinq"
+        }
+      }
+    }).and_return(OpenStruct.new(message_id: 'asdf'))
+    expect(Pusher.sms('(555) 867-5309', 'hello friend')).to eq(['asdf'])
+  end
+
   it 'should push the message' do
     cred = OpenStruct.new
     sms = OpenStruct.new

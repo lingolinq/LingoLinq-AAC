@@ -5,11 +5,11 @@
 
 **Audited:** `staging (audited at 59f502aa4; staging tip had advanced to d2bf421f7 -- 7 commits, 43 files, PRs #814/#816/#819/#820/#821/#822/#823 -- by the time this PR was assembled; those 7 commits are NOT scanned by this run, see auditedShaPriorNote)` @ `59f502aa4a967c8c704637cc66a18ff05118c7d8` on 2026-08-18  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 2 Critical / 23 High
+**Headline (open + remediated-unverified):** 2 Critical / 25 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (132)
+## Open (135)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -32,6 +32,8 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-10409152d2 |  | high | GDPR, FERPA, COPPA, HIPAA, SOC2 | untriaged | pr-review | The 2026-08-08 quarterly subprocessor review claims every external host in lib/, app/models/, app/controllers/ and config/ was enumerated and found only two omissions, but at least five further live third-party egress paths are absent from the register (Google Maps Places, OpenSymbols, workshop.openaac.org, YouTube, Zendesk) | `docs/legal/2026-08-16_subprocessor-register.md`:120 |
 | LL-a6be800a86 |  | high | COPPA, FERPA, GDPR | untriaged | manual | Full user export archive, including non-anonymized log data, is stored under an S3 key derived only from the username and a minute-granularity timestamp | `lib/exporter.rb`:94 |
 | LL-ed9316b6d9 |  | high | FERPA, COPPA, GDPR | untriaged | audit-run | Word-prediction selections are stored under device-global keys and synced to whichever account holds the token at flush time, so one communicator's vocabulary is written into another's server-side prediction profile | `app/frontend/app/utils/word_suggestions.js`:19 |
+| LL-a8351c5b00 |  | high | GDPR, HIPAA, FERPA | untriaged | pr-review | PiiScrubber log redaction never matches E.164 phone numbers and, contrary to its own docstring, fails the parenthesized form | `lib/pii_scrubber.rb`:37 |
+| LL-cb9f9c865a |  | high | GDPR, HIPAA, FERPA | untriaged | pr-review | RemoteTarget rows survive account deletion, retaining a phone-number hash beside the per-row salt that reverses it (right-to-erasure gap) | `lib/flusher.rb`:442 |
 | LL-7314b5a8ea |  | medium | HIPAA | untriaged | audit-run | Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews | `render.yaml`:107 |
 | LL-ebd844a7d0 |  | medium | FERPA | untriaged | manual | Permanent, non-expiring User#user_token still login-serialized and accepted by logged legacy token fallbacks | `lib/json_api/user.rb`:41 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
@@ -99,6 +101,7 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-37860cbcfa |  | medium | SOC2 | untriaged | audit-run | No GitHub Action in the repository is pinned by commit digest, including the authentication action inside the production deploy job that holds id-token write permission | `.github/workflows/deploy-cloudrun.yml`:309 |
 | LL-84c67d758d |  | medium | WCAG | untriaged | audit-run | The terms-agree modal invokes ModalDialog without labelledBy, so the dialog ships with role dialog and aria-modal but no accessible name, and the title id added for that purpose is orphaned | `app/frontend/app/components/terms-agree.hbs`:1 |
 | LL-29cc341f8c |  | medium | SOC2 | untriaged | audit-run | Client caps the prediction sync queue at 200 entries while the server rejects batches over 100, so any queue above 100 fails permanently and is never drained | `app/frontend/app/utils/word_suggestions.js`:1263 |
+| LL-b5ac82d846 |  | medium | GDPR, FERPA, COPPA, HIPAA | untriaged | manual | ButtonSound transcription hardcodes languageCode 'en', so a non-English communicator's voice recording is uploaded to Google Speech-to-Text and transcribed as English: personal voice data is processed for a purpose it cannot achieve (GDPR Art. 5(1)(c) minimisation, Art. 5(1)(d) accuracy) | `app/models/button_sound.rb`:64 |
 | LL-1890f6a922 | P2-5 | medium | GDPR, FERPA | **accepted** | audit-run | DataPolicyEnforcer retention only purges session log sessions | `lib/data_policy_enforcer.rb`:14 |
 | LL-d35cbdb313 | P2-7 | medium | FERPA | **accepted** | audit-run | User creation (incl. org start codes) generates no AuditEvent | `app/controllers/api/users_controller.rb`:244 |
 | LL-310b464be4 | P2-8 | medium | FERPA | **accepted** | audit-run | protected_image accepts user_token via URL parameter | `app/controllers/api/users_controller.rb`:945 |
@@ -244,4 +247,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_208 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_211 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._

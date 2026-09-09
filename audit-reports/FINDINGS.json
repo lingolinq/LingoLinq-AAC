@@ -7370,6 +7370,142 @@
         "attestation": ""
       },
       "notes": "Surfaced by privacy finder on 2026-09-07. The client truncates its pending queue to the newest 200 entries at utils/word_suggestions.js:1263, but Api::PredictionEntriesController enforces MAX_SYNC_BATCH = 100 (app/controllers/api/prediction_entries_controller.rb:6) and returns a 400 'Too many prediction entries' for anything larger (:25-26) BEFORE the model is reached, so PredictionEntry.sync_for_user's own defensive first(MAX_SYNC_BATCH) truncation never applies on this path. Any queue that grows past 100 therefore fails every attempt. Because the client's rejection handler at :1292 is an empty function, the queue is not cleared, so the failure is permanent and silent: prediction learning stops syncing for that device with no error surfaced. Filed separately from the attribution finding because it is an independent contract mismatch with its own fix, but note it AMPLIFIES that finding -- a permanently stalled queue keeps accumulating entries across user sessions, which widens the cross-user attribution window instead of closing it. Tagged SOC2 for processing integrity rather than a privacy framework; the privacy impact is carried by the attribution finding, not this one. NOT introduced by the current branch: both halves of the mismatch are present on origin/main (client 200 at :1185 of that revision, server MAX_SYNC_BATCH = 100)."
+    },
+    {
+      "id": "LL-b5ac82d846",
+      "ruleKey": "speech-to-text-hardcoded-english-language-code",
+      "title": "ButtonSound transcription hardcodes languageCode 'en', so a non-English communicator's voice recording is uploaded to Google Speech-to-Text and transcribed as English: personal voice data is processed for a purpose it cannot achieve (GDPR Art. 5(1)(c) minimisation, Art. 5(1)(d) accuracy)",
+      "severity": "medium",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "FERPA",
+        "COPPA",
+        "HIPAA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "app/models/button_sound.rb",
+        "line": 64,
+        "snippet": "            languageCode: 'en',",
+        "sha": "b399330aa6a5541a0e78f011bbf7e7b8380f5380"
+      },
+      "firstSeen": "2026-09-05",
+      "lastSeen": "2026-09-07",
+      "owner": "Scot Wahlquist",
+      "remediation": {
+        "options": "ButtonSound#schedule_transcription builds the Speech-to-Text request config at app/models/button_sound.rb:60-66 with languageCode hardcoded to 'en'. The owning user's locale is available and is used elsewhere in the codebase (user.settings['preferences']['locale'], e.g. app/models/user.rb:2338), and the board carries its own locale, so the correct value is reachable at the call site. Consequences for a non-English communicator: (1) the recognizer is told the wrong language, so the returned transcript is wrong or empty; (2) where the wrong-language result still returns confidence above the 0.3 threshold at :79-82, a meaningless transcript is STORED on the sound as settings['transcription']; (3) the recording is uploaded anyway, so the highest-sensitivity flow in the subprocessor register (row #18, raw voice audio) runs with no achievable benefit for that user, which is a data-minimisation problem rather than only a quality bug; (4) the retry at :100 means up to two uploads per recording before transcription_errors reaches the limit at :45. Options: (a) pass the user's or board's locale into the config and map it to a BCP-47 tag Speech-to-Text accepts; (b) where no reliable locale is known, skip transcription rather than defaulting to English, so no audio is sent for a request that cannot succeed; (c) consider alternateLanguageCodes for genuinely multilingual accounts; (d) treat a low-confidence result as a failure rather than storing it. Note that sampleRateHertz: 44100 at :63 is NOT part of this finding: the transcoder emits a 44100 Hz WAV (lib/transcoder.rb), so that value is consistent.",
+        "timeframe": "medium 30-60d (correctness plus minimisation; no cross-account exposure)"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "manual",
+        "pr": null,
+        "reviewer": "claude-code",
+        "promotedDate": "2026-09-05"
+      },
+      "notes": "Surfaced 2026-09-05 while verifying the Speech-to-Text mechanics for the compliance-overview disclosure in PR #931, and filed at Scot's direction. Code-verified at origin/develop 61aec8394: languageCode is the literal 'en' with no locale lookup anywhere in the method, and the owning user's locale is reachable via self.user. SEVERITY IS PROPOSED, NOT DECIDED. The case for LOW: it is a correctness bug on a flow whose egress is already disclosed and already accepted as a risk (LL-1eb9a2435b), and production carries only synthetic accounts. The case for HIGH: it means the one flow the register calls its highest-sensitivity flow is, for every non-English user, processing a voice recording for a purpose it structurally cannot achieve, which is harder to defend under GDPR Art. 5(1)(c) than the flow's disclosed English-language use, and LingoLinq sells into European clients where non-English is the norm rather than the exception. Medium is filed as the midpoint; only Scot triages, sets severity, or closes. Related: LL-1eb9a2435b (the flow itself, accepted-risk) and LL-400adcead5 (machine-translated disclosures in twelve locales), which together suggest the i18n assumptions in this codebase deserve a sweep rather than one-off fixes."
+    },
+    {
+      "id": "LL-a8351c5b00",
+      "ruleKey": "log-phone-redaction-misses-e164-and-parenthesized-forms",
+      "title": "PiiScrubber log redaction never matches E.164 phone numbers and, contrary to its own docstring, fails the parenthesized form",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/pii_scrubber.rb",
+        "line": 37,
+        "snippet": "LOG_PHONE_PATTERN = ",
+        "sha": "15b5f6bf1fc2ee98791c4f89b145717737b2af18"
+      },
+      "firstSeen": "2026-09-04",
+      "lastSeen": "2026-09-07",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add an E.164 alternation to LOG_PHONE_PATTERN. A leading plus followed by ten to fifteen digits cannot collide with the bare-digit epoch timestamps the current pattern was deliberately written to skip, so the documented tradeoff at :268-277 is preserved rather than reopened. Separately, the leading word-boundary anchor prevents any match on the parenthesized area-code form, which the same docstring claims is covered; that half is an outright defect, not a tradeoff. Fix both in one change and add a table-driven spec asserting each documented format redacts, including the plus-prefixed international form that Pusher normalizes to.",
+        "timeframe": "high 15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "adversary",
+        "promotedDate": "2026-09-04"
+      },
+      "notes": "Promoted from adversary review on 2026-09-04. Surfaced while verifying an unrelated SMS proposal on 2026-09-04; independently reproduced by executing the pattern against representative inputs rather than by reading it. The pattern requires an explicit separator between digit groups, so any unseparated international-format number passes through unredacted. That format is exactly what lib/pusher.rb normalizes every outbound number to before publishing, and what AWS returns on inbound, so the SMS feature would generate the one shape this backstop cannot see. Two qualifications matter for triage. First, this is a documented BACKSTOP at :268-270 and per-call-site hygiene is the primary control, so severity rests on the backstop being relied upon where hygiene fails, not on it being the only control. Second, the skip of unseparated digit runs is deliberate and correct for epoch timestamps; only the international form and the parenthesized form are in scope, and the parenthesized failure contradicts the docstring at :274. Blast radius is every log line in the application, not the SMS path alone, because scrub_log_line is a general sink. Interacts with open finding LL-fba170716e, which records that the SNS callback logs its full payload before verifying the signature: under the default AWS toll-free configuration the app never receives keyword messages, so every payload on that line is ordinary conversational content carrying a number in the unredactable format."
+    },
+    {
+      "id": "LL-cb9f9c865a",
+      "ruleKey": "remote-target-rows-survive-account-deletion-with-salt-stored-in-row",
+      "title": "RemoteTarget rows survive account deletion, retaining a phone-number hash beside the per-row salt that reverses it (right-to-erasure gap)",
+      "severity": "high",
+      "confidence": "high",
+      "frameworks": [
+        "GDPR",
+        "HIPAA",
+        "FERPA"
+      ],
+      "status": "open",
+      "evidence": {
+        "type": "code",
+        "file": "lib/flusher.rb",
+        "line": 442,
+        "snippet": "PredictionEntry.where(user_id: user.id).each do |entry|",
+        "sha": "15b5f6bf1fc2ee98791c4f89b145717737b2af18"
+      },
+      "firstSeen": "2026-09-04",
+      "lastSeen": "2026-09-07",
+      "owner": "unassigned",
+      "remediation": {
+        "options": "Add a RemoteTarget sweep to flush_user_content beside the LogSnapshot and PredictionEntry sweeps that already sit at :437-444, following the same flush_record shape since there are no S3 objects to reap. Consider also declaring the association on User with dependent destroy so the model is not reachable only through the flusher. Verify with a spec that creates a target, flushes the user, and asserts the row is gone.",
+        "timeframe": "high 15-30d"
+      },
+      "closureEvidence": {
+        "sha": "",
+        "verifierNote": "",
+        "attestation": ""
+      },
+      "disposition": {
+        "state": "untriaged",
+        "decidedBy": "",
+        "decidedDate": "",
+        "rationale": ""
+      },
+      "source": {
+        "kind": "pr-review",
+        "pr": null,
+        "reviewer": "adversary",
+        "promotedDate": "2026-09-04"
+      },
+      "notes": "Promoted from adversary review on 2026-09-04. Surfaced while verifying an unrelated SMS proposal on 2026-09-04. Absence was checked rather than inferred, per the standing rule that a grep proving absence says nothing about whether a sibling mechanism survives: the model name appears nowhere in lib/flusher.rb or app/models/user.rb, RemoteTarget declares belongs_to user but User declares no inverse with dependent destroy, and db/schema.rb:574-587 shows a plain integer user_id column carrying only a target-sorting index, so there is no foreign-key cascade either. The residual rows retain the destination hash, the contact reference, the last-outbound timestamp, and critically the per-row salt in the SAME row, at db/schema.rb:577-578. A salted hash whose salt is stored beside it over a domain of roughly ten billion candidates is recoverable by exhaustive search, so these rows are not anonymized and their retention is not discharged by the hashing. This is the same class as LL-1e2ab28aab and LL-e8614c103f, both of which have flush sweeps in code at :437 and :442 with explanatory comments citing those ids, yet both still read open in the register. That register-versus-code discrepancy is a separate triage item for Scot and is noted here only because it is why this model was missed in that sweep. Currently zero rows exist in every environment because SMS was never provisioned, so remediating now costs nothing."
     }
   ]
 }

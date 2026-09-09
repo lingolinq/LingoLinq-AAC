@@ -133,9 +133,6 @@ class RemoteTarget < ApplicationRecord
     source_str = opts['destinationNumber'] # (from AWS) The phone number that the customer sent the message to (your dedicated phone number).
     return false unless target_str && source_str
     message = opts['messageBody'] || 'no message'
-    if message == 'STOP'
-      Setting.block_cell!(RemoteTarget.canonical_target(opts['originationNumber'], 'sms'))
-    end
     target = RemoteTarget.latest_for('sms', target_str, source_str)
     if target && target.user
       sharer = (target.contact_id && User.find_by_path(target.contact_id)) || target.user

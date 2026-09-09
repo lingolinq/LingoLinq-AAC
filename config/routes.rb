@@ -53,6 +53,8 @@ LingoLinq::Application.routes.draw do
   get '/parental_consent/revoke' => 'parental_consents#revoke'
   get '/eu_ai_parental_consent/complete' => 'eu_ai_parental_consents#complete'
   get '/eu_ai_parental_consent/revoke' => 'eu_ai_parental_consents#revoke'
+  get '/sms_consent/:token' => 'sms_consents#show', as: 'sms_consent'
+  post '/sms_consent/:token' => 'sms_consents#submit'
   get '/ai_consent/disclosures/:version' => 'ai_consent/disclosures#show'
   get '/jobs' => 'boards#jobs'
   get '/about' => 'boards#about'

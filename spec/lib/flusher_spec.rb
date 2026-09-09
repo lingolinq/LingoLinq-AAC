@@ -407,6 +407,20 @@ describe Flusher do
       expect(PredictionEntry.where(id: mine.id).count).to eq(0)
       expect(PredictionEntry.where(id: other.id).count).to eq(1)
     end
+
+    it "should flush SmsConsent rows for the user without touching other users" do
+      u = User.create
+      u2 = User.create
+      previous_key = ENV['SMS_ENCRYPTION_KEY']
+      ENV['SMS_ENCRYPTION_KEY'] = 'sms-consent-spec-key'
+      mine = SmsConsent.grant!(u, '5558675309', ip: '203.0.113.10', disclosure_version: '2026-09-08.1')
+      other = SmsConsent.grant!(u2, '5558675309', ip: '203.0.113.10', disclosure_version: '2026-09-08.1')
+      Flusher.flush_user_content(u.global_id, u.user_name)
+      expect(SmsConsent.where(id: mine.id).count).to eq(0)
+      expect(SmsConsent.where(id: other.id).count).to eq(1)
+    ensure
+      previous_key.nil? ? ENV.delete('SMS_ENCRYPTION_KEY') : ENV['SMS_ENCRYPTION_KEY'] = previous_key
+    end
   end
 
   describe "transfer_user_content" do
@@ -453,6 +467,27 @@ describe Flusher do
       expect(shared_target.reload.score).to eq(5)
       expect(PredictionEntry.where(id: shared_source.id).count).to eq(0)
       expect(unique_source.reload.user_id).to eq(u2.id)
+    end
+
+    it "should merge colliding SmsConsent rows with revoked-wins" do
+      u1 = User.create
+      u2 = User.create
+      previous_key = ENV['SMS_ENCRYPTION_KEY']
+      ENV['SMS_ENCRYPTION_KEY'] = 'sms-consent-spec-key'
+      shared_source = SmsConsent.grant!(u1, '5558675309', ip: '203.0.113.10', disclosure_version: '2026-09-08.1')
+      SmsConsent.revoke!(u1, '5558675309', ip: '203.0.113.11', disclosure_version: '2026-09-08.1')
+      shared_target = SmsConsent.grant!(u2, '5558675309', ip: '198.51.100.9', disclosure_version: '2026-09-08.2')
+      unique_source = SmsConsent.grant!(u1, '5551234567', ip: '203.0.113.10', disclosure_version: '2026-09-08.1')
+
+      Flusher.transfer_user_content(u1.global_id, u1.user_name, u2.global_id, u2.user_name)
+
+      expect(SmsConsent.where(user_id: u1.id).count).to eq(0)
+      expect(SmsConsent.where(user_id: u2.id).count).to eq(2)
+      expect(shared_target.reload.state).to eq('revoked')
+      expect(SmsConsent.where(id: shared_source.id).count).to eq(0)
+      expect(unique_source.reload.user_id).to eq(u2.id)
+    ensure
+      previous_key.nil? ? ENV.delete('SMS_ENCRYPTION_KEY') : ENV['SMS_ENCRYPTION_KEY'] = previous_key
     end
 
     it "should transfer license seats so they are not orphaned on merge" do
@@ -503,6 +538,17 @@ describe Flusher do
       PredictionEntry.create!(user: u, locale: 'en', prefix: 'want', next_word: 'help')
       Flusher.flush_user_completely(u.global_id, u.user_name)
       expect(PredictionEntry.where(user_id: u.id).count).to eq(0)
+    end
+
+    it "should remove the user's SmsConsent rows" do
+      u = User.create
+      previous_key = ENV['SMS_ENCRYPTION_KEY']
+      ENV['SMS_ENCRYPTION_KEY'] = 'sms-consent-spec-key'
+      SmsConsent.grant!(u, '5558675309', ip: '203.0.113.10', disclosure_version: '2026-09-08.1')
+      Flusher.flush_user_completely(u.global_id, u.user_name)
+      expect(SmsConsent.where(user_id: u.id).count).to eq(0)
+    ensure
+      previous_key.nil? ? ENV.delete('SMS_ENCRYPTION_KEY') : ENV['SMS_ENCRYPTION_KEY'] = previous_key
     end
     
     it 'should flush user tags' do
@@ -734,6 +780,29 @@ describe Flusher do
       entry = PredictionEntry.create!(user: u, locale: 'en', prefix: 'i', next_word: 'want')
       Flusher.flush_leftovers
       expect(PredictionEntry.where(id: entry.id).count).to eq(1)
+    end
+
+    it "should remove an SmsConsent left dangling by a hard-deleted user" do
+      u = User.create
+      previous_key = ENV['SMS_ENCRYPTION_KEY']
+      ENV['SMS_ENCRYPTION_KEY'] = 'sms-consent-spec-key'
+      row = SmsConsent.grant!(u, '5558675309', ip: '203.0.113.10', disclosure_version: '2026-09-08.1')
+      u.delete
+      Flusher.flush_leftovers
+      expect(SmsConsent.where(id: row.id).count).to eq(0)
+    ensure
+      previous_key.nil? ? ENV.delete('SMS_ENCRYPTION_KEY') : ENV['SMS_ENCRYPTION_KEY'] = previous_key
+    end
+
+    it "should not remove an SmsConsent that still has a live user" do
+      u = User.create
+      previous_key = ENV['SMS_ENCRYPTION_KEY']
+      ENV['SMS_ENCRYPTION_KEY'] = 'sms-consent-spec-key'
+      row = SmsConsent.grant!(u, '5558675309', ip: '203.0.113.10', disclosure_version: '2026-09-08.1')
+      Flusher.flush_leftovers
+      expect(SmsConsent.where(id: row.id).count).to eq(1)
+    ensure
+      previous_key.nil? ? ENV.delete('SMS_ENCRYPTION_KEY') : ENV['SMS_ENCRYPTION_KEY'] = previous_key
     end
 
     it "should report but not delete paper trail versions whose item_type no longer maps to any class" do

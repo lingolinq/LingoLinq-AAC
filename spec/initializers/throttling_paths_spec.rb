@@ -32,6 +32,10 @@ describe Throttling do
       expect(protected?('/api/v1/supervisor_relationships/1_2/deny')).to eq(true)
     end
 
+    it 'protects the recipient SMS consent invite page' do
+      expect(protected?('/sms_consent/abc123')).to eq(true)
+    end
+
     # LL-e65d34f109: org bulk user-claim endpoint.
     it 'protects the organization claim_user endpoint' do
       expect(protected?('/api/v1/organizations/1_2/claim_user')).to eq(true)
