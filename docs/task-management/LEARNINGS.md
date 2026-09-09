@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: `node:22-bullseye` cannot apt-get after Debian 11 LTS ended 2026-08-31](#gotcha-node22-bullseye-cannot-apt-get-after-debian-11-lts-ended-2026-08-31)
 - [Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`](#gotcha-merging-two-overlay-prs-is-a-union-of-tests-then-regenerate-eslint-todo)
 - [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
 - [Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`](#pattern-spanish-long-press-defaults-use-spanish_verb_grid-not-english--s-ed-ing)
@@ -86,6 +87,11 @@ file (see [README.md](README.md)).
 - [Gotcha: `pending_supervisor_requests` was never serialized — fetch the relationships index instead](#gotcha-pending_supervisor_requests-was-never-serialized--fetch-the-relationships-index-instead)
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
 - [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
+- [Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash](#gotcha-sms-consent-hash-must-not-include-communicator-global_id--merge-remaps-user_id-and-cannot-rehash)
+- [Gotcha: a deliver_to SMS spec does not cover handle_notification utterance_shared](#gotcha-a-deliver_to-sms-spec-does-not-cover-handle_notification-utterance_shared)
+- [Gotcha: do not `json.dumps` FINDINGS.json — it escapes `§` and dirties unrelated notes](#gotcha-do-not-jsondumps-findingsjson--it-escapes--and-dirties-unrelated-notes)
+- [Gotcha: utterance share "upstream gates" are path-scoped, not general](#gotcha-utterance-share-upstream-gates-are-path-scoped-not-general)
+- [Gotcha: a zero row count plus no app destroy path is not a lifetime claim](#gotcha-a-zero-row-count-plus-no-app-destroy-path-is-not-a-lifetime-claim)
 - [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
 - [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
@@ -116,6 +122,7 @@ file (see [README.md](README.md)).
 - [Gotcha: label click plus input change double-toggles a checkbox](#gotcha-label-click-plus-input-change-double-toggles-a-checkbox)
 - [Gotcha: Android “classic board” error may be stale packaged board-detail](#gotcha-android-classic-board-error-may-be-stale-packaged-board-detail)
 - [Gotcha: every route transition closes all modals (global_transition) — don't keep a modal "open behind" a routed page](#gotcha-every-route-transition-closes-all-modals-global_transition--dont-keep-a-modal-open-behind-a-routed-page)
+- [Gotcha: reversed `canonical_target` on STOP is a platform-wide kill switch — delete, do not swap args](#gotcha-reversed-canonical_target-on-stop-is-a-platform-wide-kill-switch--delete-do-not-swap-args)
 - [Gotcha: sync double `modal.open` — the *second* template wins; do not invent write-loss on the winner](#gotcha-sync-double-modalopen--the-second-template-wins-do-not-invent-write-loss-on-the-winner)
 - [Gotcha: Shepherd modal overlay is VISUAL-ONLY; canClickTarget:false makes the target click "fall through"](#gotcha-shepherd-modal-overlay-is-visual-only-canclicktargetfalse-makes-the-target-click-fall-through)
 - [Gotcha: tagless GuidedTour — one init, host-gated pending consumers, body is not a scroll target](#gotcha-tagless-guidedtour--one-init-host-gated-pending-consumers-body-is-not-a-scroll-target)
@@ -204,6 +211,7 @@ file (see [README.md](README.md)).
 - [Gotcha: set-field on nested model fields needs nested observer deps (videoChanged pattern)](#gotcha-set-field-on-nested-model-fields-needs-nested-observer-deps-videochanged-pattern)
 - [Gotcha: embed-frame `data-user_token` is UserIntegration#user_token, not User#user_token](#gotcha-embed-frame-data-user_token-is-userintegrationuser_token-not-useruser_token)
 - [Gotcha: private uploads bucket — server-side OBZ/OBF import must use signed_internal_url](#gotcha-private-uploads-bucket--server-side-obzobf-import-must-use-signed_internal_url)
+- [Gotcha: private uploads bucket — `/upload_success` must use authenticated head_object](#gotcha-private-uploads-bucket--upload_success-must-use-authenticated-head_object)
 - [Gotcha: an underscore is NOT a line-break opportunity — wrap identifiers with `<wbr>`, never `overflow-wrap: anywhere`](#gotcha-an-underscore-is-not-a-line-break-opportunity--wrap-identifiers-with-wbr-never-overflow-wrap-anywhere)
 - [Gotcha: styling an `<img>`'s own background paints it BEFORE the image — the loading flash is self-inflicted](#gotcha-styling-an-imgs-own-background-paints-it-before-the-image--the-loading-flash-is-self-inflicted)
 - [Gotcha: ember-shepherd passes a TYPELESS button straight through — that is how a custom `action` works](#gotcha-ember-shepherd-passes-a-typeless-button-straight-through--that-is-how-a-custom-action-works)
@@ -9362,6 +9370,10 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 
 `lingolinq-prod-uploads` blocks public access. Browser upload (SigV4 POST) can succeed while the worker-side import still fails: `Converters::Utils.remote_to_boards` used to `SafeHttp.get` the raw `https://bucket.s3.amazonaws.com/...` URL, get a 403 XML body, then feed it to rubyzip → misleading `Zip end of central directory signature not found` at progress ~0.22 / `processing_file`. JSON bundle import already signed via `Uploader.signed_internal_url` (`lib/converters/api_json_bundle.rb`); OBF/OBZ import and `Uploader.remote_zip` must do the same, and raise on non-success HTTP before parsing. Ref: [`2026-08-04-obz-import-signed-fetch.md`](./2026-08-04-obz-import-signed-fetch.md).
 
+## Gotcha: private uploads bucket — `/upload_success` must use authenticated head_object
+
+Same private-bucket class as the OBZ import gotcha, different caller. Browser SigV4 POST of a button sound (or image/video file) succeeds; `GET /api/v1/sounds/:id/upload_success` then did `Typhoeus.head` of the raw `https://bucket.s3.amazonaws.com/...` URL. Prod Block Public Access returns 403; the action reports **`File not found`** (exactly 46 bytes). Confirmation key was already accepted. Staging can still pass if its bucket allows public `GetObject` — the Rails file was identical on main and staging. Fix: `Uploader.remote_upload_exists?` (`lib/uploader.rb:537`, IAM `head_object`). Do not HEAD the CloudFront URL (nonprod has no CDN; a new object can miss the distribution). Residual: `verify_stored_s3_upload!` still unsigned-GETs for SVG images. Ref: [`2026-09-04-prod-sound-upload-success-400.md`](./2026-09-04-prod-sound-upload-success-400.md).
+
 ## Gotcha: a compliance claim about runtime state expires; verify at the SHA and in prod, never from the diff
 
 PR #725 took nine review rounds. The same defect recurred four times, twice by the
@@ -9404,6 +9416,26 @@ citation-check --render -> calendar -> notion -> document-register-render ->
 publication-status.
 
 Ref: PR #725; live-prod verification via a throwaway Cloud Run job on the serving image.
+
+## Gotcha: adding lines above `Flusher.flush_user_completely` reds `hard-delete-on-request`
+
+That capability cites a present-tense HEAD line in `audit-reports/CAPABILITY-LEDGER.json`.
+A content sweep inserted earlier in `flush_user_content` (or a new helper above the
+method) shifts the `def` without changing the snippet. Update `currentEvidence.line` on
+the branch that introduced the shift, then render: `ruby scripts/capability-check.rb`
+then `ruby scripts/document-register-render.rb`. Do not copy a later stacked-PR line
+number (the #950 invite sweep sits further down than #949). The document-register row
+for `docs/legal/CAPABILITY_LEDGER.md` is unattested, so a hash restamp is the intended
+fix. Ref: PR #949 CI (`capability-check.rb --check`).
+
+## Gotcha: `N.ago.to_i` computed twice can fail an equality by one second
+
+`Lesson decorate_completion should update lesson list with user completions` stores
+`6.years.ago.to_i` on `UserExtra`, then expects a freshly computed `6.years.ago.to_i`.
+`decorate_completion` copies the stored `ts` (`app/models/lesson.rb:336`). On a slow CI
+`User.create` + `UserExtra.save` the two integers differ by 1. This repo has no Timecop;
+capture the integers once and reuse them. Develop can stay green while a loaded runner
+reds the same spec. Ref: PR #949 rspec.
 
 ## Gotcha: nested `sound[user_id]=self` 404s on create (replace_helper_params is top-level only)
 
@@ -16464,3 +16496,146 @@ A successful offboarding decline whose export failed still writes `parent_consen
 `_label_english`, `_board_name_english`, `_label_colors`, and `_label_images` key only on the label string. Changing `model.locale` (supervisee switch or locale picker) without clearing them reuses the previous source language. Clear on 2-letter-root change and ignore in-flight writes from the old generation.
 
 **First seen in:** [2026-09-03-release-review-followups.md](./2026-09-03-release-review-followups.md) (PR #923 review).
+
+## Gotcha: backticks route through /bin/sh only when the command has METACHARACTERS
+
+Not word count. Measured: `nosuchbin -a -b -c` (four words, no metacharacters) **raises `Errno::ENOENT`** because Ruby exec's it directly; `nosuchbin -a "q" -c` returns `""` with rc=127 because the quote forces `/bin/sh`. `system(*argv)` returns `nil` and never raises. This decides real behaviour: in `sentence_pic.rb` the old montage line contained `"#888"` and so failed silently, while the old `convert #{montage} -gravity ...` line had no metacharacters and RAISED when convert was absent. Converting such a line to `system(*argv)` therefore turns a loud failure into a silent one — and here that let `utterance.rb:55` latch `large_image_url_attempted`, so the utterance would never get a preview again. Re-raise `Errno::ENOENT` on a `nil` return to preserve it.
+
+(An earlier version of this entry claimed the rule was word count. That was FALSE and is corrected here; the argument it was used to support — "the old code degraded silently, so the new one may too" — was wrong in the same move.)
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: `system(*args)` with a ONE-element array is Ruby's shell form
+
+Any helper written to remove the shell must reject a degenerate argv, or it silently reintroduces the thing it exists to prevent — `args.flatten` makes that reachable from a nested array too. `ImageMagickRunner.run` raises `ArgumentError` below two elements. Verified: a one-element call executed `touch`.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: an EMPTY argv element makes ImageMagick read stdin and hang the worker
+
+`montage -label x "" out.png` with an inherited stdin never returns (`rc=124`); the shell form this replaced was safe only because word-splitting ate the empty word. Converting a backticked command to argv therefore *introduces* a hang wherever an interpolated path can be nil or `""`. Always pass `:in => File::NULL` when spawning from a Resque path, and guard with `blank?` — not `unless x`, since `""` is truthy and `map(&:to_s)` turns `nil` into `""` before any nil check can fire.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Pattern: removing the shell is NOT sufficient — ImageMagick `-label` has its own interpreter
+
+At argv level, with no shell involved (all measured with `compare -metric AE` on rendered PNGs, IM 6.9.12): `%` starts a format specifier, so `%[fx:1+1]` renders as `2` (an expression evaluator, and no `MAGICK_TIME_LIMIT` is set); a lone `\` is consumed, so `a\b` renders `ab`; a LEADING `@` reads a file and renders its contents. Content-preserving escapes exist for all three — `%%`, `\\`, `\@` — so AAC vocabulary in any locale is unchanged. `Shellwords.escape` does not help with any of them. The `@` block seen locally comes from `/etc/ImageMagick-6/policy.xml`, Debian packaging rather than this repo, and `MAGICK_CONFIGURE_PATH` does not override it on IM6.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: `render.yaml` is NOT the deployed configuration — never reason about production from it
+
+The blueprint's worker (`LingoLinq-AAC-Worker`, `RESQUE_WORKER=true`, `bundle install --deployment`, `INTERVAL=1.0`) matches **no** live service. The real worker is `lingolinq-dev-staging-worker`, whose start command omits `RESQUE_WORKER` entirely. A whole exploitability analysis was nearly written backwards off that file. Read live state (Render API/MCP) before any claim about production, per rule #0.11 — and note that applying `render.yaml` to the live worker would set `RESQUE_WORKER=true`, which kills boot at `config/environment.rb:33` (`AppSearcher` is in `lib/`, and `config/application.rb:63` skips `autoload_lib` under that flag).
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: inside a double-quoted shell word only `$(…)` and backticks execute
+
+`;`, `|`, `&&` and a literal newline are INERT there. A command-injection test that asserts on those four is green against the live bug and counts as coverage it does not provide. Verified against the real vulnerable construct before writing the test: `$(touch p1)` and `` `touch p2` `` fired, the other four did not. Keep them as labelled regression guards, never as proof arms — and remember the truncation budget (`text_limit` is 10 at 3+ buttons, 25 at one), which silently defuses any payload longer than the limit.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: a behavioural test for a HANG falsifies by hanging the suite, not by failing it
+
+Removing the `:in => File::NULL` guard made the stdin test block until the harness timeout — proof the guard works, but useless as a regression test since CI would hang rather than report. Assert on the spawn option instead (`expect(...).to receive(:system).with(..., :in => File::NULL)`); it fails fast and still pins the mechanism. Falsification is what surfaced this: the mutation's *manner* of failing is itself a finding.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: `start_with?('@')` is NOT ImageMagick's predicate — it skips whitespace first
+
+An `-label` guard that escapes a leading `@` to stop IM's file-read primitive is bypassed by prefixing **one space**. IM's `InterpretImageProperties` skips C `isspace()` bytes and *then* tests for `@`, so `" @config/master.key"` (a 20-char label, well inside the 25-char `text_limit`) reaches the read, and its contents render into the preview PNG that gets uploaded to S3 and handed back to the poster. The exact trigger set was measured by sweeping every ASCII byte as a prefix and asking montage which ones reach `InterpretImageProperties`: exactly `9, 10, 11, 12, 13, 32`. No non-ASCII whitespace (NBSP, U+1680, U+3000, U+2028, U+0085) qualifies, so Ruby's `\s` is wrong in both directions. Correct form keeps the whitespace and inserts the escape in front of the `@`: `sub(/\A([ \t\n\v\f\r]*)@/) { "#{Regexp.last_match(1)}\\@" }`.
+
+This is the rule-#0.13(a) failure mode in its purest form — a guard that reads correctly and does not fire — and it survived the author's own byte-level check because that check tested `@home` and `e@x` but never a leading space.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: a shell-injection payload can be defused by the COMMAND it lands in, not by your fix
+
+Four "regression guard" payloads (`x;touch p3`, `x|touch p4`, …) stayed green even against a deliberately shell-reintroducing implementation, because the shell then ran `touch p3 in.png -tile 1x1 …` and GNU touch rejects `-tile` before creating anything. They looked like coverage and provided none. Terminate such payloads with `#` so the rest of the command line is commented out, and always falsify a security test against an implementation that is actually vulnerable — not merely against the original bug.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Pattern: for a SANITISER, curated example tests are structurally inadequate — sweep against a real oracle
+
+Three fix rounds on `escape_label` produced two defects, and **both were missed by hand-picked
+inputs and would each have been caught by one mechanical sweep**:
+
+- round 2: `start_with?('@')` vs IM's whitespace-skip — the examples were `@home` and `e@x`, never a leading space;
+- round 3: a `Regexp` raising `ArgumentError` on invalid UTF-8 — invalid encodings were never in the example list.
+
+A curated list tests what the author already thought of, which is by definition not where the bug
+is. Two sweeps now live in `spec/lib/image_magick_runner_spec.rb` and were verified to catch each
+historical bug on their own by replaying the old implementations:
+
+1. **Non-raising sweep** (no external binary, fast): every byte 0-255 in leading, middle and
+   trailing position, plus ASCII-8BIT, a lone low surrogate, and US-ASCII — assert no raise.
+2. **Oracle sweep** (skipped where the binary is absent): every ASCII byte as a prefix before
+   `@file`, asserting montage never reaches `InterpretImageProperties`. **Ask the tool, do not
+   encode your own model of the tool** — the whitespace set came from IM, not from intuition.
+
+Applies to any escaping/quoting/sanitising function: the assertion belongs against the real
+consumer, and the input set must be enumerated rather than sampled.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Pattern: two distinct self-inflicted failure modes — enumeration gaps, and contaminated probes
+
+Worth separating, because they need different countermeasures.
+
+**(a) Incomplete state enumeration** (rule #0.13(b)) caused every substantive defect: a guard on
+`nil` defeated by a `""` the author's own `map(&:to_s)` created; a leading-`@` check that never
+saw a leading space; a Regexp that never saw invalid UTF-8; a reused array whose arity changed
+from 1-per-button to 3-per-button under a threshold that counted it. Countermeasure: sweeps, and
+naming the WRITER of each reachable state.
+
+**(b) Contaminated measurement** — changing the thing being measured. Real cases: appending
+`2>/dev/null` inside a backtick while testing *whether backticks use a shell* (the redirection
+IS a metacharacter, so it forced the shell and inverted the answer); quoting a payload while
+simulating an implementation that does not quote; sweeping for a file-read against a target file
+that did not exist; comparing rendered output against a control with different label text.
+Countermeasure: state the oracle before running, and include a POSITIVE control that must fail —
+if nothing in the probe can come out "bad", the probe proves nothing.
+
+**First seen in:** [2026-09-05_sentence-pic-injection-fix-proposal.md](./2026-09-05_sentence-pic-injection-fix-proposal.md).
+
+## Gotcha: reversed `canonical_target` on STOP is a platform-wide kill switch — delete, do not swap args
+
+`RemoteTarget.canonical_target(type, target_str)` only canonicalizes when `type == 'sms'`. The STOP write (`RemoteTarget.process_inbound`) and the `Pusher.sms` check both passed `(phone, 'sms')`, so they stored and consulted the literal key `'sms'`. One STOP then made every later send return `[]`. There is no unblock (`Setting.block_cell!` is append-only). Swapping the arguments looks like a one-line fix and is wrong: AWS owns START/UNSTOP, which the app never sees, so a working `blocked_cells` list would permanently suppress people who re-opted in. Delete the write and the check together. Leave `Setting.block_cell!` and the org extras reader for a later unit.
+
+**First seen in:** [2026-09-08-sms-stop-block-list-delete.md](./2026-09-08-sms-stop-block-list-delete.md).
+
+## Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash
+
+`SmsConsent` hashes the canonical number with `RemoteTarget.salted_hash(..., ENV['SMS_ENCRYPTION_KEY'], 'global')` and pairs that digest with `user_id` on every lookup. Putting `communicator.global_id` into the hash would stop a hash-only lookup bug, but `Flusher.transfer_user_content` only remaps `user_id` and does not rewrite hashes; after merge `granted?(target, number)` would rehash with the new global id and miss. The query invariant (`user_id` + `target_hash` + `state: granted`) is what keeps one recipient consent from becoming platform-wide. Raise in `SmsConsent` when `SMS_ENCRYPTION_KEY` is blank — `RemoteTarget.salted_hash` will not.
+
+**First seen in:** [2026-09-08-sms-consent-record.md](./2026-09-08-sms-consent-record.md).
+
+## Gotcha: a deliver_to SMS spec does not cover handle_notification utterance_shared
+
+`Utterance#deliver_to` (`app/models/utterance.rb:212`) passes `contact['cell_phone']`. `User#handle_notification('utterance_shared')` (`app/models/user.rb:4229`) has no contact; `cell` comes from `recipient_user.settings['cell_phone']`. A `share_with` / `deliver_to` example does not execute that path. The send-path consent guard must sit after `cell` is assigned (`utterance.rb:274`) and before `RemoteTarget.find_or_assert`. `FeatureFlags.sms_recipient_consent_enabled?(nil)` is false, so the flag must be read from `ref_user || utterance.user`. If that flag is on and `ref_user` is missing, fail closed with `reason: 'unknown_sender'`. Flag-off fixtures that omit `ref_user` still send.
+
+**First seen in:** [2026-09-08-sms-send-guard.md](./2026-09-08-sms-send-guard.md).
+
+## Gotcha: do not `json.dumps` FINDINGS.json — it escapes `§` and dirties unrelated notes
+
+Python `json.dumps` rewrites `§` as `\u00a7` across every notes field. A one-sentence edit then looks like a six-finding rewrite. Do a raw text replace of the exact sentence, then `scripts/regenerate-register.sh`.
+
+**First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
+
+## Gotcha: utterance share "upstream gates" are path-scoped, not general
+
+`share_notifications` (default `email`) is read only in `User#handle_notification('utterance_shared')` at `app/models/user.rb:4226`. A saved contact with `contact_type` sms goes through `Utterance#deliver_to` → `deliver_message(contact['contact_type'], …)` at `app/models/utterance.rb:210-223` and never reads that pref. The premium check at `app/controllers/api/utterances_controller.rb:45` keys on `params['user_id']` only; `share_with` treats `supervisor_id` as the same recipient (`utterance.rb:89`) and skips the check.
+
+**First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
+
+## Gotcha: a zero row count plus no app destroy path is not a lifetime claim
+
+A Cloud Run `RemoteTarget.count` is a point-in-time snapshot. Grep showing no `destroy`/`delete`/`dependent:` in `app`/`lib`/`db`/`config` only rules out an application sweep. It does not prove rows were never created: a restore or operational SQL can empty the table without appearing in those trees. Do not write "zero now means none were ever created."
+
+**First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
+
+## Gotcha: `node:22-bullseye` cannot apt-get after Debian 11 LTS ended 2026-08-31
+
+The Cloud Run image build's frontend-builder stage (`Dockerfile` `FROM node:22-bullseye`) runs `apt-get update` against `deb.debian.org/debian-security/dists/bullseye-security`. Debian 11 LTS ended 2026-08-31 ([announcement](https://www.debian.org/News/2026/20260831)); that InRelease is no longer refreshed, so the build fails with "Release file ... is expired". The Ruby stage (`ruby:3.4.4-slim`, bookworm) keeps working in the same log. Do not "fix" this with `Acquire::Check-Valid-Until=false` or `archive.debian.org` — those still build on an unpatched EOL distro. Move the stage to `node:22-bookworm`.
+
+**First seen in:** release PR #952 (2026-09-08 Cloud Run dev deploy).

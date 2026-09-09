@@ -4374,6 +4374,16 @@ export default Controller.extend(prefClasses, {
    *                              `categories` straight on the record and never saves, so it
    *                              leaves no undo entry at all. Compared against the baseline
    *                              above, since the record is dirty from load.
+   *   display preferences      - the display-prefs panel writes `pending_display_prefs` and
+   *                              holds the entry values in `original_display_prefs`. Leaving
+   *                              edit mode runs `close_display_preferences`, which REVERTS
+   *                              them, so a session whose only change was a pending pref
+   *                              reported clean and the user lost it unwarned. NOT only
+   *                              while the panel is open: collapsing it (:7415) keeps
+   *                              `pending` in memory on purpose, and that comment says the
+   *                              full discard happens "via cancel_edit or a no-op save" —
+   *                              i.e. exactly here. Only `close_display_preferences` and a
+   *                              committed save null the two objects.
    *
    * Every term errs the same way: unsure means "there are changes", which costs a confirm
    * dialog. The opposite mistake costs the user their work.
@@ -4381,6 +4391,38 @@ export default Controller.extend(prefClasses, {
   edit_session_has_changes: function() {
     if(!this.get('noUndo')) { return true; }
     if(this.get('board_recolored') || this.get('borders_matched')) { return true; }
+    /* Pending display preferences. Grouped with the flag checks above because it is the
+       same kind of cheap read, and placed before the attribute comparison for that reason
+       only — every term here returns the same answer whatever the order.
+
+       Guarded on BOTH objects: `close_display_preferences` nulls them together, so they
+       are non-null only while the panel is open. Without the guard, every exit taken
+       outside the panel would compare undefined against undefined and the term would be
+       dead weight — or worse, throw on Object.keys(null).
+
+       Compared by VALUE, not by "is pending set": opening the panel seeds `pending` from
+       `original`, so a presence check alone would report dirty the moment the panel
+       opened and reinstate the always-prompt behaviour this whole check exists to end. */
+    var pending = this.get('pending_display_prefs');
+    var orig = this.get('original_display_prefs');
+    if(pending && orig) {
+      /* The UNION of both key sets, not `Object.keys(orig)` alone. `open_display_preferences`
+         seeds both from a snapshot; anything writable through `_display_prefs_paths` (:3960)
+         but missing from that snapshot lands in `pending` and NOT in `orig`, where iterating
+         the original's keys cannot see it.
+
+         Defence in depth rather than the primary fix. The one key that was actually missing,
+         `vocalization_height`, is now seeded (see that snapshot), which is what makes all
+         three consumers — this method, close_display_preferences and
+         save_display_preferences — agree. This union keeps the check honest if a future key
+         is added to the paths map and the snapshot is forgotten again. */
+      var keys = Object.keys(orig);
+      Object.keys(pending).forEach(function(k) {
+        if(keys.indexOf(k) < 0) { keys.push(k); }
+      });
+      var pref_changed = keys.some(function(k) { return pending[k] !== orig[k]; });
+      if(pref_changed) { return true; }
+    }
     var base = this.get('_edit_dirty_baseline');
     if(!base) { return true; }
     var changed;
@@ -4396,6 +4438,61 @@ export default Controller.extend(prefClasses, {
     }
     return false;
   },
+
+  /*
+   * The rollback shared by both `cancel_edit` branches — the clean one, which runs it
+   * straight away, and the confirmed one, which runs it after the dialog returns
+   * 'discard'. Unchanged from the body that used to live inline in that action; only its
+   * home moved, so there is ONE copy for the two callers.
+   *
+   * A controller METHOD, not an action: `cancel_edit` calls it directly, and entries in
+   * the `actions` hash are reachable only through `send()`.
+   */
+  _discard_edit_changes: function() {
+    var _this = this;
+    if(_this.get('display_prefs_open')) {
+      _this.send('close_display_preferences');
+    }
+    _this.set('edit_mode', false);
+    _this.set('paint_mode', null);
+    _this.set('color_picker_button', null);
+    _this.set('board_recolored', false);
+    _this.set('_saved_recolor', null);
+    _this.set('borders_matched', false);
+    _this.set('_saved_border_colors', null);
+    // current_mode is deliberately NOT written here (same reasoning as the
+    // save-and-exit path above). This branch transitions to
+    // user.board-detail.index — the user STAYS on board-detail, whose
+    // invariant is speak mode — so 'default' was outright wrong. Exiting
+    // the .edit child route restores 'speak' via its resetController.
+    // Discard any pending copy-on-save: if the user entered edit
+    // mode on a non-owned board (which set this flag) and is now
+    // cancelling, no copy should be created.
+    _this.get('stashes').persist('copy_on_save', null);
+    // Discard unsaved changes: rollback Ember Data model and reload fresh from server
+    _this.get('model').rollbackAttributes();
+    _this.set('ordered_buttons', null);
+    _this.set('board_loading', true);
+    var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
+    persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
+      var merged = boardDetailCache.normalize_board_payload(data);
+      if(merged) {
+        if(merged.images && merged.images.length) {
+          _this._board_detail_images = merged.images;
+        }
+        _this.set('_raw_board_data', merged);
+        _this._build_from_raw(merged);
+      }
+      _this.set('board_loading', false);
+    }, function() {
+      _this.set('board_loading', false);
+    });
+    // Transition back to the index subroute with panels collapsed
+    _this.set('panels_collapsed', true);
+    _this.set('board_collapsed', true);
+    _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+  },
+
 
   // Button text preferences from user device settings
   button_text_size_class: computed('app_state.referenced_user.preferences.device.button_text', function() {
@@ -7364,6 +7461,19 @@ export default Controller.extend(prefClasses, {
         symbol_background:    prefs.symbol_background     || 'clear',
         high_contrast:        !!prefs.high_contrast,
         utterance_text_only:  !!device.utterance_text_only,
+        /* Sentence Bar height — writable from the right panel's Speak Bar section via
+           `pick_display_voice_height` -> `set_display_pref`, and it was missing here.
+
+           Every key of THIS snapshot is what `Object.keys(original_display_prefs)` yields,
+           and three separate consumers iterate exactly that: save_display_preferences to
+           decide whether to persist, close_display_preferences to revert, and
+           edit_session_has_changes to decide whether exiting must warn. So a writable pref
+           absent from this object is invisible to all three at once — it applied live, was
+           never saved, was never reverted, and never counted as unsaved work.
+
+           Default 'medium' matches `display_prefs_current_voice_height_label` (:3898), so
+           an unset preference seeds the same value the UI already displays. */
+        vocalization_height:  device.vocalization_height  || 'medium',
         skin:                 prefs.skin                  || 'default'
       };
       this.set('pending_display_prefs', JSON.parse(JSON.stringify(snapshot)));
@@ -8801,54 +8911,38 @@ export default Controller.extend(prefClasses, {
         }
       }, function() { });
     },
+    /*
+     * "Discard Edits" (templates/user/board-detail.hbs:1510).
+     *
+     * Gated on `edit_session_has_changes()` so an untouched session leaves without a
+     * dialog, matching what `exit_to_home_from_edit` already does. Before this the two
+     * escapes from edit mode disagreed: one skipped the prompt on a clean board, the
+     * other always asked.
+     *
+     * BOTH branches call the SAME `_discard_edit_changes`. Extracted rather than
+     * duplicated because that body is ~40 lines and does real work — model rollback, a
+     * server refetch, a route transition — and two copies of it would drift the first
+     * time one of them gained a step.
+     *
+     * The clean branch still runs the full rollback rather than a cheap "just leave".
+     * `edit_session_has_changes()` reports on SAVEABLE changes; it says nothing about
+     * transient edit-mode UI such as an armed `paint_mode` or an open colour picker,
+     * which the rollback also clears. Skipping it would leave that state set on the way
+     * out.
+     */
     cancel_edit: function() {
       var _this = this;
+      if(!this.edit_session_has_changes()) {
+        this._discard_edit_changes();
+        return;
+      }
       modal.open('confirm-discard-changes', {}).then(function(result) {
         if(result === 'discard') {
-          if(_this.get('display_prefs_open')) {
-            _this.send('close_display_preferences');
-          }
-          _this.set('edit_mode', false);
-          _this.set('paint_mode', null);
-          _this.set('color_picker_button', null);
-          _this.set('board_recolored', false);
-          _this.set('_saved_recolor', null);
-          _this.set('borders_matched', false);
-          _this.set('_saved_border_colors', null);
-          // current_mode is deliberately NOT written here (same reasoning as the
-          // save-and-exit path above). This branch transitions to
-          // user.board-detail.index — the user STAYS on board-detail, whose
-          // invariant is speak mode — so 'default' was outright wrong. Exiting
-          // the .edit child route restores 'speak' via its resetController.
-          // Discard any pending copy-on-save: if the user entered edit
-          // mode on a non-owned board (which set this flag) and is now
-          // cancelling, no copy should be created.
-          _this.get('stashes').persist('copy_on_save', null);
-          // Discard unsaved changes: rollback Ember Data model and reload fresh from server
-          _this.get('model').rollbackAttributes();
-          _this.set('ordered_buttons', null);
-          _this.set('board_loading', true);
-          var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
-          persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
-            var merged = boardDetailCache.normalize_board_payload(data);
-            if(merged) {
-              if(merged.images && merged.images.length) {
-                _this._board_detail_images = merged.images;
-              }
-              _this.set('_raw_board_data', merged);
-              _this._build_from_raw(merged);
-            }
-            _this.set('board_loading', false);
-          }, function() {
-            _this.set('board_loading', false);
-          });
-          // Transition back to the index subroute with panels collapsed
-          _this.set('panels_collapsed', true);
-          _this.set('board_collapsed', true);
-          _this.get('router').transitionTo('user.board-detail.index', _this.get('user.user_name'), _this.get('boardname'));
+          _this._discard_edit_changes();
         }
       });
     },
+
 
     // ── Paint Mode ──
 
