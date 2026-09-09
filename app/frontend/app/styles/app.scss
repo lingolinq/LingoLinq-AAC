@@ -78865,6 +78865,15 @@ span.md-board-detail-modeling-btn--badge {
   padding: 8px 12px;
   min-height: 38px;
 }
+/* Flat variant of the same item list, used where the section has no parent toggle (a
+   communicator-only account's Buttons controls). Deliberately NOT a modifier on
+   __submenu: the indent rail, the reduced 15px size and the 38px row all exist to signal
+   nesting, and there is no nesting here. A bare container lets the items inherit the
+   top-level __item sizing instead, which is the larger of the two — the right direction
+   for an AAC surface. */
+.md-board-detail-actions-menu__section-items {
+  padding: 0;
+}
 .md-board-detail--dark .md-board-detail-actions-menu__submenu {
   border-left-color: rgba(255, 255, 255, 0.14);
 }

@@ -1037,6 +1037,16 @@
                    Customize Menu. --}}
               {{#if this.speak_section_visible_buttons}}
               <div class="md-board-detail-actions-menu__section">
+                {{!-- On a communicator-only account the three controls below ARE the
+                      section, so the "Buttons" toggle is not rendered and they sit flat at
+                      top level. Find a Button / Focus Words / Show Hidden are a
+                      communicator's primary actions, and an accordion costs a switch or
+                      eye-gaze user an extra selection to reach every one of them. Supporter
+                      accounts keep the grouping, where the menu is long enough to need it.
+                      Removed from the DOM rather than hidden in CSS: modal.js#scannable_targets
+                      is a bare querySelectorAll with no visibility filter, so a
+                      hidden-by-CSS toggle would still be handed to the scanner. --}}
+                {{#unless this.is_communicator_only_account}}
                 <button type="button" class="md-board-detail-actions-menu__item md-board-detail-actions-menu__item--has-sub md-board-detail-actions-menu__section-toggle" aria-expanded={{if this.buttons_submenu_open "true" "false"}} data-bd-action="toggle_buttons_submenu" {{on "click" (this.ctrlAction "toggle_buttons_submenu")}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>
@@ -1044,8 +1054,12 @@
                   <span>{{t "Buttons" key="buttons"}}</span>
                   <svg class="md-board-detail-actions-menu__chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                {{#if this.buttons_submenu_open}}
-                  <div class="md-board-detail-actions-menu__submenu">
+                {{/unless}}
+                {{#if this.buttons_section_expanded}}
+                  {{!-- `__submenu` carries the indent rail and the smaller 15px item size,
+                        which only make sense under a parent toggle. Flat mode drops the class
+                        so the items inherit top-level `__item` sizing. --}}
+                  <div class={{if this.is_communicator_only_account "md-board-detail-actions-menu__section-items" "md-board-detail-actions-menu__submenu"}}>
                     {{#unless (get this.speak_menu_hidden_set "find_button")}}
                     {{#if this.app_state.currentBoardState}}
                       {{#unless this.app_state.eval_mode}}

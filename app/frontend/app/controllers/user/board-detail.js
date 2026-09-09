@@ -4298,6 +4298,13 @@ export default Controller.extend(prefClasses, {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.find_button || !s.focus_words || !s.show_hidden_buttons;
   }),
+  // Whether the three Buttons controls render. A communicator-only account has no
+  // "Buttons" toggle at all (board-detail.hbs), so gating them on buttons_submenu_open
+  // would leave that account with a section it can never open — the items would be
+  // unreachable rather than merely collapsed. Supporter accounts keep the accordion.
+  buttons_section_expanded: computed('is_communicator_only_account', 'buttons_submenu_open', function() {
+    return !!(this.get('is_communicator_only_account') || this.get('buttons_submenu_open'));
+  }),
   speak_section_visible_display: computed('speak_menu_hidden_set', function() {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.light_dark_mode;
