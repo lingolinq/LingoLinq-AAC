@@ -5830,7 +5830,7 @@
         "file": "lib/uploader.rb",
         "line": 309,
         "snippet": "def self.remote_remove_thumbnail_family(stem, owner_class_name=nil, owner_global_id=nil)",
-        "sha": "328a54299af402cc55011355075e94fcfba5fded"
+        "sha": "26f88a56648054965a5030a85c8a028d628f84c1"
       },
       "firstSeen": "2026-08-16",
       "lastSeen": "2026-08-16",
@@ -5855,7 +5855,7 @@
         "reviewer": "claude-adversary-review",
         "promotedDate": "2026-08-16"
       },
-      "notes": "Surfaced 2026-08-16 by the round-6 adversary review pass on PR #806 (buttonsound-secondary-url-cleanup branch). Filed as its own finding rather than folded into LL-c4566fa37f: that finding is about transcode output that never gets persisted application metadata at all, while this finding is about the erasure sweep's own fallback behavior when persisted metadata DOES exist but live S3 listing is unavailable -- a different failure mechanism with a different remediation shape (retry/enumeration hardening vs. job-lifecycle/manifest redesign). Related to LL-854b1d3853 as residual hardening of its degraded cleanup path; does not block LL-854b1d3853's closure. Proposed by the agent; severity, confidence, and disposition are pending Scot's review per repo governance (only Scot sets disposition or closes/downgrades a finding). Confidence set to high (not medium) because both code paths cited (the un-raised fallback failure and the break-on-first-gap logic) were directly read and verified against lib/uploader.rb at HEAD, not inferred."
+      "notes": "evidence.sha re-anchored 2026-09-09. The prior value 328a54299af402cc55011355075e94fcfba5fded is a bad object present in no ref or reflog: it was the pre-rebase sha of this same commit, orphaned when PR #806 was squashed onto develop and its branch deleted. 26f88a566 is that commit as it landed - author date 2026-08-16 matches this finding's firstSeen, its subject is the round-6 media fix these notes reference, it is reachable from main, staging and develop, and the snippet verifies at line 309. Status, severity, file, line and snippet unchanged; meta untouched."
     },
     {
       "id": "LL-bdc3344942",
