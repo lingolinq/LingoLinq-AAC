@@ -17042,3 +17042,67 @@ with `jump_home` false (`:2364`) — which includes every `switch-communicators`
 `SmsConsent` hashes the canonical number with `RemoteTarget.salted_hash(..., ENV['SMS_ENCRYPTION_KEY'], 'global')` and pairs that digest with `user_id` on every lookup. Putting `communicator.global_id` into the hash would stop a hash-only lookup bug, but `Flusher.transfer_user_content` only remaps `user_id` and does not rewrite hashes; after merge `granted?(target, number)` would rehash with the new global id and miss. The query invariant (`user_id` + `target_hash` + `state: granted`) is what keeps one recipient consent from becoming platform-wide. Raise in `SmsConsent` when `SMS_ENCRYPTION_KEY` is blank — `RemoteTarget.salted_hash` will not.
 
 **First seen in:** [2026-09-08-sms-consent-record.md](./2026-09-08-sms-consent-record.md).
+
+## Gotcha: the ESLint gate's `new=N` counts line shifts, not new violations — classify before believing it
+
+`scripts/eslint-todo-gate.js` fingerprints each finding as
+`file|ruleId|line|column|severity|messageHash` (`:34-44`). Line and column are IN the key, so
+inserting lines above an existing grandfathered violation re-fingerprints it and the gate reports
+it as NEW. Any branch that grows a lint-dense file — `app/services/app-state.js` and
+`app/controllers/board/index.js` are the two worst, thick with grandfathered `ember/no-runloop` —
+manufactures phantom findings in proportion to how many lines it inserted, and reports them at
+their POST-shift line numbers, which is exactly what real new violations would look like.
+
+The tell is in the summary line the gate already prints: when `findings` EQUALS `baseline` and
+`new` equals `baseline - grandfathered`, nothing was added or removed — rows only moved. Confirm by
+re-matching novel findings against unmatched baseline rows on `file|ruleId|messageHash` with line
+and column dropped; a clean pairing with zero leftover on both sides means zero new violations.
+The remedy is then the rebaseline the gate's own header prescribes (`npm run lint:js:todo` in an
+intentional commit), NOT fixing 81 unrelated violations.
+
+Two consecutive handoffs got this wrong in opposite directions — one called the findings
+pre-existing, the next "corrected" it to branch debt — because both read the gate's `new=` count
+as authoritative. It is not; it is a line-sensitive diff. RESIDUAL: the multiset check cannot
+distinguish an added violation that is exactly offset by a removed one with the same rule and same
+message in the same file; only diffing against `develop` closes that.
+
+**First seen in:** [2026-09-09-handoff-branch-full-state.md](./2026-09-09-handoff-branch-full-state.md).
+
+## Gotcha: verify a changed SCSS declaration in the COMPILED output, not the source
+
+`.md-speak-menu__title` (`app/styles/app.scss:18344`) carries a warning earned the hard way: a
+`{ }` pair inside its comment silently swallowed the entire declaration block, and the rule still
+reached the served CSS looking intact — selector present, declarations gone, `h2` falling back to
+the global `25px !important` at `app.scss:3614`. Source inspection cannot see this failure. After
+editing any rule in this block, compile and grep the OUTPUT for the declaration itself:
+
+    ./node_modules/.bin/sass --no-source-map --load-path=app/styles --load-path=node_modules \
+      --quiet app/styles/app.scss /tmp/out.css   # exits 0 in ~30s, no ember build needed
+
+Generalizes: for a rule whose failure mode is silent omission, "the file says the right thing" is
+not evidence. Also note `clamp()` floors here are load-bearing UX, not defaults — the floor's
+crossover width is `floor / vw-coefficient`, so changing a floor MOVES the breakpoint (16px ->
+14px at 2.45vw moved it from ~655px to ~571px) and any comment stating that width goes stale.
+
+**First seen in:** [2026-09-09-handoff-branch-full-state.md](./2026-09-09-handoff-branch-full-state.md).
+
+## Gotcha: "Can't Reach LingoLinq Cloud, Check Your Signal Quality" is the UI's message for ANY 500, including PendingMigrationError
+
+Rails' `CheckPendingMigrations` middleware raises before routing, so a single unapplied migration
+500s EVERY endpoint — `token_check` included — and the login screen renders the offline banner
+"Can't Reach LingoLinq Cloud, Check Your Signal Quality". The banner names connectivity; the cause
+is the database. Anyone who trusts the message goes hunting the proxy, the ports, or their
+network, and finds all three healthy.
+
+Check the log before the network. `tail -400 log/development.log | grep -E "PendingMigrationError|Completed 500"`
+answers it in one command, and `bundle exec rails db:migrate:status` (prefix `DB_USER=tracid`
+locally) names the exact pending files. Servers being UP is not evidence the backend is serving —
+confirm with `curl -o /dev/null -w "HTTP %{http_code}"` against :5000 directly AND through the
+ember proxy on :8184, because a healthy proxy faithfully forwards a 500.
+
+Generalizes beyond migrations: this frontend collapses every non-2xx from the API into the same
+connectivity copy, so ANY server-side 500 during local dev will present as an offline app. After
+pulling or merging, migrate before concluding anything about the network. Migrate the TEST db too
+(`RAILS_ENV=test`) or specs for the new tables error separately.
+
+**First seen in:** [2026-09-09-handoff-branch-full-state.md](./2026-09-09-handoff-branch-full-state.md).
