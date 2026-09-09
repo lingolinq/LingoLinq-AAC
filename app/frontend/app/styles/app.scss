@@ -18352,7 +18352,7 @@ form.row.subscription-form-with-cards {
      and the browser applied none of it, leaving the h2 at its 25px user-agent default.
      Verified by removing them. Keep brace-free. */
 
-  /* Fluid 16-22px, and `!important` is not a shortcut here — it is the only way to win.
+  /* Fluid 14-22px, and `!important` is not a shortcut here — it is the only way to win.
      The bare element rule `h2` at app.scss:3614 declares `font-size: 25px !important`, so
      this class rule was losing and the title rendered at 25px, NOT the 22px above it. An
      important class selector 0,1,0 beats an important element selector 0,0,1; nothing
@@ -18365,8 +18365,11 @@ form.row.subscription-form-with-cards {
      a range function and emits bare mixed-unit math, which is what the CSS/SCSS guideline
      says SassC cannot evaluate. Three plain values avoid the question. 2.45vw reaches the
      22px ceiling at ~900px — the width above which this modal stops filling the screen —
-     and bottoms out at the 16px floor around 655px. */
-  font-size: clamp(16px, 2.45vw, 22px) !important;
+     and bottoms out at the 14px floor around 571px — phone widths sit well below that
+     crossover, so the title resolves to a flat 14px on every phone. The 14px floor is
+     deliberate and sits below the app's usual minimum; do not raise it back to match the
+     surrounding body copy. */
+  font-size: clamp(14px, 2.45vw, 22px) !important;
   font-weight: 700;
   color: $la-navy;
 }
