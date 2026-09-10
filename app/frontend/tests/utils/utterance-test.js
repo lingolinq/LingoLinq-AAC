@@ -11,6 +11,8 @@ import { stashesTarget, appStateTarget } from '../helpers/service-stub';
 import utterance from '../../utils/utterance';
 import speecher from '../../utils/speecher';
 import stashes from '../../utils/_stashes';
+import app_state from '../../utils/app_state';
+import Button from '../../utils/button';
 import LingoLinq from '../../app';
 import EmberObject from '@ember/object';
 
@@ -386,6 +388,21 @@ describe('utterance', function() {
       utterance.backspace({button_triggered: true});
       expect(appStateForTest().get('caps_lock')).toEqual(true);
       expect(appStateForTest().get('button_list').length).toEqual(0);
+    });
+
+    it("should toggle caps_lock when the :caps special action runs", function() {
+      var action = LingoLinq.find_special_action(':caps');
+      expect(action).toBeTruthy();
+      var appState = appStateForTest();
+      Button._services = Button._services || {};
+      Button._services.appState = appState;
+      stub(app_state, 'refresh_suggestions', function() { });
+      stub(appState, 'refresh_suggestions', function() { });
+      appState.set('caps_lock', false);
+      action.trigger();
+      expect(appState.get('caps_lock')).toEqual(true);
+      action.trigger();
+      expect(appState.get('caps_lock')).toEqual(false);
     });
   });
 

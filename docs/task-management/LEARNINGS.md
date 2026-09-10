@@ -94,6 +94,7 @@ file (see [README.md](README.md)).
 - [Gotcha: a zero row count plus no app destroy path is not a lifetime claim](#gotcha-a-zero-row-count-plus-no-app-destroy-path-is-not-a-lifetime-claim)
 - [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
 - [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
+- [Speak vs edit: user-chosen pictures still swapped by label-search enrichment](#speak-vs-edit-user-chosen-pictures-still-swapped-by-label-search-enrichment)
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
 - [Gotcha: `rem` is a trap in this codebase — the root font-size is 10px, so write px](#gotcha-rem-is-a-trap-in-this-codebase--the-root-font-size-is-10px-so-write-px)
 - [Pattern: derive report narrative in a pure util, never in the template or from absent data](#pattern-derive-report-narrative-in-a-pure-util-never-in-the-template-or-from-absent-data)
@@ -5868,6 +5869,30 @@ finding look "new". Keep board-detail edits line-count-neutral (EOL comments).
 **Evidence:** `lib/json_api/board.rb`, `controllers/user/board-detail.js`
 `_build_from_raw`; task logs `2026-08-10-preserve-imported-board-images.md`,
 `2026-08-10-preserve-imported-images-ci-failures.md`.
+
+### Speak vs edit: user-chosen pictures still swapped by label-search enrichment
+
+**Symptom:** Button Settings shows the picture the user picked (e.g. a CAPS
+LOCK key). Speak mode shows a different OpenSymbols hit for the button label
+(e.g. a police hat for "caps lock", often with a baked-in `+s`).
+
+**Root cause:** Same enrichment path as imported custom photos.
+`save_image_preview` sends `button_label`. If the stored URL is S3/uploads,
+`ensure_library_url_for_skin!` searches OpenSymbols by that label and stores
+`library_url_for_skin`. Speak mode prefers `skin_url` when preferred symbols
+is a library. Import already stamped `preserve_source_image`; the images API
+did not.
+
+**Fix:** `ButtonImage#process_params` stamps `preserve_source_image` when the
+client sends `button_label` or an explicit flag (including on update).
+`save_image_preview` sends the flag so re-picking the same URL repairs an
+already-enriched row. Suggested-symbol creates (no `button_label`) are
+unchanged. Already-enriched images stay wrong until the user picks the
+picture again.
+
+**Evidence:** `app/models/button_image.rb` `process_params`,
+`app/frontend/app/services/content-grabbers.js` `save_image_preview`;
+task log `2026-09-10-speak-mode-picture-swap.md`.
 
 
 

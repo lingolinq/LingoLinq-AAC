@@ -9214,5 +9214,12 @@
   "gift_code_heading": "*** Gift Code",
   "api_access_token_value": "*** API Access Token: %{token}",
   "webhook_token_value": "*** Webhook Token: %{token}",
-  "profile_feedback_prompt": "*** Feedback on your experience with this profile (will be made available to the profile author)"
+  "profile_feedback_prompt": "*** Feedback on your experience with this profile (will be made available to the profile author)",
+  "short_password_warning_8": "*** Password must be at least 8 characters long",
+  "short_valet_password_8": "*** Valet Password must be at least 8 characters long",
+  "min_password_8": "*** Password must be at least 8 characters",
+  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
+  "caps_lock_on_label": "*** CAPS LOCK",
+  "at_least_8_characters": "*** at least 8 characters",
+  "min_password_lower_8": "*** password must be at least 8 characters"
 }
