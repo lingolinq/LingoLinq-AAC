@@ -24,6 +24,8 @@ module Throttling
     'api/v1/supervisor_relationships/.+/consent_response',
     'api/v1/supervisor_relationships/.+/approve',
     'api/v1/supervisor_relationships/.+/deny',
+    # Recipient SMS opt-in: brute-forceable invite token on GET/POST.
+    '^/sms_consent/',
     # Org bulk user-claim: abusable account-claim/enumeration surface (LL-e65d34f109).
     'api/v1/organizations/.+/claim_user',
     # Registration, 2FA enrollment, and SAML assertion consumption: account
