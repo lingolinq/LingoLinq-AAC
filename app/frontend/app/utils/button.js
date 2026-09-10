@@ -1684,6 +1684,15 @@ Button.load_actions = function() {
       }
     },
     {
+      action: ':caps',
+      description: i18n.t('toggle_caps', "Toggle Caps Lock (keep capitalizing until turned off)"),
+      trigger: function() {
+        Button.get_app_state().set('caps_lock', !Button.get_app_state().get('caps_lock'));
+        Button.get_app_state().set('suggestion_id', null);
+        app_state.refresh_suggestions();
+      }
+    },
+    {
       action: ':space',
       completion: true,
       trigger: function() {

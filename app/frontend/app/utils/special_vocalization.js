@@ -1,7 +1,7 @@
 /**
  * Action vocalizations are control protocols, not words. Keyboard and
  * prediction buttons store them on `vocalization`: `:space` completes a
- * word, `:shift` toggles caps, `+q` appends a letter, `:suggestion` marks
+ * word, `:shift` toggles one-shot caps, `:caps` keeps caps on, `+q` appends a letter, `:suggestion` marks
  * a prediction slot. Translating the token into another language (or
  * replacing it with the translated label) breaks the control.
  *

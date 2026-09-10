@@ -5,6 +5,7 @@ module('Unit | Utility | special_vocalization', function() {
   test('isActionVocalization is true for colon and plus protocol tokens', function(assert) {
     assert.true(isActionVocalization(':space'));
     assert.true(isActionVocalization(':shift'));
+    assert.true(isActionVocalization(':caps'));
     assert.true(isActionVocalization(':suggestion'));
     assert.true(isActionVocalization(':complete'));
     assert.true(isActionVocalization(':home'));

@@ -344,6 +344,49 @@ describe('utterance', function() {
       expect(appStateForTest().get('button_list')[0].vocalization).toEqual("A");
       expect(appStateForTest().get('button_list')[0].in_progress).toEqual(false);
     });
+
+    it("should keep capitalizing letters while caps_lock is on", function() {
+      appStateForTest().set('sessionUser.preference.auto_capitalize', false);
+      appStateForTest().set('caps_lock', true);
+      addButtonForTest({label: "a", vocalization: "+a"});
+      expect(appStateForTest().get('button_list')[0].label).toEqual("A");
+      expect(appStateForTest().get('caps_lock')).toEqual(true);
+
+      addButtonForTest({label: "b", vocalization: "+b"});
+      expect(appStateForTest().get('button_list')[0].label).toEqual("AB");
+      expect(appStateForTest().get('caps_lock')).toEqual(true);
+    });
+
+    it("should stop forcing capitals after caps_lock is turned off", function() {
+      appStateForTest().set('sessionUser.preference.auto_capitalize', false);
+      appStateForTest().set('caps_lock', true);
+      addButtonForTest({label: "a", vocalization: "+a"});
+      appStateForTest().set('caps_lock', false);
+      addButtonForTest({label: "b", vocalization: "+b"});
+      expect(appStateForTest().get('button_list')[0].label).toEqual("Ab");
+    });
+
+    it("should still clear shift after one letter when caps_lock is off", function() {
+      appStateForTest().set('sessionUser.preference.auto_capitalize', true);
+      appStateForTest().set('shift', true);
+      appStateForTest().set('caps_lock', false);
+      addButtonForTest({label: "a", vocalization: "+a"});
+      expect(appStateForTest().get('button_list')[0].label).toEqual("A");
+      expect(appStateForTest().get('shift')).toBeFalsy();
+    });
+
+    it("should keep caps_lock on through clear and backspace", function() {
+      appStateForTest().set('sessionUser.preference.auto_capitalize', false);
+      appStateForTest().set('caps_lock', true);
+      addButtonForTest({label: "a", vocalization: "+a"});
+      utterance.clear({skip_logging: true});
+      expect(appStateForTest().get('caps_lock')).toEqual(true);
+
+      addButtonForTest({label: "b", vocalization: "+b"});
+      utterance.backspace({button_triggered: true});
+      expect(appStateForTest().get('caps_lock')).toEqual(true);
+      expect(appStateForTest().get('button_list').length).toEqual(0);
+    });
   });
 
   describe("speak_button", function() {

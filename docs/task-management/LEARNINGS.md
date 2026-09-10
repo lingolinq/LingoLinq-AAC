@@ -571,6 +571,14 @@ the layout override it so switching back to Dynamic restores their Extras choice
 
 **First seen in:** [2026-06-03-staged-registration-flow.md](./2026-06-03-staged-registration-flow.md)
 
+## Pattern: `:shift` is one-shot because `add_button` clears it; sticky caps is a separate flag
+
+`:shift` toggles `appState.shift`, then `utterance.add_button` does `appState.set('shift', null)` after every added button (`utterance.js`). A caps-lock button cannot reuse that flag as a `'lock'` sentinel without every clear/backspace site accidentally turning it off. Use `appState.caps_lock` (toggled only by `:caps`) and read `shift || caps_lock` (computed `capitalizing`) at display/type sites. Do not clear `caps_lock` on add, clear, or backspace.
+
+The Vocal Flair 84 system keyboard (`public/system-boards/keyboard.obz`) is 7×12 with a left gutter of empty cells. Do not put a new key in that gutter. The QWERTY bottom row was missing its 10th key (the `?`/`:` slot after space); that empty cell is the place for `caps`.
+
+**First seen in:** [2026-09-10-caps-lock-button.md](./2026-09-10-caps-lock-button.md)
+
 ## Pattern: keyboard control vocalizations must survive translation overlay
 
 Keyboard boards use vocalizations as control protocols: `+a` composes spelling, `:space` completes the in-progress word, and `:shift` toggles capitalization. `Board#translated_buttons` must not replace those `:`/`+` vocalizations with visible labels when label and vocalization locales match, or controls start speaking words like “space”/“shift” and letters stop composing. If `lingolinq/keyboard` has stale locale metadata, default it back to English when no user locale or Switch Languages override exists, and repair the content board through `SystemSidebarBoards.ensure_for`.
