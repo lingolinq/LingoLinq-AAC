@@ -2213,7 +2213,6 @@
   "screen_helper_messages": "Teachtaireachtaí Cúntóra Scáileáin [[ Screen Helper Messages",
   "hide_screen_helpers": "Ná taispeáin moltaí maidir le méid an scáileáin ná rothlú gléis [[ Don't show screen size or rotate-device suggestions",
   "search_languages": "Cuardaigh teangacha... [[ Search languages...",
-  "board_detail_prediction_empty": "*** Tap a board button, and we'll suggest words here.",
   "board_detail_prediction_panel_label": "*** Word prediction panel",
   "approve_org": "*** Approve %{org}",
   "deny_access": "Diúltaigh Rochtain [[ Deny Access",

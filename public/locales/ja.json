@@ -2210,7 +2210,6 @@
   "screen_helper_messages": "画面ヘルパーメッセージ [[ Screen Helper Messages",
   "hide_screen_helpers": "画面サイズやデバイス回転の提案を表示しない [[ Don't show screen size or rotate-device suggestions",
   "search_languages": "言語を検索... [[ Search languages...",
-  "board_detail_prediction_empty": "*** Tap a board button, and we'll suggest words here.",
   "board_detail_prediction_panel_label": "*** Word prediction panel",
   "approve_org": "*** Approve %{org}",
   "deny_access": "アクセスを拒否する [[ Deny Access",

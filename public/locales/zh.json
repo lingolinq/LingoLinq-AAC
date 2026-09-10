@@ -9195,7 +9195,6 @@
   "board_category_extra": "额外的 [[ Extra",
   "board_category_things": "事物 [[ Things",
   "board_category_keys": "钥匙 [[ Keys",
-  "board_detail_prediction_empty": "*** Tap a board button, and we'll suggest words here.",
   "board_detail_prediction_panel_label": "*** Word prediction panel",
   "automatic_replacements": "*** Automatic replacements",
   "automatic_replacements_description": "*** Optional. When Automatic Inflections is on, words already in the sentence can change this button. One rule per line: previous words = new form.",

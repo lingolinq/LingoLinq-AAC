@@ -2210,7 +2210,6 @@
   "screen_helper_messages": "رسائل مساعدة الشاشة [[ Screen Helper Messages",
   "hide_screen_helpers": "لا تعرض اقتراحات حجم الشاشة أو تدوير الجهاز [[ Don't show screen size or rotate-device suggestions",
   "search_languages": "لغات البحث... [[ Search languages...",
-  "board_detail_prediction_empty": "*** Tap a board button, and we'll suggest words here.",
   "board_detail_prediction_panel_label": "*** Word prediction panel",
   "approve_org": "*** Approve %{org}",
   "deny_access": "رفض الوصول [[ Deny Access",

@@ -2213,7 +2213,6 @@
   "screen_helper_messages": "Mensagens auxiliares de tela [[ Screen Helper Messages",
   "hide_screen_helpers": "Não mostrar sugestões de tamanho de tela ou de rotação do dispositivo [[ Don't show screen size or rotate-device suggestions",
   "search_languages": "Idiomas de pesquisa... [[ Search languages...",
-  "board_detail_prediction_empty": "*** Tap a board button, and we'll suggest words here.",
   "board_detail_prediction_panel_label": "*** Word prediction panel",
   "approve_org": "*** Approve %{org}",
   "deny_access": "Negar acesso [[ Deny Access",

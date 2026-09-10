@@ -1250,7 +1250,7 @@
   "board_detail_phrase_empty_search": "No buttons match your search",
   "board_detail_phrase_empty_hint": "Try a different word or clear the search",
   "board_detail_phrase_empty_all": "No buttons found on this board",
-  "board_detail_prediction_empty": "Tap a board button, and we'll suggest words here.",
+  "board_detail_prediction_empty": "Tap board button to see Options:",
   "board_detail_prediction_panel_label": "Word prediction panel",
   "settings_panel": "Settings Panel",
   "settings_collapsed_short": "Settings",

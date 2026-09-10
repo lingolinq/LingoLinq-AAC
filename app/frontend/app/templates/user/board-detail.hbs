@@ -2043,7 +2043,7 @@
                     {{!-- Decorative: the copy carries the meaning, and the group already has
                           an accessible label. --}}
                     <svg class="md-board-detail-prediction-below__empty-glyph" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    <span class="md-board-detail-prediction-below__empty-copy">{{t "Tap a board button, and we'll suggest words here." key="board_detail_prediction_empty"}}</span>
+                    <span class="md-board-detail-prediction-below__empty-copy">{{t "Tap board button to see Options:" key="board_detail_prediction_empty"}}</span>
                   </span>
                   <span class="md-board-detail-prediction-below__empty-ghosts" aria-hidden="true">
                     {{#each this.prediction_below_ghost_slots}}
@@ -2147,7 +2147,7 @@
                 <svg class="md-board-detail-prediction-rail__empty-glyph" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 {{!-- Both are rendered; CSS picks one by panel width. Below 640px the panel
                       is too narrow for a sentence, so it becomes a vertical spine label. --}}
-                <span class="md-board-detail-prediction-rail__empty-copy">{{t "Tap a board button, and we'll suggest words here." key="board_detail_prediction_empty"}}</span>
+                <span class="md-board-detail-prediction-rail__empty-copy">{{t "Tap board button to see Options:" key="board_detail_prediction_empty"}}</span>
                 <span class="md-board-detail-prediction-rail__empty-spine">{{t "Word prediction panel" key="board_detail_prediction_panel_label"}}</span>
                 {{!-- Ghost tiles: they show WHERE words will land rather than leaving the
                       column blank below the copy, which is what made the empty panel read as
