@@ -603,6 +603,19 @@ describe Api::LessonsController, :type => :controller do
       assert_unauthorized
     end
 
+    it "should not let an unrelated user update another user's lesson" do
+      # The sibling test above uses Lesson.create with NO user_id, so the user_id
+      # permission branch never fired and it passed with the bug present. This is the
+      # gate that reaches settings['url'] -> after_save :check_url -> Typhoeus.head.
+      token_user
+      other = User.create
+      l = Lesson.create(user_id: other.id)
+      expect(@user.supervisor_for?(other)).to eq(false)
+      put 'update', params: {'id' => l.global_id, 'lesson' => {'url' => 'http://169.254.169.254/'}}
+      assert_unauthorized
+      expect(l.reload.settings['url']).to eq(nil)
+    end
+
     it "should update" do
       token_user
       l = Lesson.create(user_id: @user.id)

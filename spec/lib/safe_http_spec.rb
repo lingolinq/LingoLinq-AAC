@@ -13,6 +13,18 @@ describe SafeHttp do
       expect(SafeHttp.blocked_address?('fe80::1')).to eq(true)
     end
 
+    it 'blocks the unspecified addresses 0.0.0.0/8 and ::' do
+      # connect() to 0.0.0.0 / :: lands on localhost. IPAddr reports none of
+      # loopback?/private?/link_local? for these, so they need an explicit range.
+      # The only thing catching a literal 0.0.0.0 today is a STRING test in
+      # Uploader.sanitize_url (lib/uploader.rb:90), which is never applied to a DNS
+      # answer -- so a hostname with an A record of 0.0.0.0 would otherwise pass.
+      expect(SafeHttp.blocked_address?('0.0.0.0')).to eq(true)
+      expect(SafeHttp.blocked_address?('0.1.2.3')).to eq(true)
+      expect(SafeHttp.blocked_address?('::')).to eq(true)
+      expect(SafeHttp.blocked_address?('::ffff:0.0.0.0')).to eq(true)
+    end
+
     it 'blocks non-canonical IPv6 mapped forms with binary-safe byte comparison' do
       # ::ffff:0:7f00:1 encodes 127.0.0.1; hton returns ASCII-8BIT so comparisons must use .b literals.
       expect(SafeHttp.blocked_address?('::ffff:0:7f00:1')).to eq(true)

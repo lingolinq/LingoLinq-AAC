@@ -21,8 +21,18 @@ class Lesson < ApplicationRecord
       unit = OrganizationUnit.find(self.organization_unit_id)
       unit && unit.allows?(user, 'edit')
     elsif self.user_id
-      user = User.find(self.user_id)
-      user && user.allows?(user, 'supervise')
+      # `user` is the REQUESTER -- permissable.rb:87 does instance_exec(user, &block).
+      # This branch previously reassigned it to the lesson's target and then asked
+      # whether the target supervised THEMSELVES, which user.rb:56 answers true
+      # unconditionally, granting view/view_ratings/edit to every authenticated user.
+      # `supervise` is the right predicate because lessons_controller.rb:57-59 gates
+      # CREATION of a target-scoped lesson on exactly allowed?(user, 'supervise'); any
+      # narrower test would leave the authoring supervisor unable to edit what they made.
+      # find_by, not find: lessons.user_id carries no foreign key and no dependent hook,
+      # so a flushed user leaves it dangling and `find` would raise inside permission
+      # evaluation for every requester.
+      target = User.find_by(id: self.user_id)
+      target && target.allows?(user, 'supervise')
     else
       false
     end

@@ -13,6 +13,7 @@ module SafeHttp
   # Carrier-grade NAT (RFC 6598). Intentionally blocked for SSRF defense even
   # though some cloud/CDN ranges overlap; hostname fetches should use public names.
   CGN_RANGE = IPAddr.new('100.64.0.0/10')
+  UNSPECIFIED_RANGES = [IPAddr.new('0.0.0.0/8'), IPAddr.new('::/128')].freeze
   NULL_8 = "\x00".b * 8
   NULL_10 = "\x00".b * 10
   NULL_12 = "\x00".b * 12
@@ -123,6 +124,12 @@ module SafeHttp
 
     def blocked_ipaddr?(addr)
       return true if addr.loopback? || addr.private? || addr.link_local? || CGN_RANGE.include?(addr)
+      # IPAddr reports none of loopback?/private?/link_local? for the unspecified
+      # addresses, but connect() to 0.0.0.0 or :: lands on localhost. The literal
+      # string is caught by Uploader.sanitize_url (lib/uploader.rb:90), which is
+      # never applied to a DNS answer -- so without this an attacker-controlled
+      # hostname with an A record of 0.0.0.0 reaches the loopback interface.
+      return true if UNSPECIFIED_RANGES.any? {|range| range.include?(addr) }
 
       embedded = embedded_ipv4(addr)
       return blocked_ipaddr?(embedded) if embedded

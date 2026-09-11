@@ -17106,3 +17106,43 @@ pulling or merging, migrate before concluding anything about the network. Migrat
 (`RAILS_ENV=test`) or specs for the new tables error separately.
 
 **First seen in:** [2026-09-09-handoff-branch-full-state.md](./2026-09-09-handoff-branch-full-state.md).
+
+## Gotcha: a "failing" local RSpec run is usually the ENVIRONMENT, not the code — two distinct causes, both proven
+
+Two separate environmental causes produced red suites on 2026-09-10, neither of them a code
+defect, and each looked exactly like a real regression.
+
+**(1) A dirty test database.** RSpec assumes it starts empty. `lingolinq-test` held 29 leftover
+rows across 8 tables — most importantly 4 `audit_events` (dated Sept 1 and Sept 5), 1 user
+`user_name="person"`, and 1 board. That produced **21 failures** whose arithmetic matched the
+leftovers exactly: `AuditEvent.count expected 0, got 4`; `expected 1, got 5`; `Board.count
+expected 3, got 4`; and `generate_user_name` returning `"person_1"` because `"person"` was taken.
+
+The tell is an assertion whose "got" exceeds "expected" by a CONSTANT across unrelated tests, or a
+uniquified name. Confirm by inspecting row counts; fix with `DB_USER=tracid PGPASSWORD=password
+bin/rails db:test:prepare`. Verified: identical code, identical branch, 21 failures -> 0.
+
+**Why it gets dirty: `rails runner` and `rails console` each write a session-open `AuditEvent`**
+(the audited-console control, `config/initializers/auditing.rb`), and it is written OUTSIDE the
+spec transaction so it persists. Diagnosing this with `rails runner` therefore ADDS rows to the
+table you are inspecting — six were self-inflicted this way in one session. Inspect via a spec
+run, not via `runner`.
+
+**(2) The UTC date boundary.** All 9 `spec/lib/stats_spec.rb` "daily summary reports" specs fail
+between 18:00 and midnight local (America/Denver, UTC-6) on ANY branch. `stats_spec.rb:10-11` sets
+`start_at = 2.days.ago.utc` (a sliding timestamp) against `end_at = Date.today.to_time.utc` (LOCAL
+midnight). Once UTC rolls into the next date while local has not, `start_at`'s UTC date advances a
+day while `end_at` stays put, so the span drops from 3 days to 2 and `expect(days.keys.length).to
+eq(3)` fails.
+
+Falsify it in 3 seconds: `TZ=UTC bundle exec rspec spec/lib/stats_spec.rb` -> 58 examples,
+0 failures. If a suite is red only in the evening, check `date` vs `date -u` before reading
+another line of output.
+
+**The general rule:** before attributing ANY red run to a branch, establish a baseline (CLAUDE.md
+rule 10). Here the baseline was cheap because the branch's whole non-frontend surface was 8 files
+that all exist on develop — `cp` them aside, overwrite with `git show origin/develop:<f>`, run,
+`cp` back. Never `git checkout`. Identical failure NAMES with line numbers shifted by exactly the
+branch's own spec hunk = pre-existing, not a regression.
+
+**First seen in:** [2026-09-10-suite-verification-after-develop-merge.md](./2026-09-10-suite-verification-after-develop-merge.md).

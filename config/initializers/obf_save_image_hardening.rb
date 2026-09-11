@@ -24,6 +24,9 @@ require 'mime/types'
 # completes in normal time with any genuinely-missing symbols skipped.
 module OBFSaveImageHardening
   MIN_IMAGE_BYTES = 100
+  # Bounds one fetch. SafeHttp supplies no timeout of its own.
+  FETCH_TIMEOUT = 10
+  FETCH_CONNECT_TIMEOUT = 5
 
   def save_image(image, zipper = nil, background = nil)
     if image['data']
@@ -38,12 +41,52 @@ module OBFSaveImageHardening
       end
     elsif image['url']
       OBF::Utils.log "  retrieving #{image['url']}"
-      # Sign uploads-bucket URLs: the bucket blocks public access, so the
-      # embedded raw URL 403s on an unsigned fetch (CDN/external unchanged)
-      url_data = OBF::Utils.get_url(Uploader.signed_internal_url(image['url']))
+      if image['url'].to_s.match(/\Adata:/)
+        # OBF::Utils.get_url decoded data: URIs inline with no network call
+        # (obf-0.9.9.3/lib/obf/utils.rb:8-10). Uploader.sanitize_url rejects every
+        # non-http(s) scheme by design (lib/uploader.rb:87), so routing these through
+        # SafeHttp would return a failed response and silently strip the symbol from
+        # the preview. Utterance#process_params only rewrites a non-http image when
+        # original_image is present (app/models/utterance.rb:335), so a lone data: URI
+        # does reach here.
+        image['content_type'] ||= image['url'].split(/;/)[0].split(/:/)[1]
+        image['raw_data'] = begin
+          Base64.strict_decode64(image['url'].split(/,/, 2)[1].to_s)
+        rescue ArgumentError
+          nil
+        end
+      else
+        # SafeHttp, not OBF::Utils.get_url: the gem's sanitize_url
+        # (obf-0.9.9.3/lib/obf/utils.rb:60-67) passes link-local (169.254.169.254 --
+        # .to_i is 169, never equal to the dotted string), every RFC1918 range, an
+        # uppercase LOCALHOST (the regex is case-sensitive) and bracketed IPv6
+        # literals, then fetches with followlocation:true so no redirect hop is
+        # re-validated. button['image'] is attacker-controlled via POST
+        # /api/v1/utterances (utterances_controller.rb:19 permit!), and this runs in a
+        # Resque worker. SafeHttp re-validates every hop and pins DNS.
+        # Timeouts are per-caller: SafeHttp sets none of its own
+        # (lib/safe_http.rb:264-268 merges only followlocation/resolve), and without
+        # one libcurl's defaults are an infinite read and a 300s connect, so a
+        # button_list of dead hosts stalls a worker.
+        # Sign uploads-bucket URLs: the bucket blocks public access, so the
+        # embedded raw URL 403s on an unsigned fetch (CDN/external unchanged)
+        res = SafeHttp.get(
+          Uploader.signed_internal_url(image['url']),
+          timeout: FETCH_TIMEOUT, connecttimeout: FETCH_CONNECT_TIMEOUT
+        )
+        # Gate on success?, not on body size. SafeHttp.failed_response returns
+        # body='blocked or invalid URL' with code 0 (lib/safe_http.rb:281-290); that
+        # string is only 22 bytes so MIN_IMAGE_BYTES below would mask it by accident
+        # rather than by intent, and a 404 body would sail past.
+        if res && res.success?
+          image['raw_data'] = res.body
+          image['content_type'] = res.headers && res.headers['Content-Type']
+        else
+          image['raw_data'] = nil
+          image['content_type'] = nil
+        end
+      end
       OBF::Utils.log "  done!"
-      image['raw_data'] = url_data['data']
-      image['content_type'] = url_data['content_type']
     elsif image['symbol']
       # not supported
     end
