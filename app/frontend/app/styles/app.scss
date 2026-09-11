@@ -80573,6 +80573,27 @@ span.md-board-detail-modeling-btn--paused:hover {
   outline-offset: -5px;
 }
 
+/* Caps lock on-state. Thicker than the resting outline so the cue is not
+   color-only (WCAG 1.4.1). Color is a saturated green so it reads against
+   the pale mint fill used on the default caps key. */
+.button.md-board-detail-symbol-card--caps-on,
+.button.md-board-detail-symbol-card--caps-on:hover,
+.button.md-board-detail-symbol-card--caps-on:focus,
+.button.md-board-detail-symbol-card--caps-on:focus-visible,
+.button.md-board-detail-symbol-card--caps-on:active {
+  --bd-button-text-transform: uppercase;
+  outline-color: #15803D;
+  outline-width: 5px;
+  outline-offset: -5px;
+  box-shadow:
+    inset 0 0 0 5px #15803D,
+    inset 0 1px 0 rgba(255, 255, 255, 0.65),
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba($la-navy, 0.10),
+    0 8px 24px rgba(27, 42, 65, 0.08),
+    0 20px 50px rgba($la-navy, 0.06);
+}
+
 /* "Soft borders" opt-in style — applied via .md-board-detail-grid--soft-borders
    on the grid root. PRESERVES the user's outline-width preference
    (--bd-button-border) entirely — only the card surface changes.
@@ -80683,6 +80704,22 @@ span.md-board-detail-modeling-btn--paused:hover {
     inset 0 0 24px rgba(0, 0, 0, 0.28),
     /* Inset top highlight unchanged at .22 — already subtle in dark. */
     inset 0 2px 6px rgba(255, 255, 255, 0.22);
+}
+/* Soft-borders replaces card box-shadow. Keep the caps-on inset ring
+   after that block so the on-state is not color-only (WCAG 1.4.1). */
+.md-board-detail-grid--soft-borders .button.md-board-detail-symbol-card--caps-on:not(.md-board-detail-symbol-card--empty),
+.md-board-detail-grid--soft-borders .button.md-board-detail-symbol-card--caps-on:not(.md-board-detail-symbol-card--empty):hover,
+.md-board-detail-grid--soft-borders .button.md-board-detail-symbol-card--caps-on:not(.md-board-detail-symbol-card--empty):focus,
+.md-board-detail-grid--soft-borders .button.md-board-detail-symbol-card--caps-on:not(.md-board-detail-symbol-card--empty):focus-visible,
+.md-board-detail-grid--soft-borders .button.md-board-detail-symbol-card--caps-on:not(.md-board-detail-symbol-card--empty):active {
+  outline-color: #15803D;
+  outline-width: 5px;
+  outline-offset: -5px;
+  box-shadow:
+    inset 0 0 0 5px #15803D,
+    0 4px 14px rgba($la-navy, 0.18),
+    0 10px 28px rgba($la-navy, 0.10),
+    0 1px 3px rgba(0, 0, 0, 0.08);
 }
 .md-board-detail-symbol-card__image {
   flex: 1 1 auto;

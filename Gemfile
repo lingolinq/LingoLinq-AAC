@@ -77,9 +77,13 @@ gem 'puma', '~> 7.2', '>= 7.2.1' # >= 7.2.1 clears CVE-2026-47736 / CVE-2026-477
 gem 'paper_trail', '~> 15.0'
 gem 'geokit'
 gem 'obf'
-# OBF uses Zip::File::CREATE (rubyzip) for reading ZIPs.
-# zip_kit handles all ZIP writing (streaming, flat memory).
-gem 'rubyzip', '~> 2.3'
+# rubyzip is READ-ONLY here: OBF::Utils.build_zip -- the only caller of the 2.x-only
+# Zip::File::CREATE -- is monkey-patched onto zip_kit in
+# config/initializers/zip_kit_patch.rb, and its retained build_zip_rubyzip alias has no
+# callers. What still runs through rubyzip is OBF::Utils.load_zip (Zip::File.open(path))
+# and Zipper's glob/entries/get_input_stream, all unchanged in 3.x.
+# 2.x is unpatchable for CVE-2026-85396 (path traversal, High); the fix is 3.4.0+ only.
+gem 'rubyzip', '>= 3.4'
 gem 'zip_kit', '~> 6.3'
 gem 'accessible-books'
 gem 'sentry-ruby'

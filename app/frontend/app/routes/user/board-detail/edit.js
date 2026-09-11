@@ -86,6 +86,7 @@ export default Route.extend({
   resetController: function(controller, isExiting) {
     if(isExiting) {
       var boardDetailController = this.controllerFor('user.board-detail');
+      boardDetailController.reset_edit_baseline();
       boardDetailController.set('edit_mode', false);
       boardDetailController.set('paint_mode', null);
       boardDetailController.set('color_picker_button', null);

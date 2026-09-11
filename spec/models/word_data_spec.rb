@@ -62,16 +62,32 @@ RSpec.describe WordData, :type => :model do
       expect(WordData.translate('hat', 'en', 'es')).to eq('cap')
     end
     
-    it "should persist found translations" do
+    it "should persist found translations onto words the dictionary already knows" do
+      w2 = WordData.create(:word => 'hat', :locale => 'en', :data => {'word' => 'hat'})
+      w = WordData.create(:word => 'cap', :locale => 'es', :data => {'word' => 'cap'})
       expect(WordData).to receive(:query_translations).with([{:text => 'hat', :type => nil}], 'en', 'es').and_return([{:text => 'hat', :type => nil, :translation => 'cap'}])
       expect(WordData.translate('hat', 'en', 'es')).to eq('cap')
       Worker.process_queues
-      w = WordData.last
+      w.reload
       expect(w.locale).to eq('es')
       expect(w.data).to include('word' => 'cap', 'translations' => {'en' => 'hat'})
-      w2 = WordData.where(:word => 'hat', :locale => 'en').first
-      expect(w2).to_not eq(nil)
+      w2.reload
       expect(w2.data).to include('word' => 'hat', 'translations' => {'es' => 'cap'})
+    end
+
+    it "should NOT create dictionary rows for words it does not already know (LL-06d36ffeeb)" do
+      # This previously asserted the opposite: that translating an unknown word
+      # minted rows for both the source and its translation. word_data is global
+      # (no user_id/organization_id) and is not swept on erasure, so minting a
+      # row from a user-authored board label leaked it across accounts. The
+      # translation is still RETURNED to the caller; it is simply not stored.
+      expect(WordData).to receive(:query_translations).with([{:text => 'hat', :type => nil}], 'en', 'es').and_return([{:text => 'hat', :type => nil, :translation => 'cap'}])
+      expect {
+        expect(WordData.translate('hat', 'en', 'es')).to eq('cap')
+        Worker.process_queues
+      }.to_not change { WordData.count }
+      expect(WordData.where(:word => 'hat', :locale => 'en').first).to eq(nil)
+      expect(WordData.where(:word => 'cap', :locale => 'es').first).to eq(nil)
     end
   end
   
@@ -220,6 +236,10 @@ RSpec.describe WordData, :type => :model do
 
     it "should use the original word type if needed as fallback" do
       b = WordData.create(:word => "runshkable", :locale => 'en', :data => {'a' => 'b', 'types' => ['something']})
+      # The reverse word is seeded explicitly: persist_translation no longer
+      # creates dictionary rows, so the fallback under test needs a row to
+      # fall back onto. See the no-row-creation specs below (LL-06d36ffeeb).
+      WordData.create(:word => 'railymop', :locale => 'es', :data => {})
       WordData.persist_translation('runshkable', 'railymop', 'en', 'es-US', nil)
       expect(WordData.find_word_record('runshkable', 'en')).to eq(b)
       b.reload
@@ -229,6 +249,27 @@ RSpec.describe WordData, :type => :model do
       expect(w1).to_not eq(nil)
       expect(w1.data['translations']).to eq({'en' => 'runshkable'})
       expect(w1.data['types']).to eq(['something'])
+    end
+
+    it "should not create a dictionary row for text it has never seen (LL-06d36ffeeb)" do
+      expect(WordData.find_word_record('grandma betty', 'en')).to eq(nil)
+      expect {
+        WordData.persist_translation('Grandma Betty', 'abuela betty', 'en', 'es-US', 'noun')
+      }.to_not change { WordData.count }
+      # word_data has no user_id/organization_id and is not swept on erasure, so
+      # a row minted from a board label would be readable by every account and
+      # would survive account deletion. Neither direction may be stored.
+      expect(WordData.find_word_record('grandma betty', 'en')).to eq(nil)
+      expect(WordData.find_word_record('abuela betty', 'es')).to eq(nil)
+    end
+
+    it "should still enrich a word the dictionary already knows" do
+      b = WordData.create(:word => 'hat', :locale => 'en', :data => {})
+      expect {
+        WordData.persist_translation('hat', 'sombrero', 'en', 'es-US', nil)
+      }.to_not change { WordData.count }
+      b.reload
+      expect(b.data['translations']).to eq({'es' => 'sombrero', 'es-US' => 'sombrero'})
     end
   end
   

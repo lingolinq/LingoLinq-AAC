@@ -22,7 +22,10 @@ module RemoteUploader
         record.settings['data_uri'] = nil
         record.data = nil if record.respond_to?(:data=)
         record.save
-        render json: {confirmed: true, url: url}.to_json
+        # Ember sets sound.url from this JSON (content-grabbers.js) and
+        # <audio src> plays it (button-settings.hbs). JsonApi::Sound already
+        # returns best_url (lib/json_api/sound.rb:11 -> uploadable.rb:40).
+        render json: {confirmed: true, url: Uploader.fronted_url(url)}.to_json
       else
         render json: {confirmed: false, message: "File not found"}.to_json, status: 400
       end
