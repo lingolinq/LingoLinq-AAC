@@ -72007,7 +72007,22 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    Board Detail page  (/user/:user_id/board-detail/:boardname)
    ──────────────────────────────────────────────────────── */
 
-/* Board detail: collapse the main navbar to maximize screen space */
+/* Board detail: collapse the main navbar to maximize screen space.
+
+   NO `transition` on the transform, deliberately. It used to carry
+   `transition: transform 0.25s ease`, which meant that on an in-app transition into a board
+   -- where this class is added to an ALREADY-RENDERED header sitting at translateY(0) --
+   the navbar ANIMATED off screen instead of being gone. Measured: 13 visible frames over
+   ~290ms, the header's bottom edge sweeping up from 70px to 0. On screen that reads as a
+   second speak bar flashing above the board's own one, because in speak mode this navbar
+   carries Home, the utterance, backspace and clear.
+
+   The transition was vestigial by then: it was there for the `> header:hover` reveal, and
+   the comment below records that reveal being removed entirely. Nothing transitions this
+   header back, so the only thing the 250ms ever animated was the hide -- i.e. the flash.
+
+   A direct page load never showed it, which is why it survived: there the class is applied
+   before the header first paints, so there is no start value to animate from. */
 #within_ember.board-detail-view > header {
   position: fixed;
   top: 0;
@@ -72015,7 +72030,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
   right: 0;
   z-index: 1000;
   transform: translateY(-100%);
-  transition: transform 0.25s ease;
 }
 /* The global navbar stays collapsed off-screen on board-detail to keep
    the modern view immersive. The previous `> header:hover` reveal pulled

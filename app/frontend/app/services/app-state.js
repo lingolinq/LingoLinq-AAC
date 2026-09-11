@@ -676,6 +676,31 @@ export default Service.extend({
   },
   global_transition: function(transition) {
     if(transition.aborted) { return; }
+    /* Ember's SUBSTATES arrive here as their own routeWillChange, named with an UNDERSCORE:
+       `user.board-detail_loading` for templates/user/board-detail-loading.hbs, and
+       `user.board-detail_error` for a rejected model hook. They are intermediate states of a
+       transition that is still in flight, not destinations, and the real route's arrival
+       fires routeDidChange, NOT routeWillChange. So without this guard a substate's name
+       overwrites `current_route` and is never replaced, leaving every consumer reading a
+       route the app is not on -- permanently, for as long as that board stays open.
+
+       Measured consequences when a board-detail loading template was first added:
+         - controllers/application.js:174 `on_board_detail` compares the exact name, so it
+           went false, `board-detail-view` was never applied to #within_ember, and the rule
+           that slides the global header off screen
+           (`#within_ember.board-detail-view > header`) stopped applying -- the app header
+           rendered ABOVE the board's own sentence bar, two stacked speak bars.
+         - `:743` below would null `currentBoardState`, and `:738` would toggle edit mode off.
+
+       `_error` is covered for a sharper reason than symmetry. Losing `board-detail-view`
+       ALSO flips controllers/application.js#useAppNavbarInHeader to false (its `isUserRoute`
+       conjunct stops matching), which swaps the header's contents from <AppNavbar> to the
+       `#speak` classic speak bar -- so an error substate would both RENDER a second speak bar
+       and remove the only thing hiding it. The two failures compound rather than add.
+
+       Skipping the whole function is the same treatment `aborted` already gets one line up,
+       and for the same reason: this is not a navigation. */
+    if((transition.to_route || '').match(/_(loading|error)$/)) { return; }
     var route = this.get('route');
     var from_url = null;
     if(route && typeof route.get === 'function') {
