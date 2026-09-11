@@ -20,6 +20,7 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: `translate_set` fallbacks must apply dest voc, never delete speak text](#gotcha-translate_set-fallbacks-must-apply-dest-voc-never-delete-speak-text)
 - [Gotcha: rebuilding a board must not recapture the edit dirty baseline](#gotcha-rebuilding-a-board-must-not-recapture-the-edit-dirty-baseline)
 - [Gotcha: discard must close display prefs even when More Settings is collapsed](#gotcha-discard-must-close-display-prefs-even-when-more-settings-is-collapsed)
 - [Gotcha: `node:22-bullseye` cannot apt-get after Debian 11 LTS ended 2026-08-31](#gotcha-node22-bullseye-cannot-apt-get-after-debian-11-lts-ended-2026-08-31)
@@ -601,6 +602,12 @@ Keyboard boards use vocalizations as control protocols: `+a` composes spelling, 
 `Board#translate_set` already refuses to overwrite vocalizations matching `^[:+]`, but the Translate Boards review modal (`components/button-set.js`) was still pushing those vocalizations (`:space`, `:shift`, `+q`, `:suggestion`) into `/api/v1/users/self/translate`. The review UI then showed a second row for the token, and `_build_save_translations_map` could persist `':space' => 'espacio'`. Skip at collect / show / save with `shouldTranslateVocalization`; also drop `^[:+]` in `WordData.translate_batch` so Google never sees them even if a client sends them; and do not mirror a translated **label** onto an action vocalization when label and vocalization are both `:space`. Still translate the visible label (`space`, `[ space ]`).
 
 **First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: `translate_set` fallbacks must apply dest voc, never delete speak text
+
+`Board#translate_set` applies `translations[vocalization]` when the hash has a dest string. With `allow_fallbacks` and `set_as_default`, a missing dest voc used to `button.delete('vocalization')`. Switch Language POSTs `translations: {}` and `fallbacks: 'true'`, so dest often has a label and no dest voc — joke sentences (`vocalization` != `label`) were wiped and speak fell back to the title. Keep authored speak text; apply dest-hash voc when present. `translate_set` does not call Google (`users#translate` / `WordData` does). Action tokens `^[:+]` stay untouched.
+
+**First seen in:** [2026-09-11-translate-keep-vocalization.md](./2026-09-11-translate-keep-vocalization.md)
 
 ## Gotcha: Translate Boards tree is not a labeled button set
 
@@ -15699,7 +15706,7 @@ permanent data loss:
 |---|---|
 | client, board-detail save | non-default-locale branch nulls then restores from a translation entry that has no vocalization |
 | client, CLASSIC editor | byte-for-byte twin of the above |
-| server, `translate_set` | deletes any vocalization it cannot translate, with fallbacks on |
+| server, `translate_set` | used to delete any vocalization it cannot translate, with fallbacks on (speak text now kept; see 2026-09-11) |
 | server, `relinking#update_default_locale!` | reassigns from the new locale's entry, deletes when nil |
 
 They share one wrong assumption — *"a vocalization is a word, so a translation can replace it
