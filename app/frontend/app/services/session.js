@@ -692,7 +692,7 @@ export default Service.extend({
       }
       // Flag the bootstrap skeleton's progress card to show logout-
       // appropriate copy ("Signing you out…" / "See you soon") instead
-      // of the default login copy ("Preparing your workspace…"). The
+      // of the default login copy ("Loading boards"). The
       // flag survives the page reload that `reload('/')` triggers a
       // few lines later, and is cleared by the skeleton's inline JS
       // after the first read so subsequent navigations don't keep

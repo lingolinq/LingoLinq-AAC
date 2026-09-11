@@ -9274,5 +9274,7 @@
   "selected_gif": "*** Selected GIF",
   "held_thoughts": "*** Held Thoughts",
   "more_thoughts": "*** More Thoughts",
-  "fewer_thoughts": "*** Fewer Thoughts"
+  "fewer_thoughts": "*** Fewer Thoughts",
+  "loading_boards_title": "*** Loading boards",
+  "preparing_communication_resources": "*** Preparing communication resources"
 }

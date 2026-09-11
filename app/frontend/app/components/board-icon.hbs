@@ -152,13 +152,13 @@
      OR the bottom-center Preview button is clicked. Uses the shared
      `.ll-premium-progress` chrome (same card as the bootstrap
      skeleton + index-loading template) so this loader is visually
-     continuous with every other "Preparing your workspace" state.
+     continuous with every other "Loading boards" state.
      position:fixed so the overlay covers the viewport regardless
      of where this component is rendered. --}}
 {{#if this.loadingPreview}}
   <div class="ll-premium-progress" role="status" aria-live="polite" aria-busy="true">
     <div class="ll-premium-progress__card">
-      <h2 class="ll-premium-progress__title">{{t "Preparing your workspace" key="preparing_your_workspace"}}</h2>
+      <h2 class="ll-premium-progress__title">{{t "Loading boards" key="loading_boards_title"}}</h2>
       <p class="ll-premium-progress__sub">{{t "Loading Board Preview..." key="loading_board_preview"}}</p>
       <div class="ll-premium-progress__bar" aria-hidden="true"></div>
     </div>

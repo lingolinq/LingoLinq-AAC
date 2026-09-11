@@ -965,7 +965,13 @@ var editManager = EmberObject.extend({
     var bounds = elem.getBoundingClientRect();
     var screen_width = window.innerWidth;
     var screen_height = window.innerHeight;
-    var header_height = $("header").height();
+    /* Scoped to the GLOBAL header, and defaulted -- see the matching note in
+       controllers/highlight.js. A bare `$("header")` takes the first <header> in the
+       document, and board-detail renders its own `header.md-board-detail-header`, so this
+       measured the wrong element there. `|| 0` because the value feeds arithmetic below
+       (`Math.max(top, header_height + margin + button_height)`), where `undefined` would
+       propagate NaN into the computed position rather than failing visibly. */
+    var header_height = $("#within_ember > header").height() || 0;
     if(bounds.width > 0 && bounds.height > 0) {
       var margin = 5; // TODO: this is a user pref
       var button_width = bounds.width + (margin * 2);

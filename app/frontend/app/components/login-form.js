@@ -813,11 +813,11 @@ export default Component.extend({
           ].join(';');
           var title = document.createElement('h2');
           title.id = 'll-pre-reload-overlay__title';
-          title.textContent = i18n.t('preparing_your_workspace', 'Preparing your workspace');
+          title.textContent = i18n.t('loading_boards_title', "Loading boards");
           title.style.cssText = 'margin:0 0 8px;font-size:19px;font-weight:500;letter-spacing:0.005em;color:#1B365D;line-height:1.3;transition:opacity 0.3s ease';
           var sub = document.createElement('p');
           sub.id = 'll-pre-reload-overlay__sub';
-          sub.textContent = i18n.t('loading_boards_and_resources', 'Loading boards and communication resources');
+          sub.textContent = i18n.t('preparing_communication_resources', "Preparing communication resources");
           sub.style.cssText = 'margin:0 0 22px;font-size:14px;font-weight:400;letter-spacing:0.01em;color:rgba(27, 54, 93, 0.65);line-height:1.5;transition:opacity 0.3s ease';
           var bar = document.createElement('div');
           bar.setAttribute('aria-hidden', 'true');

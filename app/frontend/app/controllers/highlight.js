@@ -127,7 +127,14 @@ export default modal.ModalController.extend({
       if(model.clear_overlay) {
         opacity = "0.0";
       }
-      var header_height = $("header").outerHeight();
+      /* Scoped to the GLOBAL header, and defaulted. A bare `$("header")` takes the first
+         <header> in the document, and board-detail renders its own
+         `<header class="md-board-detail-header">` (templates/user/board-detail.hbs:1439) --
+         so on that route this silently measured the wrong element, whose height is 0 while
+         the board is collapsed. `|| 0` because the value is interpolated straight into a
+         style string below (`top: -" + header_height + "px`), where `undefined` would ship
+         literal "undefinedpx" and void the declaration. */
+      var header_height = $("#within_ember > header").outerHeight() || 0;
       var window_height = $(window).outerHeight();
       var window_width = $(window).outerWidth();
       var top = model.top;

@@ -65,9 +65,10 @@
     The skeleton mirrors the actual dashboard 2-column layout (Caseload +
     Speak on row 1, Boards + Extras on row 2). A centered frosted-glass
     progress card sits on top with a verdigris→denim gradient bar and
-    primary/secondary text. Text dynamically switches at 3s for slower
-    loads ("Still working… Large board sets…"). When Ember boots,
-    app-state.js:586 removes this #loading_box element. %>
+    primary/secondary text. The card keeps ONE message for the whole boot --
+    the 3s "Still working…" swap was removed because it made a single load
+    read as several; see the note in the context script below. When Ember
+    boots, services/app-state.js:629 removes this #loading_box element. %>
 <%# The live region lives HERE, not only on .ll-skel-progress. The `.is-anonymous`
     branch display:none's that progress card, and it carried the shell's ONLY
     role="status" — so an anonymous visitor opening a shared board link, a lesson link
@@ -118,8 +119,61 @@
     #loading_box.is-signed-out-context .ll-skel-grid {
       display: none;
     }
+
+    /* ── Board context ──────────────────────────────────────────────────────
+       The requested path is a BOARD, so the dashboard chrome above -- pill nav, hero
+       greeting, caseload/speak card grid -- is another page's furniture. It is SWAPPED for
+       a board-shaped skeleton, not suppressed.
+
+       Swapped rather than hidden because `#loading_message` (the boot-failure escalation
+       ladder, including the "contact support" link) and `shared/footer` both live INSIDE
+       #loading_box. Removing chrome would have left a near-empty screen and, in the Rails
+       shell, a marketing footer as the only thing on it. Nothing is removed here.
+
+       This is the one window no Ember-side fix can reach: the skeleton is painted by the
+       server before the bundle has downloaded, so a loading substate cannot cover it.
+       Measured on a throttled cold load: dashboard chrome on screen 2.9s -> 34.4s. */
+    .ll-skel-board {
+      display: none;
+      width: 100%;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 14px 24px 24px;
+    }
+    #loading_box.is-board-context .ll-skel-navbar,
+    #loading_box.is-board-context .ll-skel-pillnav,
+    #loading_box.is-board-context .ll-skel-hero,
+    #loading_box.is-board-context .ll-skel-grid {
+      display: none;
+    }
+    /* `:not(.is-signed-out-context)` rather than a competing later rule: signed-out WINS.
+       A board link opened with no session is heading for the LOGIN page, not that board,
+       so previewing a board grid would promise something that is not about to appear.
+       Expressed as one condition here because the two rules are the same specificity --
+       whichever came second would silently decide it. */
+    #loading_box.is-board-context:not(.is-signed-out-context) .ll-skel-board { display: block; }
+    /* The sentence bar is the landmark of a board -- it is what the user looks at first and
+       what tells them this is their board and not the dashboard. */
+    .ll-skel-board__bar {
+      height: 72px;
+      border-radius: 16px;
+      background: rgba(27, 54, 93, 0.05);
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+    /* Reuses .ll-skel-tile (aspect-ratio 1 + shimmer) from the Boards card above rather than
+       restating it. Six columns is a rough stand-in, not a claim about the user's real grid:
+       a skeleton communicates layout CLASS, not layout truth, and approximately-right beats
+       definitively-another-page. */
+    .ll-skel-board__grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+    }
+
     /* Anonymous arrival (no session, and not mid-logout): nothing is being
-       prepared for anybody yet, so "Preparing your workspace" is simply
+       prepared for anybody yet, so "Loading boards" is simply
        untrue — the app is about to show the landing/login page. Drop the
        progress card entirely and let the backdrop bridge the gap. Logout
        keeps its card; it has real copy to deliver. */
@@ -434,6 +488,32 @@
   <% end %>
 
   <%# Pillnav — Home active filled, then Boards / Reports / Extras %>
+  <%# Board skeleton -- swapped in for the dashboard chrome above when the
+  requested path is a board. See `.is-board-context` in the stylesheet. %>
+  <div class="ll-skel-board" role="presentation" aria-hidden="true">
+    <div class="ll-skel-board__bar ll-skel-shimmer"></div>
+    <div class="ll-skel-board__grid">
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+      <div class="ll-skel-tile ll-skel-shimmer"></div>
+    </div>
+  </div>
+
   <nav class="ll-skel-pillnav" role="presentation" aria-hidden="true">
     <div class="ll-skel-pillnav__pill ll-skel-pillnav__pill--active"></div>
     <div class="ll-skel-pillnav__pill ll-skel-shimmer"></div>
@@ -502,8 +582,8 @@
 
   <%# Premium progress card — frosted glass center overlay %>
   <div class="ll-skel-progress" role="status" aria-live="polite" aria-busy="true">
-    <h2 id="ll-skel-progress-title" class="ll-skel-progress__title">Preparing your workspace</h2>
-    <p id="ll-skel-progress-sub" class="ll-skel-progress__sub">Loading boards and communication resources</p>
+    <h2 id="ll-skel-progress-title" class="ll-skel-progress__title">Loading boards</h2>
+    <p id="ll-skel-progress-sub" class="ll-skel-progress__sub">Preparing communication resources</p>
     <div class="ll-skel-progress__bar" aria-hidden="true"></div>
   </div>
 
@@ -530,6 +610,45 @@
     var t = document.getElementById('ll-skel-progress-title');
     var s = document.getElementById('ll-skel-progress-sub');
     var box = document.getElementById('loading_box');
+
+        /* Board context. The boot skeleton is rendered identically for every route, so a
+           board URL gets the DASHBOARD's chrome until Ember boots -- the "foreign content
+           above the sentence bar" report. Classify the path here and let the stylesheet swap
+           in a board-shaped skeleton instead.
+
+           Wrapped in its own try/catch: this runs before any framework and before TrackJS
+           loads, so an exception here would be SILENT and would strand the user on the
+           skeleton permanently. A failure must fall through to today's behaviour.
+
+           Classification mirrors router.js. `board-detail` and `board` are board MARKERS in
+           segment 2, not exclusions -- /:user/board-detail/:name is the canonical internal
+           form. `filter(Boolean)` drops the empty member a trailing slash produces. */
+        try {
+          var ll_seg = (location.pathname || '').split('/').filter(function(s) { return s; });
+          var LL_TOP = ['about','landing-alt','download','terms','privacy','privacy_practices',
+            'jobs','pricing','features','contact','search','inflections','u','consent','login',
+            'register','beta-welcome-message','beta-welcome','intro','trends','forgot_password',
+            'forgot_login','partners','compare','ambassadors','limited','utterances','start_codes',
+            'admin','lessons','organizations','goals','redeem','gift','purchase','support',
+            'database','system-settings','beta-feedback','faq','offline-boards','profile','eval',
+            'setup','board-picker','speech','demo','jasmine','bento','modern-dashboard','caseload',
+            'create-board','create-board-new'];
+          var LL_USER_SUB = ['home','extras','boards','account','edit','preferences','subscription',
+            'stats','goals','recordings','logs','badges','device','history','lessons','focus',
+            'confirm_registration','password_reset'];
+          var ll_is_board = false;
+          if (ll_seg.length >= 2 && ll_seg.length <= 4 && LL_TOP.indexOf(ll_seg[0]) === -1) {
+            if ((ll_seg[1] === 'board-detail' || ll_seg[1] === 'board') && ll_seg.length >= 3) {
+              ll_is_board = true;
+            } else if (LL_USER_SUB.indexOf(ll_seg[1]) === -1) {
+              /* /:user/:board, and the board's own sub-pages. */
+              if (ll_seg.length === 2) { ll_is_board = true; }
+              else if (ll_seg.length === 3 && (ll_seg[2] === 'history' || ll_seg[2] === 'stats')) { ll_is_board = true; }
+            }
+          }
+          if (ll_is_board && box) { box.classList.add('is-board-context'); }
+        } catch (e) {}
+
     var loggingOut = false;
     // Fail SAFE: if storage is unreadable (private mode, a locked-down
     // webview, a malformed stash) we cannot prove the visitor is
@@ -570,13 +689,27 @@
       }
       // No slow-load swap: there is no card on screen to swap.
     } else {
-      // 3s slow-load swap softens perceived frustration when the
-      // login → dashboard chain is taking a while (large board sets,
-      // slow networks, etc.).
-      setTimeout(function() {
-        if (t) { t.textContent = 'Still working…'; }
-        if (s) { s.textContent = 'Large board sets can take a little longer to prepare.'; }
-      }, 3000);
+      /* NO 3s slow-load swap. It used to replace the card's copy with
+         "Still working… / Large board sets can take a little longer to prepare." after
+         3 seconds.
+
+         Removed because it made ONE load look like several. The sequence a user actually
+         saw on a cold board was three different messages -- "Loading boards", then
+         "Still working…", then the Ember loading card's own wording -- and the third
+         READ AS A RESTART, because it went back to an opening message after the shell had
+         already escalated. Reported twice as "it goes through two separate loading
+         processes".
+
+         The card now keeps one message for the whole boot, and the Ember loading substate
+         (templates/user/board-detail-loading.hbs) renders the SAME two strings, so the
+         handoff between the two elements is invisible.
+
+         The genuine escalation is not lost: `#loading_message` still runs its own ladder
+         below (5s "slow download" telemetry, 60s "there might be a problem … contact
+         support" with a real link). That is a DIFFERENT element with a different job --
+         it reports a fault, where this card only reported elapsed time. */
+    }
+ 3000);
     }
   })();
 </script>
