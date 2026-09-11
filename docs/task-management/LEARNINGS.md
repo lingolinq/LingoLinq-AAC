@@ -20,6 +20,8 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: rebuilding a board must not recapture the edit dirty baseline](#gotcha-rebuilding-a-board-must-not-recapture-the-edit-dirty-baseline)
+- [Gotcha: discard must close display prefs even when More Settings is collapsed](#gotcha-discard-must-close-display-prefs-even-when-more-settings-is-collapsed)
 - [Gotcha: `node:22-bullseye` cannot apt-get after Debian 11 LTS ended 2026-08-31](#gotcha-node22-bullseye-cannot-apt-get-after-debian-11-lts-ended-2026-08-31)
 - [Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`](#gotcha-merging-two-overlay-prs-is-a-union-of-tests-then-regenerate-eslint-todo)
 - [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
@@ -16678,3 +16680,15 @@ A Cloud Run `RemoteTarget.count` is a point-in-time snapshot. Grep showing no `d
 The Cloud Run image build's frontend-builder stage (`Dockerfile` `FROM node:22-bullseye`) runs `apt-get update` against `deb.debian.org/debian-security/dists/bullseye-security`. Debian 11 LTS ended 2026-08-31 ([announcement](https://www.debian.org/News/2026/20260831)); that InRelease is no longer refreshed, so the build fails with "Release file ... is expired". The Ruby stage (`ruby:3.4.4-slim`, bookworm) keeps working in the same log. Do not "fix" this with `Acquire::Check-Valid-Until=false` or `archive.debian.org` — those still build on an unpatched EOL distro. Move the stage to `node:22-bookworm`.
 
 **First seen in:** release PR #952 (2026-09-08 Cloud Run dev deploy).
+
+## Gotcha: rebuilding a board must not recapture the edit dirty baseline
+
+`_build_from_raw` used to call `capture_edit_baseline()` on every full grid build. That replace-all snapshot is correct once (the build itself dirties `translations` / `buttons` / `translated_locales`). A later Symbol Library change rebuilds the same board and folds an unsaved `model.name` into the baseline, so `edit_session_has_changes` goes false and Exit to Home skips the prompt. Skip same-board recapture only while still in the same edit session (`rebaseline_after_build`). Speak-mode builds must not capture: `edit.js` then `processButtons` on entry would skip. Discard, post-save `_build_from_raw`, and edit-route `resetController` must `reset_edit_baseline` first, because this controller is a singleton and those rebuilds reuse the same id. Tests that call `rebaseline_after_build` directly never see a reverted `:1887`.
+
+**First seen in:** [2026-09-09-edit-baseline-and-discard-prefs.md](./2026-09-09-edit-baseline-and-discard-prefs.md) (#955 review; session-reset follow-up 2026-09-10).
+
+## Gotcha: discard must close display prefs even when More Settings is collapsed
+
+`toggle_display_settings` collapses the panel by setting `display_prefs_open` false and keeping `pending_display_prefs`. `_discard_edit_changes` used to send `close_display_preferences` only when the panel was open, so Discard from the collapsed state left the live pref applied and `pending` set. Toolbar `set_display_pref` then never reached `_schedule_display_pref_save` for the rest of the session. Always close; `close_display_preferences` is a no-op when both objects are null. Do not stub `_discard_edit_changes` if that is the body under test.
+
+**First seen in:** [2026-09-09-edit-baseline-and-discard-prefs.md](./2026-09-09-edit-baseline-and-discard-prefs.md) (#955 review).
