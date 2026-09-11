@@ -53,6 +53,10 @@ module('Unit | Controller | user/board-detail discard from a collapsed prefs pan
       rollbackAttributes: function() {}
     }));
 
+    /* Discard reloads the board via persistence.ajax. RSVP.reject()
+     * schedules the failure callback after this test's afterEach
+     * destroys the controller. The production callbacks must no-op
+     * when isDestroyed (board-detail.js _discard_edit_changes). */
     stub(persistence, 'ajax', function() { return RSVP.reject(); });
 
     this.scheduled = 0;

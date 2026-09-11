@@ -4511,6 +4511,7 @@ export default Controller.extend(prefClasses, {
     _this.set('board_loading', true);
     var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
     persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       var merged = boardDetailCache.normalize_board_payload(data);
       if(merged) {
         if(merged.images && merged.images.length) {
@@ -4521,6 +4522,7 @@ export default Controller.extend(prefClasses, {
       }
       _this.set('board_loading', false);
     }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('board_loading', false);
     });
     // Transition back to the index subroute with panels collapsed
