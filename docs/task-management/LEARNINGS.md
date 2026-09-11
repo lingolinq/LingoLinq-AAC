@@ -580,6 +580,12 @@ The Vocal Flair 84 system keyboard (`public/system-boards/keyboard.obz`) is 7×1
 
 **First seen in:** [2026-09-10-caps-lock-button.md](./2026-09-10-caps-lock-button.md)
 
+## Pattern: QWERTY `+s` is a letter; only label `-s` is the plural modifier
+
+`application.js` used to rewrite `+s` to `:plural` when the label matched `/^-?s$/i`. The optional hyphen also matched the keyboard letter `s`/`S`. On an empty sentence `:plural` becomes `i18n.pluralize('')` → `'s'`, and later letters with `caps_lock` append as `TAR`, which shows as `sTAR`. Require `/^-s$/i` via `Button.vocalization_for_activation`. Without caps the leftover `'s'` plus `'tar'` looks like a normal word, so the bug only shows once caps lock uppercases the rest.
+
+**First seen in:** [2026-09-10-caps-lock-star-case.md](./2026-09-10-caps-lock-star-case.md)
+
 ## Pattern: keyboard control vocalizations must survive translation overlay
 
 Keyboard boards use vocalizations as control protocols: `+a` composes spelling, `:space` completes the in-progress word, and `:shift` toggles capitalization. `Board#translated_buttons` must not replace those `:`/`+` vocalizations with visible labels when label and vocalization locales match, or controls start speaking words like “space”/“shift” and letters stop composing. If `lingolinq/keyboard` has stale locale metadata, default it back to English when no user locale or Switch Languages override exists, and repair the content board through `SystemSidebarBoards.ensure_for`.

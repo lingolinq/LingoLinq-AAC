@@ -890,6 +890,16 @@ Button.coerce_level_value = function(attr, val) {
   return val;
 };
 
+// Used by application.js _activateButtonWithOptions before add_button.
+// +s plus a hyphenated "-s" label is the plural/3sg modifier. A plain
+// "s"/"S" label is the QWERTY letter and must stay +s (application.js:1898).
+Button.vocalization_for_activation = function(vocalization, label) {
+  if((vocalization || '').match(/^\+s$/i) && (label || '').trim().match(/^-s$/i)) {
+    return ':plural';
+  }
+  return vocalization;
+};
+
 // Static service registry for use in static methods
 Button._services = {
   appState: null,

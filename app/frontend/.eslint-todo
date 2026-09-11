@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-09-10T22:33:52.728Z
+# Generated: 2026-09-10T23:55:11.891Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -375,7 +375,7 @@ app/controllers/application.js|ember/no-runloop|538|13|2|5addc2170315
 app/controllers/application.js|ember/no-runloop|871|7|2|5addc2170315
 app/controllers/application.js|ember/no-runloop|975|15|2|5addc2170315
 app/controllers/application.js|ember/require-computed-property-dependencies|150|11|1|0c26d9a1d4bc
-app/controllers/application.js|ember/require-computed-property-dependencies|2076|14|1|4d4efd7e8c53
+app/controllers/application.js|ember/require-computed-property-dependencies|2074|14|1|4d4efd7e8c53
 app/controllers/application.js|ember/require-computed-property-dependencies|474|20|1|d82b61ee1323
 app/controllers/application.js|ember/require-computed-property-dependencies|50|19|1|955964149af8
 app/controllers/application.js|ember/require-computed-property-dependencies|72|27|1|955964149af8
@@ -875,15 +875,15 @@ app/utils/board_detail_cache.js|ember/no-runloop|891|5|2|5addc2170315
 app/utils/button.js|ember/no-assignment-of-untracked-properties-used-in-tracking-contexts|48|7|1|ee0d86881397
 app/utils/button.js|ember/no-assignment-of-untracked-properties-used-in-tracking-contexts|60|5|1|ee0d86881397
 app/utils/button.js|ember/no-assignment-of-untracked-properties-used-in-tracking-contexts|62|5|1|ee0d86881397
-app/utils/button.js|ember/no-runloop|1332|9|2|5addc2170315
-app/utils/button.js|ember/no-runloop|1346|11|2|5addc2170315
-app/utils/button.js|ember/no-runloop|1397|11|2|5addc2170315
-app/utils/button.js|ember/no-runloop|1415|11|2|5addc2170315
-app/utils/button.js|ember/no-runloop|2111|13|2|5addc2170315
+app/utils/button.js|ember/no-runloop|1342|9|2|5addc2170315
+app/utils/button.js|ember/no-runloop|1356|11|2|5addc2170315
+app/utils/button.js|ember/no-runloop|1407|11|2|5addc2170315
+app/utils/button.js|ember/no-runloop|1425|11|2|5addc2170315
 app/utils/button.js|ember/no-runloop|2121|13|2|5addc2170315
-app/utils/button.js|ember/no-runloop|2194|15|2|5addc2170315
-app/utils/button.js|ember/no-runloop|2199|15|2|5addc2170315
-app/utils/button.js|ember/no-runloop|2203|9|2|5addc2170315
+app/utils/button.js|ember/no-runloop|2131|13|2|5addc2170315
+app/utils/button.js|ember/no-runloop|2204|15|2|5addc2170315
+app/utils/button.js|ember/no-runloop|2209|15|2|5addc2170315
+app/utils/button.js|ember/no-runloop|2213|9|2|5addc2170315
 app/utils/button.js|ember/require-computed-property-dependencies|140|17|1|a3cf97859aa8
 app/utils/button.js|ember/require-computed-property-dependencies|143|17|1|195b4a1c47a1
 app/utils/button.js|ember/require-computed-property-dependencies|146|15|1|d70890a766a0

@@ -359,6 +359,18 @@ describe('utterance', function() {
       expect(appStateForTest().get('caps_lock')).toEqual(true);
     });
 
+    it("should spell STAR in all caps at the start of a sentence when caps_lock is on", function() {
+      appStateForTest().set('sessionUser.preference.auto_capitalize', true);
+      appStateForTest().set('caps_lock', true);
+      var first = Button.vocalization_for_activation('+s', 's');
+      addButtonForTest({label: "s", vocalization: first});
+      addButtonForTest({label: "t", vocalization: "+t"});
+      addButtonForTest({label: "a", vocalization: "+a"});
+      addButtonForTest({label: "r", vocalization: "+r"});
+      expect(appStateForTest().get('button_list').length).toEqual(1);
+      expect(appStateForTest().get('button_list')[0].label).toEqual("STAR");
+    });
+
     it("should stop forcing capitals after caps_lock is turned off", function() {
       appStateForTest().set('sessionUser.preference.auto_capitalize', false);
       appStateForTest().set('caps_lock', true);
