@@ -84,6 +84,27 @@
 
 .ll-viewswitch.is-open .ll-viewswitch__menu { display: block; }
 
+// Axis headings inside the menu. Not interactive and not focusable -- they exist so the
+// two independent choices (Classic/Card, Gentle/Focused) read as separate groups rather
+// than one list of four.
+.ll-viewswitch__group {
+  padding: 6px 12px 2px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  // 0.62 on the menu's near-white surface measures 4.6:1 -- these are real labels, so
+  // they are held to the 4.5:1 text floor rather than treated as decoration.
+  color: rgba($la-navy, 0.62);
+  cursor: default;
+}
+
+.ll-viewswitch__sep {
+  height: 1px;
+  margin: 4px 0;
+  background: rgba($la-navy, 0.10);
+}
+
 .ll-viewswitch__item {
   display: block;
   width: 100%;

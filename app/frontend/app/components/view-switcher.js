@@ -115,9 +115,41 @@ export default Component.extend({
     return is_classic(this.appState.get('currentUser'));
   }),
 
+  // The SECONDARY axis: Gentle vs Focused, which overlays whichever primary style
+  // (Classic or Card) the user is on. Reads `sessionUser`, NOT `currentUser`, because
+  // `sync_layout_scope` (services/app-state.js:4789) observes
+  // `sessionUser.preferences.dashboard_layout` and is what puts `body.ll-layout-focused`
+  // on the page. Reading anywhere else would let the menu label disagree with the class
+  // actually applied.
+  isFocused: computed('appState.sessionUser.preferences.dashboard_layout', function() {
+    return this.appState.get('sessionUser.preferences.dashboard_layout') === 'focused';
+  }),
+
   actions: {
     toggleMenu: function() {
       this.toggleProperty('menu_open');
+    },
+
+    // Flip Gentle <-> Focused. No navigation: unlike the Classic/Card switch below,
+    // both layouts render at the SAME route and the overlay is a body class, so
+    // flipping the preference is the whole operation.
+    //
+    // Writes `sessionUser` for the reason given on `isFocused` above -- the observer that
+    // applies the body class watches that record, so writing `currentUser` would change
+    // the stored value without re-theming the page.
+    switch_layout: function() {
+      var user = this.appState.get('sessionUser');
+      if(!user || !user.set) { return; }
+      this.set('menu_open', false);
+      var next = this.get('isFocused') ? 'gentle' : 'focused';
+      user.set('preferences.dashboard_layout', next);
+      // Ember Data under-marks the raw `preferences` blob, so the dirty bit has to be
+      // poked or the PUT can be skipped and the choice would not survive a reload.
+      // CREATE the container first: `set('preferences.device.updated')` THROWS on a
+      // record whose preferences carry no `device` key (components/boards-layout-toggle.js:166-172).
+      if(!user.get('preferences.device')) { user.set('preferences.device', {}); }
+      user.set('preferences.device.updated', true);
+      if(user.save) { user.save().then(null, function() { }); }
     },
 
     switch_view: function() {
