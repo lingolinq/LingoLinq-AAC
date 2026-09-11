@@ -1,78 +1,106 @@
 <ModalDialog @desired_width={{850}} @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
-  <div class="modal-header md-modal-header">
-    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-    <h3 style='max-width: calc(100% - 30px);white-space: nowrap;text-overflow: ellipsis;overflow: hidden;'>
-      {{t "GIF Search for \"%{str}\"" str=this.search key="gif_search_for_string"}}
-    </h3>
-  </div>
-  <div class="modal-body advanced_selection modal_targets" style='padding-top: 5px; padding-bottom: 5px;'>
-    <div style='display: none;'>
-      <input value={{this.search}} type="text" class="input" aria-label={{t "Search" key="search"}} {{on "input" (set-field this "search")}} />
-      <button type='button' class="btn btn-default" {{on "click" (this.ctrlAction "search")}}>{{t "Search" key="search"}}</button>
+  {{!-- `advanced_selection modal_targets` on the WRAP: modal.js#scannable_targets
+       scopes everything except `.la-modal-close` to a `.modal_targets` container,
+       so switch/gaze users reach the result tiles and the footer controls through
+       this region. --}}
+  <div class="la-gif-modal-wrap advanced_selection modal_targets">
+    <div class="la-modal-header">
+      <div class="la-modal-header-icon la-modal-header-icon--gif" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3" stroke="#46505F"/><circle cx="8.5" cy="9.5" r="1.8" stroke="#2A9D8F"/><polyline points="4 17 9.5 11.5 14 16 17 13.5 20 16.5" stroke="#2A9D8F"/></svg>
+      </div>
+      {{!-- With an empty speak bar the parameterised title rendered as: GIF Search for ""
+           -- the reusable `gif_search` key is the same title without the dangling quotes. --}}
+      <h3 class="la-modal-header-label">
+        {{#if this.search}}
+          {{t "GIF Search for \"%{str}\"" str=this.search key="gif_search_for_string"}}
+        {{else}}
+          {{t "GIF Search" key="gif_search"}}
+        {{/if}}
+      </h3>
+      <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>&times;</button>
     </div>
 
-    <div style={{if this.flipped "transform: rotate(180deg);"}}>
-      {{#if this.selected_gif}}
-        <img src={{this.selected_gif.image_url}} style='width: 100%; height: calc(100vh - 220px);' class='fit_image'>
-      {{else if this.results}}
-        {{#if this.results.loading}}
-          {{t "Loading results..." key="loading_results"}}
-        {{else if this.results.error}}
-          {{#if (persistence-online)}}
-            {{t "Error loading results" key="error_loading_results"}}
+    <div class="la-gif-modal-body">
+      {{!-- Bound but not shown: the term is seeded from the speak bar in
+           gif.js#opening. Kept in the DOM so the binding and the Search action
+           stay wired if the field is ever surfaced. --}}
+      <div class="la-gif-modal__search" hidden>
+        <input value={{this.search}} type="text" class="input" aria-label={{t "Search" key="search"}} {{on "input" (set-field this "search")}} />
+        <button type='button' class="btn btn-default" {{on "click" (this.ctrlAction "search")}}>{{t "Search" key="search"}}</button>
+      </div>
+
+      <div class="la-gif-modal__stage {{if this.flipped 'la-gif-modal__stage--flipped'}}">
+        {{#if (not this.search)}}
+          {{!-- Nothing in the speak bar. This is not an error and not "no results":
+               nothing was searched for. Mirrors the share modal's empty notice
+               (share-utterance.hbs:162), worded for GIF search. --}}
+          <p class="la-gif-modal__status">{{t "There's nothing to search for yet — add some words to your sentence first." key="nothing_to_gif_search_yet"}}</p>
+        {{else if this.selected_gif}}
+          <img src={{this.selected_gif.image_url}} class='fit_image la-gif-modal__selected' alt={{t "Selected GIF" key="selected_gif"}}>
+        {{else if this.results}}
+          {{#if this.results.loading}}
+            <p class="la-gif-modal__status">{{t "Loading results..." key="loading_results"}}</p>
+          {{else if this.results.error}}
+            <p class="la-gif-modal__status la-gif-modal__status--err">
+              {{#if (persistence-online)}}
+                {{t "Error loading results" key="error_loading_results"}}
+              {{else}}
+                {{t "Error loading results, it appears you are not online" key="error_loading_results_not_online"}}
+              {{/if}}
+            </p>
           {{else}}
-            {{t "Error loading results, it appears you are not online" key="error_loading_results_not_online"}}
+            <div class='cursor_holder la-gif-modal__holder'>
+              <div class='cursor_navigation repair_buttons la-gif-modal__pager'>
+                <button class='btn btn-default btn-lg up la-gif-modal__pager-btn' {{on "click" (this.ctrlAction "move" "up")}} disabled={{this.not_scrollable}}>
+                  <span class='glyphicon glyphicon-chevron-up' aria-hidden="true"></span>
+                  {{t "Up" key="up"}}
+                </button>
+                <button class='btn btn-default btn-lg down la-gif-modal__pager-btn' {{on "click" (this.ctrlAction "move" "down")}} disabled={{this.not_scrollable}}>
+                  <span class='glyphicon glyphicon-chevron-down' aria-hidden="true"></span>
+                  {{t "Down" key="down"}}
+                </button>
+              </div>
+              {{!-- id=gif_scroll is read by gif.js#move -- do not rename. --}}
+              <div class='row cursor_area la-gif-modal__grid' id='gif_scroll'>
+                {{#each this.results.columns as |col|}}
+                  <div class="la-gif-modal__col">
+                    {{#each col.list as |pic|}}
+                      {{#if pic.image_url}}
+                        <a href='#' class="la-gif-modal__pick" {{on "click" (this.ctrlAction "choose" pic)}}>
+                          <img src={{pic.image_url}} class='fit_image la-gif-modal__thumb' alt="">
+                        </a>
+                      {{/if}}
+                    {{/each}}
+                  </div>
+                {{/each}}
+              </div>
+            </div>
           {{/if}}
         {{else}}
-          <div class='cursor_holder'>
-            <div class='cursor_navigation repair_buttons'>
-              <button class='btn btn-default btn-lg up' {{on "click" (this.ctrlAction "move" "up")}} disabled={{this.not_scrollable}}>
-                <span class='glyphicon glyphicon-chevron-up'></span>
-                {{t "Up" key="up"}}
-              </button>
-              <button class='btn btn-default btn-lg down' {{on "click" (this.ctrlAction "move" "down")}} disabled={{this.not_scrollable}}>
-                <span class='glyphicon glyphicon-chevron-down'></span>
-                {{t "Down" key="down"}}
-              </button>
-            </div>
-            <div class='row cursor_area' id='gif_scroll' style='max-height: calc(100vh - 220px);'>
-              {{#each this.results.columns as |col|}}
-                <div style='width: calc(33% - 5px); float: left; margin-right: 5px;'>
-                  {{#each col.list as |pic|}}
-                    {{#if pic.image_url}}
-                      <a href='#' {{on "click" (this.ctrlAction "choose" pic)}}>
-                        <img src={{pic.image_url}} class='fit_image' style='width: 100%; margin-bottom: 5px;' >
-                      </a>
-                    {{/if}}
-                  {{/each}}
-                </div>
-              {{/each}}
-            </div>
-          </div>
-        {{/if}}
-      {{else}}
-        {{t "No results" key="no_results"}}
-      {{/if}}
-    </div>
-    <div class='row repair_buttons' style='margin-top: 10px;'>
-      <div class='col-sm-12'>
-        <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "close")}}>
-          <span class='glyphicon glyphicon-remove'></span>
-          {{t "Close" key="close"}}
-        </button>
-        {{#if this.selected_gif}}
-          <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "back")}}>
-            <span class='glyphicon glyphicon-arrow-left'></span>
-            {{t "Back" key="back"}}
-          </button>
-          <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "flip")}}>
-            <span class='glyphicon glyphicon-repeat'></span>
-            {{t "Flip Image" key="flip_image"}}
-          </button>
+          <p class="la-gif-modal__status">{{t "No results" key="no_results"}}</p>
         {{/if}}
       </div>
+    </div>
+
+    {{!-- Footer actions use the same glass-tile primitive as the big-button modal's
+         (.la-big-button__action) and the share modal's tiles: one system, one
+         hover/focus behaviour. Glyphicons replaced with inline two-tone SVGs --
+         charcoal frame, verdigris accent -- matching the header icon. --}}
+    <div class="la-gif-modal-footer repair_buttons">
+      <button class='btn la-gif-modal__action' {{on "click" (this.ctrlAction "close")}}>
+        <svg class="la-gif-modal__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#2A9D8F"/><line x1="15" y1="9" x2="9" y2="15" stroke="#46505F"/><line x1="9" y1="9" x2="15" y2="15" stroke="#46505F"/></svg>
+        <span class="la-gif-modal__action-label">{{t "Close" key="close"}}</span>
+      </button>
+      {{#if this.selected_gif}}
+        <button class='btn la-gif-modal__action' {{on "click" (this.ctrlAction "back")}}>
+          <svg class="la-gif-modal__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12" stroke="#46505F"/><polyline points="11 18 5 12 11 6" stroke="#2A9D8F"/></svg>
+          <span class="la-gif-modal__action-label">{{t "Back" key="back"}}</span>
+        </button>
+        <button class='btn la-gif-modal__action' {{on "click" (this.ctrlAction "flip")}}>
+          <svg class="la-gif-modal__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9" stroke="#2A9D8F"/><path d="M3 11V9a4 4 0 0 1 4-4h14" stroke="#46505F"/><polyline points="7 23 3 19 7 15" stroke="#2A9D8F"/><path d="M21 13v2a4 4 0 0 1-4 4H3" stroke="#46505F"/></svg>
+          <span class="la-gif-modal__action-label">{{t "Flip Image" key="flip_image"}}</span>
+        </button>
+      {{/if}}
     </div>
   </div>
 </ModalDialog>

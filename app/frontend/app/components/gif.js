@@ -48,6 +48,16 @@ export default Component.extend({
     this.set('results', null);
     this.set('flipped', false);
     this.set('search', '');
+    // Must be assigned HERE, not in didInsertElement. ModalDialog reads @opening
+    // during its own didRender, and a child's didRender runs BEFORE the parent's
+    // didInsertElement -- so assigning there left `opening` undefined at read time
+    // and `opening()` never ran. That is why the search term was never seeded from
+    // the speak bar and the modal opened as GIF Search for "" with No results.
+    // See tests/integration/modal-opening-callback-test.js.
+    // `self` is already bound above by the ctrlAction setup.
+    this.onClose = function() { self.send('close'); };
+    this.onOpening = function() { self.send('opening'); };
+    this.onClosing = function() { self.send('closing'); };
   },
 
   searchGifs() {
@@ -95,8 +105,17 @@ export default Component.extend({
       this.set('results', null);
       this.set('flipped', false);
       const voc = stashes.get('working_vocalization') || [];
-      this.set('search', voc.map(function(v) { return v.label; }).join(' '));
-      this.searchGifs();
+      const term = voc.map(function(v) { return v.label; }).join(' ').trim();
+      this.set('search', term);
+      // Nothing in the speak bar means there is nothing to search for. Firing the
+      // request anyway spent a round trip to come back empty and rendered as
+      // "No results" / an error, which reads as a failure rather than as "you
+      // haven't said anything yet" -- the template shows the empty notice instead.
+      if (term) {
+        this.searchGifs();
+      } else {
+        this.set('results', null);
+      }
     },
     closing() {},
     flip() {
@@ -123,12 +142,5 @@ export default Component.extend({
     }
   },
 
-  didInsertElement() {
-  this._super(...arguments);
-  var self = this;
-    this.onClose = function() { self.send('close'); };
-    this.onOpening = function() { self.send('opening'); };
-    this.onClosing = function() { self.send('closing'); };
-},
 
 });

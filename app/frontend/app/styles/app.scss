@@ -4483,7 +4483,13 @@ tr.accuracy_non_mastered {
 /* Applied in: app/templates/utterance.hbs (line 31) - sentence/utterance display */
 #utterance.button_list {
   width: 100%;
-  margin: -5px 0 20px;
+  /* No vertical margin: the button strip sits inside `.la-utterance-card--message`,
+     which owns the spacing between the quote and the strip. The old
+     `-5px 0 20px` pulled it up under the quote and left a 20px tail that showed
+     as dead space above the card's own padding. `#utterance` exists in exactly
+     one template (templates/utterance.hbs:55) and no JS reads it, so this rule
+     is edited in place rather than overridden. */
+  margin: 0;
   border: 2px solid #ccc;
   border-radius: 5px;
   padding: 10px;
@@ -39720,7 +39726,14 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 }
 .la-share-text-modal-wrap .btn.la-share-text__action--copy      { --tile-tint: #{$brand-verdigris};    --tile-ink: #{$brand-verdigris-aa}; }
 .la-share-text-modal-wrap .btn.la-share-text__action--button    { --tile-tint: #{$brand-honey-bronze}; --tile-ink: #9A6B0F; }
-.la-share-text-modal-wrap .btn.la-share-text__action--email     { --tile-tint: #{$brand-dusty-denim};  --tile-ink: #{$brand-dusty-denim-aa}; }
+/* Email is SILVER rather than a brand hue: Copy/Button/Link each map to a product
+   colour, and email is the one hand-off with no colour of its own. Same tile
+   primitive and same gradient as the other three -- only the tint/ink swap, so it
+   picks up the identical glass treatment, gloss sweep and shadow stack.
+   Measured on the resulting tile (white gradient bottoms out at 0.72 over the tint,
+   the worst case for contrast): label #46505F 6.46:1, icon ink 4.75:1 -- both clear
+   the >=5.4 text / >=3.7 non-text floors this block documents above. */
+.la-share-text-modal-wrap .btn.la-share-text__action--email     { --tile-tint: #98A2B0;                --tile-ink: #5A6472; }
 .la-share-text-modal-wrap a.btn.la-share-text__action--link     { --tile-tint: #{$brand-right-logo};   --tile-ink: #5B4FC7; }
 /* #0866FF is Facebook's current brand blue (refreshed 2023, was #1877F2). Label
    measures 5.43:1 on the resulting tile — AA. */
@@ -40174,22 +40187,73 @@ body.md-ds-active .app-navbar__beta-feedback-link {
 .la-big-button-modal-wrap .cursor_area.any_size .big_btn .big { font-size: clamp(30px, 8vmin, 80px); }
 .la-big-button-modal-wrap .cursor_area.any_size .big_btn .medium { font-size: clamp(22px, 4.5vmin, 30px); }
 .la-big-button-modal-wrap .cursor_area.any_size .big_btn .small { font-size: clamp(17px, 3vmin, 20px); }
-/* Up / Down stay absolutely positioned against `.cursor_holder` (that is what the
-   100px right padding above reserves room for) — only their skin changes. */
-.la-big-button-modal-wrap .cursor_navigation .btn {
+/* ── Up / Down pager skin — SHARED by every modal that has one ──────────────
+   Three modals use the `cursor_holder > cursor_navigation` pager: big-button,
+   gif and repairs. (timer.hbs shares the other cursor_* classes but has no
+   pager.) They had three different vintages — big-button on this glass skin,
+   repairs on an earlier flat one, gif still on raw Bootstrap — so they are
+   unified here rather than re-specified three times.
+
+   Selector notes, both load-bearing:
+   - Scoped per WRAP, not to a bare `.cursor_navigation`, because those classes
+     are shared and an unscoped rule would silently redress other modals (the
+     reason the big-button block above is scoped in the first place).
+   - `.btn` INSIDE `.cursor_navigation` is what limits this to the pager. repairs
+     puts `.la-repairs-btn` on 12 buttons, only 2 of which are the pager, so
+     targeting that class would restyle the whole modal. The repairs arm also
+     carries `.la-repairs-btn` to reach (0,4,0) and beat
+     `.la-repairs-wrap .la-repairs-btn.btn` (0,3,0) outright, rather than relying
+     on source order between two equal-specificity rules.
+
+   Up / Down stay absolutely positioned against `.cursor_holder` (that is what the
+   100px right padding reserves room for) — only their skin changes. `.up` / `.down`
+   are load-bearing for that positioning (app.scss:4605) — do not remove them. */
+.la-big-button-modal-wrap .cursor_navigation .btn,
+.la-gif-modal-wrap .cursor_navigation .btn,
+.la-repairs-wrap .cursor_navigation .btn.la-repairs-btn {
   width: 84px;
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.98);
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 45%, rgba(255, 255, 255, 0.72) 100%), $brand-blue-grey;
   color: $brand-charcoal-blue;
   font-size: 14px;
   font-weight: 700;
-  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.06),
-              0 6px 18px rgba($brand-blue-black, 0.07),
-              inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 1px rgba($brand-blue-black, 0.07),
+              0 2px 4px rgba($brand-blue-black, 0.10),
+              0 12px 30px rgba($brand-blue-black, 0.18),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
-.la-big-button-modal-wrap .cursor_navigation .btn[disabled] {
+.la-big-button-modal-wrap .cursor_navigation .btn .glyphicon,
+.la-gif-modal-wrap .cursor_navigation .btn .glyphicon,
+.la-repairs-wrap .cursor_navigation .btn.la-repairs-btn .glyphicon {
+  display: block;
+  font-size: 20px;
+  color: $brand-verdigris;
+}
+.la-big-button-modal-wrap .cursor_navigation .btn:hover,
+.la-gif-modal-wrap .cursor_navigation .btn:hover,
+.la-repairs-wrap .cursor_navigation .btn.la-repairs-btn:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.72) 45%, rgba(255, 255, 255, 0.60) 100%), $brand-blue-grey;
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba($brand-blue-black, 0.10),
+              0 3px 6px rgba($brand-blue-black, 0.12),
+              0 18px 40px rgba($brand-blue-black, 0.22),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+.la-big-button-modal-wrap .cursor_navigation .btn:focus-visible,
+.la-gif-modal-wrap .cursor_navigation .btn:focus-visible,
+.la-repairs-wrap .cursor_navigation .btn.la-repairs-btn:focus-visible {
+  outline: 3px solid $brand-verdigris;
+  outline-offset: 2px;
+}
+.la-big-button-modal-wrap .cursor_navigation .btn[disabled],
+.la-gif-modal-wrap .cursor_navigation .btn[disabled],
+.la-repairs-wrap .cursor_navigation .btn.la-repairs-btn[disabled] {
   opacity: 0.4;
+  box-shadow: 0 0 0 1px rgba($brand-blue-black, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transform: none;
 }
 .la-big-button__actions {
   display: flex;
@@ -96088,81 +96152,88 @@ blockquote small {
   overflow: visible !important;
 }
 .beta-feedback-drawer-tab--navbar {
-  /* Absolute + top:100% seats the tab immediately BELOW the navbar, and
-     left/right/transform corner-anchor it so it lands clear of everything.
-     This is D10's fix and it is scoped HERE rather than on the base rule
-     because --speak hangs off the bottom edge over the board grid, where the
-     same anchor would cover a communication button (see the base rule).
+  /* ===================== MERGE DIRECTIVE — READ FIRST =====================
+     TOP-CENTRE WINS. This placement supersedes the earlier corner/left anchor
+     (`top: 100%; left: 16px; transform: none`) and every variant of it.
 
-     LEFT corner as of 2026-09-02, previously right. Corner-anchoring is what
-     D10 asked for; which corner is a placement choice, and the left one is now
-     the requested placement. The anti-centring warning below is unaffected —
-     far-left is not centre.
+     Other branches still carry the old anchor, and some carry a comment that
+     says "Do NOT re-add left: 50% ... translateX(-50%)". If a merge, rebase or
+     cherry-pick reintroduces EITHER the left/corner declarations OR that
+     prohibition, the resolution is to KEEP THIS RULE AS WRITTEN and discard the
+     incoming one — do not split the difference, and do not layer a
+     higher-specificity override on top to win the cascade (that is how this
+     rule accumulated its contradictory history in the first place).
+
+     The same applies to the `@media (max-width: 720px)` override further down,
+     which must stay at `top: 0`; an incoming `top: 100%` there re-seats the tab
+     below the navbar on small screens only, which is the harder version of this
+     bug to notice.
+
+     The old prohibition is not wrong about its own case — it is about a
+     PAGE-LEVEL `position: fixed` tab hanging down over content. It does not
+     describe this rule. Reasoning is below.
+     ======================================================================= */
+
+  /* TOP-CENTRE, INSIDE the navbar (requested 2026-09-10). `absolute` + `top: 0`
+     seats the tab on the navbar's own top edge; `left: 50%` + translateX centres
+     it. The rounded-bottom / no-top-border shape still reads correctly there —
+     it hangs from the bar's top edge rather than from the page's.
+
+     This REVERSES the corner anchor D10 asked for, and replaces a comment that
+     said "Do NOT re-add left: 50% ... translateX(-50%)". That prohibition was
+     conditional and its condition is gone: the 2026-08-23 attempt failed because
+     a `#within_ember...` rule was ALSO forcing `position: fixed; top: 0`, so the
+     centring applied to a PAGE-LEVEL tab hanging down over content — which is
+     the mis-tap target D10 actually objected to. That override has since been
+     removed, and this rule stays `absolute`, so the tab cannot escape the navbar.
+     Both recorded traps are about the other placement, not this one: "at top:0
+     the corner is NOT free" concerns CORNER anchoring (Settings / Support /
+     online-status sit there; centre does not), and "top: 100% resolves against
+     the VIEWPORT" only bites under `position: fixed`. The base rule's own note
+     describes top-centre as "where nothing sits".
 
      The offset parent is `.app-navbar__inner`, not `.app-navbar` — the tab is a
      direct child of the inner wrapper (components/app-navbar.hbs:77) and
      `.app-navbar .app-navbar__inner` is `position: relative !important` (~3468).
-     On authenticated pages that resolves to the same place, because
-     #inner_header / .app-navbar / .app-navbar__inner are all pinned to
-     `height: 70px !important` with the navbar's 2rem padding zeroed — so
-     `top: 100%` does land on the navbar's bottom edge. `left: 16px` resolves
-     inside the inner, whose left edge is already 16px in from
-     `.app-navbar { padding-left: 16px !important }` (app.scss:20447), so the tab
-     sits ~32px from the viewport, not 16. That padding is symmetric with
-     `padding-right` on the next declaration (:20449), so the inset matches what
-     the right anchor produced. `.app-navbar__inner { overflow: visible
-     !important }` above is what lets the tab escape the navbar box — and because
-     this is `absolute` rather than `fixed`, that declaration is load-bearing:
-     any ancestor `overflow` in this chain would clip the tab away entirely.
+     `.app-navbar__inner { overflow: visible !important }` above is load-bearing
+     while this is `absolute`: any ancestor `overflow` in this chain would clip
+     the tab. Centring is measured against that inner wrapper, so the tab centres
+     on the navbar's content box rather than the viewport — which is what "centre
+     of the navbar" means when the bar is inset.
 
-     Do NOT re-add `left: 50%; right: auto; transform: translateX(-50%)` here.
-     That was tried on 2026-08-23 to "restore" centring for this variant, on the
-     premise that it sits inside the navbar where centring is correct. At the
-     time a `#within_ember…` rule was also forcing `position: fixed; top: 0`, so
-     the centring applied to a PAGE-LEVEL tab and re-created the exact mis-tap
-     target D10 reported — measured dead centre, 720px of a 1440px viewport.
-     That override has since been removed (see the note further down). Two
-     traps if this is revisited: at top:0 the corner is NOT free — the tab
-     covers Settings / Support / the online-status control; and under
-     `position: fixed` this rule's own `top: 100%` resolves against the VIEWPORT,
-     dropping the tab to y=900, off-screen. */
+     NOT changed here: which pages show the tab at all. That is
+     `showBetaFeedbackDrawerTab` (components/app-navbar.js:46), which suppresses
+     it on board-detail and on a rendered board in speak/edit mode, where
+     application.hbs renders the bottom-centre --speak tab instead. */
   position: absolute;
-  top: 100%;
-  left: 16px;
+  top: 0;
+  left: 50%;
   right: auto;
-  transform: none;
+  transform: translateX(-50%);
 }
 /* Compact sizing through the 721-820 band as well as below 720 (that narrower
    breakpoint lives in the @media block further down and keeps its other rules).
-   Reason is geometric, not cosmetic: from ~700 to ~820 the gap between the
-   navbar (bottom 70) and the home page's secondary nav row beneath it (top 97)
-   is only 28px, while the full-size tab is 36px tall — so a tab seated below
-   the navbar necessarily clips that row. There is no vertical fix; no 36px gap
-   exists. Narrowing the tab (141px vs 172px) reduces its horizontal footprint,
-   which is what bought clearance under the previous anchor.
 
-   STALE AS OF 2026-09-02 — RE-MEASURE BEFORE RELYING ON IT. Every figure below
-   was measured with the tab anchored RIGHT (`right: 16px`), where clearance came
-   from the row's right edge scaling with the viewport while the tab's left edge
-   sat at `100vw - 16 - width`. The tab is now anchored LEFT, so its span is
-   `16 .. 16 + width` and the geometry is against the row's LEFT-hand controls
-   instead — a different collision that has NOT been measured. Narrowing still
-   shrinks the tab, so it cannot make matters worse, but it is no longer known to
-   clear anything.
+   ITS ORIGINAL REASON NO LONGER APPLIES, and the sizing is kept on purpose.
+   The rationale was geometric: with the tab seated BELOW the navbar, the 28px
+   gap between the navbar (bottom 70) and the home page's secondary nav row
+   (top 97) could not fit a 36px tab, so narrowing it (141px vs 172px) bought
+   horizontal clearance. As of 2026-09-10 the tab sits top-centre INSIDE the
+   navbar, so it no longer occupies that gap and cannot clip that row at any
+   width — the collision this block existed to mitigate is gone.
 
-   Superseded measurements, kept for the re-measure: at height 1138 and anchored
-   right, narrowing cleared 760-820 (at 760 the tab's left edge was 603px and the
-   row's rightmost control ended at 578px) and shrank the overlap at 721 from
-   41px to 10px. It did NOT fully clear ~700-740, where a ~10-20px horizontal by
-   6px vertical clip of one control remained — see CLAIM-CHECK-BACKLOG.md A1.
-   Above ~820 the gap opens to 72px+ and the full-size tab was clear regardless.
+   What it now does is keep the tab from crowding the navbar's own controls at
+   narrow widths, where the bar's centre and its left/right clusters converge.
+   That is a real constraint but a DIFFERENT one, and the thresholds below were
+   never measured against it. Treat 721/820 as inherited, not derived: if the
+   tab is seen touching navbar controls, re-measure rather than assuming these
+   numbers were chosen for the current placement.
 
-   Scoped to --navbar: the collision is with a row that only exists beneath the
-   navbar, so there is no reason to shrink the --speak tab (which hangs off the
-   bottom edge) below the 36px it already sits at — 36px is under the 44px
-   recommended target as it is. Kept as its own block rather than widening the
-   `@media (max-width: 720px)` block further down, which sets the same two values
-   but also carries panel sizing that must stay at 720. */
+   The previous anchored-right and anchored-left measurements were deleted with
+   this rewrite: both described a tab hanging beneath the navbar and neither can
+   be re-derived for a centred tab inside it. CLAIM-CHECK-BACKLOG.md A1 tracked
+   a residual ~700-740 clip under the old placement and is moot for the same
+   reason. */
 @media (min-width: 721px) and (max-width: 820px) {
   .beta-feedback-drawer-tab--navbar {
     font-size: 0.95rem;
@@ -96245,18 +96316,13 @@ blockquote small {
 #within_ember:not(.board-alt-view):not(.board-detail-view) .beta-feedback-drawer:not(.beta-feedback-drawer--speak) {
   top: 0;
 }
-/* NOTE: the TAB deliberately has no override here any more — it uses the
-   `.beta-feedback-drawer-tab--navbar` rule's own `position: absolute; top: 100%`,
-   which seats it directly beneath the navbar (position: relative, height 70).
-   It previously forced `position: fixed; top: 0` so the tab could float over the
-   navbar at top-CENTRE, where nothing sits. Corner-anchored that is wrong twice
-   over: at top:0 the tab covers Settings / Support / the online-status control
-   (measured at 1440px), and `position: fixed` also breaks the variant's own
-   `top: 100%`, which then resolves against the VIEWPORT and drops the tab to
-   y=900, off-screen. Absolute + top:100% + a corner inset collides with nothing.
-   (That inset was `right: 16px` when this note was written; the variant is
-   anchored `left: 16px` as of 2026-09-02 — see the rule itself.) The drawer panel
-   above still pins to top: 0 — only the tab changed. */
+/* NOTE: the TAB has no override here. It uses the
+   `.beta-feedback-drawer-tab--navbar` rule's own `position: absolute; top: 0`,
+   which seats it top-centre INSIDE the navbar (position: relative, height 70).
+   Do not reintroduce `position: fixed` for the tab: that variant's placement is
+   measured against `.app-navbar__inner`, and under `fixed` it would resolve
+   against the viewport instead — the failure mode that previously dropped the
+   tab off-screen. The drawer PANEL still pins to top: 0 independently. */
 /* Hide the Beta Feedback drawer + tab entirely while a Shepherd tour is
    running, so the tour chrome owns the screen. Shepherd portals an active
    step's popover (`.shepherd-element.shepherd-enabled`) into <body>; the
@@ -97213,8 +97279,12 @@ body:has(.shepherd-element.shepherd-enabled) .beta-feedback-drawer-tab {
     font-size: 0.95rem;
     min-height: 34px;
   }
+  /* Matches the base variant's `top: 0` (top-centre INSIDE the navbar). This
+     block previously re-seated the tab BELOW the navbar at narrow widths; with
+     the tab now inside the bar there is nothing to clear, and leaving it at
+     100% would have put small screens somewhere the tab no longer belongs. */
   .beta-feedback-drawer-tab--navbar {
-    top: 100%;
+    top: 0;
   }
   /* Speak mode keeps the bottom placement at narrow widths too (was top: 0,
      which overrode the bottom anchor). */
@@ -106094,3 +106164,518 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
 .md-board-category-order__picker-item .md-board-category-order__name {
   color: $la-navy;
 }
+
+/* =========================================================================
+   Shared message page (templates/utterance.hbs)
+   Reached from the Share Text modal's "Link" action. Three audiences share
+   it -- a recipient, the communicator, and a stranger following a public
+   link -- so the content is grouped into discrete cards with one hero
+   (the message) rather than a single running column.
+   Type runs larger than web default throughout: this is an AAC surface and
+   the page is routinely read aloud with someone.
+   ========================================================================= */
+/* The wash goes on the SCROLL CONTAINER, not only on the page div. `.la-utterance-page`
+   has no definite-height parent, so its `min-height: 100%` resolved to its content
+   height: on a short message the page ended above the fold and #content's own white
+   background showed through as a band across the bottom. Painting #content removes the
+   dependency on height entirely. The page keeps the same background as a fallback for
+   browsers without `:has()` (107 other rules in this file already rely on it). */
+/* #within_ember is the element that is actually white (`background: #fff`, ~510) and
+   it is `position: fixed` filling the viewport, so it is the only ancestor guaranteed
+   to cover the full height. #content is a flex item with `min-height: 0` (~903-908):
+   on a short message it does not stretch, and #within_ember's white showed as a band
+   across the bottom. Painting BOTH means the wash is continuous whether or not
+   #content happens to fill. */
+#within_ember:has(.la-utterance-page),
+#content:has(.la-utterance-page) {
+  background:
+    linear-gradient(135deg, rgba($brand-verdigris, 0.07), rgba($brand-dusty-denim, 0.07) 45%, rgba(123, 107, 173, 0.05)),
+    var(--md-bg, #eef1f6);
+}
+.la-utterance-page {
+  background:
+    linear-gradient(135deg, rgba($brand-verdigris, 0.07), rgba($brand-dusty-denim, 0.07) 45%, rgba(123, 107, 173, 0.05)),
+    var(--md-bg, #eef1f6);
+  min-height: 100%;
+  padding: 48px 16px 96px;
+}
+.la-utterance-page__inner {
+  /* Matches the home page's main content width: `.md-main` is
+     `max-width: 1120px !important` (app.scss ~46527), sitting inside
+     `.md-workspace` at `min(1200px, calc(100% - 24px))` (~45667). 1120 is the
+     content measure; 1200 is the frame around it, so 1120 is the right number
+     to mirror here. The horizontal gutter comes from `.la-utterance-page`'s own
+     padding rather than a calc(), so it does not double up. */
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* --- the card primitive: one surface, one elevation ------------------- */
+.la-utterance-card {
+  background: var(--md-surface-2, rgba(255, 255, 255, 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 16px;
+  padding: 14px 18px;
+  /* Three layers, as on the share tiles: a tight contact shadow, a soft
+     ambient drop, and a lit top edge. The inset is what stops the card
+     reading as a flat rectangle on the wash. */
+  box-shadow: 0 1px 2px rgba($brand-blue-black, 0.06),
+              0 10px 28px rgba($brand-blue-black, 0.08),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+}
+/* The message is the hero: more padding, a warmer ground, a deeper lift. */
+.la-utterance-card--message {
+  padding: 16px 20px 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.86)),
+    rgba($brand-verdigris, 0.10);
+  box-shadow: 0 2px 4px rgba($brand-blue-black, 0.07),
+              0 18px 44px rgba($brand-blue-black, 0.10),
+              inset 0 1px 0 rgba(255, 255, 255, 0.98);
+}
+.la-utterance-card--notice { text-align: center; }
+
+.la-utterance-card__eyebrow {
+  margin: 0 0 5px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--md-muted);
+  letter-spacing: 0.01em;
+}
+.la-utterance-card__author { color: $brand-verdigris; font-weight: 700; }
+.la-utterance-card__title {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--md-ink);
+}
+.la-utterance-card__body {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--md-muted);
+}
+
+/* --- the quote ------------------------------------------------------- */
+.la-utterance-quote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.la-utterance-quote__mark {
+  font-size: 30px;
+  line-height: 0.9;
+  font-weight: 800;
+  color: rgba($brand-verdigris, 0.65);
+  flex-shrink: 0;
+}
+.la-utterance-quote__text {
+  flex: 1 1 auto;
+  align-self: center;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--md-ink);
+  word-break: break-word;
+}
+
+/* --- quoted prior message -------------------------------------------- */
+.la-utterance-card--quoted { padding: 12px 16px; }
+.la-utterance-prior {
+  border-left: 4px solid rgba($brand-verdigris, 0.45);
+  padding: 4px 0 4px 14px;
+  white-space: pre-line;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--md-muted);
+}
+
+/* --- reply ------------------------------------------------------------ */
+.la-utterance-vocab {
+  margin: 0 0 9px;
+  font-size: 15px;
+  color: var(--md-muted);
+  line-height: 1.5;
+}
+.la-utterance-vocab__count { font-weight: 600; }
+.la-utterance-vocab__words { color: var(--md-ink); }
+.la-utterance-vocab__more { margin-left: 6px; font-weight: 600; }
+.la-utterance-vocab__used { margin-top: 4px; }
+
+.la-utterance-reply__input {
+  width: 100%;
+  min-height: 92px;
+  font-size: 18px;
+  line-height: 1.5;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba($brand-blue-black, 0.16);
+  background: $surface-100;
+  resize: vertical;
+}
+.la-utterance-reply__input:focus {
+  outline: none;
+  border-color: rgba($brand-verdigris, 0.75);
+  box-shadow: 0 0 0 3px rgba($brand-verdigris, 0.20);
+}
+
+.la-utterance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.la-utterance-actions__primary,
+.la-utterance-actions__secondary { border-radius: 12px; font-weight: 700; }
+
+.la-utterance-status {
+  margin: 12px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.la-utterance-status--ok { color: #1F6B42; }
+
+/* --- private/public link note ---------------------------------------- */
+.la-utterance-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 15px;
+  border-radius: 14px;
+  background: rgba($brand-blue-black, 0.035);
+  border: 1px dashed rgba($brand-blue-black, 0.18);
+}
+.la-utterance-note__text {
+  flex: 1 1 320px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--md-muted);
+}
+.la-utterance-note__action { border-radius: 12px; font-weight: 700; }
+
+/* --- public: speak + share ------------------------------------------- */
+.la-utterance-card--share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.la-utterance-speak {
+  border-radius: 14px;
+  font-size: 19px;
+  font-weight: 700;
+  padding: 12px 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 6px 16px rgba($brand-verdigris, 0.28);
+}
+.la-utterance-sharebar { flex: 1 1 auto; min-width: 0; }
+/* share-bar.hbs floats its row and clears after itself; inside this flex card
+   the float is inert, so the clear div collapses and the row centres. */
+.la-utterance-sharebar #share_links { float: none !important; }
+
+/* --- explainer: one line, for someone who has never seen AAC ---------- */
+.la-utterance-explainer {
+  margin: 0;
+  padding: 11px 15px;
+  border-radius: 14px;
+  background: rgba($brand-dusty-denim, 0.08);
+  border-left: 4px solid rgba($brand-dusty-denim, 0.5);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--md-muted);
+}
+.la-utterance-explainer__link { font-weight: 700; white-space: nowrap; }
+
+/* --- owner settings --------------------------------------------------- */
+.la-utterance-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 11px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.la-utterance-check__box { width: 20px; height: 20px; margin: 0; flex-shrink: 0; }
+.la-utterance-check__label { font-size: 17px; color: var(--md-ink); }
+
+/* Settings card only: its single Save button right-aligns to the card edge, the
+   conventional resting place for a form's commit action. The reply card reuses
+   `.la-utterance-actions` for a Send + Clear pair and stays left-aligned, so this
+   is scoped rather than changed on the shared rule. */
+.la-utterance-card--settings .la-utterance-actions {
+  justify-content: flex-end;
+}
+.la-utterance-preview__help {
+  margin: 0 0 7px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--md-muted);
+}
+.la-utterance-preview__picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.la-utterance-preview__nav { border-radius: 10px; flex-shrink: 0; }
+.la-utterance-preview__frame {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: $surface-100;
+  border: 1px solid rgba($brand-blue-black, 0.10);
+}
+.la-utterance-preview__img { max-height: 120px; max-width: 100%; }
+
+/* --- attributions ----------------------------------------------------- */
+.la-utterance-attrib__toggle { margin: 0; font-size: 15px; }
+.la-utterance-attrib__list { list-style: none; margin: 0; padding: 0; }
+.la-utterance-attrib__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba($brand-blue-black, 0.08);
+  font-size: 15px;
+}
+.la-utterance-attrib__item:last-child { border-bottom: 0; }
+.la-utterance-attrib__item--sound { flex-wrap: wrap; }
+.la-utterance-attrib__thumb { width: 34px; height: 34px; object-fit: contain; flex-shrink: 0; }
+.la-utterance-attrib__sound-label { flex: 1 1 100%; font-size: 16px; color: var(--md-ink); }
+.la-utterance-attrib__audio { flex: 1 1 260px; min-width: 0; }
+
+/* --- page paging controls (eye-gaze / switch) -------------------------
+   Fixed bottom-right, stacked, and ALWAYS present. Sized for gaze dwell rather
+   than a mouse: 84x68 is well past the 44px touch guidance and the 24px of
+   WCAG 2.5.8, because a dwell target must absorb tracker jitter. The page
+   reserves 96px of bottom padding so the last card cannot sit under them. Out
+   of the reading column on wide screens (content caps at 1120px and centres);
+   at narrow widths they overlay the gutter rather than the text. */
+.la-utterance-pager {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 1040;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.la-utterance-pager__btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 84px;
+  height: 68px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.88)), $brand-verdigris;
+  color: $brand-blue-black;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba($brand-blue-black, 0.10),
+              0 12px 28px rgba($brand-blue-black, 0.16),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+.la-utterance-pager__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba($brand-blue-black, 0.12),
+              0 16px 34px rgba($brand-blue-black, 0.20),
+              inset 0 1px 0 rgba(255, 255, 255, 0.98);
+}
+.la-utterance-pager__btn:active { transform: translateY(1px); }
+.la-utterance-pager__btn:focus-visible {
+  outline: 3px solid $brand-verdigris;
+  outline-offset: 2px;
+}
+.la-utterance-pager__icon { color: $brand-verdigris; }
+.la-utterance-pager__label { line-height: 1; }
+
+@media (max-width: 640px) {
+  .la-utterance-page { padding: 32px 12px 92px; }
+  .la-utterance-pager__btn { width: 72px; height: 60px; font-size: 14px; }
+  .la-utterance-card { padding: 18px 16px; }
+  .la-utterance-card--message { padding: 20px 18px 18px; }
+  .la-utterance-quote__text { font-size: 24px; }
+  .la-utterance-quote__mark { font-size: 30px; }
+  .la-utterance-card__title { font-size: 21px; }
+  .la-utterance-actions__primary,
+  .la-utterance-actions__secondary { flex: 1 1 100%; }
+}
+
+/* =========================================================================
+   GIF Search modal (components/gif.hbs)
+   Modernised to the same shell as the Share Text modal: glass wrap, header
+   tile + label + close, scrollable body, discrete footer.
+   ========================================================================= */
+/* The `.modal` qualifier is load-bearing, same as the share modal's header at
+   ~:39570: the universal end-of-file rule `.modal .la-modal-header` (0,2,0)
+   forces 28px top/bottom on every modal and beats an unqualified
+   `.la-gif-modal-wrap .la-modal-header` on source order. (0,3,0) here makes this
+   the authoritative rule. 14px IS the halved value -- 28 -> 14 -- matching the
+   share modal rather than inventing a second number. */
+.modal .la-gif-modal-wrap .la-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+}
+.modal .la-gif-modal-wrap .la-modal-header-label {
+  margin: 0;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: -0.2px;
+  color: var(--md-ink);
+  flex: 1 1 auto;
+  min-width: 0;
+  /* The title carries the search term, which can be a whole sentence from the
+     speak bar -- clamp rather than let it push the close button off. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.modal .la-gif-modal-wrap .la-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: var(--md-muted);
+  cursor: pointer;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: color 0.15s ease;
+}
+.modal .la-gif-modal-wrap .la-modal-close:hover { color: var(--md-ink); }
+
+/* Dual-colour tile: charcoal frame, verdigris content -- the same two-tone
+   treatment the share modal's icon uses. */
+.la-modal-header-icon--gif {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba($brand-verdigris, 0.10);
+  border: 1px solid var(--md-line);
+  flex-shrink: 0;
+}
+
+.la-gif-modal-wrap {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 8px);
+}
+.la-gif-modal-body {
+  /* `min-height: 0` so this becomes the scroller rather than refusing to shrink
+     below its content (a flex item's default is min-height: auto). */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.07), rgba($brand-dusty-denim, 0.07) 45%, rgba(123, 107, 173, 0.05)), $surface-100;
+}
+.la-gif-modal__status {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba($brand-blue-black, 0.03);
+  border: 1px dashed rgba($brand-blue-black, 0.18);
+  color: var(--md-muted);
+  font-size: 15px;
+  font-style: italic;
+}
+.la-gif-modal__status--err { color: $brand-charcoal-blue; font-style: normal; }
+.la-gif-modal__stage--flipped { transform: rotate(180deg); }
+.la-gif-modal__selected { width: 100%; height: calc(100vh - 220px); }
+.la-gif-modal__grid { max-height: calc(100vh - 250px); overflow-y: auto; }
+.la-gif-modal__col { width: calc(33% - 5px); float: left; margin-right: 5px; }
+.la-gif-modal__thumb { width: 100%; margin-bottom: 5px; border-radius: 8px; }
+.la-gif-modal__pick:focus-visible .la-gif-modal__thumb {
+  outline: 3px solid $brand-verdigris;
+  outline-offset: 2px;
+}
+
+/* Footer: the halved counterpart to the header (28 -> 14), and the modal's foot.
+   modal-dialog.hbs yields straight into .modal-content, so this element IS the
+   footer rather than a Bootstrap .modal-footer. */
+.la-gif-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+/* Same glass-tile primitive as .la-big-button__action (~:40216) and the share
+   modal's tiles -- a white gradient over a tint, backdrop blur, and a three-layer
+   shadow with a lit top edge. Reused rather than re-specified so hover, focus and
+   depth stay identical across modals. `.la-gif-modal-wrap .btn` (0,2,0) beats the
+   Bootstrap `.btn` defaults these buttons still carry. */
+.la-gif-modal-wrap .btn.la-gif-modal__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  /* Brighter than the 0.75 the other tiles carry: these sit on the footer's
+     translucent white band rather than on the body wash, so a faint edge
+     disappeared into it. */
+  border: 1px solid rgba(255, 255, 255, 0.98);
+  border-radius: 14px;
+  --tile-tint: #{$surface-300};
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 45%, rgba(255, 255, 255, 0.72) 100%), var(--tile-tint);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  color: $brand-charcoal-blue;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  /* Four layers: a hairline outline ring for definition against the light band,
+     a tight contact shadow, a deeper ambient drop than the body tiles use, and
+     the lit top edge. The ring is a spread-only shadow rather than a second
+     border so it does not change the box size or fight the border-radius. */
+  box-shadow: 0 0 0 1px rgba($brand-blue-black, 0.07),
+              0 2px 4px rgba($brand-blue-black, 0.10),
+              0 12px 30px rgba($brand-blue-black, 0.18),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.la-gif-modal-wrap .btn.la-gif-modal__action:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.72) 45%, rgba(255, 255, 255, 0.60) 100%), var(--tile-tint);
+  border-color: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba($brand-blue-black, 0.10),
+              0 3px 6px rgba($brand-blue-black, 0.12),
+              0 18px 40px rgba($brand-blue-black, 0.22),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+.la-gif-modal-wrap .btn.la-gif-modal__action:active { transform: translateY(1px); }
+.la-gif-modal-wrap .btn.la-gif-modal__action:focus-visible {
+  outline: 3px solid $brand-verdigris;
+  outline-offset: 2px;
+}
+.la-gif-modal__action-icon { flex-shrink: 0; }
+.la-gif-modal__action-label { line-height: 1; }

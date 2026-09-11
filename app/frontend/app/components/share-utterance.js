@@ -307,6 +307,39 @@ export default Component.extend({
           utterance_id: this.get('utterance_record.id')
         });
       } else if (medium === 'big_text') {
+        // KNOWN, DEV-ONLY, NOT FULLY DIAGNOSED (2026-09-11).
+        // With dev tools OPEN, a real mouse click on the Button tile does nothing:
+        // no modal, no console error, no assertion. With dev tools CLOSED it works,
+        // so users are not affected -- do not "fix" this from the symptom alone.
+        //
+        // Established:
+        //  - the modal machinery is NOT at fault. tests/integration/big-button-nested-open-test.js
+        //    pins service open, container render, the utils/modal path, the nested
+        //    replace, and the full speak-menu -> share-utterance -> big-button
+        //    sequence. All green.
+        //  - a synthetic `document.querySelector('.la-share-text__action--button').click()`
+        //    opens the modal correctly, so the action and `modal.open` are fine.
+        //  - `elementFromPoint` at the tile centre returns the tile's own label span,
+        //    so nothing is covering it.
+        //  - on a failing click, focus lands on `.la-modal-close` instead -- consistent
+        //    with the click being consumed and focus falling back to the first
+        //    focusable element (it is targets[0] in DOM order; see
+        //    utils/modal.js#scannable_targets).
+        //  - suspected mechanism: the delegated `.advanced_selection` click handler at
+        //    utils/raw_events.js:807 preventDefault()s and stopPropagation()s everything
+        //    outside its allowlist, and on the <500ms-since-release branch its own
+        //    comment says it "skip[s] the ember listeners".
+        //
+        // NOT explained: why Copy and Link, which are structurally identical
+        // `<button class="btn btn-default ...">` tiles in the same row, are unaffected.
+        // Any fix that cannot account for that difference is aimed at the wrong thing.
+        //
+        // Touch is believed safe: raw_events' mouse path relies on the browser's native
+        // click (preventDefault on `mouseup` does not cancel it), while touchend DOES
+        // cancel and is covered by modalDialogClickRelease, which requires a
+        // `.modal-content` ancestor -- ModalDialog renders one (components/modal-dialog.hbs:9).
+        // Untested on real hardware. If a tablet, dwell or eye-gaze user ever reports
+        // mis-targeting in a modal, start here.
         modal.open('modals/big-button', {
           text: this.get('sentence'),
           text_only: app_state.get('referenced_user.preferences.device.button_text_position') === 'text_only'

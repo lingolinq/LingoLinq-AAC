@@ -914,10 +914,30 @@ module Uploader
       else
       end
       key = ENV['GIPHY_KEY']
-      res = Typhoeus.get("https://api.giphy.com/v1/gifs/search?q=#{CGI.escape(str)}&api_key=#{key}&lang=#{lang}&rating=#{rating}", timeout: 5)
-      results = JSON.parse(res.body)
       list = []
-      results['data'].each do |result|
+      # Every step here is guarded because none of them are guaranteed. An unset
+      # GIPHY_KEY is the commonest case -- it is absent from .env.example, so a
+      # fresh checkout has none and every GIF search fails -- but a rate limit, an
+      # outage or an HTML error page produce the same shape: a response with no
+      # `data` array. `results['data'].each` on that raised NoMethodError and
+      # surfaced to the client as a 500, which the GIF modal renders as
+      # "Error loading results", indistinguishable from a genuine search failure.
+      # Degrade to an empty result set and log the reason instead.
+      data = nil
+      if key.blank?
+        Rails.logger.warn('giphy search skipped: GIPHY_KEY is not configured')
+      else
+        res = Typhoeus.get("https://api.giphy.com/v1/gifs/search?q=#{CGI.escape(str)}&api_key=#{key}&lang=#{lang}&rating=#{rating}", timeout: 5)
+        results = JSON.parse(res.body) rescue nil
+        data = results && results['data']
+        if !data.is_a?(Array)
+          # Deliberately logs the response, never the request URL or `key` -- the
+          # key is a credential and the URL embeds it.
+          Rails.logger.warn("giphy search failed: code=#{res.respond_to?(:code) ? res.code : 'none'} body=#{res.body.to_s[0, 120]}")
+          data = nil
+        end
+      end
+      (data || []).each do |result|
         if library == 'giphy' || (result['slug'].match(/signwithrobert/) || result['slug'].match(/asl/))
           list << {
             'url' => (result['images']['original']['url'] || '').sub(/^http:/, 'https:'),
