@@ -183,6 +183,69 @@
                 <span class="md-speak-menu__btn-label">{{t "Hold Thought" key='hold_thought'}}</span>
               </div>
             </div>
+            {{!-- HELD THOUGHTS sit directly under the row, inside Actions, because this is
+                  where the thought was parked from. They used to be the first rows of the
+                  phrase library below, behind the "Show My Phrases" expander that
+                  `opening()` re-collapses on every open -- two activations away, and filed
+                  under a library they are not part of. A held thought exists in one slot,
+                  is saved nowhere, and is lost if it is not picked back up.
+
+                  `md-speak-menu__bottom-btn` is REQUIRED on these rows, not decorative: it
+                  is one of the class names raw_events.js matches to resolve a dwell/gaze
+                  tap inside the speak_menu region, and modal.js#scannable_targets lists it
+                  for switch scanning. Renaming it would leave these reachable by mouse only.
+
+                  The `id` is what makes a row selectable by SCANNING -- scanner.js reads
+                  `dom.attr('id')` and fires speakmenuselect with it; with no id the
+                  selection arrives as `undefined` and silently does nothing. Indexed, not
+                  named, because two held thoughts can legitimately read the same. The
+                  index is into `heldThoughts`, which button_event reads back. --}}
+            {{#if this.heldThoughts}}
+              <div class="md-speak-menu__section-label md-speak-menu__held-label">{{t "Held Thoughts" key='held_thoughts'}}</div>
+              <div class="md-speak-menu__phrase-list md-speak-menu__held-list">
+                {{#each this.heldThoughts as |utterance index|}}
+                  <button type="button" id="menu_held_{{index}}" class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--remembered md-speak-menu__bottom-btn--resume" {{on "click" (this.ctrlAction "selectButton" utterance)}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+                    {{!-- Two different promises, so two different words. "Resume:" is the
+                          user's own -- they hit Hold Thought and this is what they parked.
+                          "Swap back:" is the app's: their sentence was bumped here to make
+                          room for whatever they just resumed or said. --}}
+                    {{#if utterance.swapped}}
+                      <span class="md-speak-menu__remembered-kind">{{t "Swap back: " key='swap_back_colon'}}</span>
+                    {{else}}
+                      <span class="md-speak-menu__remembered-kind">{{t "Resume: " key="resume_colon"}}</span>
+                    {{/if}}
+                    <span class="md-speak-menu__remembered-text">"{{utterance.sentence}}"</span>
+                  </button>
+                {{/each}}
+                {{!-- Expands the list IN PLACE; only rendered when there is something to
+                      expand. It deliberately does NOT hand off to the Phrases modal, which
+                      was the first design: that modal renders only `category_phrases`, and
+                      that filters on `u.category === cat` (components/phrases.js:124) while
+                      held thoughts are pushed in with no `category` at all -- so they appear
+                      in none of its tabs, and "More Thoughts" would have led to an empty
+                      list. Expanding here keeps them where they actually render.
+
+                      `aria-expanded` because this is a disclosure, not navigation, and a
+                      switch or screen-reader user gets no other signal that the same control
+                      will collapse it again. --}}
+                {{#if this.heldThoughtsOverflow}}
+                  <button type="button" id="menu_more_thoughts_button"
+                          class="md-speak-menu__bottom-btn md-speak-menu__bottom-btn--more-thoughts {{if this.held_expanded 'md-speak-menu__bottom-btn--more-thoughts-open'}}"
+                          aria-expanded={{if this.held_expanded "true" "false"}}
+                          {{on "click" (this.ctrlAction "more_thoughts")}}>
+                    <svg class="md-speak-menu__more-thoughts-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                    <span class="md-speak-menu__remembered-text">
+                      {{#if this.held_expanded}}
+                        {{t "Fewer Thoughts" key='fewer_thoughts'}}
+                      {{else}}
+                        {{t "More Thoughts" key='more_thoughts'}}
+                      {{/if}}
+                    </span>
+                  </button>
+                {{/if}}
+              </div>
+            {{/if}}
           </div>
 
           {{/unless}}

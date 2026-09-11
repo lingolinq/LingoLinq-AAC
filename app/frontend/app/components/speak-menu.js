@@ -39,6 +39,16 @@ const PHRASE_PAGER_H = 56;
 const PHRASE_PAGE_SIZE_DEFAULT = 4;
 /* How many times the fit may step down before giving up — see apply_phrase_page_size. */
 const PHRASE_FIT_TRIES = 4;
+/* Held thoughts shown inline under the Actions row; the rest are behind "More Thoughts".
+   A module constant, not a component property, so the computeds that read it do not have
+   to declare it as a dependency — it never changes.
+
+   TWO, not more: the Actions tile row is the anchor of this menu, and every row added
+   under it pushes Phrases, Board Languages and Speak Mode further down — on a short screen
+   or a large vocalization-size preference they go below the fold entirely. Two covers the
+   common case (the thought just parked, and the one before it) and the expander carries
+   the rest without costing anyone that space by default. */
+const HELD_THOUGHTS_SHOWN = 2;
 
 export default Component.extend({
   modal: service('modal'),
@@ -179,22 +189,58 @@ export default Component.extend({
     }
   ),
 
+  /* Held thoughts, surfaced in the ACTIONS section directly under the button row rather
+     than in the phrase library below.
+
+     They used to be the first rows of `all_phrases`, which put them behind the "Show My
+     Phrases" expander that `opening()` re-collapses on every open (:434) — so a held
+     thought was two activations away and filed under the user's saved-phrase library.
+     The two are not the same kind of thing: a saved phrase is a library entry that
+     persists and can be returned to any time, while a held thought exists in exactly one
+     slot, is saved nowhere, and is LOST if it is not picked back up. It belongs beside
+     the button that created it.
+
+     Deliberately NOT gated on `phrases_expanded`: that flag governs the library.
+
+     Windowed to the most recent few unless expanded (HELD_THOUGHTS_SHOWN). `_phrase_parked`
+     is newest-first, so those are the ones a user is most likely to want back; "More
+     Thoughts" reveals the rest IN PLACE.
+
+     The overflow deliberately does NOT hand off to the Phrases modal, which is where it
+     first pointed: that modal renders only `category_phrases`, which filters on
+     `u.category === cat` (components/phrases.js:124), and held thoughts are pushed into
+     its list with no `category` at all (`:67-72`, and the comment at `:147-150` says so).
+     They therefore appear in NO tab there. Expanding here keeps them somewhere they
+     actually render. */
+  heldThoughts: computed('_phrase_parked', 'held_expanded', function() {
+    var all = this.get('_phrase_parked') || [];
+    if (this.get('held_expanded')) { return all; }
+    return all.slice(0, HELD_THOUGHTS_SHOWN);
+  }),
+
+  /* Gates the expander. Counted off the WHOLE parked list, not the windowed one, which is
+     the only reason `_phrase_parked` is kept unsliced. Stays true while expanded so the
+     control remains available to collapse again. */
+  heldThoughtsOverflow: computed('_phrase_parked', function() {
+    return (this.get('_phrase_parked') || []).length > HELD_THOUGHTS_SHOWN;
+  }),
+
   /* NOTHING until asked for. The section used to open with a three-row shortcut (the parked
      entries plus the most recent saved phrase); it now shows only "Create Phrases" and the
      "Show My Phrases" expander, and the library appears on request.
-     NOTE for whoever reads this next: the parked entries — "Resume:" / "Swap back:", which
-     exist nowhere else in the app — are part of this list, so they sit behind the expander
-     too. They are its FIRST rows, so one activation reveals them. */
-  all_phrases: computed('_phrase_parked', '_phrase_saved', 'phrases_expanded', function() {
+     Parked entries are NO LONGER part of this list — see `heldThoughts` above. */
+  all_phrases: computed('_phrase_saved', 'phrases_expanded', function() {
     if (!this.get('phrases_expanded')) { return []; }
-    return (this.get('_phrase_parked') || []).concat(this.get('_phrase_saved') || []);
+    return [].concat(this.get('_phrase_saved') || []);
   }),
 
   /* Is there anything to reveal? Gates the expander — offering to open a library that is
-     empty is worse than saying nothing. Counted off the raw lists, NOT `all_phrases`, which
-     is deliberately empty while collapsed. */
-  phrase_total: computed('_phrase_parked', '_phrase_saved', function() {
-    return (this.get('_phrase_parked') || []).length + (this.get('_phrase_saved') || []).length;
+     empty is worse than saying nothing. Counted off the raw list, NOT `all_phrases`, which
+     is deliberately empty while collapsed. Held thoughts are excluded because they no
+     longer appear in the library; counting them here offered to expand a library that
+     could turn out to have nothing in it. */
+  phrase_total: computed('_phrase_saved', function() {
+    return (this.get('_phrase_saved') || []).length;
   }),
 
   /*
@@ -354,6 +400,15 @@ export default Component.extend({
   },
 
   actions: {
+    /* The pointer path for "More Thoughts". A scanning selection arrives by id instead and
+       is handled in button_event; a <button> never reaches that branch because raw_events
+       dispatches a passthrough click for BUTTON tags, so the two paths do not double-fire.
+       Expands the held list IN PLACE — it must not close the menu, for the same reason
+       `toggle_phrases` must not: revealing rows and dismissing the panel that shows them
+       is useless. */
+    more_thoughts() {
+      this.toggleProperty('held_expanded');
+    },
     toggle_phrases() {
       this.toggleProperty('phrases_expanded');
       /* Back to page 1: collapsing and re-expanding should not resume mid-library. */
@@ -390,10 +445,24 @@ export default Component.extend({
        * again; the rest are one tap away, and the note under the list says so.
        *
        * `vocalizations` is newest-first — app_state#save_phrase unshifts — so element 0 is
-       * genuinely the most recent, not merely the first stored.
+       * genuinely the most recent, not merely the first stored. That applies to the
+       * signed-in `saved` list ONLY. `remembered_vocalizations`, which both lists below
+       * read, is the opposite: stashes#remember PUSHES, so its element 0 is the OLDEST.
        */
       var all_remembered = this.stashes.get('remembered_vocalizations') || [];
-      var parked = all_remembered.filter(function(u) { return u.stash; }).slice(0, 2);
+      /* NEWEST FIRST, for the same reason the `saved` branch below reverses (:416):
+         stashes#remember PUSHES, so element 0 of the raw array is the OLDEST.
+
+         This used to end in `.slice(0, 2)`, which therefore surfaced the two OLDEST held
+         thoughts — once two existed, every later Hold Thought landed at the end and could
+         never enter the window, so the sentence was parked but permanently invisible.
+         Re-parking an existing sentence made it worse: _stashes.js:438-442 MOVES a
+         duplicate to the end, so repeating a held thought removed it from view.
+
+         Kept WHOLE here and windowed in `heldThoughts` instead, because the menu needs the
+         full count to decide whether to offer "More Thoughts".
+         Pinned by tests/unit/components/speak-menu-parked-order-test.js. */
+      var parked = all_remembered.filter(function(u) { return u.stash; }).reverse();
       var saved = [];
       if (this.appState.get('currentUser')) {
         saved = (this.appState.get('currentUser.vocalizations') || [])
@@ -423,6 +492,10 @@ export default Component.extend({
       this.set('_phrase_parked', parked);
       this.set('_phrase_saved', saved);
       this.set('phrases_expanded', false);
+      /* Collapsed on every open, like the phrase library above it. The three most recent
+         held thoughts are the common case; an expansion left over from a previous open
+         would push the sections below out of reach on a short screen. */
+      this.set('held_expanded', false);
       this.set('phrase_page', 0);
       this.set('phrase_page_size', PHRASE_PAGE_SIZE_DEFAULT);
       /* Re-fit on resize: rotating a tablet or resizing the window changes how many
@@ -581,6 +654,30 @@ export default Component.extend({
         if (button === 'menu_phrase_up_button' || button === 'menu_phrase_down_button') {
           click();
           _this.send('phrase_page_move', button === 'menu_phrase_up_button' ? 'up' : 'down');
+          return;
+        }
+        /* "More Thoughts", selected by SCANNING. Expands the held list in place. Handled
+           BEFORE the generic close below and returns without closing — same shape as the
+           More Phrases expander above, and load-bearing for the same reason: expanding a
+           list and immediately dismissing the panel that shows it would be useless. */
+        if (button === 'menu_more_thoughts_button') {
+          click();
+          _this.send('more_thoughts');
+          return;
+        }
+        /* A held thought, selected by SCANNING. Same shape as the saved-phrase rows below,
+           but indexed into `heldThoughts` — these now live in the Actions section and are a
+           different list. Indexing the wrong one would resume someone's saved phrase in
+           place of the thought they parked. */
+        if (button && button.indexOf('menu_held_') === 0) {
+          var held_idx = parseInt(button.slice('menu_held_'.length), 10);
+          var held = (_this.get('heldThoughts') || [])[held_idx];
+          if (held) {
+            click();
+            _this.send('selectButton', held);
+          } else {
+            _this.get('modal').close();
+          }
           return;
         }
         if (button && button.indexOf('menu_remembered_') === 0) {

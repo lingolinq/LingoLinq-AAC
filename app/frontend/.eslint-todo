@@ -1,7 +1,7 @@
 # ESLint baseline (grandfathered findings). Do not hand-edit.
 # Regenerate: npm run lint:js:todo
 # Format: file|ruleId|line|column|severity|messageHash
-# Generated: 2026-09-10T03:44:35.040Z
+# Generated: 2026-09-11T17:36:35.202Z
 app/app.js|ember/no-runloop|102|5|2|0843889163d3
 app/app.js|ember/no-runloop|168|7|2|0843889163d3
 app/app.js|ember/no-runloop|193|7|2|0843889163d3
@@ -307,8 +307,8 @@ app/components/share-bar.js|ember/require-super-in-lifecycle-hooks|13|3|1|04fd54
 app/components/share-utterance.js|ember/no-runloop|270|9|2|5addc2170315
 app/components/share-utterance.js|ember/require-computed-property-dependencies|208|11|1|416b9aa48c5e
 app/components/share-utterance.js|ember/require-computed-property-dependencies|251|20|1|d8e9e8b60adb
-app/components/speak-menu.js|ember/no-runloop|475|7|2|5addc2170315
-app/components/speak-menu.js|ember/no-runloop|476|7|2|5addc2170315
+app/components/speak-menu.js|ember/no-runloop|548|7|2|5addc2170315
+app/components/speak-menu.js|ember/no-runloop|549|7|2|5addc2170315
 app/components/speech-listener.js|ember/require-super-in-lifecycle-hooks|129|3|1|04fd54f45db7
 app/components/speech-listener.js|ember/require-super-in-lifecycle-hooks|8|3|1|04fd54f45db7
 app/components/stats/core-list.js|ember/require-computed-property-dependencies|20|15|1|ef8bd1a6aeea

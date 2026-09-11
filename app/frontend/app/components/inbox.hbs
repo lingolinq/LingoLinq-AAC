@@ -1,132 +1,187 @@
 <ModalDialog @action={{this.onClose}} @opening={{this.onOpening}} @closing={{this.onClosing}}>
-  <div class="modal-header md-modal-header">
-    <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-    </button>
-    <h3>{{t "Messages and Alerts" key="messages_and_alerts"}}
-    </h3>
-  </div>
-  {{!-- `modal_targets` is what makes this modal SCANNABLE. modal.js#scannable_targets
-        selects `.modal-dialog .modal_targets .btn, … a, … .md-speak-menu__btn, …`, and
-        modal.js#open stops the scanner unconditionally then restarts it only when that
-        query returns something. Without this class the query returned zero, so opening
-        Alerts from the speak menu — which passes `scannable: true` — stopped scanning
-        and never restarted it: a switch user was left in a modal with no reachable rows
-        and no reachable close, stuck until someone else clicked or pressed Escape. --}}
-  <div class="modal-body md-modal-body modal_targets">
-    {{#if this.app_state.referenced_user.request_alert}}
-      {{#if this.app_state.referenced_user.request_alert.user.avatar_url}}
-        <img src={{this.app_state.referenced_user.request_alert.user.avatar_url}} style='float: left; height: 75px; margin-right: 10px;' >
-      {{/if}}
-      {{#if this.app_state.referenced_user.request_alert.model}}
-        <p>
-          <strong>{{this.app_state.referenced_user.request_alert.user.user_name}}</strong>
-          {{t "wants to pair with you for remote modeling. They will see your button presses, as well as be able to add visual prompts and start a video or audio call with this device. Other supervisors will be able to follow your actions during pairing. Would you like to accept this pairing?" key="confirm_pairing"}}
-        </p>
-      {{else}}
-        <p>
-          <strong>{{this.app_state.referenced_user.request_alert.user.user_name}}</strong>
-          {{t "wants to follow your activity. If you enable following for this Speak Mode session, other supeervisors will also be able to follow your activity. Would you like to enable followers for this Speak Mode session?" key="confirm_following"}}
-        </p>
-      {{/if}}
-    {{else if this.current}}
-      {{#if this.current.author.image_url}}
-        <img src={{this.current.author.image_url}} style='width: 50px; height: 50px; float: left; margin: -20px 5px 0 0;' class='fit_image' >
-      {{/if}}
-      {{t "from" key="from"}} <strong>{{display-name this.current.author}}</strong> <span class='text-muted'>{{t "at" key="at"}} {{date this.current.sent}}</span>
-      <div style='clear: left;'></div>
-      <div id='alert_message' class={{this.current_class}}>
-        {{#if this.current_with_images}}
-          <div style='white-space: normal; margin-top: -50px;'>
-            {{#each this.current_with_images as |part|}}<span style='display: inline-block; text-align: center; margin-bottom: 5px;'>
-              {{#if part.image}}
-                <div style='border: 1px solid #ddd; padding: 5px; border-radius: 10px; min-width: 100px;'>
-                  <span style='height: 40px; display: block; width: 100%;'>
-                    {{#if part.image}}
-                      <img src={{part.image}} class='fit_image' style='height: 40px; 100%; min-width: 40px;'>
-                    {{/if}}
-                  </span>
-                  <span style='white-space: pre;'>{{part.str}}</span>
-                </div>
-              {{else}}
-                <span style='height: 40px; display: block; width: 100%;'>
-                </span>
-                <span style='white-space: pre;'>{{part.str}}</span>
-              {{/if}}
-            </span>{{/each}}
-          </div>
-        {{else}}
-          {{this.current.text}}
-        {{/if}}
+  {{!-- `modal_targets` on the WRAP. modal.js#scannable_targets scopes everything
+        except `.la-modal-close` to DESCENDANTS of a `.modal_targets` container, so a
+        single container here covers the alert rows in the body AND the controls in the
+        footer. It previously sat on the body alone, and because the footer is a SIBLING
+        of the body every footer control -- Speak, Reply, Back, Clear All, Close, and
+        Accept/Cancel Pairing -- was invisible to the scanner. A switch user could reach
+        only the header x. The pair-request branch was worst: its body holds no button at
+        all, so a remote-modeling request could be dismissed but never answered.
+        Pinned by tests/integration/inbox-footer-scannable-test.js.
+
+        Deliberately NOT `advanced_selection`, which gif.hbs and share-utterance.hbs
+        carry: that class is dwell/gaze behaviour, not styling, and it routes clicks
+        through the delegated handler at raw_events.js:807 which preventDefault()s
+        everything outside a fixed allowlist the inbox does not match. Adding it would
+        put the pairing-consent buttons on the same path as the undiagnosed click
+        failure documented in share-utterance.js#share_via. Dwell reachability here is a
+        separate, still-open problem that repairs.hbs and phrases.hbs share. --}}
+  <div class="la-inbox-modal-wrap modal_targets">
+    <div class="la-modal-header">
+      <div class="la-modal-header-icon la-modal-header-icon--inbox" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" stroke="#46505F"/><polyline points="3 7 12 13 21 7" stroke="#2A9D8F"/></svg>
       </div>
-      {{#if this.current.prior}}
-        <div style='white-space: normal; margin-top: 30px;'>
-          <div class='text-muted'>{{t "in reply to" key="in_reply_to"}}{{#if this.current.prior_author}} {{t "message from" key="message_from"}} {{this.current.prior_author}}{{/if}}:</div>
-          <div style='border-left: 2px solid #ddd; padding: 5px 0 5px 20px; white-space: pre-line; font-style: italic;'>{{this.current.prior}}</div>
+      <h3 class="la-modal-header-label la-inbox-modal__title">{{t "Messages and Alerts" key="messages_and_alerts"}}</h3>
+      <button type="button" class="la-modal-close" {{on "click" (this.ctrlAction "close")}} aria-label={{t "Close" key="close"}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="la-inbox-modal-body">
+      {{#if this.app_state.referenced_user.request_alert}}
+        <div class="la-inbox__request">
+          {{#if this.app_state.referenced_user.request_alert.user.avatar_url}}
+            <img src={{this.app_state.referenced_user.request_alert.user.avatar_url}} class="la-inbox__request-avatar" alt="">
+          {{/if}}
+          {{#if this.app_state.referenced_user.request_alert.model}}
+            <p class="la-inbox__request-text">
+              <strong>{{this.app_state.referenced_user.request_alert.user.user_name}}</strong>
+              {{t "wants to pair with you for remote modeling. They will see your button presses, as well as be able to add visual prompts and start a video or audio call with this device. Other supervisors will be able to follow your actions during pairing. Would you like to accept this pairing?" key="confirm_pairing"}}
+            </p>
+          {{else}}
+            <p class="la-inbox__request-text">
+              <strong>{{this.app_state.referenced_user.request_alert.user.user_name}}</strong>
+              {{t "wants to follow your activity. If you enable following for this Speak Mode session, other supeervisors will also be able to follow your activity. Would you like to enable followers for this Speak Mode session?" key="confirm_following"}}
+            </p>
+          {{/if}}
         </div>
-      {{/if}}
-    {{else if this.status.loading}}
-      <p>{{t "Loading messages..." key="loading_messages"}}</p>
-    {{else if this.status.error}}
-      <p>{{t "Error loading messages" key="error_loading_messages"}}</p>
-    {{else if this.alerts}}
-      {{#each this.alerts as |alert|}}
-        {{#unless alert.cleared}}
-          <div class='row alerts' style='margin-bottom: 5px;'>
-            <div class='col-sm-10'>
-              <button class={{if alert.unread "btn btn-default btn-lg unread msg" "btn btn-default btn-lg msg"}} {{on "click" (this.ctrlAction "view" alert)}}>
-                {{#if alert.author.image_url}}
-                  <img src={{alert.author.image_url}} style='height: 40px; width: 40px; float: right; margin: -8px;' class='fit_image'>
+      {{else if this.current}}
+        <div class="la-inbox__meta">
+          {{#if this.current.author.image_url}}
+            <img src={{this.current.author.image_url}} class='fit_image la-inbox__meta-avatar' alt="">
+          {{/if}}
+          <span class="la-inbox__meta-text">
+            {{t "from" key="from"}} <strong>{{display-name this.current.author}}</strong>
+            <span class='text-muted'>{{t "at" key="at"}} {{date this.current.sent}}</span>
+          </span>
+        </div>
+        {{!-- id=alert_message drives the message type scale in app.scss (20/30/40px by
+              length, via the `current_class` computed) -- do not rename either. --}}
+        <div id='alert_message' class={{this.current_class}}>
+          {{#if this.current_with_images}}
+            <div class="la-inbox__symbols">
+              {{#each this.current_with_images as |part|}}<span class="la-inbox__symbol">
+                {{#if part.image}}
+                  <span class="la-inbox__symbol-tile">
+                    <span class="la-inbox__symbol-img">
+                      <img src={{part.image}} class='fit_image' alt="">
+                    </span>
+                    <span class="la-inbox__symbol-label">{{part.str}}</span>
+                  </span>
+                {{else}}
+                  <span class="la-inbox__symbol-spacer"></span>
+                  <span class="la-inbox__symbol-label">{{part.str}}</span>
                 {{/if}}
-                {{alert.text}}
-                <span style='clear: both;'></span>
-              </button>
+              </span>{{/each}}
             </div>
-            <div class='col-sm-2' style='text-align: left;'>
-              {{#if alert.note}}
-                <button class='btn btn-lg btn-default' {{on "click" (this.ctrlAction "clear" alert)}}><span class='glyphicon glyphicon-ok'></span></button>
-              {{/if}}
-            </div>
+          {{else}}
+            {{this.current.text}}
+          {{/if}}
+        </div>
+        {{#if this.current.prior}}
+          <div class="la-inbox__prior">
+            <div class='text-muted la-inbox__prior-label'>{{t "in reply to" key="in_reply_to"}}{{#if this.current.prior_author}} {{t "message from" key="message_from"}} {{this.current.prior_author}}{{/if}}:</div>
+            <div class="la-inbox__prior-quote">{{this.current.prior}}</div>
           </div>
-        {{/unless}}
-      {{/each}}
-    {{else}}
-      <p>{{t "No messages or alerts to show" key="no_messages_or_alerts_to_show"}}</p>
-    {{/if}}
-  </div>
-  <div class="modal-footer md-modal-footer">
-    {{#if this.app_state.referenced_user.request_alert}}
-      {{#if this.app_state.referenced_user.request_alert.model}}
-        <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "accept_pair")}}>{{t "Pair With %{user_name} & Allow Followers" user_name=this.app_state.referenced_user.request_alert.user.user_name key="accept_pairing"}}</button>
-        <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "reject_pair")}}>{{t "Cancel Pairing" key="cancel_pairing"}}</button>
-      {{else}}
-        <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "accept_pair")}}>{{t "Allow Followers" key="allow_followers"}}</button>
-        <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "reject_pair")}}>{{t "Prevent Followers" key="prevent_followers"}}</button>
-      {{/if}}
-    {{else}}
-      {{#unless this.current}}
-        {{#if this.working_vocalization}}
-          <div style='margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>"{{this.working_sentence}}"</div>
         {{/if}}
-      {{/unless}}
-      {{#if this.current}}
-        <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "back")}}>{{t "Back" key="back"}}</button>
-        <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "speak")}}><span class='glyphicon glyphicon-volume-up'></span> {{t "Speak" key="speak"}}</button>
-        <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "reply")}}><span class='glyphicon glyphicon-envelope'></span> {{t "Reply" key="reply"}}</button>
+      {{else if this.status.loading}}
+        <p class="la-inbox__status">{{t "Loading messages..." key="loading_messages"}}</p>
+      {{else if this.status.error}}
+        <p class="la-inbox__status la-inbox__status--err">{{t "Error loading messages" key="error_loading_messages"}}</p>
+      {{else if this.alerts}}
+        <div class="la-inbox__list">
+          {{#each this.alerts as |alert|}}
+            {{#unless alert.cleared}}
+              {{!-- `.btn.msg` and `.btn.unread` carry the row's ellipsis and bold-unread
+                    styling from app.scss -- keep both class names. --}}
+              <div class='alerts la-inbox__row'>
+                <button class={{if alert.unread "btn btn-default btn-lg unread msg la-inbox__msg" "btn btn-default btn-lg msg la-inbox__msg"}} {{on "click" (this.ctrlAction "view" alert)}}>
+                  {{#if alert.author.image_url}}
+                    <img src={{alert.author.image_url}} class='fit_image la-inbox__msg-avatar' alt="">
+                  {{/if}}
+                  <span class="la-inbox__msg-text">{{alert.text}}</span>
+                </button>
+                {{#if alert.note}}
+                  <button class='btn btn-lg btn-default la-inbox__row-clear' {{on "click" (this.ctrlAction "clear" alert)}} aria-label={{t "Clear" key="clear"}}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#46505F"/><polyline points="8 12.5 11 15.5 16 9.5" stroke="#2A9D8F"/></svg>
+                  </button>
+                {{/if}}
+              </div>
+            {{/unless}}
+          {{/each}}
+        </div>
       {{else}}
-        {{#if this.working_vocalization}}
-          <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "compose")}}>
-            <span class='glyphicon glyphicon-envelope'></span>
-            {{#if this.app_state.reply_note}}
-              {{t "Send Reply" key="send_reply"}}
-            {{else}}
-              {{t "Send Current Message" key="send_current_message"}}
-            {{/if}}
+        <p class="la-inbox__status">{{t "No messages or alerts to show" key="no_messages_or_alerts_to_show"}}</p>
+      {{/if}}
+    </div>
+
+    {{!-- Footer actions use the same glass-tile primitive as the GIF and Share modals,
+          with two-tone inline SVGs replacing the glyphicons: charcoal frame, verdigris
+          accent. Sized larger than those modals' tiles -- see the AAC type-scale note
+          on .la-inbox__action in app.scss. --}}
+    <div class="la-inbox-modal-footer">
+      {{#if this.app_state.referenced_user.request_alert}}
+        {{#if this.app_state.referenced_user.request_alert.model}}
+          <button class='btn la-inbox__action la-inbox__action--primary' {{on "click" (this.ctrlAction "accept_pair")}}>
+            <svg class="la-inbox__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5" stroke="#46505F"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7L12 19" stroke="#2A9D8F"/></svg>
+            <span class="la-inbox__action-label">{{t "Pair With %{user_name} & Allow Followers" user_name=this.app_state.referenced_user.request_alert.user.user_name key="accept_pairing"}}</span>
+          </button>
+          <button class='btn la-inbox__action' {{on "click" (this.ctrlAction "reject_pair")}}>
+            <svg class="la-inbox__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#46505F"/><line x1="15" y1="9" x2="9" y2="15" stroke="#2A9D8F"/><line x1="9" y1="9" x2="15" y2="15" stroke="#2A9D8F"/></svg>
+            <span class="la-inbox__action-label">{{t "Cancel Pairing" key="cancel_pairing"}}</span>
+          </button>
+        {{else}}
+          <button class='btn la-inbox__action la-inbox__action--primary' {{on "click" (this.ctrlAction "accept_pair")}}>
+            <svg class="la-inbox__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#46505F"/><polyline points="8 12.5 11 15.5 16 9.5" stroke="#2A9D8F"/></svg>
+            <span class="la-inbox__action-label">{{t "Allow Followers" key="allow_followers"}}</span>
+          </button>
+          <button class='btn la-inbox__action' {{on "click" (this.ctrlAction "reject_pair")}}>
+            <svg class="la-inbox__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#46505F"/><line x1="15" y1="9" x2="9" y2="15" stroke="#2A9D8F"/><line x1="9" y1="9" x2="15" y2="15" stroke="#2A9D8F"/></svg>
+            <span class="la-inbox__action-label">{{t "Prevent Followers" key="prevent_followers"}}</span>
           </button>
         {{/if}}
-        <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "clear" "all")}}>{{t "Clear All" key="clear_all"}}</button>
+      {{else}}
+        {{#unless this.current}}
+          {{#if this.working_vocalization}}
+            <div class="la-inbox__working">"{{this.working_sentence}}"</div>
+          {{/if}}
+        {{/unless}}
+        {{#if this.current}}
+          <button class='btn la-inbox__action' {{on "click" (this.ctrlAction "back")}}>
+            <svg class="la-inbox__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12" stroke="#46505F"/><polyline points="11 18 5 12 11 6" stroke="#2A9D8F"/></svg>
+            <span class="la-inbox__action-label">{{t "Back" key="back"}}</span>
+          </button>
+          <button class='btn la-inbox__action' {{on "click" (this.ctrlAction "speak")}}>
+            <svg class="la-inbox__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="4 9 8 9 13 5 13 19 8 15 4 15" stroke="#46505F"/><path d="M16.5 8.5a5 5 0 0 1 0 7" stroke="#2A9D8F"/><path d="M19 6a8 8 0 0 1 0 12" stroke="#2A9D8F"/></svg>
+            <span class="la-inbox__action-label">{{t "Speak" key="speak"}}</span>
+          </button>
+          <button class='btn la-inbox__action' {{on "click" (this.ctrlAction "reply")}}>
+            <svg class="la-inbox__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#46505F"/><polyline points="3 7 12 13 21 7" stroke="#2A9D8F"/></svg>
+            <span class="la-inbox__action-label">{{t "Reply" key="reply"}}</span>
+          </button>
+        {{else}}
+          {{#if this.working_vocalization}}
+            <button class='btn la-inbox__action la-inbox__action--primary' {{on "click" (this.ctrlAction "compose")}}>
+              <svg class="la-inbox__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="21" y1="3" x2="10.5" y2="13.5" stroke="#2A9D8F"/><polygon points="21 3 14.5 21 10.5 13.5 3 9.5" stroke="#46505F"/></svg>
+              <span class="la-inbox__action-label">
+                {{#if this.app_state.reply_note}}
+                  {{t "Send Reply" key="send_reply"}}
+                {{else}}
+                  {{t "Send Current Message" key="send_current_message"}}
+                {{/if}}
+              </span>
+            </button>
+          {{/if}}
+          <button class='btn la-inbox__action' {{on "click" (this.ctrlAction "clear" "all")}}>
+            <svg class="la-inbox__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 12.5 7 16.5 13 8.5" stroke="#2A9D8F"/><polyline points="11 12.5 15 16.5 21 8.5" stroke="#46505F"/></svg>
+            <span class="la-inbox__action-label">{{t "Clear All" key="clear_all"}}</span>
+          </button>
+        {{/if}}
+        <button class='btn la-inbox__action' {{on "click" (this.ctrlAction "close")}}>
+          <svg class="la-inbox__action-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="#2A9D8F"/><line x1="15" y1="9" x2="9" y2="15" stroke="#46505F"/><line x1="9" y1="9" x2="15" y2="15" stroke="#46505F"/></svg>
+          <span class="la-inbox__action-label">{{t "Close" key="close"}}</span>
+        </button>
       {{/if}}
-      <button class='btn btn-default btn-lg' {{on "click" (this.ctrlAction "close")}}>{{t "Close" key="close"}}</button>
-    {{/if}}
+    </div>
   </div>
 </ModalDialog>

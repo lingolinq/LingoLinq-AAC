@@ -1,5 +1,5 @@
 import { setupRenderingTest } from 'frontend/tests/helpers';
-import { render, settled } from '@ember/test-helpers';
+import { render } from '@ember/test-helpers';
 import { hbs } from 'ember-cli-htmlbars';
 import * as QUnit from 'qunit';
 import stashes from 'frontend/utils/_stashes';
@@ -18,6 +18,7 @@ QUnit.module('Integration | gif search runs', function(hooks) {
   setupRenderingTest(hooks);
 
   QUnit.test('opening() seeds the term from the speak bar and fills results', async function(assert) {
+    assert.expect(3);
     stashes.set('working_vocalization', [{ label: 'happy' }, { label: 'dog' }]);
     // utils/content_grabbers is a Proxy over `window.cg`, which is assigned at
     // module scope in services/content-grabbers.js. A rendering test does not pull
@@ -37,8 +38,8 @@ QUnit.module('Integration | gif search runs', function(hooks) {
       ]);
     };
     try {
+      // `render` already awaits settled(); a second call right after is a no-op.
       await render(hbs`<Gif />`);
-      await settled();
       assert.deepEqual(calls, ['happy dog'], 'protected_search was called with the speak-bar text');
       const imgs = document.querySelectorAll('.la-gif-modal__thumb');
       assert.strictEqual(imgs.length, 3, 'three result thumbnails rendered');

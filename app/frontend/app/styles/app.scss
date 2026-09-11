@@ -18739,6 +18739,56 @@ form.row.subscription-form-with-cards {
   letter-spacing: 0.01em;
 }
 
+/* HELD THOUGHTS — a sub-heading INSIDE the Actions section, under the row of tiles, so it
+   needs separation above it that a section label at the top of its own section does not.
+   Reuses .md-speak-menu__section-label for the type treatment rather than restating it;
+   this modifier only adds the gap. */
+.md-speak-menu__held-label {
+  margin-top: 14px;
+}
+/* Reuses .md-speak-menu__phrase-list for the rail and spacing. Unlike the phrase library
+   it never pages -- it shows a short window and expands in place -- so it needs no row
+   budget, and the `--sm-phrase-rows` custom property it inherits is simply unused here. */
+.md-speak-menu__held-list {
+  margin-top: 6px;
+}
+/* The overflow control. Deliberately NOT `--resume`: it is navigation to the rest of the
+   list, not a thought to pick up, and giving it the same verdigris accent as a real held
+   thought would make a fourth row that resumes nothing look identical to three that do. */
+.md-speak-menu__bottom-btn--more-thoughts {
+  border-style: dashed;
+  border-color: rgba($la-navy, 0.28);
+  background: rgba($la-navy, 0.03);
+  justify-content: center;
+}
+.md-speak-menu__bottom-btn--more-thoughts:hover {
+  background: rgba($la-navy, 0.07);
+  border-color: rgba($la-navy, 0.42);
+}
+.md-speak-menu__bottom-btn--more-thoughts .md-speak-menu__remembered-text {
+  font-weight: 700;
+  color: rgba($la-navy, 0.85); /* same ~7.8:1 as the section label */
+  flex: 0 0 auto; /* centred with the chevron, not stretched like a phrase row's text */
+}
+/* Chevron points DOWN to expand and flips UP once expanded, so the control reads as a
+   disclosure rather than a link to somewhere else. Paired with `aria-expanded` on the
+   button — the rotation is the sighted half of the same signal. */
+.md-speak-menu__more-thoughts-chevron {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+.md-speak-menu__bottom-btn--more-thoughts-open .md-speak-menu__more-thoughts-chevron {
+  transform: rotate(180deg);
+}
+/* Solid once open: the dashed edge reads as "there is more behind this", which is no
+   longer true when the rest of the list is already on screen. */
+.md-speak-menu__bottom-btn--more-thoughts-open {
+  border-style: solid;
+}
+@media (prefers-reduced-motion: reduce) {
+  .md-speak-menu__more-thoughts-chevron { transition: none; }
+}
+
 /* "3 more — scroll to see them", under the scroller. */
 /* `.md-speak-menu__phrase-list--expanded` used to drop the row cap here and let the panel
    grow, falling back on .md-speak-menu's own scroll past the viewport. Removed: the
@@ -106679,3 +106729,320 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
 }
 .la-gif-modal__action-icon { flex-shrink: 0; }
 .la-gif-modal__action-label { line-height: 1; }
+
+/* =========================================================================
+   Messages & Alerts modal (components/inbox.hbs)
+   Modernised to the same shell as the GIF Search and Share Text modals:
+   glass wrap, header tile + label + close, scrollable body, discrete footer.
+
+   No `.modal` qualifier on these selectors, unlike the gif block at ~:106538.
+   The universal `.modal .la-modal-header` at :98594 is (0,2,0) and forces 28px
+   top/bottom on every modal; `.la-inbox-modal-wrap .la-modal-header` is ALSO
+   (0,2,0) but sits after it at end-of-file, so it wins on source order alone.
+   The gif block's comment calls its own `.modal` prefix "load-bearing" -- that
+   was copied from the SHARE modal (:39566), which genuinely needs it because it
+   sits BEFORE :98594. Verified for this block's position rather than inherited.
+   ========================================================================= */
+.la-inbox-modal-wrap {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 8px);
+}
+/* Re-supplied because this modal no longer uses `.md-modal-header`, which was
+   what `.modal-dialog:has(.md-modal-header)` (:88991) keyed on for the reduced
+   top margin. Without this the dialog reverts to Bootstrap's 30px. */
+.modal-dialog:has(.la-inbox-modal-wrap) {
+  margin-top: 15px;
+}
+.la-inbox-modal-wrap .la-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+}
+.la-inbox-modal-wrap .la-modal-header-label {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 900;
+  /* $aac-font-size-lg (22px), not the base `.la-modal-header-label` size: this is
+     an AAC surface and the shared token `$aac-font-size-base` is 15px, SMALLER
+     than the web default. Also larger than the gif modal's 20px title. */
+  font-size: $aac-font-size-lg;
+  letter-spacing: -0.2px;
+  color: var(--md-ink);
+  /* Resets `text-transform: uppercase` from the shared `.la-modal-header-label`
+     (:37983). This title is translated into 13 locales and CSS-uppercasing is
+     lossy in several of them; "MESSAGES AND ALERTS" also reads as shouting on a
+     surface whose whole job is delivering someone's message. */
+  text-transform: none;
+}
+/* The base `.la-modal-close` (:37995) is DARK-header chrome -- white-on-indigo,
+   written for `.la-modal-header`'s `background: $indigo`. This modal's header is
+   the light gradient, so without this reset the close control renders as a
+   near-white stroke on a pale ground. It is also the one control the scanner can
+   always reach (utils/modal.js:277 matches it unscoped), so it must stay legible. */
+.la-inbox-modal-wrap .la-modal-close {
+  position: static;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  flex-shrink: 0;
+  border: 1px solid var(--md-line);
+  background: rgba($brand-blue-black, 0.04);
+  color: $brand-charcoal-blue;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.la-inbox-modal-wrap .la-modal-close:hover {
+  background: rgba($brand-blue-black, 0.08);
+  color: var(--md-ink);
+}
+
+/* 14th copy of this 8-declaration shape (siblings at :38416, :38500, :38710,
+   :38909, :39010, :39234, :39508, :39601, :40100, :40475, :40646, :41974,
+   :106575). Deliberately NOT extracted to a shared base: the sizes and tints
+   genuinely differ between modals (--big-button is 36px/11px, --devices 52px/16px,
+   --app uses a different tint), so a blanket extraction would regress several. */
+.la-modal-header-icon--inbox {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba($brand-verdigris, 0.10);
+  border: 1px solid var(--md-line);
+  flex-shrink: 0;
+}
+
+.la-inbox-modal-body {
+  /* `min-height: 0` so this becomes the scroller rather than refusing to shrink
+     below its content (a flex item's default is min-height: auto). */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 24px 28px;
+  /* Re-supplied from `.md-modal-body` (:89101), which this no longer uses. 16px
+     is the value that rule carried -- keep it; dropping to the inherited 14px
+     would shrink message text on an AAC surface. */
+  font-size: 16px;
+  background: linear-gradient(135deg, rgba($brand-verdigris, 0.07), rgba($brand-dusty-denim, 0.07) 45%, rgba(123, 107, 173, 0.05)), $surface-100;
+}
+
+/* `.md-modal-body` also carried `text-align: center`, which is what centred the
+   three status strings. Applied to the strings themselves instead of the whole
+   body, so message content and rows stay left-aligned without needing to undo it. */
+.la-inbox__status {
+  margin: 0;
+  padding: 28px 0;
+  text-align: center;
+  color: var(--md-muted);
+  font-size: $aac-font-size-md;
+}
+.la-inbox__status--err { color: $brand-charcoal-blue; }
+
+/* Pair / follow request */
+.la-inbox__request {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 0 4px;
+  text-align: left;
+}
+.la-inbox__request-avatar {
+  width: 75px;
+  height: 75px;
+  border-radius: 14px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.la-inbox__request-text {
+  margin: 0;
+  font-size: $aac-font-size-md;
+  line-height: 1.45;
+}
+
+/* Message detail */
+.la-inbox__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 2px;
+  text-align: left;
+}
+.la-inbox__meta-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+.la-inbox__meta-text { min-width: 0; }
+.la-inbox__symbols {
+  white-space: normal;
+  text-align: left;
+}
+.la-inbox__symbol {
+  display: inline-block;
+  text-align: center;
+  margin-bottom: 5px;
+}
+.la-inbox__symbol-tile {
+  display: block;
+  border: 1px solid var(--md-line);
+  border-radius: 10px;
+  padding: 5px;
+  min-width: 100px;
+  background: rgba(255, 255, 255, 0.55);
+}
+.la-inbox__symbol-img {
+  height: 40px;
+  display: block;
+  width: 100%;
+  min-width: 40px;
+}
+.la-inbox__symbol-spacer {
+  height: 40px;
+  display: block;
+  width: 100%;
+}
+.la-inbox__symbol-label { white-space: pre; }
+.la-inbox__prior {
+  white-space: normal;
+  margin-top: 30px;
+  text-align: left;
+}
+.la-inbox__prior-label { margin-bottom: 4px; }
+.la-inbox__prior-quote {
+  border-left: 2px solid var(--md-line);
+  padding: 5px 0 5px 20px;
+  white-space: pre-line;
+  font-style: italic;
+}
+
+/* Alert rows. `.alerts .btn.msg` / `.btn.unread` at :11581 still supply the
+   ellipsis and bold-unread treatment -- these only lay the row out. */
+.la-inbox__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+.la-inbox__row {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.la-inbox__msg {
+  /* `min-width: 0` lets the 100% width from `.alerts .btn.msg` shrink inside the
+     flex row instead of pushing the clear control off the edge. */
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  font-size: $aac-font-size-md;
+}
+.la-inbox__msg-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  order: 2;
+  margin-left: auto;
+  object-fit: cover;
+}
+.la-inbox__msg-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.la-inbox__row-clear {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.la-inbox-modal-footer {
+  /* Re-supplied from `.md-modal-footer` (:89779), which this no longer uses --
+     that rule was the only thing laying the footer out. */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--md-line);
+  background: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+}
+.la-inbox__working {
+  flex: 1 1 100%;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--md-muted);
+  font-size: $aac-font-size-md;
+  text-align: left;
+}
+/* Same glass-tile primitive as `.la-gif-modal__action` (:106638) and the share
+   modal's tiles, so hover, focus and depth stay identical across modals. Two
+   deliberate departures, both AAC-driven:
+     - 18px ($aac-font-size-md) rather than the 15px those modals use. Their size
+       comes from `$aac-font-size-base`, which is 15px and therefore SMALLER than
+       the web default -- fine for a GIF picker, wrong for the surface carrying
+       "Pair With ... & Allow Followers".
+     - `white-space: normal` rather than `nowrap`. That label is the longest string
+       in the modal, is interpolated with a user name, and expands further in
+       German and Spanish; nowrap would push it out of the dialog. */
+.la-inbox-modal-wrap .btn.la-inbox__action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  max-width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.98);
+  border-radius: 14px;
+  --tile-tint: #{$surface-300};
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 45%, rgba(255, 255, 255, 0.72) 100%), var(--tile-tint);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  color: $brand-charcoal-blue;
+  font-size: $aac-font-size-md;
+  font-weight: 700;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 0 0 1px rgba($brand-blue-black, 0.07),
+              0 2px 4px rgba($brand-blue-black, 0.10),
+              0 12px 30px rgba($brand-blue-black, 0.18),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.la-inbox-modal-wrap .btn.la-inbox__action:hover {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.72) 45%, rgba(255, 255, 255, 0.60) 100%), var(--tile-tint);
+  border-color: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba($brand-blue-black, 0.10),
+              0 3px 6px rgba($brand-blue-black, 0.12),
+              0 18px 40px rgba($brand-blue-black, 0.22),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+}
+.la-inbox-modal-wrap .btn.la-inbox__action:active { transform: translateY(1px); }
+.la-inbox-modal-wrap .btn.la-inbox__action:focus-visible {
+  outline: 3px solid $brand-verdigris;
+  outline-offset: 2px;
+}
+/* The affirmative action in each footer pair -- tinted so Accept is not visually
+   identical to Reject on a consent decision. */
+.la-inbox-modal-wrap .btn.la-inbox__action--primary {
+  --tile-tint: #{rgba($brand-verdigris, 0.18)};
+}
+.la-inbox__action-icon { flex-shrink: 0; }
+.la-inbox__action-label { line-height: 1.25; }

@@ -9266,5 +9266,8 @@
   "page_up": "*** Page up",
   "page_down": "*** Page down",
   "nothing_to_gif_search_yet": "*** There's nothing to search for yet — add some words to your sentence first.",
-  "selected_gif": "*** Selected GIF"
+  "selected_gif": "*** Selected GIF",
+  "held_thoughts": "*** Held Thoughts",
+  "more_thoughts": "*** More Thoughts",
+  "fewer_thoughts": "*** Fewer Thoughts"
 }
