@@ -2455,7 +2455,7 @@ export default Controller.extend(prefClasses, {
     var board = this.get('model');
     var ob = this.get('ordered_buttons');
     if(!appState || !board || !ob || !ob.length) { return; }
-    var cap = !!appState.get('shift');
+    var cap = !!(appState.get('capitalizing') || appState.get('shift') || appState.get('caps_lock'));
     var history = this.get('stashes.working_vocalization') || [];
     var contextualized = board.contextualized_buttons(
       appState.get('label_locale'),
@@ -2492,6 +2492,8 @@ export default Controller.extend(prefClasses, {
 
   _shift_label_observer: observer(
     'app_state.shift',
+    'app_state.caps_lock',
+    'app_state.capitalizing',
     'ordered_buttons',
     function() {
       this._apply_shift_to_ordered_buttons();

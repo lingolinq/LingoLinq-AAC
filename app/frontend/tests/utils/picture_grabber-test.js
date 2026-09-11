@@ -589,6 +589,25 @@ describe('pictureGrabber', function() {
           expect(image).toNotEqual(null);
         });
       });
+
+      it('stamps preserve_source_image on a user-chosen picture so speak mode cannot swap it', function() {
+        pictureGrabber.setup(button, controller);
+        var image = null;
+        stub(contentGrabbers, 'save_record', function(img) {
+          image = img;
+          return RSVP.resolve();
+        });
+        var done = false;
+        pictureGrabber.save_image_preview({
+          url: valid_image(),
+          license: {type: 'CC By'}
+        }).then(function() { done = true; }, function() { done = true; });
+        waitsFor(function() { return done; });
+        runs(function() {
+          expect(image).toNotEqual(null);
+          expect(image.get('preserve_source_image')).toEqual(true);
+        });
+      });
     });
   });
 
