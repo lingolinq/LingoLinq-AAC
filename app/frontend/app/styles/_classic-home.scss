@@ -12,6 +12,23 @@
 // deliberately shares NO selector with either, so the two home pages can be
 // restyled independently.
 //
+// PALETTE CLASSIFICATION — this file is CLASSIC VIEW / GENTLE.
+//
+// "Gentle" and "Focused" are the two dashboard styles the app already models, via
+// `preferences.dashboard_layout` ('gentle' is the default, app/models/user.rb:1936).
+// Gentle is the BASELINE, not an overlay: `LingoLinq.set_layout_scope` (app/app.js:504)
+// adds `body.ll-layout-focused` ONLY on a strict `layout === 'focused'`, so an absent or
+// default preference gets no class and no overlay at all.
+//
+// Every colour below is therefore the classic home page's GENTLE scheme, and its local
+// tokens are named `$ch-gentle-*` to say so. Naming only — nothing here reads
+// `dashboard_layout` and `_focused-view.scss` contains no `.ch-` selector, so the
+// classic page renders identically under either preference TODAY.
+//
+// A Focused classic variant, if one is ever wanted, belongs in an overlay scoped to
+// `body.ll-layout-focused` — the contract `_focused-view.scss` already documents for the
+// modern pages — and must not edit the tokens below, which are the Gentle values.
+
 // Surface language: glass. A translucent, saturated backdrop under a top-lit
 // gloss, over the same token palette the modern pages use (--md-ink / --md-muted
 // / --md-surface, $la-navy, $brand-verdigris), so classic reads as the same
@@ -129,8 +146,8 @@
 // on `.ch-rail__identity-sub`. Measured against the page wash the sub reads 4.56:1 at
 // the denim start and 5.03:1 at the verdigris end today; desaturated it reads 4.64:1
 // and 4.87:1. Both still clear WCAG AA, and the tighter of the two (the start) gains.
-$ch-identity-denim:     #5D89C6;
-$ch-identity-verdigris: #388F84;
+$ch-gentle-identity-denim:     #5D89C6;
+$ch-gentle-identity-verdigris: #388F84;
 .ch-rail__identity {
   position: relative;
   overflow: hidden;
@@ -146,7 +163,7 @@ $ch-identity-verdigris: #388F84;
   // WCAG AA 4.5:1 floor. The next step up, 0.40/0.32, drops it to 4.27:1 and fails.
   // If this needs to go darker, raise the sub-label's opacity or drop the 0.75 first.
   // (The username itself is full-strength navy at 8.38:1 and is not the constraint.)
-  background: linear-gradient(150deg, rgba($ch-identity-denim, 0.52) 0%, rgba($ch-identity-verdigris, 0.44) 100%);
+  background: linear-gradient(150deg, rgba($ch-gentle-identity-denim, 0.52) 0%, rgba($ch-gentle-identity-verdigris, 0.44) 100%);
   // Same outline as the Actions tab's My Account tile (`.ch-tile--account`, which
   // takes `ch-tile-tint($brand-teal-blue)`): both are the door to the same page, so
   // they carry the same edge. Kept as the literal rgba the mixin emits rather than
@@ -421,19 +438,19 @@ button.ch-row:focus-visible .ch-row__arrow {
 // Contrast re-checked on both washes: the row title holds at ~10:1 and the sub-label at
 // 4.77-4.68:1, both effectively unchanged, because desaturating at constant lightness
 // barely moves luminance on a wash this light.
-$ch-warn-honey: #E3B569;
-$ch-warn-peach: #EAA68F;
+$ch-gentle-warn-honey: #E3B569;
+$ch-gentle-warn-peach: #EAA68F;
 .ch-row--todo {
   // Same treatment as .ch-row--sync: the honey is KEPT, just shown less, so the row
   // reads mostly white with the colour as a hint (0.20 -> 0.13 / 0.08 -> 0.045).
   // The icon chip below stays at full strength and carries the accent instead.
-  background: linear-gradient(155deg, rgba($ch-warn-honey, 0.13) 0%, rgba($ch-warn-honey, 0.045) 100%);
+  background: linear-gradient(155deg, rgba($ch-gentle-warn-honey, 0.13) 0%, rgba($ch-gentle-warn-honey, 0.045) 100%);
   // Keeps the shared silver edge from .ch-row — this used to re-set the border to
   // white, which would have cancelled it on exactly the rows that matter most.
 }
 
 .ch-row--todo .ch-row__icon {
-  background: linear-gradient(160deg, rgba($ch-warn-honey, 0.28) 0%, rgba($ch-warn-honey, 0.12) 100%);
+  background: linear-gradient(160deg, rgba($ch-gentle-warn-honey, 0.28) 0%, rgba($ch-gentle-warn-honey, 0.12) 100%);
 }
 
 // Logging ON is a healthy state — teal, matching the online dot.
@@ -452,8 +469,8 @@ $ch-warn-peach: #EAA68F;
 // Written out rather than @include-ing ch-tile-tint because that mixin also styles a
 // `.ch-tile__chip`, which a rail ROW does not have.
 .ch-row--sync {
-  background: linear-gradient(155deg, rgba($ch-warn-peach, 0.18) 0%, rgba($ch-warn-peach, 0.06) 100%);
-  // Outline is a 50/50 blend of $ch-warn-peach (#EAA68F) and $brand-cool-steel
+  background: linear-gradient(155deg, rgba($ch-gentle-warn-peach, 0.18) 0%, rgba($ch-gentle-warn-peach, 0.06) 100%);
+  // Outline is a 50/50 blend of $ch-gentle-warn-peach (#EAA68F) and $brand-cool-steel
   // (#9CA3AF) — peach pulled toward grey so the edge reads as a quiet border rather
   // than a coloured one. Written as the resolved hex, NOT color.mix(): the mix keeps
   // fractional channels (200.5, 162, 153.5) and Sass then emits a fractional rgba(),
@@ -462,7 +479,7 @@ $ch-warn-peach: #EAA68F;
   // Tight shadow, not a spread glow: this row sits at the bottom of the rail and a
   // 20px bloom made it float off the panel.
   box-shadow:
-    0 2px 6px rgba($ch-warn-peach, 0.16),
+    0 2px 6px rgba($ch-gentle-warn-peach, 0.16),
     0 1px 2px rgba($brand-blue-black, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
@@ -470,13 +487,13 @@ $ch-warn-peach: #EAA68F;
 button.ch-row--sync:hover,
 button.ch-row--sync:focus-visible {
   box-shadow:
-    0 5px 12px rgba($ch-warn-peach, 0.22),
+    0 5px 12px rgba($ch-gentle-warn-peach, 0.22),
     0 1px 3px rgba($brand-blue-black, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .ch-row--sync .ch-row__icon {
-  background: linear-gradient(160deg, rgba($ch-warn-peach, 0.26) 0%, rgba($ch-warn-peach, 0.12) 100%);
+  background: linear-gradient(160deg, rgba($ch-gentle-warn-peach, 0.26) 0%, rgba($ch-gentle-warn-peach, 0.12) 100%);
 }
 
 .ch-row--minor {
@@ -1097,12 +1114,12 @@ button.ch-tile:hover .ch-tile__chip {
 // borders are the load-bearing ones for WCAG 1.4.11 (3:1 for a UI boundary) and both
 // gain headroom rather than losing it -- 5.82 -> 5.54:1 on Model, 5.05 -> 6.08:1 on
 // Choose Board.
-$ch-model-fill:   #54A0D0;  // $caseload-model-blue     80.7% -> 56.5% sat
-$ch-model-border: #4067B1;  // $brand-dusty-denim-aa    66.8% -> 46.8%
-$ch-model-halo:   #407EB1;  // $caseload-model-blue-aa  66.8% -> 46.8%
-$ch-setup-teal:   #41A29D;  // was rgb(44,183,176)      61.2% -> 42.9%
-$ch-setup-blue:   #7194D9;  // was rgb(91,141,239)      82.2% -> 57.6%
-$ch-setup-edge:   #296C6C;  // $brand-verdigris-aa      65.1% -> 45.6%
+$ch-gentle-model-fill:   #54A0D0;  // $caseload-model-blue     80.7% -> 56.5% sat
+$ch-gentle-model-border: #4067B1;  // $brand-dusty-denim-aa    66.8% -> 46.8%
+$ch-gentle-model-halo:   #407EB1;  // $caseload-model-blue-aa  66.8% -> 46.8%
+$ch-gentle-setup-teal:   #41A29D;  // was rgb(44,183,176)      61.2% -> 42.9%
+$ch-gentle-setup-blue:   #7194D9;  // was rgb(91,141,239)      82.2% -> 57.6%
+$ch-gentle-setup-edge:   #296C6C;  // $brand-verdigris-aa      65.1% -> 45.6%
 
 // Model -- workflow primary.
 .ch-tile--primary {
@@ -1112,23 +1129,23 @@ $ch-setup-edge:   #296C6C;  // $brand-verdigris-aa      65.1% -> 45.6%
       rgba(255, 255, 255, 0.20) 30%,
       rgba(255, 255, 255, 0) 58%),
     linear-gradient(160deg,
-      rgba($ch-model-fill, 0.28) 0%,
-      rgba($ch-model-fill, 0.38) 100%);
+      rgba($ch-gentle-model-fill, 0.28) 0%,
+      rgba($ch-gentle-model-fill, 0.38) 100%);
   background-color: rgba(255, 255, 255, 0.30);
   color: $la-navy;
-  border: 1px solid rgba($ch-model-border, 0.82);
+  border: 1px solid rgba($ch-gentle-model-border, 0.82);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 0 0 1px rgba(255, 255, 255, 0.35),
     inset 0 -7px 12px -7px rgba(255, 255, 255, 0.50),
     0 2px 5px rgba($la-navy, 0.08),
     0 8px 16px -8px rgba($la-navy, 0.18),
-    0 0 8px rgba($ch-model-halo, 0.22),
-    0 0 18px rgba($ch-model-halo, 0.30);
+    0 0 8px rgba($ch-gentle-model-halo, 0.22),
+    0 0 18px rgba($ch-gentle-model-halo, 0.30);
 }
 
 // Speak is NOT here. It shares the Actions tab's Speak tile, so it is declared beside
-// `.ch-tile--speak-main` further down -- both `ch-tile-tint` and `$ch-speak-blue` are
+// `.ch-tile--speak-main` further down -- both `ch-tile-tint` and `$ch-gentle-speak-blue` are
 // defined after this block, and Sass resolves neither backwards.
 
 // Choose Board -- setup priority. Deepest ramp of the three plus a teal halo, because it
@@ -1139,18 +1156,18 @@ $ch-setup-edge:   #296C6C;  // $brand-verdigris-aa      65.1% -> 45.6%
       rgba(255, 255, 255, 0.58) 0%,
       rgba(255, 255, 255, 0.22) 30%,
       rgba(255, 255, 255, 0) 58%),
-    linear-gradient(135deg, rgba($ch-setup-teal, 0.44), rgba($ch-setup-blue, 0.38));
+    linear-gradient(135deg, rgba($ch-gentle-setup-teal, 0.44), rgba($ch-gentle-setup-blue, 0.38));
   background-color: rgba(255, 255, 255, 0.30);
   color: $la-navy;
-  border: 1px solid rgba($ch-setup-edge, 0.92);
+  border: 1px solid rgba($ch-gentle-setup-edge, 0.92);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 0 0 1px rgba(255, 255, 255, 0.38),
     inset 0 -7px 12px -7px rgba(255, 255, 255, 0.55),
     0 2px 5px rgba($la-navy, 0.10),
     0 8px 16px -8px rgba($la-navy, 0.20),
-    0 0 8px rgba($ch-setup-edge, 0.22),
-    0 0 18px rgba($ch-setup-edge, 0.30);
+    0 0 8px rgba($ch-gentle-setup-edge, 0.22),
+    0 0 18px rgba($ch-gentle-setup-edge, 0.30);
 }
 
 .ch-tile--locked {
@@ -1216,24 +1233,24 @@ $ch-setup-edge:   #296C6C;  // $brand-verdigris-aa      65.1% -> 45.6%
 // the hue moves, so the wash cannot start reading lighter or heavier than it did.
 // Local rather than a brand token because it is this one card's colour; $brand-teal-blue
 // stays exactly as it is, and still carries the rail identity border at line 126.
-$ch-speak-blue: #4D8DC5;
+$ch-gentle-speak-blue: #4D8DC5;
 
 // Speak no longer shares My Account's mixin call. That pairing was already historical —
 // My Account moved into the Extras drawer and renders silver — and Speak was asked for a
 // bluer, less green hue (2026-09-03), which My Account must not follow: $brand-teal-blue
 // is what the rail identity block's border matches (line 122).
 .ch-tile--account { @include ch-tile-tint($brand-teal-blue, 0.52, 0.26); }
-.ch-tile--speak-main { @include ch-tile-tint($ch-speak-blue, 0.52, 0.26); }
+.ch-tile--speak-main { @include ch-tile-tint($ch-gentle-speak-blue, 0.52, 0.26); }
 // The Communicators tab's per-supervisee Speak button, deliberately identical to the
 // Actions tile above (requested 2026-09-03) -- so the two Speak controls on this page
 // match each other. One shared `@include` rather than copied declarations means a change
-// to $ch-speak-blue moves both and they cannot drift. Declared HERE, away from its
+// to $ch-gentle-speak-blue moves both and they cannot drift. Declared HERE, away from its
 // sibling ranks (`--primary` / `--setup`, ~90 lines up), because the mixin and the token
 // are both defined above this line and below those.
 //
 // The mixin also emits a `.ch-tile__chip` rule; that is inert for this button, which
 // renders only `__icon` and `__label`.
-.ch-tile--speak { @include ch-tile-tint($ch-speak-blue, 0.52, 0.26); }
+.ch-tile--speak { @include ch-tile-tint($ch-gentle-speak-blue, 0.52, 0.26); }
 .ch-tile--create  { @include ch-tile-tint($brand-verdigris); }
 .ch-tile--search  { @include ch-tile-tint($brand-dusty-denim); }
 .ch-tile--sup     { @include ch-tile-tint($brand-dusty-denim); }
@@ -1263,8 +1280,8 @@ $ch-speak-blue: #4D8DC5;
 // CONTRAST: 3.82:1 at the gradient start, 4.40:1 at the end. It was ALREADY below the 4.5:1 floor before this change and is
 // tracked as its own defect -- the remedy is the sub-label's own 0.72 alpha, not the
 // tile colour, and raising that would clear every tile at once.
-$ch-ideas-fawn: #A79A80;
-.ch-tile--ideas   { @include ch-tile-tint($ch-ideas-fawn, 0.54, 0.26); }
+$ch-gentle-ideas-fawn: #A79A80;
+.ch-tile--ideas   { @include ch-tile-tint($ch-gentle-ideas-fawn, 0.54, 0.26); }
 .ch-tile--learn   { @include ch-tile-tint($brand-stormy-teal); }
 .ch-tile--log     { @include ch-tile-tint($brand-blue-grey, 0.32, 0.14); }
 
