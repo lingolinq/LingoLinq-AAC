@@ -333,6 +333,45 @@ export default Component.extend({
    * no pager, and if that already covers every phrase there IS no pager and we are done.
    * Otherwise reserve its height and recompute — otherwise the last row would sit under it.
    */
+  /*
+   * Whether the Up / Down controls in the sticky header have anything to do.
+   *
+   * `#speak_menu` (.md-speak-menu) is the scroll container -- `overflow-y: auto` under a
+   * `max-height` derived from --sm-menu-top. When its content fits, both controls are
+   * dropped entirely; otherwise each is dropped at its own end of the range.
+   *
+   * Three values, not two, because the pager is removed and the buttons are disabled on
+   * different conditions:
+   *   `menu_scrollable`   the pair renders at all -- nothing to scroll, no controls
+   *   `at_scroll_top`     Up is disabled
+   *   `at_scroll_bottom`  Down is disabled
+   *
+   * DISABLED at the ends rather than removed, matching the phrase pager below it and the
+   * GIF modal's pager. Removing one mid-scroll made the surviving button jump as the row
+   * reflowed, which on a surface someone is dwelling on means the target moves out from
+   * under them. The pair is only removed together, when there is nothing to scroll at all,
+   * and it is absolutely positioned so even that cannot shift the header.
+   *
+   * Known and pre-existing: neither scanner.js nor modal.js#scannable_targets filters
+   * `[disabled]`, so a disabled pager button is still handed to the scanner. The phrase
+   * pager and the GIF pager already behave this way; it is not introduced here.
+   *
+   * The 1px tolerance absorbs sub-pixel rounding: a container scrolled fully to the bottom
+   * commonly reports scrollTop + clientHeight a fraction under scrollHeight, which without
+   * it leaves a Down control that can no longer move anything.
+   */
+  update_scroll_affordances() {
+    if (this.isDestroyed || this.isDestroying) { return; }
+    var menu = document.querySelector('#speak_menu');
+    if (!menu) {
+      this.set('menu_scrollable', false);
+      return;
+    }
+    this.set('menu_scrollable', menu.scrollHeight > menu.clientHeight + 1);
+    this.set('at_scroll_top', menu.scrollTop <= 1);
+    this.set('at_scroll_bottom', (menu.scrollTop + menu.clientHeight) >= (menu.scrollHeight - 1));
+  },
+
   recompute_phrase_page_size() {
     if (this.isDestroyed || this.isDestroying) { return; }
     if (!this.get('phrases_expanded')) { return; }
@@ -408,6 +447,27 @@ export default Component.extend({
        is useless. */
     more_thoughts() {
       this.toggleProperty('held_expanded');
+    },
+    /* Page the modal by just under a viewportful so a row of context carries over, matching
+       the big-button modal's `clientHeight - 20`. Smooth so the movement is followable --
+       a panel that teleports is disorienting on a surface someone is scanning -- with the
+       instant fallback for browsers without scrollTo options.
+
+       `update_scroll_affordances` is called again after the scroll because the `scroll`
+       event does not fire for a smooth scroll until it actually moves, and the control that
+       was just activated may need to disappear at the end of the range. */
+    scroll_menu(direction) {
+      var menu = document.querySelector('#speak_menu');
+      if (!menu) { return; }
+      var step = Math.max(120, menu.clientHeight - 20);
+      var target = direction === 'up' ? menu.scrollTop - step : menu.scrollTop + step;
+      target = Math.min(Math.max(0, target), menu.scrollHeight - menu.clientHeight);
+      if (menu.scrollTo) {
+        menu.scrollTo({ top: target, behavior: 'smooth' });
+      } else {
+        menu.scrollTop = target;
+      }
+      this.update_scroll_affordances();
     },
     toggle_phrases() {
       this.toggleProperty('phrases_expanded');
@@ -498,6 +558,33 @@ export default Component.extend({
       this.set('held_expanded', false);
       this.set('phrase_page', 0);
       this.set('phrase_page_size', PHRASE_PAGE_SIZE_DEFAULT);
+      /* Header scroll controls start hidden and are measured once the menu has rendered --
+         `#speak_menu` does not exist yet at this point in opening(). Re-measured on every
+         scroll (so each control disappears at its own end of the range) and on resize
+         (rotating a tablet changes whether the content fits at all). Both listeners are
+         bound once per open and torn down in willDestroyElement. */
+      this.set('menu_scrollable', false);
+      this.set('at_scroll_top', true);
+      this.set('at_scroll_bottom', false);
+      if (!this._menu_scroll_listener) {
+        this._menu_scroll_listener = () => this.update_scroll_affordances();
+        /* Double rAF, matching scroll_phrases_into_view above: the rows do not exist in the
+           DOM until Ember has rendered this open, and the container's scrollHeight is not
+           meaningful until layout has run. `requestAnimationFrame` rather than `runLater`
+           because @ember/runloop is lint-banned here (ember/no-runloop). */
+        this._menu_measure_frame = window.requestAnimationFrame(() => {
+          this._menu_measure_frame = window.requestAnimationFrame(() => {
+            this._menu_measure_frame = null;
+            if (this.isDestroyed || this.isDestroying) { return; }
+            var menu = document.querySelector('#speak_menu');
+            if (menu && this._menu_scroll_listener) {
+              menu.addEventListener('scroll', this._menu_scroll_listener, { passive: true });
+            }
+            this.update_scroll_affordances();
+          });
+        });
+        window.addEventListener('resize', this._menu_scroll_listener);
+      }
       /* Re-fit on resize: rotating a tablet or resizing the window changes how many
          phrases the screen holds, and a stale page size either wastes space or overflows.
          Bound once per open; torn down in willDestroyElement. */
@@ -654,6 +741,16 @@ export default Component.extend({
         if (button === 'menu_phrase_up_button' || button === 'menu_phrase_down_button') {
           click();
           _this.send('phrase_page_move', button === 'menu_phrase_up_button' ? 'up' : 'down');
+          return;
+        }
+        /* Header Up / Down, selected by SCANNING. Handled BEFORE the generic close and
+           returns without closing, for the same reason as the expanders: scrolling a panel
+           and then dismissing it would put the user back where they started. These exist so
+           a switch or gaze user can reach the bottom of the menu on a short screen, so
+           closing on activation would defeat the entire control. */
+        if (button === 'menu_scroll_up_button' || button === 'menu_scroll_down_button') {
+          click();
+          _this.send('scroll_menu', button === 'menu_scroll_up_button' ? 'up' : 'down');
           return;
         }
         /* "More Thoughts", selected by SCANNING. Expands the held list in place. Handled
@@ -879,6 +976,20 @@ export default Component.extend({
     if (this._phrase_fit_on_resize) {
       window.removeEventListener('resize', this._phrase_fit_on_resize);
       this._phrase_fit_on_resize = null;
+    }
+    if (this._menu_measure_frame) {
+      window.cancelAnimationFrame(this._menu_measure_frame);
+      this._menu_measure_frame = null;
+    }
+    if (this._menu_scroll_listener) {
+      /* Removed from BOTH targets it was added to. The scroll listener is on #speak_menu,
+         which is inside this component and goes away with it, but the resize listener is on
+         `window` and would otherwise outlive every open -- one leaked closure per open,
+         each holding a destroyed component and calling set() on it. */
+      var menu = document.querySelector('#speak_menu');
+      if (menu) { menu.removeEventListener('scroll', this._menu_scroll_listener); }
+      window.removeEventListener('resize', this._menu_scroll_listener);
+      this._menu_scroll_listener = null;
     }
     this._super(...arguments);
   },

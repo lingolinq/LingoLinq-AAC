@@ -273,7 +273,12 @@ var modal = EmberObject.extend({
          THIS is the live one — scanner.js:210 calls modal.scannable_targets() — and the two
          have already drifted (only this one matches .la-modal-close). Keep additions here;
          adding them only to the service is a silent no-op for scanning. */
-      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn, .modal-dialog .modal_targets .md-speak-menu__phrase-page-btn, .modal-dialog .modal_targets .la-share-text__contacts-more, .modal-dialog .la-modal-close");
+      /* `.md-speak-menu__scroll-btn` is the Speak Options header's Up/Down pair. It MUST be
+         listed here: raw_events matches a bare `button` for dwell (:2651) so eye gaze reaches
+         it for free, but this query does not, and those controls exist precisely so a switch
+         or gaze user on a short screen can reach the bottom of that modal. Omitting it would
+         leave them scannable-invisible — visible, and useless to the people they are for. */
+      return document.querySelectorAll(".modal-dialog .modal_targets .btn, .modal-dialog .modal_targets a, .modal-dialog .modal_targets .speak_menu_button, .modal-dialog .modal_targets .md-speak-menu__btn, .modal-dialog .modal_targets .md-speak-menu__bottom-btn, .modal-dialog .modal_targets .md-speak-menu__phrase-page-btn, .modal-dialog .modal_targets .md-speak-menu__scroll-btn, .modal-dialog .modal_targets .la-share-text__contacts-more, .modal-dialog .la-modal-close");
     } else {
       return document.querySelectorAll('nothing'); // Return empty NodeList equivalent
     }

@@ -18343,10 +18343,43 @@ form.row.subscription-form-with-cards {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 12px;
-  margin-bottom: 14px;
+  /* STICKY, so the title, the close control and the Up/Down scroll controls stay on screen
+     however far the menu is scrolled -- the scroll controls are useless if scrolling can
+     carry them away.
+
+     The negative margins cancel `.md-speak-menu`'s own `padding: 16px 20px 12px` and the
+     matching padding puts the same space back inside the bar. Without that the bar would
+     sit inside the padding box and scrolled content would show through the 20px channel
+     either side of it and the 16px above. Opaque background for the same reason: sticky
+     only reserves space, it does not hide what passes underneath. */
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #ffffff;
+  margin: -16px -20px 14px;
+  padding: 16px 20px 12px;
   border-bottom: 1px solid rgba($la-navy, 0.15);
 }
+/* Groups the scroll controls with the close button so the header's `space-between` keeps
+   the title left and every control right, however many of them are currently rendered. */
+/* ABSOLUTELY CENTRED on the header, for two reasons. It reads as centred regardless of how
+   wide the title or the close button are, and -- the functional half -- taking it out of
+   flow means the pair appearing or disappearing cannot move the title or the close button.
+   The header is `position: sticky`, which already establishes the containing block. */
+.md-speak-menu__scroll-pager {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* No rule of its own: `.md-speak-menu__scroll-btn` is applied ALONGSIDE
+   `.md-speak-menu__phrase-page-btn` in the template, so both pagers are governed by that one
+   declaration block (~:18900) and cannot drift apart. This class exists only as a hook --
+   it is what modal.js#scannable_targets matches to make these reachable by switch scanning.
+   Do not give it competing declarations here; edit the shared rule instead. */
 .md-speak-menu__title {
   /* 22px. Was `1.25rem` with a comment claiming 20px — but the root font-size in this
      codebase is 10px, set by bootstrap on the html element and measured in the browser, so
@@ -18752,19 +18785,38 @@ form.row.subscription-form-with-cards {
 .md-speak-menu__held-list {
   margin-top: 6px;
 }
-/* The overflow control. Deliberately NOT `--resume`: it is navigation to the rest of the
-   list, not a thought to pick up, and giving it the same verdigris accent as a real held
-   thought would make a fourth row that resumes nothing look identical to three that do. */
+/* The overflow control, on the same glass-tile primitive as the GIF / Share / Alerts action
+   tiles (`.la-gif-modal__action` ~:106638 and `.la-inbox__action`): white gradient over a
+   tint, backdrop blur, and a four-layer shadow with a lit top edge. Reused rather than
+   re-specified so depth and hover read identically wherever the treatment appears.
+
+   Deliberately NOT `--resume`: it is a disclosure for the rest of the list, not a thought to
+   pick up, so it must not carry the verdigris accent that marks a real held thought — a row
+   that resumes nothing should not look like three that do. The glass tile separates it by
+   MATERIAL instead of by colour, which keeps that distinction without a dashed edge. */
 .md-speak-menu__bottom-btn--more-thoughts {
-  border-style: dashed;
-  border-color: rgba($la-navy, 0.28);
-  background: rgba($la-navy, 0.03);
   justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.98);
+  --tile-tint: #{$surface-300};
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.82) 45%, rgba(255, 255, 255, 0.72) 100%), var(--tile-tint);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  box-shadow: 0 0 0 1px rgba($brand-blue-black, 0.07),
+              0 2px 4px rgba($brand-blue-black, 0.10),
+              0 12px 30px rgba($brand-blue-black, 0.18),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 .md-speak-menu__bottom-btn--more-thoughts:hover {
-  background: rgba($la-navy, 0.07);
-  border-color: rgba($la-navy, 0.42);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.90) 0%, rgba(255, 255, 255, 0.72) 45%, rgba(255, 255, 255, 0.60) 100%), var(--tile-tint);
+  border-color: rgba(255, 255, 255, 1);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba($brand-blue-black, 0.10),
+              0 3px 6px rgba($brand-blue-black, 0.12),
+              0 18px 40px rgba($brand-blue-black, 0.22),
+              inset 0 1px 0 rgba(255, 255, 255, 1);
 }
+.md-speak-menu__bottom-btn--more-thoughts:active { transform: translateY(1px); }
 .md-speak-menu__bottom-btn--more-thoughts .md-speak-menu__remembered-text {
   font-weight: 700;
   color: rgba($la-navy, 0.85); /* same ~7.8:1 as the section label */
@@ -18779,11 +18831,6 @@ form.row.subscription-form-with-cards {
 }
 .md-speak-menu__bottom-btn--more-thoughts-open .md-speak-menu__more-thoughts-chevron {
   transform: rotate(180deg);
-}
-/* Solid once open: the dashed edge reads as "there is more behind this", which is no
-   longer true when the rest of the list is already on screen. */
-.md-speak-menu__bottom-btn--more-thoughts-open {
-  border-style: solid;
 }
 @media (prefers-reduced-motion: reduce) {
   .md-speak-menu__more-thoughts-chevron { transition: none; }
