@@ -8868,6 +8868,8 @@
   "at_least_8_characters": "*** at least 8 characters",
   "min_password_lower_8": "*** password must be at least 8 characters",
   "classic_tab_updates_n": "*** Updates (%{n})",
+  "view_group_layout": "*** Layout",
+  "view_group_style": "*** Style",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "На дату [[ On the Date",
   "after_time": "Після часу [[ After Time",
