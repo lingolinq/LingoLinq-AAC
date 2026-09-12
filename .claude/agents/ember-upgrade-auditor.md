@@ -3,7 +3,6 @@ name: ember-upgrade-auditor
 description: Read-only Ember 3.28->5.12 upgrade-regression finder for LingoLinq-AAC. Scans an assigned slice of app/frontend for the known silent-breakage classes (array prototype extensions, @each on native arrays, codemod template artifacts, modal opening() lifecycle, removed APIs, Ember Data 5.x injection/relationship changes, build/test pipeline); emits register-shaped findings. Never edits code. Spawned by the /ember-audit-run orchestrator with a scan slice.
 tools: Read, Grep, Glob, Bash
 model: opus
-memory: project
 skills:
   - ember-upgrade-audit
 hooks:
@@ -82,8 +81,8 @@ Snippets must exist verbatim at the given `auditedSha` — cite from `git show <
 if your working tree may differ. If your slice is clean, return `"findings": []` with a
 short `"note"`.
 
-## Memory policy (`memory: project`)
-Project memory holds PROCESS knowledge only: where twin/duplicate modules live, which
-files are dead, which routes map to which templates/controllers — never findings, never
-"this file is clean" assertions. A fresh run re-verifies against live code at the audited
-SHA.
+## Memory
+This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
+denies every write). Twin/duplicate modules, dead files, and route-to-template maps belong in
+`docs/ember-upgrade/KNOWN-ISSUES.md`, not in per-machine memory. A fresh run re-verifies against
+live code at the audited SHA; never carry a "this file is clean" assertion between runs.

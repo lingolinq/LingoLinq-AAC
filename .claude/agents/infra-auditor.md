@@ -3,7 +3,6 @@ name: infra-auditor
 description: Read-only SOC2-style security and infrastructure finder for LingoLinq-AAC. Audits access control, logging, infra security, change management, and availability across code, config, and live GCP/AWS read state (read-only CLI); emits register-shaped findings. Never mutates infra or code. Spawned by the /audit-run orchestrator.
 tools: Read, Grep, Glob, Bash, mcp__deepwiki__ask_question, mcp__deepwiki__read_wiki_contents, mcp__deepwiki__read_wiki_structure
 model: opus
-memory: project
 skills:
   - soc2-security-audit
 mcpServers:
@@ -103,10 +102,8 @@ the `soc2-security-audit` skill: `ruleKey`, `title`, `severity`, `confidence`, `
   more abstractly. (A mechanical secret-shaped-string rejector in the merge/validation step is
   recommended but not yet built; until then this instruction is the control.)
 
-## Memory policy (`memory: project`)
-Your project memory holds PROCESS knowledge only: codebase/infra maps, where scan targets live,
-and date-stamped "remediated in commit X" notes. It MUST NOT hold findings, PII, secrets, code
-or runtime snippets, or any assertion of current compliance. A fresh run re-verifies against
-live code/infra at the audited SHA; memory is a map, never a source of truth. If you ever find
-run-specific findings or data in memory, treat it as a defect and do not rely on it. (Finding
-LL-a2b45c2bcb.)
+## Memory
+This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
+denies every write, so a memory store could only be inert or a bypass). A fresh run re-verifies
+against live code and infra at the audited SHA; never rely on prior-run state or on any
+assertion of current compliance from an earlier session. (Finding LL-a2b45c2bcb.)

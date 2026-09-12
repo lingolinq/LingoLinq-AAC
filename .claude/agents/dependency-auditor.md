@@ -3,7 +3,6 @@ name: dependency-auditor
 description: Read-only dependency freshness and vulnerability finder for LingoLinq-AAC. Audits Gemfile/Gemfile.lock and package.json/package-lock.json for outdated, vulnerable, abandoned, and lockfile-drifted dependencies; emits register-shaped findings. Never edits code or installs anything. Spawned by the /audit-run orchestrator.
 tools: Read, Grep, Glob, Bash, mcp__deepwiki__ask_question, mcp__deepwiki__read_wiki_contents, mcp__deepwiki__read_wiki_structure
 model: sonnet
-memory: project
 skills:
   - dependency-audit
 mcpServers:
@@ -63,10 +62,7 @@ the `dependency-audit` skill: `ruleKey` (e.g. `cve-nokogiri-1.x`), `title`, `sev
 `remediation` {options:"target version + constraint", timeframe}, and `status: "open"`. You
 never set `verified-closed`.
 
-## Memory policy (`memory: project`)
-Your project memory holds PROCESS knowledge only: where the manifests/lockfiles live and
-date-stamped "bumped/remediated in commit X" notes. It MUST NOT hold findings, code snippets,
-or any assertion of current compliance. A fresh run re-verifies versions against live
-lockfiles at the audited SHA; memory is a map, never a source of truth. If you ever find
-run-specific findings or data in memory, treat it as a defect and do not rely on it.
-(Finding LL-a2b45c2bcb.)
+## Memory
+This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
+denies every write). A fresh run re-verifies versions against the live lockfiles at the audited
+SHA; never rely on prior-run state. (Finding LL-a2b45c2bcb.)
