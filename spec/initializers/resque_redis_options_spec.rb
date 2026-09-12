@@ -134,27 +134,27 @@ describe RedisInit do
       keys.each_with_index { |k, i| saved[i].nil? ? ENV.delete(k) : ENV[k] = saved[i] }
     end
 
-    it 'prefers CACHE_TOKEN when set' do
+    it 'prefers CACHE_TOKEN over the Cloud Run revision' do
       ENV['CACHE_TOKEN'] = 'explicit-secret'
-      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      ENV['K_REVISION'] = 'svc-00001-abc'
       expect(RedisInit.resolved_cache_token).to eq('explicit-secret')
     end
 
-    it 'falls back to the Render deploy SHA when CACHE_TOKEN is absent' do
-      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+    it 'falls back to the Cloud Run revision when CACHE_TOKEN is absent' do
       ENV['K_REVISION'] = 'svc-00001-abc'
-      expect(RedisInit.resolved_cache_token).to eq('deadbeef')
+      expect(RedisInit.resolved_cache_token).to eq('svc-00001-abc')
     end
 
-    it 'falls back to the Cloud Run revision when no CACHE_TOKEN/Render SHA' do
+    it 'ignores RENDER_GIT_COMMIT (Render was decommissioned 2026-09-09)' do
+      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
       ENV['K_REVISION'] = 'svc-00001-abc'
       expect(RedisInit.resolved_cache_token).to eq('svc-00001-abc')
     end
 
     it 'treats a blank env value as unset (skips to the next source)' do
       ENV['CACHE_TOKEN'] = ''
-      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
-      expect(RedisInit.resolved_cache_token).to eq('deadbeef')
+      ENV['K_REVISION'] = 'svc-00001-abc'
+      expect(RedisInit.resolved_cache_token).to eq('svc-00001-abc')
     end
 
     it 'falls back to the legacy literal only when nothing is set' do
@@ -162,7 +162,7 @@ describe RedisInit do
     end
 
     it 'is deterministic: repeated calls return the same value' do
-      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      ENV['CACHE_TOKEN'] = 'explicit-secret'
       expect(RedisInit.resolved_cache_token).to eq(RedisInit.resolved_cache_token)
     end
   end

@@ -1059,7 +1059,7 @@ describe Organization, :type => :model do
       u = User.create
       b = Board.create(user: u, public: true)
       o = Organization.create
-      url = "https://lingolinq-staging.onrender.com/#{u.user_name}/board-detail/#{b.key.split('/', 2)[1]}"
+      url = "https://staging.lingolinq.com/#{u.user_name}/board-detail/#{b.key.split('/', 2)[1]}"
       o.process({:home_board_keys => [url]}, {updater: u})
       expect(o.settings['default_home_boards']).to eq([{'key' => b.key, 'id' => b.global_id}])
     end
