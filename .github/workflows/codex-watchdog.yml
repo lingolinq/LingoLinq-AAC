@@ -11,7 +11,7 @@ name: Codex Review Watchdog
 # `fail-stale-pending`, and the only writer to the stale list is gated on
 # `age_min -ge 30`. There is no `github.event_name` branching anywhere in this
 # file, so NEITHER trigger provides prompt recovery:
-#   1. workflow_run(completed) — codex-review.yml or claude-fix.yml concluded
+#   1. workflow_run(completed) — codex-review.yml concluded
 #      (crashed, cancelled, or exited nonzero) but deep-pass is still pending.
 #      This fires immediately and then does NOTHING unless the status is
 #      already 30+ minutes old. Do not describe it as a fast path: a run that
@@ -57,7 +57,7 @@ name: Codex Review Watchdog
 # monitor outside GitHub Actions; scheduling cannot provide one.
 on:
   workflow_run:
-    workflows: ["Codex Review", "Claude Fix"]
+    workflows: ["Codex Review"]
     types: [completed]
   schedule:
     - cron: "*/10 * * * *"
