@@ -28,22 +28,41 @@ export function fastHtmlHasRenderableContent(fast) {
 
 var editManager = EmberObject.extend({
   _services: {},
+  _controller: null,
+  /* `controller` is a module-level slot on this singleton, written by the real routes
+     (`routes/user/board-detail.js`, `routes/board/index.js`, `routes/user/board-alt/index.js`)
+     and by `services/app-state.js`, and nulled on `resetController(…, isExiting)`. An
+     ACCEPTANCE test tears its app instance down WITHOUT exiting the route, so that null never
+     runs and the slot keeps a DESTROYED controller — which the next test's
+     `clear_mode` -> `clear_paint_mode` then `set('paint_mode')` on, dying before its own
+     assertions. Handing out `null` instead is safe by construction: three production sites
+     already assign null here, so every one of the ~40 `this.controller` consumers already
+     handles it. Guarding the SLOT rather than one consumer is deliberate — the sibling
+     `_services` leak recurred precisely because only one reader was fixed. */
+  get controller() {
+    var c = this._controller;
+    if(c && (c.isDestroyed || c.isDestroying)) { this._controller = null; return null; }
+    return c;
+  },
+  set controller(val) {
+    this._controller = val;
+  },
   get appState() {
-    return (this._services && (this._services.appState || this._services.app_state)) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+    return live_service(this._services && (this._services.appState || this._services.app_state)) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
   },
   set appState(val) {
     this._services = this._services || {};
     this._services.appState = val;
   },
   get persistence() {
-    return (this._services && this._services.persistence) || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+    return live_service(this._services && this._services.persistence) || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
   },
   set persistence(val) {
     this._services = this._services || {};
     this._services.persistence = val;
   },
   get stashes() {
-    return (this._services && this._services.stashes) || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+    return live_service(this._services && this._services.stashes) || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
   },
   set stashes(val) {
     this._services = this._services || {};
@@ -2931,13 +2950,34 @@ window.editManager = editManager;
 // Static service registry for explicit injection
 editManager._services = {};
 
+/* A registered service that has since been DESTROYED must not be handed out — fall through
+   to the global instead, which is always the live one (`services/app-state.js` rewrites
+   `window.appState` in every `init()`).
+
+   `_services` is module-level and has no teardown, so a reference registered once outlives
+   whatever owner created it. In the test suite `tests/helpers/index.js#setupTest` primes
+   these slots for EVERY unit test (via `tests/helpers/service-stub.js`), and each of those
+   owners is torn down in `afterEach` — so a later acceptance test that boots a real app was
+   handed the destroyed service from some earlier unit test and died with "calling set on
+   destroyed object" inside `clear_history` -> `update_color_key_id`, before any of its own
+   assertions ran. Order-dependent, and it presented as a product bug rather than a harness
+   one.
+
+   No production path is affected: nothing under `app/` calls `editManager.register_services`
+   (the only caller is the test helper), so `_services` is empty there and these branches
+   cannot fire. */
+function live_service(svc) {
+  if(svc && (svc.isDestroyed || svc.isDestroying)) { return null; }
+  return svc;
+}
+
 // Getter methods for services with fallback to globals
 editManager.get_app_state = function() {
-  return editManager._services.app_state || window.appState || (window.LingoLinq && window.LingoLinq.appState);
+  return live_service(editManager._services.app_state) || window.appState || (window.LingoLinq && window.LingoLinq.appState);
 };
 
 editManager.get_persistence = function() {
-  return editManager._services.persistence || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
+  return live_service(editManager._services.persistence) || window.persistence || (window.LingoLinq && window.LingoLinq.persistence);
 };
 
 editManager.get_keyed_colors = function() {
@@ -2954,7 +2994,7 @@ editManager.get_keyed_colors = function() {
 };
 
 editManager.get_stashes = function() {
-  return editManager._services.stashes || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
+  return live_service(editManager._services.stashes) || window.stashes || (window.LingoLinq && window.LingoLinq.stashes);
 };
 
 // Service registration method
