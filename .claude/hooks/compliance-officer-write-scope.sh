@@ -135,10 +135,21 @@ exec ruby -rjson -rpathname -e '
     [ /\btee\b/, "tee writes files" ],
     [ /\bsed\b[^|]*\s-[a-z]*i(?:\b|\.)/, "sed -i edits in place" ],
     [ /(?<![\w\/-])(python3?|node|nodejs|ruby|perl|php|deno|bun|Rscript|osascript|gawk|awk)\b[^|]*\s(-(?:[A-Za-z]*[ecrniEW])\b|--(?:eval|exec|require|inplace|in-place|command)\b)/, "interpreter eval flag can write files" ],
-    [ /(?<![\w\/-])(npx|bunx|pnpx|make|just|task|gulp|grunt|mvn|gradle|rake)\b/, "task runner / npx can run arbitrary writes" ],
+    [ /(?<![\w\/-])(npx|bunx|pnpx|make|just|task|gulp|grunt|mvn|gradle)\b/, "task runner / npx can run arbitrary writes" ],
+    # rake: deny every invocation except the read-only task listing (`rake -T` / `--tasks`).
+    [ /\brake\b(?![^|]*\s(?:-T|--tasks)\b)/, "rake task can mutate state" ],
     [ /(?<![\w-])(rm|mv|cp|mkdir|rmdir|touch|truncate|chmod|chown|ln)\b/, "filesystem mutation command" ],
     [ /\bgit\s+#{git_pre}(commit|push|merge|rebase|reset|checkout|switch|tag|am|apply|cherry-pick|stash|clean|rm|mv|add|restore|revert|worktree)\b/, "git state mutation" ],
-    [ /\bgh\s+(?:pr|issue|release|repo|api|workflow|run)\b/, "gh can mutate GitHub state" ],
+    # gh: read subcommands (pr view/diff/checks/list, issue view, run view, api GET) stay
+    # allowed; mutating verbs and non-GET / body-carrying api calls are denied.
+    [ /\bgh\s+#{git_pre}(pr|issue|release|repo|gist|secret|variable|workflow|run|label|api)\b.*\b(create|merge|close|edit|comment|delete|review|reopen|lock|unlock|rerun|cancel|dispatch|sync|set|add|remove|enable|disable|checkout)\b/, "mutating gh command" ],
+    [ /\bgh\s+api\b[^|]*-X\s*(POST|PUT|PATCH|DELETE)/i, "gh api non-GET write" ],
+    [ /\bgh\s+api\b[^|]*(-f|--field|--input|--method\s+(POST|PUT|PATCH|DELETE))\b/i, "gh api with a write body" ],
+    # Register artifacts: the Write-tool allowlist forbids FINDINGS.md, and these two scripts
+    # rewrite it (citation-check.rb --render; regenerate-register.sh in write mode). Only the
+    # verify-only forms are allowed.
+    [ /\bcitation-check\.rb\b[^|]*--render\b/, "citation-check.rb --render rewrites FINDINGS.md" ],
+    [ /\bregenerate-register\.sh\b(?![^|]*--check\b)/, "regenerate-register.sh without --check rewrites register artifacts" ],
     [ /\b(npm|pnpm|yarn|bundle|gem|pip|pip3|brew|apt|apt-get|cargo)\s+(i|install|add|update|upgrade|remove|uninstall|publish)\b/, "package mutation" ],
     [ /\b(rails|bin\/rails|bundle\s+exec\s+rails)\b[^|]*\b(db:|generate|g\b|destroy|d\b|runner|console|c\b|dbconsole)/, "rails mutation or live console" ],
     [ /\b(bundle\s+exec\s+)?rake\b[^|]*\b(db:|environment|stats|extras:)/, "rake task can mutate state" ],
