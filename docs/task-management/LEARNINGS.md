@@ -20,6 +20,10 @@ file (see [README.md](README.md)).
 
 ## Index
 
+- [Gotcha: `translate_set` fallbacks must apply dest voc, never delete speak text](#gotcha-translate_set-fallbacks-must-apply-dest-voc-never-delete-speak-text)
+- [Gotcha: rebuilding a board must not recapture the edit dirty baseline](#gotcha-rebuilding-a-board-must-not-recapture-the-edit-dirty-baseline)
+- [Gotcha: discard must close display prefs even when More Settings is collapsed](#gotcha-discard-must-close-display-prefs-even-when-more-settings-is-collapsed)
+- [Gotcha: `node:22-bullseye` cannot apt-get after Debian 11 LTS ended 2026-08-31](#gotcha-node22-bullseye-cannot-apt-get-after-debian-11-lts-ended-2026-08-31)
 - [Gotcha: merging two overlay PRs is a union of tests, then regenerate `.eslint-todo`](#gotcha-merging-two-overlay-prs-is-a-union-of-tests-then-regenerate-eslint-todo)
 - [Gotcha: long-press overlay reads Language-tab inflections from the button translations array](#gotcha-long-press-overlay-reads-language-tab-inflections-from-the-button-translations-array)
 - [Pattern: Spanish long-press defaults use `spanish_verb_grid`, not English `-s/-ed/-ing`](#pattern-spanish-long-press-defaults-use-spanish_verb_grid-not-english--s-ed-ing)
@@ -87,8 +91,13 @@ file (see [README.md](README.md)).
 - [Gotcha: button-settings Speak must sync vocalization via change_button — set-field alone does not persist](#gotcha-button-settings-speak-must-sync-vocalization-via-change_button--set-field-alone-does-not-persist)
 - [Gotcha: Capacitor offline AAC needs SQLite + Filesystem shims — IndexedDB-only is not speak-ready](#gotcha-capacitor-offline-aac-needs-sqlite--filesystem-shims--indexeddb-only-is-not-speak-ready)
 - [Gotcha: SMS consent hash must not include communicator global_id — merge remaps user_id and cannot rehash](#gotcha-sms-consent-hash-must-not-include-communicator-global_id--merge-remaps-user_id-and-cannot-rehash)
+- [Gotcha: a deliver_to SMS spec does not cover handle_notification utterance_shared](#gotcha-a-deliver_to-sms-spec-does-not-cover-handle_notification-utterance_shared)
+- [Gotcha: do not `json.dumps` FINDINGS.json — it escapes `§` and dirties unrelated notes](#gotcha-do-not-jsondumps-findingsjson--it-escapes--and-dirties-unrelated-notes)
+- [Gotcha: utterance share "upstream gates" are path-scoped, not general](#gotcha-utterance-share-upstream-gates-are-path-scoped-not-general)
+- [Gotcha: a zero row count plus no app destroy path is not a lifetime claim](#gotcha-a-zero-row-count-plus-no-app-destroy-path-is-not-a-lifetime-claim)
 - [Gotcha: `capabilities.storage.status()` resolve shape is a contract — do not add diagnostic keys](#gotcha-capabilitiesstoragestatus-resolve-shape-is-a-contract--do-not-add-diagnostic-keys)
 - [Speak vs edit: Default symbols still showed OpenSymbols in speak mode](#speak-vs-edit-default-symbols-still-showed-opensymbols-in-speak-mode)
+- [Speak vs edit: user-chosen pictures still swapped by label-search enrichment](#speak-vs-edit-user-chosen-pictures-still-swapped-by-label-search-enrichment)
 - [Gotcha: Cloud Run secret assertions must check every nonzero-percent traffic target](#gotcha-cloud-run-secret-assertions-must-check-every-nonzero-percent-traffic-target)
 - [Gotcha: `rem` is a trap in this codebase — the root font-size is 10px, so write px](#gotcha-rem-is-a-trap-in-this-codebase--the-root-font-size-is-10px-so-write-px)
 - [Pattern: derive report narrative in a pure util, never in the template or from absent data](#pattern-derive-report-narrative-in-a-pure-util-never-in-the-template-or-from-absent-data)
@@ -568,6 +577,20 @@ the layout override it so switching back to Dynamic restores their Extras choice
 
 **First seen in:** [2026-06-03-staged-registration-flow.md](./2026-06-03-staged-registration-flow.md)
 
+## Pattern: `:shift` is one-shot because `add_button` clears it; sticky caps is a separate flag
+
+`:shift` toggles `appState.shift`, then `utterance.add_button` does `appState.set('shift', null)` after every added button (`utterance.js`). A caps-lock button cannot reuse that flag as a `'lock'` sentinel without every clear/backspace site accidentally turning it off. Use `appState.caps_lock` (toggled only by `:caps`) and read `shift || caps_lock` (computed `capitalizing`) at display/type sites. Do not clear `caps_lock` on add, clear, or backspace.
+
+The Vocal Flair 84 system keyboard (`public/system-boards/keyboard.obz`) is 7×12 with a left gutter of empty cells. Do not put a new key in that gutter. The QWERTY bottom row was missing its 10th key (the `?`/`:` slot after space); that empty cell is the place for `caps`.
+
+**First seen in:** [2026-09-10-caps-lock-button.md](./2026-09-10-caps-lock-button.md)
+
+## Pattern: QWERTY `+s` is a letter; only label `-s` is the plural modifier
+
+`application.js` used to rewrite `+s` to `:plural` when the label matched `/^-?s$/i`. The optional hyphen also matched the keyboard letter `s`/`S`. On an empty sentence `:plural` becomes `i18n.pluralize('')` → `'s'`, and later letters with `caps_lock` append as `TAR`, which shows as `sTAR`. Require `/^-s$/i` via `Button.vocalization_for_activation`. Without caps the leftover `'s'` plus `'tar'` looks like a normal word, so the bug only shows once caps lock uppercases the rest.
+
+**First seen in:** [2026-09-10-caps-lock-star-case.md](./2026-09-10-caps-lock-star-case.md)
+
 ## Pattern: keyboard control vocalizations must survive translation overlay
 
 Keyboard boards use vocalizations as control protocols: `+a` composes spelling, `:space` completes the in-progress word, and `:shift` toggles capitalization. `Board#translated_buttons` must not replace those `:`/`+` vocalizations with visible labels when label and vocalization locales match, or controls start speaking words like “space”/“shift” and letters stop composing. If `lingolinq/keyboard` has stale locale metadata, default it back to English when no user locale or Switch Languages override exists, and repair the content board through `SystemSidebarBoards.ensure_for`.
@@ -581,6 +604,12 @@ Keyboard boards use vocalizations as control protocols: `+a` composes spelling, 
 `Board#translate_set` already refuses to overwrite vocalizations matching `^[:+]`, but the Translate Boards review modal (`components/button-set.js`) was still pushing those vocalizations (`:space`, `:shift`, `+q`, `:suggestion`) into `/api/v1/users/self/translate`. The review UI then showed a second row for the token, and `_build_save_translations_map` could persist `':space' => 'espacio'`. Skip at collect / show / save with `shouldTranslateVocalization`; also drop `^[:+]` in `WordData.translate_batch` so Google never sees them even if a client sends them; and do not mirror a translated **label** onto an action vocalization when label and vocalization are both `:space`. Still translate the visible label (`space`, `[ space ]`).
 
 **First seen in:** [2026-08-26-translate-action-tokens-and-lang-search.md](./2026-08-26-translate-action-tokens-and-lang-search.md)
+
+## Gotcha: `translate_set` fallbacks must apply dest voc, never delete speak text
+
+`Board#translate_set` applies `translations[vocalization]` when the hash has a dest string. With `allow_fallbacks` and `set_as_default`, a missing dest voc used to `button.delete('vocalization')`. Switch Language POSTs `translations: {}` and `fallbacks: 'true'`, so dest often has a label and no dest voc — joke sentences (`vocalization` != `label`) were wiped and speak fell back to the title. Keep authored speak text; apply dest-hash voc when present. `translate_set` does not call Google (`users#translate` / `WordData` does). Action tokens `^[:+]` stay untouched.
+
+**First seen in:** [2026-09-11-translate-keep-vocalization.md](./2026-09-11-translate-keep-vocalization.md)
 
 ## Gotcha: Translate Boards tree is not a labeled button set
 
@@ -5858,6 +5887,30 @@ finding look "new". Keep board-detail edits line-count-neutral (EOL comments).
 `_build_from_raw`; task logs `2026-08-10-preserve-imported-board-images.md`,
 `2026-08-10-preserve-imported-images-ci-failures.md`.
 
+### Speak vs edit: user-chosen pictures still swapped by label-search enrichment
+
+**Symptom:** Button Settings shows the picture the user picked (e.g. a CAPS
+LOCK key). Speak mode shows a different OpenSymbols hit for the button label
+(e.g. a police hat for "caps lock", often with a baked-in `+s`).
+
+**Root cause:** Same enrichment path as imported custom photos.
+`save_image_preview` sends `button_label`. If the stored URL is S3/uploads,
+`ensure_library_url_for_skin!` searches OpenSymbols by that label and stores
+`library_url_for_skin`. Speak mode prefers `skin_url` when preferred symbols
+is a library. Import already stamped `preserve_source_image`; the images API
+did not.
+
+**Fix:** `ButtonImage#process_params` stamps `preserve_source_image` when the
+client sends `button_label` or an explicit flag (including on update).
+`save_image_preview` sends the flag so re-picking the same URL repairs an
+already-enriched row. Suggested-symbol creates (no `button_label`) are
+unchanged. Already-enriched images stay wrong until the user picks the
+picture again.
+
+**Evidence:** `app/models/button_image.rb` `process_params`,
+`app/frontend/app/services/content-grabbers.js` `save_image_preview`;
+task log `2026-09-10-speak-mode-picture-swap.md`.
+
 
 
 ---
@@ -9369,7 +9422,7 @@ Two different credentials share the name `user_token`. `User#user_token` is a pe
 
 ## Gotcha: private uploads bucket — `/upload_success` must use authenticated head_object
 
-Same private-bucket class as the OBZ import gotcha, different caller. Browser SigV4 POST of a button sound (or image/video file) succeeds; `GET /api/v1/sounds/:id/upload_success` then did `Typhoeus.head` of the raw `https://bucket.s3.amazonaws.com/...` URL. Prod Block Public Access returns 403; the action reports **`File not found`** (exactly 46 bytes). Confirmation key was already accepted. Staging can still pass if its bucket allows public `GetObject` — the Rails file was identical on main and staging. Fix: `Uploader.remote_upload_exists?` (`lib/uploader.rb:537`, IAM `head_object`). Do not HEAD the CloudFront URL (nonprod has no CDN; a new object can miss the distribution). Residual: `verify_stored_s3_upload!` still unsigned-GETs for SVG images. Ref: [`2026-09-04-prod-sound-upload-success-400.md`](./2026-09-04-prod-sound-upload-success-400.md).
+Same private-bucket class as the OBZ import gotcha, different caller. Browser SigV4 POST of a button sound (or image/video file) succeeds; `GET /api/v1/sounds/:id/upload_success` then did `Typhoeus.head` of the raw `https://bucket.s3.amazonaws.com/...` URL. Prod Block Public Access returns 403; the action reports **`File not found`** (exactly 46 bytes). Confirmation key was already accepted. Staging can still pass if its bucket allows public `GetObject` — the Rails file was identical on main and staging. Fix: `Uploader.remote_upload_exists?` (`lib/uploader.rb:537`, IAM `head_object`). Do not HEAD the CloudFront URL (nonprod has no CDN; a new object can miss the distribution). After confirm, still store the canonical bucket URL on the record, but return `Uploader.fronted_url` in the JSON — Ember sets `sound.url` from that payload and Button Settings plays `<audio src={{model.sound.url}}>`, so a raw S3 URL 403s (0:00 duration) until a hard refresh reloads `JsonApi::Sound` `best_url`. Residual: `verify_stored_s3_upload!` still unsigned-GETs for SVG images. Ref: [`2026-09-04-prod-sound-upload-success-400.md`](./2026-09-04-prod-sound-upload-success-400.md).
 
 ## Gotcha: a compliance claim about runtime state expires; verify at the SHA and in prod, never from the diff
 
@@ -15655,7 +15708,7 @@ permanent data loss:
 |---|---|
 | client, board-detail save | non-default-locale branch nulls then restores from a translation entry that has no vocalization |
 | client, CLASSIC editor | byte-for-byte twin of the above |
-| server, `translate_set` | deletes any vocalization it cannot translate, with fallbacks on |
+| server, `translate_set` | used to delete any vocalization it cannot translate, with fallbacks on (speak text now kept; see 2026-09-11) |
 | server, `relinking#update_default_locale!` | reassigns from the new locale's entry, deletes when nil |
 
 They share one wrong assumption — *"a vocalization is a word, so a translation can replace it
@@ -17042,6 +17095,48 @@ with `jump_home` false (`:2364`) — which includes every `switch-communicators`
 `SmsConsent` hashes the canonical number with `RemoteTarget.salted_hash(..., ENV['SMS_ENCRYPTION_KEY'], 'global')` and pairs that digest with `user_id` on every lookup. Putting `communicator.global_id` into the hash would stop a hash-only lookup bug, but `Flusher.transfer_user_content` only remaps `user_id` and does not rewrite hashes; after merge `granted?(target, number)` would rehash with the new global id and miss. The query invariant (`user_id` + `target_hash` + `state: granted`) is what keeps one recipient consent from becoming platform-wide. Raise in `SmsConsent` when `SMS_ENCRYPTION_KEY` is blank — `RemoteTarget.salted_hash` will not.
 
 **First seen in:** [2026-09-08-sms-consent-record.md](./2026-09-08-sms-consent-record.md).
+
+## Gotcha: a deliver_to SMS spec does not cover handle_notification utterance_shared
+
+`Utterance#deliver_to` (`app/models/utterance.rb:212`) passes `contact['cell_phone']`. `User#handle_notification('utterance_shared')` (`app/models/user.rb:4229`) has no contact; `cell` comes from `recipient_user.settings['cell_phone']`. A `share_with` / `deliver_to` example does not execute that path. The send-path consent guard must sit after `cell` is assigned (`utterance.rb:274`) and before `RemoteTarget.find_or_assert`. `FeatureFlags.sms_recipient_consent_enabled?(nil)` is false, so the flag must be read from `ref_user || utterance.user`. If that flag is on and `ref_user` is missing, fail closed with `reason: 'unknown_sender'`. Flag-off fixtures that omit `ref_user` still send.
+
+**First seen in:** [2026-09-08-sms-send-guard.md](./2026-09-08-sms-send-guard.md).
+
+## Gotcha: do not `json.dumps` FINDINGS.json — it escapes `§` and dirties unrelated notes
+
+Python `json.dumps` rewrites `§` as `\u00a7` across every notes field. A one-sentence edit then looks like a six-finding rewrite. Do a raw text replace of the exact sentence, then `scripts/regenerate-register.sh`.
+
+**First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
+
+## Gotcha: utterance share "upstream gates" are path-scoped, not general
+
+`share_notifications` (default `email`) is read only in `User#handle_notification('utterance_shared')` at `app/models/user.rb:4226`. A saved contact with `contact_type` sms goes through `Utterance#deliver_to` → `deliver_message(contact['contact_type'], …)` at `app/models/utterance.rb:210-223` and never reads that pref. The premium check at `app/controllers/api/utterances_controller.rb:45` keys on `params['user_id']` only; `share_with` treats `supervisor_id` as the same recipient (`utterance.rb:89`) and skips the check.
+
+**First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
+
+## Gotcha: a zero row count plus no app destroy path is not a lifetime claim
+
+A Cloud Run `RemoteTarget.count` is a point-in-time snapshot. Grep showing no `destroy`/`delete`/`dependent:` in `app`/`lib`/`db`/`config` only rules out an application sweep. It does not prove rows were never created: a restore or operational SQL can empty the table without appearing in those trees. Do not write "zero now means none were ever created."
+
+**First seen in:** [2026-09-08-codex-ll-cb9f9c865a-notes-scope.md](./2026-09-08-codex-ll-cb9f9c865a-notes-scope.md).
+
+## Gotcha: `node:22-bullseye` cannot apt-get after Debian 11 LTS ended 2026-08-31
+
+The Cloud Run image build's frontend-builder stage (`Dockerfile` `FROM node:22-bullseye`) runs `apt-get update` against `deb.debian.org/debian-security/dists/bullseye-security`. Debian 11 LTS ended 2026-08-31 ([announcement](https://www.debian.org/News/2026/20260831)); that InRelease is no longer refreshed, so the build fails with "Release file ... is expired". The Ruby stage (`ruby:3.4.4-slim`, bookworm) keeps working in the same log. Do not "fix" this with `Acquire::Check-Valid-Until=false` or `archive.debian.org` — those still build on an unpatched EOL distro. Move the stage to `node:22-bookworm`.
+
+**First seen in:** release PR #952 (2026-09-08 Cloud Run dev deploy).
+
+## Gotcha: rebuilding a board must not recapture the edit dirty baseline
+
+`_build_from_raw` used to call `capture_edit_baseline()` on every full grid build. That replace-all snapshot is correct once (the build itself dirties `translations` / `buttons` / `translated_locales`). A later Symbol Library change rebuilds the same board and folds an unsaved `model.name` into the baseline, so `edit_session_has_changes` goes false and Exit to Home skips the prompt. Skip same-board recapture only while still in the same edit session (`rebaseline_after_build`). Speak-mode builds must not capture: `edit.js` then `processButtons` on entry would skip. Discard, post-save `_build_from_raw`, and edit-route `resetController` must `reset_edit_baseline` first, because this controller is a singleton and those rebuilds reuse the same id. Tests that call `rebaseline_after_build` directly never see a reverted `:1887`.
+
+**First seen in:** [2026-09-09-edit-baseline-and-discard-prefs.md](./2026-09-09-edit-baseline-and-discard-prefs.md) (#955 review; session-reset follow-up 2026-09-10).
+
+## Gotcha: discard must close display prefs even when More Settings is collapsed
+
+`toggle_display_settings` collapses the panel by setting `display_prefs_open` false and keeping `pending_display_prefs`. `_discard_edit_changes` used to send `close_display_preferences` only when the panel was open, so Discard from the collapsed state left the live pref applied and `pending` set. Toolbar `set_display_pref` then never reached `_schedule_display_pref_save` for the rest of the session. Always close; `close_display_preferences` is a no-op when both objects are null. Do not stub `_discard_edit_changes` if that is the body under test.
+
+**First seen in:** [2026-09-09-edit-baseline-and-discard-prefs.md](./2026-09-09-edit-baseline-and-discard-prefs.md) (#955 review).
 
 ## Gotcha: the ESLint gate's `new=N` counts line shifts, not new violations — classify before believing it
 

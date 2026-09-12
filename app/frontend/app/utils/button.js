@@ -890,6 +890,16 @@ Button.coerce_level_value = function(attr, val) {
   return val;
 };
 
+// Used by application.js _activateButtonWithOptions before add_button.
+// +s plus a hyphenated "-s" label is the plural/3sg modifier. A plain
+// "s"/"S" label is the QWERTY letter and must stay +s (application.js:1898).
+Button.vocalization_for_activation = function(vocalization, label) {
+  if((vocalization || '').match(/^\+s$/i) && (label || '').trim().match(/^-s$/i)) {
+    return ':plural';
+  }
+  return vocalization;
+};
+
 // Static service registry for use in static methods
 Button._services = {
   appState: null,
@@ -1679,6 +1689,15 @@ Button.load_actions = function() {
       description: i18n.t('toggle_shift', "Toggle Shift State (capitalization)"),
       trigger: function() {
         Button.get_app_state().set('shift', !Button.get_app_state().get('shift'));
+        Button.get_app_state().set('suggestion_id', null);
+        app_state.refresh_suggestions();
+      }
+    },
+    {
+      action: ':caps',
+      description: i18n.t('toggle_caps', "Toggle Caps Lock (keep capitalizing until turned off)"),
+      trigger: function() {
+        Button.get_app_state().set('caps_lock', !Button.get_app_state().get('caps_lock'));
         Button.get_app_state().set('suggestion_id', null);
         app_state.refresh_suggestions();
       }

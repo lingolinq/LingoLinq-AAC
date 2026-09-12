@@ -3394,7 +3394,7 @@ export default Service.extend({
     if(board && typeof board.get === 'function' && !board.get('isDeleted')) {
       // TODO: only load this if we know we need it?
       var history_string = (this.stashes.get('working_vocalization') || []).map(function(v) { return (v.label || "") + (v.button_id || "n") + ((v.board || {}).id || "n"); }).join(",");
-      var ref = board.id + "::" + history_string + "::" + this.get('shift');
+      var ref = board.id + "::" + history_string + "::" + this.get('shift') + "::" + this.get('caps_lock');
       if(ref != this.get('suggestion_id')) {
         var routeName = this.get('current_route') || '';
         var on_board_detail = routeName.indexOf('board-detail') !== -1;
@@ -3403,13 +3403,16 @@ export default Service.extend({
           this.set('suggestion_id', ref);
           board.clear_real_time_changes();
           board.load_word_suggestions(word_suggestions.lookup_board_ids(this, this.stashes, [board.id]));
-          if(this.get('referenced_user.preferences.auto_inflections') || this.get('inflection_shift') || this.get('shift')) {
+          if(this.get('referenced_user.preferences.auto_inflections') || this.get('inflection_shift') || this.get('capitalizing')) {
             board.load_real_time_inflections();
           }
         }
       }
     }
   },
+  capitalizing: computed('shift', 'caps_lock', function() {
+    return !!(this.get('shift') || this.get('caps_lock'));
+  }),
   inflection_prefix: computed('stashes.working_vocalization', 'referenced_user.preferences.auto_inflections', 'inflection_shift', function() {
       var sentence = null;
       if(this.get('referenced_user.preferences.auto_inflections') || this.get('inflection_shift')) {

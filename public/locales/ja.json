@@ -9272,5 +9272,7 @@
   "phrases_tap_for_more": "*** %{n} more saved — tap Phrases to see them all",
   "x_url": "XのURL [[ X URL",
   "x_handle": "Xハンドル [[ X Handle",
-  "x_handle_example": "*** @whoever"
+  "x_handle_example": "*** @whoever",
+  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
+  "caps_lock_on_label": "*** CAPS LOCK"
 }

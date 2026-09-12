@@ -1953,8 +1953,13 @@ export default Controller.extend(prefClasses, {
        freshly opened editor. "Exit to Home" tells a clean edit session from a dirty one by
        comparing against this, so it has to be taken AFTER the build, not when the edit route
        sets up: there the record is still clean and the baseline came out empty, which made
-       every session look changed. */
-    _this.capture_edit_baseline();
+       every session look changed.
+
+       Same-session rebuilds (Symbol Library, etc.) must NOT recapture: that folds a
+       mid-session `model.name` write into the baseline. Speak-mode builds and
+       post-discard / post-save rebuilds must not keep a stale snapshot either;
+       see `rebaseline_after_build` and `reset_edit_baseline`. */
+    _this.rebaseline_after_build();
   },
 
   _translation_entry_from_raw: function(translations, button_id, locale) {
@@ -2523,7 +2528,7 @@ export default Controller.extend(prefClasses, {
     var board = this.get('model');
     var ob = this.get('ordered_buttons');
     if(!appState || !board || !ob || !ob.length) { return; }
-    var cap = !!appState.get('shift');
+    var cap = !!(appState.get('capitalizing') || appState.get('shift') || appState.get('caps_lock'));
     var history = this.get('stashes.working_vocalization') || [];
     var contextualized = board.contextualized_buttons(
       appState.get('label_locale'),
@@ -2560,6 +2565,8 @@ export default Controller.extend(prefClasses, {
 
   _shift_label_observer: observer(
     'app_state.shift',
+    'app_state.caps_lock',
+    'app_state.capitalizing',
     'ordered_buttons',
     function() {
       this._apply_shift_to_ordered_buttons();
@@ -4493,13 +4500,45 @@ export default Controller.extend(prefClasses, {
   }),
 
   /* Snapshot of which board-record attributes were ALREADY dirty when the edit page opened,
-     as `{attr: JSON of its current value}`. Captured by the edit route's setupController.
+     as `{attr: JSON of its current value}`. Written by `rebaseline_after_build` at the end
+     of a full `_build_from_raw` (`:1884`), not by the edit route — `edit.js` setupController
+     never calls this.
 
      A baseline is needed because the record is dirty before the user does anything: opening
      the editor leaves `translations`, `buttons` and `translated_locales` changed (measured).
      Comparing VALUES rather than just key names matters too — `edit-board-details` writes
      `model.translations`, which is one of the three, so a key-only baseline would mask it. */
   _edit_dirty_baseline: null,
+  _edit_baseline_token: null,
+
+  /* Drop the snapshot so the next edit-mode `_build_from_raw` recaptures.
+     Same-board skip in `rebaseline_after_build` is per edit SESSION, not per
+     board: this controller is a singleton, and discard / save / route-exit all
+     rebuild the same id. Without a reset those rebuilds keep the first-open
+     values and `edit_session_has_changes` false-prompts (or misses a rename). */
+  reset_edit_baseline: function() {
+    this.set('_edit_dirty_baseline', null);
+    this._edit_baseline_token = null;
+  },
+
+  /* First full build WHILE editing records the dirty keys the build itself wrote.
+     Later rebuilds of the SAME board in the SAME session keep that snapshot so a
+     user rename (`edit-board-details.hbs:16`) is not folded in. Speak-mode builds
+     must not pin a snapshot: edit.js `processButtons` on entry would then skip.
+     A different board id/key recaptures, because this controller is a singleton. */
+  rebaseline_after_build: function() {
+    if(!this.get('edit_mode')) { return; }
+    var model = this.get('model');
+    var token = null;
+    if(model) {
+      token = (model.get && (model.get('id') || model.get('key'))) || model.id || model.key || null;
+    }
+    if(this.get('_edit_dirty_baseline') && this._edit_baseline_token === token) {
+      return;
+    }
+    this.capture_edit_baseline();
+    this._edit_baseline_token = token;
+  },
 
   /* Marks that the baseline for THIS edit session has already been taken. Cleared when
      edit mode is entered, so a new session gets a fresh snapshot. */
@@ -4568,10 +4607,10 @@ export default Controller.extend(prefClasses, {
        same kind of cheap read, and placed before the attribute comparison for that reason
        only — every term here returns the same answer whatever the order.
 
-       Guarded on BOTH objects: `close_display_preferences` nulls them together, so they
-       are non-null only while the panel is open. Without the guard, every exit taken
-       outside the panel would compare undefined against undefined and the term would be
-       dead weight — or worse, throw on Object.keys(null).
+       Guarded on BOTH objects: `close_display_preferences` nulls them together.
+       They stay non-null while the panel is open AND after it is collapsed
+       (`toggle_display_settings` keeps `pending` on purpose). Without the
+       guard, every exit taken with both null would throw on Object.keys(null).
 
        Compared by VALUE, not by "is pending set": opening the panel seeds `pending` from
        `original`, so a presence check alone would report dirty the moment the panel
@@ -4623,9 +4662,8 @@ export default Controller.extend(prefClasses, {
    */
   _discard_edit_changes: function() {
     var _this = this;
-    if(_this.get('display_prefs_open')) {
-      _this.send('close_display_preferences');
-    }
+    _this.reset_edit_baseline();
+    _this.send('close_display_preferences');
     _this.set('edit_mode', false);
     _this.set('paint_mode', null);
     _this.set('color_picker_button', null);
@@ -4648,6 +4686,7 @@ export default Controller.extend(prefClasses, {
     _this.set('board_loading', true);
     var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
     persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       var merged = boardDetailCache.normalize_board_payload(data);
       if(merged) {
         if(merged.images && merged.images.length) {
@@ -4658,6 +4697,7 @@ export default Controller.extend(prefClasses, {
       }
       _this.set('board_loading', false);
     }, function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
       _this.set('board_loading', false);
     });
     // Transition back to the index subroute with panels collapsed
@@ -5969,6 +6009,11 @@ export default Controller.extend(prefClasses, {
             _this._board_detail_images = merged.images;
           }
           boardDetailCache.set(JSON.parse(JSON.stringify(merged)), { force: true });
+          /* Post-save rebuild is the same board token. Clear first so
+             `_save_keep_editing` recaptures instead of keeping the
+             first-open snapshot (and so Exit after save does not
+             false-prompt on the next edit). */
+          _this.reset_edit_baseline();
           _this._build_from_raw(merged);
         }
         finish();

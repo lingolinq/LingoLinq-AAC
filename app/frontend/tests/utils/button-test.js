@@ -49,6 +49,19 @@ function persistenceForTest() {
 }
 
 context('Button', function() {
+  context("vocalization_for_activation", function() {
+    it("should keep the QWERTY s key as a spelling letter", function() {
+      expect(Button.vocalization_for_activation('+s', 's')).toEqual('+s');
+      expect(Button.vocalization_for_activation('+s', 'S')).toEqual('+s');
+      expect(Button.vocalization_for_activation('+S', 's')).toEqual('+S');
+    });
+
+    it("should still treat a dedicated -s modifier as :plural", function() {
+      expect(Button.vocalization_for_activation('+s', '-s')).toEqual(':plural');
+      expect(Button.vocalization_for_activation('+S', '-S')).toEqual(':plural');
+    });
+  });
+
   context("actions", function() {
     it("should set default action attributes", function() {
       var button = Button.create();

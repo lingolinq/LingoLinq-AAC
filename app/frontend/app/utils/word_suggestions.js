@@ -431,7 +431,7 @@ var word_suggestions = EmberObject.extend({
     var _this = this;
     return this.load().then(function() {
       var appState = word_suggestions.get_app_state();
-      var last_shift = appState.get('shift');
+      var last_shift = appState.get('capitalizing') || appState.get('shift') || appState.get('caps_lock');
       var locale = options.locale || (appState && appState.get && appState.get('label_locale')) || 'en';
       var locale_root = locale.split(/-|_/)[0];
       var use_english_corpus = locale_root === 'en';
@@ -484,7 +484,7 @@ var word_suggestions = EmberObject.extend({
         }
       }
 
-      var do_cap = appState.get('shift') || (word_in_progress && utterance.capitalize(word_in_progress) == word_in_progress);
+      var do_cap = appState.get('capitalizing') || appState.get('shift') || appState.get('caps_lock') || (word_in_progress && utterance.capitalize(word_in_progress) == word_in_progress);
       /* WHOSE result is this? The memo below parks its array on the module singleton (:713), the
          symbol stamp mutates that array IN PLACE and asynchronously (:807), and a key match hands
          it back verbatim. So the key must include the two things that decide whose vocabulary and
@@ -502,6 +502,8 @@ var word_suggestions = EmberObject.extend({
          process_buttonset (:753) and loaded_button_sets_beyond (:1640) key them.
 
          NOT keyed here, deliberately, and a separate pre-existing defect: `max_results`,
+         `caps_lock` / `capitalizing` (which reach the result through `do_cap` above, added by
+         #958 and not keyed on develop either),
          `board_locale` and `translations` also change the result and are shared across the four
          consumers of this one memo slot. That is a wrong-shape bug, not a wrong-owner bug; it is
          recorded rather than fixed in the same pass. */

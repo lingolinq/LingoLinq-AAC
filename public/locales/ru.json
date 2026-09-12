@@ -9280,5 +9280,7 @@
   "confirm_clear_phrases": "*** Delete all %{n} saved phrases? This cannot be undone.",
   "phrases_scroll_for_more": "*** %{n} more — scroll to see them",
   "phrases_tap_for_more": "*** %{n} more saved — tap Phrases to see them all",
-  "x_handle_example": "*** @whoever"
+  "x_handle_example": "*** @whoever",
+  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
+  "caps_lock_on_label": "*** CAPS LOCK"
 }

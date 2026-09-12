@@ -9271,5 +9271,7 @@
   "more_thoughts": "*** More Thoughts",
   "fewer_thoughts": "*** Fewer Thoughts",
   "loading_boards_title": "*** Loading boards",
-  "preparing_communication_resources": "*** Preparing communication resources"
+  "preparing_communication_resources": "*** Preparing communication resources",
+  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
+  "caps_lock_on_label": "*** CAPS LOCK"
 }

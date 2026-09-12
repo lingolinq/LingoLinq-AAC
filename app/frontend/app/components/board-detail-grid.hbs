@@ -118,12 +118,13 @@
            {{action bubbles=false}} on the component actions.
            aria-label and each inner button's own title. --}}
       <div
-        class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{unless (or btn.label btn.image_id btn.image_url btn.vocalization) 'md-board-detail-symbol-card--empty'}} {{if this.editMode (if btn.hidden 'md-board-detail-symbol-card--hidden') (if btn.display_as_hidden 'md-board-detail-symbol-card--hidden')}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}} {{if (and this.app_state.feature_flags.text_symbol_fallback (not this.editMode) btn.text_symbol) 'md-board-detail-symbol-card--text-symbol'}} {{unless btn.background_color 'md-board-detail-symbol-card--no-color'}} {{if btn.dim 'dim_button'}} {{if btn.focus_word_match 'focus_word_button'}} {{if btn.hide_label 'md-board-detail-symbol-card--hide-label'}}"
+        class="button md-board-detail-symbol-card md-board-detail-symbol-card--{{or btn.part_of_speech btn.painted_part_of_speech btn.suggested_part_of_speech 'default'}} {{if btn.empty 'md-board-detail-symbol-card--empty'}} {{unless (or btn.label btn.image_id btn.image_url btn.vocalization) 'md-board-detail-symbol-card--empty'}} {{if this.editMode (if btn.hidden 'md-board-detail-symbol-card--hidden') (if btn.display_as_hidden 'md-board-detail-symbol-card--hidden')}} {{if btn.for_swap 'md-board-detail-symbol-card--swapping'}} {{if btn.load_board 'md-board-detail-symbol-card--folder'}} {{if (and this.app_state.feature_flags.text_symbol_fallback (not this.editMode) btn.text_symbol) 'md-board-detail-symbol-card--text-symbol'}} {{unless btn.background_color 'md-board-detail-symbol-card--no-color'}} {{if btn.dim 'dim_button'}} {{if btn.focus_word_match 'focus_word_button'}} {{if btn.hide_label 'md-board-detail-symbol-card--hide-label'}} {{if (and (not this.editMode) (is-caps-lock-on btn.vocalization this.app_state.caps_lock)) 'md-board-detail-symbol-card--caps-on'}}"
         role={{if this.editMode "group" "button"}}
         tabindex={{if this.editMode "-1" "0"}}
-        aria-label={{or btn.label btn.vocalization}}
+        aria-label={{if this.editMode (or btn.label btn.vocalization) (caps-lock-display-label (or btn.label btn.vocalization) btn.vocalization this.app_state.caps_lock)}}
+        aria-pressed={{if (and (not this.editMode) (is-equal btn.vocalization ":caps")) (if this.app_state.caps_lock "true" "false")}}
         data-id={{btn.id}}
-        style={{safe-style (concat (if btn.background_color (concat "background-color:" btn.background_color ";--btn-bg:" btn.background_color ";")) (if btn.border_color (concat "outline-color:" btn.border_color ";--btn-border:" btn.border_color ";")))}}
+        style={{safe-style (concat (if btn.background_color (concat "background-color:" btn.background_color ";--btn-bg:" btn.background_color ";")) (if (and (not this.editMode) (is-caps-lock-on btn.vocalization this.app_state.caps_lock)) "outline-color:#15803D;outline-width:5px;outline-offset:-5px;--btn-border:#15803D;" (if btn.border_color (concat "outline-color:" btn.border_color ";--btn-border:" btn.border_color ";"))))}}
         {{on "click" (this.invokeAttr "selectButton" btn)}}
         {{on "keydown" (this.invokeAttr "selectButtonKey" btn)}}>
         {{#if this.editMode}}
@@ -212,7 +213,7 @@
                 <path d="M5 46.6 L59 46.6" stroke="rgba(20,30,50,0.18)" stroke-width="0.6" stroke-linecap="round"/>
               </svg>
             {{else if (and this.app_state.feature_flags.text_symbol_fallback (not this.editMode) btn.text_symbol)}}
-              <span class="md-board-detail-symbol-card__text-symbol" aria-hidden="true" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
+              <span class="md-board-detail-symbol-card__text-symbol" aria-hidden="true" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{caps-lock-display-label btn.label btn.vocalization this.app_state.caps_lock}}</span>
             {{else if btn.label}}
               <img class="symbol" src="/images/square.svg" alt="" draggable="false" style="max-width: 70%; max-height: 70%;">
             {{/if}}
@@ -237,7 +238,7 @@
           {{/if}}
         {{else}}
           {{#unless (and this.app_state.feature_flags.text_symbol_fallback (not this.editMode) btn.text_symbol)}}
-            <span class="md-board-detail-symbol-card__label {{if btn.hide_label 'hide-label'}}" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{btn.label}}</span>
+            <span class="md-board-detail-symbol-card__label {{if btn.hide_label 'hide-label'}}" style={{if btn.text_color (safe-style (concat "color:" btn.text_color))}}>{{caps-lock-display-label btn.label btn.vocalization this.app_state.caps_lock}}</span>
           {{/unless}}
         {{/if}}
         {{!-- FOLDER BADGE — REMOVED 2026-09-02, MAY BE RE-INSTATED.

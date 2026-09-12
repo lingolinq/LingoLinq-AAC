@@ -42,6 +42,7 @@ module JsonApi::Image
     ['pending', 'content_type', 'width', 'height', 'source_url', 'hc'].each do |key|
       json[key] = settings[key]
     end
+    json['preserve_source_image'] = true if image.preserve_source_image?
     json['protected'] = protected_source
     json['protected_source'] = settings['protected_source'] if json['protected']
     json['license'] = OBF::Utils.parse_license(settings['license'])

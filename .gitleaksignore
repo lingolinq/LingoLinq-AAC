@@ -47,6 +47,15 @@
 # present at HEAD on the same line. (Paraphrased, per the note below.)
 9f702ae2548076ff10d0190377e0078c9b03741f:docs/ROTATING_KEYS.md:curl-auth-user:152
 
+# Same file, rule, and line as the fingerprint above. That entry is pinned to
+# a staging-history commit, so a develop-into-staging range scan never sees
+# it. This second fingerprint covers the develop-only commit that first
+# brought the file onto develop (9aa0007c, Fast-forward develop to
+# landing-page beta, #625). Surfaced by release PR #952. Reproduced locally
+# with gitleaks 8.30.1; the line still matches HEAD. Do not quote the
+# placeholder here.
+9aa0007c069885313e6d8fb6cb58aeeaf57e0311:docs/ROTATING_KEYS.md:curl-auth-user:152
+
 # Both flagged lines are token EXPIRY assignments, not token values: an
 # attribute ending in "_token_expires_at" set to a relative timestamp (14 days
 # in the model at line 43, 7 in the spec). The generic-api-key rule keys off the
