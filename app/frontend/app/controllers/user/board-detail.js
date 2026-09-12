@@ -4533,7 +4533,22 @@ export default Controller.extend(prefClasses, {
     if(model) {
       token = (model.get && (model.get('id') || model.get('key'))) || model.id || model.key || null;
     }
-    if(this.get('_edit_dirty_baseline') && this._edit_baseline_token === token) {
+    /* TOKEN ALONE, deliberately — NOT `baseline && token`.
+       This guard is what stops a rebuild folding the user's unsaved work into the baseline
+       it is supposed to be measured against. `_build_from_raw` runs again on a display-pref
+       change, a regroup, a merge and four other paths; rename a board via
+       edit-board-details (which writes straight onto the record and leaves no undo entry),
+       then change any display preference, and a recapture would compare the rename against
+       a baseline that now contained it — `exit_to_home_from_edit` would skip the discard
+       confirm and the rename would be LOST with no prompt.
+       Keying on the baseline's PRESENCE as well would re-open exactly that:
+       `capture_edit_baseline`'s catch sets the baseline null (see there), and a null
+       baseline fails that conjunct, so the next rebuild in the same session would recapture
+       and fold. The token is stamped on every capture ATTEMPT, success or not, which makes
+       it the honest "have I already tried this board in this session" marker.
+       A different board id/key still recaptures (this controller is a singleton), and
+       `reset_edit_baseline` nulls the token so a new session recaptures too. */
+    if(this._edit_baseline_token === token) {
       return;
     }
     this.capture_edit_baseline();
@@ -4542,19 +4557,15 @@ export default Controller.extend(prefClasses, {
 
   /* Marks that the baseline for THIS edit session has already been taken. Cleared when
      edit mode is entered, so a new session gets a fresh snapshot. */
-  _edit_baseline_captured: false,
-
-  capture_edit_baseline: function(force) {
-    /* ONCE per edit session. `_build_from_raw` is where this is called from, and that runs
-       again on a display-pref change, a regroup, a merge and four other paths — so a
-       re-capture folded the user's UNSAVED work into the baseline it is supposed to be
-       measured against. Rename a board via edit-board-details (which writes straight onto
-       the record and leaves no undo entry), then change any display preference, and
-       `edit_session_has_changes` compared the rename against a baseline that now contained
-       it: exit_to_home_from_edit skipped the discard confirm and the rename was lost with
-       no prompt. */
-    if(!force && this.get('_edit_baseline_captured')) { return; }
-    this.set('_edit_baseline_captured', true);
+  capture_edit_baseline: function() {
+    /* Snapshots the dirty keys the BUILD itself wrote, so later comparisons can tell the
+       build's own writes apart from the user's. WHEN this may run is decided by the caller:
+       `rebaseline_after_build` is the only call site, and its token guard is what keeps a
+       rebuild from folding unsaved work in — see the reasoning there.
+       On a throw the baseline is left NULL, which `edit_session_has_changes` treats as
+       "there are changes" (`if(!base) { return true; }`) — the fail-safe direction. Note the
+       token is still stamped by the caller, so a failed capture is not retried for this board
+       in this session; the user is prompted rather than silently measured against nothing. */
     var base = {};
     try {
       var model = this.get('model');
@@ -7099,10 +7110,11 @@ export default Controller.extend(prefClasses, {
       }
     },
     enter_edit_mode: function() {
-      /* New session, new baseline — see capture_edit_baseline, which otherwise keeps the
-         first snapshot it ever took for the lifetime of this controller. */
-      this.set('_edit_baseline_captured', false);
-      this.set('_edit_dirty_baseline', null);
+      /* New session, new baseline. `reset_edit_baseline` clears BOTH the snapshot and the
+         board token, and the token is what `rebaseline_after_build` keys its
+         no-recapture guard on — so clearing it here is what lets the first build of this
+         session take a fresh snapshot. */
+      this.reset_edit_baseline();
       var _this = this;
       var app_state = this.get('app_state');
       // Gate on the speak-mode PIN when configured — same pattern as
