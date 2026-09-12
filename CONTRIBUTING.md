@@ -28,13 +28,19 @@ to `develop`. A core team member will review your PR and may request changes.
 Format: `name/type/short-description`
 
 - `name` -- your first name or GitHub username (lowercase)
-- `type` -- one of: `feat`, `fix`, `chore`, `hotfix`, `upgrade`, `release`
+- `type` -- one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`,
+  `compliance`, `security`; plus `hotfix` for the production hotfix flow in section 7
+  and `release` for a time-bound release branch
 - `short-description` -- 2-4 words, kebab-case
 
 Examples:
-- `melissa/feature/add-sso-login`
+- `melissa/feat/add-sso-login`
 - `scot/fix/memory-leak-puma`
 - `dom/chore/update-ember-deps`
+
+The same spec is stated in `CLAUDE.md` (Branching) and `AGENTS.md`; change all three
+together. Older branches in the `type/name-description` form may finish through merge,
+but do not start new ones that way.
 
 For hotfixes that go directly to prod: `name/hotfix/description`
 
