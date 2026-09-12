@@ -587,7 +587,7 @@ LingoLinq.iconUrls = [
     {alt: 'bed', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/bed.png'},
     {alt: 'computer', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/computer_2.png'},
     {alt: 'phone', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/mobile%20phone.png'},
-    {alt: 'board', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/board_3.png'}
+    {alt: 'board', url: '/images/lingolinq-board-icon.png'}
 ];
 LingoLinq.avatarUrls = [
   {alt: 'happy female', url: 'https://opensymbols.s3.amazonaws.com/libraries/arasaac/happy.png'},
