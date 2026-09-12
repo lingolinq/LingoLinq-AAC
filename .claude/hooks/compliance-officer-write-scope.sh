@@ -127,7 +127,7 @@ exec ruby -rjson -rpathname -e '
   c = cmd.gsub(/\s+/, " ").strip
   c = c.sub(/\A(env\s+)?((?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+)/, "")
 
-  git_pre = /(?:(?:-c\s+\S+|-C\s+\S+|--?[A-Za-z][\w-]*(?:=\S+)?)\s+)*/
+  git_pre = /(?:(?:-c\s+\S+|-C\s+\S+|--?[A-Za-z][\w-]*(?:=\S+|\s+[^-\s]\S*)?)\s+)*/
 
   patterns = [
     # File output redirection (allow >/dev/null, >&2, 2>&1, &>/dev/null)
@@ -140,16 +140,26 @@ exec ruby -rjson -rpathname -e '
     [ /\brake\b(?![^|]*\s(?:-T|--tasks)\b)/, "rake task can mutate state" ],
     [ /(?<![\w-])(rm|mv|cp|mkdir|rmdir|touch|truncate|chmod|chown|ln)\b/, "filesystem mutation command" ],
     [ /\bgit\s+#{git_pre}(commit|push|merge|rebase|reset|checkout|switch|tag|am|apply|cherry-pick|stash|clean|rm|mv|add|restore|revert|worktree)\b/, "git state mutation" ],
-    # gh: read subcommands (pr view/diff/checks/list, issue view, run view, api GET) stay
-    # allowed; mutating verbs and non-GET / body-carrying api calls are denied.
-    [ /\bgh\s+#{git_pre}(pr|issue|release|repo|gist|secret|variable|workflow|run|label|api)\b.*\b(create|merge|close|edit|comment|delete|review|reopen|lock|unlock|rerun|cancel|dispatch|sync|set|add|remove|enable|disable|checkout)\b/, "mutating gh command" ],
+    # gh: read subcommands (pr view/diff/checks/list, issue view, run view/list, workflow
+    # view/list, release view/list, api GET) stay allowed. The mutating verb is matched in the
+    # position gh puts it, `gh <noun> <verb>`, not anywhere later in the line: the earlier
+    # `.*\b(verb)\b` form denied `gh run list --workflow codex-review.yml` because the
+    # FILENAME contains "review", and allowed `gh workflow run deploy-cloudrun.yml` because
+    # "run" was missing from the list. `run` (workflow dispatch), `upload`, `delete-asset`,
+    # `clone`, `fork`, `ready`, `update-branch`, `transfer`, `pin`, `develop` are all writes.
+    [ /\bgh\s+#{git_pre}(pr|issue|release|repo|gist|secret|variable|workflow|run|label|project|ruleset|cache)\s+(create|merge|close|edit|comment|delete|delete-asset|review|reopen|lock|unlock|rerun|cancel|watch|dispatch|run|upload|sync|set|add|remove|enable|disable|checkout|clone|fork|ready|update-branch|transfer|pin|unpin|develop|archive|unarchive|rename|deploy-key|link|unlink|mark-template|copy|item-\w+|field-\w+)\b/, "mutating gh command" ],
     [ /\bgh\s+api\b[^|]*-X\s*(POST|PUT|PATCH|DELETE)/i, "gh api non-GET write" ],
-    [ /\bgh\s+api\b[^|]*(-f|--field|--input|--method\s+(POST|PUT|PATCH|DELETE))\b/i, "gh api with a write body" ],
-    # Register artifacts: the Write-tool allowlist forbids FINDINGS.md, and these two scripts
-    # rewrite it (citation-check.rb --render; regenerate-register.sh in write mode). Only the
-    # verify-only forms are allowed.
+    # Body-carrying flags: -f/-F (short), --field/--raw-field (their long forms), --input.
+    [ /\bgh\s+api\b[^|]*(?:\s-[fF]\b|--field\b|--raw-field\b|--input\b|--method\s+(POST|PUT|PATCH|DELETE)\b)/i, "gh api with a write body" ],
+    # Register artifacts: the Write-tool allowlist forbids FINDINGS.md, FINDINGS.json and the
+    # rendered register files, and each script below rewrites one of them (File.write) in its
+    # default mode. Only the verify-only forms are allowed: `--check` for the renderers, and
+    # `--help`/`-h` for the two register writers that have no check mode (audit-merge.rb and
+    # promote-finding.rb). citation-check.rb is read-only except with `--render`.
     [ /\bcitation-check\.rb\b[^|]*--render\b/, "citation-check.rb --render rewrites FINDINGS.md" ],
     [ /\bregenerate-register\.sh\b(?![^|]*--check\b)/, "regenerate-register.sh without --check rewrites register artifacts" ],
+    [ /\b(document-register-render|compliance-notion-publish|compliance-calendar-render|compliance-publication-status|capability-check)\.rb\b(?![^|]*--check\b)/, "register renderer without --check rewrites register artifacts" ],
+    [ /\b(audit-merge|promote-finding)\.rb\b(?![^|]*\s(?:-h|--help)\b)/, "audit-merge.rb / promote-finding.rb rewrite FINDINGS.json" ],
     [ /\b(npm|pnpm|yarn|bundle|gem|pip|pip3|brew|apt|apt-get|cargo)\s+(i|install|add|update|upgrade|remove|uninstall|publish)\b/, "package mutation" ],
     [ /\b(rails|bin\/rails|bundle\s+exec\s+rails)\b[^|]*\b(db:|generate|g\b|destroy|d\b|runner|console|c\b|dbconsole)/, "rails mutation or live console" ],
     [ /\b(bundle\s+exec\s+)?rake\b[^|]*\b(db:|environment|stats|extras:)/, "rake task can mutate state" ],

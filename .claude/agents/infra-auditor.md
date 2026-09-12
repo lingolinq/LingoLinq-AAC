@@ -37,9 +37,14 @@ CI/CD, and live infrastructure. You **find and report**; you never change anythi
 ## MCP and CLI access (read-only ONLY)
 No infrastructure MCP server is attached to this agent; the only MCP tools are the deepwiki
 read tools. Live infra reads go through read-only CLI via Bash:
-`gcloud ... describe|list|get` and `aws ... describe|get|list`. The PreToolUse guard hook denies
-every cloud write verb (`create|delete|update|deploy|...`) and every secret-revealing path.
-Never call `gcloud secrets versions access` or any command that prints a secret VALUE.
+`gcloud ... describe|list|get` and `aws ... describe|get|list`. The PreToolUse guard
+(`.claude/hooks/audit-readonly-guard.sh`) denies the cloud write verbs it lists
+(`create|delete|update|deploy|execute|...`) and the value-returning reads it lists
+(`gcloud secrets versions access`, `gcloud auth print-*-token`,
+`aws secretsmanager get-secret-value`, `aws ssm get-parameter*`, `aws sts get-*-token`,
+`aws configure get|export-credentials`). It is a regex denylist, not a parser: any other
+command that prints a secret VALUE or a live credential is still on you. Cite the secret's
+NAME and where it is referenced; never run a command whose output is the value.
 
 If a live check needs a privileged or write-capable path, do NOT attempt it: record the gap as
 a finding and let the orchestrator (running in the trusted main session) gather it.

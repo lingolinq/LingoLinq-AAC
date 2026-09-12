@@ -67,7 +67,7 @@ exec ruby -rjson -e '
   # --- Mutating Bash patterns (deny) ---------------------------------------
   # optional git/gh global options before the subcommand (Regexp literal: no shell-quote clash,
   # and \s keeps its regex meaning). Interpolated into the git/gh patterns below.
-  git_pre = /(?:(?:-c\s+\S+|-C\s+\S+|--?[A-Za-z][\w-]*(?:=\S+)?)\s+)*/
+  git_pre = /(?:(?:-c\s+\S+|-C\s+\S+|--?[A-Za-z][\w-]*(?:=\S+|\s+[^-\s]\S*)?)\s+)*/
   patterns = [
     # File output redirection to a real path (allow >/dev/null, >&2, 2>&1, &>/dev/null)
     [ %r{(^|[^0-9&>])>>?\s*(?!\s*(&\d|/dev/(null|stderr|stdout)))}, "output redirection writes a file" ],
@@ -102,10 +102,13 @@ exec ruby -rjson -e '
     # change) and finders legitimately need it for remote-ref drift checks. `pull` stays denied
     # (it merges into the working tree).
     [ /\bgit\s+#{git_pre}(add|commit|push|reset|checkout|restore|switch|rm|mv|merge|rebase|cherry-pick|clean|stash|revert|apply|am|tag|branch|pull|remote|config|init|worktree|gc|prune|filter-branch|update-ref|notes)\b/, "mutating git subcommand" ],
-    # gh: mutating subcommands and non-GET api calls (tolerate global opts too)
-    [ /\bgh\s+#{git_pre}(pr|issue|release|repo|gist|secret|workflow|run|label|api)\b.*\b(create|merge|close|edit|comment|delete|review|reopen|lock|unlock|rerun|cancel|dispatch|sync|set|add|remove)\b/, "mutating gh command" ],
+    # gh: mutating subcommands and non-GET api calls (tolerate global opts too). The verb is
+    # matched in the `gh <noun> <verb>` position, not anywhere later in the line, so a filename
+    # such as codex-review.yml does not deny `gh run list` and `gh workflow run` (a workflow
+    # dispatch, e.g. deploy-cloudrun.yml) IS denied. Same shape as compliance-officer-write-scope.sh.
+    [ /\bgh\s+#{git_pre}(pr|issue|release|repo|gist|secret|variable|workflow|run|label|project|ruleset|cache)\s+(create|merge|close|edit|comment|delete|delete-asset|review|reopen|lock|unlock|rerun|cancel|watch|dispatch|run|upload|sync|set|add|remove|enable|disable|checkout|clone|fork|ready|update-branch|transfer|pin|unpin|develop|archive|unarchive|rename|deploy-key|link|unlink|mark-template|copy|item-\w+|field-\w+)\b/, "mutating gh command" ],
     [ /\bgh\s+api\b[^|]*-X\s*(POST|PUT|PATCH|DELETE)/i, "gh api non-GET write" ],
-    [ /\bgh\s+api\b[^|]*(-f|--field|--input)\b/,        "gh api with a write body" ],
+    [ /\bgh\s+api\b[^|]*(?:\s-[fF]\b|--field\b|--raw-field\b|--input\b|--method\s+(POST|PUT|PATCH|DELETE)\b)/i, "gh api with a write body" ],
     # package / dependency installs
     [ /\b(npm|pnpm|yarn|bun)\s+(i|install|add|ci|update|upgrade|remove|uninstall|link)\b/, "package install/modify" ],
     [ /\b(bundle\s+(install|update|add|remove)|gem\s+(install|update|uninstall))\b/, "ruby gem install/modify" ],
@@ -116,8 +119,20 @@ exec ruby -rjson -e '
     [ /\b(rails|bin\/rails|bundle\s+exec\s+rails)\b[^|]*\b(db:|generate|g\b|destroy|d\b|runner|console|c\b|dbconsole)/, "rails mutation or live console" ],
     # Cloud CLIs: deny anything that is not clearly a read verb.
     # NOTE: "run"/"exec" are intentionally excluded as verbs ("gcloud run", "docker run" are
-    # product/service names, not mutations). Real infra writes below; SQL/redirect caught separately.
-    [ /\b(gcloud|aws|render|kubectl|terraform|docker|psql)\b.*\b(create|delete|update|deploy|apply|destroy|put|set-|add-|remove|patch|drop|insert|restart|scale|rollout|publish|terminate|enable|disable|grant|revoke)\b/, "cloud/infra mutation" ],
+    # product/service names, not mutations). `execute` IS a verb (`gcloud run jobs execute`
+    # starts a Cloud Run job, e.g. the prod migrate job). Real infra writes below; SQL/redirect
+    # caught separately.
+    [ /\b(gcloud|aws|render|kubectl|terraform|docker|psql)\b.*\b(create|delete|update|deploy|apply|destroy|put|set-|add-|remove|patch|drop|insert|restart|scale|rollout|publish|terminate|enable|disable|grant|revoke|execute)\b/, "cloud/infra mutation" ],
+    # Secret VALUES and live credentials: reads, but reads whose output is a secret. Finders
+    # cite the Secret Manager NAME (describe/list/versions list stay allowed); a value printed
+    # into a finding, a transcript, or a Codex review payload is a leak, not evidence. This
+    # list is the enforcement behind the infra-auditor.md rule "never print a secret VALUE", so
+    # extend it here when a new value-returning verb is found; prose does not deny anything.
+    [ /\bgcloud\b[^|]*\bsecrets\s+versions\s+access\b/, "gcloud secrets versions access prints a secret value" ],
+    [ /\bgcloud\b[^|]*\bauth\b[^|]*\bprint-(access|identity)-token\b/, "gcloud auth print-*-token prints a live credential" ],
+    [ /\baws\s+secretsmanager\s+get-secret-value\b/, "aws secretsmanager get-secret-value prints a secret value" ],
+    [ /\baws\s+ssm\s+get-parameters?(-by-path)?\b/, "aws ssm get-parameter* prints parameter values (SecureString with --with-decryption)" ],
+    [ /\baws\s+(sts\s+get-(session|federation)-token|configure\s+(get|export-credentials))\b/, "aws credential export" ],
     # SQL writes: only when a DB client is present, so `grep INSERT app/` is NOT a false positive.
     [ /\b(psql|sqlite3|mysql|mariadb|cockroach|pg_dump|pg_restore|mongo|redis-cli)\b[^|]*\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE)\b/i, "SQL write via DB client" ],
     # Outbound network requests (ANY method, not just non-GET/download variants, and not just
