@@ -5,10 +5,20 @@ procedure for the **production cutover** (tracker Phase 5), built on top of the 
 steps already shipped in `scripts/gcp/PHASE4-CUTOVER-DATA-RUNBOOK.md` (S1 setval + S2 secret
 preservation).
 
-> **Status: the DNS cutover is DONE** (cut 2026-07-22, re-verified 2026-08-09), **and prod
+> **Status 2026-09-12: this runbook is HISTORICAL.** The DNS cutover is done (2026-07-22,
+> re-verified 2026-08-09) and **the Render workspace was deleted on 2026-09-09** (0 services,
+> 0 databases, 0 disks; final archives in `gs://lingolinq-prod-render-archive`, see
+> `docs/INFRASTRUCTURE.md`). Every instruction below that pauses, resumes, scales, checks, or
+> deletes a Render resource, and every mention of the hourly `sync-render-secrets` GitHub
+> Action or `scripts/sync-render-env.js`, describes machinery that no longer exists: that
+> workflow and script were removed from the repo on 2026-09-12, and secrets now live in GCP
+> Secret Manager and reach Cloud Run by name (`docs/ROTATING_KEYS.md`). Do not run those steps.
+> The still-open items are the non-Render ones named in the next paragraph.
+>
+> **Earlier status: the DNS cutover is DONE** (cut 2026-07-22, re-verified 2026-08-09), **and prod
 > holds no real users yet.** Both points are detailed further down this block. The remaining
-> infrastructure/decommission actions still gated (not yet run) are Cloud Run ingress, the
-> Cloud Armor preview-to-enforce flip, and Render decommission. Those are not the full
+> infrastructure actions still gated (not yet run) are Cloud Run ingress and the
+> Cloud Armor preview-to-enforce flip (Render decommission, 9b, is complete). Those are not the full
 > launch-gate list; credential rotation, Cloud SQL deletion protection, and the unchecked
 > pre-cutover checklist items remain open later in this block. After the snapshot paragraph,
 > the 2026-08-09 no-users status, the launch-gate checklist, and the still-gated actions
