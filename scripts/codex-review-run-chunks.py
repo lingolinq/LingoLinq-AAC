@@ -179,15 +179,30 @@ def run_model(args, prompt_path, schema_path, output_path, heartbeat_description
     if heartbeat_description:
         heartbeat(args, heartbeat_description)
     with open(prompt_path, "rb") as stdin:
-        result = subprocess.run(command, stdin=stdin)
-    if result.returncode != 0 or not valid_json(output_path):
+        result = run_with_timeout(command, stdin)
+    if result is None or result.returncode != 0 or not valid_json(output_path):
         if heartbeat_description:
             heartbeat(args, f"{heartbeat_description} retry")
         strict = pathlib.Path(str(prompt_path) + ".strict.md")
         strict.write_text(pathlib.Path(prompt_path).read_text() + "\n\nOutput ONLY the JSON object. No prose, no markdown fences.\n")
         with open(strict, "rb") as stdin:
-            result = subprocess.run(command, stdin=stdin)
-    return result.returncode == 0 and valid_json(output_path)
+            result = run_with_timeout(command, stdin)
+    return result is not None and result.returncode == 0 and valid_json(output_path)
+
+
+# Per-call ceiling on one `codex exec` invocation. The job itself has a 90-minute
+# cap, but without this a single hung model call consumed the whole budget and
+# left every later chunk unreviewed; a timed-out call now counts as a failed call
+# (NEEDS_HUMAN for that chunk via write_invalid_review) and the run moves on.
+MODEL_CALL_TIMEOUT_SECONDS = int(os.environ.get("CODEX_REVIEW_MODEL_CALL_TIMEOUT", "1500"))
+
+
+def run_with_timeout(command, stdin):
+    try:
+        return subprocess.run(command, stdin=stdin, timeout=MODEL_CALL_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired:
+        print(f"model call exceeded {MODEL_CALL_TIMEOUT_SECONDS}s and was killed", file=sys.stderr)
+        return None
 
 
 def write_invalid_review(path, head_sha, chunk=None, reason="model call failed or emitted invalid JSON"):
