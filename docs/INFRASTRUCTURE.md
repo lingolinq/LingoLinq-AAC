@@ -1,221 +1,168 @@
 # LingoLinq Infrastructure Guide
 
-This document describes the full deployment architecture for LingoLinq-AAC.
-AI agents (Claude Code, Cowork, etc.) should read this before making any
-infrastructure changes.
+This document describes the deployment architecture for LingoLinq-AAC. AI agents
+(Claude Code, Codex, Copilot) and people should read it before making any
+infrastructure change. Last rewritten 2026-09-12 after the Render decommission; the
+deploy pipeline itself is the source of truth for anything this page and
+`.github/workflows/deploy-cloudrun.yml` disagree on.
 
 ## Owner
+
 - **User:** Scot Wahlquist (swahlquist), scot@lingolinq.com
 - **GitHub:** lingolinq/LingoLinq-AAC
 - **License:** AGPLv3
 
-## Current Production Architecture
+## Hosting summary
 
-As of the 2026-07-22 Gate 1 DNS cutover, the public production app hostname
-`app.lingolinq.com` serves from Google Cloud Platform. Render remains online as a
-write-frozen rollback fallback at `https://lingolinq-prod.onrender.com` until a
-separate explicit decommission go.
+Everything runs on Google Cloud Platform. The Render workspace that hosted the app until
+the 2026-07-22 cutover was deleted on 2026-09-09; nothing at `*.onrender.com` belongs to
+LingoLinq any more and those hostnames must not be referenced (they are re-registrable
+by third parties). Final Render database archives, restore-verified 2026-09-08, live in
+`gs://lingolinq-prod-render-archive` under a one-year retention policy (see
+`RESTORE-MANIFEST-2026-09-08.md` at that bucket's root).
+
+| Environment | Branch | GCP project | Hostname | Notes |
+|---|---|---|---|---|
+| production | `main` | `lingolinq-prod` | `app.lingolinq.com` (`lingolinq.com` and `www` 301 to it) | approval-gated deploy |
+| staging | `staging` | `lingolinq-nonprod` | `staging.lingolinq.com` | unattended deploy |
+| dev | `develop` | `lingolinq-nonprod` | `dev.lingolinq.com` | unattended deploy |
+| n8n | n/a | `lingolinq-nonprod` | `n8n.lingolinq.com` | automation; GitHub webhooks and Google Chat point here |
+
+The three nonprod hostnames are Cloud Run domain mappings; the `*.run.app` service
+URLs also work and some n8n workflows still use them. Both forms are valid.
+
+## Production architecture
 
 ```
 app.lingolinq.com
       |
       v
-Google Cloud Load Balancer (lingolinq-lb-ip: 136.68.41.122)
+Global HTTPS load balancer (lingolinq-lb-ip: 136.68.41.122) + Cloud Armor
       |
       v
-Cloud Run web (lingolinq-web)
+Cloud Run service lingolinq-web
       |
       +--> Cloud SQL PostgreSQL (lingolinq-prod-pg, private IP)
-      +--> Memorystore Redis (lingolinq-prod-redis, TLS/rediss)
-      +--> AWS S3 / CloudFront (uploads and media)
+      +--> Memorystore Redis (lingolinq-prod-redis, TLS / rediss://)
+      +--> AWS S3 + CloudFront (uploads and media)
 
-Cloud Run worker pool (lingolinq-worker)
-      |
-      +--> Cloud SQL PostgreSQL
-      +--> Memorystore Redis
-      +--> AWS S3 / CloudFront
+Cloud Run worker pool lingolinq-worker  (Resque: priority, default, slow)
+Cloud Run job lingolinq-migrate         (db:migrate before each web rollout)
+Cloud Run job lingolinq-scheduler       (scheduled rake tasks; see below)
 ```
 
-## Google Cloud Production Services
+| Resource | Type | Purpose |
+|---|---|---|
+| `lingolinq-web` | Cloud Run service | Rails web app behind the load balancer |
+| `lingolinq-worker` | Cloud Run worker pool | Resque workers |
+| `lingolinq-migrate` | Cloud Run job | runs migrations; also the recipe for one-off `rails runner` work (override args, `USER_KEY` required) |
+| `lingolinq-scheduler` | Cloud Run job | scheduled rake tasks. The job is deployed on every release; whether Cloud Scheduler triggers are attached must be verified live (`gcloud scheduler jobs list`) before assuming the tasks run |
+| `lingolinq-prod-pg` | Cloud SQL PostgreSQL | private-IP only |
+| `lingolinq-prod-redis` | Memorystore Redis | TLS; app connects with `rediss://` |
+| `lingolinq-lb-ip` | global address | `136.68.41.122` |
+| Google-managed certificate | SSL | `app.lingolinq.com`; recreate a cert stuck in `FAILED_NOT_VISIBLE` before touching DNS |
 
-### Frontend and App Runtime
+Secrets are read from GCP Secret Manager by name (`--set-secrets` in the deploy
+workflow). The list each project must hold is in the workflow header. Authentication
+from GitHub Actions is keyless (Workload Identity Federation); production's provider
+admits only `refs/heads/main`, nonprod's only `refs/heads/staging` and
+`refs/heads/develop`.
 
-| Service | Type | Purpose | Notes |
-|---|---|---|---|
-| `lingolinq-web` | Cloud Run service | Production Rails web app | Serves `app.lingolinq.com` through the global HTTPS load balancer |
-| `lingolinq-worker` | Cloud Run worker pool | Production Resque workers | Processes `priority`, `default`, and `slow` queues |
-| `lingolinq-lb-ip` | Global address | Public load-balancer IP | `136.68.41.122` |
-| `lingolinq-cert` / replacement certs | Google-managed SSL cert | HTTPS for `app.lingolinq.com` | Recreate stale certs before DNS if they have been in `FAILED_NOT_VISIBLE` retry backoff |
+## Staging and dev (nonprod)
 
-### Data Layer
+Staging and dev share one project (`lingolinq-nonprod`), one Cloud SQL database, one
+Redis, one Secret Manager secret set, and ONE worker pool (`lingolinq-worker-staging`)
+that runs the staging image. Resources carry a `-staging` or `-dev` suffix. Consequences:
 
-| Service | Type | Purpose | Notes |
-|---|---|---|---|
-| `lingolinq-prod-pg` | Cloud SQL PostgreSQL | Production relational database | Private-IP only |
-| `lingolinq-prod-redis` | Memorystore Redis | Production Redis / Resque | TLS enabled; app connects with `rediss://` |
+- A job-class, argument-shape, or queue change on `develop` is not runnable until it
+  merges to `staging`; dispatching it from dev enqueues work the staging worker cannot
+  process.
+- A `develop` migration lands in the database staging serves. Migrations must be
+  expand-contract everywhere, and a destructive migration on `develop` breaks staging
+  immediately.
+- Dev deploys the web service and runs its own migrate Job but never a worker pool or
+  scheduler (gated on the `DEPLOY_WORKER` environment variable).
 
-### Cutover State
+## Deploy pipeline
 
-- Gate 1 DNS cutover completed 2026-07-22.
-- `app.lingolinq.com` is the live production app hostname on GCP.
-- Render is retained only as a write-frozen rollback fallback pending a separate decommission go.
-- Frozen writer state, WAF enforcement, ingress lockdown, and Render decommission are separate
-  post-cutover operations; do not change them without explicit approval.
+`.github/workflows/deploy-cloudrun.yml` runs on push to `main`, `staging`, and
+`develop`. A push to `main` creates a production deployment that proceeds once a
+reviewer approves it in the `production` GitHub environment. Order: migrate Job, then a
+new web revision with no traffic, two consecutive health probes on its tagged URL,
+traffic pinned to that revision by name, then the worker pool is replaced. Rollback is a
+`gcloud run services update-traffic ... --to-revisions <name>=100` (see the PR
+template); it never rolls the schema back, which is why migrations are expand-contract.
 
-## Render Services (rollback fallback / legacy)
+Hotfix branches may merge directly into `main`; what makes automatic deploy safe is the
+set of required checks on `main` (with `enforce_admins` on), the environment approval,
+the WIF ref conditions, and the candidate rollout, not branch provenance.
 
-Render previously hosted the production web app, worker, scheduler, managed PostgreSQL, and managed
-Redis. After the Gate 1 cutover, the production Render stack is intentionally frozen and retained as
-rollback insurance until decommission. Do not unfreeze, delete, or repoint it without an explicit
-post-cutover go.
+## AWS (account 239044785114)
 
-### Web Services
-| Service | ID | Branch | URL | Database |
-|---------|-----|--------|-----|----------|
-| lingolinq-prod | srv-d510bsemcj7s73966i60 | main | https://lingolinq-prod.onrender.com | lingolinq-prod-db (write-frozen fallback) |
-| lingolinq-dev | srv-d510c5emcj7s73966pug | develop | https://lingolinq-dev.onrender.com | lingolinq-dev-staging-db |
-| lingolinq-staging | srv-d510c13e5dus73c8lg10 | staging | https://lingolinq-staging.onrender.com | lingolinq-dev-staging-db |
+- IAM user `lingolinq-app` for the Rails app: S3 read/write only; Cloud Run uses a
+  separate least-privilege IAM user minted in `scripts/gcp/iam/`.
+- Buckets: `lingolinq-prod-uploads`, `lingolinq-dev-uploads`,
+  `lingolinq-staging-uploads`, `lingolinq-uploads` (legacy), `lingolinq-*-static`,
+  `lingolinq-logs-*`. Upload buckets: ACLs disabled (BucketOwnerEnforced; the app's
+  `acl: public-read` is ignored), public read policy on `*`, versioning on. CORS is
+  pinned to the app hostnames of the cutover; re-check every bucket whenever a hostname
+  changes.
+- Prefixes: `images/*`, `sounds/*`, `downloads/*`, `extras*/*`, `imports/*`.
+- CloudFront (`UPLOADS_S3_CDN`) fronts production uploads.
+- Other AWS integrations: SES (email), SNS (notifications), Elastic Transcoder (media),
+  Bedrock (runtime AI; credentials provisioned separately from developer tooling).
 
-### Background Workers
-| Service | ID | Branch | Database | REDIS_NAMESPACE_SUFFIX |
-|---------|-----|--------|----------|----------------------|
-| lingolinq-prod-worker | srv-d66jbgogjchc73erhnfg | main | lingolinq-prod-db (paused fallback) | -prod |
-| lingolinq-dev-worker | srv-d66jbilum26s73aa7mn0 | develop | lingolinq-dev-staging-db | -dev |
+## Background jobs (Resque)
 
-Worker start command:
+Queues: `priority` (board downloads/exports, Progress actions, translations), `default`,
+`slow` (transcoding, large imports, button-set updates). Worker start command:
+
 ```
 env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
 ```
 
-### Other Services
-| Service | ID | Type | Notes |
-|---------|-----|------|-------|
-| lingolinq-n8n | srv-d4kbjqc9c44c73erql8g | Web (Docker) | n8n automation, https://lingolinq-n8n.onrender.com |
+Cloud Run sends SIGTERM with a short grace period; the BoyBand wrapper requeues
+in-flight jobs, so non-idempotent jobs can run twice.
 
-### Databases
-| Database | ID | Used By |
-|----------|----|---------|
-| lingolinq-prod-db | dpg-d64c5i1r0fns73c5jcp0-a | write-frozen rollback fallback until decommission |
-| lingolinq-dev-staging-db | dpg-d64c53v5r7bs73acj600-a | lingolinq-dev + lingolinq-staging + dev-worker |
+Board download flow: UI POSTs `/api/v1/boards/:id/download`; `BoardsController#download`
+calls `Progress.schedule(board, :generate_download, ...)` onto `priority`; the worker
+runs `Board#generate_download` through `Converters::Utils.board_to_remote`; the file
+lands under `downloads/` and the UI polls the progress URL.
 
-### Redis
-| Instance | ID | Plan | Notes |
-|----------|----|------|-------|
-| lingolinq-redis | red-d46rhqer433s738dha9g | Free | Legacy Render Redis; production is now on Memorystore. Dev/staging still use Render Redis. |
+Common issues: stuck at "Initializing..." means no worker is draining the queue (wrong
+database, wrong Redis namespace, or worker down); S3 access denied on images means a
+bucket policy narrower than `*`; silent job failures sit in the Resque failed queue
+(`RedisInit.errors` in a console).
 
-### Redis Namespace Isolation
-Render dev/staging services share one Redis instance. The frozen Render prod fallback retains its
-old namespace, but live production traffic now uses GCP Memorystore. Queue isolation uses
-REDIS_NAMESPACE_SUFFIX env var:
-- frozen Render prod + prod-worker: `-prod` -> namespace `lingolinq-prod`
-- lingolinq-dev + dev-worker: `-dev` -> namespace `lingolinq-dev`
-- lingolinq-staging + dev-worker: `-dev` -> namespace `lingolinq-dev` (shares with dev)
+Redis namespace isolation uses `REDIS_NAMESPACE_SUFFIX` (`config/initializers/resque.rb`);
+staging and dev share `-dev` on the nonprod Redis.
 
-Code: `config/initializers/resque.rb` reads `ENV['REDIS_NAMESPACE_SUFFIX']`.
-If not set, defaults to `""` for production, `"-#{Rails.env}"` otherwise.
+## Console and one-off work
 
-## AWS (Account 239044785114)
+Use `bin/audit_console` from a Cloud Run exec shell or through the `lingolinq-migrate`
+job with overridden args. It sets `USER_KEY`, which the audited-session control requires
+in production and which attributes record writes via PaperTrail. `rake`, other
+`bin/rails` subcommands, and `psql` are not audited; prefer the console.
 
-### IAM
-- User: `lingolinq-app` (CLI access configured on dev machine)
-- Permissions: S3 read/write. No CloudFront, IAM, or other service access.
+## Key environment variables
 
-### S3 Buckets
-| Bucket | Purpose | Policy |
-|--------|---------|--------|
-| lingolinq-prod-uploads | Prod user content | Public read on `*` |
-| lingolinq-dev-uploads | Dev user content | Public read on `*` (fixed 2026-02-11, was downloads/* only) |
-| lingolinq-staging-uploads | Staging user content | Public read on `*` (added 2026-02-11, had no policy) |
-| lingolinq-uploads | Original/legacy | Public read on `*` |
-| lingolinq-prod-static | Prod static assets | |
-| lingolinq-dev-static | Dev static assets | |
-| lingolinq-staging-static | Staging static assets | |
-| lingolinq-logs-* | Log storage | |
+Required for each web service and its worker: `DATABASE_URL`, `REDIS_URL`,
+`REDIS_NAMESPACE_SUFFIX`, `RAILS_ENV` / `RACK_ENV`, `RAILS_MASTER_KEY`, `AWS_KEY` /
+`AWS_SECRET`, `UPLOADS_S3_BUCKET`, `STATIC_S3_BUCKET`, `DEFAULT_HOST`,
+`SECRET_KEY_BASE`, `SECURE_ENCRYPTION_KEY`, `SECURE_NONCE_KEY`, `COOKIE_KEY`. See
+`.env.example` for the full list and the deploy workflow header for which are secrets.
 
-All upload buckets have:
-- ACLs disabled (BucketOwnerEnforced) - app code tries `acl: public-read` but it's silently ignored
-- BlockPublicAcls: true, IgnorePublicAcls: true
-- BlockPublicPolicy: false, RestrictPublicBuckets: false
-- CORS: Allows GET/PUT/POST/DELETE/HEAD from the corresponding Render domain + localhost
-- Versioning: Enabled
+## Development environment
 
-S3 prefixes used by the app:
-- `images/*` - button/board images
-- `sounds/*` - button sounds
-- `downloads/*` - board exports (OBF/OBZ/PDF)
-- `extras*/*` - large data (BoardDownstreamButtonSet, LogSession)
-- `imports/*` - uploaded OBF/OBZ files for import
+WSL2; Ruby 3.4.4 (`.ruby-version`); Node 22 (`.nvmrc`); Ember 5.12; Rails per Gemfile;
+Bundler and npm. AI tooling: Claude Code (rules in `CLAUDE.md`), Codex (`AGENTS.md`),
+Copilot (`.github/copilot-instructions.md`); project MCP servers in `.mcp.json`.
 
-### CloudFront
-UPLOADS_S3_CDN fronts production uploads through CloudFront. Raw S3 bucket URLs should remain
-private where the newer upload path uses the CDN read path.
+## Critical warnings
 
-## Background Job Architecture (Resque)
-
-### Queues
-- `priority` - Board downloads/exports, Progress actions, slicing, translations
-- `default` - General background jobs
-- `slow` - Long-running operations (transcoding, large imports, button set updates)
-
-### Board Download Flow
-1. User clicks download/print in UI
-2. Frontend POSTs to `/api/v1/boards/:id/download`
-3. `BoardsController#download` calls `Progress.schedule(board, :generate_download, ...)`
-4. `Progress.schedule` enqueues to Resque `:priority` queue
-5. Worker picks up job, calls `Progress.perform_action`
-6. `Board#generate_download` -> `Converters::Utils.board_to_remote`
-7. Converter generates OBF/OBZ/PDF, uploads to S3 under `downloads/` prefix
-8. Frontend polls progress status URL; shows "Initializing..." (pending), "Processing..." (started), "Ready!" (finished)
-
-PDF generation uses the OBF gem with Prawn. It fetches button images from their S3 URLs during rendering.
-
-### Common Issues
-- **Stuck at "Initializing..."**: Worker not processing jobs. Check: wrong database, wrong Redis namespace, worker not running
-- **S3 Access Denied on images**: Bucket policy doesn't cover `images/*` prefix. Fix: ensure policy covers `*`
-- **Silent job failures**: Resque catches errors and stores in failed queue. Check: `RedisInit.errors` in Rails console
-
-## Key Environment Variables
-
-Required for each web service AND its corresponding worker:
-- `DATABASE_URL` - PostgreSQL connection string
-- `REDIS_URL` - Redis connection string
-- `REDIS_NAMESPACE_SUFFIX` - Queue isolation suffix (-prod, -dev)
-- `RAILS_ENV` / `RACK_ENV` - production
-- `RAILS_MASTER_KEY` - Rails credentials decryption key
-- `AWS_KEY` / `AWS_SECRET` - S3 access
-- `UPLOADS_S3_BUCKET` - Upload bucket name
-- `STATIC_S3_BUCKET` - Static asset bucket name
-- `DEFAULT_HOST` - App hostname for URL generation
-- `SECRET_KEY_BASE` - Rails session encryption
-- `SECURE_ENCRYPTION_KEY` - Data-at-rest encryption
-- `SECURE_NONCE_KEY` - External nonce generation
-- `COOKIE_KEY` - Cookie encryption
-
-See `.env.example` for the full list.
-
-## n8n Automation
-- URL: https://lingolinq-n8n.onrender.com
-- Service: srv-d4kbjqc9c44c73erql8g
-- Disk: 1GB at /home/node/.n8n
-- Used for workflow automation
-
-## Development Environment
-- Platform: WSL2 (Linux on Windows)
-- Ruby: 3.4.3 (rbenv)
-- Node: 22
-- Ember: 5.12
-- Rails: see Gemfile
-- Package managers: Bundler, npm, Bower (legacy, migrating away)
-
-## AI Tool Configuration
-- Claude Code: Primary development tool (WSL)
-- MCP Servers: GitHub, Filesystem, DeepWiki, Render, n8n-mcp, Sequential-thinking, Notion
-- Claude Desktop + Chrome Extension: For browser-based dashboard tasks (Windows native)
-- Cowork: For knowledge work and browser automation tasks
-
-## Critical Warnings
-- **jQuery integration MUST be true** in optional-features.json. The button event system relies on jQuery events.
-- **Never commit secrets** - use env vars, not hardcoded values
-- **Feature flags required** for user-facing changes (AAC users find unexpected UI changes disruptive)
-- **S3 bucket policies** must cover `*` (not just `downloads/*`) because the app stores content under multiple prefixes
-- **Worker DATABASE_URL must match its web service** - a worker connected to the wrong DB silently fails on all jobs
+- `jquery-integration` is `false` in `app/frontend/config/optional-features.json`; do
+  not turn it on (it reintroduces a `Component.reopen` deprecation).
+- Never commit secrets; reference Secret Manager and 1Password names.
+- Feature flags are required for new user-facing features.
+- S3 bucket policies must cover `*`, not just `downloads/*`.
+- A worker whose `DATABASE_URL` does not match its web service silently fails every job.
