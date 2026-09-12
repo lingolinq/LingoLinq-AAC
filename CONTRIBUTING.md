@@ -207,7 +207,7 @@ session is audited and your writes are attributed:
 bin/audit_console
 
 # One-liner
-bundle exec rails runner "User.find_by(user_name: 'test').update!(settings: {})"
+USER_KEY=you@example.com bin/rails runner "User.find_by(user_name: 'test').update!(settings: {})"
 
 # Reusable rake tasks (these ARE committed to the repo)
 bundle exec rake seed:organization

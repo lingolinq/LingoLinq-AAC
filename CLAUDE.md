@@ -123,7 +123,10 @@ data isolation between district accounts is mandatory.
 
 ## Backend architecture
 
-PostgreSQL plus Redis (caching, Resque queues `priority`, `default`, `slow`).
+PostgreSQL plus Redis (caching, Resque queues `priority`, `default`, `slow`, plus `whenever`,
+which `User#track_boards`, `LogSession#update_board_connections` and `Uploader` target under
+Redis queue pressure; the Cloud Run worker entrypoint drains only the first three by default,
+see `docs/INFRASTRUCTURE.md`).
 
 - **IDs:** custom `global_id` (`#shard#_#dbid#`) instead of raw ids. `find_by_global_id`,
   `find_by_path` (id, board key, or username), `find_all_by_global_id`.
@@ -146,8 +149,9 @@ The frontend map, hotspots, and Ember gotchas are in `app/frontend/CLAUDE.md`.
 
 ## Commands and environment
 
-Setup, servers (`bin/fresh_start`, `foreman start`, `bin/kill_all`), scheduled rake
-tasks, and troubleshooting recipes are in `README.md` and `docs/CODE_INVESTIGATION.md`.
+Setup, `foreman start`, scheduled rake tasks, and troubleshooting recipes are in `README.md`
+and `docs/CODE_INVESTIGATION.md`. `bin/fresh_start` (kill everything, reset, start) and
+`bin/kill_all` are documented only in their own headers.
 Required: PostgreSQL, Redis, Ruby 3.4.4 (`.ruby-version`), Node 22 (`.nvmrc`, via nvm),
 ImageMagick, Ghostscript. Copy `.env.example` to `.env`; dev DB `lingolinq-development`,
 test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
@@ -157,7 +161,8 @@ test DB `lingolinq-test`. Deploy prep: `bin/deploy_prep`, `rake extras:mobile`,
 
 - **Backend:** RSpec in `spec/` mirroring the tree. `bundle exec rspec`,
   `bundle exec rspec spec/models/user_spec.rb:42`. Local runs need the DB user in the
-  environment (see `README.md`). `AuditEvent` rows commit outside the RSpec transaction
+  environment (the `RAILS_ENV=test DB_USER=... PGPASSWORD=...` prefix in
+  `docs/PRE_COMMIT_CHECKLIST.md`). `AuditEvent` rows commit outside the RSpec transaction
   and the test DB can carry orphaned rows; scope any `delete_all` to the describe block.
 - **Frontend:** QUnit via `cd app/frontend && ember test`; read the run-shape rules in
   `app/frontend/CLAUDE.md` before interpreting a failure.

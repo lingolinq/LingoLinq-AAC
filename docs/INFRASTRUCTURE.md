@@ -46,7 +46,8 @@ Cloud Run service lingolinq-web
       +--> Memorystore Redis (lingolinq-prod-redis, TLS / rediss://)
       +--> AWS S3 + CloudFront (uploads and media)
 
-Cloud Run worker pool lingolinq-worker  (Resque: priority, default, slow)
+Cloud Run worker pool lingolinq-worker  (Resque: priority, default, slow; see the
+                                         `whenever` note under Background jobs)
 Cloud Run job lingolinq-migrate         (db:migrate before each web rollout)
 Cloud Run job lingolinq-scheduler       (scheduled rake tasks; see below)
 ```
@@ -120,6 +121,14 @@ Queues: `priority` (board downloads/exports, Progress actions, translations), `d
 ```
 env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
 ```
+
+A fourth queue, `whenever`, exists in code: `app/models/user.rb` (`track_boards`),
+`app/models/log_session.rb` (`update_board_connections`) and `lib/uploader.rb` enqueue onto it
+instead of `slow` when `RedisInit.queue_pressure?` is true. The Procfile's `resque_slow`
+process drains it, but the Cloud Run entrypoint (`bin/docker-worker-entrypoint`) defaults
+`QUEUES` to the three above and the deploy workflow does not override it, so on Cloud Run
+nothing is known to drain `whenever`. Unverified live (check the Redis queue length and the
+worker service's `QUEUES` env); if confirmed, that is an operational defect, not a doc one.
 
 Cloud Run sends SIGTERM with a short grace period; the BoyBand wrapper requeues
 in-flight jobs, so non-idempotent jobs can run twice.

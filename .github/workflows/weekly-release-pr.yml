@@ -11,7 +11,7 @@ name: Weekly Release PR (staging -> main)
 #
 # REQUIRED REPO SETTING (Settings > Actions > General > Workflow permissions):
 #   "Allow GitHub Actions to create and approve pull requests" must be ON.
-#   The job-level `pull-requests: write` below is not enough on its own: with that
+#   The workflow-level `pull-requests: write` below is not enough on its own: with that
 #   box OFF, `gh pr create` fails with "GitHub Actions is not permitted to create
 #   or approve pull requests" (every run 2026-05-04 through 2026-09-07 failed this way).
 #

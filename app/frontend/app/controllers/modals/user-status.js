@@ -11,7 +11,7 @@
  * REVIEW NEEDED: DELETE this file, OR RE-WIRE it if the team still wants the modal. If you
  * revive it, reconcile with the component version first — the two have diverged since the
  * split (fixes landed in the component, not here).
- * Context: docs/ember-5.12-migration-findings.md ("Dead files not touched": controllers/modals/*)
+ * Context: docs/ember-5.12-migration-findings.md ("Dead files not touched" names three of these; all share the split)
  */
 
 import LingoLinq from '../../app';
