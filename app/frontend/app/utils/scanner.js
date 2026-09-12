@@ -174,7 +174,20 @@ var scanner = EmberObject.extend({
     return new JShim(el);
   },
   start: function(options) {
-    if(scanner.actively_scanning()) {
+    /* `armed_boardless` means the last arm produced a scan list with a grid present but NONE
+       of its cells resolvable -- i.e. the scanner armed before the board rendered and is
+       cycling chrome only (Home / Back / Backspace / Clear) with no vocabulary reachable.
+       Such a list must NOT be protected by the actively_scanning() guard, or the user stays
+       locked out of their words until they navigate away: every later arm path -- the
+       `monitor_scanning` observer (services/app-state.js:2887), the board-detail route timer
+       (routes/user/board-detail.js:565), modal open/close (utils/modal.js:130/192/441) and
+       edit_manager's resume_scanning (utils/edit_manager.js:2042) -- hits this early return.
+
+       Re-arming from a boardless list cannot disturb a selection in progress, because such a
+       list holds no vocabulary button to be mid-selection ON; the highlight can only move
+       within the speak bar. That is what makes this safe where a blanket re-arm would not be.
+       Set below, next to the content scan that is the only thing able to observe it. */
+    if(scanner.actively_scanning() && !scanner.armed_boardless) {
       return;
     }
     scanner.current_element = null;
@@ -386,6 +399,21 @@ var scanner = EmberObject.extend({
         }
       });
       var content = scanner.scan_content();
+      /* Count cells the DOM actually yielded. scan_content() takes its SHAPE from
+         model.grid (available at model-resolve) but resolves each cell with
+         find_elem(".button[data-id=...]"), so a grid whose buttons have not rendered yet
+         reports full rows/columns and zero resolvable elements. The row builders below
+         then discard every one of them, silently. Counted here rather than in each
+         scan_mode branch because this is the single place all three read from. */
+      var board_cells_found = 0;
+      if(content && content.order) {
+        content.order.forEach(function(row) {
+          (row || []).forEach(function($button) {
+            if($button && $button.length) { board_cells_found++; }
+          });
+        });
+      }
+      scanner.armed_boardless = !!(content && content.rows > 0 && board_cells_found === 0);
 
       if(options.scan_mode == 'row' || options.scan_mode == 'button') {
         for(var idx = 0; idx < content.rows; idx++) {
