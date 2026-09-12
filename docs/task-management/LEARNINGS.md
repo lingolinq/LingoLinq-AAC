@@ -17146,3 +17146,92 @@ that all exist on develop — `cp` them aside, overwrite with `git show origin/d
 branch's own spec hunk = pre-existing, not a regression.
 
 **First seen in:** [2026-09-10-suite-verification-after-develop-merge.md](./2026-09-10-suite-verification-after-develop-merge.md).
+
+## Gotcha: `ember-template-lint` CLI silently IGNORES files outside the project root (2026-09-11)
+
+Validating a structural template edit by linting a **scratch copy** is a false green. Verified
+both directions on the same binary:
+```
+./node_modules/.bin/ember-template-lint "$SCRATCH/application-broken.hbs"  # unclosed {{#unless}}
+(no output)   exit 0
+./node_modules/.bin/ember-template-lint app/templates/application.hbs
+  152:18  warning  no-nested-interactive        ✖ 1 problems
+```
+The broken copy produces **nothing**. To validate off-tree, drive the programmatic `Linter` with
+`workingDir` = `app/frontend` and an in-project `filePath` — that path *does* report the parse
+error. Otherwise edit in place and lint in place.
+
+**Generalises past this tool:** before trusting any linter/checker on a file outside its project,
+feed it a deliberately broken input and confirm it goes red. A check that cannot fail is not a
+check — the same discipline as falsifying a test (CLAUDE.md Rule #0.12).
+
+## Gotcha: enumerate `<header>` ELEMENTS, not routes, before indexing `getElementsByTagName` (2026-09-11)
+
+`document.getElementsByTagName('HEADER')[0]` is not "the page header". On `user.board-detail.edit`
+**three** `<header>` elements coexist, and the first in document order is
+`header.beta-feedback-panel__header` (`components/beta-feedback-panel.hbs:2`) because
+`templates/application.hbs:1499` mounts that panel ahead of `#content`. It is suppressed on
+`user.board-detail.index` only, by a block explicitly marked TEMPORARY
+(`controllers/application.js:190-192`). Measured live: 295px vs the global header's 70px — reading
+it as page chrome walls off the top 32.8% of the viewport from axes scanning instead of 7.8%,
+silently, for an eye-gaze user.
+
+**This is a Rule #0.13(b) failure in its purest form:** the author enumerated the reachable
+route/auth STATES, believed the enumeration complete, and never enumerated the reachable
+ELEMENTS. Fixed by scoping to `document.querySelector('#within_ember > header')` + null guard,
+matching `controllers/highlight.js:137` and `utils/edit_manager.js:974`.
+
+## Gotcha: `.md-board-detail-header` is `display:none` in the DEFAULT board view (2026-09-11)
+
+`board_collapsed: true` is the declared default (`controllers/user/board-detail.js:346`),
+`templates/user/board-detail.hbs:1` applies `md-shell--board-collapsed`, and `app.scss:80747` is
+`.md-shell--board-collapsed .md-board-detail-header { display: none }`. Its height is **0** in the
+normal speak view and ~116px only when expanded. Any geometry reasoning that treats it as "the
+board's ~70px header" is wrong in the common case. The comment at `controllers/highlight.js:130-137`
+already said so.
+
+## Gotcha: a "focusable elements" selector count is NOT a tab-stop count (2026-09-11)
+
+The off-screen board-detail navbar was reported as "19 focusable". That is a `querySelectorAll`
+count; **16 sit inside a `display:none` `UL.dropdown-menu`** and are unreachable. Pressing Tab 40×
+lands on **3**. Corroborated structurally: exactly 3 `<a|button>` precede `.dropdown-menu` in
+`components/app-navbar-authenticated-inner.hbs`, 20 follow it.
+
+**Rule:** to claim a tab-stop count, walk the tab order. A selector count overstates it wherever
+collapsed menus exist — here by 6×, in a number that was about to go into a PR body.
+
+## Gotcha: a red `ember test` piped through `tail` reports TAIL's exit code (2026-09-11)
+
+`ember test --filter X 2>&1 | tail -40` exits **0** on a fully red run, because the pipeline's
+status is `tail`'s. It also truncates away the first failing spec's message. Redirect to a file and
+grep it (`> run.txt 2>&1; echo "exit=$?"`). Costs a whole ~7-minute rebuild cycle to recover the
+evidence you already had. Related to CLAUDE.md Rule #0.10: confirm the SHAPE of a run before
+reading anything into it.
+
+## Pattern: a test whose cleanup nulls shared state cannot tame a self-re-arming rAF loop (2026-09-11)
+
+`scanner.axes_advance` re-arms itself via `requestAnimationFrame` whenever it moves an axis, so
+every spec leaves a frame queued. Nulling `scanner.axes.x/y` in an inner `afterEach` looks like it
+neutralises that frame — it does not, because `axes_advance` reads **`scanner.options.sweep` as its
+first statement** (`utils/scanner.js:1087`), before it consults `axes`, and `scanner-test.js`'s
+outer `afterEach` sets `scanner.options = null`. The frame throws and QUnit charges the global
+failure to whichever spec is running. Symptom: a spec that fails on one run and passes on the next
+with no code change.
+
+**Fix shape:** replace `window.requestAnimationFrame` with a no-op for the duration of the specs
+and restore it in `afterEach`, so no frame is ever queued. **Generalises:** when cleanup and a
+pending callback race, remove the SCHEDULER, not the state the callback reads — an inner
+`afterEach` cannot out-run an outer one. This is the guard-placement failure of Rule #0.13(a)
+appearing in test cleanup rather than product code.
+
+## Gotcha: the classic board route never settles under Mirage — it cannot serve as an acceptance control (2026-09-11)
+
+`visit('/classic/plain')` with a valid Mirage board fixture dies on QUnit's 60s ceiling after 120s
+of wall clock. `tests/acceptance/board-detail-empty-state-test.js`'s board-detail visits DO settle,
+so the harness is healthy; the classic `board.index` route is not reachable in it.
+
+**Alternative that works:** to prove a route-conditional in a template both ways without a second
+boot, visit the route once and then move `app_state.current_route` off it in the booted app
+(`this.owner.lookup('service:app-state').set('current_route', …)` + `await settled()`). That tests
+the conditional itself and runs in ~30s. Used in
+`tests/acceptance/board-detail-global-header-test.js`.

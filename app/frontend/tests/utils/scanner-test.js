@@ -1835,8 +1835,94 @@ describe('scanner', function() {
   });
 
   describe('axis scanning', function() {
-    xit('should have specs', function() {
-      expect('test').toEqual('todo');
+    /* `axes_advance` computes a floor (`min`) for the horizontal sweep when the
+       scanning_skip_header preference is on, and the only observable effect of that
+       floor is where it parks `axes.horizontal.style.top`. With `top` seeded at
+       '-1000px' the function takes `y = min` and advances one `rate` step, so
+       `top === min + rate` -- which is what these specs assert against. */
+    var RATE = 100 / 3 / 60;
+    var inserted = [];
+    var real_raf;
+
+    function advance_with_skip_header() {
+      scanner.options = { skip_header: true };
+      scanner.scanning_distances = { x: 0, y: 0 };
+      var horizontal = document.createElement('div');
+      horizontal.style.top = '-1000px';
+      var vertical = document.createElement('div');
+      vertical.style.left = '-1000px';
+      scanner.axes = { x: null, y: 'scanning-forward', horizontal: horizontal, vertical: vertical };
+      scanner.axes_advance();
+      return parseFloat(scanner.axes.horizontal.style.top);
+    }
+
+    function insert(el) {
+      document.body.appendChild(el);
+      inserted.push(el);
+      return el;
+    }
+
+    beforeEach(function() {
+      /* axes_advance re-arms itself with requestAnimationFrame every time it moves an
+         axis, so each spec below would leave a frame queued. That frame reads
+         `scanner.options.sweep` as its FIRST statement (utils/scanner.js:1087), and this
+         file's outer afterEach sets `scanner.options = null` (:135) -- so the frame throws,
+         and QUnit charges the global failure to whichever spec is running by then. Nulling
+         the axis directions does not help: the sweep read happens before axes is consulted.
+         Replacing the scheduler is what stops a frame existing at all. Observed: the control
+         spec below failed on one run and passed on the next with no code change. */
+      real_raf = window.requestAnimationFrame;
+      window.requestAnimationFrame = function() { return 0; };
+    });
+
+    afterEach(function() {
+      window.requestAnimationFrame = real_raf;
+      scanner.axes = null;
+      inserted.forEach(function(el) { el.parentNode && el.parentNode.removeChild(el); });
+      inserted = [];
+    });
+
+    it('measures the global header when one is present', function() {
+      /* Control. Without this the spec below could pass for the wrong reason -- any
+         change that stopped measuring a header at all would satisfy it. */
+      var wrap = document.createElement('div');
+      wrap.id = 'within_ember';
+      var header = document.createElement('header');
+      header.style.height = '70px';
+      wrap.appendChild(header);
+      insert(wrap);
+
+      var expected_min = (header.getBoundingClientRect().height / window.innerHeight) * 100;
+      expect(expected_min).toBeGreaterThan(0);
+      var top = advance_with_skip_header();
+      expect(top).toBeGreaterThan(expected_min);
+      expect(top).toBeLessThan(expected_min + 1);
+    });
+
+    it('ignores a non-global <header> that precedes the global one in the document', function() {
+      /* components/beta-feedback-panel.hbs:2 opens <header class="beta-feedback-panel__header">
+         unconditionally, and templates/application.hbs:1499 mounts that panel BEFORE
+         #content -- so on user.board-detail.edit it is the first <header> in the document.
+         Measured live at 295px against a 900px viewport: reading it as the page header
+         excludes the top 32.8% of the screen from axes scanning instead of 7.8%, silently,
+         for an eye-gaze user. */
+      var panel = document.createElement('header');
+      panel.className = 'beta-feedback-panel__header';
+      panel.style.height = '300px';
+      insert(panel);
+
+      var top = advance_with_skip_header();
+      expect(top).toBeGreaterThan(0);
+      expect(top).toBeLessThan(1);
+    });
+
+    it('does not throw when no global header is rendered', function() {
+      /* board-detail's model.error and model.integration branches render no <header> of
+         their own, so once the global header stops rendering on that route there is no
+         header left to measure. An unguarded read throws inside the requestAnimationFrame
+         sweep, which stops scanning outright. */
+      expect(document.querySelector('#within_ember > header')).toEqual(null);
+      expect(function() { advance_with_skip_header(); }).not.toThrow();
     });
   });
 });

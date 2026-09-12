@@ -7164,6 +7164,12 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    /* Un-Flip, from the control at the far left of the sentence bar. Calls the SAME toggle the
+       speak-menu "Flip Text" control uses (services/app-state.js:2487), so the two stay in sync
+       and the menu's label reverts to "Flip Text" on its own. */
+    flip_text: function() {
+      this.get('app_state').flip_text();
+    },
     toggle_focus: function() {
       // Menu click can bubble/re-fire the action; debounce rapid re-invocations.
       var now = Date.now();

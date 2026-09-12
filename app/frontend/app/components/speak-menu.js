@@ -8,6 +8,7 @@ import { alias } from '@ember/object/computed';
 import { later as runLater } from '@ember/runloop';
 import $ from 'jquery';
 import modalUtil from '../utils/modal';
+import stashes from '../utils/_stashes';
 import utterance from '../utils/utterance';
 import speecher from '../utils/speecher';
 import capabilities from '../utils/capabilities';
@@ -212,6 +213,24 @@ export default Component.extend({
      its list with no `category` at all (`:67-72`, and the comment at `:147-150` says so).
      They therefore appear in NO tab there. Expanding here keeps them somewhere they
      actually render. */
+  /* Recent sentences the user can say again, shown under REPEAT WORDS when the Repeats
+     group is open. Same source and same 24h window as the Phrases modal's Recent tab
+     (components/phrases.js:114-122): `stashes.prior_utterances`, newest first.
+
+     Computed only while `repeat_menu` is open so the modal does no work for it in the
+     default view. `sentence` is derived here rather than in the template because
+     `utterance.sentence()` needs the raw vocalizations, which the row does not otherwise
+     carry. */
+  repeatPhrases: computed('repeat_menu', function() {
+    if(!this.get('repeat_menu')) { return []; }
+    var cutoff = (new Date()).getTime() - (24 * 60 * 60 * 1000);
+    return (stashes.get('prior_utterances') || []).filter(function(p) {
+      return p && p.cleared > cutoff;
+    }).reverse().map(function(p) {
+      return { sentence: utterance.sentence(p.vocalizations), vocalizations: p.vocalizations };
+    });
+  }),
+
   heldThoughts: computed('_phrase_parked', 'held_expanded', function() {
     var all = this.get('_phrase_parked') || [];
     if (this.get('held_expanded')) { return all; }
@@ -636,6 +655,18 @@ export default Component.extend({
       runLater(place, 100);
     },
     closing() {},
+    /* Load a recent sentence back into the sentence bar. Mirrors what the Phrases modal's
+       Recent tab does for the same rows (components/phrases.js:206-208) -- it does NOT speak
+       immediately, so the user can edit before sending, and it deliberately skips that
+       branch's `remembered_vocalizations` bookkeeping, which is held-thought housekeeping
+       and does not apply to prior utterances. */
+    select_repeat_phrase(phrase) {
+      if(!phrase || !phrase.vocalizations) { return; }
+      utterance.set('rawButtonList', phrase.vocalizations);
+      utterance.set('list_vocalized', false);
+      this.get('modal').close();
+    },
+
     selectButton(button) {
       this.get('modal').close();
       if (button === 'remember') {
@@ -766,6 +797,15 @@ export default Component.extend({
            but indexed into `heldThoughts` — these now live in the Actions section and are a
            different list. Indexing the wrong one would resume someone's saved phrase in
            place of the thought they parked. */
+        /* Indexed ids, same reason as `menu_held_` below: two recent sentences can read the
+           same, and the scanner/dwell path dispatches by id. Without this branch these rows
+           would work for a pointer and be dead for a switch or eye-gaze user. */
+        if (button && button.indexOf('menu_repeat_phrase_') === 0) {
+          var rp_idx = parseInt(button.slice('menu_repeat_phrase_'.length), 10);
+          var rp = (_this.get('repeatPhrases') || [])[rp_idx];
+          if (rp) { _this.send('select_repeat_phrase', rp); }
+          return;
+        }
         if (button && button.indexOf('menu_held_') === 0) {
           var held_idx = parseInt(button.slice('menu_held_'.length), 10);
           var held = (_this.get('heldThoughts') || [])[held_idx];

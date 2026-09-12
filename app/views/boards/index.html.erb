@@ -689,27 +689,26 @@
       }
       // No slow-load swap: there is no card on screen to swap.
     } else {
-      /* NO 3s slow-load swap. It used to replace the card's copy with
-         "Still working… / Large board sets can take a little longer to prepare." after
-         3 seconds.
+      /* Slow-load escalation, at 60s. This fired at 3 SECONDS until 838de65a0, and that made
+         ONE load look like several: the user saw "Loading boards", then "Still working…",
+         then the Ember loading card's own wording, and the third read as a restart. Reported
+         twice as "it goes through two separate loading processes".
 
-         Removed because it made ONE load look like several. The sequence a user actually
-         saw on a cold board was three different messages -- "Loading boards", then
-         "Still working…", then the Ember loading card's own wording -- and the third
-         READ AS A RESTART, because it went back to an opening message after the shell had
-         already escalated. Reported twice as "it goes through two separate loading
-         processes".
+         60s does not have that problem. The boot card is normally gone within a couple of
+         seconds (the app removes #loading_box once Ember boots), so this only fires on a
+         genuinely slow boot — where saying we are still working is the honest thing to do
+         rather than leaving a stale "Loading boards" on screen.
 
-         The card now keeps one message for the whole boot, and the Ember loading substate
-         (templates/user/board-detail-loading.hbs) renders the SAME two strings, so the
-         handoff between the two elements is invisible.
+         Distinct from the `#loading_message` ladder further down (:720+), which reports a
+         FAULT in the JS asset download (`load_state.js_retrieved`) and carries a support
+         link. This card only reports elapsed time. The two do not collide.
 
-         The genuine escalation is not lost: `#loading_message` still runs its own ladder
-         below (5s "slow download" telemetry, 60s "there might be a problem … contact
-         support" with a real link). That is a DIFFERENT element with a different job --
-         it reports a fault, where this card only reported elapsed time. */
-    }
- 3000);
+         Raw strings, deliberately: this runs BEFORE the Ember bundle and therefore before
+         i18n exists. Same reason the logout/anonymous copy above is raw. */
+      setTimeout(function() {
+        if (t) { t.textContent = 'Still working…'; }
+        if (s) { s.textContent = 'Large board sets can take a little longer to prepare.'; }
+      }, 60000);
     }
   })();
 </script>

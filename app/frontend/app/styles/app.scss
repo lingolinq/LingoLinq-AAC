@@ -18351,12 +18351,18 @@ form.row.subscription-form-with-cards {
      matching padding puts the same space back inside the bar. Without that the bar would
      sit inside the padding box and scrolled content would show through the 20px channel
      either side of it and the 16px above. Opaque background for the same reason: sticky
-     only reserves space, it does not hide what passes underneath. */
+     only reserves space, it does not hide what passes underneath.
+
+     The BOTTOM margin (third value) is the gap between the divider and whatever section
+     leads the view. It was 14px, which left the first section label sitting almost on the
+     rule. Raised here rather than padding the first section, because every view leads with
+     a different one -- Punctuation on the main view, Repeat Words under Repeats -- and the
+     spacing belongs to the header, not to whichever section happens to be first. */
   position: sticky;
   top: 0;
   z-index: 3;
   background: #ffffff;
-  margin: -16px -20px 14px;
+  margin: -16px -20px 24px;
   padding: 16px 20px 12px;
   border-bottom: 1px solid rgba($la-navy, 0.15);
 }
@@ -18621,6 +18627,39 @@ form.row.subscription-form-with-cards {
 .md-speak-menu__bottom {
   padding-top: 8px;
   margin-top: 4px;
+}
+
+/* Footer row: Save Phrase on the left, volume right-aligned on the SAME row. Volume moved here
+   out of the Repeats group so it no longer costs an extra activation to reach.
+   `.md-speak-menu__bottom-btn` is `width: 100%` by default (see below), which would push the
+   volume group onto its own line — hence `width: auto` + `flex` here rather than a fixed width.
+   The row is rendered even when Save Phrase is not (it needs a composed sentence), so volume
+   stays reachable with an empty sentence bar; `margin-left: auto` keeps it right-aligned in
+   both cases. */
+.md-speak-menu__bottom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.md-speak-menu__bottom-row .md-speak-menu__bottom-btn {
+  width: auto;
+  flex: 1 1 auto;
+}
+.md-speak-menu__bottom-volume {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+/* Compact, horizontal variant of the tile for this row. The default `.md-speak-menu__btn` is a
+   tall COLUMN tile (icon over label) sized for the main grid, which would dominate the footer.
+   Scoped to this container rather than adding a modifier class, so the moved markup keeps its
+   ids and classes exactly as they were in the Repeats group. */
+.md-speak-menu__bottom-volume .md-speak-menu__btn {
+  flex-direction: row;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
 }
 .md-speak-menu__bottom-btn {
   display: flex;
@@ -72054,44 +72093,6 @@ body.ll-layout-focused .md-pending-notice .md-btn--primary {
    Board Detail page  (/user/:user_id/board-detail/:boardname)
    ──────────────────────────────────────────────────────── */
 
-/* Board detail: collapse the main navbar to maximize screen space.
-
-   NO `transition` on the transform, deliberately. It used to carry
-   `transition: transform 0.25s ease`, which meant that on an in-app transition into a board
-   -- where this class is added to an ALREADY-RENDERED header sitting at translateY(0) --
-   the navbar ANIMATED off screen instead of being gone. Measured: 13 visible frames over
-   ~290ms, the header's bottom edge sweeping up from 70px to 0. On screen that reads as a
-   second speak bar flashing above the board's own one, because in speak mode this navbar
-   carries Home, the utterance, backspace and clear.
-
-   The transition was vestigial by then: it was there for the `> header:hover` reveal, and
-   the comment below records that reveal being removed entirely. Nothing transitions this
-   header back, so the only thing the 250ms ever animated was the hide -- i.e. the flash.
-
-   A direct page load never showed it, which is why it survived: there the class is applied
-   before the header first paints, so there is no start value to animate from. */
-#within_ember.board-detail-view > header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  transform: translateY(-100%);
-}
-/* The global navbar stays collapsed off-screen on board-detail to keep
-   the modern view immersive. The previous `> header:hover` reveal pulled
-   #inner_header down whenever the pointer crossed the top edge (notably
-   when reaching for the fixed Beta-feedback tab, which sits in the same
-   top:0 band) — an unwanted, surprising pull-down. Board-detail provides
-   its own chrome (.md-board-detail-header, Back-to-Boards, go_back, the
-   options menu with Exit Speak Mode), so the global navbar is not needed
-   for navigation here and the hover-reveal is removed entirely. */
-#within_ember.board-detail-view > header #inner_header {
-  border-bottom: 1px solid rgba($la-navy, 0.08) !important;
-
-  box-shadow: 0 4px 12px rgba($la-navy, 0.10) !important;
-
-}
 #within_ember.board-detail-view {
   --topbar-height: 0px !important;
 
@@ -74013,6 +74014,23 @@ span.md-board-detail-modeling-btn--badge {
 .md-board-detail-sentence-row .md-board-detail-sentence-bar__text {
   cursor: pointer;
 }
+/* Flip Text. `display: contents` in the default state so this wrapper contributes NO box and
+   the chips remain direct flex children of `__text` (`display: flex`, :73961) -- unflipped
+   layout is therefore unchanged. Only when flipped does it become a real box, which it must be
+   for `transform` to apply at all. Mirrors the classic bar's `#button_list.has_content.flipped`
+   (_header_sizing.scss:54-58), including swapping the padding side so the rotated text keeps
+   its inset. Predictions sit OUTSIDE this wrapper and stay upright on purpose. */
+.md-board-detail-sentence-bar__utterance { display: contents; }
+.md-board-detail-sentence-bar__utterance.is-flipped {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1px;
+  transform: rotate(180deg);
+  padding-left: 12px;
+  padding-right: 0;
+}
 .md-board-detail-sentence-bar__text--with-symbols {
   flex-wrap: wrap;
   gap: 1px;
@@ -75126,6 +75144,23 @@ span.md-board-detail-modeling-btn--badge {
   align-items: center;
   gap: 6px;
   transition: transform 0.12s ease;
+}
+
+/* Un-Flip, shown at the far left of the bar only while the message is flipped. Reuses the
+   `__btn` primitive above for size, radius and tap feedback -- only the colours and the
+   shrink guard are specific to it (Rule #0.6). It sits OUTSIDE
+   `.md-board-detail-sentence-bar__utterance`, so it stays upright and operable while the
+   message it un-flips is rotated 180deg. `flex-shrink: 0` because the rotated message is a
+   flex sibling that will happily take the whole row otherwise. */
+.md-board-detail-sentence-bar__btn--unflip {
+  flex-shrink: 0;
+  background: rgba($brand-verdigris, 0.14);
+  color: $brand-charcoal-blue;
+  padding: 12px 16px;
+  margin-right: 8px;
+}
+.md-board-detail-sentence-bar__btn--unflip:hover {
+  background: rgba($brand-verdigris, 0.22);
 }
 .md-board-detail-sentence-bar__btn:active {
   transform: scale(var(--md-tap, 0.97));
@@ -106788,6 +106823,12 @@ body.ll-layout-focused .ub-boards-page__set-home-btn:hover {
   outline: 3px solid $brand-verdigris;
   outline-offset: 2px;
 }
+/* `width: auto` is NOT set here on purpose: the gif footer used to carry the legacy
+   `repair_buttons` class, whose `.btn { width: 100px }` (app.scss:19049-19051) clipped these
+   tiles so the 22px icon + 8px gap + nowrap label spilled out of the box. That class was
+   removed from the footer in components/gif.hbs instead, so nothing constrains the width and
+   no override is needed. The pager above it still uses `repair_buttons` and still wants that
+   fixed width -- do not remove it there. */
 .la-gif-modal__action-icon { flex-shrink: 0; }
 .la-gif-modal__action-label { line-height: 1; }
 

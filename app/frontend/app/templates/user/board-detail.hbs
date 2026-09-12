@@ -729,12 +729,34 @@
             only fix that does not mean stripping the frosted bar of its own styling. --}}
       <div class="md-board-detail-sentence-bar-wrap">
       <div class="md-board-detail-sentence-bar" role="region" aria-label={{t "Message composition" key="board_detail_message_composition"}}>
+        {{!-- Un-Flip. Rendered only while the message is flipped, at the far left of the bar
+             and OUTSIDE the rotated wrapper, so it stays upright and usable while the message
+             behind it is upside down. data-bd-action keeps it on the dwell/eye-gaze dispatch
+             path in raw_events like every other control in this row. Reuses the existing
+             `unflip_text` key, so no new locale strings. --}}
+        {{#if this.app_state.flipped}}
+          <button type="button" class="md-board-detail-sentence-bar__btn md-board-detail-sentence-bar__btn--unflip" aria-label={{t "Un-Flip Text" key="unflip_text"}} title={{t "Un-Flip Text" key="unflip_text"}} data-bd-action="flip_text" {{on "click" (this.ctrlAction "flip_text")}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            <span class="md-board-detail-sentence-bar__btn-label">{{t "Un-Flip Text" key="unflip_text"}}</span>
+          </button>
+        {{/if}}
         {{!-- Tapping the composed message also speaks it (mouse/touch bonus —
              the inline mic below is the keyboard/SR speak control, so this
              stays a plain click target with no tabindex/role to avoid a
              duplicate "Speak sentence" tab stop). --}}
         <div class="md-board-detail-sentence-bar__text {{if (and this.utterance_show_symbols this.has_sentence) "md-board-detail-sentence-bar__text--with-symbols"}}" aria-live="polite" data-bd-action="speak_sentence" {{on "click" (this.ctrlAction "speak_sentence")}}>
           {{#if this.has_sentence}}
+            {{!-- Flip Text (speak-menu "More Options") rotates the composed message 180 degrees so a
+                 partner sitting opposite the device can read it. app_state.flipped is set by
+                 app_state.flip_text() (services/app-state.js:2487). The classic bar does this on
+                 #button_list via _header_sizing.scss:54; board-detail has no #button_list, so the
+                 flag had no consumer here and the control did nothing.
+
+                 The wrapper is `display: contents` unless flipped, so in the normal case the chips
+                 stay direct flex children of __text and layout is unchanged. Predictions are a
+                 SIBLING of this wrapper and deliberately stay upright -- they are buttons for the
+                 AAC user, not text for the partner. --}}
+            <span class="md-board-detail-sentence-bar__utterance {{if this.app_state.flipped 'is-flipped'}}">
             {{#if (or this.utterance_show_symbols this.sentence_bar_editing_enabled)}}
               {{#each this.sentence_parts as |part index|}}
                 <SentenceBarChip
@@ -758,6 +780,7 @@
             {{else}}
               {{this.sentence_text}}
             {{/if}}
+            </span>
             {{!-- Inline word predictions --}}
             {{#if this.show_word_suggestions}}
               {{#if this.suggestions.ready}}

@@ -3,6 +3,22 @@
 <AppLoadingOverlay />
 <AppToast />
 <CopyProgressDrawer />
+{{!-- The global header is not rendered on board-detail. It used to render on every route and
+     board-detail merely translated it off screen, which left its controls in the tab order:
+     walking the tab order landed on three of them, all at negative rectTop, so focus moved
+     somewhere invisible. Signed in the header here is <AppNavbar>; signed out it is the
+     classic #speak bar, which duplicates the id of board-detail's own sentence row
+     (user/board-detail.hbs:619).
+
+     on_board_detail (controllers/application.js:173) covers both user.board-detail.index and
+     user.board-detail.edit, and is the same source as the board-detail-view class on line 1 --
+     so the class and the header cannot disagree. It keys on app_state.current_route, which
+     means this governs which routes render the header, not the transition timing.
+
+     Board-detail carries no replacement for Sign Out, My Account, Settings, Help or the app
+     language picker; those are reachable only after leaving the board. That gap already
+     existed for every pointer user, because the hover-reveal was removed. --}}
+{{#unless this.on_board_detail}}
 <header class="{{this.header_class}} {{if this.useAppNavbarInHeader "header-index-with-dark-toggle"}} {{unless this.isSessionAuthenticated "header--unauthenticated"}} {{if this.hide_header "header--hidden"}}">
   <div id="inner_header">
   {{#if this.useAppNavbarInHeader}}
@@ -1478,6 +1494,7 @@
   {{/if}}
   </div>
 </header>
+{{/unless}}
 {{#if (or this.app_state.currentUser this.app_state.sessionUser)}}
   {{!-- TEMPORARY (2026-07-27): the beta-feedback drawer + its bottom-center tab are
        suppressed on board-detail SPEAK mode only (route user.board-detail.index).

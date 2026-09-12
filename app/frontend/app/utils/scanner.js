@@ -1116,7 +1116,19 @@ var scanner = EmberObject.extend({
     if(scanner.axes.y == 'scanning-forward' || scanner.axes.y == 'scanning-backward') {
       var min = 0;
       if(scanner.options.skip_header) {
-        min = (document.getElementsByTagName('HEADER')[0].getBoundingClientRect().height / window.innerHeight) * 100;
+        /* Scoped to the GLOBAL header, and guarded. A bare `getElementsByTagName('HEADER')[0]`
+           takes the first <header> in the document, which on user.board-detail.edit is the
+           beta-feedback panel's own header (components/beta-feedback-panel.hbs:2) -- that panel
+           mounts at templates/application.hbs:1499, ahead of #content. Measured at 295px against
+           a 900px viewport, reading it here walls off the top 32.8% of the screen from the sweep
+           instead of 7.8%. Board-detail also renders no <header> at all in its model.error and
+           model.integration branches, where the unguarded index read throws and stops scanning.
+           Matches the scoping already applied to controllers/highlight.js:137 and
+           utils/edit_manager.js:974. */
+        var header = document.querySelector('#within_ember > header');
+        if(header) {
+          min = (header.getBoundingClientRect().height / window.innerHeight) * 100;
+        }
       }
       var y = parseFloat(scanner.axes.horizontal.style.top) || min;
       if(scanner.axes.horizontal.style.top == '-1000px') { y = min; }
