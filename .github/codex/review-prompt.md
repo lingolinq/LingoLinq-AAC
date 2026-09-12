@@ -39,7 +39,8 @@ Return exactly one of:
 <!-- CI_INJECT:LIVE_STATE -->
 PR metadata (`gh pr view`): mergeable state, mergeStateStatus, head SHA.
 Full CI check results (`gh pr checks`): rspec, build-and-test,
-audit-artifacts-integrity, security-scan, secret-detection.
+audit-artifacts-integrity, codex-review-tests, secret-detection (plus
+security-scan on PRs into main).
 Changed-file list WITH git modes at the PR head (`git ls-tree HEAD_SHA`, one
 `<mode> blob <sha>\t<path>` line per changed file).
 <!-- /CI_INJECT:LIVE_STATE -->

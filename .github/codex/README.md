@@ -1,5 +1,16 @@
 # Codex review pipeline
 
+> **Status 2026-09-12: dormant, revival in progress.** The last dispatched run
+> was 2026-08-04; PRs merged since then carry no `codex-review/deep-pass` status,
+> and the check is not in the required set on develop, staging or main. The
+> n8n W1 webhooks are still registered, so the stop is on the n8n side. Revival
+> checklist: (1) restore W1 dispatch in n8n, (2) confirm `CODEX_OPENAI_API_KEY`
+> still authenticates (it was re-provisioned 2026-08-04), (3) run one smoke PR,
+> (4) re-add `codex-review/deep-pass` to branch protection on develop and
+> staging, (5) decide the canary variables (see Evidence modes). Until (4) the
+> `--admin` exception policy in `docs/process/deep-pass-admin-exception-policy.md`
+> has nothing to override.
+
 `codex-review.yml` is dispatched by the n8n W1 orchestrator and reports the
 Actions-owned `codex-review/deep-pass` commit status. W2 owns the sticky PR
 comment. The workflow keeps routing, head-SHA binding, and final status
@@ -15,7 +26,7 @@ amending it there is registry drift. Approval authority is Scot.
 
 | Row | Credential | Approved model ids | Tier |
 | --- | --- | --- | --- |
-| Codex CLI (CI `codex-review` gate) | OpenAI platform API key, pay-per-use, project-scoped, no BAA | `gpt-5.6-terra` (default), `gpt-5.6-luna` | Tier 2 dev-loop only |
+| Codex CLI (CI `codex-review` gate) | OpenAI platform API key, pay-per-use, project-scoped, no BAA | `gpt-5.6-terra` (both legs) | Tier 2 dev-loop only |
 | Codex CLI (interactive / local) | Consumer OpenAI OAuth, no BAA | `gpt-5.6-terra` (default), `gpt-5.6-sol` (careful) | Tier 2 dev-loop only |
 
 `gpt-5.6-sol` is approved for the interactive row ONLY and must not be used by
@@ -27,9 +38,11 @@ CI-computed structural index, never raw code. A defect the chunk pass misses is
 therefore unreachable to synthesis, so detection strength has to live on the
 chunk leg. Convergence does not substitute for it: runs 2 and 3 re-sample the
 same model on the same prompt, which corrects sampling variance, not a blind
-spot. `gpt-5.6-luna` remains registry-approved as an A/B comparison arm, but
-moving it onto the production detection path is a reviewer-strength change, not a
-config tweak: it takes a PR that edits `DEFAULT_CHUNK_MODEL` in
+spot. `gpt-5.6-luna` is **not approved and not deployed** on any leg (the
+registry says so explicitly; an earlier revision of this file called it an A/B
+arm, which was registry drift). Moving any leg to a different model is a
+reviewer-strength change, not a config tweak: it takes a registry row from Scot
+plus a PR that edits `DEFAULT_CHUNK_MODEL` / `DEFAULT_SYNTHESIS_MODEL` in
 `scripts/codex-review-run-chunks.py`, and review.
 
 **Neither id is runtime-overridable, deliberately.** An earlier revision read
@@ -65,16 +78,18 @@ author's PRs.
 - `none`, `off`, or `bounded` force the bounded path.
 - any unknown value fails safe to the bounded path.
 
-During the first-week canary, set:
+During the first-week canary (started 2026-07-23), the variables were set to:
 
 ```text
 CODEX_REVIEW_EVIDENCE_MODE=chunked
 CODEX_REVIEW_CHUNKED_SCOPE=scot
 ```
 
-Leave both variables unset to keep production on the bounded path. After the
-canary, switch `CODEX_REVIEW_CHUNKED_SCOPE=all` to expand chunked evidence
-repo-wide. Record the effective evidence mode in the envelope and
+They are still set that way as of 2026-09-12 and the canary was never closed
+out, so when the gate is revived, non-Scot PRs would get the bounded path
+(60,000-byte truncated diff). Revival step (5): either switch
+`CODEX_REVIEW_CHUNKED_SCOPE=all` to expand chunked evidence repo-wide, or unset
+both variables to keep everyone on the bounded path. Record the effective evidence mode in the envelope and
 sticky-comment payload so a later audit can tell which path produced a verdict.
 
 ## Chunked evidence contract
