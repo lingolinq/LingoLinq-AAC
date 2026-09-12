@@ -578,10 +578,83 @@ describe SentryInitializer do
       expect(config.before_send).to be_a(Proc)
       expect(config.before_breadcrumb).to be_a(Proc)
     end
+
+    # LL-40f3571b19: the release tag used to read RENDER_GIT_COMMIT, which Cloud Run
+    # never sets, so production events carried no release. Resolution now lives in
+    # configure! so the same path the initializer runs is the one under test.
+    describe 'release resolution' do
+      around(:each) do |example|
+        keys = %w[SENTRY_RELEASE K_REVISION RENDER_GIT_COMMIT]
+        saved = ENV.values_at(*keys)
+        keys.each { |k| ENV.delete(k) }
+        example.run
+        keys.each_with_index { |k, i| saved[i].nil? ? ENV.delete(k) : ENV[k] = saved[i] }
+      end
+
+      it 'tags the release with the Cloud Run revision when K_REVISION is set' do
+        ENV['K_REVISION'] = 'lingolinq-web-00042-abc'
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to eq('lingolinq-web-00042-abc')
+      end
+
+      it 'leaves release to the SDK when SENTRY_RELEASE is set (operator override wins)' do
+        ENV['SENTRY_RELEASE'] = 'sha-from-operator'
+        ENV['K_REVISION'] = 'lingolinq-web-00042-abc'
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).not_to eq('lingolinq-web-00042-abc')
+      end
+
+      it 'treats a blank K_REVISION as unset' do
+        ENV['K_REVISION'] = '   '
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to be_nil
+      end
+
+      it 'never reads RENDER_GIT_COMMIT' do
+        ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to be_nil
+      end
+    end
   end
 end
 
 describe 'config/initializers/sentry.rb' do
+  # Wiring check: loads the real initializer so a stray `config.release = ENV[...]`
+  # inside the Sentry.init block (not just the helper) is caught.
+  describe 'release wiring through Sentry.init' do
+    around do |example|
+      keys = %w[SENTRY_DSN SENTRY_RELEASE K_REVISION RENDER_GIT_COMMIT]
+      saved = ENV.values_at(*keys)
+      keys.each { |k| ENV.delete(k) }
+      ENV['SENTRY_DSN'] = 'https://examplePublicKey@o0.ingest.sentry.io/0'
+      example.run
+    ensure
+      Sentry.close if Sentry.initialized?
+      keys.each_with_index { |k, i| saved[i].nil? ? ENV.delete(k) : ENV[k] = saved[i] }
+    end
+
+    def load_initializer!
+      silence_warnings { load Rails.root.join('config/initializers/sentry.rb').to_s }
+    end
+
+    it 'uses K_REVISION as the release when the initializer boots on Cloud Run' do
+      ENV['K_REVISION'] = 'lingolinq-web-00042-abc'
+      load_initializer!
+      expect(Sentry.configuration.release).to eq('lingolinq-web-00042-abc')
+    end
+
+    it 'does not let RENDER_GIT_COMMIT reach the release' do
+      ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
+      load_initializer!
+      expect(Sentry.configuration.release).not_to eq('deadbeef')
+    end
+  end
+
   it 'does not boot Sentry when SENTRY_DSN is blank' do
     # The initializer is gated on ENV['SENTRY_DSN']. In the test env we boot
     # without a DSN, so Sentry should remain uninitialized.

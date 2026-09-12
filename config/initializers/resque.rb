@@ -9,7 +9,7 @@ module RedisInit
 
   # Builds the option hash for Redis.new from a parsed redis URI. Backward
   # compatible: a redis:// URI yields exactly the historical {host, port,
-  # password} hash with no :ssl key, so the Render environment is unchanged.
+  # password} hash with no :ssl key, so a plain redis:// environment is unchanged.
   # A rediss:// URI (GCP Memorystore with AUTH + TLS, SERVER_AUTHENTICATION
   # mode) additionally enables :ssl and validates the server cert against the
   # supplied CA. SERVER_AUTHENTICATION presents no client cert.
@@ -39,7 +39,7 @@ module RedisInit
   # (the instance's private IP), and set_params defaults verify_hostname=true,
   # so the handshake rejects the server cert -- which is issued for the instance,
   # not the IP -- even with a correct CA. Default (unset) leaves hostname
-  # verification ON, so redis:// (Render) and any DNS-named TLS endpoint are
+  # verification ON, so redis:// and any DNS-named TLS endpoint are
   # unchanged.
   def self.redis_ssl_params
     require 'openssl'
@@ -122,14 +122,15 @@ module RedisInit
   # value or they would read/write disjoint permission caches. A static 'abc'
   # (LL-c6dd65a2aa) was predictable and never rotated. Resolve from env in
   # preference order, all of which are process-invariant within a deploy:
-  #   CACHE_TOKEN       - explicit operator-set secret (preferred)
-  #   RENDER_GIT_COMMIT - deploy SHA on Render (current platform)
-  #   K_REVISION        - Cloud Run revision name (GCP migration target)
+  #   CACHE_TOKEN       - explicit operator-set secret (preferred; mounted on every
+  #                       Cloud Run web/worker revision via deploy-cloudrun.yml)
+  #   K_REVISION        - Cloud Run revision name (differs between the web service
+  #                       and the worker pool, so it is a fallback, not the design)
+  # (RENDER_GIT_COMMIT was a second tier until Render was decommissioned 2026-09-09.)
   # Falling back to 'abc' only in local/dev/test where none are set, preserving
   # existing behavior there. Deterministic: no per-process randomness.
   def self.resolved_cache_token
     ENV['CACHE_TOKEN'].presence ||
-      ENV['RENDER_GIT_COMMIT'].presence ||
       ENV['K_REVISION'].presence ||
       'abc'
   end
