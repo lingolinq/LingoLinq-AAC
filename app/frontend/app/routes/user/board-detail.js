@@ -10,6 +10,8 @@ import persistence from '../../utils/persistence';
 import capabilities from '../../utils/capabilities';
 import boardDetailCache from '../../utils/board_detail_cache';
 import boardCacheDiag from '../../utils/board_cache_diag';
+import scanner from '../../utils/scanner';
+import modal from '../../utils/modal';
 import { available_board_langs, resolve_board_display_locale } from '../../utils/board_display_locale';
 
 export default Route.extend({
@@ -65,6 +67,53 @@ export default Route.extend({
   },
 
   // Build the symbol grid, warm current-board images, prefetch linked boards.
+  /* Re-arm scanning once the grid actually exists in the DOM.
+     A switch/eye-gaze user who opens a board before its grid has rendered gets a scan list
+     built from chrome only: `scan_content` takes its shape from `model.grid` but resolves
+     cells with `find_elem(".button[data-id=…]")`, and `start()` DISCARDS the ones that do not
+     resolve (utils/scanner.js:399, :408). Nothing repaired it afterwards, and it could not
+     repair itself: `actively_scanning()` (:634) stays true while the scanner cycles the
+     sentence row — which is static markup that survives board navigation — so every later
+     `start()` returned at :177. The user was left with Home/Back/Clear and no vocabulary.
+
+     GATED, deliberately. `services/app-state.js:2070-2075` wraps its own `stop()` in the
+     same condition, and the comment there records why: "this was breaking the 'find button'
+     interface when you get to the second board." `stop()` calls `modal.close_highlight()` and
+     removes every `.highlight` node (:617-620), and `utils/edit_manager.js:1974-1990`
+     repaints exactly that overlay for find-a-button and the `board-intro` tour at around this
+     moment. Ungated, this erased it — demonstrated by a test before the gate was written.
+
+     ZERO-DELAY runLater, not `check_scanning()`. That is the pattern the modals already use
+     (`utils/modal.js:126-130`, `:188-192`, `services/modal.js:115-121`) and it is not
+     cosmetic: `check_scanning` defers its whole body by 1000ms (`app-state.js:2031`), which
+     would leave this a wall-clock race that can capture a chrome-only list again on a slow
+     device. A zero-delay runLater is ordered by the RUNLOOP — the current turn's render queue
+     flushes before the next-turn timer — so the grid is in the DOM by the time it fires.
+     `scanner.options` survives `stop()`; `last_options` does not (:616), so pass options. */
+  _rearm_scanning_after_build: function() {
+    if(!scanner.scanning && !scanner.interval) { return; }
+    /* Leave a find-a-button search alone. The app deliberately supports that overlay running
+       WHILE the scanner scans — `utils/modal.js:332` routes a `button_search` highlight to the
+       SECONDARY outlet precisely `if(… && scanner.scanning)` — and `scanner.start()` itself
+       refuses to rebuild in that state rather than stopping (`utils/scanner.js:233`). Stopping
+       here would call `close_highlight()`, which nulls BOTH `highlight_settings` and
+       `highlight2_settings` (`utils/modal.js:377-378`). `utils/edit_manager.js:1974-1992`
+       usually repaints it, but that is guarded by
+       `_bd_highlight_resume_board != board_id` — so a second arrival at the SAME board inside
+       one sequence gets no repaint and the search dies silently. Refusing here mirrors what
+       `start()` already does, and costs nothing when no search is open. */
+    var hl = (modal.highlight_settings || {}).highlight_type;
+    var hl2 = (modal.highlight2_settings || {}).highlight_type;
+    if(hl === 'button_search' || hl2 === 'button_search') { return; }
+    var _this = this;
+    scanner.stop();
+    /* Teardown-guarded like every other runLater in this file (:111, :121, :470, :600): the
+       gate above was evaluated a turn earlier, so the route can be gone by the time this runs. */
+    runLater(function() {
+      if(_this.isDestroyed || _this.isDestroying) { return; }
+      scanner.start(scanner.options);
+    });
+  },
   _finalize_board_display: function(controller, raw) {
     if(!raw || !controller || controller.isDestroyed || controller.isDestroying) { return; }
     if(raw.images && raw.images.length) {
@@ -528,6 +577,9 @@ export default Route.extend({
           ms: Date.now() - build_started,
           rows: (controller.get('ordered_buttons') || []).length
         });
+        /* The grid exists now, so a scanner that armed before it did can pick up the
+           buttons. No-op unless one is actually running — see the gate in the method. */
+        _this._rearm_scanning_after_build();
       });
     }
 
