@@ -312,22 +312,6 @@ export default Component.extend({
      believed the board were wider would place tiles into columns the CSS never
      created. Row 0 defines the width (ordered_buttons is rectangular); the max is a
      fallback for a ragged array rather than a second opinion. */
-  /* Whether to tell the user this board has nothing on it.
-     `{{#unless orderedButtons.length}}` alone could not: `orderedButtons` is null for the
-     whole window between setupController (routes/user/board-detail.js:334 sets it null)
-     and _build_from_raw writing the real grid (controllers/user/board-detail.js:1928, via
-     routes:517/:525), and `null.length` is falsy just like `[].length` -- so a board that
-     was merely still loading rendered "No symbols found", telling someone their
-     vocabulary was gone at the moment it was being fetched.
-     The value already carries the distinction and needs no new flag: an ARRAY means
-     _build_from_raw has run, null/undefined means it has not. Every writer agrees -- the
-     null writes are routes:334 and :596, controllers:4685 and :9476, and
-     edit_manager.js:2192; every other writer sets an array. */
-  showEmptyState: computed('orderedButtons', function() {
-    var rows = this.get('orderedButtons');
-    if(!Array.isArray(rows)) { return false; }
-    return rows.length === 0;
-  }),
   boardColumns: computed('orderedButtons', function() {
     var rows = this.get('orderedButtons') || [];
     var first = (rows[0] || []).length;
