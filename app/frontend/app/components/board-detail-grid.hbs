@@ -312,10 +312,10 @@
     {{/each}}
     </div>
   {{/each}}
-  {{#unless this.orderedButtons.length}}
+  {{#if this.showEmptyState}}
     <div class="md-board-detail-grid__empty">
-      <p>{{t "No symbols found for this category" key="board_detail_no_symbols"}}</p>
+      <p>{{t "This board hasn't been set up yet, or doesn't have any visible buttons." key="no_visible_buttons"}}</p>
     </div>
-  {{/unless}}
+  {{/if}}
 </div>
 </ButtonListener>
