@@ -4682,7 +4682,35 @@ export default Controller.extend(prefClasses, {
     _this.get('stashes').persist('copy_on_save', null);
     // Discard unsaved changes: rollback Ember Data model and reload fresh from server
     _this.get('model').rollbackAttributes();
-    _this.set('ordered_buttons', null);
+    /* Rebuild from LOCAL state immediately, so the refetch below is a pure refresh whose
+       failure is harmless. `ordered_buttons` used to be nulled here and only ever rebuilt by
+       the ajax SUCCESS handler, inside `if(merged)` — so an offline cancel, a falsy payload,
+       an isDestroyed return, or one of `_build_from_raw`'s own early returns left the board
+       permanently blank: the communicator's whole vocabulary gone, with no message and no
+       error. Same instinct already recorded at :2714-2718 for the refetch observer ("leave
+       the stale render in place rather than blanking the grid").
+
+       `rollbackAttributes()` above has already restored the committed server values, so this
+       renders the pre-edit board — not the edits being discarded. `edit_mode` was cleared at
+       :4667, so `_build_from_raw` takes its `use_ember = false` branch and produces
+       speak-mode plain objects, which is what this grid needs.
+
+       DEEP COPY, and that is load-bearing. `app/transforms/raw.js` is an identity transform,
+       so Ember Data stores the REFERENCE for `buttons`/`grid` (models/board.js:906-907) and
+       `model.get('buttons')` after a rollback IS the committed `_data` array. Assigning it
+       directly would alias `_last_raw` to `_data`; `paint_button` (:9485-9498, the "Also update the model's raw buttons" block) mutates those
+       objects in place, so the NEXT edit session would paint straight into the committed
+       baseline, the record would never dirty, and `rollbackAttributes()` would silently
+       become a no-op — discarded paint would stick for good. Note this is why the
+       `saveButtonChanges` sync at :5929 can assign directly and this one cannot: that
+       one assigns `process_for_saving()` output, a fresh array with no store identity. */
+    if(_this._last_raw) {
+      try {
+        _this._last_raw.buttons = JSON.parse(JSON.stringify(_this.get('model.buttons') || []));
+        _this._last_raw.grid = JSON.parse(JSON.stringify(_this.get('model.grid') || null));
+        _this.processButtons();
+      } catch(e) { /* malformed payload — fall through to the refetch below */ }
+    }
     _this.set('board_loading', true);
     var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
     persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
