@@ -4884,9 +4884,28 @@ export default Controller.extend(prefClasses, {
     return list.length > 5 ? list.slice(0, 5) : list;
   }),
 
-  grid_style: computed('current_grid.columns', 'current_grid.rows', function() {
-    var cols = this.get('current_grid.columns');
-    var rows = this.get('current_grid.rows');
+  /* While the grid is still being built `ordered_buttons` is null, so current_grid is
+     {rows: 0, columns: 0} and this emitted NOTHING -- leaving the element on app.scss's
+     `--board-columns: 4 / --board-rows: 3` defaults (:80815). A 14-column board therefore
+     laid out as a 4x3 placeholder and SNAPPED to its real shape when the buttons landed,
+     moving every cell. On a board people navigate by position and muscle memory, that
+     reflow trains the eye to the wrong place.
+
+     The board's own saved grid is already on the model by then -- the show/tree payload
+     carries `grid` (lib/json_api/board.rb:22-27 strips it only on the paginated list
+     branch) -- and the two cannot disagree, because _build_from_raw iterates exactly
+     grid.rows x grid.columns and pushes a placeholder for every empty cell (:1901-1928).
+
+     Kept at THIS consumer rather than pushed into current_grid on purpose: current_grid
+     has eleven other readers, and :2964 / :3378 use it for the `max_results` / `count`
+     sent to the SERVER, so widening it there would change request payloads to fix a
+     layout problem. board_many_columns (:4288) already takes the same consumer-level
+     fallback. `model.grid.*` are dependent keys because a read that happens before the
+     model is attached would otherwise cache the empty string for good. */
+  grid_style: computed('current_grid.columns', 'current_grid.rows',
+                       'model.grid.columns', 'model.grid.rows', function() {
+    var cols = this.get('current_grid.columns') || this.get('model.grid.columns');
+    var rows = this.get('current_grid.rows') || this.get('model.grid.rows');
     var parts = [];
     if(cols && cols > 0) { parts.push('--board-columns: ' + cols); }
     if(rows && rows > 0) { parts.push('--board-rows: ' + rows); }
