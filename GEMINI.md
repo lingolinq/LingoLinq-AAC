@@ -11,7 +11,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Render (lingolinq-prod, lingolinq-staging, lingolinq-dev) with background job processing via Resque
+- Deployed on Google Cloud Run (production, staging, dev) with background job processing via Resque
 
 ## Development Commands
 
