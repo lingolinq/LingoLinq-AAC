@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 10. **A red test run is not a regression until you have confirmed the run COMPLETED.** A truncated run is indistinguishable from a failing one at a glance — it prints a `# fail` line, names a test, and exits non-zero. Check the shape of the run before reporting anything:
     - **`node -v` FIRST — before reading a single line of failure output.** The shell's nvm
-      default here is **16**; this repo requires **22** (`/.nvmrc`, `app/frontend/.nvmrc`,
+      default may not be 22, and this repo requires **22** (`/.nvmrc`, `app/frontend/.nvmrc`,
       `package.json` engines `>=22 <23`). A wrong-Node run can die during BUILD and still exit
       non-zero with a `# fail` line, which looks exactly like a red suite. `export
       NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22`. Documented in LEARNINGS
@@ -240,7 +240,7 @@ If you produced a branch name without a type prefix (e.g. `melissa-sidebar`), re
 
 ## Project Overview
 
-LingoLinq (formerly LingoLinq) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
+LingoLinq (a fully renamed fork of CoughDrop / SweetSuite) is an open-source web-based AAC (Augmentative and Alternative Communication) application. It consists of a Rails backend and an Ember.js frontend, both contained in this monorepo. The system is deployed as a web app and packaged for mobile (iOS/Android) and desktop apps.
 
 Key characteristics:
 - Cloud-based with offline support via IndexedDB/SQLite
@@ -431,8 +431,9 @@ code, target 5.12 APIs. Note that the 5.12 upgrade set `EXTEND_PROTOTYPES: false
 (`config/environment.js`), so Ember array/string prototype extensions (`.pushObject`, `.sortBy`,
 `.mapBy`, `.uniq`, `.compact`, etc.) are **not** available on native arrays/strings — call them only
 on an `A()`-wrapped array (`import { A } from '@ember/array'`) or an Ember-Data collection, or use
-native JS equivalents. Deprecation-audit status is tracked in
-`docs/task-management/2026-07-14-ember-5-12-full-deprecation-audit.md`.
+native JS equivalents. The known breakage classes live in
+`docs/ember-upgrade/KNOWN-ISSUES.md`; open upgrade-regression findings live in
+`audit-reports/ember-upgrade/FINDINGS-EMBER.json`.
 
 **jQuery removal:** Work to remove jQuery has been done on the develop branch. `jquery-integration` is disabled in `config/optional-features.json` to avoid `Component.reopen` deprecation from @ember/jquery. The app uses jQuery (`$`) for DOM manipulation where needed but does not use `this.$()` on components. When making changes, prefer native DOM APIs or Ember patterns over jQuery where practical.
 
@@ -583,7 +584,7 @@ Or the individual checks:
   # exec-bit: only for CHANGED scripts that a doc/skill invokes DIRECTLY (./script),
   # not every non-exec file in scripts/ (most .rb/.py run via `ruby`/`python` and are
   # correctly 100644). List the directly-invoked ones explicitly, e.g.:
-  #   for s in scripts/regen-ledger.sh; do
+  #   for s in scripts/regenerate-register.sh; do
   #     git ls-files -s "$s" | awk '$1 !~ /^100755/ {print "NOT EXECUTABLE: " $4}'
   #   done
 If a doc instructs running a script directly (./script, no interpreter prefix), the
@@ -621,7 +622,7 @@ steps, listed.
 - PostgreSQL (database)
 - Redis (background jobs, caching)
 - Node.js 22 (managed via nvm)
-- Ruby 3.4.3
+- Ruby 3.4.4 (`.ruby-version`)
 - ImageMagick (`convert`, `identify`, `montage`)
 - Ghostscript (`gs`)
 
@@ -764,5 +765,5 @@ using the same `audit-merge.rb`/`citation-check.rb` machinery and the same gover
   new evidence to a commit it was never verified against, and passes citation-check green whenever
   the snippet happens to sit on the same line in both commits.
 - No student/patient data ever appears in findings; evidence snippets are code only.
-- Compliance content is **Tier 2**: the register is PII-free (code evidence only), so any approved reviewer is permitted; the data-bearing-path guard (`codex-review-guard.sh`), not a Claude-only rule, is the boundary.
+- Compliance content is **Tier 2**: the register is PII-free (code evidence only), so any approved reviewer is permitted; the data-bearing-path guard (`scripts/codex-review-path-classifier.sh`, the CI-vendored copy of the brain's `codex-review-guard.sh`), not a Claude-only rule, is the boundary.
 - All findings include file paths and line numbers, anchored to the audited commit SHA.

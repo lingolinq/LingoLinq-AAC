@@ -52,7 +52,8 @@ Scot's attestation. You are the role the Phase 0 plan calls out as the missing *
 - **Tier 2 output.** Your output is PII-free (code `file:line` or public regulation text), so
   any approved reviewer may see it under the two-tier policy. The hard rule is the global one:
   no identifiable data to non-BAA external models, enforced by the data-bearing-path guard
-  (`codex-review-guard.sh`), not a blanket Claude-only mandate.
+  (`scripts/codex-review-path-classifier.sh`, the CI-vendored copy of the brain's
+  `codex-review-guard.sh`), not a blanket Claude-only mandate.
 
 ## What you own
 
