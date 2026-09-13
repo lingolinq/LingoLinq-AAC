@@ -406,7 +406,7 @@ special-LTS + 5.x update blog posts; emberjs/data #5638 #7192 #8684 #8791.
   after Debian 11 LTS ended 2026-08-31) + `Dockerfile:43`
   (`setup_22.x`; the `npm@10` pin retained), `bin/ember-server` (nvm install/use/which
   22). The Dockerfile is the only server build path (Render's `bin/render-build.sh`
-  was removed with the 2026-09-09 decommission).
+  was removed in PR #962 on 2026-09-12, after the 2026-09-09 decommission).
 - **OpenSSL 3 md4 crash** (`error:0308010C` / `ERR_OSSL_EVP_UNSUPPORTED`): webpack 4
   remnants (ember-auto-import v1 era). `NODE_OPTIONS=--openssl-legacy-provider` in CI
   is the tell. Fix: auto-import ^2 + webpack ^5; remove the stopgap.

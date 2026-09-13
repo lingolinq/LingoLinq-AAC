@@ -295,9 +295,41 @@ Branch `scot/chore/render-dead-config-removal` from `origin/develop @ 4c2adc976`
   `git grep -n -E 'render-build|sync-render-env|sync-render-secrets|preview-comment|render\.yaml' -- ':!audit-reports' ':!docs' ':!scripts/gcp'`
   -> only `.claude/agents/infra-auditor.md:72,94` and `.claude/skills/soc2-security-audit/SKILL.md:14,32` (PR B).
 
+## PR A1 dual review round 2 (head 29a4e2c22) and fixes
+
+Findings file: `dual-review-round2-pra1.md` (session scratchpad; copied into the PR body). Verdict
+request-changes on one High: Cloud Run injects `K_REVISION` into services only. Verified against
+Google's container contract (fetched 2026-09-12): services get `K_SERVICE`/`K_REVISION`/
+`K_CONFIGURATION`; worker pools get `CLOUD_RUN_WORKER_POOL`/`CLOUD_RUN_REVISION`; Jobs get
+`CLOUD_RUN_JOB`/`CLOUD_RUN_EXECUTION`/`CLOUD_RUN_TASK_*`. Live: `lingolinq-scheduler` Job mounts
+`SENTRY_DSN` with `SENTRY_ENVIRONMENT=production` and `CACHE_TOKEN`, so it boots Sentry [A7].
+
+Restructure (one root cause: "K_REVISION exists everywhere on Cloud Run"): `release_from` reads
+`K_REVISION` then `CLOUD_RUN_REVISION`; the Job stays untagged (its only per-run identity,
+`CLOUD_RUN_EXECUTION`, changes every execution and would create a Sentry release per hourly
+scheduler run, so it is deliberately not used). Comments in `sentry.rb` and `resque.rb` restate the
+contract. Decision re-raised to Scot: `SENTRY_RELEASE=${{ github.sha }}` in `APP_ENV_VARS_STATIC`
+(`deploy-cloudrun.yml:438`, one line, consumed by web, worker and scheduler at `:874`, `:1137`,
+`:1177`) would tag all three surfaces with a commit SHA; excluded from A1 per his earlier
+"K_REVISION only" call, which predates this finding.
+
+- Red first: worker-pool examples against the unfixed code -> 77 examples, 2 failures
+  (`sentry_spec.rb:603,674`). Green after: 101 examples, 0 failures.
+- Mutations (restored from copies, diff identical): drop the `CLOUD_RUN_REVISION` tier -> `:603,:674`
+  red; drop the `SENTRY_RELEASE` guard -> `:610,:680` red; old RENDER line back in the init block ->
+  `:693` red.
+- Also fixed in A1 scope: `bin/audit_console:5`, `weekly-release-pr.yml:83`, two misdated sentences,
+  spec `around` restores `SENTRY_ENVIRONMENT`, `Configuration.new` wrapped for `DummyTransport` and
+  zero worker threads in the load examples.
+
+[A7] `gcloud run jobs describe lingolinq-scheduler --region us-central1 --project lingolinq-prod`:
+env `RAILS_SERVE_STATIC_FILES=true`, `SENTRY_ENVIRONMENT=production`, `SENTRY_DSN` (secret),
+`CACHE_TOKEN` (secret); args `exec rake scheduler:dispatch`. `docs.cloud.google.com/run/docs/container-contract`
+(2026-09-12): K_REVISION listed under services only.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 (open, dual review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; round 2 fixed, round 3 pending) -> A2 -> B -> C.

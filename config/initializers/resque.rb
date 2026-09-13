@@ -124,8 +124,9 @@ module RedisInit
   # preference order, all of which are process-invariant within a deploy:
   #   CACHE_TOKEN       - explicit operator-set secret (preferred; mounted on every
   #                       Cloud Run web/worker revision via deploy-cloudrun.yml)
-  #   K_REVISION        - Cloud Run revision name (differs between the web service
-  #                       and the worker pool, so it is a fallback, not the design)
+  #   K_REVISION        - Cloud Run revision name, injected into SERVICES only; the
+  #                       worker pool and Jobs do not receive it, so this tier is a
+  #                       last resort for a service, not a cross-process safety net
   # (RENDER_GIT_COMMIT was a second tier until Render was decommissioned 2026-09-09.)
   # Falling back to 'abc' only in local/dev/test where none are set, preserving
   # existing behavior there. Deterministic: no per-process randomness.
