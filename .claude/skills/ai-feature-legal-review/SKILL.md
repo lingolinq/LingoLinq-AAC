@@ -157,7 +157,7 @@ Return:
   The pathspec recurses into subdirs and `.rake` files (a top-level `lib/*.rb` glob would miss
   `lib/tasks/generate_predictions.rake`) and explicitly includes the runtime provisioning sources:
   `scripts/gcp/**`, `.env.op.template`, the Cloud Run deploy workflow, and the endpoint guard
-  (the Render sync script was removed with the 2026-09-09 decommission). Reviewer-only credential scripts are intentionally outside
+  (the Render sync script was removed in PR #962 on 2026-09-12, after the 2026-09-09 decommission). Reviewer-only credential scripts are intentionally outside
   this runtime scan. The pattern covers both the sanctioned Bedrock clients and direct vendor
   endpoints, so widen it whenever a new vendor or naming convention lands. At the current `develop`
   head, the designated runtime surface is:

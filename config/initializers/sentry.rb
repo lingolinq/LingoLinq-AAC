@@ -362,15 +362,19 @@ module SentryInitializer
   end
 
   # LL-40f3571b19: the release tag used to read RENDER_GIT_COMMIT, which only Render
-  # set (decommissioned 2026-09-09), so Cloud Run events carried no release. Cloud Run
-  # injects K_REVISION per revision (differs between the web service and the worker
-  # pool). An explicit SENTRY_RELEASE is read by the SDK itself
-  # (Sentry::ReleaseDetector.detect_release_from_env), and assigning config.release
-  # here would override it, so return nil in that case and let the SDK win.
+  # set (decommissioned 2026-09-09), so Cloud Run events carried no release.
+  # Cloud Run's container contract (checked 2026-09-12) injects a revision name into
+  # services as K_REVISION and into worker pools as CLOUD_RUN_REVISION; Jobs get
+  # neither, so the scheduler Job stays untagged until SENTRY_RELEASE is set from the
+  # deploy workflow. An explicit SENTRY_RELEASE is read by the SDK itself
+  # (Sentry::ReleaseDetector.detect_release_from_env, called after the init block),
+  # and assigning config.release here would override it, so return nil in that case
+  # and let the SDK win.
   def release_from(env = ENV)
     return nil if env['SENTRY_RELEASE'].to_s.strip != ''
 
     revision = env['K_REVISION'].to_s.strip
+    revision = env['CLOUD_RUN_REVISION'].to_s.strip if revision.empty?
     revision.empty? ? nil : revision
   end
 end
