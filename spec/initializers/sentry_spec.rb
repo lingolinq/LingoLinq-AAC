@@ -411,7 +411,7 @@ end
 
 describe SentryTracesSampler do
   describe '.call' do
-    it 'returns 0.0 for /api/v1/health (Render health probe)' do
+    it 'returns 0.0 for /api/v1/health (platform health probe)' do
       expect(described_class.call(transaction_context: { name: '/api/v1/health' })).to eq(0.0)
     end
 
@@ -607,6 +607,14 @@ describe SentryInitializer do
         expect(config.release).to eq('lingolinq-worker-00020-b7v')
       end
 
+      it 'prefers K_REVISION when both revision variables are present' do
+        ENV['K_REVISION'] = 'lingolinq-web-00042-abc'
+        ENV['CLOUD_RUN_REVISION'] = 'lingolinq-worker-00020-b7v'
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to eq('lingolinq-web-00042-abc')
+      end
+
       it 'assigns nothing when SENTRY_RELEASE is set, so the SDK-read operator value wins' do
         ENV['SENTRY_RELEASE'] = 'sha-from-operator'
         ENV['K_REVISION'] = 'lingolinq-web-00042-abc'
@@ -615,8 +623,15 @@ describe SentryInitializer do
         expect(config.release).to be_nil
       end
 
-      it 'treats a blank revision as unset' do
+      it 'treats a blank K_REVISION as unset' do
         ENV['K_REVISION'] = '   '
+        config = Sentry::Configuration.new
+        described_class.configure!(config)
+        expect(config.release).to be_nil
+      end
+
+      it 'treats a blank CLOUD_RUN_REVISION as unset' do
+        ENV['CLOUD_RUN_REVISION'] = '   '
         config = Sentry::Configuration.new
         described_class.configure!(config)
         expect(config.release).to be_nil
@@ -685,8 +700,20 @@ describe 'config/initializers/sentry.rb' do
       expect(Sentry.configuration.release).to eq('sha-from-operator')
     end
 
-    it 'leaves the release nil when no revision variable is set (Jobs, local)' do
+    it 'leaves the release nil with no revision variable and sending disabled (local, test)' do
       load_initializer!
+      expect(Sentry.configuration.release).to be_nil
+    end
+
+    # Models the scheduler Job: SENTRY_ENVIRONMENT=production (sending allowed, so the SDK's
+    # detect_release chain runs), no revision variable, and no .git directory in the image
+    # (.dockerignore excludes it), so the git fallback yields nothing. Stubbed rather than
+    # observed because this spec's own checkout may contain .git.
+    it 'leaves the release nil on a Cloud Run Job (sending allowed, no revision variable, no .git)' do
+      ENV['SENTRY_ENVIRONMENT'] = 'production'
+      allow(Sentry::ReleaseDetector).to receive(:detect_release_from_git).and_return(nil)
+      load_initializer!
+      expect(Sentry.configuration.sending_allowed?).to eq(true)
       expect(Sentry.configuration.release).to be_nil
     end
 

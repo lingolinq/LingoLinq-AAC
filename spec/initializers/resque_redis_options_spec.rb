@@ -3,7 +3,7 @@ require 'openssl'
 
 # Locks the backward-compatibility guarantee of RedisInit.redis_options: a
 # redis:// URI must keep producing the exact legacy connection hash (so the
-# Render environment is untouched), while a rediss:// URI (GCP Memorystore,
+# plain redis:// environment is untouched), while a rediss:// URI (GCP Memorystore,
 # AUTH + TLS, SERVER_AUTHENTICATION) enables :ssl and validates against the
 # supplied CA. See config/initializers/resque.rb.
 describe RedisInit do
@@ -36,7 +36,7 @@ describe RedisInit do
   end
 
   describe '.redis_options' do
-    it 'returns the exact legacy hash for redis:// (no :ssl, Render unchanged)' do
+    it 'returns the exact legacy hash for redis:// (no :ssl, plain redis:// unchanged)' do
       expect(RedisInit.redis_options(redis_uri)).to eq(
         :host => 'redis.example', :port => 6379, :password => 'secret'
       )

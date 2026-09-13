@@ -59,7 +59,7 @@ module Audit
       # The refusal message must never echo the invoked argv: a `runner`
       # command line is arbitrary Ruby that routinely contains identifiers or
       # secrets, and this message is printed to stderr (bin/rails `abort`),
-      # which Render/Cloud Run capture as plaintext logs. Reference only the
+      # which Cloud Run captures as plaintext logs. Reference only the
       # command class.
       if db_command?(command) && prod
         raise ForbiddenCommand,
@@ -100,8 +100,8 @@ module Audit
     # Residual, tracked as a follow-up on LL-7f7372e3eb: a deployment that
     # reaches the prod DB while ambient RAILS_ENV/RACK_ENV is not 'production'
     # (e.g. only DATABASE_URL set, RAILS_ENV unset) is not detected here; the
-    # fully robust fix gates on the resolved connection target. Both real prod
-    # deployments (Render and Cloud Run) set RAILS_ENV=production, so the
+    # fully robust fix gates on the resolved connection target. Every Cloud Run
+    # deployment (web, worker pool, Jobs) sets RAILS_ENV=production, so the
     # realistic `-e development` dodge is covered.
     def production?(command, init_args, env = ENV)
       cli_production?(command, init_args) || ambient_production?(env)

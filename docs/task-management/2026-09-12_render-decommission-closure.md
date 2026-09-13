@@ -327,9 +327,42 @@ env `RAILS_SERVE_STATIC_FILES=true`, `SENTRY_ENVIRONMENT=production`, `SENTRY_DS
 `CACHE_TOKEN` (secret); args `exec rake scheduler:dispatch`. `docs.cloud.google.com/run/docs/container-contract`
 (2026-09-12): K_REVISION listed under services only.
 
+## PR A1 dual review round 3 (head 5fdbc4e54) and fixes
+
+Codex: approve, 1 Medium (no example set both revision variables) + 1 Low (stale example names in
+the body). Adversary: request-changes narrowly, 5 Medium + 6 Low; CI green on 5fdbc4e54 confirmed by
+both. Findings file: `dual-review-round3-pra1.md`. Root cause shared by the sweep findings: the
+re-sweep was ad hoc. Restructure: one mechanical sweep,
+`git grep -n -E '\bRender\b|onrender|RENDER_[A-Z]' -- app lib config spec bin .github Dockerfile`,
+every hit disposed of (fixed if instruction or present tense; left and listed if dated history).
+
+- Fixed (11 sites): `sentry.rb:312` (health-gate wording) and the `.dockerignore` dependency in the
+  `release_from` comment; `session_controller.rb:736`; `database.yml:26-27`;
+  `imagemagick_limits.rb:6,11,13`; `console_guard.rb:62,104-105`;
+  `library_board_translator.rb:25` (runtime raise told operators a Render Job inherits the web env;
+  Cloud Run Jobs do not) and `:208`; `lingolinq.rake:6`; `scheduler.rake:66` (desc now names the
+  `lingolinq-scheduler` Cloud Run Job); `sentry_spec.rb:414`; `resque_redis_options_spec.rb:6,39`;
+  `CLAUDE.md:542` comma.
+- Left as dated history, listed in the PR body: `Dockerfile:69`, `config/initializers/write_freeze.rb`
+  (env-gated cutover middleware; removal is a separate cleanup), `lib/gcp_clean_db_guard.rb`,
+  `lib/tasks/gcp_clean_db.rake`, `lib/tasks/phase4_sequences.rake`, `deploy-cloudrun.yml` comments.
+- Specs: "prefers K_REVISION when both revision variables are present" (mutation h, swapped order ->
+  red at `:610`); "treats a blank CLOUD_RUN_REVISION as unset"; a Job-shaped example with
+  `SENTRY_ENVIRONMENT=production` (asserts `sending_allowed?` true) and `detect_release_from_git`
+  stubbed nil to model `.dockerignore` excluding `.git`. Green: 104 examples, 0 failures.
+- Not changed, recorded for follow-up: `RedisInit.resolved_cache_token` tier 2 is per-surface by
+  construction (services get `K_REVISION`, the worker pool does not), so if `CACHE_TOKEN` were ever
+  absent the surfaces would split. Candidates: drop tier 2 (all surfaces fall to the static literal,
+  the LL-c6dd65a2aa problem), raise at boot in production when `CACHE_TOKEN` is blank (fail-closed
+  but turns a mis-mounted revision into an outage; mounts have been non-monotonic before), or log
+  loudly. Register note proposed under LL-c6dd65a2aa in PR C; not decided in A1.
+- Decision re-raised with the supersession stated: `SENTRY_RELEASE=${{ github.sha }}` in
+  `APP_ENV_VARS_STATIC` would tag all three surfaces with the commit SHA and make `release_from`
+  a fallback that never runs live (shapes 2 and 3 replaced by SHAs).
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; round 2 fixed, round 3 pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rounds 2 and 3 fixed, round 4 re-review pending, CI green) -> A2 -> B -> C.

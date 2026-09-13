@@ -309,7 +309,8 @@ end
 module SentryTracesSampler
   # Matches the no-value paths we never want to spend a trace budget on.
   # The only health endpoint defined in routes.rb is /api/v1/health
-  # (session#health), and Render hits it on every probe. Anchor at \A/\z
+  # (session#health); the deploy workflow's health gate (deploy-cloudrun.yml) hits it
+  # on every release and any platform probe would too. Anchor at \A/\z
   # so partial matches like /api/v1/health-check do not fall under the drop.
   # /assets/ is anchored at the start only because the asset pipeline emits
   # arbitrary suffixes.
@@ -366,7 +367,8 @@ module SentryInitializer
   # Cloud Run's container contract (checked 2026-09-12) injects a revision name into
   # services as K_REVISION and into worker pools as CLOUD_RUN_REVISION; Jobs get
   # neither, so the scheduler Job stays untagged until SENTRY_RELEASE is set from the
-  # deploy workflow. An explicit SENTRY_RELEASE is read by the SDK itself
+  # deploy workflow. "Untagged" also relies on .dockerignore excluding .git from the
+  # image: with no .git directory the SDK's own git fallback cannot produce a sha. An explicit SENTRY_RELEASE is read by the SDK itself
   # (Sentry::ReleaseDetector.detect_release_from_env, called after the init block),
   # and assigning config.release here would override it, so return nil in that case
   # and let the SDK win.
