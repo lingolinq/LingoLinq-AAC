@@ -360,9 +360,42 @@ every hit disposed of (fixed if instruction or present tense; left and listed if
   `APP_ENV_VARS_STATIC` would tag all three surfaces with the commit SHA and make `release_from`
   a fallback that never runs live (shapes 2 and 3 replaced by SHAs).
 
+## 2026-09-13: #961 merged; PR A1 rebased and re-baselined
+
+`chore: consolidate the AI-agent configuration (#961)` merged to develop at 2026-09-13T07:22Z and
+consumed part of A1, most of A2 and the core of B: it deleted `sync-render-secrets.yml`,
+`preview-comment.yml`, `scripts/sync-render-env.js` and its test; rewrote `CLAUDE.md`, `GEMINI.md`,
+`.github/copilot-instructions.md`, the legal-review skill, `docs/INFRASTRUCTURE.md`,
+`docs/ROTATING_KEYS.md` (Secret Manager rotation steps), `README.md`, `CONTRIBUTING.md`, root
+`INFRASTRUCTURE.md`; added dated notes to `PHASE4-CUTOVER-DATA-RUNBOOK.md`, `PHASE5-CUTOVER-RUNBOOK.md`
+and the two seed scripts; removed every `mcp__render` grant from `.claude/agents/infra-auditor.md`
+(GCP/AWS read state is now read-only CLI, no cloudrun MCP); curated `LEARNINGS.md` to 294 lines with a
+byte-preserved archive. Its task log lists the org/repo secret removals as off-repo actions.
+
+A1 was rebased onto develop (`git rebase origin/develop`, the four #961-rewritten files resolved
+to develop's versions, the archived Gemini styleguide restored byte-for-byte). Net diff: 22 files.
+
+Round 4 (head 20d2e376d): findings file `dual-review-round4-pra1.md`; all applied in 214218fdf,
+including a platform-noun sweep (`heroku|startup probe|blueprint|cron job`) that caught
+`Dockerfile:110` (false startup-probe claim) and `bin/push_deploy` (dead Heroku deploy script).
+Green: 105 examples, 0 failures. Mutations i (blank CLOUD_RUN_REVISION) and j (`.git` removed
+from a scratch `.dockerignore`) each red on their example.
+
+Re-baselined remaining scope:
+- **A2** (5 files): `docs/ops/staging-translate-library-job.md` (first: the only runbook for the
+  reworded raise, still POSTs to api.render.com), `docs/COPY_PERF_TUNING.md:52-59`,
+  `scripts/gcp/PHASE5-CLEAN-DB-REHEARSAL.md`, `scripts/gcp/iam/README.md:4-5` (present tense),
+  `scripts/gcp/phase5-delta-check.sh` (header note).
+- **B**: the cloudrun-tool question is settled by #961 (CLI only). Remaining: the two "legacy files
+  present in the tree" sentences (`infra-auditor.md:68`, `soc2-security-audit/SKILL.md:34-35`)
+  that dangle once A1 merges, plus `gcloud logging read` PII scoping (nothing on develop scopes it;
+  filter `severity>=ERROR AND NOT httpRequest:*` verified [A6]; prohibition phrased on identifiers).
+  `infra-auditor.md` is an unattested register row: regenerate in the same PR.
+- **C**: unchanged.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rounds 2 and 3 fixed, round 4 re-review pending, CI green) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-4 applied; round 5 pending) -> A2 -> B -> C.
