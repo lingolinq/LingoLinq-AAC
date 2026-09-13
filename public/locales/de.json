@@ -2224,6 +2224,9 @@
   "loading_your_board": "Lade dein Board... [[ Loading your board...",
   "loading_boards_title": "*** Loading boards",
   "preparing_communication_resources": "*** Preparing communication resources",
+  "unflip_text": "Spiegeln von Text aufheben [[ Un-Flip Text",
+  "board_categorize_group_hint": "*** Buttons are grouped into categories. This switch applies to every board in this account; the display options below apply to this board only.",
+  "board_categorize_group_hint_off": "*** Grouping is off. Buttons appear in their original order on every board in this account.",
   "==== lvl7 ============": "Below are all words for priority level 7 (this string does not need to be translated)",
   "no_valid_image_found": "Kein gültiges Bild gefunden [[ No valid image found",
   "no_valid_sound_found": "Kein gültiger Ton gefunden [[ No valid sound found",
@@ -3855,7 +3858,6 @@
   "punctuation": "Interpunktion [[ Punctuation",
   "send_rely": "Antwort senden [[ Send Reply",
   "done_inserting_text": "Fertig mit dem Einfügen von Text [[ Done Inserting Text",
-  "unflip_text": "Spiegeln von Text aufheben [[ Un-Flip Text",
   "resume_colon": "Fortsetzen: [[ Resume: ",
   "importing_recordings": "Importieren von Aufzeichnungen [[ Importing Recordings",
   "bad_recordings_import": "Beim Importieren Ihrer Aufzeichnungen ist ein Fehler aufgetreten. Bitte vergewissern Sie sich, dass Sie eine gültige Datei hochgeladen haben, und versuchen Sie es erneut. [[ There was an error importing your recordings. Please make sure you uploaded a valid file and try again.",
@@ -8821,6 +8823,9 @@
   "held_thoughts": "*** Held Thoughts",
   "more_thoughts": "*** More Thoughts",
   "fewer_thoughts": "*** Fewer Thoughts",
+  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
+  "caps_lock_on_label": "*** CAPS LOCK",
+  "repeat_words": "*** Repeat Words",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "Am Datum [[ On the Date",
   "after_time": "Nach der Zeit [[ After Time",
@@ -9277,7 +9282,5 @@
   "confirm_clear_phrases": "*** Delete all %{n} saved phrases? This cannot be undone.",
   "phrases_scroll_for_more": "*** %{n} more — scroll to see them",
   "phrases_tap_for_more": "*** %{n} more saved — tap Phrases to see them all",
-  "x_handle_example": "*** @whoever",
-  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
-  "caps_lock_on_label": "*** CAPS LOCK"
+  "x_handle_example": "*** @whoever"
 }

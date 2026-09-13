@@ -9276,5 +9276,8 @@
   "loading_boards_title": "*** Loading boards",
   "preparing_communication_resources": "*** Preparing communication resources",
   "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
-  "caps_lock_on_label": "*** CAPS LOCK"
+  "caps_lock_on_label": "*** CAPS LOCK",
+  "board_categorize_group_hint": "*** Buttons are grouped into categories. This switch applies to every board in this account; the display options below apply to this board only.",
+  "board_categorize_group_hint_off": "*** Grouping is off. Buttons appear in their original order on every board in this account.",
+  "repeat_words": "*** Repeat Words"
 }

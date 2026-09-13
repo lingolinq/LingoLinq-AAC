@@ -2221,6 +2221,9 @@
   "loading_your_board": "ボードを読み込んでいます... [[ Loading your board...",
   "loading_boards_title": "*** Loading boards",
   "preparing_communication_resources": "*** Preparing communication resources",
+  "unflip_text": "テキストの反転を解除 [[ Un-Flip Text",
+  "board_categorize_group_hint": "*** Buttons are grouped into categories. This switch applies to every board in this account; the display options below apply to this board only.",
+  "board_categorize_group_hint_off": "*** Grouping is off. Buttons appear in their original order on every board in this account.",
   "==== lvl7 ============": "Below are all words for priority level 7 (this string does not need to be translated)",
   "no_valid_image_found": "有効な画像が見つかりません [[ No valid image found",
   "no_valid_sound_found": "有効なサウンドが見つかりません [[ No valid sound found",
@@ -3940,7 +3943,6 @@
   "punctuation": "句読点 [[ Punctuation",
   "send_rely": "返信を送信 [[ Send Reply",
   "done_inserting_text": "テキストの挿入が完了しました [[ Done Inserting Text",
-  "unflip_text": "テキストの反転を解除 [[ Un-Flip Text",
   "resume_colon": "再開する： [[ Resume: ",
   "importing_recordings": "録音のインポート [[ Importing Recordings",
   "bad_recordings_import": "録音のインポート中にエラーが発生しました。有効なファイルをアップロードしたことを確認して、再試行してください。 [[ There was an error importing your recordings. Please make sure you uploaded a valid file and try again.",
@@ -8783,6 +8785,9 @@
   "held_thoughts": "*** Held Thoughts",
   "more_thoughts": "*** More Thoughts",
   "fewer_thoughts": "*** Fewer Thoughts",
+  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
+  "caps_lock_on_label": "*** CAPS LOCK",
+  "repeat_words": "*** Repeat Words",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "デート中 [[ On the Date",
   "after_time": "時間が経過した後 [[ After Time",
@@ -9270,7 +9275,5 @@
   "phrases_tap_for_more": "*** %{n} more saved — tap Phrases to see them all",
   "x_url": "XのURL [[ X URL",
   "x_handle": "Xハンドル [[ X Handle",
-  "x_handle_example": "*** @whoever",
-  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
-  "caps_lock_on_label": "*** CAPS LOCK"
+  "x_handle_example": "*** @whoever"
 }

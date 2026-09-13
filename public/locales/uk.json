@@ -2224,6 +2224,9 @@
   "loading_your_board": "Завантаження вашої дошки... [[ Loading your board...",
   "loading_boards_title": "*** Loading boards",
   "preparing_communication_resources": "*** Preparing communication resources",
+  "unflip_text": "Розгорнути текст [[ Un-Flip Text",
+  "board_categorize_group_hint": "*** Buttons are grouped into categories. This switch applies to every board in this account; the display options below apply to this board only.",
+  "board_categorize_group_hint_off": "*** Grouping is off. Buttons appear in their original order on every board in this account.",
   "==== lvl7 ============": "Below are all words for priority level 7 (this string does not need to be translated)",
   "no_valid_image_found": "Не знайдено жодного дійсного зображення [[ No valid image found",
   "no_valid_sound_found": "Не знайдено дійсний звук [[ No valid sound found",
@@ -3846,7 +3849,6 @@
   "punctuation": "Розділові знаки [[ Punctuation",
   "send_rely": "Надіслати відповідь [[ Send Reply",
   "done_inserting_text": "Вставлення тексту завершено [[ Done Inserting Text",
-  "unflip_text": "Розгорнути текст [[ Un-Flip Text",
   "resume_colon": "Резюме: [[ Resume: ",
   "importing_recordings": "Імпорт записів [[ Importing Recordings",
   "bad_recordings_import": "Під час імпортування ваших записів сталася помилка. Переконайтеся, що ви завантажили дійсний файл, і повторіть спробу. [[ There was an error importing your recordings. Please make sure you uploaded a valid file and try again.",
@@ -8822,6 +8824,9 @@
   "held_thoughts": "*** Held Thoughts",
   "more_thoughts": "*** More Thoughts",
   "fewer_thoughts": "*** Fewer Thoughts",
+  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
+  "caps_lock_on_label": "*** CAPS LOCK",
+  "repeat_words": "*** Repeat Words",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "На дату [[ On the Date",
   "after_time": "Після часу [[ After Time",
@@ -9278,7 +9283,5 @@
   "confirm_clear_phrases": "*** Delete all %{n} saved phrases? This cannot be undone.",
   "phrases_scroll_for_more": "*** %{n} more — scroll to see them",
   "phrases_tap_for_more": "*** %{n} more saved — tap Phrases to see them all",
-  "x_handle_example": "*** @whoever",
-  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
-  "caps_lock_on_label": "*** CAPS LOCK"
+  "x_handle_example": "*** @whoever"
 }

@@ -2224,6 +2224,9 @@
   "loading_your_board": "Загрузка вашей доски... [[ Loading your board...",
   "loading_boards_title": "*** Loading boards",
   "preparing_communication_resources": "*** Preparing communication resources",
+  "unflip_text": "Отменить отражение текста [[ Un-Flip Text",
+  "board_categorize_group_hint": "*** Buttons are grouped into categories. This switch applies to every board in this account; the display options below apply to this board only.",
+  "board_categorize_group_hint_off": "*** Grouping is off. Buttons appear in their original order on every board in this account.",
   "==== lvl7 ============": "Below are all words for priority level 7 (this string does not need to be translated)",
   "no_valid_image_found": "Не найдено действительного изображения [[ No valid image found",
   "no_valid_sound_found": "Не найдено подходящего звука [[ No valid sound found",
@@ -3695,7 +3698,6 @@
   "say_this_louder": "Скажи это громче [[ Say this Louder",
   "send_rely": "Отправить ответ [[ Send Reply",
   "done_inserting_text": "Готово Вставка текста [[ Done Inserting Text",
-  "unflip_text": "Отменить отражение текста [[ Un-Flip Text",
   "resume_colon": "Резюме: [[ Resume: ",
   "importing_recordings": "Импорт записей [[ Importing Recordings",
   "bad_recordings_import": "При импорте ваших записей произошла ошибка. Убедитесь, что вы загрузили действительный файл, и повторите попытку. [[ There was an error importing your recordings. Please make sure you uploaded a valid file and try again.",
@@ -8823,6 +8825,9 @@
   "held_thoughts": "*** Held Thoughts",
   "more_thoughts": "*** More Thoughts",
   "fewer_thoughts": "*** Fewer Thoughts",
+  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
+  "caps_lock_on_label": "*** CAPS LOCK",
+  "repeat_words": "*** Repeat Words",
   "==== lvl8 ============": "Below are all words for priority level 8 (this string does not need to be translated)",
   "on_the_date": "На дату [[ On the Date",
   "after_time": "По истечении времени [[ After Time",
@@ -9278,7 +9283,5 @@
   "confirm_clear_phrases": "*** Delete all %{n} saved phrases? This cannot be undone.",
   "phrases_scroll_for_more": "*** %{n} more — scroll to see them",
   "phrases_tap_for_more": "*** %{n} more saved — tap Phrases to see them all",
-  "x_handle_example": "*** @whoever",
-  "toggle_caps": "*** Toggle Caps Lock (keep capitalizing until turned off)",
-  "caps_lock_on_label": "*** CAPS LOCK"
+  "x_handle_example": "*** @whoever"
 }
