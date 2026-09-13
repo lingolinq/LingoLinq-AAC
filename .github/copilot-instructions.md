@@ -14,6 +14,15 @@ Key characteristics:
 - Uses Open Board Format (OBF) for board import/export
 - Deployed on GCP Cloud Run (production, staging, dev) with Resque workers; see `docs/INFRASTRUCTURE.md`
 
+## Working rules (short form of `CLAUDE.md` Rule #0 and Conventions)
+- **Diagnose before fixing; never guess.** Trace the real code path, verify the root cause with evidence, and never break working behaviour. Label facts CONFIRMED (`file:line`) or ASSUMED; nothing ASSUMED may carry a fix.
+- **Branch first.** Never commit on `develop`, `staging` or `main`. Branch from `develop` as `<dev>/<type>/<kebab-slug>` (types: fix, feat, chore, docs, perf, refactor, test, compliance, security; `hotfix` from `main` only for urgent production fixes). PRs target `develop`.
+- **Ruby 3.4.4** (`.ruby-version`) and **Node 22** (`.nvmrc`). No TypeScript conversion.
+- **Styling:** edit the governing SCSS selector in place; never add a higher-specificity override, an override block, or `!important`. Preserve class names.
+- **Refactors** never remove or change functionality.
+- **Never commit secrets.** Reference them by name; values live in 1Password and GCP Secret Manager.
+- **No em dashes** in user-facing prose.
+
 ## Development considerations
 - **i18n**: All user-facing strings MUST use i18n helpers. No raw text strings in templates or JS.
 - **Quoting**: 

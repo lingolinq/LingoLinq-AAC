@@ -129,10 +129,13 @@ exec ruby -rjson -rpathname -e '
 
   git_pre = /(?:(?:-c\s+\S+|-C\s+\S+|--?[A-Za-z][\w-]*(?:=\S+|\s+[^-\s]\S*)?)\s+)*/
   # Command position: start of string, or right after a pipe / chain / subshell boundary,
-  # optionally behind sudo, env, or leading VAR=value assignments. Patterns that name a
+  # then any run of shell wrappers that execute their argument (`command`, `builtin`,
+  # `exec`, `nohup`, `time`, `nice -n 5`, `timeout 10`, `env -i`, `sudo -u x`, ...) and
+  # VAR=value assignments, then an optional path or backslash. Patterns that name a
   # command (not a verb inside one) must be anchored here, otherwise the officer cannot
-  # `cat` or `git log` a script it is only allowed to run in --check mode.
-  cmd_pos = /(?:\A|[|;&]|\|\||&&|`|\$\()\s*(?:sudo\s+)?(?:env\s+)?(?:[A-Za-z_]\w*=\S*\s+)*/
+  # `cat` or `git log` a script it is only allowed to run in --check mode. Same
+  # definition as audit-readonly-guard.sh; change both together.
+  cmd_pos = /(?:\A|[|;&]|\|\||&&|`|\$\()\s*(?:(?:command|builtin|exec|nohup|time|nice|ionice|stdbuf|env|sudo|doas|timeout|chronic|caffeinate)(?:\s+(?:-\S+(?:\s+[^-\s]\S*)?|\d+[smhd]?))*\s+|[A-Za-z_]\w*=\S*\s+)*(?:\\|\S*\/)?/
 
   patterns = [
     # File output redirection (allow >/dev/null, >&2, 2>&1, &>/dev/null)
@@ -141,8 +144,10 @@ exec ruby -rjson -rpathname -e '
     [ /\bsed\b[^|]*\s-[a-z]*i(?:\b|\.)/, "sed -i edits in place" ],
     [ /(?<![\w\/-])(python3?|node|nodejs|ruby|perl|php|deno|bun|Rscript|osascript|gawk|awk)\b[^|]*\s(-(?:[A-Za-z]*[ecrniEW])\b|--(?:eval|exec|require|inplace|in-place|command)\b)/, "interpreter eval flag can write files" ],
     [ /(?<![\w\/-])(npx|bunx|pnpx|make|just|task|gulp|grunt|mvn|gradle)\b/, "task runner / npx can run arbitrary writes" ],
-    # rake: deny every invocation except the read-only task listing (`rake -T` / `--tasks`).
-    [ /\brake\b(?![^|;&]*\s(?:-T|--tasks)\b)/, "rake task can mutate state" ],
+    # rake: deny every invocation except the exact read-only task listing, `rake -T [pattern]`
+    # or `rake --tasks [pattern]`, followed by end of command or a `|`/`;`/`&` boundary.
+    # `-T` anywhere is NOT enough: `rake -E "ruby code" -T` executes the code before listing.
+    [ /\brake\b(?!\s+(?:-T|--tasks)(?:\s+[A-Za-z0-9_:*.\/][A-Za-z0-9_:*.\/-]*)?\s*(?:\z|[|;&]))/, "rake: only `rake -T [pattern]` is allowed; any other option or task can run code or mutate state" ],
     [ /(?<![\w-])(rm|mv|cp|mkdir|rmdir|touch|truncate|chmod|chown|ln)\b/, "filesystem mutation command" ],
     [ /\bgit\s+#{git_pre}(commit|push|merge|rebase|reset|checkout|switch|tag|am|apply|cherry-pick|stash|clean|rm|mv|add|restore|revert|worktree)\b/, "git state mutation" ],
     # gh: read subcommands (pr view/diff/checks/list, issue view, run view/list, workflow
@@ -175,7 +180,6 @@ exec ruby -rjson -rpathname -e '
     [ /#{cmd_pos}(?:(?:bundle\s+exec\s+)?ruby\s+)?(?:\S*\/)?(audit-merge|promote-finding)\.rb\b(?![^|;&]*\s(?:-h|--help)\b)/, "audit-merge.rb / promote-finding.rb rewrite FINDINGS.json" ],
     [ /\b(npm|pnpm|yarn|bundle|gem|pip|pip3|brew|apt|apt-get|cargo)\s+(i|install|add|update|upgrade|remove|uninstall|publish)\b/, "package mutation" ],
     [ /\b(rails|bin\/rails|bundle\s+exec\s+rails)\b[^|]*\b(db:|generate|g\b|destroy|d\b|runner|console|c\b|dbconsole)/, "rails mutation or live console" ],
-    [ /\b(bundle\s+exec\s+)?rake\b[^|]*\b(db:|environment|stats|extras:)/, "rake task can mutate state" ],
     [ /\b(gcloud|aws|render|kubectl|docker|terraform)\b[^|]*\b(delete|rm|destroy|create|apply|deploy|update|put|set|stop|start|restart|scale|exec)\b/, "cloud/infra mutation" ],
     [ /\bcurl\b[^|]*\s(-X\s*(POST|PUT|PATCH|DELETE)|--data|-d\b|--upload-file|-T\b)/, "curl write/upload request" ],
   ]

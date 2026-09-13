@@ -69,10 +69,14 @@ exec ruby -rjson -e '
   # and \s keeps its regex meaning). Interpolated into the git/gh patterns below.
   git_pre = /(?:(?:-c\s+\S+|-C\s+\S+|--?[A-Za-z][\w-]*(?:=\S+|\s+[^-\s]\S*)?)\s+)*/
   # Command position: start of string, or right after a pipe / chain / subshell boundary,
-  # optionally behind sudo, env, or leading VAR=value assignments. Patterns that name a
-  # command (not a verb inside one) must be anchored here, otherwise the guard denies a
-  # finder GREPPING FOR that command in docs, which is the job of a finder.
-  cmd_pos = /(?:\A|[|;&]|\|\||&&|`|\$\()\s*(?:sudo\s+)?(?:env\s+)?(?:[A-Za-z_]\w*=\S*\s+)*/
+  # then any run of shell wrappers that execute their argument (`command`, `builtin`,
+  # `exec`, `nohup`, `time`, `nice -n 5`, `timeout 10`, `env -i`, `sudo -u x`, ...) and
+  # VAR=value assignments, then an optional path or backslash (`/usr/bin/gcloud`,
+  # `\gcloud`). Patterns that name a command (not a verb inside one) must be anchored
+  # here, otherwise the guard denies a finder GREPPING FOR that command in docs, which is
+  # the job of a finder. Wrapper options may take a value (`-n 5`, `-u root`); Ruby
+  # backtracks when the "value" turns out to be the command itself.
+  cmd_pos = /(?:\A|[|;&]|\|\||&&|`|\$\()\s*(?:(?:command|builtin|exec|nohup|time|nice|ionice|stdbuf|env|sudo|doas|timeout|chronic|caffeinate)(?:\s+(?:-\S+(?:\s+[^-\s]\S*)?|\d+[smhd]?))*\s+|[A-Za-z_]\w*=\S*\s+)*(?:\\|\S*\/)?/
   patterns = [
     # File output redirection to a real path (allow >/dev/null, >&2, 2>&1, &>/dev/null)
     [ %r{(^|[^0-9&>])>>?\s*(?!\s*(&\d|/dev/(null|stderr|stdout)))}, "output redirection writes a file" ],
@@ -161,7 +165,7 @@ exec ruby -rjson -e '
     # real shell parser, same tradeoff as the rest of this file): a literal `|` sitting inside a
     # quoted argument right before one of these words (e.g. `grep "ssh\|scp" docs/`) still
     # reads as a pipe boundary and gets denied -- rare, and errs toward over-blocking, not under.
-    [ /(?:\A|[|;]|&&|\|\||`|\$\()\s*(?:sudo\s+)?(curl|wget|nc|ncat|netcat|telnet|ssh|scp|sftp|ftp|rsync)\b/, "outbound network request (exfiltration risk from prompt-injected content; use Read/Grep/Glob or an MCP tool instead)" ]
+    [ /#{cmd_pos}(curl|wget|nc|ncat|netcat|telnet|ssh|scp|sftp|ftp|rsync)\b/, "outbound network request (exfiltration risk from prompt-injected content; use Read/Grep/Glob or an MCP tool instead)" ]
   ]
 
   patterns.each do |re, why|

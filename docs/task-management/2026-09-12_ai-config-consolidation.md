@@ -66,6 +66,19 @@ regenerations and this log):
   attested legal docs cite) was REMOVED from the branch. The repo is public and the plan
   holds counsel-gated internal content; publishing it is Scot's call, not the branch's.
 
+Second dual review on the fixed head (Codex: no findings; adversary: all twelve fixes
+closed, 5 Medium and 3 Low new) and two rounds of the GitHub Codex reviewer (five P1, one
+P2) produced three more commits, all on the two hooks plus their docs: command-name
+patterns anchored to command position (with shell wrappers `command`, `env -i`,
+`timeout`, `sudo -u` and path prefixes recognised), gh nouns for account state
+(`gh auth token` printed a live credential), gh flags tolerated between noun and verb,
+chained `; ... --check` no longer licensing a register write, `rake` allowed only in the
+exact `rake -T [pattern]` shape (`rake -E "code" -T` ran the code), `docker exec` and
+`gcloud compute ssh` denied. The lesson is in the new CI test
+`scripts/tests/agent-hook-guards-test.sh` (111 cases, wired into the rspec job): a
+regex denylist that was proven only in a session scratchpad went wrong four times in one
+PR; every future hook defect gets a deny and an allow case there.
+
 Not changed: the commit subject of 4ad30a875 ("make the weekly release PR workflow able to
 succeed") overstates; the workflow still needs the repo setting flipped. Left in history,
 stated in the PR body.
