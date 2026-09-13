@@ -1144,7 +1144,28 @@ export default Controller.extend(prefClasses, {
     if(!root && appState && appState.get) {
       root = appState.get('currentUser.preferences.home_board.id');
     }
-    return root || (lookup_ids || []).join(',');
+    var scope = root || (lookup_ids || []).join(',');
+    /* Segment by the COMMUNICATOR the symbols belong to. Neither term above distinguishes
+       them: `currentUser` stays the supervisor while modelling (app-state.js:4059 -- only
+       `referenced_user` follows `modeling_for_user`), and two communicators can hold the same
+       board record, which `set_as_home` makes a one-click flow by writing a reference rather
+       than a copy. Without a segment the memo replays one communicator's resolved symbol onto
+       another's word, and this map is cleared only in `clear_sentence` -- a confidently wrong
+       symbol, which the comment above rightly calls worse for a symbol-reliant user than a
+       missing one.
+
+       Via `scope_key_for` rather than reading `referenced_user.id` here. That read is the
+       obvious one and it is INERT: the session user's record id is pinned to the literal
+       string 'self' (serializers/application.js), identical for every user, so both
+       communicators keyed to 'self@<root>' and the replay survived. models/user.js:67 states
+       the rule -- compare on `global_id`. `scope_key_for` (word_suggestions.js:1485) already
+       encodes it, including failing closed on an unresolved record, and the scoped-set cache
+       uses the same function, so the two caches agree on who the user is.
+
+       Strictly narrowing: an extra segment can only cause a MISS, which re-resolves correctly.
+       It can never introduce a replay that was not already there. */
+    var ref = wordSuggestionsModule.scope_key_for(appState);
+    return ref ? (ref + '@' + scope) : scope;
   },
 
   _suggestion_lookup_board_ids: function() {

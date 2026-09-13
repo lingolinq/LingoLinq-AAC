@@ -1488,6 +1488,11 @@ var scope_key_for = function(appState) {
   if(!id || id === 'self') { return null; }
   return id;
 };
+/* Exposed because the board-detail symbol memo needs the SAME notion of "which communicator"
+   that the scoped-set cache uses. It was reimplemented there once as `referenced_user.id` and
+   was inert, because that id is the constant 'self' -- precisely what the comment above warns
+   about. One definition, two consumers. */
+word_suggestions.scope_key_for = scope_key_for;
 /* No key -> record nothing. The reader fails closed on the same condition, so an unidentifiable
    user searches only what the scoped pass already found. Returns `sets` so it can wrap a
    return expression without changing what the caller sees. */
