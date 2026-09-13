@@ -5,11 +5,11 @@
 
 **Audited:** `staging (audited at 59f502aa4; staging tip had advanced to d2bf421f7 -- 7 commits, 43 files, PRs #814/#816/#819/#820/#821/#822/#823 -- by the time this PR was assembled; those 7 commits are NOT scanned by this run, see auditedShaPriorNote)` @ `59f502aa4a967c8c704637cc66a18ff05118c7d8` on 2026-08-18  
 **Seed:** audit-reports/unified-audit-2026-04-09.md  
-**Headline (open + remediated-unverified):** 2 Critical / 25 High
+**Headline (open + remediated-unverified):** 2 Critical / 28 High
 
 Statuses are verified against live code at the audited SHA, not copied from the dated report prose. Only Scot closes a finding, downgrades severity, accepts risk, or sets a disposition. Disposition (triage) is orthogonal to status: a finding can be `open` yet `dismissed-false-positive`/`wontfix`/`accepted`; blank reads as `untriaged`.
 
-## Open (135)
+## Open (138)
 
 | ID | Legacy | Severity | Frameworks | Disposition | Source | Title | Evidence |
 |---|---|---|---|---|---|---|---|
@@ -34,6 +34,9 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 | LL-ed9316b6d9 |  | high | FERPA, COPPA, GDPR | untriaged | audit-run | Word-prediction selections are stored under device-global keys and synced to whichever account holds the token at flush time, so one communicator's vocabulary is written into another's server-side prediction profile | `app/frontend/app/utils/word_suggestions.js`:19 |
 | LL-a8351c5b00 |  | high | GDPR, HIPAA, FERPA | untriaged | pr-review | PiiScrubber log redaction never matches E.164 phone numbers and, contrary to its own docstring, fails the parenthesized form | `lib/pii_scrubber.rb`:37 |
 | LL-cb9f9c865a |  | high | GDPR, HIPAA, FERPA | untriaged | pr-review | RemoteTarget rows survive account deletion, retaining a phone-number hash beside the per-row salt that reverses it (right-to-erasure gap) | `lib/flusher.rb`:442 |
+| LL-89b97af30f |  | high | SOC2 | untriaged | pr-review | Lesson usages permission grant lets a viewer self-grant edit: assign is gated on 'view', and assigning the lesson to one's own org adds a usages entry that the permission block then reads as an edit grant | `app/models/lesson.rb`:61 |
+| LL-5d856983bf |  | high | SOC2 | untriaged | pr-review | normalize_lesson_embed_url imposes no host constraint, so any http(s) URL including loopback, link-local and RFC1918 passes verbatim to the fetcher; reachable by any authenticated user since create gates on supervise and a user supervises themselves | `app/models/lesson.rb`:81 |
+| LL-57bb9f1af4 |  | high | SOC2 | untriaged | pr-review | Webhook.find_record calls constantize on an unvalidated string, reachable during Lesson permission evaluation via a malformed usages entry, raising NameError inside show/update/assign/unassign | `app/models/webhook.rb`:206 |
 | LL-7314b5a8ea |  | medium | HIPAA | untriaged | audit-run | Render Key Value instance is plaintext and shared by prod-fallback, staging, dev, and PR previews | `render.yaml`:107 |
 | LL-ebd844a7d0 |  | medium | FERPA | untriaged | manual | Permanent, non-expiring User#user_token still login-serialized and accepted by logged legacy token fallbacks | `lib/json_api/user.rb`:41 |
 | LL-b5c30235d3 |  | medium | SOC2, HIPAA, FERPA | **accepted** | audit-run | infra-auditor runtime/CLI evidence relies on instruction-only control against secret/PII leakage | `.claude/agents/infra-auditor.md`:31 |
@@ -247,4 +250,4 @@ Statuses are verified against live code at the audited SHA, not copied from the 
 
 ---
 
-_211 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
+_214 findings total. Re-run `ruby scripts/citation-check.rb` to validate every active citation._
