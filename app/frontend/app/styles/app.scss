@@ -79427,13 +79427,16 @@ span.md-board-detail-modeling-btn--badge {
   align-items: flex-start;
 }
 /* Explains a control that has nothing to choose between. Deliberately quiet — it is guidance,
-   not a warning — but not below the AAC legibility floor either. */
+   not a warning — but not below the AAC legibility floor either: at 12px this is normal-size
+   text, so it needs 4.5:1. 0.66 alpha measures 4.35:1 on the #fff panel and misses; 0.75
+   measures 5.66:1 and keeps the quiet register. Dark mode is handled alongside the other
+   .md-board-detail--dark rules for this component, below. */
 .md-board-collection__locale-hint {
   max-width: 100%;
   font-size: 12px;
   line-height: 1.35;
   text-align: right;
-  color: rgba($la-navy, 0.66);
+  color: rgba($la-navy, 0.75);
 }
 .md-board-detail-actions-menu--collection-left .md-board-collection__locale-hint {
   text-align: left;
@@ -79572,6 +79575,13 @@ span.md-board-detail-modeling-btn--badge {
 .md-board-collection__search-clear:focus-visible {
   outline: 2px solid $brand-teal;
   outline-offset: 2px;
+}
+/* The hint had NO dark rule, so it kept the light navy: 1.16:1 against the panel surface
+   (#1e2530, app.scss:88763) -- indistinguishable from the background. 0.65 white matches the
+   quiet-label treatment its sibling .md-board-detail-actions-menu__section-label already uses
+   in this same panel, and measures 7.3:1 there. */
+.md-board-detail--dark .md-board-collection__locale-hint {
+  color: rgba(255, 255, 255, 0.65);
 }
 /* Dark-mode parity: glassier surface, teal accents remain. */
 .md-board-detail--dark .md-board-collection__search {
