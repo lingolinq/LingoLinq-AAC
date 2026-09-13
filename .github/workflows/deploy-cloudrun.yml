@@ -115,8 +115,8 @@ name: Deploy to Cloud Run
 #
 # WHY `on: push` AND NOT `on: workflow_run` (CI-gated): a workflow_run trigger only fires when
 # the workflow file is on the repo's DEFAULT branch, and this repo's default branch is
-# `staging`, not `main`. A workflow_run-triggered run also resolves github.ref and GITHUB_SHA
-# to the default branch, so it would build `staging` code and deploy it as prod unless every
+# `develop` (it was `staging` when this was written), not `main`. A workflow_run-triggered run also resolves github.ref and GITHUB_SHA
+# to the default branch, so it would build `develop` code and deploy it as prod unless every
 # checkout and image tag were rewritten to workflow_run.head_sha. The CI gate belongs on the
 # merge instead: require the CI checks on `main` in branch protection, so nothing reaches
 # `main` red in the first place.

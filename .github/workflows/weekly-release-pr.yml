@@ -9,8 +9,11 @@ name: Weekly Release PR (staging -> main)
 # REQUIRED REPO SECRETS:
 #   GOOGLE_CHAT_WEBHOOK_AUTOMATION  -- Google Chat webhook for routine ops notifications
 #
-# REQUIRED REPO PERMISSIONS (Settings > Actions > General > Workflow permissions):
-#   Read and write permissions  (so GITHUB_TOKEN can open PRs)
+# REQUIRED REPO SETTING (Settings > Actions > General > Workflow permissions):
+#   "Allow GitHub Actions to create and approve pull requests" must be ON.
+#   The workflow-level `pull-requests: write` below is not enough on its own: with that
+#   box OFF, `gh pr create` fails with "GitHub Actions is not permitted to create
+#   or approve pull requests" (every run 2026-05-04 through 2026-09-07 failed this way).
 #
 # MANUAL TRIGGER:
 #   gh workflow run weekly-release-pr.yml
@@ -80,7 +83,7 @@ jobs:
             echo ""
             echo "### Verification checklist"
             echo ""
-            echo "- [ ] Staging is healthy (no error spikes in Sentry / Render logs)"
+            echo "- [ ] Staging is healthy (no error spikes in Sentry / Cloud Run logs)"
             echo "- [ ] CI is green on staging head"
             echo "- [ ] No open compliance / security review on changes in this window"
             echo "- [ ] OK to deploy to production"
@@ -108,7 +111,7 @@ jobs:
               --head staging \
               --title "Release $DATE: staging -> main" \
               --body-file /tmp/release/body.md \
-              --assignee scotw)
+              --assignee swahlquist)
             NUMBER=$(echo "$URL" | sed -E 's|.*/pull/([0-9]+).*|\1|')
             echo "url=$URL" >> $GITHUB_OUTPUT
             echo "number=$NUMBER" >> $GITHUB_OUTPUT
