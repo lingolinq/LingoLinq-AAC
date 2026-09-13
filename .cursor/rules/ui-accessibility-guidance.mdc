@@ -1,7 +1,4 @@
 ---
-alwaysApply: true
----
----
 description: Lingolinq app context - architecture, accessibility, and UI conventions
 alwaysApply: true
 ---

@@ -43,6 +43,33 @@ the other. Every tile-level `alt`/`aria`/`role` finding must be checked in both:
 1. **Template path:** `app/frontend/app/templates/board/index.hbs`.
 2. **Fast-HTML string path:** the `fast_html` builder in `app/frontend/app/utils/button.js`.
 
+### Switch-scanning contract inside modals (re-read all three for any WCAG 2.1.1 dialog finding)
+Reachability is decided in three places; a fix in one is meaningless without the others.
+1. `app/frontend/app/utils/modal.js`, `scannable_targets()`: the selector requires a
+   `.modal_targets` **ancestor**; a control with the right class but no wrapper is invisible.
+2. `app/frontend/app/utils/modal.js`, `open()`: calls `scanner.stop()` for every modal and
+   restarts only when `targets.length > 0 && options.scannable`. A template can have
+   `.modal_targets` and still not scan if the caller omits `{scannable: true}`, and vice versa.
+   Measure the intersection, never either list alone.
+3. `app/frontend/app/utils/scanner.js`, `start()`: early `return` when a modal is open with no
+   scannable targets, so scanning has no rows rather than being paused.
+`inactivity_timeout: true` in the open options arms a ~20s auto-close; a modal that is
+unscannable AND lacks it has no exit for a switch-only user. `components/ai-disclosure.hbs` is
+the reference implementation (wrapper class + `.btn` + `scannable: true` + labelledBy). Guided
+tours (Shepherd) render into `body` outside this system and the scanner's row sources are a
+fixed list (`header`, `#speak`, `#identity`, `#word_suggestions`, the board grid); check tour
+reachability separately.
+
+### Stale register paths after the Ember 5 co-location move
+Older WCAG rows in `audit-reports/FINDINGS.json` cite component templates under
+`app/frontend/app/templates/...`; the 5.12 upgrade co-located those into
+`app/frontend/app/components/...`. **A missing file is not evidence the defect was fixed.**
+Locate the moved template (`find app/frontend/app -name '<same>.hbs'`) and re-check there.
+Route templates (`templates/board/index.hbs`, `templates/application.hbs`,
+`templates/utterance.hbs`, `templates/register.hbs`) did not move. When a row's path is stale,
+say so in the reclassification: the row id derives from `sha256(ruleKey + "|" + file)`, so
+repointing `evidence.file` is a new id and Scot's decision, not the auditor's.
+
 ## Checklist (organized by POUR; EN 301 549 clauses noted for EU clients)
 
 > **Register gotcha - never write a 4-part dotted EN 301 549 clause in an emitted finding.**

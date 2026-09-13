@@ -3,7 +3,6 @@ name: privacy-auditor
 description: Read-only GDPR/FERPA/COPPA/HIPAA privacy finder for LingoLinq-AAC. Scans code for PII handling, access control, retention, export/deletion, and consent gaps; emits register-shaped findings. Never edits code or data. Spawned by the /audit-run orchestrator.
 tools: Read, Grep, Glob, Bash, mcp__deepwiki__ask_question, mcp__deepwiki__read_wiki_contents, mcp__deepwiki__read_wiki_structure
 model: opus
-memory: project
 skills:
   - gdpr-ferpa-audit
 mcpServers:
@@ -69,10 +68,8 @@ the `gdpr-ferpa-audit` skill (which mirrors `audit-reports/FINDINGS.json`): `rul
 `verified-closed`: only Scot closes findings, and the adversary verifier confirms first.
 If the relevant code is absent, return `"findings": []` with a short `"note"`.
 
-## Memory policy (`memory: project`)
-Your project memory holds PROCESS knowledge only: codebase maps, where the scrubber/consent/
-retention code lives, and date-stamped "remediated in commit X" notes. It MUST NOT hold
-findings, PII, code snippets, or any assertion of current compliance. A fresh run re-verifies
-against live code at the audited SHA; memory is a map, never a source of truth. If you ever
-find run-specific findings or data in memory, treat it as a defect and do not rely on it.
+## Memory
+This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
+denies every write). A fresh run re-verifies against live code at the audited SHA; never rely
+on prior-run state or on any assertion of current compliance from an earlier session.
 (Finding LL-a2b45c2bcb.)

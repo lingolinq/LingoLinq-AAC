@@ -1,6 +1,6 @@
 ---
 name: soc2-security-audit
-description: SOC2-style security and infrastructure audit checklist for LingoLinq-AAC. Access control, logging, infra security, change management, availability across code, config, and live Render/AWS/GCP read state. Preloaded by the infra-auditor agent; emits findings in the canonical register schema. Read-only.
+description: SOC2-style security and infrastructure audit checklist for LingoLinq-AAC. Access control, logging, infra security, change management, availability across code, config, and live GCP/AWS read state (read-only CLI). Preloaded by the infra-auditor agent; emits findings in the canonical register schema. Read-only.
 ---
 
 # SOC2-Style Security & Infrastructure Audit
@@ -11,8 +11,9 @@ access controls, logging, infrastructure security, change management, and availa
 Read-only: produce findings, never change code or infrastructure.
 
 ## Scan scope
-- Application code (`app/`), configuration (`config/`, `.env*`, `render.yaml`, Cloud Run config).
-- Infrastructure via read-only access (Render MCP read tools; `gcloud`/`aws` read CLI).
+- Application code (`app/`), configuration (`config/`, `.env*`, `Dockerfile`,
+  `.github/workflows/deploy-cloudrun.yml`, Cloud Run / Secret Manager config).
+- Infrastructure via read-only CLI only (`gcloud`/`aws ... describe|list|get`).
 - CI/CD (`.github/workflows/`, `Procfile`, `bin/`); dependencies (`Gemfile.lock`, lockfiles).
 
 ## Checklist
@@ -28,9 +29,10 @@ Read-only: produce findings, never change code or infrastructure.
 ### Infrastructure security
 - [ ] HTTPS enforced; DB connections use SSL.
 - [ ] Secrets from env / Secret Manager, never hardcoded; no secrets in git history.
-- [ ] Render/AWS/GCP services follow least-privilege. (Repo is mid Render -> GCP Cloud Run
-      migration: check both legacy `render.yaml`/Procfile and any Cloud Run / Secret Manager /
-      Workload Identity Federation config that exists.)
+- [ ] GCP/AWS services follow least-privilege (Cloud Run service accounts, Secret Manager
+      bindings, Workload Identity Federation in the deploy workflow, S3/SES/SNS IAM).
+      `render.yaml`, `bin/render-build.sh` and `Procfile` are legacy files from the retired
+      Render platform (deleted 2026-09-09): historical only, never the deployed configuration.
 
 ### Change management (CC8)
 - [ ] CI/CD exists; tests run before deploy; branch protection; code review required; rollback.
@@ -39,7 +41,7 @@ Read-only: produce findings, never change code or infrastructure.
 - [ ] Health-check endpoints; DB backups configured; error handling; rate limiting.
 
 ## Live-infra access rules (read-only)
-Use ONLY read tools: Render MCP `list_*`/`get_*`, and `gcloud/aws ... describe|list|get`.
+Use ONLY read CLI verbs: `gcloud/aws ... describe|list|get`. No infrastructure MCP server is attached.
 Never call write tools or write CLI verbs (the PreToolUse guard blocks them). Never read or
 echo secret VALUES; confirm sourcing and cite the reference line, not the secret.
 
@@ -69,7 +71,7 @@ Rules:
 - **Anchor to a committed config/code file whenever possible** (`evidence.type: "code"`); the
   `snippet` must exist verbatim at `<auditedSha>` (`scripts/citation-check.rb` enforces this).
 - For a purely-live observation with no committed file, use
-  `evidence: { "type": "runtime", "source": "render-mcp:get_service", "snippet": "what was
+  `evidence: { "type": "runtime", "source": "gcloud:run-services-describe", "snippet": "what was
   checked + observed, no secrets/PII" }` and omit `file`. citation-check SKIPs non-`code`/`doc`
   evidence types, so the register stays green; these are re-verified by re-running the live check.
 - The orchestrator computes the stable `id`, sets `firstSeen`/`lastSeen`/`owner`, and reconciles
