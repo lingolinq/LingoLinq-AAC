@@ -1,4 +1,10 @@
-desc "Check for expiring subscriptions. Nothing in this repo invokes this task: the prod scheduler Cloud Run Job (lingolinq-scheduler, hourly Cloud Scheduler trigger; the staging Job has no trigger) runs scheduler:dispatch, which runs an inline copy of the operational calls daily at 06:00 UTC. Keep the two in sync"
+# Nothing in this repo invokes this task (git grep). Production runs the same operational calls
+# through the inline copy in scheduler:dispatch ("Daily tasks" below), which the prod scheduler
+# Cloud Run Job (lingolinq-scheduler) executes on an hourly Cloud Scheduler trigger, so the daily
+# block runs at 06:00 UTC; the staging Job (lingolinq-scheduler-staging) has no trigger and has
+# never executed (read-only gcloud, 2026-09-13; not derivable from this tree). Keep the copy in sync.
+# rake -T prints only the first sentence of a desc, which is why the detail lives here.
+desc "Check for expiring subscriptions; no code path invokes this task (see the comment above)"
 
 task :check_for_expiring_subscriptions => :environment do
   puts "Checking for expiring subscriptions..."

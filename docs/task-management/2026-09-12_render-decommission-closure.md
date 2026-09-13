@@ -100,6 +100,13 @@ text is narrative history.** Never rewrite what a runbook says happened.
 
 ### Files (34), grouped
 
+Line numbers in this section are at the pre-rebase baseline `4c2adc976` and were correct there.
+#961 later rewrote `CLAUDE.md` (193 lines at HEAD), `GEMINI.md` (10) and `LEARNINGS.md` (curated to
+294; the archive `learnings-archive/LEARNINGS-2026-01_to_2026-09.md` holds the old text, where the
+`staging-translate-library-job` note is at `:4103`), and moved `.gemini/styleguide.md` to
+`docs/archive/gemini-code-assist/`, so pointers into those four files do not resolve at HEAD. The A2
+hand-off re-resolves what it needs from the re-baselined scope below, not from this list.
+
 **Delete (6):** `render.yaml`, `bin/render-build.sh`, `.github/workflows/sync-render-secrets.yml`,
 `.github/workflows/preview-comment.yml`, `scripts/sync-render-env.js`, `scripts/sync-render-env.test.js`.
 
@@ -491,7 +498,8 @@ Findings file `dual-review-round8-pra1.md`. Codex: 1 Medium, 4 Low. Adversary: 1
   LEADER_POSTGRES_URL are blank". Editing the sentence after it and leaving it was the round-7 miss.
 - Medium (adversary): this log's own falsification record used spec line numbers that the later
   rounds shifted (round-1 and round-3 sections pointed at `end` lines; the round-7 section cited
-  `database.yml:41` for a condition the same commit moved to `:43`). Every example locator in the
+  `database.yml:41` for the `<% if ENV['DATABASE_URL'].to_s.strip.empty? && ...` condition, which that
+  commit had moved). Every example locator in the
   log is now the example's quoted title; the condition is quoted by its own text.
 - Lows: the database.yml runtime claim carries the same dated read-only-gcloud parenthetical as
   console_guard; the scheduler desc names the prod Job and its hourly trigger and states the staging
@@ -507,9 +515,32 @@ Findings file `dual-review-round8-pra1.md`. Codex: 1 Medium, 4 Low. Adversary: 1
   residual exhaustively (mutation o: tier gated on `RENDER_EXTERNAL_URL` -> red).
 Green after fixes: 106 examples, 0 failures.
 
+## PR A1 dual review round 9 (head 165fe952f) and fixes
+
+Findings file `dual-review-round9-pra1.md`. Codex: 1 Medium, 3 Low. Adversary: 1 Medium, 6 Low.
+Cross-confirmed Medium: the round-8 `.dockerignore` pin (`File.fnmatch?`) let `!/.git`, `!.git/.`,
+`!././.git` and deep-`**` forms (`!.git/objects/**`) through, because Docker disregards leading and
+trailing slashes and its `**` crosses directories, and the comment claimed the coverage was complete.
+Fix: a small translator in the spec (`dockerignore_pattern_re`) models Go filepath.Match plus Docker
+`**` and slash normalisation; the positive side uses it too (any exclusion matching `.git`, not only
+the literal spellings). Simulation `docker_glob_sim.rb`: 29 re-include spellings caught, 11
+legitimate entries pass; the comment now says it is a model with two stated gaps (ordering, and any
+shape it mis-translates).
+Lows: the whole runtime sentence in `database.yml` now carries the dated read-only parenthetical
+(not just the hand-created-Jobs clause) and a clause on what the url branch emits (a blank
+`DATABASE_URL` beside a valid `LEADER_POSTGRES_URL` renders an empty `url:`; `shards.yml` prefers the
+opposite order; behaviour unchanged from develop). `scheduler.rake`: `rake -T` prints only the first
+sentence of a desc, so the desc is one sentence and the Cloud Run facts (prod Job, hourly trigger,
+staging Job untriggered and never executed) sit in a dated `#` comment above the task. Resque source
+pin: slice anchored on the next two-space `def`; comment states it catches a literal `RENDER` token,
+comments included, and not indirection; "exhaustive" dropped. Log: the round-8 record's own
+`:43` replaced with the condition's text; the Phase-1 file list now states its baseline SHA and which
+four files #961 invalidated (the `LEARNINGS.md:12601` pointer resolves in the archive at `:4103`).
+Green after fixes: 106 examples, 0 failures.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-8 applied; round 9 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-9 applied; round 10 re-review pending) -> A2 -> B -> C.

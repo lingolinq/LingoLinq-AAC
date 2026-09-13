@@ -152,7 +152,7 @@ describe RedisInit do
       # No other source is set, so a Render tier reinstated at ANY position in the chain
       # (above or below K_REVISION) would surface here instead of the legacy literal. RENDER and
       # RENDER_SERVICE_ID are set too, so a tier gated on either of those two historical gates is
-      # caught; the source pin in the next example covers a tier gated on anything else.
+      # caught; the source pin in the next example catches a literal RENDER token in the method text.
       ENV['RENDER'] = 'true'
       ENV['RENDER_SERVICE_ID'] = 'srv-test'
       ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
@@ -160,10 +160,12 @@ describe RedisInit do
     end
 
     it 'has no Render-derived tier in the resolver source' do
-      # Exhaustive companion to the probe above, which only catches a tier gated on a variable it
-      # sets: slice the method body and pin that no RENDER token appears in it.
+      # Companion to the probe above, which only catches a tier gated on a variable it sets: slice
+      # the method text (from its def to the next two-space def) and pin that no literal RENDER
+      # token appears, comments included, deliberately: a comment reintroducing the name is a
+      # prompt to re-check. Indirection (a constant, a helper, a regex over ENV.keys) is not caught.
       src = File.read(Rails.root.join('config/initializers/resque.rb'))
-      body = src[/^  def self\.resolved_cache_token\n.*?^  end$/m]
+      body = src[/^  def self\.resolved_cache_token\n.*?(?=^  def |\z)/m]
       expect(body).to be_present
       expect(body).not_to match(/RENDER/)
     end

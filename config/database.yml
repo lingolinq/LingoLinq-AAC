@@ -24,17 +24,19 @@ production:
     # DATABASE_URL (postgres://user:pass@/db?host=/cloudsql/CONN) has an empty host, which uri >= 1.0
     # rejects at boot (URI::InvalidURIError), failing every Rails boot path. So when both DATABASE_URL
     # and LEADER_POSTGRES_URL are blank we configure the connection from discrete env vars instead
-    # of a URL. The url branch renders when DATABASE_URL or LEADER_POSTGRES_URL holds a non-blank value (the condition
-    # below); otherwise the discrete-var branch renders. Cloud Run runtime: no Rails-booting
-    # surface sets either variable. The four surfaces the deploy workflow manages (web, worker
-    # pool, migrate and scheduler Jobs) mount DB_HOST, DB_NAME, DB_USERNAME and DB_PASSWORD from
-    # Secret Manager (BOOT_SECRETS in .github/workflows/deploy-cloudrun.yml); hand-created Jobs
-    # that boot Rails mount the same four by hand (read-only `gcloud run jobs describe`,
-    # 2026-09-13; not derivable from this tree). So they all take the discrete-var branch. The
-    # url branch renders in the runtime-image build (the Dockerfile's assets:precompile step
-    # exports a dummy host-form DATABASE_URL under RAILS_ENV=production and boots against it) and
-    # in CI and docker-compose, which render it but connect through the test and development
-    # blocks below.
+    # of a URL. The url branch renders when DATABASE_URL or LEADER_POSTGRES_URL holds a non-blank
+    # value (the condition below); otherwise the discrete-var branch renders. The url branch emits
+    # DATABASE_URL whenever it is set at all, even blank, so a blank DATABASE_URL beside a valid
+    # LEADER_POSTGRES_URL renders an empty url: (config/shards.yml prefers the opposite order).
+    # Cloud Run runtime, per read-only `gcloud run ... describe` of every prod and nonprod surface
+    # on 2026-09-13 (not derivable from this tree): no Rails-booting surface sets either variable;
+    # the four surfaces the deploy workflow manages (web, worker pool, migrate and scheduler Jobs)
+    # mount DB_HOST, DB_NAME, DB_USERNAME and DB_PASSWORD from Secret Manager (BOOT_SECRETS in
+    # .github/workflows/deploy-cloudrun.yml) and hand-created Jobs that boot Rails mount the same
+    # four by hand, so they all take the discrete-var branch. The url branch renders in the
+    # runtime-image build (the Dockerfile's assets:precompile step exports a dummy host-form
+    # DATABASE_URL under RAILS_ENV=production and boots against it) and in CI and docker-compose,
+    # which render it but connect through the test and development blocks below.
     # NOTE: uses plain ERB conditionals (no dash-trim markers) because Rails renders this file with
     # ERB.new(content) and NO trim_mode; dash-trim markers would raise SyntaxError at boot. The
     # control tags sit at column 0 (same as the replica block below) so they render to blank lines

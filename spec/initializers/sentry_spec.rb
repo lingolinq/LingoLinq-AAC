@@ -728,22 +728,58 @@ describe 'config/initializers/sentry.rb' do
 
     # The Job shape above is untagged only because the image carries no .git directory; pin the
     # .dockerignore entry that guarantees it (removing it would also ship git history in the
-    # image), and pin that no `!` entry re-includes .git or anything beneath it under Docker's glob
-    # semantics: each `!` pattern is matched with File.fnmatch? in pathname + dotmatch mode (the
-    # closest Ruby has to Go's filepath.Match) against .git and representative paths under it, so
-    # literal, `**`, `*`, `?` and character-class spellings are all caught. Docker's last-match-wins
-    # ordering is not modelled: such an entry at any position fails, which is stricter than
-    # Docker. Named re-includes of other paths (`!tmp/keep`) stay allowed.
+    # image), and pin that no `!` entry re-includes .git or anything beneath it. Each pattern is
+    # translated by dockerignore_pattern_re, a model of Go's filepath.Match plus Docker's `**` and
+    # its slash normalisation (leading `/` and `./`, `/./`, trailing `/` and `/.` disregarded). It is
+    # a model, not Docker: last-match-wins ordering is not applied (such an entry at any position
+    # fails, stricter than Docker), and a pattern shape the model mis-translates is a gap. Named
+    # re-includes of other paths (`!tmp/keep`) stay allowed.
     it 'keeps .git out of the runtime image so the SDK git fallback cannot tag Jobs' do
-      flags = File::FNM_PATHNAME | File::FNM_DOTMATCH
-      git_paths = %w[.git .git/HEAD .git/refs .git/objects/ab/cd]
-      normalize = ->(e) { e.delete_prefix('!').delete_prefix('./').delete_suffix('/') }
+      git_paths = %w[.git .git/HEAD .git/refs .git/refs/heads/x .git/objects .git/objects/ab/cd]
       entries = File.readlines(Rails.root.join('.dockerignore')).map(&:strip)
       entries = entries.reject { |e| e.empty? || e.start_with?('#') }
       reincludes, excludes = entries.partition { |e| e.start_with?('!') }
-      expect(excludes.map(&normalize).grep(%r{\A(\*\*/)?\.git\z})).not_to be_empty
-      leaking = reincludes.select { |e| git_paths.any? { |p| File.fnmatch?(normalize.call(e), p, flags) } }
+      expect(excludes.select { |e| dockerignore_pattern_re(e).match?('.git') }).not_to be_empty
+      leaking = reincludes.select do |e|
+        re = dockerignore_pattern_re(e.delete_prefix('!'))
+        git_paths.any? { |p| re.match?(p) }
+      end
       expect(leaking).to eq([])
+    end
+
+    # Docker .dockerignore pattern -> anchored Regexp. `*` and `?` do not cross `/`; `**/` matches
+    # zero or more directories; a trailing `**` matches anything; `[...]` classes pass through.
+    def dockerignore_pattern_re(pattern)
+      p = pattern.sub(%r{\A(?:\./|/)+}, '').gsub(%r{/\./}, '/').gsub(%r{/+}, '/').sub(%r{(?:/\.?)+\z}, '')
+      out = +''
+      i = 0
+      while i < p.length
+        if p[i, 2] == '**'
+          i += 2
+          if p[i] == '/'
+            i += 1
+            out << '(?:.*/)?'
+          else
+            out << '.*'
+          end
+          next
+        end
+        case p[i]
+        when '*' then out << '[^/]*'
+        when '?' then out << '[^/]'
+        when '['
+          j = p.index(']', i)
+          out << p[i..j]
+          i = j
+        when '\\'
+          i += 1
+          out << Regexp.escape(p[i].to_s)
+        else
+          out << Regexp.escape(p[i])
+        end
+        i += 1
+      end
+      /\A#{out}\z/
     end
   end
 
