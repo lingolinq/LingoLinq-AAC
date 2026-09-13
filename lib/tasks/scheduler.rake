@@ -63,7 +63,7 @@ task :expire_stale_supervisor_consent_requests => :environment do
   puts "done, #{count} expired."
 end
 
-desc "Unified scheduler dispatch for the lingolinq-scheduler Cloud Run Job - runs all hourly tasks, daily tasks at 6 AM UTC"
+desc "Unified scheduler dispatch for the scheduler Cloud Run Job (lingolinq-scheduler*) - runs all hourly tasks, daily tasks at 6 AM UTC"
 task "scheduler:dispatch" => :environment do
   # One task's failure must not skip the rest (that is why each is rescued), but the RUN must
   # still fail. Before this, every task could raise and the process still exited 0.

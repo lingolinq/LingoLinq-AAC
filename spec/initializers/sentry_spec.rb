@@ -711,6 +711,9 @@ describe 'config/initializers/sentry.rb' do
     # observed because this spec's own checkout may contain .git.
     it 'leaves the release nil on a Cloud Run Job (sending allowed, no revision variable, no .git)' do
       ENV['SENTRY_ENVIRONMENT'] = 'production'
+      # verify_partial_doubles is off in spec_helper, so pin the stubbed method's existence:
+      # an SDK rename would otherwise turn the stub into a silent no-op.
+      expect(Sentry::ReleaseDetector).to respond_to(:detect_release_from_git)
       allow(Sentry::ReleaseDetector).to receive(:detect_release_from_git).and_return(nil)
       load_initializer!
       expect(Sentry.configuration.sending_allowed?).to eq(true)
@@ -721,6 +724,13 @@ describe 'config/initializers/sentry.rb' do
       ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
       load_initializer!
       expect(Sentry.configuration.release).to be_nil
+    end
+
+    # The Job shape above is untagged only because the image carries no .git directory; pin the
+    # .dockerignore line that guarantees it (removing it would also ship git history in the image).
+    it 'keeps .git out of the runtime image so the SDK git fallback cannot tag Jobs' do
+      entries = File.readlines(Rails.root.join('.dockerignore')).map(&:strip)
+      expect(entries).to include('.git')
     end
   end
 

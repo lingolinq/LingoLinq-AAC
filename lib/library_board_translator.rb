@@ -22,7 +22,8 @@ class LibraryBoardTranslator
     boards = resolve_boards(owner, slugs: slugs, scope: scope)
     unless dry_run || google_translate_token_injected?
       message = "GOOGLE_TRANSLATE_TOKEN is not injected (blank or still an op:// ref). " \
-                "Set it in the Cloud Run Job env (a Job does not inherit the web service env) or run under rails-dev / op run."
+                "Set it in the env of the Cloud Run Job you execute (a Job does not inherit the web service env; " \
+                "the scheduler Job mounts it from Secret Manager, lingolinq-migrate does not) or run under rails-dev / op run."
       raise message unless Rails.env.test?
       puts "WARN: #{message}"
     end
