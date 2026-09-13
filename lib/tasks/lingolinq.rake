@@ -195,4 +195,24 @@ namespace :lingolinq do
     root = result.first
     puts "OK: imported #{result.length} board(s). Root: #{root&.dig('key')} (#{root&.dig('id')})"
   end
+
+  desc 'DRY RUN: cluster identical emoji/keyboard/numbers pages on the content ' \
+       'user and list parent relinks. Never writes. USER_NAME defaults to lingolinq. ' \
+       'Test on GCP nonprod first (see docs/ops/gcp-staging-dedupe-utility-boards.md).'
+  task dedupe_shared_utility_boards: :environment do
+    require Rails.root.join('lib', 'library_utility_deduper')
+    if ENV['APPLY'].to_s =~ BetaSeed::TRUTHY_PATTERN
+      abort 'APPLY is not implemented. This task is dry-run only.'
+    end
+
+    user_name = ENV['USER_NAME'].presence || SystemBoardSources::USER_NAME
+    user = User.find_by(user_name: user_name)
+    abort "User '#{user_name}' not found." unless user
+
+    db = ActiveRecord::Base.connection_db_config.configuration_hash
+    db_desc = "#{db[:database]}@#{db[:host] || 'local'}"
+    puts "[DRY RUN] Library utility dedupe on user '#{user_name}' (id #{user.id}) DB #{db_desc}"
+    plan = LibraryUtilityDeduper.plan(user)
+    puts LibraryUtilityDeduper.format_report(plan)
+  end
 end
