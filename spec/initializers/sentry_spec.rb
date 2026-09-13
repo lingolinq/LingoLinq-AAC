@@ -732,9 +732,14 @@ describe 'config/initializers/sentry.rb' do
     # models no Docker matching: earlier revisions translated each pattern with a model of moby's
     # matcher, and every refinement of that model flipped some previously correct case to fail-open
     # (see the PR #962 working log, rounds 8 to 12). Any new `!` entry, or any respelling of the
-    # `.git` exclusion, fails this example and must be reviewed here on purpose.
+    # `.git` exclusion, fails this example and must be reviewed here on purpose. The file is also
+    # pinned to ASCII bytes: moby strips a first-line byte-order mark and trims Unicode spaces
+    # (U+00A0, U+0085, U+2028) before recognising `!`, and Ruby's strip does not, so a non-ASCII
+    # byte in front of `!` could hide a re-include from the line classification below.
     it 'keeps .git out of the runtime image so the SDK git fallback cannot tag Jobs' do
-      entries = File.readlines(Rails.root.join('.dockerignore')).map(&:strip)
+      raw = File.binread(Rails.root.join('.dockerignore'))
+      expect(raw.bytes).to all(be < 128)
+      entries = raw.lines.map(&:strip)
       entries = entries.reject { |e| e.empty? || e.start_with?('#') }
       reincludes, excludes = entries.partition { |e| e.start_with?('!') }
       expect(excludes).to include('.git')

@@ -592,9 +592,23 @@ Mutations at HEAD (scratch copies of `.dockerignore`, restored): append `!.git`,
 `.git` line -> red; respell it `.git/` -> red (deliberate); unchanged file -> green.
 Green after fixes: 106 examples, 0 failures.
 
+## PR A1 dual review round 13 (head 5d724d15d) and fixes
+
+Findings file `dual-review-round13-pra1.md`. Codex: request-changes, 1 Medium. Adversary: approve,
+2 Low. Cross-confirmed (Codex Medium, adversary Low): the literal example classifies a line as a
+re-include with Ruby `strip.start_with?('!')`; moby strips a first-line byte-order mark and trims
+the full Unicode space set (U+00A0, U+0085, U+2028) before testing `!`, so a BOM before a first-line
+`!.git`, or a non-breaking space before `!`, re-includes `.git` in Docker while the example stayed
+green. Fix, no model: the example reads the file as bytes and pins them to ASCII, then classifies.
+Mutations: BOM + `!.git` first line -> red; U+00A0 before `!.git` -> red; whole-file CRLF -> green.
+Adversary Low 2, deferred and recorded: nothing verifies the built artifact; a one-line step
+after `docker build` (`docker run --rm --entrypoint sh "$IMAGE" -c '! test -e /app/.git'`) would
+assert the image itself. That is a deploy-workflow edit, outside A1's scope; listed in the PR
+body's Not covered for PR B or a follow-up. Green after fixes: 106 examples, 0 failures.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-12 applied; round 13 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-13 applied; round 14 re-review pending) -> A2 -> B -> C.
