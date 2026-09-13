@@ -366,7 +366,7 @@ every hit disposed of (fixed if instruction or present tense; left and listed if
 consumed part of A1, most of A2 and the core of B: it deleted `sync-render-secrets.yml`,
 `preview-comment.yml`, `scripts/sync-render-env.js` and its test; rewrote `CLAUDE.md`, `GEMINI.md`,
 `.github/copilot-instructions.md`, the legal-review skill, `docs/INFRASTRUCTURE.md`,
-`docs/ROTATING_KEYS.md` (Secret Manager rotation steps), `README.md`, `CONTRIBUTING.md`, root
+`docs/ROTATING_KEYS.md` (Secret Manager rotation steps), `README.md`, `CONTRIBUTING.md`; deleted root
 `INFRASTRUCTURE.md`; added dated notes to `PHASE4-CUTOVER-DATA-RUNBOOK.md`, `PHASE5-CUTOVER-RUNBOOK.md`
 and the two seed scripts; removed every `mcp__render` grant from `.claude/agents/infra-auditor.md`
 (GCP/AWS read state is now read-only CLI, no cloudrun MCP); curated `LEARNINGS.md` to 294 lines with a
@@ -382,20 +382,55 @@ Green: 105 examples, 0 failures. Mutations i (blank CLOUD_RUN_REVISION) and j (`
 from a scratch `.dockerignore`) each red on their example.
 
 Re-baselined remaining scope:
-- **A2** (5 files): `docs/ops/staging-translate-library-job.md` (first: the only runbook for the
+- **A2** (6 files): `docs/ops/staging-translate-library-job.md` (first: the only runbook for the
   reworded raise, still POSTs to api.render.com), `docs/COPY_PERF_TUNING.md:52-59`,
   `scripts/gcp/PHASE5-CLEAN-DB-REHEARSAL.md`, `scripts/gcp/iam/README.md:4-5` (present tense),
-  `scripts/gcp/phase5-delta-check.sh` (header note).
-- **B**: the cloudrun-tool question is settled by #961 (CLI only). Remaining: the two "legacy files
-  present in the tree" sentences (`infra-auditor.md:68`, `soc2-security-audit/SKILL.md:34-35`)
-  that dangle once A1 merges, plus `gcloud logging read` PII scoping (nothing on develop scopes it;
+  `scripts/gcp/phase5-delta-check.sh` (header note), and `docs/INFRASTRUCTURE.md:159,178` (round 5:
+  #961's rewrite still lists `DATABASE_URL` as required per service and worker; Cloud Run mounts
+  `DB_HOST`/`DB_NAME`/`DB_USERNAME`/`DB_PASSWORD` and the socket-form URL fails boot).
+- **B**: the cloudrun-tool question is settled by #961 (CLI only). Remaining: the three "legacy files
+  present in the tree" sentences (`infra-auditor.md:68`, `soc2-security-audit/SKILL.md:34-35`,
+  `.claude/rules/deploy.md:16`) that dangle once A1 merges (rewrite, not delete: `Procfile` is
+  still what `foreman start` reads per `README.md`), plus `gcloud logging read` PII scoping (nothing on develop scopes it;
   filter `severity>=ERROR AND NOT httpRequest:*` verified [A6]; prohibition phrased on identifiers).
   `infra-auditor.md` is an unattested register row: regenerate in the same PR.
 - **C**: unchanged.
+
+## PR A1 dual review round 5 (head 6659a2cc7) and fixes
+
+Findings file `dual-review-round5-pra1.md`. Codex: 1 Medium, 1 Low. Adversary: 3 Medium, 5 Low.
+Cross-confirmed Medium: `config/database.yml:28` "nothing exercises it today" was false in the
+opposite direction from round 4. `Dockerfile:52` sets `RAILS_ENV=production` and `Dockerfile:82`
+exports a dummy host-form `DATABASE_URL` for `assets:precompile`, so every image build renders the
+`url:` branch (`DATABASE_URL=... ruby -rerb -e ...` emits `url:` under `production: primary:`).
+Fix: the comment names its two readers (Cloud Run runtime -> discrete vars; image build -> url).
+Lesson: a universal ("nothing", "every") about a config branch needs each read site enumerated.
+
+Other fixes:
+- `lib/tasks/scheduler.rake:1` desc said a live task "is called by the Heroku scheduler add-on".
+  The round-4 noun sweep was case-sensitive (`heroku` caught `bin/push_deploy`, not `Heroku`).
+  Re-run with `-i`: `git grep -I -n -i -E '\bheroku\b|railway|onrender|shell tab|add-on' HEAD --
+  lib config spec bin Dockerfile .github 'app/**/*.rb' ':!lib/mobyposi.i'` (the `-I` binary skip
+  does not catch that word list). Residual hits: two URL citations, past-tensed `bin/audit_console:7`,
+  and `config/shards.yml:24` (legacy follower code, already under Not covered).
+- `lib/audit/console_guard.rb:104-107`: the `RAILS_ENV=production` guarantee is the image default
+  (`Dockerfile:52`); the workflow inline value covers only its four surfaces; two hand-made prod Jobs
+  (`lingolinq-admin-audit`, `lingolinq-identify-check`) set neither env var (read-only
+  `gcloud run jobs describe`, adversary, 2026-09-13).
+- Guards strengthened: the `.dockerignore` example accepts `.git/` and rejects a `!.git` re-include
+  (mutation k red: `expected ["!.git"].empty?`; `.git/` spelling green). The resque
+  `ignores RENDER_GIT_COMMIT` example now sets no other source and expects the literal, so a Render
+  tier at any chain position fails (mutation l: tier below `K_REVISION` -> `got: "deadbeef"`; the
+  round-4 shape returned `svc-00001-abc` under the same mutation, i.e. stayed green).
+- Body: wiring examples are six, not seven (block holds 7 `it`, one is the `.dockerignore` pin);
+  #961 deleted root `INFRASTRUCTURE.md` (fixed here too); PR-B row gains `.claude/rules/deploy.md:16`;
+  Not covered gains the archived styleguide line and `deploy-cloudrun.yml:384` undated tense.
+- Deferred to A2: `docs/INFRASTRUCTURE.md:159,178` (`DATABASE_URL` required per service).
+Green after fixes: 105 examples, 0 failures; `git diff --check` clean.
 
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-4 applied; round 5 pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-5 applied; round 6 re-review pending) -> A2 -> B -> C.

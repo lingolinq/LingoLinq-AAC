@@ -727,10 +727,12 @@ describe 'config/initializers/sentry.rb' do
     end
 
     # The Job shape above is untagged only because the image carries no .git directory; pin the
-    # .dockerignore line that guarantees it (removing it would also ship git history in the image).
+    # .dockerignore entry that guarantees it (removing it would also ship git history in the
+    # image), and pin that no later `!` entry re-includes it, which would silently undo the exclude.
     it 'keeps .git out of the runtime image so the SDK git fallback cannot tag Jobs' do
       entries = File.readlines(Rails.root.join('.dockerignore')).map(&:strip)
-      expect(entries).to include('.git')
+      expect(entries.map { |e| e.delete_suffix('/') }).to include('.git')
+      expect(entries.grep(%r{\A!\.git/?\z})).to be_empty
     end
   end
 

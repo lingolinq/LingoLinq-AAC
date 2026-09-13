@@ -1,4 +1,4 @@
-desc "This task is called by the Heroku scheduler add-on"
+desc "Check for expiring subscriptions; scheduler:dispatch runs this daily at 6 AM UTC from the scheduler Cloud Run Job, or invoke it directly"
 
 task :check_for_expiring_subscriptions => :environment do
   puts "Checking for expiring subscriptions..."

@@ -146,9 +146,10 @@ describe RedisInit do
     end
 
     it 'ignores RENDER_GIT_COMMIT (Render was decommissioned 2026-09-09)' do
+      # No other source is set, so a Render tier reinstated at ANY position in the chain
+      # (above or below K_REVISION) would surface here instead of the legacy literal.
       ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
-      ENV['K_REVISION'] = 'svc-00001-abc'
-      expect(RedisInit.resolved_cache_token).to eq('svc-00001-abc')
+      expect(RedisInit.resolved_cache_token).to eq('abc')
     end
 
     it 'treats a blank env value as unset (skips to the next source)' do
