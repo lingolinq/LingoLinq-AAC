@@ -108,7 +108,7 @@ text is narrative history.** Never rewrite what a runbook says happened.
 - `config/initializers/sentry.rb:367` (remove the RENDER line; resolution moves into
   `SentryInitializer.configure!`).
 - `config/initializers/resque.rb:12,42` (comments), `:126-133` (drop the RENDER_GIT_COMMIT tier).
-- `spec/initializers/resque_redis_options_spec.rb:130-167` (four examples, see Tests).
+- `spec/initializers/resque_redis_options_spec.rb`, the `.resolved_cache_token` describe block (four examples, see Tests).
 - `spec/initializers/sentry_spec.rb` (new examples, see Tests).
 - `spec/models/organization_spec.rb:1062` (host -> `https://staging.lingolinq.com/...`; cleanup only,
   `organization.rb:1800-1801` strips any host; not a validation).
@@ -280,14 +280,15 @@ Branch `scot/chore/render-dead-config-removal` from `origin/develop @ 4c2adc976`
 - Baseline before edits: `rspec spec/initializers/resque_redis_options_spec.rb spec/initializers/sentry_spec.rb spec/models/organization_spec.rb:1058`
   -> 91 examples, 0 failures.
 - Red first: new/rewritten examples run against the untouched code -> 96 examples, 4 failures, all the
-  traced mechanisms (`resque_redis_options_spec.rb:148`, `sentry_spec.rb:594,645,651`).
+  traced mechanisms (the resque example "ignores RENDER_GIT_COMMIT" and the sentry examples named in the
+  falsification list below).
 - Green after the fix: 97 examples, 0 failures.
 - Falsification (restore from scratchpad copies, never `git checkout`):
-  - restore the RENDER_GIT_COMMIT tier in `resque.rb` -> 1 failure, `:148 ignores RENDER_GIT_COMMIT`.
-  - drop the SENTRY_RELEASE guard in `release_from` -> 1 failure, `:601 operator override wins`.
-  - drop the blank check -> 1 failure, `:609 blank K_REVISION`.
+  - restore the RENDER_GIT_COMMIT tier in `resque.rb` -> 1 failure, "ignores RENDER_GIT_COMMIT".
+  - drop the SENTRY_RELEASE guard in `release_from` -> 1 failure, "assigns nothing when SENTRY_RELEASE is set".
+  - drop the blank check -> 1 failure, "treats a blank K_REVISION as unset".
   - put `config.release = ENV['RENDER_GIT_COMMIT']` back in the init block -> 1 failure,
-    `:651 does not let RENDER_GIT_COMMIT reach the release` (the wiring test).
+    "does not let RENDER_GIT_COMMIT reach the release" (the wiring test).
   - `diff` against the backups after restore: identical.
 - Validators on the A1 tree: `citation-check.rb` PASS 192 / FAIL 0; `document-register-render.rb --check` OK;
   `capability-check.rb --check` OK; `compliance-notion-publish.rb --check` OK; `git diff --check` clean.
@@ -314,10 +315,12 @@ contract. Decision re-raised to Scot: `SENTRY_RELEASE=${{ github.sha }}` in `APP
 "K_REVISION only" call, which predates this finding.
 
 - Red first: worker-pool examples against the unfixed code -> 77 examples, 2 failures
-  (`sentry_spec.rb:603,674`). Green after: 101 examples, 0 failures.
-- Mutations (restored from copies, diff identical): drop the `CLOUD_RUN_REVISION` tier -> `:603,:674`
-  red; drop the `SENTRY_RELEASE` guard -> `:610,:680` red; old RENDER line back in the init block ->
-  `:693` red.
+  ("tags the release with CLOUD_RUN_REVISION on a Cloud Run worker pool" and "uses CLOUD_RUN_REVISION as
+  the release on a Cloud Run worker pool"). Green after: 101 examples, 0 failures.
+- Mutations (restored from copies, diff identical): drop the `CLOUD_RUN_REVISION` tier -> both
+  worker-pool examples red; drop the `SENTRY_RELEASE` guard -> "assigns nothing when SENTRY_RELEASE is set"
+  and "lets an operator SENTRY_RELEASE win" red; old RENDER line back in the init block ->
+  "does not let RENDER_GIT_COMMIT reach the release" red.
 - Also fixed in A1 scope: `bin/audit_console:5`, `weekly-release-pr.yml:83`, two misdated sentences,
   spec `around` restores `SENTRY_ENVIRONMENT`, `Configuration.new` wrapped for `DummyTransport` and
   zero worker threads in the load examples.
@@ -383,10 +386,12 @@ Green: 105 examples, 0 failures. Mutations i (blank CLOUD_RUN_REVISION) and j (`
 from a scratch `.dockerignore`) each red on their example.
 
 Re-baselined remaining scope:
-- **A2** (6 files): `docs/ops/staging-translate-library-job.md` (first: the only runbook for the
+- **A2** (7 files): `docs/ops/staging-translate-library-job.md` (first: the only runbook for the
   reworded raise, still POSTs to api.render.com), `docs/COPY_PERF_TUNING.md:52-59`,
   `scripts/gcp/PHASE5-CLEAN-DB-REHEARSAL.md`, `scripts/gcp/iam/README.md:4-5` (present tense),
-  `scripts/gcp/phase5-delta-check.sh` (header note), and `docs/INFRASTRUCTURE.md:159,178` (round 5:
+  `scripts/gcp/phase5-delta-check.sh` (header note), `README.md:144` (round 8: lists
+  `rake check_for_expiring_subscriptions (run daily)` as an operator task; nothing in the repo invokes
+  it, the scheduler Job runs an inline copy), and `docs/INFRASTRUCTURE.md:159,178` (round 5:
   #961's rewrite still lists `DATABASE_URL` as required per service and worker; Cloud Run mounts
   `DB_HOST`/`DB_NAME`/`DB_USERNAME`/`DB_PASSWORD` and the socket-form URL fails boot).
 - **B**: the cloudrun-tool question is settled by #961 (CLI only). Remaining: the three "legacy files
@@ -460,7 +465,7 @@ Green after fixes: 105 examples, 0 failures; `git diff --check` clean.
 
 Findings file `dual-review-round7-pra1.md`. Codex: 1 Medium, 3 Low. Adversary: 1 Medium, 5 Low.
 Cross-confirmed Medium: the round-6 comment said the url branch "depends only on whether
-DATABASE_URL is set"; the condition at `database.yml:41` also checks `LEADER_POSTGRES_URL`
+DATABASE_URL is set"; the ERB condition (`<% if ENV['DATABASE_URL'].to_s.strip.empty? && ...`) also checks `LEADER_POSTGRES_URL`
 (`LEADER_POSTGRES_URL=... ruby -rerb ...` emits `url:`), and a blank value counts as unset. This
 comment sits above the fleet-wide boot-failure note, and `shards.yml:25` prefers
 `LEADER_POSTGRES_URL`, so the omission mattered. Comment restructured around the real selector.
@@ -478,9 +483,33 @@ claimed a `CLAUDE.md:542` fix the #961 rebase dropped (count 11 -> 10).
 Lesson (three rounds running): every sentence that summarises a condition must be checked against
 the condition's own text, not against memory of it.
 
+## PR A1 dual review round 8 (head 1476ae817) and fixes
+
+Findings file `dual-review-round8-pra1.md`. Codex: 1 Medium, 4 Low. Adversary: 1 Medium, 5 Low.
+- Medium (Codex): develop's own sentence two lines above the round-7 selector ("when DATABASE_URL is
+  absent we configure ... from discrete env vars") contradicted it. Now "when both DATABASE_URL and
+  LEADER_POSTGRES_URL are blank". Editing the sentence after it and leaving it was the round-7 miss.
+- Medium (adversary): this log's own falsification record used spec line numbers that the later
+  rounds shifted (round-1 and round-3 sections pointed at `end` lines; the round-7 section cited
+  `database.yml:41` for a condition the same commit moved to `:43`). Every example locator in the
+  log is now the example's quoted title; the condition is quoted by its own text.
+- Lows: the database.yml runtime claim carries the same dated read-only-gcloud parenthetical as
+  console_guard; the scheduler desc names the prod Job and its hourly trigger and states the staging
+  Job has none (`gcloud scheduler jobs list` in `lingolinq-nonprod`: none, adversary 2026-09-13), and
+  "nothing in this repo invokes this task" replaces the universal; `README.md:144` still lists the
+  task as an operator daily and goes to A2 (7 files).
+- `.dockerignore` example now matches each `!` entry with `File.fnmatch?` (pathname + dotmatch)
+  against `.git` and paths under it, so `!.g*`, `!.[a-z]*`, `!?git`, `!.gi?`, `!**/*` are caught as
+  well as the literal spellings; `./` prefix stripped; legitimate entries (`!tmp/keep`,
+  `!.gitkeep`, `!config/.gitkeep`, `!.github/**`) stay green (simulation `fnmatch_sim.rb`, 18 re-include
+  and 8 legitimate candidates). Resque: a second example slices `resolved_cache_token` from the source
+  and pins that no `RENDER` token appears, closing the "gated on a variable the probe never sets"
+  residual exhaustively (mutation o: tier gated on `RENDER_EXTERNAL_URL` -> red).
+Green after fixes: 106 examples, 0 failures.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-7 applied; round 8 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-8 applied; round 9 re-review pending) -> A2 -> B -> C.

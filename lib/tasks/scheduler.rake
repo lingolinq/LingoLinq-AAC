@@ -1,4 +1,4 @@
-desc "Check for expiring subscriptions. No automated production path invokes this task: scheduler:dispatch (run by the lingolinq-scheduler* Cloud Run Jobs) runs an inline copy of its operational calls daily at 06:00 UTC; keep the two in sync"
+desc "Check for expiring subscriptions. Nothing in this repo invokes this task: the prod scheduler Cloud Run Job (lingolinq-scheduler, hourly Cloud Scheduler trigger; the staging Job has no trigger) runs scheduler:dispatch, which runs an inline copy of the operational calls daily at 06:00 UTC. Keep the two in sync"
 
 task :check_for_expiring_subscriptions => :environment do
   puts "Checking for expiring subscriptions..."

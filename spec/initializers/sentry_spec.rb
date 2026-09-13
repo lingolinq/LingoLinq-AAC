@@ -728,14 +728,22 @@ describe 'config/initializers/sentry.rb' do
 
     # The Job shape above is untagged only because the image carries no .git directory; pin the
     # .dockerignore entry that guarantees it (removing it would also ship git history in the
-    # image), and pin that no `!` entry names .git or anything beneath it (`!.git`, `!.git/**`,
-    # `!**/.git`) or is a bare wildcard that re-includes everything (`!*`, `!**`, `!.*`). Docker's
-    # last-match-wins ordering is not modelled: such an entry at any position fails, which is
-    # stricter than Docker. Named re-includes of other paths (`!tmp/keep`) stay allowed.
+    # image), and pin that no `!` entry re-includes .git or anything beneath it under Docker's glob
+    # semantics: each `!` pattern is matched with File.fnmatch? in pathname + dotmatch mode (the
+    # closest Ruby has to Go's filepath.Match) against .git and representative paths under it, so
+    # literal, `**`, `*`, `?` and character-class spellings are all caught. Docker's last-match-wins
+    # ordering is not modelled: such an entry at any position fails, which is stricter than
+    # Docker. Named re-includes of other paths (`!tmp/keep`) stay allowed.
     it 'keeps .git out of the runtime image so the SDK git fallback cannot tag Jobs' do
+      flags = File::FNM_PATHNAME | File::FNM_DOTMATCH
+      git_paths = %w[.git .git/HEAD .git/refs .git/objects/ab/cd]
+      normalize = ->(e) { e.delete_prefix('!').delete_prefix('./').delete_suffix('/') }
       entries = File.readlines(Rails.root.join('.dockerignore')).map(&:strip)
-      expect(entries.grep(%r{\A(\*\*/)?\.git/?\z})).not_to be_empty
-      expect(entries.grep(%r{\A!(?:.*\.git\b|[*./]*\z)})).to be_empty
+      entries = entries.reject { |e| e.empty? || e.start_with?('#') }
+      reincludes, excludes = entries.partition { |e| e.start_with?('!') }
+      expect(excludes.map(&normalize).grep(%r{\A(\*\*/)?\.git\z})).not_to be_empty
+      leaking = reincludes.select { |e| git_paths.any? { |p| File.fnmatch?(normalize.call(e), p, flags) } }
+      expect(leaking).to eq([])
     end
   end
 

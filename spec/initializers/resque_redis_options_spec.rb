@@ -151,12 +151,21 @@ describe RedisInit do
     it 'ignores RENDER_GIT_COMMIT (Render was decommissioned 2026-09-09)' do
       # No other source is set, so a Render tier reinstated at ANY position in the chain
       # (above or below K_REVISION) would surface here instead of the legacy literal. RENDER and
-      # RENDER_SERVICE_ID are set too, so a tier gated on either platform variable (the historical
-      # shapes) is caught as well.
+      # RENDER_SERVICE_ID are set too, so a tier gated on either of those two historical gates is
+      # caught; the source pin in the next example covers a tier gated on anything else.
       ENV['RENDER'] = 'true'
       ENV['RENDER_SERVICE_ID'] = 'srv-test'
       ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
       expect(RedisInit.resolved_cache_token).to eq('abc')
+    end
+
+    it 'has no Render-derived tier in the resolver source' do
+      # Exhaustive companion to the probe above, which only catches a tier gated on a variable it
+      # sets: slice the method body and pin that no RENDER token appears in it.
+      src = File.read(Rails.root.join('config/initializers/resque.rb'))
+      body = src[/^  def self\.resolved_cache_token\n.*?^  end$/m]
+      expect(body).to be_present
+      expect(body).not_to match(/RENDER/)
     end
 
     it 'treats a blank env value as unset (skips to the next source)' do
