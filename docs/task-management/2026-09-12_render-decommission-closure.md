@@ -570,9 +570,31 @@ raises as Docker rejects it; and the positive side now requires a literally spel
 unsafe for the exclusion check. Simulation `docker_glob_sim3.rb`: 42 re-include spellings caught,
 21 legitimate pass. Green after fixes: 106 examples, 0 failures.
 
+## PR A1 dual review round 12 (head e3d53f10b) and fixes
+
+Findings file `dual-review-round12-pra1.md`. Codex: request-changes, 1 Medium (evidence
+reproducibility). Adversary: request-changes on trend, 1 Medium, 3 Low.
+- Medium (adversary): moby's `compile` is not its matcher; `match` dispatches on a detected type
+  and a pattern starting with `**` is a raw string suffix match, so the round-11 mid-`**`
+  translation made `!**git` fail-open. Third consecutive round in which a refinement of the model
+  flipped a correct case. Decision: drop the model. The example now asserts the literal `.git`
+  exclusion and the exact set of three `!` entries; any new `!` entry or respelling fails it and
+  must be reviewed deliberately (comment says so). About 50 lines of model removed. This is the
+  repo's own rule: a guard stricter or more elaborate than what it protects is a new failure mode.
+  Also closes the adversary's two Lows (the comment's `compile` claim; the exclusion allowlist
+  question, answered by requiring the literal spelling and saying so) without a model to get wrong.
+- Medium (Codex) and adversary Low: the `docker_glob_sim*.rb` scripts cited in the round-9 to
+  round-11 records were scratch artefacts, never tracked, and the last one was stale against the
+  shipped helper. They are superseded; the reproducible evidence at HEAD is the example itself and
+  the mutations below, run against the committed spec.
+Mutations at HEAD (scratch copies of `.dockerignore`, restored): append `!.git`, `!**git`,
+`![!.]git`, `! .git`, `!/.git`, `!tmp/other` -> each red on the exact-set assertion; delete the
+`.git` line -> red; respell it `.git/` -> red (deliberate); unchanged file -> green.
+Green after fixes: 106 examples, 0 failures.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-11 applied; round 12 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-12 applied; round 13 re-review pending) -> A2 -> B -> C.
