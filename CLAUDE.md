@@ -124,9 +124,9 @@ data isolation between district accounts is mandatory.
 ## Backend architecture
 
 PostgreSQL plus Redis (caching, Resque queues `priority`, `default`, `slow`, plus `whenever`,
-which `User#track_boards`, `LogSession#update_board_connections` and `Uploader` target under
-Redis queue pressure; the Cloud Run worker entrypoint drains only the first three by default,
-see `docs/INFRASTRUCTURE.md`).
+which `User#track_boards` and `LogSession#update_board_connections` target under Redis queue
+pressure and `Uploader` targets for every batch upload; the Cloud Run worker entrypoint drains
+only the first three by default, see `docs/INFRASTRUCTURE.md`).
 
 - **IDs:** custom `global_id` (`#shard#_#dbid#`) instead of raw ids. `find_by_global_id`,
   `find_by_path` (id, board key, or username), `find_all_by_global_id`.

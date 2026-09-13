@@ -39,7 +39,8 @@ and the proposed base-branch edit hook was dropped (it would deny every edit ins
 Claude-created worktree, because `CLAUDE_PROJECT_DIR` does not follow the worktree).
 
 Dual review of the finished branch (Codex senior-dev pass, Claude adversary pass: 2 High,
-5 Medium, 8 Low, ship-with-changes) produced three follow-up commits:
+5 Medium, 8 Low, ship-with-changes) produced six follow-up commits (including two register
+regenerations and this log):
 
 - Codex P2: the Phase 4 and Phase 5 GCP cutover runbooks still told operators to run the
   deleted Render secret sync; both now open with a dated "historical" note.

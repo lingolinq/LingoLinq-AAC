@@ -122,9 +122,10 @@ Queues: `priority` (board downloads/exports, Progress actions, translations), `d
 env QUEUES=priority,default,slow INTERVAL=0.1 TERM_CHILD=1 bundle exec rake environment resque:work
 ```
 
-A fourth queue, `whenever`, exists in code: `app/models/user.rb` (`track_boards`),
-`app/models/log_session.rb` (`update_board_connections`) and `lib/uploader.rb` enqueue onto it
-instead of `slow` when `RedisInit.queue_pressure?` is true. The Procfile's `resque_slow`
+A fourth queue, `whenever`, exists in code: `app/models/user.rb` (`track_boards`) and
+`app/models/log_session.rb` (`update_board_connections`) enqueue onto it instead of `slow`
+when `RedisInit.queue_pressure?` is true, and `lib/uploader.rb` enqueues onto it for every
+batch upload (`batch ? :whenever : :slow`, no pressure check). The Procfile's `resque_slow`
 process drains it, but the Cloud Run entrypoint (`bin/docker-worker-entrypoint`) defaults
 `QUEUES` to the three above and the deploy workflow does not override it, so on Cloud Run
 nothing is known to drain `whenever`. Unverified live (check the Redis queue length and the
