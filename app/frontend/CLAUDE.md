@@ -47,8 +47,11 @@ a `# fail` line, which looks exactly like a red suite.
 
 - The 5.12 upgrade set `EXTEND_PROTOTYPES: false` (`config/environment.js`). Array and
   string prototype extensions (`.pushObject`, `.sortBy`, `.mapBy`, `.uniq`, `.compact`)
-  do not exist on native arrays. Call them only on an `A()`-wrapped array
-  (`import { A } from '@ember/array'`) or an Ember Data collection, or use native JS.
+  do not exist on native arrays, and Ember Data 5.3 collections (`ManyArray`,
+  `RecordArray`) are native proxies with none of them either: `firstObject` on one is a
+  silent `undefined` and `A()`-wrapping one is unsupported. Use native JS (`.slice()` for
+  a mutable copy of a relationship array), or `A()` only on a plain array you own
+  (`import { A } from '@ember/array'`). Details: `docs/ember-upgrade/KNOWN-ISSUES.md`.
 - `jquery-integration` is `false` in `config/optional-features.json`. jQuery (`$`) is
   still used for some DOM work but never `this.$()` on components; prefer native DOM
   APIs or Ember patterns.
