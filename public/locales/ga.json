@@ -2200,8 +2200,6 @@
   "board_categorize_group_title": "Grúpáil de réir catagóire [[ Group by category",
   "board_categorize_group_desc": "Eagraigh cnaipí i ngrúpaí catagóire. [[ Organize buttons into category groups.",
   "board_categorize_group_info_label": "Tuilleadh eolais faoi ghrúpáil de réir catagóire [[ More information about grouping by category",
-  "board_categorize_group_hint": "Eagraigh cnaipí an bhoird seo i ngrúpaí catagóire ordaithe. Úsáid na saigheada thíos chun an t-ord a athrú. [[ Organize this board's buttons into ordered category groups. Use the arrows below to change the order.",
-  "board_categorize_group_hint_off": "Tá an grúpáil múchta. Taispeántar cnaipí an bhoird seo san ord bunaidh. [[ Grouping is off. This board's buttons are shown in their original order.",
   "board_categorize_scroll_title": "Scrolláil boird [[ Board scrolling",
   "board_categorize_scroll_desc": "Ceadaigh scrollú leathanaigh le haghaidh boird níos mó. [[ Allow page scrolling for larger boards.",
   "board_categorize_scroll_info_label": "Tuilleadh eolais faoi scrolláil boird [[ More information about board scrolling",

@@ -2200,8 +2200,6 @@
   "board_categorize_group_title": "Сгруппировать по категориям [[ Group by category",
   "board_categorize_group_desc": "Сгруппируйте кнопки по категориям. [[ Organize buttons into category groups.",
   "board_categorize_group_info_label": "Более подробная информация о группировке по категориям. [[ More information about grouping by category",
-  "board_categorize_group_hint": "Сгруппируйте кнопки на этой доске по категориям. Используйте стрелки ниже, чтобы изменить порядок. [[ Organize this board's buttons into ordered category groups. Use the arrows below to change the order.",
-  "board_categorize_group_hint_off": "Группировка отключена. Кнопки этой платы отображаются в исходном порядке. [[ Grouping is off. This board's buttons are shown in their original order.",
   "board_categorize_scroll_title": "Прокрутка доски [[ Board scrolling",
   "board_categorize_scroll_desc": "Разрешите прокрутку страницы для отображения больших досок. [[ Allow page scrolling for larger boards.",
   "board_categorize_scroll_info_label": "Дополнительная информация о прокрутке доски [[ More information about board scrolling",

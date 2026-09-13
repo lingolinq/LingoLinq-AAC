@@ -2200,8 +2200,6 @@
   "board_categorize_group_title": "Nach Kategorie gruppieren [[ Group by category",
   "board_categorize_group_desc": "Ordnen Sie die Schaltflächen in Kategoriengruppen ein. [[ Organize buttons into category groups.",
   "board_categorize_group_info_label": "Weitere Informationen zur Gruppierung nach Kategorien [[ More information about grouping by category",
-  "board_categorize_group_hint": "Ordnen Sie die Schaltflächen dieses Boards in geordnete Kategoriengruppen ein. Verwenden Sie die Pfeile unten, um die Reihenfolge zu ändern. [[ Organize this board's buttons into ordered category groups. Use the arrows below to change the order.",
-  "board_categorize_group_hint_off": "Die Gruppierung ist deaktiviert. Die Schaltflächen dieses Boards werden in ihrer ursprünglichen Reihenfolge angezeigt. [[ Grouping is off. This board's buttons are shown in their original order.",
   "board_categorize_scroll_title": "Scrollen auf dem Brett [[ Board scrolling",
   "board_categorize_scroll_desc": "Ermöglichen Sie das Scrollen der Seite für größere Boards. [[ Allow page scrolling for larger boards.",
   "board_categorize_scroll_info_label": "Weitere Informationen zum Scrollen auf dem Spielbrett [[ More information about board scrolling",

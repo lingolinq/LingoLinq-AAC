@@ -2197,8 +2197,6 @@
   "board_categorize_group_title": "カテゴリ別にグループ化 [[ Group by category",
   "board_categorize_group_desc": "ボタンをカテゴリ別に整理する。 [[ Organize buttons into category groups.",
   "board_categorize_group_info_label": "カテゴリ別グループ化に関する詳細情報 [[ More information about grouping by category",
-  "board_categorize_group_hint": "このボードのボタンを、順序付けられたカテゴリグループに整理してください。下の矢印を使って順序を変更できます。 [[ Organize this board's buttons into ordered category groups. Use the arrows below to change the order.",
-  "board_categorize_group_hint_off": "グループ化は無効になっています。このボードのボタンは元の順序で表示されます。 [[ Grouping is off. This board's buttons are shown in their original order.",
   "board_categorize_scroll_title": "ボードスクロール [[ Board scrolling",
   "board_categorize_scroll_desc": "大きな掲示板ではページスクロールを有効にする。 [[ Allow page scrolling for larger boards.",
   "board_categorize_scroll_info_label": "ボードスクロールに関する詳細情報 [[ More information about board scrolling",

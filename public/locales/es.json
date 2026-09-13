@@ -9163,8 +9163,6 @@
   "board_categorize_group_title": "Agrupar por categoría [[ Group by category",
   "board_categorize_group_desc": "Organiza los botones en grupos de categorías. [[ Organize buttons into category groups.",
   "board_categorize_group_info_label": "Más información sobre la agrupación por categoría [[ More information about grouping by category",
-  "board_categorize_group_hint": "Organiza los botones de este tablero en grupos de categorías ordenadas. Usa las flechas de abajo para cambiar el orden. [[ Organize this board's buttons into ordered category groups. Use the arrows below to change the order.",
-  "board_categorize_group_hint_off": "La agrupación está desactivada. Los botones de este tablero se muestran en su orden original. [[ Grouping is off. This board's buttons are shown in their original order.",
   "board_categorize_scroll_title": "Desplazamiento del tablero [[ Board scrolling",
   "board_categorize_scroll_desc": "Permitir el desplazamiento de página para tableros más grandes. [[ Allow page scrolling for larger boards.",
   "board_categorize_scroll_info_label": "Más información sobre el desplazamiento del tablero [[ More information about board scrolling",

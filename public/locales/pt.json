@@ -2200,8 +2200,6 @@
   "board_categorize_group_title": "Agrupar por categoria [[ Group by category",
   "board_categorize_group_desc": "Organize os botões em grupos de categorias. [[ Organize buttons into category groups.",
   "board_categorize_group_info_label": "Mais informações sobre agrupamento por categoria [[ More information about grouping by category",
-  "board_categorize_group_hint": "Organize os botões deste quadro em grupos de categorias ordenados. Use as setas abaixo para alterar a ordem. [[ Organize this board's buttons into ordered category groups. Use the arrows below to change the order.",
-  "board_categorize_group_hint_off": "O agrupamento está desativado. Os botões deste painel são exibidos em sua ordem original. [[ Grouping is off. This board's buttons are shown in their original order.",
   "board_categorize_scroll_title": "Rolagem de tabuleiro [[ Board scrolling",
   "board_categorize_scroll_desc": "Permitir rolagem da página em quadros maiores. [[ Allow page scrolling for larger boards.",
   "board_categorize_scroll_info_label": "Mais informações sobre rolagem de tabuleiro [[ More information about board scrolling",
