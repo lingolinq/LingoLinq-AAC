@@ -350,18 +350,26 @@ var scanner = EmberObject.extend({
          scanner specs stub, and some of those stubs answer only the selectors they know
          about and return undefined for everything else. A new selector must not take
          the whole of start() down with it. */
-      var $prediction_rail = scanner.find_elem(".md-board-detail-prediction-rail:visible");
-      if($prediction_rail && $prediction_rail.length) {
+      /* BOTH out-of-#speak placements, built the same way. `side_rail` puts the panel beside
+         the board; `below_bar` puts it under the speak bar, inside the board's own block. The
+         third placement, `speak_bar`, needs nothing here — it lives inside #speak and the
+         header sweep above already reaches it. Only one of the three is ever visible, so at
+         most one row is pushed; `:visible` is what decides which. */
+      var prediction_panel_selectors = [".md-board-detail-prediction-rail:visible",
+                                        ".md-board-detail-prediction-below:visible"];
+      prediction_panel_selectors.forEach(function(panel_selector) {
+        var $panel = scanner.find_elem(panel_selector);
+        if(!$panel || !$panel.length) { return; }
         var prediction_row = {
           children: [],
-          dom: $prediction_rail,
+          dom: $panel,
           header: true,
           label: i18n.t('suggestions', "Suggestions"),
           reload_children: function() {
             var res = [];
-            var $rail = scanner.find_elem(".md-board-detail-prediction-rail:visible");
-            if($rail && $rail.find) {
-              $rail.find(".md-board-detail-sentence-bar__prediction").each(function() {
+            var $current = scanner.find_elem(panel_selector);
+            if($current && $current.find) {
+              $current.find(".md-board-detail-sentence-bar__prediction").each(function() {
                 var $elem = scanner.find_elem(this);
                 res.push({
                   dom: $elem,
@@ -376,7 +384,7 @@ var scanner = EmberObject.extend({
         if(prediction_row.children.length > 0) {
           rows.push(prediction_row);
         }
-      }
+      });
       var content = scanner.scan_content();
 
       if(options.scan_mode == 'row' || options.scan_mode == 'button') {
@@ -802,7 +810,9 @@ var scanner = EmberObject.extend({
          only before the first start() or after a stop(), and no legitimate switch action
          occurs in either window. */
       if(scanner.scanning && parent && parent.higher_level && parent.higher_level.length && parent.dom && parent.dom.hasClass &&
-         (parent.dom.hasClass('md-board-detail-sentence-row') || parent.dom.hasClass('md-board-detail-prediction-rail'))) {
+         (parent.dom.hasClass('md-board-detail-sentence-row') ||
+          parent.dom.hasClass('md-board-detail-prediction-rail') ||
+          parent.dom.hasClass('md-board-detail-prediction-below'))) {
         scanner.level_up(parent);
         return;
       }
@@ -817,7 +827,25 @@ var scanner = EmberObject.extend({
     scanner.last_spoken_elem = null;
     var reset_now = true;
 
-    if(dom && (dom.hasClass('speak_menu_button') || dom.hasClass('md-speak-menu__btn') || dom.hasClass('md-speak-menu__bottom-btn'))) {
+    /* `id` is REQUIRED to take this branch, because the id IS the routing: `speakmenuselect`
+       is only handled by <ButtonListener> (components/button-listener.js:64), and
+       `button_event` dispatches on `e.button_id`. An element with no id dispatches an event
+       that nothing can route -- and in speak-menu.hbs the <ButtonListener> regions are lines
+       22-52 and 56-299 while the bottom bar opens at :430, so FOURTEEN scannable controls
+       sat outside every listener with no id and had their press silently swallowed. Among
+       them `set_speak_mode_user` and `pick_speak_mode_user` -- switching which communicator
+       you speak as -- which a switch user could not reach at all.
+       Without an id they now fall to the generic pass-through click at the end of this
+       chain, which is the same path `.md-speak-menu__phrase-page-btn` already takes and the
+       same precedent raw_events.js:1712 uses on the pointer path. Verified before changing:
+       ZERO id-less elements matching these classes sit INSIDE a listener, so nothing that
+       routes correctly today is affected.
+       ORDER MATTERS: the class tests come FIRST so `attr` is only called on an element that
+       already matched. Putting the id test first evaluates `attr` on EVERY scanned element,
+       which throws for any dom shape that lacks it -- it broke the frame_listener case, whose
+       stub defines `hasClass` and not `attr`, and which the old condition never reached
+       because the class tests short-circuited. */
+    if(dom && (dom.hasClass('speak_menu_button') || dom.hasClass('md-speak-menu__btn') || dom.hasClass('md-speak-menu__bottom-btn')) && dom.attr('id')) {
       var e = new CustomEvent( 'speakmenuselect', { bubbles: true, cancelable: true } );
       e.button_id = dom.attr('id');
       dom[0].dispatchEvent(e);
@@ -1088,7 +1116,19 @@ var scanner = EmberObject.extend({
     if(scanner.axes.y == 'scanning-forward' || scanner.axes.y == 'scanning-backward') {
       var min = 0;
       if(scanner.options.skip_header) {
-        min = (document.getElementsByTagName('HEADER')[0].getBoundingClientRect().height / window.innerHeight) * 100;
+        /* Scoped to the GLOBAL header, and guarded. A bare `getElementsByTagName('HEADER')[0]`
+           takes the first <header> in the document, which on user.board-detail.edit is the
+           beta-feedback panel's own header (components/beta-feedback-panel.hbs:2) -- that panel
+           mounts at templates/application.hbs:1499, ahead of #content. Measured at 295px against
+           a 900px viewport, reading it here walls off the top 32.8% of the screen from the sweep
+           instead of 7.8%. Board-detail also renders no <header> at all in its model.error and
+           model.integration branches, where the unguarded index read throws and stops scanning.
+           Matches the scoping already applied to controllers/highlight.js:137 and
+           utils/edit_manager.js:974. */
+        var header = document.querySelector('#within_ember > header');
+        if(header) {
+          min = (header.getBoundingClientRect().height / window.innerHeight) * 100;
+        }
       }
       var y = parseFloat(scanner.axes.horizontal.style.top) || min;
       if(scanner.axes.horizontal.style.top == '-1000px') { y = min; }
@@ -1271,6 +1311,53 @@ var scanner = EmberObject.extend({
   prev: function() {
     scanner.next(true);
   },
+  /*
+   * Bring the scan target into view when it sits in a modal that is actually scrolling.
+   *
+   * Nothing in this file called scrollIntoView before. Target collection filters on
+   * `offsetParent !== null || offsetWidth > 0 || offsetHeight > 0` (see find_elem) and
+   * next_element rejects only zero-sized elements — all DISPLAY checks. An element
+   * scrolled out of view inside an `overflow: auto` container passes every one of them,
+   * so the scanner would highlight a control the user cannot see. For a switch user the
+   * highlight is off-screen; for an eye-gaze user driving by dwell the control is simply
+   * unreachable, because no modal has any scroll affordance.
+   *
+   * Scoped deliberately, because this function runs on EVERY scan step on every surface
+   * in the app:
+   *   - only inside `.modal-dialog` — boards and the sidebar are unchanged;
+   *   - only when an ancestor genuinely scrolls (scrollHeight > clientHeight), i.e. when
+   *     "vertical scrolling is in play";
+   *   - and it adjusts that container's scrollTop DIRECTLY rather than calling
+   *     `el.scrollIntoView()`, which walks every scrollable ancestor including the
+   *     document and could move the page out from under a board.
+   * A no-op when the target is already fully visible.
+   */
+  scroll_into_view: function($elems) {
+    var el = $elems && $elems[0];
+    if(!el || !el.getBoundingClientRect || !el.closest) { return; }
+    if(!el.closest('.modal-dialog')) { return; }
+    var box = null;
+    var node = el.parentElement;
+    while(node && node !== document.body && node !== document.documentElement) {
+      var style = window.getComputedStyle(node);
+      var flow = style.overflowY;
+      if((flow === 'auto' || flow === 'scroll') && node.scrollHeight > node.clientHeight + 1) {
+        box = node;
+        break;
+      }
+      node = node.parentElement;
+    }
+    if(!box) { return; }
+    // A little slack so the scanning ring is not flush against the edge it scrolled to.
+    var margin = 8;
+    var elem_rect = el.getBoundingClientRect();
+    var box_rect = box.getBoundingClientRect();
+    if(elem_rect.top < box_rect.top + margin) {
+      box.scrollTop -= (box_rect.top + margin) - elem_rect.top;
+    } else if(elem_rect.bottom > box_rect.bottom - margin) {
+      box.scrollTop += elem_rect.bottom - (box_rect.bottom - margin);
+    }
+  },
   measure: function($elems) {
     var minX = null, minY = null, maxX = null, maxY = null;
     if(!$elems.each) { $elems = new JShim($elems); }
@@ -1339,6 +1426,9 @@ var scanner = EmberObject.extend({
       }
     }
     scanner.current_element = elem;
+    /* Before the highlight is drawn, not after: the highlight is positioned from the
+       element's rect, so scrolling afterwards would leave the ring behind. */
+    scanner.scroll_into_view(elem.dom);
     var options = scanner.options || {};
     options.prevent_close = true;
     options.overlay = false;

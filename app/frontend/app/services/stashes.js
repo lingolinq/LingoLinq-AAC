@@ -471,10 +471,33 @@ export default Service.extend({
     if(voc.length === 0) { return; }
     var obj = {
       vocalizations: voc,
-      stash: !!opts.stash
+      stash: !!opts.stash,
+      /* Was this parked BY THE USER (Hold Thought) or bumped here to make room when they
+         resumed/said something else? Only the label depends on it — "Resume:" is a promise
+         the user made to themselves, "Swap back:" is the app saying where their sentence
+         went. Absent on everything written before this, which reads as user-parked, and
+         that is the right default: it is what Hold Thought produces. */
+      swapped: !!opts.swapped
     };
     obj.sentence = obj.vocalizations.map((v) => v.label).join(" ");
-    if(!list.find((v) => v.sentence == obj.sentence)) {
+    /* Match on the sentence AND on stash-ness. Matching the sentence alone meant a held
+       thought was silently dropped whenever its wording happened to equal a SAVED PHRASE
+       already in this list — the user hit Hold Thought, nothing errored, and the thought
+       was simply never parked. They are two different things that merely read the same. */
+    var existing = list.find((v) => v.sentence == obj.sentence && !!v.stash == obj.stash);
+    if(existing) {
+      /* Duplicate: MOVE the original to the newest position rather than dropping it, so the
+         signed-out list behaves like the signed-in one (app_state#save_phrase promotes a
+         duplicate to the top). The direction differs because the storage does: this array is
+         PUSHED, so newest is at the END — speak-menu.js reverses it for display — whereas
+         `user.vocalizations` is unshifted and newest is index 0.
+         Mirrored in utils/_stashes.js#remember, which serves early boot and tests. */
+      var at = list.indexOf(existing);
+      if(at !== -1 && at !== list.length - 1) {
+        list.splice(at, 1);
+        list.push(existing);
+      }
+    } else {
       list.push(obj);
     }
     this.persist('remembered_vocalizations', list);

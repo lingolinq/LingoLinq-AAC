@@ -6,6 +6,7 @@ import LingoLinq from '../app';
 import i18n from '../utils/i18n';
 import { filterRootBoards, dedupeByName, boardsPagePreferUserNames } from '../utils/board-roots';
 import { filterBrandRoots } from '../utils/board-brands';
+import boardDetailCache from '../utils/board_detail_cache';
 /* Brand families (CommuniKate / Quick Core / Sequoia / Vocal Flair) — the
    `query`/`root_re`/`test` metadata now lives in the shared util so the
    Find Boards grid grouping and this panel classify brands identically.
@@ -185,6 +186,12 @@ export default Component.extend({
   _loadMyBoardsPage: function(userId, offset, accumulated) {
     var _this = this;
     var args = { user_id: userId, sort: 'home_popularity', per_page: 50 };
+    /* No `q` and not `public`, so this lands in boards_controller's PRIVATE locale branch
+       (:223-228), which matches `search_string ILIKE '%locale:xx%'` — private boards carry
+       their locales in search_string, so a board translated into the locale matches even
+       though it has no BoardLocale row. */
+    var locale = this._query_locale();
+    if (locale) { args.locale = locale; }
     if (offset != null) { args.offset = offset; }
     LingoLinq.store.query('board', args).then(function(data) {
       if (_this.isDestroyed || _this.isDestroying) { return; }
@@ -192,6 +199,10 @@ export default Component.extend({
       if (data && data.forEach) {
         data.forEach(function(b) { if (b) { next.push(b); } });
       }
+      /* Locale options come from what we have actually seen (see available_locale_ids). Fed
+         from the RAW page, before root-clustering drops sub-boards: a translated sub-board
+         still proves the language exists in this account. */
+      _this._noteLocales(next);
       // Progressive render: paint what we have SO FAR the moment each page lands —
       // page 1 (home_popularity sort) is the home board + favorites, which is all the
       // collapsed view shows anyway — then keep paging in the BACKGROUND to fill the
@@ -200,6 +211,32 @@ export default Component.extend({
       // rows stay stable as later pages append below the fold. Shared component, so this
       // speeds up BOTH the speak-mode and edit-mode collection drawers.
       _this.set('my_boards_state', { state: 'loaded', boards: _this._sortMyBoards(next) });
+      /* Warm the symbols of the boards this drawer OFFERS, so picking one paints a complete
+         grid instead of filling in tile by tile.
+         routes/user/board-detail.js already prefetches + warms the current board's folder
+         targets (`prefetch_linked`), which is why opening a folder is instant. The drawer
+         lists a different set entirely — and it is where a board SWITCH comes from — so it
+         got none of that and paid full network latency for every symbol on arrival.
+         Deferred so it never competes with painting the rows the user is looking at, and
+         bounded by the cache's own MAX_PREFETCH. Passing prefs is best-effort: when they are
+         unavailable warm_images falls back to the user's display prefs itself. */
+      /* Plain setTimeout, not runLater: ember-lifeline (which the no-runloop rule points at)
+         is not a dependency here, and adding one for a background prefetch is not worth it.
+         The handle is cleared in willDestroyElement below, so it cannot outlive the drawer —
+         the same pattern the prediction freeze tick uses. */
+      if (_this._prefetch_timer) { clearTimeout(_this._prefetch_timer); }
+      _this._prefetch_timer = setTimeout(function() {
+        _this._prefetch_timer = null;
+        if (_this.isDestroyed || _this.isDestroying) { return; }
+        var boards = (_this.get('my_boards_state') || {}).boards || [];
+        boardDetailCache.prefetch_boards(boards.map(function(b) {
+          return (b && b.get && b.get('key')) || (b && b.key);
+        }), {
+          skin: _this.get('app_state.referenced_user.preferences.skin'),
+          preferred_symbols: _this.get('app_state.referenced_user.preferences.preferred_symbols')
+        });
+      }, 600);
+
       var meta = null;
       try { meta = _this.get('persistence') && _this.get('persistence').meta('board', data); } catch (e) { meta = null; }
       if (meta && meta.more) {
@@ -265,12 +302,19 @@ export default Component.extend({
   _loadAllBrands: function() {
     var _this = this;
     BRAND_FAMILIES.forEach(function(family) {
-      LingoLinq.store.query('board', {
+      /* public + q, so this takes the OTHER locale branch (boards_controller.rb:167-168),
+         which narrows the BoardLocale text search by locale before ranking. Note the two
+         branches are mutually exclusive: the block at :206 is skipped whenever q is present
+         AND public is set, which is exactly this call. */
+      var brand_args = {
         public: true,
         q: family.query,
         sort: 'home_popularity',
         per_page: 50
-      }).then(function(data) {
+      };
+      var brand_locale = _this._query_locale();
+      if (brand_locale) { brand_args.locale = brand_locale; }
+      LingoLinq.store.query('board', brand_args).then(function(data) {
         var matched = [];
         if (data && data.forEach) {
           data.forEach(function(b) {
@@ -292,6 +336,7 @@ export default Component.extend({
            AFTER dedup so the final order is name-A→Z but the chosen
            representative is the popular one. Empty / missing names
            pass through unchanged (each gets its own row). */
+        _this._noteLocales(matched);
         _this._setBrandResult(family.id, { state: 'loaded', boards: _alphaByName(dedupeByName(matched, { preferUserNames: boardsPagePreferUserNames(_this.get('appState')) })) });
       }).catch(function() {
         _this._setBrandResult(family.id, { state: 'error' });
@@ -364,7 +409,133 @@ export default Component.extend({
     });
   }),
 
+  /* Language filter. 'any' is not a placeholder — it is the API's own no-filter sentinel
+     (boards_controller.rb checks `params['locale'] != 'any'`), so the value passes straight
+     through. Default is 'any' rather than the user's preferred locale, unlike the search
+     page: this panel currently lists everything, and defaulting to a filter would silently
+     hide boards the user can see today. */
+  filter_locale: 'any',
+  /* Locales seen on boards this panel has actually loaded. Offering the full
+     `translatable_locales` list meant most choices were guaranteed to return nothing, which
+     is a filter that mostly wastes the user's time.
+
+     GROWS ONLY, never shrinks, and that is the whole trick: the loaded set is itself narrowed
+     once a filter is active, so recomputing the options from it would delete the very option
+     the user just picked — the dropdown would collapse to nothing on first use. Accumulating
+     instead keeps every language ever seen selectable. */
+  available_locale_ids: null,
+  _noteLocales: function(boards) {
+    if(this.isDestroyed || this.isDestroying) { return; }
+    var known = this.get('available_locale_ids') || [];
+    var seen = {};
+    known.forEach(function(l) { seen[l] = true; });
+    var added = false;
+    (boards || []).forEach(function(b) {
+      if(!b || !b.get) { return; }
+      (b.get('locales') || []).forEach(function(loc) {
+        if(loc && !seen[loc]) { seen[loc] = true; known = known.concat([loc]); added = true; }
+      });
+    });
+    /* Only reassign when it actually grew — an unconditional set on every page of every
+       query would recompute the options (and re-render the select) on each response. */
+    if(added) { this.set('available_locale_ids', known); }
+  },
+  /* Collapse a bare base language when a region variant of it is also present. A board records
+     BOTH its full locale and its base language (Board#update_search_index adds `en_US` and
+     `en`), so an account with one English is seen as two locales — which listed "English" and
+     "English (United States)" as separate choices AND, because the count was 2, meant the
+     single-language hint could never fire.
+
+     Safe for filtering: the server treats a variant and its base as one family either way —
+     the private branch matches `%locale:<base>%`, a substring that catches every variant, and
+     the BoardLocale branch queries `[locale, base]`. So picking "English (United States)"
+     still returns plain-`en` boards. */
+  available_locales_collapsed: computed('available_locale_ids.[]', function() {
+    var ids = this.get('available_locale_ids');
+    if(!ids) { return null; }
+    var has_variant = {};
+    ids.forEach(function(id) {
+      var parts = String(id).split(/[-_]/);
+      if(parts.length > 1) { has_variant[parts[0]] = true; }
+    });
+    return ids.filter(function(id) {
+      var parts = String(id).split(/[-_]/);
+      return parts.length > 1 || !has_variant[id];
+    });
+  }),
+  filter_locale_options: computed('available_locales_collapsed.[]', 'filter_locale', function() {
+    var names = i18n.get('translatable_locales') || {};
+    var ids = (this.get('available_locales_collapsed') || []).slice();
+    /* Keep the current selection selectable even if nothing loaded currently carries it —
+       otherwise the trigger would render blank after a filter empties every section. */
+    var current = this.get('filter_locale');
+    if(current && current !== 'any' && ids.indexOf(current) === -1) { ids.push(current); }
+    var res = ids.map(function(id) {
+      return { id: id, name: names[id] || i18n.readable_language(id) || id };
+    }).sort(function(a, b) { return (a.name || '').localeCompare(b.name || ''); });
+    res.unshift({ name: i18n.t('any_language', "Any Language"), id: 'any' });
+    return res;
+  }),
+  /* One language means there is nothing to filter BETWEEN, so the control needs to explain
+     itself rather than look broken. Counts real locales, not the 'any' sentinel. */
+  single_language: computed('available_locales_collapsed.[]', function() {
+    var ids = this.get('available_locales_collapsed');
+    /* null = nothing has loaded yet. Returning false there keeps the hint from flashing on
+       during the first paint and then vanishing once boards arrive. Counts the COLLAPSED
+       list, so en + en_US is one language, not two. */
+    if(!ids) { return false; }
+    return ids.length <= 1;
+  }),
+  filter_locale_active: computed('filter_locale', function() {
+    var loc = this.get('filter_locale');
+    return !!loc && loc !== 'any';
+  }),
+  /* Readable name of the filtered language, for the empty state's copy. */
+  filter_locale_name: computed('filter_locale', function() {
+    var loc = this.get('filter_locale');
+    if(!loc || loc === 'any') { return null; }
+    var list = i18n.get('translatable_locales') || {};
+    return list[loc] || i18n.readable_language(loc) || loc;
+  }),
+  /* True only when a LANGUAGE filter is what emptied the panel. Gated on
+     filter_locale_active so an empty search box result still shows the ordinary
+     "No boards found", which is a different situation with a different fix. The brand
+     sections self-hide when empty, so without this the panel would go silently blank and a
+     working filter would be indistinguishable from a broken one. */
+  filter_empty: computed('filter_locale_active', 'my_boards_state.state', 'my_boards_state.boards.[]', 'ordered_brands', function() {
+    if(!this.get('filter_locale_active')) { return false; }
+    var my = this.get('my_boards_state') || {};
+    if(my.state !== 'loaded') { return false; }
+    if((my.boards || []).length > 0) { return false; }
+    var brands = this.get('ordered_brands') || [];
+    /* Every brand must have RESOLVED — a section still loading is not evidence of emptiness,
+       and claiming "nothing found" mid-flight would flicker. */
+    var all_resolved_and_empty = brands.every(function(b) {
+      return b.state === 'loaded' && (b.boards || []).length === 0;
+    });
+    return all_resolved_and_empty;
+  }),
+
+  /* The locale the queries should send, or null for no filter. One place so the two query
+     builders cannot drift. */
+  _query_locale: function() {
+    var loc = this.get('filter_locale');
+    return (loc && loc !== 'any') ? loc : null;
+  },
+
   actions: {
+    set_filter_locale: function(value) {
+      if(this.get('filter_locale') === value) { return; }
+      this.set('filter_locale', value);
+      /* Re-query BOTH sections rather than filtering what is already loaded. The point of the
+         filter is to surface boards translated into a language even when the user has no copy
+         of them, and those boards are not in the loaded set to filter. The server does the
+         work: BoardLocale rows exist per translated locale for listed boards, and private
+         boards match on `search_string ILIKE '%locale:xx%'`. */
+      this.set('my_boards_state', { state: 'loading' });
+      this._loadMyBoards();
+      this._loadAllBrands();
+    },
     back: function() {
       var fn = this.get('onBack');
       if (typeof fn === 'function') { fn(); }
@@ -407,6 +578,14 @@ export default Component.extend({
       }
       runLater(_this, done, 8000);
     }
+  },
+
+  willDestroyElement() {
+    if (this._prefetch_timer) {
+      clearTimeout(this._prefetch_timer);
+      this._prefetch_timer = null;
+    }
+    this._super(...arguments);
   },
 
   init() {

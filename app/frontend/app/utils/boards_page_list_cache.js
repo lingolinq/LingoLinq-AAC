@@ -230,7 +230,7 @@ function isUsableList(list) {
 
 /* Overlay / hero gate: first Mine page is enough to paint. Empty
    completed lists (done) also count so a zero-board library does not
-   keep “Preparing your workspace” up. */
+   keep “Loading boards” up. */
 function isPaintReady(list) {
   if (isUsableList(list)) { return true; }
   return !!(list && list.paint_ready && !list.loading && !list.error && Array.isArray(list) && list.length);

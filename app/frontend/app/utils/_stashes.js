@@ -417,10 +417,30 @@ var stashes = EmberObject.extend({
     if(voc.length === 0) { return; }
     var obj = {
       vocalizations: voc,
-      stash: !!opts.stash
+      stash: !!opts.stash,
+      /* Kept in step with services/stashes.js#remember, which is what actually runs once
+         the service is registered — this module's export is a Proxy that forwards to
+         `window.stashes`. This copy serves early boot and tests only, so a divergence shows
+         up as behaviour that differs before the app has finished starting. */
+      swapped: !!opts.swapped
     };
     obj.sentence = obj.vocalizations.map(function(v) { return v.label; }).join(" ");
-    if(!list.find(function(v) { return v.sentence == obj.sentence; })) {
+    /* Sentence AND stash-ness: a held thought and a saved phrase reading the same are two
+       different things, and matching the sentence alone silently dropped the one being
+       added. Mirrors the service. */
+    var existing = list.find(function(v) { return v.sentence == obj.sentence && !!v.stash == obj.stash; });
+    if(existing) {
+      /* Duplicate: MOVE the original to the newest position rather than dropping it, so the
+         signed-out list behaves like the signed-in one (app_state#save_phrase promotes a
+         duplicate to the top). Note the direction differs because the storage does: this
+         array is PUSHED, so newest is at the END — speak-menu.js reverses it for display —
+         whereas `user.vocalizations` is unshifted and newest is at index 0. */
+      var at = list.indexOf(existing);
+      if(at !== -1 && at !== list.length - 1) {
+        if(typeof list.removeObject === 'function') { list.removeObject(existing); } else { list.splice(at, 1); }
+        if(typeof list.pushObject === 'function') { list.pushObject(existing); } else { list.push(existing); }
+      }
+    } else {
       if(typeof list.pushObject === 'function') {
         list.pushObject(obj);
       } else {

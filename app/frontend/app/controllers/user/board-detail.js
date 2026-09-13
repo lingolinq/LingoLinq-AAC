@@ -207,7 +207,26 @@ export default Controller.extend(prefClasses, {
      compact mode and the ordering UI needs its own pass before it earns the space. Kept as
      one named flag rather than commenting the markup out, so bringing it back is a single
      `true` and the template still reads as one arrangement. The stored order itself is
-     untouched and still drives the panel layout when scrolling is on. */
+     untouched and still drives the panel layout when scrolling is on.
+
+     BEFORE FLIPPING THIS TO `true`, FIX THE ORDER PATH. It is not merely waiting — three
+     places disagree about where a board's category order comes from, and the disagreement
+     is unreachable today only because this flag is off:
+
+       * the RENDERED board reads the ACCOUNT-WIDE order directly
+         (`components/board-detail-grid.js:200-201`), and no template has ever passed
+         `@categoryOrder` — so a per-board order never reaches the grid at all;
+       * the PANEL reads the PER-BOARD resolution, via `board_category_settings`
+         (`category_order_list`, :6362);
+       * `move_category` (:6630) READS the account-wide order and WRITES the per-board slot,
+         so reordering on a board with its own entry permutes the wrong list.
+
+     How it happened: the grid's account-wide read dates from the original grouping feature
+     (e9370fd4a, 2026-08-17), when order was account-wide and that was correct. Per-board
+     resolution was retrofitted onto `board_category_settings` two days after this flag was
+     parked (3895e6a0a, 2026-08-26), and every consumer of that computed inherited it
+     silently — except the grid, which has its own reader. This flag has never been `true`,
+     so no reachable control could ever expose the split. */
   category_ordering_available: false,
 
   show_board_back_nav: computed('board_detail_history.[]', function() {
@@ -540,49 +559,11 @@ export default Controller.extend(prefClasses, {
       main.style.setProperty('--prediction-tile-inset-top', insetTop + 'px');
       main.style.setProperty('--prediction-tile-h', Math.round(cardRect.height) + 'px');
     }
-    // WIDTH — solve for the width at which ONE RAIL TILE == ONE BOARD BUTTON, in closed
-    // form. The rail is a fixed-width `flex-shrink:0` sibling of the FLEXIBLE grid, so
-    // assigning it the measured card width is circular: the rail steals that width back
-    // from the grid, the cards reflow, and it never settles (LEARNINGS, "sizing a
-    // fixed-width sibling to a FLEXIBLE element's measured size is circular"). Iterating
-    // to convergence is not an option either — the gain is -ratio/cols, which is exactly
-    // -1 on a one-column board and oscillates forever. So solve the fixed point directly.
-    //
-    //   budget = fade + railNow - (cols-1)*colGap   is INVARIANT to how the row splits,
-    //   because the flex:1 grid absorbs whatever the rail takes. Hence one measurement at
-    //   ANY current rail width yields:   W = ratio * budget / (cols + ratio)
-    //
-    // `ratio` is card ÷ cell — the BUTTON SHAPE, measured rather than hardcoded, so the
-    // tile tracks it: shape-tall sets the card `width: 66.6667%`, shape-wide
-    // `height: 66.6667%`, square fills the cell (app.scss:80286-80293). The cell carries no
-    // horizontal padding (app.scss:81160-81165), so card = ratio*cell is linear and `ratio`
-    // does not drift as the cell resizes — that is what makes this exact and not an
-    // approximation. At ratio == 1 it reduces to the plain one-column-per-tile form.
-    //
-    // Sidebar-independent by construction: the sidebar enters only through `fade`, so a
-    // tile matches its board button whether the sidebar is open or closed. It is no longer
-    // matched to the SIDEBAR's width — that was a separate request, and it is what made the
-    // tiles disagree with the buttons.
-    var tileW = Math.round(cardRect.width);
-    var railEl = document.querySelector('.md-board-detail-prediction-rail');
-    var fadeEl = document.querySelector('.md-board-detail-grid-fade');
-    var predCols = parseInt(this.get('current_grid.columns'), 10) || 0;
-    var shapeRatio = (cellRect && cellRect.width >= 1) ? (cardRect.width / cellRect.width) : 0;
-    if(railEl && fadeEl && predCols > 0 && shapeRatio > 0) {
-      /* Read the panel padding back from CSS rather than hardcoding it, so the stylesheet
-         stays authoritative — same pattern as --prediction-rail-pad-top above. */
-      var railStyle = window.getComputedStyle(railEl);
-      var railPadX = (parseFloat(railStyle.paddingLeft) || 0) + (parseFloat(railStyle.paddingRight) || 0);
-      var solvedW = this._solve_prediction_rail_width(
-        fadeEl.getBoundingClientRect().width,
-        railEl.getBoundingClientRect().width,
-        predCols, colGap, shapeRatio, railPadX
-      );
-      /* solvedW is the BUTTON width; the rail is that plus its padding, so the tile inside
-         (width:100% of the content box) still measures exactly one board button. */
-      if(solvedW >= 1) { tileW = Math.round(solvedW + railPadX); }
-    }
-    main.style.setProperty('--prediction-tile-w', Math.max(0, tileW) + 'px');
+    // WIDTH is no longer published: the tile fills the rail panel, which CSS sizes to the
+    // inline sidebar (--bd-sidebar-w). Only HEIGHT and the top inset are measured from the
+    // board card (above), which is what keeps a tile in the same row band as the button
+    // beside it. Width parity with the board button was given up deliberately — a tile sized
+    // to a button wider than the sidebar overhung the panel edge.
     // No per-tile height or top-inset measurement needed: the rail grid's rows
     // (--prediction-rows × minmax(0,1fr)), pinned to the board grid height above
     // with a matching 4px top inset, place each tile in its board row band
@@ -620,16 +601,6 @@ export default Controller.extend(prefClasses, {
      is why ANY current rail width yields the same answer in one pass, with no feedback
      loop. `ratio` is card/cell (the button shape). Returns 0 when the inputs cannot
      produce a sane width, so the caller keeps its measured-card fallback. */
-  _solve_prediction_rail_width: function(fadeW, railW, cols, colGap, ratio, railPadX) {
-    if(!(fadeW >= 1) || !(cols > 0) || !(ratio > 0)) { return 0; }
-    /* Subtract the panel's own horizontal padding from the shared budget before solving:
-       the rail occupies (button + padding), so the padding is width the board never gets
-       and must not be divided among the columns. Returns the BUTTON width; the caller adds
-       the padding back to size the rail. */
-    var budget = fadeW + (railW || 0) - ((cols - 1) * (colGap || 0)) - (railPadX || 0);
-    if(!(budget > 0)) { return 0; }
-    return (ratio * budget) / (cols + ratio);
-  },
 
   /* (Re)point the ResizeObserver at the current board grid — the grid element
      is replaced on board change, so re-observe whenever the board changes. */
@@ -1133,18 +1104,94 @@ export default Controller.extend(prefClasses, {
       var btn = flat[idx];
       if(!btn) { continue; }
       var lbl = (btn.label || btn.vocalization || '').toLowerCase();
-      if(lbl === key && btn.image_url && !wordSuggestionsModule.is_placeholder_image(btn.image_url)) {
-        return btn.image_url;
+      if(lbl !== key) { continue; }
+      /* SAME PRECEDENCE THE GRID PAINTS WITH. board-detail-grid.hbs:152 renders the board
+         button as `{{or btn.local_image_url btn.image_url}}`: local_image_url is the locally
+         cached copy, and on a board that has synced it is frequently the ONLY one populated.
+         Reading image_url alone meant this matcher found nothing for precisely the buttons
+         whose symbol was already painted on screen — a predicted word that IS on the board
+         rendered blank. Every other consumer reads the pair (application.js:1880,
+         board/index.js:357, edit_manager.js:178, button-preview.js:78); this was the outlier.
+         A button showing the missing-image placeholder still offers nothing to borrow, so the
+         loop keeps looking rather than returning it. */
+      var url = btn.local_image_url || btn.image_url;
+      if(url && !wordSuggestionsModule.is_placeholder_image(url)) {
+        return url;
       }
     }
     return null;
   },
 
+  /* The SET a symbol resolution belongs to, for the memo key below.
+     `_suggestion_lookup_board_ids` is the right list to SEARCH, but the wrong thing to KEY on:
+     it carries `currentBoardState.id` and the current `model.id`, so it changes the moment the
+     user opens a sub-board. Keying on it meant a word resolved on the parent was re-resolved
+     from scratch one level down, and lost its symbol whenever the parent's button set was not
+     loaded at that moment.
+     The board component itself is NOT removable — the same word can legitimately resolve to
+     different symbols on different board SETS, and replaying one set's symbol onto another is
+     a confidently wrong symbol, worse for a symbol-reliant user than a missing one. So the key
+     is scoped to the set's ROOT, which is stable while navigating inside it.
+     `temporary_root_board_state` first: it is what a temporarily-entered set is tracked under
+     (application.js:907, board-intro.js:80-82), so a temporary set gets its own scope rather
+     than borrowing the home set's. Falls back to the full id list, which is exactly today's
+     behaviour — no carry-over, but no cross-set replay either. */
+  _suggestion_memo_scope: function(lookup_ids) {
+    var stashes = this.get('stashes');
+    var appState = this.get('app_state');
+    var root = stashes && stashes.get &&
+      (stashes.get('temporary_root_board_state.id') || stashes.get('root_board_state.id'));
+    if(!root && appState && appState.get) {
+      root = appState.get('currentUser.preferences.home_board.id');
+    }
+    var scope = root || (lookup_ids || []).join(',');
+    /* Segment by the COMMUNICATOR the symbols belong to. Neither term above distinguishes
+       them: `currentUser` stays the supervisor while modelling (app-state.js:4059 -- only
+       `referenced_user` follows `modeling_for_user`), and two communicators can hold the same
+       board record, which `set_as_home` makes a one-click flow by writing a reference rather
+       than a copy. Without a segment the memo replays one communicator's resolved symbol onto
+       another's word, and this map is cleared only in `clear_sentence` -- a confidently wrong
+       symbol, which the comment above rightly calls worse for a symbol-reliant user than a
+       missing one.
+
+       Via `scope_key_for` rather than reading `referenced_user.id` here. That read is the
+       obvious one and it is INERT: the session user's record id is pinned to the literal
+       string 'self' (serializers/application.js), identical for every user, so both
+       communicators keyed to 'self@<root>' and the replay survived. models/user.js:67 states
+       the rule -- compare on `global_id`. `scope_key_for` (word_suggestions.js:1485) already
+       encodes it, including failing closed on an unresolved record, and the scoped-set cache
+       uses the same function, so the two caches agree on who the user is.
+
+       Strictly narrowing: an extra segment can only cause a MISS, which re-resolves correctly.
+       It can never introduce a replay that was not already there. */
+    var ref = wordSuggestionsModule.scope_key_for(appState);
+    return ref ? (ref + '@' + scope) : scope;
+  },
+
   _suggestion_lookup_board_ids: function() {
+    var extra = [this.get('model.id')];
+    /* Add the ROOT of the board tree the user is navigating.
+       A button set covers its board's DOWNSTREAM tree, so the root's set covers the parent,
+       the siblings and everything below — one id makes the whole tree searchable.
+       lookup_board_ids would normally get that from `root_board_state`, but that is only set
+       when transitioning to `board.index` from setup or home-boards (app-state.js:694-696).
+       Board-detail is a different route, so the flag never fires here and the tree root was
+       absent from the lookup entirely — which is why a predicted word whose symbol lives on
+       the PARENT board had nothing in scope that could find it.
+       board-detail keeps its own ancestor stack for back navigation, pushed oldest-first
+       (`_push_nav_history`), so entry 0 is the root. Only that one is added: the intermediate
+       boards are already inside its set, so pushing them too would just buy duplicate loads on
+       a path that runs while the user types. lookup_board_ids de-dupes, and load_button_set
+       caches, so the cost is a single fetch the first time a tree is entered. */
+    var history = this.get('app_state.board_detail_nav_history') || [];
+    var root = history[0];
+    if(root && root.user_name && root.boardname) {
+      extra.push(root.user_name + '/' + root.boardname);
+    }
     return wordSuggestionsModule.lookup_board_ids(
       this.get('app_state'),
       this.get('stashes'),
-      [this.get('model.id')]
+      extra
     );
   },
 
@@ -1175,6 +1222,31 @@ export default Controller.extend(prefClasses, {
     }
     var lookups = _this._suggestion_image_lookups;
     var lookup_ids = _this._suggestion_lookup_board_ids();
+    /* How many of this context's button sets are in memory RIGHT NOW. A miss is only final
+       once the sets are loaded; before that it means the lookup raced the download, which is
+       exactly what happens to the first lookups after a board switch. Recording this count
+       alongside a miss lets a later lookup retry precisely when the warm state has changed —
+       and never otherwise, so a word with genuinely no symbol is asked for once rather than on
+       every keystroke. */
+    var sets_sig = 0;
+    try {
+      /* The signature must change when the DATA changes, not when the number of sets changes.
+         It used to be the set COUNT — but button_sets_for_board_ids admits a record on
+         `root_url` alone, so a set going from "known to exist, zero buttons" to "fully loaded"
+         left the count identical. A miss recorded while the buttons were still downloading was
+         therefore never retried, even though the symbol it needed had just arrived: the word
+         stayed bare for the rest of the session, and which words that hit was pure timing.
+         Summing the button counts makes arrival observable. `buttons` is a raw array, so
+         `.length` is O(1) per set and this stays cheap on the keystroke path. */
+      sets_sig = (wordSuggestionsModule.button_sets_for_board_ids(lookup_ids) || []).reduce(function(sum, bs) {
+        return sum + (((bs && bs.get && bs.get('buttons')) || []).length);
+      }, 0);
+    } catch(e) {
+      /* Advisory read — it reaches into the Ember-Data store, which is not guaranteed to be
+         present on every path (and is absent in bare unit tests). A failure here must never
+         break decoration; 0 simply means "treat the sets as cold", which is the safe default
+         because it permits a retry rather than latching. */
+    }
     var ctx = { appState: _this.get('app_state'), stashes: _this.get('stashes') };
     list.forEach(function(item) {
       if(!item || !item.word) { return; }
@@ -1193,26 +1265,48 @@ export default Controller.extend(prefClasses, {
          Keying beats clearing: it never replays across a context and needs no extra observer.
          (updateSuggestions does not observe model.id, so a clear-on-board-change would not have
          fired reliably anyway.) */
-      var key = lookup_ids.join(',') + '|' + item.word.toLowerCase();
+      var key = _this._suggestion_memo_scope(lookup_ids) + '|' + item.word.toLowerCase();
       var seen = lookups[key];
-      if(seen) {
-        /* A RESOLVED url is replayed onto this lookup's item. The latch used to store only
-           `true`, which made it a "we already asked" flag with nothing to show for it: every
-           lookup builds FRESH item objects (word_suggestions#merge_suggestions), so the item
-           that received the url is discarded, and the next lookup for the same word hits this
-           early return and renders with no symbol — permanently, until clear_sentence resets
-           the map. Type "h" and "hello" has its symbol; type "he" and it comes back bare. For a
-           symbol-reliant user that is the word becoming unreadable. Mirrors the fix the
-           sentence-chip pipeline already uses (_resolved_label_images). */
-        if(seen !== true) { item.image = seen; }
-        return;
-      }
-      lookups[key] = true;
+      /* A RESOLVED url is replayed onto this lookup's item. The memo used to store only
+         `true`, which made it a "we already asked" flag with nothing to show for it: every
+         lookup builds FRESH item objects (word_suggestions#merge_suggestions), so the item
+         that received the url is discarded, and the next lookup for the same word hit the
+         early return and rendered with no symbol — permanently, until clear_sentence reset
+         the map. Type "h" and "hello" has its symbol; type "he" and it comes back bare. For a
+         symbol-reliant user that is the word becoming unreadable. Mirrors the fix the
+         sentence-chip pipeline already uses (_resolved_label_images). */
+      if(typeof seen === 'string') { item.image = seen; return; }
+      /* A MISS is remembered with the warm state it was observed under, and is only binding
+         while that state holds. attach_image_for_label invokes its callback ONLY on success,
+         so a miss leaves whatever was written here before the call — which is why writing a
+         bare `true` latched the word bare for the whole session on that board set. */
+      if(seen && seen.miss === sets_sig) { return; }
+      /* Written BEFORE the async call so it also serves as the in-flight guard: a second
+         decorate pass while this one is outstanding must not fire a duplicate request. */
+      lookups[key] = { miss: sets_sig };
       wordSuggestionsModule.attach_image_for_label(item.word, lookup_ids, function(url) {
         if(_this.isDestroyed || _this.isDestroying || !url) { return; }
-        lookups[key] = url;
-        item.image = url;
-        _this._republish_suggestion_list();
+        /* DECODE BEFORE SWAP. Assigning `url` straight onto the item paints an <img> whose
+           bytes have not arrived yet: an empty box, and a WHITE BLOCK under
+           symbol_background_clear (whose white-backing filter applies to a broken image just
+           the same). The tile is already showing the placeholder, so swapping early gains
+           nothing and costs a visible flicker — blank, white, then finally the symbol.
+           Preloading first makes the tile go placeholder -> symbol in ONE step, and a symbol
+           that cannot paint simply never replaces the placeholder. Same technique
+           board_preview_warmer.js uses to stop grid pop-in. */
+        var probe = new Image();
+        probe.onload = function() {
+          if(_this.isDestroyed || _this.isDestroying) { return; }
+          lookups[key] = url;
+          item.image = url;
+          _this._republish_suggestion_list();
+        };
+        probe.onerror = function() {
+          /* Deliberately leaves the memo on its `{miss}` entry rather than latching the url:
+             a symbol that failed to load once (offline, cold CDN) should be retried when the
+             button sets next change, not remembered as this word's symbol. */
+        };
+        probe.src = url;
       }, ctx);
     });
     return list;
@@ -2755,12 +2849,26 @@ export default Controller.extend(prefClasses, {
 
   // Word suggestions
   suggestions: null,
-  show_word_suggestions: computed('edit_mode', 'app_state.referenced_user.preferences.word_suggestions', function() {
+  /* The yes/no board exists to present exactly two choices. Offering other words alongside
+     them defeats its purpose, and for someone relying on it for a binary answer that is worse
+     than unhelpful — so prediction is suppressed there regardless of the user's preference.
+     Matched on the KEY SLUG rather than the whole key: it ships as 'lingolinq/yesno' (the
+     default sidebar entry, app/models/user.rb:3943), but every copy a user or org makes keeps
+     the slug under their own username (lib/accessibility_seed.rb builds it the same way), so a
+     full-key match would only cover the pristine original. */
+  is_yes_no_board: computed('model.key', function() {
+    return ((this.get('model.key') || '').split('/')[1] || '') === 'yesno';
+  }),
+  show_word_suggestions: computed('edit_mode', 'is_yes_no_board', 'app_state.referenced_user.preferences.word_suggestions', function() {
     // Global user preference gates word prediction in speak mode. NEW users get
     // it ON at registration (user.rb generate_defaults, new_record? only); for
     // everyone else only an explicit `true` shows it (null/undefined = off), so
     // existing users are never silently enabled. Never shown in edit mode.
     if(this.get('edit_mode')) { return false; }
+    /* Board-level override. Deliberately NOT applied to `word_suggestions_enabled` below:
+       that drives the Board Settings toggle and must keep reflecting the user's actual
+       preference, so prediction returns by itself on every other board. */
+    if(this.get('is_yes_no_board')) { return false; }
     return this.get('app_state.referenced_user.preferences.word_suggestions') === true;
   }),
   // On/off state of word prediction (only an explicit `true` is on; null = off),
@@ -2774,9 +2882,10 @@ export default Controller.extend(prefClasses, {
   // responsive in-bar/rail switch (empty class). Default (unset) is 'side_rail'
   // — a vertical rail just left of the sidebar — matching user.rb
   // preference_defaults. See app.scss ".md-shell--wordpred-*" rules.
-  word_suggestion_position_class: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
-    var pos = this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'side_rail';
+  word_suggestion_position_class: computed('word_suggestion_position_value', function() {
+    var pos = this.get('word_suggestion_position_value');
     if(pos === 'speak_bar') { return 'md-shell--wordpred-speak-bar'; }
+    if(pos === 'below_bar') { return 'md-shell--wordpred-below-bar'; }
     if(pos === 'side_rail') { return 'md-shell--wordpred-side-rail'; }
     return '';
   }),
@@ -2786,19 +2895,24 @@ export default Controller.extend(prefClasses, {
   // size dropdown's bindings in the same panel.
   word_prediction_position_dropdown_open: false,
   word_suggestion_position_value: computed('app_state.referenced_user.preferences.word_suggestion_position', function() {
-    return this.get('app_state.referenced_user.preferences.word_suggestion_position') || 'side_rail';
+    var pos = this.get('app_state.referenced_user.preferences.word_suggestion_position');
+    /* 'auto' was removed as an option (it varied placement by viewport, which read as the
+       setting doing nothing). A stored 'auto' resolves to the default rather than leaving the
+       dropdown showing a label for a choice that no longer exists. */
+    if(!pos || pos === 'auto') { return 'side_rail'; }
+    return pos;
   }),
   word_prediction_position_options: computed(function() {
     return [
-      { id: 'auto', label: i18n.t('word_prediction_pos_auto', "Best fit for the screen") },
       { id: 'speak_bar', label: i18n.t('word_prediction_pos_speak_bar', "Inside the speak bar") },
+      { id: 'below_bar', label: i18n.t('word_prediction_pos_below_bar', "Below speak bar") },
       { id: 'side_rail', label: i18n.t('word_prediction_pos_side_rail', "To the right of the board") }
     ];
   }),
   word_prediction_position_label: computed('word_suggestion_position_value', function() {
     var val = this.get('word_suggestion_position_value');
     var match = (this.get('word_prediction_position_options') || []).find(function(o) { return o.id === val; });
-    return match ? match.label : i18n.t('word_prediction_pos_auto', "Best fit for the screen");
+    return match ? match.label : i18n.t('word_prediction_pos_side_rail', "To the right of the board");
   }),
 
   _suggestion_lookup_context: function() {
@@ -2859,6 +2973,16 @@ export default Controller.extend(prefClasses, {
         this.get('stashes'),
         [this.get('model.id')]
       ),
+      /* One word per board ROW, so the rail fills the height it already reserves. Its grid is
+         `repeat(var(--prediction-rows), minmax(0,1fr))` pinned to the board grid's height, and
+         `prediction_rail_suggestions` slices the list to the row count. That slice is a
+         CEILING with no floor, so the module default of 5 left a taller board showing 5 words
+         in 8 tracks.
+         Floored at 5 so a short board never gets FEWER words than before. Capped at 8 because
+         api/words_controller.rb:66 clamps `count` to 8 — asking for more buys nothing. The
+         rail has no `overflow: auto`, so more tiles than tracks would SPILL rather than
+         scroll; the row-count slice stays the final guard against that. */
+      max_results: Math.min(Math.max(parseInt(this.get('current_grid.rows'), 10) || 0, 5), 8),
       button_sets: warmed_sets
     };
   },
@@ -3269,6 +3393,10 @@ export default Controller.extend(prefClasses, {
     _this._begin_suggestion_lookup();
     aiPredictor.predict(sentence, {
       locale: _this._word_prediction_locale(),
+      /* Same row-sized cap as the main path. Without it this fallback falls through to
+         ai_word_predictor's own `options.count || 4` and returns four words, so the rail
+         would under-fill on exactly the path taken when the primary lookup is unavailable. */
+      count: Math.min(Math.max(parseInt(_this.get('current_grid.rows'), 10) || 0, 5), 8),
       appState: _this.get('app_state')
     }).then(function(words) {
       if(_this.isDestroyed || _this.isDestroying) { return; }
@@ -3279,7 +3407,22 @@ export default Controller.extend(prefClasses, {
          into the symbol memo and arming image callbacks. */
       if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
       var list = (words || []).map(function(w) { return { word: w }; });
-      _this._commit_suggestions({ ready: true, list: _this._decorate_suggestion_images(list) });
+      /* Stamp the placeholder here too. This path bypasses lookup_with_ai entirely — it builds
+         bare `{ word }` items — so without this the tiles reach the template with no `image`,
+         the `{{#if suggestion.image}}` gate renders no <img>, and the symbol area is empty.
+         Same primitive lookup() and lookup_with_ai use, so all three agree. */
+      var commit = function() {
+        if(_this.isDestroyed || _this.isDestroying) { return; }
+        if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
+        _this._commit_suggestions({ ready: true, list: _this._decorate_suggestion_images(list) });
+      };
+      wordSuggestionsModule.fallback_url().then(function(url) {
+        list.forEach(function(item) {
+          if(!item.fallback_image) { item.fallback_image = url; }
+          if(!item.image) { item.image = url; }
+        });
+        commit();
+      }, commit);
     }, function() {
       if(_this.isDestroyed || _this.isDestroying) { return; }
       if(lookup_token !== _this.get('_suggestion_lookup_token')) { return; }
@@ -4016,18 +4159,23 @@ export default Controller.extend(prefClasses, {
      read and write must resolve the same account or the panel would describe one user
      and persist to another. */
   /*
-   * The grouping settings IN FORCE FOR THIS BOARD.
+   * The DISPLAY settings in force for this board.
    *
-   * `preferences.board_category_grouping` holds the user's default; `….boards[<board id>]`
-   * holds a per-board override in the same shape. A board with no entry uses the default,
-   * so nothing changes for boards nobody has configured.
+   * `preferences.board_category_grouping` holds the user's defaults; `….boards[<ref>]`
+   * holds a per-board override of the display keys only. A board with no entry uses the
+   * defaults, so nothing changes for boards nobody has configured.
    *
-   * Keyed on the board's GLOBAL ID, not its key: a key is `owner/slug` and changes when
-   * the board is renamed or the owner changes username, which would silently orphan the
-   * settings. The id does not move.
+   * NOT the on/off switch. `enabled` is PER-USER and resolves at the top level
+   * (`categorize_enabled`), and a per-board entry carries no `enabled` key at all — the
+   * server drops it (`user.rb#sanitize_board_category_grouping!`, `include_enabled`).
    *
-   * One resolver, and every consumer below reads it — the switch, the sub-options, the
-   * order list and the save all have to agree about which board they are describing.
+   * Keyed by board KEY, with the GLOBAL ID read only as a fallback for entries written
+   * before that switch — see `_board_category_ref` directly below, which is where the
+   * resolution actually happens. (This paragraph used to claim the opposite, that entries
+   * were keyed on the global id. They are not, and have not been since the key migration.)
+   *
+   * One resolver, and every consumer below reads it — the sub-options, the order list and
+   * the save all have to agree about which board they are describing.
    */
   /* Which entry in `boards` describes THIS board.
      By KEY (`username/board-slug`), because a global_id is stable only within one
@@ -4178,6 +4326,13 @@ export default Controller.extend(prefClasses, {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.find_button || !s.focus_words || !s.show_hidden_buttons;
   }),
+  // Whether the three Buttons controls render. A communicator-only account has no
+  // "Buttons" toggle at all (board-detail.hbs), so gating them on buttons_submenu_open
+  // would leave that account with a section it can never open — the items would be
+  // unreachable rather than merely collapsed. Supporter accounts keep the accordion.
+  buttons_section_expanded: computed('is_communicator_only_account', 'buttons_submenu_open', function() {
+    return !!(this.get('is_communicator_only_account') || this.get('buttons_submenu_open'));
+  }),
   speak_section_visible_display: computed('speak_menu_hidden_set', function() {
     var s = this.get('speak_menu_hidden_set') || {};
     return !s.light_dark_mode;
@@ -4223,6 +4378,31 @@ export default Controller.extend(prefClasses, {
     // buttons back without restoring this term, so hiding the other four silently
     // took the lock control with them.
     return !s.button_levels || !s.sticky_board || !s.pause_logging || !s.modeling || !s.switch_communicators;
+  }),
+  /* "Pause Logging" as its own TOP-LEVEL row, for a communicator-only account.
+
+     speak_section_visible_session above returns false for such an account on its
+     first statement, before it considers any individual item, so the row rendered
+     inside the Session submenu is unreachable for them however the Customize Menu
+     is set. That gate stays exactly as it is — the board lock lives in the same
+     section and a locked communicator must not be able to release it — and this
+     drives a separate row outside it instead. The classic speak menu has always
+     offered the item to communicators (templates/application.hbs:1239, whose
+     enclosing blocks carry no role gate); this restores that parity in the
+     board-detail menu.
+
+     False for supporters and while a supervisor is modeling: both get the real
+     Session section, and rendering here as well would show the row twice.
+
+     superProtectedSpeakMode mirrors the {{#unless}} wrapping the Session-submenu
+     copy (board-detail.hbs:1244), and the hidden-set term keeps the Customize Menu
+     setting authoritative for communicators too. */
+  pause_logging_row_visible: computed('speak_menu_hidden_set', 'is_communicator_only_account', 'app_state.superProtectedSpeakMode', 'app_state.currentUser.preferences.logging', function() {
+    if(!this.get('is_communicator_only_account')) { return false; }
+    if(this.get('app_state.superProtectedSpeakMode')) { return false; }
+    if(!this.get('app_state.currentUser.preferences.logging')) { return false; }
+    var s = this.get('speak_menu_hidden_set') || {};
+    return !s.pause_logging;
   }),
   // Visibility of the board-lock control itself, as opposed to the Session section
   // that contains it. Normally it follows the customize-menu setting like any other
@@ -4374,14 +4554,39 @@ export default Controller.extend(prefClasses, {
     if(model) {
       token = (model.get && (model.get('id') || model.get('key'))) || model.id || model.key || null;
     }
-    if(this.get('_edit_dirty_baseline') && this._edit_baseline_token === token) {
+    /* TOKEN ALONE, deliberately — NOT `baseline && token`.
+       This guard is what stops a rebuild folding the user's unsaved work into the baseline
+       it is supposed to be measured against. `_build_from_raw` runs again on a display-pref
+       change, a regroup, a merge and four other paths; rename a board via
+       edit-board-details (which writes straight onto the record and leaves no undo entry),
+       then change any display preference, and a recapture would compare the rename against
+       a baseline that now contained it — `exit_to_home_from_edit` would skip the discard
+       confirm and the rename would be LOST with no prompt.
+       Keying on the baseline's PRESENCE as well would re-open exactly that:
+       `capture_edit_baseline`'s catch sets the baseline null (see there), and a null
+       baseline fails that conjunct, so the next rebuild in the same session would recapture
+       and fold. The token is stamped on every capture ATTEMPT, success or not, which makes
+       it the honest "have I already tried this board in this session" marker.
+       A different board id/key still recaptures (this controller is a singleton), and
+       `reset_edit_baseline` nulls the token so a new session recaptures too. */
+    if(this._edit_baseline_token === token) {
       return;
     }
     this.capture_edit_baseline();
     this._edit_baseline_token = token;
   },
 
+  /* Marks that the baseline for THIS edit session has already been taken. Cleared when
+     edit mode is entered, so a new session gets a fresh snapshot. */
   capture_edit_baseline: function() {
+    /* Snapshots the dirty keys the BUILD itself wrote, so later comparisons can tell the
+       build's own writes apart from the user's. WHEN this may run is decided by the caller:
+       `rebaseline_after_build` is the only call site, and its token guard is what keeps a
+       rebuild from folding unsaved work in — see the reasoning there.
+       On a throw the baseline is left NULL, which `edit_session_has_changes` treats as
+       "there are changes" (`if(!base) { return true; }`) — the fail-safe direction. Note the
+       token is still stamped by the caller, so a failed capture is not retried for this board
+       in this session; the user is prompted rather than silently measured against nothing. */
     var base = {};
     try {
       var model = this.get('model');
@@ -4509,7 +4714,35 @@ export default Controller.extend(prefClasses, {
     _this.get('stashes').persist('copy_on_save', null);
     // Discard unsaved changes: rollback Ember Data model and reload fresh from server
     _this.get('model').rollbackAttributes();
-    _this.set('ordered_buttons', null);
+    /* Rebuild from LOCAL state immediately, so the refetch below is a pure refresh whose
+       failure is harmless. `ordered_buttons` used to be nulled here and only ever rebuilt by
+       the ajax SUCCESS handler, inside `if(merged)` — so an offline cancel, a falsy payload,
+       an isDestroyed return, or one of `_build_from_raw`'s own early returns left the board
+       permanently blank: the communicator's whole vocabulary gone, with no message and no
+       error. Same instinct already recorded at :2714-2718 for the refetch observer ("leave
+       the stale render in place rather than blanking the grid").
+
+       `rollbackAttributes()` above has already restored the committed server values, so this
+       renders the pre-edit board — not the edits being discarded. `edit_mode` was cleared at
+       :4667, so `_build_from_raw` takes its `use_ember = false` branch and produces
+       speak-mode plain objects, which is what this grid needs.
+
+       DEEP COPY, and that is load-bearing. `app/transforms/raw.js` is an identity transform,
+       so Ember Data stores the REFERENCE for `buttons`/`grid` (models/board.js:906-907) and
+       `model.get('buttons')` after a rollback IS the committed `_data` array. Assigning it
+       directly would alias `_last_raw` to `_data`; `paint_button` (:9485-9498, the "Also update the model's raw buttons" block) mutates those
+       objects in place, so the NEXT edit session would paint straight into the committed
+       baseline, the record would never dirty, and `rollbackAttributes()` would silently
+       become a no-op — discarded paint would stick for good. Note this is why the
+       `saveButtonChanges` sync at :5929 can assign directly and this one cannot: that
+       one assigns `process_for_saving()` output, a fresh array with no store identity. */
+    if(_this._last_raw) {
+      try {
+        _this._last_raw.buttons = JSON.parse(JSON.stringify(_this.get('model.buttons') || []));
+        _this._last_raw.grid = JSON.parse(JSON.stringify(_this.get('model.grid') || null));
+        _this.processButtons();
+      } catch(e) { /* malformed payload — fall through to the refetch below */ }
+    }
     _this.set('board_loading', true);
     var board_key = _this.get('user.user_name') + '/' + _this.get('boardname');
     persistence.ajax('/api/v1/boards/' + board_key, { type: 'GET' }).then(function(data) {
@@ -4649,15 +4882,90 @@ export default Controller.extend(prefClasses, {
      an extra "column", so it must never show more tiles than a board column has
      buttons — i.e. cap it at the board's row count (5 rows → max 5 predictions,
      3 rows → max 3). Falls back to the full list if the row count isn't known. */
+  /* One ghost per rail ROW, MINUS ONE. The empty state used to render a fixed six, which
+     overran the panel on any board with fewer rows; a bottom mask hid the overrun by fading
+     it, and that fade also dimmed the last ghost when it DID fit.
+     The -1 is what makes the fade unnecessary rather than merely less visible: the glyph and
+     copy sit ABOVE the ghosts in the same box and consume roughly a row of height, so a
+     ghost per row still overruns. Giving that row back to the message guarantees the last
+     ghost is whole, which is the whole point — a part-drawn placeholder reads as breakage.
+     TWO rows are given back at <=1024px: that is where the panel is narrowest (the stylesheet
+     drops it to 80px, and 60/53px on a many-column board), so the copy wraps to more lines and
+     the message block takes closer to two rows. Same breakpoint the sidebar/rail widths use,
+     so the two stay in step. Keyed on app_state.window_inner_width rather than matchMedia so
+     the count actually recomputes on resize.
+     Floored at 1 so a very short board still shows the affordance. Rows come from the same
+     source as prediction_rail_suggestions below, so ghosts land in the slots real
+     predictions will occupy. */
+  prediction_ghost_slots: computed('current_grid.rows', 'app_state.window_inner_width', function() {
+    var rows = parseInt(this.get('current_grid.rows'), 10) || 4;
+    var width = parseInt(this.get('app_state.window_inner_width'), 10) || 0;
+    var reserved = (width > 0 && width <= 1024) ? 2 : 1;
+    return new Array(Math.max(1, Math.min(rows, 8) - reserved)).fill(1);
+  }),
+
+  /* The BELOW-BAR panel is horizontal, so its capacity is the board's COLUMN count, not its
+     rows. Capped at 8 to match the server's own clamp (words_controller.rb) and floored at 1
+     so a single-column board still shows something. Sliced rather than wrapped: the panel has
+     a FIXED height by design, so an extra row of tiles would be clipped rather than shown. */
+  /* Ghost slots for the BELOW-BAR empty state. Horizontal, so it counts COLUMNS, and two are
+     given back to the glyph + copy that sit to the LEFT of the ghosts in that panel (the rail
+     stacks them above instead, and reserves rows for the same reason). Floored at 1 so a
+     narrow board still shows the affordance. */
+  prediction_below_ghost_slots: computed('current_grid.columns', function() {
+    var cols = parseInt(this.get('current_grid.columns'), 10) || 4;
+    return new Array(Math.max(1, Math.min(cols, 8) - 2)).fill(1);
+  }),
+
+  prediction_below_suggestions: computed('prediction_suggestions.[]', 'current_grid.columns', function() {
+    var list = this.get('prediction_suggestions') || [];
+    var cols = parseInt(this.get('current_grid.columns'), 10) || 0;
+    var cap = Math.max(1, Math.min(cols || list.length, 8));
+    return list.length > cap ? list.slice(0, cap) : list;
+  }),
+
   prediction_rail_suggestions: computed('prediction_suggestions.[]', 'current_grid.rows', function() {
     var list = this.get('prediction_suggestions') || [];
     var rows = parseInt(this.get('current_grid.rows'), 10) || 0;
     return (rows > 0 && list.length > rows) ? list.slice(0, rows) : list;
   }),
 
-  grid_style: computed('current_grid.columns', 'current_grid.rows', function() {
-    var cols = this.get('current_grid.columns');
-    var rows = this.get('current_grid.rows');
+  /* The HORIZONTAL in-bar group, which is a different surface with a different constraint.
+     It is `display: inline-flex` with no wrap, no max-width and no overflow handling
+     (app.scss ~74162), and it shows at widths ABOVE 1024px where the rail is hidden — so it
+     has no row count to size against and nothing to stop it running off the end of the
+     speak bar.
+     It used to render `prediction_suggestions` directly, which was safe only while the
+     lookup cap was a flat 5. Now that the cap is sized to the board's rows (up to 8) for the
+     rail's benefit, this surface needs its own explicit 5 or a tall board would push pills
+     out of the bar. Not a new limit — it is the limit this surface already had. */
+  prediction_bar_suggestions: computed('prediction_suggestions.[]', function() {
+    var list = this.get('prediction_suggestions') || [];
+    return list.length > 5 ? list.slice(0, 5) : list;
+  }),
+
+  /* While the grid is still being built `ordered_buttons` is null, so current_grid is
+     {rows: 0, columns: 0} and this emitted NOTHING -- leaving the element on app.scss's
+     `--board-columns: 4 / --board-rows: 3` defaults (:80815). A 14-column board therefore
+     laid out as a 4x3 placeholder and SNAPPED to its real shape when the buttons landed,
+     moving every cell. On a board people navigate by position and muscle memory, that
+     reflow trains the eye to the wrong place.
+
+     The board's own saved grid is already on the model by then -- the show/tree payload
+     carries `grid` (lib/json_api/board.rb:22-27 strips it only on the paginated list
+     branch) -- and the two cannot disagree, because _build_from_raw iterates exactly
+     grid.rows x grid.columns and pushes a placeholder for every empty cell (:1901-1928).
+
+     Kept at THIS consumer rather than pushed into current_grid on purpose: current_grid
+     has eleven other readers, and :2964 / :3378 use it for the `max_results` / `count`
+     sent to the SERVER, so widening it there would change request payloads to fix a
+     layout problem. board_many_columns (:4288) already takes the same consumer-level
+     fallback. `model.grid.*` are dependent keys because a read that happens before the
+     model is attached would otherwise cache the empty string for good. */
+  grid_style: computed('current_grid.columns', 'current_grid.rows',
+                       'model.grid.columns', 'model.grid.rows', function() {
+    var cols = this.get('current_grid.columns') || this.get('model.grid.columns');
+    var rows = this.get('current_grid.rows') || this.get('model.grid.rows');
     var parts = [];
     if(cols && cols > 0) { parts.push('--board-columns: ' + cols); }
     if(rows && rows > 0) { parts.push('--board-rows: ' + rows); }
@@ -4716,7 +5024,7 @@ export default Controller.extend(prefClasses, {
   // `portrait_overlay_dismissed` is the per-board arm-state; once they pick "Continue
   // Anyway", the service's `larger_screen_dismissed` suppresses it for the rest of the
   // session everywhere in the app, and keeps the per-board flag from re-arming.
-  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'overlay_dismissals.larger_screen_hidden', 'board_collection_open', 'edit_board_collection_open', function() {
+  portrait_overlay_active: computed('portrait_overlay_eligible', 'portrait_overlay_dismissed', 'overlay_dismissals.larger_screen_hidden', 'board_collection_open', 'edit_board_collection_open', 'grouping_active', function() {
     // Hidden because the user turned the helper messages off in Preferences, or because
     // they chose "Continue Anyway" anywhere in the app this session.
     if(this.get('overlay_dismissals.larger_screen_hidden')) { return false; }
@@ -4726,6 +5034,15 @@ export default Controller.extend(prefClasses, {
     // recommendation on a wide viewport. Suppress the overlay while a collection drawer is
     // open — the screen itself isn't small, so the recommendation doesn't apply.
     if(this.get('board_collection_open') || this.get('edit_board_collection_open')) { return false; }
+    /* Category grouping does the same thing to the measurement, for the same reason.
+       _sync_prediction_tile_size measures the first `.md-board-detail-grid__cell`, and
+       while grouping is in force the grid is packed into compact category columns
+       (BoardDetailGrid#compactCategories / pack_category_tiles) — so what gets measured is
+       a packed category tile, not a board button, and it trips the <35px floor and the
+       lopsided-aspect test on ANY viewport width. Suppressed here rather than in
+       portrait_overlay_eligible so the measurement keeps reporting what it measured, and
+       so the recommendation returns by itself the moment grouping goes back off. */
+    if(this.get('grouping_active')) { return false; }
     return this.get('portrait_overlay_eligible') && !this.get('portrait_overlay_dismissed');
   }),
 
@@ -6371,17 +6688,32 @@ export default Controller.extend(prefClasses, {
     return !!intent !== !!this.get('categorize_enabled');
   }),
 
-  categorize_enabled: computed('board_category_settings', function() {
-    // Must use the SAME test as BoardDetailGrid#groupingEnabled (`=== true`), or the
-    // Categorize switch reads On while the board it describes is ungrouped.
-    return (this.get('board_category_settings') || {}).enabled === true;
-  }),
+  /* PER-USER, not per-board — and deliberately NOT read through
+     `board_category_settings`, which still resolves the per-board entry for the DISPLAY
+     sub-preferences below it.
+
+     Grouping used to resolve per board with the account-wide value only as a fallback,
+     while the switch wrote nothing but the per-board slot. That combination made a stray
+     account-wide `enabled: true` unreachable: turning the switch off wrote
+     `boards[<key>] = {enabled:false}` and left the top level alone, so every board
+     WITHOUT an entry of its own kept falling back to it and came up grouped. Reading and
+     writing the same single value is what makes the switch able to turn grouping off. */
+  categorize_enabled: computed(
+    'app_state.referenced_user.preferences.board_category_grouping.enabled',
+    function() {
+      // Must use the SAME test as BoardDetailGrid#groupingEnabled (`=== true`), or the
+      // Categorize switch reads On while the board it describes is ungrouped.
+      return this.get('app_state.referenced_user.preferences.board_category_grouping.enabled') === true;
+    }
+  ),
 
   /* Persist the grouping preference. Follows the documented 3-touch idiom: the
      nested set alone does not reliably mark the raw `preferences` attr dirty, so
      `preferences.device.updated` is poked before save or ember-data may never
      ship the change (see LEARNINGS "a new user preference is a 3-touch change").
-     Writes the WHOLE sub-hash so enabled and order always move together. */
+     Writes the WHOLE sub-hash, so every sub-preference must be carried through. `enabled`
+     is PER-USER and lands at the top level; the display sub-preferences land in the
+     board's own slot. */
   _save_category_grouping: function(changes) {
     /* Write to the user the board is FOR — see the note in board-detail-grid.js. A
        supervisor modelling for a communicator changes THAT communicator's setting; on
@@ -6402,11 +6734,18 @@ export default Controller.extend(prefClasses, {
        cannot drift apart and disagree about the same board. */
     var write_ref = board_key || board_id;
     var current = ref.entry || all;
+    /* `enabled` is PER-USER: resolved from the top level (see categorize_enabled) and
+       therefore computed from `all`, never from this board's entry. `=== true`, matching
+       groupingEnabled. With `!== false` an ABSENT preference read as enabled, so saving an
+       order-only change (a move arrow, or Reset order) silently turned grouping ON for a
+       user who had never opted in. */
+    var next_enabled = changes.enabled === undefined ? (all.enabled === true) : !!changes.enabled;
+    /* NO `enabled` KEY. A board entry describes only how a grouped board is DISPLAYED;
+       whether grouping is on at all is per-user and lives at the top level. The server
+       drops the key from entries too (user.rb#sanitize_board_category_grouping!, the
+       `include_enabled` argument), so an entry written before this change loses it on its
+       next save. */
     var next = {
-      /* `=== true`, matching groupingEnabled. With `!== false` an ABSENT preference read
-         as enabled, so saving an order-only change (a move arrow, or Reset order)
-         silently turned grouping ON for a user who had never opted in. */
-      enabled: changes.enabled === undefined ? (current.enabled === true) : !!changes.enabled,
       order: changes.order || normalizeCategoryOrder(current.order),
       /* Sub-preferences MUST be carried through every save. This object REPLACES the
          stored hash wholesale, so a key omitted here is dropped — toggling Categorize
@@ -6416,9 +6755,10 @@ export default Controller.extend(prefClasses, {
 
          `!== false` here, NOT `=== true`: absent means TRUE for these two, because both
          describe what the grouped board already does (headers render, grid scrolls). The
-         `enabled` flag above is the opposite — absent means OFF — because turning
-         grouping on for someone who never asked is a clinical change, whereas keeping
-         today's rendering is the safe default. Same reasoning as the Rails defaults. */
+         account-wide `enabled` computed above is the opposite — absent means OFF — because
+         turning grouping on for someone who never asked is a clinical change, whereas
+         keeping today's rendering is the safe default. Same reasoning as the Rails
+         defaults. */
       show_category_names: changes.show_category_names === undefined
         ? (current.show_category_names !== false)
         : !!changes.show_category_names,
@@ -6430,45 +6770,44 @@ export default Controller.extend(prefClasses, {
        entry untouched. The whole hash is replaced (that is what makes the sub-key echo
        below necessary), so `boards` has to be rebuilt here rather than mutated in place. */
     var boards = {};
+    /* Other boards' entries are copied VERBATIM, so one written before the per-board
+       `enabled` was retired still carries the dead key through this save. The server strips
+       it from every entry on write (`sanitize_board_category_grouping!` sanitizes the whole
+       `boards` map, not just the one that changed), so scrubbing it again here would be
+       redundant. */
     Object.keys(all.boards || {}).forEach(function(k) { boards[k] = all.boards[k]; });
     var previous = user.get('preferences.board_category_grouping');
-    var written;
     if(write_ref) {
       boards[write_ref] = next;
       /* Retire the id-keyed entry this board used to be stored under, now that the same
          settings live under its key. Left in place it would be a second description of
          one board that the resolver never reads again. */
       if(ref.legacy && ref.ref && ref.ref !== write_ref) { delete boards[ref.ref]; }
-      written = {
-        enabled: all.enabled === true,
-        order: normalizeCategoryOrder(all.order),
-        show_category_names: all.show_category_names !== false,
-        vertical_scroll: all.vertical_scroll !== false,
-        boards: boards
-      };
-    } else {
-      /* NO BOARD REFERENCE -> WRITE NOTHING. This used to fall back to writing the USER
-         DEFAULT ("so the control still does something"), which is the wrong failure
-         direction and was the actual cause of categories switching themselves on:
+    } else if(changes.enabled === undefined) {
+      /* NO BOARD REFERENCE, and this change needs one -> WRITE NOTHING.
+         `write_ref` is `board_key || board_id`, and this save runs inside a double
+         requestAnimationFrame (see toggle_categorize), so mid-transition both can be null.
+         The DISPLAY sub-preferences below are stored per board and have nowhere to go
+         without one; writing them to the account default would apply one board's choice to
+         every board, which is how categories were once observed switching themselves on.
 
-           `write_ref` is `board_key || board_id`, and this save runs inside a double
-           requestAnimationFrame (see toggle_categorize). If the model is not resolved at
-           that moment — mid-transition, a board still loading — both are null, so a toggle
-           meant for ONE board silently rewrote `preferences.board_category_grouping.enabled`
-           at the TOP LEVEL. `board_category_settings` falls back to that top level for every
-           board WITHOUT an override, so one mistimed toggle turned grouping on for the whole
-           account: every board the user opened afterwards came up categorised, including
-           boards they had never touched and boards reached via "Try this Board".
-           (Observed: an account with top-level `enabled: true` and an EMPTY `boards` map —
-           the signature of this path rather than a normal per-board write.)
-
-         Grouping MOVES vocabulary out of the cells a communicator has motor memory for, so
-         the account-wide default must only ever change through a deliberate act on a real
-         board. If we cannot tell which board this is, the correct outcome is to do nothing. */
-      console.error('board-detail: ignoring a Categorize change with no board reference — ' +
-                    'refusing to write the account-wide default');
+         An `enabled` change is exempt because it is PER-USER: it has no per-board target to
+         be unsure of, so a missing board reference costs it nothing. Refusing it here would
+         only drop a legitimate account-wide toggle. */
+      console.error('board-detail: ignoring a per-board category change with no board ' +
+                    'reference — refusing to write it to the account default');
       return;
     }
+    /* One account-wide hash, built once for both paths. `enabled` is the user's, so it
+       takes `next_enabled`; the other three stay the account defaults and are overridden
+       per board through `boards` above. */
+    var written = {
+      enabled: next_enabled,
+      order: normalizeCategoryOrder(all.order),
+      show_category_names: all.show_category_names !== false,
+      vertical_scroll: all.vertical_scroll !== false,
+      boards: boards
+    };
     user.set('preferences.board_category_grouping', written);
     /* `preferences.device` may not exist on the record — setting a nested path through a
        missing object throws "object in path could not be found", which would abort this
@@ -6792,6 +7131,11 @@ export default Controller.extend(prefClasses, {
       }
     },
     enter_edit_mode: function() {
+      /* New session, new baseline. `reset_edit_baseline` clears BOTH the snapshot and the
+         board token, and the token is what `rebaseline_after_build` keys its
+         no-recapture guard on — so clearing it here is what lets the first build of this
+         session take a fresh snapshot. */
+      this.reset_edit_baseline();
       var _this = this;
       var app_state = this.get('app_state');
       // Gate on the speak-mode PIN when configured — same pattern as
@@ -6945,6 +7289,12 @@ export default Controller.extend(prefClasses, {
       }
     },
 
+    /* Un-Flip, from the control at the far left of the sentence bar. Calls the SAME toggle the
+       speak-menu "Flip Text" control uses (services/app-state.js:2487), so the two stay in sync
+       and the menu's label reverts to "Flip Text" on its own. */
+    flip_text: function() {
+      this.get('app_state').flip_text();
+    },
     toggle_focus: function() {
       // Menu click can bubble/re-fire the action; debounce rapid re-invocations.
       var now = Date.now();
@@ -7259,10 +7609,22 @@ export default Controller.extend(prefClasses, {
       );
     },
 
+    /* COMMENTED OUT 2026-08-31 — the manual modeling pause/resume control was replaced by a
+       read-only "Modeling" badge in board-detail.hbs, pending verification. Kept rather than
+       deleted so both halves can be restored together; the template block is commented out
+       in the same pass and was its ONLY caller (verified: no other template, route, test or
+       `data-bd-action` referenced it).
+
+       NOT commented out, and must not be: `modeling_paused` itself. The edit route still
+       writes it (routes/user/board-detail/edit.js:69 / :126) and app-state.js:4072 reads it
+       to keep a supervisor's taps while editing out of the communicator's report data.
+       Removing this action removes the manual toggle only.
+
     toggle_modeling_pause: function() {
       var appState = this.get('app_state');
       appState.set('modeling_paused', !appState.get('modeling_paused'));
     },
+    */
 
     /* G3: `toggle_details_dropdown` and `details_dropdown_keydown` were deleted
        2026-08-24. They drove the "Details & Actions" dropdown that the
