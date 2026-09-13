@@ -14,10 +14,12 @@ into an unrelated PR.
 ## Rules
 
 - **Register drift is a merge blocker, not a style nit.** The
-  `audit-artifacts-integrity` CI job runs five `--check` scripts
+  `audit-artifacts-integrity` CI job runs the register `--check` scripts
   (`compliance-calendar-render.rb`, `compliance-notion-publish.rb`,
   `document-register-render.rb`, `compliance-publication-status.rb`,
-  `capability-check.rb`). A PR that edits `audit-reports/FINDINGS.json` or
+  `capability-check.rb`) plus the attestation hash guard, the legal naming
+  check, `register-lint.rb`, and the register consumer smoke test. A PR that
+  edits `audit-reports/FINDINGS.json` or
   `audit-reports/DOCUMENT-REGISTER.json` without regenerating the
   corresponding rendered artifact will fail this gate. Verify by actually
   running the `--check` scripts, not by reading the diff.
@@ -31,10 +33,13 @@ into an unrelated PR.
   current.
 
 - **Flaky `persistence-sync` timing failures on `main`-targeting PRs are CI
-  noise, not a regression the PR introduced.** `main` has no required
-  status checks, so this does not block merge; do not raise it as a
-  blocking finding unless the PR's diff touches `persistence.js` sync logic
-  directly. -- source: `reference_main_build_and_test_persistence_sync_flake`.
+  noise, not a regression the PR introduced.** `main` does require
+  `build-and-test` (six required checks, `enforce_admins` on), so the flake
+  blocks merge until the job is re-run; note it as CI noise and ask for a
+  rerun, but do not raise it as a blocking code finding unless the PR's diff
+  touches `persistence.js` sync logic directly.
+  -- source: `reference_main_build_and_test_persistence_sync_flake`; protection
+  re-read 2026-09-12.
 
 - **A negative existence claim ("file X does not exist") requires the same
   evidence standard as a positive claim.** Search all roots (`lib/`, `app/`,

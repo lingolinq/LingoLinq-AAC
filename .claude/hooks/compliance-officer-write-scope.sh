@@ -127,7 +127,12 @@ exec ruby -rjson -rpathname -e '
   c = cmd.gsub(/\s+/, " ").strip
   c = c.sub(/\A(env\s+)?((?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)+)/, "")
 
-  git_pre = /(?:(?:-c\s+\S+|-C\s+\S+|--?[A-Za-z][\w-]*(?:=\S+)?)\s+)*/
+  git_pre = /(?:(?:-c\s+\S+|-C\s+\S+|--?[A-Za-z][\w-]*(?:=\S+|\s+[^-\s]\S*)?)\s+)*/
+  # Command position: start of string, or right after a pipe / chain / subshell boundary,
+  # optionally behind sudo, env, or leading VAR=value assignments. Patterns that name a
+  # command (not a verb inside one) must be anchored here, otherwise the officer cannot
+  # `cat` or `git log` a script it is only allowed to run in --check mode.
+  cmd_pos = /(?:\A|[|;&]|\|\||&&|`|\$\()\s*(?:sudo\s+)?(?:env\s+)?(?:[A-Za-z_]\w*=\S*\s+)*/
 
   patterns = [
     # File output redirection (allow >/dev/null, >&2, 2>&1, &>/dev/null)
@@ -135,10 +140,39 @@ exec ruby -rjson -rpathname -e '
     [ /\btee\b/, "tee writes files" ],
     [ /\bsed\b[^|]*\s-[a-z]*i(?:\b|\.)/, "sed -i edits in place" ],
     [ /(?<![\w\/-])(python3?|node|nodejs|ruby|perl|php|deno|bun|Rscript|osascript|gawk|awk)\b[^|]*\s(-(?:[A-Za-z]*[ecrniEW])\b|--(?:eval|exec|require|inplace|in-place|command)\b)/, "interpreter eval flag can write files" ],
-    [ /(?<![\w\/-])(npx|bunx|pnpx|make|just|task|gulp|grunt|mvn|gradle|rake)\b/, "task runner / npx can run arbitrary writes" ],
+    [ /(?<![\w\/-])(npx|bunx|pnpx|make|just|task|gulp|grunt|mvn|gradle)\b/, "task runner / npx can run arbitrary writes" ],
+    # rake: deny every invocation except the read-only task listing (`rake -T` / `--tasks`).
+    [ /\brake\b(?![^|;&]*\s(?:-T|--tasks)\b)/, "rake task can mutate state" ],
     [ /(?<![\w-])(rm|mv|cp|mkdir|rmdir|touch|truncate|chmod|chown|ln)\b/, "filesystem mutation command" ],
     [ /\bgit\s+#{git_pre}(commit|push|merge|rebase|reset|checkout|switch|tag|am|apply|cherry-pick|stash|clean|rm|mv|add|restore|revert|worktree)\b/, "git state mutation" ],
-    [ /\bgh\s+(?:pr|issue|release|repo|api|workflow|run)\b/, "gh can mutate GitHub state" ],
+    # gh: read subcommands (pr view/diff/checks/list, issue view, run view/list, workflow
+    # view/list, release view/list, api GET) stay allowed. The mutating verb is matched in the
+    # position gh puts it, `gh <noun> <verb>`, not anywhere later in the line: the earlier
+    # `.*\b(verb)\b` form denied `gh run list --workflow codex-review.yml` because the
+    # FILENAME contains "review", and allowed `gh workflow run deploy-cloudrun.yml` because
+    # "run" was missing from the list. `run` (workflow dispatch), `upload`, `delete-asset`,
+    # `clone`, `fork`, `ready`, `update-branch`, `transfer`, `pin`, `develop` are all writes.
+    # Nouns cover account and machine state too (`gh auth token` prints the live GitHub token;
+    # `gh ssh-key add`, `gh alias set`, `gh config set`, `gh extension install`, `gh codespace`
+    # are account or host writes). Same list as audit-readonly-guard.sh.
+    [ /\bgh\s+#{git_pre}(pr|issue|release|repo|gist|secret|variable|workflow|run|label|project|ruleset|cache|auth|ssh-key|gpg-key|alias|config|codespace|cs|extension|ext)\s+#{git_pre}(create|merge|close|edit|comment|delete|delete-asset|review|reopen|lock|unlock|rerun|cancel|watch|dispatch|run|upload|sync|set|add|remove|enable|disable|checkout|clone|fork|ready|update-branch|transfer|pin|unpin|develop|archive|unarchive|rename|deploy-key|link|unlink|mark-template|copy|item-\w+|field-\w+|token|login|logout|refresh|setup-git|switch|install|upgrade|exec|import|clear-cache|ssh|code|rebuild|stop|jupyter|ports)\b/, "mutating gh command (or one that prints a credential)" ],
+    [ /\bgh\s+#{git_pre}api\b[^|;&]*-X\s*(POST|PUT|PATCH|DELETE)/i, "gh api non-GET write" ],
+    # Body-carrying flags: -f/-F (short), --field/--raw-field (their long forms), --input;
+    # --method in both `--method POST` and `--method=POST` spellings.
+    [ /\bgh\s+#{git_pre}api\b[^|;&]*(?:\s-[fF]\b|--field\b|--raw-field\b|--input\b|--method[\s=]+(POST|PUT|PATCH|DELETE)\b)/i, "gh api with a write body" ],
+    # Register artifacts: the Write-tool allowlist forbids FINDINGS.md, FINDINGS.json and the
+    # rendered register files, and each script below rewrites one of them (File.write) in its
+    # default mode. Only the verify-only forms are allowed: `--check` for the renderers, and
+    # `--help`/`-h` for the two register writers that have no check mode (audit-merge.rb and
+    # promote-finding.rb). citation-check.rb is read-only except with `--render`.
+    # Anchored to command position (cmd_pos, optionally behind `ruby`/`bash` and a path) so
+    # reading or grepping the script (`cat scripts/audit-merge.rb`, `git log -- scripts/...`)
+    # stays allowed. The lookaheads stop at `;`/`&`/`|` so a chained `; ... --check` cannot
+    # license the write in front of it.
+    [ /#{cmd_pos}(?:(?:bundle\s+exec\s+)?ruby\s+)?(?:\S*\/)?citation-check\.rb\b[^|;&]*--render\b/, "citation-check.rb --render rewrites FINDINGS.md" ],
+    [ /#{cmd_pos}(?:bash\s+|sh\s+)?(?:\S*\/)?regenerate-register\.sh\b(?![^|;&]*--check\b)/, "regenerate-register.sh without --check rewrites register artifacts" ],
+    [ /#{cmd_pos}(?:(?:bundle\s+exec\s+)?ruby\s+)?(?:\S*\/)?(document-register-render|compliance-notion-publish|compliance-calendar-render|compliance-publication-status|capability-check)\.rb\b(?![^|;&]*--check\b)/, "register renderer without --check rewrites register artifacts" ],
+    [ /#{cmd_pos}(?:(?:bundle\s+exec\s+)?ruby\s+)?(?:\S*\/)?(audit-merge|promote-finding)\.rb\b(?![^|;&]*\s(?:-h|--help)\b)/, "audit-merge.rb / promote-finding.rb rewrite FINDINGS.json" ],
     [ /\b(npm|pnpm|yarn|bundle|gem|pip|pip3|brew|apt|apt-get|cargo)\s+(i|install|add|update|upgrade|remove|uninstall|publish)\b/, "package mutation" ],
     [ /\b(rails|bin\/rails|bundle\s+exec\s+rails)\b[^|]*\b(db:|generate|g\b|destroy|d\b|runner|console|c\b|dbconsole)/, "rails mutation or live console" ],
     [ /\b(bundle\s+exec\s+)?rake\b[^|]*\b(db:|environment|stats|extras:)/, "rake task can mutate state" ],

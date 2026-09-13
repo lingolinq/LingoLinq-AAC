@@ -3,6 +3,16 @@
 **Status: APPROVED 2026-07-28.** All three open fields set by Scot. Effective on
 merge into LingoLinq-AAC.
 
+> **Operational note, 2026-09-12:** the premises below have moved.
+> `codex-review/deep-pass` is currently **not** a required status check on
+> `develop`, `staging` or `main` (it was dropped during the 2026-08 reviewer
+> outage), `CODEX_OPENAI_API_KEY` was re-provisioned on 2026-08-04, and the
+> gate has not dispatched since that date. While the check is not required
+> there is nothing for `--admin` to override, so this policy is dormant. It
+> comes back into force when the check is re-added to protection as part of
+> the revival (see the status banner in `.github/codex/README.md`). The
+> approved text below is left unchanged.
+
 Resolves Fork 2 of the codex-review gate plan (ai-company-brain
 `outputs/plans/2026-07-28-codex-review-gate-plan.md`).
 Audit log: `audit-reports/deep-pass-admin-overrides.md`.

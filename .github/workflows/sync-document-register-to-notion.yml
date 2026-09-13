@@ -6,10 +6,11 @@ name: Sync document register to Notion
 # Needs Scot decision) are never touched. The register is PII-free (titles, paths/URLs, hashes)
 # -- Tier 2 content, no identifiers.
 #
-# Inert until set up: the job is guarded on the NOTION_DOCS_DB_ID repo variable, so it is a
-# no-op until Scot (1) creates the Notion DB with the schema in document-register-notion-sync.rb,
-# (2) shares it with the COMPLIANCE API integration, and (3) sets the repo variable
-# NOTION_DOCS_DB_ID. The NOTION_TOKEN secret is already configured for the findings sync.
+# Guarded on the NOTION_DOCS_DB_ID repo variable: the job is a no-op when it is unset. The
+# variable is set and the sync is live (last success 2026-09-08). To point it at a different
+# board: create the Notion DB with the schema in document-register-notion-sync.rb, share it
+# with the COMPLIANCE API integration, and update the variable. NOTION_TOKEN is shared with
+# the findings sync.
 
 on:
   push:
@@ -22,9 +23,13 @@ concurrency:
   group: notion-document-register-sync
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: ${{ vars.NOTION_DOCS_DB_ID != '' }}
     steps:
       - uses: actions/checkout@v6

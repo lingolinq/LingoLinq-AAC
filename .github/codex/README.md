@@ -1,5 +1,16 @@
 # Codex review pipeline
 
+> **Status 2026-09-12: dormant, revival in progress.** The last dispatched run
+> was 2026-08-04; PRs merged since then carry no `codex-review/deep-pass` status,
+> and the check is not in the required set on develop, staging or main. The
+> n8n W1 webhooks are still registered, so the stop is on the n8n side. Revival
+> checklist: (1) restore W1 dispatch in n8n, (2) confirm `CODEX_OPENAI_API_KEY`
+> still authenticates (it was re-provisioned 2026-08-04), (3) run one smoke PR,
+> (4) re-add `codex-review/deep-pass` to branch protection on develop and
+> staging, (5) decide the canary variables (see Evidence modes). Until (4) the
+> `--admin` exception policy in `docs/process/deep-pass-admin-exception-policy.md`
+> has nothing to override.
+
 `codex-review.yml` is dispatched by the n8n W1 orchestrator and reports the
 Actions-owned `codex-review/deep-pass` commit status. W2 owns the sticky PR
 comment. The workflow keeps routing, head-SHA binding, and final status
@@ -15,7 +26,7 @@ amending it there is registry drift. Approval authority is Scot.
 
 | Row | Credential | Approved model ids | Tier |
 | --- | --- | --- | --- |
-| Codex CLI (CI `codex-review` gate) | OpenAI platform API key, pay-per-use, project-scoped, no BAA | `gpt-5.6-terra` (default), `gpt-5.6-luna` | Tier 2 dev-loop only |
+| Codex CLI (CI `codex-review` gate) | OpenAI platform API key, pay-per-use, project-scoped, no BAA | `gpt-5.6-terra` (both legs) | Tier 2 dev-loop only |
 | Codex CLI (interactive / local) | Consumer OpenAI OAuth, no BAA | `gpt-5.6-terra` (default), `gpt-5.6-sol` (careful) | Tier 2 dev-loop only |
 
 `gpt-5.6-sol` is approved for the interactive row ONLY and must not be used by
@@ -27,9 +38,11 @@ CI-computed structural index, never raw code. A defect the chunk pass misses is
 therefore unreachable to synthesis, so detection strength has to live on the
 chunk leg. Convergence does not substitute for it: runs 2 and 3 re-sample the
 same model on the same prompt, which corrects sampling variance, not a blind
-spot. `gpt-5.6-luna` remains registry-approved as an A/B comparison arm, but
-moving it onto the production detection path is a reviewer-strength change, not a
-config tweak: it takes a PR that edits `DEFAULT_CHUNK_MODEL` in
+spot. `gpt-5.6-luna` is **not approved and not deployed** on any leg (the
+registry says so explicitly; an earlier revision of this file called it an A/B
+arm, which was registry drift). Moving any leg to a different model is a
+reviewer-strength change, not a config tweak: it takes a registry row from Scot
+plus a PR that edits `DEFAULT_CHUNK_MODEL` / `DEFAULT_SYNTHESIS_MODEL` in
 `scripts/codex-review-run-chunks.py`, and review.
 
 **Neither id is runtime-overridable, deliberately.** An earlier revision read
@@ -65,16 +78,18 @@ author's PRs.
 - `none`, `off`, or `bounded` force the bounded path.
 - any unknown value fails safe to the bounded path.
 
-During the first-week canary, set:
+During the first-week canary (started 2026-07-23), the variables were set to:
 
 ```text
 CODEX_REVIEW_EVIDENCE_MODE=chunked
 CODEX_REVIEW_CHUNKED_SCOPE=scot
 ```
 
-Leave both variables unset to keep production on the bounded path. After the
-canary, switch `CODEX_REVIEW_CHUNKED_SCOPE=all` to expand chunked evidence
-repo-wide. Record the effective evidence mode in the envelope and
+They are still set that way as of 2026-09-12 and the canary was never closed
+out, so when the gate is revived, non-Scot PRs would get the bounded path
+(60,000-byte truncated diff). Revival step (5): either switch
+`CODEX_REVIEW_CHUNKED_SCOPE=all` to expand chunked evidence repo-wide, or unset
+both variables to keep everyone on the bounded path. Record the effective evidence mode in the envelope and
 sticky-comment payload so a later audit can tell which path produced a verdict.
 
 ## Chunked evidence contract
@@ -220,10 +235,12 @@ This is load-bearing in **at least two** places:
 1. **The status-write-failure path**, where `codex-review.yml` provably cannot
    resolve its own status because the status API is what is failing.
 2. **A hung `codex exec`.** `run_model` in `scripts/codex-review-run-chunks.py`
-   passes no `timeout=` to `subprocess.run`, so the job stalls to the 90-minute
-   ceiling and emits no `workflow_run` completion event while it hangs. The
-   scheduled sweep is the only cover, and it is a known unfixed limit rather
-   than a hypothetical status-API outage.
+   caps each `codex exec` at `CODEX_REVIEW_MODEL_CALL_TIMEOUT` seconds (default
+   1500) and retries once, so one hung call costs at most about 50 minutes before
+   that chunk is written as NEEDS_HUMAN and the run moves on. Several hung calls
+   in one run can still reach the 90-minute ceiling, and no `workflow_run`
+   completion event is emitted while a call hangs, so the scheduled sweep remains
+   the cover for that residual.
 
 Everywhere else `codex-review.yml`'s own terminal-status step (PR #702)
 resolves the status. A strict bound would need a monitor outside GitHub
@@ -253,9 +270,11 @@ a rough lower-bound throughput check, assuming the smoke had no structural
 retries (75 s / 14 invocations = about 5.4 s per invocation), 51 logical calls
 would be about 4.5 minutes of reviewer-step time. A 102-invocation case would
 be about 9 minutes only if retries fail fast. A single hung `codex exec`
-dominates that estimate and is bounded only by the 90-minute job timeout. The
-watchdog will fail the stale status, but only once it is 30 minutes old AND a
-scheduled sweep actually runs, which is best-effort and unbounded.
+dominates that estimate: it is bounded by the per-call timeout (1500 s, retried
+once, so up to about 50 minutes for that chunk), and several hung calls can
+still reach the 90-minute job timeout. Past that, the watchdog will fail the
+stale status, but only once it is 30 minutes old AND a scheduled sweep actually
+runs, which is best-effort and unbounded.
 Each model call still posts a pending-status heartbeat before it starts. Treat
 5.4 s as a floor, not an estimate: per-call latency scales with prompt size, and
 the manifest block embedded in every chunk prompt grows with chunk count.
@@ -263,12 +282,16 @@ the manifest block embedded in every chunk prompt grows with chunk count.
 Two known limits this cap raise does not address, both unchanged from the
 8-chunk canary and both currently fail-closed rather than wrong:
 
-- `run_model` passes no `timeout=` to `subprocess.run`, so a single hung
-  `codex exec` stops heartbeating and stalls the job until the 90-minute
-  ceiling. The watchdog flips the status once a scheduled sweep sees it at
-  least 30 minutes stale, so the merge gate does resolve fail-closed, but the
-  timing is best-effort: the sweep may be delayed or skipped, and the runner
-  minutes and operator wait time are spent either way.
+- `run_model` passes `timeout=` (1500 s per attempt, one retry; env
+  `CODEX_REVIEW_MODEL_CALL_TIMEOUT`) to `subprocess.run`, so a single hung
+  `codex exec` costs up to about 50 minutes and then that chunk is NEEDS_HUMAN.
+  Two residuals: the kill reaches the direct child only, so an orphaned `codex`
+  process could still write `output_path` while the retry runs; and several
+  hung calls can still push the run past the 90-minute ceiling. In that case the
+  watchdog flips the status once a scheduled sweep sees it at least 30 minutes
+  stale, so the merge gate does resolve fail-closed, but the timing is
+  best-effort: the sweep may be delayed or skipped, and the runner minutes and
+  operator wait time are spent either way.
 - The synthesis prompt embeds every chunk review verbatim
   (`chunk_result_group` keeps the full `review` object for each run), so its
   input scales with chunks times runs: up to 48 full review objects at this

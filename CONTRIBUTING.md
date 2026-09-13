@@ -17,8 +17,8 @@
 
 | Role | Who | Preview Deploys | PR Review By |
 |---|---|---|---|
-| **Core team** | Added as org collaborators | Yes -- Render auto-deploys a preview URL for every PR to `develop` | Gemini Code Assist (auto) + human reviewer |
-| **External contributors** | Anyone via fork | No preview deploy | Gemini Code Assist (auto) + core team reviewer |
+| **Core team** | Added as org collaborators | No per-PR previews; `develop` deploys to the dev environment on Cloud Run | Copilot code review (auto) + human reviewer |
+| **External contributors** | Anyone via fork | No preview deploy | Copilot code review (auto) + core team reviewer |
 
 External contributors: fork the repo, branch from `develop`, and open a PR back
 to `develop`. A core team member will review your PR and may request changes.
@@ -28,13 +28,19 @@ to `develop`. A core team member will review your PR and may request changes.
 Format: `name/type/short-description`
 
 - `name` -- your first name or GitHub username (lowercase)
-- `type` -- one of: `feat`, `fix`, `chore`, `hotfix`, `upgrade`, `release`
+- `type` -- one of: `fix`, `feat`, `chore`, `docs`, `perf`, `refactor`, `test`,
+  `compliance`, `security`; plus `hotfix` for the production hotfix flow in section 7
+  and `release` for a time-bound release branch
 - `short-description` -- 2-4 words, kebab-case
 
 Examples:
-- `melissa/feature/add-sso-login`
+- `melissa/feat/add-sso-login`
 - `scot/fix/memory-leak-puma`
 - `dom/chore/update-ember-deps`
+
+The same spec is stated in `CLAUDE.md` (Branching) and `AGENTS.md`; change all three
+together. Older branches in the `type/name-description` form may finish through merge,
+but do not start new ones that way.
 
 For hotfixes that go directly to prod: `name/hotfix/description`
 
@@ -57,18 +63,19 @@ git push -u origin yourname/feature/what-you-are-building
 Open a PR targeting `develop` on GitHub. Since `develop` is the default branch,
 GitHub will automatically set the correct target.
 
-For core team members, Render automatically creates a **preview deployment** with
-its own URL for every PR against `develop`. Use that URL to test your changes in
-isolation -- no shared environments, no stepping on each other.
+There are no per-PR preview deployments. Merging to `develop` deploys the shared
+dev environment on Cloud Run (`dev.lingolinq.com`); test there after merge, or
+run the app locally before opening the PR.
 
 ### 3. Automated AI Review
 
-Every PR automatically receives a code review from **Gemini Code Assist**. It will:
+Every PR against `develop` automatically receives a **Copilot code review**
+(enabled by a repository ruleset). It will:
 - Post a summary of your changes
 - Leave inline code suggestions
 - Flag potential issues
 
-Please read and address Gemini's feedback before requesting human review. You do
+Please read and address Copilot's feedback before requesting human review. You do
 not need to accept every suggestion, but each one should be acknowledged.
 
 AI-generated code (from Copilot, Claude, or other tools) is held to the same
@@ -131,7 +138,7 @@ These rules apply to all contributors, including admins.
 
 ## Dual-Reviewer Policy (Phase 1)
 
-In addition to the automated Gemini Code Assist review, certain PRs require a
+In addition to the automated Copilot code review, certain PRs require a
 **dual-reviewer pass** before merge: one senior-dev review and one adversary
 (red-team) review.
 
@@ -183,21 +190,24 @@ Examples:
 - `feat: add district admin dashboard`
 - `fix: resolve memory leak in Puma workers`
 - `upgrade: bump Ember from 3.20 to 3.28`
-- `chore: update Render build script for Node 20`
+- `chore: bump the Dockerfile base image to Node 22`
 
 Keep the subject line under 72 characters. Add a blank line and longer description
 if the change needs context.
 
-## Running Scripts on Render
+## Running One-off Scripts in Production
 
-Do NOT commit one-off scripts to the repo. Use the Render shell instead:
+Do NOT commit one-off scripts to the repo. Use a Cloud Run exec shell (or the
+`lingolinq-migrate` job with overridden args; see `docs/INFRASTRUCTURE.md`) and
+open the console through `bin/audit_console`, which sets `USER_KEY` so the
+session is audited and your writes are attributed:
 
 ```bash
 # Interactive console (best for ad-hoc work)
-bundle exec rails console
+bin/audit_console
 
 # One-liner
-bundle exec rails runner "User.find_by(user_name: 'test').update!(settings: {})"
+USER_KEY=you@example.com bin/rails runner "User.find_by(user_name: 'test').update!(settings: {})"
 
 # Reusable rake tasks (these ARE committed to the repo)
 bundle exec rake seed:organization

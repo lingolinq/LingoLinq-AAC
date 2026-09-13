@@ -6,9 +6,13 @@ name: Codex Review
 # owns everything that needs a real checkout: gathering live state, running
 # the reviewer, and reporting a fail-closed commit status.
 #
-# Fail-closed anchor (build spec section 1/6): `codex-review/deep-pass` is a
-# required branch-protection status check. This workflow sets it `pending`
-# as its FIRST step. Only a successful POST-and-verify to n8n W2 (job
+# Fail-closed anchor (build spec section 1/6): `codex-review/deep-pass` is
+# designed to be a required branch-protection status check. STATUS 2026-09-12:
+# it is NOT in the required set on develop, staging or main (dropped during the
+# 2026-08 reviewer outage) and no run has been dispatched since 2026-08-04;
+# re-adding it to protection and restoring the n8n W1 dispatch are the revival
+# steps (see the status banner in .github/codex/README.md). This workflow sets
+# the status `pending` as its FIRST step. Only a successful POST-and-verify to n8n W2 (job
 # success), this job's own terminal-status step (all exit paths, PR #702), or
 # codex-watchdog.yml ever resolves it away from pending. A
 # dead/crashed/timed-out run therefore blocks merge instead of silently passing
@@ -30,7 +34,7 @@ on:
         required: true
         type: string
       loop_n:
-        description: "Review loop counter (0 on first pass, 1 after one claude-fix cycle)"
+        description: "Review loop counter (0 on first pass, 1 after one fix cycle)"
         required: true
         type: string
       reviewer_route:
@@ -345,11 +349,11 @@ jobs:
         run: |
           run_codex() {
             # $1 = output path for this run's review JSON
-            # gpt-5.6-terra per the approved-reviewer registry (CLAUDE.md, CI
-            # `codex-review` gate row: terra default, luna A/B). This is the
-            # whole-diff pass that produces the verdict directly, so it takes
-            # the balanced tier; the chunked path splits luna/terra by leg in
-            # scripts/codex-review-run-chunks.py.
+            # gpt-5.6-terra per the approved-reviewer registry (CI `codex-review`
+            # gate row: terra on every leg; luna is not approved and not deployed).
+            # This is the whole-diff pass that produces the verdict directly. The
+            # chunked path pins terra on BOTH legs too (DEFAULT_CHUNK_MODEL and
+            # DEFAULT_SYNTHESIS_MODEL in scripts/codex-review-run-chunks.py).
             codex exec \
               --sandbox read-only \
               -m gpt-5.6-terra \

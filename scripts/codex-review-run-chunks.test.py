@@ -124,6 +124,39 @@ class RunChunksTest(unittest.TestCase):
             finally:
                 run_chunks.subprocess.run = original
 
+    def test_run_model_treats_a_timed_out_call_as_a_failed_call(self):
+        # A hung `codex exec` must not consume the job budget: subprocess.run raises
+        # TimeoutExpired, run_with_timeout turns that into None, and run_model must
+        # report failure on BOTH the first call and the retry rather than raising or
+        # accepting whatever is on disk at output_path.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            prompt = root / "prompt.md"
+            prompt.write_text("prompt")
+            output = root / "out.json"
+            # A stale, valid file at output_path must not be mistaken for a result.
+            output.write_text(json.dumps({"verdict": "APPROVE"}))
+            calls = []
+            original = run_chunks.subprocess.run
+
+            def fake_run(command, **kwargs):
+                calls.append(kwargs.get("timeout"))
+                raise run_chunks.subprocess.TimeoutExpired(cmd=command, timeout=kwargs.get("timeout"))
+
+            try:
+                run_chunks.subprocess.run = fake_run
+                self.assertFalse(
+                    run_chunks.run_model(
+                        object(), prompt, "schema.json", output, model=run_chunks.CHUNK_MODEL
+                    )
+                )
+            finally:
+                run_chunks.subprocess.run = original
+
+        self.assertEqual(len(calls), 2, "the timed-out first call must be retried exactly once")
+        self.assertEqual(calls, [run_chunks.MODEL_CALL_TIMEOUT_SECONDS] * 2)
+        self.assertGreater(run_chunks.MODEL_CALL_TIMEOUT_SECONDS, 0)
+
     def test_detection_leg_is_not_weaker_than_synthesis_leg(self):
         # Regression guard. The chunk leg is the ONLY leg that reads the diff:
         # synthesis consumes model-authored chunk summaries, so a defect the

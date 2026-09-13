@@ -1,7 +1,7 @@
 # GitHub Copilot Instructions
 
 > **Project Rules and Standards for LingoLinq-AAC**
-> This file provides project-specific context for GitHub Copilot Chat and Agents. It is synchronized with `CLAUDE.md` and `GEMINI.md`.
+> This file provides project-specific context for GitHub Copilot Chat, the Copilot coding agent, and Copilot code review (which reviews every PR to `develop`). It is kept in step with `CLAUDE.md` by hand: when a rule changes there, change it here in the same PR.
 
 ## Project Overview
 
@@ -12,7 +12,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Render with background job processing via Resque
+- Deployed on GCP Cloud Run (production, staging, dev) with Resque workers; see `docs/INFRASTRUCTURE.md`
 
 ## Development considerations
 - **i18n**: All user-facing strings MUST use i18n helpers. No raw text strings in templates or JS.
@@ -56,4 +56,4 @@ New user-facing features MUST be behind a feature flag in `lib/feature_flags.rb`
 - **Frontend**: QUnit (`ember test`).
 
 ---
-*Last Updated: 2026-05-17*
+*Last Updated: 2026-09-12*

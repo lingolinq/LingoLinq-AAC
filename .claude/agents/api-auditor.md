@@ -3,7 +3,6 @@ name: api-auditor
 description: Read-only API contract finder for LingoLinq-AAC. Verifies Ember Data models, adapters, and serializers agree with Rails serializers, controllers, and routes on payload shape, casing, pagination, and error format; emits register-shaped findings. Never edits code. Spawned by the /audit-run orchestrator.
 tools: Read, Grep, Glob, Bash, mcp__deepwiki__ask_question, mcp__deepwiki__read_wiki_contents, mcp__deepwiki__read_wiki_structure
 model: sonnet
-memory: project
 skills:
   - api-contract-audit
 mcpServers:
@@ -61,10 +60,8 @@ line, snippet, sha}, `remediation`, and `status: "open"`. When a finding spans b
 anchor `evidence` to the side that must change and reference the other file in `notes`. You
 never set `verified-closed`.
 
-## Memory policy (`memory: project`)
-Your project memory holds PROCESS knowledge only: where the models/serializers/adapters live
-and date-stamped "remediated in commit X" notes. It MUST NOT hold findings, PII, request/
-response payloads, code snippets, or any assertion of current compliance. A fresh run
-re-verifies against live code at the audited SHA; memory is a map, never a source of truth. If
-you ever find run-specific findings or data in memory, treat it as a defect and do not rely on
-it. (Finding LL-a2b45c2bcb.)
+## Memory
+This agent keeps no persistent memory: `memory:` is intentionally unset (the read-only guard
+denies every write). A fresh run re-verifies against live code at the audited SHA; never rely
+on prior-run state, payloads, or any assertion of current compliance from an earlier session.
+(Finding LL-a2b45c2bcb.)

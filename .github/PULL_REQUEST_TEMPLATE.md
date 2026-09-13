@@ -28,6 +28,22 @@ See .github/workflows/deploy-cloudrun.yml.
 
 <!-- What you ran, and what you saw. "CI is green" is not testing. -->
 
+## Fix status
+
+<!-- One row per item the PR claims to address. Status is Fixed, Partial: <scope>, or Not fixed. -->
+
+| Item | Status | Evidence (file:line or spec) |
+|---|---|---|
+| | | |
+
+## Not covered by this PR
+
+<!-- Explicit list. "none" is acceptable only after enumerating the entry points (see the PR Preflight skill). -->
+
+## Author-Model
+
+<!-- Which model wrote most of the diff, e.g. fable-5.1, sonnet-4.6, opus-4.7, human. -->
+
 ---
 
 ## Database migrations

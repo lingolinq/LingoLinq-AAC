@@ -6,9 +6,16 @@ on:
   pull_request:
     branches: [ main, develop, staging ]
 
+# Every job only reads the checkout; nothing here comments, labels, or pushes.
+permissions:
+  contents: read
+
 jobs:
   rspec:
     runs-on: ubuntu-latest
+    # Recent runs finish in ~16 min; the 6-hour default would let a hung DB or
+    # a stuck spec hold a runner for the rest of the day.
+    timeout-minutes: 45
     services:
       postgres:
         image: postgres:15
