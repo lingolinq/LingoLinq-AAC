@@ -1,4 +1,4 @@
-desc "Check for expiring subscriptions. Production never invokes this task: scheduler:dispatch (the scheduler Cloud Run Job) runs an inline copy of this body daily at 06:00 UTC; keep the two in sync"
+desc "Check for expiring subscriptions. No automated production path invokes this task: scheduler:dispatch (run by the lingolinq-scheduler* Cloud Run Jobs) runs an inline copy of its operational calls daily at 06:00 UTC; keep the two in sync"
 
 task :check_for_expiring_subscriptions => :environment do
   puts "Checking for expiring subscriptions..."
@@ -134,7 +134,8 @@ task "scheduler:dispatch" => :environment do
   if hour == 6
     puts "--- Daily tasks (6 AM UTC) ---"
 
-    # Inline copy of the top-level :check_for_expiring_subscriptions task body; keep the two in sync.
+    # Inline copy of the operational calls of the top-level :check_for_expiring_subscriptions task
+    # (its puts lines are omitted); keep the two in sync.
     run_task.call("check_for_expiring_subscriptions") do
       res = User.check_for_subscription_updates
       User.schedule_for('slow', :check_for_subscription_updates)

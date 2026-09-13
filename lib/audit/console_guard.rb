@@ -105,7 +105,8 @@ module Audit
     # Dockerfile); the deploy workflow also sets it inline on the web service,
     # worker pool and the two Jobs it manages. Two hand-created prod Jobs
     # (lingolinq-admin-audit, lingolinq-identify-check) set neither RAILS_ENV nor
-    # RACK_ENV and rely on the image default. So the realistic `-e development`
+    # RACK_ENV and rely on the image default (read-only `gcloud run jobs describe`,
+    # 2026-09-13; not derivable from this tree). So the realistic `-e development`
     # dodge is covered.
     def production?(command, init_args, env = ENV)
       cli_production?(command, init_args) || ambient_production?(env)

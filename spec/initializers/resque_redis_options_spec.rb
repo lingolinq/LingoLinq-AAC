@@ -127,7 +127,10 @@ describe RedisInit do
   # through deploy-identity env vars before the dev-only literal.
   describe '.resolved_cache_token' do
     around(:each) do |example|
-      keys = %w[CACHE_TOKEN RENDER RENDER_GIT_COMMIT K_REVISION]
+      # Scrub every RENDER* key present plus the ones the examples set, so a tier gated on any
+      # Render platform variable is deterministic here.
+      keys = (%w[CACHE_TOKEN K_REVISION RENDER RENDER_GIT_COMMIT RENDER_SERVICE_ID] +
+              ENV.keys.grep(/\ARENDER/)).uniq
       saved = ENV.values_at(*keys)
       keys.each { |k| ENV.delete(k) }
       example.run
@@ -147,9 +150,11 @@ describe RedisInit do
 
     it 'ignores RENDER_GIT_COMMIT (Render was decommissioned 2026-09-09)' do
       # No other source is set, so a Render tier reinstated at ANY position in the chain
-      # (above or below K_REVISION) would surface here instead of the legacy literal. RENDER is
-      # set too, so a tier gated on the platform flag (the historical shape) is caught as well.
+      # (above or below K_REVISION) would surface here instead of the legacy literal. RENDER and
+      # RENDER_SERVICE_ID are set too, so a tier gated on either platform variable (the historical
+      # shapes) is caught as well.
       ENV['RENDER'] = 'true'
+      ENV['RENDER_SERVICE_ID'] = 'srv-test'
       ENV['RENDER_GIT_COMMIT'] = 'deadbeef'
       expect(RedisInit.resolved_cache_token).to eq('abc')
     end

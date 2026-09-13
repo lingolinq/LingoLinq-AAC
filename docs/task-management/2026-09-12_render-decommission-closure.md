@@ -336,13 +336,14 @@ re-sweep was ad hoc. Restructure: one mechanical sweep,
 `git grep -n -E '\bRender\b|onrender|RENDER_[A-Z]' -- app lib config spec bin .github Dockerfile`,
 every hit disposed of (fixed if instruction or present tense; left and listed if dated history).
 
-- Fixed (11 sites): `sentry.rb:312` (health-gate wording) and the `.dockerignore` dependency in the
+- Fixed (10 sites): `sentry.rb:312` (health-gate wording) and the `.dockerignore` dependency in the
   `release_from` comment; `session_controller.rb:736`; `database.yml` (the url-branch comment);
   `imagemagick_limits.rb:6,11,13`; `console_guard.rb:62` and its RAILS_ENV=production comment;
   `library_board_translator.rb:25` (runtime raise told operators a Render Job inherits the web env;
   Cloud Run Jobs do not) and `:208`; `lingolinq.rake:6`; `scheduler.rake:66` (desc now names the
-  `lingolinq-scheduler` Cloud Run Job); `sentry_spec.rb:414`; `resque_redis_options_spec.rb:6,39`;
-  `CLAUDE.md:542` comma.
+  `lingolinq-scheduler` Cloud Run Job); `sentry_spec.rb:414`; `resque_redis_options_spec.rb:6,39`.
+  (A `CLAUDE.md:542` comma fix listed here originally was dropped by the #961 rebase: #961 rewrote
+  that file and it is not in this diff.)
 - Left as dated history, listed in the PR body: `Dockerfile:69`, `config/initializers/write_freeze.rb`
   (env-gated cutover middleware; removal is a separate cleanup), `lib/gcp_clean_db_guard.rb`,
   `lib/tasks/gcp_clean_db.rake`, `lib/tasks/phase4_sequences.rake`, `deploy-cloudrun.yml` comments.
@@ -399,7 +400,7 @@ Re-baselined remaining scope:
 ## PR A1 dual review round 5 (head 6659a2cc7) and fixes
 
 Findings file `dual-review-round5-pra1.md`. Codex: 1 Medium, 1 Low. Adversary: 3 Medium, 5 Low.
-Cross-confirmed Medium: `config/database.yml:28` "nothing exercises it today" was false in the
+Cross-confirmed Medium: the `config/database.yml` url-branch comment ("nothing exercises it today") was false in the
 opposite direction from round 4. `Dockerfile:52` sets `RAILS_ENV=production` and `Dockerfile:82`
 exports a dummy host-form `DATABASE_URL` for `assets:precompile`, so every image build renders the
 `url:` branch (`DATABASE_URL=... ruby -rerb -e ...` emits `url:` under `production: primary:`).
@@ -413,7 +414,7 @@ Other fixes:
   lib config spec bin Dockerfile .github 'app/**/*.rb' ':!lib/mobyposi.i'` (the `-I` binary skip
   does not catch that word list). Residual hits: two URL citations, past-tensed `bin/audit_console:7`,
   and `config/shards.yml:24` (legacy follower code, already under Not covered).
-- `lib/audit/console_guard.rb:104-107`: the `RAILS_ENV=production` guarantee is the image default
+- `lib/audit/console_guard.rb` RAILS_ENV comment: the `RAILS_ENV=production` guarantee is the image default
   (`Dockerfile:52`); the workflow inline value covers only its four surfaces; two hand-made prod Jobs
   (`lingolinq-admin-audit`, `lingolinq-identify-check`) set neither env var (read-only
   `gcloud run jobs describe`, adversary, 2026-09-13).
@@ -455,9 +456,31 @@ Findings file `dual-review-round6-pra1.md`. Codex: 1 Medium, 1 Low. Adversary: 1
   phrases. Body `:1` "four dual-review rounds" -> "the dual-review rounds".
 Green after fixes: 105 examples, 0 failures; `git diff --check` clean.
 
+## PR A1 dual review round 7 (head 8dcda2176) and fixes
+
+Findings file `dual-review-round7-pra1.md`. Codex: 1 Medium, 3 Low. Adversary: 1 Medium, 5 Low.
+Cross-confirmed Medium: the round-6 comment said the url branch "depends only on whether
+DATABASE_URL is set"; the condition at `database.yml:41` also checks `LEADER_POSTGRES_URL`
+(`LEADER_POSTGRES_URL=... ruby -rerb ...` emits `url:`), and a blank value counts as unset. This
+comment sits above the fleet-wide boot-failure note, and `shards.yml:25` prefers
+`LEADER_POSTGRES_URL`, so the omission mattered. Comment restructured around the real selector.
+Other fixes: BOOT_SECRETS attributed only to the four workflow-managed surfaces; hand-created Jobs
+that boot Rails mount the same four by hand (`lingolinq-admin-audit` env names read-only, 2026-09-13).
+`scheduler.rake:1`: "Production never invokes" -> "No automated production path invokes" (an
+operator can `--args` override `lingolinq-migrate`), Job family form `lingolinq-scheduler*` as at
+`:66`, and the copy is "of its operational calls" (the task's `puts` lines are omitted).
+`console_guard.rb`: the two-Jobs claim dated as read-only gcloud evidence, not a tree fact.
+`.dockerignore` example also rejects bare wildcard re-includes (`!*`, `!**`, `!.*`); mutations
+each red, the three legitimate `!` entries green. Resque `around` scrubs every `RENDER*` key and
+the example sets `RENDER_SERVICE_ID` too (mutation n, tier gated on it, red).
+Working log: round-5 locators into the grown comments replaced with phrases; the round-3 list
+claimed a `CLAUDE.md:542` fix the #961 rebase dropped (count 11 -> 10).
+Lesson (three rounds running): every sentence that summarises a condition must be checked against
+the condition's own text, not against memory of it.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-6 applied; round 7 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-7 applied; round 8 re-review pending) -> A2 -> B -> C.

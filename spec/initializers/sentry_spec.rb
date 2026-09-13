@@ -729,12 +729,13 @@ describe 'config/initializers/sentry.rb' do
     # The Job shape above is untagged only because the image carries no .git directory; pin the
     # .dockerignore entry that guarantees it (removing it would also ship git history in the
     # image), and pin that no `!` entry names .git or anything beneath it (`!.git`, `!.git/**`,
-    # `!**/.git`). Docker's last-match-wins ordering is not modelled: such an entry at any position
-    # fails, which is stricter than Docker but the only shape a re-include could take here.
+    # `!**/.git`) or is a bare wildcard that re-includes everything (`!*`, `!**`, `!.*`). Docker's
+    # last-match-wins ordering is not modelled: such an entry at any position fails, which is
+    # stricter than Docker. Named re-includes of other paths (`!tmp/keep`) stay allowed.
     it 'keeps .git out of the runtime image so the SDK git fallback cannot tag Jobs' do
       entries = File.readlines(Rails.root.join('.dockerignore')).map(&:strip)
       expect(entries.grep(%r{\A(\*\*/)?\.git/?\z})).not_to be_empty
-      expect(entries.grep(/\A!.*\.git\b/)).to be_empty
+      expect(entries.grep(%r{\A!(?:.*\.git\b|[*./]*\z)})).to be_empty
     end
   end
 
