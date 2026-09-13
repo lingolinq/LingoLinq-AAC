@@ -75309,7 +75309,7 @@ span.md-board-detail-modeling-btn--badge {
      top of the screen and everything in it was unreachable. Measured at 640px:
      top = -184px, i.e. the whole 210px panel sat above the viewport with nothing to scroll
      to it (scripts/speak-header-narrow-qa.mjs).
-     
+
      That is the worst version of this bug rather than a cosmetic one: the popover only
      exists at ≤640px, where `immersive_tools` has already folded Backspace, Clear and
      Speak options into this one chevron — so an AAC user on a narrow screen had no way to
