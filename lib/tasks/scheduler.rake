@@ -1,9 +1,9 @@
-# Nothing in this repo invokes this task (git grep). Production runs the same operational calls
-# through the inline copy in scheduler:dispatch ("Daily tasks" below), which the prod scheduler
-# Cloud Run Job (lingolinq-scheduler) executes on an hourly Cloud Scheduler trigger, so the daily
-# block runs at 06:00 UTC; the staging Job (lingolinq-scheduler-staging) has no trigger and has
-# never executed (read-only gcloud, 2026-09-13; not derivable from this tree). Keep the copy in sync.
-# rake -T prints only the first sentence of a desc, which is why the detail lives here.
+# Nothing in this repo invokes this task (git grep): scheduler:dispatch runs the same operational
+# calls through an inline copy ("Daily tasks" below). Live state, per read-only gcloud on 2026-09-13
+# (not derivable from this tree): the prod scheduler Cloud Run Job (lingolinq-scheduler) runs
+# scheduler:dispatch on an hourly Cloud Scheduler trigger, so the daily block runs at 06:00 UTC;
+# the staging Job (lingolinq-scheduler-staging) has no trigger and has never executed. Keep the
+# copy in sync. rake -T prints only the first sentence of a desc, which is why the detail lives here.
 desc "Check for expiring subscriptions; no code path invokes this task (see the comment above)"
 
 task :check_for_expiring_subscriptions => :environment do

@@ -728,29 +728,36 @@ describe 'config/initializers/sentry.rb' do
 
     # The Job shape above is untagged only because the image carries no .git directory; pin the
     # .dockerignore entry that guarantees it (removing it would also ship git history in the
-    # image), and pin that no `!` entry re-includes .git or anything beneath it. Each pattern is
-    # translated by dockerignore_pattern_re, a model of Go's filepath.Match plus Docker's `**` and
-    # its slash normalisation (leading `/` and `./`, `/./`, trailing `/` and `/.` disregarded). It is
-    # a model, not Docker: last-match-wins ordering is not applied (such an entry at any position
-    # fails, stricter than Docker), and a pattern shape the model mis-translates is a gap. Named
+    # image), and pin that no `!` entry re-includes .git or a representative path beneath it. Each
+    # entry is translated by dockerignore_pattern_re, a model of moby's ignorefile parsing (`!` then
+    # TrimSpace then filepath.Clean, so `..`, `.`, `//` and a leading `/` are resolved) and of Go's
+    # filepath.Match plus Docker's `**`. It is a model, not Docker, with three known gaps:
+    # last-match-wins ordering is not applied (such an entry at any position fails, stricter than
+    # Docker); the path sample is finite; and any shape the model mis-translates is a gap. Named
     # re-includes of other paths (`!tmp/keep`) stay allowed.
     it 'keeps .git out of the runtime image so the SDK git fallback cannot tag Jobs' do
-      git_paths = %w[.git .git/HEAD .git/refs .git/refs/heads/x .git/objects .git/objects/ab/cd]
+      git_paths = %w[.git .git/HEAD .git/config .git/refs .git/refs/heads/x .git/objects .git/objects/ab/cd]
       entries = File.readlines(Rails.root.join('.dockerignore')).map(&:strip)
       entries = entries.reject { |e| e.empty? || e.start_with?('#') }
       reincludes, excludes = entries.partition { |e| e.start_with?('!') }
       expect(excludes.select { |e| dockerignore_pattern_re(e).match?('.git') }).not_to be_empty
       leaking = reincludes.select do |e|
-        re = dockerignore_pattern_re(e.delete_prefix('!'))
+        re = dockerignore_pattern_re(e.delete_prefix('!').strip)
         git_paths.any? { |p| re.match?(p) }
       end
       expect(leaking).to eq([])
     end
 
-    # Docker .dockerignore pattern -> anchored Regexp. `*` and `?` do not cross `/`; `**/` matches
-    # zero or more directories; a trailing `**` matches anything; `[...]` classes pass through.
+    # Docker .dockerignore pattern -> anchored Regexp. The pattern is first cleaned like moby does
+    # (Pathname#cleanpath is a lexical filepath.Clean; a leading `/` is then dropped). `*` and `?`
+    # do not cross `/`; `**/` matches zero or more directories; a trailing `**` matches anything;
+    # `[...]` classes pass through with escape-aware scanning (`[!` becomes `[^`, a leading `]` is
+    # literal); a leading `^` is dropped because moby leaves it unescaped and Go treats it as a
+    # zero-width anchor. An unterminated `[` raises, as Docker rejects the pattern too.
     def dockerignore_pattern_re(pattern)
-      p = pattern.sub(%r{\A(?:\./|/)+}, '').gsub(%r{/\./}, '/').gsub(%r{/+}, '/').sub(%r{(?:/\.?)+\z}, '')
+      p = Pathname.new(pattern).cleanpath.to_s.sub(%r{\A/+}, '')
+      p = '' if p == '.'
+      p = p.delete_prefix('^')
       out = +''
       i = 0
       while i < p.length
@@ -768,8 +775,15 @@ describe 'config/initializers/sentry.rb' do
         when '*' then out << '[^/]*'
         when '?' then out << '[^/]'
         when '['
-          j = p.index(']', i)
-          out << p[i..j]
+          j = i + 1
+          j += 1 if p[j] == '!' || p[j] == '^'
+          j += 1 if p[j] == ']'
+          while j < p.length && p[j] != ']'
+            j += 1 if p[j] == '\\'
+            j += 1
+          end
+          raise ArgumentError, "unterminated [ in .dockerignore pattern #{pattern.inspect}" if j >= p.length
+          out << p[i..j].sub(/\A\[!/, '[^').sub(/\A(\[\^?)\]/, '\\1\\]')
           i = j
         when '\\'
           i += 1

@@ -104,8 +104,10 @@ Line numbers in this section are at the pre-rebase baseline `4c2adc976` and were
 #961 later rewrote `CLAUDE.md` (193 lines at HEAD), `GEMINI.md` (10) and `LEARNINGS.md` (curated to
 294; the archive `learnings-archive/LEARNINGS-2026-01_to_2026-09.md` holds the old text, where the
 `staging-translate-library-job` note is at `:4103`), and moved `.gemini/styleguide.md` to
-`docs/archive/gemini-code-assist/`, so pointers into those four files do not resolve at HEAD. The A2
-hand-off re-resolves what it needs from the re-baselined scope below, not from this list.
+`docs/archive/gemini-code-assist/`, so pointers into those four files do not resolve at HEAD; this PR's
+own edits move others in the same way (`production.rb`, `sentry.rb`, `resque.rb`, `KNOWN-ISSUES.md`,
+`wsl_setup_complete.sh`). The A2 hand-off re-resolves what it needs from the re-baselined scope
+below, not from this list.
 
 **Delete (6):** `render.yaml`, `bin/render-build.sh`, `.github/workflows/sync-render-secrets.yml`,
 `.github/workflows/preview-comment.yml`, `scripts/sync-render-env.js`, `scripts/sync-render-env.test.js`.
@@ -165,7 +167,7 @@ manifest link stays as history), `docs/AI_INFRASTRUCTURE_AUDIT.md`, `docs/task-m
   (`Configuration#detect_release` is `@release ||=`, an explicit `config.release=` wins);
   (2) `K_REVISION` set (Cloud Run services; differs per service) -> release = revision name;
   (3) neither (dev/test/CI) -> `detect_release` returns early because `sending_allowed?` is false
-  (`enabled_environments = %w[production staging]`, `sentry.rb:365`), release stays nil;
+  (`enabled_environments = %w[production staging]` in `sentry.rb`), release stays nil;
   (4) Cloud Run Job `lingolinq-migrate`: no `K_REVISION`, no DSN mount [A3], Sentry not booted.
 - (b) `RedisInit.resolved_cache_token` shapes after dropping the tier: `CACHE_TOKEN` (both serving
   revisions [A3]) -> `K_REVISION` -> `'abc'`. Web/worker never reach tier 2 today. Job
@@ -350,7 +352,7 @@ every hit disposed of (fixed if instruction or present tense; left and listed if
   `release_from` comment; `session_controller.rb:736`; `database.yml` (the url-branch comment);
   `imagemagick_limits.rb:6,11,13`; `console_guard.rb:62` and its RAILS_ENV=production comment;
   `library_board_translator.rb:25` (runtime raise told operators a Render Job inherits the web env;
-  Cloud Run Jobs do not) and `:208`; `lingolinq.rake:6`; `scheduler.rake:66` (desc now names the
+  Cloud Run Jobs do not) and `:208`; `lingolinq.rake:6`; `scheduler.rake` scheduler:dispatch desc (now names the
   `lingolinq-scheduler` Cloud Run Job); `sentry_spec.rb:414`; `resque_redis_options_spec.rb:6,39`.
   (A `CLAUDE.md:542` comma fix listed here originally was dropped by the #961 rebase: #961 rewrote
   that file and it is not in this diff.)
@@ -538,9 +540,25 @@ comments included, and not indirection; "exhaustive" dropped. Log: the round-8 r
 four files #961 invalidated (the `LEARNINGS.md:12601` pointer resolves in the archive at `:4103`).
 Green after fixes: 106 examples, 0 failures.
 
+## PR A1 dual review round 10 (head a648d93e3) and fixes
+
+Findings file `dual-review-round10-pra1.md`. Codex: request-changes, 1 Medium, 1 Low. Adversary:
+approve, 6 Low. Medium (Codex, cross-confirmed by an adversary Low): moby cleans each pattern with
+`filepath.Clean` after TrimSpace, so `!.git/foo/..` and `! .git` re-include `.git` and slipped past
+the round-9 translator. Fix: `Pathname#cleanpath` (a lexical Clean) plus `strip` after the `!`;
+the class scanner is escape-aware (`[\]]`, a leading `]`), a leading `^` is dropped (moby leaves it
+unescaped, Go reads it as an anchor), and an unterminated `[` raises with a clear message instead
+of `NoMethodError`. Simulation `docker_glob_sim2.rb`: 36 re-include spellings caught, 17 legitimate
+pass; in-spec mutations 16 red, 7 green. Comment restored to "a representative path beneath it" and
+names three gaps (ordering, finite sample, mis-translation). `.git/config` added to the sample.
+Lows: the scheduler comment's dated qualifier now heads the live-state sentence so it covers the
+prod trigger as well as the staging Job; two more stale locators in the log (`scheduler.rake:66`,
+`sentry.rb:365`) replaced with text; the Phase-1 baseline note says this PR's own edits move
+pointers too. Green after fixes: 106 examples, 0 failures.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-9 applied; round 10 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-10 applied; round 11 re-review pending) -> A2 -> B -> C.
