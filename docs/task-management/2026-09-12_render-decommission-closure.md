@@ -337,8 +337,8 @@ re-sweep was ad hoc. Restructure: one mechanical sweep,
 every hit disposed of (fixed if instruction or present tense; left and listed if dated history).
 
 - Fixed (11 sites): `sentry.rb:312` (health-gate wording) and the `.dockerignore` dependency in the
-  `release_from` comment; `session_controller.rb:736`; `database.yml:26-27`;
-  `imagemagick_limits.rb:6,11,13`; `console_guard.rb:62,104-105`;
+  `release_from` comment; `session_controller.rb:736`; `database.yml` (the url-branch comment);
+  `imagemagick_limits.rb:6,11,13`; `console_guard.rb:62` and its RAILS_ENV=production comment;
   `library_board_translator.rb:25` (runtime raise told operators a Render Job inherits the web env;
   Cloud Run Jobs do not) and `:208`; `lingolinq.rake:6`; `scheduler.rake:66` (desc now names the
   `lingolinq-scheduler` Cloud Run Job); `sentry_spec.rb:414`; `resque_redis_options_spec.rb:6,39`;
@@ -428,9 +428,36 @@ Other fixes:
 - Deferred to A2: `docs/INFRASTRUCTURE.md:159,178` (`DATABASE_URL` required per service).
 Green after fixes: 105 examples, 0 failures; `git diff --check` clean.
 
+## PR A1 dual review round 6 (head 4f9982bf3) and fixes
+
+Findings file `dual-review-round6-pra1.md`. Codex: 1 Medium, 1 Low. Adversary: 1 Medium, 5 Low.
+- Medium (adversary): the round-5 `scheduler.rake:1` desc said `scheduler:dispatch` "runs this"
+  task. It does not: the dispatch block at `:137-142` is a hand-duplicated copy of the task body
+  (no `Rake::Task[...].invoke` anywhere in the file), so an edit to the task never runs in
+  production. Desc now says production never invokes the task and dispatch runs an inline copy;
+  a comment at the copy points back. "Or invoke it directly" dropped (rake is the unaudited path,
+  LL-7f7372e3eb). Making dispatch invoke the task and deleting the copy is a separate change.
+- Medium (Codex): "every container build renders the url branch" was a new universal (a
+  `--target frontend-builder` build would not; nothing builds that way, but the sentence claimed
+  more than the tree). Adversary: "every Cloud Run surface mounts DB_*" was false for
+  `lingolinq-identify-check` (runs `identify -version`, no env at all; read-only
+  `gcloud run jobs describe`), and CI (`ci.yml:41-43`) and docker-compose (`:34,54`) also set
+  `DATABASE_URL` and so render the url branch without booting against it. The comment was
+  restructured once: which branch renders depends only on whether `DATABASE_URL` is set; no
+  Rails-booting Cloud Run surface sets it; the url branch renders in the runtime-image build
+  (boots against it), CI and docker-compose (render only). Console-guard comment names the two
+  hand-created Jobs instead of "hand-created Jobs".
+- `.dockerignore` example: positive match accepts `.git`, `.git/`, `**/.git`; negative rejects any
+  `!` entry naming `.git` or a path beneath it (`!.git/**`, `!**/.git`), at any position.
+  Mutation k2 (`!.git/**` appended) red. Resque example: `RENDER` added to the scrub list and set
+  in the example, so a tier gated on the platform flag is caught (mutation m red).
+- Working log round-3 fix list: two locators shifted by the comment growth replaced with quoted
+  phrases. Body `:1` "four dual-review rounds" -> "the dual-review rounds".
+Green after fixes: 105 examples, 0 failures; `git diff --check` clean.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-5 applied; round 6 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-6 applied; round 7 re-review pending) -> A2 -> B -> C.

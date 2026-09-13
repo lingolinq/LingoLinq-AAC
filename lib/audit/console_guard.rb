@@ -103,8 +103,10 @@ module Audit
     # fully robust fix gates on the resolved connection target. Every Cloud Run
     # surface inherits RAILS_ENV=production from the image (ENV RAILS_ENV in the
     # Dockerfile); the deploy workflow also sets it inline on the web service,
-    # worker pool and the two Jobs it manages, and hand-created Jobs rely on the
-    # image default. So the realistic `-e development` dodge is covered.
+    # worker pool and the two Jobs it manages. Two hand-created prod Jobs
+    # (lingolinq-admin-audit, lingolinq-identify-check) set neither RAILS_ENV nor
+    # RACK_ENV and rely on the image default. So the realistic `-e development`
+    # dodge is covered.
     def production?(command, init_args, env = ENV)
       cli_production?(command, init_args) || ambient_production?(env)
     end

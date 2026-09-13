@@ -23,13 +23,15 @@ production:
     # GCP Cloud Run reaches Cloud SQL over a unix socket (--set-cloudsql-instances). The socket-form
     # DATABASE_URL (postgres://user:pass@/db?host=/cloudsql/CONN) has an empty host, which uri >= 1.0
     # rejects at boot (URI::InvalidURIError), failing every Rails boot path. So when DATABASE_URL is
-    # absent we configure the connection from discrete env vars instead of a URL. Two readers of
-    # this stanza: at runtime every Cloud Run surface (web, worker pool, Jobs) mounts DB_HOST,
-    # DB_NAME, DB_USERNAME and DB_PASSWORD from Secret Manager and sets neither DATABASE_URL nor
-    # LEADER_POSTGRES_URL (BOOT_SECRETS in .github/workflows/deploy-cloudrun.yml), so it takes the
-    # discrete-var branch; at image build time the Dockerfile's assets:precompile step exports a
-    # dummy host-form DATABASE_URL under RAILS_ENV=production, so every container build renders
-    # the url branch. Development and test render their own blocks below.
+    # absent we configure the connection from discrete env vars instead of a URL. Which branch
+    # renders depends only on whether DATABASE_URL is set. Cloud Run runtime: no Rails-booting
+    # surface (web, worker pool, Jobs) sets DATABASE_URL or LEADER_POSTGRES_URL; they mount DB_HOST,
+    # DB_NAME, DB_USERNAME and DB_PASSWORD from Secret Manager (BOOT_SECRETS in
+    # .github/workflows/deploy-cloudrun.yml), so they take the discrete-var branch. The url branch
+    # renders wherever DATABASE_URL is set: the runtime-image build (the Dockerfile's
+    # assets:precompile step exports a dummy host-form URL under RAILS_ENV=production and boots
+    # against it), and CI and docker-compose, which render it but connect through the test and
+    # development blocks below.
     # NOTE: uses plain ERB conditionals (no dash-trim markers) because Rails renders this file with
     # ERB.new(content) and NO trim_mode; dash-trim markers would raise SyntaxError at boot. The
     # control tags sit at column 0 (same as the replica block below) so they render to blank lines

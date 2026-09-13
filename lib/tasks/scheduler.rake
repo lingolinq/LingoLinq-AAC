@@ -1,4 +1,4 @@
-desc "Check for expiring subscriptions; scheduler:dispatch runs this daily at 6 AM UTC from the scheduler Cloud Run Job, or invoke it directly"
+desc "Check for expiring subscriptions. Production never invokes this task: scheduler:dispatch (the scheduler Cloud Run Job) runs an inline copy of this body daily at 06:00 UTC; keep the two in sync"
 
 task :check_for_expiring_subscriptions => :environment do
   puts "Checking for expiring subscriptions..."
@@ -134,6 +134,7 @@ task "scheduler:dispatch" => :environment do
   if hour == 6
     puts "--- Daily tasks (6 AM UTC) ---"
 
+    # Inline copy of the top-level :check_for_expiring_subscriptions task body; keep the two in sync.
     run_task.call("check_for_expiring_subscriptions") do
       res = User.check_for_subscription_updates
       User.schedule_for('slow', :check_for_subscription_updates)
