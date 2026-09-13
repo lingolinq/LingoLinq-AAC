@@ -77,7 +77,22 @@ export default Component.extend({
 
   runClosing() {
     if (this.get('model.translations.board_name') && this.get('model.locale')) {
-      const trans = this.get('model.translations');
+      /* Copy before writing, and copy the nested `board_name` too -- a shallow copy of the
+         outer object alone would still share it.
+
+         `translations` is `attr('raw')` (models/board.js:194) and the raw transform is pure
+         pass-through (transforms/raw.js), so Ember Data hands out THE SAME OBJECT the payload
+         arrived in. Mutating it in place therefore overwrote the last-saved copy as well,
+         leaving `rollbackAttributes()` nothing to restore: the user pressed Discard and the
+         board kept the new name. Re-setting the same reference also meant Ember Data saw no
+         attribute change at all.
+
+         Online the refetch hid this; the offline discard path has no refetch, so that is where
+         it surfaced. Note models/board.js:629 is a COUNTER-example, not a precedent: it copies
+         the outer object and then writes into the nested `board_name` in place, so it has the
+         half of this bug the nested copy below exists to avoid. */
+      const trans = Object.assign({}, this.get('model.translations'));
+      trans.board_name = Object.assign({}, trans.board_name);
       trans.board_name[this.get('model.locale')] = this.get('model.name');
       this.set('model.translations', trans);
     }

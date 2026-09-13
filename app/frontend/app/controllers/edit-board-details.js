@@ -25,7 +25,15 @@ export default modal.ModalController.extend({
   },
   closing: function() {
     if(this.get('model.translations.board_name') && this.get('model.locale')) {
-      var trans = this.get('model.translations');
+      /* Same copy-before-write as components/edit-board-details.js#runClosing, and for the same
+         reason: `translations` is `attr('raw')` with a pass-through transform, so mutating in
+         place overwrites Ember Data's last-saved copy and `rollbackAttributes()` has nothing to
+         restore -- Discard keeps the rename. This controller appears to be the legacy path
+         ('edit-board-details' is in `convertedModals`, components/modal-container.js:37, so the
+         component renders), but identical broken code next to a fixed copy is a trap, and the
+         correction costs two lines. */
+      var trans = Object.assign({}, this.get('model.translations'));
+      trans.board_name = Object.assign({}, trans.board_name);
       trans.board_name[this.get('model.locale')] = this.get('model.name');
       this.set('model.translations', trans);
     }
