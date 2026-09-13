@@ -13,7 +13,8 @@ Rails.application.configure do
   # Fail loud at boot if SECRET_KEY_BASE is missing. The previous form
   # (`ENV["SECRET_KEY_BASE"] || ENV["COOKIE_KEY"]`) silently collapsed two
   # encryption domains and made rotation procedures ambiguous.
-  # Render production sets SECRET_KEY_BASE via `generateValue: true`.
+  # Cloud Run production mounts SECRET_KEY_BASE from Secret Manager
+  # (BOOT_SECRETS in .github/workflows/deploy-cloudrun.yml).
   secret_key_base = ENV.fetch('SECRET_KEY_BASE')
   raise ArgumentError, 'SECRET_KEY_BASE must be set and non-blank' if secret_key_base.strip.empty?
 
@@ -28,9 +29,9 @@ Rails.application.configure do
   # For large-scale production use, consider using a caching reverse proxy like nginx, varnish or squid.
   # config.action_dispatch.rack_cache = true
 
-  # Enable Rails's static asset server for Railway/Render deployment
-  # (they don't have nginx in front like traditional deployments)
-  config.public_file_server.enabled = ENV['RAILS_SERVE_STATIC_FILES'].present? || ENV['RENDER'].present?
+  # Enable Rails's static asset server when the platform asks for it. Cloud Run has
+  # no nginx in front; deploy-cloudrun.yml sets RAILS_SERVE_STATIC_FILES=true.
+  config.public_file_server.enabled = ENV['RAILS_SERVE_STATIC_FILES'].present?
 
   # CSS compression disabled: SassC cannot handle modern CSS functions
   # (clamp, calc with mixed units like px + vw). Ember frontend already

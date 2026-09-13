@@ -4,7 +4,7 @@
 
 LingoLinq is an AI-first AAC (Augmentative and Alternative Communication) SaaS
 platform used by US school districts, hospitals, and European clients. It is a
-Rails 7.2 backend with an Ember 5.12 frontend, deployed on Render.
+Rails 7.2 backend with an Ember 5.12 frontend, deployed on Google Cloud Run.
 
 ## Compliance (flag violations immediately)
 

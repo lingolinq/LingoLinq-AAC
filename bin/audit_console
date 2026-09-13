@@ -2,8 +2,8 @@
 # Rails console launcher with operator identity.
 #
 # Sets USER_KEY and opens a Rails console in the CURRENT shell, so it works
-# wherever you already have a shell on the app -- the Render Shell tab, a GCP
-# Cloud Run exec shell, or a local checkout. (It replaced an older
+# wherever you already have a shell on the app -- a GCP Cloud Run exec shell
+# or a local checkout. (It replaced an older
 # Heroku-CLI-only version; the legacy Heroku app is gone.)
 #
 # USER_KEY tags PaperTrail changes with the operator's identity

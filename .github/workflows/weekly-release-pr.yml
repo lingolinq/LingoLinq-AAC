@@ -80,7 +80,7 @@ jobs:
             echo ""
             echo "### Verification checklist"
             echo ""
-            echo "- [ ] Staging is healthy (no error spikes in Sentry / Render logs)"
+            echo "- [ ] Staging is healthy (no error spikes in Sentry / Cloud Run logs)"
             echo "- [ ] CI is green on staging head"
             echo "- [ ] No open compliance / security review on changes in this window"
             echo "- [ ] OK to deploy to production"

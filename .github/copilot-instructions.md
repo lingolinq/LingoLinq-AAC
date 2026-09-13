@@ -12,7 +12,7 @@ Key characteristics:
 - Multi-device sync with automatic conflict resolution
 - Supervisor/user permission model for therapy teams
 - Uses Open Board Format (OBF) for board import/export
-- Deployed on Render with background job processing via Resque
+- Deployed on Google Cloud Run with background job processing via Resque
 
 ## Development considerations
 - **i18n**: All user-facing strings MUST use i18n helpers. No raw text strings in templates or JS.
