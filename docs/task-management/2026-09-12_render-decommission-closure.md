@@ -556,9 +556,23 @@ prod trigger as well as the staging Job; two more stale locators in the log (`sc
 `sentry.rb:365`) replaced with text; the Phase-1 baseline note says this PR's own edits move
 pointers too. Green after fixes: 106 examples, 0 failures.
 
+## PR A1 dual review round 11 (head 4fca93c3d) and fixes
+
+Findings file `dual-review-round11-pra1.md`. Codex: request-changes, 1 Medium. Adversary: approve,
+1 Medium, 2 Low. Cross-confirmed Medium: the round-10 scanner rewrote `[!` to `[^` (fnmatch
+semantics). moby passes `[` and `]` raw into an RE2 regexp, where only `^` negates, so `![!.]git`
+and `!.[!g]it` are re-includes of `.git` that the model let through, and `!.g[!x]t` was wrongly
+flagged. Round 9's verbatim class copy had been right. Fix: no rewrite, only `^` skipped as the
+negation marker; escape-aware scan and the literal leading `]` kept. Lows: any number of leading
+`^` stripped (`!^^.git`); a mid-pattern `**` translates to `(?:.*/)?` as moby does; a trailing `\`
+raises as Docker rejects it; and the positive side now requires a literally spelled exclusion
+(`.git` or `**/.git` after cleaning) because the model's looseness is safe for `!` entries and
+unsafe for the exclusion check. Simulation `docker_glob_sim3.rb`: 42 re-include spellings caught,
+21 legitimate pass. Green after fixes: 106 examples, 0 failures.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-10 applied; round 11 re-review pending) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-11 applied; round 12 re-review pending) -> A2 -> B -> C.
