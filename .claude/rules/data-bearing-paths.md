@@ -18,8 +18,13 @@ regardless of the surrounding task:
 
 - Never paste rows from these paths into a prompt for a reviewer that has no BAA
   (Codex on OpenAI credentials, Copilot, any consumer endpoint). The CI classifier
-  `scripts/codex-review-path-classifier.sh` flags a diff touching these paths as
-  data-bearing and routes it away from the consumer reviewer; do not work around it.
+  `scripts/codex-review-path-classifier.sh` routes a diff away from the consumer reviewer
+  when it touches fixtures, factories, cassettes, `db/seeds*`, `db/migrate/**`, `db/data/`,
+  SQL/CSV/spreadsheet dumps, structured-data directories, or a `lib/tasks/*.rake` whose
+  filename contains `seed`, `import`, `export`, `backfill`, `load` or `sync`. A rake task
+  that reads user rows under any other name (a purge or scrub task, for example) is NOT
+  caught: name it with one of those words, or keep its diff off the consumer route by
+  hand. Do not work around the classifier.
 - Before committing a fixture, cassette, or seed, confirm it holds synthetic data only.
   The local development database is per-machine; a prior confirmation on one machine
   does not carry over.

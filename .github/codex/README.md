@@ -235,10 +235,12 @@ This is load-bearing in **at least two** places:
 1. **The status-write-failure path**, where `codex-review.yml` provably cannot
    resolve its own status because the status API is what is failing.
 2. **A hung `codex exec`.** `run_model` in `scripts/codex-review-run-chunks.py`
-   passes no `timeout=` to `subprocess.run`, so the job stalls to the 90-minute
-   ceiling and emits no `workflow_run` completion event while it hangs. The
-   scheduled sweep is the only cover, and it is a known unfixed limit rather
-   than a hypothetical status-API outage.
+   caps each `codex exec` at `CODEX_REVIEW_MODEL_CALL_TIMEOUT` seconds (default
+   1500) and retries once, so one hung call costs at most about 50 minutes before
+   that chunk is written as NEEDS_HUMAN and the run moves on. Several hung calls
+   in one run can still reach the 90-minute ceiling, and no `workflow_run`
+   completion event is emitted while a call hangs, so the scheduled sweep remains
+   the cover for that residual.
 
 Everywhere else `codex-review.yml`'s own terminal-status step (PR #702)
 resolves the status. A strict bound would need a monitor outside GitHub
@@ -268,9 +270,11 @@ a rough lower-bound throughput check, assuming the smoke had no structural
 retries (75 s / 14 invocations = about 5.4 s per invocation), 51 logical calls
 would be about 4.5 minutes of reviewer-step time. A 102-invocation case would
 be about 9 minutes only if retries fail fast. A single hung `codex exec`
-dominates that estimate and is bounded only by the 90-minute job timeout. The
-watchdog will fail the stale status, but only once it is 30 minutes old AND a
-scheduled sweep actually runs, which is best-effort and unbounded.
+dominates that estimate: it is bounded by the per-call timeout (1500 s, retried
+once, so up to about 50 minutes for that chunk), and several hung calls can
+still reach the 90-minute job timeout. Past that, the watchdog will fail the
+stale status, but only once it is 30 minutes old AND a scheduled sweep actually
+runs, which is best-effort and unbounded.
 Each model call still posts a pending-status heartbeat before it starts. Treat
 5.4 s as a floor, not an estimate: per-call latency scales with prompt size, and
 the manifest block embedded in every chunk prompt grows with chunk count.
@@ -278,12 +282,16 @@ the manifest block embedded in every chunk prompt grows with chunk count.
 Two known limits this cap raise does not address, both unchanged from the
 8-chunk canary and both currently fail-closed rather than wrong:
 
-- `run_model` passes no `timeout=` to `subprocess.run`, so a single hung
-  `codex exec` stops heartbeating and stalls the job until the 90-minute
-  ceiling. The watchdog flips the status once a scheduled sweep sees it at
-  least 30 minutes stale, so the merge gate does resolve fail-closed, but the
-  timing is best-effort: the sweep may be delayed or skipped, and the runner
-  minutes and operator wait time are spent either way.
+- `run_model` passes `timeout=` (1500 s per attempt, one retry; env
+  `CODEX_REVIEW_MODEL_CALL_TIMEOUT`) to `subprocess.run`, so a single hung
+  `codex exec` costs up to about 50 minutes and then that chunk is NEEDS_HUMAN.
+  Two residuals: the kill reaches the direct child only, so an orphaned `codex`
+  process could still write `output_path` while the retry runs; and several
+  hung calls can still push the run past the 90-minute ceiling. In that case the
+  watchdog flips the status once a scheduled sweep sees it at least 30 minutes
+  stale, so the merge gate does resolve fail-closed, but the timing is
+  best-effort: the sweep may be delayed or skipped, and the runner minutes and
+  operator wait time are spent either way.
 - The synthesis prompt embeds every chunk review verbatim
   (`chunk_result_group` keeps the full `review` object for each run), so its
   input scales with chunks times runs: up to 48 full review objects at this
