@@ -17,6 +17,40 @@ class Organization < ApplicationRecord
   end
 
   def claim_user(user, seat_type='student')
+    # LL-1baffd92d5: authorize the TARGET, not only the requester. The caller has
+    # already been checked against THIS org ('manage' in
+    # Api::OrganizationsController#claim_user), which says nothing about whether
+    # this org may take this particular user.
+    #
+    # Binding rewrites managing_organization_id, and that column is read well
+    # beyond licensing: compliance jurisdiction (lib/compliance/jurisdiction_resolver.rb),
+    # AI feature gating (lib/feature_flags.rb), AI routing scope
+    # (lib/ai_word_predictor.rb) and telemetry attribution
+    # (app/models/telemetry_event.rb). Taking a user therefore relocates their
+    # compliance context, not just their seat.
+    #
+    # The guard precedes the seat lookup and sits outside License.transaction, so
+    # a denial never opens a transaction and never touches a seat. It fails closed
+    # when the prior org row is missing.
+    prior_org_id = user.managing_organization_id
+    if prior_org_id && prior_org_id != self.id
+      prior_org = Organization.find_by(id: prior_org_id)
+      # Denials are audited as well as successes: a refused cross-tenant claim is
+      # the event a district reviewer needs to see, and without this it would be
+      # an unlogged 400. Keyed 'system' to match License#release, since the model
+      # is the boundary both entry points converge on and has no acting user in
+      # scope; organization_id identifies the tenant that attempted the claim.
+      AuditEvent.log_command('system', {
+        'type' => 'license_claim_denied',
+        'reason' => 'target managed by another organization',
+        'organization_id' => self.global_id,
+        'user_id' => user.global_id,
+        'prior_organization_id' => prior_org && prior_org.global_id,
+        'seat_type' => seat_type
+      })
+      raise "user is already managed by another organization"
+    end
+
     # Find an empty seat
     license = self.licenses.where(user_id: nil, seat_type: seat_type, status: 'active').first
     raise "No seats available in this district" unless license

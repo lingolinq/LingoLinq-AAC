@@ -3754,4 +3754,85 @@ describe Organization, :type => :model do
       expect(Organization.external_ai_processing_allowed_for_user?(u)).to eq(false)
     end
   end
+
+  # LL-1baffd92d5: Organization#claim_user authorized only the requesting org's
+  # manager and performed no check whatsoever on the target user, so any manager
+  # with a free seat could bind any account by username, including one another
+  # district already managed. These pin the target-side guard.
+  describe "claim_user target authorization (LL-1baffd92d5)" do
+    after(:each) do
+      # `data` is secure_serialize'd (ciphertext in the column), so it cannot be
+      # matched in SQL. `summary` is plaintext and generate_summary derives it
+      # from data['type']. Scoped to this describe block: AuditEvent rows commit
+      # outside the RSpec transaction and would otherwise leak into other files.
+      AuditEvent.where("summary LIKE ?", '%license_claim%').delete_all
+    end
+
+    def active_seat(org)
+      License.create!(organization: org, seat_type: 'student', status: 'active')
+    end
+
+    it "should refuse to claim a user already managed by a different organization" do
+      org_a = Organization.create
+      org_b = Organization.create
+      seat_a = active_seat(org_a)
+      seat_b = active_seat(org_b)
+      u = User.create
+
+      org_a.claim_user(u)
+      u.reload
+      expect(u.managing_organization_id).to eq(org_a.id)
+
+      expect { org_b.claim_user(u) }.to raise_error(/managed by another organization/)
+
+      u.reload
+      expect(u.managing_organization_id).to eq(org_a.id)
+      expect(seat_b.reload.user_id).to eq(nil)
+      expect(seat_a.reload.user_id).to eq(u.id)
+    end
+
+    it "should log an AuditEvent when a cross-organization claim is denied" do
+      org_a = Organization.create
+      org_b = Organization.create
+      active_seat(org_a)
+      active_seat(org_b)
+      u = User.create
+      org_a.claim_user(u)
+
+      expect { org_b.claim_user(u) }.to raise_error(/managed by another organization/)
+
+      event = AuditEvent.where("summary LIKE ?", '%license_claim_denied%').last
+      expect(event).to_not eq(nil)
+      expect(event.data['organization_id']).to eq(org_b.global_id)
+      expect(event.data['user_id']).to eq(u.global_id)
+      expect(event.data['prior_organization_id']).to eq(org_a.global_id)
+    end
+
+    it "should still allow the SAME organization to re-claim its own user" do
+      org = Organization.create
+      active_seat(org)
+      u = User.create
+      org.claim_user(u)
+      u.reload
+      expect(u.managing_organization_id).to eq(org.id)
+
+      active_seat(org)
+      expect { org.claim_user(u) }.to_not raise_error
+      expect(u.reload.managing_organization_id).to eq(org.id)
+    end
+
+    # Regression guard. The consent gate for UNMANAGED targets is deliberately NOT
+    # in this change (it is forgeable until the supervisor_key/start_code entry
+    # point is fixed), so an unmanaged user must still be claimable.
+    it "should still allow claiming a user who is not managed by any organization" do
+      org = Organization.create
+      seat = active_seat(org)
+      u = User.create
+      expect(u.managing_organization_id).to eq(nil)
+
+      expect { org.claim_user(u) }.to_not raise_error
+      expect(u.reload.managing_organization_id).to eq(org.id)
+      expect(seat.reload.user_id).to eq(u.id)
+    end
+  end
 end
