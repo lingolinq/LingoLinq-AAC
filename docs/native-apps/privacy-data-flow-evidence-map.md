@@ -22,7 +22,7 @@
 - Apple **PrivacyInfo.xcprivacy** privacy manifest (required-reason APIs)
 - Google Play **Data Safety form**
 
-**Scope:** Backend (Rails 7.2) + Ember 3.28 frontend packaged as native (Cordova/Capacitor) apps. Hosting: Render (migrating to GCP Cloud Run), storage AWS S3.
+**Scope:** Backend (Rails 7.2) + Ember 3.28 frontend packaged as native (Cordova/Capacitor) apps. Hosting: GCP Cloud Run (migrated from Render at the 2026-07-22 cutover; the Render workspace was deleted 2026-09-09), storage AWS S3.
 
 **Audit basis:** Citations re-verified against **staging** (`git show origin/staging:<path>`) on 2026-06-30 during PR #509 review. Confirmed accurate: `config/initializers/sentry.rb:310` (`send_default_pii=false`), `app/models/ai_api_log.rb:225-228` (90-day IP redaction), `app/models/log_session.rb:65-66` (geo/IP strip on org policy), `lib/ai_board_generator.rb` gating + blocklist (`:31/:39/:50-51/:56`). The AI-egress inventory in Section 3 was **corrected in the same review** after the initial draft (read against `main`) missed the word-prediction and eval-narration paths -- both verified present on staging (`lib/ai_word_predictor.rb`, `lib/eval_narrator.rb`). Remediations corroborated by the audit register (PR #225 Sentry swap, PR #222 IP-redaction cron).
 
