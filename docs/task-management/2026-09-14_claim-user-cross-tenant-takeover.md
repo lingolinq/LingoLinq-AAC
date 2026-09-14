@@ -261,10 +261,22 @@ becomes live the moment the licensing feature is switched on or any seat row is 
 audit report both describe LL-1baffd92d5 as live in production; that should be amended to "present and
 unfixed, exploitable only once `License` rows exist".
 
-**One read-only query settles it and has not been run:**
-`SELECT count(*) FROM licenses WHERE user_id IS NULL AND status = 'active';`
-A non-zero count moves this straight back to live-critical. Running it needs the audited prod console
-(`bin/audit_console` / the `lingolinq-migrate` job with `USER_KEY`), so it is Scot's to run.
+**SETTLED 2026-09-14 against production. The count is zero.** Run read-only through the existing audited
+`lingolinq-admin-audit` Cloud Run job (`USER_KEY=ops-audit`) with a per-execution args override, which does
+not mutate the job definition; execution `lingolinq-admin-audit-cs8z2`:
+
+```
+LICENSES_TOTAL=0        SEATS_FREE_ACTIVE=0        SEATS_BOUND=0
+ORGS_WITH_LICENSES=0    USERS_WITH_MANAGING_ORG=0
+```
+
+The `licenses` table is empty and **no user carries a `managing_organization_id` at all**. Two consequences:
+
+1. **LL-1baffd92d5 is latent, not exploitable.** `claim_user` raises "No seats available in this district"
+   before reaching the vulnerable write, on both entry points. Severity should be restated as a latent
+   Critical gated on a precondition that does not currently hold. Only Scot downgrades severity.
+2. **Blocker C3 is moot.** There is no remediation backlog because there are zero bound users. Nothing was
+   ever taken. That objection can be struck from the design constraints.
 
 This also invalidates the doc's original reason for rejecting Option B. "Option B leaks a paid seat" is
 moot when no seats exist, so there is room to do the pending-claim design properly rather than under
@@ -304,3 +316,43 @@ not a guard to weaken.
 - **`JsonApi::License#build_json` emits `metadata` with no permissions check** although the field is
   secure_serialized as potentially sensitive district/billing data, and 'edit' includes assistants.
 - **Fact-sheet correction:** the License method is `release_user!`, not `release`.
+
+
+---
+
+## 6. NEW, and it does NOT depend on licences: a live escalation to password control
+
+Found while confirming that the seat count settled the severity question. Filed here because it is a
+**different defect** from LL-1baffd92d5 and is not in the register.
+
+Every link below was read directly, not inferred:
+
+- `Organization.manager_for?` keys on the target's **non-pending** links:
+  `select{|l| (l['type'] == 'org_user' || l['type'] == 'org_supervisor') && l['user_id'] == user.global_id && !l['state']['pending'] }`
+- `app/models/user.rb:86` grants on that basis:
+  `add_permissions('manage_supervision', 'support_actions', 'link_auth') {|user| Organization.manager_for?(user, self) && !user.valet_mode? }`
+- `app/controllers/api/users_controller.rb:210` unlocks the password write:
+  `elsif params['reset_token'] == 'admin' && user.allows?(@api_user, 'support_actions')`
+- The `start_code` plus `supervisor_key` path reaches `add_user(victim, false, !!premium, false)`. With
+  `premium` falsy, `sponsored=false` skips the licence fast-path entirely and calls
+  `update_subscription_organization(self, false, false, false)`, which writes
+  `link.data['state']['pending'] = !!pending unless pending == nil`, i.e. **an explicitly non-pending
+  `org_user` link, with no `License` row required**.
+
+So an actor who is a full manager of any org can attach a victim to that org as non-pending, become
+`manager_for?` them, gain `support_actions`, and **set their password**. No seat, no licence, no
+`managing_organization_id` write. The zero seat count does not mitigate this at all.
+
+**Precondition that bounds it, stated honestly:** delivering the `supervisor_key` needs
+`manage_supervision` or `edit` on the target (`app/controllers/api/users_controller.rb`, the
+`user_data.slice('supervisor_key')` branch), so the attacker must already supervise or manage the victim.
+It is therefore an escalation from **supervisor to password control**, not takeover of an arbitrary
+stranger by username. That is still a real defect: a supervising therapist should not be able to set a
+communicator's password and lock out the family.
+
+Note the contrast that shows the shape is specific, not general: the `management_action=add_user-<victim>`
+route passes `pending=true`, producing a pending link, which `manager_for?` correctly refuses. Only the
+`pending=false` callers mint the dangerous link.
+
+Suggested severity High. Candidate register row; not filed, because promoting is a register mutation that
+requires regenerating artifacts or CI fails.
