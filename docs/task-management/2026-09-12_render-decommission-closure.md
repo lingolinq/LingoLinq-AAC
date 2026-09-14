@@ -737,7 +737,9 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   > only test 157 `boards-layout-toggle` with `TypeError: localStorage.getItem is not a function`
   > at `capabilities.sync_access_token` (`capabilities.js:305`), called by the 2-second
   > `setInterval` at `capabilities.js:320-326` that nothing clears, while the test holds a bare
-  > `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) across its await (`:223`). Both tests
+  > `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) across its await (`:223`); two sibling
+  > tests in that module do the same (`:229` with `:238`, `:243` with `:253`), so a fix belongs in the
+  > module's hooks or in interval ownership, not in one test. Both tests
   > passed on the 2529 suite before #963 (166 files, 33 new test files, +158 tests). The only two
   > runs on this base outside #962 (`develop` 34784704398, PR 34786101021) passed; that is a
   > control set of two. Runs 34811882616 and 34812849886 were pending at the stamp. Cause
@@ -793,10 +795,13 @@ pass (`38559fd0e`) completed at 06:06:33Z, three minutes after that commit, and 
 been counted then; both are now listed; the classification no longer rules out a product
 defect (the TypeError is a harness artifact; a late timer re-entering `speak_utterance` in
 production is untested); the mechanism and the "why now" candidates are stated as hypotheses,
-none executed; the PR body no longer says "pre-rebase" and "post-rebase" (no rebase happened;
-CI runs on the merge ref and picked up the moved base); the stub citations are the ones live during
+none executed; the PR body no longer says "pre-rebase" and "post-rebase" (no rebase in the #963
+window; the branch's earlier rebase onto #961 predates the base move; CI runs on the merge ref and
+picked up the moved base); the stub citations are the ones live during
 the failing test; the `localStorage` citations point at the stub and its call, and that leak is
-timing-dependent inside one test, not order-dependent; the `runLater` figure is no longer a grep
+timing-dependent inside one test, not order-dependent (superseded in round 20: the caller is a
+never-cleared interval whose phase depends on cumulative suite time, so suite composition is not
+ruled out); the `runLater` figure is no longer a grep
 count; no test calls `oops()`; "any PR on this base carries the risk" and the cache-step wording
 are gone. Lesson, third time: the correction of a correction needs the same evidence pull, and a
 count that was true when gathered must be re-pulled at commit time.
@@ -817,9 +822,28 @@ passing comparators are named as the only two runs on this base outside #962. Th
 list says every run on that base passed. The round-17 history entry is annotated rather than
 rewritten. Lesson: a count of a live process is a time-stamped observation, never a fact.
 
+## PR A1 dual review round 21 (head 3f336d05d, prose only) and fixes
+
+Findings file `dual-review-round21-pra1.md`. Codex: approve, no findings. Adversary: request-changes,
+2 Medium, 4 Low, all prose. Code unchanged and approved since `38559fd0e`.
+Addressed above: the "810-923 ms in the passing ones" range I added in round 20 was the two
+other-branch comparators, not this branch's passing runs (1038, 1075, 949 ms), and it confounded
+runner speed with the effect; replaced with the within-run excess of test 2469 over its neighbours
+(about +500 ms in every failing run, about zero in every passing run and both comparators), with
+run ids, read from the job logs. The round-19 entry's "not order-dependent" is annotated as
+superseded by round 20, and its bare "no rebase happened" is scoped to the #963 window (the branch
+was rebased onto #961 earlier). The PR body's "two most recent heads" is replaced with the two run
+ids. The note says three tests in the `boards-layout-toggle` module hold the storage stub across
+an await, so the fix belongs in the module's hooks or in interval ownership. The pre-move range
+parenthetical is dropped. Run 34811882616 (`1940d17c0`) passed at 06:34:39Z, after the stamp;
+the record does not count it.
+Process note: the first attempt at this commit (`800401f28`) applied only the timing and
+parenthetical edits because the edit script stopped on a blockquote prefix; the rest landed in the
+following commit and round 22 was restarted against it.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-20 applied; round 21 re-review pending on prose only) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-21 applied; round 22 re-review pending on prose only) -> A2 -> B -> C.
