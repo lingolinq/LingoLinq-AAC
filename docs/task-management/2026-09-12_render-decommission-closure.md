@@ -975,10 +975,8 @@ finished in round 28). Lows: the round-26 entry quoted one string as the text of
 the note's variant differs (both variants now quoted); the record cited round ranges for its reads
 that go one short every round (both parentheticals now point at the round entries without a range);
 the owner note's pointer to "the working log" names the file, since the note is meant to be pasted
-where the log is not open; every line added since `38559fd0e` was rewrapped once, by script, to at
-or under 100 columns (pre-existing longer lines elsewhere in the file are untouched); no check in
-the repo enforces that; the awk check is re-run after each commit to this log and a rewrap commit
-follows when it reports a line (three of the last four fix commits needed one).
+where the log is not open; every line added since `38559fd0e` is at or under 100 columns
+(pre-existing long lines were not rewrapped for width); no check in the repo enforces that.
 
 ## PR A1 dual review round 28 (head ed9f9bb84, prose only) and fixes
 
@@ -1011,12 +1009,34 @@ whitespace-tolerant matcher introduced that round; restored, and the structural 
 on the commit being made); the round-27 entry gets the forward annotation that round 28 finished
 its correction; the round-28 entry's "all in this log's own round entries" mis-scoped one fix
 that sits in the owner note; the PR body's round-27 row still carried the pre-round-28 width
-wording (matched to the log).
+wording.
+
+## PR A1 dual review round 30 (head 71f77b6a2, prose only) and close
+
+Findings file `dual-review-round30-pra1.md`. Codex: did not run (OAuth still revoked). Adversary:
+request-changes, 2 Medium, 3 Low; all round-29 fixes verified applied; the commit verified
+structurally clean by block extraction; no standing sentence carries a post-stamp number. Code
+unchanged and approved since `38559fd0e`. Both Mediums sat in the one sentence narrating the
+width habit ("three of the last four" was two of four once its own commit landed; "a rewrap
+commit follows" held for two of the three pairs it summarised); the sentence is cut back to the
+unconditional claim. Lows: the PR body's round-28 row kept the mis-scope the log had fixed
+(swept); "untouched" for pre-existing long lines was not exact (four were rewritten for content;
+now "not rewrapped for width"); "(matched to the log)" dropped.
+
+Closing decision (Scot, 2026-09-14, "do whichever you'd recommend of applying the findings or
+recording the pass"): the loop is closed here. Since round 16 every finding has been in this log's
+prose, and since round 22 in the entry describing the previous round's fix; each fix is new prose
+and re-reviewable without end. These round-30 clauses are applied with the local checks (width,
+structure, word-level diff) and without a round 31, a declared deviation from "fixes are
+unreviewed code" scoped to review-record prose. The pass is recorded on `71f77b6a2`, the head the
+adversary read, not on this commit. Codex has not run since round 23; Scot re-authenticates it
+with `CODEX_HOME=$HOME/.cache/codex-review-home codex login` before the next PR's dual review.
 
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-29 applied; round 30 re-review pending,
-  prose only, adversary alone until Codex is re-authenticated) -> A2 -> B -> C.
+- [x] PR A1 #962 review loop closed (2026-09-14): rounds 1-30 applied; pass recorded on
+  `71f77b6a2`, the last head the adversary read; handed back to Scot as a draft.
+- [ ] PR A2 -> B -> C.
