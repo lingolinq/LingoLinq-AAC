@@ -7522,7 +7522,7 @@
         "file": "app/models/lesson.rb",
         "line": 61,
         "snippet": "(self.settings['usages'] || []).any? do |use|",
-        "sha": "e37817432a58ade7438284916f454554823c181c"
+        "sha": "4104b657b243164a4ba257fad015db4942ce79f0"
       },
       "firstSeen": "2026-09-13",
       "lastSeen": "2026-09-13",
@@ -7565,7 +7565,7 @@
         "file": "app/models/lesson.rb",
         "line": 81,
         "snippet": "return url if url.match?(/\\Ahttps?:\\/\\//i)",
-        "sha": "e37817432a58ade7438284916f454554823c181c"
+        "sha": "4104b657b243164a4ba257fad015db4942ce79f0"
       },
       "firstSeen": "2026-09-13",
       "lastSeen": "2026-09-13",
@@ -7608,7 +7608,7 @@
         "file": "app/models/webhook.rb",
         "line": 206,
         "snippet": "klass = klass.constantize",
-        "sha": "e37817432a58ade7438284916f454554823c181c"
+        "sha": "4104b657b243164a4ba257fad015db4942ce79f0"
       },
       "firstSeen": "2026-09-13",
       "lastSeen": "2026-09-13",
