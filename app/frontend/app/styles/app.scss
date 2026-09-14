@@ -328,7 +328,27 @@
 #within_ember .md-board-detail-sentence-bar *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
 #within_ember .md-board-detail-header *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
 #within_ember .md-board-detail-board-actions *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
-#within_ember .md-board-detail-board-actions__btn:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
+#within_ember .md-board-detail-board-actions__btn:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+/* Classic home, Focused variant: the rail pane and every control on it are dark — see
+   "CLASSIC HOME — Focused variant: the rail" in _focused-view.scss. Without this entry the
+   global navy ring above measures 1.08:1 on the rail and 1.21:1 on a row, and `outline` is
+   forced to `none`, so a keyboard, switch-scanning or eye-gaze user would have NO focus
+   indicator at all. White at 0.85 measures 7.00-9.91 across those surfaces.
+   Scoped to the individual DARK surfaces, NOT to `.ch-page`: much of the panel still sits on
+   the light page ground, where a white ring is the invisible one. Each entry is added by the
+   unit that darkens that surface, and REMOVED when a surface is lightened again.
+   `.ch-rail` and `.ch-tabs` were listed here until 2026-09-14, when both were taken 75%
+   lighter: white measures 1.72:1 on the pane and 1.52:1 on the strip, while the global navy
+   ring measures 6.45 and 7.45. Leaving them listed would have removed focus indication from
+   the whole left panel. `.ch-card` carries `:not(.ch-card--intro)` for the same reason — the
+   "Let's Get Started" callout was lightened, its siblings were not.
+   Subtabs and the <=550px <select> have never been listed: their rings land on the page
+   ground, which is light, so navy stays correct for them at 10.86:1. Carries `#within_ember` and the
+   same `:not(...)` as every sibling here, per the note above — at (1,4,1) it outranks the
+   global rule's (1,2,0) rather than relying on source order. */
+body.ll-layout-focused #within_ember .ch-card:not(.ch-card--intro) *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+body.ll-layout-focused #within_ember .ch-comm *:focus-visible:not(.md-board-detail-edit-toolbar__search-input),
+body.ll-layout-focused #within_ember .ch-menu *:focus-visible:not(.md-board-detail-edit-toolbar__search-input) {
   box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85) !important;
   border-radius: 6px;
 }

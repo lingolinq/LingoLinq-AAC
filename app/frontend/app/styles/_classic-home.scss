@@ -2170,6 +2170,69 @@ button.ch-tile--silver:focus-visible {
 @media (max-width: 1024px) {
   .ch-page { padding-top: 44px; }
 
+  // ---------------------------------------------------------------------------
+  // ONBOARDING CALLOUT — three-row shape
+  // ---------------------------------------------------------------------------
+  // Below the desktop row the card becomes:
+  //
+  //   ICON | Header
+  //        | Subheader
+  //        | ................. How To Use …   (own row, right-aligned)
+  //
+  // The icon occupies row ONE only; rows two and three leave its column empty, which is what
+  // indents the copy and the CTA under the header rather than under the icon.
+  //
+  // Applies to BOTH dashboard styles. This lived in _focused-view.scss until 2026-09-14 and
+  // was moved here so Gentle and Focused share one structure on the classic page: the layout
+  // is a property of the card at this width, not of the colour scheme.
+  //
+  // `display: contents` on `.ch-intro__content` is what makes a multi-row shape possible —
+  // the title and paragraph share that one wrapper and cannot otherwise occupy different
+  // grid rows. It carries no role, so nothing leaves the accessibility tree; the <h2> and
+  // <p> keep their own semantics.
+  .ch-card--intro {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      "icon title"
+      ".    text"
+      ".    cta";
+    align-items: center;
+    column-gap: 18px;
+    // Zero deliberately: the three rows want DIFFERENT spacing and `row-gap` is uniform, so
+    // the gaps are carried by the items' own margins below.
+    row-gap: 0;
+  }
+
+  .ch-card--intro .ch-intro__icon    { grid-area: icon; }
+  .ch-card--intro .ch-intro__content { display: contents; }
+
+  .ch-card--intro .ch-card__title {
+    grid-area: title;
+    margin: 0;
+  }
+
+  // Most of the gap between these two is NOT margin, which is why zeroing the title's margin
+  // alone still left it loose. Half-leading accounts for 5.65px of it: 1.65px below the title
+  // (22px at line-height 1.15 — the clamp's 1.6vw term sits under its 22px floor at every
+  // width this block covers) and 4px above the paragraph (16px at line-height 1.5). The
+  // negative top margin absorbs most of that, landing the visible gap at ~2.6px rather than
+  // ~9.6px. The leading itself is left alone: 1.5 is what makes the paragraph readable, and
+  // tightening it to close a one-off gap would cost every line in it.
+  //
+  // The open space in the stack goes at the BOTTOM, so the CTA reads as a separate action
+  // rather than as the last line of the paragraph.
+  .ch-card--intro .ch-card__text {
+    grid-area: text;
+    margin: -3px 0 20px;
+  }
+
+  // No width declaration needed: `justify-self: end` shrinks a grid item to its content and
+  // pins it to the trailing edge of its own row.
+  .ch-card--intro .ch-btn {
+    grid-area: cta;
+    justify-self: end;
+  }
+
   // Rail rows tighten from 10px to 8px here. padding-top/bottom rather than the
   // shorthand so the base's 14px side padding is left alone; the 900px block below
   // re-declares the full shorthand and still wins there on source order.
@@ -2315,6 +2378,23 @@ button.ch-tile--silver:focus-visible {
 @media (max-width: 550px) {
   .ch-tabs { display: none; }
   .ch-tabselect { display: block; }
+
+  // The callout collapses to one centred column and wraps. The title/text margins set in the
+  // 1024px block carry through, including `row-gap: 0`, so only the icon needs a gap of its
+  // own now that it occupies a row rather than a column.
+  .ch-card--intro {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "icon"
+      "title"
+      "text"
+      "cta";
+    justify-items: center;
+    text-align: center;
+  }
+
+  .ch-card--intro .ch-intro__icon { margin-bottom: 12px; }
+  .ch-card--intro .ch-btn { justify-self: center; }
 }
 
 @media (max-width: 900px) {
@@ -2327,19 +2407,11 @@ button.ch-tile--silver:focus-visible {
   .ch-rail, .ch-panel { max-width: none; width: 100%; }
   .ch-comms { grid-template-columns: 1fr; }
 
-  // Onboarding callout stacks. `align-items: start` replaces the desktop `center`:
-  // once the columns become rows, centring would indent the icon and the CTA relative
-  // to the copy instead of aligning their left edges.
-  .ch-card--intro {
-    grid-template-columns: 1fr;
-    align-items: start;
-    gap: 18px;
-    padding: 20px;
-  }
-
-  // Full width at this size, so the CTA is unmissable and the 48px height already
-  // clears the 44px minimum touch target.
-  .ch-card--intro .ch-btn { width: 100%; }
+  // The onboarding callout keeps the three-row shape set in the 1024px block above; only its
+  // padding tightens here. The single-column stack and full-width CTA that used to live here
+  // were REPLACED by that shape on 2026-09-14 — leaving them would have overridden it, since
+  // this block is later in the file at the same specificity.
+  .ch-card--intro { padding: 20px; }
 
   // ---------------------------------------------------------------------------
   // RAIL ROWS — wrap into columns instead of one tall stack
