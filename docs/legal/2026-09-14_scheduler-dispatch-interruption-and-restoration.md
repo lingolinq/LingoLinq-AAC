@@ -103,8 +103,7 @@ explicitly logged disabled mode indicates invocation without expiration processi
 `redact_old_ai_api_log_ips`, the reported value is the count of records updated by
 `AiApiLog.redact_old_ip_addresses!`, whose query selects rows older than the retention window whose
 `ip_address` is neither null nor already `[REDACTED]` (`app/models/ai_api_log.rb:225-229`); the
-update reported zero affected rows at each observed execution. This does not establish whether
-qualifying rows existed at other times or what the stored population contains now. Nothing here
+update reported zero affected rows at each observed execution. This does not establish whether qualifying rows existed at other times. As of the 2026-08-17 live re-verification recorded in `docs/legal/2026-08-25_ai-data-flow-classification.md`, `ip_address` was null on all 64 `AiApiLog` rows then present; the table has not been re-queried since, so the current population is unknown. Nothing here
 evidences completion of downstream asynchronous work enqueued by any task.
 
 **COPPA worker mode.** Disabled mode was logged 2026-09-04 through 2026-09-14. The 2026-09-03
