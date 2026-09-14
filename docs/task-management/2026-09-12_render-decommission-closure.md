@@ -663,8 +663,7 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   the Ember suite grew from 2529 to 2687 tests. This branch was not rebased in that window: its
   merge base with `develop` is `7183d488f` throughout, and no head contains `4104b657b`; CI runs on
   the PR merge ref, which picks up the moved base.
-- Branch record as of 2026-09-14T06:32Z. On the 2529-test base, every run passed (`20d2e376d`
-  through `165fe952f`). On the 2687-test base, completed runs: passes at `4fca93c3d` (34787002914)
+- Branch record as of 2026-09-14T06:32Z. On the 2529-test base, every run passed. On the 2687-test base, completed runs: passes at `4fca93c3d` (34787002914)
   and `38559fd0e` (34809987003); failures at `a648d93e3` (34785846824, test 157), `e3d53f10b`
   (34787748239), `5d724d15d` (34788511177), `4af82d7c2` (34789100356), `262ec6a09` (34798323491),
   `a7a667453` (34809269466), `7422bf347` (34810879687), the last six all test 2469; pending at
@@ -695,8 +694,12 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   caller frame delta (+18) matches `:305` to `:323`.
 - Hypotheses, all PLAUSIBLE and none executed: (a) speech: the `runLater` at `:915` fires after the
   test body returns and, intermittently, after teardown has restored the real `speak`, handing it
-  the fake utterance built under the stub (test 2469 took 1629-1724 ms in the failing runs against
-  810-923 ms in the passing ones). The TypeError itself cannot occur in production, where the
+  the fake utterance built under the stub. Within-run timing supports a late timer: in each failing
+  run test 2469 took about 500 ms longer than its neighbours 2470 and 2471 (1629-1724 ms against
+  1159-1304 ms; runs 34787748239, 34788511177, 34789100356, 34798323491, 34809269466, 34810879687),
+  while in every passing run on this branch and in both comparators it matched them (1038/1036,
+  1075/1092, 949/952, 810/815, 923/920 ms; runs 34787002914, 34809987003, 34811882616, 34784704398,
+  34786101021). Read from the job logs on 2026-09-14; a reading, not a reproduction. The TypeError itself cannot occur in production, where the
   constructor is native; whether the same late timer re-enters `speak_utterance` in production (a
   stale timer speaking or cancelling during a live session) is untested and is a separate question
   for the owner. (b) Storage: the never-cleared 2-second interval fires inside the test's await
