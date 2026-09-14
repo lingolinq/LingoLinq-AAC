@@ -376,3 +376,53 @@ for a communicator who cannot ratify it re-raises the guardian question from sec
   same escalation by a route this gate cannot see, latent only while `LICENSES_TOTAL=0`.
 - The denial AuditEvent is keyed `user_key: 'system'` while the success event uses the acting user.
 - Several line-number citations in these docs have gone stale, including from this change's own hunks.
+
+---
+
+## 9. Two further results from the dual review
+
+### 9.1 The test suite is NOT degenerate (independently mutation-tested)
+
+The senior-dev reviewer applied the "prove a check by making it fail" rule to the specs themselves, which
+the author had not done for the degenerate cases:
+
+- an **allow-everything** gate kills 4 specs
+- a **refuse-everything** gate kills 6, including the parent/guardian onboarding guard
+
+So neither degenerate implementation passes, and the regression guards are load-bearing rather than
+decorative. This is the one part of the change both reviewers called sound. Note it does NOT rescue the
+design: BLOCKER 1 stands precisely because the *correct-looking* implementation is bypassable, which no
+mutation test of the existing specs could have found.
+
+It also leaves SHOULD-FIX 4 intact: deleting `assistant?` or `upstream_manager?` from the gate's condition
+still leaves the suite green, because every spec builds its org with `add_manager(name, true)`.
+
+### 9.2 NEW finding on the consent surface: `consent_transition` substitutes the target for the actor
+
+Pre-existing, not introduced by this change, and **not covered by the gate**. Suggested High.
+
+`SupervisorKeyProcessor#consent_transition` is the handler for `approve_consent` and `deny_consent`:
+
+```ruby
+result = SupervisorConsentService.new.send(method, relationship: rel, actor: user)
+```
+
+It passes `actor: user`, i.e. the TARGET whose record is being updated, never the submitting actor. The
+service's only authorization check is:
+
+```ruby
+def party_response_error(relationship, actor)
+  return { error: 'not_authorized' } unless actor && relationship && relationship.communicator_user_id == actor.id
+```
+
+That binds the consent token to the communicator, but says nothing about **who submitted it**. Because the
+processor hands it the target, the predicate is satisfied by construction on every third-party submission.
+So a supervisor holding `edit` on a communicator can approve or deny a supervision-consent decision on
+that communicator's behalf, and the service cannot tell.
+
+This is the COPPA/consent surface flagged earlier as the thing to look at before `process_add`. The actor
+threading added by this change stops at the three org actions and does not reach `consent_transition`;
+extending it there is a one-line change (`actor: actor`) but alters what the consent service authorizes,
+so it needs its own trace and its own red test rather than being folded in here.
+
+**Do not fold this into the blocked change.** It is a separate defect with a separate blast radius.

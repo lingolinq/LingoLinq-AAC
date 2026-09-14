@@ -107,7 +107,13 @@ Add the target check to `Api::OrganizationsController#claim_user` only. Rejected
 
 ### Risks I can see
 
-- **The existing spec at `organizations_controller_spec.rb:785` will go red.** It encodes the vulnerable behaviour. It must be rewritten to establish a consented member first, preserving its actual subject (that `external_reference` is not exposed, LL-55baae6d40). Rewriting it is correct, not test-fudging, but it must be called out loudly in the PR body.
+- ~~**The existing spec at `organizations_controller_spec.rb:785` will go red.**~~ **WRONG, corrected
+  2026-09-14.** It did not go red and needed no rewrite. That prediction was made while the proposal still
+  included the consent gate for UNMANAGED targets; the shipped change rejects only CROSS-ORG claims, and
+  the spec's target is an unmanaged `User.create`, so it passes untouched. Verified: the file is unmodified
+  in this branch (`git diff --stat 4104b657b..HEAD -- spec/controllers/api/organizations_controller_spec.rb`
+  is empty) and green (3 examples, 0 failures). Left visible rather than deleted because a PR body built
+  from this doc would otherwise have carried a false claim, which is exactly what the dual review caught.
 - **Seed and demo scripts** (`lib/seed_organization.rb`) pass `pending=false` and should keep working, but they are the most likely place to discover an ordering assumption.
 - **Product behaviour change** for new-student adds, as described under Option A.
 - **`org_assertions` and cache invalidation** run on the existing paths; deferring the bind changes when they fire. Not traced in depth.
