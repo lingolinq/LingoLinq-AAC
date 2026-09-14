@@ -145,7 +145,7 @@ hand-edit.
 
 ## 5. Active product controls (implemented, evidence in code)
 
-These are implemented and operating, not aspirational. Each cites its evidence.
+These are implemented, not aspirational. Each cites its evidence. **Qualified 2026-09-14:** "implemented" states what the code does, not that it executed. Where a control depends on scheduled dispatch, its row carries the cadence-versus-execution distinction and the 2026-07-21 to 2026-09-02 interruption (`LL-3e36a18199`, open).
 
 | Control | What it does | Evidence |
 |---|---|---|
@@ -158,7 +158,7 @@ These are implemented and operating, not aspirational. Each cites its evidence.
 | Parental consent flow | Child registration gated; parent confirms via secure tokenized link; consent recorded with timestamp; 14-day expiry | `app/controllers/parental_consents_controller.rb`; `app/models/user.rb` (`grant_parental_consent!`) |
 | Encryption of sensitive fields | Server-side encryption layer for sensitive data | `secure_serialize` concern |
 | Rate limiting | Edge throttling on protected paths including consent endpoints | `config/initializers/throttling.rb` (Rack::Attack); LL-ca38d4d99e verified-closed |
-| Retention enforcement | Deletion **configured** for daily scheduled execution per the retention schedule; see the 2026-07-21 to 2026-09-02 dispatch interruption noted in section 5 (`LL-3e36a18199`, open) | `lib/data_policy_enforcer.rb`, `lib/flusher.rb` |
+| Retention enforcement | Deletion **configured** for daily scheduled execution per the retention schedule; see the 2026-07-21 to 2026-09-02 dispatch interruption noted in the known-residuals paragraph below (`LL-3e36a18199`, open) | `lib/data_policy_enforcer.rb`, `lib/flusher.rb` |
 | Article 50(2) marking | Server-signed provenance markers on in-scope generative paths | `lib/art50_marker.rb` (board generation and word prediction). Article 50(1) disclosure UI is built and its server-side backstop now covers all 5 AI ingresses (#829/#831, 2026-08-19); the flag is AVAILABLE-only in `lib/feature_flags.rb` at `64cdccba1` -- a code default; the runtime state was verified ENABLED on 2026-08-23; see Section 12 and the runtime caveat there. |
 
 **Known residuals (tracked, not hidden):** live open Highs that touch product controls include

@@ -32,28 +32,34 @@ Captured 2026-09-14 by a read-only harness that records each command's argv, exi
 window and scope in a sidecar, and the harness and validator hashes in a run manifest. Held
 outside this repository at
 `~/ai-company-brain/outputs/docs/2026-09-14-scheduler-evidence-receipts/run-20260914T072304Z-945417/`.
-They are raw cloud API output containing internal infrastructure detail, and this repository is
-public, so they are cited by hash rather than committed. Whether to publish them is a separate
-decision that has not been made.
+They are raw cloud API output, and this repository is public, so they are cited by sha256 rather
+than committed. That is a size-and-format decision, not a confidentiality claim: this record
+necessarily restates the operationally meaningful contents below. Whether any of it belongs in a
+public repository is an open question for Scot, flagged in section 6.
 
 | Receipt | sha256 (first 16) | Establishes |
 | --- | --- | --- |
-| `manifest.json` | `ddcb07d0ea5faa41` | Run identity, harness and validator hashes, gcloud 564.0.0, query bounds `2026-09-02T00:00:00Z` to `2026-09-14T07:23:04Z` |
-| `scheduler-jobs.out` | `14e8ae1ad74c296a` | Trigger configuration as captured |
-| `scheduler-executions.out` | `a1461056f1647422` | 280 executions with identity, creator, conditions |
+| `alert-policies.out` | `e827fbdb518a8be8` | Alert policy inventory |
 | `dispatch-completion.out` | `a542d54380452001` | 280 dispatch-complete entries, zero failed |
-| `task-expire_offboarding_coppa_consents.out` | `3079fa48749ca030` | COPPA worker invocation and logged mode |
 | `logging-buckets.out` | `e0f88d116034c8c7` | Log retention as configured |
 | `logging-sinks.out` | `22e5d85331102d63` | Log routing as configured |
-| `alert-policies.out` | `e827fbdb518a8be8` | Alert policy inventory |
+| `manifest.json` | `ddcb07d0ea5faa41` | Run identity, harness and validator hashes, gcloud 564.0.0, query bounds |
+| `scheduler-executions.out` | `a1461056f1647422` | 280 executions with identity, creator annotation, conditions |
+| `scheduler-jobs.out` | `14e8ae1ad74c296a` | Trigger configuration as captured |
+| `task-clean_old_deleted_boards.out` | `5bfeb339f956edbb` | Daily-block log lines for `clean_old_deleted_boards` |
+| `task-enforce_data_retention_policies.out` | `3e4eef706a239aa2` | Daily-block log lines for `enforce_data_retention_policies` |
+| `task-expire_offboarding_coppa_consents.out` | `3079fa48749ca030` | Daily-block log lines for `expire_offboarding_coppa_consents` |
+| `task-flush_users.out` | `4535cee45b6a9dff` | Daily-block log lines for `flush_users` |
+| `task-purge_old_eu_ai_api_logs.out` | `64fb30acc6532865` | Daily-block log lines for `purge_old_eu_ai_api_logs` |
+| `task-redact_old_ai_api_log_ips.out` | `881d3830257d6272` | Daily-block log lines for `redact_old_ai_api_log_ips` |
 
 ### 3.1 Trigger
 
 Cloud Scheduler job `lingolinq-scheduler-hourly` in `lingolinq-prod/us-central1`, state `ENABLED`,
 schedule `0 * * * *`, `timeZone Etc/UTC`, `attemptDeadline 1800s`,
-`userUpdateTime 2026-09-02T17:05:54.687129Z`. Target
-`https://run.googleapis.com/v2/projects/lingolinq-prod/locations/us-central1/jobs/lingolinq-scheduler:run`
-(POST, OIDC).
+`userUpdateTime 2026-09-02T17:05:54.687129Z`. Its target is the Cloud Run Jobs `:run` API for the
+`lingolinq-scheduler` job
+(POST, authenticated with an OAuth service-account token; the receipt records `httpTarget.oauthToken` with scope `https://www.googleapis.com/auth/cloud-platform` and no `oidcToken`).
 
 That target returns a long-running Operation before the rake task runs, so Cloud Scheduler's own
 success signal cannot evidence task success. Nothing in this record relies on it.
@@ -67,9 +73,8 @@ success signal cannot evidence task success. Nothing in this record relies on it
 through `2026-09-14T07:00Z`, with no missing slot and no interval above 70 minutes.
 
 Two do not fall on that cadence: `lingolinq-scheduler-sp45b` at `2026-09-02T16:59:42Z` and
-`lingolinq-scheduler-qsq8x` at `2026-09-02T21:44:26Z`. Both carry annotation
-`run.googleapis.com/creator: scot@lingolinq.com` with `client-name: gcloud`; the other 278 carry
-`creator: scheduler-invoker@lingolinq-prod.iam.gserviceaccount.com`. That annotation records the
+`lingolinq-scheduler-qsq8x` at `2026-09-02T21:44:26Z`. Both carry a `run.googleapis.com/creator` annotation naming an OPERATOR user credential with
+`client-name: gcloud`; the other 278 name the Cloud Scheduler invoker service account. That annotation records the
 credential under which each execution was created. It does not by itself establish who or what
 initiated the call, and no separate evidence of interactive invocation was gathered.
 
@@ -169,6 +174,11 @@ residual work. That assessment is outstanding and is a closure condition on `LL-
 6. Record counts, minimum and maximum timestamps, and the absence of a result limit do not
    establish complete historical coverage.
 7. Configuration snapshots describe current state only.
+8. **Open question for Scot, disclosure.** This repository is public. Section 3.5 states that no
+   missed-run or absence detection exists on a production system serving children's data. The
+   substance is already public in `LL-3e36a18199`, which this repository also carries, so this
+   record adds detail rather than a new class of disclosure. Scot decides whether the alert-policy
+   detail belongs here, in the register only, or in neither.
 
 ## 7. Related records
 
