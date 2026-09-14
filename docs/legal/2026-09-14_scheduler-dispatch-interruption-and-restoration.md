@@ -177,10 +177,24 @@ residual work. That assessment is outstanding and is a closure condition on `LL-
   mechanism.
 - `rev-coppa-retention-quarterly` in `audit-reports/compliance-calendar.json`: overdue since
   2026-07-26; renewed COPPA verification belongs there, not here.
-- `docs/legal/COPPA_VERIFICATION_2026-04-26.md`: attested and frozen. It states that the IP
-  redaction job "runs daily today" and that other jobs run "daily at 6 AM UTC". Those statements
-  predate the interruption and cannot be corrected in place. They are addressed through the
-  quarterly review above.
+- `docs/legal/COPPA_VERIFICATION_2026-04-26.md`: attested, frozen, `status: approved`, a member of the
+  `school-dpa-package` bundle, and Drive-mirrored, so it is exported to school districts. Two of its
+  cadence statements have different provenance and must not be conflated.
+  - The body statements, for example "daily at 6 AM UTC" at `:231` and "runs daily" at `:233`, were
+    introduced on 2026-04-27 by PR #224. They genuinely predate the interruption.
+  - The banner statement at `:7-8`, that `AiApiLog.redact_old_ip_addresses!` "was wired into
+    `lib/tasks/scheduler.rake` by PR #222 and **runs daily today**", was introduced on 2026-07-23 by
+    commit `bf43bccee` (PR #672) and CEO-attested the same day. **That is two days after the
+    interruption began on 2026-07-21.** It did not go stale; on the evidence recorded here it was not
+    true when it was written, and the register's own attestation note says the re-attestation followed
+    "verification against live code and infrastructure state".
+  The file's bytes still match its `attestedContentHash`, so this is a content problem, not tampering,
+  and the record cannot be corrected in place. **Open decision for Scot, not resolved here and not
+  deferrable to the quarterly review:** an approved, bundle-exported, externally mirrored record carries
+  a claim the evidence contradicts. The options are a Path A dated successor or an annotation, and
+  either is Scot's to choose. Routing this to `rev-coppa-retention-quarterly` alone would be
+  insufficient: that review is overdue since 2026-07-26 and this change deliberately does not move its
+  due date, so it carries no scheduled date by which the disclosure would happen.
 
 ## 8. What this record does not do
 
