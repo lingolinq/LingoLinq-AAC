@@ -35,7 +35,9 @@ outside this repository at
 They are raw cloud API output, and this repository is public, so they are cited by sha256 rather
 than committed. That is a size-and-format decision, not a confidentiality claim: this record
 necessarily restates the operationally meaningful contents below. Whether those restated contents
-are RETAINED in a public repository is an open question for Scot, flagged in section 6.
+are RETAINED in a public repository is an open question for Scot, flagged in section 6.1. Whether
+the raw receipts THEMSELVES are published is a separate open decision, recorded in this record's
+register row.
 
 | Receipt | sha256 (first 16) | Establishes |
 | --- | --- | --- |
@@ -174,14 +176,25 @@ residual work. That assessment is outstanding and is a closure condition on `LL-
 6. Record counts, minimum and maximum timestamps, and the absence of a result limit do not
    establish complete historical coverage.
 7. Configuration snapshots describe current state only.
-8. **Open question for Scot, retention.** This repository is public, and this record is already
-   visible in the public draft pull request that proposes it, so the disclosure has already
-   occurred. What remains is a RETENTION decision, not a future-publication decision. Section 3.5
-   states that no missed-run or absence detection exists on a production system serving children's
-   data. The substance is already public in `LL-3e36a18199`, which this repository also carries, so
-   this record adds detail rather than a new class of disclosure. Scot decides whether the
-   alert-policy detail is retained here, moved to the register only, or removed; removing it would
-   limit onward visibility but would not undo the disclosure already made.
+
+## 6.1 Open question for Scot, retention
+
+Items 1 through 7 above record what is NOT established. This subsection is separate because it
+states an established fact and puts a decision to Scot.
+
+This repository is public, and this record was PUSHED to it on 2026-09-14, so the disclosure has
+already occurred. That anchor is the push itself, not the state of any pull request. What remains
+for these restated contents is a RETENTION decision rather than a future-publication decision;
+publication of the raw receipts themselves is a separate open decision, recorded in this record's
+register row and not settled here.
+
+Section 3.5 states that no missed-run or absence detection exists on a production system serving
+children's data. The substance is already public in `LL-3e36a18199`, which this repository also
+carries, so this record adds detail rather than a new class of disclosure. Scot decides whether the
+alert-policy detail is retained here, moved to the register only, or removed. Moving it to the
+register changes discoverability but NOT public availability, because `audit-reports/` is tracked in
+this same public repository. Removing it would limit onward visibility but would not undo the
+disclosure already made.
 
 ## 7. Related records
 

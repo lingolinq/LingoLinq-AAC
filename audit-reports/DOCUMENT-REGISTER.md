@@ -62,7 +62,7 @@
 | Compliance Program (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program_draft.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-09 | 2027-08-09 | no | `7bf31eae81de` |  |
 | LingoLinq Security, Privacy & Compliance Overview | git | `docs/legal/COMPLIANCE_PROGRAM_OVERVIEW.md` | superseded | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-04 | 2027-07-22 | 2026-08-04 | `63205ea1780c` |  |
 | LingoLinq Security, Privacy & Compliance Overview (2026-08-09 draft) | git | `docs/legal/2026-08-09_compliance-program-overview_draft.md` | draft | FERPA, COPPA, HIPAA, GDPR, SOC2 | Scot Wahlquist | 2026-08-30 | 2027-07-22 | no | `6fa69283b9fa` | security-review |
-| Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft) | git | `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md` | draft | HIPAA, FERPA, COPPA, GDPR, EU_AI_Act | Scot Wahlquist | 2026-08-30 | 2026-11-30 | no | `fac365516090` |  |
+| Minimum-Necessary Privacy, Data Retention, and AI Use Policy: Counsel Review Memorandum (2026-08-30 draft) | git | `docs/legal/2026-08-30_minimum-necessary-privacy-retention-ai-use-counsel-review.md` | draft | HIPAA, FERPA, COPPA, GDPR, EU_AI_Act | Scot Wahlquist | 2026-08-30 | 2026-11-30 | no | `3ce82beec52f` |  |
 | Records of Processing Activities (RoPA) and Data Map | Drive | [open](https://docs.google.com/document/d/1x6F8qiqR_7Ojc6-TQGYp2HYBMxjIUTzH0EGCQj8R-qg/edit) | published | GDPR | Scot Wahlquist | 2026-06-19 | 2027-06-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, dsar |
 
 ### evidence (13)
@@ -80,7 +80,7 @@
 | Google Cloud Platform BAA + CDPA + SCCs - Acceptance Record | git | `docs/legal/GCP_BAA_ACCEPTED.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-07-23 | 2027-07-23 | 2026-07-23 | `3e8f43b12186` | baa |
 | Incident Log | git | `docs/legal/INCIDENT_LOG.md` | approved | HIPAA, GDPR | Scot Wahlquist | 2026-05-27 | 2026-08-27 | 2026-06-21 | `e4e7c0b98d3f` | soc2-evidence |
 | Incident Log (branded) | Drive | [open](https://docs.google.com/document/d/1i5XFqAtgbxpDMLMdd80KS09WP7kWQ-GnTJU0ox7JGqQ/edit) | published | HIPAA, GDPR | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
-| Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft) | git | `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md` | draft | GDPR, FERPA, HIPAA, COPPA, SOC2 | Scot Wahlquist |  |  | no | `6b7b9a3635db` |  |
+| Scheduler Dispatch: Interruption and Post-Interruption Observations (2026-09-14 draft) | git | `docs/legal/2026-09-14_scheduler-dispatch-interruption-and-restoration.md` | draft | GDPR, FERPA, HIPAA, COPPA, SOC2 | Scot Wahlquist |  |  | no | `ee383d22ae42` |  |
 | Security Risk Assessment 2026 Q2 | Drive | [open](https://docs.google.com/document/d/1bvdVI_ftFaUu7CFVR8ajVZAQleruaIlqKxwI50iBRrc/edit) | published | SOC2 | Scot Wahlquist | 2026-06-19 | 2026-09-19 | 2026-06-19 | (supplied) | compliance-records-set-2026-06, soc2-evidence |
 
 ### audit-artifact (19)
