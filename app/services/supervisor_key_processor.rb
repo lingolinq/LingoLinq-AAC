@@ -1,10 +1,18 @@
 class SupervisorKeyProcessor
   attr_reader :user, :key_string
 
-  def initialize(user, key_string)
+  # `actor` is the user who submitted the key, which is NOT always the target:
+  # Api::UsersController#update accepts a supervisor_key from anyone holding
+  # manage_supervision or edit on the target, and User#process_params then runs
+  # process_supervisor_key with `self` = the TARGET. Defaults to the target so
+  # existing callers keep their current (self-action) behaviour.
+  def initialize(user, key_string, actor=nil)
     @user = user
     @key_string = key_string
+    @actor = actor || user
   end
+
+  attr_reader :actor
 
   def call
     return false unless key_string && key_string.is_a?(String) && key_string.length > 0
@@ -47,6 +55,20 @@ class SupervisorKeyProcessor
 
   private
 
+  def authority
+    @authority ||= SupervisorKeyAuthority.new(actor, user)
+  end
+
+  # Returns true when the attachment is allowed. On refusal it audits and returns
+  # false, so the caller degrades to "key not processed" rather than raising.
+  # A refused cross-tenant attachment is exactly the event a district reviewer
+  # needs, and without this it would be silent.
+  def permitted_org_attachment?(org, action)
+    return true if authority.allows_org_attachment?(org)
+    AuditEvent.log_command('system', authority.denial_event(org, action))
+    false
+  end
+
   def process_add
     return false unless user.any_premium_or_grace_period? && user.id
     supervisor = User.find_by_path(@key)
@@ -65,8 +87,13 @@ class SupervisorKeyProcessor
   end
 
   def process_approve_org
+    # Ratifying a pending org attachment IS the consent step, so a third party
+    # must not perform it into an org they manage. Resolve the org first so the
+    # gate sees it before anything is written.
+    org = user.managing_organization(true)
+    return false unless permitted_org_attachment?(org, 'approve-org')
     user.settings['pending'] = false
-    user.update_subscription_organization(user.managing_organization(true).global_id, false, nil, nil)
+    user.update_subscription_organization(org.global_id, false, nil, nil)
     true
   end
 
@@ -109,6 +136,17 @@ class SupervisorKeyProcessor
   end
 
   def process_start
+    # For a third-party submission, resolve the code's target WITHOUT side
+    # effects first. parse_activation_code only writes when given an
+    # `activate_for` (the `if activate_for && !overrides['disabled']` branch), so
+    # the one-argument form is a safe lookup -- the same form
+    # Api::UsersController#create already uses to validate a start code.
+    # Skipped entirely for a self-action, which keeps that path a single call.
+    unless authority.self_action?
+      preview = Organization.parse_activation_code(@key)
+      preview_org = preview.is_a?(Hash) ? preview[:target] : nil
+      return false unless permitted_org_attachment?(preview_org, 'start')
+    end
     res = Organization.parse_activation_code(@key, user)
     return false if !res || res[:disabled]
     user.instance_variable_set(:@start_code_progress, res[:progress])

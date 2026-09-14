@@ -200,8 +200,12 @@ module Supervising
     OrganizationUnit.find_all_by_global_id(unit_ids)
   end
   
-  def process_supervisor_key(key)
-    SupervisorKeyProcessor.new(self, key).call
+  # `actor` is who submitted the key. It is not always `self`: a supervisor or
+  # org manager can submit a supervisor_key against a user they supervise (see
+  # Api::UsersController#update). Defaults to self, so callers that genuinely are
+  # the acting user need not pass it.
+  def process_supervisor_key(key, actor=nil)
+    SupervisorKeyProcessor.new(self, key, actor).call
   end
   
   def remove_supervisors!

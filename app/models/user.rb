@@ -3086,7 +3086,7 @@ class User < ApplicationRecord
       # Try to process supervisor_key, but don't fail the entire update if it fails
       # This can happen if the key is invalid, references a deleted user, etc.
       begin
-        unless self.process_supervisor_key(params['supervisor_key'])
+        unless self.process_supervisor_key(params['supervisor_key'], non_user_params['updater'])
           # Processing failed - log but don't block the update
           # This is likely a stale key from a previous session or deleted user
           Rails.logger.warn("Supervisor key processing failed for user #{self.global_id} (key invalid, or references a deleted/ineligible user)")
