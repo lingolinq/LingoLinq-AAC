@@ -948,8 +948,8 @@ Findings file `dual-review-round26-pra1.md`. Codex: did not run (OAuth still rev
 request-changes, 1 Medium, 3 Low, all one-clause prose; the round-25 fixes verified applied and
 the test-157 fact re-pulled true. Code unchanged and approved since `38559fd0e`. The Medium was
 the round-25 fix itself: "in no run read up to 2026-09-14T07:52Z" put a post-stamp time inside
-the CI bullet list whose rule (added in round 24, `16181986b`; narrowed to the bullet list in the round-25
-commit, `3a985b701`) says every number there is as of 06:32Z.
+the CI bullet list whose rule (added in round 24, `16181986b`; narrowed to the bullet list in the
+round-25 commit, `3a985b701`) says every number there is as of 06:32Z.
 Replaced in the record, the owner note and the PR body by a perfect-tense pointer ("in no later
 run read while reviewing" in the record and PR body, "while this note was written" in the note,
 with the dated reads in the round entries), so the standing sentences
