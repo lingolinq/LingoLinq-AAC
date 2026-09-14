@@ -653,61 +653,77 @@ Fix: plain string tests, no glob and no regex: `n != '.dockerignore' && n.end_wi
 Adversary Low 1 was procedural and correct: this edit sat uncommitted in the worktree while round 16
 ran against `a7a667453`; the reports cover that head only, so the edit gets its own round.
 
-CI on this branch, corrected in rounds 17 and 18 (the first version of this paragraph called it
-flakiness; the second over-attributed it to product code; every claim below was read from the
-GitHub jobs API, `git show`, and the test files at `origin/develop`, read-only):
+CI on this branch, corrected in rounds 17, 18 and 19 (round 16 called it flakiness; round 17
+over-attributed it to product code; round 18 stated an unexecuted mechanism as the classification
+and missed a run). Every claim below was read from the GitHub jobs API, `git show`, and the test
+files at `origin/develop`, read-only, on 2026-09-14. Observed facts first, hypotheses after, labelled.
 - `develop` moved to `4104b657b` at 2026-09-13T21:44:07Z via PR #963: 166 files (`git show --stat`;
-  `gh pr view --json files` caps at 100), 120 under `app/frontend` including about 30 test files;
-  the Ember suite grew from 2529 to 2687 tests.
-- Branch record: on the 2529-test base, passes at `1476ae817` and `165fe952f`. On the 2687-test
-  base, 1 pass (`4fca93c3d`) and 5 failures (`a648d93e3`, `e3d53f10b`, `5d724d15d`, `4af82d7c2`,
-  `262ec6a09`), each `# tests 2687`, `# fail 1`. Two distinct failures, not one:
-  - Four runs (34787748239, 34788511177, 34789100356, 34798323491): test 2469
+  `gh pr view --json files` caps at 100), 120 under `app/frontend` including 33 added test files;
+  the Ember suite grew from 2529 to 2687 tests. This branch was not rebased in that window: its
+  merge base with `develop` is `7183d488f` throughout, and no head contains `4104b657b`; CI runs on
+  the PR merge ref, which picks up the moved base.
+- Branch record. On the 2529-test base, passes at `1476ae817` and `165fe952f`. On the 2687-test
+  base, 8 completed runs: 2 passes (`4fca93c3d`, `38559fd0e`) and 6 failures (`a648d93e3`,
+  `e3d53f10b`, `5d724d15d`, `4af82d7c2`, `262ec6a09`, `a7a667453`), each `# tests 2687`,
+  `# fail 1`; runs on `7422bf347` and `1940d17c0` were in progress when this was written. Two
+  distinct failures:
+  - Five runs (34787748239, 34788511177, 34789100356, 34798323491, 34809269466): test 2469
     `speecher: speecher set_voice - should not error if set_voice has not been called`, message
     `TypeError: Failed to execute 'speak' on 'SpeechSynthesis': parameter 1 is not of type
     'SpeechSynthesisUtterance'`, thrown from `speak_utterance` (frontend.js:263684) under
-    `Backburner._runExpiredTimers`: a global error from a late timer, attributed to whichever test
-    is running.
+    `Backburner._runExpiredTimers`: a global error raised from a timer, attributed to whichever
+    test is running.
   - One run (34785846824): test 157 `boards-layout-toggle: choosing TOP-DOWN persists it to the
     user`, message `TypeError: localStorage.getItem is not a function` at
-    `capabilities.sync_access_token`. A separate leak: that test stubs `window.localStorage` per
-    test (`boards-layout-toggle-test.js:13,21,31` at `origin/develop`).
-- Mechanism for the speech failure (adversary, round 18; stub sites confirmed, the full chain
-  PLAUSIBLE, not executed): `speecher-test.js` stubs `speecher.scope.SpeechSynthesisUtterance`
-  (`:79`) and `window.speechSynthesis.speak` per test (`:95`, `:106`, `:117`), and `speecher.js` has
-  15 `runLater` sites in the speak path. A timer left by an earlier test that fires after the
-  stubs are restored hands a fake utterance to the real `speak`. In production only real utterances
-  reach `speak`. Classification: a test-isolation failure in the Ember suite, surfaced on
-  `develop`; not a product defect in the speech module.
-- Link to #963: the temporal window is confirmed; the stack frame says where the throw lands, not
-  who introduced it (#963's `speecher.js` hunk touched the import, `oops()` and
-  `get_tts_voices()`, not `speak_utterance`). Two candidate explanations, both PLAUSIBLE: the
-  158 added tests and about 30 new test files changed suite order (both failing tests passed on the
-  2529 base: 2314 and 156 `ok`); and `get_tts_voices()` now falls back to the imported module, so
-  `oops()` reaches `speak_text` where it previously threw on `undefined.get('oops')`.
-- Extent: observed on one branch so far (5 runs, 4 with the speech failure). `develop`'s own run
-  and PR run 34786101021 (`feat/melissa-dedupe-library-utility-boards`, 22:12Z) passed on the same
-  2687 suite with test 2469 `ok`. Any PR on this base carries the risk; one branch has shown it.
+    `capabilities.sync_access_token`.
+- Facts about the tests (read at `origin/develop`). The failing speech test (`speecher-test.js:270-273`,
+  in `describe("set_voice")` at `:252`) runs with the utterance constructor stubbed in its
+  `beforeEach` (`:256`) and `speak` stubbed in its body (`:271`); the preceding `describe("speak_text")`
+  block (`:68`) stubs the constructor at `:79` and `:119` and `speak` at `:95`, `:106`, `:117`.
+  `speecher.js` has about a dozen `runLater` call sites, several in the speech path. The
+  `boards-layout-toggle` test installs a bare `{}` as `window.localStorage` via `stubStorage`
+  (`:40-42`, called at `:214`) and holds it across its own `await` (`:223`), so any concurrent
+  caller of `capabilities.sync_access_token` in that window sees an object with no `getItem`.
+- Hypotheses, all PLAUSIBLE and none executed: (a) for the speech failure, a `runLater` timer
+  scheduled by this test or an earlier one fires after the stubs are restored and hands a fake
+  utterance to the real `speak`. The TypeError itself cannot occur in production, where the
+  constructor is native; whether the same late timer re-enters `speak_utterance` in production
+  (a stale timer speaking or cancelling during a live session) is untested and is a separate
+  question for the owner. (b) For the `localStorage` failure, a timing-dependent race inside that
+  test's own await window, not suite ordering. (c) Why now: #963 added 158 tests and 33 test
+  files, which changes suite order and timing (both failing tests passed on the 2529 base as
+  tests 2314 and 156); #963's `get_tts_voices()` fallback also lets `oops()` reach `speak_text`
+  where it previously threw, but no test calls `speecher.oops()` directly (callers are
+  `speak-menu.js:895`, `controllers/speak-menu.js:171`, `repairs.js:213`,
+  `controllers/modals/repairs.js:177`), so that path would have to run through those components.
+  The stack frame says where the throw lands, not who introduced it; #963's `speecher.js` hunk
+  touched the import, `oops()` and `get_tts_voices()`, not `speak_utterance`.
+- Extent: observed on this branch (6 of 8 runs). `develop`'s own run and PR run 34786101021
+  (`feat/melissa-dedupe-library-utility-boards`, 22:12Z) passed on the same 2687 suite with test
+  2469 `ok`. Cause and reproducibility are unconfirmed.
 - #962: zero `app/frontend` files in the diff. In `build-and-test` (`.github/workflows/ci.yml:102-164`)
-  the checkout, Node and cache steps read the whole repo; every step that reads source runs with
-  `working-directory: app/frontend`. Nothing this diff changes is an input to those steps, so there
-  is no evidence #962 caused the failures, and nothing in it can fix them. Do not rerun to green as
-  a substitute for surfacing them. Draft for the frontend owner (#963 was authored by traciday):
+  the checkout materialises the repo, the cache key hashes only `app/frontend/package-lock.json`,
+  and every step that reads source runs with `working-directory: app/frontend`. Nothing this diff
+  changes is an input to those steps, so there is no evidence #962 caused the failures and nothing
+  in it can fix them. Do not rerun to green as a substitute for surfacing them. Draft for the
+  frontend owner (#963 was authored by traciday):
 
-  > **Ember suite: two order-dependent global-error leaks since `develop` `4104b657b` (#963)**
-  > On #962's branch (no frontend changes) `build-and-test` failed 5 of 6 runs on the 2687-test
-  > suite, each `# fail 1`. (a) Four runs (34787748239, 34788511177, 34789100356, 34798323491):
-  > test 2469 `speecher set_voice` fails with `TypeError: Failed to execute 'speak' on
-  > 'SpeechSynthesis': parameter 1 is not of type 'SpeechSynthesisUtterance'` from
-  > `speak_utterance` under `Backburner._runExpiredTimers`. `speecher-test.js` stubs
-  > `SpeechSynthesisUtterance` (:79) and `speak` (:95, :106, :117) per test; a late `runLater`
-  > from an earlier test can hand the fake utterance to the real `speak` after restore. Suspect
-  > test isolation (unflushed timers), not product code. (b) One run (34785846824): test 157
-  > `boards-layout-toggle` fails with `TypeError: localStorage.getItem is not a function` at
-  > `capabilities.sync_access_token`; that test stubs `window.localStorage` per test. Both tests
-  > passed on the 2529 suite before #963 (166 files, ~30 new test files, +158 tests).
-  > `develop`'s own run and one other PR passed on the same base, so it is order-dependent and
-  > intermittent.
+  > **Ember suite: two global-error leaks observed on #962's branch since `develop` `4104b657b` (#963)**
+  > #962 has no frontend changes. On the 2687-test suite its `build-and-test` failed 6 of 8 runs,
+  > each `# fail 1`. (a) Five runs (34787748239, 34788511177, 34789100356, 34798323491,
+  > 34809269466): test 2469 `speecher set_voice` fails with `TypeError: Failed to execute 'speak'
+  > on 'SpeechSynthesis': parameter 1 is not of type 'SpeechSynthesisUtterance'` from
+  > `speak_utterance` under `Backburner._runExpiredTimers`. That test stubs the utterance
+  > constructor (`speecher-test.js:256`) and `speak` (`:271`); the preceding `speak_text` block
+  > stubs them too (`:79`, `:119`, `:95`, `:106`, `:117`). Hypothesis, not reproduced: a
+  > `runLater` from this or an earlier test fires after restore and hands a fake utterance to the
+  > real `speak`. The TypeError is a harness artifact; whether the late re-entry happens in
+  > production is untested. (b) One run (34785846824): test 157 `boards-layout-toggle` fails with
+  > `TypeError: localStorage.getItem is not a function` at `capabilities.sync_access_token`; the
+  > test installs a bare `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) across its own
+  > await (`:223`). Both tests passed on the 2529 suite before #963 (166 files, 33 new test files,
+  > +158 tests); `develop`'s own run and one other PR passed on the same base. Cause unconfirmed;
+  > please reproduce and trace timer ownership before assigning it.
 
 ## PR A1 dual review round 17 (head 38559fd0e) and fixes
 
@@ -731,7 +747,7 @@ that sentence; the spec has not changed since `38559fd0e`.
 
 Findings file `dual-review-round18-pra1.md`. Codex: request-changes, 1 Medium, 2 Low. Adversary:
 request-changes on prose, 3 Medium, 4 Low. Code unchanged and approved by both since `38559fd0e`.
-The round-17 correction was itself wrong in three ways, all fixed in the paragraph above:
+The round-17 correction was itself wrong in three ways, all addressed in the paragraph above:
 - The draft note listed run 34785846824 under the speech TypeError; that run failed on a different
   TypeError (`localStorage.getItem is not a function` at `capabilities.sync_access_token`) in a
   test that stubs `localStorage`. Two leaks, not one; the note now separates them.
@@ -748,9 +764,26 @@ The round-17 correction was itself wrong in three ways, all fixed in the paragra
 Lesson: a correction written to satisfy a finding needs the same evidence pull as the original
 claim; twice this session the fix prose carried a fresh overclaim (rounds 17 and 18).
 
+## PR A1 dual review round 19 (head 1940d17c0, prose only) and fixes
+
+Findings file `dual-review-round19-pra1.md`. Codex: request-changes, 2 Medium, 1 Low. Adversary:
+request-changes, 3 Medium, 4 Low. Code unchanged and approved by both since `38559fd0e`.
+Addressed in the paragraph above: a sixth failing run (`a7a667453`, 34809269466, same speech
+failure) and a second pass (`38559fd0e`) were on the API before the round-18 commit and were
+missed, so the counts are 6 of 8 and 5 speech; the classification no longer rules out a product
+defect (the TypeError is a harness artifact; a late timer re-entering `speak_utterance` in
+production is untested); the mechanism and the "why now" candidates are stated as hypotheses,
+none executed; the PR body no longer says "pre-rebase" and "post-rebase" (no rebase happened;
+CI runs on the merge ref and picked up the moved base); the stub citations are the ones live during
+the failing test; the `localStorage` citations point at the stub and its call, and that leak is
+timing-dependent inside one test, not order-dependent; the `runLater` figure is no longer a grep
+count; no test calls `oops()`; "any PR on this base carries the risk" and the cache-step wording
+are gone. Lesson, third time: the correction of a correction needs the same evidence pull, and a
+count that was true when gathered must be re-pulled at commit time.
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-18 applied; round 19 re-review pending on prose only) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-19 applied; round 20 re-review pending on prose only) -> A2 -> B -> C.
