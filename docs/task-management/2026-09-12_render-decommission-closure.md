@@ -663,12 +663,13 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   the Ember suite grew from 2529 to 2687 tests. This branch was not rebased in that window: its
   merge base with `develop` is `7183d488f` throughout, and no head contains `4104b657b`; CI runs on
   the PR merge ref, which picks up the moved base.
-- Branch record as of 2026-09-14T06:32Z. On the 2529-test base, every run passed. On the 2687-test base, completed runs: passes at `4fca93c3d` (34787002914)
-  and `38559fd0e` (34809987003); failures at `a648d93e3` (34785846824, test 157), `e3d53f10b`
-  (34787748239), `5d724d15d` (34788511177), `4af82d7c2` (34789100356), `262ec6a09` (34798323491),
-  `a7a667453` (34809269466), `7422bf347` (34810879687), the last six all test 2469; pending at
-  that time: `1940d17c0` (34811882616), `f30c81bb4` (34812849886). Each completed failure is
-  `# tests 2687`, `# fail 1`. Two distinct failures:
+- Branch record as of 2026-09-14T06:32Z. On the 2529-test base, every run passed. On the 2687-test
+  base, completed runs: passes at `4fca93c3d` (34787002914) and `38559fd0e` (34809987003); failures
+  at `a648d93e3` (34785846824, test 157), `e3d53f10b` (34787748239), `5d724d15d` (34788511177),
+  `4af82d7c2` (34789100356), `262ec6a09` (34798323491), `a7a667453` (34809269466), `7422bf347`
+  (34810879687), the last six all test 2469; pending at that time: `1940d17c0` (34811882616),
+  `f30c81bb4` (34812849886). Each completed failure is `# tests 2687`, `# fail 1`. Two distinct
+  failures:
   - Test 2469 `speecher: speecher set_voice - should not error if set_voice has not been called`,
     message `TypeError: Failed to execute 'speak' on 'SpeechSynthesis': parameter 1 is not of type
     'SpeechSynthesisUtterance'`, thrown from `speak_utterance` (frontend.js:263684:44) with the
@@ -697,50 +698,51 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
 - Runs completing after the stamp are not enumerated in this record. Every commit to this branch
   starts a run that completes after that commit's read time, so no list here can be current; the
   stamped tally above is the fixed sample this record reasons from. Post-stamp runs read while
-  reviewing (rounds 23 and 24, dated in their entries below) both passed and failed on test 2469
+  reviewing (dated in the round entries below) both passed and failed on test 2469
   `speecher set_voice` with no code change, and one exceeded the stamped range, so the range is a
   reading of six runs, not a bound. Test 157 `boards-layout-toggle` failed once, at `a648d93e3`
-  (the first run on this branch on that base), and in no later run read while reviewing (rounds
-  23 to 25, dated in their entries below). Current
-  state: `gh run list --workflow CI --branch scot/chore/render-dead-config-removal`.
+  (the first run on this branch on that base), and in no later run read while reviewing (dated in
+  the round entries below). Current state: `gh run list --workflow CI --branch
+  scot/chore/render-dead-config-removal`.
 - Hypotheses, all PLAUSIBLE and none executed: (a) speech: the `runLater` at `:915` fires after the
   test body returns and, intermittently, after teardown has restored the real `speak`, handing it
-  the fake utterance built under the stub. Within-run timing supports a late timer: in each of the six
-  failing runs stamped above test 2469 took 430 to 520 ms longer than the mean of its neighbours 2470 and 2471 (1629-1724 ms
-  against 1159-1304 ms; runs 34787748239, 34788511177, 34789100356, 34798323491, 34809269466, 34810879687),
-  while in both passing runs stamped above and in both comparators it matched them (1038/1036,
-  1075/1092, 810/815, 923/920 ms; runs 34787002914, 34809987003, 34784704398, 34786101021).
-  Read from the job logs on 2026-09-14; a reading, not a reproduction. Every number in this CI
-  record (the bullets of this list) is as of the 06:32Z stamp; later runs are not enumerated as a
-  standing list (bullet above), and post-stamp readings survive only inside dated history entries.
-  The TypeError itself cannot occur in production, where the
+  the fake utterance built under the stub. Within-run timing supports a late timer: in each of the
+  six failing runs stamped above test 2469 took 430 to 520 ms longer than the mean of its neighbours
+  2470 and 2471 (1629-1724 ms against 1159-1304 ms; runs 34787748239, 34788511177, 34789100356,
+  34798323491, 34809269466, 34810879687), while in both passing runs stamped above and in both
+  comparators it matched them (1038/1036, 1075/1092, 810/815, 923/920 ms; runs 34787002914,
+  34809987003, 34784704398, 34786101021). Read from the job logs on 2026-09-14; a reading, not a
+  reproduction. Every number in this CI record (the bullets of this list) is as of the 06:32Z stamp;
+  later runs are not enumerated as a standing list (bullet above), and post-stamp readings survive
+  only inside dated history entries. The TypeError itself cannot occur in production, where the
   constructor is native; whether the same late timer re-enters `speak_utterance` in production (a
   stale timer speaking or cancelling during a live session) is untested and is a separate question
-  for the owner. (b) Storage: the never-cleared 2-second interval fires while the bare object is installed,
-  which is from the `stubStorage` call until `afterEach` restores the real storage (the test's own
-  promise chain is native microtasks, so the exact scheduling gap is QUnit's, unverified); its phase relative to any test boundary depends on
-  cumulative elapsed suite time, which #963's added tests changed, so suite composition is not
-  ruled out. (c) Why now: #963 added 158 tests and 33 test files, changing suite order and timing
-  (both failing tests passed on the 2529 base as tests 2314 and 156); #963's `get_tts_voices()`
-  fallback also lets `oops()` reach `speak_text` where it previously threw, but no test calls
-  `speecher.oops()` directly (callers are `speak-menu.js:895`, `controllers/speak-menu.js:171`,
-  `repairs.js:213`, `controllers/modals/repairs.js:177`). #963 did not touch `speecher-test.js`,
+  for the owner. (b) Storage: the never-cleared 2-second interval fires while the bare object is
+  installed, which is from the `stubStorage` call until `afterEach` restores the real storage (the
+  test's own promise chain is native microtasks, so the exact scheduling gap is QUnit's,
+  unverified); its phase relative to any test boundary depends on cumulative elapsed suite time,
+  which #963's added tests changed, so suite composition is not ruled out. (c) Why now: #963 added
+  158 tests and 33 test files, changing suite order and timing (both failing tests passed on the
+  2529 base as tests 2314 and 156); #963's `get_tts_voices()` fallback also lets `oops()` reach
+  `speak_text` where it previously threw, but no test calls `speecher.oops()` directly (callers are
+  `speak-menu.js:895`, `controllers/speak-menu.js:171`, `repairs.js:213`,
+  `controllers/modals/repairs.js:177`). #963 did not touch `speecher-test.js`,
   `boards-layout-toggle-test.js` or `capabilities.js`; its `speecher.js` hunk touched the import,
-  `oops()` and `get_tts_voices()`, not `speak_utterance`. The stack says where the throw lands,
-  not who introduced it.
+  `oops()` and `get_tts_voices()`, not `speak_utterance`. The stack says where the throw lands, not
+  who introduced it.
 - Extent: observed on this branch. The only two CI runs on the 2687 base outside #962,
-  `develop`'s own (34784704398) and PR run 34786101021 (`feat/melissa-dedupe-library-utility-boards`),
-  passed with test 2469 `ok`; a control set of two cannot establish that the failure is
-  branch-specific. Cause and reproducibility are unconfirmed.
-- #962: zero `app/frontend` files in the diff. In `build-and-test` (`.github/workflows/ci.yml:102-164`)
-  the checkout materialises the repo, the cache key hashes only `app/frontend/package-lock.json`,
-  and every step that reads source runs with `working-directory: app/frontend`. Nothing this diff
-  changes is an input to those steps, so there is no evidence #962 caused the failures and nothing
-  in it can fix them. Do not rerun to green as a substitute for surfacing them. Draft for the
-  frontend owner (#963 was authored by traciday):
+  `develop`'s own (34784704398) and PR run 34786101021
+  (`feat/melissa-dedupe-library-utility-boards`), passed with test 2469 `ok`; a control set of two
+  cannot establish that the failure is branch-specific. Cause and reproducibility are unconfirmed.
+- #962: zero `app/frontend` files in the diff. In `build-and-test`
+  (`.github/workflows/ci.yml:102-164`) the checkout materialises the repo, the cache key hashes only
+  `app/frontend/package-lock.json`, and every step that reads source runs with `working-directory:
+  app/frontend`. Nothing this diff changes is an input to those steps, so there is no evidence #962
+  caused the failures and nothing in it can fix them. Do not rerun to green as a substitute for
+  surfacing them. Draft for the frontend owner (#963 was authored by traciday):
 
-  > **Ember suite: two global-error leaks observed on #962's branch since `develop` `4104b657b` (#963)**
-  > As of 2026-09-14T06:32Z. #962 has no frontend changes. On the 2687-test suite its
+  > **Ember suite: two global-error leaks observed on #962's branch since `develop` `4104b657b`
+  > (#963)** As of 2026-09-14T06:32Z. #962 has no frontend changes. On the 2687-test suite its
   > `build-and-test` runs 34787748239, 34788511177, 34789100356, 34798323491, 34809269466 and
   > 34810879687 each failed only test 2469 `speecher set_voice` with `TypeError: Failed to execute
   > 'speak' on 'SpeechSynthesis': parameter 1 is not of type 'SpeechSynthesisUtterance'` from
@@ -763,28 +765,30 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   > `speecher set_voice` has failed again on later heads with no code change and passed on others;
   > test 157 `boards-layout-toggle` failed once, at `a648d93e3` (the first run on this branch on
   > that base), and in no later run read while this note was written (read dates are in the
-  > working log's round entries; `gh run list --workflow CI --branch
-  > scot/chore/render-dead-config-removal` is the current state). Cause
+  > round entries of `docs/task-management/2026-09-12_render-decommission-closure.md`;
+  > `gh run list --workflow CI --branch scot/chore/render-dead-config-removal` is the current
+  > state). Cause
   > unconfirmed; please reproduce and trace timer ownership before assigning it.
 
 ## PR A1 dual review round 17 (head 38559fd0e) and fixes
 
 Findings file `dual-review-round17-pra1.md`. Codex: approve, no findings. Adversary: approve,
-1 Medium, 3 Low: three in prose, one a recorded fail-closed false positive in the new spec. The ignore-file check is closed: 16-case matrix, no
-fail-open, no self-match, no spurious failure; the round-16 residuals flip red under the string
-tests. One new fail-closed false positive left as is and recorded: `._.dockerignore`, the macOS
-AppleDouble sidecar on non-APFS volumes, now reddens; unreachable in CI and on WSL.
-Medium (adversary): the round-16 CI paragraph called the `build-and-test` failures flakiness. The
-job logs show one test, one TypeError, four consecutive runs, starting at the base move that
-brought in #963's change to `speecher.js`; two logs I called unretrievable were retrievable through
-the jobs API and show the same failure; two of the three "passes" ran the previous 2529-test suite
-and are not controls. Paragraph rewritten above from the API output, with a draft defect note for
-the frontend owner. Lesson: "flaky" is a conclusion that needs the failing assertion and the base
-history in hand, not a label for "different test names across runs".
-Low: the PR body's Tests section said CI was green on the pre-rebase heads and silent on the five
-post-rebase failures; one sentence added. (Both the count and the "rebase" framing were corrected
-in round 19: no rebase occurred, and the run list is kept with ids and an as-of stamp.) Round 18 is a prose-only re-review of this record and
-that sentence; the spec has not changed since `38559fd0e`.
+1 Medium, 3 Low: three in prose, one a recorded fail-closed false positive in the new spec. The
+ignore-file check is closed: 16-case matrix, no fail-open, no self-match, no spurious failure; the
+round-16 residuals flip red under the string tests. One new fail-closed false positive left as is
+and recorded: `._.dockerignore`, the macOS AppleDouble sidecar on non-APFS volumes, now reddens;
+unreachable in CI and on WSL. Medium (adversary): the round-16 CI paragraph called the
+`build-and-test` failures flakiness. The job logs show one test, one TypeError, four consecutive
+runs, starting at the base move that brought in #963's change to `speecher.js`; two logs I called
+unretrievable were retrievable through the jobs API and show the same failure; two of the three
+"passes" ran the previous 2529-test suite and are not controls. Paragraph rewritten above from the
+API output, with a draft defect note for the frontend owner. Lesson: "flaky" is a conclusion that
+needs the failing assertion and the base history in hand, not a label for "different test names
+across runs". Low: the PR body's Tests section said CI was green on the pre-rebase heads and silent
+on the five post-rebase failures; one sentence added. (Both the count and the "rebase" framing were
+corrected in round 19: no rebase occurred, and the run list is kept with ids and an as-of stamp.)
+Round 18 is a prose-only re-review of this record and that sentence; the spec has not changed since
+`38559fd0e`.
 
 ## PR A1 dual review round 18 (head 7422bf347, prose only) and fixes
 
@@ -830,8 +834,8 @@ count that was true when gathered must be re-pulled at commit time.
 
 ## PR A1 dual review round 20 (head f30c81bb4, prose only) and fixes
 
-Findings file `dual-review-round20-pra1.md`. Codex: approve, no findings. Adversary: request-changes,
-3 Medium, 4 Low, all prose. Code unchanged and approved since `38559fd0e`.
+Findings file `dual-review-round20-pra1.md`. Codex: approve, no findings. Adversary:
+request-changes, 3 Medium, 4 Low, all prose. Code unchanged and approved since `38559fd0e`.
 Addressed above: the round-19 record said the `38559fd0e` pass was missed before the round-18
 commit; it completed three minutes after that commit (clause split, lesson stands on `a7a667453`
 alone). The `localStorage` stack already names its caller: the never-cleared 2-second
@@ -846,22 +850,22 @@ rewritten. Lesson: a count of a live process is a time-stamped observation, neve
 
 ## PR A1 dual review round 21 (head 3f336d05d, prose only) and fixes
 
-Findings file `dual-review-round21-pra1.md`. Codex: approve, no findings. Adversary: request-changes,
-2 Medium, 4 Low, all prose. Code unchanged and approved since `38559fd0e`.
+Findings file `dual-review-round21-pra1.md`. Codex: approve, no findings. Adversary:
+request-changes, 2 Medium, 4 Low, all prose. Code unchanged and approved since `38559fd0e`.
 Addressed above: the "810-923 ms in the passing ones" range I added in round 20 was the two
 other-branch comparators, not this branch's passing runs (1038, 1075, 949 ms; the 949 is a
 post-stamp run, superseded in round 24), and it confounded
 runner speed with the effect; replaced with the within-run excess of test 2469 over its neighbours
 (about +500 ms in every failing run, about zero in every passing run and both comparators;
-superseded in round 22), with run ids, read from the job logs. The round-19 entry's "not order-dependent" is annotated as
-superseded by round 20, and its bare "no rebase happened" is scoped to the #963 window (the branch
-was rebased onto #961 earlier). The PR body's "two most recent heads" is replaced with the two run
-ids. The note says three tests in the `boards-layout-toggle` module hold the storage stub across
-an await (superseded in round 22), so the fix belongs in the module's hooks or in interval ownership. The pre-move range
-parenthetical is dropped. Run 34811882616 (`1940d17c0`) passed at 06:34:39Z, after the stamp;
-the branch tally (stamped 06:32Z) does not count it; the timing reading, dated 2026-09-14, does
-(superseded in round 24: the reading is as of the stamp too).
-Process note: the first attempt at this commit (`800401f28`) applied only the timing and
+superseded in round 22), with run ids, read from the job logs. The round-19 entry's "not
+order-dependent" is annotated as superseded by round 20, and its bare "no rebase happened" is scoped
+to the #963 window (the branch was rebased onto #961 earlier). The PR body's "two most recent heads"
+is replaced with the two run ids. The note says three tests in the `boards-layout-toggle` module
+hold the storage stub across an await (superseded in round 22), so the fix belongs in the module's
+hooks or in interval ownership. The pre-move range parenthetical is dropped. Run 34811882616
+(`1940d17c0`) passed at 06:34:39Z, after the stamp; the branch tally (stamped 06:32Z) does not count
+it; the timing reading, dated 2026-09-14, does (superseded in round 24: the reading is as of the
+stamp too). Process note: the first attempt at this commit (`800401f28`) applied only the timing and
 parenthetical edits because the edit script stopped on a blockquote prefix; the rest landed in the
 following commit and round 22 was restarted against it.
 
@@ -890,13 +894,13 @@ outside the 430 to 520 ms range while the pending-run note reported only the pos
 Restructured once rather than patched twice: every number in the CI record is now as of the 06:32Z
 stamp (the range is scoped to the six stamped failures and the passing set to the two stamped
 passes), and one dated bullet in the record listed every post-stamp completion with its outcome
-and reading (the note carried outcomes, two completion times and one reading, the body outcomes only; the
-enumeration itself is dropped in round 24). The Lows: the facts bullet's "across its
+and reading (the note carried outcomes, two completion times and one reading, the body outcomes
+only; the enumeration itself is dropped in round 24). The Lows: the facts bullet's "across its
 own await" replaced with the call-to-`afterEach` lifetime (Codex and adversary); the owner note's
 "two sibling tests do the same" now distinguishes the two promise-returning siblings from the
 module's eight other bare-object installs (a text grep of `stubStorage({})`; wrong, replaced in
-round 24 by the property every install shares); the round-21 entry annotated where round 22 superseded
-it, and the round-21 and round-22 clauses annotated where this round supersedes them.
+round 24 by the property every install shares); the round-21 entry annotated where round 22
+superseded it, and the round-21 and round-22 clauses annotated where this round supersedes them.
 
 ## PR A1 dual review round 24 (head 254a0ab1d, prose only) and fixes
 
@@ -931,8 +935,8 @@ commit by commit. The Medium: "the failure has recurred on later heads" was true
 false of test 157, which the owner note spends most of its length on; pulled from the job logs of
 all nine failed runs on this branch (read 2026-09-14T07:52Z): eight are `not ok 2469`, one is
 `not ok 157` at `a648d93e3`, the first run on this branch on the 2687 base. The test is now named
-in the record, the owner note, the round-24 entry and the PR body. The second Medium: the PR body's "not
-enumerated here or in the working log" was an absolute that the dated history entries falsify;
+in the record, the owner note, the round-24 entry and the PR body. The second Medium: the PR body's
+"not enumerated here or in the working log" was an absolute that the dated history entries falsify;
 scoped to "as a standing list". Lows: "every number in this record" scoped to the CI bullet
 list; the round-24 entry's "outcomes only" corrected for the note; "two run-on lines" corrected
 to four and the status line wrapped; "excess 510" written as 510.5 to match the 535.
@@ -943,19 +947,39 @@ Findings file `dual-review-round26-pra1.md`. Codex: did not run (OAuth still rev
 request-changes, 1 Medium, 3 Low, all one-clause prose; the round-25 fixes verified applied and
 the test-157 fact re-pulled true. Code unchanged and approved since `38559fd0e`. The Medium was
 the round-25 fix itself: "in no run read up to 2026-09-14T07:52Z" put a post-stamp time inside
-the CI bullet list whose rule (added in the same commit) says every number there is as of 06:32Z.
+the CI bullet list whose rule (added in round 24, narrowed to the bullet list in the same commit)
+says every number there is as of 06:32Z.
 Replaced in the record, the owner note and the PR body by a perfect-tense pointer ("in no later
-run read while reviewing", with the dated reads in the round entries), so the standing sentences
+run read while reviewing" in the record and PR body, "while this note was written" in the note,
+with the dated reads in the round entries), so the standing sentences
 carry no post-stamp time. Lows: "failed once ... and in no run read up to" shared a verb and
 contradicted itself (rewritten with "no later run"); "the first run on this base" was false
 (the `develop` control run 34784704398 preceded it; now "the first run on this branch on that
 base", in the record, the note and the round-25 entry); the round-24 entry's parenthetical now
 says the note carried outcomes as well as times and a reading.
 
+## PR A1 dual review round 27 (head 4d7dedc78, prose only) and fixes
+
+Findings file `dual-review-round27-pra1.md`. Codex: did not run (OAuth still revoked). Adversary:
+request-changes, 1 Medium, 4 Low, all prose; round-26 fixes all verified applied; test 157
+re-pulled against all ten failed jobs on the branch (one `not ok 157`, nine `not ok 2469`); the
+"first run on this branch on that base" scoping verified against the branch's `# tests` history.
+Dated history from that read: run 34817933682 (`254a0ab1d`) failed at 2026-09-14T08:04:21Z on
+test 2469 (1662 ms against 1171 and 1166, excess 493.5 ms, inside the stamped range), `# tests
+2687`. Code unchanged and approved since `38559fd0e`. The Medium: the round-26 entry said the
+"every number" rule was "added in the same commit" as the 07:52Z clause; the rule came in round
+24 (`16181986b`) and round 25 only narrowed it; corrected. Lows: the round-26 entry quoted one
+string as the text of three places when the note's variant differs (both variants now quoted);
+the record cited round ranges for its reads that go one short every round (both parentheticals
+now point at the round entries without a range); the owner note's pointer to "the working log"
+names the file, since the note is meant to be pasted where the log is not open; the width
+sweep is closed structurally: every line added since `38559fd0e` is at or under 100 columns
+(pre-existing longer lines elsewhere in the file are untouched).
+
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-26 applied; round 27 re-review pending,
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-27 applied; round 28 re-review pending,
   prose only, adversary alone until Codex is re-authenticated) -> A2 -> B -> C.
