@@ -3881,7 +3881,7 @@
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2026-12-14",
       "attestation": {},
-      "contentHash": "96e4f464f26bee1eaad433692a1639cdafc3adf43c961ca6ad0d558da377de46",
+      "contentHash": "0631e8d2802737d0ce8eb253e2a0965a165c23b625be9de8dde35503116b43bb",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -4002,7 +4002,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-28f19f73e4",
       "id": "DOC-f082212111",
-      "contentHash": "e5cf695d94a41a0d17877486cc782f8ea1f8d79a6ed8153f1f04aca8bb9db2d5",
+      "contentHash": "e35aad6453734a6d066a69feb5db4685ecf5fc209e3d012ffc8ab0fea8f95fa8",
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
     },
     {
@@ -4038,7 +4038,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-f6d26afec8",
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
-      "contentHash": "a9931912188b61772e7938ae39106aff86798fd61806989ab79973d77ac1207f"
+      "contentHash": "55cc55050360c7d61680f20b791e0a8d7e5e73d4f52330b125589c127f76e9c4"
     },
     {
       "title": "Security, Privacy & Compliance Overview (2026-09-14 successor)",

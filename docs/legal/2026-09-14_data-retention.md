@@ -29,7 +29,8 @@ this file's attestation state.**
 **Owner:** Privacy Office (privacy@lingolinq.com)
 **Last reviewed:** 2026-08-09 (draft; predecessor attested 2026-07-23 by Scot Wahlquist, CEO)
 **Next review:** 2027-04-20 (carry-forward until attestation rebases cadence)
-**Supersedes:** attested `docs/legal/DATA_RETENTION.md` (DOC-bff9acf51f)
+**Supersedes (direct predecessor):** `docs/legal/2026-08-09_data-retention_draft.md` (`DOC-e62caf7fb9`), frozen.
+**Earlier in the same lineage:** attested `docs/legal/DATA_RETENTION.md` (DOC-bff9acf51f), also frozen. Retained here as lineage, not as this record's direct predecessor.
 **Attestation history:** first attested 2026-06-21. That attestation covered an earlier revision:
 PR #569 (2026-07-10) and PR #656 (2026-07-22) rewrote the AI-log retention rows, and the
 2026-07-22 Gate 1 cutover moved the production database off Render, which the backup rows did not

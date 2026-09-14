@@ -16,8 +16,10 @@
 > BAA. All are restated. Ended rows are RETAINED with an end date rather than deleted, because this
 > record is a history. The attester must confirm the deletion date against the vendor record.
 
-**Supersedes:** `COMPLIANCE.md` (`DOC-9b299a785b`), frozen at the bytes attested 2026-08-04. This dated record is the operative compliance and data-governance record from 2026-08-25 forward. Attestation state lives in `audit-reports/DOCUMENT-REGISTER.json`, which is authoritative.
-**Reason for supersession:** **Three sites** state that the Anthropic/Bedrock runtime AI path is NOT OPERATIONAL and that `AiClient.configured?` is false. All three were overtaken 53 minutes after the moment they describe and have been wrong ever since. This record is in the `soc2-evidence` bundle, so the claim travels to auditors and prospects.
+**Supersedes (direct predecessor):** `docs/legal/2026-08-25_compliance-data-governance.md` (`DOC-f6d26afec8`), frozen. This dated record is the operative compliance and data-governance record from **2026-09-14** forward.
+**Earlier in the same lineage:** `COMPLIANCE.md` (`DOC-9b299a785b`), frozen at the bytes attested 2026-08-04. Retained as lineage, not as this record's direct predecessor.
+**Attestation state** lives in `audit-reports/DOCUMENT-REGISTER.json`, which is authoritative.
+**Prior reason for supersession (predecessor's, retained for the record):** **Three sites** state that the Anthropic/Bedrock runtime AI path is NOT OPERATIONAL and that `AiClient.configured?` is false. All three were overtaken 53 minutes after the moment they describe and have been wrong ever since. This record is in the `soc2-evidence` bundle, so the claim travels to auditors and prospects.
 
 ## Corrections in this successor
 
