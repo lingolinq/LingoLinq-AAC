@@ -232,8 +232,7 @@ LingoLinq completed the Gate 1 DNS cutover on 2026-07-22. Production compute for
 inside the GCP infrastructure boundary. Object storage and email stay on AWS. Render was
 decommissioned on 2026-09-09 and is no longer online, no longer a rollback fallback, and no longer
 a subprocessor. Before deletion its two databases were archived and restore-verified on 2026-09-08
-into `gs://lingolinq-prod-render-archive`, held in LingoLinq's own GCP project under a one-year
-retention policy of one year that is NOT locked and is therefore removable by a project admin.
+into `gs://lingolinq-prod-render-archive`, held in LingoLinq's own GCP project under a retention policy of one year that is NOT locked and is therefore removable by a project admin.
 
 - **Managed Redis over TLS.** Redis TLS finding LL-6619cc1811 is **verified-closed** with
   in-context Cloud Run `rediss://` evidence and Scot attestation (2026-07-22).

@@ -61,7 +61,7 @@
 > 2026-08-14T21:13:27Z, of which 63 were written after the 2026-08-12 deploy and those same 63 carry
 > a `user_global_id`** (the 64th is the 2026-08-04 internal verification call, inferred from the
 > `article_50_disclosure_shown` split recorded at that citation)
-> (`docs/legal/2026-09-14_subprocessor-register.md:101`;
+> (`docs/legal/2026-09-14_subprocessor-register.md` row 4 (Anthropic, PBC);
 > path verified live and serving revision swept 2026-08-16).
 >
 > **The second sentence is narrower than it looks and is not simply reversed.** Those 63
@@ -70,7 +70,7 @@
 > `docs/legal/2026-08-24_ai-governance-memo.md:134`). So scrubbed content HAS reached the processing
 > plane, and **no real person is known to have had data sent on this path.** The receiving processor
 > is **AWS**: prompts are delivered to Amazon Bedrock under the AWS BAA, and Anthropic supplies the
-> model without receiving the payload (`docs/legal/2026-09-14_subprocessor-register.md:101`).
+> model without receiving the payload (`docs/legal/2026-09-14_subprocessor-register.md` row 4 (Anthropic, PBC)).
 >
 > **Evidence limit.** `AiApiLog` is an application-observed floor, not a ledger: `log_ai_call`
 > rescues `ActiveRecord::ActiveRecordError` and returns an unsaved record, and `Flusher` destroys
@@ -315,7 +315,7 @@ explicitly marked not operational.
   production `AiApiLog` held **64 application-observed rows through 2026-08-14T21:13:27Z, of which
   63 were written after that deploy and those same 63 carry a `user_global_id`**; the 64th is the
   2026-08-04 internal verification call and carries no user
-  (`docs/legal/2026-09-14_subprocessor-register.md:101`). Scrubbed
+  (`docs/legal/2026-09-14_subprocessor-register.md` row 4 (Anthropic, PBC)). Scrubbed
   user content HAS reached the processing plane, which is **AWS** (Amazon Bedrock is the receiving
   processor under the AWS BAA; Anthropic supplies the model and does not receive the payload). The
   63 attributed calls resolve to two accounts, and all 34 production accounts were confirmed

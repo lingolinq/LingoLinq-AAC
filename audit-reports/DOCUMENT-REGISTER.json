@@ -3881,7 +3881,7 @@
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2027-04-20",
       "attestation": {},
-      "contentHash": "4b019b81209fcad86ab39925c4afda22228ae5018ad01663153aec924bd2eb02",
+      "contentHash": "5b980fd26a25f381ed49d8b693426972e67c84e67f3acf18eee7c016b98497f6",
       "bundles": [
         "soc2-evidence",
         "school-dpa-package",
@@ -3932,7 +3932,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-f850df36ad",
       "id": "DOC-052b0e947c",
-      "contentHash": "05bb2f10daad2bf1b98d7885ed6b4688acecd826c277bb0735436e90ce92adea",
+      "contentHash": "15bfb6f6988edc8a08f88fcade3c8d2a0a3330db60109589cca5a3a1a304625d",
       "attestation": {},
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
     },
@@ -3967,7 +3967,7 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "8f5fd00d3e904ee76b20a5f759cd6871942e5729a48d02123aefa9410193e0d8"
+      "contentHash": "4bbdb5f7ec793ab233305f602790f320ab7d5a353ff8abb3101ac26e4176a630"
     },
     {
       "title": "Incident Response & Breach Runbook (2026-09-14 successor)",
@@ -4002,7 +4002,7 @@
       "dispositionEligibleAfter": null,
       "supersedes": "DOC-28f19f73e4",
       "id": "DOC-f082212111",
-      "contentHash": "b3020e3ce763b9ce8eb69f41bfaebeb6fb919ef034a8f2f28d1162391832bbec",
+      "contentHash": "a5ff3188832ab1439d30cf0ebb72a3cd978d878784552dc1598e865870bbdfc8",
       "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen: it described a live write-frozen fallback that genuinely existed when written. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record, a dashboard screenshot or account-deletion email; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition."
     },
     {
@@ -4058,7 +4058,7 @@
       "lastReviewed": "2026-09-14",
       "nextReviewDue": "2027-07-22",
       "attestation": {},
-      "contentHash": "14d50dab14a3f70e02e5899a65f1c0c99b4c9df229f315993b677e8d0a84252b",
+      "contentHash": "d40eae1ae95d8c2eda6f7696d6068cfdcc38013d41fbdb2ce0f3efa243e36140",
       "bundles": [
         "security-review"
       ],
@@ -4111,11 +4111,11 @@
       },
       "legalHold": false,
       "dispositionEligibleAfter": null,
-      "contentHash": "f41f2279399bc8c325bfec2d7f572305108d24d4f0f1a4013d64fcc216a51ccd"
+      "contentHash": "b3c78618eb3c5eceab56fdd27309269e4b9dbeb093b0171add9466b29a173d64"
     },
     {
       "title": "GCP BAA Acceptance Record (2026-09-14 successor)",
-      "description": "Path A successor to the CEO-attested GCP BAA acceptance record. Only the Render paragraph changes: the predecessor said Render remained listed until the write-frozen fallback was deleted or restricted, which happened 2026-09-09. The BAA acceptance record itself is untouched.",
+      "description": "Path A successor to the CEO-attested GCP BAA acceptance record. TWO substantive changes. (1) Render: the predecessor said Render remained listed until the write-frozen fallback was deleted or restricted; it was deleted 2026-09-09. (2) Runtime AI BAA attribution: the predecessor said that path is covered by Anthropic's HIPAA-Ready BAA. That was overtaken by the 2026-08-16 determination and is wrong as stated. Amazon Bedrock RECEIVES the prompts, AWS is the processing party, and the AWS BAA of 2026-02-07 is the operative instrument; Anthropic is the model provider, not the receiving processor. That contradiction predates the Render work and stood in an attested record since 2026-08-16. The BAA acceptance facts themselves are unchanged.",
       "type": "evidence",
       "owner": "Scot Wahlquist",
       "canonicalSystem": "git",
@@ -4133,7 +4133,7 @@
         "baa"
       ],
       "mirrors": [],
-      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen. ATTESTER MUST CONFIRM: (1) the 2026-09-09 deletion date against the vendor record; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
+      "notes": "Created 2026-09-14 as part of the Render decommission closure. The Render workspace was deleted 2026-09-09 (0 services, 0 databases, 0 disks). The predecessor is NOT wrong for its date and remains frozen. ATTESTER MUST CONFIRM: (0) the corrected runtime-AI BAA attribution, namely that the AWS BAA of 2026-02-07 governs the Bedrock path rather than the Anthropic BAA. This is the most consequential change in this successor and determines which contract covers PHI on the AI path; (1) the 2026-09-09 deletion date against the vendor record; (2) whether Render retains residual copies after account deletion, which is not confirmed with the vendor. This successor does NOT close, downgrade or supersede any finding; audit-reports/FINDINGS.json remains authoritative and only the CEO records a disposition.",
       "id": "DOC-f27de5cf05",
       "retention": {
         "class": "executed-agreement",

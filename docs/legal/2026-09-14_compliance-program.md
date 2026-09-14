@@ -256,12 +256,15 @@ is **planned**, not yet built; it appears here so the consent architecture is on
   `lib/flusher.rb` and `lib/data_policy_enforcer.rb`. The written retention policy now required by
   the 2025 COPPA Rule is satisfied by this document being embedded in (not merely linked from) the
   privacy notice; embedding is an open task.
-- **Subprocessors.** The Article 28 / 45 CFR 164.502(e) register is `docs/legal/SUBPROCESSORS.md`,
-  with a 30-day customer change-notice commitment. AWS BAA signed 2026-02-07. Anthropic is the
-  designated AI vendor for pseudonymized (scrubbed) prompts via `lib/pii_scrubber.rb`, **not
-  operational as of 2026-08-04**, having been operational only from 2026-08-03T08:23Z to
-  2026-08-04T06:31Z for a single internal verification call carrying no user or student data (see
-  the 2026-08-04 operational-status correction in `docs/legal/AWS_BAA_ACCEPTED.md`), and when live is
+- **Subprocessors.** The Article 28 / 45 CFR 164.502(e) register is
+  `docs/legal/2026-09-14_subprocessor-register.md`, with a 30-day customer change-notice
+  commitment. AWS BAA signed 2026-02-07. **CORRECTED 2026-09-14:** this bullet previously named
+  `docs/legal/SUBPROCESSORS.md`, two generations stale, and described the runtime AI path as
+  **"not operational as of 2026-08-04"**. That status was overtaken by the 2026-08-12 production
+  deploy of PR #734 and is contradicted by the subprocessor register, which records the path as
+  ACTIVE with 63 user-attributed `AiApiLog` rows. The correct statement: **Amazon Bedrock is the
+  receiving processor and the AWS BAA of 2026-02-07 is the operative instrument**; Anthropic, PBC
+  is the model provider, not the receiving processor. Scrubbed prompts (`lib/pii_scrubber.rb`) are
   classified as receiving pseudonymized personal data, not anonymous or de-identified data
   (direct identifiers removed by design, but still personal data under GDPR/UK-GDPR). OpenAI is
   contracted but has no active data flow as of 2026-07-06 (see the register, row 3). Google Gemini
@@ -322,8 +325,7 @@ BAA, and SCCs for project `lingolinq-prod` are accepted and recorded in
 a subprocessor. There is no `*.onrender.com` host under LingoLinq control; those subdomains are
 re-registrable by third parties and must never be cited as ours. Before deletion both Render
 PostgreSQL instances were archived and restore-verified on 2026-09-08 into
-`gs://lingolinq-prod-render-archive`, held in LingoLinq's own GCP project under a one-year
-retention policy of one year that is NOT locked and is therefore removable by a project admin.
+`gs://lingolinq-prod-render-archive`, held in LingoLinq's own GCP project under a retention policy of one year that is NOT locked and is therefore removable by a project admin.
 
 Redis TLS (LL-6619cc1811) is **verified-closed** (2026-07-22) with in-context Cloud Run `rediss://`
 evidence and Scot attestation. The Render Postgres public-allowlist finding (LL-aacae48768,
@@ -400,6 +402,13 @@ over them.
 > **NOT RE-MADE FOR v1.3.2.** The re-attestation *statement* below is the **v1.3 attestation as
 > signed on 2026-08-20**, reproduced byte-for-byte: its first-person voice and its dates are the
 > predecessor's, and no word of that statement has been re-made for v1.3.1 or v1.3.2.
+> **Render decommission note, added 2026-09-14, OUTSIDE the signed statement.** Clauses 2, 3, 4 and
+> 5 below describe Render as a live write-frozen rollback fallback. That was true when Scot signed
+> this statement on 2026-08-20. Render was decommissioned and the workspace deleted on 2026-09-09.
+> Those clauses are deliberately left UNALTERED: they are the signed text, and correcting a signed
+> statement in place would destroy the record of what was actually attested. Read them as the state
+> at 2026-08-20. The corrected current position is in section 11 and the gate table above.
+>
 > **The metadata table beneath the statement is NOT part of what was signed**, and it does carry
 > this successor's corrections: the 2026-08-12 run size (46 -> 40, correction 1), the `HEAD` ->
 > `` `64cdccba1` `` pinning (correction 2), the `open` -> `live` severity relabel (correction 4),
@@ -436,14 +445,13 @@ the predecessor was attested 2026-08-04):
    it actually exists after the Gate 1 GCP DNS cutover, not as we aspire for it to be.
 2. The infrastructure posture described in Section 11 is accurate: `app.lingolinq.com` serves from
    Google Cloud Platform on Cloud Run behind the Google Cloud load balancer, using Cloud SQL
-   PostgreSQL and Memorystore Redis. Render was decommissioned on 2026-09-09 and is no longer a
-   rollback fallback; there is no non-GCP hosting path.
+   PostgreSQL and Memorystore Redis, while Render remains a write-frozen rollback fallback pending
+   explicit decommission.
 3. The vendor and BAA posture described here is accurate for the live hosting path: AWS remains the
    storage/email provider under the AWS BAA, Google Cloud Platform is the active infrastructure
    host under the accepted GCP CDPA / HIPAA BAA / SCCs, Anthropic is the designated runtime AI
-   provider under the executed HIPAA-Ready BAA, and Render is no longer listed as an active
-   subprocessor: its fallback data and services were deleted on 2026-09-09, with the row retained
-   in the subprocessor register as history under an end date. **Corrected 2026-08-01, re-corrected 2026-08-04:** this clause
+   provider under the executed HIPAA-Ready BAA, and Render remains listed only because fallback data
+   and services still exist. **Corrected 2026-08-01, re-corrected 2026-08-04:** this clause
    previously read "Anthropic is the *active* runtime AI provider", and was then over-corrected to
    assert the Bedrock route had never been operational. The accurate statement is a closed window:
    the Bedrock route was operational from 2026-08-03T08:23Z to 2026-08-04T06:31Z (revision
@@ -454,12 +462,11 @@ the predecessor was attested 2026-08-04):
 4. This re-attestation does not close, downgrade, or supersede any finding by itself. Finding
    status remains governed by `audit-reports/FINDINGS.json`. Redis TLS (LL-6619cc1811) is
    verified-closed. LL-f150e0e828 still needs functional offboarding-consent remediation;
-   LL-7f7372e3eb is verified-closed (2026-08-29). LL-aacae48768's precondition, deletion or
-   restriction of the Render fallback, was satisfied on 2026-09-09, so it is now eligible for
-   disposition; recording that disposition remains the CEO's act, not this document's.
+   LL-aacae48768 (accepted-risk) and LL-7f7372e3eb remain Render-tail / console-control items until
+   the fallback is deleted or restricted and the console AuditEvent gap is verified closed.
 5. The items flagged for counsel in Section 14, customer notice timing for the new active GCP
-   infrastructure subprocessor listing, and external release of any summary remain separate
-   decisions. The Render decommission is no longer among them: it completed 2026-09-09. This document is internal and is not authorized for external sharing,
+   infrastructure subprocessor listing, Render decommission, and external release of any summary
+   remain separate decisions. This document is internal and is not authorized for external sharing,
    in full or in summary, until I explicitly release a version for that purpose.
 
 This attestation reflects the register's audited commit and the infrastructure state last verified
@@ -474,7 +481,7 @@ opinion, or a guarantee of compliance.
 | Posture at `64cdccba1` (v1.3, attested 2026-08-20) | 0 live Critical / 20 live High / 52 live Medium / 40 live Low (publisher convention), per `audit-reports/FINDINGS.json` |
 | Infrastructure state verified | 2026-07-22 Gate 1 DNS cutover: `app.lingolinq.com` live on GCP load balancer IP `136.68.41.122`; Redis PONG captured from Cloud Run execution `lingolinq-migrate-vl5d5` at 2026-07-22T05:00:46Z (`ping=PONG`, `scheme=rediss`, `ca_blocks=1`, `verify_hostname=false`). `ca_blocks=1` is the expected Memorystore instance-CA chain length for this endpoint; `verify_hostname=false` is the documented pinned-CA/private-IP hatch while CA-chain verification remains on. Render was decommissioned 2026-09-09 (workspace deleted; 0 services, 0 databases, 0 disks) and is no longer a rollback fallback. LL-6619cc1811 verified-closed. **The GCP rows were not re-verified against live infrastructure for this successor** (register-and-code-only pass); they carry forward the 2026-07-22/23 live verification. The Render deletion and the `gs://lingolinq-prod-render-archive` retention policy WERE verified live on 2026-09-14, including that the policy is NOT locked. Re-check GCP/AWS state before relying on this for anything infrastructure-sensitive. |
 | Attested by | NOT YET ATTESTED - awaiting Scot Wahlquist, CEO (v1.3.2) |
-| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3); v1.3.1 pending |
+| Attestation date | 2026-06-18 (v1.0); 2026-07-22 (v1.1); 2026-08-04 (v1.2); 2026-08-20 (v1.3); v1.3.1 never attested; v1.3.2 pending |
 
 _Once attested, the canonical home for this document is the repository at
 `docs/legal/COMPLIANCE_PROGRAM.md`, alongside the evidence it indexes. Moving it there is a

@@ -122,7 +122,7 @@ reviewers.
 - **A retention end-condition fired.** The Render backup row carried "ends when the Render fallback
   is decommissioned". That is now met. The 35 day Render-managed window is ENDED and a new row
   records the replacement: `gs://lingolinq-prod-render-archive`, verified live 2026-09-14 as a
-  one-year immutable lock (`retentionPeriod` 31,557,600s, effective 2026-09-02T17:30:22Z, NEARLINE,
+  one-year retention policy that is NOT locked (`retentionPeriod` 31,557,600s, effective 2026-09-02T17:30:22Z, `isLocked` absent, NEARLINE,
   public access prevention enforced, uniform bucket-level access, 7 day soft-delete).
 - **n8n MOVED, it did not end.** It is a live Cloud Run service in `lingolinq-nonprod`. Its
   subprocessor row is relocated, not terminated. Terminating it would have been wrong.
@@ -138,7 +138,7 @@ reviewers.
    account-deletion email).
 2. Whether Render retains residual copies after account deletion. Not confirmed with the vendor.
    Every successor says so rather than asserting Render holds nothing.
-3. The archive's retention lock refuses deletion for a year, so an Article 17 erasure request
+3. The archive's retention policy blocks object deletion while it stands, but it is NOT locked, so an Article 17 erasure request
    cannot be executed against it inside that window. Prod carried no real users at cutover; the
    2.4 GB dev/staging dump has not been assessed for real content.
 
@@ -234,8 +234,44 @@ the compliance calendar item `rev-gdpr-subprocessor-quarterly`, which my edit br
 
 **A targeted correction does not reset the review clock.** Every successor now INHERITS its
 predecessor's `nextReviewDue`; `lastReviewed` is 2026-09-14 and says explicitly that the review was
-targeted, not a full re-review. Verified: 0 date mismatches between the nine files and their
-register rows.
+targeted, not a full re-review. Verified: 0 mismatches between the nine files' `**Next review:**` headers and their register rows.
+**Scope of that check, stated honestly:** it matched only the `**Next review:**` header form. Four
+of the nine carry no review line at all, and `2026-09-14_compliance-data-governance.md:39` uses a
+different form (`Review cycle: Annual (next review: 2027-02-21)`) that still disagrees with its
+register row. That mismatch is inherited from the predecessor, so nothing regressed, but the
+earlier phrasing "0 date mismatches" overclaimed and is corrected here.
+
+### Round 2, adversary: 10 of 12 closed, 5 new, and one I found myself
+
+**N1 (High) was caused BY the round-1 fix.** Round 1 repointed three citations to
+`2026-09-14_subprocessor-register.md:101`, verified correct at the time. Commit `43c31d198` then
+inserted a `**Next review:**` line near the top of that file, shifting every row down one. Line 101
+became the **OpenAI** row; the Anthropic claim moved to 102. Three legal citations in a
+`security-review`-bundle document pointed at the wrong vendor, and no gate sees prose citations.
+
+Fixed by removing the line anchors entirely and naming the row instead
+("`…subprocessor-register.md` row 4 (Anthropic, PBC)"). Re-anchoring to `:102` would have been the
+same bug waiting to happen, because the file is a draft and will move again. The adversary resolved
+all 22 line-anchored legal citations across the nine successors: the 19 pointing into FROZEN
+predecessors were all correct; the only three wrong were the three that had been "fixed".
+
+**A signed statement had been edited, which neither reviewer caught.**
+`2026-09-14_compliance-program.md` reproduces the v1.3 attestation statement Scot signed on
+2026-08-20, under a guard reading "reproduced byte-for-byte: no word of that statement has been
+re-made", which also says the metadata table beneath it is NOT part of what was signed and may
+carry corrections. I had edited four numbered clauses INSIDE the signed statement to reflect the
+decommission.
+
+Restored byte-for-byte against the predecessor, verified by diff. The decommission is now recorded
+in a dated note placed OUTSIDE the statement, saying those clauses were true on 2026-08-20 and
+should be read as the state at that date. **Editing a signed statement in place destroys the record
+of what was actually attested**; the same principle as never editing an attested file.
+
+Other round-2 fixes: N2 (the register description said "only the Render paragraph changes" after
+the BAA attribution had also changed, so the attester's index understated the most consequential
+edit; a new `ATTESTER MUST CONFIRM (0)` names it), N3 (the inherited-content sweep had stopped at
+one file; section 7 still named a two-generations-stale register and called the AI path "not
+operational as of 2026-08-04"), N4, N5, and the F10 table pad moved into the correct column.
 
 ### The one that mattered
 

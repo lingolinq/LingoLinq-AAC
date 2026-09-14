@@ -158,8 +158,7 @@ history of who processed data and when, not a current-only list. The Render DPA 
 retained under the vendor-agreement retention rule.
 
 Before deletion, both Render PostgreSQL instances were archived by LingoLinq on 2026-09-08 and
-restore-verified. The archive is held in `gs://lingolinq-prod-render-archive` under a one-year
-bucket retention policy of one year that is NOT locked, in LingoLinq's own GCP project, and is therefore not a Render
+restore-verified. The archive is held in `gs://lingolinq-prod-render-archive` under a bucket retention policy of one year that is NOT locked, in LingoLinq's own GCP project, and is therefore not a Render
 processing activity. See the retention schedule for that row.
 
 **Not yet confirmed:** whether Render retains residual copies after account deletion, and on what

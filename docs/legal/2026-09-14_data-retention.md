@@ -38,7 +38,7 @@ PR #569 (2026-07-10) and PR #656 (2026-07-22) rewrote the AI-log retention rows,
 reflect until the 2026-07-23 correction below. Re-attested 2026-07-23 against the then-current
 revision. This 2026-08-09 draft supersedes that attested cut for the Flusher erasure updates in
 PR #721 and awaits CEO attestation.
-**Related:** `docs/legal/BREACH_RUNBOOK.md`, `docs/legal/SUBPROCESSORS.md`, `COMPLIANCE.md`
+**Related:** `docs/legal/2026-09-14_incident-response-breach-runbook.md`, `docs/legal/2026-09-14_subprocessor-register.md`, `docs/legal/2026-09-14_compliance-data-governance.md` (the current heads; the predecessors `BREACH_RUNBOOK.md`, `SUBPROCESSORS.md` and `COMPLIANCE.md` remain frozen)
 
 ## 1. Purpose
 
