@@ -695,15 +695,16 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
 - Hypotheses, all PLAUSIBLE and none executed: (a) speech: the `runLater` at `:915` fires after the
   test body returns and, intermittently, after teardown has restored the real `speak`, handing it
   the fake utterance built under the stub. Within-run timing supports a late timer: in each failing
-  run test 2469 took about 500 ms longer than its neighbours 2470 and 2471 (1629-1724 ms against
-  1159-1304 ms; runs 34787748239, 34788511177, 34789100356, 34798323491, 34809269466, 34810879687),
-  while in every passing run on this branch and in both comparators it matched them (1038/1036,
+  run test 2469 took 430 to 520 ms longer than the mean of its neighbours 2470 and 2471 (1629-1724 ms
+  against 1159-1304 ms; runs 34787748239, 34788511177, 34789100356, 34798323491, 34809269466, 34810879687),
+  while in every passing run on this branch on the 2687 base and in both comparators it matched them (1038/1036,
   1075/1092, 949/952, 810/815, 923/920 ms; runs 34787002914, 34809987003, 34811882616, 34784704398,
   34786101021). Read from the job logs on 2026-09-14; a reading, not a reproduction. The TypeError itself cannot occur in production, where the
   constructor is native; whether the same late timer re-enters `speak_utterance` in production (a
   stale timer speaking or cancelling during a live session) is untested and is a separate question
-  for the owner. (b) Storage: the never-cleared 2-second interval fires inside the test's await
-  window while the bare object is installed; its phase relative to any test boundary depends on
+  for the owner. (b) Storage: the never-cleared 2-second interval fires while the bare object is installed,
+  which is from the `stubStorage` call until `afterEach` restores the real storage (the test's own
+  promise chain is native microtasks, so the exact scheduling gap is QUnit's, unverified); its phase relative to any test boundary depends on
   cumulative elapsed suite time, which #963's added tests changed, so suite composition is not
   ruled out. (c) Why now: #963 added 158 tests and 33 test files, changing suite order and timing
   (both failing tests passed on the 2529 base as tests 2314 and 156); #963's `get_tts_voices()`
@@ -737,9 +738,9 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   > only test 157 `boards-layout-toggle` with `TypeError: localStorage.getItem is not a function`
   > at `capabilities.sync_access_token` (`capabilities.js:305`), called by the 2-second
   > `setInterval` at `capabilities.js:320-326` that nothing clears, while the test holds a bare
-  > `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) across its await (`:223`); two sibling
-  > tests in that module do the same (`:229` with `:238`, `:243` with `:253`), so a fix belongs in the
-  > module's hooks or in interval ownership, not in one test. Both tests
+  > `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) from that call until `afterEach` restores the real storage (`:29-38`); two sibling tests in that
+  > module do the same (`stubStorage` at `:231` and `:245`), so a fix belongs in the module's hooks
+  > or in interval ownership, not in one test. Both tests
   > passed on the 2529 suite before #963 (166 files, 33 new test files, +158 tests). The only two
   > runs on this base outside #962 (`develop` 34784704398, PR 34786101021) passed; that is a
   > control set of two. Runs 34811882616 and 34812849886 were pending at the stamp. Cause
@@ -836,14 +837,28 @@ was rebased onto #961 earlier). The PR body's "two most recent heads" is replace
 ids. The note says three tests in the `boards-layout-toggle` module hold the storage stub across
 an await, so the fix belongs in the module's hooks or in interval ownership. The pre-move range
 parenthetical is dropped. Run 34811882616 (`1940d17c0`) passed at 06:34:39Z, after the stamp;
-the record does not count it.
+the branch tally (stamped 06:32Z) does not count it; the timing reading, dated 2026-09-14, does.
 Process note: the first attempt at this commit (`800401f28`) applied only the timing and
 parenthetical edits because the edit script stopped on a blockquote prefix; the rest landed in the
 following commit and round 22 was restarted against it.
+
+## PR A1 dual review round 22 (head eef46b4b7, prose only) and fixes
+
+Findings file `dual-review-round22-pra1.md`. Codex: approve, no findings. Adversary: approve,
+1 Medium, 5 Low, all prose; every timing figure re-pulled and exact. Code unchanged and approved
+since `38559fd0e`. Addressed above in single clauses: the round-21 entry said the record does not
+count the post-stamp run while the timing sentence in the same round used it (now: the stamped
+tally does not, the dated timing reading does); "every passing run on this branch" scoped to the
+2687 base (on the 2529 base test 2469 is a different test); "about 500 ms" is a 430 to 520 ms
+range against the neighbour mean; the sibling locators point at the `stubStorage` calls; the
+storage stub is live from its call until `afterEach` restores it, not "across its await" (the
+test's promises are native microtasks; the scheduling gap is QUnit's, unverified). Commit
+`800401f28`'s subject over-describes its contents; left as pushed history, disclosed here and in
+the PR body.
 
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-21 applied; round 22 re-review pending on prose only) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-22 applied; round 23 re-review pending on prose only) -> A2 -> B -> C.
