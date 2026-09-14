@@ -687,18 +687,20 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   dozen `runLater` call sites exist in the file. Storage: the `boards-layout-toggle` test installs a
   bare `{}` as `window.localStorage` via `stubStorage` (`:40-42`, called at `:214`) from that call
   until `afterEach` restores the real storage (`:29-38`); the test's own promise chain (`:223`) is
-  native microtasks, so the exact scheduling gap is QUnit's, unverified. `capabilities.sync_access_token` reads
-  `localStorage.getItem('debug_tokens')` behind a `typeof localStorage !== 'undefined'` guard that a
+  native microtasks, so the exact scheduling gap is QUnit's, unverified.
+  `capabilities.sync_access_token` reads `localStorage.getItem('debug_tokens')` behind a
+  `typeof localStorage !== 'undefined'` guard that a
   bare object passes (`capabilities.js:305`), and it is called every 2000 ms by a `setInterval`
   installed at `capabilities.js:320-326` that nothing clears (`git grep clearInterval` over
   `app/frontend/app` and `app/frontend/tests` finds only the weblinger poll and `eval_gazer`); the
   caller frame delta (+18) matches `:305` to `:323`.
-- Completed after the stamp, read 2026-09-14T07:24Z, not counted above: 34811882616 (`1940d17c0`)
-  passed at 06:34:39Z (test 2469 at 949 ms against neighbours 952 and 952); 34812849886 (`f30c81bb4`)
-  failed at 06:55:21Z on test 2469, `# tests 2687`, `# fail 1` (1723 ms against 1189 and 1187, an
-  excess of 535 ms, outside the stamped range); 34814024174 (`3f336d05d`) passed at 07:05:12Z (947
-  against 943 and 937) and 34815070935 (`eef46b4b7`) passed at 07:19:56Z (944 against 942 and 943),
-  both `# tests 2687`; 34815003904 (`800401f28`) and 34815918413 (`53dbb4ebd`) were in progress.
+- Runs completing after the stamp are not enumerated in this record. Every commit to this branch
+  starts a run that completes after that commit's read time, so no list here can be current; the
+  stamped tally above is the fixed sample this record reasons from. Post-stamp runs read while
+  reviewing (rounds 23 and 24, dated in their entries below) both passed and failed on the same
+  test with no code change, and one exceeded the stamped range, so the range is a reading of six
+  runs, not a bound. Current state: `gh run list --workflow CI --branch
+  scot/chore/render-dead-config-removal`.
 - Hypotheses, all PLAUSIBLE and none executed: (a) speech: the `runLater` at `:915` fires after the
   test body returns and, intermittently, after teardown has restored the real `speak`, handing it
   the fake utterance built under the stub. Within-run timing supports a late timer: in each of the six
@@ -706,9 +708,9 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   against 1159-1304 ms; runs 34787748239, 34788511177, 34789100356, 34798323491, 34809269466, 34810879687),
   while in both passing runs stamped above and in both comparators it matched them (1038/1036,
   1075/1092, 810/815, 923/920 ms; runs 34787002914, 34809987003, 34784704398, 34786101021).
-  Read from the job logs on 2026-09-14; a reading, not a reproduction. One rule for this record:
-  every number is as of the 06:32Z stamp; runs completing later are listed in the post-stamp
-  bullet with their own readings and are not folded into the range. The TypeError itself cannot occur in production, where the
+  Read from the job logs on 2026-09-14; a reading, not a reproduction. Every number in this record
+  is as of the 06:32Z stamp; later runs are not enumerated (bullet above).
+  The TypeError itself cannot occur in production, where the
   constructor is native; whether the same late timer re-enters `speak_utterance` in production (a
   stale timer speaking or cancelling during a live session) is untested and is a separate question
   for the owner. (b) Storage: the never-cleared 2-second interval fires while the bare object is installed,
@@ -747,15 +749,16 @@ carry an as-of stamp and run ids; totals are avoided because runs keep completin
   > only test 157 `boards-layout-toggle` with `TypeError: localStorage.getItem is not a function`
   > at `capabilities.sync_access_token` (`capabilities.js:305`), called by the 2-second
   > `setInterval` at `capabilities.js:320-326` that nothing clears, while the test holds a bare
-  > `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) from that call until `afterEach` restores the real storage (`:29-38`); two sibling tests hold it the
-  > same way across a returned promise (`stubStorage` at `:231` and `:245`), and the module's other
-  > eight bare-object installs (eleven tests; one call site sits in a four-key loop) hold it across a
-  > synchronous body, so a fix belongs in the module's hooks or in interval ownership, not in one test. Both tests
+  > `{}` as `localStorage` (`stubStorage`, `:40-42`, `:214`) from that call until `afterEach`
+  > restores the real storage (`:29-38`). Every `stubStorage` install in that module is a plain
+  > object with no `getItem`, the property the interval reads; three tests hold it across a
+  > returned promise (`:214`, `:231`, `:245`) and the rest across a synchronous body, so a fix
+  > belongs in the module's hooks or in interval ownership, not in one test. Both tests
   > passed on the 2529 suite before #963 (166 files, 33 new test files, +158 tests). The only two
   > runs on this base outside #962 (`develop` 34784704398, PR 34786101021) passed; that is a
-  > control set of two. Runs 34811882616 and 34812849886 were pending at the stamp; the
-  > first passed at 06:34:39Z, the second failed at 06:55:21Z on test 2469 (excess 535 ms), and the
-  > next two heads (34814024174, 34815070935) passed. Cause
+  > control set of two. Runs completing after that stamp are not tracked in this note; the failure
+  > has recurred on later heads with no code change and passed on others (`gh run list --workflow
+  > CI --branch scot/chore/render-dead-config-removal` is the current state). Cause
   > unconfirmed; please reproduce and trace timer ownership before assigning it.
 
 ## PR A1 dual review round 17 (head 38559fd0e) and fixes
@@ -840,7 +843,8 @@ rewritten. Lesson: a count of a live process is a time-stamped observation, neve
 Findings file `dual-review-round21-pra1.md`. Codex: approve, no findings. Adversary: request-changes,
 2 Medium, 4 Low, all prose. Code unchanged and approved since `38559fd0e`.
 Addressed above: the "810-923 ms in the passing ones" range I added in round 20 was the two
-other-branch comparators, not this branch's passing runs (1038, 1075, 949 ms), and it confounded
+other-branch comparators, not this branch's passing runs (1038, 1075, 949 ms; the 949 is a
+post-stamp run, superseded in round 24), and it confounded
 runner speed with the effect; replaced with the within-run excess of test 2469 over its neighbours
 (about +500 ms in every failing run, about zero in every passing run and both comparators;
 superseded in round 22), with run ids, read from the job logs. The round-19 entry's "not order-dependent" is annotated as
@@ -879,17 +883,39 @@ the timing reading, and the seventh failing run (34812849886, 06:55:21Z, excess 
 outside the 430 to 520 ms range while the pending-run note reported only the post-stamp pass.
 Restructured once rather than patched twice: every number in the CI record is now as of the 06:32Z
 stamp (the range is scoped to the six stamped failures and the passing set to the two stamped
-passes), and one dated bullet lists every post-stamp completion with its outcome and its own
-reading, in the record, the owner note and the PR body. The Lows: the facts bullet's "across its
+passes), and one dated bullet in the record listed every post-stamp completion with its outcome
+and reading (the note and body carried outcomes only; the enumeration itself is dropped in
+round 24). The Lows: the facts bullet's "across its
 own await" replaced with the call-to-`afterEach` lifetime (Codex and adversary); the owner note's
 "two sibling tests do the same" now distinguishes the two promise-returning siblings from the
-module's eight other bare-object installs (verified against `origin/develop`: eleven `stubStorage({})`
-call sites, three tests return a promise); the round-21 entry annotated where round 22 superseded
+module's eight other bare-object installs (a text grep of `stubStorage({})`; wrong, replaced in
+round 24 by the property every install shares); the round-21 entry annotated where round 22 superseded
 it, and the round-21 and round-22 clauses annotated where this round supersedes them.
+
+## PR A1 dual review round 24 (head 254a0ab1d, prose only) and fixes
+
+Findings file `dual-review-round24-pra1.md`. Codex: did not run; its OAuth refresh token was
+revoked between round 23 (07:03Z) and this launch (07:28Z), `codex login` needed. Adversary:
+request-changes, 3 Medium, 3 Low, all prose; every number in `254a0ab1d` re-pulled and exact.
+Code unchanged and approved since `38559fd0e`. The three Mediums and the round-22 and round-23
+Mediums are one defect: the record enumerated in-flight CI runs, and every commit starts a run
+that completes after that commit's read time, so each round moved the stale list one artifact
+further out (record, pending note, owner note, PR body). Closed structurally rather than patched:
+the record keeps the stamped tally as its fixed sample and a standing statement that later runs
+are not enumerated; the owner note and PR body say the failure recurs on later heads with no code
+change and point at `gh run list` for the current state. Observed while writing this entry, read
+2026-09-14T07:40Z and recorded here only as dated history: 34815003904 (`800401f28`) failed at
+07:26:01Z on test 2469 (1704 ms against 1188 and 1199, excess 510 ms) and 34815918413
+(`53dbb4ebd`) passed at 07:31:23Z (923 against 927 and 935), both `# tests 2687`. The owner
+note's "eight other bare-object installs (eleven tests)" was a grep count of `stubStorage({})`;
+the property that matters is that no install in the module has `getItem` (none exists in the
+file), so the count is replaced by the property. Lows: the round-23 entry's "in the record, the
+owner note and the PR body" scoped to the record; the round-21 entry's 949 ms annotated as
+post-stamp; the two run-on lines rewrapped.
 
 ## Status
 
 - [x] Phase 1 inventory (2026-09-12).
 - [x] Dual review round 1 on proposal v1: request-changes; v2 written (2026-09-12).
 - [x] Scot's go: A1/A2 split, K_REVISION only, delete preview-comment.yml (2026-09-12).
-- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-23 applied; round 24 re-review pending on prose only) -> A2 -> B -> C.
+- [ ] PR A1 #962 (draft; rebased onto #961; rounds 1-24 applied; round 25 re-review pending on prose only, adversary alone until Codex is re-authenticated) -> A2 -> B -> C.
