@@ -58,12 +58,31 @@ entrypoint already defaults to `INTERVAL=0.1` (`bin/docker-worker-entrypoint:10`
 than the recommendation ever asked for. The recommendation is marked superseded rather than
 deleted, since the reasoning still explains the default.
 
+## Agent and skill config (after #962 merged)
+
+#962 merged 2026-09-14 as `c0e632190`. `render.yaml`, `bin/render-build.sh` and `bin/push_deploy`
+are gone; `Procfile` is present.
+
+Three files carried the same sentence: "`render.yaml`, `bin/render-build.sh` and `Procfile` are
+legacy files". That sentence had two errors, one new and one that predates the decommission.
+
+1. It names two files that no longer exist.
+2. It calls `Procfile` legacy. `Procfile` is the LOCAL development process definition, read by
+   `foreman start` per `README.md:124-131`. That was already wrong before #962.
+
+Rewritten in `.claude/rules/deploy.md`, `.claude/agents/infra-auditor.md`, and
+`.claude/skills/soc2-security-audit/SKILL.md`.
+
+**Do not tell auditors those citations are broken.** `citation-check.rb` anchors evidence to a
+recorded `file@sha`, not to HEAD, so the three register findings citing `render.yaml`
+(LL-7314b5a8ea, LL-107c9fb665, LL-c5fe9e2e3e) still resolve after the deletion. Verified: 195 PASS,
+3 FAIL, and all three failures are pre-existing `app/models/lesson.rb` / `webhook.rb` citations at
+sha `e37817432a58`, byte-identical in `FINDINGS.json` at `e8cea7329` before the merge.
+
 ## Not in scope, still outstanding
 
-- Three sentences claiming `render.yaml`, `bin/render-build.sh` and `Procfile` are all legacy files
-  go false when #962 merges, because it deletes the first two while `Procfile` survives and is
-  still read by `foreman start`: `.claude/rules/deploy.md:15-16`,
-  `.claude/agents/infra-auditor.md:68`, `.claude/skills/soc2-security-audit/SKILL.md:34`.
+- `develop` CI was already red on `build-and-test` at `e8cea7329`, before #962 merged. #962's own
+  head was green on all six required checks. The red is the Ember test-isolation flake family.
 - Compliance documents still describing Render as a live fallback. These are attested and
   hash-pinned, so they need dated successors rather than in-place edits.
 - Register findings the decommission resolves: LL-7314b5a8ea, LL-107c9fb665, LL-aacae48768,

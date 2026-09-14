@@ -31,8 +31,11 @@ Read-only: produce findings, never change code or infrastructure.
 - [ ] Secrets from env / Secret Manager, never hardcoded; no secrets in git history.
 - [ ] GCP/AWS services follow least-privilege (Cloud Run service accounts, Secret Manager
       bindings, Workload Identity Federation in the deploy workflow, S3/SES/SNS IAM).
-      `render.yaml`, `bin/render-build.sh` and `Procfile` are legacy files from the retired
-      Render platform (deleted 2026-09-09): historical only, never the deployed configuration.
+      `Procfile` is the LOCAL development process definition read by `foreman start`
+      (`README.md`), never the deployed configuration and not Render residue. `render.yaml`
+      and `bin/render-build.sh` no longer exist, deleted in PR #962 after the 2026-09-09
+      decommission. Existing register findings that cite them stay valid: evidence is anchored
+      to a recorded `file@sha`, not to HEAD. Do not raise a NEW finding against either path.
 
 ### Change management (CC8)
 - [ ] CI/CD exists; tests run before deploy; branch protection; code review required; rollback.
